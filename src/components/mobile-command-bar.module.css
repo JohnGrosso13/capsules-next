@@ -5,39 +5,25 @@
   .bar { display: block; }
 }
 
-.inner { max-width: 820px; margin: 0 auto; padding: 8px 14px calc(12px + env(safe-area-inset-bottom)); pointer-events: none; }
+.inner { max-width: 100%; margin: 0; padding: 6px 0 env(safe-area-inset-bottom); pointer-events: none; }
 
-.dock {
-  position: relative;
-  display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px;
-  border-radius: 20px; border: 1px solid var(--rail-border, rgba(255,255,255,0.16));
-  background:
-    radial-gradient(140% 160% at 50% 0%, rgba(99,102,241,0.22), transparent 70%),
-    linear-gradient(180deg, var(--rail-bg-1, rgba(255,255,255,0.09)), var(--rail-bg-2, rgba(255,255,255,0.05)));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(2,6,23,0.50), 0 22px 42px rgba(5,10,30,0.42);
-  backdrop-filter: blur(18px) saturate(145%);
-  -webkit-backdrop-filter: blur(18px) saturate(145%);
-  padding: 10px; align-items: center; pointer-events: auto;
-}
+.dock { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 6px; border-radius: 16px 16px 0 0; border: 1px solid var(--rail-border, rgba(255,255,255,0.16)); border-bottom-width: 0; background: linear-gradient(180deg, var(--rail-bg-1, rgba(255,255,255,0.09)), var(--rail-bg-2, rgba(255,255,255,0.05))); box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 -1px 0 rgba(2,6,23,0.35), 0 14px 32px rgba(5,10,30,0.35); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); padding: 8px; align-items: center; pointer-events: auto; }
 
-.btn { display: grid; place-items: center; gap: 4px; padding: 8px 6px; border-radius: 14px; border: 1px solid var(--pill-border, rgba(255,255,255,.14));
-  background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,.08)), var(--glass-bg-2, rgba(255,255,255,.04))); color: var(--text-2);
-  font-weight: 700; font-size: 12px; line-height: 1; text-align: center; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; min-height: 56px; }
+.btn { display: grid; place-items: center; gap: 4px; padding: 6px 4px; border-radius: 12px; border: 1px solid var(--pill-border, rgba(255,255,255,.14)); background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,.08)), var(--glass-bg-2, rgba(255,255,255,.04))); color: var(--text-2); font-weight: 700; font-size: 11px; line-height: 1; text-align: center; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; min-height: 48px; }
 .btn svg { width: 20px; height: 20px; display:block; }
 .btn:hover { border-color: rgba(255,255,255,.24); transform: translateY(-2px); box-shadow: 0 12px 26px rgba(5,10,30,0.28); }
 .btn:active { transform: translateY(0); }
 
-.active { color: var(--text-on-brand, #0e1024); border-color: transparent; background: linear-gradient(120deg, var(--brand-from,#8b5cf6), var(--brand-mid,#6366f1), var(--brand-to,#22d3ee)); box-shadow: 0 0 18px var(--accent-glow, rgba(99,102,241,.34)), 0 6px 12px rgba(2,6,23,.38), inset 0 1px 0 rgba(255,255,255,.45); }
+.active { color: var(--text-on-brand, #0e1024); border-color: transparent; background: linear-gradient(120deg, var(--brand-from,#8b5cf6), var(--brand-mid,#6366f1), var(--brand-to,#22d3ee)); box-shadow: 0 0 12px var(--accent-glow, rgba(99,102,241,.28)), 0 6px 12px rgba(2,6,23,.30), inset 0 1px 0 rgba(255,255,255,.45); }
 
 .command { grid-column: 3; position: relative; z-index: 2; }
-.commandBtn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding: 12px; border-radius: 18px; border: 1px solid transparent; background: linear-gradient(135deg, rgba(147,197,253,0.28), rgba(99,102,241,0.20)); color: var(--text-on-brand, #0e1024); text-transform: uppercase; font-size: 11px; letter-spacing:.08em; font-weight: 800; box-shadow: 0 16px 36px rgba(79,70,229,0.45), inset 0 1px 0 rgba(255,255,255,0.55); }
-.commandGlow { position:absolute; inset:-12px; border-radius:24px; background: radial-gradient(120% 120% at 50% 50%, rgba(56,189,248,0.34), transparent 68%); filter: blur(16px); opacity:.75; pointer-events:none; }
+.commandBtn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding: 10px; border-radius: 14px; border: 1px solid var(--pill-border, rgba(255,255,255,.18)); background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,.10)), var(--glass-bg-2, rgba(255,255,255,.06))); color: var(--text); font-size: 11px; letter-spacing:.06em; font-weight: 800; min-height: 48px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.22); }
+.commandGlow { position:absolute; inset:-6px; border-radius:18px; background: radial-gradient(120% 120% at 50% 50%, rgba(56,189,248,0.22), transparent 70%); filter: blur(12px); opacity:.6; pointer-events:none; }
 .commandStatus { width: 6px; height: 6px; border-radius: 999px; background: #22d3ee; box-shadow: 0 0 10px rgba(34,211,238,0.8); }
 
 .moreWrap { position: relative; display:flex; align-items:center; justify-content:center; }
-.sheet { position: absolute; right: 0; bottom: calc(100% + 16px); width: 260px; border-radius: 18px; border: 1px solid var(--card-border); background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2)); box-shadow: var(--card-shadow); padding: 10px; display: grid; gap: 8px; }
+.sheet { position: absolute; right: 0; bottom: calc(100% + 12px); width: 260px; border-radius: 16px; border: 1px solid var(--card-border); background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2)); box-shadow: var(--card-shadow); padding: 8px; display: grid; gap: 6px; }
 .sheet::before { content:""; position:absolute; right:20px; bottom:-12px; width: 24px; height:24px; transform: rotate(45deg); border-radius:4px; background: inherit; border: inherit; border-top: none; border-left: none; }
 .sheetItem { display:flex; align-items:center; gap: 10px; padding: 10px 12px; border-radius: 12px; font-weight: 700; color: var(--text); border: 1px solid rgba(255,255,255,0.12); background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2)); }
 .sheetItem:hover { border-color: rgba(255,255,255,0.22); }
 .sheetItem svg { width:18px; height:18px; }
-

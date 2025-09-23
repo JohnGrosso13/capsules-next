@@ -9,6 +9,7 @@ export function MobileCommandBar() {
   const pathname = usePathname() || "/";
   const [open, setOpen] = React.useState(false);
   const moreRef = React.useRef<HTMLDivElement | null>(null);
+  const barRef = React.useRef<HTMLElement | null>(null);
 
   React.useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -17,13 +18,26 @@ export function MobileCommandBar() {
     const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onEsc);
-    // Reserve space for the dock globally on mobile
+    // Reserve space for the dock globally on mobile (measure live height)
     const root = document.body;
     root.classList.add("has-mobile-dock");
-    root.style.setProperty("--mobile-dock-height", "88px");
+    const measure = () => {
+      const el = barRef.current;
+      if (!el) return;
+      const h = el.getBoundingClientRect().height;
+      root.style.setProperty("--mobile-dock-height", `${Math.round(h)}px`);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (barRef.current) ro.observe(barRef.current);
+    window.addEventListener("orientationchange", measure);
+    window.addEventListener("resize", measure);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onEsc);
+      window.removeEventListener("orientationchange", measure);
+      window.removeEventListener("resize", measure);
+      try { ro.disconnect(); } catch {}
       root.classList.remove("has-mobile-dock");
       root.style.removeProperty("--mobile-dock-height");
     };
@@ -40,7 +54,7 @@ export function MobileCommandBar() {
   }
 
   return (
-    <nav className={styles.bar} aria-label="Capsules mobile command bar" data-fixedlayer="true">
+    <nav ref={barRef} className={styles.bar} aria-label="Capsules mobile command bar" data-fixedlayer="true">
       <div className={styles.inner}>
         <div className={styles.dock} data-surface="ai-dock">
           <Link href="/" className={`${styles.btn} ${pathname === "/" ? styles.active : ""}`} aria-label="Home" aria-current={pathname === "/" ? "page" : undefined} {...intentAttrs("navigate_home")}>
