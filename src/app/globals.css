@@ -13,8 +13,8 @@
   --glass-bg-1: rgba(255,255,255,0.10);
   --glass-bg-2: rgba(255,255,255,0.05);
   --pill-radius: 999px;
-  --prompt-glow-opacity: .54;
-  --prompt-glow-blur: 18px;
+  --prompt-glow-opacity: .28;
+  --prompt-glow-blur: 14px;
 
   /* Header */
   --header-glass-top: rgba(255,255,255,.10);
@@ -22,8 +22,8 @@
   --header-tint-from: rgba(72, 86, 182, .28);
   --header-tint-to: rgba(22, 28, 66, .22);
   --header-border-color: rgba(255,255,255,0.14);
-  --header-shadow: rgba(5,10,26,0.42);
-  --accent-glow: rgba(99,102,241,.34);
+  --header-shadow: rgba(5,10,26,0.28);
+  --accent-glow: rgba(99,102,241,.24);
 
   /* Typography accents */
   --heading-from: rgba(255,255,255,.99);
@@ -73,8 +73,8 @@
   --header-tint-from: rgba(226, 232, 255, .65);
   --header-tint-to: rgba(240, 249, 255, .55);
   --header-border-color: rgba(2,6,23,0.10);
-  --header-shadow: rgba(2,6,23,0.14);
-  --accent-glow: rgba(99,102,241,.22);
+  --header-shadow: rgba(2,6,23,0.10);
+  --accent-glow: rgba(99,102,241,.18);
 
   --pill-bg-1: rgba(255,255,255,.85);
   --pill-bg-2: rgba(255,255,255,.70);
