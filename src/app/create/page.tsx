@@ -77,7 +77,9 @@ export default function CreatePage() {
           </div>
         </section>
 
-        <ComposeForm />
+        <div className={styles.feedWidth}>
+          <ComposeForm />
+        </div>
       </main>
     </div>
   );
