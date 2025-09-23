@@ -193,8 +193,11 @@ function SettingsIcon(){
           <stop offset="1" stopColor="#22d3ee"/>
         </linearGradient>
       </defs>
-      <path d="M10 6.25A3.75 3.75 0 1 1 6.25 10 3.75 3.75 0 0 1 10 6.25Z" stroke="url(#mcSettings)" strokeWidth="1.4"/>
-      <path d="m3.9 7.24 1.2-.3m9.8 0 1.2.3m-12.2 5.52 1.2.3m9.8 0 1.2-.3M10 3.3v1.2m0 10.14v1.2" stroke="url(#mcSettings)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      <g stroke="url(#mcSettings)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="10" cy="10" r="5.4"/>
+        <circle cx="10" cy="10" r="2.6"/>
+        <path d="M10 2.4v2M17.6 10h-2M10 17.6v-2M2.4 10h2M4.6 4.6l1.4 1.4M15.4 4.6l-1.4 1.4M15.4 15.4l-1.4-1.4M4.6 15.4l1.4-1.4"/>
+      </g>
     </svg>
   );
 }
