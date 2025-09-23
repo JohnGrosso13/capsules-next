@@ -1,7 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 /* Base theme variables used across modules */
-:root {
+:root, :root[data-theme='dark'] {
   --text: rgba(255, 255, 255, 0.92);
   --text-2: rgba(255, 255, 255, 0.72);
   --glass-border: rgba(255, 255, 255, 0.16);
@@ -24,6 +24,11 @@
   --header-border-color: rgba(255,255,255,0.14);
   --header-shadow: rgba(5,10,26,0.42);
   --accent-glow: rgba(99,102,241,.34);
+
+  /* Typography accents */
+  --heading-from: rgba(255,255,255,.99);
+  --heading-to: rgba(210,220,255,.82);
+  --text-on-brand: #ffffff;
 
   /* Nav pills */
   --pill-bg-1: rgba(255,255,255,.06);
@@ -49,20 +54,60 @@
   --rail-bg-1: rgba(255,255,255,0.09);
   --rail-bg-2: rgba(255,255,255,0.05);
   --rail-border: rgba(255,255,255,0.16);
+
+  /* App background */
+  --app-bg: radial-gradient(1200px 600px at 0% 0%, rgba(99, 102, 241, 0.12), transparent 55%),
+            radial-gradient(900px 540px at 100% 0%, rgba(124, 58, 237, 0.10), transparent 58%),
+            radial-gradient(800px 520px at 50% 100%, rgba(236, 72, 153, 0.08), transparent 70%),
+            #050a1b;
+}
+
+/* Light theme overrides */
+:root[data-theme='light'] {
+  --text: rgba(14, 16, 36, 0.96);
+  --text-2: rgba(14, 16, 36, 0.72);
+  --glass-border: rgba(2, 6, 23, 0.16);
+
+  --header-glass-top: rgba(255,255,255,.65);
+  --header-glass-bottom: rgba(255,255,255,.45);
+  --header-tint-from: rgba(226, 232, 255, .65);
+  --header-tint-to: rgba(240, 249, 255, .55);
+  --header-border-color: rgba(2,6,23,0.10);
+  --header-shadow: rgba(2,6,23,0.14);
+  --accent-glow: rgba(99,102,241,.22);
+
+  --pill-bg-1: rgba(255,255,255,.85);
+  --pill-bg-2: rgba(255,255,255,.70);
+  --pill-border: rgba(2,6,23,.10);
+
+  --card-border: rgba(2,6,23,0.08);
+  --card-bg-1: rgba(255,255,255,0.95);
+  --card-bg-2: rgba(255,255,255,0.88);
+  --card-shadow: 0 18px 40px rgba(2,6,23,0.12);
+  --card-hover-bg-1: rgba(255,255,255,0.98);
+  --card-hover-bg-2: rgba(255,255,255,0.92);
+  --card-hover-border: rgba(2,6,23,0.16);
+  --card-hover-shadow: 0 22px 46px rgba(2,6,23,0.14);
+
+  --rail-bg-1: rgba(255,255,255,0.92);
+  --rail-bg-2: rgba(255,255,255,0.86);
+  --rail-border: rgba(2,6,23,0.10);
+
+  /* Typography accents */
+  --heading-from: rgba(18,20,40,0.98);
+  --heading-to: rgba(52,60,100,0.74);
+  --text-on-brand: #0e1024;
+
+  --app-bg: radial-gradient(1200px 600px at 0% 0%, rgba(180, 188, 255, 0.35), transparent 55%),
+            radial-gradient(900px 540px at 100% 0%, rgba(200, 210, 255, 0.30), transparent 58%),
+            radial-gradient(800px 520px at 50% 100%, rgba(147, 197, 253, 0.25), transparent 70%),
+            #f7f9ff;
 }
 
 html, body { margin: 0; padding: 0; min-height: 100%; }
 
 /* Default app background + text so pages look correct even before module CSS loads */
-body {
-  color: var(--text);
-  background:
-    radial-gradient(1200px 600px at 0% 0%, rgba(99, 102, 241, 0.12), transparent 55%),
-    radial-gradient(900px 540px at 100% 0%, rgba(124, 58, 237, 0.10), transparent 58%),
-    radial-gradient(800px 520px at 50% 100%, rgba(236, 72, 153, 0.08), transparent 70%),
-    #050a1b;
-  position: relative; /* enable background layer behind content */
-}
+body { color: var(--text); background: var(--app-bg); position: relative; /* enable background layer behind content */ }
 
 /* Ensure content paints above the background-fx layer */
 body > :not(.background-fx-root) {
