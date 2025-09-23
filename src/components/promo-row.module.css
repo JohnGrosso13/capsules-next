@@ -1,7 +1,14 @@
 .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items: stretch; }
 @media (max-width: 900px){ .row{ grid-template-columns: repeat(2, 1fr);} }
 
-.tile { border:1px solid var(--card-border); background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2)); border-radius: 16px; padding: 12px; display: grid; gap: 10px; box-shadow: var(--card-shadow); }
+.tile { position: relative; border:1px solid var(--card-border); background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2)); border-radius: 16px; padding: 12px; display: grid; gap: 10px; box-shadow: var(--card-shadow); overflow: hidden; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease; }
+.tile::before { content:""; position:absolute; inset:0; border-radius: inherit; pointer-events:none; background:
+  /* darker emphasis than post cards to avoid monotony */
+  radial-gradient(120% 90% at 50% -10%, rgba(0,0,0,0.10), rgba(0,0,0,0) 68%),
+  linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0));
+  opacity: 0; transition: opacity .16s ease; }
+.tile:hover { transform: translateY(-1px); border-color: var(--card-hover-border); box-shadow: var(--card-hover-shadow); background: linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2)); }
+.tile:hover::before { opacity: 1; }
 .head { display:flex; justify-content: space-between; align-items:center; font-weight: 800; font-size: 14px; }
 .short { width:100%; aspect-ratio: 9/16; border-radius: 14px; overflow: hidden; position: relative; background:
   radial-gradient(600px 300px at 30% 20%, rgba(99,102,241,.28), transparent 60%),
