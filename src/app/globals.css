@@ -15,6 +15,40 @@
   --pill-radius: 999px;
   --prompt-glow-opacity: .54;
   --prompt-glow-blur: 18px;
+
+  /* Header */
+  --header-glass-top: rgba(255,255,255,.10);
+  --header-glass-bottom: rgba(255,255,255,.05);
+  --header-tint-from: rgba(72, 86, 182, .28);
+  --header-tint-to: rgba(22, 28, 66, .22);
+  --header-border-color: rgba(255,255,255,0.14);
+  --header-shadow: rgba(5,10,26,0.42);
+  --accent-glow: rgba(99,102,241,.34);
+
+  /* Nav pills */
+  --pill-bg-1: rgba(255,255,255,.06);
+  --pill-bg-2: rgba(255,255,255,.03);
+  --pill-border: rgba(255,255,255,.12);
+
+  /* CTA */
+  --cta-radius: 999px;
+  --cta-glow: rgba(99,102,241,.34);
+
+  /* Cards / surfaces */
+  --card-radius: 16px;
+  --card-border: rgba(255,255,255,0.14);
+  --card-bg-1: rgba(9,12,32,0.90);
+  --card-bg-2: rgba(9,12,30,0.78);
+  --card-shadow: 0 18px 40px rgba(5,10,30,0.35);
+  --card-hover-bg-1: rgba(14,18,42,0.94);
+  --card-hover-bg-2: rgba(12,16,38,0.84);
+  --card-hover-border: rgba(255,255,255,0.22);
+  --card-hover-shadow: 0 22px 46px rgba(5,10,30,0.45);
+
+  /* Rail / side surfaces */
+  --rail-bg-1: rgba(255,255,255,0.09);
+  --rail-bg-2: rgba(255,255,255,0.05);
+  --rail-border: rgba(255,255,255,0.16);
 }
 
 html, body { margin: 0; padding: 0; min-height: 100%; }
