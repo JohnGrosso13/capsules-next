@@ -3,6 +3,7 @@
 import React from "react";
 import styles from "./home.module.css";
 import { PromoRow } from "./promo-row";
+import { AiPrompterStage } from "./ai-prompter-stage";
 
 type Post = {
   id: string;
@@ -33,7 +34,6 @@ const fallbackFriends: Friend[] = [
 ];
 
 export function HomeSignedIn() {
-  const [text, setText] = React.useState("");
   const [posts, setPosts] = React.useState<Post[]>([]);
   const [friends, setFriends] = React.useState<Friend[]>([]);
 
@@ -125,39 +125,10 @@ export function HomeSignedIn() {
       .catch(() => setFriends(fallbackFriends));
   }, []);
 
-  const chips = [
-    "Post an update",
-    "Share a photo",
-    "Bring feed image",
-    "Summarize my feed",
-  ];
-
   return (
     <div className={styles.page}>
       {/* Prompter */}
-      <section className={styles.prompterStage} aria-label="AI Prompter">
-        <div className={styles.prompter}>
-          <div className={styles.promptBar}>
-            <input
-              className={styles.input}
-              placeholder={"Ask your Capsule AI to create anything…"}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <button className={styles.genBtn} onClick={() => setText("")}>
-              <span aria-hidden>✨</span>
-              <span className={styles.genLabel}>Generate</span>
-            </button>
-          </div>
-          <div className={styles.chips}>
-            {chips.map((c) => (
-              <button key={c} className={styles.chip} type="button">
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+      <AiPrompterStage />
 
       {/* Layout: promo row + feed + right rail */}
       <div className={styles.layout}>

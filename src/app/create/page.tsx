@@ -5,10 +5,10 @@ import React from "react";
 import { HeaderAuth } from "@/components/header-auth";
 import { LaunchCta } from "@/components/launch-cta";
 import { SignedIn } from "@clerk/nextjs";
+import { AiPrompterStage } from "@/components/ai-prompter-stage";
 
 import styles from "./create.module.css";
 import landing from "../landing.module.css";
-import home from "@/components/home.module.css";
 import { ComposeForm } from "./compose-form";
 
 export const metadata: Metadata = {
@@ -59,23 +59,7 @@ export default function CreatePage() {
       </header>
 
       <main className={styles.main}>
-        {/* AI Prompter at top */}
-        <section className={home.prompterStage} aria-label="AI Prompter">
-          <div className={home.prompter}>
-            <div className={home.promptBar}>
-              <input className={home.input} placeholder={"Ask your Capsule AI to create anything…"} />
-              <button className={home.genBtn} type="button">
-                <span aria-hidden>✨</span>
-                <span className={home.genLabel}>Generate</span>
-              </button>
-            </div>
-            <div className={home.chips}>
-              {['Make a post', 'Share a photo', 'Remix last image', 'Summarize my feed'].map((c) => (
-                <button key={c} className={home.chip} type="button">{c}</button>
-              ))}
-            </div>
-          </div>
-        </section>
+        <AiPrompterStage />
 
         <div className={styles.feedWidth}>
           <ComposeForm />
