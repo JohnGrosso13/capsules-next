@@ -7,10 +7,10 @@ import { HeaderAuth } from "@/components/header-auth";
 import { GroupCarousel } from "@/components/group-carousel";
 import { SignedIn } from "@clerk/nextjs";
 import { LandingAuthCard } from "@/components/landing-auth-card";
+import { HowItWorks } from "@/components/how-it-works";
 import { LaunchCta } from "@/components/launch-cta";
 
 import styles from "./landing.module.css";
-import extra from "./landing-extras.module.css";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -46,23 +46,24 @@ const groupTypes = [
   "Photographers",
   "Alumni Networks",
 ];
+// New concise steps for the HowItWorks component
 
-const howItWorks = [
-  {
-    title: "Create your Capsule",
-    description: "Launch a branded home for your community with automated setup and onboarding.",
-  },
-  {
-    title: "Ask AI to build with you",
-    description: "Compose posts, prompts, branding, stores, and live events with conversational commands.",
-  },
-  {
-    title: "Scale with memory",
-    description: "Channel memory and automations keep every member aligned as your space grows.",
-  },
-];
 
-const superpowers = [
+
+
+
+// New concise steps for the HowItWorks component
+
+// Steps used by the visual HowItWorks component
+
+// Steps used by the visual HowItWorks component
+
+// Steps used by the visual HowItWorks component
+const howSteps = [
+  { title: "Create your Capsule", desc: "With Channel Memory you can recall anything from your space." },
+  { title: "Ask AI to make anything", desc: "Create posts, logos, polls, and store items with prompts." },
+  { title: "Open the barrier to growth", desc: "Post, stream, chat, and sell with built-in integrations." },
+];const superpowers = [
   "Actionable AI outputs",
   "Live events & chat",
   "Clip Studio",
@@ -206,15 +207,7 @@ export default async function HomePage() {
         <section className={styles.section} id="how-it-works">
           <div className={styles.sectionInner}>
             <h2 className={styles.sectionTitle}>How it works</h2>
-            <div className={styles.stepsGrid}>
-              {howItWorks.map((step, index) => (
-                <article key={step.title} className={styles.stepCard}>
-                  <span className={extra.stepIcon} aria-hidden="true" />
-                  <h3 className={styles.stepTitle}>{step.title}</h3>
-                  <p className={styles.stepDescription}>{step.description}</p>
-                </article>
-              ))}
-            </div>
+            <HowItWorks steps={howSteps} />
           </div>
         </section>
 
@@ -278,6 +271,7 @@ export default async function HomePage() {
     </div>
   );
 }
+
 
 
 
