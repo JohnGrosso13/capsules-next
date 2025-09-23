@@ -6,7 +6,7 @@ import { LaunchCta } from "@/components/launch-cta";
 import { SignedIn } from "@clerk/nextjs";
 import { CapsuleSignedIn } from "@/components/capsule-signed-in";
 
-import styles from "../landing.module.css";
+import styles from "./capsule.page.module.css";
 import capTheme from "./capsule.module.css";
 
 export const metadata: Metadata = {

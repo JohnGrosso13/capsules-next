@@ -7,7 +7,7 @@ import { LaunchCta } from "@/components/launch-cta";
 import { SignedIn } from "@clerk/nextjs";
 import { CreateSignedIn } from "@/components/create-signed-in";
 
-import styles from "../landing.module.css";
+import styles from "./create.page.module.css";
 import createTheme from "./create.module.css";
 
 export const metadata: Metadata = {
