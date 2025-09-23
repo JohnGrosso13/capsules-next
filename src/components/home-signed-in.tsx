@@ -152,7 +152,7 @@ export function HomeSignedIn({
 
         {showRail ? (
           <aside className={styles.rail}>
-            <div className={styles.railCard}>
+            <div id="friends" className={styles.railCard}>
               <strong>Friends List</strong>
               <div className={styles.friends}>
                 {friends.slice(0, 12).map((f, i) => (

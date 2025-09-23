@@ -92,6 +92,10 @@ export function MobileCommandBar() {
                   <MemoryIcon />
                   Memory
                 </Link>
+                <Link href="/#friends" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_friends")}>
+                  <FriendsIcon />
+                  Friends
+                </Link>
                 <Link href="/settings" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_profile")}>
                   <ProfileIcon />
                   Profile
@@ -197,6 +201,24 @@ function SettingsIcon(){
         <circle cx="10" cy="10" r="5.4"/>
         <circle cx="10" cy="10" r="2.6"/>
         <path d="M10 2.4v2M17.6 10h-2M10 17.6v-2M2.4 10h2M4.6 4.6l1.4 1.4M15.4 4.6l-1.4 1.4M15.4 15.4l-1.4-1.4M4.6 15.4l1.4-1.4"/>
+      </g>
+    </svg>
+  );
+}
+function FriendsIcon(){
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="mcFriends" x1="0" y1="0" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#8b5cf6"/>
+          <stop offset="1" stopColor="#22d3ee"/>
+        </linearGradient>
+      </defs>
+      <g stroke="url(#mcFriends)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="7" cy="8" r="2.6"/>
+        <path d="M2.8 15.2c1.2-2 3.2-3 4.2-3s3.0 1 4.2 3"/>
+        <circle cx="14" cy="9" r="2.1"/>
+        <path d="M10.8 15.2c.9-1.6 2.4-2.4 3.1-2.4 .7 0 2.1 .8 3.1 2.4"/>
       </g>
     </svg>
   );
