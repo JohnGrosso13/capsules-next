@@ -113,7 +113,7 @@ body { color: var(--text); background: var(--app-bg); position: relative; /* ena
 }
 
 /* Ensure content paints above the background-fx layer */
-body > :not(.background-fx-root) {
+body > :not(.background-fx-root):not([data-fixedlayer="true"]) {
   position: relative;
   z-index: 1;
 }

@@ -40,7 +40,7 @@ export function MobileCommandBar() {
   }
 
   return (
-    <nav className={styles.bar} aria-label="Capsules mobile command bar">
+    <nav className={styles.bar} aria-label="Capsules mobile command bar" data-fixedlayer="true">
       <div className={styles.inner}>
         <div className={styles.dock} data-surface="ai-dock">
           <Link href="/" className={`${styles.btn} ${pathname === "/" ? styles.active : ""}`} aria-label="Home" aria-current={pathname === "/" ? "page" : undefined} {...intentAttrs("navigate_home")}>
@@ -198,4 +198,3 @@ function ProfileIcon(){
     </svg>
   );
 }
-
