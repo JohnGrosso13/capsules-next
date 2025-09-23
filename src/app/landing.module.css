@@ -6,6 +6,10 @@
   color: var(--text, rgba(255, 255, 255, 0.92));
 }
 
+@media (max-width: 640px) {
+  .page { padding-bottom: 120px; }
+}
+
 .header {
   position: sticky; top: 0; z-index: 80;
   background:

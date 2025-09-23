@@ -24,5 +24,6 @@
 .empty { border: 1px dashed var(--card-border); padding: 2rem; border-radius: 16px; text-align: center; color: var(--text-2); }
 
 @media (max-width: 640px){
+  .page { padding-bottom: 120px; }
   .header { display: none; }
 }
