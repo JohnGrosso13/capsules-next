@@ -138,13 +138,13 @@ export default async function HomePage() {
   await auth();
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <Link href="/" className={styles.brand} aria-label="Capsules home">
-            <span className={styles.brandMark} aria-hidden="true" />
-            <span className={styles.brandName}>Capsules</span>
-          </Link>
-          <SignedIn>
+      <SignedIn>
+        <header className={styles.header}>
+          <div className={styles.headerInner}>
+            <Link href="/" className={styles.brand} aria-label="Capsules home">
+              <span className={styles.brandMark} aria-hidden="true" />
+              <span className={styles.brandName}>Capsules</span>
+            </Link>
             <nav className={styles.nav} aria-label="Primary navigation">
               {navLinks.map((link) => (
                 <Link
@@ -156,25 +156,8 @@ export default async function HomePage() {
                 </Link>
               ))}
             </nav>
-          </SignedIn>
-          <SignedOut>
-            <nav className={`${styles.nav} ${styles.hideNavMobile}`} aria-label="Primary navigation">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`${styles.navLink} ${link.href === "/" ? styles.navLinkActive : ""}`.trim()}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-          </SignedOut>
-          <div className={styles.headerActions}>
-            {/* Profile icon / auth */}
-            <HeaderAuth />
-            {/* Settings icon (signed-in only) */}
-            <SignedIn>
+            <div className={styles.headerActions}>
+              <HeaderAuth />
               <Link href="/settings" className={styles.iconButton} aria-label="Settings">
                 <svg className={styles.iconGlyph} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                   <defs>
@@ -184,21 +167,17 @@ export default async function HomePage() {
                     </linearGradient>
                   </defs>
                   <g stroke="url(#hdrGearGrad)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke">
-                    {/* outer ring with teeth impression */}
                     <circle cx="12" cy="12" r="7.25" strokeDasharray="2.1 2.1"/>
-                    {/* cardinal teeth */}
                     <path d="M12 3.6v2.2M20.4 12h-2.2M12 20.4v-2.2M3.6 12h2.2"/>
-                    {/* inner hub */}
                     <circle cx="12" cy="12" r="3.4"/>
                   </g>
                 </svg>
               </Link>
-            </SignedIn>
-            {/* Launch CTA */}
-            <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" variant="signin" />
+              <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" />
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      </SignedIn>
 
       <main className={styles.main}>
         <SignedIn>
@@ -288,25 +267,19 @@ export default async function HomePage() {
         </SignedOut>
       </main>
 
-      <footer className={styles.footer}>
-        <div className={styles.footerInner}>
-          <span className={styles.footerBrand}>Capsules</span>
-          <SignedIn>
+      <SignedIn>
+        <footer className={styles.footer}>
+          <div className={styles.footerInner}>
+            <span className={styles.footerBrand}>Capsules</span>
             <div className={styles.footerLinks}>
               <Link href="/settings" className={styles.footerLink}>Settings</Link>
               <Link href="/create" className={styles.footerLink}>Create</Link>
               <a href="mailto:hello@capsules-platform.com" className={styles.footerLink}>Contact</a>
             </div>
-          </SignedIn>
-          <SignedOut>
-            <div className={`${styles.footerLinks} ${styles.hideNavMobile}`}>
-              <Link href="/create" className={styles.footerLink}>Create</Link>
-              <a href="mailto:hello@capsules-platform.com" className={styles.footerLink}>Contact</a>
-            </div>
-          </SignedOut>
-          <span className={styles.footerCopy}>&copy; 2025 Capsules</span>
-        </div>
-      </footer>
+            <span className={styles.footerCopy}>&copy; 2025 Capsules</span>
+          </div>
+        </footer>
+      </SignedIn>
     </div>
   );
 }
