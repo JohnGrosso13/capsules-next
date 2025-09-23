@@ -19,3 +19,16 @@
 .textarea { min-height: 80px; }
 .submit { display:inline-flex; align-items:center; justify-content:center; padding:.55rem 1.1rem; border-radius:999px; font-weight:600; color:#0e1024; background:linear-gradient(120deg,#8b5cf6,#6366f1,#22d3ee); box-shadow:0 16px 32px rgba(79,70,229,.32); border:0; cursor:pointer; }
 .notice { color: rgba(255,255,255,.7); }
+
+/* Page-scoped theme variables for Create (Option C) */
+.theme {
+  /* Defaults for now; can be changed per-page or per-user later */
+  --brand-from: #8b5cf6;
+  --brand-mid: #6366f1;
+  --brand-to: #22d3ee;
+  --glass-bg-1: rgba(255,255,255,0.10);
+  --glass-bg-2: rgba(255,255,255,0.05);
+  --pill-radius: 999px;
+  --prompt-glow-opacity: .54;
+  --prompt-glow-blur: 18px;
+}

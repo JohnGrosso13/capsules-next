@@ -8,6 +8,7 @@ import { SignedIn } from "@clerk/nextjs";
 import { HomeSignedIn } from "@/components/home-signed-in";
 
 import styles from "../landing.module.css";
+import createTheme from "./create.module.css";
 
 export const metadata: Metadata = {
   title: "Create a Capsule - Capsules",
@@ -57,7 +58,9 @@ export default function CreatePage() {
       </header>
 
       <main>
-        <HomeSignedIn />
+        <div className={createTheme.theme}>
+          <HomeSignedIn />
+        </div>
       </main>
     </div>
   );
