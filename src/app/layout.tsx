@@ -4,6 +4,8 @@ import Script from "next/script";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { BackgroundFX } from "@/components/background-fx";
+import { SignedIn } from "@clerk/nextjs";
+import { BottomNav } from "@/components/bottom-nav";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 
@@ -42,6 +44,9 @@ export default function RootLayout({
           </Script>
           <BackgroundFX />
           {children}
+          <SignedIn>
+            <BottomNav />
+          </SignedIn>
         </body>
       </html>
     </ClerkProvider>

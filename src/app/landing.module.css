@@ -89,9 +89,10 @@
 .footerCopy { color: var(--text-2); }
 
 @media (max-width: 640px) {
+  .header { display: none; }
   .headerInner { flex-direction: column; align-items: flex-start; gap: 16px; }
   .headerActions { width: 100%; justify-content: space-between; }
-  .hero { padding-top: 64px; }
+  .hero { padding-top: 24px; }
   .heroActions { flex-direction: column; align-items: stretch; }
   .primaryCta, .ghostButton { width: 100%; justify-content: center; }
   .footerInner { flex-direction: column; align-items: flex-start; }
