@@ -23,7 +23,9 @@
 .secondaryAction { display: inline-flex; align-items: center; justify-content: center; padding: 0.45rem 0.95rem; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.82); background: rgba(255, 255, 255, 0.05); font-weight: 600; transition: background 160ms ease, border-color 160ms ease, transform 160ms ease; }
 .secondaryAction:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.28); transform: translateY(-1px); }
 
-.main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.75rem 3rem; display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem; }
+.main { max-width: 1200px; margin: 0 auto; padding: 24px 28px 48px; display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem; }
+/* Ensure shared prompter spans both columns for uniform width */
+.fullRow { grid-column: 1 / -1; }
 
 @media (max-width: 1024px) {
   .main { grid-template-columns: 1fr; }
@@ -41,4 +43,3 @@
 .friendsList { display: grid; gap: 0.5rem; }
 
 .primaryCta { display: inline-flex; align-items: center; justify-content: center; padding: 0.55rem 1.3rem; border-radius: 999px; font-weight: 600; text-decoration: none; color: #0e1024; background: linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee); box-shadow: 0 16px 32px rgba(79, 70, 229, 0.32); }
-

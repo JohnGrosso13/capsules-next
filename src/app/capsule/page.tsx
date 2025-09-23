@@ -82,23 +82,25 @@ export default async function CapsulePage() {
       </header>
 
       <main className={styles.main}>
-        {/* AI Prompter at top */}
-        <section className={home.prompterStage} aria-label="AI Prompter">
-          <div className={home.prompter}>
-            <div className={home.promptBar}>
-              <input className={home.input} placeholder={"Ask your Capsule AI to create anything…"} />
-              <button className={home.genBtn} type="button">
-                <span aria-hidden>✨</span>
-                <span className={home.genLabel}>Generate</span>
-              </button>
+        {/* AI Prompter at top spanning both columns */}
+        <div className={styles.fullRow}>
+          <section className={home.prompterStage} aria-label="AI Prompter">
+            <div className={home.prompter}>
+              <div className={home.promptBar}>
+                <input className={home.input} placeholder={"Ask your Capsule AI to create anything…"} />
+                <button className={home.genBtn} type="button">
+                  <span aria-hidden>✨</span>
+                  <span className={home.genLabel}>Generate</span>
+                </button>
+              </div>
+              <div className={home.chips}>
+                {['Make a post', 'Share a photo', 'Remix last image', 'Summarize my feed'].map((c) => (
+                  <button key={c} className={home.chip} type="button">{c}</button>
+                ))}
+              </div>
             </div>
-            <div className={home.chips}>
-              {['Make a post', 'Share a photo', 'Remix last image', 'Summarize my feed'].map((c) => (
-                <button key={c} className={home.chip} type="button">{c}</button>
-              ))}
-            </div>
-          </div>
-        </section>
+          </section>
+        </div>
 
         <section className={styles.feed} aria-label="Feed">
           {posts.length === 0 && (

@@ -10,10 +10,9 @@
 .headerActions { display:flex; align-items:center; gap:.75rem; }
 .secondaryAction { display:inline-flex; align-items:center; justify-content:center; padding:.45rem .95rem; border-radius:999px; border:1px solid rgba(255,255,255,.16); color:rgba(255,255,255,.82); background:rgba(255,255,255,.05); font-weight:600; }
 .primaryCta { display:inline-flex; align-items:center; justify-content:center; padding:.55rem 1.3rem; border-radius:999px; font-weight:600; color:#0e1024; background:linear-gradient(120deg,#8b5cf6,#6366f1,#22d3ee); box-shadow:0 16px 32px rgba(79,70,229,.32); }
-.main { max-width: 800px; margin: 0 auto; padding: 1.5rem 1.75rem 3rem; display: grid; gap: 1rem; }
+.main { max-width: 1200px; margin: 0 auto; padding: 24px 28px 48px; display: grid; gap: 1rem; }
 .form { display: grid; gap: .75rem; border: 1px solid rgba(255,255,255,.14); background: rgba(9,12,32,.88); padding: 1rem; border-radius: 16px; }
 .input, .textarea { width: 100%; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #fff; padding: .6rem .8rem; }
 .textarea { min-height: 80px; }
 .submit { display:inline-flex; align-items:center; justify-content:center; padding:.55rem 1.1rem; border-radius:999px; font-weight:600; color:#0e1024; background:linear-gradient(120deg,#8b5cf6,#6366f1,#22d3ee); box-shadow:0 16px 32px rgba(79,70,229,.32); border:0; cursor:pointer; }
 .notice { color: rgba(255,255,255,.7); }
-
