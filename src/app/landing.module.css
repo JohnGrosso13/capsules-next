@@ -95,4 +95,5 @@
   .heroActions { flex-direction: column; align-items: stretch; }
   .primaryCta, .ghostButton { width: 100%; justify-content: center; }
   .footerInner { flex-direction: column; align-items: flex-start; }
+  .hideNavMobile { display: none; }
 }

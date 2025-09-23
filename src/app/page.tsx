@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 
@@ -144,17 +144,32 @@ export default async function HomePage() {
             <span className={styles.brandMark} aria-hidden="true" />
             <span className={styles.brandName}>Capsules</span>
           </Link>
-          <nav className={styles.nav} aria-label="Primary navigation">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`${styles.navLink} ${link.href === "/" ? styles.navLinkActive : ""}`.trim()}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+          <SignedIn>
+            <nav className={styles.nav} aria-label="Primary navigation">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`${styles.navLink} ${link.href === "/" ? styles.navLinkActive : ""}`.trim()}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          </SignedIn>
+          <SignedOut>
+            <nav className={`${styles.nav} ${styles.hideNavMobile}`} aria-label="Primary navigation">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`${styles.navLink} ${link.href === "/" ? styles.navLinkActive : ""}`.trim()}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          </SignedOut>
           <div className={styles.headerActions}>
             {/* Profile icon / auth */}
             <HeaderAuth />
@@ -180,7 +195,7 @@ export default async function HomePage() {
               </Link>
             </SignedIn>
             {/* Launch CTA */}
-            <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" />
+            <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" variant="signin" />
           </div>
         </div>
       </header>
@@ -205,10 +220,14 @@ export default async function HomePage() {
               ))}
             </div>
             <div className={styles.heroActions}>
-              <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" />
-              <Link href="#features" className={styles.ghostButton}>
-                Explore features
-              </Link>
+              <SignedIn>
+                <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" />
+                <Link href="#features" className={styles.ghostButton}>Explore features</Link>
+              </SignedIn>
+              <SignedOut>
+                {/* All CTAs open prompter sign-in modal on mobile/guest */}
+                <div style={{ display: "contents" }} />
+              </SignedOut>
             </div>
           </div>
           <LandingAuthCard />
@@ -272,17 +291,19 @@ export default async function HomePage() {
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
           <span className={styles.footerBrand}>Capsules</span>
-          <div className={styles.footerLinks}>
-            <Link href="/settings" className={styles.footerLink}>
-              Settings
-            </Link>
-            <Link href="/create" className={styles.footerLink}>
-              Create
-            </Link>
-            <a href="mailto:hello@capsules-platform.com" className={styles.footerLink}>
-              Contact
-            </a>
-          </div>
+          <SignedIn>
+            <div className={styles.footerLinks}>
+              <Link href="/settings" className={styles.footerLink}>Settings</Link>
+              <Link href="/create" className={styles.footerLink}>Create</Link>
+              <a href="mailto:hello@capsules-platform.com" className={styles.footerLink}>Contact</a>
+            </div>
+          </SignedIn>
+          <SignedOut>
+            <div className={`${styles.footerLinks} ${styles.hideNavMobile}`}>
+              <Link href="/create" className={styles.footerLink}>Create</Link>
+              <a href="mailto:hello@capsules-platform.com" className={styles.footerLink}>Contact</a>
+            </div>
+          </SignedOut>
           <span className={styles.footerCopy}>&copy; 2025 Capsules</span>
         </div>
       </footer>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 
 import styles from "./landing-auth-card.module.css";
 
@@ -12,18 +12,23 @@ export function LandingAuthCard() {
         <div>
           <h3 className={styles.heading}>Start your space</h3>
           <p className={styles.description}>
-            Create a Capsule in minutes and let AI keep your community organized and on the same page.
+            Sign in to launch your Capsule and explore features with our AI prompter.
           </p>
         </div>
         <div className={styles.buttonGroup}>
-          <SignUpButton mode="modal">
+          <SignInButton mode="modal">
             <button className={styles.primaryButton} type="button">
-              Create your space
+              Launch Capsule
             </button>
-          </SignUpButton>
+          </SignInButton>
           <SignInButton mode="modal">
             <button className={styles.secondaryButton} type="button">
-              I already have an account
+              Sign In
+            </button>
+          </SignInButton>
+          <SignInButton mode="modal">
+            <button className={styles.secondaryButton} type="button">
+              Explore Features
             </button>
           </SignInButton>
         </div>
