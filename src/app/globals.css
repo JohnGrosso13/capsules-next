@@ -108,6 +108,9 @@ html, body { margin: 0; padding: 0; min-height: 100%; }
 
 /* Default app background + text so pages look correct even before module CSS loads */
 body { color: var(--text); background: var(--app-bg); position: relative; /* enable background layer behind content */ }
+@media (max-width: 640px){
+  body.has-mobile-dock { padding-bottom: var(--mobile-dock-height, 88px); }
+}
 
 /* Ensure content paints above the background-fx layer */
 body > :not(.background-fx-root) {

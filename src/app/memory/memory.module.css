@@ -23,7 +23,5 @@
 .meta { padding: .75rem 1rem; color: var(--text-2); }
 .empty { border: 1px dashed var(--card-border); padding: 2rem; border-radius: 16px; text-align: center; color: var(--text-2); }
 
-@media (max-width: 640px){
-  .page { padding-bottom: 120px; }
-  .header { display: none; }
-}
+/* padding for mobile dock handled globally on body.has-mobile-dock */
+@media (max-width: 640px){ .header { display: none; } }

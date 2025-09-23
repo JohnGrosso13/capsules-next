@@ -5,7 +5,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { BackgroundFX } from "@/components/background-fx";
 import { SignedIn } from "@clerk/nextjs";
-import { BottomNav } from "@/components/bottom-nav";
+import { MobileCommandBar } from "@/components/mobile-command-bar";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 
@@ -45,7 +45,7 @@ export default function RootLayout({
           <BackgroundFX />
           {children}
           <SignedIn>
-            <BottomNav />
+            <MobileCommandBar />
           </SignedIn>
         </body>
       </html>

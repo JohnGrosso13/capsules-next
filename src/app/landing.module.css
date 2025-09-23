@@ -6,9 +6,7 @@
   color: var(--text, rgba(255, 255, 255, 0.92));
 }
 
-@media (max-width: 640px) {
-  .page { padding-bottom: 120px; }
-}
+/* padding for mobile dock handled globally on body.has-mobile-dock */
 
 .header {
   position: sticky; top: 0; z-index: 80;
