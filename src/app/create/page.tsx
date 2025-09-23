@@ -5,11 +5,9 @@ import React from "react";
 import { HeaderAuth } from "@/components/header-auth";
 import { LaunchCta } from "@/components/launch-cta";
 import { SignedIn } from "@clerk/nextjs";
-import { AiPrompterStage } from "@/components/ai-prompter-stage";
+import { HomeSignedIn } from "@/components/home-signed-in";
 
-import styles from "./create.module.css";
-import landing from "../landing.module.css";
-import { ComposeForm } from "./compose-form";
+import styles from "../landing.module.css";
 
 export const metadata: Metadata = {
   title: "Create a Capsule - Capsules",
@@ -19,25 +17,25 @@ export const metadata: Metadata = {
 export default function CreatePage() {
   return (
     <div className={styles.page}>
-      <header className={landing.header}>
-        <div className={landing.headerInner}>
-          <Link href="/" className={landing.brand} aria-label="Capsules home">
-            <span className={landing.brandMark} aria-hidden="true" />
-            <span className={landing.brandName}>Capsules</span>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <Link href="/" className={styles.brand} aria-label="Capsules home">
+            <span className={styles.brandMark} aria-hidden="true" />
+            <span className={styles.brandName}>Capsules</span>
           </Link>
-          <nav className={landing.nav} aria-label="Primary navigation">
-            <Link href="/" className={landing.navLink}>Home</Link>
-            <span className={`${landing.navLink} ${landing.navLinkActive}`}>Create</span>
-            <Link href="/capsule" className={landing.navLink}>Capsule</Link>
-            <Link href="/memory" className={landing.navLink}>Memory</Link>
+          <nav className={styles.nav} aria-label="Primary navigation">
+            <Link href="/" className={styles.navLink}>Home</Link>
+            <span className={`${styles.navLink} ${styles.navLinkActive}`}>Create</span>
+            <Link href="/capsule" className={styles.navLink}>Capsule</Link>
+            <Link href="/memory" className={styles.navLink}>Memory</Link>
           </nav>
-          <div className={landing.headerActions}>
+          <div className={styles.headerActions}>
             {/* Profile */}
             <HeaderAuth />
             {/* Settings */}
             <SignedIn>
-              <Link href="/settings" className={landing.iconButton} aria-label="Settings">
-                <svg className={landing.iconGlyph} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+              <Link href="/settings" className={styles.iconButton} aria-label="Settings">
+                <svg className={styles.iconGlyph} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                   <defs>
                     <linearGradient id="hdrGearGradCreate" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
                       <stop offset="0" stopColor="#8b5cf6"/>
@@ -53,17 +51,13 @@ export default function CreatePage() {
               </Link>
             </SignedIn>
             {/* Launch */}
-            <LaunchCta className={landing.primaryCta} hrefWhenSignedIn="/capsule" label="Launch Capsule" />
+            <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" label="Launch Capsule" />
           </div>
         </div>
       </header>
 
-      <main className={styles.main}>
-        <AiPrompterStage />
-
-        <div className={styles.feedWidth}>
-          <ComposeForm />
-        </div>
+      <main>
+        <HomeSignedIn />
       </main>
     </div>
   );
