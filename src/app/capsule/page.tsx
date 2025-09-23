@@ -4,7 +4,7 @@ import Link from "next/link";
 import { HeaderAuth } from "@/components/header-auth";
 import { LaunchCta } from "@/components/launch-cta";
 import { SignedIn } from "@clerk/nextjs";
-import { HomeSignedIn } from "@/components/home-signed-in";
+import { CapsuleSignedIn } from "@/components/capsule-signed-in";
 
 import styles from "../landing.module.css";
 import capTheme from "./capsule.module.css";
@@ -55,7 +55,7 @@ export default async function CapsulePage() {
 
       <main>
         <div className={capTheme.theme}>
-          <HomeSignedIn />
+          <CapsuleSignedIn />
         </div>
       </main>
     </div>

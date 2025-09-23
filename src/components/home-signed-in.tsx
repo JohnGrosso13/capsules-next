@@ -33,7 +33,21 @@ const fallbackFriends: Friend[] = [
   { name: "Dream Studio" },
 ];
 
-export function HomeSignedIn() {
+type Props = {
+  showPrompter?: boolean;
+  showPromoRow?: boolean;
+  showFeed?: boolean;
+  showRail?: boolean;
+  className?: string;
+};
+
+export function HomeSignedIn({
+  showPrompter = true,
+  showPromoRow = true,
+  showFeed = true,
+  showRail = true,
+  className = "",
+}: Props) {
   const [posts, setPosts] = React.useState<Post[]>([]);
   const [friends, setFriends] = React.useState<Friend[]>([]);
 
@@ -126,58 +140,61 @@ export function HomeSignedIn() {
   }, []);
 
   return (
-    <div className={styles.page}>
-      {/* Prompter */}
-      <AiPrompterStage />
+    <div className={`${styles.page} ${className}`.trim()}>
+      {showPrompter ? <AiPrompterStage /> : null}
 
-      {/* Layout: promo row + feed + right rail */}
       <div className={styles.layout}>
-        {/* Promo tiles span feed column; rail aligns beside */}
-        <div className={styles.promoRowSpace}>
-          <PromoRow />
-        </div>
-
-        <aside className={styles.rail}>
-          <div className={styles.railCard}>
-            <strong>Friends List</strong>
-            <div className={styles.friends}>
-              {friends.slice(0, 12).map((f, i) => (
-                <div key={i} className={styles.friendItem}>
-                  <span className={styles.avatar} aria-hidden />
-                  {f.name}
-                </div>
-              ))}
-            </div>
+        {showPromoRow ? (
+          <div className={styles.promoRowSpace}>
+            <PromoRow />
           </div>
-        </aside>
+        ) : null}
 
-        <section className={styles.feed}>
-          {posts.map((p) => {
-            const media = p.media_url ?? p.mediaUrl ?? null;
-            return (
-              <article key={p.id} className={styles.card}>
-                <header className={styles.cardHead}>
-                  <div className={styles.userMeta}>
-                    <div className={styles.userName}>{p.user_name || "Capsules"}</div>
-                    <div className={styles.timestamp}>{timeAgo(p.created_at)}</div>
+        {showRail ? (
+          <aside className={styles.rail}>
+            <div className={styles.railCard}>
+              <strong>Friends List</strong>
+              <div className={styles.friends}>
+                {friends.slice(0, 12).map((f, i) => (
+                  <div key={i} className={styles.friendItem}>
+                    <span className={styles.avatar} aria-hidden />
+                    {f.name}
                   </div>
-                </header>
-                <div className={styles.cardBody}>
-                  {p.content ? <div className={styles.postText}>{p.content}</div> : null}
-                </div>
-                {media ? (
-                  <img className={styles.media} src={media} alt="Post media" />
-                ) : null}
-                <footer className={styles.actionBar}>
-                  <button className={styles.actionBtn} type="button">Like</button>
-                  <button className={styles.actionBtn} type="button">Comment</button>
-                  <button className={styles.actionBtn} type="button">Share</button>
-                  <button className={`${styles.actionBtn} ${styles.delete}`} type="button" onClick={() => handleDelete(p.id)}>Delete</button>
-                </footer>
-              </article>
-            );
-          })}
-        </section>
+                ))}
+              </div>
+            </div>
+          </aside>
+        ) : null}
+
+        {showFeed ? (
+          <section className={styles.feed}>
+            {posts.map((p) => {
+              const media = p.media_url ?? p.mediaUrl ?? null;
+              return (
+                <article key={p.id} className={styles.card}>
+                  <header className={styles.cardHead}>
+                    <div className={styles.userMeta}>
+                      <div className={styles.userName}>{p.user_name || "Capsules"}</div>
+                      <div className={styles.timestamp}>{timeAgo(p.created_at)}</div>
+                    </div>
+                  </header>
+                  <div className={styles.cardBody}>
+                    {p.content ? <div className={styles.postText}>{p.content}</div> : null}
+                  </div>
+                  {media ? (
+                    <img className={styles.media} src={media} alt="Post media" />
+                  ) : null}
+                  <footer className={styles.actionBar}>
+                    <button className={styles.actionBtn} type="button">Like</button>
+                    <button className={styles.actionBtn} type="button">Comment</button>
+                    <button className={styles.actionBtn} type="button">Share</button>
+                    <button className={`${styles.actionBtn} ${styles.delete}`} type="button" onClick={() => handleDelete(p.id)}>Delete</button>
+                  </footer>
+                </article>
+              );
+            })}
+          </section>
+        ) : null}
       </div>
     </div>
   );

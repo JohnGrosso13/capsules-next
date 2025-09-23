@@ -5,7 +5,7 @@ import React from "react";
 import { HeaderAuth } from "@/components/header-auth";
 import { LaunchCta } from "@/components/launch-cta";
 import { SignedIn } from "@clerk/nextjs";
-import { HomeSignedIn } from "@/components/home-signed-in";
+import { CreateSignedIn } from "@/components/create-signed-in";
 
 import styles from "../landing.module.css";
 import createTheme from "./create.module.css";
@@ -59,7 +59,7 @@ export default function CreatePage() {
 
       <main>
         <div className={createTheme.theme}>
-          <HomeSignedIn />
+          <CreateSignedIn />
         </div>
       </main>
     </div>
