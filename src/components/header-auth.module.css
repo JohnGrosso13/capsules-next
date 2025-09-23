@@ -28,3 +28,28 @@
   display: flex;
   align-items: center;
 }
+
+/* Enlarge Clerk UserButton and match glass icon style */
+.userButtonWrapper :global(.cl-userButtonTrigger) {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(2,6,23,.45), 0 8px 18px rgba(5,10,26,.35);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  vertical-align: middle;
+  margin: 0;
+}
+.userButtonWrapper :global(.cl-userButtonTrigger:hover) {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.24);
+}
+.userButtonWrapper :global(.cl-avatarBox) {
+  width: 100% !important;
+  height: 100% !important;
+}

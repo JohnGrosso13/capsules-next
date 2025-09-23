@@ -1,14 +1,14 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
 
 import { HeaderAuth } from "@/components/header-auth";
 import { GroupCarousel } from "@/components/group-carousel";
-import { SignedIn } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { LandingAuthCard } from "@/components/landing-auth-card";
 import { HowItWorks } from "@/components/how-it-works";
 import { LaunchCta } from "@/components/launch-cta";
+import { HomeSignedIn } from "@/components/home-signed-in";
 
 import styles from "./landing.module.css";
 
@@ -46,24 +46,24 @@ const groupTypes = [
   "Photographers",
   "Alumni Networks",
 ];
-// New concise steps for the HowItWorks component
-
-
-
-
-
-// New concise steps for the HowItWorks component
-
-// Steps used by the visual HowItWorks component
-
-// Steps used by the visual HowItWorks component
-
-// Steps used by the visual HowItWorks component
 const howSteps = [
-  { title: "Create your Capsule", desc: "With Channel Memory you can recall anything from your space." },
-  { title: "Ask AI to make anything", desc: "Create posts, logos, polls, and store items with prompts." },
-  { title: "Open the barrier to growth", desc: "Post, stream, chat, and sell with built-in integrations." },
-];const superpowers = [
+  {
+    title: "Create your Capsule",
+    desc: "With Channel Memory you can recall anything from your space.",
+    icon: "\u{1F4E6}",
+  },
+  {
+    title: "Ask AI to make anything",
+    desc: "Create posts, logos, polls, and store items with prompts.",
+    icon: "\u{1F528}",
+  },
+  {
+    title: "Open the barrier to growth",
+    desc: "Post, stream, chat, and sell with built-in integrations.",
+    icon: "\u{1F680}",
+  },
+];
+const superpowers = [
   "Actionable AI outputs",
   "Live events & chat",
   "Clip Studio",
@@ -135,10 +135,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const { userId } = await auth();
-  if (userId) {
-    redirect("/capsule");
-  }
+  await auth();
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -148,31 +145,51 @@ export default async function HomePage() {
             <span className={styles.brandName}>Capsules</span>
           </Link>
           <nav className={styles.nav} aria-label="Primary navigation">
-            <SignedIn>
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`${styles.navLink} ${link.href === "/" ? styles.navLinkActive : ""}`.trim()}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </SignedIn>
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`${styles.navLink} ${link.href === "/" ? styles.navLinkActive : ""}`.trim()}
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
           <div className={styles.headerActions}>
+            {/* Profile icon / auth */}
+            <HeaderAuth />
+            {/* Settings icon (signed-in only) */}
             <SignedIn>
-              <Link href="/settings" className={styles.secondaryAction}>
-                Settings
+              <Link href="/settings" className={styles.iconButton} aria-label="Settings">
+                <svg className={styles.iconGlyph} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                  <defs>
+                    <linearGradient id="hdrGearGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stopColor="#8b5cf6"/>
+                      <stop offset="1" stopColor="#22d3ee"/>
+                    </linearGradient>
+                  </defs>
+                  <g stroke="url(#hdrGearGrad)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke">
+                    {/* outer ring with teeth impression */}
+                    <circle cx="12" cy="12" r="7.25" strokeDasharray="2.1 2.1"/>
+                    {/* cardinal teeth */}
+                    <path d="M12 3.6v2.2M20.4 12h-2.2M12 20.4v-2.2M3.6 12h2.2"/>
+                    {/* inner hub */}
+                    <circle cx="12" cy="12" r="3.4"/>
+                  </g>
+                </svg>
               </Link>
             </SignedIn>
+            {/* Launch CTA */}
             <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" />
-            <HeaderAuth />
           </div>
         </div>
       </header>
 
       <main className={styles.main}>
+        <SignedIn>
+          <HomeSignedIn />
+        </SignedIn>
+        <SignedOut>
         <section className={styles.hero}>
           <div className={styles.heroContent}>
             <h1 className={styles.heroTitle}>Create AI Powered Spaces that Remember</h1>
@@ -249,6 +266,7 @@ export default async function HomePage() {
             <h2 className={styles.revenueTitle}>Keep 90% of your creator revenue</h2>
           </div>
         </section>
+        </SignedOut>
       </main>
 
       <footer className={styles.footer}>
@@ -271,6 +289,7 @@ export default async function HomePage() {
     </div>
   );
 }
+
 
 
 
