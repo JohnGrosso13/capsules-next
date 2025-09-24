@@ -1,6 +1,6 @@
 .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items: stretch; }
 @media (max-width: 900px){ .row{ grid-template-columns: repeat(2, 1fr);} }
-@media (max-width: 640px){ .row{ grid-template-columns: 1fr; gap: 10px; } }
+@media (max-width: 640px){ .row{ grid-template-columns: repeat(2, 1fr); gap: 10px; } }
 
 .tile { position: relative; border:1px solid var(--card-border); background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2)); border-radius: 16px; padding: 12px; display: grid; gap: 10px; box-shadow: var(--card-shadow); overflow: hidden; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease; }
 @media (max-width: 640px){ .tile{ border-radius: 14px; padding: 10px; } }
