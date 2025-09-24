@@ -1,7 +1,9 @@
 .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items: stretch; }
 @media (max-width: 900px){ .row{ grid-template-columns: repeat(2, 1fr);} }
+@media (max-width: 640px){ .row{ grid-template-columns: 1fr; gap: 10px; } }
 
 .tile { position: relative; border:1px solid var(--card-border); background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2)); border-radius: 16px; padding: 12px; display: grid; gap: 10px; box-shadow: var(--card-shadow); overflow: hidden; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease; }
+@media (max-width: 640px){ .tile{ border-radius: 14px; padding: 10px; } }
 .tile::before { content:""; position:absolute; inset:0; border-radius: inherit; pointer-events:none; background:
   /* darker emphasis than post cards to avoid monotony */
   radial-gradient(120% 90% at 50% -10%, rgba(0,0,0,0.10), rgba(0,0,0,0) 68%),
@@ -16,6 +18,7 @@
   rgba(10,14,34,.62);
   display:flex; align-items:center; justify-content:center;
 }
+@media (max-width: 640px){ .short{ aspect-ratio: 4/3; border-radius: 12px; } }
 .media { width:100%; height:100%; object-fit: cover; display:block; background: var(--glass-bg-2, rgba(255,255,255,0.08)); }
 .list { display: grid; gap: 8px; }
 .pill { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; border:1px solid var(--pill-border, rgba(255,255,255,0.14)); background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.08)), var(--glass-bg-2, rgba(255,255,255,0.04))); font-size: 13px; font-weight:600; color: var(--text); }
@@ -24,7 +27,9 @@
 /* Avatars in a stack inside short */
 .avatars { display:flex; gap: 10px; }
 .avatar { width:72px; height:72px; border-radius: 16px; background: linear-gradient(135deg,#8b5cf6,#22d3ee); box-shadow: 0 10px 22px rgba(79,70,229,.36); }
+@media (max-width: 640px){ .avatar{ width:64px; height:64px; border-radius: 14px; } }
 
 /* Chips overlay inside short for recommendations */
 .chips { display:flex; flex-direction:column; gap: 10px; }
 .ghost { display:inline-flex; align-items:center; justify-content:center; padding:.55rem .95rem; border-radius:999px; border:1px solid var(--pill-border, rgba(255,255,255,.18)); color: var(--text-2); background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,.08)), var(--glass-bg-2, rgba(255,255,255,.04))); font-weight:700; }
+@media (max-width: 640px){ .ghost{ padding:.5rem .9rem; } }
