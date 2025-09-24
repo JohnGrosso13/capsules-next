@@ -6,7 +6,6 @@ import { HomeSignedIn } from "./home-signed-in";
 type Props = React.ComponentProps<typeof HomeSignedIn>;
 
 export function CapsuleSignedIn(props: Props) {
-  // Mirrors Home. Customize per Capsule needs by toggling flags or composing.
-  return <HomeSignedIn {...props} />;
+  // Capsule page: hide promo tiles and feed; keep prompter and rail.
+  return <HomeSignedIn {...props} showPromoRow={false} showFeed={false} />;
 }
-
