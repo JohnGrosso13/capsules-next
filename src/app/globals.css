@@ -16,11 +16,18 @@
   --brand-mid-start: 26%;
   --brand-mid-end: 82%;
   --brand-to-stop: 100%;
+  /* extra blended stops for smoother transition */
+  --brand-blend-1: color-mix(in srgb, var(--brand-mid) 72%, var(--brand-to));
+  --brand-blend-2: color-mix(in srgb, var(--brand-mid) 48%, var(--brand-to));
+  --brand-blend-1-stop: 88%;
+  --brand-blend-2-stop: 94%;
   --brand-gradient: linear-gradient(
     var(--brand-angle, 120deg),
     var(--brand-from) var(--brand-from-stop, 0%),
     var(--brand-mid) var(--brand-mid-start, 26%),
     var(--brand-mid) var(--brand-mid-end, 82%),
+    var(--brand-blend-1) var(--brand-blend-1-stop, 88%),
+    var(--brand-blend-2) var(--brand-blend-2-stop, 94%),
     var(--brand-to) var(--brand-to-stop, 100%)
   );
   --glass-bg-1: rgba(255,255,255,0.10);
