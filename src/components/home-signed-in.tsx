@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
 import styles from "./home.module.css";
+import friendsStyles from "@/app/friends/friends.module.css";
 import { PromoRow } from "./promo-row";
 import { AiPrompterStage } from "./ai-prompter-stage";
 
@@ -51,6 +51,9 @@ export function HomeSignedIn({
 }: Props) {
   const [posts, setPosts] = React.useState<Post[]>([]);
   const [friends, setFriends] = React.useState<Friend[]>(fallbackFriends);
+  type RailTab = "friends" | "chats" | "requests";
+  const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
+  const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
 
   function timeAgo(iso?: string) {
     if (!iso) return "";
@@ -182,26 +185,88 @@ export function HomeSignedIn({
 
         {showRail ? (
           <aside className={styles.rail}>
-            <div className={styles.connectionTiles}>
-              {connectionTiles.map((tile) => (
-                <Link
-                  key={tile.key}
-                  href={tile.href}
-                  className={`${styles.connectionTile} ${tile.primary ? styles.connectionTilePrimary : ""}`.trim()}
-                >
-                  <div className={styles.connectionTileHeader}>
-                    <div className={styles.connectionTileMeta}>
-                      <span className={styles.connectionTileIcon} aria-hidden>
-                        {tile.icon}
-                      </span>
-                      <span className={styles.connectionTileTitle}>{tile.title}</span>
+            {railMode === "tiles" ? (
+              <div className={styles.connectionTiles}>
+                {connectionTiles.map((tile) => (
+                  <button
+                    key={tile.key}
+                    type="button"
+                    className={`${styles.connectionTile} ${tile.primary ? styles.connectionTilePrimary : ""}`.trim()}
+                    onClick={() => {
+                      setActiveRailTab(tile.key as RailTab);
+                      setRailMode("connections");
+                    }}
+                  >
+                    <div className={styles.connectionTileHeader}>
+                      <div className={styles.connectionTileMeta}>
+                        <span className={styles.connectionTileIcon} aria-hidden>
+                          {tile.icon}
+                        </span>
+                        <span className={styles.connectionTileTitle}>{tile.title}</span>
+                      </div>
+                      {tile.badge ? <span className={styles.connectionTileBadge}>{tile.badge}</span> : null}
                     </div>
-                    {tile.badge ? <span className={styles.connectionTileBadge}>{tile.badge}</span> : null}
+                    <p className={styles.connectionTileDescription}>{tile.description}</p>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.railConnections}>
+                <div className={styles.railHeaderRow}>
+                  <button
+                    type="button"
+                    className={styles.railBackBtn}
+                    aria-label="Back to tiles"
+                    onClick={() => setRailMode("tiles")}
+                  >&lt;</button>
+                </div>
+
+                <div className={styles.railTabs} role="tablist" aria-label="Connections">
+                  {([
+                    { key: "friends", label: "Friends" },
+                    { key: "chats", label: "Chats" },
+                    { key: "requests", label: "Requests" },
+                  ] as { key: RailTab; label: string }[]).map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeRailTab === t.key}
+                      className={`${styles.railTab} ${activeRailTab === t.key ? styles.railTabActive : ""}`.trim()}
+                      onClick={() => setActiveRailTab(t.key)}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className={styles.railPanel} hidden={activeRailTab !== "friends"}>
+                  <div className={`${friendsStyles.list}`.trim()}>
+                    {friends.map((f, i) => (
+                      <div key={i} className={friendsStyles.friendRow}>
+                        <span className={friendsStyles.avatarWrap}>
+                          {f.avatar ? (
+                            <img className={friendsStyles.avatarImg} src={f.avatar} alt="" aria-hidden />
+                          ) : (
+                            <span className={friendsStyles.avatar} aria-hidden />
+                          )}
+                          <span className={`${friendsStyles.presence} ${friendsStyles.offline}`.trim()} aria-hidden />
+                        </span>
+                        <div className={friendsStyles.friendMeta}>
+                          <div className={friendsStyles.friendName}>{f.name}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <p className={styles.connectionTileDescription}>{tile.description}</p>
-                </Link>
-              ))}
-            </div>
+                </div>
+                <div className={styles.railPanel} hidden={activeRailTab !== "chats"}>
+                  <div className={friendsStyles.empty}>Chats are coming soon.</div>
+                </div>
+                <div className={styles.railPanel} hidden={activeRailTab !== "requests"}>
+                  <div className={friendsStyles.empty}>No pending requests.</div>
+                </div>
+              </div>
+            )}
           </aside>
         ) : null}
 

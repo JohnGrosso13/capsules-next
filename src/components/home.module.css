@@ -77,3 +77,14 @@
 .connectionTileDescription { color: var(--text-2); font-weight:600; font-size:.9rem; line-height:1.55; }
 .connectionTilePrimary .connectionTileDescription { color: rgba(14,16,36,0.72); }
 @media (max-width: 1000px){ .rail { display: none; } }
+
+/* Right-rail in-place connections view */
+.railConnections { display:grid; gap:10px; }
+.railHeaderRow { display:flex; align-items:center; justify-content:flex-start; }
+.railBackBtn { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:999px; border:1px solid var(--pill-border, rgba(255,255,255,.16)); background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04)); color: var(--text); font-weight:800; box-shadow: inset 0 1px 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(2,6,23,.45); }
+.railBackBtn:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.26); }
+.railTabs { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; padding: 0; }
+.railTab { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,0.16); background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04)); color: var(--text); font-weight:800; letter-spacing:.01em; box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(2,6,23,0.40), 0 6px 12px rgba(5,10,30,0.18); width: 100%; }
+.railTab:hover { border-color: rgba(255,255,255,0.26); transform: translateY(-1px); }
+.railTabActive { color: #0e1024; background: var(--cta-gradient); box-shadow: 0 14px 28px rgba(79,70,229,.32); border-color: transparent; }
+.railPanel { margin-top: 2px; }
