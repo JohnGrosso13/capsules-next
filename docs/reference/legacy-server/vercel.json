@@ -1,0 +1,61 @@
+{
+    "functions":  {
+                      "api/index.js":  {
+                                           "runtime":  "nodejs18.x"
+                                       }
+                  },
+    "rewrites":  [
+                     {
+                         "source":  "/api/:path*",
+                         "destination":  "/api/index.js"
+                     },
+                     {
+                         "source":  "/admin",
+                         "destination":  "/src/admin.html"
+                     },
+                     {
+                         "source":  "/create",
+                         "destination":  "/src/create.html"
+                     },
+                     {
+                         "source":  "/create.html",
+                         "destination":  "/src/create.html"
+                     },
+                     {
+                         "source":  "/capsule",
+                         "destination":  "/src/capsule.html"
+                     },
+                     {
+                         "source":  "/capsule.html",
+                         "destination":  "/src/capsule.html"
+                     },
+                     {
+                         "source":  "/styles.css",
+                         "destination":  "/src/styles.css"
+                     },
+                     {
+                         "source":  "/script.js",
+                         "destination":  "/src/script.js"
+                     },
+                     {
+                         "source":  "/resend-integration.js",
+                         "destination":  "/src/resend-integration.js"
+                     },
+                     {
+                         "source":  "/supabase-integration.js",
+                         "destination":  "/src/supabase-integration.js"
+                     },
+                     {
+                         "source":  "/",
+                         "destination":  "/src/index.html"
+                     },
+                     {
+                         "destination":  "/src/settings.html",
+                         "source":  "/settings"
+                     },
+                     {
+                         "destination":  "/src/settings.html",
+                         "source":  "/settings.html"
+                     }
+                 ]
+}

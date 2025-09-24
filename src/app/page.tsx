@@ -11,6 +11,7 @@ import { LaunchCta } from "@/components/launch-cta";
 import { HomeSignedIn } from "@/components/home-signed-in";
 
 import styles from "./landing.module.css";
+import override from "./landing-override.module.css";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -150,7 +151,7 @@ export default async function HomePage() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`${styles.navLink} ${link.href === "/" ? styles.navLinkActive : ""}`.trim()}
+                  className={`${styles.navLink} ${link.href === "/" ? `${styles.navLinkActive} ${override.navLinkActive}` : ""}`.trim()}
                 >
                   {link.label}
                 </Link>
@@ -173,7 +174,7 @@ export default async function HomePage() {
                   </g>
                 </svg>
               </Link>
-              <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" />
+              <LaunchCta className={`${styles.primaryCta} ${override.primaryCta}`.trim()} hrefWhenSignedIn="/capsule" />
             </div>
           </div>
         </header>
@@ -200,7 +201,7 @@ export default async function HomePage() {
             </div>
             <div className={styles.heroActions}>
               <SignedIn>
-                <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" />
+                <LaunchCta className={`${styles.primaryCta} ${override.primaryCta}`.trim()} hrefWhenSignedIn="/capsule" />
                 <Link href="#features" className={styles.ghostButton}>Explore features</Link>
               </SignedIn>
               <SignedOut>

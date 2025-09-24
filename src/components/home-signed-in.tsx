@@ -3,6 +3,7 @@
 import React from "react";
 import styles from "./home.module.css";
 import { PromoRow } from "./promo-row";
+import { FriendsInlineTabs } from "./friends-inline-tabs";
 import { AiPrompterStage } from "./ai-prompter-stage";
 
 type Post = {
@@ -153,15 +154,7 @@ export function HomeSignedIn({
         {showRail ? (
           <aside className={styles.rail}>
             <div id="friends" className={styles.railCard}>
-              <strong>Friends List</strong>
-              <div className={styles.friends}>
-                {friends.slice(0, 12).map((f, i) => (
-                  <div key={i} className={styles.friendItem}>
-                    <span className={styles.avatar} aria-hidden />
-                    {f.name}
-                  </div>
-                ))}
-              </div>
+              <FriendsInlineTabs friends={friends} />
             </div>
           </aside>
         ) : null}
