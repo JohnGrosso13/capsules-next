@@ -84,7 +84,7 @@ export function MobileCommandBar() {
             </button>
             {open ? (
               <div className={styles.sheet} role="menu" data-surface="ai-dock-more">
-                <Link href="/#friends" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_friends")}>
+                <Link href="/friends" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_friends")}>
                   <FriendsIcon />
                   Friends
                 </Link>
