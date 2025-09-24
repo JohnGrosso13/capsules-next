@@ -55,9 +55,9 @@
 .timestamp { color: var(--text-2); font-weight:600; }
 
 /* Equal action bar */
-.actionBar { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 12px 12px 14px; background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.03)); border-top: 1px solid rgba(255,255,255,0.08); transition: background .16s ease, border-color .16s ease; }
-.card:hover .actionBar, .card:focus-within .actionBar { background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04)); border-top-color: rgba(255,255,255,0.12); }
-.actionBtn { display:inline-flex; align-items:center; justify-content:center; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.16); background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04)); color: var(--text); font-weight:700; box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(2,6,23,0.45); }
+.actionBar { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 12px 12px 14px; background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.06)), var(--glass-bg-2, rgba(255,255,255,0.03))); border-top: 1px solid var(--header-border-color, rgba(255,255,255,0.08)); transition: background .16s ease, border-color .16s ease; }
+.card:hover .actionBar, .card:focus-within .actionBar { background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.08)), var(--glass-bg-2, rgba(255,255,255,0.04))); border-top-color: var(--header-border-color, rgba(255,255,255,0.12)); }
+.actionBtn { display:inline-flex; align-items:center; justify-content:center; padding:10px 12px; border-radius:12px; border:1px solid var(--pill-border, rgba(255,255,255,0.16)); background: linear-gradient(180deg, var(--pill-bg-1, rgba(255,255,255,0.08)), var(--pill-bg-2, rgba(255,255,255,0.04))); color: var(--text); font-weight:700; box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(2,6,23,0.45); }
 .actionBtn:hover { border-color: rgba(255,255,255,0.26); transform: translateY(-1px); }
 .actionBtn:active { transform: translateY(0); }
 .delete { background: linear-gradient(180deg, rgba(239, 68, 68, 0.20), rgba(239, 68, 68, 0.14)); border-color: rgba(239, 68, 68, 0.35); }
