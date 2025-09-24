@@ -10,6 +10,7 @@ export function MobileCommandBar() {
   const [open, setOpen] = React.useState(false);
   const moreRef = React.useRef<HTMLDivElement | null>(null);
   const barRef = React.useRef<HTMLElement | null>(null);
+  const recentKey = "menuUsageCounts";
 
   React.useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -47,56 +48,49 @@ export function MobileCommandBar() {
     return { "data-intent": intent } as React.HTMLAttributes<HTMLElement>;
   }
 
-  function dispatchCommand(command: string) {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("ai:command", { detail: { command, source: "mobile-bar" } }));
-    }
+  function recordUse(key: string){
+    try {
+      const map = JSON.parse(localStorage.getItem(recentKey) || "{}") as Record<string, number>;
+      map[key] = (map[key] || 0) + 1;
+      localStorage.setItem(recentKey, JSON.stringify(map));
+      // Hook for future: notify AI/runtime of usage
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("ai:menu_used", { detail: { key, source: "mobile-bar" } }));
+    } catch {}
   }
 
   return (
     <nav ref={barRef} className={styles.bar} aria-label="Capsules mobile command bar" data-fixedlayer="true">
       <div className={styles.inner}>
         <div className={styles.dock} data-surface="ai-dock">
-          <Link href="/" className={`${styles.btn} ${pathname === "/" ? styles.active : ""}`} aria-label="Home" aria-current={pathname === "/" ? "page" : undefined} {...intentAttrs("navigate_home")}>
+          <Link href="/" className={`${styles.btn} ${pathname === "/" ? styles.active : ""}`} aria-label="Home" aria-current={pathname === "/" ? "page" : undefined} onClick={() => recordUse("home")} {...intentAttrs("navigate_home")}>
             <HomeIcon />
             <span>Home</span>
           </Link>
 
-          {/* Spacer to keep Command centered with four visible buttons */}
-          <div className={styles.spacer} aria-hidden />
+          <Link href="/create" className={`${styles.btn} ${pathname === "/create" ? styles.active : ""}`} aria-label="Create" aria-current={pathname === "/create" ? "page" : undefined} onClick={() => recordUse("create")} {...intentAttrs("navigate_create")}>
+            <CreateIcon />
+            <span>Create</span>
+          </Link>
 
-          <div className={styles.command}>
-            <div className={styles.commandGlow} aria-hidden />
-            <button type="button" className={styles.commandBtn} onClick={() => dispatchCommand("open_prompter")} aria-label="Open AI prompter" {...intentAttrs("open_prompter")}>
-              <CommandIcon />
-              <span>Command</span>
-              <span className={styles.commandStatus} aria-hidden />
-            </button>
-          </div>
-
-          <Link href="/capsule" className={`${styles.btn} ${pathname === "/capsule" ? styles.active : ""}`} aria-label="Capsule" aria-current={pathname === "/capsule" ? "page" : undefined} {...intentAttrs("navigate_capsule")}>
+          <Link href="/capsule" className={`${styles.btn} ${pathname === "/capsule" ? styles.active : ""}`} aria-label="Capsule" aria-current={pathname === "/capsule" ? "page" : undefined} onClick={() => recordUse("capsule")} {...intentAttrs("navigate_capsule")}>
             <CapsuleIcon />
             <span>Capsule</span>
           </Link>
 
           <div className={styles.moreWrap} ref={moreRef}>
-            <button type="button" className={`${styles.btn} ${open ? styles.active : ""}`} onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-haspopup="true" aria-label="More options" {...intentAttrs("open_more")}>
+            <button type="button" className={`${styles.btn} ${open ? styles.active : ""}`} onClick={() => { setOpen((v) => !v); recordUse("more"); }} aria-expanded={open} aria-haspopup="true" aria-label="More options" {...intentAttrs("open_more")}>
               <MenuIcon />
               <span>More</span>
             </button>
             {open ? (
               <div className={styles.sheet} role="menu" data-surface="ai-dock-more">
-                <Link href="/memory" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_memory")}>
-                  <MemoryIcon />
-                  Memory
-                </Link>
-                <Link href="/create" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_create_from_more")}>
-                  <CreateIcon />
-                  Create
-                </Link>
                 <Link href="/#friends" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_friends")}>
                   <FriendsIcon />
                   Friends
+                </Link>
+                <Link href="/memory" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_memory")}>
+                  <MemoryIcon />
+                  Memory
                 </Link>
                 <Link href="/settings" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_profile")}>
                   <ProfileIcon />
@@ -157,21 +151,6 @@ function MenuIcon(){
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       {grad("mcMenu")}
       <path d="M5 8h14M5 12h14M5 16h10" stroke="url(#mcMenu)" strokeWidth="1.8" strokeLinecap="round"/>
-    </svg>
-  );
-}
-function CommandIcon(){
-  return (
-    <svg viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="mcCmd" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#8b5cf6"/>
-          <stop offset="1" stopColor="#22d3ee"/>
-        </linearGradient>
-      </defs>
-      <path d="M10.5 6.5h7l4 4v7l-4 4h-7l-4-4v-7l4-4Z" stroke="url(#mcCmd)" strokeWidth="1.6" strokeLinejoin="round"/>
-      <path d="M11 14h6" stroke="url(#mcCmd)" strokeWidth="1.6" strokeLinecap="round"/>
-      <path d="M14 11v6" stroke="url(#mcCmd)" strokeWidth="1.6" strokeLinecap="round"/>
     </svg>
   );
 }
