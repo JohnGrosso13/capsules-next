@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import styles from "./friends.module.css";
 
 type Friend = { name: string; avatar?: string | null; online?: boolean };
@@ -12,10 +13,37 @@ const fallbackFriends: Friend[] = [
 ];
 
 export function FriendsClient() {
-  const [friends, setFriends] = React.useState<Friend[]>([]);
-  const tabs = ["Chats", "Friends", "Requests"] as const;
+  const [friends, setFriends] = React.useState<Friend[]>(fallbackFriends);
+  // Order tabs as: Friends, Chats, Requests
+  const tabs = ["Friends", "Chats", "Requests"] as const;
   type Tab = typeof tabs[number];
-  const [active, setActive] = React.useState<Tab>("Friends");
+  const tabMeta: Record<Tab, { icon: string; description: string }> = {
+    Friends: { icon: "👥", description: "Everyone in your circle." },
+    Chats: { icon: "💬", description: "Jump back into conversations." },
+    Requests: { icon: "✨", description: "Approve new connections." },
+  };
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const requestedTab = searchParams.get("tab");
+  const normalized = React.useMemo<Tab>(
+    () => tabs.find((tab) => tab.toLowerCase() === (requestedTab ?? "").toLowerCase()) ?? "Friends",
+    [requestedTab],
+  );
+  const [active, setActive] = React.useState<Tab>(normalized);
+
+  React.useEffect(() => {
+    setActive(normalized);
+  }, [normalized]);
+
+  const selectTab = React.useCallback(
+    (tab: Tab) => {
+      setActive(tab);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", tab.toLowerCase());
+      router.replace(`?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   React.useEffect(() => {
     fetch("/api/friends/sync", { method: "POST" })
@@ -54,7 +82,7 @@ export function FriendsClient() {
     e.preventDefault();
     const i = tabs.indexOf(active);
     const next = e.key === "ArrowRight" ? (i + 1) % tabs.length : (i - 1 + tabs.length) % tabs.length;
-    setActive(tabs[next]);
+    selectTab(tabs[next]);
   }
 
   return (
@@ -76,10 +104,16 @@ export function FriendsClient() {
               aria-controls={panelFor(tab)}
               tabIndex={active === tab ? 0 : -1}
               type="button"
-              onClick={() => setActive(tab)}
+              onClick={() => selectTab(tab)}
             >
-              <span className={styles.tabLabel}>{tab}</span>
+              <span className={styles.tabContent}>
+                <span className={styles.tabIcon} aria-hidden>
+                  {tabMeta[tab].icon}
+                </span>
+                <span className={styles.tabLabel}>{tab}</span>
+              </span>
               {counters[tab] ? <span className={styles.badge}>{counters[tab]}</span> : null}
+              <span className={styles.tabDescription}>{tabMeta[tab].description}</span>
             </button>
           ))}
         </div>

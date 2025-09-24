@@ -186,11 +186,13 @@ export default async function HomePage() {
         <SignedOut>
         <section className={styles.hero}>
           <div className={styles.heroContent}>
-            <h1 className={styles.heroTitle}>Create AI Powered Spaces that Remember</h1>
-            <p className={styles.heroSubtitle}>
-              The first social platform that couples channel memory with AI building blocks so your community stays
-              connected, organized, and inspired.
-            </p>
+            <div className={styles.heroHighlight}>
+              <h1 className={styles.heroTitle}>Create AI Powered Spaces that Remember</h1>
+              <p className={styles.heroSubtitle}>
+                The first social platform that couples channel memory with AI building blocks so your community stays
+                connected, organized, and inspired.
+              </p>
+            </div>
             <div className={styles.chipList}>
               {heroPrompts.map((prompt) => (
                 <span key={prompt} className={styles.chip}>
@@ -212,17 +214,17 @@ export default async function HomePage() {
           <LandingAuthCard />
         </section>
 
-        <section className={styles.section} id="categories">
-          <div className={styles.sectionInner}>
-            <h2 className={styles.sectionTitle}>Any group can benefit</h2>
-            <GroupCarousel items={groupTypes} animate />
-          </div>
-        </section>
-
         <section className={styles.section} id="how-it-works">
           <div className={styles.sectionInner}>
             <h2 className={styles.sectionTitle}>How it works</h2>
             <HowItWorks steps={howSteps} />
+          </div>
+        </section>
+
+        <section className={styles.section} id="categories">
+          <div className={styles.sectionInner}>
+            <h2 className={styles.sectionTitle}>Any group can benefit</h2>
+            <GroupCarousel items={groupTypes} animate />
           </div>
         </section>
 

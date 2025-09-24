@@ -10,11 +10,11 @@
 .brandMark { width: 34px; height: 34px; border-radius: 12px; background: linear-gradient(135deg,#4f46e5,#7c3aed); box-shadow: 0 12px 26px rgba(79,70,229,.35); }
 .brandName { font-size: 1.1rem; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.7)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .nav { display: flex; align-items: center; gap: .5rem; }
-.navLink { display: inline-flex; align-items: center; justify-content: center; padding: .5rem 1rem; border-radius: 999px; border: 1px solid transparent; color: var(--text-2); font-weight: 600; }
-.navLinkActive { color: #0e1024; background: linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee); box-shadow: 0 14px 28px rgba(79,70,229,.32); }
+.navLink { display: inline-flex; align-items: center; justify-content: center; padding: .5rem 1rem; border-radius: 12px; border: 1px solid var(--pill-border, rgba(255,255,255,.12)); color: var(--text-2); font-weight: 700; background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03)); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(2,6,23,.35), 0 6px 12px rgba(5,10,26,.25); }
+.navLinkActive { color: var(--text); background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.08)); border-color: rgba(255,255,255,.30); box-shadow: 0 8px 18px rgba(5,10,26,.28), inset 0 1px 0 rgba(255,255,255,.50), inset 0 -1px 0 rgba(2,6,23,.45); }
 .headerActions { display: flex; align-items: center; gap: .75rem; }
 .secondaryAction { display: inline-flex; align-items: center; justify-content: center; padding: .45rem .95rem; border-radius: 999px; border: 1px solid var(--pill-border, rgba(255,255,255,.16)); color: var(--text-2); background: linear-gradient(180deg, var(--pill-bg-1, rgba(255,255,255,.06)), var(--pill-bg-2, rgba(255,255,255,.03))); font-weight: 600; }
-.primaryCta { display: inline-flex; align-items: center; justify-content: center; padding: .55rem 1.3rem; border-radius: 999px; font-weight: 600; color: #0e1024; background: linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee); box-shadow: 0 16px 32px rgba(79,70,229,.32); }
+.primaryCta { display: inline-flex; align-items: center; justify-content: center; padding: .55rem 1.3rem; border-radius: 999px; font-weight: 700; color: #0e1024; background: var(--cta-gradient); border: none; box-shadow: 0 16px 32px rgba(79,70,229,.32); text-decoration: none; transition: transform .16s ease, box-shadow .16s ease; }
 
 .main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.75rem 3rem; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }

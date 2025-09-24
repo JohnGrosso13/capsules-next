@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import styles from "./home.module.css";
 import { PromoRow } from "./promo-row";
 import { AiPrompterStage } from "./ai-prompter-stage";
@@ -49,7 +50,7 @@ export function HomeSignedIn({
   className = "",
 }: Props) {
   const [posts, setPosts] = React.useState<Post[]>([]);
-  const [friends, setFriends] = React.useState<Friend[]>([]);
+  const [friends, setFriends] = React.useState<Friend[]>(fallbackFriends);
 
   function timeAgo(iso?: string) {
     if (!iso) return "";
@@ -139,6 +140,35 @@ export function HomeSignedIn({
       .catch(() => setFriends(fallbackFriends));
   }, []);
 
+  const connectionTiles = React.useMemo(
+    () => [
+      {
+        key: "friends",
+        title: "Friends",
+        description: "Manage the people in your capsule.",
+        href: "/friends?tab=friends",
+        icon: "👥",
+        badge: friends.length || undefined,
+        primary: true,
+      },
+      {
+        key: "chats",
+        title: "Chats",
+        description: "Jump back into conversations or start one.",
+        href: "/friends?tab=chats",
+        icon: "💬",
+      },
+      {
+        key: "requests",
+        title: "Requests",
+        description: "Approve or invite new members in seconds.",
+        href: "/friends?tab=requests",
+        icon: "✨",
+      },
+    ],
+    [friends.length],
+  );
+
   return (
     <div className={`${styles.page} ${className}`.trim()}>
       {showPrompter ? <AiPrompterStage /> : null}
@@ -152,16 +182,25 @@ export function HomeSignedIn({
 
         {showRail ? (
           <aside className={styles.rail}>
-            <div id="friends" className={styles.railCard}>
-              <strong>Friends List</strong>
-              <div className={styles.friends}>
-                {friends.slice(0, 12).map((f, i) => (
-                  <div key={i} className={styles.friendItem}>
-                    <span className={styles.avatar} aria-hidden />
-                    {f.name}
+            <div className={styles.connectionTiles}>
+              {connectionTiles.map((tile) => (
+                <Link
+                  key={tile.key}
+                  href={tile.href}
+                  className={`${styles.connectionTile} ${tile.primary ? styles.connectionTilePrimary : ""}`.trim()}
+                >
+                  <div className={styles.connectionTileHeader}>
+                    <div className={styles.connectionTileMeta}>
+                      <span className={styles.connectionTileIcon} aria-hidden>
+                        {tile.icon}
+                      </span>
+                      <span className={styles.connectionTileTitle}>{tile.title}</span>
+                    </div>
+                    {tile.badge ? <span className={styles.connectionTileBadge}>{tile.badge}</span> : null}
                   </div>
-                ))}
-              </div>
+                  <p className={styles.connectionTileDescription}>{tile.description}</p>
+                </Link>
+              ))}
             </div>
           </aside>
         ) : null}
