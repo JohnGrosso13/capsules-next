@@ -7,9 +7,22 @@
   --glass-border: rgba(255, 255, 255, 0.16);
 
   /* Theming tokens (overridable per-page) */
-  --brand-from: #8b5cf6;
-  --brand-mid: #6366f1;
-  --brand-to: #22d3ee;
+  --brand-from: #8b5cf6; /* violet */
+  --brand-mid: #6366f1;  /* indigo */
+  --brand-to: #22d3ee;   /* cyan */
+  /* Gradient shaping: emphasize indigo for legibility and soften the indigo→cyan falloff */
+  --brand-angle: 120deg;
+  --brand-from-stop: 0%;
+  --brand-mid-start: 26%;
+  --brand-mid-end: 82%;
+  --brand-to-stop: 100%;
+  --brand-gradient: linear-gradient(
+    var(--brand-angle, 120deg),
+    var(--brand-from) var(--brand-from-stop, 0%),
+    var(--brand-mid) var(--brand-mid-start, 26%),
+    var(--brand-mid) var(--brand-mid-end, 82%),
+    var(--brand-to) var(--brand-to-stop, 100%)
+  );
   --glass-bg-1: rgba(255,255,255,0.10);
   --glass-bg-2: rgba(255,255,255,0.05);
   --pill-radius: 999px;

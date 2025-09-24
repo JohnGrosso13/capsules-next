@@ -73,7 +73,7 @@ function segStyle(active: boolean): React.CSSProperties {
     fontWeight: 800,
     letterSpacing: ".01em",
     background: active
-      ? "linear-gradient(120deg, var(--brand-from,#8b5cf6), var(--brand-mid,#6366f1), var(--brand-to,#22d3ee))"
+      ? "var(--brand-gradient)"
       : "linear-gradient(180deg, var(--pill-bg-1, rgba(255,255,255,0.08)), var(--pill-bg-2, rgba(255,255,255,0.04)))",
     boxShadow: active
       ? "0 0 18px var(--cta-glow, rgba(99,102,241,.34)), 0 8px 16px rgba(2,6,23,.36), inset 0 1px 0 rgba(255,255,255,.45)"
@@ -81,4 +81,3 @@ function segStyle(active: boolean): React.CSSProperties {
     cursor: "pointer",
   };
 }
-
