@@ -57,6 +57,7 @@
 
   /* Mobile dock scrim (fills safe-area under dock) */
   --dock-scrim-bottom: rgba(5,10,30,0.35);
+  --dock-tint: rgba(6,10,25,0.42);
 
   /* App background */
   --app-bg: radial-gradient(1200px 600px at 0% 0%, rgba(99, 102, 241, 0.12), transparent 55%),
@@ -103,6 +104,7 @@
 
   /* Mobile dock scrim in light mode */
   --dock-scrim-bottom: rgba(255,255,255,0.78);
+  --dock-tint: rgba(255,255,255,0.82);
 
   --app-bg: radial-gradient(1200px 600px at 0% 0%, rgba(180, 188, 255, 0.35), transparent 55%),
             radial-gradient(900px 540px at 100% 0%, rgba(200, 210, 255, 0.30), transparent 58%),

@@ -62,10 +62,8 @@ export function MobileCommandBar() {
             <span>Home</span>
           </Link>
 
-          <Link href="/create" className={`${styles.btn} ${pathname === "/create" ? styles.active : ""}`} aria-label="Create" aria-current={pathname === "/create" ? "page" : undefined} {...intentAttrs("navigate_create")}>
-            <CreateIcon />
-            <span>Create</span>
-          </Link>
+          {/* Spacer to keep Command centered with four visible buttons */}
+          <div className={styles.spacer} aria-hidden />
 
           <div className={styles.command}>
             <div className={styles.commandGlow} aria-hidden />
@@ -91,6 +89,10 @@ export function MobileCommandBar() {
                 <Link href="/memory" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_memory")}>
                   <MemoryIcon />
                   Memory
+                </Link>
+                <Link href="/create" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_create_from_more")}>
+                  <CreateIcon />
+                  Create
                 </Link>
                 <Link href="/#friends" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_friends")}>
                   <FriendsIcon />
