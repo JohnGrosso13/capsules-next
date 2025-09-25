@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SignOutButton } from "@clerk/nextjs";
 import * as React from "react";
 import styles from "./mobile-command-bar.module.css";
 
@@ -92,10 +93,18 @@ export function MobileCommandBar() {
                   <MemoryIcon />
                   Memory
                 </Link>
-                <Link href="/settings" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_profile")}>
-                  <ProfileIcon />
-                  Profile
-                </Link>
+                <SignOutButton redirectUrl="/" signOutCallback={() => setOpen(false)}>
+                  <button
+                    type="button"
+                    className={styles.sheetItem}
+                    role="menuitem"
+                    onClick={() => { recordUse("signout"); setOpen(false); }}
+                    {...intentAttrs("sign_out")}
+                  >
+                    <ProfileIcon />
+                    Profile
+                  </button>
+                </SignOutButton>
                 <Link href="/settings" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_settings")}>
                   <SettingsIcon />
                   Settings

@@ -21,10 +21,18 @@ const defaultChips = [
   "Summarize my feed",
 ];
 
+export type ComposerMode = "post" | "image" | "video" | "poll";
+
+export type PrompterAction =
+  | { kind: "post_manual"; content: string; raw: string }
+  | { kind: "post_ai"; prompt: string; mode: ComposerMode; raw: string }
+  | { kind: "generate"; text: string; raw: string };
+
 type Props = {
   placeholder?: string;
   chips?: string[];
-  onGenerate?: (text: string, intent: PromptIntent) => void;
+  statusMessage?: string | null;
+  onAction?: (action: PrompterAction) => void;
 };
 
 type IntentResponse = {
@@ -38,9 +46,25 @@ type NavigationTarget =
   | { kind: "route"; path: string; label: string }
   | { kind: "theme"; value: Theme; label: string };
 
+type PostPlan =
+  | { mode: "none" }
+  | { mode: "manual"; content: string }
+  | { mode: "ai"; composeMode: ComposerMode };
+
 const HEURISTIC_CONFIDENCE_THRESHOLD = 0.6;
 
 const NAV_VERB_RE = /(go|open|navigate|take|bring|show|switch|launch|visit|return|back)/;
+const AI_POST_RE = /(make|draft|write|craft|compose|generate|build)\s+(me\s+)?(a\s+)?(social\s+)?post/;
+const AI_IMAGE_RE = /(image|photo|picture|graphic|art|poster|thumbnail|banner|illustration)/;
+const AI_VIDEO_RE = /(video|clip|reel|short|story|trailer)/;
+const AI_POLL_RE = /(poll|survey|vote|questionnaire|choices?)/;
+
+function detectComposerMode(text: string): ComposerMode {
+  if (AI_POLL_RE.test(text)) return "poll";
+  if (AI_VIDEO_RE.test(text)) return "video";
+  if (AI_IMAGE_RE.test(text)) return "image";
+  return "post";
+}
 
 function resolveNavigationTarget(text: string): NavigationTarget | null {
   const query = text.trim().toLowerCase();
@@ -54,7 +78,6 @@ function resolveNavigationTarget(text: string): NavigationTarget | null {
   }
 
   const hasNavVerb = NAV_VERB_RE.test(query);
-
   const routes: Array<{ regex: RegExp; path: string; label: string }> = [
     { regex: /(home(\s*page)?|landing)/, path: "/", label: "Home" },
     { regex: /create(\s*(page|tab))?/, path: "/create", label: "Create" },
@@ -80,10 +103,43 @@ function navHint(target: NavigationTarget | null): string | null {
   return `Ready to switch to ${target.label}`;
 }
 
+function resolvePostPlan(text: string): PostPlan {
+  const trimmed = text.trim();
+  if (!trimmed) return { mode: "none" };
+  const lower = trimmed.toLowerCase();
+
+  if (AI_POST_RE.test(lower)) {
+    return { mode: "ai", composeMode: detectComposerMode(lower) };
+  }
+
+  const manualColon = trimmed.match(/^post\s*[:\-]\s*(.+)$/i);
+  if (manualColon && manualColon[1].trim()) {
+    return { mode: "manual", content: manualColon[1].trim() };
+  }
+
+  const manualSimple = trimmed.match(/^post\s+(?!me\s+a\s+post)(.+)$/i);
+  if (manualSimple && manualSimple[1].trim()) {
+    return { mode: "manual", content: manualSimple[1].trim() };
+  }
+
+  const shorthand = trimmed.match(/^p:\s*(.+)$/i);
+  if (shorthand && shorthand[1].trim()) {
+    return { mode: "manual", content: shorthand[1].trim() };
+  }
+
+  return { mode: "none" };
+}
+
+function truncate(text: string, length = 80): string {
+  if (text.length <= length) return text;
+  return `${text.slice(0, length - 1)}…`;
+}
+
 export function AiPrompterStage({
   placeholder = "Ask your Capsule AI to create anything...",
   chips = defaultChips,
-  onGenerate,
+  statusMessage = null,
+  onAction,
 }: Props) {
   const router = useRouter();
 
@@ -99,17 +155,37 @@ export function AiPrompterStage({
   const trimmed = text.trim();
   const baseIntent = manualIntent ?? autoIntent.intent;
   const navTarget = React.useMemo(() => resolveNavigationTarget(trimmed), [trimmed]);
-  const effectiveIntent: PromptIntent = baseIntent === "navigate" || navTarget ? "navigate" : baseIntent;
+  const postPlan = React.useMemo(() => resolvePostPlan(trimmed), [trimmed]);
+  const effectiveIntent: PromptIntent = navTarget
+    ? "navigate"
+    : postPlan.mode !== "none"
+    ? "post"
+    : baseIntent;
+
   const buttonBusy = isResolving && manualIntent === null;
   const navigateReady = effectiveIntent === "navigate" && navTarget !== null;
 
   const buttonLabel = navigateReady
     ? "Go"
+    : postPlan.mode === "manual"
+    ? "Post"
+    : postPlan.mode === "ai"
+    ? "Draft"
     : buttonBusy
     ? "Analyzing..."
     : intentLabel(effectiveIntent);
 
-  const buttonDisabled = trimmed.length === 0 || (effectiveIntent === "navigate" && !navTarget);
+  const buttonClassName =
+    navigateReady
+      ? `${styles.genBtn} ${styles.genBtnNavigate}`
+      : postPlan.mode === "manual"
+      ? `${styles.genBtn} ${styles.genBtnPost}`
+      : styles.genBtn;
+
+  const buttonDisabled =
+    trimmed.length === 0 ||
+    (effectiveIntent === "navigate" && !navTarget) ||
+    (postPlan.mode === "manual" && (!postPlan.content || !postPlan.content.trim()));
 
   React.useEffect(() => {
     if (!menuOpen) return;
@@ -199,13 +275,28 @@ export function AiPrompterStage({
       } else {
         setTheme(navTarget.value);
       }
+      setText("");
+      setManualIntent(null);
       setMenuOpen(false);
+      return;
+    }
+
+    if (effectiveIntent === "post") {
+      if (postPlan.mode === "manual") {
+        const content = postPlan.content.trim();
+        if (!content) return;
+        onAction?.({ kind: "post_manual", content, raw: value });
+      } else if (postPlan.mode === "ai") {
+        onAction?.({ kind: "post_ai", prompt: value, mode: detectComposerMode(value.toLowerCase()), raw: value });
+      } else {
+        onAction?.({ kind: "generate", text: value, raw: value });
+      }
       setText("");
       setManualIntent(null);
       return;
     }
 
-    onGenerate?.(value, effectiveIntent);
+    onAction?.({ kind: "generate", text: value, raw: value });
     setText("");
     setManualIntent(null);
   }
@@ -215,24 +306,30 @@ export function AiPrompterStage({
     setMenuOpen(false);
   }
 
+  const manualNote = manualIntent
+    ? manualIntent === "navigate"
+      ? "Intent override: Navigate"
+      : manualIntent === "post"
+      ? "Intent override: Post"
+      : "Manual override active"
+    : null;
+
   const navMessage = navHint(navigateReady ? navTarget : null);
+  const postHint =
+    postPlan.mode === "manual"
+      ? postPlan.content
+        ? `Ready to post: “${truncate(postPlan.content, 50)}”`
+        : "Add what you'd like to share."
+      : postPlan.mode === "ai"
+      ? "AI will draft this for you."
+      : null;
 
-  const hint = manualIntent
-    ? "Manual override active"
-    : navMessage
-    ? navMessage
-    : buttonBusy
-    ? "Analyzing intent..."
-    : autoIntent.reason || "AI will adjust automatically";
-
-  const overrideClass = manualIntent
-    ? `${styles.intentChip} ${styles.intentChipActive}`
-    : styles.intentChip;
-
-  const buttonClassName = navigateReady ? `${styles.genBtn} ${styles.genBtnNavigate}` : styles.genBtn;
-
-  const optionSelected = (value: PromptIntent) =>
-    manualIntent ? manualIntent === value : effectiveIntent === value;
+  const hint =
+    statusMessage ??
+    manualNote ??
+    navMessage ??
+    postHint ??
+    (buttonBusy ? "Analyzing intent..." : autoIntent.reason || "AI will adjust automatically");
 
   return (
     <section className={styles.prompterStage} aria-label="AI Prompter">
@@ -261,7 +358,7 @@ export function AiPrompterStage({
           <div className={styles.intentOverride} ref={menuRef}>
             <button
               type="button"
-              className={overrideClass}
+              className={manualIntent ? `${styles.intentChip} ${styles.intentChipActive}` : styles.intentChip}
               onClick={() => setMenuOpen((open) => !open)}
               aria-expanded={menuOpen}
               aria-haspopup="listbox"
@@ -286,7 +383,7 @@ export function AiPrompterStage({
                   type="button"
                   onClick={() => applyManualIntent("post")}
                   role="option"
-                  aria-selected={optionSelected("post")}
+                  aria-selected={manualIntent === "post"}
                 >
                   Post
                 </button>
@@ -294,7 +391,7 @@ export function AiPrompterStage({
                   type="button"
                   onClick={() => applyManualIntent("navigate")}
                   role="option"
-                  aria-selected={optionSelected("navigate")}
+                  aria-selected={manualIntent === "navigate"}
                 >
                   Navigate
                 </button>
@@ -302,7 +399,7 @@ export function AiPrompterStage({
                   type="button"
                   onClick={() => applyManualIntent("generate")}
                   role="option"
-                  aria-selected={optionSelected("generate")}
+                  aria-selected={manualIntent === "generate"}
                 >
                   Generate
                 </button>

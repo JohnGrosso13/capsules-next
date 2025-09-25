@@ -416,6 +416,30 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
     if (existing.created_at) row.created_at = existing.created_at;
   }
 
+  if ((!row.user_name || !row.user_avatar) && ownerId) {
+    try {
+      const { data: ownerProfile } = await supabase
+        .from('users')
+        .select('full_name, avatar_url')
+        .eq('id', ownerId)
+        .maybeSingle();
+      if (ownerProfile) {
+        if (!row.user_name && typeof ownerProfile.full_name === 'string' && ownerProfile.full_name.trim()) {
+          row.user_name = ownerProfile.full_name.trim();
+        }
+        if (!row.user_avatar && typeof ownerProfile.avatar_url === 'string' && ownerProfile.avatar_url.trim()) {
+          row.user_avatar = ownerProfile.avatar_url.trim();
+        }
+      }
+    } catch (error) {
+      console.warn('post author profile lookup failed', error);
+    }
+  }
+
+  if (!row.user_name) {
+    row.user_name = 'Capsules member';
+  }
+
   const payload = pruneNullish(row);
 
   const isMediaPost = typeof row.media_url === "string" && !!row.media_url && ["image", "video"].includes(String(draft.kind ?? "text").toLowerCase());

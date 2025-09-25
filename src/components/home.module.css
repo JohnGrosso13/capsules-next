@@ -17,7 +17,9 @@
 .genBtn { display:inline-flex; align-items:center; gap:8px; border-radius:999px; padding:9px 14px; background: var(--cta-gradient); color:#0e1024; font-weight:700; letter-spacing:.01em; box-shadow: 0 16px 32px rgba(79,70,229,0.32); border: none; }
 
 .genBtnNavigate { background: linear-gradient(120deg, #34d399, #22c55e, #0ea5e9); color:#022c1a; box-shadow: 0 18px 36px rgba(34,197,94,0.36); }
-.genBtnNavigate:hover { box-shadow: 0 24px 48px rgba(34,197,94,0.42); }
+
+.genBtnPost { background: linear-gradient(120deg, #f97316, #fbbf24, #f97316); color:#201203; box-shadow: 0 18px 36px rgba(249,115,22,0.34); }
+.genBtnPost:hover { box-shadow: 0 24px 48px rgba(249,115,22,0.44); }
 .genLabel { position: relative; top: 0.5px; }
 .chips { display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-start; padding-left:6px; }
 .chip { padding:7px 12px; border-radius:999px; border:1px solid rgba(255,255,255,0.16); background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.08)), var(--glass-bg-2, rgba(255,255,255,0.04))); font-weight:700; color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(2,6,23,0.38), 0 6px 12px rgba(5,10,30,0.22); }
@@ -64,9 +66,26 @@
 .pill:active { transform: translateY(0); }
 
 /* User meta (name + time) */
-.userMeta { display:flex; align-items:baseline; gap:10px; }
+.userMeta { display:flex; align-items:center; gap:10px; }
 .userName { font-weight:800; color: var(--text); letter-spacing:.01em; }
 .timestamp { color: var(--text-2); font-weight:600; }
+
+/* Post avatar */
+.userNameButton { background: none; border: none; padding: 0; color: var(--link-color, #c7d2fe); font: inherit; font-weight: inherit; letter-spacing: inherit; cursor: pointer; }
+.userNameButton:hover { text-decoration: underline; color: #e0e7ff; }
+.userNameButton:focus-visible { outline: 2px solid rgba(129,140,248,0.6); outline-offset: 2px; border-radius: 6px; }
+
+.postFriendActions { margin: 6px 0 0 44px; display: flex; gap: 8px; }
+.postFriendButton { padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05)); color: var(--text); font-weight: 700; letter-spacing: .01em; cursor: pointer; }
+.postFriendButton:hover { border-color: rgba(255,255,255,0.3); background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08)); }
+.postFriendButton[aria-busy="true"], .postFriendButton:disabled { opacity: .6; cursor: progress; }
+
+.postFriendNotice { margin-bottom: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(129,140,248,0.38); background: linear-gradient(180deg, rgba(99,102,241,0.18), rgba(79,70,229,0.08)); color: var(--text); font-weight: 600; text-align: center; }
+
+.avatarWrap { display:inline-flex; width:28px; height:28px; border-radius:50%; overflow:hidden; align-items:center; justify-content:center; box-shadow: 0 2px 8px rgba(5,10,30,0.35); border:1px solid rgba(255,255,255,0.18); background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06)); }
+.avatarImg { display:block; width:100%; height:100%; object-fit:cover; }
+.avatar { width:100%; height:100%; border-radius:50%; background: radial-gradient(100% 100% at 30% 30%, rgba(255,255,255,0.65), rgba(255,255,255,0.12)); }
+.separator { opacity:.6; color: var(--text-2); font-weight:700; padding: 0 2px; }
 
 /* Equal action bar */
 .actionBar { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 12px 12px 14px; background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.06)), var(--glass-bg-2, rgba(255,255,255,0.03))); border-top: 1px solid var(--header-border-color, rgba(255,255,255,0.08)); transition: background .16s ease, border-color .16s ease; }
@@ -102,6 +121,7 @@
 .railTab:hover { border-color: rgba(255,255,255,0.26); transform: translateY(-1px); }
 .railTabActive { color: #0e1024; background: var(--cta-gradient); box-shadow: 0 14px 28px rgba(79,70,229,.32); border-color: transparent; }
 .railPanel { margin-top: 2px; }
+
 
 
 

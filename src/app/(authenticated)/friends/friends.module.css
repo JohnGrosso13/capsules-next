@@ -35,8 +35,16 @@
 .presence { position:absolute; right:-2px; bottom:-2px; width:14px; height:14px; border-radius:999px; border:2px solid rgba(9,12,32,0.92); box-shadow: 0 0 0 2px rgba(9,12,32,0.65); }
 .online { background: radial-gradient(circle at 30% 30%, #22d3ee, #10b981); }
 .offline { background: radial-gradient(circle at 30% 30%, #64748b, #334155); }
-.friendMeta { display:flex; flex-direction:column; min-width:0; }
+.friendMeta { display:flex; flex-direction:column; min-width:0; gap:4px; }
 .friendName { font-weight:800; color: var(--text); letter-spacing:.01em; }
+.friendNameButton { display:inline-flex; align-items:center; gap:6px; padding:0; border:none; background:transparent; color: var(--link-color, #c7d2fe); font: inherit; font-weight:inherit; letter-spacing:inherit; cursor:pointer; }
+.friendNameButton:hover { text-decoration: underline; color: #e0e7ff; }
+.friendNameButton:focus-visible { outline:2px solid rgba(129,140,248,0.6); outline-offset: 2px; border-radius: 6px; }
+.friendActions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:2px; }
+.friendActionButton { padding:6px 12px; border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05)); color: var(--text); font-weight:700; letter-spacing:.01em; cursor:pointer; }
+.friendActionButton:hover { border-color: rgba(255,255,255,0.3); background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08)); }
+.friendActionButton[aria-busy="true"], .friendActionButton:disabled { opacity: .6; cursor: progress; }
+.friendNotice { margin: 4px 8px 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(129,140,248,0.45); background: linear-gradient(180deg, rgba(99,102,241,0.18), rgba(79,70,229,0.1)); color: var(--text, rgba(255,255,255,0.92)); font-weight: 600; text-align: center; }
 
 /* Primary gradient button (shared look) */
 .primaryCta { display:inline-flex; align-items:center; justify-content:center; padding:.55rem 1.3rem; border-radius: var(--cta-radius, 999px); font-weight:700; letter-spacing:.01em; color:#0e1024; background: var(--cta-gradient); border: none; box-shadow: 0 16px 32px rgba(79,70,229,0.32); text-decoration: none; transition: transform .16s ease, box-shadow .16s ease; }

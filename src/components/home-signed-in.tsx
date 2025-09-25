@@ -16,6 +16,10 @@ type Post = {
   media_url?: string | null;
   mediaUrl?: string | null;
   created_at?: string;
+  owner_user_id?: string | null;
+  ownerUserId?: string | null;
+  owner_user_key?: string | null;
+  ownerKey?: string | null;
 };
 
 const fallbackPosts: Post[] = [
@@ -25,6 +29,7 @@ const fallbackPosts: Post[] = [
     content:
       "Ask your Capsule AI to design posts, polls, and shopping drops for your community.",
     media_url: "/globe.svg",
+    created_at: new Date().toISOString(),
   },
 ];
 
@@ -35,6 +40,17 @@ type Props = {
 
 export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props) {
   const [posts, setPosts] = React.useState<Post[]>(fallbackPosts);
+  const [activeFriendTarget, setActiveFriendTarget] = React.useState<string | null>(null);
+  const [friendActionPending, setFriendActionPending] = React.useState<string | null>(null);
+  const [friendMessage, setFriendMessage] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!friendMessage) return;
+    const timer = window.setTimeout(() => setFriendMessage(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [friendMessage]);
+
+
 
   React.useEffect(() => {
     fetch("/api/posts?limit=30")
@@ -53,6 +69,26 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
               : typeof record["media_url"] === "string"
               ? (record["media_url"] as string)
               : null;
+          const createdAt =
+            typeof record["created_at"] === "string"
+              ? (record["created_at"] as string)
+              : typeof record["ts"] === "string"
+              ? (record["ts"] as string)
+              : null;
+          const ownerId =
+            typeof record["ownerUserId"] === "string"
+              ? (record["ownerUserId"] as string)
+              : typeof record["owner_user_id"] === "string"
+              ? (record["owner_user_id"] as string)
+              : null;
+          const ownerKey =
+            typeof record["ownerKey"] === "string"
+              ? (record["ownerKey"] as string)
+              : typeof record["owner_user_key"] === "string"
+              ? (record["owner_user_key"] as string)
+              : typeof record["userKey"] === "string"
+              ? (record["userKey"] as string)
+              : null;
           return {
             id: String(record["id"] ?? crypto.randomUUID()),
             user_name:
@@ -60,7 +96,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
                 ? (record["user_name"] as string)
                 : typeof record["userName"] === "string"
                 ? (record["userName"] as string)
-                : "Capsules",
+                : "Capsules AI",
             user_avatar:
               typeof record["user_avatar"] === "string"
                 ? (record["user_avatar"] as string)
@@ -69,7 +105,11 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
                 : null,
             content: typeof record["content"] === "string" ? (record["content"] as string) : null,
             media_url: media,
-            created_at: typeof record["created_at"] === "string" ? (record["created_at"] as string) : undefined,
+            created_at: createdAt,
+            owner_user_id: ownerId,
+            ownerUserId: ownerId,
+            owner_user_key: ownerKey,
+            ownerKey: ownerKey,
           };
         });
         setPosts(normalized);
@@ -78,7 +118,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
   }, []);
 
   const timeAgo = React.useCallback((iso?: string) => {
-    if (!iso) return "";
+    if (!iso) return "just now";
     const then = new Date(iso).getTime();
     const now = Date.now();
     const seconds = Math.max(1, Math.floor((now - then) / 1000));
@@ -97,10 +137,65 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
     return `${years} year${years === 1 ? "" : "s"} ago`;
   }, []);
 
+  const exactTime = React.useCallback((iso?: string) => {
+    if (!iso) return "";
+    try {
+      const date = new Date(iso);
+      return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" } as Intl.DateTimeFormatOptions);
+    } catch {
+      return iso;
+    }
+  }, []);
+
   function handleDelete(id: string) {
     fetch(`/api/posts/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
     setPosts((prev) => prev.filter((p) => p.id !== id));
   }
+
+  const buildFriendTarget = React.useCallback((post: Post) => {
+    const userId = post.owner_user_id ?? post.ownerUserId ?? null;
+    const userKey = post.owner_user_key ?? post.ownerKey ?? null;
+    if (!userId && !userKey) return null;
+    const target: Record<string, unknown> = {};
+    if (userId) target.userId = userId;
+    if (userKey) target.userKey = userKey;
+    if (post.user_name) target.name = post.user_name;
+    if (post.user_avatar) target.avatar = post.user_avatar;
+    return target;
+  }, []);
+
+  const handleFriendRequest = React.useCallback(async (post: Post, identifier: string) => {
+    const target = buildFriendTarget(post);
+    if (!target) {
+      setFriendMessage("That profile isn't ready for requests yet.");
+      return;
+    }
+    setFriendActionPending(identifier);
+    try {
+      const res = await fetch("/api/friends/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "request", target }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message =
+          (data && typeof data.message === "string" && data.message) ||
+          (data && typeof data.error === "string" && data.error) ||
+          "Could not send that friend request.";
+        throw new Error(message);
+      }
+      setFriendMessage(`Friend request sent to ${post.user_name || "this member"}.`);
+      setActiveFriendTarget(null);
+    } catch (error) {
+      console.error("Post friend request error", error);
+      setFriendMessage(
+        error instanceof Error && error.message ? error.message : "Couldn't send that friend request.",
+      );
+    } finally {
+      setFriendActionPending(null);
+    }
+  }, [buildFriendTarget]);
 
   return (
     <AppShell
@@ -109,16 +204,59 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
       promoSlot={showPromoRow ? <PromoRow /> : null}
     >
       <section className={styles.feed}>
+        {friendMessage ? <div className={styles.postFriendNotice}>{friendMessage}</div> : null}
         {posts.map((p) => {
           const media = p.media_url ?? p.mediaUrl ?? null;
+          const identifier = p.owner_user_id ?? p.ownerUserId ?? p.owner_user_key ?? p.ownerKey ?? `${p.id}`;
+          const canTarget = Boolean(p.owner_user_id ?? p.ownerUserId ?? p.owner_user_key ?? p.ownerKey);
+          const isFriendOptionOpen = activeFriendTarget === identifier;
+          const isFriendActionPending = friendActionPending === identifier;
           return (
             <article key={p.id} className={styles.card}>
               <header className={styles.cardHead}>
                 <div className={styles.userMeta}>
-                  <div className={styles.userName}>{p.user_name || "Capsules"}</div>
-                  <div className={styles.timestamp}>{timeAgo(p.created_at)}</div>
+                  <span className={styles.avatarWrap} aria-hidden>
+                    {p.user_avatar ? (
+                      <img className={styles.avatarImg} src={p.user_avatar} alt="" loading="lazy" />
+                    ) : (
+                      <span className={styles.avatar} />
+                    )}
+                  </span>
+                  {canTarget ? (
+                    <button
+                      type="button"
+                      className={`${styles.userNameButton} ${styles.userName}`.trim()}
+                      onClick={() => setActiveFriendTarget(isFriendOptionOpen ? null : identifier)}
+                      aria-expanded={isFriendOptionOpen}
+                    >
+                      {p.user_name || "Capsules AI"}
+                    </button>
+                  ) : (
+                    <div className={styles.userName}>{p.user_name || "Capsules AI"}</div>
+                  )}
+                  <span className={styles.separator} aria-hidden>{"\u2022"}</span>
+                  <time
+                    className={styles.timestamp}
+                    title={exactTime(p.created_at)}
+                    dateTime={p.created_at ?? new Date().toISOString()}
+                  >
+                    {timeAgo(p.created_at)}
+                  </time>
                 </div>
               </header>
+              {isFriendOptionOpen ? (
+                <div className={styles.postFriendActions}>
+                  <button
+                    type="button"
+                    className={styles.postFriendButton}
+                    onClick={() => handleFriendRequest(p, identifier)}
+                    disabled={!canTarget || isFriendActionPending}
+                    aria-busy={isFriendActionPending}
+                  >
+                    {isFriendActionPending ? "Sending..." : "Add friend"}
+                  </button>
+                </div>
+              ) : null}
               <div className={styles.cardBody}>
                 {p.content ? <div className={styles.postText}>{p.content}</div> : null}
               </div>

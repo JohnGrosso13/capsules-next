@@ -274,6 +274,59 @@ export function FriendsClient() {
     Requests: incomingRequests.length,
   };
 
+  const [activeFriendTarget, setActiveFriendTarget] = React.useState<string | null>(null);
+  const [friendActionPendingId, setFriendActionPendingId] = React.useState<string | null>(null);
+  const [friendNotice, setFriendNotice] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!friendNotice) return;
+    const timer = window.setTimeout(() => setFriendNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [friendNotice]);
+
+  const buildFriendTargetPayload = React.useCallback((friend: FriendItem): Record<string, string> | null => {
+    const target: Record<string, string> = {};
+    if (friend.userId) {
+      target.userId = friend.userId;
+    } else if (friend.key) {
+      target.userKey = friend.key;
+    } else {
+      return null;
+    }
+    if (friend.name) target.name = friend.name;
+    if (friend.avatar) target.avatar = friend.avatar;
+    return target;
+  }, []);
+
+  const handleFriendNameClick = React.useCallback((identifier: string) => {
+    setActiveFriendTarget((prev) => (prev === identifier ? null : identifier));
+  }, []);
+
+  const handleFriendRequest = React.useCallback(
+    async (friend: FriendItem, identifier: string) => {
+      const target = buildFriendTargetPayload(friend);
+      if (!target) {
+        setFriendNotice("That profile isn't ready for requests yet.");
+        return;
+      }
+      setFriendActionPendingId(identifier);
+      try {
+        await mutateGraph({ action: "request", target });
+        setFriendNotice(`Friend request sent to ${friend.name}.`);
+        setActiveFriendTarget(null);
+        scheduleRefresh();
+      } catch (error) {
+        console.error("Friend request error", error);
+        setFriendNotice(
+          error instanceof Error && error.message ? error.message : "Couldn't send that friend request.",
+        );
+      } finally {
+        setFriendActionPendingId(null);
+      }
+    },
+    [buildFriendTargetPayload, mutateGraph, scheduleRefresh],
+  );
+
   async function handleAccept(requestId: string) {
     await mutateGraph({ action: "accept", requestId });
   }
@@ -298,7 +351,7 @@ export function FriendsClient() {
   }
 
   if (loading) {
-    return <div className={styles.empty}>Loading friends…</div>;
+    return <div className={styles.empty}>Loading friendsâ€¦</div>;
   }
 
   if (error) {
@@ -368,22 +421,50 @@ export function FriendsClient() {
         className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
       >
         <div className={`${styles.list} ${styles.listLarge}`.trim()}>
-          {friends.map((friend) => (
-            <div key={friend.id} className={styles.friendRow}>
-              <span className={styles.avatarWrap}>
-                {friend.avatar ? (
-                  <img className={styles.avatarImg} src={friend.avatar} alt="" aria-hidden />
-                ) : (
-                  <span className={styles.avatar} aria-hidden />
-                )}
-                <span className={`${styles.presence} ${statusClass(friend.status)}`.trim()} aria-hidden />
-              </span>
-              <div className={styles.friendMeta}>
-                <div className={styles.friendName}>{friend.name}</div>
-                {friend.since ? <div className={styles.friendSince}>Since {new Date(friend.since).toLocaleDateString()}</div> : null}
+          {friendNotice ? <div className={styles.friendNotice}>{friendNotice}</div> : null}
+          {friends.map((friend, index) => {
+            const identifier = friend.userId ?? friend.key ?? friend.id ?? `friend-${index}`;
+            const canTarget = Boolean(friend.userId || friend.key);
+            const isOpen = activeFriendTarget === identifier;
+            const isPending = friendActionPendingId === identifier;
+            const sinceLabel = friend.since ? new Date(friend.since).toLocaleDateString() : null;
+            return (
+              <div key={`${identifier}-${index}`} className={styles.friendRow}>
+                <span className={styles.avatarWrap}>
+                  {friend.avatar ? (
+                    <img className={styles.avatarImg} src={friend.avatar} alt="" aria-hidden />
+                  ) : (
+                    <span className={styles.avatar} aria-hidden />
+                  )}
+                  <span className={`${styles.presence} ${statusClass(friend.status)}`.trim()} aria-hidden />
+                </span>
+                <div className={styles.friendMeta}>
+                  <button
+                    type="button"
+                    className={`${styles.friendNameButton} ${styles.friendName}`.trim()}
+                    onClick={() => handleFriendNameClick(identifier)}
+                    aria-expanded={isOpen}
+                  >
+                    {friend.name}
+                  </button>
+                  {sinceLabel ? <div className={styles.friendSince}>Since {sinceLabel}</div> : null}
+                  {isOpen ? (
+                    <div className={styles.friendActions}>
+                      <button
+                        type="button"
+                        className={styles.friendActionButton}
+                        onClick={() => handleFriendRequest(friend, identifier)}
+                        disabled={!canTarget || isPending}
+                        aria-busy={isPending}
+                      >
+                        {isPending ? "Sending..." : "Add friend"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
