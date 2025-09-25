@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import Script from "next/script";
 import { Inter } from "next/font/google";
@@ -22,8 +22,8 @@ export default function RootLayout({
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return (
     <ClerkProvider publishableKey={publishableKey}>
-      <html lang="en">
-        <body className={inter.className}>
+      <html lang="en" data-theme="dark" suppressHydrationWarning>
+        <body className={inter.className} suppressHydrationWarning>
           <Script id="theme-init" strategy="beforeInteractive">
             {`
             (function(){
@@ -33,7 +33,6 @@ export default function RootLayout({
                   t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
                 }
                 document.documentElement.dataset.theme = t;
-                // Apply any persisted design tokens to support AI customization later
                 var vars = localStorage.getItem('themeVars');
                 if (vars) {
                   try { var map = JSON.parse(vars) || {}; for (var k in map) { document.documentElement.style.setProperty(k, map[k]); } } catch(e){}

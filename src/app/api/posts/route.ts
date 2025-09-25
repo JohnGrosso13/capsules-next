@@ -1,43 +1,52 @@
-﻿import { NextResponse } from "next/server";
-
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createPostRecord } from "@/lib/supabase/posts";
-
-function parseLimit(value: string | null) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  if (Number.isNaN(parsed) || parsed <= 0) return 60;
-  return Math.min(parsed, 200);
-}
+import type { CreatePostInput } from "@/server/posts/types";
+import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import {
+  createPostRequestSchema,
+  createPostResponseSchema,
+  postsQuerySchema,
+  postsResponseSchema,
+} from "@/server/validation/schemas/posts";
 
 function normalizePost(row: Record<string, unknown>) {
   return {
-    id: row.client_id ?? row.id,
-    kind: row.kind ?? "text",
-    content: row.content ?? "",
-    mediaUrl: row.media_url ?? null,
-    mediaPrompt: row.media_prompt ?? null,
-    userName: row.user_name ?? null,
-    userAvatar: row.user_avatar ?? null,
-    capsuleId: row.capsule_id ?? null,
-    tags: Array.isArray(row.tags) ? row.tags : undefined,
+    id: (row.client_id ?? row.id) as string,
+    kind: (row.kind as string) ?? "text",
+    content: (row.content as string) ?? "",
+    mediaUrl: ((row.media_url as string) ?? null) as string | null,
+    mediaPrompt: ((row.media_prompt as string) ?? null) as string | null,
+    userName: ((row.user_name as string) ?? null) as string | null,
+    userAvatar: ((row.user_avatar as string) ?? null) as string | null,
+    capsuleId: ((row.capsule_id as string) ?? null) as string | null,
+    tags: Array.isArray(row.tags) ? (row.tags as string[]) : undefined,
     likes: typeof row.likes_count === "number" ? row.likes_count : 0,
     comments: typeof row.comments_count === "number" ? row.comments_count : undefined,
     hotScore: typeof row.hot_score === "number" ? row.hot_score : undefined,
     rankScore: typeof row.rank_score === "number" ? row.rank_score : undefined,
-    ts: (row.created_at as string) ?? (row.updated_at as string) ?? new Date().toISOString(),
-    source: row.source ?? "web",
-    ownerUserId: row.author_user_id ?? null,
+    ts: String((row.created_at as string) ?? (row.updated_at as string) ?? new Date().toISOString()),
+    source: String((row.source as string) ?? "web"),
+    ownerUserId: ((row.author_user_id as string) ?? null) as string | null,
   };
 }
 
 export async function GET(req: Request) {
   const supabase = getSupabaseAdminClient();
   const url = new URL(req.url);
-  const capsuleId = url.searchParams.get("capsuleId");
-  const limit = parseLimit(url.searchParams.get("limit"));
-  const before = url.searchParams.get("before");
-  const after = url.searchParams.get("after");
+  const rawQuery = {
+    capsuleId: url.searchParams.get("capsuleId") ?? undefined,
+    limit: url.searchParams.get("limit") ?? undefined,
+    before: url.searchParams.get("before") ?? undefined,
+    after: url.searchParams.get("after") ?? undefined,
+  };
+  const parsedQuery = postsQuerySchema.safeParse(rawQuery);
+  if (!parsedQuery.success) {
+    return returnError(400, "invalid_query", "Query parameters failed validation", parsedQuery.error.flatten());
+  }
+
+  const { capsuleId, before, after } = parsedQuery.data;
+  const limit = parsedQuery.data.limit ?? 60;
 
   let query = supabase
     .from("posts_view")
@@ -52,7 +61,7 @@ export async function GET(req: Request) {
   const { data, error } = await query;
   if (error) {
     console.error("Fetch posts error", error);
-    return NextResponse.json({ error: "Failed to load posts" }, { status: 500 });
+    return returnError(500, "posts_fetch_failed", "Failed to load posts");
   }
 
   const deletedIds: string[] = [];
@@ -66,27 +75,28 @@ export async function GET(req: Request) {
   });
 
   const posts = activeRows.map((row) => normalizePost(row as Record<string, unknown>));
-  return NextResponse.json({ posts, deleted: deletedIds });
+  return validatedJson(postsResponseSchema, { posts, deleted: deletedIds });
 }
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
-  const post = (body?.post as Record<string, unknown>) ?? null;
-  if (!post) {
-    return NextResponse.json({ error: "post required" }, { status: 400 });
+  const parsed = await parseJsonBody(req, createPostRequestSchema);
+  if (!parsed.success) {
+    return parsed.response;
   }
 
-  const userPayload = (body?.user as Record<string, unknown>) ?? {};
+  const { post, user } = parsed.data;
+  const userPayload = user ?? {};
   const ownerId = await ensureUserFromRequest(req, userPayload);
   if (!ownerId) {
-    return NextResponse.json({ error: "auth required" }, { status: 401 });
+    return returnError(401, "auth_required", "Authentication required");
   }
 
   try {
-    const id = await createPostRecord(post, ownerId);
-    return NextResponse.json({ success: true, id });
+    const id = await createPostRecord(post as CreatePostInput, ownerId);
+    return validatedJson(createPostResponseSchema, { success: true, id });
   } catch (error) {
     console.error("Persist post error", error);
-    return NextResponse.json({ error: "Failed to save post" }, { status: 500 });
+    return returnError(500, "post_save_failed", "Failed to save post");
   }
 }
+

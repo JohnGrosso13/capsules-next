@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Capsules Platform
 
-## Getting Started
+Next.js + Supabase foundation for the Capsules social, commerce, and live platform.
 
-First, run the development server:
+## Environment setup
+1. Copy `.env.example` to `.env.local` and fill in the required keys.
+2. Provision separate Supabase projects (or at minimum separate keys) per environment and keep the service role key private.
+3. Provide a Postgres connection string via `DATABASE_URL` (or `SUPABASE_DB_URL`) when running migrations.
+
+> Tip: keep production secrets in your secret manager (1Password, Doppler, Supabase Vault) and only export them when running tooling locally.
+
+## Database migrations
+The canonical schema now lives in `supabase/migrations`. Each `.sql` file is applied once and tracked in `public.__migrations`.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Apply any new migrations to the database referenced by DATABASE_URL
+npm run db:migrate
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Migrations run inside a transaction; failures roll back.
+- Use a dedicated database user with migration privileges instead of the global service role.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Development workflow
+```bash
+npm install
+npm run db:migrate         # requires DATABASE_URL or SUPABASE_DB_URL
+npm run dev                # Starts Next.js with Turbopack
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Useful environment variables:
+- `NEXT_PUBLIC_STAGE` (recommended) to distinguish local/staging/prod in logging.
+- `SITE_URL` so links in emails and metadata resolve correctly per environment.
 
-## Learn More
+## Production readiness checklist
+- CI should run `npm run lint` and `npm run db:migrate` against a staging database before deploy.
+- Deploy the Next.js app (Vercel, Supabase Functions, etc.) with read-only access to environment secrets.
+- Rotate the Supabase service role key per environment and store it outside of the repo.
 
-To learn more about Next.js, take a look at the following resources:
+## Project structure highlights
+- `src/server/**` – typed service layer (friends, posts, etc.)
+- `src/components/**` – UI components shared across routes
+- `src/app/(authenticated)/**` – authenticated surfaces rendered inside the shared app shell
+- `supabase/migrations/**` – ordered SQL migrations for every schema change
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Analytics scaffolding
+- Overview metrics live in the `analytics` schema (see `supabase/migrations/0002_analytics.sql`).
+- Use `fetchAnalyticsOverview` and related helpers (`src/server/analytics/service.ts`) for admin dashboards.
+- Refresh materialized views via Supabase cron/Scheduled Functions (call `analytics.refresh_*`).
+\n\n## Request validation
+- All API routes validate payloads with Zod schemas (see `src/server/validation/**`).
+- Use `parseJsonBody` for new POST/PATCH endpoints and define query schemas alongside domain services.
+- Keep response shapes typed; reuse the shared schemas when exposing new data.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Questions
+Reach out to the Capsules platform team for access to production credentials or to coordinate schema migrations.
 
-## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+
+

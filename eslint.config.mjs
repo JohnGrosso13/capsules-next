@@ -19,9 +19,11 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
       "public/**/*.js",
+      "docs/reference/**",
     ],
   },
 ];
 
 export default eslintConfig;
+
 

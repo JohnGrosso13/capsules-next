@@ -1,0 +1,31 @@
+﻿.outer { padding: 24px 0 80px; }
+.page { width: min(1180px, calc(100% - 56px)); margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+.header { margin-bottom: 8px; }
+.headerInner { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.brand { display:inline-flex; align-items:center; gap:10px; font-weight:900; letter-spacing:.02em; color: var(--text, rgba(255,255,255,0.92)); }
+.brandMark { width:26px; height:26px; border-radius:8px; background: linear-gradient(135deg,#8b5cf6,#22d3ee); display:inline-block; }
+.brandName { font-size: 1.1rem; }
+
+.nav { display:flex; gap:18px; font-weight:700; }
+.navLink { color: var(--text-2, rgba(255,255,255,0.76)); }
+.navLink:hover { color: var(--text, rgba(255,255,255,0.92)); }
+
+.headerActions { display:flex; align-items:center; gap:12px; }
+.iconButton { display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; border-radius:50%; border:1px solid rgba(255,255,255,0.16); background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04)); }
+.iconGlyph { width:20px; height:20px; }
+.primaryCta { white-space:nowrap; }
+
+.main { display:grid; gap:24px; }
+.prompterStage { width: min(880px, 100%); margin: 0 auto; }
+
+.layout { display:grid; grid-template-columns: minmax(0, 1fr) clamp(260px, 24vw, 320px); gap:24px; align-items:start; }
+@media (max-width: 1000px){ .layout{ grid-template-columns: 1fr; } }
+
+.content { display:grid; gap:24px; }
+
+.rail { position:sticky; top:100px; display:block; }
+@media (max-width: 1000px){ .rail{ position:static; } }
+
+.navLinkActive { color: var(--text, rgba(255,255,255,0.95)); }
+.promoRowSpace { width: 100%; margin: 0; }

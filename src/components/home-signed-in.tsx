@@ -1,10 +1,12 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import React from "react";
 import styles from "./home.module.css";
-import friendsStyles from "@/app/friends/friends.module.css";
+
+import { AppShell } from "./app-shell";
 import { PromoRow } from "./promo-row";
-import { AiPrompterStage } from "./ai-prompter-stage";
 
 type Post = {
   id: string;
@@ -16,8 +18,6 @@ type Post = {
   created_at?: string;
 };
 
-type Friend = { name: string; avatar?: string | null };
-
 const fallbackPosts: Post[] = [
   {
     id: "sample-feed",
@@ -28,278 +28,118 @@ const fallbackPosts: Post[] = [
   },
 ];
 
-const fallbackFriends: Friend[] = [
-  { name: "Capsules Team" },
-  { name: "Memory Bot" },
-  { name: "Dream Studio" },
-];
-
 type Props = {
-  showPrompter?: boolean;
   showPromoRow?: boolean;
-  showFeed?: boolean;
-  showRail?: boolean;
-  className?: string;
+  showPrompter?: boolean;
 };
 
-export function HomeSignedIn({
-  showPrompter = true,
-  showPromoRow = true,
-  showFeed = true,
-  showRail = true,
-  className = "",
-}: Props) {
-  const [posts, setPosts] = React.useState<Post[]>([]);
-  const [friends, setFriends] = React.useState<Friend[]>(fallbackFriends);
-  type RailTab = "friends" | "chats" | "requests";
-  const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
-  const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
-
-  function timeAgo(iso?: string) {
-    if (!iso) return "";
-    const then = new Date(iso).getTime();
-    const now = Date.now();
-    const s = Math.max(1, Math.floor((now - then) / 1000));
-    if (s < 60) return `${s} second${s === 1 ? "" : "s"} ago`;
-    const m = Math.floor(s / 60);
-    if (m < 60) return `${m} minute${m === 1 ? "" : "s"} ago`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h} hour${h === 1 ? "" : "s"} ago`;
-    const d = Math.floor(h / 24);
-    if (d < 7) return `${d} day${d === 1 ? "" : "s"} ago`;
-    const w = Math.floor(d / 7);
-    if (w < 5) return `${w} week${w === 1 ? "" : "s"} ago`;
-    const mon = Math.floor(d / 30);
-    if (mon < 12) return `${mon} month${mon === 1 ? "" : "s"} ago`;
-    const y = Math.floor(d / 365);
-    return `${y} year${y === 1 ? "" : "s"} ago`;
-  }
-
-  async function handleDelete(id: string) {
-    try {
-      await fetch(`/api/posts/${encodeURIComponent(id)}`, { method: "DELETE" });
-    } catch {
-      // ignore network errors; fall back to local removal
-    } finally {
-      setPosts((prev) => prev.filter((p) => p.id !== id));
-    }
-  }
+export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props) {
+  const [posts, setPosts] = React.useState<Post[]>(fallbackPosts);
 
   React.useEffect(() => {
     fetch("/api/posts?limit=30")
       .then((r) => r.json())
       .then((d) => {
         const arr = Array.isArray(d.posts) ? d.posts : [];
+        if (!arr.length) {
+          setPosts(fallbackPosts);
+          return;
+        }
         const normalized: Post[] = arr.map((raw: unknown) => {
-          const p = raw as Record<string, unknown>;
+          const record = raw as Record<string, unknown>;
           const media =
-            typeof p.mediaUrl === "string"
-              ? (p.mediaUrl as string)
-              : typeof p.media_url === "string"
-              ? (p.media_url as string)
+            typeof record["mediaUrl"] === "string"
+              ? (record["mediaUrl"] as string)
+              : typeof record["media_url"] === "string"
+              ? (record["media_url"] as string)
               : null;
           return {
-            id: String(p.id ?? crypto.randomUUID()),
+            id: String(record["id"] ?? crypto.randomUUID()),
             user_name:
-              typeof p.user_name === "string"
-                ? (p.user_name as string)
-                : typeof p.userName === "string"
-                ? (p.userName as string)
+              typeof record["user_name"] === "string"
+                ? (record["user_name"] as string)
+                : typeof record["userName"] === "string"
+                ? (record["userName"] as string)
                 : "Capsules",
             user_avatar:
-              typeof p.user_avatar === "string"
-                ? (p.user_avatar as string)
-                : typeof p.userAvatar === "string"
-                ? (p.userAvatar as string)
+              typeof record["user_avatar"] === "string"
+                ? (record["user_avatar"] as string)
+                : typeof record["userAvatar"] === "string"
+                ? (record["userAvatar"] as string)
                 : null,
-            content: typeof p.content === "string" ? (p.content as string) : null,
+            content: typeof record["content"] === "string" ? (record["content"] as string) : null,
             media_url: media,
-            created_at:
-              typeof p.created_at === "string" ? (p.created_at as string) : undefined,
+            created_at: typeof record["created_at"] === "string" ? (record["created_at"] as string) : undefined,
           };
         });
-        setPosts(normalized.length ? normalized : fallbackPosts);
+        setPosts(normalized);
       })
       .catch(() => setPosts(fallbackPosts));
-
-    fetch("/api/friends/sync", { method: "POST" })
-      .then((r) => r.json())
-      .then((d) => {
-        const arr = Array.isArray(d.friends) ? d.friends : [];
-        const mapped: Friend[] = arr.map((raw: unknown) => {
-          const f = raw as Record<string, unknown>;
-          return {
-            name: String((f as any).name ?? (f as any).userName ?? "Friend"),
-            avatar:
-              typeof (f as any).avatar === "string"
-                ? ((f as any).avatar as string)
-                : typeof (f as any).userAvatar === "string"
-                ? ((f as any).userAvatar as string)
-                : null,
-          };
-        });
-        setFriends(mapped.length ? mapped : fallbackFriends);
-      })
-      .catch(() => setFriends(fallbackFriends));
   }, []);
 
-  const connectionTiles = React.useMemo(
-    () => [
-      {
-        key: "friends",
-        title: "Friends",
-        description: "Manage the people in your capsule.",
-        href: "/friends?tab=friends",
-        icon: "👥",
-        badge: friends.length || undefined,
-        primary: true,
-      },
-      {
-        key: "chats",
-        title: "Chats",
-        description: "Jump back into conversations or start one.",
-        href: "/friends?tab=chats",
-        icon: "💬",
-      },
-      {
-        key: "requests",
-        title: "Requests",
-        description: "Approve or invite new members in seconds.",
-        href: "/friends?tab=requests",
-        icon: "✨",
-      },
-    ],
-    [friends.length],
-  );
+  const timeAgo = React.useCallback((iso?: string) => {
+    if (!iso) return "";
+    const then = new Date(iso).getTime();
+    const now = Date.now();
+    const seconds = Math.max(1, Math.floor((now - then) / 1000));
+    if (seconds < 60) return `${seconds} second${seconds === 1 ? "" : "s"} ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
+    const weeks = Math.floor(days / 7);
+    if (weeks < 5) return `${weeks} week${weeks === 1 ? "" : "s"} ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} month${months === 1 ? "" : "s"} ago`;
+    const years = Math.floor(days / 365);
+    return `${years} year${years === 1 ? "" : "s"} ago`;
+  }, []);
+
+  function handleDelete(id: string) {
+    fetch(`/api/posts/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  }
 
   return (
-    <div className={`${styles.page} ${className}`.trim()}>
-      {showPrompter ? <AiPrompterStage /> : null}
-
-      <div className={styles.layout}>
-        {showPromoRow ? (
-          <div className={styles.promoRowSpace}>
-            <PromoRow />
-          </div>
-        ) : null}
-
-        {showRail ? (
-          <aside className={styles.rail}>
-            {railMode === "tiles" ? (
-              <div className={styles.connectionTiles}>
-                {connectionTiles.map((tile) => (
-                  <button
-                    key={tile.key}
-                    type="button"
-                    className={`${styles.connectionTile} ${tile.primary ? styles.connectionTilePrimary : ""}`.trim()}
-                    onClick={() => {
-                      setActiveRailTab(tile.key as RailTab);
-                      setRailMode("connections");
-                    }}
-                  >
-                    <div className={styles.connectionTileHeader}>
-                      <div className={styles.connectionTileMeta}>
-                        <span className={styles.connectionTileIcon} aria-hidden>
-                          {tile.icon}
-                        </span>
-                        <span className={styles.connectionTileTitle}>{tile.title}</span>
-                      </div>
-                      {tile.badge ? <span className={styles.connectionTileBadge}>{tile.badge}</span> : null}
-                    </div>
-                    <p className={styles.connectionTileDescription}>{tile.description}</p>
-                  </button>
-                ))}
+    <AppShell
+      activeNav="home"
+      showPrompter={showPrompter}
+      promoSlot={showPromoRow ? <PromoRow /> : null}
+    >
+      <section className={styles.feed}>
+        {posts.map((p) => {
+          const media = p.media_url ?? p.mediaUrl ?? null;
+          return (
+            <article key={p.id} className={styles.card}>
+              <header className={styles.cardHead}>
+                <div className={styles.userMeta}>
+                  <div className={styles.userName}>{p.user_name || "Capsules"}</div>
+                  <div className={styles.timestamp}>{timeAgo(p.created_at)}</div>
+                </div>
+              </header>
+              <div className={styles.cardBody}>
+                {p.content ? <div className={styles.postText}>{p.content}</div> : null}
               </div>
-            ) : (
-              <div className={styles.railConnections}>
-                <div className={styles.railHeaderRow}>
-                  <button
-                    type="button"
-                    className={styles.railBackBtn}
-                    aria-label="Back to tiles"
-                    onClick={() => setRailMode("tiles")}
-                  >&lt;</button>
-                </div>
-
-                <div className={styles.railTabs} role="tablist" aria-label="Connections">
-                  {([
-                    { key: "friends", label: "Friends" },
-                    { key: "chats", label: "Chats" },
-                    { key: "requests", label: "Requests" },
-                  ] as { key: RailTab; label: string }[]).map((t) => (
-                    <button
-                      key={t.key}
-                      type="button"
-                      role="tab"
-                      aria-selected={activeRailTab === t.key}
-                      className={`${styles.railTab} ${activeRailTab === t.key ? styles.railTabActive : ""}`.trim()}
-                      onClick={() => setActiveRailTab(t.key)}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className={styles.railPanel} hidden={activeRailTab !== "friends"}>
-                  <div className={`${friendsStyles.list}`.trim()}>
-                    {friends.map((f, i) => (
-                      <div key={i} className={friendsStyles.friendRow}>
-                        <span className={friendsStyles.avatarWrap}>
-                          {f.avatar ? (
-                            <img className={friendsStyles.avatarImg} src={f.avatar} alt="" aria-hidden />
-                          ) : (
-                            <span className={friendsStyles.avatar} aria-hidden />
-                          )}
-                          <span className={`${friendsStyles.presence} ${friendsStyles.offline}`.trim()} aria-hidden />
-                        </span>
-                        <div className={friendsStyles.friendMeta}>
-                          <div className={friendsStyles.friendName}>{f.name}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className={styles.railPanel} hidden={activeRailTab !== "chats"}>
-                  <div className={friendsStyles.empty}>Chats are coming soon.</div>
-                </div>
-                <div className={styles.railPanel} hidden={activeRailTab !== "requests"}>
-                  <div className={friendsStyles.empty}>No pending requests.</div>
-                </div>
-              </div>
-            )}
-          </aside>
-        ) : null}
-
-        {showFeed ? (
-          <section className={styles.feed}>
-            {posts.map((p) => {
-              const media = p.media_url ?? p.mediaUrl ?? null;
-              return (
-                <article key={p.id} className={styles.card}>
-                  <header className={styles.cardHead}>
-                    <div className={styles.userMeta}>
-                      <div className={styles.userName}>{p.user_name || "Capsules"}</div>
-                      <div className={styles.timestamp}>{timeAgo(p.created_at)}</div>
-                    </div>
-                  </header>
-                  <div className={styles.cardBody}>
-                    {p.content ? <div className={styles.postText}>{p.content}</div> : null}
-                  </div>
-                  {media ? (
-                    <img className={styles.media} src={media} alt="Post media" />
-                  ) : null}
-                  <footer className={styles.actionBar}>
-                    <button className={styles.actionBtn} type="button">Like</button>
-                    <button className={styles.actionBtn} type="button">Comment</button>
-                    <button className={styles.actionBtn} type="button">Share</button>
-                    <button className={`${styles.actionBtn} ${styles.delete}`} type="button" onClick={() => handleDelete(p.id)}>Delete</button>
-                  </footer>
-                </article>
-              );
-            })}
-          </section>
-        ) : null}
-      </div>
-    </div>
+              {media ? <img className={styles.media} src={media} alt="Post media" /> : null}
+              <footer className={styles.actionBar}>
+                <button className={styles.actionBtn} type="button">Like</button>
+                <button className={styles.actionBtn} type="button">Comment</button>
+                <button className={styles.actionBtn} type="button">Share</button>
+                <button
+                  className={`${styles.actionBtn} ${styles.delete}`.trim()}
+                  type="button"
+                  onClick={() => handleDelete(p.id)}
+                >
+                  Delete
+                </button>
+              </footer>
+            </article>
+          );
+        })}
+      </section>
+    </AppShell>
   );
 }
+

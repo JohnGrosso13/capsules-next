@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import React from "react";
 import Link from "next/link";
 import styles from "./promo-row.module.css";
@@ -109,3 +111,4 @@ export function PromoRow() {
     </div>
   );
 }
+

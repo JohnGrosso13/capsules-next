@@ -2,22 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 
-import { HeaderAuth } from "@/components/header-auth";
 import { GroupCarousel } from "@/components/group-carousel";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { LandingAuthCard } from "@/components/landing-auth-card";
 import { HowItWorks } from "@/components/how-it-works";
 import { LaunchCta } from "@/components/launch-cta";
 import { HomeSignedIn } from "@/components/home-signed-in";
+import { PrimaryHeader } from "@/components/primary-header";
 
 import styles from "./landing.module.css";
-
-const navLinks = [
-  { label: "Home", href: "/" },
-  { label: "Create", href: "/create" },
-  { label: "Capsule", href: "/capsule" },
-  { label: "Memory", href: "/memory" },
-];
 
 const heroPrompts = [
   "Make a hello post",
@@ -138,46 +131,9 @@ export default async function HomePage() {
   await auth();
   return (
     <div className={styles.page}>
-      <SignedIn>
-        <header className={styles.header}>
-          <div className={styles.headerInner}>
-            <Link href="/" className={styles.brand} aria-label="Capsules home">
-              <span className={styles.brandMark} aria-hidden="true" />
-              <span className={styles.brandName}>Capsules</span>
-            </Link>
-            <nav className={styles.nav} aria-label="Primary navigation">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`${styles.navLink} ${link.href === "/" ? styles.navLinkActive : ""}`.trim()}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-            <div className={styles.headerActions}>
-              <HeaderAuth />
-              <Link href="/settings" className={styles.iconButton} aria-label="Settings">
-                <svg className={styles.iconGlyph} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-                  <defs>
-                    <linearGradient id="hdrCogGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                      <stop offset="0" stopColor="#8b5cf6"/>
-                      <stop offset="1" stopColor="#22d3ee"/>
-                    </linearGradient>
-                  </defs>
-                  <g stroke="url(#hdrCogGrad)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke">
-                    <circle cx="12" cy="12" r="6.5"/>
-                    <circle cx="12" cy="12" r="3.2"/>
-                    <path d="M12 2.8v2.4M21.2 12h-2.4M12 21.2v-2.4M2.8 12h2.4M5.4 5.4l1.7 1.7M18.6 5.4l-1.7 1.7M18.6 18.6l-1.7-1.7M5.4 18.6l1.7-1.7"/>
-                  </g>
-                </svg>
-              </Link>
-              <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" />
-            </div>
-          </div>
-        </header>
-      </SignedIn>
+      <SignedOut>
+        <PrimaryHeader activeKey="home" />
+      </SignedOut>
 
       <main className={styles.main}>
         <SignedIn>
@@ -285,6 +241,10 @@ export default async function HomePage() {
     </div>
   );
 }
+
+
+
+
 
 
 

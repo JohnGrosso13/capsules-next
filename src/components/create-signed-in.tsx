@@ -1,11 +1,9 @@
 "use client";
 
-import React from "react";
-import { HomeSignedIn } from "./home-signed-in";
+import * as React from "react";
 
-type Props = React.ComponentProps<typeof HomeSignedIn>;
+import { CreateTiles } from "./create-tiles";
 
-export function CreateSignedIn(props: Props) {
-  // Create page: hide promo tiles and feed; keep prompter and rail.
-  return <HomeSignedIn {...props} showPromoRow={false} showFeed={false} />;
+export function CreateSignedIn() {
+  return <CreateTiles />;
 }
