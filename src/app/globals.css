@@ -97,7 +97,8 @@
 /* Light theme overrides */
 :root[data-theme='light'] {
   --text: rgba(14, 16, 36, 0.96);
-  --text-2: rgba(14, 16, 36, 0.72);
+  /* Increase secondary text contrast to ≥10:1 on light surfaces */
+  --text-2: rgba(14, 16, 36, 0.85);
   --glass-border: rgba(2, 6, 23, 0.16);
 
   --header-glass-top: rgba(255,255,255,.65);
@@ -130,10 +131,10 @@
   /* Typography accents */
   --heading-from: rgba(18,20,40,0.98);
   --heading-to: rgba(52,60,100,0.74);
-  /* Ensure brand/CTA text meets AAA by using white on darkened brand surfaces */
-  --text-on-brand: #ffffff;
-  /* Darken CTA surfaces under text to guarantee AAA contrast in light mode */
-  --cta-gradient: linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0.55)), var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee));
+  /* Use dark label on brightened brand gradient for ≥10:1 while keeping the gradient vibrant */
+  --text-on-brand: #0e1024;
+  /* Lighten CTA surfaces so dark text achieves ≥10:1 across the gradient */
+  --cta-gradient: linear-gradient(0deg, rgba(255,255,255,0.56), rgba(255,255,255,0.56)), var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee));
 
   /* Mobile dock (solid) in light */
   --dock-scrim-bottom: rgba(255,255,255,0.78);
