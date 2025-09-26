@@ -1,4 +1,4 @@
-﻿.wrap { max-width: var(--container, 1200px); margin: 0 auto; padding: 0 28px; }
+.wrap { max-width: var(--container, 1200px); margin: 0 auto; padding: 0 28px; }
 .row { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 24px; position: relative; }
 
 .step { text-align: center; position: relative; z-index: 1; }

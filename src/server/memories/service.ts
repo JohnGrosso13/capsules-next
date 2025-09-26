@@ -346,7 +346,7 @@ export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: 
 
 
 
-    .select("id, kind, media_url, media_type, title, description, created_at")
+    .select("id, kind, media_url, media_type, title, description, created_at, meta")
 
 
 

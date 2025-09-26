@@ -1,4 +1,4 @@
-﻿.portalHost {
+.portalHost {
   position: fixed;
   inset: 0;
   z-index: 10000;
@@ -254,7 +254,7 @@
   border-radius: 999px;
   border: none;
   background: linear-gradient(120deg, #6366f1, #22d3ee);
-  color: #0e1024;
+  color: var(--text-on-brand, #0e1024);
   font-weight: 700;
   cursor: pointer;
 }

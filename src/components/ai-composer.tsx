@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -188,7 +188,7 @@ export function AiComposerDrawer({
             <p className={styles.promptText}>{prompt}</p>
           </div>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close composer">
-            ×
+            &times;
           </button>
         </header>
 
@@ -341,7 +341,7 @@ export function AiComposerDrawer({
               ) : null}
             </>
           ) : (
-            <div className={styles.placeholder}>Capsule AI is preparing a draft…</div>
+            <div className={styles.placeholder}>Capsule AI is preparing a draft×</div>
           )}
         </div>
 
@@ -355,10 +355,10 @@ export function AiComposerDrawer({
             onClick={onPost}
             disabled={loading || !canPost}
           >
-            {loading ? "Saving…" : "Post"}
+            {loading ? "Saving×" : "Post"}
           </button>
         </footer>
-        {loading ? <div className={styles.loadingOverlay}>Thinking…</div> : null}
+        {loading ? <div className={styles.loadingOverlay}>Thinking×</div> : null}
       </aside>
     </div>
   );

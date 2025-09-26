@@ -1,4 +1,4 @@
-﻿import { serverEnv } from "../env/server";
+import { serverEnv } from "../env/server";
 
 export async function embedText(input: string) {
   if (!serverEnv.OPENAI_API_KEY) return null;

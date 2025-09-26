@@ -1,4 +1,4 @@
-﻿export function resolveRedirectUrl(target: string | null | undefined, siteUrl: string) {
+export function resolveRedirectUrl(target: string | null | undefined, siteUrl: string) {
   const base = siteUrl.replace(/\/$/, "");
   if (!target) return base;
   const trimmed = target.trim();

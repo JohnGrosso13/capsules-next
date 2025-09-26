@@ -5,14 +5,12 @@ import { parseJsonBody, returnError, validatedJson } from "@/server/validation/h
 import { requestUserEnvelopeSchema } from "@/server/validation/schemas/auth";
 import { realtimeTokenResponseSchema } from "@/server/validation/schemas/realtime";
 
-export async function POST(req: Request) {
+async function handle(req: Request) {
   const parsed = await parseJsonBody(req, requestUserEnvelopeSchema);
-  if (!parsed.success) {
-    return parsed.response;
-  }
+  const data = parsed.success ? parsed.data : { user: {} };
 
-  const userPayload = parsed.data.user ?? {};
-  const ownerId = await ensureUserFromRequest(req, userPayload);
+  const userPayload = data.user ?? {};
+  const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: process.env.NODE_ENV !== "production" });
   if (!ownerId) {
     return returnError(401, "auth_required", "Authentication required");
   }
@@ -31,5 +29,13 @@ export async function POST(req: Request) {
     console.error("Realtime token error", error);
     return returnError(500, "realtime_token_failed", "Failed to create realtime token");
   }
+}
+
+export async function POST(req: Request) {
+  return handle(req);
+}
+
+export async function GET(req: Request) {
+  return handle(req);
 }
 

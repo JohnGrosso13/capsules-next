@@ -1,4 +1,4 @@
-﻿import { getSupabaseAdminClient } from "./admin";
+import { getSupabaseAdminClient } from "./admin";
 
 export async function upsertSocialLink({
   ownerId,

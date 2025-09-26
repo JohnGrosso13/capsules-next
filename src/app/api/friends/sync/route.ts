@@ -4,14 +4,12 @@ import { listSocialGraph } from "@/lib/supabase/friends";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { friendSyncRequestSchema, friendSyncResponseSchema } from "@/server/validation/schemas/friends";
 
-export async function POST(req: Request) {
+async function handle(req: Request) {
   const parsed = await parseJsonBody(req, friendSyncRequestSchema);
-  if (!parsed.success) {
-    return parsed.response;
-  }
+  const data = parsed.success ? parsed.data : { user: {} };
 
-  const userPayload = parsed.data.user ?? {};
-  const ownerId = await ensureUserFromRequest(req, userPayload);
+  const userPayload = data.user ?? {};
+  const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: process.env.NODE_ENV !== "production" });
   if (!ownerId) {
     return returnError(401, "auth_required", "Authentication required");
   }
@@ -40,5 +38,14 @@ export async function POST(req: Request) {
     console.error("Friends sync error", error);
     return returnError(500, "friends_sync_failed", "Failed to load friends");
   }
+}
+
+export async function POST(req: Request) {
+  return handle(req);
+}
+
+// Some environments prefetch without a body; support GET as a convenience in dev.
+export async function GET(req: Request) {
+  return handle(req);
 }
 

@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { ensureSupabaseUser } from "@/lib/auth/payload";
 import { serverEnv } from "@/lib/env/server";

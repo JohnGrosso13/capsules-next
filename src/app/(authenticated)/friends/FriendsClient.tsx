@@ -4,6 +4,7 @@
 
 import * as React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 
 import { getRealtimeClient, resetRealtimeClient, type TokenResponse } from "@/lib/realtime/ably-client";
 import type { Types as AblyTypes } from "ably";
@@ -38,8 +39,19 @@ const FALLBACK_FRIENDS: FriendItem[] = [
 const tabs = ["Friends", "Chats", "Requests"] as const;
 type Tab = (typeof tabs)[number];
 
-async function fetchGraph(): Promise<{ graph: SocialGraphSnapshot; channels: ChannelInfo; friends: FriendItem[] } | null> {
-  const res = await fetch("/api/friends/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+async function fetchGraph(envelope: Record<string, unknown> | null): Promise<{ graph: SocialGraphSnapshot; channels: ChannelInfo; friends: FriendItem[] } | null> {
+  const res = await fetch("/api/friends/sync", {
+    method: "POST",
+    credentials: "include",
+    headers: (() => {
+      const h: Record<string, string> = { "Content-Type": "application/json" };
+      try {
+        if (envelope) h["X-Capsules-User"] = JSON.stringify(envelope);
+      } catch {}
+      return h;
+    })(),
+    body: JSON.stringify({ user: envelope ?? {} }),
+  });
   if (!res.ok) {
     console.error("friends sync failed", await res.text());
     return null;
@@ -53,11 +65,18 @@ async function fetchGraph(): Promise<{ graph: SocialGraphSnapshot; channels: Cha
   };
 }
 
-async function fetchToken(): Promise<TokenResponse> {
+async function fetchToken(envelope: Record<string, unknown> | null): Promise<TokenResponse> {
   const res = await fetch("/api/realtime/token", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: "{}",
+    credentials: "include",
+    headers: (() => {
+      const h: Record<string, string> = { "Content-Type": "application/json" };
+      try {
+        if (envelope) h["X-Capsules-User"] = JSON.stringify(envelope);
+      } catch {}
+      return h;
+    })(),
+    body: JSON.stringify({ user: envelope ?? {} }),
   });
   if (!res.ok) {
     throw new Error(`Token request failed (${res.status})`);
@@ -66,6 +85,27 @@ async function fetchToken(): Promise<TokenResponse> {
 }
 
 export function FriendsClient() {
+  const { user } = useUser();
+  const currentUserName = React.useMemo(() => {
+    if (!user) return null;
+    return (user.fullName && user.fullName.trim())
+      || (user.username && user.username.trim())
+      || (user.firstName && user.firstName.trim())
+      || (user.lastName && user.lastName.trim())
+      || (user.primaryEmailAddress?.emailAddress ?? null);
+  }, [user]);
+  const currentUserAvatar = user?.imageUrl ?? null;
+  const currentUserEnvelope = React.useMemo(() => {
+    if (!user) return null;
+    return {
+      clerk_id: user.id,
+      email: user.primaryEmailAddress?.emailAddress ?? null,
+      full_name: currentUserName ?? null,
+      avatar_url: currentUserAvatar ?? null,
+      provider: 'clerk',
+      key: `clerk:${user.id}`,
+    } as Record<string, unknown>;
+  }, [user, currentUserName, currentUserAvatar]);
   const searchParams = useSearchParams();
   const router = useRouter();
   const requestedTab = searchParams.get("tab");
@@ -92,7 +132,7 @@ export function FriendsClient() {
     refreshPending.current = true;
     window.setTimeout(async () => {
       try {
-        const data = await fetchGraph();
+        const data = await fetchGraph(currentUserEnvelope);
         if (data) {
           setGraph(data.graph);
           setChannels(data.channels);
@@ -101,14 +141,14 @@ export function FriendsClient() {
         refreshPending.current = false;
       }
     }, 200);
-  }, []);
+  }, [currentUserEnvelope]);
 
   React.useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
-        const data = await fetchGraph();
+        const data = await fetchGraph(currentUserEnvelope);
         if (!mounted) return;
         if (data) {
           setGraph(data.graph);
@@ -132,7 +172,7 @@ export function FriendsClient() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [currentUserEnvelope]);
 
   React.useEffect(() => {
     if (!channels || !channels.events || !channels.presence) return;
@@ -141,7 +181,7 @@ export function FriendsClient() {
     let presenceChannel: AblyTypes.RealtimeChannelPromise | null = null;
     let visibilityHandler: (() => void) | null = null;
 
-    getRealtimeClient(fetchToken)
+    getRealtimeClient(() => fetchToken(currentUserEnvelope))
       .then(async (client) => {
         if (unsubscribed) return;
         eventsChannel = client.channels.get(channels.events);
@@ -213,15 +253,22 @@ export function FriendsClient() {
       realtimeCleanup.current();
       realtimeCleanup.current = () => {};
     };
-  }, [channels, scheduleRefresh]);
+  }, [channels, scheduleRefresh, currentUserEnvelope]);
 
   React.useEffect(() => () => resetRealtimeClient(), []);
 
   const mutateGraph = React.useCallback(async (payload: Record<string, unknown>) => {
     const res = await fetch("/api/friends/update", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      credentials: "include",
+      headers: (() => {
+        const h: Record<string, string> = { "Content-Type": "application/json" };
+        try {
+          if (currentUserEnvelope) h["X-Capsules-User"] = JSON.stringify(currentUserEnvelope);
+        } catch {}
+        return h;
+      })(),
+      body: JSON.stringify({ ...payload, user: currentUserEnvelope ?? {} }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -230,7 +277,7 @@ export function FriendsClient() {
     if (data?.graph) {
       setGraph(data.graph as SocialGraphSnapshot);
     }
-  }, []);
+  }, [currentUserEnvelope]);
 
   const selectTab = React.useCallback(
     (tab: Tab) => {

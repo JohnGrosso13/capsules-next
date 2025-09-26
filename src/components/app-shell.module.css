@@ -1,4 +1,4 @@
-﻿.outer { padding: 24px 0 80px; }
+.outer { padding: 24px 0 80px; }
 .page { width: min(1180px, calc(100% - 56px)); margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
 
 .header { margin-bottom: 8px; }

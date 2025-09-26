@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ const defaultChips = [
   "Share a photo",
   "Bring feed image",
   "Summarize my feed",
+  "Style my capsule",
 ];
 
 export type ComposerMode = "post" | "image" | "video" | "poll";
@@ -26,7 +27,8 @@ export type ComposerMode = "post" | "image" | "video" | "poll";
 export type PrompterAction =
   | { kind: "post_manual"; content: string; raw: string }
   | { kind: "post_ai"; prompt: string; mode: ComposerMode; raw: string }
-  | { kind: "generate"; text: string; raw: string };
+  | { kind: "generate"; text: string; raw: string }
+  | { kind: "style"; prompt: string; raw: string };
 
 type Props = {
   placeholder?: string;
@@ -132,7 +134,7 @@ function resolvePostPlan(text: string): PostPlan {
 
 function truncate(text: string, length = 80): string {
   if (text.length <= length) return text;
-  return `${text.slice(0, length - 1)}…`;
+  return `${text.slice(0, length - 1)}...`;
 }
 
 export function AiPrompterStage({
@@ -151,6 +153,7 @@ export function AiPrompterStage({
   const menuRef = React.useRef<HTMLDivElement | null>(null);
   const anchorRef = React.useRef<HTMLButtonElement | null>(null);
   const requestRef = React.useRef(0);
+  const textRef = React.useRef<HTMLInputElement | null>(null);
 
   const trimmed = text.trim();
   const baseIntent = manualIntent ?? autoIntent.intent;
@@ -266,7 +269,10 @@ export function AiPrompterStage({
 
   function handleGenerate() {
     const value = trimmed;
-    if (!value) return;
+    if (!value) {
+      textRef.current?.focus();
+      return;
+    }
 
     if (effectiveIntent === "navigate") {
       if (!navTarget) return;
@@ -278,6 +284,7 @@ export function AiPrompterStage({
       setText("");
       setManualIntent(null);
       setMenuOpen(false);
+      textRef.current?.focus();
       return;
     }
 
@@ -293,12 +300,22 @@ export function AiPrompterStage({
       }
       setText("");
       setManualIntent(null);
+      textRef.current?.focus();
+      return;
+    }
+
+    if (effectiveIntent === "style") {
+      onAction?.({ kind: "style", prompt: value, raw: value });
+      setText("");
+      setManualIntent(null);
+      textRef.current?.focus();
       return;
     }
 
     onAction?.({ kind: "generate", text: value, raw: value });
     setText("");
     setManualIntent(null);
+    textRef.current?.focus();
   }
 
   function applyManualIntent(intent: PromptIntent | null) {
@@ -311,6 +328,8 @@ export function AiPrompterStage({
       ? "Intent override: Navigate"
       : manualIntent === "post"
       ? "Intent override: Post"
+      : manualIntent === "style"
+      ? "Intent override: Style"
       : "Manual override active"
     : null;
 
@@ -318,10 +337,14 @@ export function AiPrompterStage({
   const postHint =
     postPlan.mode === "manual"
       ? postPlan.content
-        ? `Ready to post: “${truncate(postPlan.content, 50)}”`
+        ? `Ready to post: "${truncate(postPlan.content, 50)}"`
         : "Add what you'd like to share."
       : postPlan.mode === "ai"
       ? "AI will draft this for you."
+      : null;
+  const styleHint =
+    effectiveIntent === "style"
+      ? "AI Styler is ready."
       : null;
 
   const hint =
@@ -329,6 +352,7 @@ export function AiPrompterStage({
     manualNote ??
     navMessage ??
     postHint ??
+    styleHint ??
     (buttonBusy ? "Analyzing intent..." : autoIntent.reason || "AI will adjust automatically");
 
   return (
@@ -338,6 +362,9 @@ export function AiPrompterStage({
           <input
             className={styles.input}
             placeholder={placeholder}
+            ref={textRef}
+            id="ai-prompter-input"
+            name="ai_prompter"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
@@ -348,7 +375,6 @@ export function AiPrompterStage({
             disabled={buttonDisabled}
             data-intent={effectiveIntent}
           >
-            <span aria-hidden>*</span>
             <span className={styles.genLabel}>{buttonLabel}</span>
           </button>
         </div>
@@ -397,6 +423,14 @@ export function AiPrompterStage({
                 </button>
                 <button
                   type="button"
+                  onClick={() => applyManualIntent("style")}
+                  role="option"
+                  aria-selected={manualIntent === "style"}
+                >
+                  Style
+                </button>
+                <button
+                  type="button"
                   onClick={() => applyManualIntent("generate")}
                   role="option"
                   aria-selected={manualIntent === "generate"}
@@ -419,4 +453,14 @@ export function AiPrompterStage({
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
+
 

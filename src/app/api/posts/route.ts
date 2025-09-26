@@ -31,6 +31,81 @@ function normalizePost(row: Record<string, unknown>) {
   };
 }
 
+type NormalizedPost = ReturnType<typeof normalizePost>;
+
+const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
+  {
+    id: "demo-welcome",
+    kind: "text",
+    content:
+      "Welcome to Capsules! Connect your Supabase project to see real posts here. This demo post is only shown locally when the data source is offline.",
+    mediaUrl: null,
+    mediaPrompt: null,
+    userName: "Capsules Demo Bot",
+    userAvatar: null,
+    capsuleId: null,
+    tags: ["demo"],
+    likes: 12,
+    comments: 2,
+    hotScore: 0,
+    rankScore: 0,
+    source: "demo",
+    ownerUserId: null,
+  },
+  {
+    id: "demo-prompt-ideas",
+    kind: "text",
+    content:
+      "Tip: Use the Generate button to draft a welcome message or poll. Once Supabase is configured you'll see the real-time feed here.",
+    mediaUrl: null,
+    mediaPrompt: null,
+    userName: "Capsules Tips",
+    userAvatar: null,
+    capsuleId: null,
+    tags: ["demo", "tips"],
+    likes: 4,
+    comments: 0,
+    hotScore: 0,
+    rankScore: 0,
+    source: "demo",
+    ownerUserId: null,
+  },
+];
+
+function buildFallbackPosts(): NormalizedPost[] {
+  const now = Date.now();
+  return FALLBACK_POST_SEEDS.map((seed, index) => ({
+    ...seed,
+    ts: new Date(now - index * 90_000).toISOString(),
+  }));
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (!error) return "";
+  if (error instanceof Error) return error.message ?? error.toString();
+  if (typeof error === "string") return error;
+  if (typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+    const nested = (error as { error?: { message?: unknown } }).error?.message;
+    if (typeof nested === "string") return nested;
+  }
+  return "";
+}
+
+function shouldReturnFallback(error: unknown): boolean {
+  if (process.env.NODE_ENV === "production") return false;
+  const message = extractErrorMessage(error).toLowerCase();
+  if (!message) return false;
+  return (
+    message.includes("fetch failed") ||
+    message.includes("failed to fetch") ||
+    message.includes("econnrefused") ||
+    message.includes("timed out") ||
+    message.includes("network")
+  );
+}
+
 export async function GET(req: Request) {
   const supabase = getSupabaseAdminClient();
   const url = new URL(req.url);
@@ -58,9 +133,22 @@ export async function GET(req: Request) {
   if (after) query = query.gt("created_at", after);
   if (before) query = query.lt("created_at", before);
 
-  const { data, error } = await query;
+  let data: Record<string, unknown>[] | null | undefined;
+  let error: unknown;
+  try {
+    const result = await query;
+    data = result.data;
+    error = result.error;
+  } catch (fetchError) {
+    error = fetchError;
+  }
+
   if (error) {
     console.error("Fetch posts error", error);
+    if (shouldReturnFallback(error)) {
+      console.warn("Supabase unreachable - returning demo posts for local development.");
+      return validatedJson(postsResponseSchema, { posts: buildFallbackPosts(), deleted: [] });
+    }
     return returnError(500, "posts_fetch_failed", "Failed to load posts");
   }
 
@@ -86,7 +174,7 @@ export async function POST(req: Request) {
 
   const { post, user } = parsed.data;
   const userPayload = user ?? {};
-  const ownerId = await ensureUserFromRequest(req, userPayload);
+  const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: process.env.NODE_ENV !== "production" });
   if (!ownerId) {
     return returnError(401, "auth_required", "Authentication required");
   }
@@ -99,4 +187,3 @@ export async function POST(req: Request) {
     return returnError(500, "post_save_failed", "Failed to save post");
   }
 }
-

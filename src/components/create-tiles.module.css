@@ -1,4 +1,4 @@
-﻿.wrap { display: grid; gap: 18px; }
+.wrap { display: grid; gap: 18px; }
 
 .headerRow { display:flex; align-items:center; justify-content:space-between; }
 .title { font-size: 1.6rem; font-weight: 900; letter-spacing: .01em; color: var(--text, rgba(255,255,255,0.92)); }

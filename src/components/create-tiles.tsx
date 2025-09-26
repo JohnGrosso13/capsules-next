@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import styles from "./create-tiles.module.css";
@@ -21,7 +21,7 @@ const QUICK_CHIPS = [
 
 const TILE_META: Record<CreateTileKey, { title: string; icon: string; bullets: string[] }> = {
   growth: {
-    icon: "💙",
+    icon: "??",
     title: "Community Growth",
     bullets: [
       "Generate weekly digest",
@@ -31,32 +31,32 @@ const TILE_META: Record<CreateTileKey, { title: string; icon: string; bullets: s
     ],
   },
   events: {
-    icon: "🧩",
+    icon: "??",
     title: "Events & Tournaments",
     bullets: ["Create tournament", "Adaptive scheduling", "Bracket optimization", "Assist with disputes"],
   },
   content: {
-    icon: "🗻",
+    icon: "??",
     title: "Content Creation",
     bullets: ["Generate highlight reel", "Compile clip montage", "Create logo/banner/emote", "Narration or casting"],
   },
   moderation: {
-    icon: "🛡️",
+    icon: "???",
     title: "Moderation & Safety",
     bullets: ["Scan last 24 hours", "Draft code of conduct", "Flag engagement spikes", "Resolve case summary"],
   },
   insights: {
-    icon: "🎮",
+    icon: "??",
     title: "Gaming Insights",
     bullets: ["Run live match analysis", "Generate strategy plan", "Launch stat integration", "Build coaching plan"],
   },
   automations: {
-    icon: "✳️",
+    icon: "??",
     title: "Platform Automations",
     bullets: [
       "Set weekly digest schedule",
       "Autopost to socials",
-      "Workflow: New VOD → Post",
+      "Workflow: New VOD ? Post",
       "Detect highlights ~ Post",
     ],
   },

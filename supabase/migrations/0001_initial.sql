@@ -5,10 +5,26 @@
 create extension if not exists pgcrypto;
 create extension if not exists citext;
 
--- Enum types
-create type if not exists public.post_kind as enum ('text','image','video','link','poll','system');
-create type if not exists public.member_role as enum ('owner','admin','moderator','member','guest');
-create type if not exists public.friend_request_status as enum ('pending','accepted','declined','cancelled');
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'post_kind') then
+    create type public.post_kind as enum ('text','image','video','link','poll','system');
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'member_role') then
+    create type public.member_role as enum ('owner','admin','moderator','member','guest');
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'friend_request_status') then
+    create type public.friend_request_status as enum ('pending','accepted','declined','cancelled');
+  end if;
+end $$;
 
 -- Core identity tables
 create table if not exists public.users (
@@ -61,12 +77,16 @@ create table if not exists public.posts (
   user_name text,
   user_avatar text,
   tags text[] default array[]::text[],
+  visibility text default 'public',
   author_user_id uuid references public.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
   source text default 'web'
 );
+
+alter table public.posts add column if not exists visibility text default 'public';
+alter table public.posts add column if not exists deleted_at timestamptz;
 
 create index if not exists idx_posts_capsule on public.posts(capsule_id) where deleted_at is null;
 create index if not exists idx_posts_author on public.posts(author_user_id) where deleted_at is null;
@@ -86,6 +106,8 @@ create table if not exists public.comments (
   deleted_at timestamptz,
   source text default 'web'
 );
+
+alter table public.comments add column if not exists deleted_at timestamptz;
 
 create index if not exists idx_comments_post on public.comments(post_id) where deleted_at is null;
 create index if not exists idx_comments_capsule on public.comments(capsule_id) where deleted_at is null;
@@ -112,6 +134,8 @@ create table if not exists public.friend_requests (
   constraint friend_requests_not_self check (requester_id <> recipient_id)
 );
 
+alter table public.friend_requests add column if not exists deleted_at timestamptz;
+
 create table if not exists public.friendships (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
@@ -122,6 +146,8 @@ create table if not exists public.friendships (
   deleted_at timestamptz,
   constraint friendships_not_self check (user_id <> friend_user_id)
 );
+
+alter table public.friendships add column if not exists deleted_at timestamptz;
 
 create table if not exists public.user_follows (
   id uuid primary key default gen_random_uuid(),
@@ -134,6 +160,8 @@ create table if not exists public.user_follows (
   constraint user_follows_not_self check (follower_user_id <> followee_user_id)
 );
 
+alter table public.user_follows add column if not exists deleted_at timestamptz;
+
 create table if not exists public.user_blocks (
   id uuid primary key default gen_random_uuid(),
   blocker_user_id uuid not null references public.users(id) on delete cascade,
@@ -145,6 +173,8 @@ create table if not exists public.user_blocks (
   deleted_at timestamptz,
   constraint user_blocks_not_self check (blocker_user_id <> blocked_user_id)
 );
+
+alter table public.user_blocks add column if not exists deleted_at timestamptz;
 
 create unique index if not exists uniq_friend_requests_active
   on public.friend_requests(requester_id, recipient_id)
@@ -345,41 +375,99 @@ begin
 end $$;
 
 -- Attach triggers
-create trigger trg_users_updated_at
-  before update on public.users
-  for each row execute function public.set_updated_at();
+do $$
+begin
+  begin
+    create trigger trg_users_updated_at
+      before update on public.users
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;
 
-create trigger trg_capsules_updated_at
-  before update on public.capsules
-  for each row execute function public.set_updated_at();
+do $$
+begin
+  begin
+    create trigger trg_capsules_updated_at
+      before update on public.capsules
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;
 
-create trigger trg_posts_updated_at
-  before update on public.posts
-  for each row execute function public.set_updated_at();
+do $$
+begin
+  begin
+    create trigger trg_posts_updated_at
+      before update on public.posts
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;
 
-create trigger trg_comments_updated_at
-  before update on public.comments
-  for each row execute function public.set_updated_at();
+do $$
+begin
+  begin
+    create trigger trg_comments_updated_at
+      before update on public.comments
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;
 
-create trigger trg_subscribers_updated_at
-  before update on public.subscribers
-  for each row execute function public.set_updated_at();
+do $$
+begin
+  begin
+    create trigger trg_subscribers_updated_at
+      before update on public.subscribers
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;
 
-create trigger trg_friend_requests_updated_at
-  before update on public.friend_requests
-  for each row execute function public.set_updated_at();
+do $$
+begin
+  begin
+    create trigger trg_friend_requests_updated_at
+      before update on public.friend_requests
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;
 
-create trigger trg_friendships_updated_at
-  before update on public.friendships
-  for each row execute function public.set_updated_at();
+do $$
+begin
+  begin
+    create trigger trg_friendships_updated_at
+      before update on public.friendships
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;
 
-create trigger trg_user_follows_updated_at
-  before update on public.user_follows
-  for each row execute function public.set_updated_at();
+do $$
+begin
+  begin
+    create trigger trg_user_follows_updated_at
+      before update on public.user_follows
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;
 
-create trigger trg_user_blocks_updated_at
-  before update on public.user_blocks
-  for each row execute function public.set_updated_at();
+do $$
+begin
+  begin
+    create trigger trg_user_blocks_updated_at
+      before update on public.user_blocks
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;
+
+drop view if exists public.posts_ranked_global;
+drop function if exists public.rank_posts(uuid, uuid, text[], integer, integer);
+drop view if exists public.posts_view;
 
 -- Materialized views & ranking helpers
 create or replace view public.posts_view as

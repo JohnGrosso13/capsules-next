@@ -1,4 +1,4 @@
-﻿import { getSupabaseAdminClient } from "./admin";
+import { getSupabaseAdminClient } from "./admin";
 
 const NO_ROW_CODE = "PGRST116";
 

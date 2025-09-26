@@ -29,7 +29,7 @@ const fallbackPosts: Post[] = [
     content:
       "Ask your Capsule AI to design posts, polls, and shopping drops for your community.",
     media_url: "/globe.svg",
-    created_at: new Date().toISOString(),
+    created_at: null,
   },
 ];
 
@@ -174,6 +174,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
     try {
       const res = await fetch("/api/friends/update", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "request", target }),
       });
@@ -238,7 +239,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
                   <time
                     className={styles.timestamp}
                     title={exactTime(p.created_at)}
-                    dateTime={p.created_at ?? new Date().toISOString()}
+                    dateTime={p.created_at ?? undefined}
                   >
                     {timeAgo(p.created_at)}
                   </time>

@@ -3,11 +3,12 @@ import type { Metadata } from "next";
 import { AppPage } from "@/components/app-page";
 import cards from "@/components/home.module.css";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SavedStylesPanel } from "@/components/saved-styles-panel";
 
 import layout from "./settings.module.css";
 
 export const metadata: Metadata = {
-  title: "Settings - Capsules",
+  title: "Capsules Preferences",
   description: "Manage your account and profile.",
 };
 
@@ -23,7 +24,7 @@ export default function SettingsPage() {
                 <button className={layout.sideItem} disabled aria-disabled>
                   Account
                 </button>
-                <button className={`${layout.sideItem} ${layout.sideItemActive}`}>
+                <button className={`${layout.sideItem} ${layout.sideItemActive}`} aria-label="Appearance">
                   Appearance
                 </button>
                 <button className={layout.sideItem} disabled aria-disabled>
@@ -55,6 +56,12 @@ export default function SettingsPage() {
                   <header className={cards.cardHead}>Theme</header>
                   <div className={cards.cardBody}>
                     <ThemeToggle />
+                  </div>
+                </article>
+                <article className={`${cards.card} ${layout.card}`}>
+                  <header className={cards.cardHead}>Saved Styles</header>
+                  <div className={cards.cardBody}>
+                    <SavedStylesPanel />
                   </div>
                 </article>
               </div>

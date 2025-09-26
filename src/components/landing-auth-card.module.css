@@ -36,7 +36,7 @@
   padding: 0.85rem 1.2rem;
   font-size: 1rem;
   font-weight: 600;
-  color: #0e1024;
+  color: var(--text-on-brand, #0e1024);
   background: var(--cta-gradient);
   cursor: pointer;
   box-shadow: 0 18px 38px rgba(79, 70, 229, 0.35);
@@ -121,7 +121,7 @@
 
 .primaryLink {
   border: none;
-  color: #0e1024;
+  color: var(--text-on-brand, #0e1024);
   background: var(--cta-gradient);
   box-shadow: 0 18px 38px rgba(79, 70, 229, 0.35);
 }

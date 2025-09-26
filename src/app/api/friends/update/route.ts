@@ -94,7 +94,7 @@ export async function POST(req: Request) {
   const action = normalizeAction(data.action);
 
   const userPayload = data.user ?? {};
-  const ownerId = await ensureUserFromRequest(req, userPayload);
+  const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: process.env.NODE_ENV !== "production" });
   if (!ownerId) {
     return returnError(401, "auth_required", "Authentication required");
   }

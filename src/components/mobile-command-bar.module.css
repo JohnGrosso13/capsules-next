@@ -15,7 +15,7 @@
 .btn:active { transform: translateY(0); }
 
 /* Exact hues to match Launch Capsule CTA */
-.active { color: var(--text-on-brand, #0e1024); border-color: transparent; background: linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee); box-shadow: 0 0 14px var(--accent-glow, rgba(99,102,241,.26)), 0 6px 12px rgba(2,6,23,.28), inset 0 1px 0 rgba(255,255,255,.45); }
+.active { color: var(--text-on-brand, #0e1024); border-color: transparent; background: var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee)); box-shadow: 0 0 14px var(--accent-glow, rgba(99,102,241,.26)), 0 6px 12px rgba(2,6,23,.28), inset 0 1px 0 rgba(255,255,255,.45); }
 
 .command { display:none; }
 .commandBtn { display:none; }

@@ -80,7 +80,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS public.memories (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   owner_user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
-  kind TEXT CHECK (kind IN ('upload','generated','post')) DEFAULT 'upload',
+  kind TEXT CHECK (kind IN ('upload','generated','post','theme')) DEFAULT 'upload',
   title TEXT,
   description TEXT,
   media_url TEXT,

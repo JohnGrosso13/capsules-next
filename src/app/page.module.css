@@ -80,8 +80,8 @@
 }
 
 .navLinkActive {
-  color: #0e1024;
-  background: linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee);
+  color: var(--text-on-brand, #0e1024);
+  background: var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee));
   border-color: transparent;
   box-shadow: 0 14px 28px rgba(79, 70, 229, 0.32);
 }
@@ -119,8 +119,8 @@
   border-radius: 999px;
   font-weight: 600;
   text-decoration: none;
-  color: #0e1024;
-  background: linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee);
+  color: var(--text-on-brand, #0e1024);
+  background: var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee));
   box-shadow: 0 16px 32px rgba(79, 70, 229, 0.32);
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
@@ -373,7 +373,7 @@
 }
 
 .featureListItem::before {
-  content: "•";
+  content: "";
   color: rgba(99, 102, 241, 0.9);
   margin-right: 0.5rem;
 }

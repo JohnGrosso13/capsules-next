@@ -1,4 +1,4 @@
-﻿export type OAuthProviderConfig = {
+export type OAuthProviderConfig = {
   authUrl: string;
   tokenUrl: string;
   params: Record<string, string>;

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -11,6 +11,7 @@ import { AiComposerDrawer, type ComposerDraft } from "@/components/ai-composer";
 import { PrimaryHeader } from "@/components/primary-header";
 import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import homeStyles from "./home.module.css";
+import { applyThemeVars } from "@/lib/theme";
 
 import styles from "./app-shell.module.css";
 
@@ -172,6 +173,58 @@ async function callAiPrompt(message: string, options?: Record<string, unknown>, 
   return (await response.json()) as Record<string, unknown>;
 }
 
+async function callStyler(prompt: string, userEnvelope?: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const body: Record<string, unknown> = { prompt };
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (userEnvelope) {
+    body.user = userEnvelope;
+    try {
+      headers["X-Capsules-User"] = JSON.stringify(userEnvelope);
+    } catch {
+      // ignore serialization issues
+    }
+  }
+
+  const response = await fetch("/api/ai/styler", {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const raw = await response.text().catch(() => "");
+  if (!response.ok) {
+    let parsedMessage = "";
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as { message?: unknown; error?: unknown };
+        if (typeof parsed.message === "string") {
+          parsedMessage = parsed.message.trim();
+        } else if (typeof parsed.error === "string") {
+          parsedMessage = parsed.error.trim();
+        }
+      } catch {
+        parsedMessage = raw.trim();
+      }
+    }
+    console.error("Styler request failed", {
+      status: response.status,
+      message: parsedMessage,
+      raw,
+    });
+    throw new Error(parsedMessage || `Styler request failed (${response.status})`);
+  }
+  if (!raw) {
+    return {};
+  }
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch (error) {
+    console.error("Styler response parse error", error, raw);
+    throw new Error("Invalid styler response");
+  }
+}
+
 async function persistPost(post: Record<string, unknown>, userEnvelope?: Record<string, unknown>) {
   const body: Record<string, unknown> = { post };
   if (userEnvelope) body.user = userEnvelope;
@@ -240,6 +293,27 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
       key: user.username ? `clerk:${user.username}` : undefined,
     };
   }, [user, currentUserName, currentUserAvatar]);
+
+  const envelopeClerkId = currentUserEnvelope?.clerk_id ?? null;
+  const envelopeEmail = currentUserEnvelope?.email ?? null;
+  const envelopeFullName = currentUserEnvelope?.full_name ?? null;
+  const envelopeAvatarUrl = currentUserEnvelope?.avatar_url ?? null;
+  const envelopeProvider = currentUserEnvelope?.provider ?? null;
+  const envelopeKey = currentUserEnvelope?.key ?? null;
+
+  const envelopePayload = React.useMemo(() => {
+    if (!envelopeClerkId && !envelopeEmail && !envelopeFullName && !envelopeAvatarUrl && !envelopeProvider && !envelopeKey) {
+      return null;
+    }
+    return {
+      clerk_id: envelopeClerkId,
+      email: envelopeEmail,
+      full_name: envelopeFullName,
+      avatar_url: envelopeAvatarUrl,
+      provider: envelopeProvider,
+      key: envelopeKey || undefined,
+    };
+  }, [envelopeClerkId, envelopeEmail, envelopeFullName, envelopeAvatarUrl, envelopeProvider, envelopeKey]);
 
 
   const mapFriendList = React.useCallback((items: unknown[]): Friend[] => {
@@ -321,7 +395,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
         title: "Friends",
         description: "Manage the people in your capsule.",
         href: "/friends?tab=friends",
-        icon: "🤝",
+        icon: "👥",
         badge: friends.length || undefined,
         primary: true,
       },
@@ -337,7 +411,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
         title: "Requests",
         description: "Approve or invite new members.",
         href: "/friends?tab=requests",
-        icon: "✨",
+        icon: "⭐",
       },
     ],
     [friends.length],
@@ -447,24 +521,74 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     const trimmed = content.trim();
     if (!trimmed) return;
     setStatusMessage("Posting...");
+    const nameValue = typeof envelopeFullName === "string" ? envelopeFullName.trim() : "";
+    const avatarValue = typeof envelopeAvatarUrl === "string" ? envelopeAvatarUrl.trim() : "";
+    const baseEnvelope = envelopePayload;
+    const postEnvelope = baseEnvelope
+      ? {
+          ...baseEnvelope,
+          full_name: nameValue || null,
+          avatar_url: avatarValue || null,
+        }
+      : null;
     try {
       await persistPost({
         client_id: crypto.randomUUID(),
         kind: "text",
         content: trimmed,
         source: "ai-prompter",
-        userName: currentUserName ?? undefined,
-        user_name: currentUserName ?? undefined,
-        userAvatar: currentUserAvatar ?? undefined,
-        user_avatar: currentUserAvatar ?? undefined,
-      }, currentUserEnvelope ?? undefined);
+        userName: nameValue || undefined,
+        user_name: nameValue || undefined,
+        userAvatar: avatarValue || undefined,
+        user_avatar: avatarValue || undefined,
+      }, postEnvelope ?? undefined);
       setStatusMessage("Posted to your feed.");
       window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "manual" } }));
     } catch (error) {
       console.error("Manual post error", error);
       setStatusMessage("Couldn't post right now.");
     }
-  }, [currentUserName, currentUserAvatar, currentUserEnvelope]);
+  }, [envelopePayload, envelopeFullName, envelopeAvatarUrl]);
+
+
+
+  const runStyler = React.useCallback(async (prompt: string) => {
+    const trimmed = prompt.trim();
+    if (!trimmed) return;
+    setStatusMessage("Styling your capsule...");
+    try {
+      const payload = (await callStyler(trimmed, envelopePayload ?? undefined)) ?? {};
+      const record = payload as Record<string, unknown>;
+      const varsCandidate = record.vars;
+      const safeVars: Record<string, string> = {};
+      if (varsCandidate && typeof varsCandidate === "object") {
+        Object.entries(varsCandidate as Record<string, unknown>).forEach(([key, value]) => {
+          if (typeof key === "string" && key.startsWith("--") && typeof value === "string") {
+            const normalizedKey = key.trim();
+            if (normalizedKey.startsWith("--") && normalizedKey.length <= 80) {
+              const normalizedValue = value.trim();
+              if (normalizedValue.length <= 400) {
+                safeVars[normalizedKey] = normalizedValue;
+              }
+            }
+          }
+        });
+      }
+      if (Object.keys(safeVars).length) {
+        applyThemeVars(safeVars);
+      }
+      const summaryValue = typeof record.summary === "string" ? record.summary.trim() : "";
+      setStatusMessage(summaryValue.length ? summaryValue : "Updated your capsule style.");
+    } catch (error) {
+      console.error("Styler error", error);
+      setStatusMessage(
+        error instanceof Error && error.message
+          ? `Couldn't restyle yet: ${error.message}`
+          : "Couldn't restyle yet.",
+      );
+    }
+  }, [envelopePayload]);
+
 
   const runAiComposer = React.useCallback(
     async (prompt: string, mode: ComposerMode) => {
@@ -502,11 +626,15 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
         runAiComposer(action.prompt, action.mode);
         return;
       }
+      if (action.kind === "style") {
+        runStyler(action.prompt);
+        return;
+      }
       if (action.kind === "generate") {
         setStatusMessage("Prompt received.");
       }
     },
-    [runAiComposer, submitManualPost],
+    [runAiComposer, runStyler, submitManualPost],
   );
 
   const handleDraftChange = React.useCallback((next: ComposerDraft) => {
@@ -571,6 +699,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
                     <button
                       key={tile.key}
                       type="button"
+                      data-tile={tile.key}
                       className={`${homeStyles.connectionTile} ${tile.primary ? homeStyles.connectionTilePrimary : ""}`.trim()}
                       onClick={() => {
                         setActiveRailTab(tile.key);

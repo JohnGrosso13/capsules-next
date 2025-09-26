@@ -64,4 +64,3 @@ export function validatedJson<T extends z.ZodTypeAny>(
   }
   return NextResponse.json(result.data, init);
 }
-

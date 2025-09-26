@@ -1,104 +1,53 @@
-﻿import { NextResponse } from "next/server";
+import { parseJsonBody, validatedJson } from "@/server/validation/http";
+import { z } from "zod";
 
-import { detectIntentHeuristically, intentLabel, normalizeIntent } from "@/lib/ai/intent";
-import { serverEnv } from "@/lib/env/server";
+const requestSchema = z.object({ message: z.string().min(1) });
 
-const FALLBACK_THRESHOLD = 0.6;
+const responseSchema = z.object({
+  intent: z.enum(["generate", "post", "navigate", "style"]).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  reason: z.string().optional(),
+  source: z.enum(["heuristic", "ai", "none"]).optional(),
+});
 
-type IntentPayload = {
-  intent: string;
-  confidence: number;
-  reason?: string;
-  source: "heuristic" | "ai" | "none";
-};
-
-function asPayload(result: ReturnType<typeof detectIntentHeuristically>): IntentPayload {
-  return {
-    intent: result.intent,
-    confidence: result.confidence,
-    reason: result.reason,
-    source: result.source,
-  };
-}
-
-async function classifyWithLLM(message: string): Promise<IntentPayload | null> {
-  if (!serverEnv.OPENAI_API_KEY) {
-    return null;
-  }
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: serverEnv.OPENAI_MODEL,
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an intent classifier for the Capsules app. Respond with JSON {\"intent\": \"post|navigate|generate\", \"confidence\": number between 0 and 1, \"reason\": string}. Use \"post\" for requests to share, publish, post, or draft content. Use \"navigate\" for requests to go to a page, open a section, or switch context. Use \"generate\" for everything else.",
-          },
-          {
-            role: "user",
-            content: message,
-          },
-        ],
-      }),
-    });
-    const data = (await response.json().catch(() => null)) as
-      | { choices?: Array<{ message?: { content?: string } }>; error?: unknown }
-      | null;
-
-    if (!response.ok || !data?.choices?.[0]?.message?.content) {
-      console.error("Intent classifier OpenAI error", data?.error || data);
-      return null;
-    }
-
-    const text = data.choices[0].message!.content!.trim();
-    let parsed: { intent?: string; confidence?: number; reason?: string } | null = null;
-    try {
-      parsed = JSON.parse(text);
-    } catch (error) {
-      console.error("Intent classifier parse error", text, error);
-      return null;
-    }
-    const intent = normalizeIntent(parsed?.intent);
-    const confidence = typeof parsed?.confidence === "number" ? parsed!.confidence : 0.5;
-    return {
-      intent,
-      confidence: Math.max(0, Math.min(1, confidence)),
-      reason: parsed?.reason || `Classified as ${intentLabel(intent)}`,
-      source: "ai",
-    };
-  } catch (error) {
-    console.error("Intent classifier request error", error);
-    return null;
-  }
-}
+const STYLE_GUARD = /(post|publish|share|navigate|go|open|take|launch|switch\s+(to\s+)?(dark|light))/;
+const STYLE_PRIMARY = [
+  /(make|set|change|turn|paint|color|colour)[^.]*\b(friends?|chats?|requests?|buttons?|tiles?|cards?|rails?)\b[^.]*\b(color|colour|theme|palette|white|black|red|blue|green|purple|pink|teal|orange|yellow|cyan|magenta|indigo|violet|halloween|winter|summer|spring|fall)\b/,
+  /\b(theme|palette|styler|restyle|recolor|skin)\b/,
+  /(apply|use)[^.]*\b(theme|colors?|palette)\b/,
+];
 
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => null)) as { message?: unknown } | null;
-  const text = typeof body?.message === "string" ? body.message.trim() : "";
-  if (!text) {
-    return NextResponse.json({ error: "Message is required" }, { status: 400 });
-  }
-  if (text.length > 2000) {
-    return NextResponse.json({ error: "Message too long" }, { status: 400 });
+  const parsed = await parseJsonBody(req, requestSchema);
+  if (!parsed.success) return parsed.response;
+  const text = parsed.data.message.trim().toLowerCase();
+
+  const style = !STYLE_GUARD.test(text) && STYLE_PRIMARY.some((pattern) => pattern.test(text));
+  const nav =
+    /(go|open|navigate|take|bring|show|switch|launch|visit)\b/.test(text) ||
+    /(home|create|capsule|settings|dark mode|light mode)/.test(text);
+  const post =
+    /\bpost\b/.test(text) ||
+    /(make|draft|write|compose|generate)\s+(me\s+)?(a\s+)?(social\s+)?post/.test(text);
+
+  let intent: "style" | "navigate" | "post" | "generate" = "generate";
+  let reason = "Default generate mode.";
+  let confidence = 0.3;
+
+  if (style) {
+    intent = "style";
+    reason = "Detected styling keywords.";
+    confidence = 0.72;
+  } else if (nav) {
+    intent = "navigate";
+    reason = "Detected navigation keywords.";
+    confidence = 0.7;
+  } else if (post) {
+    intent = "post";
+    reason = "Detected posting keywords.";
+    confidence = 0.7;
   }
 
-  const heuristic = detectIntentHeuristically(text);
-  if (heuristic.intent !== "generate" && heuristic.confidence >= FALLBACK_THRESHOLD) {
-    return NextResponse.json(asPayload(heuristic));
-  }
-
-  const ai = await classifyWithLLM(text);
-  if (ai) {
-    return NextResponse.json(ai);
-  }
-
-  return NextResponse.json(asPayload(heuristic));
+  return validatedJson(responseSchema, { intent, confidence, reason, source: "ai" });
 }
+
