@@ -130,7 +130,10 @@
   /* Typography accents */
   --heading-from: rgba(18,20,40,0.98);
   --heading-to: rgba(52,60,100,0.74);
-  --text-on-brand: #0e1024;
+  /* Ensure brand/CTA text meets AAA by using white on darkened brand surfaces */
+  --text-on-brand: #ffffff;
+  /* Darken CTA surfaces under text to guarantee AAA contrast in light mode */
+  --cta-gradient: linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0.55)), var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee));
 
   /* Mobile dock (solid) in light */
   --dock-scrim-bottom: rgba(255,255,255,0.78);
