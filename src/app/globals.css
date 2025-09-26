@@ -25,6 +25,10 @@
   );
   /* Exact CTA gradient (match signed-out button) */
   --cta-gradient: var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee));
+  /* CTA button special gradient (defaults to CTA gradient in dark) */
+  --cta-button-gradient: var(--cta-gradient);
+  /* CTA button text color (defaults to on-brand) */
+  --cta-button-text: var(--text-on-brand, #ffffff);
   --glass-bg-1: rgba(255,255,255,0.10);
   --glass-bg-2: rgba(255,255,255,0.05);
   --pill-radius: 999px;
@@ -50,6 +54,20 @@
   /* Base scrim to reduce bleed-through on dark */
   --header-scrim: rgba(7, 9, 22, 0.88);
   --accent-glow: rgba(99,102,241,.24);
+
+  /* Icon system (defaults suitable for dark) */
+  --icon-size: 24px;
+  --icon-stroke: 1.75;           /* ~1.5–2px @24 grid */
+  --icon-stroke-active: 2.0;
+  --icon-color: var(--text-2);
+  --icon-color-active: var(--text);
+  --icon-transition: 180ms ease;
+  /* Glass backplate for action icons */
+  --icon-plate-bg-1: rgba(255,255,255,.08);
+  --icon-plate-bg-2: rgba(255,255,255,.04);
+  --icon-plate-border: rgba(255,255,255,.16);
+  --icon-plate-ambient: 0 10px 22px rgba(5,10,26,.30);
+  --icon-plate-highlight: inset 0 1px 0 rgba(255,255,255,.28);
 
   /* Typography accents */
   --heading-from: rgba(255,255,255,.99);
@@ -131,15 +149,25 @@
   /* Typography accents */
   --heading-from: rgba(18,20,40,0.98);
   --heading-to: rgba(52,60,100,0.74);
-  /* Use dark label on brightened brand gradient for ≥10:1 while keeping the gradient vibrant */
+  /* Use dark label on general brand surfaces; CTAs use their own stronger gradient */
   --text-on-brand: #0e1024;
-  /* Lighten CTA surfaces so dark text achieves ≥10:1 across the gradient */
+  /* General CTA surfaces remain subtle for non-primary elements */
   --cta-gradient: linear-gradient(0deg, rgba(255,255,255,0.56), rgba(255,255,255,0.56)), var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee));
+  /* Make primary CTA buttons pop in light mode with a deeper, vibrant gradient + white text */
+  --cta-button-gradient: linear-gradient(0deg, rgba(0,0,0,0.60), rgba(0,0,0,0.60)), var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee));
+  --cta-button-text: #ffffff;
 
   /* Mobile dock (solid) in light */
   --dock-scrim-bottom: rgba(255,255,255,0.78);
   --dock-solid-1: rgba(255,255,255,0.98);
   --dock-solid-2: rgba(255,255,255,0.98);
+
+  /* Light-tuned icon plates */
+  --icon-plate-bg-1: rgba(255,255,255,.85);
+  --icon-plate-bg-2: rgba(255,255,255,.70);
+  --icon-plate-border: rgba(2,6,23,.10);
+  --icon-plate-ambient: 0 10px 22px rgba(2,6,23,.18);
+  --icon-plate-highlight: inset 0 1px 0 rgba(255,255,255,.65);
 
   --app-bg: radial-gradient(1200px 720px at 0% 0%, rgba(180, 188, 255, 0.35), transparent 60%),
             radial-gradient(1020px 680px at 100% 0%, rgba(200, 210, 255, 0.30), transparent 62%),
