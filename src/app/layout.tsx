@@ -23,6 +23,12 @@ export default function RootLayout({
   return (
     <ClerkProvider publishableKey={publishableKey}>
       <html lang="en" data-theme="dark" suppressHydrationWarning>
+        <head>
+          <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,GRAD,FILL@20..48,100..700,-50..200,0..1"
+          />
+        </head>
         <body className={inter.className} suppressHydrationWarning>
           <Script id="theme-init" strategy="beforeInteractive">
             {`

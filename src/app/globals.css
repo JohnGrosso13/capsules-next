@@ -1,5 +1,4 @@
-﻿/* Material Symbols Rounded (variable font) */
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,GRAD,FILL@20..48,100..700,-50..200,0..1');
+﻿/* Material Symbols Rounded (variable font) loaded via layout */
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -254,6 +253,7 @@ button, input, textarea { font: inherit; }
 /* Phosphor duotone helpers (if used) */
 .duo { color: var(--icon-color); --ph-duotone-secondary-opacity: .28; }
 :root[data-theme='light'] .duo { --ph-duotone-secondary-opacity: .22; }
+
 
 
 
