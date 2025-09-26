@@ -2,6 +2,7 @@ import { CreatePostInput } from "./types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { indexMemory } from "@/lib/supabase/memories";
+import { captionImage } from "@/lib/ai/openai";
 
 function parseMaybeJSON(value: unknown): Record<string, unknown> | null {
   if (value === null || value === undefined) return null;
@@ -449,7 +450,16 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
       const memoryKind = prompt ? "generated" : "upload";
       const memoryTitle = (typeof draft.title === "string" && draft.title.trim())
         || (memoryKind === "generated" ? "Generated media" : "Upload");
-      const memoryDescription = prompt || (typeof draft.content === "string" ? draft.content : "");
+      let memoryDescription = prompt || (typeof draft.content === "string" ? draft.content : "");
+      if (!memoryDescription || memoryDescription.trim().length < 6) {
+        // Enrich with a short machine caption so text queries can find images
+        try {
+          const cap = await captionImage(row.media_url as string);
+          if (cap) memoryDescription = memoryDescription ? `${memoryDescription} | ${cap}` : cap;
+        } catch (err) {
+          console.warn('caption main media failed', err);
+        }
+      }
       await indexMemory({
         ownerId,
         kind: memoryKind,
@@ -463,6 +473,59 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
     } catch (error) {
       console.warn("Memory index (post) failed", error);
     }
+  }
+
+  // Index any additional attachments for this post (not just the primary mediaUrl)
+  try {
+    const attachmentsRaw = Array.isArray((draft as Record<string, unknown>).attachments)
+      ? ((draft as Record<string, unknown>).attachments as Array<Record<string, unknown>>)
+      : [];
+    for (const att of attachmentsRaw) {
+      const url = typeof att.url === 'string' ? att.url : null;
+      if (!url) continue;
+      const mime = typeof att.mimeType === 'string' ? att.mimeType : null;
+      const name = typeof att.name === 'string' ? att.name : null;
+      const attRec = att as Record<string, unknown>;
+      const thumb =
+        (typeof attRec.thumbnailUrl === 'string' ? (attRec.thumbnailUrl as string) : null) ||
+        (typeof (attRec as { thumbUrl?: unknown }).thumbUrl === 'string' ? ((attRec as { thumbUrl?: string }).thumbUrl as string) : null) ||
+        (typeof (attRec as { thumbnail_url?: unknown }).thumbnail_url === 'string'
+          ? ((attRec as { thumbnail_url?: string }).thumbnail_url as string)
+          : null);
+      let description = '';
+      const prompt = typeof draft.mediaPrompt === 'string' ? draft.mediaPrompt : typeof draft.media_prompt === 'string' ? (draft.media_prompt as string) : '';
+      const content = typeof draft.content === 'string' ? draft.content : '';
+      description = [prompt, content].filter((s) => s && s.trim()).join(' ');
+      if (!description || description.trim().length < 6) {
+        try {
+          let cap: string | null = null;
+          if (mime && mime.startsWith('image/')) {
+            cap = await captionImage(url);
+          } else if (mime && mime.startsWith('video/')) {
+            if (thumb) {
+              cap = await captionImage(thumb);
+            } else {
+              cap = null;
+            }
+          }
+          if (cap) description = description ? `${description} | ${cap}` : cap;
+        } catch (err) {
+          console.warn('caption attachment failed', err);
+        }
+      }
+      await indexMemory({
+        ownerId,
+        kind: mime && mime.startsWith('video/') ? 'video' : 'upload',
+        mediaUrl: url,
+        mediaType: mime,
+        title: name,
+        description: description || null,
+        postId: clientId,
+        metadata: { source: 'post_attachment', thumbnail_url: thumb ?? undefined },
+      });
+    }
+  } catch (error) {
+    console.warn('attachments index failed', error);
   }
   let upsert = await supabase
     .from('posts')

@@ -10,12 +10,47 @@ import {
   postsResponseSchema,
 } from "@/server/validation/schemas/posts";
 
+function normalizeMediaUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const lowered = trimmed.toLowerCase();
+  if (lowered === "null" || lowered === "undefined") return null;
+  return trimmed;
+}
+
+function parsePublicStorageObject(url: string): { bucket: string; key: string } | null {
+  try {
+    const u = new URL(url);
+    const m = u.pathname.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+    if (!m) return null;
+    return { bucket: decodeURIComponent(m[1]), key: decodeURIComponent(m[2]) };
+  } catch {
+    return null;
+  }
+}
+
+async function ensureAccessibleMediaUrl(candidate: string | null): Promise<string | null> {
+  const value = normalizeMediaUrl(candidate);
+  if (!value) return null;
+  const parsed = parsePublicStorageObject(value);
+  if (!parsed) return value;
+  try {
+    const supabase = getSupabaseAdminClient();
+    const signed = await supabase.storage.from(parsed.bucket).createSignedUrl(parsed.key, 3600 * 24 * 365);
+    return signed.data?.signedUrl ?? value;
+  } catch {
+    return value;
+  }
+}
+
 function normalizePost(row: Record<string, unknown>) {
   return {
     id: (row.client_id ?? row.id) as string,
     kind: (row.kind as string) ?? "text",
     content: (row.content as string) ?? "",
-    mediaUrl: ((row.media_url as string) ?? null) as string | null,
+    mediaUrl:
+      normalizeMediaUrl(row["media_url"]) ?? normalizeMediaUrl((row as Record<string, unknown>)["mediaUrl"]) ?? null,
     mediaPrompt: ((row.media_prompt as string) ?? null) as string | null,
     userName: ((row.user_name as string) ?? null) as string | null,
     userAvatar: ((row.user_avatar as string) ?? null) as string | null,
@@ -162,7 +197,13 @@ export async function GET(req: Request) {
     return true;
   });
 
-  const posts = activeRows.map((row) => normalizePost(row as Record<string, unknown>));
+  const posts = await Promise.all(
+    activeRows.map(async (row) => {
+      const p = normalizePost(row as Record<string, unknown>);
+      p.mediaUrl = await ensureAccessibleMediaUrl(p.mediaUrl);
+      return p;
+    }),
+  );
   return validatedJson(postsResponseSchema, { posts, deleted: deletedIds });
 }
 

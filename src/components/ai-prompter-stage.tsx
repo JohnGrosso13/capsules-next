@@ -22,13 +22,17 @@ const defaultChips = [
   "Style my capsule",
 ];
 
+const MAX_ATTACHMENT_SIZE = 8 * 1024 * 1024;
+
 export type ComposerMode = "post" | "image" | "video" | "poll";
 
+export type PrompterAttachment = { id: string; name: string; mimeType: string; size: number; url: string; thumbnailUrl?: string };
+
 export type PrompterAction =
-  | { kind: "post_manual"; content: string; raw: string }
-  | { kind: "post_ai"; prompt: string; mode: ComposerMode; raw: string }
-  | { kind: "generate"; text: string; raw: string }
-  | { kind: "style"; prompt: string; raw: string };
+  | { kind: "post_manual"; content: string; raw: string; attachments?: PrompterAttachment[] }
+  | { kind: "post_ai"; prompt: string; mode: ComposerMode; raw: string; attachments?: PrompterAttachment[] }
+  | { kind: "generate"; text: string; raw: string; attachments?: PrompterAttachment[] }
+  | { kind: "style"; prompt: string; raw: string; attachments?: PrompterAttachment[] };
 
 type Props = {
   placeholder?: string;
@@ -52,6 +56,17 @@ type PostPlan =
   | { mode: "none" }
   | { mode: "manual"; content: string }
   | { mode: "ai"; composeMode: ComposerMode };
+
+type LocalAttachment = {
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  status: "idle" | "uploading" | "ready" | "error";
+  url: string | null;
+  thumbUrl?: string | null;
+  error?: string;
+};
 
 const HEURISTIC_CONFIDENCE_THRESHOLD = 0.6;
 
@@ -154,9 +169,14 @@ export function AiPrompterStage({
   const anchorRef = React.useRef<HTMLButtonElement | null>(null);
   const requestRef = React.useRef(0);
   const textRef = React.useRef<HTMLInputElement | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [attachment, setAttachment] = React.useState<LocalAttachment | null>(null);
 
   const trimmed = text.trim();
-  const baseIntent = manualIntent ?? autoIntent.intent;
+  const readyAttachment = attachment && attachment.status === "ready" && attachment.url ? attachment : null;
+  const hasAttachment = Boolean(readyAttachment);
+  const attachmentUploading = attachment?.status === "uploading";
+  const baseIntent = manualIntent ?? (hasAttachment && trimmed.length === 0 ? "post" : autoIntent.intent);
   const navTarget = React.useMemo(() => resolveNavigationTarget(trimmed), [trimmed]);
   const postPlan = React.useMemo(() => resolvePostPlan(trimmed), [trimmed]);
   const effectiveIntent: PromptIntent = navTarget
@@ -181,12 +201,15 @@ export function AiPrompterStage({
   const buttonClassName =
     navigateReady
       ? `${styles.genBtn} ${styles.genBtnNavigate}`
-      : postPlan.mode === "manual"
+      : effectiveIntent === "post"
       ? `${styles.genBtn} ${styles.genBtnPost}`
+      : effectiveIntent === "style"
+      ? `${styles.genBtn} ${styles.genBtnStyle}`
       : styles.genBtn;
 
   const buttonDisabled =
-    trimmed.length === 0 ||
+    attachmentUploading ||
+    (!hasAttachment && trimmed.length === 0) ||
     (effectiveIntent === "navigate" && !navTarget) ||
     (postPlan.mode === "manual" && (!postPlan.content || !postPlan.content.trim()));
 
@@ -267,12 +290,211 @@ export function AiPrompterStage({
     };
   }, [trimmed]);
 
+  function clearAttachment() {
+    setAttachment(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  function handleAttachClick() {
+    fileInputRef.current?.click();
+  }
+
+  function readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Couldn't read that file."));
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result === "string") {
+          resolve(result);
+        } else {
+          reject(new Error("Unsupported file format."));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function captureVideoThumbnail(file: File, atSeconds = 0.3): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.src = url;
+      video.muted = true;
+      (video as HTMLVideoElement & { playsInline?: boolean }).playsInline = true;
+      const cleanup = () => URL.revokeObjectURL(url);
+      const onError = () => {
+        cleanup();
+        reject(new Error("Couldn't read video"));
+      };
+      video.onerror = onError;
+      video.onloadeddata = async () => {
+        try {
+          if (!Number.isFinite(atSeconds) || atSeconds < 0) atSeconds = 0;
+          video.currentTime = Math.min(atSeconds, (video.duration || atSeconds) - 0.01);
+        } catch {
+          // ignore seek errors
+        }
+      };
+      video.onseeked = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const w = video.videoWidth || 640;
+          const h = video.videoHeight || 360;
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas not supported");
+          ctx.drawImage(video, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+          cleanup();
+          resolve(dataUrl);
+        } catch (err) {
+          cleanup();
+          reject(err instanceof Error ? err : new Error("Thumbnail failed"));
+        }
+      };
+    });
+  }
+
+  const handleAttachmentSelect = React.useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (event.target.value) {
+      event.target.value = "";
+    }
+    if (!file) return;
+
+    const id = crypto.randomUUID();
+    const mimeType = file.type || "application/octet-stream";
+
+    if (!mimeType.startsWith("image/") && !mimeType.startsWith("video/")) {
+      setAttachment({
+        id,
+        name: file.name,
+        size: file.size,
+        mimeType,
+        status: "error",
+        url: null,
+        error: "Only image or video attachments are supported right now.",
+      });
+      return;
+    }
+
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setAttachment({
+        id,
+        name: file.name,
+        size: file.size,
+        mimeType,
+        status: "error",
+        url: null,
+        error: "Image is too large (max 8 MB).",
+      });
+      return;
+    }
+
+    setAttachment({
+      id,
+      name: file.name,
+      size: file.size,
+      mimeType,
+      status: "uploading",
+      url: null,
+      thumbUrl: null,
+    });
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const base64 = dataUrl.split(",").pop() ?? "";
+      const response = await fetch("/api/upload_base64", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          content_type: mimeType,
+          data_base64: base64,
+        }),
+      });
+      if (!response.ok) {
+        const message = await response.text().catch(() => "");
+        throw new Error(message || "Upload failed");
+      }
+      const payload = (await response.json()) as { url?: string };
+      let thumbUrl: string | null = null;
+      if (mimeType.startsWith("video/")) {
+        try {
+          const thumbDataUrl = await captureVideoThumbnail(file, 0.3);
+          const thumbBase64 = thumbDataUrl.split(",").pop() ?? "";
+          const thumbRes = await fetch("/api/upload_base64", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              filename: `thumb-${file.name.replace(/\.[^.]+$/, '')}.jpg`,
+              content_type: "image/jpeg",
+              data_base64: thumbBase64,
+            }),
+          });
+          if (thumbRes.ok) {
+            const t = (await thumbRes.json()) as { url?: string };
+            if (t?.url) thumbUrl = t.url;
+          }
+        } catch (err) {
+          console.warn("thumbnail extract failed", err);
+        }
+      }
+      if (!payload?.url) {
+        throw new Error("Upload failed");
+      }
+      setAttachment((prev) => {
+        if (!prev || prev.id !== id) {
+          return prev;
+        }
+        return { ...prev, status: "ready", url: payload.url, thumbUrl: thumbUrl, error: undefined };
+      });
+    } catch (error) {
+      console.error("Attachment upload failed", error);
+      const message = error instanceof Error ? error.message : "Upload failed";
+      setAttachment((prev) => {
+        if (!prev || prev.id !== id) {
+          return prev;
+        }
+        return { ...prev, status: "error", url: null, error: message };
+      });
+    }
+  }, []);
+
   function handleGenerate() {
+    if (attachmentUploading) return;
+
+    const readyAttachments = readyAttachment
+      ? [{
+          id: readyAttachment.id,
+          name: readyAttachment.name,
+          mimeType: readyAttachment.mimeType,
+          size: readyAttachment.size,
+          url: readyAttachment.url!,
+          thumbnailUrl: readyAttachment.thumbUrl ?? undefined,
+        }]
+      : undefined;
+    const hasAttachmentPayload = Boolean(readyAttachments && readyAttachments.length);
     const value = trimmed;
-    if (!value) {
+    const hasValue = value.length > 0;
+
+    if (!hasValue && !hasAttachmentPayload) {
       textRef.current?.focus();
       return;
     }
+
+    const resetAfterSubmit = () => {
+      setText("");
+      setManualIntent(null);
+      setMenuOpen(false);
+      clearAttachment();
+      textRef.current?.focus();
+    };
 
     if (effectiveIntent === "navigate") {
       if (!navTarget) return;
@@ -281,41 +503,40 @@ export function AiPrompterStage({
       } else {
         setTheme(navTarget.value);
       }
-      setText("");
-      setManualIntent(null);
-      setMenuOpen(false);
-      textRef.current?.focus();
+      resetAfterSubmit();
       return;
     }
 
     if (effectiveIntent === "post") {
       if (postPlan.mode === "manual") {
         const content = postPlan.content.trim();
-        if (!content) return;
-        onAction?.({ kind: "post_manual", content, raw: value });
+        if (!content && !hasAttachmentPayload) return;
+        onAction?.({ kind: "post_manual", content, raw: value, attachments: readyAttachments });
       } else if (postPlan.mode === "ai") {
-        onAction?.({ kind: "post_ai", prompt: value, mode: detectComposerMode(value.toLowerCase()), raw: value });
+        onAction?.({
+          kind: "post_ai",
+          prompt: value,
+          mode: detectComposerMode(value.toLowerCase()),
+          raw: value,
+          attachments: readyAttachments,
+        });
+      } else if (hasAttachmentPayload) {
+        onAction?.({ kind: "post_manual", content: value, raw: value, attachments: readyAttachments });
       } else {
-        onAction?.({ kind: "generate", text: value, raw: value });
+        onAction?.({ kind: "generate", text: value, raw: value, attachments: readyAttachments });
       }
-      setText("");
-      setManualIntent(null);
-      textRef.current?.focus();
+      resetAfterSubmit();
       return;
     }
 
     if (effectiveIntent === "style") {
-      onAction?.({ kind: "style", prompt: value, raw: value });
-      setText("");
-      setManualIntent(null);
-      textRef.current?.focus();
+      onAction?.({ kind: "style", prompt: value, raw: value, attachments: readyAttachments });
+      resetAfterSubmit();
       return;
     }
 
-    onAction?.({ kind: "generate", text: value, raw: value });
-    setText("");
-    setManualIntent(null);
-    textRef.current?.focus();
+    onAction?.({ kind: "generate", text: value, raw: value, attachments: readyAttachments });
+    resetAfterSubmit();
   }
 
   function applyManualIntent(intent: PromptIntent | null) {
@@ -353,7 +574,8 @@ export function AiPrompterStage({
     navMessage ??
     postHint ??
     styleHint ??
-    (buttonBusy ? "Analyzing intent..." : autoIntent.reason || "AI will adjust automatically");
+    (attachment?.status === "error" ? attachment.error : null) ??
+    (buttonBusy ? "Analyzing intent..." : autoIntent.reason ?? null);
 
   return (
     <section className={styles.prompterStage} aria-label="AI Prompter">
@@ -380,7 +602,50 @@ export function AiPrompterStage({
         </div>
 
         <div className={styles.intentControls}>
-          <span className={styles.intentHint}>{hint}</span>
+          <div className={styles.attachGroup}>
+            <button
+              type="button"
+              className={styles.attachButton}
+              onClick={handleAttachClick}
+              disabled={attachmentUploading}
+              aria-label="Attach an image"
+            >
+              <span className={styles.attachIcon} aria-hidden>+</span>
+              <span className={styles.attachLabel}>Attach</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className={styles.attachInput}
+              onChange={handleAttachmentSelect}
+            />
+            {attachment ? (
+              <span
+                className={styles.attachmentChip}
+                data-status={attachment.status}
+                title={attachment.status === "error" ? attachment.error ?? "Upload failed" : attachment.name}
+              >
+                <span className={styles.attachmentName}>{attachment.name}</span>
+                {attachment.status === "uploading" ? (
+                  <span className={styles.attachmentStatus}>Uploading...</span>
+                ) : attachment.status === "error" ? (
+                  <span className={styles.attachmentStatusError}>{attachment.error ?? "Upload failed"}</span>
+                ) : (
+                  <span className={styles.attachmentStatus}>Attached</span>
+                )}
+                <button
+                  type="button"
+                  className={styles.attachmentRemove}
+                  onClick={clearAttachment}
+                  aria-label="Remove attachment"
+                >
+                  x
+                </button>
+              </span>
+            ) : null}
+          </div>
+          {hint ? <span className={styles.intentHint}>{hint}</span> : null}
           <div className={styles.intentOverride} ref={menuRef}>
             <button
               type="button"
@@ -390,7 +655,8 @@ export function AiPrompterStage({
               aria-haspopup="listbox"
               ref={anchorRef}
             >
-              Intent: {intentLabel(effectiveIntent)}{manualIntent ? " (override)" : ""}
+              {manualIntent ? intentLabel(manualIntent) : "Auto"}
+              {manualIntent ? " (override)" : ""}
               <span className={styles.intentCaret} aria-hidden>
                 v
               </span>
@@ -401,7 +667,7 @@ export function AiPrompterStage({
                   type="button"
                   onClick={() => applyManualIntent(null)}
                   role="option"
-                  aria-selected={manualIntent === null && effectiveIntent === "generate"}
+                  aria-selected={manualIntent === null}
                 >
                   Auto (AI decide)
                 </button>

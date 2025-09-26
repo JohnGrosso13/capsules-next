@@ -52,17 +52,15 @@ export async function uploadBufferToStorage(buffer: Buffer, contentType: string,
 
   if (error) throw error;
 
-  const publicUrl = supabase.storage.from(bucket).getPublicUrl(key);
+  // Prefer a long‑lived signed URL to ensure accessibility even if the
+  // bucket is private. If public access is enabled, both URLs will work.
+  // We still attempt to read the public URL for completeness, but default
+  // to the signed URL when available.
+  const publicUrl = supabase.storage.from(bucket).getPublicUrl(key).data.publicUrl ?? null;
+  const signed = await supabase.storage.from(bucket).createSignedUrl(key, 3600 * 24 * 365);
+  const signedUrl = signed.data?.signedUrl ?? null;
 
-  let url: string | null = publicUrl.data.publicUrl ?? null;
-
-  if (!url) {
-
-    const signed = await supabase.storage.from(bucket).createSignedUrl(key, 3600 * 24 * 365);
-
-    url = signed.data?.signedUrl ?? null;
-
-  }
+  const url = signedUrl || publicUrl;
 
   return { url, key };
 

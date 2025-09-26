@@ -58,29 +58,13 @@ function formatCount(value?: number | null): string {
   return String(count);
 }
 
-function likeIcon(count?: number | null): string {
-  const value = typeof count === "number" ? count : 0;
-  if (value >= 500) return "🔥";
-  if (value >= 100) return "💖";
-  if (value > 0) return "❤️";
-  return "♡";
-}
+type ActionKey = "like" | "comment" | "share";
 
-function commentIcon(count?: number | null): string {
-  const value = typeof count === "number" ? count : 0;
-  if (value >= 120) return "🗣️";
-  if (value >= 40) return "💬";
-  if (value > 0) return "🗨️";
-  return "💭";
-}
-
-function shareIcon(count?: number | null): string {
-  const value = typeof count === "number" ? count : 0;
-  if (value >= 90) return "🚀";
-  if (value >= 30) return "📣";
-  if (value > 0) return "🔁";
-  return "↗️";
-}
+const ACTION_ICON_MAP: Record<ActionKey, string> = {
+  like: "favorite",
+  comment: "mode_comment",
+  share: "ios_share",
+};
 
 type Props = {
   showPromoRow?: boolean;
@@ -322,10 +306,10 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
           const likeCount = typeof p.likes === "number" ? Math.max(0, p.likes) : 0;
           const commentCount = typeof p.comments === "number" ? Math.max(0, p.comments) : 0;
           const shareCount = typeof p.shares === "number" ? Math.max(0, p.shares) : 0;
-          const actionItems = [
-            { key: "like", label: "Like", count: likeCount, icon: likeIcon(likeCount) },
-            { key: "comment", label: "Comment", count: commentCount, icon: commentIcon(commentCount) },
-            { key: "share", label: "Share", count: shareCount, icon: shareIcon(shareCount) },
+          const actionItems: Array<{ key: ActionKey; label: string; icon: string; count: number }> = [
+            { key: "like", label: "Like", icon: ACTION_ICON_MAP.like, count: likeCount },
+            { key: "comment", label: "Comment", icon: ACTION_ICON_MAP.comment, count: commentCount },
+            { key: "share", label: "Share", icon: ACTION_ICON_MAP.share, count: shareCount },
           ];
           return (
             <article key={p.id} className={styles.card}>
@@ -392,63 +376,36 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
                 <div className={styles.cardControls}>
 
                   {canTarget ? (
-
                     <button
-
                       type="button"
-
                       className={styles.iconBtn}
-
                       onClick={() => handleFriendRequest(p, identifier)}
-
                       disabled={!canTarget || isFriendActionPending}
-
                       aria-label="Add friend shortcut"
-
                       title="Add friend"
-
                     >
-
-                      {isFriendActionPending ? "…" : "🤝"}
-
+                      <span className="msr" aria-hidden>{isFriendActionPending ? "hourglass_top" : "person_add"}</span>
                     </button>
-
                   ) : null}
 
                   <button
-
                     type="button"
-
                     className={styles.iconBtn}
-
                     aria-label="Post options"
-
                     aria-expanded={isFriendOptionOpen}
-
                     onClick={() => setActiveFriendTarget(isFriendOptionOpen ? null : identifier)}
-
                   >
-
-                    ⋯
-
+                    <span className="msr" aria-hidden>more_horiz</span>
                   </button>
 
                   <button
-
                     type="button"
-
                     className={`${styles.iconBtn} ${styles.iconBtnDelete}`.trim()}
-
                     onClick={() => handleDelete(p.id)}
-
                     aria-label="Delete post"
-
                     title="Delete post"
-
                   >
-
-                    🗑
-
+                    <span className="msr" aria-hidden>delete</span>
                   </button>
 
                 </div>
@@ -493,13 +450,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
                     <span className={styles.actionMeta}>
 
                       <span className={styles.actionIcon} aria-hidden>
-                        {action.key === "like" ? (
-                          <span className="msr">favorite</span>
-                        ) : action.key === "comment" ? (
-                          <span className="msr">mode_comment</span>
-                        ) : (
-                          <span className="msr">ios_share</span>
-                        )}
+                        <span className="msr">{action.icon}</span>
                       </span>
 
                       <span className={styles.actionLabel}>{action.label}</span>
@@ -523,4 +474,5 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
     </AppShell>
   );
 }
+
 

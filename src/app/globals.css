@@ -116,6 +116,13 @@
   --card-hover-border: rgba(255,255,255,0.22);
   --card-hover-shadow: 0 22px 46px rgba(5,10,30,0.45);
 
+  /* Feed action controls */
+  --feed-action-border: rgba(255,255,255,0.08);
+  --feed-action-border-hover: rgba(255,255,255,0.20);
+  --feed-action-bg-1: rgba(255,255,255,0.07);
+  --feed-action-bg-2: rgba(255,255,255,0.03);
+  --feed-action-shadow-hover: 0 12px 28px rgba(5,10,30,0.28);
+
   /* Rail / side surfaces */
   --rail-bg-1: rgba(255,255,255,0.09);
   --rail-bg-2: rgba(255,255,255,0.05);
@@ -141,6 +148,9 @@
   --text-2: rgba(14, 16, 36, 0.85);
   --glass-border: rgba(2, 6, 23, 0.16);
 
+  --icon-color: rgba(14, 16, 36, 0.72);
+  --icon-color-active: rgba(14, 16, 36, 0.96);
+
   --header-glass-top: rgba(255,255,255,.65);
   --header-glass-bottom: rgba(255,255,255,.45);
   --header-tint-from: rgba(226, 232, 255, .65);
@@ -163,6 +173,13 @@
   --card-hover-bg-2: rgba(255,255,255,0.92);
   --card-hover-border: rgba(2,6,23,0.16);
   --card-hover-shadow: 0 22px 46px rgba(2,6,23,0.14);
+
+  /* Feed action controls */
+  --feed-action-border: rgba(2,6,23,0.12);
+  --feed-action-border-hover: rgba(2,6,23,0.20);
+  --feed-action-bg-1: rgba(255,255,255,0.95);
+  --feed-action-bg-2: rgba(236,240,255,0.88);
+  --feed-action-shadow-hover: 0 14px 30px rgba(2,6,23,0.14);
 
   --rail-bg-1: rgba(255,255,255,0.92);
   --rail-bg-2: rgba(255,255,255,0.86);
@@ -238,6 +255,7 @@ button, input, textarea { font: inherit; }
   display: inline-block;
   white-space: nowrap;
   direction: ltr;
+  font-feature-settings: 'liga';
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
   color: currentColor;
@@ -251,8 +269,8 @@ button, input, textarea { font: inherit; }
 .msrActive { --msr-wght: var(--icon-msr-wght-active, 500); color: var(--icon-color-active); }
 
 /* Phosphor duotone helpers (if used) */
-.duo { color: var(--icon-color); --ph-duotone-secondary-opacity: .28; }
-:root[data-theme='light'] .duo { --ph-duotone-secondary-opacity: .22; }
+.duo { color: var(--icon-color-active); --ph-duotone-secondary-color: var(--icon-color); --ph-duotone-secondary-opacity: .32; }
+:root[data-theme='light'] .duo { color: var(--icon-color-active); --ph-duotone-secondary-color: var(--icon-color); --ph-duotone-secondary-opacity: .26; }
 
 
 

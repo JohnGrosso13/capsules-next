@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -6,12 +6,13 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 
-import { AiPrompterStage, type PrompterAction, type ComposerMode } from "@/components/ai-prompter-stage";
+import { AiPrompterStage, type PrompterAction, type ComposerMode, type PrompterAttachment } from "@/components/ai-prompter-stage";
 import { AiComposerDrawer, type ComposerDraft } from "@/components/ai-composer";
 import { PrimaryHeader } from "@/components/primary-header";
 import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import homeStyles from "./home.module.css";
 import { applyThemeVars } from "@/lib/theme";
+import { UsersThree, ChatsCircle, Handshake } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./app-shell.module.css";
 
@@ -56,6 +57,118 @@ const initialComposerState: ComposerState = {
   message: null,
   choices: null,
 };
+
+const CHAT_REMINDER_KEY = "capsule:lastChatReminder";
+const CHAT_UNREAD_COUNT_KEY = "capsule:unreadChatCount";
+
+type ConnectionOverrideMap = Partial<Record<RailTab, { description?: string; badge?: number }>>;
+type ConnectionSummaryDetail = Partial<Record<RailTab, { description?: string | null; badge?: number | null }>>;
+
+const CONNECTION_TILE_DEFS: Array<{ key: RailTab; title: string; icon: React.ReactNode; href: string }> = [
+  {
+    key: "friends",
+    title: "Friends",
+    icon: <UsersThree size={28} weight="duotone" className="duo" />,
+    href: "/friends?tab=friends",
+  },
+  {
+    key: "chats",
+    title: "Chats",
+    icon: <ChatsCircle size={28} weight="duotone" className="duo" />,
+    href: "/friends?tab=chats",
+  },
+  {
+    key: "requests",
+    title: "Requests",
+    icon: <Handshake size={28} weight="duotone" className="duo" />,
+    href: "/friends?tab=requests",
+  },
+];
+
+const RAIL_TAB_DEFS: Array<{ key: RailTab; label: string; icon: React.ReactNode }> = CONNECTION_TILE_DEFS.map(
+  ({ key, title, icon }) => ({ key, label: title, icon }),
+);
+
+function isRailTab(value: unknown): value is RailTab {
+  return value === "friends" || value === "chats" || value === "requests";
+}
+
+function pluralize(word: string, count: number): string {
+  return count === 1 ? word : `${word}s`;
+}
+
+function formatFriendsSummary(count: number): string {
+  if (count <= 0) return "Invite friends to build your capsule.";
+  if (count === 1) return "1 friend is connected.";
+  if (count <= 4) return `${count} friends are connected.`;
+  return `${count} ${pluralize("friend", count)} are in your capsule.`;
+}
+
+function formatRequestsSummary(incoming: number, outgoing: number): string {
+  if (incoming > 0) {
+    return `${incoming} ${pluralize("request", incoming)} need your review.`;
+  }
+  if (outgoing > 0) {
+    return `Waiting on ${outgoing} ${pluralize("invitation", outgoing)}.`;
+  }
+  return "No pending requests right now.";
+}
+
+function formatRelativeTime(from: number, to: number): string {
+  const diff = Math.max(0, to - from);
+  const minutes = Math.round(diff / 60000);
+  if (minutes < 1) return "moments ago";
+  if (minutes === 1) return "1 minute ago";
+  if (minutes < 60) return `${minutes} minutes ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours === 1) return "1 hour ago";
+  if (hours < 24) return `${hours} hours ago`;
+  const days = Math.round(hours / 24);
+  if (days === 1) return "1 day ago";
+  if (days < 7) return `${days} days ago`;
+  const weeks = Math.round(days / 7);
+  if (weeks === 1) return "1 week ago";
+  return `${weeks} weeks ago`;
+}
+
+function formatChatSummary(unread: number, lastReminder: number | null, now: number): string {
+  if (unread > 0) {
+    return `${unread} unread ${pluralize("chat", unread)} waiting.`;
+  }
+  if (lastReminder) {
+    return `Last chat ${formatRelativeTime(lastReminder, now)}.`;
+  }
+  return "You're all caught up on chats.";
+}
+
+function sanitizeOverrideText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.length > 220 ? `${trimmed.slice(0, 219)}...` : trimmed;
+}
+
+function coerceBadge(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const safe = Math.max(0, Math.round(value));
+  return safe > 0 ? safe : null;
+}
+
+function readStoredTimestamp(value: string | null): number | null {
+  if (!value) return null;
+  const numeric = Number(value);
+  if (!Number.isNaN(numeric) && Number.isFinite(numeric)) {
+    return numeric;
+  }
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function coerceTimestamp(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") return readStoredTimestamp(value);
+  return null;
+}
 
 function sanitizePollFromDraft(draft: ComposerDraft): { question: string; options: string[] } | null {
   if (!draft.poll) return null;
@@ -154,10 +267,16 @@ function buildPostPayload(
   return payload;
 }
 
-async function callAiPrompt(message: string, options?: Record<string, unknown>, post?: Record<string, unknown>) {
+async function callAiPrompt(
+  message: string,
+  options?: Record<string, unknown>,
+  post?: Record<string, unknown>,
+  attachments?: PrompterAttachment[],
+) {
   const body: Record<string, unknown> = { message };
   if (options && Object.keys(options).length) body.options = options;
   if (post) body.post = post;
+  if (attachments && attachments.length) body.attachments = attachments;
 
   const response = await fetch("/api/ai/prompt", {
     method: "POST",
@@ -267,6 +386,218 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
   const [activeFriendTarget, setActiveFriendTarget] = React.useState<string | null>(null);
   const [friendActionPendingId, setFriendActionPendingId] = React.useState<string | null>(null);
 
+  const [incomingRequestCount, setIncomingRequestCount] = React.useState(0);
+  const [outgoingRequestCount, setOutgoingRequestCount] = React.useState(0);
+  const [unreadChats, setUnreadChats] = React.useState(0);
+  const [lastChatReminder, setLastChatReminder] = React.useState<number | null>(null);
+  const [chatTicker, setChatTicker] = React.useState(0);
+  const [connectionOverrides, setConnectionOverrides] = React.useState<ConnectionOverrideMap>({});
+
+
+  React.useEffect(() => {
+    try {
+      const storedUnread = localStorage.getItem(CHAT_UNREAD_COUNT_KEY);
+      if (storedUnread !== null) {
+        const parsed = Number.parseInt(storedUnread, 10);
+        if (!Number.isNaN(parsed)) {
+          setUnreadChats(Math.max(0, parsed));
+        }
+      }
+      const storedReminderRaw = localStorage.getItem(CHAT_REMINDER_KEY);
+      const storedReminder = readStoredTimestamp(storedReminderRaw);
+      if (storedReminder !== null) {
+        setLastChatReminder(storedReminder);
+      }
+    } catch {
+      // ignore storage read errors
+    }
+  }, []);
+
+  React.useEffect(() => {
+    function handleStorage(event: StorageEvent) {
+      if (!event.key) return;
+      if (event.key === CHAT_UNREAD_COUNT_KEY) {
+        if (event.newValue === null) {
+          setUnreadChats(0);
+        } else {
+          const parsed = Number.parseInt(event.newValue, 10);
+          if (!Number.isNaN(parsed)) {
+            setUnreadChats(Math.max(0, parsed));
+          }
+        }
+      }
+      if (event.key === CHAT_REMINDER_KEY) {
+        if (event.newValue === null) {
+          setLastChatReminder(null);
+        } else {
+          const timestamp = readStoredTimestamp(event.newValue);
+          if (timestamp !== null) {
+            setLastChatReminder(timestamp);
+          }
+        }
+      }
+    }
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  React.useEffect(() => {
+    try {
+      if (unreadChats > 0) {
+        localStorage.setItem(CHAT_UNREAD_COUNT_KEY, String(unreadChats));
+      } else {
+        localStorage.removeItem(CHAT_UNREAD_COUNT_KEY);
+      }
+    } catch {
+      // ignore storage write errors
+    }
+  }, [unreadChats]);
+
+  React.useEffect(() => {
+    try {
+      if (lastChatReminder) {
+        localStorage.setItem(CHAT_REMINDER_KEY, String(lastChatReminder));
+      } else {
+        localStorage.removeItem(CHAT_REMINDER_KEY);
+      }
+    } catch {
+      // ignore storage write errors
+    }
+  }, [lastChatReminder]);
+
+  React.useEffect(() => {
+    if (!lastChatReminder) return;
+    setChatTicker(Date.now());
+    const timer = window.setInterval(() => setChatTicker(Date.now()), 60000);
+    return () => window.clearInterval(timer);
+  }, [lastChatReminder]);
+  React.useEffect(() => {
+    function handleChatStatus(event: Event) {
+      const detail = (event as CustomEvent<{ unreadCount?: number; lastReceivedAt?: number | string | null; description?: string | null }>).detail;
+      if (!detail || typeof detail !== "object") return;
+
+      if (typeof detail.unreadCount === "number" && Number.isFinite(detail.unreadCount)) {
+        setUnreadChats(Math.max(0, Math.round(detail.unreadCount)));
+      }
+
+      if (Object.prototype.hasOwnProperty.call(detail, "lastReceivedAt")) {
+        const raw = (detail as { lastReceivedAt?: number | string | null }).lastReceivedAt;
+        if (raw === null) {
+          setLastChatReminder(null);
+        } else if (raw !== undefined) {
+          const timestamp = coerceTimestamp(raw);
+          if (timestamp !== null) {
+            setLastChatReminder(timestamp);
+          }
+        }
+      }
+
+      if (Object.prototype.hasOwnProperty.call(detail, "description")) {
+        const overrideText = sanitizeOverrideText((detail as { description?: string | null }).description ?? null);
+        setConnectionOverrides((prev) => {
+          const next: ConnectionOverrideMap = { ...prev };
+          const existing = next.chats ?? {};
+          let changed = false;
+          if (overrideText) {
+            if (existing.description !== overrideText) {
+              next.chats = { ...existing, description: overrideText };
+              changed = true;
+            }
+          } else if (existing.description) {
+            const rest = { ...existing };
+            delete rest.description;
+            if (Object.keys(rest).length) {
+              next.chats = rest;
+            } else {
+              delete next.chats;
+            }
+            changed = true;
+          }
+          return changed ? next : prev;
+        });
+      }
+    }
+
+    window.addEventListener("capsule:chat:status", handleChatStatus as EventListener);
+    return () => window.removeEventListener("capsule:chat:status", handleChatStatus as EventListener);
+  }, []);
+
+  React.useEffect(() => {
+    function handleConnectionUpdate(event: Event) {
+      const detail = (event as CustomEvent<ConnectionSummaryDetail>).detail;
+      if (!detail || typeof detail !== "object") return;
+
+      setConnectionOverrides((prev) => {
+        let mutated = false;
+        const next: ConnectionOverrideMap = { ...prev };
+
+        (Object.entries(detail) as [string, ConnectionSummaryDetail[RailTab]][]).forEach(([rawKey, patch]) => {
+          if (!isRailTab(rawKey)) return;
+
+          if (patch == null) {
+            if (next[rawKey]) {
+              delete next[rawKey];
+              mutated = true;
+            }
+            return;
+          }
+
+          const patchValue = patch as { description?: string | null; badge?: number | null };
+          const current = { ...(next[rawKey] ?? {}) } as { description?: string; badge?: number };
+          let localChanged = false;
+
+          if (Object.prototype.hasOwnProperty.call(patchValue, "description")) {
+            const normalized = sanitizeOverrideText(patchValue.description ?? null);
+            if (normalized) {
+              if (current.description !== normalized) {
+                current.description = normalized;
+                localChanged = true;
+              }
+            } else if (current.description) {
+              delete current.description;
+              localChanged = true;
+            }
+          }
+
+          if (Object.prototype.hasOwnProperty.call(patchValue, "badge")) {
+            const badgeRaw = patchValue.badge;
+            if (badgeRaw === null) {
+              if (current.badge !== undefined) {
+                delete current.badge;
+                localChanged = true;
+              }
+            } else {
+              const normalizedBadge = coerceBadge(badgeRaw);
+              if (normalizedBadge !== null) {
+                if (current.badge !== normalizedBadge) {
+                  current.badge = normalizedBadge;
+                  localChanged = true;
+                }
+              } else if (current.badge !== undefined) {
+                delete current.badge;
+                localChanged = true;
+              }
+            }
+          }
+
+          if (localChanged) {
+            mutated = true;
+            if (Object.keys(current).length) {
+              next[rawKey] = current;
+            } else if (next[rawKey]) {
+              delete next[rawKey];
+            }
+          }
+        });
+
+        return mutated ? next : prev;
+      });
+    }
+
+    window.addEventListener("capsule:connections:update", handleConnectionUpdate as EventListener);
+    return () => window.removeEventListener("capsule:connections:update", handleConnectionUpdate as EventListener);
+  }, []);
   const currentUserName = React.useMemo(() => {
     if (!user) return null;
     return (user.fullName && user.fullName.trim())
@@ -375,11 +706,25 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     fetch("/api/friends/sync", { method: "POST" })
       .then((r) => r.json())
       .then((d) => {
-        const arr = Array.isArray(d.friends) ? d.friends : [];
+        const arr = Array.isArray(d?.friends) ? d.friends : [];
         const mapped = mapFriendList(arr);
         setFriends(mapped.length ? mapped : fallbackFriends);
+
+        const rawGraph = d && typeof d === "object" ? (d as { graph?: unknown }).graph : null;
+        const graph =
+          rawGraph && typeof rawGraph === "object"
+            ? (rawGraph as { incomingRequests?: unknown; outgoingRequests?: unknown })
+            : null;
+        const incoming = Array.isArray(graph?.incomingRequests) ? graph.incomingRequests.length : 0;
+        const outgoing = Array.isArray(graph?.outgoingRequests) ? graph.outgoingRequests.length : 0;
+        setIncomingRequestCount(incoming);
+        setOutgoingRequestCount(outgoing);
       })
-      .catch(() => setFriends(fallbackFriends));
+      .catch(() => {
+        setFriends(fallbackFriends);
+        setIncomingRequestCount(0);
+        setOutgoingRequestCount(0);
+      });
   }, [mapFriendList]);
 
   React.useEffect(() => {
@@ -388,34 +733,46 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     return () => window.clearTimeout(timer);
   }, [statusMessage]);
 
-  const connectionTiles = React.useMemo(
-    () => [
-      {
-        key: "friends" as RailTab,
-        title: "Friends",
-        description: "Manage the people in your capsule.",
-        href: "/friends?tab=friends",
-        icon: "👥",
-        badge: friends.length || undefined,
-        primary: true,
+  const connectionTiles = React.useMemo(() => {
+    const now = chatTicker || Date.now();
+
+    const defaults = {
+      friends: {
+        description: formatFriendsSummary(friends.length),
+        badge: friends.length > 0 ? friends.length : null,
       },
-      {
-        key: "chats" as RailTab,
-        title: "Chats",
-        description: "Conversations coming soon.",
-        href: "/friends?tab=chats",
-        icon: "💬",
+      chats: {
+        description: formatChatSummary(unreadChats, lastChatReminder, now),
+        badge: unreadChats > 0 ? unreadChats : null,
       },
-      {
-        key: "requests" as RailTab,
-        title: "Requests",
-        description: "Approve or invite new members.",
-        href: "/friends?tab=requests",
-        icon: "⭐",
+      requests: {
+        description: formatRequestsSummary(incomingRequestCount, outgoingRequestCount),
+        badge: incomingRequestCount > 0 ? incomingRequestCount : null,
       },
-    ],
-    [friends.length],
-  );
+    } as const;
+
+    return CONNECTION_TILE_DEFS.map((def) => {
+      const override = connectionOverrides[def.key];
+      const fallback = defaults[def.key];
+      const description = override?.description ?? fallback.description;
+      const badgeValue = override?.badge ?? fallback.badge;
+      const badge = typeof badgeValue === "number" && badgeValue > 0 ? badgeValue : undefined;
+
+      return {
+        ...def,
+        description,
+        badge,
+      };
+    });
+  }, [
+    friends.length,
+    unreadChats,
+    lastChatReminder,
+    incomingRequestCount,
+    outgoingRequestCount,
+    connectionOverrides,
+    chatTicker,
+  ]);
 
   function presenceClass(status?: string) {
     if (status === "online") return friendsStyles.online;
@@ -451,6 +808,13 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
         }
         if (data && Array.isArray(data.friends)) {
           setFriends(mapFriendList(data.friends));
+        }
+        if (data && data.graph && typeof data.graph === "object") {
+          const graph = data.graph as { incomingRequests?: unknown; outgoingRequests?: unknown };
+          const incoming = Array.isArray(graph.incomingRequests) ? graph.incomingRequests.length : 0;
+          const outgoing = Array.isArray(graph.outgoingRequests) ? graph.outgoingRequests.length : 0;
+          setIncomingRequestCount(incoming);
+          setOutgoingRequestCount(outgoing);
         }
         setStatusMessage(`Friend request sent to ${friend.name}.`);
       } catch (error) {
@@ -517,22 +881,24 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     [],
   );
 
-  const submitManualPost = React.useCallback(async (content: string) => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    setStatusMessage("Posting...");
-    const nameValue = typeof envelopeFullName === "string" ? envelopeFullName.trim() : "";
-    const avatarValue = typeof envelopeAvatarUrl === "string" ? envelopeAvatarUrl.trim() : "";
-    const baseEnvelope = envelopePayload;
-    const postEnvelope = baseEnvelope
-      ? {
-          ...baseEnvelope,
-          full_name: nameValue || null,
-          avatar_url: avatarValue || null,
-        }
-      : null;
-    try {
-      await persistPost({
+  const submitManualPost = React.useCallback(
+    async (content: string, attachments?: PrompterAttachment[]) => {
+      const trimmed = content.trim();
+      const hasAttachment = Boolean(attachments && attachments.length);
+      if (!trimmed && !hasAttachment) return;
+      setStatusMessage("Posting...");
+      const nameValue = typeof envelopeFullName === "string" ? envelopeFullName.trim() : "";
+      const avatarValue = typeof envelopeAvatarUrl === "string" ? envelopeAvatarUrl.trim() : "";
+      const baseEnvelope = envelopePayload;
+      const postEnvelope = baseEnvelope
+        ? {
+            ...baseEnvelope,
+            full_name: nameValue || null,
+            avatar_url: avatarValue || null,
+          }
+        : null;
+      const mediaAttachment = attachments?.find((file) => file.mimeType.startsWith("image/"));
+      const postPayload: Record<string, unknown> = {
         client_id: crypto.randomUUID(),
         kind: "text",
         content: trimmed,
@@ -541,14 +907,25 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
         user_name: nameValue || undefined,
         userAvatar: avatarValue || undefined,
         user_avatar: avatarValue || undefined,
-      }, postEnvelope ?? undefined);
-      setStatusMessage("Posted to your feed.");
-      window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "manual" } }));
-    } catch (error) {
-      console.error("Manual post error", error);
-      setStatusMessage("Couldn't post right now.");
-    }
-  }, [envelopePayload, envelopeFullName, envelopeAvatarUrl]);
+      };
+      if (mediaAttachment) {
+        postPayload.mediaUrl = mediaAttachment.url;
+        postPayload.media_url = mediaAttachment.url;
+      }
+      if (attachments && attachments.length) {
+        postPayload.attachments = attachments;
+      }
+      try {
+        await persistPost(postPayload, postEnvelope ?? undefined);
+        setStatusMessage("Posted to your feed.");
+        window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "manual" } }));
+      } catch (error) {
+        console.error("Manual post error", error);
+        setStatusMessage("Couldn't post right now.");
+      }
+    },
+    [envelopePayload, envelopeFullName, envelopeAvatarUrl],
+  );
 
 
 
@@ -591,7 +968,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
 
 
   const runAiComposer = React.useCallback(
-    async (prompt: string, mode: ComposerMode) => {
+    async (prompt: string, mode: ComposerMode, attachments?: PrompterAttachment[]) => {
       setComposer({
         open: true,
         loading: true,
@@ -605,7 +982,12 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
       try {
         const options: Record<string, unknown> = {};
         if (mode === "poll") options.prefer = "poll";
-        const payload = await callAiPrompt(prompt, Object.keys(options).length ? options : undefined);
+        const payload = await callAiPrompt(
+          prompt,
+          Object.keys(options).length ? options : undefined,
+          undefined,
+          attachments,
+        );
         handleAiResponse(prompt, payload);
       } catch (error) {
         console.error("AI draft error", error);
@@ -619,11 +1001,11 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
   const handlePrompterAction = React.useCallback(
     (action: PrompterAction) => {
       if (action.kind === "post_manual") {
-        submitManualPost(action.content);
+        submitManualPost(action.content, action.attachments);
         return;
       }
       if (action.kind === "post_ai") {
-        runAiComposer(action.prompt, action.mode);
+        runAiComposer(action.prompt, action.mode, action.attachments);
         return;
       }
       if (action.kind === "style") {
@@ -631,6 +1013,10 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
         return;
       }
       if (action.kind === "generate") {
+        if (action.attachments && action.attachments.length) {
+          submitManualPost(action.text, action.attachments);
+          return;
+        }
         setStatusMessage("Prompt received.");
       }
     },
@@ -700,7 +1086,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
                       key={tile.key}
                       type="button"
                       data-tile={tile.key}
-                      className={`${homeStyles.connectionTile} ${tile.primary ? homeStyles.connectionTilePrimary : ""}`.trim()}
+                      className={homeStyles.connectionTile}
                       onClick={() => {
                         setActiveRailTab(tile.key);
                         setRailMode("connections");
@@ -732,22 +1118,19 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
                     </button>
                   </div>
                   <div className={homeStyles.railTabs} role="tablist" aria-label="Connections">
-                    {(
-                      [
-                        { key: "friends", label: "Friends" },
-                        { key: "chats", label: "Chats" },
-                        { key: "requests", label: "Requests" },
-                      ] as { key: RailTab; label: string }[]
-                    ).map((t) => (
+                    {RAIL_TAB_DEFS.map((tab) => (
                       <button
-                        key={t.key}
+                        key={tab.key}
                         type="button"
                         role="tab"
-                        aria-selected={activeRailTab === t.key}
-                        className={`${homeStyles.railTab} ${activeRailTab === t.key ? homeStyles.railTabActive : ""}`.trim()}
-                        onClick={() => setActiveRailTab(t.key)}
+                        aria-selected={activeRailTab === tab.key}
+                        className={`${homeStyles.railTab} ${activeRailTab === tab.key ? homeStyles.railTabActive : ""}`.trim()}
+                        onClick={() => setActiveRailTab(tab.key)}
                       >
-                        {t.label}
+                        <span className={homeStyles.railTabIcon} aria-hidden>
+                          {tab.icon}
+                        </span>
+                        <span>{tab.label}</span>
                       </button>
                     ))}
                   </div>
@@ -826,4 +1209,25 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
