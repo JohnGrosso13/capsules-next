@@ -49,7 +49,8 @@ export async function POST(req: Request) {
       return jsonError(422, "styler_unavailable", "I couldn't figure out how to style that yet.");
     }
 
-    const sanitizedVars = Object.fromEntries(Object.entries(plan.vars).slice(0, 32));
+    // Allow a larger—but still bounded—set of CSS variables from the styler
+    const sanitizedVars = Object.fromEntries(Object.entries(plan.vars).slice(0, 64));
     if (!Object.keys(sanitizedVars).length) {
       return jsonError(422, "styler_no_changes", "That request didn't translate to any visual changes yet.");
     }

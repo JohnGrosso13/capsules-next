@@ -288,10 +288,6 @@ function shade(rgb: RGB, amount: number): RGB {
   return mix(rgb, { r: 0, g: 0, b: 0 }, amount);
 }
 
-function ensureContrast(bg: RGB, fgLight = "rgba(255,255,255,0.92)", fgDark = "rgba(14,16,36,0.96)"): string {
-  return luminance(bg) > 0.6 ? fgDark : fgLight;
-}
-
 // --- Contrast utilities (WCAG) ---
 function relLuminance({ r, g, b }: RGB): number {
   const srgb = [r, g, b].map((v) => v / 255);
@@ -318,9 +314,34 @@ function blendOver(bg: RGB, fg: RGB, alpha: number): RGB {
   };
 }
 
+function enforceContrastRgb(bg: RGB, text: RGB, minRatio: number): RGB {
+  if (contrastRatioRGB(bg, text) >= minRatio) return bg;
+  const textLum = relLuminance(text);
+  const bgLum = relLuminance(bg);
+  const target: RGB = textLum > bgLum ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
+
+  let lo = 0;
+  let hi = 1;
+  let best = 1;
+  for (let i = 0; i < 18; i++) {
+    const mid = (lo + hi) / 2;
+    const candidate = mix(bg, target, mid);
+    if (contrastRatioRGB(candidate, text) >= minRatio) {
+      best = mid;
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+
+  const adjusted = mix(bg, target, best);
+  if (contrastRatioRGB(adjusted, text) >= minRatio) return adjusted;
+  return target;
+}
+
 function pickTextBaseFor(bg: RGB): RGB {
   // Choose the base (opaque) text color that yields higher contrast on bg.
-  const dark: RGB = { r: 14, g: 16, b: 36 };
+  const dark: RGB = { r: 0, g: 0, b: 0 };
   const light: RGB = { r: 255, g: 255, b: 255 };
   const cDark = contrastRatioRGB(dark, bg);
   const cLight = contrastRatioRGB(light, bg);
@@ -377,56 +398,93 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   const surfaceStrength = isLight ? 0.18 : 0.26;
   const surfaceAltStrength = isLight ? 0.12 : 0.2;
 
-  const cardBg1Rgb = mix(neutralBase, rgb, surfaceStrength);
-  const cardBg2Rgb = mix(neutralAlt, rgb, surfaceAltStrength);
-  const cardHoverBg1Rgb = mix(neutralBase, rgb, surfaceStrength + (isLight ? 0.04 : 0.05));
-  const cardHoverBg2Rgb = mix(neutralAlt, rgb, surfaceAltStrength + (isLight ? 0.05 : 0.06));
+  let cardBg1Rgb = mix(neutralBase, rgb, surfaceStrength);
+  let cardBg2Rgb = mix(neutralAlt, rgb, surfaceAltStrength);
+  let cardHoverBg1Rgb = mix(neutralBase, rgb, surfaceStrength + (isLight ? 0.04 : 0.05));
+  let cardHoverBg2Rgb = mix(neutralAlt, rgb, surfaceAltStrength + (isLight ? 0.05 : 0.06));
   const cardBorderRgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.18);
 
-  const railBgRgb = mix(neutralAlt, rgb, isLight ? 0.10 : 0.22);
-  const railBg2Rgb = mix(neutralDeep, rgb, isLight ? 0.08 : 0.18);
+  let railBgRgb = mix(neutralAlt, rgb, isLight ? 0.10 : 0.22);
+  let railBg2Rgb = mix(neutralDeep, rgb, isLight ? 0.08 : 0.18);
   const railBorderRgb = mix(neutralAlt, rgb, isLight ? 0.06 : 0.16);
 
-  const headerTopRgb = mix(neutralBase, rgb, isLight ? 0.10 : 0.24);
-  const headerBottomRgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.20);
-  const headerTintFromRgb = mix(rgb, neutralAlt, isLight ? 0.20 : 0.28);
-  const headerTintToRgb = mix(rgb, neutralDeep, isLight ? 0.14 : 0.26);
+  let headerTopRgb = mix(neutralBase, rgb, isLight ? 0.10 : 0.24);
+  let headerBottomRgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.20);
+  let headerTintFromRgb = mix(rgb, neutralAlt, isLight ? 0.20 : 0.28);
+  let headerTintToRgb = mix(rgb, neutralDeep, isLight ? 0.14 : 0.26);
 
   const brandFromRgb = tint(rgb, isLight ? 0.30 : 0.18);
   const brandMidRgb = rgb;
   const brandToRgb = shade(rgb, isLight ? 0.15 : 0.25);
 
-  // Enforce strong contrast for overall themes (>=10:1)
-  const MIN_RATIO = 10.0;
-  const textBase = pickTextBaseFor(cardBg1Rgb);
-  // Compute minimal alpha to hit contrast, then give primary text a slight boost
-  const text2Alpha = solveTextAlphaForContrast(cardBg1Rgb, textBase, MIN_RATIO);
-  const textAlpha = Math.min(1, text2Alpha + 0.10);
-  const text = rgba(textBase, textAlpha);
-  const text2 = rgba(textBase, text2Alpha);
+  let glassBg1Rgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.16);
+  let glassBg2Rgb = mix(neutralAlt, rgb, isLight ? 0.05 : 0.12);
+  let pillBg1Rgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.18);
+  let pillBg2Rgb = mix(neutralAlt, rgb, isLight ? 0.05 : 0.16);
 
-  // Brand text + possible brand overlay to reach target contrast
-  const brandTextBase = pickTextBaseFor(brandMidRgb);
-  // Prefer minimal overlay to preserve vibrancy
-  const overlayForBrand = contrastRatioRGB(brandTextBase, brandMidRgb) >= MIN_RATIO
-    ? 0
-    : solveOverlayAlphaForContrast(
-        brandMidRgb,
-        // If text is light, darken background (black overlay). If text is dark, lighten (white overlay).
-        (brandTextBase.r + brandTextBase.g + brandTextBase.b) > (255 * 3 / 2)
-          ? { r: 0, g: 0, b: 0 }
-          : { r: 255, g: 255, b: 255 },
-        brandTextBase,
-        MIN_RATIO,
-      );
-  const textOnBrand = rgba(brandTextBase, 1);
+  const MIN_PRIMARY = 16;
+  const MIN_SECONDARY = 12;
+  const MIN_BRAND_TARGET = 16;
+  const MIN_BRAND_FALLBACK = 12;
 
-  const accentGlow = isLight ? rgba(shade(rgb, 0.30), 0.16) : rgba(tint(rgb, 0.35), 0.34);
+  let textBase = pickTextBaseFor(cardBg1Rgb);
+  cardBg1Rgb = enforceContrastRgb(cardBg1Rgb, textBase, MIN_PRIMARY);
+  textBase = pickTextBaseFor(cardBg1Rgb);
 
+  const adjustPrimary = (value: RGB) => enforceContrastRgb(value, textBase, MIN_PRIMARY);
+  const adjustSecondary = (value: RGB) => enforceContrastRgb(value, textBase, MIN_SECONDARY);
+
+  cardBg2Rgb = adjustSecondary(cardBg2Rgb);
+  cardHoverBg1Rgb = adjustPrimary(cardHoverBg1Rgb);
+  cardHoverBg2Rgb = adjustPrimary(cardHoverBg2Rgb);
+  railBgRgb = adjustPrimary(railBgRgb);
+  railBg2Rgb = adjustPrimary(railBg2Rgb);
+  headerTopRgb = adjustPrimary(headerTopRgb);
+  headerBottomRgb = adjustPrimary(headerBottomRgb);
+  headerTintFromRgb = adjustSecondary(headerTintFromRgb);
+  headerTintToRgb = adjustSecondary(headerTintToRgb);
+  glassBg1Rgb = adjustSecondary(glassBg1Rgb);
+  glassBg2Rgb = adjustSecondary(glassBg2Rgb);
+  pillBg1Rgb = adjustSecondary(pillBg1Rgb);
+  pillBg2Rgb = adjustSecondary(pillBg2Rgb);
+
+  const appBaseRgb = enforceContrastRgb(mix(neutralDeep, rgb, isLight ? 0.06 : 0.14), textBase, MIN_SECONDARY);
+  const appTopRgb = adjustSecondary(mix(appBaseRgb, brandFromRgb, 0.12));
+  const appBottomRgb = adjustSecondary(mix(appBaseRgb, brandToRgb, 0.12));
+  // Layered background highlights to avoid a flat backdrop
   const appLayer1 = rgba(mix(rgb, neutralBase, isLight ? 0.18 : 0.26), isLight ? 0.22 : 0.18);
   const appLayer2 = rgba(mix(rgb, neutralAlt, isLight ? 0.14 : 0.24), isLight ? 0.18 : 0.16);
   const appLayer3 = rgba(mix(rgb, neutralDeep, isLight ? 0.10 : 0.20), isLight ? 0.12 : 0.14);
-  const appBase = rgbToHex(mix(neutralDeep, rgb, isLight ? 0.06 : 0.14));
+
+  const textAlpha = solveTextAlphaForContrast(cardBg1Rgb, textBase, MIN_PRIMARY);
+  const text = rgba(textBase, textAlpha);
+
+  const text2Alpha = solveTextAlphaForContrast(cardBg1Rgb, textBase, MIN_SECONDARY);
+  const text2 = rgba(textBase, text2Alpha);
+
+  const brandTextBase = pickTextBaseFor(brandMidRgb);
+  const brandTextIsLight = brandTextBase.r > 128;
+  const overlayColor: RGB = brandTextIsLight ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
+  let overlayForBrand = solveOverlayAlphaForContrast(brandMidRgb, overlayColor, brandTextBase, MIN_BRAND_TARGET);
+  let brandMidAdjusted = blendOver(brandMidRgb, overlayColor, overlayForBrand);
+  if (contrastRatioRGB(brandTextBase, brandMidAdjusted) < MIN_BRAND_TARGET) {
+    overlayForBrand = solveOverlayAlphaForContrast(brandMidRgb, overlayColor, brandTextBase, MIN_BRAND_FALLBACK);
+    brandMidAdjusted = blendOver(brandMidRgb, overlayColor, overlayForBrand);
+  }
+  const brandFromAdjusted = blendOver(brandFromRgb, overlayColor, overlayForBrand);
+  const brandToAdjusted = blendOver(brandToRgb, overlayColor, overlayForBrand);
+  const textOnBrand = rgba(brandTextBase, 1);
+
+  const brandGradient = `linear-gradient(120deg, ${rgbToHex(brandFromAdjusted)}, ${rgbToHex(brandMidAdjusted)}, ${rgbToHex(brandToAdjusted)})`;
+  const ctaOverlayAlpha = Math.min(0.95, overlayForBrand + 0.08);
+  const ctaFrom = blendOver(brandFromRgb, overlayColor, ctaOverlayAlpha);
+  const ctaMid = blendOver(brandMidRgb, overlayColor, ctaOverlayAlpha);
+  const ctaTo = blendOver(brandToRgb, overlayColor, ctaOverlayAlpha);
+  const ctaGradient = `linear-gradient(120deg, ${rgbToHex(ctaFrom)}, ${rgbToHex(ctaMid)}, ${rgbToHex(ctaTo)})`;
+
+  const textIsLight = textBase.r > 128;
+  const accentGlow = textIsLight ? rgba(tint(rgb, 0.35), 0.30) : rgba(shade(rgb, 0.30), 0.24);
+  const headerScrim = textIsLight ? "rgba(7,9,22,0.90)" : "rgba(255,255,255,0.92)";
 
   const vars: Record<string, string> = {
     "--app-bg": [
@@ -434,7 +492,7 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
       `radial-gradient(1020px 680px at 100% 0%, ${appLayer2}, transparent 62%)`,
       `linear-gradient(90deg, ${appLayer1} 0%, ${appLayer3} 32%, rgba(5,10,27,0) 55%, ${appLayer3} 78%, ${appLayer1} 100%)`,
       `radial-gradient(880px 560px at 50% 108%, ${appLayer2}, transparent 74%)`,
-      appBase,
+      rgbToHex(appBaseRgb),
     ].join(", "),
     "--text": text,
     "--text-2": text2,
@@ -442,43 +500,34 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
     "--accent-glow": accentGlow,
     "--card-bg-1": rgbToHex(cardBg1Rgb),
     "--card-bg-2": rgbToHex(cardBg2Rgb),
-    "--card-border": rgba(cardBorderRgb, isLight ? 0.18 : 0.16),
-    "--card-shadow": `0 18px 40px ${rgba(shade(cardBg1Rgb, 0.55), isLight ? 0.12 : 0.32)}`,
+    "--card-border": rgba(cardBorderRgb, textIsLight ? 0.32 : 0.22),
+    "--card-shadow": `0 18px 40px ${rgba(shade(cardBg1Rgb, textIsLight ? 0.45 : 0.65), textIsLight ? 0.28 : 0.24)}`,
     "--card-hover-bg-1": rgbToHex(cardHoverBg1Rgb),
     "--card-hover-bg-2": rgbToHex(cardHoverBg2Rgb),
-    "--card-hover-border": rgba(cardBorderRgb, isLight ? 0.26 : 0.22),
-    "--card-hover-shadow": `0 22px 46px ${rgba(shade(cardBg1Rgb, 0.65), isLight ? 0.16 : 0.38)}`,
+    "--card-hover-border": rgba(cardBorderRgb, textIsLight ? 0.36 : 0.28),
+    "--card-hover-shadow": `0 22px 46px ${rgba(shade(cardBg1Rgb, textIsLight ? 0.55 : 0.75), textIsLight ? 0.32 : 0.28)}`,
     "--header-glass-top": rgba(headerTopRgb, isLight ? 0.65 : 0.32),
     "--header-glass-bottom": rgba(headerBottomRgb, isLight ? 0.45 : 0.24),
-    "--header-tint-from": rgba(headerTintFromRgb, isLight ? 0.32 : 0.34),
-    "--header-tint-to": rgba(headerTintToRgb, isLight ? 0.26 : 0.30),
-    "--header-border-color": rgba(headerTintFromRgb, isLight ? 0.18 : 0.18),
-    "--header-shadow": rgba(shade(headerBottomRgb, 0.45), isLight ? 0.10 : 0.26),
-    "--header-scrim": isLight ? "rgba(255,255,255,0.92)" : "rgba(7,9,22,0.88)",
-    "--pill-border": rgba(headerTintFromRgb, isLight ? 0.14 : 0.20),
-    "--pill-bg-1": rgba(mix(neutralAlt, rgb, isLight ? 0.08 : 0.18), isLight ? 0.86 : 0.18),
-    "--pill-bg-2": rgba(mix(neutralAlt, rgb, isLight ? 0.05 : 0.16), isLight ? 0.78 : 0.14),
+    "--header-tint-from": rgba(headerTintFromRgb, textIsLight ? 0.35 : 0.28),
+    "--header-tint-to": rgba(headerTintToRgb, textIsLight ? 0.32 : 0.26),
+    "--header-border-color": rgba(headerTintFromRgb, textIsLight ? 0.28 : 0.22),
+    "--header-shadow": `0 18px 36px ${rgba(shade(headerBottomRgb, textIsLight ? 0.50 : 0.40), textIsLight ? 0.35 : 0.24)}`,
+    "--header-scrim": headerScrim,
+    "--pill-border": rgba(pillBg1Rgb, textIsLight ? 0.42 : 0.28),
+    "--pill-bg-1": rgbToHex(pillBg1Rgb),
+    "--pill-bg-2": rgbToHex(pillBg2Rgb),
     "--rail-bg-1": rgba(railBgRgb, isLight ? 0.92 : 0.18),
     "--rail-bg-2": rgba(railBg2Rgb, isLight ? 0.86 : 0.15),
-    "--rail-border": rgba(railBorderRgb, isLight ? 0.16 : 0.18),
-    "--cta-gradient": overlayForBrand > 0
-      ? `linear-gradient(0deg, rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${overlayForBrand.toFixed(2)}), rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${overlayForBrand.toFixed(2)})), `
-        + `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`
-      : `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`,
-    "--brand-from": rgbToHex(brandFromRgb),
-    "--brand-mid": rgbToHex(brandMidRgb),
-    "--brand-to": rgbToHex(brandToRgb),
-    "--brand-gradient": overlayForBrand > 0
-      ? `linear-gradient(0deg, rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${overlayForBrand.toFixed(2)}), rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${overlayForBrand.toFixed(2)})), `
-        + `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`
-      : `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`,
-    // Ensure CTA button gradient follows same overlay rules
-    "--cta-button-gradient": overlayForBrand > 0
-      ? `linear-gradient(0deg, rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${Math.min(0.95, overlayForBrand + 0.05).toFixed(2)}), rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${Math.min(0.95, overlayForBrand + 0.05).toFixed(2)})), `
-        + `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`
-      : `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`,
-    "--glass-bg-1": rgba(mix(neutralAlt, rgb, isLight ? 0.08 : 0.16), isLight ? 0.85 : 0.18),
-    "--glass-bg-2": rgba(mix(neutralAlt, rgb, isLight ? 0.05 : 0.12), isLight ? 0.72 : 0.12),
+    "--rail-border": rgba(railBorderRgb, textIsLight ? 0.28 : 0.20),
+    "--cta-gradient": brandGradient,
+    "--brand-from": rgbToHex(brandFromAdjusted),
+    "--brand-mid": rgbToHex(brandMidAdjusted),
+    "--brand-to": rgbToHex(brandToAdjusted),
+    "--brand-gradient": brandGradient,
+    "--cta-button-gradient": ctaGradient,
+    "--cta-button-text": textOnBrand,
+    "--glass-bg-1": rgbToHex(glassBg1Rgb),
+    "--glass-bg-2": rgbToHex(glassBg2Rgb),
   };
 
   const baseLabel = color.label || "Theme";
