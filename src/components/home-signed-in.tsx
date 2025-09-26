@@ -493,9 +493,13 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
                     <span className={styles.actionMeta}>
 
                       <span className={styles.actionIcon} aria-hidden>
-
-                        {action.icon}
-
+                        {action.key === "like" ? (
+                          <span className="msr">favorite</span>
+                        ) : action.key === "comment" ? (
+                          <span className="msr">mode_comment</span>
+                        ) : (
+                          <span className="msr">ios_share</span>
+                        )}
                       </span>
 
                       <span className={styles.actionLabel}>{action.label}</span>
