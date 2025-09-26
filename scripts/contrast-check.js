@@ -13,11 +13,6 @@ function hexToRgb(hex) {
   return { r, g, b };
 }
 
-function rgbToHex({ r, g, b }) {
-  const toHex = (n) => n.toString(16).padStart(2, "0");
-  return `#${toHex(Math.round(r))}${toHex(Math.round(g))}${toHex(Math.round(b))}`;
-}
-
 function mix(a, b, t) {
   const clamp = (n) => Math.max(0, Math.min(255, Math.round(n)));
   return {
@@ -58,8 +53,51 @@ function blendOver(bg, fg, alpha) {
   };
 }
 
-function ensureContrast(bg, fgLight = {r:255,g:255,b:255}, fgDark = {r:14,g:16,b:36}) {
-  return luminance(bg) > 0.6 ? fgDark : fgLight;
+function enforceContrastRgb(bg, text, minRatio) {
+  if (contrastRatio(bg, text) >= minRatio) return bg;
+  const textLum = relLuminance(text);
+  const bgLum = relLuminance(bg);
+  const target = textLum > bgLum ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
+  let lo = 0, hi = 1, best = 1;
+  for (let i = 0; i < 18; i++) {
+    const mid = (lo + hi) / 2;
+    const candidate = mix(bg, target, mid);
+    if (contrastRatio(candidate, text) >= minRatio) {
+      best = mid;
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  const adjusted = mix(bg, target, best);
+  if (contrastRatio(adjusted, text) >= minRatio) return adjusted;
+  return target;
+}
+
+const TEXT_LIGHT = { r: 255, g: 255, b: 255 };
+const TEXT_DARK = { r: 0, g: 0, b: 0 };
+
+function pickTextBaseFor(bg) {
+  return contrastRatio(TEXT_LIGHT, bg) >= contrastRatio(TEXT_DARK, bg) ? TEXT_LIGHT : TEXT_DARK;
+}
+
+function solveTextAlphaForContrast(bg, textBase, minRatio) {
+  if (contrastRatio(textBase, bg) < minRatio) return 1;
+  let lo = 0;
+  let hi = 1;
+  let best = 1;
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2;
+    const blended = blendOver(bg, textBase, mid);
+    const cr = contrastRatio(blended, bg);
+    if (cr >= minRatio) {
+      best = mid;
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  return Math.max(0, Math.min(1, best));
 }
 
 function solveOverlayAlphaForContrast(bg, overlay, text, minRatio) {
@@ -75,7 +113,7 @@ function solveOverlayAlphaForContrast(bg, overlay, text, minRatio) {
   return Math.max(0, Math.min(1, best));
 }
 
-function buildSiteThemeVarsFromHex(hex) {
+function buildThemeSample(hex) {
   const rgb = hexToRgb(hex);
   const isLight = luminance(rgb) > 0.55;
 
@@ -86,30 +124,87 @@ function buildSiteThemeVarsFromHex(hex) {
   const surfaceStrength = isLight ? 0.18 : 0.26;
   const surfaceAltStrength = isLight ? 0.12 : 0.2;
 
-  const cardBg1Rgb = mix(neutralBase, rgb, surfaceStrength);
+  let cardBg1Rgb = mix(neutralBase, rgb, surfaceStrength);
+  let cardBg2Rgb = mix(neutralAlt, rgb, surfaceAltStrength);
+  let railBgRgb = mix(neutralAlt, rgb, isLight ? 0.10 : 0.22);
+  let headerTopRgb = mix(neutralBase, rgb, isLight ? 0.10 : 0.24);
+  let headerBottomRgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.20);
+  let headerTintFromRgb = mix(rgb, neutralAlt, isLight ? 0.20 : 0.28);
+  let headerTintToRgb = mix(rgb, neutralDeep, isLight ? 0.14 : 0.26);
+  let glassBg1Rgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.16);
+  let glassBg2Rgb = mix(neutralAlt, rgb, isLight ? 0.05 : 0.12);
+  let pillBg1Rgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.18);
+  let pillBg2Rgb = mix(neutralAlt, rgb, isLight ? 0.05 : 0.16);
+
   const brandFromRgb = tint(rgb, isLight ? 0.30 : 0.18);
   const brandMidRgb = rgb;
   const brandToRgb = shade(rgb, isLight ? 0.15 : 0.25);
 
-  const dark = {r:14,g:16,b:36};
-  const light = {r:255,g:255,b:255};
-  const textBase = contrastRatio(light, cardBg1Rgb) >= contrastRatio(dark, cardBg1Rgb) ? light : dark;
-  // Enforce >=10:1 on text vs card
-  const minRatio = 10;
-  let textAlpha = 1;
-  // minimal alpha search
-  if (contrastRatio(textBase, cardBg1Rgb) >= minRatio) {
-    let lo=0, hi=1, best=1; for(let i=0;i<16;i++){ const mid=(lo+hi)/2; const blended=blendOver(cardBg1Rgb, textBase, mid); const cr=contrastRatio(blended, cardBg1Rgb); if (cr>=minRatio){ best=mid; hi=mid;} else {lo=mid;} } textAlpha=best;
+  const MIN_PRIMARY = 16;
+  const MIN_SECONDARY = 12;
+  const MIN_BRAND_TARGET = 16;
+  const MIN_BRAND_FALLBACK = 12;
+
+  let textBase = pickTextBaseFor(cardBg1Rgb);
+  cardBg1Rgb = enforceContrastRgb(cardBg1Rgb, textBase, MIN_PRIMARY);
+  textBase = pickTextBaseFor(cardBg1Rgb);
+
+  const adjustPrimary = (value) => enforceContrastRgb(value, textBase, MIN_PRIMARY);
+  const adjustSecondary = (value) => enforceContrastRgb(value, textBase, MIN_SECONDARY);
+
+  cardBg2Rgb = adjustSecondary(cardBg2Rgb);
+  railBgRgb = adjustPrimary(railBgRgb);
+  headerTopRgb = adjustPrimary(headerTopRgb);
+  headerBottomRgb = adjustPrimary(headerBottomRgb);
+  headerTintFromRgb = adjustSecondary(headerTintFromRgb);
+  headerTintToRgb = adjustSecondary(headerTintToRgb);
+  glassBg1Rgb = adjustSecondary(glassBg1Rgb);
+  glassBg2Rgb = adjustSecondary(glassBg2Rgb);
+  pillBg1Rgb = adjustSecondary(pillBg1Rgb);
+  pillBg2Rgb = adjustSecondary(pillBg2Rgb);
+
+  const appBaseRgb = enforceContrastRgb(mix(neutralDeep, rgb, isLight ? 0.06 : 0.14), textBase, MIN_SECONDARY);
+  const appTopRgb = adjustSecondary(mix(appBaseRgb, brandFromRgb, 0.12));
+  const appBottomRgb = adjustSecondary(mix(appBaseRgb, brandToRgb, 0.12));
+
+  const textAlpha = solveTextAlphaForContrast(cardBg1Rgb, textBase, MIN_PRIMARY);
+  const text2Alpha = solveTextAlphaForContrast(cardBg1Rgb, textBase, MIN_SECONDARY);
+
+  let brandTextBase = pickTextBaseFor(brandMidRgb);
+  const brandTextIsLight = brandTextBase.r > 128;
+  let overlayColor = brandTextIsLight ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
+  let overlayForBrand = solveOverlayAlphaForContrast(brandMidRgb, overlayColor, brandTextBase, MIN_BRAND_TARGET);
+  let brandMidAdjusted = blendOver(brandMidRgb, overlayColor, overlayForBrand);
+  if (contrastRatio(brandTextBase, brandMidAdjusted) < MIN_BRAND_TARGET) {
+    overlayForBrand = solveOverlayAlphaForContrast(brandMidRgb, overlayColor, brandTextBase, MIN_BRAND_FALLBACK);
+    brandMidAdjusted = blendOver(brandMidRgb, overlayColor, overlayForBrand);
   }
-  const textRgb = textBase; // report base; alpha used in CSS
+  const ctaOverlayAlpha = Math.min(0.95, overlayForBrand + 0.08);
+  const ctaMid = blendOver(brandMidRgb, overlayColor, ctaOverlayAlpha);
 
-  const brandTextBase = contrastRatio(light, brandMidRgb) >= contrastRatio(dark, brandMidRgb) ? light : dark;
-  const overlay = (brandTextBase.r+brandTextBase.g+brandTextBase.b) > (255*1.5) ? {r:0,g:0,b:0} : {r:255,g:255,b:255};
-  const overlayAlpha = solveOverlayAlphaForContrast(brandMidRgb, overlay, brandTextBase, minRatio);
-  const brandMidAdjusted = blendOver(brandMidRgb, overlay, overlayAlpha);
-  const textOnBrandRgb = brandTextBase;
-
-  return { cardBg1Rgb, textRgb, brandMidRgb: brandMidAdjusted, textOnBrandRgb, brandFromRgb, brandToRgb, isLight, textAlpha, overlayAlpha };
+  return {
+    isLight,
+    cardBg1Rgb,
+    cardBg2Rgb,
+    railBgRgb,
+    headerTopRgb,
+    headerBottomRgb,
+    headerTintFromRgb,
+    headerTintToRgb,
+    glassBg1Rgb,
+    glassBg2Rgb,
+    pillBg1Rgb,
+    pillBg2Rgb,
+    appTopRgb,
+    appBottomRgb,
+    textBase,
+    textAlpha,
+    text2Alpha,
+    brandMidAdjusted,
+    brandTextBase,
+    ctaMid,
+    overlayForBrand,
+  };
 }
 
 const samples = [
@@ -129,18 +224,23 @@ const samples = [
 
 function fmt(n) { return Math.round(n * 100) / 100; }
 
-console.log("Theme contrast checks (text vs card, on-brand vs brand mid):\n");
+console.log("Theme contrast checks (selected surfaces):\n");
 for (const hex of samples) {
-  const { cardBg1Rgb, textRgb, brandMidRgb, textOnBrandRgb, isLight, textAlpha, overlayAlpha } = buildSiteThemeVarsFromHex(hex);
-  const crText = contrastRatio(blendOver(cardBg1Rgb, textRgb, textAlpha), cardBg1Rgb);
-  const crBrand = contrastRatio(textOnBrandRgb, brandMidRgb);
-  const passesAAAText = crText >= 7.0;
-  const passesAAALarge = crText >= 4.5;
-  const passesBrandAAAText = crBrand >= 7.0;
-  const passesBrandAAALarge = crBrand >= 4.5;
-  const passes10 = crText >= 10 && crBrand >= 10;
-  console.log(`${hex} ${isLight ? '(light-ish)' : '(dark-ish)'} -> text/card: ${fmt(crText)}; brandText/brand: ${fmt(crBrand)}; ` +
-    `textAlpha=${fmt(textAlpha)}; brandOverlay=${fmt(overlayAlpha)} ${passes10 ? '[>=10:1 OK]' : ''}`);
+  const sample = buildThemeSample(hex);
+  const textColor = blendOver(sample.cardBg1Rgb, sample.textBase, sample.textAlpha);
+  const text2Color = blendOver(sample.cardBg1Rgb, sample.textBase, sample.text2Alpha);
+  const cardContrast = contrastRatio(textColor, sample.cardBg1Rgb);
+  const text2Contrast = contrastRatio(text2Color, sample.cardBg1Rgb);
+  const appContrast = contrastRatio(textColor, sample.appTopRgb);
+  const railContrast = contrastRatio(textColor, sample.railBgRgb);
+  const headerContrast = contrastRatio(textColor, sample.headerTopRgb);
+  const brandContrast = contrastRatio(sample.brandTextBase, sample.brandMidAdjusted);
+  const ctaContrast = contrastRatio(sample.brandTextBase, sample.ctaMid);
+
+  console.log(`${hex} ${sample.isLight ? '(light-ish)' : '(dark-ish)'} -> ` +
+    `card:${fmt(cardContrast)} primary / ${fmt(text2Contrast)} secondary, ` +
+    `app:${fmt(appContrast)}, rail:${fmt(railContrast)}, header:${fmt(headerContrast)}, ` +
+    `brand:${fmt(brandContrast)}, cta:${fmt(ctaContrast)}, overlay=${fmt(sample.overlayForBrand)}`);
 }
 
-console.log("\nNote: This approximates; gradients and alpha layers may reduce real-world contrast.");
+console.log("\nTargets: Primary ≥16:1, Secondary ≥12:1, others ≥10:1. This approximates theme generation; run UI for final verification.\n");
