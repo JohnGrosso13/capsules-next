@@ -292,6 +292,80 @@ function ensureContrast(bg: RGB, fgLight = "rgba(255,255,255,0.92)", fgDark = "r
   return luminance(bg) > 0.6 ? fgDark : fgLight;
 }
 
+// --- Contrast utilities (WCAG) ---
+function relLuminance({ r, g, b }: RGB): number {
+  const srgb = [r, g, b].map((v) => v / 255);
+  const lin = srgb.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+function contrastRatioRGB(a: RGB, b: RGB): number {
+  const L1 = relLuminance(a);
+  const L2 = relLuminance(b);
+  const lighter = Math.max(L1, L2);
+  const darker = Math.min(L1, L2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function clamp01(n: number): number { return Math.max(0, Math.min(1, n)); }
+
+function blendOver(bg: RGB, fg: RGB, alpha: number): RGB {
+  const a = clamp01(alpha);
+  return {
+    r: Math.round(fg.r * a + bg.r * (1 - a)),
+    g: Math.round(fg.g * a + bg.g * (1 - a)),
+    b: Math.round(fg.b * a + bg.b * (1 - a)),
+  };
+}
+
+function pickTextBaseFor(bg: RGB): RGB {
+  // Choose the base (opaque) text color that yields higher contrast on bg.
+  const dark: RGB = { r: 14, g: 16, b: 36 };
+  const light: RGB = { r: 255, g: 255, b: 255 };
+  const cDark = contrastRatioRGB(dark, bg);
+  const cLight = contrastRatioRGB(light, bg);
+  return cDark >= cLight ? dark : light;
+}
+
+function solveTextAlphaForContrast(bg: RGB, textBase: RGB, minRatio: number): number {
+  // Find minimum alpha in [0,1] such that contrast(blendOver(bg, textBase, a), bg) >= minRatio
+  // If even alpha=1 fails, return 1.
+  if (contrastRatioRGB(textBase, bg) < minRatio) return 1;
+  let lo = 0, hi = 1, best = 1;
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2;
+    const blended = blendOver(bg, textBase, mid);
+    const cr = contrastRatioRGB(blended, bg);
+    if (cr >= minRatio) {
+      best = mid;
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  return clamp01(best);
+}
+
+function solveOverlayAlphaForContrast(bg: RGB, overlay: RGB, text: RGB, minRatio: number): number {
+  // Find minimum overlay alpha in [0, 0.9] so that contrast(text, blendOver(bg, overlay, a)) >= minRatio
+  // If cannot reach, return 0.9 (strong overlay) to maximize.
+  const maxA = 0.9;
+  if (contrastRatioRGB(text, bg) >= minRatio) return 0;
+  let lo = 0, hi = maxA, best = maxA;
+  for (let i = 0; i < 18; i++) {
+    const mid = (lo + hi) / 2;
+    const adjustedBg = blendOver(bg, overlay, mid);
+    const cr = contrastRatioRGB(text, adjustedBg);
+    if (cr >= minRatio) {
+      best = mid;
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  return clamp01(best);
+}
+
 function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   const { rgb } = color;
   const isLight = luminance(rgb) > 0.55;
@@ -322,9 +396,30 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   const brandMidRgb = rgb;
   const brandToRgb = shade(rgb, isLight ? 0.15 : 0.25);
 
-  const text = ensureContrast(cardBg1Rgb);
-  const text2 = ensureContrast(cardBg1Rgb, "rgba(255,255,255,0.72)", "rgba(14,16,36,0.72)");
-  const textOnBrand = ensureContrast(brandMidRgb, "#ffffff", "#0e1024");
+  // Enforce strong contrast for overall themes (>=10:1)
+  const MIN_RATIO = 10.0;
+  const textBase = pickTextBaseFor(cardBg1Rgb);
+  // Compute minimal alpha to hit contrast, then give primary text a slight boost
+  const text2Alpha = solveTextAlphaForContrast(cardBg1Rgb, textBase, MIN_RATIO);
+  const textAlpha = Math.min(1, text2Alpha + 0.10);
+  const text = rgba(textBase, textAlpha);
+  const text2 = rgba(textBase, text2Alpha);
+
+  // Brand text + possible brand overlay to reach target contrast
+  const brandTextBase = pickTextBaseFor(brandMidRgb);
+  // Prefer minimal overlay to preserve vibrancy
+  const overlayForBrand = contrastRatioRGB(brandTextBase, brandMidRgb) >= MIN_RATIO
+    ? 0
+    : solveOverlayAlphaForContrast(
+        brandMidRgb,
+        // If text is light, darken background (black overlay). If text is dark, lighten (white overlay).
+        (brandTextBase.r + brandTextBase.g + brandTextBase.b) > (255 * 3 / 2)
+          ? { r: 0, g: 0, b: 0 }
+          : { r: 255, g: 255, b: 255 },
+        brandTextBase,
+        MIN_RATIO,
+      );
+  const textOnBrand = rgba(brandTextBase, 1);
 
   const accentGlow = isLight ? rgba(shade(rgb, 0.30), 0.16) : rgba(tint(rgb, 0.35), 0.34);
 
@@ -366,11 +461,22 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
     "--rail-bg-1": rgba(railBgRgb, isLight ? 0.92 : 0.18),
     "--rail-bg-2": rgba(railBg2Rgb, isLight ? 0.86 : 0.15),
     "--rail-border": rgba(railBorderRgb, isLight ? 0.16 : 0.18),
-    "--cta-gradient": `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`,
+    "--cta-gradient": overlayForBrand > 0
+      ? `linear-gradient(0deg, rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${overlayForBrand.toFixed(2)}), rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${overlayForBrand.toFixed(2)})), `
+        + `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`
+      : `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`,
     "--brand-from": rgbToHex(brandFromRgb),
     "--brand-mid": rgbToHex(brandMidRgb),
     "--brand-to": rgbToHex(brandToRgb),
-    "--brand-gradient": `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`,
+    "--brand-gradient": overlayForBrand > 0
+      ? `linear-gradient(0deg, rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${overlayForBrand.toFixed(2)}), rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${overlayForBrand.toFixed(2)})), `
+        + `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`
+      : `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`,
+    // Ensure CTA button gradient follows same overlay rules
+    "--cta-button-gradient": overlayForBrand > 0
+      ? `linear-gradient(0deg, rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${Math.min(0.95, overlayForBrand + 0.05).toFixed(2)}), rgba(${brandTextBase.r}, ${brandTextBase.g}, ${brandTextBase.b}, ${Math.min(0.95, overlayForBrand + 0.05).toFixed(2)})), `
+        + `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`
+      : `linear-gradient(120deg, ${rgbToHex(brandFromRgb)}, ${rgbToHex(brandMidRgb)}, ${rgbToHex(brandToRgb)})`,
     "--glass-bg-1": rgba(mix(neutralAlt, rgb, isLight ? 0.08 : 0.16), isLight ? 0.85 : 0.18),
     "--glass-bg-2": rgba(mix(neutralAlt, rgb, isLight ? 0.05 : 0.12), isLight ? 0.72 : 0.12),
   };
