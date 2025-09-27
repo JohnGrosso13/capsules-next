@@ -4,13 +4,13 @@
   --brand-from: #8b5cf6;
   --brand-mid: #6366f1;
   --brand-to: #22d3ee;
-  --glass-bg-1: rgba(255,255,255,0.10);
-  --glass-bg-2: rgba(255,255,255,0.05);
+  --glass-bg-1: rgba(255, 255, 255, 0.1);
+  --glass-bg-2: rgba(255, 255, 255, 0.05);
   --pill-radius: 999px;
-  --prompt-glow-opacity: .54;
+  --prompt-glow-opacity: 0.54;
   --prompt-glow-blur: 18px;
 
   /* Optional card/rail overrides */
   --card-radius: 16px;
-  --rail-border: rgba(255,255,255,0.16);
+  --rail-border: rgba(255, 255, 255, 0.16);
 }

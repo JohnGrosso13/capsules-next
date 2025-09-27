@@ -1,15 +1,20 @@
-import { ensureUserFromRequest } from "@/lib/auth/payload";
+﻿import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { PRESENCE_CHANNEL } from "@/lib/realtime/ably-server";
 import { listSocialGraph } from "@/lib/supabase/friends";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
-import { friendSyncRequestSchema, friendSyncResponseSchema } from "@/server/validation/schemas/friends";
+import {
+  friendSyncRequestSchema,
+  friendSyncResponseSchema,
+} from "@/server/validation/schemas/friends";
 
 async function handle(req: Request) {
   const parsed = await parseJsonBody(req, friendSyncRequestSchema);
   const data = parsed.success ? parsed.data : { user: {} };
 
   const userPayload = data.user ?? {};
-  const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: process.env.NODE_ENV !== "production" });
+  const ownerId = await ensureUserFromRequest(req, userPayload, {
+    allowGuests: process.env.NODE_ENV !== "production",
+  });
   if (!ownerId) {
     return returnError(401, "auth_required", "Authentication required");
   }
@@ -27,7 +32,6 @@ async function handle(req: Request) {
     }));
 
     const eventsChannel = `user:${ownerId}:friends`;
-
 
     return validatedJson(friendSyncResponseSchema, {
       friends,
@@ -48,4 +52,3 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   return handle(req);
 }
-

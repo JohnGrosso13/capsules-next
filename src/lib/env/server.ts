@@ -1,5 +1,4 @@
 export type ServerEnv = {
-
   SUPABASE_URL: string;
 
   SUPABASE_SERVICE_ROLE_KEY: string;
@@ -43,63 +42,49 @@ export type ServerEnv = {
   ADMIN_SESSION_SECRET: string | null;
 
   ADMIN_ACCESS_TOKEN: string | null;
-
 };
 
-
-
 function getEnv(name: string, fallbacks: string[] = [], options: { required?: boolean } = {}) {
-
   const sources = [process.env[name], ...fallbacks.map((key) => process.env[key])];
 
   const value = sources.find((entry) => typeof entry === "string" && entry.length > 0);
 
   if (!value && options.required) {
-
     throw new Error(`Missing required environment variable: ${name}`);
-
   }
 
   return value ?? null;
-
 }
-
-
 
 const siteUrl = getEnv("SITE_URL", ["NEXT_PUBLIC_SITE_URL"]) || "http://localhost:3000";
 
 const openAiModel = getEnv("OPENAI_MODEL", ["AI_MODEL", "GPT_MODEL"]) || "gpt-4o-mini";
 
-const openAiImageModel = getEnv("OPENAI_IMAGE_MODEL", ["AI_IMAGE_MODEL", "IMAGE_MODEL"]) || "gpt-image-1";
+const openAiImageModel =
+  getEnv("OPENAI_IMAGE_MODEL", ["AI_IMAGE_MODEL", "IMAGE_MODEL"]) || "gpt-image-1";
 
 const openAiTranscribeModel =
-
   getEnv("OPENAI_TRANSCRIBE_MODEL", ["OPENAI_TRANSCRIBE", "OPENAI_MODEL_TRANSCRIBE"]) ||
-
   "gpt-4o-mini-transcribe";
 
 const openAiQualityRaw =
-
-  getEnv("OPENAI_IMAGE_QUALITY", ["IMAGE_QUALITY_OVERRIDE", "AI_IMAGE_QUALITY", "TEST_IMAGE_QUALITY"]) ||
-
-  null;
+  getEnv("OPENAI_IMAGE_QUALITY", [
+    "IMAGE_QUALITY_OVERRIDE",
+    "AI_IMAGE_QUALITY",
+    "TEST_IMAGE_QUALITY",
+  ]) || null;
 
 const normalizedQuality = openAiQualityRaw ? openAiQualityRaw.trim().toLowerCase() : null;
 
-
-
 export const serverEnv: ServerEnv = {
-
   SUPABASE_URL: getEnv("SUPABASE_URL", ["NEXT_PUBLIC_SUPABASE_URL"], { required: true })!,
 
   SUPABASE_SERVICE_ROLE_KEY: getEnv(
-
     "SUPABASE_SERVICE_ROLE_KEY",
 
     ["SUPABASE_SERVICE_ROLE", "SUPABASE_SECRET", "SUPABASE_KEY"],
 
     { required: true },
-
   )!,
 
   SUPABASE_ANON_KEY: getEnv("SUPABASE_ANON_KEY", ["NEXT_PUBLIC_SUPABASE_ANON_KEY"]),
@@ -119,11 +104,9 @@ export const serverEnv: ServerEnv = {
   OPENAI_MODEL: openAiModel,
 
   OPENAI_EMBED_MODEL: getEnv(
-
     "OPENAI_EMBED_MODEL",
 
     ["OPENAI_TRANSCRIBE_MODEL", "OPENAI_EMBEDDING_MODEL", "OPENAI_EMBED_MODEL"],
-
   ),
 
   OPENAI_IMAGE_MODEL: openAiImageModel,
@@ -131,11 +114,8 @@ export const serverEnv: ServerEnv = {
   OPENAI_TRANSCRIBE_MODEL: openAiTranscribeModel,
 
   OPENAI_IMAGE_QUALITY:
-
     normalizedQuality === "low" || normalizedQuality === "standard" || normalizedQuality === "high"
-
       ? (normalizedQuality as "low" | "standard" | "high")
-
       : null,
 
   OPENAI_IMAGE_SIZE: getEnv("OPENAI_IMAGE_SIZE", []) || "1024x1024",
@@ -153,12 +133,4 @@ export const serverEnv: ServerEnv = {
   ADMIN_SESSION_SECRET: getEnv("ADMIN_SESSION_SECRET", ["CAPSULES_ADMIN_SESSION_SECRET"]),
 
   ADMIN_ACCESS_TOKEN: getEnv("ADMIN_ACCESS_TOKEN", ["CAPSULES_ADMIN_ACCESS_TOKEN", "ADMIN_TOKEN"]),
-
 };
-
-
-
-
-
-
-

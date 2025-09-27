@@ -75,7 +75,9 @@ export default async function AdminOverviewPage() {
               </article>
             ))}
           </div>
-          <div className={styles.refreshNote}>Last snapshot: {new Date(overview.lastSync).toLocaleString()}</div>
+          <div className={styles.refreshNote}>
+            Last snapshot: {new Date(overview.lastSync).toLocaleString()}
+          </div>
         </section>
 
         <section className={styles.section}>
@@ -89,7 +91,11 @@ export default async function AdminOverviewPage() {
                     {serie.points.length === 0 ? (
                       <span className={styles.empty}>No data</span>
                     ) : (
-                      <svg className={styles.sparklineSvg} preserveAspectRatio="none" viewBox="0 0 100 40">
+                      <svg
+                        className={styles.sparklineSvg}
+                        preserveAspectRatio="none"
+                        viewBox="0 0 100 40"
+                      >
                         {(() => {
                           const max = Math.max(...serie.points.map((p) => p.value), 1);
                           const min = Math.min(...serie.points.map((p) => p.value), 0);

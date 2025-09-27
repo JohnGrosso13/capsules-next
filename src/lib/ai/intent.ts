@@ -15,7 +15,12 @@ type Pattern = { regex: RegExp; confidence: number; reason: string };
 
 type StylePattern = Pattern & { guard?: RegExp };
 
-function scoreIntent(intent: PromptIntent, confidence: number, reason: string, source: IntentSource): IntentResolution {
+function scoreIntent(
+  intent: PromptIntent,
+  confidence: number,
+  reason: string,
+  source: IntentSource,
+): IntentResolution {
   return {
     intent,
     confidence: Math.max(0, Math.min(1, confidence)),
@@ -26,7 +31,8 @@ function scoreIntent(intent: PromptIntent, confidence: number, reason: string, s
 
 const STYLE_PATTERNS: StylePattern[] = [
   {
-    regex: /(make|set|change|turn|paint|color|colour)\b[^.]*\b(friends?|chats?|requests?|buttons?|tiles?|cards?|rails?)\b[^.]*\b(color|colour|theme|palette|white|black|red|blue|green|purple|pink|teal|orange|yellow|cyan|magenta|indigo|violet|halloween|winter|summer|spring|fall)\b/,
+    regex:
+      /(make|set|change|turn|paint|color|colour)\b[^.]*\b(friends?|chats?|requests?|buttons?|tiles?|cards?|rails?)\b[^.]*\b(color|colour|theme|palette|white|black|red|blue|green|purple|pink|teal|orange|yellow|cyan|magenta|indigo|violet|halloween|winter|summer|spring|fall)\b/,
     confidence: 0.84,
     reason: "Detected styling verbs targeting UI surfaces.",
   },
@@ -46,16 +52,37 @@ const STYLE_PATTERNS: StylePattern[] = [
 const POST_PATTERNS: Pattern[] = [
   { regex: /^post\b/, confidence: 0.95, reason: "Starts with 'post'" },
   { regex: /\bpost(\s+(a|the|my))?\b/, confidence: 0.85, reason: "Mentions posting" },
-  { regex: /(share|publish|announce|send)\b.*\b(post|message|update)/, confidence: 0.8, reason: "Share/publish verbs" },
+  {
+    regex: /(share|publish|announce|send)\b.*\b(post|message|update)/,
+    confidence: 0.8,
+    reason: "Share/publish verbs",
+  },
   { regex: /(draft|write)\b.*\b(post|message)/, confidence: 0.75, reason: "Draft/write message" },
 ];
 
 const NAV_PATTERNS: Pattern[] = [
-  { regex: /^(go|open|navigate|launch|take me|show me)\b/, confidence: 0.92, reason: "Starts with navigation verb" },
-  { regex: /(go|navigate)\s+(back|home|to\s+home|to\s+the\s+home)/, confidence: 0.88, reason: "Navigate home" },
-  { regex: /(go|open|take me|bring me|navigate)\s+(to\s+)?(create|capsule|memory|settings|friends|feed|landing|discover|profile|admin)/, confidence: 0.82, reason: "Navigate to named surface" },
+  {
+    regex: /^(go|open|navigate|launch|take me|show me)\b/,
+    confidence: 0.92,
+    reason: "Starts with navigation verb",
+  },
+  {
+    regex: /(go|navigate)\s+(back|home|to\s+home|to\s+the\s+home)/,
+    confidence: 0.88,
+    reason: "Navigate home",
+  },
+  {
+    regex:
+      /(go|open|take me|bring me|navigate)\s+(to\s+)?(create|capsule|memory|settings|friends|feed|landing|discover|profile|admin)/,
+    confidence: 0.82,
+    reason: "Navigate to named surface",
+  },
   { regex: /\bopen\s+(the\s+)?capsule\b/, confidence: 0.8, reason: "Open capsule" },
-  { regex: /(switch|change|set|turn)\s+(to\s+)?(dark|light)\s+(mode|theme)/, confidence: 0.86, reason: "Toggle theme" },
+  {
+    regex: /(switch|change|set|turn)\s+(to\s+)?(dark|light)\s+(mode|theme)/,
+    confidence: 0.86,
+    reason: "Toggle theme",
+  },
 ];
 
 export function detectIntentHeuristically(rawText: string): IntentResolution {

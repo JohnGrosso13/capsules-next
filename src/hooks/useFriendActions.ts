@@ -24,4 +24,3 @@ export function useFriendActions() {
     remove: async (target: Record<string, unknown>) => removeFriend(target),
   } as const;
 }
-

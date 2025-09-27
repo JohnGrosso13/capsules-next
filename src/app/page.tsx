@@ -1,16 +1,15 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 
 import { GroupCarousel } from "@/components/group-carousel";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { LandingAuthCard } from "@/components/landing-auth-card";
 import { HowItWorks } from "@/components/how-it-works";
 import { LaunchCta } from "@/components/launch-cta";
 import { HomeSignedIn } from "@/components/home-signed-in";
 import { PrimaryHeader } from "@/components/primary-header";
-
-import styles from "./landing.module.css";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 
 const heroPrompts = [
   "Make a hello post",
@@ -43,17 +42,17 @@ const howSteps = [
   {
     title: "Create your Capsule",
     desc: "With Channel Memory you can recall anything from your space.",
-    icon: "\u{1F4E6}",
+    icon: "📦",
   },
   {
     title: "Ask AI to make anything",
     desc: "Create posts, logos, polls, and store items with prompts.",
-    icon: "\u{1F528}",
+    icon: "🛠️",
   },
   {
     title: "Open the barrier to growth",
     desc: "Post, stream, chat, and sell with built-in integrations.",
-    icon: "\u{1F680}",
+    icon: "🚀",
   },
 ];
 const superpowers = [
@@ -61,8 +60,8 @@ const superpowers = [
   "Live events & chat",
   "Clip Studio",
   "Memory AI",
-  "Smart Automation",
-  "Analytics Dashboard",
+  "Smart automation",
+  "Analytics dashboard",
 ];
 
 const differentiators = [
@@ -114,140 +113,240 @@ const differentiators = [
   },
   {
     title: "Safety & Privacy",
-    points: [
-      "Privacy-first memory",
-      "AI-powered safety",
-      "Sponsor-safe kit generator",
-    ],
+    points: ["Privacy-first memory", "AI-powered safety", "Sponsor-safe kit generator"],
   },
 ];
 
 export const metadata: Metadata = {
   title: "Capsules - Create AI Powered Spaces that Remember",
-  description: "Capsules combines AI drafting, channel memory, and community tools into one workspace.",
+  description:
+    "Capsules combines AI drafting, channel memory, and community tools into one workspace.",
 };
 
 export default async function HomePage() {
-  await auth();
+  const { userId } = await auth();
+  const isSignedIn = Boolean(userId);
+
   return (
-    <div className={styles.page}>
-      <SignedOut>
-        <PrimaryHeader activeKey="home" />
-      </SignedOut>
+    <div className="relative flex min-h-screen flex-col">
+      {!isSignedIn ? <PrimaryHeader activeKey="home" /> : null}
 
-      <main className={styles.main}>
-        <SignedIn>
+      <main className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col gap-24 px-5 py-16 sm:px-6 lg:px-8">
+        {isSignedIn ? (
           <HomeSignedIn />
-        </SignedIn>
-        <SignedOut>
-        <section className={styles.hero}>
-          <div className={styles.heroContent}>
-            <div className={styles.heroHighlight}>
-              <h1 className={styles.heroTitle}>Create AI Powered Spaces that Remember</h1>
-              <p className={styles.heroSubtitle}>
-                The first social platform that couples channel memory with AI building blocks so your community stays
-                connected, organized, and inspired.
-              </p>
-            </div>
-            <div className={styles.chipList}>
-              {heroPrompts.map((prompt) => (
-                <span key={prompt} className={styles.chip}>
-                  {prompt}
-                </span>
-              ))}
-            </div>
-            <div className={styles.heroActions}>
-              <SignedIn>
-                <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" />
-                <Link href="#features" className={styles.ghostButton}>Explore features</Link>
-              </SignedIn>
-              <SignedOut>
-                {/* All CTAs open prompter sign-in modal on mobile/guest */}
-                <div style={{ display: "contents" }} />
-              </SignedOut>
-            </div>
-          </div>
-          <LandingAuthCard />
-        </section>
-
-        <section className={styles.section} id="how-it-works">
-          <div className={styles.sectionInner}>
-            <h2 className={styles.sectionTitle}>How it works</h2>
-            <HowItWorks steps={howSteps} />
-          </div>
-        </section>
-
-        <section className={styles.section} id="categories">
-          <div className={styles.sectionInner}>
-            <h2 className={styles.sectionTitle}>Any group can benefit</h2>
-            <GroupCarousel items={groupTypes} animate />
-          </div>
-        </section>
-
-        <section className={styles.section} id="superpowers">
-          <div className={styles.sectionInner}>
-            <h2 className={styles.sectionTitle}>Superpowers for your community</h2>
-            <div className={styles.superGrid}>
-              {superpowers.map((power) => (
-                <div key={power} className={styles.superCard}>
-                  {power}
+        ) : (
+          <div className="contents">
+            <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="flex flex-col gap-8">
+                <div className="space-y-4">
+                  <Badge
+                    tone="brand"
+                    variant="soft"
+                    size="md"
+                    className="w-max tracking-[0.2em] uppercase"
+                  >
+                    Capsules AI
+                  </Badge>
+                  <h1 className="font-display text-fg text-4xl tracking-tight sm:text-5xl lg:text-6xl">
+                    Create AI powered spaces that remember
+                  </h1>
+                  <p className="text-fg-subtle max-w-xl text-lg leading-8">
+                    The first social platform that couples channel memory with AI building blocks so
+                    your community stays connected, organized, and inspired.
+                  </p>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
+                <div className="flex flex-wrap gap-2">
+                  {heroPrompts.map((prompt) => (
+                    <span
+                      key={prompt}
+                      className="rounded-pill border-border/50 bg-surface-muted/70 text-fg-subtle border px-3.5 py-1.5 text-sm font-medium shadow-xs backdrop-blur"
+                    >
+                      {prompt}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <LaunchCta size="lg" />
+                  <Link
+                    href="#features"
+                    className="rounded-pill border-border/60 text-fg-subtle hover:border-border hover:text-fg inline-flex items-center gap-2 border px-5 py-2.5 text-sm font-medium transition"
+                  >
+                    Explore features
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                </div>
+              </div>
+              <div className="flex items-center justify-center">
+                <LandingAuthCard />
+              </div>
+            </section>
 
-        <section className={styles.section} id="features">
-          <div className={styles.sectionInner}>
-            <h2 className={styles.sectionTitle}>What makes us different</h2>
-            <div className={styles.featureGrid}>
-              {differentiators.map((feature) => (
-                <article key={feature.title} className={styles.featureCard}>
-                  <h3 className={styles.featureTitle}>{feature.title}</h3>
-                  <ul className={styles.featureList}>
-                    {feature.points.map((point) => (
-                      <li key={point} className={styles.featureListItem}>
-                        {point}
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
+            <section className="space-y-8" id="how-it-works">
+              <div className="space-y-3">
+                <Badge
+                  tone="brand"
+                  variant="soft"
+                  size="sm"
+                  className="tracking-[0.25em] uppercase"
+                >
+                  Overview
+                </Badge>
+                <h2 className="font-display text-fg text-3xl tracking-tight">How it works</h2>
+                <p className="text-fg-subtle max-w-2xl text-base">
+                  Guided workflows make it easy to launch, grow, and monetize a space with AI
+                  copilots at every step.
+                </p>
+              </div>
+              <HowItWorks steps={howSteps} />
+            </section>
 
-        <section className={styles.revenueSection} id="revenue">
-          <div className={styles.revenueCard}>
-            <h2 className={styles.revenueTitle}>Keep 90% of your creator revenue</h2>
+            <section className="space-y-8" id="categories">
+              <div className="space-y-3">
+                <Badge
+                  tone="neutral"
+                  variant="outline"
+                  size="sm"
+                  className="tracking-[0.25em] uppercase"
+                >
+                  For everyone
+                </Badge>
+                <h2 className="font-display text-fg text-3xl tracking-tight">
+                  Any group can benefit
+                </h2>
+                <p className="text-fg-subtle max-w-xl text-base">
+                  Purpose-built templates and memory models adapt to how your community
+                  collaborates.
+                </p>
+              </div>
+              <GroupCarousel items={groupTypes} animate />
+            </section>
+
+            <section className="space-y-8" id="superpowers">
+              <div className="space-y-3">
+                <Badge
+                  tone="brand"
+                  variant="soft"
+                  size="sm"
+                  className="tracking-[0.25em] uppercase"
+                >
+                  Superpowers
+                </Badge>
+                <h2 className="font-display text-fg text-3xl tracking-tight">
+                  Superpowers for your community
+                </h2>
+                <p className="text-fg-subtle max-w-xl text-base">
+                  Automations and copilots keep your space lively without requiring a full-time
+                  team.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {superpowers.map((power) => (
+                  <div
+                    key={power}
+                    className="border-border/40 bg-surface-elevated/80 text-fg-subtle rounded-2xl border px-5 py-4 text-sm font-medium shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:shadow-lg"
+                  >
+                    {power}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-8" id="features">
+              <div className="space-y-3">
+                <Badge
+                  tone="neutral"
+                  variant="outline"
+                  size="sm"
+                  className="tracking-[0.25em] uppercase"
+                >
+                  Differentiators
+                </Badge>
+                <h2 className="font-display text-fg text-3xl tracking-tight">
+                  What makes us different
+                </h2>
+                <p className="text-fg-subtle max-w-xl text-base">
+                  Everything you need to power a modern community, backed by AI context that
+                  remembers every moment.
+                </p>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {differentiators.map((feature) => (
+                  <Card
+                    key={feature.title}
+                    variant="soft"
+                    className="border-border/40 bg-surface-elevated/80 border backdrop-blur"
+                  >
+                    <CardContent className="space-y-4 pt-6">
+                      <CardTitle className="text-fg text-xl">{feature.title}</CardTitle>
+                      <CardDescription className="text-fg-subtle space-y-3 text-sm leading-6">
+                        <ul className="space-y-2 text-left">
+                          {feature.points.map((point) => (
+                            <li key={point} className="flex items-start gap-2 text-left">
+                              <span
+                                className="bg-brand mt-1 h-1.5 w-1.5 rounded-full"
+                                aria-hidden="true"
+                              />
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+
+            <section
+              className="border-brand/40 bg-[color:color-mix(in srgb, var(--color-brand) 16%, transparent)] relative overflow-hidden rounded-3xl border px-8 py-16 text-center shadow-xl"
+              id="revenue"
+            >
+              <div
+                className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.3),transparent_55%)]"
+                aria-hidden="true"
+              />
+              <div className="relative z-10 mx-auto max-w-3xl space-y-6">
+                <h2 className="font-display text-brand-foreground text-3xl tracking-tight">
+                  Keep 90% of your creator revenue
+                </h2>
+                <p className="text-brand-foreground/80 text-base">
+                  Capsules only takes a 10% platform fee so you can reinvest more into your
+                  community.
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <LaunchCta variant="secondary" size="lg" label="Start earning" />
+                  <Link
+                    href="/pricing"
+                    className="rounded-pill border-brand-foreground/40 text-brand-foreground/90 hover:border-brand-foreground inline-flex items-center gap-2 border px-5 py-2.5 text-sm font-medium transition"
+                  >
+                    See pricing
+                  </Link>
+                </div>
+              </div>
+            </section>
           </div>
-        </section>
-        </SignedOut>
+        )}
       </main>
 
-      <SignedIn>
-        <footer className={styles.footer}>
-          <div className={styles.footerInner}>
-            <span className={styles.footerBrand}>Capsules</span>
-            <div className={styles.footerLinks}>
-              <Link href="/settings" className={styles.footerLink}>Settings</Link>
-              <Link href="/create" className={styles.footerLink}>Create</Link>
-              <a href="mailto:hello@capsules-platform.com" className={styles.footerLink}>Contact</a>
+      {isSignedIn ? (
+        <footer className="border-border/40 bg-surface-muted/70 border-t backdrop-blur">
+          <div className="text-fg-subtle mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-5 py-6 text-sm sm:flex-row sm:justify-between">
+            <span className="text-fg font-medium">Capsules</span>
+            <div className="flex flex-wrap items-center gap-4">
+              <Link href="/settings" className="hover:text-fg transition">
+                Settings
+              </Link>
+              <Link href="/create" className="hover:text-fg transition">
+                Create
+              </Link>
+              <a href="mailto:hello@capsules-platform.com" className="hover:text-fg transition">
+                Contact
+              </a>
             </div>
-            <span className={styles.footerCopy}>&copy; 2025 Capsules</span>
+            <span>&copy; {new Date().getFullYear()} Capsules</span>
           </div>
         </footer>
-      </SignedIn>
+      ) : null}
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-

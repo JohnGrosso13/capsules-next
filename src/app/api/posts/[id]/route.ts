@@ -1,7 +1,11 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { isAdminRequest, mergeUserPayloadFromRequest, ensureUserFromRequest } from "@/lib/auth/payload";
+import {
+  isAdminRequest,
+  mergeUserPayloadFromRequest,
+  ensureUserFromRequest,
+} from "@/lib/auth/payload";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { fetchPostRowByIdentifier, markPostAttachmentsUnused } from "@/lib/supabase/posts";
 
@@ -20,7 +24,10 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     // ignore empty body
   }
 
-  const userPayload = mergeUserPayloadFromRequest(req, (body?.user as Record<string, unknown>) ?? {});
+  const userPayload = mergeUserPayloadFromRequest(
+    req,
+    (body?.user as Record<string, unknown>) ?? {},
+  );
   const requesterId = await ensureUserFromRequest(req, userPayload, { allowGuests: false });
   if (!requesterId) {
     return NextResponse.json({ error: "auth required" }, { status: 401 });
@@ -34,7 +41,11 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   const isOwner = postRow.author_user_id ? String(postRow.author_user_id) === requesterId : false;
   const hasAdminOverride = isOwner
     ? false
-    : await isAdminRequest(req, userPayload, postRow.author_user_id ? String(postRow.author_user_id) : null);
+    : await isAdminRequest(
+        req,
+        userPayload,
+        postRow.author_user_id ? String(postRow.author_user_id) : null,
+      );
 
   if (!isOwner && !hasAdminOverride) {
     return NextResponse.json({ error: "not allowed" }, { status: 403 });
@@ -52,17 +63,22 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   }
 
   const { error: updateError } = await supabase
-    .from('posts')
+    .from("posts")
     .update({ deleted_at: deletionTime, updated_at: deletionTime })
-    .eq('id', postRow.id);
+    .eq("id", postRow.id);
 
   if (updateError) {
-    console.error('Soft delete error', updateError);
-    return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });
+    console.error("Soft delete error", updateError);
+    return NextResponse.json({ error: "Failed to delete post" }, { status: 500 });
   }
 
   const attachments = await markPostAttachmentsUnused(
-    postRow as { id: string; client_id?: string | null; author_user_id?: string | null; media_url?: string | null },
+    postRow as {
+      id: string;
+      client_id?: string | null;
+      author_user_id?: string | null;
+      media_url?: string | null;
+    },
     deletionTime,
   );
 

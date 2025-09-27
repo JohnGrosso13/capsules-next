@@ -4,7 +4,10 @@ import { buildAdminSessionCookie, verifyAdminCredentials } from "@/lib/admin/gua
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json().catch(() => null)) as { username?: unknown; password?: unknown } | null;
+    const body = (await req.json().catch(() => null)) as {
+      username?: unknown;
+      password?: unknown;
+    } | null;
     const username = typeof body?.username === "string" ? body.username.trim() : "";
     const password = typeof body?.password === "string" ? body.password : "";
     if (!username || !password) {

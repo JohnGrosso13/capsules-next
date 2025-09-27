@@ -6,13 +6,17 @@
 }
 
 .empty {
-  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border: 1px dashed var(--card-border, rgba(255, 255, 255, 0.16));
   border-radius: 16px;
   padding: 32px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--text-2, rgba(255, 255, 255, 0.78));
   backdrop-filter: blur(18px) saturate(140%);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(
+    180deg,
+    var(--glass-bg-1, rgba(255, 255, 255, 0.05)),
+    var(--glass-bg-2, rgba(255, 255, 255, 0.03))
+  );
 }
 
 .grid {
@@ -23,9 +27,9 @@
 
 .card {
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -1px 0 rgba(8, 11, 29, 0.32);
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -49,12 +53,12 @@
 .meta strong {
   font-size: 1rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.94);
+  color: var(--text, rgba(255, 255, 255, 0.94));
 }
 
 .meta p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--text-2, rgba(255, 255, 255, 0.72));
   font-size: 0.9rem;
   line-height: 1.4;
 }

@@ -1,5 +1,13 @@
-import { NextResponse } from "next/server";
+import { z } from "zod";
 import { resolveStylerPlan } from "@/server/ai/styler";
+import { returnError, validatedJson } from "@/server/validation/http";
+
+const responseSchema = z.object({
+  status: z.literal("ok"),
+  source: z.union([z.literal("heuristic"), z.literal("ai")]),
+  summary: z.string(),
+  vars: z.record(z.string(), z.string()),
+});
 
 async function tryIndexStylerMemory(payload: {
   ownerId: string;
@@ -29,30 +37,35 @@ export async function POST(req: Request) {
     }
 
     if (!body || typeof body !== "object" || Array.isArray(body)) {
-      return jsonError(400, "invalid_request", "Request body failed validation");
+      return returnError(400, "invalid_request", "Request body failed validation");
     }
 
     const payload = body as Record<string, unknown>;
     const promptRaw = typeof payload.prompt === "string" ? payload.prompt : "";
     const prompt = promptRaw.trim();
     if (!prompt) {
-      return jsonError(400, "invalid_request", "Prompt is required");
+      return returnError(400, "invalid_request", "Prompt is required");
     }
 
     const userRaw = payload.user;
-    const user = userRaw && typeof userRaw === "object" && !Array.isArray(userRaw)
-      ? (userRaw as Record<string, unknown>)
-      : undefined;
+    const user =
+      userRaw && typeof userRaw === "object" && !Array.isArray(userRaw)
+        ? (userRaw as Record<string, unknown>)
+        : undefined;
 
     const plan = await resolveStylerPlan(prompt);
     if (!plan) {
-      return jsonError(422, "styler_unavailable", "I couldn't figure out how to style that yet.");
+      return returnError(422, "styler_unavailable", "I couldn't figure out how to style that yet.");
     }
 
     // Allow a larger—but still bounded—set of CSS variables from the styler
     const sanitizedVars = Object.fromEntries(Object.entries(plan.vars).slice(0, 64));
     if (!Object.keys(sanitizedVars).length) {
-      return jsonError(422, "styler_no_changes", "That request didn't translate to any visual changes yet.");
+      return returnError(
+        422,
+        "styler_no_changes",
+        "That request didn't translate to any visual changes yet.",
+      );
     }
 
     let ownerId: string | null = null;
@@ -81,7 +94,7 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({
+    return validatedJson(responseSchema, {
       status: "ok",
       source: plan.source,
       summary: plan.summary,
@@ -90,12 +103,10 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("styler route error", error);
     const message = error instanceof Error && error.message ? error.message : "Internal error";
-    return jsonError(500, "styler_error", message);
+    return returnError(500, "styler_error", message);
   }
 }
-
-function jsonError(status: number, code: string, message: string, details?: unknown) {
-  const payload: Record<string, unknown> = { error: code, message };
-  if (details !== undefined) payload.details = details;
-  return NextResponse.json(payload, { status });
-}
+// Use the Node.js runtime because we optionally index style changes into Supabase
+// via server utilities that rely on Node built-ins (e.g. crypto). Running this
+// route on the Edge runtime triggers module resolution errors for those deps.
+export const runtime = "nodejs";

@@ -24,7 +24,10 @@ export default function SettingsPage() {
                 <button className={layout.sideItem} disabled aria-disabled>
                   Account
                 </button>
-                <button className={`${layout.sideItem} ${layout.sideItemActive}`} aria-label="Appearance">
+                <button
+                  className={`${layout.sideItem} ${layout.sideItemActive}`}
+                  aria-label="Appearance"
+                >
                   Appearance
                 </button>
                 <button className={layout.sideItem} disabled aria-disabled>
@@ -72,8 +75,3 @@ export default function SettingsPage() {
     </AppPage>
   );
 }
-
-
-
-
-

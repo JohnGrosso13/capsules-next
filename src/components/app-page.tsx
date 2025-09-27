@@ -13,7 +13,11 @@ export type AppPageProps = {
 
 export function AppPage({ children, activeNav, showPrompter = true, promoSlot }: AppPageProps) {
   return (
-    <AppShell activeNav={activeNav} showPrompter={showPrompter} promoSlot={promoSlot}>
+    <AppShell
+      showPrompter={showPrompter}
+      promoSlot={promoSlot}
+      {...(activeNav ? { activeNav } : {})}
+    >
       {children}
     </AppShell>
   );

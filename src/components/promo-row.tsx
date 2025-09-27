@@ -33,7 +33,11 @@ export function PromoRow() {
         const posts: Post[] = arr
           .map((p) => p as Record<string, unknown>)
           .filter((p) => typeof p.mediaUrl === "string" || typeof p.media_url === "string")
-          .map((p) => ({ id: String(p.id ?? crypto.randomUUID()), media_url: (p.mediaUrl as string) || (p.media_url as string), content: (p.content as string) ?? null }));
+          .map((p) => ({
+            id: String(p.id ?? crypto.randomUUID()),
+            media_url: (p.mediaUrl as string) || (p.media_url as string),
+            content: (p.content as string) ?? null,
+          }));
         const filled = posts.slice(0, 2);
         setMediaPosts(filled.length ? filled : fallbackMedia);
       })
@@ -46,7 +50,10 @@ export function PromoRow() {
         const arr = Array.isArray(d.friends) ? d.friends : [];
         const list: Friend[] = arr
           .map((f) => f as Record<string, unknown>)
-          .map((f) => ({ name: String(f.name ?? f.userName ?? "Friend"), avatar: (f.avatar as string) || (f.userAvatar as string) || null }));
+          .map((f) => ({
+            name: String(f.name ?? f.userName ?? "Friend"),
+            avatar: (f.avatar as string) || (f.userAvatar as string) || null,
+          }));
         const trimmed = list.slice(0, 6);
         setFriends(trimmed.length ? trimmed : fallbackFriends);
       })
@@ -65,7 +72,10 @@ export function PromoRow() {
   return (
     <div className={styles.row}>
       <div className={styles.tile}>
-        <div className={styles.head}><span>From your feed</span><span className={styles.small}>Post</span></div>
+        <div className={styles.head}>
+          <span>From your feed</span>
+          <span className={styles.small}>Post</span>
+        </div>
         <div className={styles.short}>
           {p1?.media_url ? (
             <img className={styles.media} src={p1.media_url} alt="Post media" />
@@ -76,7 +86,10 @@ export function PromoRow() {
         <div className={styles.small}>{p1?.content || "Recently added media"}</div>
       </div>
       <div className={styles.tile}>
-        <div className={styles.head}><span>Trending image</span><span className={styles.small}>Post</span></div>
+        <div className={styles.head}>
+          <span>Trending image</span>
+          <span className={styles.small}>Post</span>
+        </div>
         <div className={styles.short}>
           {p2?.media_url ? (
             <img className={styles.media} src={p2.media_url} alt="Post media" />
@@ -87,7 +100,10 @@ export function PromoRow() {
         <div className={styles.small}>{p2?.content || "Popular across capsules"}</div>
       </div>
       <div className={styles.tile}>
-        <div className={styles.head}><span>People to follow</span><span className={styles.small}>Friends</span></div>
+        <div className={styles.head}>
+          <span>People to follow</span>
+          <span className={styles.small}>Friends</span>
+        </div>
         <div className={styles.short}>
           <div className={styles.avatars}>
             {friends.slice(0, 3).map((f, i) => (
@@ -98,11 +114,16 @@ export function PromoRow() {
         <div className={styles.small}>Discover creators like you</div>
       </div>
       <div className={styles.tile}>
-        <div className={styles.head}><span>Recommended Capsules</span><span className={styles.small}>Discover</span></div>
+        <div className={styles.head}>
+          <span>Recommended Capsules</span>
+          <span className={styles.small}>Discover</span>
+        </div>
         <div className={styles.short}>
           <div className={styles.chips}>
             {recCapsules.map((c, i) => (
-              <Link key={i} href="/capsule" className={styles.ghost}>{c.name}</Link>
+              <Link key={i} href="/capsule" className={styles.ghost}>
+                {c.name}
+              </Link>
             ))}
           </div>
         </div>
@@ -111,4 +132,3 @@ export function PromoRow() {
     </div>
   );
 }
-

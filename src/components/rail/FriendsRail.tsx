@@ -1,33 +1,27 @@
-﻿"use client";
-
-/* eslint-disable @next/next/no-img-element */
+"use client";
 
 import * as React from "react";
 
 import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import { FriendRow } from "@/components/friends/FriendRow";
 import { FriendMenu } from "@/components/friends/FriendMenu";
-import type { PresenceStatus } from "@/hooks/useFriendPresence";
-
-export type RailFriend = {
-  id: string | null;
-  userId: string | null;
-  key?: string | null;
-  name: string;
-  avatar?: string | null;
-  since?: string | null;
-  status?: PresenceStatus;
-};
+import type { Friend } from "@/hooks/useFriendsGraph";
 
 export type FriendsRailProps = {
-  friends: RailFriend[];
+  friends: Friend[];
   pendingId: string | null;
   activeTarget: string | null;
   onNameClick: (identifier: string) => void;
-  onDelete: (friend: RailFriend, identifier: string) => void;
+  onDelete: (friend: Friend, identifier: string) => Promise<void> | void;
 };
 
-export function FriendsRail({ friends, pendingId, activeTarget, onNameClick, onDelete }: FriendsRailProps) {
+export function FriendsRail({
+  friends,
+  pendingId,
+  activeTarget,
+  onNameClick,
+  onDelete,
+}: FriendsRailProps) {
   return (
     <div className={`${friendsStyles.list}`.trim()}>
       {friends.map((f, i) => {
@@ -40,8 +34,8 @@ export function FriendsRail({ friends, pendingId, activeTarget, onNameClick, onD
           <FriendRow
             key={listKey}
             name={f.name}
-            avatar={f.avatar}
-            since={f.since ?? undefined}
+            avatar={f.avatar ?? null}
+            since={f.since ?? null}
             status={f.status}
             open={isOpen}
             onNameClick={() => onNameClick(identifier)}
@@ -49,7 +43,9 @@ export function FriendsRail({ friends, pendingId, activeTarget, onNameClick, onD
               <FriendMenu
                 canTarget={canTarget}
                 pending={isPending}
-                onDelete={() => onDelete(f, identifier)}
+                onDelete={() => {
+                  void onDelete(f, identifier);
+                }}
               />
             }
           />

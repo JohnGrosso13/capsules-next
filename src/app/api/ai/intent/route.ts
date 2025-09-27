@@ -10,7 +10,8 @@ const responseSchema = z.object({
   source: z.enum(["heuristic", "ai", "none"]).optional(),
 });
 
-const STYLE_GUARD = /(post|publish|share|navigate|go|open|take|launch|switch\s+(to\s+)?(dark|light))/;
+const STYLE_GUARD =
+  /(post|publish|share|navigate|go|open|take|launch|switch\s+(to\s+)?(dark|light))/;
 const STYLE_PRIMARY = [
   /(make|set|change|turn|paint|color|colour)[^.]*\b(friends?|chats?|requests?|buttons?|tiles?|cards?|rails?)\b[^.]*\b(color|colour|theme|palette|white|black|red|blue|green|purple|pink|teal|orange|yellow|cyan|magenta|indigo|violet|halloween|winter|summer|spring|fall)\b/,
   /\b(theme|palette|styler|restyle|recolor|skin)\b/,
@@ -51,3 +52,4 @@ export async function POST(req: Request) {
   return validatedJson(responseSchema, { intent, confidence, reason, source: "ai" });
 }
 
+export const runtime = "edge";

@@ -7,29 +7,32 @@ export type TokenResponse = {
   environment?: string | null;
 };
 
-let clientPromise: Promise<Ably.RealtimePromise> | null = null;
+let clientPromise: Promise<Ably.Realtime> | null = null;
 
-export function getRealtimeClient(fetchToken: () => Promise<TokenResponse>): Promise<Ably.RealtimePromise> {
+export function getRealtimeClient(
+  fetchToken: () => Promise<TokenResponse>,
+): Promise<Ably.Realtime> {
   if (!clientPromise) {
     clientPromise = (async () => {
       const initial = await fetchToken();
       const options: Ably.Types.ClientOptions = {
-        environment: initial.environment ?? undefined,
         authCallback: async (_, callback) => {
           try {
             const next = await fetchToken();
             callback(null, next.tokenRequest);
           } catch (error) {
-            callback(error as Error);
+            const message = error instanceof Error ? error.message : String(error);
+            callback(message, null);
           }
         },
       };
-      const realtime = new Ably.Realtime.Promise(options);
-      try {
-        await realtime.auth.authorize(initial.tokenRequest);
-      } catch (error) {
-        console.error("Ably authorize error", error);
+      if (initial.environment) {
+        options.environment = initial.environment;
       }
+      const createRealtime = Ably.Realtime as unknown as (
+        options: Ably.Types.ClientOptions,
+      ) => unknown;
+      const realtime = createRealtime(options) as Ably.Realtime;
       return realtime;
     })();
   }

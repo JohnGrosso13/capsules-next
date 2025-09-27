@@ -1,6 +1,8 @@
-import { ensureUserFromRequest } from "@/lib/auth/payload";
+﻿import { ensureUserFromRequest } from "@/lib/auth/payload";
+import type { IncomingUserPayload } from "@/lib/auth/payload";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createPostRecord } from "@/lib/supabase/posts";
+import { normalizeMediaUrl } from "@/lib/media";
 import type { CreatePostInput } from "@/server/posts/types";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
@@ -10,21 +12,15 @@ import {
   postsResponseSchema,
 } from "@/server/validation/schemas/posts";
 
-function normalizeMediaUrl(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const lowered = trimmed.toLowerCase();
-  if (lowered === "null" || lowered === "undefined") return null;
-  return trimmed;
-}
-
 function parsePublicStorageObject(url: string): { bucket: string; key: string } | null {
   try {
     const u = new URL(url);
-    const m = u.pathname.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
-    if (!m) return null;
-    return { bucket: decodeURIComponent(m[1]), key: decodeURIComponent(m[2]) };
+    const match = u.pathname.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+    if (!match) return null;
+    const bucket = match[1];
+    const key = match[2];
+    if (!bucket || !key) return null;
+    return { bucket: decodeURIComponent(bucket), key: decodeURIComponent(key) };
   } catch {
     return null;
   }
@@ -37,7 +33,9 @@ async function ensureAccessibleMediaUrl(candidate: string | null): Promise<strin
   if (!parsed) return value;
   try {
     const supabase = getSupabaseAdminClient();
-    const signed = await supabase.storage.from(parsed.bucket).createSignedUrl(parsed.key, 3600 * 24 * 365);
+    const signed = await supabase.storage
+      .from(parsed.bucket)
+      .createSignedUrl(parsed.key, 3600 * 24 * 365);
     return signed.data?.signedUrl ?? value;
   } catch {
     return value;
@@ -54,7 +52,9 @@ function normalizePost(row: Record<string, unknown>) {
     kind: (row.kind as string) ?? "text",
     content: (row.content as string) ?? "",
     mediaUrl:
-      normalizeMediaUrl(row["media_url"]) ?? normalizeMediaUrl((row as Record<string, unknown>)["mediaUrl"]) ?? null,
+      normalizeMediaUrl(row["media_url"]) ??
+      normalizeMediaUrl((row as Record<string, unknown>)["mediaUrl"]) ??
+      null,
     mediaPrompt: ((row.media_prompt as string) ?? null) as string | null,
     userName: ((row.user_name as string) ?? null) as string | null,
     userAvatar: ((row.user_avatar as string) ?? null) as string | null,
@@ -64,10 +64,13 @@ function normalizePost(row: Record<string, unknown>) {
     comments: typeof row.comments_count === "number" ? row.comments_count : undefined,
     hotScore: typeof row.hot_score === "number" ? row.hot_score : undefined,
     rankScore: typeof row.rank_score === "number" ? row.rank_score : undefined,
-    ts: String((row.created_at as string) ?? (row.updated_at as string) ?? new Date().toISOString()),
+    ts: String(
+      (row.created_at as string) ?? (row.updated_at as string) ?? new Date().toISOString(),
+    ),
     source: String((row.source as string) ?? "web"),
     ownerUserId: ((row.author_user_id as string) ?? null) as string | null,
-    viewerLiked: typeof row["viewer_liked"] === "boolean" ? (row["viewer_liked"] as boolean) : false,
+    viewerLiked:
+      typeof row["viewer_liked"] === "boolean" ? (row["viewer_liked"] as boolean) : false,
   };
 }
 
@@ -167,7 +170,12 @@ export async function GET(req: Request) {
   };
   const parsedQuery = postsQuerySchema.safeParse(rawQuery);
   if (!parsedQuery.success) {
-    return returnError(400, "invalid_query", "Query parameters failed validation", parsedQuery.error.flatten());
+    return returnError(
+      400,
+      "invalid_query",
+      "Query parameters failed validation",
+      parsedQuery.error.flatten(),
+    );
   }
 
   const { capsuleId, before, after } = parsedQuery.data;
@@ -273,8 +281,10 @@ export async function POST(req: Request) {
   }
 
   const { post, user } = parsed.data;
-  const userPayload = user ?? {};
-  const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: process.env.NODE_ENV !== "production" });
+  const userPayload = (user ?? {}) as IncomingUserPayload;
+  const ownerId = await ensureUserFromRequest(req, userPayload, {
+    allowGuests: process.env.NODE_ENV !== "production",
+  });
   if (!ownerId) {
     return returnError(401, "auth_required", "Authentication required");
   }

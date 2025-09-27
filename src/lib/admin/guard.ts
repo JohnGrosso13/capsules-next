@@ -70,7 +70,10 @@ export async function verifyAdminCredentials(username: string, password: string)
   return false;
 }
 
-export async function checkAdminAccess(req: NextRequest, options?: { allowToken?: boolean }): Promise<AdminCheckResult> {
+export async function checkAdminAccess(
+  req: NextRequest,
+  options?: { allowToken?: boolean },
+): Promise<AdminCheckResult> {
   const allowToken = options?.allowToken ?? false;
   const expectedToken = serverEnv.ADMIN_ACCESS_TOKEN;
 

@@ -1,10 +1,10 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 import { publishFriendEvents } from "@/lib/realtime/ably-server";
+import type { FriendRealtimeEvent } from "@/lib/realtime/ably-server";
 
 import {
   FriendGraphError,
-
   type FriendRequestStatus,
   type FriendSummary,
   type FriendRequestSummary,
@@ -14,6 +14,8 @@ import {
   type FriendUserSummary,
   type RawRow,
 } from "./types";
+
+const castRow = <T>(value: unknown): T => value as T;
 
 const FRIENDSHIP_SELECT =
   "id,user_id,friend_user_id,request_id,created_at,deleted_at,users:friend_user_id(id,user_key,full_name,avatar_url)";
@@ -39,7 +41,7 @@ function asString(value: unknown): string | null {
 
 function toUserSummary(raw: unknown): FriendUserSummary | null {
   if (!raw || typeof raw !== "object") return null;
-  const record = raw as RawRow;
+  const record = castRow<RawRow>(raw);
   const id = asString(record.id);
   if (!id) return null;
   return {
@@ -77,7 +79,8 @@ function mapRequestRow(row: RawRow, direction: "incoming" | "outgoing"): FriendR
   const createdAt = asString(row.created_at);
   const respondedAt = asString(row.responded_at);
   const acceptedAt = asString(row.accepted_at);
-  const profile = direction === "incoming" ? toUserSummary(row.requester) : toUserSummary(row.recipient);
+  const profile =
+    direction === "incoming" ? toUserSummary(row.requester) : toUserSummary(row.recipient);
   return {
     id,
     requesterId,
@@ -101,7 +104,8 @@ function mapFollowRow(row: RawRow, direction: "following" | "follower"): FollowS
   }
   const createdAt = asString(row.created_at);
   const mutedAt = asString(row.muted_at);
-  const profile = direction === "following" ? toUserSummary(row.followee) : toUserSummary(row.follower);
+  const profile =
+    direction === "following" ? toUserSummary(row.followee) : toUserSummary(row.follower);
   return {
     id,
     followerId,
@@ -149,7 +153,8 @@ async function fetchPendingRequest(
     .is("deleted_at", null)
     .maybeSingle();
   if (response.error && response.error.code !== NO_ROW_CODE) throw response.error;
-  return response.data ?? null;
+  const record = response.data;
+  return record ? castRow<RawRow>(record) : null;
 }
 
 async function fetchFriendshipRow(userId: string, friendId: string): Promise<RawRow | null> {
@@ -162,7 +167,8 @@ async function fetchFriendshipRow(userId: string, friendId: string): Promise<Raw
     .is("deleted_at", null)
     .maybeSingle();
   if (response.error && response.error.code !== NO_ROW_CODE) throw response.error;
-  return response.data ?? null;
+  const record = response.data;
+  return record ? castRow<RawRow>(record) : null;
 }
 
 async function fetchBlockBetween(userA: string, userB: string): Promise<boolean> {
@@ -172,7 +178,7 @@ async function fetchBlockBetween(userA: string, userB: string): Promise<boolean>
     .select("id")
     .or(
       `and(blocker_user_id.eq.${userA},blocked_user_id.eq.${userB},deleted_at.is.null),` +
-        `and(blocker_user_id.eq.${userB},blocked_user_id.eq.${userA},deleted_at.is.null)`
+        `and(blocker_user_id.eq.${userB},blocked_user_id.eq.${userA},deleted_at.is.null)`,
     );
   if (response.error) throw response.error;
   return Boolean(response.data && response.data.length > 0);
@@ -194,7 +200,7 @@ async function ensureFriendshipEdge(
     .maybeSingle();
   if (existing.error && existing.error.code !== NO_ROW_CODE) throw existing.error;
   if (existing.data) {
-    const { id } = existing.data as RawRow;
+    const { id } = castRow<RawRow>(existing.data);
     const { error } = await supabase
       .from("friendships")
       .update({ deleted_at: null, request_id: requestId })
@@ -214,10 +220,14 @@ async function ensureFriendshipEdge(
     .is("deleted_at", null)
     .single();
   if (refreshed.error) throw refreshed.error;
-  return refreshed.data as RawRow;
+  return castRow<RawRow>(refreshed.data);
 }
 
-async function softDeleteFriendshipEdge(userId: string, friendId: string, removedAt: string): Promise<void> {
+async function softDeleteFriendshipEdge(
+  userId: string,
+  friendId: string,
+  removedAt: string,
+): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("friendships")
@@ -228,7 +238,11 @@ async function softDeleteFriendshipEdge(userId: string, friendId: string, remove
   if (error) throw error;
 }
 
-async function softDeleteFollowEdge(followerId: string, followeeId: string, removedAt: string): Promise<void> {
+async function softDeleteFollowEdge(
+  followerId: string,
+  followeeId: string,
+  removedAt: string,
+): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("user_follows")
@@ -258,46 +272,47 @@ async function closePendingRequest(
 
 export async function listSocialGraph(userId: string): Promise<SocialGraphSnapshot> {
   const supabase = getSupabaseAdminClient();
-  const [friendsRes, incomingRes, outgoingRes, followersRes, followingRes, blockedRes] = await Promise.all([
-    supabase
-      .from("friendships")
-      .select(FRIENDSHIP_SELECT)
-      .eq("user_id", userId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("friend_requests")
-      .select(FRIEND_REQUEST_SELECT)
-      .eq("recipient_id", userId)
-      .eq("status", "pending")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("friend_requests")
-      .select(FRIEND_REQUEST_SELECT)
-      .eq("requester_id", userId)
-      .eq("status", "pending")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("user_follows")
-      .select(FOLLOW_EDGE_SELECT)
-      .eq("followee_user_id", userId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("user_follows")
-      .select(FOLLOW_EDGE_SELECT)
-      .eq("follower_user_id", userId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("user_blocks")
-      .select(BLOCK_SELECT)
-      .eq("blocker_user_id", userId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true }),
-  ]);
+  const [friendsRes, incomingRes, outgoingRes, followersRes, followingRes, blockedRes] =
+    await Promise.all([
+      supabase
+        .from("friendships")
+        .select(FRIENDSHIP_SELECT)
+        .eq("user_id", userId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("friend_requests")
+        .select(FRIEND_REQUEST_SELECT)
+        .eq("recipient_id", userId)
+        .eq("status", "pending")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("friend_requests")
+        .select(FRIEND_REQUEST_SELECT)
+        .eq("requester_id", userId)
+        .eq("status", "pending")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("user_follows")
+        .select(FOLLOW_EDGE_SELECT)
+        .eq("followee_user_id", userId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("user_follows")
+        .select(FOLLOW_EDGE_SELECT)
+        .eq("follower_user_id", userId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("user_blocks")
+        .select(BLOCK_SELECT)
+        .eq("blocker_user_id", userId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+    ]);
 
   if (friendsRes.error) throw friendsRes.error;
   if (incomingRes.error) throw incomingRes.error;
@@ -306,12 +321,20 @@ export async function listSocialGraph(userId: string): Promise<SocialGraphSnapsh
   if (followingRes.error) throw followingRes.error;
   if (blockedRes.error) throw blockedRes.error;
 
-  const friends = (friendsRes.data ?? []).map((row) => mapFriendRow(row as RawRow));
-  const incomingRequests = (incomingRes.data ?? []).map((row) => mapRequestRow(row as RawRow, "incoming"));
-  const outgoingRequests = (outgoingRes.data ?? []).map((row) => mapRequestRow(row as RawRow, "outgoing"));
-  const followers = (followersRes.data ?? []).map((row) => mapFollowRow(row as RawRow, "follower"));
-  const following = (followingRes.data ?? []).map((row) => mapFollowRow(row as RawRow, "following"));
-  const blocked = (blockedRes.data ?? []).map((row) => mapBlockRow(row as RawRow));
+  const friends = (friendsRes.data ?? []).map((row) => mapFriendRow(castRow<RawRow>(row)));
+  const incomingRequests = (incomingRes.data ?? []).map((row) =>
+    mapRequestRow(castRow<RawRow>(row), "incoming"),
+  );
+  const outgoingRequests = (outgoingRes.data ?? []).map((row) =>
+    mapRequestRow(castRow<RawRow>(row), "outgoing"),
+  );
+  const followers = (followersRes.data ?? []).map((row) =>
+    mapFollowRow(castRow<RawRow>(row), "follower"),
+  );
+  const following = (followingRes.data ?? []).map((row) =>
+    mapFollowRow(castRow<RawRow>(row), "following"),
+  );
+  const blocked = (blockedRes.data ?? []).map((row) => mapBlockRow(castRow<RawRow>(row)));
 
   return { friends, incomingRequests, outgoingRequests, followers, following, blocked };
 }
@@ -372,7 +395,7 @@ export async function sendFriendRequest(
       .select(FRIEND_REQUEST_SELECT)
       .single();
     if (error) throw error;
-    requestRow = data as RawRow;
+    requestRow = castRow<RawRow>(data);
   } else {
     const { data, error } = await supabase
       .from("friend_requests")
@@ -387,7 +410,7 @@ export async function sendFriendRequest(
       .select(FRIEND_REQUEST_SELECT)
       .single();
     if (error) throw error;
-    requestRow = data as RawRow;
+    requestRow = castRow<RawRow>(data);
   }
   const outgoingSummary = mapRequestRow(requestRow, "outgoing");
   const incomingSummary = mapRequestRow(requestRow, "incoming");
@@ -395,11 +418,17 @@ export async function sendFriendRequest(
   await publishFriendEvents([
     {
       userId: requesterId,
-      event: { type: "friend.request.created", payload: { request: outgoingSummary, direction: "outgoing" } },
+      event: {
+        type: "friend.request.created",
+        payload: { request: outgoingSummary, direction: "outgoing" },
+      },
     },
     {
       userId: recipientId,
-      event: { type: "friend.request.created", payload: { request: incomingSummary, direction: "incoming" } },
+      event: {
+        type: "friend.request.created",
+        payload: { request: incomingSummary, direction: "incoming" },
+      },
     },
   ]);
 
@@ -420,7 +449,7 @@ export async function acceptFriendRequest(
   if (!response.data) {
     throw new FriendGraphError("not_found", "Friend request not found.");
   }
-  const row = response.data as RawRow;
+  const row = castRow<RawRow>(response.data);
   const requesterId = asString(row.requester_id);
   const recipientId = asString(row.recipient_id);
   if (!requesterId || !recipientId) {
@@ -456,15 +485,19 @@ export async function acceptFriendRequest(
     fetchFriendshipRow(recipientId, requesterId),
   ]);
 
-  const incomingSummary = mapRequestRow(data as RawRow, "incoming");
-  const outgoingSummary = mapRequestRow(data as RawRow, "outgoing");
+  const incomingSummary = mapRequestRow(castRow<RawRow>(data), "incoming");
+  const outgoingSummary = mapRequestRow(castRow<RawRow>(data), "outgoing");
 
   const requesterFriendRow = friends[0];
   const recipientFriendRow = friends[1];
-  const requesterFriend = requesterFriendRow ? mapFriendRow(requesterFriendRow as RawRow) : null;
-  const recipientFriend = recipientFriendRow ? mapFriendRow(recipientFriendRow as RawRow) : null;
+  const requesterFriend = requesterFriendRow
+    ? mapFriendRow(castRow<RawRow>(requesterFriendRow))
+    : null;
+  const recipientFriend = recipientFriendRow
+    ? mapFriendRow(castRow<RawRow>(recipientFriendRow))
+    : null;
 
-  const events = [
+  const events: Array<{ userId: string; event: FriendRealtimeEvent }> = [
     {
       userId: requesterId,
       event: { type: "friend.request.updated", payload: { request: outgoingSummary } },
@@ -515,7 +548,7 @@ export async function declineFriendRequest(
   if (!response.data) {
     throw new FriendGraphError("not_found", "Friend request not found.");
   }
-  const row = response.data as RawRow;
+  const row = castRow<RawRow>(response.data);
   const requesterId = asString(row.requester_id);
   const recipientId = asString(row.recipient_id);
   if (!requesterId || !recipientId) {
@@ -542,17 +575,23 @@ export async function declineFriendRequest(
     .single();
   if (error) throw error;
 
-  const incomingSummary = mapRequestRow(data as RawRow, "incoming");
-  const outgoingSummary = mapRequestRow(data as RawRow, "outgoing");
+  const incomingSummary = mapRequestRow(castRow<RawRow>(data), "incoming");
+  const outgoingSummary = mapRequestRow(castRow<RawRow>(data), "outgoing");
 
   await publishFriendEvents([
     {
       userId: requesterId,
-      event: { type: "friend.request.removed", payload: { requestId, reason: "declined", request: outgoingSummary } },
+      event: {
+        type: "friend.request.removed",
+        payload: { requestId, reason: "declined", request: outgoingSummary },
+      },
     },
     {
       userId: recipientId,
-      event: { type: "friend.request.removed", payload: { requestId, reason: "declined", request: incomingSummary } },
+      event: {
+        type: "friend.request.removed",
+        payload: { requestId, reason: "declined", request: incomingSummary },
+      },
     },
   ]);
 
@@ -573,7 +612,7 @@ export async function cancelFriendRequest(
   if (!response.data) {
     throw new FriendGraphError("not_found", "Friend request not found.");
   }
-  const row = response.data as RawRow;
+  const row = castRow<RawRow>(response.data);
   const requesterId = asString(row.requester_id);
   const recipientId = asString(row.recipient_id);
   if (!requesterId || !recipientId) {
@@ -600,17 +639,23 @@ export async function cancelFriendRequest(
     .single();
   if (error) throw error;
 
-  const outgoingSummary = mapRequestRow(data as RawRow, "outgoing");
-  const incomingSummary = mapRequestRow(data as RawRow, "incoming");
+  const outgoingSummary = mapRequestRow(castRow<RawRow>(data), "outgoing");
+  const incomingSummary = mapRequestRow(castRow<RawRow>(data), "incoming");
 
   await publishFriendEvents([
     {
       userId: requesterId,
-      event: { type: "friend.request.removed", payload: { requestId, reason: "cancelled", request: outgoingSummary } },
+      event: {
+        type: "friend.request.removed",
+        payload: { requestId, reason: "cancelled", request: outgoingSummary },
+      },
     },
     {
       userId: recipientId,
-      event: { type: "friend.request.removed", payload: { requestId, reason: "cancelled", request: incomingSummary } },
+      event: {
+        type: "friend.request.removed",
+        payload: { requestId, reason: "cancelled", request: incomingSummary },
+      },
     },
   ]);
 
@@ -643,10 +688,7 @@ export async function removeFriendship(
   return mapFriendRow(existing);
 }
 
-export async function followUser(
-  followerId: string,
-  followeeId: string,
-): Promise<FollowSummary> {
+export async function followUser(followerId: string, followeeId: string): Promise<FollowSummary> {
   if (followerId === followeeId) {
     throw new FriendGraphError("self_target", "You cannot follow yourself.");
   }
@@ -666,7 +708,7 @@ export async function followUser(
 
   let followRow: RawRow | null = null;
   if (existing.data) {
-    const row = existing.data as RawRow;
+    const row = castRow<RawRow>(existing.data);
     if (!row.deleted_at) {
       followRow = row;
     } else {
@@ -677,7 +719,7 @@ export async function followUser(
         .select(FOLLOW_EDGE_SELECT)
         .single();
       if (updated.error) throw updated.error;
-      followRow = updated.data as RawRow;
+      followRow = castRow<RawRow>(updated.data);
     }
   } else {
     const inserted = await supabase
@@ -686,7 +728,7 @@ export async function followUser(
       .select(FOLLOW_EDGE_SELECT)
       .single();
     if (inserted.error) throw inserted.error;
-    followRow = inserted.data as RawRow;
+    followRow = castRow<RawRow>(inserted.data);
   }
 
   if (!followRow) {
@@ -699,21 +741,24 @@ export async function followUser(
   await publishFriendEvents([
     {
       userId: followerId,
-      event: { type: "follow.updated", payload: { state: "follow", follow: followingSummary, userId: followeeId } },
+      event: {
+        type: "follow.updated",
+        payload: { state: "follow", follow: followingSummary, userId: followeeId },
+      },
     },
     {
       userId: followeeId,
-      event: { type: "follow.updated", payload: { state: "follow", follow: followerSummary, userId: followerId } },
+      event: {
+        type: "follow.updated",
+        payload: { state: "follow", follow: followerSummary, userId: followerId },
+      },
     },
   ]);
 
   return followingSummary;
 }
 
-export async function unfollowUser(
-  followerId: string,
-  followeeId: string,
-): Promise<void> {
+export async function unfollowUser(followerId: string, followeeId: string): Promise<void> {
   const removedAt = nowIso();
   await softDeleteFollowEdge(followerId, followeeId, removedAt);
 
@@ -749,19 +794,22 @@ export async function blockUser(
   if (existing.error && existing.error.code !== NO_ROW_CODE) throw existing.error;
   let row: RawRow;
   if (existing.data) {
+    const existingRow = castRow<RawRow>(existing.data);
+    const blockId = asString(existingRow.id);
+    if (!blockId) throw new Error("Block row missing id");
     const update: Record<string, unknown> = {
       deleted_at: null,
-      reason: options.reason ?? existing.data.reason ?? null,
+      reason: options.reason ?? asString(existingRow.reason),
       expires_at: options.expiresAt ?? null,
     };
     const { data, error } = await supabase
       .from("user_blocks")
       .update(update)
-      .eq("id", (existing.data as RawRow).id)
+      .eq("id", blockId)
       .select(BLOCK_SELECT)
       .single();
     if (error) throw error;
-    row = data as RawRow;
+    row = castRow<RawRow>(data);
   } else {
     const { data, error } = await supabase
       .from("user_blocks")
@@ -776,7 +824,7 @@ export async function blockUser(
       .select(BLOCK_SELECT)
       .single();
     if (error) throw error;
-    row = data as RawRow;
+    row = castRow<RawRow>(data);
   }
 
   const blockSummary = mapBlockRow(row);
@@ -792,7 +840,10 @@ export async function blockUser(
   await publishFriendEvents([
     {
       userId: blockerId,
-      event: { type: "block.updated", payload: { state: "block", block: blockSummary, userId: blockedId } },
+      event: {
+        type: "block.updated",
+        payload: { state: "block", block: blockSummary, userId: blockedId },
+      },
     },
     {
       userId: blockedId,
@@ -819,7 +870,10 @@ export async function blockUser(
   return blockSummary;
 }
 
-export async function unblockUser(blockerId: string, blockedId: string): Promise<BlockSummary | null> {
+export async function unblockUser(
+  blockerId: string,
+  blockedId: string,
+): Promise<BlockSummary | null> {
   const supabase = getSupabaseAdminClient();
   const existing = await supabase
     .from("user_blocks")
@@ -831,20 +885,26 @@ export async function unblockUser(blockerId: string, blockedId: string): Promise
   if (existing.error && existing.error.code !== NO_ROW_CODE) throw existing.error;
   if (!existing.data) return null;
   const removedAt = nowIso();
+  const existingRow = castRow<RawRow>(existing.data);
+  const blockId = asString(existingRow.id);
+  if (!blockId) throw new Error("Block row missing id");
   const { data, error } = await supabase
     .from("user_blocks")
     .update({ deleted_at: removedAt })
-    .eq("id", (existing.data as RawRow).id)
+    .eq("id", blockId)
     .select(BLOCK_SELECT)
     .single();
   if (error) throw error;
 
-  const blockSummary = mapBlockRow(data as RawRow);
+  const blockSummary = mapBlockRow(castRow<RawRow>(data));
 
   await publishFriendEvents([
     {
       userId: blockerId,
-      event: { type: "block.updated", payload: { state: "unblock", block: blockSummary, userId: blockedId } },
+      event: {
+        type: "block.updated",
+        payload: { state: "unblock", block: blockSummary, userId: blockedId },
+      },
     },
     {
       userId: blockedId,
@@ -854,6 +914,3 @@ export async function unblockUser(blockerId: string, blockedId: string): Promise
 
   return blockSummary;
 }
-
-
-

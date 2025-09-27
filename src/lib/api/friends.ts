@@ -25,4 +25,3 @@ export async function removeFriend(target: FriendTarget) {
 export async function requestFriend(target: FriendTarget) {
   return postUpdate({ action: "request", target });
 }
-

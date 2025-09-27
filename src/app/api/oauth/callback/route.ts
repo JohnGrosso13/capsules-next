@@ -14,16 +14,21 @@ function toAbsolute(url: string | null | undefined) {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const stateRaw = url.searchParams.get("state");
-  const state = decodeState<{ k?: string; t?: number; r?: string; v?: string; vf?: string }>(stateRaw);
+  const state = decodeState<{ k?: string; t?: number; r?: string; v?: string; vf?: string }>(
+    stateRaw,
+  );
   const provider = (url.searchParams.get("provider") || state?.v || "").trim().toLowerCase();
   const fallbackRedirect = `${serverEnv.SITE_URL}/settings.html?tab=account#linked`;
   const redirectBase = toAbsolute(state?.r ?? fallbackRedirect);
 
-  const fail = (reason: string) => NextResponse.redirect(appendQueryParams(redirectBase, {
-    connected: "0",
-    provider: provider || "unknown",
-    reason,
-  }));
+  const fail = (reason: string) =>
+    NextResponse.redirect(
+      appendQueryParams(redirectBase, {
+        connected: "0",
+        provider: provider || "unknown",
+        reason,
+      }),
+    );
 
   if (!state?.k) {
     return fail("state");
@@ -58,7 +63,10 @@ export async function GET(req: Request) {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: tokenParams.toString(),
     });
-    const tokenJson = (await tokenResponse.json().catch(() => null)) as Record<string, unknown> | null;
+    const tokenJson = (await tokenResponse.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
     if (!tokenResponse.ok || !tokenJson) {
       console.error("Token exchange failed", provider, tokenJson);
       return fail("token");

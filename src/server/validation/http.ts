@@ -19,7 +19,12 @@ const errorResponseSchema = z.object({
 
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
-export function returnError(status: number, code: string, message: string, details?: unknown): NextResponse {
+export function returnError(
+  status: number,
+  code: string,
+  message: string,
+  details?: unknown,
+): NextResponse {
   const payload: ErrorResponse = {
     error: code,
     message,

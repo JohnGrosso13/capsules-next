@@ -1,7 +1,7 @@
-const OPENAI_API_KEY = 
+const OPENAI_API_KEY =
   process.env.OPENAI_API_KEY ?? process.env.OPENAI_KEY ?? process.env.OPENAI_SECRET_KEY ?? null;
 
-const OPENAI_MODEL = 
+const OPENAI_MODEL =
   process.env.OPENAI_MODEL ?? process.env.AI_MODEL ?? process.env.GPT_MODEL ?? "gpt-4o-mini";
 
 export type StylerPlan = {
@@ -56,10 +56,10 @@ const COLOR_NAME_MAP = new Map<string, string>([
 ]);
 
 const COLOR_MODIFIERS = ["light", "dark", "deep", "bright", "soft", "pale", "neon"] as const;
-const COLOR_MODIFIER_SET = new Set(COLOR_MODIFIERS);
+const COLOR_MODIFIER_SET = new Set<(typeof COLOR_MODIFIERS)[number]>(COLOR_MODIFIERS);
 
 type Target = {
-  id: "friends" | "chats" | "requests" | "background" | "theme";
+  id: "friends" | "chats" | "requests" | "background" | "theme" | "header" | "rail" | "buttons";
   label: string;
   type: "tile" | "background" | "site";
   keywords: string[];
@@ -68,8 +68,19 @@ type Target = {
 const TARGETS: Target[] = [
   { id: "friends", label: "Friends tile", type: "tile", keywords: ["friend", "friends"] },
   { id: "chats", label: "Chats tile", type: "tile", keywords: ["chat", "chats", "messages"] },
-  { id: "requests", label: "Requests tile", type: "tile", keywords: ["request", "requests", "invites"] },
-  { id: "background", label: "app background", type: "background", keywords: ["background", "backdrop", "page", "app"] },
+  {
+    id: "requests",
+    label: "Requests tile",
+    type: "tile",
+    keywords: ["request", "requests", "invites"],
+  },
+  {
+    id: "background",
+    label: "app background",
+    type: "background",
+    keywords: ["background", "backdrop", "page", "app"],
+  },
+  // Site-wide or sectional styling
   {
     id: "theme",
     label: "site theme",
@@ -80,16 +91,19 @@ const TARGETS: Target[] = [
       "overall",
       "brand",
       "primary",
-      "header",
-      "buttons",
-      "button",
-      "rail",
-      "sidebar",
-      "right rail",
+      // generic terms that imply broad theme changes
       "posts",
       "cards",
     ],
   },
+  { id: "header", label: "Header", type: "site", keywords: ["header", "navbar", "top bar", "nav"] },
+  {
+    id: "rail",
+    label: "Right rail",
+    type: "site",
+    keywords: ["right rail", "rail", "sidebar", "right sidebar"],
+  },
+  { id: "buttons", label: "Buttons", type: "site", keywords: ["buttons", "button", "cta"] },
 ];
 
 const SAFE_VALUE_REGEX = /^[A-Za-z0-9#(),.%\/_\-\s:+]*$/;
@@ -121,6 +135,12 @@ function buildHeuristicPlan(prompt: string): StylerPlan | null {
       Object.assign(vars, buildBackgroundVars(color));
     } else if (target.id === "theme") {
       Object.assign(vars, buildSiteThemeVars(color));
+    } else if (target.id === "header") {
+      Object.assign(vars, buildHeaderOnlyVars(color));
+    } else if (target.id === "rail") {
+      Object.assign(vars, buildRailOnlyVars(color));
+    } else if (target.id === "buttons") {
+      Object.assign(vars, buildButtonsVars(color));
     }
 
     const descriptor = `${target.label} (${color.label})`;
@@ -181,19 +201,19 @@ function extractColor(segment: string): ColorSpec | null {
   return null;
 }
 
-function findModifier(text: string, name: string): string | null {
+function findModifier(text: string, name: string): (typeof COLOR_MODIFIERS)[number] | null {
   const index = text.indexOf(name);
   if (index <= 0) return null;
   const prefix = text.slice(Math.max(0, index - 12), index).trim();
   const parts = prefix.split(/\s+/);
   const last = parts[parts.length - 1];
-  if (last && COLOR_MODIFIER_SET.has(last)) {
-    return last;
+  if (last && COLOR_MODIFIER_SET.has(last as (typeof COLOR_MODIFIERS)[number])) {
+    return last as (typeof COLOR_MODIFIERS)[number];
   }
   return null;
 }
 
-function adjustColor(rgb: RGB, modifier: string): RGB {
+function adjustColor(rgb: RGB, modifier: (typeof COLOR_MODIFIERS)[number]): RGB {
   const { r, g, b } = rgb;
   const clamp = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
   switch (modifier) {
@@ -224,7 +244,10 @@ function adjustColor(rgb: RGB, modifier: string): RGB {
   }
 }
 
-function buildTileVars(target: "friends" | "chats" | "requests", color: ColorSpec): Record<string, string> {
+function buildTileVars(
+  target: "friends" | "chats" | "requests",
+  color: ColorSpec,
+): Record<string, string> {
   const { rgb } = color;
   const accentA = rgba(rgb, 0.88);
   const accentB = rgba(rgb, 0.64);
@@ -234,7 +257,7 @@ function buildTileVars(target: "friends" | "chats" | "requests", color: ColorSpe
   const textColor = luminance(rgb) > 0.55 ? "rgba(14,16,36,0.92)" : "rgba(255,255,255,0.92)";
   const descColor = luminance(rgb) > 0.55 ? "rgba(14,16,36,0.7)" : "rgba(255,255,255,0.78)";
   const iconBg = luminance(rgb) > 0.55 ? rgba(rgb, 0.26) : "rgba(255,255,255,0.16)";
-  const badgeBg = luminance(rgb) > 0.55 ? rgba(rgb, 0.20) : "rgba(255,255,255,0.88)";
+  const badgeBg = luminance(rgb) > 0.55 ? rgba(rgb, 0.2) : "rgba(255,255,255,0.88)";
 
   const prefix = `--style-${target}`;
   return {
@@ -271,6 +294,47 @@ function buildBackgroundVars(color: ColorSpec): Record<string, string> {
   };
 }
 
+function pick<T extends Record<string, string>>(obj: T, keys: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of keys) {
+    if (obj[k] != null) out[k] = obj[k]!;
+  }
+  return out;
+}
+
+function buildHeaderOnlyVars(color: ColorSpec): Record<string, string> {
+  const full = buildSiteThemeVars(color);
+  return pick(full, [
+    "--header-glass-top",
+    "--header-glass-bottom",
+    "--header-tint-from",
+    "--header-tint-to",
+    "--header-border-color",
+    "--header-shadow",
+    "--header-scrim",
+  ]);
+}
+
+function buildRailOnlyVars(color: ColorSpec): Record<string, string> {
+  const full = buildSiteThemeVars(color);
+  return pick(full, ["--rail-bg-1", "--rail-bg-2", "--rail-border"]);
+}
+
+function buildButtonsVars(color: ColorSpec): Record<string, string> {
+  const full = buildSiteThemeVars(color);
+  // Ensure primary button, links, rings derive from brand tokens
+  const vars = pick(full, ["--cta-gradient", "--cta-button-gradient", "--cta-button-text"]);
+  // Map site brand tokens used by Tailwind theme
+  vars["--color-brand"] = full["--brand-mid"] ?? color.hex;
+  vars["--color-brand-strong"] = full["--brand-to"] ?? color.hex;
+  vars["--color-brand-foreground"] =
+    full["--text-on-brand"] ?? (luminance(color.rgb) > 0.55 ? "#0e1024" : "#f8fafc");
+  // Keep brand gradient in sync with any usages
+  // Ensure a string type even if keys are missing at compile time
+  vars["--gradient-brand"] = (full["--brand-gradient"] ?? full["--cta-gradient"] ?? "") as string;
+  return vars;
+}
+
 function mix(a: RGB, b: RGB, t: number): RGB {
   const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
   return {
@@ -292,7 +356,8 @@ function shade(rgb: RGB, amount: number): RGB {
 function relLuminance({ r, g, b }: RGB): number {
   const srgb = [r, g, b].map((v) => v / 255);
   const lin = srgb.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
-  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+  const [rLin, gLin, bLin] = lin as [number, number, number];
+  return 0.2126 * rLin + 0.7152 * gLin + 0.0722 * bLin;
 }
 
 function contrastRatioRGB(a: RGB, b: RGB): number {
@@ -303,7 +368,9 @@ function contrastRatioRGB(a: RGB, b: RGB): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-function clamp01(n: number): number { return Math.max(0, Math.min(1, n)); }
+function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
 
 function blendOver(bg: RGB, fg: RGB, alpha: number): RGB {
   const a = clamp01(alpha);
@@ -352,7 +419,9 @@ function solveTextAlphaForContrast(bg: RGB, textBase: RGB, minRatio: number): nu
   // Find minimum alpha in [0,1] such that contrast(blendOver(bg, textBase, a), bg) >= minRatio
   // If even alpha=1 fails, return 1.
   if (contrastRatioRGB(textBase, bg) < minRatio) return 1;
-  let lo = 0, hi = 1, best = 1;
+  let lo = 0,
+    hi = 1,
+    best = 1;
   for (let i = 0; i < 16; i++) {
     const mid = (lo + hi) / 2;
     const blended = blendOver(bg, textBase, mid);
@@ -372,7 +441,9 @@ function solveOverlayAlphaForContrast(bg: RGB, overlay: RGB, text: RGB, minRatio
   // If cannot reach, return 0.9 (strong overlay) to maximize.
   const maxA = 0.9;
   if (contrastRatioRGB(text, bg) >= minRatio) return 0;
-  let lo = 0, hi = maxA, best = maxA;
+  let lo = 0,
+    hi = maxA,
+    best = maxA;
   for (let i = 0; i < 18; i++) {
     const mid = (lo + hi) / 2;
     const adjustedBg = blendOver(bg, overlay, mid);
@@ -404,16 +475,16 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   let cardHoverBg2Rgb = mix(neutralAlt, rgb, surfaceAltStrength + (isLight ? 0.05 : 0.06));
   const cardBorderRgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.18);
 
-  let railBgRgb = mix(neutralAlt, rgb, isLight ? 0.10 : 0.22);
+  let railBgRgb = mix(neutralAlt, rgb, isLight ? 0.1 : 0.22);
   let railBg2Rgb = mix(neutralDeep, rgb, isLight ? 0.08 : 0.18);
   const railBorderRgb = mix(neutralAlt, rgb, isLight ? 0.06 : 0.16);
 
-  let headerTopRgb = mix(neutralBase, rgb, isLight ? 0.10 : 0.24);
-  let headerBottomRgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.20);
-  let headerTintFromRgb = mix(rgb, neutralAlt, isLight ? 0.20 : 0.28);
+  let headerTopRgb = mix(neutralBase, rgb, isLight ? 0.1 : 0.24);
+  let headerBottomRgb = mix(neutralAlt, rgb, isLight ? 0.08 : 0.2);
+  let headerTintFromRgb = mix(rgb, neutralAlt, isLight ? 0.2 : 0.28);
   let headerTintToRgb = mix(rgb, neutralDeep, isLight ? 0.14 : 0.26);
 
-  const brandFromRgb = tint(rgb, isLight ? 0.30 : 0.18);
+  const brandFromRgb = tint(rgb, isLight ? 0.3 : 0.18);
   const brandMidRgb = rgb;
   const brandToRgb = shade(rgb, isLight ? 0.15 : 0.25);
 
@@ -448,11 +519,15 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   pillBg1Rgb = adjustSecondary(pillBg1Rgb);
   pillBg2Rgb = adjustSecondary(pillBg2Rgb);
 
-  const appBaseRgb = enforceContrastRgb(mix(neutralDeep, rgb, isLight ? 0.06 : 0.14), textBase, MIN_SECONDARY);
+  const appBaseRgb = enforceContrastRgb(
+    mix(neutralDeep, rgb, isLight ? 0.06 : 0.14),
+    textBase,
+    MIN_SECONDARY,
+  );
   // Layered background highlights to avoid a flat backdrop
   const appLayer1 = rgba(mix(rgb, neutralBase, isLight ? 0.18 : 0.26), isLight ? 0.22 : 0.18);
   const appLayer2 = rgba(mix(rgb, neutralAlt, isLight ? 0.14 : 0.24), isLight ? 0.18 : 0.16);
-  const appLayer3 = rgba(mix(rgb, neutralDeep, isLight ? 0.10 : 0.20), isLight ? 0.12 : 0.14);
+  const appLayer3 = rgba(mix(rgb, neutralDeep, isLight ? 0.1 : 0.2), isLight ? 0.12 : 0.14);
 
   const textAlpha = solveTextAlphaForContrast(cardBg1Rgb, textBase, MIN_PRIMARY);
   const text = rgba(textBase, textAlpha);
@@ -463,10 +538,20 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   const brandTextBase = pickTextBaseFor(brandMidRgb);
   const brandTextIsLight = brandTextBase.r > 128;
   const overlayColor: RGB = brandTextIsLight ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
-  let overlayForBrand = solveOverlayAlphaForContrast(brandMidRgb, overlayColor, brandTextBase, MIN_BRAND_TARGET);
+  let overlayForBrand = solveOverlayAlphaForContrast(
+    brandMidRgb,
+    overlayColor,
+    brandTextBase,
+    MIN_BRAND_TARGET,
+  );
   let brandMidAdjusted = blendOver(brandMidRgb, overlayColor, overlayForBrand);
   if (contrastRatioRGB(brandTextBase, brandMidAdjusted) < MIN_BRAND_TARGET) {
-    overlayForBrand = solveOverlayAlphaForContrast(brandMidRgb, overlayColor, brandTextBase, MIN_BRAND_FALLBACK);
+    overlayForBrand = solveOverlayAlphaForContrast(
+      brandMidRgb,
+      overlayColor,
+      brandTextBase,
+      MIN_BRAND_FALLBACK,
+    );
     brandMidAdjusted = blendOver(brandMidRgb, overlayColor, overlayForBrand);
   }
   const brandFromAdjusted = blendOver(brandFromRgb, overlayColor, overlayForBrand);
@@ -481,7 +566,7 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   const ctaGradient = `linear-gradient(120deg, ${rgbToHex(ctaFrom)}, ${rgbToHex(ctaMid)}, ${rgbToHex(ctaTo)})`;
 
   const textIsLight = textBase.r > 128;
-  const accentGlow = textIsLight ? rgba(tint(rgb, 0.35), 0.30) : rgba(shade(rgb, 0.30), 0.24);
+  const accentGlow = textIsLight ? rgba(tint(rgb, 0.35), 0.3) : rgba(shade(rgb, 0.3), 0.24);
   const headerScrim = textIsLight ? "rgba(7,9,22,0.90)" : "rgba(255,255,255,0.92)";
 
   const vars: Record<string, string> = {
@@ -509,19 +594,24 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
     "--header-tint-from": rgba(headerTintFromRgb, textIsLight ? 0.35 : 0.28),
     "--header-tint-to": rgba(headerTintToRgb, textIsLight ? 0.32 : 0.26),
     "--header-border-color": rgba(headerTintFromRgb, textIsLight ? 0.28 : 0.22),
-    "--header-shadow": `0 18px 36px ${rgba(shade(headerBottomRgb, textIsLight ? 0.50 : 0.40), textIsLight ? 0.35 : 0.24)}`,
+    "--header-shadow": `0 18px 36px ${rgba(shade(headerBottomRgb, textIsLight ? 0.5 : 0.4), textIsLight ? 0.35 : 0.24)}`,
     "--header-scrim": headerScrim,
     "--pill-border": rgba(pillBg1Rgb, textIsLight ? 0.42 : 0.28),
     "--pill-bg-1": rgbToHex(pillBg1Rgb),
     "--pill-bg-2": rgbToHex(pillBg2Rgb),
     "--rail-bg-1": rgba(railBgRgb, isLight ? 0.92 : 0.18),
     "--rail-bg-2": rgba(railBg2Rgb, isLight ? 0.86 : 0.15),
-    "--rail-border": rgba(railBorderRgb, textIsLight ? 0.28 : 0.20),
+    "--rail-border": rgba(railBorderRgb, textIsLight ? 0.28 : 0.2),
     "--cta-gradient": brandGradient,
     "--brand-from": rgbToHex(brandFromAdjusted),
     "--brand-mid": rgbToHex(brandMidAdjusted),
     "--brand-to": rgbToHex(brandToAdjusted),
     "--brand-gradient": brandGradient,
+    // Tailwind-driven brand tokens so primary buttons/links follow the theme color
+    "--color-brand": rgbToHex(brandMidAdjusted),
+    "--color-brand-strong": rgbToHex(brandToAdjusted),
+    "--color-brand-foreground": textOnBrand,
+    "--gradient-brand": brandGradient,
     "--cta-button-gradient": ctaGradient,
     "--cta-button-text": textOnBrand,
     "--glass-bg-1": rgbToHex(glassBg1Rgb),
@@ -643,7 +733,7 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
             role: "system",
             content: [
               "You are Capsules AI Styler. Interpret styling prompts for the Capsules interface.",
-              "Respond ONLY with JSON of the shape {\"summary\": string, \"vars\": { \"--css-variable\": \"value\" }}.",
+              'Respond ONLY with JSON of the shape {"summary": string, "vars": { "--css-variable": "value" }}.',
               "Prefer variables that drive the whole site: --app-bg, --text, --text-2, --text-on-brand, --card-bg-1, --card-bg-2, --card-border, --card-shadow, --card-hover-bg-1, --card-hover-bg-2, --card-hover-border, --card-hover-shadow, --header-glass-top, --header-glass-bottom, --header-tint-from, --header-tint-to, --header-border-color, --header-shadow, --header-scrim, --pill-bg-1, --pill-bg-2, --pill-border, --rail-bg-1, --rail-bg-2, --rail-border, --cta-gradient.",
               "You may also set tile-specific tokens like --style-friends-*, --style-chats-*, --style-requests-*.",
             ].join(" "),
@@ -653,7 +743,7 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
       }),
     });
 
-    const raw = await response.json().catch(() => null) as {
+    const raw = (await response.json().catch(() => null)) as {
       choices?: Array<{ message?: { content?: string } }>;
     } | null;
     if (!response.ok || !raw) {

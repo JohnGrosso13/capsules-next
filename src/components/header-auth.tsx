@@ -1,22 +1,27 @@
-"use client";
+﻿"use client";
 
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 
-import styles from "./header-auth.module.css";
+import { Button } from "@/components/ui/button";
 
 export function HeaderAuth() {
   return (
-    <div className={styles.container}>
+    <div className="flex items-center gap-3">
       <SignedOut>
         <SignInButton mode="modal">
-          <button className={styles.signInButton} type="button">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-pill border-border/60 bg-surface-muted/70 hover:border-border hover:bg-surface-muted border px-4 backdrop-blur transition"
+            type="button"
+          >
             Sign in
-          </button>
+          </Button>
         </SignInButton>
       </SignedOut>
       <SignedIn>
-        <div className={styles.userButtonWrapper}>
-          <UserButton afterSignOutUrl="/" />
+        <div className="rounded-pill border-border/50 bg-surface-elevated/80 overflow-hidden border p-1 shadow-xs backdrop-blur">
+          <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
         </div>
       </SignedIn>
     </div>

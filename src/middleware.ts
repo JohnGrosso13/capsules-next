@@ -1,12 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // Public routes should exclude app pages that require authentication
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/api/(.*)',
-  '/_next/(.*)',
-  '/api/webhooks/(.*)',
-]);
+const isPublicRoute = createRouteMatcher(["/", "/api/(.*)", "/_next/(.*)", "/api/webhooks/(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) {
@@ -19,5 +14,5 @@ export default clerkMiddleware(async (auth, req) => {
 });
 
 export const config = {
-  matcher: ['/((?!_next|_vercel|.*\\..*).*)'],
+  matcher: ["/((?!_next|_vercel|.*\\..*).*)"],
 };

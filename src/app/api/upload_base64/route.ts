@@ -1,38 +1,37 @@
-import { NextResponse } from "next/server";
-
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
+import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import { uploadRequestSchema, uploadResponseSchema } from "@/server/validation/schemas/uploads";
 
 export async function POST(req: Request) {
+  const parsed = await parseJsonBody(req, uploadRequestSchema);
+  if (!parsed.success) {
+    return parsed.response;
+  }
+
+  const { filename, contentType, dataBase64 } = parsed.data;
+
+  const resolvedFilename =
+    filename && filename.trim().length ? filename.trim() : `file-${Date.now()}`;
+  const resolvedContentType =
+    contentType && contentType.trim().length ? contentType.trim() : "application/octet-stream";
+  const base64 = dataBase64.trim();
+
+  const normalized = base64.startsWith("data:")
+    ? base64
+    : `data:${resolvedContentType};base64,${base64.split(",").pop() ?? base64}`;
+
   try {
-    const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-    const filename = typeof body?.filename === "string" && body.filename.trim().length
-      ? body.filename.trim()
-      : `file-${Date.now()}`;
-    const contentType = typeof body?.content_type === "string" && body.content_type.trim().length
-      ? body.content_type.trim()
-      : typeof body?.contentType === "string" && body.contentType.trim().length
-        ? body.contentType.trim()
-        : "application/octet-stream";
-    const dataBase64Raw = typeof body?.data_base64 === "string" && body.data_base64.trim().length
-      ? body.data_base64.trim()
-      : typeof body?.dataBase64 === "string"
-        ? body.dataBase64.trim()
-        : "";
-    if (!dataBase64Raw) {
-      return NextResponse.json({ error: "data_base64 required" }, { status: 400 });
-    }
-
-    const normalized = dataBase64Raw.startsWith("data:")
-      ? dataBase64Raw
-      : `data:${contentType || "application/octet-stream"};base64,${dataBase64Raw.split(",").pop()}`;
-
-    const saved = await storeImageSrcToSupabase(normalized, filename);
+    const saved = await storeImageSrcToSupabase(normalized, resolvedFilename);
     if (!saved?.url) {
-      return NextResponse.json({ error: "Failed to save image" }, { status: 500 });
+      return returnError(500, "upload_failed", "Failed to save image");
     }
-    return NextResponse.json({ url: saved.url, key: saved.key });
+
+    return validatedJson(uploadResponseSchema, {
+      url: saved.url,
+      key: typeof saved.key === "string" && saved.key.trim().length ? saved.key : undefined,
+    });
   } catch (error) {
     console.error("upload_base64 error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return returnError(500, "upload_failed", "Internal server error");
   }
 }

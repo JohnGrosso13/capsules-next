@@ -34,10 +34,10 @@ async function loadMigrations() {
 async function applyMigration(client, fileName, sql) {
   const checksum = createHash("sha256").update(sql).digest("hex");
   await client.query(sql);
-  await client.query(
-    `insert into public.__migrations (name, checksum) values ($1, $2)`,
-    [fileName, checksum],
-  );
+  await client.query(`insert into public.__migrations (name, checksum) values ($1, $2)`, [
+    fileName,
+    checksum,
+  ]);
 }
 
 async function ensureHistoryTable(client) {
@@ -62,7 +62,9 @@ async function run() {
   try {
     await client.query("BEGIN");
     await ensureHistoryTable(client);
-    const appliedRows = await client.query(`select name from public.__migrations order by name asc`);
+    const appliedRows = await client.query(
+      `select name from public.__migrations order by name asc`,
+    );
     const applied = new Set(appliedRows.rows.map((row) => row.name));
 
     const files = await loadMigrations();
@@ -75,7 +77,9 @@ async function run() {
       try {
         await applyMigration(client, file, sql);
       } catch (error) {
-        throw new Error(`Migration failed (${file}): ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Migration failed (${file}): ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
     await client.query("COMMIT");

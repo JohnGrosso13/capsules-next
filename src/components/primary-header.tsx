@@ -1,11 +1,10 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 
 import { HeaderAuth } from "@/components/header-auth";
 import { LaunchCta } from "@/components/launch-cta";
-
-import styles from "@/app/landing.module.css";
+import { cn } from "@/lib/cn";
 
 type NavItem = {
   key: string;
@@ -34,47 +33,70 @@ export function PrimaryHeader({
   launchLabel = "Launch Capsule",
 }: PrimaryHeaderProps) {
   return (
-    <header className={styles.header}>
-      <div className={styles.headerInner}>
-        <Link href="/" className={styles.brand} aria-label="Capsules home">
-          <span className={styles.brandMark} aria-hidden="true" />
-          <span className={styles.brandName}>Capsules</span>
+    <header className="border-border/40 bg-surface-elevated/80 sticky inset-x-0 top-0 z-50 border-b backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-5 py-4">
+        <Link
+          href="/"
+          aria-label="Capsules home"
+          className="group text-fg flex items-center gap-3 text-lg font-semibold"
+        >
+          <span className="bg-brand/20 shadow-brand/20 relative flex h-10 w-10 items-center justify-center rounded-2xl shadow-inner">
+            <span className="bg-brand h-6 w-6 rounded-xl" />
+          </span>
+          <span className="font-display text-xl tracking-tight">Capsules</span>
         </Link>
-        <nav className={styles.nav} aria-label="Primary navigation">
-          {navItems.map((item) => (
-            <Link
-              key={item.key}
-              href={item.href}
-              className={`${styles.navLink} ${activeKey === item.key ? styles.navLinkActive : ""}`.trim()}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="hidden items-center gap-2 md:flex" aria-label="Primary navigation">
+          {navItems.map((item) => {
+            const isActive = activeKey === item.key;
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={cn(
+                  "rounded-pill text-fg-subtle px-4 py-2 text-sm font-medium transition",
+                  "hover:text-fg hover:bg-surface-muted/60",
+                  isActive && "border-brand/40 bg-brand/15 text-fg border shadow-xs",
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
-        <div className={styles.headerActions}>
-          <HeaderAuth />
+        <div className="flex items-center gap-3">
           {showSettingsLink ? (
-            <Link href="/settings" className={styles.iconButton} aria-label="Settings">
-              <svg className={styles.iconGlyph} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-                <defs>
-                  <linearGradient id="primaryHeaderCog" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                    <stop offset="0" stopColor="#8b5cf6" />
-                    <stop offset="1" stopColor="#22d3ee" />
-                  </linearGradient>
-                </defs>
-                <g stroke="url(#primaryHeaderCog)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke">
-                  <circle cx="12" cy="12" r="6.5" />
-                  <circle cx="12" cy="12" r="3.2" />
-                  <path d="M12 2.8v2.4M21.2 12h-2.4M12 21.2v-2.4M2.8 12h2.4M5.4 5.4l1.7 1.7M18.6 5.4l-1.7 1.7M18.6 18.6l-1.7-1.7M5.4 18.6l1.7-1.7" />
-                </g>
+            <Link
+              href="/settings"
+              className="rounded-pill border-border/40 bg-surface-muted/60 text-fg-subtle hover:border-border hover:text-fg hidden h-10 w-10 items-center justify-center border transition sm:flex"
+              aria-label="Settings"
+            >
+              <svg
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <circle cx="12" cy="12" r="6.2" />
+                <circle cx="12" cy="12" r="2.8" />
+                <path d="M12 3v2.4m0 13.2V21m9-9h-2.4M5.4 12H3m15.8-6.2-1.7 1.7M6.5 17.5 4.8 19.2m0-12.7 1.7 1.7m12.1 9.8-1.7-1.7" />
               </svg>
             </Link>
           ) : null}
-          <LaunchCta className={styles.primaryCta} hrefWhenSignedIn="/capsule" label={launchLabel} />
+          <HeaderAuth />
+          <LaunchCta
+            variant="primary"
+            size="sm"
+            label={launchLabel}
+            className="hidden sm:inline-flex"
+            hrefWhenSignedIn="/capsule"
+          />
         </div>
       </div>
     </header>
   );
 }
-
-

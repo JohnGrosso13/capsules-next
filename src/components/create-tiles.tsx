@@ -33,22 +33,42 @@ const TILE_META: Record<CreateTileKey, { title: string; icon: string; bullets: s
   events: {
     icon: "??",
     title: "Events & Tournaments",
-    bullets: ["Create tournament", "Adaptive scheduling", "Bracket optimization", "Assist with disputes"],
+    bullets: [
+      "Create tournament",
+      "Adaptive scheduling",
+      "Bracket optimization",
+      "Assist with disputes",
+    ],
   },
   content: {
     icon: "??",
     title: "Content Creation",
-    bullets: ["Generate highlight reel", "Compile clip montage", "Create logo/banner/emote", "Narration or casting"],
+    bullets: [
+      "Generate highlight reel",
+      "Compile clip montage",
+      "Create logo/banner/emote",
+      "Narration or casting",
+    ],
   },
   moderation: {
     icon: "???",
     title: "Moderation & Safety",
-    bullets: ["Scan last 24 hours", "Draft code of conduct", "Flag engagement spikes", "Resolve case summary"],
+    bullets: [
+      "Scan last 24 hours",
+      "Draft code of conduct",
+      "Flag engagement spikes",
+      "Resolve case summary",
+    ],
   },
   insights: {
     icon: "??",
     title: "Gaming Insights",
-    bullets: ["Run live match analysis", "Generate strategy plan", "Launch stat integration", "Build coaching plan"],
+    bullets: [
+      "Run live match analysis",
+      "Generate strategy plan",
+      "Launch stat integration",
+      "Build coaching plan",
+    ],
   },
   automations: {
     icon: "??",
@@ -71,7 +91,9 @@ export function CreateTiles() {
       <div className={styles.expanded}>
         <div className={styles.expandedHeader}>
           <div className={styles.tileHeader}>
-            <span className={styles.tileIcon} aria-hidden>{meta.icon}</span>
+            <span className={styles.tileIcon} aria-hidden>
+              {meta.icon}
+            </span>
             <h2 className={styles.tileTitle}>{meta.title}</h2>
           </div>
           <button className={styles.backBtn} type="button" onClick={() => setActive(null)}>
@@ -108,7 +130,9 @@ export function CreateTiles() {
           return (
             <button key={key} type="button" className={styles.tile} onClick={() => setActive(key)}>
               <div className={styles.tileHeader}>
-                <span className={styles.tileIcon} aria-hidden>{t.icon}</span>
+                <span className={styles.tileIcon} aria-hidden>
+                  {t.icon}
+                </span>
                 <div className={styles.tileTitle}>{t.title}</div>
               </div>
               <ul className={styles.tileList}>

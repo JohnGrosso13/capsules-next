@@ -5,7 +5,7 @@ import { persistCommentToDB, resolvePostId } from "@/lib/supabase/posts";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(req: Request) {
-    const url = new URL(req.url);
+  const url = new URL(req.url);
   const rawPostId = url.searchParams.get("postId") ?? url.searchParams.get("post_id");
   const supabase = getSupabaseAdminClient();
   const resolved = await resolvePostId(rawPostId);
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-    const body = await req.json().catch(() => null);
+  const body = await req.json().catch(() => null);
   const comment = (body?.comment as Record<string, unknown>) ?? null;
   if (!comment) {
     return NextResponse.json({ error: "comment required" }, { status: 400 });
@@ -60,5 +60,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ success: true });
 }
-
-

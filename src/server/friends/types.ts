@@ -18,7 +18,9 @@ export class FriendGraphError extends Error {
   constructor(code: FriendGraphErrorCode, message: string, data?: Record<string, unknown>) {
     super(message);
     this.code = code;
-    this.data = data;
+    if (data !== undefined) {
+      this.data = data;
+    }
   }
 }
 

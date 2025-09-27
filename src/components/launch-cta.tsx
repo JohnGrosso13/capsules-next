@@ -1,33 +1,56 @@
 "use client";
 
-import Link from "next/link";
-import { SignedIn, SignedOut, SignUpButton, SignInButton } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
+
+import { Button, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
 
 type Props = {
   className?: string;
-  variant?: "signup" | "signin";
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   hrefWhenSignedIn?: string;
   label?: string;
+  signedOutMode?: "signup" | "signin";
 };
 
-export function LaunchCta({ className, variant = "signup", hrefWhenSignedIn = "/capsule", label = "Launch Capsule" }: Props) {
+export function LaunchCta({
+  className,
+  variant = "primary",
+  size = "lg",
+  hrefWhenSignedIn = "/capsule",
+  label = "Launch Capsule",
+  signedOutMode = "signup",
+}: Props) {
+  const router = useRouter();
+
   return (
     <>
       <SignedOut>
-        {variant === "signup" ? (
+        {signedOutMode === "signup" ? (
           <SignUpButton mode="modal">
-            <button type="button" className={className}>{label}</button>
+            <Button type="button" variant={variant} size={size} className={className}>
+              {label}
+            </Button>
           </SignUpButton>
         ) : (
           <SignInButton mode="modal">
-            <button type="button" className={className}>{label}</button>
+            <Button type="button" variant={variant} size={size} className={className}>
+              {label}
+            </Button>
           </SignInButton>
         )}
       </SignedOut>
       <SignedIn>
-        <Link href={hrefWhenSignedIn} className={className}>{label}</Link>
+        <Button
+          variant={variant}
+          size={size}
+          className={className}
+          onClick={() => router.push(hrefWhenSignedIn)}
+        >
+          {label}
+        </Button>
       </SignedIn>
     </>
   );
 }
-

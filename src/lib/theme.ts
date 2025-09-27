@@ -20,7 +20,9 @@ export function getTheme(): Theme {
     const saved = localStorage.getItem("theme");
     if (saved === "light" || saved === "dark") return saved;
   } catch {}
-  return (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches)
+  return typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: light)").matches
     ? "light"
     : "dark";
 }

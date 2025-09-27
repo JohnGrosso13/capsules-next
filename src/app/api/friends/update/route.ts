@@ -1,4 +1,4 @@
-import { ensureUserFromRequest } from "@/lib/auth/payload";
+﻿import { ensureUserFromRequest } from "@/lib/auth/payload";
 import {
   FriendGraphError,
   type FriendGraphErrorCode,
@@ -94,21 +94,25 @@ export async function POST(req: Request) {
   const action = normalizeAction(data.action);
 
   const userPayload = data.user ?? {};
-  const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: process.env.NODE_ENV !== "production" });
+  const ownerId = await ensureUserFromRequest(req, userPayload, {
+    allowGuests: process.env.NODE_ENV !== "production",
+  });
   if (!ownerId) {
     return returnError(401, "auth_required", "Authentication required");
   }
 
-  const rawTarget: TargetPayload = (data.target as JsonRecord | null | undefined)
-    ?? (data.friend as JsonRecord | null | undefined)
-    ?? (data.userTarget as JsonRecord | null | undefined)
-    ?? null;
+  const rawTarget: TargetPayload =
+    (data.target as JsonRecord | null | undefined) ??
+    (data.friend as JsonRecord | null | undefined) ??
+    (data.userTarget as JsonRecord | null | undefined) ??
+    null;
 
   const targetIdentifier: UserIdentifierInput = buildTargetIdentifier(rawTarget);
 
   const message = typeof data.message === "string" && data.message.trim() ? data.message : null;
   const reason = typeof data.reason === "string" && data.reason.trim() ? data.reason : null;
-  const requestId = typeof data.requestId === "string" && data.requestId.trim() ? data.requestId : null;
+  const requestId =
+    typeof data.requestId === "string" && data.requestId.trim() ? data.requestId : null;
 
   async function requireTarget(allowAlias = false) {
     if (!rawTarget) {
@@ -136,7 +140,10 @@ export async function POST(req: Request) {
       }
       case "accept": {
         if (!requestId) {
-          throw new FriendGraphError("invalid_action", "requestId is required to accept a request.");
+          throw new FriendGraphError(
+            "invalid_action",
+            "requestId is required to accept a request.",
+          );
         }
         const outcome = await acceptFriendRequest(requestId, ownerId);
         result = { request: outcome.request, friends: outcome.friends };
@@ -144,7 +151,10 @@ export async function POST(req: Request) {
       }
       case "decline": {
         if (!requestId) {
-          throw new FriendGraphError("invalid_action", "requestId is required to decline a request.");
+          throw new FriendGraphError(
+            "invalid_action",
+            "requestId is required to decline a request.",
+          );
         }
         const request = await declineFriendRequest(requestId, ownerId);
         result = { request };
@@ -152,7 +162,10 @@ export async function POST(req: Request) {
       }
       case "cancel": {
         if (!requestId) {
-          throw new FriendGraphError("invalid_action", "requestId is required to cancel a request.");
+          throw new FriendGraphError(
+            "invalid_action",
+            "requestId is required to cancel a request.",
+          );
         }
         const request = await cancelFriendRequest(requestId, ownerId);
         result = { request };
@@ -209,5 +222,3 @@ export async function POST(req: Request) {
     return returnError(500, "friends_update_failed", "Failed to update friends");
   }
 }
-
-

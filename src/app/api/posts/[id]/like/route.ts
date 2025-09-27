@@ -57,10 +57,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       ? (postRow["user_name"] as string).trim()
       : null;
   const rawContent =
-    postRow && typeof postRow["content"] === "string"
-      ? (postRow["content"] as string).trim()
-      : "";
-  const normalizedContent = rawContent.replace(/\s+/g, ' ').trim();
+    postRow && typeof postRow["content"] === "string" ? (postRow["content"] as string).trim() : "";
+  const normalizedContent = rawContent.replace(/\s+/g, " ").trim();
   const truncatedContent =
     normalizedContent.length > 180 ? `${normalizedContent.slice(0, 177)}…` : normalizedContent;
   const mediaUrl =
@@ -85,20 +83,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     }
   };
 
-
   try {
     if (action === "like") {
-      const { error } = await supabase
-        .from("post_likes")
-        .upsert(
-          [
-            {
-              post_id: postId,
-              user_id: userId,
-            },
-          ],
-          { onConflict: "post_id,user_id" },
-        );
+      const { error } = await supabase.from("post_likes").upsert(
+        [
+          {
+            post_id: postId,
+            user_id: userId,
+          },
+        ],
+        { onConflict: "post_id,user_id" },
+      );
       if (error) throw error;
 
       await cleanupLikeMemories();
@@ -116,7 +111,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         const descriptionParts: string[] = [];
         if (postAuthorName) descriptionParts.push(`By ${postAuthorName}`);
         if (truncatedContent) descriptionParts.push(truncatedContent);
-        const memoryDescription = descriptionParts.length ? descriptionParts.join(' • ') : null;
+        const memoryDescription = descriptionParts.length ? descriptionParts.join(" • ") : null;
 
         await indexMemory({
           ownerId: userId,
@@ -155,5 +150,3 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Failed to update like" }, { status: 500 });
   }
 }
-
-

@@ -1,47 +1,59 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import * as React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 
-import { getRealtimeClient, resetRealtimeClient, type TokenResponse } from "@/lib/realtime/ably-client";
-import type { Types as AblyTypes } from "ably";
-import type { FriendRequestSummary, SocialGraphSnapshot } from "@/lib/supabase/friends";
+import { type TokenResponse } from "@/lib/realtime/ably-client";
+import { useFriendsRealtime, type PresenceMap } from "@/hooks/useFriendsRealtime";
+import type { SocialGraphSnapshot } from "@/lib/supabase/friends";
 
 import styles from "./friends.module.css";
-import { FriendRow } from "@/components/friends/FriendRow";
-import { FriendMenu } from "@/components/friends/FriendMenu";
-
-type PresenceStatus = "online" | "offline" | "away";
-
-type FriendItem = {
-  id: string;
-  userId: string;
-  key: string | null;
-  name: string;
-  avatar: string | null;
-  since: string | null;
-  status: PresenceStatus;
-};
+import { FriendsTabs } from "@/components/friends/FriendsTabs";
+import { FriendsList, type FriendItem } from "@/components/friends/FriendsList";
+import { RequestsList } from "@/components/friends/RequestsList";
+import type { RequestItem as RequestsListItem } from "@/components/friends/RequestsList";
 
 type ChannelInfo = { events: string; presence: string };
 
-type PresenceMap = Record<string, { status: PresenceStatus; updatedAt: string | null }>;
-
-type RequestItem = FriendRequestSummary & { kind: "incoming" | "outgoing" };
+// presence state managed via useFriendsRealtime hook
 
 const FALLBACK_FRIENDS: FriendItem[] = [
-  { id: "capsules", userId: "capsules", key: null, name: "Capsules Team", avatar: null, since: null, status: "online" },
-  { id: "memory", userId: "memory", key: null, name: "Memory Bot", avatar: null, since: null, status: "online" },
-  { id: "dream", userId: "dream", key: null, name: "Dream Studio", avatar: null, since: null, status: "online" },
+  {
+    id: "capsules",
+    userId: "capsules",
+    key: null,
+    name: "Capsules Team",
+    avatar: null,
+    since: null,
+    status: "online",
+  },
+  {
+    id: "memory",
+    userId: "memory",
+    key: null,
+    name: "Memory Bot",
+    avatar: null,
+    since: null,
+    status: "online",
+  },
+  {
+    id: "dream",
+    userId: "dream",
+    key: null,
+    name: "Dream Studio",
+    avatar: null,
+    since: null,
+    status: "online",
+  },
 ];
 
 const tabs = ["Friends", "Chats", "Requests"] as const;
 type Tab = (typeof tabs)[number];
 
-async function fetchGraph(envelope: Record<string, unknown> | null): Promise<{ graph: SocialGraphSnapshot; channels: ChannelInfo; friends: FriendItem[] } | null> {
+async function fetchGraph(
+  envelope: Record<string, unknown> | null,
+): Promise<{ graph: SocialGraphSnapshot; channels: ChannelInfo; friends: FriendItem[] } | null> {
   const res = await fetch("/api/friends/sync", {
     method: "POST",
     credentials: "include",
@@ -62,7 +74,7 @@ async function fetchGraph(envelope: Record<string, unknown> | null): Promise<{ g
   if (!data?.graph) return null;
   return {
     graph: data.graph as SocialGraphSnapshot,
-    channels: (data.channels ?? null) as ChannelInfo | null ?? { events: "", presence: "" },
+    channels: ((data.channels ?? null) as ChannelInfo | null) ?? { events: "", presence: "" },
     friends: Array.isArray(data.friends) ? (data.friends as FriendItem[]) : [],
   };
 }
@@ -90,11 +102,13 @@ export function FriendsClient() {
   const { user } = useUser();
   const currentUserName = React.useMemo(() => {
     if (!user) return null;
-    return (user.fullName && user.fullName.trim())
-      || (user.username && user.username.trim())
-      || (user.firstName && user.firstName.trim())
-      || (user.lastName && user.lastName.trim())
-      || (user.primaryEmailAddress?.emailAddress ?? null);
+    return (
+      (user.fullName && user.fullName.trim()) ||
+      (user.username && user.username.trim()) ||
+      (user.firstName && user.firstName.trim()) ||
+      (user.lastName && user.lastName.trim()) ||
+      (user.primaryEmailAddress?.emailAddress ?? null)
+    );
   }, [user]);
   const currentUserAvatar = user?.imageUrl ?? null;
   const currentUserEnvelope = React.useMemo(() => {
@@ -104,7 +118,7 @@ export function FriendsClient() {
       email: user.primaryEmailAddress?.emailAddress ?? null,
       full_name: currentUserName ?? null,
       avatar_url: currentUserAvatar ?? null,
-      provider: 'clerk',
+      provider: "clerk",
       key: `clerk:${user.id}`,
     } as Record<string, unknown>;
   }, [user, currentUserName, currentUserAvatar]);
@@ -127,7 +141,6 @@ export function FriendsClient() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const refreshPending = React.useRef(false);
-  const realtimeCleanup = React.useRef<() => void>(() => {});
 
   const scheduleRefresh = React.useCallback(() => {
     if (refreshPending.current) return;
@@ -157,7 +170,10 @@ export function FriendsClient() {
           setChannels(data.channels);
           const initialPresence: PresenceMap = {};
           for (const friend of data.graph.friends ?? []) {
-            initialPresence[friend.friendUserId] = { status: "offline", updatedAt: friend.since ?? null };
+            initialPresence[friend.friendUserId] = {
+              status: "offline",
+              updatedAt: friend.since ?? null,
+            };
           }
           setPresence(initialPresence);
           setError(null);
@@ -176,110 +192,32 @@ export function FriendsClient() {
     };
   }, [currentUserEnvelope]);
 
-  React.useEffect(() => {
-    if (!channels || !channels.events || !channels.presence) return;
-    let unsubscribed = false;
-    let eventsChannel: AblyTypes.RealtimeChannelPromise | null = null;
-    let presenceChannel: AblyTypes.RealtimeChannelPromise | null = null;
-    let visibilityHandler: (() => void) | null = null;
+  useFriendsRealtime(channels, () => fetchToken(currentUserEnvelope), scheduleRefresh, setPresence);
 
-    getRealtimeClient(() => fetchToken(currentUserEnvelope))
-      .then(async (client) => {
-        if (unsubscribed) return;
-        eventsChannel = client.channels.get(channels.events);
-        const handleEvent = () => scheduleRefresh();
-        eventsChannel.subscribe(handleEvent);
-
-        presenceChannel = client.channels.get(channels.presence);
-        presenceChannel.presence.subscribe((message) => {
-          const clientId = String(message.clientId ?? "");
-          if (!clientId) return;
-          setPresence((prev) => ({
-            ...prev,
-            [clientId]: {
-              status: (message.data && typeof message.data.status === "string" ? message.data.status : "online") as PresenceStatus,
-              updatedAt: typeof message.data?.updatedAt === "string" ? message.data.updatedAt : null,
-            },
-          }));
-        });
-
-        try {
-          const members = await presenceChannel.presence.get();
-          const current: PresenceMap = {};
-          members.forEach((member) => {
-            const clientId = String(member.clientId ?? "");
-            if (!clientId) return;
-            current[clientId] = {
-              status: (member.data && typeof member.data.status === "string" ? member.data.status : "online") as PresenceStatus,
-              updatedAt: typeof member.data?.updatedAt === "string" ? member.data.updatedAt : null,
-            };
-          });
-          setPresence((prev) => ({ ...prev, ...current }));
-        } catch (err) {
-          console.error("presence get failed", err);
-        }
-
-        const clientId = client.auth.clientId ? String(client.auth.clientId) : null;
-        if (clientId) {
+  const mutateGraph = React.useCallback(
+    async (payload: Record<string, unknown>) => {
+      const res = await fetch("/api/friends/update", {
+        method: "POST",
+        credentials: "include",
+        headers: (() => {
+          const h: Record<string, string> = { "Content-Type": "application/json" };
           try {
-            await presenceChannel.presence.enter({ status: "online", updatedAt: new Date().toISOString() });
-          } catch (err) {
-            console.error("presence enter failed", err);
-          }
-        }
-
-        visibilityHandler = () => {
-          const status: PresenceStatus = document.visibilityState === "hidden" ? "away" : "online";
-          presenceChannel?.presence.update({ status, updatedAt: new Date().toISOString() }).catch(() => {});
-        };
-        document.addEventListener("visibilitychange", visibilityHandler);
-
-        realtimeCleanup.current = () => {
-          eventsChannel?.unsubscribe();
-          presenceChannel?.presence.unsubscribe();
-          if (document.visibilityState === "hidden") {
-            presenceChannel?.presence.update({ status: "offline", updatedAt: new Date().toISOString() }).catch(() => {});
-          }
-          presenceChannel?.presence.leave().catch(() => {});
-        };
-      })
-      .catch((err) => {
-        console.error("Realtime connect failed", err);
+            if (currentUserEnvelope) h["X-Capsules-User"] = JSON.stringify(currentUserEnvelope);
+          } catch {}
+          return h;
+        })(),
+        body: JSON.stringify({ ...payload, user: currentUserEnvelope ?? {} }),
       });
-
-    return () => {
-      unsubscribed = true;
-      if (visibilityHandler) {
-        document.removeEventListener("visibilitychange", visibilityHandler);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error((data && data.error) || "Failed to update friends");
       }
-      realtimeCleanup.current();
-      realtimeCleanup.current = () => {};
-    };
-  }, [channels, scheduleRefresh, currentUserEnvelope]);
-
-  React.useEffect(() => () => resetRealtimeClient(), []);
-
-  const mutateGraph = React.useCallback(async (payload: Record<string, unknown>) => {
-    const res = await fetch("/api/friends/update", {
-      method: "POST",
-      credentials: "include",
-      headers: (() => {
-        const h: Record<string, string> = { "Content-Type": "application/json" };
-        try {
-          if (currentUserEnvelope) h["X-Capsules-User"] = JSON.stringify(currentUserEnvelope);
-        } catch {}
-        return h;
-      })(),
-      body: JSON.stringify({ ...payload, user: currentUserEnvelope ?? {} }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error((data && data.error) || "Failed to update friends");
-    }
-    if (data?.graph) {
-      setGraph(data.graph as SocialGraphSnapshot);
-    }
-  }, [currentUserEnvelope]);
+      if (data?.graph) {
+        setGraph(data.graph as SocialGraphSnapshot);
+      }
+    },
+    [currentUserEnvelope],
+  );
 
   const selectTab = React.useCallback(
     (tab: Tab) => {
@@ -307,14 +245,22 @@ export function FriendsClient() {
     });
   }, [graph, presence]);
 
-  const incomingRequests: RequestItem[] = React.useMemo(() => {
+  const incomingRequests: RequestsListItem[] = React.useMemo(() => {
     if (!graph) return [];
-    return graph.incomingRequests.map((request) => ({ ...request, kind: "incoming" }));
+    return graph.incomingRequests.map((request) => ({
+      id: request.id,
+      user: request.user ? { name: request.user.name } : null,
+      kind: "incoming",
+    }));
   }, [graph]);
 
-  const outgoingRequests: RequestItem[] = React.useMemo(() => {
+  const outgoingRequests: RequestsListItem[] = React.useMemo(() => {
     if (!graph) return [];
-    return graph.outgoingRequests.map((request) => ({ ...request, kind: "outgoing" }));
+    return graph.outgoingRequests.map((request) => ({
+      id: request.id,
+      user: request.user ? { name: request.user.name } : null,
+      kind: "outgoing",
+    }));
   }, [graph]);
 
   const counters: Record<Tab, number> = {
@@ -332,21 +278,22 @@ export function FriendsClient() {
     return () => window.clearTimeout(timer);
   }, [friendNotice]);
 
-  const buildFriendTargetPayload = React.useCallback((friend: FriendItem): Record<string, string> | null => {
-    const target: Record<string, string> = {};
-    if (friend.userId) {
-      target.userId = friend.userId;
-    } else if (friend.key) {
-      target.userKey = friend.key;
-    } else {
-      return null;
-    }
-    if (friend.name) target.name = friend.name;
-    if (friend.avatar) target.avatar = friend.avatar;
-    return target;
-  }, []);
-
-
+  const buildFriendTargetPayload = React.useCallback(
+    (friend: FriendItem): Record<string, string> | null => {
+      const target: Record<string, string> = {};
+      if (friend.userId) {
+        target.userId = friend.userId;
+      } else if (friend.key) {
+        target.userKey = friend.key;
+      } else {
+        return null;
+      }
+      if (friend.name) target.name = friend.name;
+      if (friend.avatar) target.avatar = friend.avatar;
+      return target;
+    },
+    [],
+  );
 
   const handleFriendRemove = React.useCallback(
     async (friend: FriendItem, identifier: string) => {
@@ -401,44 +348,7 @@ export function FriendsClient() {
 
   return (
     <section className={styles.friendsSection}>
-      <div className={styles.tabsSticky}>
-        <div
-          className={styles.tabs}
-          role="tablist"
-          aria-label="Connections"
-          onKeyDown={(e) => {
-            if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-            e.preventDefault();
-            const index = tabs.indexOf(active);
-            const next = e.key === "ArrowRight" ? (index + 1) % tabs.length : (index - 1 + tabs.length) % tabs.length;
-            selectTab(tabs[next]);
-          }}
-        >
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              id={`tab-${tab.toLowerCase()}`}
-              className={`${styles.tab} ${active === tab ? styles.tabActive : ""}`.trim()}
-              role="tab"
-              aria-selected={active === tab}
-              aria-controls={`panel-${tab.toLowerCase()}`}
-              tabIndex={active === tab ? 0 : -1}
-              type="button"
-              onClick={() => selectTab(tab)}
-            >
-              <span className={styles.tabContent}>
-                <span className={styles.tabLabel}>{tab}</span>
-              </span>
-              {counters[tab] ? <span className={styles.badge}>{counters[tab]}</span> : null}
-              <span className={styles.tabDescription}>
-                {tab === "Friends" && "Everyone in your circle."}
-                {tab === "Chats" && "Jump back into conversations."}
-                {tab === "Requests" && "Approve new connections."}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+      <FriendsTabs active={active} counters={counters} onSelect={selectTab} />
 
       <div
         id="panel-chats"
@@ -457,31 +367,14 @@ export function FriendsClient() {
         hidden={active !== "Friends"}
         className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
       >
-        <div className={`${styles.list} ${styles.listLarge}`.trim()}>
-          {friendNotice ? <div className={styles.friendNotice}>{friendNotice}</div> : null}
-          {friends.map((friend, index) => {
-            const identifier = friend.userId ?? friend.key ?? friend.id ?? `friend-${index}`;
-            const canTarget = Boolean(friend.userId || friend.key);
-            const isPending = friendActionPendingId === identifier;
-            return (
-              <FriendRow
-                key={`${identifier}-${index}`}
-                name={friend.name}
-                avatar={friend.avatar}
-                since={friend.since ?? undefined}
-                status={friend.status}
-                open
-                actions={
-                  <FriendMenu
-                    canTarget={canTarget}
-                    pending={isPending}
-                    onDelete={() => handleFriendRemove(friend, identifier)}
-                  />
-                }
-              />
-            );
-          })}
-        </div>
+        <FriendsList
+          items={friends}
+          pendingId={friendActionPendingId}
+          notice={friendNotice}
+          onDelete={(friend, id) => {
+            void handleFriendRemove(friend, id);
+          }}
+        />
       </div>
 
       <div
@@ -491,43 +384,14 @@ export function FriendsClient() {
         hidden={active !== "Requests"}
         className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
       >
-        {incomingRequests.length === 0 && outgoingRequests.length === 0 ? (
-          <div className={styles.empty}>No pending requests.</div>
-        ) : (
-          <div className={styles.requestList}>
-            {incomingRequests.map((request) => (
-              <div key={request.id} className={styles.requestRow}>
-                <div className={styles.requestMeta}>
-                  <div className={styles.friendName}>{request.user?.name ?? "New friend"}</div>
-                  <div className={styles.requestLabel}>Incoming request</div>
-                </div>
-                <div className={styles.requestActions}>
-                  <button type="button" onClick={() => handleAccept(request.id)}>
-                    Accept
-                  </button>
-                  <button type="button" onClick={() => handleDecline(request.id)}>
-                    Decline
-                  </button>
-                </div>
-              </div>
-            ))}
-            {outgoingRequests.map((request) => (
-              <div key={request.id} className={styles.requestRow}>
-                <div className={styles.requestMeta}>
-                  <div className={styles.friendName}>{request.user?.name ?? "Pending friend"}</div>
-                  <div className={styles.requestLabel}>Waiting for approval</div>
-                </div>
-                <div className={styles.requestActions}>
-                  <button type="button" onClick={() => handleCancel(request.id)}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <RequestsList
+          incoming={incomingRequests}
+          outgoing={outgoingRequests}
+          onAccept={handleAccept}
+          onDecline={handleDecline}
+          onCancel={handleCancel}
+        />
       </div>
     </section>
   );
 }
-

@@ -78,7 +78,11 @@ export function getOAuthProviderConfig(provider: string): OAuthProviderConfig {
       };
     }
     case "tiktok": {
-      const { clientId, clientSecret } = assertClient("tiktok", process.env.TIKTOK_CLIENT_ID, process.env.TIKTOK_CLIENT_SECRET);
+      const { clientId, clientSecret } = assertClient(
+        "tiktok",
+        process.env.TIKTOK_CLIENT_ID,
+        process.env.TIKTOK_CLIENT_SECRET,
+      );
       return {
         authUrl: "https://www.tiktok.com/v2/auth/authorize/",
         tokenUrl: "https://open.tiktokapis.com/v2/oauth/token/",
@@ -92,14 +96,19 @@ export function getOAuthProviderConfig(provider: string): OAuthProviderConfig {
       };
     }
     case "facebook": {
-      const { clientId, clientSecret } = assertClient("facebook", process.env.FACEBOOK_CLIENT_ID, process.env.FACEBOOK_CLIENT_SECRET);
+      const { clientId, clientSecret } = assertClient(
+        "facebook",
+        process.env.FACEBOOK_CLIENT_ID,
+        process.env.FACEBOOK_CLIENT_SECRET,
+      );
       return {
         authUrl: "https://www.facebook.com/v18.0/dialog/oauth",
         tokenUrl: "https://graph.facebook.com/v18.0/oauth/access_token",
         params: {
           client_id: clientId,
           response_type: "code",
-          scope: "public_profile,pages_show_list,pages_read_engagement,pages_manage_posts,pages_read_user_content",
+          scope:
+            "public_profile,pages_show_list,pages_read_engagement,pages_manage_posts,pages_read_user_content",
         },
         clientId,
         clientSecret,

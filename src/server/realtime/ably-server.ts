@@ -17,10 +17,11 @@ export type FriendRealtimeEvent = { type: string; payload: Record<string, unknow
 function getRestClient(): Ably.Rest | null {
   if (!serverEnv.ABLY_API_KEY) return null;
   if (!restClient) {
-    restClient = new Ably.Rest({
-      key: serverEnv.ABLY_API_KEY,
-      environment: serverEnv.ABLY_ENVIRONMENT ?? undefined,
-    });
+    const options: Ably.Types.ClientOptions = { key: serverEnv.ABLY_API_KEY };
+    if (serverEnv.ABLY_ENVIRONMENT) {
+      options.environment = serverEnv.ABLY_ENVIRONMENT;
+    }
+    restClient = new Ably.Rest(options);
   }
   return restClient;
 }
@@ -29,7 +30,9 @@ function channelNameForUser(userId: string): string {
   return `${FRIEND_CHANNEL_PREFIX}:${userId}:${FRIEND_EVENTS_NAMESPACE}`;
 }
 
-export async function publishFriendEvents(events: Array<{ userId: string; event: FriendRealtimeEvent }>): Promise<void> {
+export async function publishFriendEvents(
+  events: Array<{ userId: string; event: FriendRealtimeEvent }>,
+): Promise<void> {
   const rest = getRestClient();
   if (!rest) return;
   await Promise.all(

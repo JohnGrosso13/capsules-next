@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
       row.confirmed_at ?? "",
       row.created_at ?? "",
     ]);
-    const csv = [headers.join(","), ...rows.map((columns) => columns.map(escapeCsvField).join(","))].join("\r\n");
+    const csv = [
+      headers.join(","),
+      ...rows.map((columns) => columns.map(escapeCsvField).join(",")),
+    ].join("\r\n");
 
     return new NextResponse(csv, {
       status: 200,
@@ -35,7 +38,7 @@ export async function GET(req: NextRequest) {
 }
 
 function escapeCsvField(value: string) {
-  if (value.includes(",") || value.includes("\"") || value.includes("\n") || value.includes("\r")) {
+  if (value.includes(",") || value.includes('"') || value.includes("\n") || value.includes("\r")) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;

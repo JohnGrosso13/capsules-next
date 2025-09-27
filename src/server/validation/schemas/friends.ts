@@ -129,7 +129,7 @@ export const friendSyncResponseSchema = z.object({
   }),
 });
 
-const actionResultSchema = z.record(z.unknown()).nullable();
+const actionResultSchema = z.record(z.string(), z.unknown()).nullable();
 
 export const friendUpdateResponseSchema = z.object({
   success: z.literal(true),

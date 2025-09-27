@@ -3,14 +3,14 @@ import { z } from "zod";
 
 const requestSchema = z.object({
   message: z.string().min(1),
-  options: z.record(z.unknown()).optional(),
-  post: z.record(z.unknown()).optional(),
+  options: z.record(z.string(), z.unknown()).optional(),
+  post: z.record(z.string(), z.unknown()).optional(),
 });
 
 const responseSchema = z.object({
   action: z.literal("draft_post"),
   message: z.string().optional(),
-  post: z.record(z.unknown()),
+  post: z.record(z.string(), z.unknown()),
   choices: z.array(z.object({ key: z.string(), label: z.string() })).optional(),
 });
 
@@ -21,7 +21,8 @@ export async function POST(req: Request) {
   const { message, options } = parsed.data;
   const lower = message.toLowerCase();
 
-  const prefer = typeof options?.["prefer"] === "string" ? String(options["prefer"]).toLowerCase() : null;
+  const prefer =
+    typeof options?.["prefer"] === "string" ? String(options["prefer"]).toLowerCase() : null;
 
   let kind: string = "text";
   if (prefer === "poll" || /\b(poll|survey|vote|choices?)\b/.test(lower)) kind = "poll";
@@ -50,7 +51,12 @@ export async function POST(req: Request) {
 }
 
 function suggestCaption(text: string): string {
-  const cleaned = text.replace(/^(make|draft|write|compose|generate)\s+(me\s+)?(a\s+)?(social\s+)?post\s*(about|on)?\s*/i, "").trim();
+  const cleaned = text
+    .replace(
+      /^(make|draft|write|compose|generate)\s+(me\s+)?(a\s+)?(social\s+)?post\s*(about|on)?\s*/i,
+      "",
+    )
+    .trim();
   if (cleaned) return capitalize(cleaned);
   return "Sharing a quick update with my capsule!";
 }
@@ -81,9 +87,9 @@ function summarizeDraft(text: string, kind: string): string {
   return `Drafted a ${noun} based on your prompt.`;
 }
 
-function capitalize(value: string): string {
-  if (!value) return value;
+function capitalize(value: string | null | undefined): string {
+  if (!value) return "";
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-
+export const runtime = "edge";

@@ -9,9 +9,11 @@ export const postsQuerySchema = z.object({
   after: z.string().trim().min(1).optional(),
 });
 
-export const postPayloadSchema = z.record(z.string(), z.unknown()).refine((value) => Object.keys(value).length > 0, {
-  message: "post payload cannot be empty",
-});
+export const postPayloadSchema = z
+  .record(z.string(), z.unknown())
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "post payload cannot be empty",
+  });
 
 export const createPostRequestSchema = requestUserEnvelopeSchema.extend({
   post: postPayloadSchema,

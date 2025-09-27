@@ -13,9 +13,9 @@ export async function embedText(input: string) {
     },
     body: JSON.stringify({ model, input: text, encoding_format: "float" }),
   });
-  const json = (await response.json().catch(() => null)) as
-    | { data?: Array<{ embedding: number[] }> }
-    | null;
+  const json = (await response.json().catch(() => null)) as {
+    data?: Array<{ embedding: number[] }>;
+  } | null;
   if (!response.ok) {
     console.error("OpenAI embedding error", json);
     return null;
@@ -57,9 +57,9 @@ export async function captionImage(url: string): Promise<string | null> {
         ],
       }),
     });
-    const json = (await response.json().catch(() => null)) as
-      | { choices?: Array<{ message?: { content?: string } }> }
-      | null;
+    const json = (await response.json().catch(() => null)) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    } | null;
     if (!response.ok) {
       console.error("OpenAI caption error", json);
       return null;

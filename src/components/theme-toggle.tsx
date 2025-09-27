@@ -48,7 +48,9 @@ function segStyle(active: boolean): React.CSSProperties {
     gap: 8,
     padding: "9px 14px",
     borderRadius: 999,
-    border: active ? "1px solid transparent" : "1px solid var(--pill-border, rgba(255,255,255,0.18))",
+    border: active
+      ? "1px solid transparent"
+      : "1px solid var(--pill-border, rgba(255,255,255,0.18))",
     color: active ? "var(--text-on-brand, #0e1024)" : "var(--text, rgba(255,255,255,0.92))",
     fontWeight: 800,
     letterSpacing: ".01em",

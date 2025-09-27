@@ -1,60 +1,80 @@
 "use client";
 
-import Link from "next/link";
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
-import styles from "./landing-auth-card.module.css";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export function LandingAuthCard() {
+  const router = useRouter();
+
   return (
-    <div className={styles.card}>
+    <Card
+      variant="soft"
+      className="border-border/50 bg-surface-elevated/80 shadow-glow w-full max-w-md border backdrop-blur-xl"
+    >
       <SignedOut>
-        <div>
-          <h3 className={styles.heading}>Start your space</h3>
-          <p className={styles.description}>
+        <CardHeader className="gap-3">
+          <CardTitle className="text-fg text-2xl font-semibold">Start your space</CardTitle>
+          <CardDescription className="text-fg-subtle text-[15px] leading-6">
             Sign in to launch your Capsule and explore features with our AI prompter.
-          </p>
-        </div>
-        <div className={styles.buttonGroup}>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
           <SignInButton mode="modal">
-            <button className={styles.primaryButton} type="button">
+            <Button className="w-full" size="lg">
               Launch Capsule
-            </button>
+            </Button>
           </SignInButton>
           <SignInButton mode="modal">
-            <button className={styles.secondaryButton} type="button">
+            <Button variant="secondary" className="w-full" size="lg">
               Sign In
-            </button>
+            </Button>
           </SignInButton>
           <SignInButton mode="modal">
-            <button className={styles.secondaryButton} type="button">
+            <Button variant="ghost" className="w-full" size="lg">
               Explore Features
-            </button>
+            </Button>
           </SignInButton>
-        </div>
+        </CardContent>
       </SignedOut>
       <SignedIn>
-        <div className={styles.signedInHeader}>
-          <div className={styles.userButton}>
-            <UserButton afterSignOutUrl="/" />
+        <CardHeader className="flex-row items-start justify-between gap-4 pb-0">
+          <div className="border-border/40 bg-surface-muted/70 rounded-2xl border p-1 shadow-xs">
+            <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "h-11 w-11" } }} />
           </div>
-          <div className={styles.signedInText}>
-            <span className={styles.signedInGreeting}>Welcome back</span>
-            <p className={styles.signedInMessage}>
+          <div className="flex-1 space-y-1">
+            <CardTitle className="text-fg text-xl font-semibold">Welcome back</CardTitle>
+            <CardDescription className="text-fg-subtle text-[15px] leading-6">
               Jump straight into your capsule or spin up a new one with AI.
-            </p>
+            </CardDescription>
           </div>
-        </div>
-        <div className={styles.divider} />
-        <div className={styles.signedInActions}>
-          <Link href="/capsule" className={`${styles.linkButton} ${styles.primaryLink}`}>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="bg-border/60 h-px w-full" />
+        </CardContent>
+        <CardFooter className="flex flex-col gap-3 pt-0">
+          <Button size="lg" className="w-full" onClick={() => router.push("/capsule")}>
             Open my capsule
-          </Link>
-          <Link href="/create" className={styles.linkButton}>
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            className="w-full"
+            onClick={() => router.push("/create")}
+          >
             Create something new
-          </Link>
-        </div>
+          </Button>
+        </CardFooter>
       </SignedIn>
-    </div>
+    </Card>
   );
 }

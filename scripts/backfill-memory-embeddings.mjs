@@ -96,7 +96,9 @@ async function main() {
       if (row.description) parts.push(String(row.description));
       if (row.media_type) parts.push(String(row.media_type));
       const metaPrompt = row.meta && typeof row.meta === "object" ? JSON.stringify(row.meta) : "";
-      if (metaPrompt && metaPrompt !== "{}"){ parts.push(metaPrompt); }
+      if (metaPrompt && metaPrompt !== "{}") {
+        parts.push(metaPrompt);
+      }
       const text = parts.join("\n");
       const embedding = await embedText(text);
       if (!embedding) {

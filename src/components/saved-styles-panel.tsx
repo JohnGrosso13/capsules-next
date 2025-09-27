@@ -71,18 +71,23 @@ function normalizeStyles(items: unknown[] | undefined): SavedStyle[] {
     if (!id) return;
     const meta = (record.meta as Record<string, unknown> | undefined) ?? {};
     const vars = normalizeVarMap(meta.vars);
-    const summary = typeof meta.summary === "string" && meta.summary.trim()
-      ? meta.summary.trim()
-      : typeof record.description === "string" && record.description.trim()
-      ? (record.description as string).trim()
-      : "";
+    const summary =
+      typeof meta.summary === "string" && meta.summary.trim()
+        ? meta.summary.trim()
+        : typeof record.description === "string" && record.description.trim()
+          ? (record.description as string).trim()
+          : "";
     const prompt = typeof meta.prompt === "string" ? meta.prompt.trim() : "";
     const rawTitle = typeof record.title === "string" ? record.title.trim() : "";
     const title = rawTitle || summary || (prompt ? truncate(prompt, 40) : "Saved style");
-    const createdAt = typeof record.created_at === "string" ? record.created_at : new Date().toISOString();
+    const createdAt =
+      typeof record.created_at === "string" ? record.created_at : new Date().toISOString();
     const createdLabel = formatTimestamp(createdAt);
     const sourceRaw = typeof meta.source === "string" ? meta.source.toLowerCase() : "";
-    const source = sourceRaw === "heuristic" || sourceRaw === "ai" ? (sourceRaw as "heuristic" | "ai") : "unknown";
+    const source =
+      sourceRaw === "heuristic" || sourceRaw === "ai"
+        ? (sourceRaw as "heuristic" | "ai")
+        : "unknown";
     result.push({
       id,
       title,
@@ -100,12 +105,13 @@ function normalizeStyles(items: unknown[] | undefined): SavedStyle[] {
 
 function buildUserEnvelope(user: ClerkUser): MemoryEnvelope | null {
   if (!user) return null;
-  const fullName = user.fullName?.trim()
-    || user.username?.trim()
-    || user.firstName?.trim()
-    || user.lastName?.trim()
-    || user.primaryEmailAddress?.emailAddress
-    || null;
+  const fullName =
+    user.fullName?.trim() ||
+    user.username?.trim() ||
+    user.firstName?.trim() ||
+    user.lastName?.trim() ||
+    user.primaryEmailAddress?.emailAddress ||
+    null;
   return {
     clerk_id: user.id,
     email: user.primaryEmailAddress?.emailAddress ?? null,
@@ -137,7 +143,9 @@ export function SavedStylesPanel() {
   const [loading, setLoading] = React.useState<boolean>(true);
   const [status, setStatus] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [currentVars, setCurrentVars] = React.useState<Record<string, string>>(() => getStoredThemeVars());
+  const [currentVars, setCurrentVars] = React.useState<Record<string, string>>(() =>
+    getStoredThemeVars(),
+  );
   const [applyingId, setApplyingId] = React.useState<string | null>(null);
 
   const refreshCurrentVars = React.useCallback(() => {
@@ -204,24 +212,27 @@ export function SavedStylesPanel() {
 
   const hasStoredVars = React.useMemo(() => Object.keys(currentVars).length > 0, [currentVars]);
 
-  const handleApply = React.useCallback(async (style: SavedStyle) => {
-    if (!style.keyCount) {
-      setStatus("That saved style doesn't include any changes yet.");
-      return;
-    }
-    setError(null);
-    setApplyingId(style.id);
-    try {
-      applyThemeVars(style.vars);
-      refreshCurrentVars();
-      setStatus(`Applied "${style.title}".`);
-    } catch (err) {
-      console.error("Apply saved style error", err);
-      setStatus("Couldn't apply that style right now.");
-    } finally {
-      setApplyingId(null);
-    }
-  }, [refreshCurrentVars]);
+  const handleApply = React.useCallback(
+    async (style: SavedStyle) => {
+      if (!style.keyCount) {
+        setStatus("That saved style doesn't include any changes yet.");
+        return;
+      }
+      setError(null);
+      setApplyingId(style.id);
+      try {
+        applyThemeVars(style.vars);
+        refreshCurrentVars();
+        setStatus(`Applied "${style.title}".`);
+      } catch (err) {
+        console.error("Apply saved style error", err);
+        setStatus("Couldn't apply that style right now.");
+      } finally {
+        setApplyingId(null);
+      }
+    },
+    [refreshCurrentVars],
+  );
 
   const handleReset = React.useCallback(() => {
     setError(null);
@@ -235,29 +246,32 @@ export function SavedStylesPanel() {
     }
   }, [refreshCurrentVars]);
 
-  const handleDelete = React.useCallback(async (style: SavedStyle) => {
-    if (!envelope) {
-      setStatus("Please sign in to delete saved styles.");
-      return;
-    }
-    setApplyingId(style.id);
-    try {
-      const res = await fetch("/api/memory/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ ids: [style.id], kind: "theme", user: envelope }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      setSavedStyles((prev) => prev.filter((s) => s.id !== style.id));
-      setStatus("Deleted style.");
-    } catch (err) {
-      console.error("Delete saved style error", err);
-      setStatus("Couldn't delete that style.");
-    } finally {
-      setApplyingId(null);
-    }
-  }, [envelope]);
+  const handleDelete = React.useCallback(
+    async (style: SavedStyle) => {
+      if (!envelope) {
+        setStatus("Please sign in to delete saved styles.");
+        return;
+      }
+      setApplyingId(style.id);
+      try {
+        const res = await fetch("/api/memory/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ ids: [style.id], kind: "theme", user: envelope }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        setSavedStyles((prev) => prev.filter((s) => s.id !== style.id));
+        setStatus("Deleted style.");
+      } catch (err) {
+        console.error("Delete saved style error", err);
+        setStatus("Couldn't delete that style.");
+      } finally {
+        setApplyingId(null);
+      }
+    },
+    [envelope],
+  );
 
   const buildPreviewStyle = React.useCallback((vars: Record<string, string>) => {
     const style: React.CSSProperties = {};
@@ -273,7 +287,8 @@ export function SavedStylesPanel() {
     <div className={panelStyles.panel}>
       <div className={panelStyles.headerRow}>
         <p className={panelStyles.lead}>
-          Every time you ask Capsule AI to restyle the app we save the result. Reapply a look or start from a fresh canvas.
+          Every time you ask Capsule AI to restyle the app we save the result. Reapply a look or
+          start from a fresh canvas.
         </p>
         <div className={panelStyles.actions}>
           <button
@@ -301,13 +316,19 @@ export function SavedStylesPanel() {
       ) : savedStyles.length ? (
         <ul className={panelStyles.list}>
           {savedStyles.map((style) => {
-            const isActive = style.keyCount > 0 && Object.entries(style.vars).every(([key, value]) => currentVars[key] === value);
+            const isActive =
+              style.keyCount > 0 &&
+              Object.entries(style.vars).every(([key, value]) => currentVars[key] === value);
             const metaParts: string[] = [];
             if (style.createdLabel) metaParts.push(`Saved ${style.createdLabel}`);
             metaParts.push(`${style.keyCount} ${style.keyCount === 1 ? "variable" : "variables"}`);
             return (
               <li key={style.id} className={panelStyles.item} data-active={isActive || undefined}>
-                <div className={panelStyles.swatch} style={buildPreviewStyle(style.vars)} aria-hidden>
+                <div
+                  className={panelStyles.swatch}
+                  style={buildPreviewStyle(style.vars)}
+                  aria-hidden
+                >
                   <div className={panelStyles.swatchBg} />
                   <div className={panelStyles.swatchCard} />
                 </div>
@@ -336,19 +357,31 @@ export function SavedStylesPanel() {
                     </button>
                   </div>
                 </div>
-                {style.summary ? <p className={panelStyles.summary}>{truncate(style.summary, 140)}</p> : null}
-                {style.prompt ? <p className={panelStyles.prompt}>Prompt: &quot;{truncate(style.prompt, 120)}&quot;</p> : null}
+                {style.summary ? (
+                  <p className={panelStyles.summary}>{truncate(style.summary, 140)}</p>
+                ) : null}
+                {style.prompt ? (
+                  <p className={panelStyles.prompt}>
+                    Prompt: &quot;{truncate(style.prompt, 120)}&quot;
+                  </p>
+                ) : null}
                 <div className={panelStyles.tagRow}>
                   <span className={panelStyles.varBadge}>{style.keyCount} vars</span>
                   <span className={panelStyles.varBadge}>{sourceLabel(style.source)}</span>
-                  {isActive ? <span className={`${panelStyles.varBadge} ${panelStyles.activeBadge}`.trim()}>Active</span> : null}
+                  {isActive ? (
+                    <span className={`${panelStyles.varBadge} ${panelStyles.activeBadge}`.trim()}>
+                      Active
+                    </span>
+                  ) : null}
                 </div>
               </li>
             );
           })}
         </ul>
       ) : (
-        <div className={panelStyles.empty}>No saved styles yet. Try &quot;Style my capsule like winter&quot; to get started.</div>
+        <div className={panelStyles.empty}>
+          No saved styles yet. Try &quot;Style my capsule like winter&quot; to get started.
+        </div>
       )}
     </div>
   );

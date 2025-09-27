@@ -5,17 +5,23 @@ import { AIConfigError, transcribeAudioFromBase64 } from "@/lib/ai/prompter";
 export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-    const audioBase64Raw = typeof body?.audio_base64 === "string" && body.audio_base64.trim().length
-      ? body.audio_base64.trim()
-      : typeof body?.audioBase64 === "string"
-        ? body.audioBase64.trim()
-        : "";
+    const audioBase64Raw =
+      typeof body?.audio_base64 === "string" && body.audio_base64.trim().length
+        ? body.audio_base64.trim()
+        : typeof body?.audioBase64 === "string"
+          ? body.audioBase64.trim()
+          : "";
     if (!audioBase64Raw) {
       return NextResponse.json({ error: "audio_base64 is required" }, { status: 400 });
     }
-    const mime = typeof body?.mime === "string" && body.mime.trim().length ? body.mime.trim() : null;
+    const mime =
+      typeof body?.mime === "string" && body.mime.trim().length ? body.mime.trim() : null;
     const result = await transcribeAudioFromBase64({ audioBase64: audioBase64Raw, mime });
-    return NextResponse.json({ text: result.text || "", model: result.model || null, raw: result.raw || null });
+    return NextResponse.json({
+      text: result.text || "",
+      model: result.model || null,
+      raw: result.raw || null,
+    });
   } catch (error) {
     if (error instanceof AIConfigError) {
       return NextResponse.json({ error: error.message }, { status: 500 });

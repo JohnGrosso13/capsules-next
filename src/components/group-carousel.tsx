@@ -1,51 +1,67 @@
-"use client";
+﻿"use client";
 
-import React from "react";
-import styles from "./group-carousel.module.css";
+import { cn } from "@/lib/cn";
 
 type Item = string | { label: string; icon?: string };
 
+type GroupCarouselProps = {
+  items: Item[];
+  animate?: boolean;
+};
+
 const DEFAULT_ICONS: Record<string, string> = {
-  Creators: "🎨",
-  Teams: "👥",
-  Families: "👨‍👩‍👧",
-  "Community Founders": "🏛️",
-  "Event Organizers": "📅",
+  Creators: "✨",
+  Teams: "🤝",
+  Families: "👪",
+  "Community Founders": "🌱",
+  "Event Organizers": "🎉",
   "Educators & Coaches": "🎓",
-  Clubs: "🎯",
-  "Designers & Illustrators": "✏️",
+  Clubs: "🏛️",
+  "Designers & Illustrators": "🎨",
   "Local Groups": "📍",
-  "Gaming Communities": "🎮",
+  "Gaming Communities": "🕹️",
   Schools: "🏫",
   "Independent Sellers": "🛍️",
-  Streamers: "📺",
+  Streamers: "📡",
   Leagues: "🏆",
   Writers: "✍️",
   Podcasters: "🎙️",
-  Photographers: "📷",
+  Photographers: "📸",
   "Alumni Networks": "🎓",
 };
 
-export function GroupCarousel({ items, animate = false }: { items: Item[]; animate?: boolean }) {
-  const normalized = React.useMemo(
-    () =>
-      items.map((it) =>
-        typeof it === "string" ? { label: it, icon: DEFAULT_ICONS[it] || "✨" } : { label: it.label, icon: it.icon || DEFAULT_ICONS[it.label] || "✨" },
-      ),
-    [items],
+export function GroupCarousel({ items, animate = false }: GroupCarouselProps) {
+  const normalized = items.map((item) =>
+    typeof item === "string"
+      ? { label: item, icon: DEFAULT_ICONS[item] }
+      : { label: item.label, icon: item.icon ?? DEFAULT_ICONS[item.label] },
   );
-  const list = React.useMemo(() => [...normalized, ...normalized], [normalized]);
+  const doubled = animate ? [...normalized, ...normalized] : normalized;
+
   return (
-    <div className={styles.band}>
-      <div className={styles.carousel} aria-label="Group types carousel">
-        <div className={styles.track} role="list" data-animate={animate ? "true" : "false"}>
-          {list.map((entry, i) => (
-            <span className={styles.item} key={`${entry.label}-${i}`} role="listitem">
-              <span className={styles.icon} aria-hidden="true">{entry.icon}</span>
-              <span className={styles.label}>{entry.label}</span>
-            </span>
-          ))}
-        </div>
+    <div className="border-border/40 bg-surface-muted/60 relative overflow-hidden rounded-3xl border p-4 shadow-md backdrop-blur">
+      <div
+        className={cn(
+          "flex min-w-max items-center gap-3",
+          animate ? "animate-marquee" : "flex-wrap",
+        )}
+        role="list"
+        aria-label="Popular group types"
+      >
+        {doubled.map((entry, index) => (
+          <span
+            key={`${entry.label}-${index}`}
+            className="rounded-pill border-border/40 bg-surface-elevated/80 text-fg/90 inline-flex items-center gap-2 border px-4 py-2 text-sm font-medium shadow-xs backdrop-blur"
+            role="listitem"
+          >
+            {entry.icon ? (
+              <span aria-hidden="true" className="text-base">
+                {entry.icon}
+              </span>
+            ) : null}
+            <span>{entry.label}</span>
+          </span>
+        ))}
       </div>
     </div>
   );
