@@ -1,21 +1,24 @@
 .main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 28px;
+  /* Fill the AppShell content column so spacing is driven by shared gaps */
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* Outer container reminiscent of the previous glass/neumorphic shell */
 .shell {
   display: grid;
   grid-template-columns: 220px 1fr;
-  gap: 18px;
+  gap: 24px; /* match AppShell gap for left column vs rail */
   align-items: start;
 }
 
 /* Side rail */
 .side {
   position: sticky;
-  top: 88px;
+  /* Align with AppShell rail sticky offset */
+  top: calc(var(--header-height, 72px) + 36px);
   align-self: start;
 }
 .sideInner {
@@ -68,7 +71,8 @@
 }
 .sideItemActive {
   color: var(--text-on-brand, #0e1024);
-  background: var(--brand-gradient);
+  /* Use app brand gradient with fallback */
+  background: var(--brand-gradient, var(--gradient-brand));
   border-color: transparent;
   box-shadow:
     0 0 18px var(--accent-glow, rgba(99, 102, 241, 0.34)),

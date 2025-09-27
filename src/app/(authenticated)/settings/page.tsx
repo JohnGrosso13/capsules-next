@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function SettingsPage() {
   return (
-    <AppPage showPrompter={false}>
+    <AppPage showPrompter={true}>
       <div className={layout.main}>
         <section className={layout.shell}>
           <aside className={layout.side} aria-label="Settings sections">

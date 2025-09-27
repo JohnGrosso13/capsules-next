@@ -1,8 +1,15 @@
 .outer {
-  padding: 68px 0 80px;
+  /* Align page offset to compact header height */
+  padding: calc(var(--header-height, 72px) + 36px) 0 80px;
+}
+@media (max-width: 640px) {
+  .outer {
+    padding: calc(var(--header-height, 72px) + 24px) 0 64px;
+  }
 }
 .page {
-  width: min(1180px, calc(100% - 56px));
+  /* Match Home page container width */
+  width: min(1200px, calc(100% - 56px));
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -81,8 +88,18 @@
   gap: 24px;
 }
 .prompterStage {
-  width: min(880px, 100%);
-  margin: 0 auto;
+  /* Match Home prompter spacing and width exactly */
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto 64px;
+  position: relative;
+  z-index: 300;
+  isolation: isolate;
+}
+@media (max-width: 640px) {
+  .prompterStage {
+    margin-bottom: 22px;
+  }
 }
 
 .layout {
@@ -104,7 +121,8 @@
 
 .rail {
   position: sticky;
-  top: 100px;
+  /* Match page top padding so rail aligns with content start */
+  top: calc(var(--header-height, 72px) + 36px);
   display: block;
   /* Borderless rail: containers inside (tiles/panel) own their glass shells */
 }

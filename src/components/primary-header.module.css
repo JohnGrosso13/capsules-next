@@ -1,6 +1,8 @@
 /* High-contrast glass header with bold nav tokens and CTA */
 
 .header {
+  /* Revert to compact header height to match design screenshot */
+  --header-height: 72px;
   position: fixed;
   inset: 0 auto auto 0;
   top: 0;
@@ -20,6 +22,7 @@
   -webkit-backdrop-filter: blur(16px) saturate(160%);
   border-bottom: 1px solid var(--header-border-color, rgba(255, 255, 255, 0.16));
   box-shadow: var(--header-shadow, 0 10px 26px rgba(5, 10, 26, 0.42));
+  min-height: var(--header-height);
 }
 
 /* Disable decorative overlays to avoid any blend with page content */
@@ -52,7 +55,8 @@
   position: relative;
   width: min(1200px, calc(100% - 56px));
   margin: 0 auto;
-  padding: 12px 0;
+  /* Slightly tighter vertical padding for a shorter header */
+  padding: 10px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -66,8 +70,9 @@
   text-decoration: none;
 }
 .brandMark {
-  width: 34px;
-  height: 34px;
+  /* Reduce brand mark to fit the compact header */
+  width: 30px;
+  height: 30px;
   border-radius: 12px;
   background: linear-gradient(135deg, #4f46e5, #7c3aed);
   border: 1px solid rgba(255, 255, 255, 0.24);
@@ -140,14 +145,19 @@
 }
 
 .iconButton {
-  width: 44px;
-  height: 44px;
+  /* Make icon buttons slightly smaller and crisper */
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
   border: 1px solid var(--header-border-color, rgba(255, 255, 255, 0.16));
-  background: linear-gradient(180deg, var(--glass-bg-1, rgba(255, 255, 255, 0.08)), var(--glass-bg-2, rgba(255, 255, 255, 0.04)));
+  background: linear-gradient(
+    180deg,
+    var(--glass-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--glass-bg-2, rgba(255, 255, 255, 0.045))
+  );
   color: var(--color-fg);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
@@ -158,16 +168,32 @@
   border-color: rgba(255, 255, 255, 0.24);
   transform: translateY(-1px);
 }
+.iconButton:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.8),
+    0 0 0 4px rgba(99, 102, 241, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.45),
+    0 8px 18px rgba(5, 10, 26, 0.35);
+}
 .iconSvg {
-  width: 24px;
-  height: 24px;
+  /* Match the visual weight of the larger profile avatar */
+  width: 30px;
+  height: 30px;
+}
+
+/* Avatar button wrapper aligns Clerk UserButton avatar to match icon buttons */
+.avatarButton {
+  overflow: hidden;
+  padding: 0;
 }
 
 /* Exact CTA per screenshot: lavender core with subtle purple/cyan edges */
 .launchCta {
   min-width: 176px;
   padding-inline: 24px;
-  height: 44px;
+  height: 44px; /* Keep CTA strong but header stays compact */
   border-radius: 999px;
   font-weight: 800; /* stronger for readability */
   letter-spacing: 0.01em;

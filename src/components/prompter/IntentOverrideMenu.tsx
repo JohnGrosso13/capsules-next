@@ -36,6 +36,7 @@ export function IntentOverrideMenu({
           aria-expanded={open}
           aria-haspopup="listbox"
           ref={anchorRef}
+          data-intent={manualIntent ?? undefined}
         >
           {manualIntent ? intentLabel(manualIntent) : "Auto"}
           {manualIntent ? " (override)" : ""}
@@ -68,7 +69,7 @@ export function IntentOverrideMenu({
             role="option"
             aria-selected={manualIntent === "navigate"}
           >
-            Navigate
+            Go
           </button>
           <button
             type="button"

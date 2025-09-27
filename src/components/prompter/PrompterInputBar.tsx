@@ -65,7 +65,12 @@ export function PrompterInputBar({
         placeholder={placeholder}
         ref={inputRef}
         id="ai-prompter-input"
-        name="ai_prompter"
+        // Prevent browser suggestions/auto-fill bubbles
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        enterKeyHint="go"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />

@@ -21,12 +21,13 @@ export function HeaderAuth() {
         </SignInButton>
       </SignedOut>
       <SignedIn>
-        <div className={headerStyles.iconButton}>
+        <div className={`${headerStyles.iconButton} ${headerStyles.avatarButton}`}>
           <UserButton
             afterSignOutUrl="/"
             appearance={{
               elements: {
-                avatarBox: "h-9 w-9",
+                /* Fill the 40px circle for stronger presence */
+                avatarBox: "h-10 w-10",
               },
             }}
           />

@@ -137,15 +137,13 @@ export function AiPrompterStage({
 
   const trimmed = text.trim();
   const hasAttachment = Boolean(readyAttachment);
-  const baseIntent =
-    manualIntent ?? (hasAttachment && trimmed.length === 0 ? "post" : autoIntent.intent);
+  // Determine base intent without considering manual override
+  const baseIntent = hasAttachment && trimmed.length === 0 ? "post" : autoIntent.intent;
   const navTarget = React.useMemo(() => resolveNavigationTarget(trimmed), [trimmed]);
   const postPlan = React.useMemo(() => resolvePostPlan(trimmed), [trimmed]);
-  const effectiveIntent: PromptIntent = navTarget
-    ? "navigate"
-    : postPlan.mode !== "none"
-      ? "post"
-      : baseIntent;
+  // Manual override takes precedence over heuristics/AI.
+  const effectiveIntent: PromptIntent =
+    manualIntent ?? (navTarget ? "navigate" : postPlan.mode !== "none" ? "post" : baseIntent);
 
   const buttonBusy = isResolving && manualIntent === null;
   const navigateReady = effectiveIntent === "navigate" && navTarget !== null;
@@ -160,13 +158,14 @@ export function AiPrompterStage({
           ? "Analyzing..."
           : intentLabel(effectiveIntent);
 
-  const buttonClassName: string = navigateReady
-    ? cssClass("genBtn", "genBtnNavigate")
-    : effectiveIntent === "post"
-      ? cssClass("genBtn", "genBtnPost")
-      : effectiveIntent === "style"
-        ? cssClass("genBtn", "genBtnStyle")
-        : cssClass("genBtn");
+  const buttonClassName: string =
+    effectiveIntent === "navigate"
+      ? cssClass("genBtn", "genBtnNavigate")
+      : effectiveIntent === "post"
+        ? cssClass("genBtn", "genBtnPost")
+        : effectiveIntent === "style"
+          ? cssClass("genBtn", "genBtnStyle")
+          : cssClass("genBtn");
 
   const buttonDisabled =
     attachmentUploading ||
@@ -351,7 +350,7 @@ export function AiPrompterStage({
 
   const manualNote = manualIntent
     ? manualIntent === "navigate"
-      ? "Intent override: Navigate"
+      ? "Intent override: Go"
       : manualIntent === "post"
         ? "Intent override: Post"
         : manualIntent === "style"

@@ -127,7 +127,8 @@ export function intentLabel(intent: PromptIntent): string {
     case "post":
       return "Post";
     case "navigate":
-      return "Navigate";
+      // Use user-facing action label for navigation
+      return "Go";
     case "style":
       return "Style";
     default:
