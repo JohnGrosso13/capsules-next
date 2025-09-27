@@ -1,0 +1,53 @@
+@layer base {
+  :root[data-theme="light"] {
+    /* Readable text tokens for components expecting --text/--text-2 */
+    --text: var(--color-fg, rgba(14, 16, 36, 0.96));
+    --text-2: var(--color-fg-muted, rgba(14, 16, 36, 0.76));
+    --text-on-brand: var(--color-brand-foreground, #0e1024);
+
+    /* Acrylic glass base used throughout (pills, chips, prompts) */
+    --glass-bg-1: rgba(255, 255, 255, 0.9);
+    --glass-bg-2: rgba(255, 255, 255, 0.78);
+    --pill-bg-1: rgba(255, 255, 255, 0.9);
+    --pill-bg-2: rgba(255, 255, 255, 0.78);
+    --pill-border: rgba(14, 23, 42, 0.16);
+
+    /* Cards (posts, tiles) — soft, low-contrast layers */
+    --card-bg-1: rgba(255, 255, 255, 0.96);
+    --card-bg-2: rgba(255, 255, 255, 0.9);
+    --card-border: rgba(14, 23, 42, 0.12);
+    --card-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+    --card-hover-bg-1: rgba(255, 255, 255, 0.98);
+    --card-hover-bg-2: rgba(255, 255, 255, 0.92);
+    --card-hover-border: rgba(14, 23, 42, 0.2);
+    --card-hover-shadow: 0 22px 46px rgba(15, 23, 42, 0.18);
+
+    /* Quiet action plates in posts */
+    --feed-action-bg-1: rgba(255, 255, 255, 0.86);
+    --feed-action-bg-2: rgba(255, 255, 255, 0.76);
+    --feed-action-border: rgba(14, 23, 42, 0.12);
+    --feed-action-border-hover: rgba(14, 23, 42, 0.2);
+    --feed-action-shadow-hover: 0 12px 28px rgba(15, 23, 42, 0.18);
+
+    /* Icon plate tokens */
+    --icon-plate-bg-1: rgba(255, 255, 255, 0.9);
+    --icon-plate-bg-2: rgba(255, 255, 255, 0.8);
+    --icon-plate-border: rgba(14, 23, 42, 0.14);
+    --icon-plate-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+    /* Right-rail container tokens */
+    --rail-bg-1: rgba(255, 255, 255, 0.95);
+    --rail-bg-2: rgba(255, 255, 255, 0.86);
+    --rail-border: rgba(14, 23, 42, 0.12);
+
+    /* Header acrylic tokens to blend with page background gently */
+    /* Make header fully readable: nearly-opaque acrylic with soft brand tint */
+    --header-glass-top: rgba(255, 255, 255, 0.98);
+    --header-glass-bottom: rgba(252, 253, 255, 0.96);
+    --header-tint-from: rgba(79, 70, 229, 0.04); /* minimal */
+    --header-tint-to: rgba(34, 211, 238, 0.03);
+    --header-border-color: rgba(14, 23, 42, 0.14);
+    --header-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+    --header-scrim: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+  }
+}

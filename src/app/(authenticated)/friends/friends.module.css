@@ -1,0 +1,623 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-bg);
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+
+.header {
+  display: none;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  padding: 0;
+}
+
+.friendsSection {
+  display: grid;
+  gap: 12px;
+}
+
+.title {
+  display: none;
+}
+
+/* Segmented chips-like tabs */
+
+.tabsSticky {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background:
+    linear-gradient(
+      180deg,
+      var(--header-glass-top, rgba(255, 255, 255, 0.1)),
+      var(--header-glass-bottom, rgba(255, 255, 255, 0.05))
+    ),
+    linear-gradient(
+      180deg,
+      var(--header-tint-from, rgba(72, 86, 182, 0.28)),
+      var(--header-tint-to, rgba(22, 28, 66, 0.22))
+    );
+
+  backdrop-filter: blur(16px) saturate(140%);
+
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+
+  border-bottom: 1px solid var(--header-border-color, rgba(255, 255, 255, 0.08));
+  /* Give breathing room so tabs don't collide with panel borders */
+  margin-bottom: 8px;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 8px;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--pill-radius, 999px);
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.04))
+  );
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow: var(--shadow-xs, 0 6px 12px rgba(5, 10, 30, 0.18));
+  width: 100%;
+}
+
+.tab:hover {
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.26));
+  transform: translateY(-1px);
+}
+
+.tab:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.tabActive {
+  /* Active tab: keep normal/glass button, just elevate subtly */
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--color-brand) 42%, var(--pill-border, rgba(255, 255, 255, 0.16)));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.1)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.06))
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(5, 8, 28, 0.45),
+    0 10px 22px color-mix(in srgb, var(--color-brand) 24%, rgba(5, 10, 30, 0.34));
+}
+
+.tabContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabIcon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.tabLabel {
+  position: relative;
+  top: 0.5px;
+}
+
+.tabDescription {
+  display: none; /* Keep concise tabs to free space for content */
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-top: 4px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-on-brand, #0e1024);
+  background: var(--pill-bg-1, rgba(255, 255, 255, 0.9));
+}
+
+.tabPanel {
+  margin-top: 10px; /* ensure panel doesn't clash with tabs */
+}
+
+.panelFull {
+  min-height: calc(100dvh - var(--mobile-dock-height, 0px));
+  /* Fluent + Glass + Neumorphic container for panel content */
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(180deg, var(--card-bg-1, rgba(9,12,32,0.9)), var(--card-bg-2, rgba(9,12,30,0.78)));
+  border-radius: var(--card-radius, 16px);
+  padding: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.42),
+    var(--card-shadow, 0 18px 40px rgba(5, 10, 30, 0.35));
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  overflow: hidden;
+}
+
+.empty {
+  border: 1px dashed var(--card-border, rgba(255, 255, 255, 0.18));
+  padding: 1.25rem;
+  border-radius: 12px;
+  text-align: center;
+  color: var(--text-2, rgba(255, 255, 255, 0.72));
+}
+
+/* Friends list full view */
+
+.list {
+  display: grid;
+  gap: 10px;
+}
+
+.listLarge {
+  gap: 12px;
+  padding: 8px;
+}
+
+.friendRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow);
+}
+
+.avatarWrap {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  border-radius: 14px;
+  overflow: visible;
+}
+
+.avatarFrame {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  overflow: hidden;
+  display: block;
+  background: var(--glass-bg-2, rgba(255, 255, 255, 0.08));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-fg) 12%, transparent);
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-gradient, linear-gradient(135deg, #8b5cf6, #6366f1, #22d3ee));
+  display: block;
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+  background: var(--glass-bg-2, rgba(255, 255, 255, 0.08));
+}
+
+.presence {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--presence-border, var(--pill-border, rgba(255, 255, 255, 0.16)));
+  background: var(--presence-bg, var(--surface-overlay));
+  color: var(--presence-text, var(--text));
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  box-shadow: var(--shadow-md, 0 18px 32px rgba(5, 10, 30, 0.32));
+}
+
+.presenceDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--presence-dot, rgba(255, 255, 255, 0.82));
+  box-shadow: 0 0 0 3px rgba(9, 12, 32, 0.6);
+}
+
+.presenceLabel {
+  line-height: 1;
+}
+
+.online {
+  background: radial-gradient(circle at 30% 30%, #22d3ee, #10b981);
+  --presence-bg: rgba(16, 185, 129, 0.26);
+  --presence-dot: #22d3ee;
+  --presence-border: rgba(45, 212, 191, 0.55);
+  --presence-text: rgba(240, 253, 250, 0.95);
+}
+
+.offline {
+  background: radial-gradient(circle at 30% 30%, #64748b, #334155);
+  --presence-bg: rgba(71, 85, 105, 0.24);
+  --presence-dot: #64748b;
+  --presence-border: rgba(148, 163, 184, 0.45);
+  --presence-text: rgba(226, 232, 240, 0.9);
+}
+
+.away {
+  background: radial-gradient(circle at 30% 30%, #fbbf24, #f97316);
+  --presence-bg: rgba(251, 191, 36, 0.26);
+  --presence-dot: #f59e0b;
+  --presence-border: rgba(251, 191, 36, 0.55);
+  --presence-text: rgba(255, 249, 219, 0.95);
+}
+
+.friendMeta {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+}
+
+.friendName {
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+.friendNameButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--link-color, #c7d2fe);
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.friendNameButton:hover {
+  text-decoration: underline;
+  color: var(--color-brand-foreground, #e0e7ff);
+}
+
+.friendNameButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 60%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.friendMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 180px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+}
+
+.friendMenuItem {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.friendMenuItem:hover {
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.1)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.05))
+  );
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.2));
+  color: var(--text);
+}
+
+.friendMenuItem:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.friendMenuItem[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.friendActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.friendActionButton {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.05))
+  );
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+
+.friendActionButton:hover {
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.3));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.18)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.08))
+  );
+}
+
+.friendActionButton[aria-busy="true"],
+.friendActionButton:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.friendNotice {
+  margin: 4px 8px 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 45%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand) 18%, var(--surface-overlay)),
+    color-mix(in srgb, var(--color-brand) 10%, transparent)
+  );
+  color: var(--text, rgba(255, 255, 255, 0.92));
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Primary gradient button (shared look) */
+
+.primaryCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.3rem;
+  border-radius: var(--cta-radius, 999px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-on-brand, #0e1024);
+  background: var(--cta-gradient);
+  border: none;
+  box-shadow: 0 16px 32px rgba(79, 70, 229, 0.32);
+  text-decoration: none;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.primaryCta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 24px 44px rgba(79, 70, 229, 0.4);
+}
+
+/* Hide header on small screens; mobile dock handles navigation */
+
+@media (max-width: 640px) {
+  .header {
+    display: none;
+  }
+}
+
+/* Desktop polish: center content and keep the mobile-inspired style */
+
+@media (min-width: 641px) {
+  .main {
+    padding: 28px 40px 48px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .friendsSection {
+    width: min(1080px, 100%);
+  }
+
+  .tabsSticky {
+    position: static;
+    /* retain subtle glass backplate so tabs read as a control group */
+    background: linear-gradient(180deg, var(--glass-bg-1, rgba(255, 255, 255, 0.06)), var(--glass-bg-2, rgba(255, 255, 255, 0.03)));
+    border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+    border-radius: 14px;
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    padding: 8px;
+    margin-bottom: 12px;
+  }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .tab {
+    /* keep compact pill buttons on desktop */
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: var(--pill-radius, 999px);
+    border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+    background: linear-gradient(180deg, var(--pill-bg-1, rgba(255, 255, 255, 0.08)), var(--pill-bg-2, rgba(255, 255, 255, 0.04)));
+    box-shadow: var(--shadow-xs, 0 6px 12px rgba(5, 10, 30, 0.18));
+  }
+
+  .tab:hover {
+    transform: translateY(-1px);
+  }
+
+  .tabActive {
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--color-brand) 42%, var(--pill-border, rgba(255, 255, 255, 0.16)));
+    background: linear-gradient(180deg, var(--pill-bg-1, rgba(255, 255, 255, 0.1)), var(--pill-bg-2, rgba(255, 255, 255, 0.06)));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(5, 8, 28, 0.45),
+      0 12px 24px color-mix(in srgb, var(--color-brand) 24%, rgba(5, 10, 30, 0.34));
+  }
+
+  .tabLabel {
+    font-size: 0.98rem;
+    top: 0.5px;
+  }
+
+  .tabDescription {
+    display: none; /* keep concise tabs on desktop too */
+  }
+
+  .badge {
+    align-self: center;
+  }
+
+  .listLarge {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 4px 10px;
+  }
+
+  .friendRow {
+    padding: 14px 18px;
+    border-radius: 18px;
+  }
+}
+
+.friendSince {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-2, rgba(255, 255, 255, 0.68));
+  margin-top: 2px;
+}
+
+.requestList {
+  display: grid;
+  gap: 12px;
+  padding: 8px;
+}
+
+.requestRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow);
+}
+
+.requestMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.requestLabel {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-2, rgba(255, 255, 255, 0.6));
+}
+
+.requestActions {
+  display: flex;
+  gap: 8px;
+}
+
+.requestActions button {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.1)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.05))
+  );
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.requestActions button:hover {
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.32));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.06))
+  );
+}

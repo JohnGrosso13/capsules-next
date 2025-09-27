@@ -1,0 +1,81 @@
+"use client";
+
+import * as React from "react";
+import { createPortal } from "react-dom";
+
+import styles from "./ai-composer.module.css";
+import { ComposerForm, type ComposerChoice } from "./composer/ComposerForm";
+import { usePortalHost } from "@/hooks/usePortalHost";
+import type { ComposerDraft } from "@/lib/composer/draft";
+
+export type { ComposerDraft } from "@/lib/composer/draft";
+
+type AiComposerDrawerProps = {
+  open: boolean;
+  loading: boolean;
+  draft: ComposerDraft | null;
+  prompt: string;
+  message?: string | null;
+  choices?: ComposerChoice[] | null;
+  onChange(draft: ComposerDraft): void;
+  onClose(): void;
+  onPost(): void;
+  onForceChoice?(key: string): void;
+};
+
+export function AiComposerDrawer(props: AiComposerDrawerProps) {
+  const {
+    open,
+    loading,
+    draft,
+    prompt,
+    message,
+    choices,
+    onChange,
+    onClose,
+    onPost,
+    onForceChoice,
+  } = props;
+  const portalClassName = styles.portalHost ?? "ai-composer-portal-host";
+  const { host, ready } = usePortalHost(portalClassName, open);
+
+  React.useEffect(() => {
+    if (!open || !ready) return;
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [open, ready, onClose]);
+
+  React.useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const { body } = document;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = "hidden";
+    return () => {
+      body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  if (!open || !ready || !host) {
+    return null;
+  }
+
+  return createPortal(
+    <ComposerForm
+      loading={loading}
+      draft={draft}
+      prompt={prompt}
+      message={message ?? null}
+      choices={choices ?? null}
+      onChange={onChange}
+      onClose={onClose}
+      onPost={onPost}
+      {...(onForceChoice ? { onForceChoice } : {})}
+    />,
+    host,
+  );
+}

@@ -1,0 +1,443 @@
+"use client";
+
+import React from "react";
+import { useRouter } from "next/navigation";
+
+import {
+  detectIntentHeuristically,
+  intentLabel,
+  normalizeIntent,
+  type IntentResolution,
+  type PromptIntent,
+} from "@/lib/ai/intent";
+import { setTheme } from "@/lib/theme";
+import { detectComposerMode, resolveNavigationTarget, navHint } from "@/lib/ai/nav";
+import type { ComposerMode } from "@/lib/ai/nav";
+
+import styles from "./home.module.css";
+import { PrompterInputBar } from "@/components/prompter/PrompterInputBar";
+
+const cssClass = (...keys: Array<keyof typeof styles>): string =>
+  keys
+    .map((key) => styles[key] ?? "")
+    .filter((value) => value.length > 0)
+    .join(" ")
+    .trim();
+
+const defaultChips = [
+  "Post an update",
+  "Share a photo",
+  "Bring feed image",
+  "Summarize my feed",
+  "Style my capsule",
+];
+
+import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
+import { intentResponseSchema } from "@/shared/schemas/ai";
+
+export type PrompterAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  thumbnailUrl?: string | null | undefined;
+};
+
+export type PrompterAction =
+  | { kind: "post_manual"; content: string; raw: string; attachments?: PrompterAttachment[] }
+  | {
+      kind: "post_ai";
+      prompt: string;
+      mode: ComposerMode;
+      raw: string;
+      attachments?: PrompterAttachment[];
+    }
+  | { kind: "generate"; text: string; raw: string; attachments?: PrompterAttachment[] }
+  | { kind: "style"; prompt: string; raw: string; attachments?: PrompterAttachment[] };
+
+type Props = {
+  placeholder?: string;
+  chips?: string[];
+  statusMessage?: string | null;
+  onAction?: (action: PrompterAction) => void;
+};
+
+type PostPlan =
+  | { mode: "none" }
+  | { mode: "manual"; content: string }
+  | { mode: "ai"; composeMode: ComposerMode };
+
+// Attachment upload behavior extracted to hook
+
+const HEURISTIC_CONFIDENCE_THRESHOLD = 0.6;
+
+function resolvePostPlan(text: string): PostPlan {
+  const trimmed = text.trim();
+  if (!trimmed) return { mode: "none" };
+  const lower = trimmed.toLowerCase();
+
+  if (
+    /(make|draft|write|craft|compose|generate|build)\s+(me\s+)?(a\s+)?(social\s+)?post/.test(lower)
+  ) {
+    return { mode: "ai", composeMode: detectComposerMode(lower) };
+  }
+
+  const manualColonMatch = trimmed.match(/^post\s*[:\-]\s*(.+)$/i)?.[1]?.trim();
+  if (manualColonMatch) {
+    return { mode: "manual", content: manualColonMatch };
+  }
+
+  const manualSimpleMatch = trimmed.match(/^post\s+(?!me\s+a\s+post)(.+)$/i)?.[1]?.trim();
+  if (manualSimpleMatch) {
+    return { mode: "manual", content: manualSimpleMatch };
+  }
+
+  const shorthandMatch = trimmed.match(/^p:\s*(.+)$/i)?.[1]?.trim();
+  if (shorthandMatch) {
+    return { mode: "manual", content: shorthandMatch };
+  }
+
+  return { mode: "none" };
+}
+
+function truncate(text: string, length = 80): string {
+  if (text.length <= length) return text;
+  return `${text.slice(0, length - 1)}...`;
+}
+
+export function AiPrompterStage({
+  placeholder = "Ask your Capsule AI to create anything...",
+  chips = defaultChips,
+  statusMessage = null,
+  onAction,
+}: Props) {
+  const router = useRouter();
+
+  const [text, setText] = React.useState("");
+  const [autoIntent, setAutoIntent] = React.useState<IntentResolution>(() =>
+    detectIntentHeuristically(""),
+  );
+  const [manualIntent, setManualIntent] = React.useState<PromptIntent | null>(null);
+  const [isResolving, setIsResolving] = React.useState(false);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement | null>(null);
+  const anchorRef = React.useRef<HTMLButtonElement | null>(null);
+  const requestRef = React.useRef(0);
+  const textRef = React.useRef<HTMLInputElement | null>(null);
+  const {
+    fileInputRef,
+    attachment,
+    readyAttachment,
+    uploading: attachmentUploading,
+    clearAttachment,
+    handleAttachClick,
+    handleAttachmentSelect,
+  } = useAttachmentUpload();
+
+  const trimmed = text.trim();
+  const hasAttachment = Boolean(readyAttachment);
+  const baseIntent =
+    manualIntent ?? (hasAttachment && trimmed.length === 0 ? "post" : autoIntent.intent);
+  const navTarget = React.useMemo(() => resolveNavigationTarget(trimmed), [trimmed]);
+  const postPlan = React.useMemo(() => resolvePostPlan(trimmed), [trimmed]);
+  const effectiveIntent: PromptIntent = navTarget
+    ? "navigate"
+    : postPlan.mode !== "none"
+      ? "post"
+      : baseIntent;
+
+  const buttonBusy = isResolving && manualIntent === null;
+  const navigateReady = effectiveIntent === "navigate" && navTarget !== null;
+
+  const buttonLabel = navigateReady
+    ? "Go"
+    : postPlan.mode === "manual"
+      ? "Post"
+      : postPlan.mode === "ai"
+        ? "Draft"
+        : buttonBusy
+          ? "Analyzing..."
+          : intentLabel(effectiveIntent);
+
+  const buttonClassName: string = navigateReady
+    ? cssClass("genBtn", "genBtnNavigate")
+    : effectiveIntent === "post"
+      ? cssClass("genBtn", "genBtnPost")
+      : effectiveIntent === "style"
+        ? cssClass("genBtn", "genBtnStyle")
+        : cssClass("genBtn");
+
+  const buttonDisabled =
+    attachmentUploading ||
+    (!hasAttachment && trimmed.length === 0) ||
+    (effectiveIntent === "navigate" && !navTarget) ||
+    (postPlan.mode === "manual" && (!postPlan.content || !postPlan.content.trim()));
+
+  React.useEffect(() => {
+    if (!menuOpen) return;
+
+    function handleClick(event: MouseEvent) {
+      const target = event.target as Node;
+      const insideAnchor = anchorRef.current?.contains(target) ?? false;
+      const insideMenu = menuRef.current?.contains(target) ?? false;
+      if (!insideAnchor && !insideMenu) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClick);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+    };
+  }, [menuOpen]);
+
+  React.useEffect(() => {
+    const currentText = trimmed;
+    if (!currentText) {
+      setAutoIntent(detectIntentHeuristically(""));
+      setIsResolving(false);
+      return;
+    }
+
+    const heuristic = detectIntentHeuristically(currentText);
+    setAutoIntent(heuristic);
+
+    if (heuristic.intent !== "generate" && heuristic.confidence >= HEURISTIC_CONFIDENCE_THRESHOLD) {
+      setIsResolving(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const requestId = ++requestRef.current;
+
+    const timeout = setTimeout(() => {
+      setIsResolving(true);
+      fetch("/api/ai/intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: currentText }),
+        signal: controller.signal,
+      })
+        .then(async (res) => {
+          if (!res.ok) return null;
+          const raw = await res.json().catch(() => null);
+          const parsed = intentResponseSchema.safeParse(raw);
+          return parsed.success ? parsed.data : null;
+        })
+        .then((data) => {
+          if (!data || requestRef.current !== requestId) return;
+          const intent = normalizeIntent(data.intent);
+          const resolvedConfidence =
+            typeof data?.confidence === "number"
+              ? Math.max(0, Math.min(1, data.confidence))
+              : heuristic.confidence;
+          const resolvedReason =
+            typeof data?.reason === "string" && data.reason.length ? data.reason : heuristic.reason;
+          setAutoIntent({
+            intent,
+            confidence: resolvedConfidence,
+            ...(resolvedReason ? { reason: resolvedReason } : {}),
+            source: data?.source === "ai" ? "ai" : heuristic.source,
+          });
+        })
+        .catch((error) => {
+          if ((error as Error)?.name !== "AbortError") {
+            console.error("Intent detection error", error);
+          }
+        })
+        .finally(() => {
+          if (requestRef.current === requestId) {
+            setIsResolving(false);
+          }
+        });
+    }, 150);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [trimmed]);
+
+  // Attachment handlers provided by hook
+
+  function handleGenerate() {
+    if (attachmentUploading) return;
+
+    const readyAttachments: PrompterAttachment[] | null =
+      readyAttachment && readyAttachment.url
+        ? [
+            {
+              id: readyAttachment.id,
+              name: readyAttachment.name,
+              mimeType: readyAttachment.mimeType,
+              size: readyAttachment.size,
+              url: readyAttachment.url,
+              thumbnailUrl: readyAttachment.thumbUrl ?? undefined,
+            },
+          ]
+        : null;
+    const hasAttachmentPayload = Boolean(readyAttachments?.length);
+    const emitAction = (action: PrompterAction) => {
+      if (!onAction) return;
+      if (readyAttachments && readyAttachments.length) {
+        onAction({ ...action, attachments: readyAttachments });
+      } else {
+        onAction(action);
+      }
+    };
+    const value = trimmed;
+    const hasValue = value.length > 0;
+
+    if (!hasValue && !hasAttachmentPayload) {
+      textRef.current?.focus();
+      return;
+    }
+
+    const resetAfterSubmit = () => {
+      setText("");
+      setManualIntent(null);
+      setMenuOpen(false);
+      clearAttachment();
+      textRef.current?.focus();
+    };
+
+    if (effectiveIntent === "navigate") {
+      if (!navTarget) return;
+      if (navTarget.kind === "route") {
+        router.push(navTarget.path);
+      } else {
+        setTheme(navTarget.value);
+      }
+      resetAfterSubmit();
+      return;
+    }
+
+    if (effectiveIntent === "post") {
+      if (postPlan.mode === "manual") {
+        const content = postPlan.content.trim();
+        if (!content && !hasAttachmentPayload) return;
+        emitAction({ kind: "post_manual", content, raw: value });
+      } else if (postPlan.mode === "ai") {
+        emitAction({
+          kind: "post_ai",
+          prompt: value,
+          mode: detectComposerMode(value.toLowerCase()),
+          raw: value,
+        });
+      } else if (hasAttachmentPayload) {
+        emitAction({ kind: "post_manual", content: value, raw: value });
+      } else {
+        emitAction({ kind: "generate", text: value, raw: value });
+      }
+      resetAfterSubmit();
+      return;
+    }
+
+    if (effectiveIntent === "style") {
+      emitAction({ kind: "style", prompt: value, raw: value });
+      resetAfterSubmit();
+      return;
+    }
+
+    emitAction({ kind: "generate", text: value, raw: value });
+    resetAfterSubmit();
+  }
+
+  function applyManualIntent(intent: PromptIntent | null) {
+    setManualIntent(intent);
+    setMenuOpen(false);
+  }
+
+  const manualNote = manualIntent
+    ? manualIntent === "navigate"
+      ? "Intent override: Navigate"
+      : manualIntent === "post"
+        ? "Intent override: Post"
+        : manualIntent === "style"
+          ? "Intent override: Style"
+          : "Manual override active"
+    : null;
+
+  const navMessage = navHint(navigateReady ? navTarget : null);
+  const postHint =
+    postPlan.mode === "manual"
+      ? postPlan.content
+        ? `Ready to post: "${truncate(postPlan.content, 50)}"`
+        : "Add what you'd like to share."
+      : postPlan.mode === "ai"
+        ? "AI will draft this for you."
+        : null;
+  const styleHint = effectiveIntent === "style" ? "AI Styler is ready." : null;
+
+  const hint =
+    statusMessage ??
+    manualNote ??
+    navMessage ??
+    postHint ??
+    styleHint ??
+    (attachment?.status === "error" ? attachment.error : null) ??
+    (buttonBusy ? "Analyzing intent..." : (autoIntent.reason ?? null));
+
+  return (
+    <section className={styles.prompterStage} aria-label="AI Prompter">
+      <div className={styles.prompter}>
+        <PrompterInputBar
+          inputRef={textRef}
+          value={text}
+          placeholder={placeholder}
+          onChange={setText}
+          buttonLabel={buttonLabel}
+          buttonClassName={buttonClassName}
+          buttonDisabled={buttonDisabled}
+          onGenerate={handleGenerate}
+          dataIntent={String(effectiveIntent)}
+          fileInputRef={fileInputRef}
+          uploading={attachmentUploading}
+          onAttachClick={handleAttachClick}
+          onFileChange={handleAttachmentSelect}
+          manualIntent={manualIntent}
+          menuOpen={menuOpen}
+          onToggleMenu={() => setMenuOpen((o) => !o)}
+          onSelect={applyManualIntent}
+          anchorRef={anchorRef}
+          menuRef={menuRef}
+        />
+
+        <div className={styles.intentControls}>
+          {hint ? <span className={styles.intentHint}>{hint}</span> : null}
+          {attachment ? (
+            <span className={styles.attachmentChip} data-status={attachment.status}>
+              <span className={styles.attachmentName}>{attachment.name}</span>
+              {attachment.status === "uploading" ? (
+                <span className={styles.attachmentStatus}>Uploading...</span>
+              ) : attachment.status === "error" ? (
+                <span className={styles.attachmentStatusError}>
+                  {attachment.error ?? "Upload failed"}
+                </span>
+              ) : (
+                <span className={styles.attachmentStatus}>Attached</span>
+              )}
+              <button
+                type="button"
+                className={styles.attachmentRemove}
+                onClick={clearAttachment}
+                aria-label="Remove attachment"
+              >
+                x
+              </button>
+            </span>
+          ) : null}
+        </div>
+
+        <div className={styles.chips}>
+          {chips.map((c) => (
+            <button key={c} className={styles.chip} type="button" onClick={() => setText(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
