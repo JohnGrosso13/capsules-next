@@ -11,7 +11,9 @@ import { AiComposerDrawer, type ComposerDraft } from "@/components/ai-composer";
 import { PrimaryHeader } from "@/components/primary-header";
 import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import homeStyles from "./home.module.css";
+import { FriendsRail } from "@/components/rail/FriendsRail";
 import { applyThemeVars } from "@/lib/theme";
+import { removeFriend as apiRemoveFriend } from "@/lib/api/friends";
 import { UsersThree, ChatsCircle, Handshake } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./app-shell.module.css";
@@ -793,19 +795,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
       }
       setFriendActionPendingId(identifier);
       try {
-        const res = await fetch("/api/friends/update", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "remove", target }),
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok) {
-          const message =
-            (data && typeof data.message === "string" && data.message)
-              || (data && typeof data.error === "string" && data.error)
-              || "Could not send that friend request.";
-          throw new Error(message);
-        }
+        const data = await apiRemoveFriend(target);
         if (data && Array.isArray(data.friends)) {
           setFriends(mapFriendList(data.friends));
         }
@@ -1135,52 +1125,13 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
                     ))}
                   </div>
                   <div className={homeStyles.railPanel} hidden={activeRailTab !== "friends"}>
-                    <div className={`${friendsStyles.list}`.trim()}>
-                      {friends.map((f, i) => {
-                        const identifier = f.userId ?? f.key ?? f.id ?? `friend-${i}`;
-                        const listKey = `${identifier}-${i}`;
-                        const canTarget = Boolean(f.userId || f.key || f.id);
-                        const isOpen = activeFriendTarget === identifier;
-                        const isPending = friendActionPendingId === identifier;
-                        const sinceLabel = f.since ? new Date(f.since).toLocaleDateString() : null;
-                        return (
-                          <div key={listKey} className={friendsStyles.friendRow}>
-                          <span className={friendsStyles.avatarWrap}>
-                            {f.avatar ? (
-                              <img className={friendsStyles.avatarImg} src={f.avatar} alt="" aria-hidden />
-                            ) : (
-                              <span className={friendsStyles.avatar} aria-hidden />
-                            )}
-                            <span className={`${friendsStyles.presence} ${presenceClass(f.status)}`.trim()} aria-hidden />
-                          </span>
-                          <div className={friendsStyles.friendMeta}>
-                              <button
-                                type="button"
-                                className={`${friendsStyles.friendNameButton} ${friendsStyles.friendName}`.trim()}
-                                onClick={() => handleFriendNameClick(identifier)}
-                                aria-expanded={isOpen}
-                              >
-                                {f.name}
-                              </button>
-                              {sinceLabel ? <div className={friendsStyles.friendSince}>Since {sinceLabel}</div> : null}
-                              {isOpen ? (
-                                <div className={friendsStyles.friendActions}>
-                                  <button
-                                    type="button"
-                                    className={friendsStyles.friendActionButton}
-                                    onClick={() => handleFriendRemove(f, identifier)}
-                                    disabled={!canTarget || isPending}
-                                    aria-busy={isPending}
-                                  >
-                                    {isPending ? "Removing..." : "Delete"}
-                                  </button>
-                                </div>
-                              ) : null}
-                          </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <FriendsRail
+                      friends={friends}
+                      pendingId={friendActionPendingId}
+                      activeTarget={activeFriendTarget}
+                      onNameClick={handleFriendNameClick}
+                      onDelete={handleFriendRemove}
+                    />
                   </div>
                   <div className={homeStyles.railPanel} hidden={activeRailTab !== "chats"}>
                     <div className={friendsStyles.empty}>Chats are coming soon.</div>
@@ -1209,6 +1160,8 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     </div>
   );
 }
+
+
 
 
 
