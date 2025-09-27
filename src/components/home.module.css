@@ -73,20 +73,50 @@
   position: absolute;
   left: 50%;
   top: -140px; /* starts well above */
-  width: 2px;
+  width: 3px;
   height: 120px;
   transform: translateX(-50%);
+  /* Multi-layer core with subtle irregularity and glow */
   background:
+    /* core */
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-brand) 70%, #ffffff) 0%,
-      rgba(255, 255, 255, 0.95) 30%,
-      color-mix(in srgb, var(--color-accent) 80%, transparent) 90%,
+      color-mix(in srgb, var(--color-brand) 80%, #ffffff) 0%,
+      #ffffff 28%,
+      color-mix(in srgb, var(--color-accent) 80%, transparent) 92%,
       transparent 100%
+    ),
+    /* irregular streaks */
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.65) 0 8px,
+      rgba(255, 255, 255, 0.1) 8px 16px,
+      rgba(255, 255, 255, 0) 16px 22px
     );
-  filter: blur(0.8px) saturate(160%);
+  mix-blend-mode: screen;
+  filter: blur(0.6px) saturate(160%);
   border-radius: 999px;
-  animation: strike-fall 3.6s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
+  box-shadow:
+    0 0 14px rgba(99, 102, 241, 0.55),
+    0 0 28px rgba(34, 211, 238, 0.4);
+  animation: strike-fall 3.6s cubic-bezier(0.2, 0.7, 0.2, 1) infinite, strike-jitter 0.22s steps(2) infinite;
+}
+
+.fxStrike::before {
+  /* feathered edge mask to avoid perfect symmetry */
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: radial-gradient(50% 180% at 50% 50%, rgba(255,255,255,0.9), rgba(255,255,255,0.2) 60%, transparent 100%);
+  filter: blur(2px);
+  mix-blend-mode: screen;
+}
+
+@keyframes strike-jitter {
+  0% { transform: translateX(calc(-50% - 0.5px)); }
+  50% { transform: translateX(calc(-50% + 0.4px)); }
+  100% { transform: translateX(calc(-50% - 0.5px)); }
 }
 
 @keyframes strike-fall {
@@ -99,7 +129,7 @@
   }
   28% {
     /* Hit the top edge: expand slightly */
-    transform: translate(-50%, 20px) scaleX(2.2);
+    transform: translate(-50%, 0px) scaleX(2.2);
     opacity: 1;
   }
   30% {
@@ -122,13 +152,43 @@
   height: 26px;
   border-radius: 999px;
   background:
-    radial-gradient(80% 200% at 50% 100%, rgba(255,255,255,0.9), transparent 70%),
-    linear-gradient(90deg, color-mix(in srgb, var(--color-brand) 55%, #fff), color-mix(in srgb, var(--color-accent) 40%, #fff));
-  filter: blur(10px) saturate(160%);
+    radial-gradient(120% 240% at 50% 100%, rgba(255,255,255,0.95), rgba(255,255,255,0.55) 26%, transparent 70%),
+    radial-gradient(160% 220% at 50% 110%, color-mix(in srgb, var(--color-brand) 55%, transparent), transparent 70%),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-brand) 60%, #fff), color-mix(in srgb, var(--color-accent) 48%, #fff));
+  filter: blur(12px) saturate(170%);
   transform-origin: center bottom;
   transform: scaleY(0.1);
   opacity: 0;
+  /* stronger pop at impact then taper toward edges */
   animation: top-roll 3.6s ease-in-out infinite;
+  mask-image: radial-gradient(140% 200% at 50% 100%, black 0%, black 50%, transparent 100%);
+}
+
+/* 2b) Impact core pulse for emphasized point of contact */
+.fxImpact {
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  width: 32px;
+  height: 18px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background:
+    radial-gradient(80% 100% at 50% 100%, rgba(255,255,255,0.95), rgba(255,255,255,0.6) 35%, transparent 70%),
+    radial-gradient(120% 130% at 50% 110%, color-mix(in srgb, var(--color-brand) 60%, transparent), transparent 70%),
+    radial-gradient(120% 130% at 50% 120%, color-mix(in srgb, var(--color-accent) 55%, transparent), transparent 75%);
+  filter: blur(8px) saturate(170%);
+  opacity: 0;
+  animation: impact-pop 3.6s ease-out infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes impact-pop {
+  0%, 22% { opacity: 0; transform: translateX(-50%) scale(0.6, 0.3); }
+  28% { opacity: 1; transform: translateX(-50%) scale(1.25, 1.1); }
+  42% { opacity: 0.55; transform: translateX(-50%) scale(0.9, 0.8); }
+  70% { opacity: 0.15; transform: translateX(-50%) scale(1.1, 0.9); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1, 0.8); }
 }
 
 @keyframes top-roll {
@@ -156,15 +216,20 @@
 .fxSideL,
 .fxSideR {
   position: absolute;
-  width: 18px;
+  width: 16px;
   top: -8px;
   bottom: -14px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255,255,255,0.08)),
-    linear-gradient(180deg, color-mix(in srgb, var(--color-brand) 50%, transparent), color-mix(in srgb, var(--color-accent) 45%, transparent) 60%, color-mix(in srgb, var(--color-brand) 50%, transparent));
-  filter: blur(8px) saturate(150%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255,255,255,0.1)),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-brand) 58%, transparent), color-mix(in srgb, var(--color-accent) 50%, transparent) 60%, color-mix(in srgb, var(--color-brand) 48%, transparent));
+  filter: blur(10px) saturate(160%);
   opacity: 0;
-  mask-image: linear-gradient(180deg, transparent 0%, black 16%, black 84%, transparent 100%);
+  /* Stronger at center, fade near edges and bottom for better blending */
+  mask-image: radial-gradient(80% 200% at 50% 0%, transparent 0%, black 30%, black 70%, transparent 100%),
+    linear-gradient(180deg, transparent 0%, black 18%, black 78%, transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in; /* Safari */
+  mix-blend-mode: screen;
   animation: side-fall 3.6s linear infinite;
 }
 
@@ -173,9 +238,9 @@
 
 @keyframes side-fall {
   0%, 24% { opacity: 0; background-position: 0 -80px, 0 -60px; }
-  30% { opacity: 0.85; }
-  60% { background-position: 0 80px, 0 60px; opacity: 0.65; }
-  100% { background-position: 0 120px, 0 100px; opacity: 0; }
+  30% { opacity: 0.9; }
+  60% { background-position: 0 70px, 0 56px; opacity: 0.55; }
+  100% { background-position: 0 110px, 0 88px; opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
