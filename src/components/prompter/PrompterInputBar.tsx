@@ -30,6 +30,8 @@ export function PrompterInputBar({
       <div className={styles.promptFx} aria-hidden="true">
         <span className={styles.fxStrike} />
         <span className={styles.fxImpact} />
+        <span className={styles.fxBranchL} />
+        <span className={styles.fxBranchR} />
         <span className={styles.fxTop} />
         <span className={styles.fxSideL} />
         <span className={styles.fxSideR} />
