@@ -131,10 +131,10 @@ export default async function HomePage() {
     <div className="relative flex min-h-screen flex-col">
       {!isSignedIn ? <PrimaryHeader activeKey="home" /> : null}
 
-      <main className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col gap-24 px-5 py-16 sm:px-6 lg:px-8">
-        {isSignedIn ? (
-          <HomeSignedIn />
-        ) : (
+      {isSignedIn ? (
+        <HomeSignedIn />
+      ) : (
+        <main className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col gap-24 px-5 py-16 sm:px-6 lg:px-8">
           <div className="contents">
             <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="flex flex-col gap-8">
@@ -325,8 +325,8 @@ export default async function HomePage() {
               </div>
             </section>
           </div>
-        )}
-      </main>
+        </main>
+      )}
 
       {isSignedIn ? (
         <footer className="border-border/40 bg-surface-muted/70 border-t backdrop-blur">
