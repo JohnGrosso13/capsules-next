@@ -1,6 +1,5 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
@@ -13,7 +12,7 @@ import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import homeStyles from "./home.module.css";
 import { FriendsRail } from "@/components/rail/FriendsRail";
 import { applyThemeVars } from "@/lib/theme";
-import { removeFriend as apiRemoveFriend } from "@/lib/api/friends";
+import { useFriendActions, buildFriendTargetPayload as buildTarget } from "@/hooks/useFriendActions";
 import { UsersThree, ChatsCircle, Handshake } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./app-shell.module.css";
@@ -690,19 +689,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     });
   }, []);
 
-  const buildFriendTargetPayload = React.useCallback((friend: Friend): Record<string, string> | null => {
-    const target: Record<string, string> = {};
-    if (friend.userId) {
-      target.userId = friend.userId;
-    } else if (friend.key) {
-      target.userKey = friend.key;
-    } else {
-      return null;
-    }
-    if (friend.name) target.name = friend.name;
-    if (friend.avatar) target.avatar = friend.avatar;
-    return target;
-  }, []);
+  // Use shared builder from hooks/useFriendActions (imported as buildTarget)
 
   React.useEffect(() => {
     fetch("/api/friends/sync", { method: "POST" })
@@ -776,31 +763,29 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     chatTicker,
   ]);
 
-  function presenceClass(status?: string) {
-    if (status === "online") return friendsStyles.online;
-    if (status === "away") return friendsStyles.away ?? friendsStyles.online;
-    return friendsStyles.offline;
-  }
+  // (presence helpers rendered in FriendsRail component)
 
   const handleFriendNameClick = React.useCallback((identifier: string) => {
     setActiveFriendTarget((prev) => (prev === identifier ? null : identifier));
   }, []);
 
+  const { remove: removeFriend } = useFriendActions();
+
   const handleFriendRemove = React.useCallback(
     async (friend: Friend, identifier: string) => {
-      const target = buildFriendTargetPayload(friend);
+      const target = buildTarget(friend as unknown);
       if (!target) {
         setStatusMessage("That profile isn't ready for requests yet.");
         return;
       }
       setFriendActionPendingId(identifier);
       try {
-        const data = await apiRemoveFriend(target);
-        if (data && Array.isArray(data.friends)) {
-          setFriends(mapFriendList(data.friends));
+        const data = await removeFriend(target);
+        if (data && Array.isArray((data as unknown).friends)) {
+          setFriends(mapFriendList((data as unknown).friends as unknown[]));
         }
-        if (data && data.graph && typeof data.graph === "object") {
-          const graph = data.graph as { incomingRequests?: unknown; outgoingRequests?: unknown };
+        const graph = (data && (data as unknown).graph) as { incomingRequests?: unknown; outgoingRequests?: unknown } | null;
+        if (graph && typeof graph === "object") {
           const incoming = Array.isArray(graph.incomingRequests) ? graph.incomingRequests.length : 0;
           const outgoing = Array.isArray(graph.outgoingRequests) ? graph.outgoingRequests.length : 0;
           setIncomingRequestCount(incoming);
@@ -808,7 +793,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
         }
         setStatusMessage(`${friend.name} removed from friends.`);
       } catch (error) {
-        console.error("Friend request error", error);
+        console.error("Friend remove error", error);
         setStatusMessage(
           error instanceof Error && error.message ? error.message : "Couldn't remove that friend.",
         );
@@ -817,7 +802,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
         setActiveFriendTarget(null);
       }
     },
-    [buildFriendTargetPayload, mapFriendList, setFriends, setStatusMessage],
+    [removeFriend, mapFriendList, setFriends, setStatusMessage],
   );
 
   const handleAiResponse = React.useCallback(
@@ -1160,6 +1145,8 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     </div>
   );
 }
+
+
 
 
 
