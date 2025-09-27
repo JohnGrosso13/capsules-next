@@ -1,10 +1,12 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 
 import { HeaderAuth } from "@/components/header-auth";
 import { LaunchCta } from "@/components/launch-cta";
 import { cn } from "@/lib/cn";
+import styles from "./primary-header.module.css";
 
 type NavItem = {
   key: string;
@@ -32,51 +34,47 @@ export function PrimaryHeader({
   showSettingsLink = true,
   launchLabel = "Launch Capsule",
 }: PrimaryHeaderProps) {
+  const [scrolled, setScrolled] = React.useState(false);
+  React.useEffect(() => {
+    const onScroll = () => {
+      setScrolled(window.scrollY > 4);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   return (
-    <header className="border-border/40 bg-surface-elevated/80 fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-5 py-4">
-        <Link
-          href="/"
-          aria-label="Capsules home"
-          className="group text-fg flex items-center gap-3 text-lg font-semibold"
-        >
-          <span className="bg-brand/20 shadow-brand/20 relative flex h-9 w-9 items-center justify-center rounded-2xl shadow-inner">
-            <span className="bg-brand h-6 w-6 rounded-xl" />
-          </span>
-          <span className="font-display text-xl tracking-tight">Capsules</span>
+    <header className={cn(styles.header, scrolled && styles.headerScrolled)}>
+      <div className={styles.inner}>
+        <Link href="/" aria-label="Capsules home" className={styles.brand}>
+          <span className={styles.brandMark} />
+          <span className={styles.brandName}>Capsules</span>
         </Link>
-        <nav className="hidden items-center gap-2 md:flex" aria-label="Primary navigation">
+        <nav className={styles.nav} aria-label="Primary navigation">
           {navItems.map((item) => {
             const isActive = activeKey === item.key;
             return (
               <Link
                 key={item.key}
                 href={item.href}
-                className={cn(
-                  "rounded-pill text-fg-subtle px-4 py-2 text-sm font-medium transition",
-                  "hover:text-fg hover:bg-surface-muted/60",
-                  isActive && "border-brand/40 bg-brand/15 text-fg border shadow-xs",
-                )}
+                className={cn(styles.navItem, isActive && styles.navItemActive)}
               >
                 {item.label}
               </Link>
             );
           })}
         </nav>
-        <div className="flex items-center gap-3">
+        <div className={styles.actions}>
+          {/* Order: Profile → Settings → Launch Capsule */}
+          <HeaderAuth />
           {showSettingsLink ? (
-            <Link
-              href="/settings"
-              className="rounded-pill border-border/40 bg-surface-muted/60 text-fg-subtle hover:border-border hover:text-fg focus-visible:ring-brand focus-visible:ring-offset-background hidden h-9 w-9 items-center justify-center border transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex"
-              aria-label="Settings"
-              title="Settings"
-            >
+            <Link href="/settings" aria-label="Settings" title="Settings" className={styles.iconButton}>
               <svg
-                className="h-5 w-5"
+                className={styles.iconSvg}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="1.8"
+                strokeWidth="1.9"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 aria-hidden="true"
@@ -88,12 +86,11 @@ export function PrimaryHeader({
               </svg>
             </Link>
           ) : null}
-          <HeaderAuth />
           <LaunchCta
             variant="gradient"
-            size="sm"
+            size="lg"
             label={launchLabel}
-            className="hidden sm:inline-flex"
+            className={cn("hidden sm:inline-flex font-extrabold", styles.launchCta)}
             hrefWhenSignedIn="/capsule"
           />
         </div>
@@ -101,3 +98,5 @@ export function PrimaryHeader({
     </header>
   );
 }
+
+

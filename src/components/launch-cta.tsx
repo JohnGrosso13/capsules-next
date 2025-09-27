@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
 
@@ -23,19 +24,34 @@ export function LaunchCta({
   signedOutMode = "signup",
 }: Props) {
   const router = useRouter();
+  const launchStyles: CSSProperties = {
+    background: "linear-gradient(95deg, #a855f7 0%, #6366f1 48%, #22d3ee 100%)",
+  };
 
   return (
     <>
       <SignedOut>
         {signedOutMode === "signup" ? (
           <SignUpButton mode="modal">
-            <Button type="button" variant={variant} size={size} className={className}>
+            <Button
+              type="button"
+              variant={variant}
+              size={size}
+              className={className}
+              style={launchStyles}
+            >
               {label}
             </Button>
           </SignUpButton>
         ) : (
           <SignInButton mode="modal">
-            <Button type="button" variant={variant} size={size} className={className}>
+            <Button
+              type="button"
+              variant={variant}
+              size={size}
+              className={className}
+              style={launchStyles}
+            >
               {label}
             </Button>
           </SignInButton>
@@ -46,6 +62,7 @@ export function LaunchCta({
           variant={variant}
           size={size}
           className={className}
+          style={launchStyles}
           onClick={() => router.push(hrefWhenSignedIn)}
         >
           {label}

@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import Script from "next/script";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "./cta-overrides.css";
 import { BackgroundFX } from "@/components/background-fx";
 import { SignedIn } from "@clerk/nextjs";
 import { MobileCommandBar } from "@/components/mobile-command-bar";

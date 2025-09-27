@@ -1,0 +1,187 @@
+/* High-contrast glass header with bold nav tokens and CTA */
+
+.header {
+  position: fixed;
+  inset: 0 auto auto 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  /* Ensure header sits above prompter/chips (which use z-index ~300) */
+  z-index: 1100;
+  isolation: isolate;
+  display: block;
+  overflow: hidden;
+  /* Solid, opaque header (no see-through) */
+  background:
+    linear-gradient(180deg, #0d142e, #0a1026 55%, #0a0d23) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background-color: #0b1028 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 10px 26px rgba(5, 10, 26, 0.42),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Disable decorative overlays to avoid any blend with page content */
+.header::before,
+.header::after {
+  content: none;
+}
+
+/* On scroll: apply frosted glass while remaining opaque */
+.headerScrolled {
+  background:
+    linear-gradient(180deg, #0f1838, #0a112a 55%, #0a0f26);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  box-shadow:
+    0 12px 32px rgba(5, 10, 26, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+}
+
+@supports not ((-webkit-backdrop-filter: blur(0)) or (backdrop-filter: blur(0))) {
+  .header {
+    background: linear-gradient(180deg, #0d142e, #0a1026 55%, #0a0d23);
+  }
+}
+
+.inner {
+  position: relative;
+  width: min(1200px, calc(100% - 56px));
+  margin: 0 auto;
+  padding: 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+.brandMark {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow:
+    0 12px 26px rgba(79, 70, 229, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+.brandName {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.8));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.nav {
+  display: none;
+}
+@media (min-width: 768px) {
+  .nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.navItem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px; /* ~ h-9 px-3.5 */
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 800;
+  font-size: 0.92rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.035));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.45),
+    0 8px 18px rgba(5, 10, 26, 0.35);
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease,
+    box-shadow 150ms ease;
+}
+.navItem:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.55),
+    0 10px 22px rgba(5, 10, 26, 0.42);
+}
+.navItemActive {
+  color: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08));
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 8px 18px rgba(5, 10, 26, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.45);
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.iconButton {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.45),
+    0 8px 18px rgba(5, 10, 26, 0.35);
+}
+.iconButton:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
+}
+.iconSvg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Exact CTA per screenshot: lavender core with subtle purple/cyan edges */
+.launchCta {
+  min-width: 176px;
+  padding-inline: 24px;
+  height: 44px;
+  border-radius: 999px;
+  font-weight: 800; /* stronger for readability */
+  letter-spacing: 0.01em;
+  color: var(--cta-button-text, #ffffff) !important;
+  border: 1px solid rgba(180, 175, 255, 0.65) !important;
+  text-shadow: 0 1px 1px rgba(21, 25, 55, 0.48);
+  box-shadow: 0 22px 44px rgba(88, 74, 204, 0.42) !important;
+}
+.launchCta:hover {
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 26px 56px rgba(88, 74, 204, 0.5) !important;
+}
+.launchCta:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 16px 32px rgba(88, 74, 204, 0.45) !important;
+}

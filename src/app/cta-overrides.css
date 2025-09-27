@@ -1,0 +1,17 @@
+/* CTA gradient overrides to fine-tune Launch Capsule look */
+:root {
+  /* Dark theme: lavender core with purple/cyan flanks that softly creep in */
+  --cta-gradient:
+    linear-gradient(180deg, rgba(183, 156, 255, 0.98), rgba(162, 136, 252, 0.98)),
+    radial-gradient(130% 180% at 12% 50%, rgba(76, 29, 149, 0.92), rgba(76, 29, 149, 0) 62%),
+    radial-gradient(130% 180% at 88% 50%, rgba(34, 211, 238, 0.90), rgba(34, 211, 238, 0) 62%);
+}
+
+:root[data-theme="light"] {
+  /* Light theme: slightly softer edges, keeps center bright for text contrast */
+  --cta-gradient:
+    linear-gradient(180deg, rgba(198, 180, 255, 0.98), rgba(182, 164, 252, 0.98)),
+    radial-gradient(130% 180% at 12% 50%, rgba(79, 70, 229, 0.85), rgba(79, 70, 229, 0) 62%),
+    radial-gradient(130% 180% at 88% 50%, rgba(34, 211, 238, 0.82), rgba(34, 211, 238, 0) 62%);
+}
+
