@@ -3,7 +3,7 @@ import { Slot } from "@radix-ui/react-slot";
 
 import { cn } from "@/lib/cn";
 
-type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "link";
+type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "link" | "gradient";
 type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl" | "icon";
 
 const baseClasses =
@@ -18,6 +18,8 @@ const variantClasses: Record<ButtonVariant, string> = {
   ghost:
     "border border-transparent bg-transparent text-fg hover:border-border hover:bg-surface-muted",
   link: "bg-transparent text-brand px-0 underline underline-offset-4 shadow-none hover:text-brand-foreground focus-visible:ring-0 focus-visible:ring-offset-0",
+  gradient:
+    "bg-[var(--cta-gradient)] text-[color:var(--text-on-brand,#0e1024)] shadow-md hover:shadow-lg border border-transparent rounded-pill",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

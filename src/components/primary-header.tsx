@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 
@@ -40,7 +40,7 @@ export function PrimaryHeader({
           aria-label="Capsules home"
           className="group text-fg flex items-center gap-3 text-lg font-semibold"
         >
-          <span className="bg-brand/20 shadow-brand/20 relative flex h-10 w-10 items-center justify-center rounded-2xl shadow-inner">
+          <span className="bg-brand/20 shadow-brand/20 relative flex h-9 w-9 items-center justify-center rounded-2xl shadow-inner">
             <span className="bg-brand h-6 w-6 rounded-xl" />
           </span>
           <span className="font-display text-xl tracking-tight">Capsules</span>
@@ -67,7 +67,7 @@ export function PrimaryHeader({
           {showSettingsLink ? (
             <Link
               href="/settings"
-              className="rounded-pill border-border/40 bg-surface-muted/60 text-fg-subtle hover:border-border hover:text-fg hidden h-10 w-10 items-center justify-center border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:flex"
+              className="rounded-pill border-border/40 bg-surface-muted/60 text-fg-subtle hover:border-border hover:text-fg hidden h-9 w-9 items-center justify-center border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:flex"
               aria-label="Settings"
               title="Settings"
             >
@@ -90,7 +90,7 @@ export function PrimaryHeader({
           ) : null}
           <HeaderAuth />
           <LaunchCta
-            variant="primary"
+            variant="gradient"
             size="sm"
             label={launchLabel}
             className="hidden sm:inline-flex"
@@ -101,3 +101,5 @@ export function PrimaryHeader({
     </header>
   );
 }
+
+
