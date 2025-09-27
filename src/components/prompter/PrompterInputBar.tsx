@@ -26,6 +26,13 @@ export function PrompterInputBar({
 }) {
   return (
     <div className={styles.promptBar}>
+      {/* Animated brand "waterfall lightning" effect outside the bar */}
+      <div className={styles.promptFx} aria-hidden="true">
+        <span className={styles.fxStrike} />
+        <span className={styles.fxTop} />
+        <span className={styles.fxSideL} />
+        <span className={styles.fxSideR} />
+      </div>
       <input
         className={styles.input}
         placeholder={placeholder}

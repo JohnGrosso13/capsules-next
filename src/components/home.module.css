@@ -59,6 +59,128 @@
   backdrop-filter: blur(14px) saturate(130%);
   -webkit-backdrop-filter: blur(14px) saturate(130%);
 }
+
+/* Waterfall lightning effect wrapper */
+.promptFx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5; /* above bar background but below content */
+}
+
+/* 1) Thin strike descends from above and "hits" */
+.fxStrike {
+  position: absolute;
+  left: 50%;
+  top: -140px; /* starts well above */
+  width: 2px;
+  height: 120px;
+  transform: translateX(-50%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 70%, #ffffff) 0%,
+      rgba(255, 255, 255, 0.95) 30%,
+      color-mix(in srgb, var(--color-accent) 80%, transparent) 90%,
+      transparent 100%
+    );
+  filter: blur(0.8px) saturate(160%);
+  border-radius: 999px;
+  animation: strike-fall 3.6s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
+}
+
+@keyframes strike-fall {
+  0% {
+    transform: translate(-50%, -60px) scaleX(0.65);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  28% {
+    /* Hit the top edge: expand slightly */
+    transform: translate(-50%, 20px) scaleX(2.2);
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.4;
+  }
+  60% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 2) Impact sheet that rolls over the top edge only */
+.fxTop {
+  position: absolute;
+  left: -24px;
+  right: -24px;
+  top: -22px; /* sits outside, above the bar */
+  height: 26px;
+  border-radius: 999px;
+  background:
+    radial-gradient(80% 200% at 50% 100%, rgba(255,255,255,0.9), transparent 70%),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-brand) 55%, #fff), color-mix(in srgb, var(--color-accent) 40%, #fff));
+  filter: blur(10px) saturate(160%);
+  transform-origin: center bottom;
+  transform: scaleY(0.1);
+  opacity: 0;
+  animation: top-roll 3.6s ease-in-out infinite;
+}
+
+@keyframes top-roll {
+  0%, 24% {
+    opacity: 0;
+    transform: scaleY(0.1);
+  }
+  28% {
+    opacity: 0.8;
+    transform: scaleY(1.05);
+  }
+  40% {
+    opacity: 0.7;
+    transform: scaleY(0.9);
+  }
+  70% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 3) Side cascades that flow downward outside edges */
+.fxSideL,
+.fxSideR {
+  position: absolute;
+  width: 18px;
+  top: -8px;
+  bottom: -14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255,255,255,0.08)),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-brand) 50%, transparent), color-mix(in srgb, var(--color-accent) 45%, transparent) 60%, color-mix(in srgb, var(--color-brand) 50%, transparent));
+  filter: blur(8px) saturate(150%);
+  opacity: 0;
+  mask-image: linear-gradient(180deg, transparent 0%, black 16%, black 84%, transparent 100%);
+  animation: side-fall 3.6s linear infinite;
+}
+
+.fxSideL { left: -18px; border-top-left-radius: 999px; border-bottom-left-radius: 999px; }
+.fxSideR { right: -18px; border-top-right-radius: 999px; border-bottom-right-radius: 999px; }
+
+@keyframes side-fall {
+  0%, 24% { opacity: 0; background-position: 0 -80px, 0 -60px; }
+  30% { opacity: 0.85; }
+  60% { background-position: 0 80px, 0 60px; opacity: 0.65; }
+  100% { background-position: 0 120px, 0 100px; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fxStrike, .fxTop, .fxSideL, .fxSideR { animation: none; opacity: 0; }
+}
 .promptBar::before {
   content: "";
   position: absolute;
@@ -181,80 +303,6 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
     inset 0 -1px 0 rgba(5, 8, 28, 0.48),
     0 16px 30px rgba(99, 102, 241, 0.28);
-}
-
-/* Futuristic "waterfall" effect for Generate state only */
-.genBtn[data-intent="generate"] {
-  overflow: visible; /* allow side overflow for waterfall */
-}
-
-@keyframes wf-fall {
-  0% {
-    transform: translateY(-55%);
-  }
-  100% {
-    transform: translateY(55%);
-  }
-}
-
-.genBtn[data-intent="generate"]::after {
-  /* Falling core ribbon */
-  content: "";
-  position: absolute;
-  left: -18%;
-  right: -18%;
-  top: -120%;
-  height: 240%;
-  pointer-events: none;
-  border-radius: inherit;
-  background:
-    /* shimmering streaks */
-    repeating-linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.22) 0 2px,
-      rgba(255, 255, 255, 0.04) 2px 10px,
-      rgba(0, 0, 0, 0) 10px 18px
-    ),
-    /* color wash */
-    linear-gradient(180deg, rgba(139, 92, 246, 0.35), rgba(99, 102, 241, 0.28) 40%, rgba(34, 211, 238, 0.3) 60%, rgba(139, 92, 246, 0.36));
-  mix-blend-mode: screen;
-  filter: blur(10px) saturate(140%);
-  animation: wf-fall 2.6s linear infinite;
-  z-index: -1; /* stays behind label thanks to isolation */
-}
-
-.genBtn[data-intent="generate"]::before {
-  /* Edge spill-over glow */
-  content: "";
-  position: absolute;
-  left: -22%;
-  right: -22%;
-  top: -60%;
-  bottom: -60%;
-  pointer-events: none;
-  border-radius: 999px;
-  background:
-    radial-gradient(40% 120% at 0% 50%, rgba(124, 58, 237, 0.26), transparent 70%),
-    radial-gradient(40% 120% at 100% 50%, rgba(56, 189, 248, 0.24), transparent 70%);
-  filter: blur(18px) saturate(140%);
-  opacity: 0.75;
-  z-index: -2;
-}
-
-/* Disable effect for other button modes */
-.genBtn.genBtnNavigate::before,
-.genBtn.genBtnNavigate::after,
-.genBtn.genBtnPost::before,
-.genBtn.genBtnPost::after,
-.genBtn.genBtnStyle::before,
-.genBtn.genBtnStyle::after {
-  content: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .genBtn[data-intent="generate"]::after {
-    animation: none;
-  }
 }
 .genBtnStyle:hover {
   border-color: var(--card-hover-border, rgba(255, 255, 255, 0.28));
