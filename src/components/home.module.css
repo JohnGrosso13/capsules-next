@@ -51,7 +51,7 @@
     var(--glass-bg-1, rgba(255, 255, 255, 0.1)),
     var(--glass-bg-2, rgba(255, 255, 255, 0.05))
   );
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     inset 0 -1px 0 rgba(2, 6, 23, 0.4),
@@ -139,27 +139,35 @@
 }
 
 .genBtnNavigate {
-  background: linear-gradient(120deg, #34d399, #22c55e, #0ea5e9);
-  color: #022c1a;
-  box-shadow: 0 18px 36px rgba(34, 197, 94, 0.36);
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--color-success) 80%, transparent),
+    color-mix(in srgb, var(--color-accent) 65%, transparent)
+  );
+  color: var(--text-on-brand, #0e1024);
+  box-shadow: var(--shadow-lg, 0 18px 36px rgba(34, 197, 94, 0.36));
 }
 
 .genBtnPost {
-  background: linear-gradient(120deg, #f97316, #fbbf24, #f97316);
-  color: #201203;
-  box-shadow: 0 18px 36px rgba(249, 115, 22, 0.34);
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--color-warning) 72%, transparent),
+    color-mix(in srgb, var(--color-accent) 40%, transparent)
+  );
+  color: var(--text-on-brand, #0e1024);
+  box-shadow: var(--shadow-lg, 0 18px 36px rgba(249, 115, 22, 0.34));
 }
 .genBtnPost:hover {
-  box-shadow: 0 24px 48px rgba(249, 115, 22, 0.44);
+  box-shadow: var(--shadow-xl, 0 24px 48px rgba(249, 115, 22, 0.44));
 }
 
 .genBtnStyle {
-  background: linear-gradient(120deg, #22d3ee, #6366f1, #ec4899);
-  color: #0b1120;
-  box-shadow: 0 20px 42px rgba(99, 102, 241, 0.38);
+  background: var(--cta-gradient);
+  color: var(--text-on-brand, #0e1024);
+  box-shadow: var(--shadow-lg, 0 20px 42px rgba(99, 102, 241, 0.38));
 }
 .genBtnStyle:hover {
-  box-shadow: 0 26px 52px rgba(236, 72, 153, 0.46);
+  box-shadow: var(--shadow-xl, 0 26px 52px rgba(236, 72, 153, 0.46));
 }
 
 .genLabel {
@@ -177,7 +185,7 @@
 .chip {
   padding: 7px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
   background: linear-gradient(
     180deg,
     var(--glass-bg-1, rgba(255, 255, 255, 0.08)),
@@ -191,8 +199,12 @@
     0 6px 12px rgba(5, 10, 30, 0.22);
 }
 .chip:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.05));
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.28));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.11)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.05))
+  );
 }
 
 .intentControls {
@@ -235,15 +247,23 @@
   border-radius: 12px;
   border: none;
   background:
-    radial-gradient(60% 100% at 20% 0%, rgba(99, 102, 241, 0.22), transparent 70%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+    radial-gradient(
+      60% 100% at 20% 0%,
+      color-mix(in srgb, var(--color-brand) 22%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      var(--glass-bg-1, rgba(255, 255, 255, 0.12)),
+      var(--glass-bg-2, rgba(255, 255, 255, 0.05))
+    );
   color: var(--text-2);
   font-weight: 700;
   font-size: 0.85rem;
   letter-spacing: 0.01em;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    8px 12px 22px rgba(5, 10, 30, 0.3);
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 22%, transparent),
+    var(--shadow-md, 8px 12px 22px rgba(5, 10, 30, 0.3));
   transition:
     transform 0.16s ease,
     border-color 0.16s ease,
@@ -266,7 +286,7 @@
 .attachIcon {
   font-size: 1.05rem;
   line-height: 1;
-  filter: drop-shadow(0 2px 4px rgba(79, 70, 229, 0.45));
+  filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--color-brand) 45%, transparent));
 }
 .attachLabel {
   font-weight: 600;
@@ -280,9 +300,9 @@
   gap: 6px;
   padding: 5px 10px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(150deg, rgba(39, 46, 82, 0.7), rgba(18, 22, 46, 0.64));
-  color: #ffffff;
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(150deg, var(--glass-bg-1), var(--glass-bg-2));
+  color: var(--text);
   font-weight: 600;
   font-size: 0.78rem;
   box-shadow:
@@ -293,9 +313,13 @@
   color: var(--text-2);
 }
 .attachmentChip[data-status="error"] {
-  border-color: rgba(239, 68, 68, 0.42);
-  color: #fecdd3;
-  background: linear-gradient(150deg, rgba(239, 68, 68, 0.28), rgba(127, 29, 29, 0.32));
+  border-color: color-mix(in srgb, var(--color-danger) 42%, transparent);
+  color: color-mix(in srgb, var(--color-danger) 26%, var(--text));
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--color-danger) 28%, transparent),
+    color-mix(in srgb, var(--color-danger) 18%, transparent)
+  );
 }
 .attachmentName {
   max-width: 140px;
@@ -309,7 +333,7 @@
 }
 .attachmentStatusError {
   font-size: 0.74rem;
-  color: #fecdd3;
+  color: color-mix(in srgb, var(--color-danger) 26%, var(--text));
 }
 .attachmentRemove {
   border: none;
@@ -340,8 +364,8 @@
   padding: 7px 12px;
   border-radius: 14px;
   border: none;
-  background: linear-gradient(150deg, rgba(41, 48, 92, 0.58), rgba(16, 20, 46, 0.68));
-  color: #ffffff;
+  background: linear-gradient(150deg, var(--glass-bg-1), var(--glass-bg-2));
+  color: var(--text);
   font-weight: 700;
   font-size: 0.82rem;
   letter-spacing: 0.01em;
@@ -363,18 +387,19 @@
   position: absolute;
   inset: 2px;
   border-radius: inherit;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-fg) 12%, transparent),
+    color-mix(in srgb, var(--color-fg) 2%, transparent)
+  );
   opacity: 0.85;
   pointer-events: none;
 }
 .intentChip:hover {
   color: var(--text);
   transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(5, 8, 28, 0.58),
-    12px 18px 30px rgba(6, 10, 30, 0.4);
-  background: linear-gradient(150deg, rgba(54, 66, 118, 0.62), rgba(24, 30, 64, 0.74));
+  box-shadow: var(--shadow-md, 12px 18px 30px rgba(6, 10, 30, 0.4));
+  background: linear-gradient(150deg, var(--glass-bg-1), var(--glass-bg-2));
 }
 .intentChip:active {
   transform: translateY(0);
@@ -404,9 +429,9 @@
   gap: 8px;
   padding: 12px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.26);
-  background: linear-gradient(180deg, rgba(9, 12, 32, 0.96), rgba(9, 12, 28, 0.88));
-  box-shadow: 0 22px 44px rgba(5, 10, 34, 0.48);
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+  box-shadow: var(--card-shadow);
   backdrop-filter: blur(22px) saturate(160%);
   z-index: 220;
 }
@@ -414,15 +439,23 @@
   text-align: left;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
-  color: #ffffff;
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.05))
+  );
+  color: var(--text);
   font-weight: 700;
   font-size: 0.9rem;
 }
 .intentMenu button:hover {
-  border-color: rgba(255, 255, 255, 0.3);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.3));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.18)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.08))
+  );
 }
 @media (max-width: 640px) {
   .intentOverride {
@@ -530,8 +563,12 @@
   align-items: center;
   color: var(--text, rgba(255, 255, 255, 0.86));
   font-size: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    180deg,
+    var(--glass-bg-1, rgba(255, 255, 255, 0.05)),
+    var(--glass-bg-2, rgba(255, 255, 255, 0.03))
+  );
+  border-bottom: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
   transition:
     background 0.16s ease,
     border-color 0.16s ease;
@@ -549,8 +586,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.12));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.1)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.04))
+  );
   color: var(--text-2);
   font-weight: 700;
   font-size: 1rem;
@@ -562,10 +603,14 @@
 }
 .iconBtn:hover {
   transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.28);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.28));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.16)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.06))
+  );
   color: var(--text);
-  box-shadow: 0 12px 24px rgba(5, 10, 30, 0.24);
+  box-shadow: var(--shadow-md, 0 12px 24px rgba(5, 10, 30, 0.24));
 }
 .iconBtn:active {
   transform: translateY(0);
@@ -580,19 +625,27 @@
   transform: none;
 }
 .iconBtn[aria-expanded="true"] {
-  border-color: rgba(255, 255, 255, 0.28);
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.28));
   color: var(--text);
 }
 .iconBtnDelete {
-  border-color: rgba(239, 68, 68, 0.32);
-  color: rgba(239, 68, 68, 0.9);
-  background: linear-gradient(180deg, rgba(239, 68, 68, 0.16), rgba(239, 68, 68, 0.05));
+  border-color: color-mix(in srgb, var(--color-danger) 32%, transparent);
+  color: color-mix(in srgb, var(--color-danger) 90%, var(--text));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-danger) 16%, transparent),
+    color-mix(in srgb, var(--color-danger) 5%, transparent)
+  );
 }
 .iconBtnDelete:hover {
-  color: #fff;
-  border-color: rgba(239, 68, 68, 0.5);
-  background: linear-gradient(180deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.12));
-  box-shadow: 0 16px 32px rgba(239, 68, 68, 0.28);
+  color: var(--text-on-brand, #0e1024);
+  border-color: color-mix(in srgb, var(--color-danger) 50%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-danger) 30%, transparent),
+    color-mix(in srgb, var(--color-danger) 12%, transparent)
+  );
+  box-shadow: var(--shadow-lg, 0 16px 32px rgba(239, 68, 68, 0.28));
 }
 .card:hover .cardHead,
 .card:focus-within .cardHead {
@@ -632,8 +685,12 @@
   gap: 6px;
   padding: 7px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.04))
+  );
   font-size: 13px;
   font-weight: 700;
   color: var(--text);
@@ -679,7 +736,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: var(--link-color, #c7d2fe);
+  color: var(--link-color, color-mix(in srgb, var(--color-brand) 65%, var(--color-fg)));
   font: inherit;
   font-weight: inherit;
   letter-spacing: inherit;
@@ -687,10 +744,10 @@
 }
 .userNameButton:hover {
   text-decoration: underline;
-  color: #e0e7ff;
+  color: var(--color-brand-foreground, #e0e7ff);
 }
 .userNameButton:focus-visible {
-  outline: 2px solid rgba(129, 140, 248, 0.6);
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 60%, transparent);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -703,16 +760,24 @@
 .postFriendButton {
   padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.05))
+  );
   color: var(--text);
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
 }
 .postFriendButton:hover {
-  border-color: rgba(255, 255, 255, 0.3);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.3));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.18)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.08))
+  );
 }
 .postFriendButton[aria-busy="true"],
 .postFriendButton:disabled {
@@ -724,8 +789,12 @@
   margin-bottom: 12px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(129, 140, 248, 0.38);
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.18), rgba(79, 70, 229, 0.08));
+  border: 1px solid color-mix(in srgb, var(--color-brand) 38%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand) 18%, var(--surface-overlay)),
+    color-mix(in srgb, var(--color-brand) 8%, transparent)
+  );
   color: var(--text);
   font-weight: 600;
   text-align: center;
@@ -739,9 +808,13 @@
   overflow: hidden;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(5, 10, 30, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06));
+  box-shadow: var(--shadow-sm, 0 4px 14px rgba(5, 10, 30, 0.35));
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.06))
+  );
 }
 .avatarImg {
   display: block;
@@ -755,8 +828,8 @@
   border-radius: 50%;
   background: radial-gradient(
     100% 100% at 30% 30%,
-    rgba(255, 255, 255, 0.65),
-    rgba(255, 255, 255, 0.12)
+    color-mix(in srgb, var(--color-fg) 65%, transparent),
+    color-mix(in srgb, var(--color-fg) 12%, transparent)
   );
 }
 .separator {
@@ -774,11 +847,11 @@
   gap: 12px;
   padding: 10px 16px 14px;
   background: transparent;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--card-border, rgba(255, 255, 255, 0.06));
 }
 .card:hover .actionBar,
 .card:focus-within .actionBar {
-  border-top-color: rgba(255, 255, 255, 0.12);
+  border-top-color: var(--card-hover-border, rgba(255, 255, 255, 0.12));
 }
 .actionBtn {
   flex: 1;
@@ -862,23 +935,31 @@
   min-width: 32px;
 }
 .actionBtn[data-variant="like"] .actionIcon {
-  color: #f97316;
+  color: var(--color-danger);
 }
 .actionBtn[data-variant="comment"] .actionIcon {
-  color: #38bdf8;
+  color: var(--color-info);
 }
 .actionBtn[data-variant="share"] .actionIcon {
-  color: #facc15;
+  color: var(--color-warning);
 }
 .actionBtn[data-variant="like"][data-active="true"] {
-  border-color: rgba(248, 113, 113, 0.55);
-  background: linear-gradient(180deg, rgba(248, 113, 113, 0.2), rgba(248, 113, 113, 0.06));
-  box-shadow: 0 14px 32px rgba(248, 113, 113, 0.26);
+  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-danger) 20%, transparent),
+    color-mix(in srgb, var(--color-danger) 6%, transparent)
+  );
+  box-shadow: var(--shadow-md, 0 14px 32px rgba(248, 113, 113, 0.26));
 }
 .actionBtn[data-variant="like"][data-active="true"] .actionIcon {
-  color: #f87171;
-  border-color: rgba(248, 113, 113, 0.55);
-  background: linear-gradient(180deg, rgba(248, 113, 113, 0.3), rgba(248, 113, 113, 0.12));
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-danger) 30%, transparent),
+    color-mix(in srgb, var(--color-danger) 12%, transparent)
+  );
 }
 .actionBtn[data-variant="like"][data-active="true"] .actionLabel {
   color: var(--text);
@@ -1043,7 +1124,11 @@
   justify-content: center;
   border-radius: 999px;
   border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.04))
+  );
   color: var(--text);
   font-weight: 800;
   box-shadow:
@@ -1052,7 +1137,7 @@
 }
 .railBackBtn:hover {
   transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.26);
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.26));
 }
 .railTabs {
   display: grid;
@@ -1067,8 +1152,12 @@
   gap: 8px;
   padding: 8px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.04))
+  );
   color: var(--text);
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -1079,13 +1168,13 @@
   width: 100%;
 }
 .railTab:hover {
-  border-color: rgba(255, 255, 255, 0.26);
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.26));
   transform: translateY(-1px);
 }
 .railTabActive {
   color: var(--text-on-brand, #0e1024);
   background: var(--cta-gradient);
-  box-shadow: 0 14px 28px rgba(79, 70, 229, 0.32);
+  box-shadow: var(--shadow-lg, 0 14px 28px rgba(79, 70, 229, 0.32));
   border-color: transparent;
 }
 .railTabIcon {
