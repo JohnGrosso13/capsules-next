@@ -28,7 +28,7 @@ const fallbackPosts: HomeFeedPost[] = [
     dbId: "sample-feed",
     user_name: "Capsules AI",
     content: "Ask your Capsule AI to design posts, polls, and shopping drops for your community.",
-    media_url: "/globe.svg",
+    media_url: null,
     created_at: null,
     likes: 128,
     comments: 14,

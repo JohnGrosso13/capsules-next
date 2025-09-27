@@ -5,13 +5,14 @@
 import React from "react";
 import Link from "next/link";
 import styles from "./promo-row.module.css";
+import { MaterialSymbol } from "./material-symbol";
 
 type Post = { id: string; media_url?: string | null; content?: string | null };
 type Friend = { name: string; avatar?: string | null };
 
 const fallbackMedia: Post[] = [
-  { id: "media-1", media_url: "/globe.svg", content: "Discover Capsule Launches" },
-  { id: "media-2", media_url: "/window.svg", content: "Design inspiration from Capsules" },
+  { id: "media-1", media_url: null, content: "Discover Capsule Launches" },
+  { id: "media-2", media_url: null, content: "Design inspiration from Capsules" },
 ];
 
 const fallbackFriends: Friend[] = [
@@ -80,7 +81,9 @@ export function PromoRow() {
           {p1?.media_url ? (
             <img className={styles.media} src={p1.media_url} alt="Post media" />
           ) : (
-            <div className={styles.media} />
+            <div className={styles.fallback}>
+              <MaterialSymbol name="auto_stories" className={styles.fallbackIcon} />
+            </div>
           )}
         </div>
         <div className={styles.small}>{p1?.content || "Recently added media"}</div>
@@ -94,7 +97,9 @@ export function PromoRow() {
           {p2?.media_url ? (
             <img className={styles.media} src={p2.media_url} alt="Post media" />
           ) : (
-            <div className={styles.media} />
+            <div className={styles.fallback}>
+              <MaterialSymbol name="blur_on" className={styles.fallbackIcon} />
+            </div>
           )}
         </div>
         <div className={styles.small}>{p2?.content || "Popular across capsules"}</div>
