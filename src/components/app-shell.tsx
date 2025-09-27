@@ -12,7 +12,7 @@ import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import homeStyles from "./home.module.css";
 import { FriendsRail } from "@/components/rail/FriendsRail";
 import { applyThemeVars } from "@/lib/theme";
-import { useFriendsGraph, type Friend } from "@/hooks/useFriendsGraph";
+import { useFriendsGraph, type Friend, mapFriendList as sharedMapFriendList } from "@/hooks/useFriendsGraph";
 import { useFriendActions, buildFriendTargetPayload as buildTarget } from "@/hooks/useFriendActions";
 import { UsersThree, ChatsCircle, Handshake } from "@phosphor-icons/react/dist/ssr";
 
@@ -372,7 +372,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     return "home";
   }, [activeNav, pathname]);
 
-  const { friends, setFriends, incomingRequestCount, outgoingRequestCount } = useFriendsGraph(fallbackFriends);
+  const { friends, setFriends } = useFriendsGraph(fallbackFriends);
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
@@ -641,46 +641,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
   }, [envelopeClerkId, envelopeEmail, envelopeFullName, envelopeAvatarUrl, envelopeProvider, envelopeKey]);
 
 
-  const mapFriendList = React.useCallback((items: unknown[]): Friend[] => {
-    return items.map((raw) => {
-      const record = raw as Record<string, unknown>;
-      const name = typeof record["name"] === "string"
-        ? (record["name"] as string)
-        : typeof record["user_name"] === "string"
-        ? (record["user_name"] as string)
-        : typeof record["userName"] === "string"
-        ? (record["userName"] as string)
-        : "Friend";
-      const avatar = typeof record["avatar"] === "string"
-        ? (record["avatar"] as string)
-        : typeof record["avatarUrl"] === "string"
-        ? (record["avatarUrl"] as string)
-        : typeof record["userAvatar"] === "string"
-        ? (record["userAvatar"] as string)
-        : null;
-      const statusValue = typeof record["status"] === "string" ? (record["status"] as string) : undefined;
-      const status: Friend["status"] = statusValue === "online" || statusValue === "away" ? statusValue : "offline";
-      return {
-        id: typeof record["id"] === "string" ? (record["id"] as string) : null,
-        userId:
-          typeof record["userId"] === "string"
-            ? (record["userId"] as string)
-            : typeof record["user_id"] === "string"
-            ? (record["user_id"] as string)
-            : null,
-        key:
-          typeof record["key"] === "string"
-            ? (record["key"] as string)
-            : typeof record["userKey"] === "string"
-            ? (record["userKey"] as string)
-            : null,
-        name,
-        avatar,
-        since: typeof record["since"] === "string" ? (record["since"] as string) : null,
-        status,
-      } satisfies Friend;
-    });
-  }, []);
+  const mapFriendList = React.useCallback((items: unknown[]): Friend[] => sharedMapFriendList(items), []);
 
   // Use shared builder from hooks/useFriendActions (imported as buildTarget)
 

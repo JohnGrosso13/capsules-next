@@ -80,7 +80,7 @@ function formatFriendList(graph: Awaited<ReturnType<typeof listSocialGraph>>["fr
     name: friend.user?.name ?? "Friend",
     avatar: friend.user?.avatarUrl ?? null,
     since: friend.since,
-    online: false,
+    status: "offline" as const,
   }));
 }
 

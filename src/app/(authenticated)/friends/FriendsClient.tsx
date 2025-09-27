@@ -11,6 +11,8 @@ import type { Types as AblyTypes } from "ably";
 import type { FriendRequestSummary, SocialGraphSnapshot } from "@/lib/supabase/friends";
 
 import styles from "./friends.module.css";
+import { FriendRow } from "@/components/friends/FriendRow";
+import { FriendMenu } from "@/components/friends/FriendMenu";
 
 type PresenceStatus = "online" | "offline" | "away";
 
@@ -383,16 +385,7 @@ export function FriendsClient() {
     await mutateGraph({ action: "cancel", requestId });
   }
 
-  function statusClass(status: PresenceStatus) {
-    switch (status) {
-      case "online":
-        return styles.online;
-      case "away":
-        return styles.away ?? styles.online;
-      default:
-        return styles.offline;
-    }
-  }
+  // Presence class mapping handled by FriendRow via useFriendPresence
 
   if (loading) {
     return <div className={styles.empty}>Loading friends…</div>;
@@ -469,37 +462,23 @@ export function FriendsClient() {
           {friends.map((friend, index) => {
             const identifier = friend.userId ?? friend.key ?? friend.id ?? `friend-${index}`;
             const canTarget = Boolean(friend.userId || friend.key);
-            const isOpen = true;
             const isPending = friendActionPendingId === identifier;
-            const sinceLabel = friend.since ? new Date(friend.since).toLocaleDateString() : null;
             return (
-              <div key={`${identifier}-${index}`} className={styles.friendRow}>
-                <span className={styles.avatarWrap}>
-                  {friend.avatar ? (
-                    <img className={styles.avatarImg} src={friend.avatar} alt="" aria-hidden />
-                  ) : (
-                    <span className={styles.avatar} aria-hidden />
-                  )}
-                  <span className={`${styles.presence} ${statusClass(friend.status)}`.trim()} aria-hidden />
-                </span>
-                <div className={styles.friendMeta}>
-                  <span className={styles.friendName}>{friend.name}</span>
-                  {sinceLabel ? <div className={styles.friendSince}>Since {sinceLabel}</div> : null}
-                  {isOpen ? (
-                    <div className={styles.friendActions}>
-                      <button
-                        type="button"
-                        className={styles.friendActionButton}
-                        onClick={() => handleFriendRemove(friend, identifier)}
-                        disabled={!canTarget || isPending}
-                        aria-busy={isPending}
-                      >
-                        {isPending ? "Removing..." : "Delete"}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+              <FriendRow
+                key={`${identifier}-${index}`}
+                name={friend.name}
+                avatar={friend.avatar}
+                since={friend.since ?? undefined}
+                status={friend.status}
+                open
+                actions={
+                  <FriendMenu
+                    canTarget={canTarget}
+                    pending={isPending}
+                    onDelete={() => handleFriendRemove(friend, identifier)}
+                  />
+                }
+              />
             );
           })}
         </div>
