@@ -12,6 +12,7 @@ import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import homeStyles from "./home.module.css";
 import { FriendsRail } from "@/components/rail/FriendsRail";
 import { applyThemeVars } from "@/lib/theme";
+import { useFriendsGraph, type Friend } from "@/hooks/useFriendsGraph";
 import { useFriendActions, buildFriendTargetPayload as buildTarget } from "@/hooks/useFriendActions";
 import { UsersThree, ChatsCircle, Handshake } from "@phosphor-icons/react/dist/ssr";
 
@@ -19,15 +20,7 @@ import styles from "./app-shell.module.css";
 
 type NavKey = "home" | "create" | "capsule" | "memory";
 
-type Friend = {
-  id: string | null;
-  userId: string | null;
-  key?: string | null;
-  name: string;
-  avatar?: string | null;
-  since?: string | null;
-  status?: "online" | "offline" | "away";
-};
+// Friend type is re-exported from hooks/useFriendsGraph
 
 type RailTab = "friends" | "chats" | "requests";
 
@@ -379,7 +372,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     return "home";
   }, [activeNav, pathname]);
 
-  const [friends, setFriends] = React.useState<Friend[]>(fallbackFriends);
+  const { friends, setFriends, incomingRequestCount, outgoingRequestCount } = useFriendsGraph(fallbackFriends);
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
@@ -691,30 +684,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
 
   // Use shared builder from hooks/useFriendActions (imported as buildTarget)
 
-  React.useEffect(() => {
-    fetch("/api/friends/sync", { method: "POST" })
-      .then((r) => r.json())
-      .then((d) => {
-        const arr = Array.isArray(d?.friends) ? d.friends : [];
-        const mapped = mapFriendList(arr);
-        setFriends(mapped.length ? mapped : fallbackFriends);
-
-        const rawGraph = d && typeof d === "object" ? (d as { graph?: unknown }).graph : null;
-        const graph =
-          rawGraph && typeof rawGraph === "object"
-            ? (rawGraph as { incomingRequests?: unknown; outgoingRequests?: unknown })
-            : null;
-        const incoming = Array.isArray(graph?.incomingRequests) ? graph.incomingRequests.length : 0;
-        const outgoing = Array.isArray(graph?.outgoingRequests) ? graph.outgoingRequests.length : 0;
-        setIncomingRequestCount(incoming);
-        setOutgoingRequestCount(outgoing);
-      })
-      .catch(() => {
-        setFriends(fallbackFriends);
-        setIncomingRequestCount(0);
-        setOutgoingRequestCount(0);
-      });
-  }, [mapFriendList]);
+  // Initial graph is loaded by useFriendsGraph; expose refresh if needed elsewhere
 
   React.useEffect(() => {
     if (!statusMessage) return;
