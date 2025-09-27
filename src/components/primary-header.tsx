@@ -33,7 +33,7 @@ export function PrimaryHeader({
   launchLabel = "Launch Capsule",
 }: PrimaryHeaderProps) {
   return (
-    <header className="border-border/40 bg-surface-elevated/80 sticky inset-x-0 top-0 z-50 border-b backdrop-blur-xl">
+    <header className="border-border/40 bg-surface-elevated/80 fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-5 py-4">
         <Link
           href="/"
@@ -67,8 +67,9 @@ export function PrimaryHeader({
           {showSettingsLink ? (
             <Link
               href="/settings"
-              className="rounded-pill border-border/40 bg-surface-muted/60 text-fg-subtle hover:border-border hover:text-fg hidden h-10 w-10 items-center justify-center border transition sm:flex"
+              className="rounded-pill border-border/40 bg-surface-muted/60 text-fg-subtle hover:border-border hover:text-fg hidden h-10 w-10 items-center justify-center border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:flex"
               aria-label="Settings"
+              title="Settings"
             >
               <svg
                 className="h-5 w-5"

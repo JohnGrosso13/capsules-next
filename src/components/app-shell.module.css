@@ -1,5 +1,5 @@
-﻿.outer {
-  padding: 0 0 80px;
+.outer {
+  padding: 68px 0 80px;
 }
 .page {
   width: min(1180px, calc(100% - 56px));
@@ -120,3 +120,4 @@
   width: 100%;
   margin: 0;
 }
+
