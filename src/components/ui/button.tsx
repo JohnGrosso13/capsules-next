@@ -1,4 +1,4 @@
-﻿import { forwardRef, type ButtonHTMLAttributes, type ReactNode, type Ref } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode, type Ref } from "react";
 import { Slot } from "@radix-ui/react-slot";
 
 import { cn } from "@/lib/cn";

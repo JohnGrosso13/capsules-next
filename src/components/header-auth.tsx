@@ -20,12 +20,10 @@ export function HeaderAuth() {
         </SignInButton>
       </SignedOut>
       <SignedIn>
-        <div className="rounded-pill border-border/50 bg-surface-elevated/80 overflow-hidden border p-1 shadow-xs backdrop-blur h-9 w-9 flex items-center justify-center">
+        <div className="rounded-pill border-border/50 bg-surface-elevated/80 flex h-9 w-9 items-center justify-center overflow-hidden border p-1 shadow-xs backdrop-blur">
           <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "h-7 w-7" } }} />
         </div>
       </SignedIn>
     </div>
   );
 }
-
-

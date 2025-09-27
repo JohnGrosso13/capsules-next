@@ -67,7 +67,7 @@ export function PrimaryHeader({
           {showSettingsLink ? (
             <Link
               href="/settings"
-              className="rounded-pill border-border/40 bg-surface-muted/60 text-fg-subtle hover:border-border hover:text-fg hidden h-9 w-9 items-center justify-center border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:flex"
+              className="rounded-pill border-border/40 bg-surface-muted/60 text-fg-subtle hover:border-border hover:text-fg focus-visible:ring-brand focus-visible:ring-offset-background hidden h-9 w-9 items-center justify-center border transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex"
               aria-label="Settings"
               title="Settings"
             >
@@ -101,5 +101,3 @@ export function PrimaryHeader({
     </header>
   );
 }
-
-
