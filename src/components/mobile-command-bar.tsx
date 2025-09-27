@@ -64,33 +64,33 @@ export function MobileCommandBar() {
       <div className={styles.inner}>
         <div className={styles.dock} data-surface="ai-dock">
           <Link href="/" className={`${styles.btn} ${pathname === "/" ? styles.active : ""}`} aria-label="Home" aria-current={pathname === "/" ? "page" : undefined} onClick={() => recordUse("home")} {...intentAttrs("navigate_home")}>
-            <span className="msr msrActive" aria-hidden>home</span>
+            <HomeIcon />
             <span>Home</span>
           </Link>
 
           <Link href="/create" className={`${styles.btn} ${pathname === "/create" ? styles.active : ""}`} aria-label="Create" aria-current={pathname === "/create" ? "page" : undefined} onClick={() => recordUse("create")} {...intentAttrs("navigate_create")}>
-            <span className="msr" aria-hidden>add_circle</span>
+            <CreateIcon />
             <span>Create</span>
           </Link>
 
           <Link href="/capsule" className={`${styles.btn} ${pathname === "/capsule" ? styles.active : ""}`} aria-label="Capsule" aria-current={pathname === "/capsule" ? "page" : undefined} onClick={() => recordUse("capsule")} {...intentAttrs("navigate_capsule")}>
-            <span className="msr" aria-hidden>blur_on</span>
+            <CapsuleIcon />
             <span>Capsule</span>
           </Link>
 
           <div className={styles.moreWrap} ref={moreRef}>
             <button type="button" className={`${styles.btn} ${open ? styles.active : ""}`} onClick={() => { setOpen((v) => !v); recordUse("more"); }} aria-expanded={open} aria-haspopup="true" aria-label="More options" {...intentAttrs("open_more")}>
-              <span className="msr" aria-hidden>more_horiz</span>
+              <MenuIcon />
               <span>More</span>
             </button>
             {open ? (
               <div className={styles.sheet} role="menu" data-surface="ai-dock-more">
                 <Link href="/friends" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_friends")}>
-                  <span className="msr" aria-hidden>group</span>
+                  <FriendsIcon />
                   Friends
                 </Link>
                 <Link href="/memory" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_memory")}>
-                  <span className="msr" aria-hidden>auto_stories</span>
+                  <MemoryIcon />
                   Memory
                 </Link>
                 <SignOutButton redirectUrl="/" signOutCallback={() => setOpen(false)}>
@@ -101,12 +101,12 @@ export function MobileCommandBar() {
                     onClick={() => { recordUse("signout"); setOpen(false); }}
                     {...intentAttrs("sign_out")}
                   >
-                    <span className="msr" aria-hidden>account_circle</span>
+                    <ProfileIcon />
                     Profile
                   </button>
                 </SignOutButton>
                 <Link href="/settings" className={styles.sheetItem} role="menuitem" onClick={() => setOpen(false)} {...intentAttrs("navigate_settings")}>
-                  <span className="msr" aria-hidden>settings</span>
+                  <SettingsIcon />
                   Settings
                 </Link>
               </div>
@@ -227,3 +227,4 @@ function ProfileIcon(){
     </svg>
   );
 }
+

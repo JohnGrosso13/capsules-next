@@ -19,6 +19,7 @@ export const createPostRequestSchema = requestUserEnvelopeSchema.extend({
 
 const normalizedPostSchema = z.object({
   id: z.union([z.string(), z.number()]).transform((value) => String(value)),
+  dbId: z.string().optional(),
   kind: z.string(),
   content: z.string(),
   mediaUrl: z.string().nullable(),
@@ -34,6 +35,7 @@ const normalizedPostSchema = z.object({
   ts: z.string(),
   source: z.string(),
   ownerUserId: z.string().nullable(),
+  viewerLiked: z.boolean().optional(),
 });
 
 export const postsResponseSchema = z.object({

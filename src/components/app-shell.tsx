@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -784,7 +784,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     setActiveFriendTarget((prev) => (prev === identifier ? null : identifier));
   }, []);
 
-  const handleFriendRequest = React.useCallback(
+  const handleFriendRemove = React.useCallback(
     async (friend: Friend, identifier: string) => {
       const target = buildFriendTargetPayload(friend);
       if (!target) {
@@ -796,7 +796,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
         const res = await fetch("/api/friends/update", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "request", target }),
+          body: JSON.stringify({ action: "remove", target }),
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
@@ -816,11 +816,11 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
           setIncomingRequestCount(incoming);
           setOutgoingRequestCount(outgoing);
         }
-        setStatusMessage(`Friend request sent to ${friend.name}.`);
+        setStatusMessage(`${friend.name} removed from friends.`);
       } catch (error) {
         console.error("Friend request error", error);
         setStatusMessage(
-          error instanceof Error && error.message ? error.message : "Couldn't send that friend request.",
+          error instanceof Error && error.message ? error.message : "Couldn't remove that friend.",
         );
       } finally {
         setFriendActionPendingId(null);
@@ -1168,11 +1168,11 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
                                   <button
                                     type="button"
                                     className={friendsStyles.friendActionButton}
-                                    onClick={() => handleFriendRequest(f, identifier)}
+                                    onClick={() => handleFriendRemove(f, identifier)}
                                     disabled={!canTarget || isPending}
                                     aria-busy={isPending}
                                   >
-                                    {isPending ? "Sending..." : "Add friend"}
+                                    {isPending ? "Removing..." : "Delete"}
                                   </button>
                                 </div>
                               ) : null}
@@ -1209,6 +1209,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     </div>
   );
 }
+
 
 
 

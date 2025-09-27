@@ -7,9 +7,11 @@ import styles from "./home.module.css";
 
 import { AppShell } from "./app-shell";
 import { PromoRow } from "./promo-row";
+import { MaterialSymbol, type MaterialSymbolName } from "./material-symbol";
 
 type Post = {
   id: string;
+  dbId?: string | null;
   user_name?: string | null;
   user_avatar?: string | null;
   content?: string | null;
@@ -23,11 +25,14 @@ type Post = {
   likes?: number | null;
   comments?: number | null;
   shares?: number | null;
+  viewer_liked?: boolean | null;
+  viewerLiked?: boolean | null;
 };
 
 const fallbackPosts: Post[] = [
   {
     id: "sample-feed",
+    dbId: "sample-feed",
     user_name: "Capsules AI",
     content:
       "Ask your Capsule AI to design posts, polls, and shopping drops for your community.",
@@ -36,6 +41,7 @@ const fallbackPosts: Post[] = [
     likes: 128,
     comments: 14,
     shares: 6,
+    viewerLiked: false,
   },
 ];
 
@@ -60,12 +66,6 @@ function formatCount(value?: number | null): string {
 
 type ActionKey = "like" | "comment" | "share";
 
-const ACTION_ICON_MAP: Record<ActionKey, string> = {
-  like: "favorite",
-  comment: "mode_comment",
-  share: "ios_share",
-};
-
 type Props = {
   showPromoRow?: boolean;
   showPrompter?: boolean;
@@ -76,6 +76,8 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
   const [activeFriendTarget, setActiveFriendTarget] = React.useState<string | null>(null);
   const [friendActionPending, setFriendActionPending] = React.useState<string | null>(null);
   const [friendMessage, setFriendMessage] = React.useState<string | null>(null);
+  const [likePending, setLikePending] = React.useState<Record<string, boolean>>({});
+  const postsRef = React.useRef<Post[]>(posts);
 
   React.useEffect(() => {
     if (!friendMessage) return;
@@ -83,6 +85,9 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
     return () => window.clearTimeout(timer);
   }, [friendMessage]);
 
+  React.useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
 
   const refreshGeneration = React.useRef(0);
@@ -100,6 +105,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
         if (!arr.length) {
           if (refreshGeneration.current === requestToken) {
             setPosts(fallbackPosts);
+            setLikePending({});
           }
           return;
         }
@@ -129,6 +135,24 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
               : typeof record["userKey"] === "string"
               ? (record["userKey"] as string)
               : null;
+          const dbId =
+            typeof record["dbId"] === "string"
+              ? (record["dbId"] as string)
+              : typeof record["db_id"] === "string"
+              ? (record["db_id"] as string)
+              : typeof record["uuid"] === "string"
+              ? (record["uuid"] as string)
+              : typeof record["id"] === "string"
+              ? (record["id"] as string)
+              : typeof record["id"] === "number"
+              ? String(record["id"])
+              : null;
+          const identifier =
+            typeof record["id"] === "string"
+              ? (record["id"] as string)
+              : typeof record["client_id"] === "string"
+              ? (record["client_id"] as string)
+              : dbId ?? crypto.randomUUID();
           const likes =
             typeof record["likes"] === "number"
               ? (record["likes"] as number)
@@ -149,8 +173,16 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
               : typeof record["share_count"] === "number"
               ? (record["share_count"] as number)
               : 0;
+          const viewerLiked =
+            typeof record["viewerLiked"] === "boolean"
+              ? (record["viewerLiked"] as boolean)
+              : typeof record["viewer_liked"] === "boolean"
+              ? (record["viewer_liked"] as boolean)
+              : false;
+
           return {
-            id: String(record["id"] ?? crypto.randomUUID()),
+            id: String(identifier),
+            dbId,
             user_name:
               typeof record["user_name"] === "string"
                 ? (record["user_name"] as string)
@@ -174,10 +206,12 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
             likes,
             comments,
             shares,
+            viewerLiked,
           };
         });
         if (refreshGeneration.current === requestToken) {
           setPosts(normalized.length ? normalized : fallbackPosts);
+          setLikePending({});
         }
       } catch (error) {
         if (
@@ -189,7 +223,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
         console.error("Posts refresh failed", error);
       }
     },
-    [setPosts],
+    [setPosts, setLikePending],
   );
 
   React.useEffect(() => {
@@ -199,7 +233,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
   }, [refreshPosts]);
 
   React.useEffect(() => {
-    const handleRefresh = (_event: Event) => {
+    const handleRefresh = () => {
       void refreshPosts();
     };
     window.addEventListener("posts:refresh", handleRefresh);
@@ -207,6 +241,70 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
       window.removeEventListener("posts:refresh", handleRefresh);
     };
   }, [refreshPosts]);
+
+  const handleToggleLike = React.useCallback(
+    async (postKey: string) => {
+      const currentPosts = postsRef.current;
+      const target = currentPosts.find((item) => item.id === postKey);
+      if (!target) return;
+
+      const previousLiked = Boolean(target.viewerLiked);
+      const baseLikes = typeof target.likes === "number" ? target.likes : 0;
+      const nextLiked = !previousLiked;
+      const optimisticLikes = Math.max(0, nextLiked ? baseLikes + 1 : baseLikes - 1);
+      const requestId =
+        typeof target.dbId === "string" && target.dbId?.trim()
+          ? target.dbId
+          : target.id;
+
+      setLikePending((prev) => ({ ...prev, [postKey]: true }));
+      setPosts((prev) =>
+        prev.map((item) =>
+          item.id === postKey
+            ? { ...item, viewerLiked: nextLiked, likes: optimisticLikes }
+            : item,
+        ),
+      );
+
+      try {
+        const response = await fetch(`/api/posts/${encodeURIComponent(requestId)}/like`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: nextLiked ? "like" : "unlike" }),
+        });
+        if (!response.ok) {
+          throw new Error(`Like request failed (${response.status})`);
+        }
+        const payload = await response.json().catch(() => null);
+        const confirmedLikes =
+          typeof payload?.likes === "number" ? payload.likes : optimisticLikes;
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postKey
+              ? { ...item, viewerLiked: nextLiked, likes: confirmedLikes }
+              : item,
+          ),
+        );
+      } catch (error) {
+        console.error("Like toggle failed", error);
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postKey
+              ? { ...item, viewerLiked: previousLiked, likes: baseLikes }
+              : item,
+          ),
+        );
+      } finally {
+        setLikePending((prev) => {
+          const next = { ...prev };
+          delete next[postKey];
+          return next;
+        });
+      }
+    },
+    [setLikePending, setPosts],
+  );
 
   const timeAgo = React.useCallback((iso?: string) => {
     if (!iso) return "just now";
@@ -306,10 +404,28 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
           const likeCount = typeof p.likes === "number" ? Math.max(0, p.likes) : 0;
           const commentCount = typeof p.comments === "number" ? Math.max(0, p.comments) : 0;
           const shareCount = typeof p.shares === "number" ? Math.max(0, p.shares) : 0;
-          const actionItems: Array<{ key: ActionKey; label: string; icon: string; count: number }> = [
-            { key: "like", label: "Like", icon: ACTION_ICON_MAP.like, count: likeCount },
-            { key: "comment", label: "Comment", icon: ACTION_ICON_MAP.comment, count: commentCount },
-            { key: "share", label: "Share", icon: ACTION_ICON_MAP.share, count: shareCount },
+          const viewerLiked = Boolean((p.viewerLiked ?? p.viewer_liked) ?? false);
+          const isLikePending = Boolean(likePending[p.id]);
+          const actionItems: Array<{
+            key: ActionKey;
+            label: string;
+            icon: MaterialSymbolName;
+            count: number;
+            active?: boolean;
+            pending?: boolean;
+            handler?: () => void;
+          }> = [
+            {
+              key: "like",
+              label: viewerLiked ? "Liked" : "Like",
+              icon: "favorite",
+              count: likeCount,
+              active: viewerLiked,
+              pending: isLikePending,
+              handler: () => handleToggleLike(p.id),
+            },
+            { key: "comment", label: "Comment", icon: "mode_comment", count: commentCount },
+            { key: "share", label: "Share", icon: "ios_share", count: shareCount },
           ];
           return (
             <article key={p.id} className={styles.card}>
@@ -384,7 +500,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
                       aria-label="Add friend shortcut"
                       title="Add friend"
                     >
-                      <span className="msr" aria-hidden>{isFriendActionPending ? "hourglass_top" : "person_add"}</span>
+                      <MaterialSymbol name={isFriendActionPending ? "hourglass_top" : "person_add"} />
                     </button>
                   ) : null}
 
@@ -395,7 +511,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
                     aria-expanded={isFriendOptionOpen}
                     onClick={() => setActiveFriendTarget(isFriendOptionOpen ? null : identifier)}
                   >
-                    <span className="msr" aria-hidden>more_horiz</span>
+                    <MaterialSymbol name="more_horiz" />
                   </button>
 
                   <button
@@ -405,7 +521,7 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
                     aria-label="Delete post"
                     title="Delete post"
                   >
-                    <span className="msr" aria-hidden>delete</span>
+                    <MaterialSymbol name="delete" />
                   </button>
 
                 </div>
@@ -431,37 +547,33 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
               {media ? <img className={styles.media} src={media} alt="Post media" /> : null}
               <footer className={styles.actionBar}>
 
-                {actionItems.map((action) => (
+                {actionItems.map((action) => {
+                  const isLike = action.key === "like";
+                  return (
+                    <button
+                      key={action.key}
+                      className={styles.actionBtn}
+                      type="button"
+                      data-variant={action.key}
+                      data-active={action.active ? "true" : "false"}
+                      aria-label={`${action.label} (${formatCount(action.count)} so far)`}
+                      onClick={isLike ? action.handler : undefined}
+                      disabled={isLike ? action.pending : false}
+                      aria-pressed={isLike ? action.active : undefined}
+                      aria-busy={isLike && action.pending ? true : undefined}
+                    >
+                      <span className={styles.actionMeta}>
+                        <span className={styles.actionIcon} aria-hidden>
+                          <MaterialSymbol name={action.icon} filled={action.key === "like" && action.active} />
+                        </span>
 
-                  <button
-
-                    key={action.key}
-
-                    className={styles.actionBtn}
-
-                    type="button"
-
-                    data-variant={action.key}
-
-                    aria-label={`${action.label} (${formatCount(action.count)} so far)`}
-
-                  >
-
-                    <span className={styles.actionMeta}>
-
-                      <span className={styles.actionIcon} aria-hidden>
-                        <span className="msr">{action.icon}</span>
+                        <span className={styles.actionLabel}>{action.label}</span>
                       </span>
 
-                      <span className={styles.actionLabel}>{action.label}</span>
-
-                    </span>
-
-                    <span className={styles.actionCount}>{formatCount(action.count)}</span>
-
-                  </button>
-
-                ))}
+                      <span className={styles.actionCount}>{formatCount(action.count)}</span>
+                    </button>
+                  );
+                })}
 
               </footer>
 
@@ -474,5 +586,16 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
     </AppShell>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
 
 

@@ -2,36 +2,16 @@
 
 import * as React from "react";
 
-type Theme = "light" | "dark";
-
-function getPreferredTheme(): Theme {
-  try {
-    const saved = localStorage.getItem("theme");
-    if (saved === "light" || saved === "dark") return saved;
-    if (typeof window !== "undefined") {
-      return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
-        ? "light"
-        : "dark";
-    }
-  } catch {}
-  return "dark";
-}
-
-function applyTheme(t: Theme) {
-  try {
-    document.documentElement.dataset.theme = t;
-    localStorage.setItem("theme", t);
-  } catch {}
-}
+import { getTheme, setTheme as persistTheme, type Theme } from "@/lib/theme";
 
 export function ThemeToggle() {
   const [theme, setTheme] = React.useState<Theme>(() => {
     if (typeof window === "undefined") return "dark";
-    return getPreferredTheme();
+    return getTheme();
   });
 
   React.useEffect(() => {
-    applyTheme(theme);
+    persistTheme(theme);
   }, [theme]);
 
   return (
@@ -43,7 +23,7 @@ export function ThemeToggle() {
           aria-pressed={theme === "light"}
           style={segStyle(theme === "light")}
         >
-          ☀️ Light
+          Light
         </button>
         <button
           type="button"
@@ -51,7 +31,7 @@ export function ThemeToggle() {
           aria-pressed={theme === "dark"}
           style={segStyle(theme === "dark")}
         >
-          🌙 Dark
+          Dark
         </button>
       </div>
       <p style={{ margin: 0, color: "var(--text-2, rgba(255,255,255,0.72))" }}>

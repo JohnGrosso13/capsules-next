@@ -321,7 +321,6 @@ export function FriendsClient() {
     Requests: incomingRequests.length,
   };
 
-  const [activeFriendTarget, setActiveFriendTarget] = React.useState<string | null>(null);
   const [friendActionPendingId, setFriendActionPendingId] = React.useState<string | null>(null);
   const [friendNotice, setFriendNotice] = React.useState<string | null>(null);
 
@@ -345,27 +344,25 @@ export function FriendsClient() {
     return target;
   }, []);
 
-  const handleFriendNameClick = React.useCallback((identifier: string) => {
-    setActiveFriendTarget((prev) => (prev === identifier ? null : identifier));
-  }, []);
 
-  const handleFriendRequest = React.useCallback(
+
+  const handleFriendRemove = React.useCallback(
     async (friend: FriendItem, identifier: string) => {
       const target = buildFriendTargetPayload(friend);
       if (!target) {
-        setFriendNotice("That profile isn't ready for requests yet.");
+        setFriendNotice("That profile can't be removed right now.");
         return;
       }
       setFriendActionPendingId(identifier);
+      const name = friend.name || "Friend";
       try {
-        await mutateGraph({ action: "request", target });
-        setFriendNotice(`Friend request sent to ${friend.name}.`);
-        setActiveFriendTarget(null);
+        await mutateGraph({ action: "remove", target });
+        setFriendNotice(`${name} removed from friends.`);
         scheduleRefresh();
       } catch (error) {
-        console.error("Friend request error", error);
+        console.error("Friend remove error", error);
         setFriendNotice(
-          error instanceof Error && error.message ? error.message : "Couldn't send that friend request.",
+          error instanceof Error && error.message ? error.message : "Couldn't remove that friend.",
         );
       } finally {
         setFriendActionPendingId(null);
@@ -472,7 +469,7 @@ export function FriendsClient() {
           {friends.map((friend, index) => {
             const identifier = friend.userId ?? friend.key ?? friend.id ?? `friend-${index}`;
             const canTarget = Boolean(friend.userId || friend.key);
-            const isOpen = activeFriendTarget === identifier;
+            const isOpen = true;
             const isPending = friendActionPendingId === identifier;
             const sinceLabel = friend.since ? new Date(friend.since).toLocaleDateString() : null;
             return (
@@ -486,25 +483,18 @@ export function FriendsClient() {
                   <span className={`${styles.presence} ${statusClass(friend.status)}`.trim()} aria-hidden />
                 </span>
                 <div className={styles.friendMeta}>
-                  <button
-                    type="button"
-                    className={`${styles.friendNameButton} ${styles.friendName}`.trim()}
-                    onClick={() => handleFriendNameClick(identifier)}
-                    aria-expanded={isOpen}
-                  >
-                    {friend.name}
-                  </button>
+                  <span className={styles.friendName}>{friend.name}</span>
                   {sinceLabel ? <div className={styles.friendSince}>Since {sinceLabel}</div> : null}
                   {isOpen ? (
                     <div className={styles.friendActions}>
                       <button
                         type="button"
                         className={styles.friendActionButton}
-                        onClick={() => handleFriendRequest(friend, identifier)}
+                        onClick={() => handleFriendRemove(friend, identifier)}
                         disabled={!canTarget || isPending}
                         aria-busy={isPending}
                       >
-                        {isPending ? "Sending..." : "Add friend"}
+                        {isPending ? "Removing..." : "Delete"}
                       </button>
                     </div>
                   ) : null}

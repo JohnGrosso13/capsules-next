@@ -45,8 +45,12 @@ async function ensureAccessibleMediaUrl(candidate: string | null): Promise<strin
 }
 
 function normalizePost(row: Record<string, unknown>) {
+  const dbId =
+    typeof row.id === "string" || typeof row.id === "number" ? String(row.id) : undefined;
+
   return {
     id: (row.client_id ?? row.id) as string,
+    dbId,
     kind: (row.kind as string) ?? "text",
     content: (row.content as string) ?? "",
     mediaUrl:
@@ -63,6 +67,7 @@ function normalizePost(row: Record<string, unknown>) {
     ts: String((row.created_at as string) ?? (row.updated_at as string) ?? new Date().toISOString()),
     source: String((row.source as string) ?? "web"),
     ownerUserId: ((row.author_user_id as string) ?? null) as string | null,
+    viewerLiked: typeof row["viewer_liked"] === "boolean" ? (row["viewer_liked"] as boolean) : false,
   };
 }
 
@@ -71,6 +76,7 @@ type NormalizedPost = ReturnType<typeof normalizePost>;
 const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
   {
     id: "demo-welcome",
+    dbId: "demo-welcome",
     kind: "text",
     content:
       "Welcome to Capsules! Connect your Supabase project to see real posts here. This demo post is only shown locally when the data source is offline.",
@@ -86,9 +92,11 @@ const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
     rankScore: 0,
     source: "demo",
     ownerUserId: null,
+    viewerLiked: false,
   },
   {
     id: "demo-prompt-ideas",
+    dbId: "demo-prompt-ideas",
     kind: "text",
     content:
       "Tip: Use the Generate button to draft a welcome message or poll. Once Supabase is configured you'll see the real-time feed here.",
@@ -104,6 +112,7 @@ const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
     rankScore: 0,
     source: "demo",
     ownerUserId: null,
+    viewerLiked: false,
   },
 ];
 
@@ -143,6 +152,12 @@ function shouldReturnFallback(error: unknown): boolean {
 
 export async function GET(req: Request) {
   const supabase = getSupabaseAdminClient();
+  let viewerId: string | null = null;
+  try {
+    viewerId = await ensureUserFromRequest(req, null, { allowGuests: false });
+  } catch (viewerError) {
+    console.warn("posts viewer resolve failed", viewerError);
+  }
   const url = new URL(req.url);
   const rawQuery = {
     capsuleId: url.searchParams.get("capsuleId") ?? undefined,
@@ -197,9 +212,53 @@ export async function GET(req: Request) {
     return true;
   });
 
+  const dbIds: string[] = [];
+  const dbIdSet = new Set<string>();
+  for (const row of activeRows) {
+    const rawId = (row as Record<string, unknown>).id;
+    const normalizedId =
+      typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : null;
+    if (normalizedId && !dbIdSet.has(normalizedId)) {
+      dbIdSet.add(normalizedId);
+      dbIds.push(normalizedId);
+    }
+  }
+
+  let viewerLikedIds: Set<string> = new Set<string>();
+  if (viewerId && dbIds.length) {
+    try {
+      const { data: likedRows, error: likedError } = await supabase
+        .from("post_likes")
+        .select("post_id")
+        .eq("user_id", viewerId)
+        .in("post_id", dbIds);
+
+      if (likedError) {
+        console.warn("viewer likes fetch failed", likedError);
+      } else if (Array.isArray(likedRows)) {
+        viewerLikedIds = new Set(
+          likedRows
+            .map((entry) =>
+              typeof entry?.post_id === "string" || typeof entry?.post_id === "number"
+                ? String(entry.post_id)
+                : null,
+            )
+            .filter((value): value is string => Boolean(value)),
+        );
+      }
+    } catch (viewerLikesError) {
+      console.warn("viewer likes query failed", viewerLikesError);
+    }
+  }
+
   const posts = await Promise.all(
     activeRows.map(async (row) => {
       const p = normalizePost(row as Record<string, unknown>);
+      if (p.dbId && viewerLikedIds.has(p.dbId)) {
+        p.viewerLiked = true;
+      } else {
+        p.viewerLiked = Boolean(p.viewerLiked);
+      }
       p.mediaUrl = await ensureAccessibleMediaUrl(p.mediaUrl);
       return p;
     }),

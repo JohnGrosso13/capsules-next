@@ -20,10 +20,9 @@ const eslintConfig = [
       "next-env.d.ts",
       "public/**/*.js",
       "docs/reference/**",
+      "archive/**",
     ],
   },
 ];
 
 export default eslintConfig;
-
-

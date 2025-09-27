@@ -47,14 +47,6 @@ export function buildAdminSessionCookie() {
   };
 }
 
-export function clearAdminSessionCookie() {
-  return {
-    name: SESSION_COOKIE,
-    value: "",
-    options: { path: "/", maxAge: 0 },
-  };
-}
-
 export async function verifyAdminCredentials(username: string, password: string) {
   const expectedUser = serverEnv.ADMIN_USERNAME || DEFAULT_ADMIN_USER;
   if (!username || !password) return false;

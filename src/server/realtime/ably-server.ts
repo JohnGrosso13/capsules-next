@@ -29,16 +29,6 @@ function channelNameForUser(userId: string): string {
   return `${FRIEND_CHANNEL_PREFIX}:${userId}:${FRIEND_EVENTS_NAMESPACE}`;
 }
 
-export async function publishFriendEvent(userId: string, event: FriendRealtimeEvent): Promise<void> {
-  const rest = getRestClient();
-  if (!rest) return;
-  try {
-    await rest.channels.get(channelNameForUser(userId)).publish(event.type, event.payload);
-  } catch (error) {
-    console.error("Ably publish error", { userId, type: event.type, error });
-  }
-}
-
 export async function publishFriendEvents(events: Array<{ userId: string; event: FriendRealtimeEvent }>): Promise<void> {
   const rest = getRestClient();
   if (!rest) return;

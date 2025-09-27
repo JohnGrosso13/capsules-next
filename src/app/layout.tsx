@@ -6,6 +6,7 @@ import "./globals.css";
 import { BackgroundFX } from "@/components/background-fx";
 import { SignedIn } from "@clerk/nextjs";
 import { MobileCommandBar } from "@/components/mobile-command-bar";
+import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme/script";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 
@@ -23,29 +24,9 @@ export default function RootLayout({
   return (
     <ClerkProvider publishableKey={publishableKey}>
       <html lang="en" data-theme="dark" suppressHydrationWarning>
-        <head>
-          <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=optional"
-          />
-        </head>
         <body className={inter.className} suppressHydrationWarning>
           <Script id="theme-init" strategy="beforeInteractive">
-            {`
-            (function(){
-              try {
-                var t = localStorage.getItem('theme');
-                if (t !== 'light' && t !== 'dark') {
-                  t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
-                }
-                document.documentElement.dataset.theme = t;
-                var vars = localStorage.getItem('themeVars');
-                if (vars) {
-                  try { var map = JSON.parse(vars) || {}; for (var k in map) { document.documentElement.style.setProperty(k, map[k]); } } catch(e){}
-                }
-              } catch (e) { /* noop */ }
-            })();
-            `}
+            {THEME_BOOTSTRAP_SCRIPT}
           </Script>
           <BackgroundFX />
           {children}

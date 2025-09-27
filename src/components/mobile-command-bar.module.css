@@ -11,7 +11,6 @@
 
 .btn { display: grid; place-items: center; gap: 2px; padding: 2px 6px; border-radius: 13px; border: 1px solid var(--pill-border, rgba(255,255,255,.14)); background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,.12)), var(--glass-bg-2, rgba(255,255,255,.06))), linear-gradient(180deg, var(--dock-solid-1, rgba(10,12,28,0.98)), var(--dock-solid-2, rgba(10,12,28,0.98))); background-blend-mode: overlay, normal; color: var(--text-2); font-weight: 700; font-size: 10.5px; line-height: 1; text-align: center; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; min-height: 48px; width: 100%; height: 100%; -webkit-tap-highlight-color: transparent; }
 .btn svg { width: 22px; height: 22px; display:block; }
-.btn .msr { font-size: 22px; color: var(--icon-color); }
 .btn:hover { border-color: rgba(255,255,255,.24); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(5,10,30,0.24); }
 .btn:active { transform: translateY(0); }
 
@@ -29,4 +28,6 @@
 .sheetItem { display:flex; align-items:center; gap: 10px; padding: 10px 12px; border-radius: 12px; font-weight: 700; color: var(--text); border: 1px solid rgba(255,255,255,0.12); background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2)); }
 .sheetItem:hover { border-color: rgba(255,255,255,0.22); }
 .sheetItem svg { width:18px; height:18px; }
-.sheetItem .msr { font-size: 18px; color: var(--icon-color); }
+
+
+

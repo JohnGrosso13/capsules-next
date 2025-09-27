@@ -449,8 +449,6 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   pillBg2Rgb = adjustSecondary(pillBg2Rgb);
 
   const appBaseRgb = enforceContrastRgb(mix(neutralDeep, rgb, isLight ? 0.06 : 0.14), textBase, MIN_SECONDARY);
-  const appTopRgb = adjustSecondary(mix(appBaseRgb, brandFromRgb, 0.12));
-  const appBottomRgb = adjustSecondary(mix(appBaseRgb, brandToRgb, 0.12));
   // Layered background highlights to avoid a flat backdrop
   const appLayer1 = rgba(mix(rgb, neutralBase, isLight ? 0.18 : 0.26), isLight ? 0.22 : 0.18);
   const appLayer2 = rgba(mix(rgb, neutralAlt, isLight ? 0.14 : 0.24), isLight ? 0.18 : 0.16);

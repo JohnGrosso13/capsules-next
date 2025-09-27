@@ -1,23 +1,8 @@
 "use client";
 
-export type Theme = "light" | "dark";
+import { normalizeThemeVars } from "./theme/shared";
 
-function normalizeThemeVars(input: unknown): Record<string, string> {
-  if (!input || typeof input !== "object") return {};
-  const map: Record<string, string> = {};
-  Object.entries(input as Record<string, unknown>).forEach(([rawKey, rawValue]) => {
-    if (typeof rawKey !== "string") return;
-    const key = rawKey.trim();
-    if (!key.startsWith("--") || key.length > 80) return;
-    if (typeof rawValue !== "string") return;
-    const value = rawValue.trim();
-    if (!value || value.length > 400) return;
-    const lower = value.toLowerCase();
-    if (lower.includes("url(") || lower.includes("expression(")) return;
-    map[key] = value;
-  });
-  return map;
-}
+export type Theme = "light" | "dark";
 
 function readStoredThemeVars(): Record<string, string> {
   try {
@@ -35,7 +20,9 @@ export function getTheme(): Theme {
     const saved = localStorage.getItem("theme");
     if (saved === "light" || saved === "dark") return saved;
   } catch {}
-  return (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
+  return (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches)
+    ? "light"
+    : "dark";
 }
 
 export function setTheme(theme: Theme) {
