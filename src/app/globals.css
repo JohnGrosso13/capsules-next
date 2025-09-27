@@ -243,7 +243,8 @@
     opacity: 0.72;
   }
 }
-\r\n@layer utilities {
+
+@layer utilities {
   @keyframes marquee {
     from {
       transform: translateX(0);
