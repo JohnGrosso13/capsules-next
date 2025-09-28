@@ -36,16 +36,28 @@ export function PrimaryHeader({
   launchLabel = "Launch Capsule",
 }: PrimaryHeaderProps) {
   const [scrolled, setScrolled] = React.useState(false);
+  const [scrolling, setScrolling] = React.useState(false);
+  const scrollTimerRef = React.useRef<number | null>(null);
   React.useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 4);
+      // Mark as actively scrolling and clear when idle
+      if (!scrolling) setScrolling(true);
+      if (scrollTimerRef.current) window.clearTimeout(scrollTimerRef.current);
+      scrollTimerRef.current = window.setTimeout(() => setScrolling(false), 160);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
   return (
-    <header className={cn(styles.header, scrolled && styles.headerScrolled)}>
+    <header
+      className={cn(
+        styles.header,
+        scrolled && styles.headerScrolled,
+        scrolling && styles.headerScrolling,
+      )}
+    >
       <div className={styles.inner}>
         <Link href="/" aria-label="Capsules home" className={styles.brand}>
           <span className={styles.brandMark} />
