@@ -7,7 +7,7 @@ import { LandingAuthCard } from "@/components/landing-auth-card";
 import { HowItWorks } from "@/components/how-it-works";
 import { LaunchCta } from "@/components/launch-cta";
 import { HomeSignedIn } from "@/components/home-signed-in";
-import { Badge } from "@/components/ui/badge";
+// Removed Badge labels on signed-out landing
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
 const heroPrompts = [
@@ -196,16 +196,8 @@ export default async function HomePage() {
               <GroupCarousel items={groupTypes} animate speed="slow" />
             </section>
 
-            <section className="space-y-8" id="superpowers">
-              <div className="space-y-3">
-                <Badge
-                  tone="brand"
-                  variant="soft"
-                  size="sm"
-                  className="tracking-[0.25em] uppercase"
-                >
-                  Superpowers
-                </Badge>
+            <section className="space-y-6" id="superpowers">
+              <div className="space-y-3 section-shell section-alt rounded-3xl p-6">
                 <h2 className="font-display text-fg text-3xl tracking-tight">
                   Superpowers for your community
                 </h2>
@@ -213,29 +205,21 @@ export default async function HomePage() {
                   Automations and copilots keep your space lively without requiring a full-time
                   team.
                 </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {superpowers.map((power) => (
-                  <div
-                    key={power}
-                    className="glass-panel text-fg-subtle rounded-2xl px-5 py-4 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-lg"
-                  >
-                    {power}
-                  </div>
-                ))}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+                  {superpowers.map((power) => (
+                    <div
+                      key={power}
+                      className="tile-neu text-fg-subtle rounded-2xl px-5 py-4 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-lg"
+                    >
+                      {power}
+                    </div>
+                  ))}
+                </div>
               </div>
             </section>
 
-            <section className="space-y-8" id="features">
-              <div className="space-y-3">
-                <Badge
-                  tone="neutral"
-                  variant="outline"
-                  size="sm"
-                  className="tracking-[0.25em] uppercase"
-                >
-                  Differentiators
-                </Badge>
+            <section className="space-y-6" id="features">
+              <div className="space-y-3 section-shell rounded-3xl p-6">
                 <h2 className="font-display text-fg text-3xl tracking-tight">
                   What makes us different
                 </h2>
@@ -243,28 +227,28 @@ export default async function HomePage() {
                   Everything you need to power a modern community, backed by AI context that
                   remembers every moment.
                 </p>
-              </div>
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {differentiators.map((feature) => (
-                  <Card key={feature.title} variant="soft" className="backdrop-blur-xl">
-                    <CardContent className="space-y-4 pt-6">
-                      <CardTitle className="text-fg text-xl">{feature.title}</CardTitle>
-                      <div className="text-fg-subtle space-y-3 text-sm leading-6">
-                        <ul className="space-y-2 text-left">
-                          {feature.points.map((point) => (
-                            <li key={point} className="flex items-start gap-2 text-left">
-                              <span
-                                className="bg-brand mt-1 h-1.5 w-1.5 rounded-full"
-                                aria-hidden="true"
-                              />
-                              <span>{point}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3 mt-4">
+                  {differentiators.map((feature) => (
+                    <Card key={feature.title} variant="soft" interactive className="backdrop-blur-xl">
+                      <CardContent className="space-y-4 pt-6">
+                        <CardTitle className="text-fg text-xl">{feature.title}</CardTitle>
+                        <div className="text-fg-subtle space-y-3 text-sm leading-6">
+                          <ul className="space-y-2 text-left">
+                            {feature.points.map((point) => (
+                              <li key={point} className="flex items-start gap-2 text-left">
+                                <span
+                                  className="bg-brand mt-1 h-1.5 w-1.5 rounded-full"
+                                  aria-hidden="true"
+                                />
+                                <span>{point}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
             </section>
 
