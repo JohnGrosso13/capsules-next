@@ -42,6 +42,16 @@ export type ServerEnv = {
   ADMIN_SESSION_SECRET: string | null;
 
   ADMIN_ACCESS_TOKEN: string | null;
+
+  PINECONE_API_KEY: string | null;
+
+  PINECONE_ENVIRONMENT: string | null;
+
+  PINECONE_CONTROLLER_HOST: string | null;
+
+  PINECONE_INDEX: string | null;
+
+  PINECONE_NAMESPACE: string | null;
 };
 
 function getEnv(name: string, fallbacks: string[] = [], options: { required?: boolean } = {}) {
@@ -75,6 +85,14 @@ const openAiQualityRaw =
   ]) || null;
 
 const normalizedQuality = openAiQualityRaw ? openAiQualityRaw.trim().toLowerCase() : null;
+
+const pineconeEnvironment = getEnv("PINECONE_ENVIRONMENT", ["PINECONE_REGION", "PINECONE_PROJECT_ENV"]);
+
+const pineconeControllerHost = getEnv("PINECONE_CONTROLLER_HOST", ["PINECONE_HOST", "PINECONE_API_HOST"]);
+
+const pineconeIndex = getEnv("PINECONE_INDEX", ["PINECONE_PROJECT_INDEX"]);
+
+const pineconeNamespace = getEnv("PINECONE_NAMESPACE", ["PINECONE_PROJECT_NAMESPACE"]);
 
 export const serverEnv: ServerEnv = {
   SUPABASE_URL: getEnv("SUPABASE_URL", ["NEXT_PUBLIC_SUPABASE_URL"], { required: true })!,
@@ -133,4 +151,14 @@ export const serverEnv: ServerEnv = {
   ADMIN_SESSION_SECRET: getEnv("ADMIN_SESSION_SECRET", ["CAPSULES_ADMIN_SESSION_SECRET"]),
 
   ADMIN_ACCESS_TOKEN: getEnv("ADMIN_ACCESS_TOKEN", ["CAPSULES_ADMIN_ACCESS_TOKEN", "ADMIN_TOKEN"]),
+
+  PINECONE_API_KEY: getEnv("PINECONE_API_KEY", []),
+
+  PINECONE_ENVIRONMENT: pineconeEnvironment,
+
+  PINECONE_CONTROLLER_HOST: pineconeControllerHost,
+
+  PINECONE_INDEX: pineconeIndex,
+
+  PINECONE_NAMESPACE: pineconeNamespace,
 };

@@ -25,10 +25,32 @@ create table if not exists public.memories (
 create index if not exists idx_memories_owner on public.memories(owner_user_id, created_at desc);
 create index if not exists idx_memories_kind on public.memories(kind);
 
--- Optional vector index (IVFFLAT); requires populated embeddings
-do $$ begin
-  create index idx_memories_embedding on public.memories using ivfflat (embedding vector_cosine_ops) with (lists = 100);
-exception when duplicate_table then null; end $$;
+-- Optional vector index (IVFFLAT); requires populated embeddings and <=2000 dims
+do $$
+declare
+  v_dims int;
+begin
+  select a.atttypmod - 4 into v_dims
+  from pg_attribute a
+  join pg_class c on c.oid = a.attrelid
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relname = 'memories'
+    and a.attname = 'embedding'
+    and a.attnum > 0
+    and not a.attisdropped
+  limit 1;
+
+  if v_dims is null or v_dims <= 2000 then
+    begin
+      create index idx_memories_embedding on public.memories using ivfflat (embedding vector_cosine_ops) with (lists = 100);
+    exception when duplicate_table or duplicate_object then
+      null;
+    end;
+  else
+    raise notice 'Skipping ivfflat index for memories.embedding; dimension % exceeds 2000', v_dims;
+  end if;
+end $$;
 
 -- RLS policies
 alter table public.memories enable row level security;

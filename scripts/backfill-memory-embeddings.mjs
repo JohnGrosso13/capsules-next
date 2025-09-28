@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, existsSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { Pinecone } from "@pinecone-database/pinecone";
 
 function loadEnvFile(filePath) {
   if (!existsSync(filePath)) return;
@@ -27,6 +28,38 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABAS
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || "text-embedding-3-large";
+
+const PINECONE_API_KEY = process.env.PINECONE_API_KEY ?? null;
+const PINECONE_INDEX = process.env.PINECONE_INDEX ?? null;
+const PINECONE_ENVIRONMENT =
+  process.env.PINECONE_ENVIRONMENT ??
+  process.env.PINECONE_REGION ??
+  process.env.PINECONE_PROJECT_ENV ??
+  null;
+const PINECONE_CONTROLLER_HOST =
+  process.env.PINECONE_CONTROLLER_HOST ??
+  process.env.PINECONE_HOST ??
+  process.env.PINECONE_API_HOST ??
+  null;
+const PINECONE_NAMESPACE =
+  process.env.PINECONE_NAMESPACE ?? process.env.PINECONE_PROJECT_NAMESPACE ?? null;
+
+let pineconeIndex = null;
+
+if (PINECONE_API_KEY && PINECONE_INDEX) {
+  try {
+    const options = { apiKey: PINECONE_API_KEY };
+    if (PINECONE_CONTROLLER_HOST) options.controllerHostUrl = PINECONE_CONTROLLER_HOST;
+
+    const pinecone = new Pinecone(options);
+    pineconeIndex = pinecone.index(PINECONE_INDEX);
+    if (PINECONE_NAMESPACE) {
+      pineconeIndex = pineconeIndex.namespace(PINECONE_NAMESPACE);
+    }
+  } catch (error) {
+    console.warn("Pinecone init failed", error);
+  }
+}
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing Supabase credentials. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
@@ -73,7 +106,7 @@ async function main() {
   for (;;) {
     const { data, error } = await supabase
       .from("memories")
-      .select("id, title, description, media_type, meta, embedding")
+      .select("id, owner_user_id, kind, post_id, title, description, media_type, media_url, meta, embedding")
       .order("created_at", { ascending: true })
       .range(offset, offset + pageSize - 1);
 
@@ -114,6 +147,31 @@ async function main() {
         process.exit(1);
       }
       totalUpdated += 1;
+
+      if (pineconeIndex && typeof row.owner_user_id === "string") {
+        const metadata = { ownerId: row.owner_user_id };
+        if (typeof row.kind === "string" && row.kind) metadata.kind = row.kind;
+        if (typeof row.post_id === "string" && row.post_id) metadata.postId = row.post_id;
+        if (typeof row.title === "string" && row.title) metadata.title = row.title.slice(0, 256);
+        if (typeof row.description === "string" && row.description) {
+          metadata.description = row.description.slice(0, 768);
+        }
+        if (typeof row.media_url === "string" && row.media_url) metadata.mediaUrl = row.media_url.slice(0, 512);
+        if (typeof row.media_type === "string" && row.media_type) metadata.mediaType = row.media_type.slice(0, 120);
+
+        try {
+          await pineconeIndex.upsert([
+            {
+              id: String(row.id),
+              values: embedding,
+              metadata,
+            },
+          ]);
+        } catch (pineconeError) {
+          console.warn("Pinecone upsert failed", pineconeError);
+        }
+      }
+
       // Friendly pacing to avoid hitting rate limits
       await new Promise((resolve) => setTimeout(resolve, 200));
     }

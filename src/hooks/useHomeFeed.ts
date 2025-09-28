@@ -1,5 +1,8 @@
+"use client";
+
 import * as React from "react";
 
+import { useUser } from "@clerk/nextjs";
 import { normalizeMediaUrl } from "@/lib/media";
 
 export type HomeFeedAttachment = {
@@ -28,6 +31,8 @@ export type HomeFeedPost = {
   shares?: number | null;
   viewer_liked?: boolean | null;
   viewerLiked?: boolean | null;
+  viewer_remembered?: boolean | null;
+  viewerRemembered?: boolean | null;
   attachments?: HomeFeedAttachment[];
 };
 
@@ -70,11 +75,14 @@ function buildFriendTarget(post: HomeFeedPost): FriendTarget {
 }
 
 export function useHomeFeed() {
+  const { user } = useUser();
+  const canRemember = Boolean(user);
   const [posts, setPosts] = React.useState<HomeFeedPost[]>(fallbackPosts);
   const [activeFriendTarget, setActiveFriendTarget] = React.useState<string | null>(null);
   const [friendActionPending, setFriendActionPending] = React.useState<string | null>(null);
   const [friendMessage, setFriendMessage] = React.useState<string | null>(null);
   const [likePending, setLikePending] = React.useState<Record<string, boolean>>({});
+  const [memoryPending, setMemoryPending] = React.useState<Record<string, boolean>>({});
   const postsRef = React.useRef<HomeFeedPost[]>(posts);
   const refreshGeneration = React.useRef(0);
 
@@ -101,6 +109,7 @@ export function useHomeFeed() {
         if (refreshGeneration.current === requestToken) {
           setPosts(fallbackPosts);
           setLikePending({});
+          setMemoryPending({});
         }
         return;
       }
@@ -155,6 +164,12 @@ export function useHomeFeed() {
             ? (record["viewerLiked"] as boolean)
             : typeof record["viewer_liked"] === "boolean"
               ? (record["viewer_liked"] as boolean)
+              : false;
+        const viewerRemembered =
+          typeof record["viewerRemembered"] === "boolean"
+            ? (record["viewerRemembered"] as boolean)
+            : typeof record["viewer_remembered"] === "boolean"
+              ? (record["viewer_remembered"] as boolean)
               : false;
 
         const attachmentsRaw = Array.isArray(record["attachments"])
@@ -244,12 +259,15 @@ export function useHomeFeed() {
           comments,
           shares,
           viewerLiked,
+          viewer_remembered: viewerRemembered,
+          viewerRemembered,
           attachments,
         } satisfies HomeFeedPost;
       });
       if (refreshGeneration.current === requestToken) {
         setPosts(normalized.length ? normalized : fallbackPosts);
         setLikePending({});
+        setMemoryPending({});
       }
     } catch (error) {
       if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
@@ -326,6 +344,116 @@ export function useHomeFeed() {
       });
     }
   }, []);
+
+  const handleToggleMemory = React.useCallback(
+    async (post: HomeFeedPost, desired?: boolean) => {
+      if (!user) {
+        throw new Error("Authentication required");
+      }
+
+      const postKey = post.id;
+      const previousRemembered = Boolean(post.viewerRemembered ?? post.viewer_remembered);
+      const nextRemembered =
+        typeof desired === "boolean" ? desired : !previousRemembered;
+
+      if (nextRemembered === previousRemembered) {
+        return previousRemembered;
+      }
+
+      const requestId =
+        typeof post.dbId === "string" && post.dbId.trim().length
+          ? post.dbId
+          : post.id;
+
+      let mediaUrl = normalizeMediaUrl(post.media_url) ?? normalizeMediaUrl(post.mediaUrl) ?? null;
+      if (!mediaUrl && Array.isArray(post.attachments)) {
+        const firstAttachment = post.attachments.find((attachment) => attachment && attachment.url);
+        if (firstAttachment) {
+          mediaUrl =
+            normalizeMediaUrl(firstAttachment.thumbnailUrl ?? firstAttachment.url) ??
+            firstAttachment.url;
+        }
+      }
+
+      setMemoryPending((prev) => ({ ...prev, [postKey]: true }));
+      setPosts((prev) =>
+        prev.map((item) =>
+          item.id === postKey
+            ? {
+                ...item,
+                viewerRemembered: nextRemembered,
+                viewer_remembered: nextRemembered,
+              }
+            : item,
+        ),
+      );
+
+      try {
+        const response = await fetch(`/api/posts/${encodeURIComponent(requestId)}/memory`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            nextRemembered
+              ? {
+                  action: "remember",
+                  payload: {
+                    mediaUrl,
+                    content: typeof post.content === "string" ? post.content : null,
+                    userName: post.user_name ?? null,
+                  },
+                }
+              : { action: "forget" },
+          ),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Memory request failed (${response.status})`);
+        }
+
+        const payload = (await response.json().catch(() => null)) as
+          | { remembered?: boolean }
+          | null;
+        const confirmed =
+          typeof payload?.remembered === "boolean" ? payload.remembered : nextRemembered;
+
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postKey
+              ? {
+                  ...item,
+                  viewerRemembered: confirmed,
+                  viewer_remembered: confirmed,
+                }
+              : item,
+          ),
+        );
+
+        return confirmed;
+      } catch (error) {
+        console.error("Memory toggle failed", error);
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postKey
+              ? {
+                  ...item,
+                  viewerRemembered: previousRemembered,
+                  viewer_remembered: previousRemembered,
+                }
+              : item,
+          ),
+        );
+        throw error;
+      } finally {
+        setMemoryPending((prev) => {
+          const next = { ...prev };
+          delete next[postKey];
+          return next;
+        });
+      }
+    },
+    [user],
+  );
 
   const timeAgo = React.useCallback((iso?: string | null) => {
     if (!iso) return "just now";
@@ -404,16 +532,19 @@ export function useHomeFeed() {
   return {
     posts,
     likePending,
+    memoryPending,
     friendMessage,
     activeFriendTarget,
     friendActionPending,
     refreshPosts,
     handleToggleLike,
+    handleToggleMemory,
     handleFriendRequest,
     handleDelete,
     setActiveFriendTarget,
     formatCount: formatFeedCount,
     timeAgo,
     exactTime,
+    canRemember,
   };
 }

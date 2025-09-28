@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { deleteMemoryVectors } from "@/lib/pinecone/memories";
 import { indexMemory } from "@/lib/supabase/memories";
 import { resolvePostId } from "@/lib/supabase/posts";
 
@@ -70,14 +71,43 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
   const cleanupLikeMemories = async () => {
     if (!memoryPostId) return;
+    let idsToPurge: string[] = [];
     try {
-      await supabase
+      const { data, error } = await supabase
+        .from("memories")
+        .select("id")
+        .eq("owner_user_id", userId)
+        .eq("kind", "post")
+        .eq("meta->>source", "post_like")
+        .eq("post_id", memoryPostId);
+      if (!error && Array.isArray(data)) {
+        idsToPurge = data
+          .map((row) =>
+            row && typeof row === "object" && typeof (row as { id?: unknown }).id === "string"
+              ? (row as { id: string }).id
+              : null,
+          )
+          .filter((value): value is string => Boolean(value));
+      } else if (error) {
+        console.warn("Like memory cleanup preload failed", error);
+      }
+    } catch (preloadError) {
+      console.warn("Like memory cleanup preload error", preloadError);
+    }
+
+    try {
+      const { error } = await supabase
         .from("memories")
         .delete()
         .eq("owner_user_id", userId)
         .eq("kind", "post")
         .eq("meta->>source", "post_like")
         .eq("post_id", memoryPostId);
+      if (error) throw error;
+
+      if (idsToPurge.length) {
+        await deleteMemoryVectors(idsToPurge);
+      }
     } catch (cleanupError) {
       console.warn("Like memory cleanup failed", cleanupError);
     }

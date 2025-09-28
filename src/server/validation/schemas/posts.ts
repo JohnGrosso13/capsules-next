@@ -46,6 +46,7 @@ const normalizedPostSchema = z.object({
   source: z.string(),
   ownerUserId: z.string().nullable(),
   viewerLiked: z.boolean().optional(),
+  viewerRemembered: z.boolean().optional(),
   attachments: z.array(attachmentSchema).optional(),
 });
 

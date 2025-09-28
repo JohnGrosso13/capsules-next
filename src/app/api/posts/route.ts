@@ -73,6 +73,10 @@ function normalizePost(row: Record<string, unknown>) {
     ownerUserId: ((row.author_user_id as string) ?? null) as string | null,
     viewerLiked:
       typeof row["viewer_liked"] === "boolean" ? (row["viewer_liked"] as boolean) : false,
+    viewerRemembered:
+      typeof row["viewer_remembered"] === "boolean"
+        ? (row["viewer_remembered"] as boolean)
+        : false,
   };
 }
 
@@ -273,6 +277,47 @@ export async function GET(req: Request) {
     }
   }
 
+  // Compute which posts the viewer has remembered (saved to Memory)
+  let viewerRememberedSet: Set<string> = new Set<string>();
+  if (viewerId && activeRows.length) {
+    const rememberIdSet = new Set<string>();
+    for (const row of activeRows) {
+      const rawClientId = (row as Record<string, unknown>).client_id ?? (row as Record<string, unknown>).id;
+      const cid = typeof rawClientId === "string" || typeof rawClientId === "number" ? String(rawClientId) : null;
+      if (cid) rememberIdSet.add(cid);
+      const rawDbId = (row as Record<string, unknown>).id;
+      const dbid = typeof rawDbId === "string" || typeof rawDbId === "number" ? String(rawDbId) : null;
+      if (dbid) rememberIdSet.add(dbid);
+    }
+    const rememberIds = Array.from(rememberIdSet);
+    if (rememberIds.length) {
+      try {
+        const { data: memRows, error: memErr } = await supabase
+          .from("memories")
+          .select("post_id")
+          .eq("owner_user_id", viewerId)
+          .in("kind", ["post", "text"])
+          .eq("meta->>source", "post_memory")
+          .in("post_id", rememberIds);
+        if (memErr) {
+          console.warn("viewer memories fetch failed", memErr);
+        } else if (Array.isArray(memRows)) {
+          viewerRememberedSet = new Set(
+            memRows
+              .map((r) =>
+                typeof (r as any)?.post_id === "string" || typeof (r as any)?.post_id === "number"
+                  ? String((r as any).post_id)
+                  : null,
+              )
+              .filter((v): v is string => Boolean(v)),
+          );
+        }
+      } catch (memFetchErr) {
+        console.warn("viewer memories query failed", memFetchErr);
+      }
+    }
+  }
+
   const posts: NormalizedPost[] = await Promise.all(
     activeRows.map(async (row) => {
       const base = normalizePost(row as Record<string, unknown>);
@@ -281,6 +326,13 @@ export async function GET(req: Request) {
         normalized.viewerLiked = true;
       } else {
         normalized.viewerLiked = Boolean(normalized.viewerLiked);
+      }
+      const clientId = (row as any)?.client_id ?? (row as any)?.id;
+      const cid = typeof clientId === "string" || typeof clientId === "number" ? String(clientId) : null;
+      if (cid && viewerRememberedSet.has(cid)) {
+        (normalized as any).viewerRemembered = true;
+      } else {
+        (normalized as any).viewerRemembered = Boolean((normalized as any).viewerRemembered);
       }
       normalized.mediaUrl = await ensureAccessibleMediaUrl(normalized.mediaUrl);
       return normalized;

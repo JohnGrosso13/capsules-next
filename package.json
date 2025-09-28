@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "node ./scripts/migrate.mjs",
+    "db:snapshot": "node ./scripts/build-schema-snapshot.mjs",
     "lint:fix": "eslint --fix .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check": "npm run lint && npm run typecheck",
@@ -16,6 +17,7 @@
   "dependencies": {
     "@clerk/nextjs": "^6.32.2",
     "@phosphor-icons/react": "^2.1.10",
+    "@pinecone-database/pinecone": "^6.1.2",
     "@radix-ui/react-slot": "^1.1.1",
     "@supabase/functions-js": "^2.5.0",
     "@supabase/supabase-js": "^2.57.4",

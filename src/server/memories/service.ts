@@ -2,11 +2,14 @@ import { embedText } from "@/lib/ai/openai";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
+import { deleteMemoryVectors, queryMemoryVectors, upsertMemoryVector } from "@/lib/pinecone/memories";
+
 import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 
 import { normalizeLegacyMemoryRow } from "@/lib/supabase/posts";
 
 const DEFAULT_LIST_LIMIT = 200;
+
 
 export async function indexMemory({
   ownerId,
@@ -61,22 +64,62 @@ export async function indexMemory({
     meta: metadata ?? null,
   };
 
-  const text = [title, description, mediaType].filter(Boolean).join("");
+  const text = [title, description, mediaType].filter(Boolean).join(" ");
+
+  let embedding: number[] | null = null;
 
   try {
-    const embedding = await embedText(text);
+    embedding = await embedText(text);
 
     if (embedding) record.embedding = embedding;
   } catch (error) {
     console.warn("embedding failed", error);
   }
 
-  const { error } = await supabase.from("memories").insert([record]);
+  try {
+    const { data, error } = await supabase
+      .from("memories")
+      .insert(record)
+      .select(
+        "id, owner_user_id, kind, post_id, title, description, media_url, media_type, meta, embedding",
+      )
+      .single();
 
-  if (error) {
+    if (error) {
+      console.warn("memories insert error", error);
+      return;
+    }
+
+    const inserted = (data ?? null) as Record<string, unknown> | null;
+    const memoryId = inserted && typeof inserted["id"] === "string" ? (inserted["id"] as string) : null;
+    const embeddingValue =
+      inserted && Object.prototype.hasOwnProperty.call(inserted, "embedding")
+        ? (inserted as { embedding?: unknown }).embedding
+        : null;
+    const persistedEmbedding = Array.isArray(embeddingValue) ? (embeddingValue as number[]) : null;
+
+    const vector = embedding && embedding.length ? embedding : persistedEmbedding;
+
+    if (memoryId && vector && vector.length) {
+      await upsertMemoryVector({
+        id: memoryId,
+        ownerId,
+        values: vector,
+        kind,
+        postId,
+        title,
+        description,
+        mediaUrl,
+        mediaType,
+        extra: metadata ?? null,
+      });
+    }
+  } catch (error) {
     console.warn("memories insert error", error);
   }
 }
+
+
 
 async function fetchLegacyMemoryItems(
   ownerId: string,
@@ -167,6 +210,7 @@ export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: 
   return data ?? [];
 }
 
+
 export async function searchMemories({
   ownerId,
 
@@ -183,6 +227,43 @@ export async function searchMemories({
   const supabase = getSupabaseAdminClient();
 
   const embedding = await embedText(query);
+
+  if (embedding) {
+    try {
+      const matches = await queryMemoryVectors(ownerId, embedding, limit);
+      const ids = matches
+        .map((match) => (typeof match.id === "string" ? match.id : null))
+        .filter((id): id is string => Boolean(id));
+
+      if (ids.length) {
+        const { data, error } = await supabase
+          .from("memories")
+          .select("id, kind, media_url, media_type, title, description, created_at, meta")
+          .in("id", ids);
+
+        if (!error && Array.isArray(data)) {
+          const map = new Map<string, Record<string, unknown>>();
+          for (const row of data) {
+            if (row && typeof row === "object" && typeof (row as { id?: unknown }).id === "string") {
+              map.set((row as { id: string }).id, row as Record<string, unknown>);
+            }
+          }
+
+          const ordered = matches
+            .map((match) => (typeof match.id === "string" ? map.get(match.id) : null))
+            .filter((row): row is Record<string, unknown> => Boolean(row));
+
+          if (ordered.length) {
+            return ordered.slice(0, limit);
+          }
+        } else if (error) {
+          console.warn("memories fetch after pinecone query failed", error);
+        }
+      }
+    } catch (error) {
+      console.warn("pinecone memory query failed", error);
+    }
+  }
 
   if (!embedding) {
     return listMemories({ ownerId }).then((items) => items.slice(0, limit));
@@ -207,6 +288,8 @@ export async function searchMemories({
   return data ?? [];
 }
 
+
+
 export async function deleteMemories({
   ownerId,
 
@@ -226,6 +309,20 @@ export async function deleteMemories({
 
   const deleteAll = Boolean(body.all);
 
+  const applyMemoryFilters = (query: any) => {
+    let scoped = query.eq("owner_user_id", ownerId);
+
+    if (!deleteAll) {
+      if (kind) scoped = scoped.eq("kind", kind);
+
+      if (ids.length) scoped = scoped.in("id", ids);
+
+      if (urls.length) scoped = scoped.in("media_url", urls);
+    }
+
+    return scoped;
+  };
+
   const run = async (promise: PromiseLike<PostgrestSingleResponse<unknown>>) => {
     const res = await promise;
 
@@ -240,20 +337,34 @@ export async function deleteMemories({
 
   let deletedLegacy = 0;
 
+  const pineconeIds = new Set<string>();
+
   try {
-    let query = supabase.from("memories").delete({ count: "exact" }).eq("owner_user_id", ownerId);
+    const { data, error } = await applyMemoryFilters(supabase.from("memories").select("id"));
 
-    if (!deleteAll) {
-      if (kind) query = query.eq("kind", kind);
-
-      if (ids.length) query = query.in("id", ids);
-
-      if (urls.length) query = query.in("media_url", urls);
+    if (!error && Array.isArray(data)) {
+      for (const row of data) {
+        if (row && typeof row === "object" && typeof (row as { id?: unknown }).id === "string") {
+          pineconeIds.add((row as { id: string }).id);
+        }
+      }
+    } else if (error) {
+      console.warn("memories id preload error", error);
     }
+  } catch (error) {
+    console.warn("memories id preload failed", error);
+  }
+
+  try {
+    const query = applyMemoryFilters(supabase.from("memories").delete({ count: "exact" }));
 
     deletedMemories += await run(query);
   } catch (error) {
     console.warn("memories delete error", error);
+  }
+
+  if (deletedMemories > 0 && pineconeIds.size) {
+    await deleteMemoryVectors(Array.from(pineconeIds));
   }
 
   const legacyDelete = async (column: string, values: string[]) => {
@@ -330,3 +441,4 @@ export async function deleteMemories({
 
   return { memories: deletedMemories, legacy: deletedLegacy };
 }
+

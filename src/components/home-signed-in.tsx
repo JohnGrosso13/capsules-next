@@ -18,16 +18,19 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
   const {
     posts,
     likePending,
+    memoryPending,
     friendMessage,
     activeFriendTarget,
     friendActionPending,
     handleToggleLike,
+    handleToggleMemory,
     handleFriendRequest,
     handleDelete,
     setActiveFriendTarget,
     formatCount,
     timeAgo,
     exactTime,
+    canRemember,
   } = useHomeFeed();
 
   return (
@@ -41,15 +44,18 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
         <HomeFeedList
           posts={posts}
           likePending={likePending}
+          memoryPending={memoryPending}
           activeFriendTarget={activeFriendTarget}
           friendActionPending={friendActionPending}
           onToggleLike={handleToggleLike}
+          onToggleMemory={handleToggleMemory}
           onFriendRequest={handleFriendRequest}
           onDelete={handleDelete}
           onToggleFriendTarget={setActiveFriendTarget}
           formatCount={formatCount}
           timeAgo={timeAgo}
           exactTime={exactTime}
+          canRemember={canRemember}
         />
       </section>
     </AppShell>
