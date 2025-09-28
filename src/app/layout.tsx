@@ -4,7 +4,6 @@ import Script from "next/script";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import "./light-theme.css";
-import "./material-overrides.css";
 import "./cta-overrides.css";
 import { BackgroundFX } from "@/components/background-fx";
 import { SignedIn } from "@clerk/nextjs";
