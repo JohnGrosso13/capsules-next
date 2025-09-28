@@ -262,4 +262,7 @@
   .animate-marquee-slow {
     animation: marquee 45s linear infinite;
   }
+  .animate-marquee-slower {
+    animation: marquee 60s linear infinite;
+  }
 }

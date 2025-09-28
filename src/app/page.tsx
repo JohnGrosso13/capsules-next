@@ -193,7 +193,7 @@ export default async function HomePage() {
                   collaborates.
                 </p>
               </div>
-              <GroupCarousel items={groupTypes} animate speed="slow" />
+              <GroupCarousel items={groupTypes} animate speed="slower" />
             </section>
 
             <section className="space-y-6" id="superpowers">

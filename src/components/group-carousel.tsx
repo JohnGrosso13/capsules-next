@@ -26,10 +26,10 @@ type Item = string | { label: string; icon?: ItemIcon };
 type GroupCarouselProps = {
   items: Item[];
   animate?: boolean;
-  speed?: "normal" | "slow";
+  speed?: "normal" | "slow" | "slower";
 };
 
-const size = 16;
+const size = 20;
 const weight = "duotone" as const;
 const DEFAULT_ICONS: Record<string, ItemIcon> = {
   Creators: <PencilSimple size={size} weight={weight} />,
@@ -52,7 +52,7 @@ const DEFAULT_ICONS: Record<string, ItemIcon> = {
   "Alumni Networks": <GraduationCap size={size} weight={weight} />,
 };
 
-export function GroupCarousel({ items, animate = false, speed = "slow" }: GroupCarouselProps) {
+export function GroupCarousel({ items, animate = false, speed = "slower" }: GroupCarouselProps) {
   const normalized = items.map((item) =>
     typeof item === "string"
       ? { label: item, icon: DEFAULT_ICONS[item] }
@@ -64,8 +64,14 @@ export function GroupCarousel({ items, animate = false, speed = "slow" }: GroupC
     <div className="glass-panel relative overflow-hidden rounded-3xl p-4">
       <div
         className={cn(
-          "flex min-w-max items-center gap-3",
-          animate ? (speed === "slow" ? "animate-marquee-slow" : "animate-marquee") : "flex-wrap",
+          "flex min-w-max items-center gap-4 md:gap-6",
+          animate
+            ? speed === "slower"
+              ? "animate-marquee-slower"
+              : speed === "slow"
+                ? "animate-marquee-slow"
+                : "animate-marquee"
+            : "flex-wrap",
         )}
         role="list"
         aria-label="Popular group types"
@@ -73,7 +79,7 @@ export function GroupCarousel({ items, animate = false, speed = "slow" }: GroupC
         {doubled.map((entry, index) => (
           <span
             key={`${entry.label}-${index}`}
-            className="rounded-pill border-border/40 bg-surface-elevated/80 text-fg/90 inline-flex items-center gap-2 border px-4 py-2 text-sm font-medium shadow-xs backdrop-blur"
+            className="text-fg inline-flex items-center gap-3 px-4 md:px-5 py-2 md:py-2.5 text-base md:text-lg font-semibold"
             role="listitem"
           >
             {entry.icon ? <span aria-hidden="true">{entry.icon}</span> : null}
@@ -84,4 +90,3 @@ export function GroupCarousel({ items, animate = false, speed = "slow" }: GroupC
     </div>
   );
 }
-
