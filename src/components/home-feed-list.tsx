@@ -5,8 +5,7 @@
 import * as React from "react";
 
 import styles from "./home.module.css";
-import { MaterialSymbol, type MaterialSymbolName } from "./material-symbol";
-import { Brain, Heart } from "@phosphor-icons/react/dist/ssr";
+import { Brain, Heart, ChatCircle, ShareNetwork, DotsThree, Trash, HourglassHigh } from "@phosphor-icons/react/dist/ssr";
 import { normalizeMediaUrl } from "@/lib/media";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 
@@ -84,7 +83,7 @@ export function HomeFeedList({
         const actionItems: Array<{
           key: ActionKey;
           label: string;
-          icon: MaterialSymbolName;
+          icon: React.ReactNode;
           count: number;
           active?: boolean;
           pending?: boolean;
@@ -93,14 +92,14 @@ export function HomeFeedList({
           {
             key: "like",
             label: viewerLiked ? "Liked" : "Like",
-            icon: "favorite",
+            icon: null,
             count: likeCount,
             active: viewerLiked,
             pending: isLikePending,
             handler: () => onToggleLike(post.id),
           },
-          { key: "comment", label: "Comment", icon: "mode_comment", count: commentCount },
-          { key: "share", label: "Share", icon: "ios_share", count: shareCount },
+          { key: "comment", label: "Comment", icon: <ChatCircle weight="duotone" />, count: commentCount },
+          { key: "share", label: "Share", icon: <ShareNetwork weight="duotone" />, count: shareCount },
         ];
         const attachmentsList = Array.isArray(post.attachments)
           ? post.attachments.filter((attachment): attachment is NonNullable<HomeFeedPost["attachments"]>[number] =>
@@ -267,7 +266,7 @@ export function HomeFeedList({
                   }
                 >
                   {isMemoryPending ? (
-                    <MaterialSymbol name="hourglass_top" />
+                    <HourglassHigh weight="duotone" />
                   ) : (
                     <Brain weight="duotone" />
                   )}
@@ -280,7 +279,7 @@ export function HomeFeedList({
                   aria-expanded={isFriendOptionOpen}
                   onClick={() => onToggleFriendTarget(isFriendOptionOpen ? null : identifier)}
                 >
-                  <MaterialSymbol name="more_horiz" />
+                  <DotsThree weight="duotone" />
                 </button>
 
                 <button
@@ -290,7 +289,7 @@ export function HomeFeedList({
                   aria-label="Delete post"
                   title="Delete post"
                 >
-                  <MaterialSymbol name="delete" />
+                  <Trash weight="duotone" />
                 </button>
               </div>
             </header>
@@ -376,11 +375,9 @@ export function HomeFeedList({
                   >
                     <span className={styles.actionMeta}>
                       <span className={styles.actionIcon} aria-hidden>
-                        {action.key === "like" ? (
-                          <Heart weight={action.active ? "fill" : "duotone"} />
-                        ) : (
-                          <MaterialSymbol name={action.icon} />
-                        )}
+                        {action.key === "like"
+                          ? <Heart weight={action.active ? "fill" : "duotone"} />
+                          : action.icon}
                       </span>
                       <span className={styles.actionLabel}>{action.label}</span>
                     </span>
