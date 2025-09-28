@@ -143,22 +143,61 @@ export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
       });
 
       try {
-        const result = await uploadFileDirect(file, {
-          kind: mimeType.startsWith("video/") ? "video" : "image",
-          metadata: {
-            original_filename: file.name,
-            mime_type: mimeType,
-            file_size: file.size,
-            source: "attachment",
-          },
-          onProgress: ({ uploadedBytes, totalBytes }) => {
-            setAttachment((prev) =>
-              prev && prev.id === id
-                ? { ...prev, progress: totalBytes ? uploadedBytes / totalBytes : 0 }
-                : prev,
-            );
-          },
-        });
+        let result = null as Awaited<ReturnType<typeof uploadFileDirect>> | null;
+        let directError: Error | null = null;
+        try {
+          result = await uploadFileDirect(file, {
+            kind: mimeType.startsWith("video/") ? "video" : "image",
+            metadata: {
+              original_filename: file.name,
+              mime_type: mimeType,
+              file_size: file.size,
+              source: "attachment",
+            },
+            onProgress: ({ uploadedBytes, totalBytes }) => {
+              setAttachment((prev) =>
+                prev && prev.id === id
+                  ? { ...prev, progress: totalBytes ? uploadedBytes / totalBytes : 0 }
+                  : prev,
+              );
+            },
+          });
+        } catch (error) {
+          directError = error instanceof Error ? error : new Error(String(error));
+          console.warn("direct upload failed, falling back to base64", directError);
+        }
+
+        if (!result) {
+          const dataUrl = await readFileAsDataUrl(file);
+          const base64 = dataUrl.split(",").pop() ?? "";
+          const fallbackResponse = await fetch("/api/upload_base64", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              filename: file.name,
+              content_type: mimeType,
+              data_base64: base64,
+            }),
+          });
+          if (!fallbackResponse.ok) {
+            const msg = await fallbackResponse.text().catch(() => "");
+            throw new Error(msg || directError?.message || "Upload failed");
+          }
+          const fallbackJson = (await fallbackResponse.json()) as {
+            url: string;
+            key?: string;
+          };
+          result = {
+            url: fallbackJson.url,
+            key: fallbackJson.key ?? "",
+            sessionId: null,
+            uploadId: fallbackJson.key ?? `base64-${id}`,
+          };
+        }
+
+        if (!result) {
+          throw directError ?? new Error("Upload failed");
+        }
 
         let thumbUrl: string | null = null;
         if (mimeType.startsWith("video/")) {

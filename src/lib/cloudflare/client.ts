@@ -25,6 +25,12 @@ async function callCloudflare(path: string, init: RequestInit & { method: string
   });
   if (!response.ok) {
     const text = await response.text();
+    if (response.status === 401 || response.status === 403) {
+      console.warn(
+        `Cloudflare API ${path} unauthorized (${response.status}). Skipping dev-side call.`,
+      );
+      return null;
+    }
     throw new Error(`Cloudflare API ${path} failed (${response.status}): ${text}`);
   }
   return response;

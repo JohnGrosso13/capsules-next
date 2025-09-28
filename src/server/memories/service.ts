@@ -72,7 +72,16 @@ export async function indexMemory({
   try {
     embedding = await embedText(text);
 
-    if (embedding) record.embedding = embedding;
+    if (embedding && embedding.length === 3072) {
+      record.embedding = embedding;
+    } else if (embedding && embedding.length) {
+      console.warn(
+        "embedding dimension mismatch",
+        embedding.length,
+        "expected 3072 – skipping stored embedding",
+      );
+      embedding = null;
+    }
   } catch (error) {
     console.warn("embedding failed", error);
   }
@@ -99,9 +108,14 @@ export async function indexMemory({
         : null;
     const persistedEmbedding = Array.isArray(embeddingValue) ? (embeddingValue as number[]) : null;
 
-    const vector = embedding && embedding.length ? embedding : persistedEmbedding;
+    const vector =
+      embedding && embedding.length === 3072
+        ? embedding
+        : persistedEmbedding && persistedEmbedding.length === 3072
+          ? persistedEmbedding
+          : null;
 
-    if (memoryId && vector && vector.length) {
+    if (memoryId && vector && vector.length === 3072) {
       await upsertMemoryVector({
         id: memoryId,
         ownerId,

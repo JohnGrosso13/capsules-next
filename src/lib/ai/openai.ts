@@ -30,6 +30,18 @@ export async function captionImage(url: string): Promise<string | null> {
   if (!serverEnv.OPENAI_API_KEY) return null;
   if (!url) return null;
   try {
+    const normalized = url.toLowerCase();
+    if (
+      normalized.includes("media.local.example") ||
+      normalized.startsWith("http://localhost") ||
+      normalized.startsWith("https://localhost")
+    ) {
+      return null;
+    }
+  } catch {
+    // ignore URL parse errors
+  }
+  try {
     const model = serverEnv.OPENAI_MODEL || "gpt-4o-mini";
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

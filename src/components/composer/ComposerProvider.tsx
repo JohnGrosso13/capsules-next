@@ -288,14 +288,28 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         setState((prev) => ({ ...prev, loading: true }));
-        try {
-          const postPayload: Record<string, unknown> = {
-            client_id: crypto.randomUUID(),
-            kind: "text",
-            content,
-            source: "ai-prompter",
-          };
-          if (action.attachments?.length) postPayload.attachments = action.attachments;
+      try {
+        const postPayload: Record<string, unknown> = {
+          client_id: crypto.randomUUID(),
+          kind: "text",
+          content,
+          source: "ai-prompter",
+        };
+        if (action.attachments?.length) {
+          postPayload.attachments = action.attachments;
+          const primary = action.attachments[0];
+          if (primary?.url) {
+            postPayload.mediaUrl = primary.url;
+            postPayload.media_url = primary.url;
+            const primaryMime = primary.mimeType ?? null;
+            if (primaryMime) {
+              const normalizedKind = primaryMime.startsWith("video/") ? "video" : "image";
+              postPayload.kind = normalizedKind;
+            } else if (postPayload.kind === "text") {
+              postPayload.kind = "image";
+            }
+          }
+        }
           await persistPost(postPayload, envelopePayload);
           setState(initialState);
           window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "manual" } }));
