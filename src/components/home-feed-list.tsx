@@ -6,6 +6,7 @@ import * as React from "react";
 
 import styles from "./home.module.css";
 import { MaterialSymbol, type MaterialSymbolName } from "./material-symbol";
+import { Brain, Heart } from "@phosphor-icons/react/dist/ssr";
 import { normalizeMediaUrl } from "@/lib/media";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 
@@ -14,29 +15,35 @@ type ActionKey = "like" | "comment" | "share";
 type HomeFeedListProps = {
   posts: HomeFeedPost[];
   likePending: Record<string, boolean>;
+  memoryPending: Record<string, boolean>;
   activeFriendTarget: string | null;
   friendActionPending: string | null;
   onToggleLike(postId: string): void;
+  onToggleMemory(post: HomeFeedPost, desired: boolean): Promise<boolean | void> | boolean | void;
   onFriendRequest(post: HomeFeedPost, identifier: string): void;
   onDelete(postId: string): void;
   onToggleFriendTarget(identifier: string | null): void;
   formatCount(value?: number | null): string;
   timeAgo(iso?: string | null): string;
   exactTime(iso?: string | null): string;
+  canRemember: boolean;
 };
 
 export function HomeFeedList({
   posts,
   likePending,
+  memoryPending,
   activeFriendTarget,
   friendActionPending,
   onToggleLike,
+  onToggleMemory,
   onFriendRequest,
   onDelete,
   onToggleFriendTarget,
   formatCount,
   timeAgo,
   exactTime,
+  canRemember,
 }: HomeFeedListProps) {
   return (
     <>
@@ -57,7 +64,23 @@ export function HomeFeedList({
         const commentCount = typeof post.comments === "number" ? Math.max(0, post.comments) : 0;
         const shareCount = typeof post.shares === "number" ? Math.max(0, post.shares) : 0;
         const viewerLiked = Boolean(post.viewerLiked ?? post.viewer_liked ?? false);
+        const remembered = Boolean(post.viewerRemembered ?? post.viewer_remembered ?? false);
         const isLikePending = Boolean(likePending[post.id]);
+        const isMemoryPending = Boolean(memoryPending[post.id]);
+        const handleMemoryToggle = () => {
+          if (isMemoryPending || !canRemember) return;
+          const desired = !remembered;
+          try {
+            const result = onToggleMemory(post, desired);
+            if (result && typeof (result as Promise<unknown>).then === "function") {
+              (result as Promise<unknown>).catch((error) => {
+                console.error("Memory toggle error", error);
+              });
+            }
+          } catch (error) {
+            console.error("Memory toggle error", error);
+          }
+        };
         const actionItems: Array<{
           key: ActionKey;
           label: string;
@@ -220,18 +243,35 @@ export function HomeFeedList({
               </div>
 
               <div className={styles.cardControls}>
-                {canTarget ? (
-                  <button
-                    type="button"
-                    className={styles.iconBtn}
-                    onClick={() => onFriendRequest(post, identifier)}
-                    disabled={!canTarget || isFriendActionPending}
-                    aria-label="Add friend shortcut"
-                    title="Add friend"
-                  >
-                    <MaterialSymbol name={isFriendActionPending ? "hourglass_top" : "person_add"} />
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className={styles.iconBtn}
+                  data-variant="memory"
+                  data-active={remembered ? "true" : "false"}
+                  onClick={handleMemoryToggle}
+                  disabled={isMemoryPending || !canRemember}
+                  aria-pressed={remembered ? true : undefined}
+                  aria-label={
+                    isMemoryPending
+                      ? "Saving to memory..."
+                      : remembered
+                        ? "Remembered"
+                        : "Save to Memory"
+                  }
+                  title={
+                    canRemember
+                      ? remembered
+                        ? "Remembered"
+                        : "Save to Memory"
+                      : "Sign in to save"
+                  }
+                >
+                  {isMemoryPending ? (
+                    <MaterialSymbol name="hourglass_top" />
+                  ) : (
+                    <Brain weight="duotone" />
+                  )}
+                </button>
 
                 <button
                   type="button"
@@ -336,10 +376,11 @@ export function HomeFeedList({
                   >
                     <span className={styles.actionMeta}>
                       <span className={styles.actionIcon} aria-hidden>
-                        <MaterialSymbol
-                          name={action.icon}
-                          filled={Boolean(action.key === "like" && action.active)}
-                        />
+                        {action.key === "like" ? (
+                          <Heart weight={action.active ? "fill" : "duotone"} />
+                        ) : (
+                          <MaterialSymbol name={action.icon} />
+                        )}
                       </span>
                       <span className={styles.actionLabel}>{action.label}</span>
                     </span>

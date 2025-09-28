@@ -738,6 +738,22 @@
   border-color: var(--card-hover-border, rgba(255, 255, 255, 0.28));
   color: var(--text);
 }
+.iconBtn[data-variant="memory"] {
+  /* neutral duotone base */
+  color: var(--text-2);
+}
+.iconBtn[data-variant="memory"][data-active="true"] {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand) 20%, transparent),
+    color-mix(in srgb, var(--color-accent) 8%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 12px 26px color-mix(in srgb, var(--color-brand) 22%, rgba(5, 10, 30, 0.28));
+}
 .iconBtnDelete {
   border-color: color-mix(in srgb, var(--color-danger) 32%, transparent);
   color: color-mix(in srgb, var(--color-danger) 90%, var(--text));
@@ -1038,8 +1054,8 @@
   display: flex;
   align-items: stretch;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px 14px;
+  gap: 10px;
+  padding: 8px 12px 10px;
   background: transparent;
   border-top: 1px solid var(--card-border, rgba(255, 255, 255, 0.06));
 }
@@ -1052,14 +1068,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 8px;
+  padding: 8px 12px;
   border-radius: 12px;
-  border: 1px solid var(--feed-action-border, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--feed-action-border, rgba(255, 255, 255, 0.06));
   background: linear-gradient(
     180deg,
-    var(--feed-action-bg-1, rgba(255, 255, 255, 0.07)),
-    var(--feed-action-bg-2, rgba(255, 255, 255, 0.03))
+    var(--feed-action-bg-1, rgba(255, 255, 255, 0.06)),
+    var(--feed-action-bg-2, rgba(255, 255, 255, 0.02))
   );
   color: var(--text);
   font-weight: 700;
@@ -1068,7 +1084,8 @@
     transform 0.14s ease,
     border-color 0.14s ease,
     background 0.14s ease,
-    box-shadow 0.18s ease;
+    box-shadow 0.18s ease,
+    color 0.14s ease;
 }
 .actionBtn:hover {
   transform: translateY(-1px);
@@ -1096,20 +1113,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 12px;
-  border: 1px solid var(--icon-plate-border, rgba(255, 255, 255, 0.16));
-  background: linear-gradient(
-    180deg,
-    var(--icon-plate-bg-1, rgba(255, 255, 255, 0.1)),
-    var(--icon-plate-bg-2, rgba(255, 255, 255, 0.04))
-  );
-  box-shadow: var(--icon-plate-highlight, inset 0 1px 0 rgba(255, 255, 255, 0.18));
-  color: currentColor;
+  width: 24px;
+  height: 24px;
+  /* Remove inner plate styling so icons stand alone */
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-2);
   transition:
     color 0.18s ease,
-    border-color 0.18s ease,
     background 0.18s ease;
 }
 .actionIcon svg {
@@ -1118,23 +1130,33 @@
   display: block;
 }
 .actionLabel {
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 600;
+  color: var(--text-2);
 }
 .actionCount {
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-2);
   text-align: right;
-  min-width: 32px;
+  min-width: 28px;
 }
-.actionBtn[data-variant="like"] .actionIcon {
+.actionBtn:hover .actionLabel {
+  color: var(--text);
+}
+/* Duotone: neutral by default, colorize on hover/active */
+.actionBtn[data-variant="like"] .actionIcon,
+.actionBtn[data-variant="comment"] .actionIcon,
+.actionBtn[data-variant="share"] .actionIcon {
+  color: var(--text-2);
+}
+.actionBtn[data-variant="like"]:hover .actionIcon,
+.actionBtn[data-variant="like"][data-active="true"] .actionIcon {
   color: var(--color-danger);
 }
-.actionBtn[data-variant="comment"] .actionIcon {
+.actionBtn[data-variant="comment"]:hover .actionIcon {
   color: var(--color-info);
 }
-.actionBtn[data-variant="share"] .actionIcon {
+.actionBtn[data-variant="share"]:hover .actionIcon {
   color: var(--color-warning);
 }
 .actionBtn[data-variant="like"][data-active="true"] {
@@ -1148,12 +1170,7 @@
 }
 .actionBtn[data-variant="like"][data-active="true"] .actionIcon {
   color: var(--color-danger);
-  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-danger) 30%, transparent),
-    color-mix(in srgb, var(--color-danger) 12%, transparent)
-  );
+  background: transparent;
 }
 .actionBtn[data-variant="like"][data-active="true"] .actionLabel {
   color: var(--text);
