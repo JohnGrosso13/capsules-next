@@ -31,11 +31,6 @@ const OPENAI_EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || "text-embedding-3-l
 
 const PINECONE_API_KEY = process.env.PINECONE_API_KEY ?? null;
 const PINECONE_INDEX = process.env.PINECONE_INDEX ?? null;
-const PINECONE_ENVIRONMENT =
-  process.env.PINECONE_ENVIRONMENT ??
-  process.env.PINECONE_REGION ??
-  process.env.PINECONE_PROJECT_ENV ??
-  null;
 const PINECONE_CONTROLLER_HOST =
   process.env.PINECONE_CONTROLLER_HOST ??
   process.env.PINECONE_HOST ??

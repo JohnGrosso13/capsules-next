@@ -1,5 +1,5 @@
 import { Pinecone } from "@pinecone-database/pinecone";
-import type { Index, RecordMetadata, PineconeConfiguration } from "@pinecone-database/pinecone";
+import type { RecordMetadata, PineconeConfiguration } from "@pinecone-database/pinecone";
 
 import { serverEnv } from "../env/server";
 
@@ -49,3 +49,4 @@ export function getPineconeIndex<T extends RecordMetadata = RecordMetadata>() {
     return null;
   }
 }
+

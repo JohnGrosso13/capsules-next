@@ -88,6 +88,8 @@ type NormalizedAttachment = {
   thumbnailUrl: string | null;
 };
 
+type MemoryPostRow = { post_id: unknown } | null;
+
 type NormalizedPost = ReturnType<typeof normalizePost> & {
   attachments?: NormalizedAttachment[];
 };
@@ -303,12 +305,11 @@ export async function GET(req: Request) {
           console.warn("viewer memories fetch failed", memErr);
         } else if (Array.isArray(memRows)) {
           viewerRememberedSet = new Set(
-            memRows
-              .map((r) =>
-                typeof (r as any)?.post_id === "string" || typeof (r as any)?.post_id === "number"
-                  ? String((r as any).post_id)
-                  : null,
-              )
+            (memRows as MemoryPostRow[])
+              .map((row) => {
+                const value = row?.post_id;
+                return typeof value === "string" || typeof value === "number" ? String(value) : null;
+              })
               .filter((v): v is string => Boolean(v)),
           );
         }
@@ -320,19 +321,23 @@ export async function GET(req: Request) {
 
   const posts: NormalizedPost[] = await Promise.all(
     activeRows.map(async (row) => {
-      const base = normalizePost(row as Record<string, unknown>);
+      const rowRecord = row as Record<string, unknown>;
+      const base = normalizePost(rowRecord);
       const normalized: NormalizedPost = { ...base };
       if (normalized.dbId && viewerLikedIds.has(normalized.dbId)) {
         normalized.viewerLiked = true;
       } else {
         normalized.viewerLiked = Boolean(normalized.viewerLiked);
       }
-      const clientId = (row as any)?.client_id ?? (row as any)?.id;
-      const cid = typeof clientId === "string" || typeof clientId === "number" ? String(clientId) : null;
+      const clientIdCandidate = rowRecord["client_id"] ?? rowRecord["id"];
+      const cid =
+        typeof clientIdCandidate === "string" || typeof clientIdCandidate === "number"
+          ? String(clientIdCandidate)
+          : null;
       if (cid && viewerRememberedSet.has(cid)) {
-        (normalized as any).viewerRemembered = true;
+        normalized.viewerRemembered = true;
       } else {
-        (normalized as any).viewerRemembered = Boolean((normalized as any).viewerRemembered);
+        normalized.viewerRemembered = Boolean(normalized.viewerRemembered);
       }
       normalized.mediaUrl = await ensureAccessibleMediaUrl(normalized.mediaUrl);
       return normalized;

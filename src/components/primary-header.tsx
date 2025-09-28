@@ -41,14 +41,16 @@ export function PrimaryHeader({
   React.useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 4);
-      // Mark as actively scrolling and clear when idle
-      if (!scrolling) setScrolling(true);
+      setScrolling(true);
       if (scrollTimerRef.current) window.clearTimeout(scrollTimerRef.current);
       scrollTimerRef.current = window.setTimeout(() => setScrolling(false), 160);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (scrollTimerRef.current) window.clearTimeout(scrollTimerRef.current);
+    };
   }, []);
   return (
     <header

@@ -11,6 +11,12 @@ import { normalizeLegacyMemoryRow } from "@/lib/supabase/posts";
 const DEFAULT_LIST_LIMIT = 200;
 
 
+type MemoryFilterableQuery<T> = {
+  eq(column: string, value: unknown): T;
+  in(column: string, values: readonly string[]): T;
+};
+
+
 export async function indexMemory({
   ownerId,
 
@@ -309,7 +315,7 @@ export async function deleteMemories({
 
   const deleteAll = Boolean(body.all);
 
-  const applyMemoryFilters = (query: any) => {
+  const applyMemoryFilters = <T extends MemoryFilterableQuery<T>>(query: T): T => {
     let scoped = query.eq("owner_user_id", ownerId);
 
     if (!deleteAll) {
