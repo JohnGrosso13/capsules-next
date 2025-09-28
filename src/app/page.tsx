@@ -137,16 +137,16 @@ export default async function HomePage() {
           <div className="contents">
             <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="flex flex-col gap-8">
-                <div className="space-y-4 text-center md:text-left">
+                <div className="space-y-4 text-center">
                   <h1 className="font-display text-fg text-4xl tracking-tight sm:text-5xl lg:text-6xl">
-                    Create AI powered spaces that remember
+                    Create AI Powered Spaces That Remember
                   </h1>
-                  <p className="text-fg-subtle max-w-xl text-lg leading-8 mx-auto md:mx-0">
+                  <p className="text-fg-subtle max-w-xl text-lg leading-8 mx-auto">
                     The first social platform that couples channel memory with AI building blocks so
                     your community stays connected, organized, and inspired.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                <div className="flex flex-wrap gap-2 justify-center">
                   {heroPrompts.map((prompt) => (
                     <span
                       key={prompt}
@@ -156,7 +156,7 @@ export default async function HomePage() {
                     </span>
                   ))}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 justify-center md:justify-start">
+                <div className="flex flex-wrap items-center gap-3 justify-center">
                   <LaunchCta size="lg" />
                   <Link
                     href="#features"

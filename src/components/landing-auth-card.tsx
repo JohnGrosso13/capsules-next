@@ -1,6 +1,7 @@
 "use client";
 
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -31,19 +32,17 @@ export function LandingAuthCard() {
         <CardContent className="flex flex-col gap-3">
           <SignInButton mode="modal">
             <Button className="w-full" size="lg">
-              Launch Capsule
-            </Button>
-          </SignInButton>
-          <SignInButton mode="modal">
-            <Button variant="secondary" className="w-full" size="lg">
               Sign In
             </Button>
           </SignInButton>
-          <SignInButton mode="modal">
-            <Button variant="ghost" className="w-full" size="lg">
-              Explore Features
+          <SignUpButton mode="modal">
+            <Button variant="secondary" className="w-full" size="lg">
+              Sign Up
             </Button>
-          </SignInButton>
+          </SignUpButton>
+          <Button asChild variant="ghost" className="w-full" size="lg">
+            <Link href="#features">Explore Features</Link>
+          </Button>
         </CardContent>
       </SignedOut>
       <SignedIn>
