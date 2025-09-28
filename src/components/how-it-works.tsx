@@ -25,7 +25,7 @@ export function HowItWorks({ steps }: { steps: Step[] }) {
           <React.Fragment key={step.title}>
             <div className="flex max-w-[320px] flex-col items-center text-center">
               <div className="icon-tile mb-4 grid h-16 w-16 place-items-center rounded-2xl md:h-20 md:w-20">
-                {step.icon ?? DEFAULT_ICONS[index] ?? null}
+                {React.isValidElement(step.icon) ? step.icon : DEFAULT_ICONS[index] ?? null}
               </div>
               <div className="mb-1 flex items-center justify-center gap-2">
                 <span className="number-badge">{index + 1}</span>
@@ -44,4 +44,3 @@ export function HowItWorks({ steps }: { steps: Step[] }) {
     </div>
   );
 }
-

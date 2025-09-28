@@ -41,17 +41,14 @@ const howSteps = [
   {
     title: "Create Your Capsule",
     desc: "With Channel Memory you can recall anything from your space.",
-    icon: "??",
   },
   {
     title: "Ask AI To Make Anything",
     desc: "Create posts, logos, polls, and store items with prompts.",
-    icon: "???",
   },
   {
     title: "Open the Barrier To Growth",
     desc: "Post, stream, chat, and sell with built-in integrations.",
-    icon: "??",
   },
 ];
 const superpowers = [
