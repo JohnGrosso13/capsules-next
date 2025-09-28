@@ -165,3 +165,13 @@
   color: var(--text);
   font-weight: 800;
 }
+
+/* Tile header and menu placement */
+.tileHeader { text-align: center; font-weight: 800; }
+.tileTitle { font-size: 0.95rem; }
+.tileBadge { font-size: 0.75rem; opacity: 0.8; }
+.menuTopRight { position: absolute; top: 10px; right: 10px; z-index: 6; }
+
+/* Preview takes roughly half the tile height using a softer ratio */
+.previewHalf { aspect-ratio: 2 / 1; }
+.descArea { font-size: 0.85rem; opacity: 0.9; min-height: 2.4em; }

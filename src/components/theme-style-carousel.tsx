@@ -3,6 +3,7 @@
 import * as React from "react";
 import styles from "./theme-style-carousel.module.css";
 import promo from "./promo-row.module.css";
+import { Button } from "@/components/ui/button";
 
 import {
   applyThemeVars,
@@ -101,6 +102,8 @@ const [loading, setLoading] = React.useState(false);
 const [items, setItems] = React.useState<Array<{ kind: "preset"; preset: Preset } | { kind: "saved"; saved: SavedStyle }>>(
   () => basePresets.map((preset) => ({ kind: "preset", preset })),
 );
+const [canLeft, setCanLeft] = React.useState(false);
+const [canRight, setCanRight] = React.useState(false);
 
 const fetchSaved = React.useCallback(async () => {
   const envelopePayload = envelopeRef.current;
@@ -149,6 +152,25 @@ React.useEffect(() => {
   if (!isLoaded) return;
   fetchSaved();
 }, [isLoaded, envelopeSignature, fetchSaved]);
+
+// Track scroll availability for nav arrows
+React.useEffect(() => {
+  const el = listRef.current;
+  if (!el) return;
+  const update = () => {
+    setCanLeft(el.scrollLeft > 4);
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  };
+  update();
+  el.addEventListener("scroll", update, { passive: true });
+  window.addEventListener("resize", update);
+  const id = window.setInterval(update, 300); // handle font/CSS late paints
+  return () => {
+    el.removeEventListener("scroll", update);
+    window.removeEventListener("resize", update);
+    window.clearInterval(id);
+  };
+}, [items.length]);
 
   const scrollByPage = React.useCallback((dir: 1 | -1) => {
     const el = listRef.current;
@@ -258,11 +280,13 @@ const handleSaveCurrent = React.useCallback(async () => {
       </div>
 
       <div className={styles.carousel}>
-        <div className={`${styles.navOverlay} ${styles.navLeft}`.trim()}>
-          <button type="button" className={styles.navArrow} aria-label="Previous" onClick={() => scrollByPage(-1)}>
-            {"<"}
-          </button>
-        </div>
+        {canLeft ? (
+          <div className={`${styles.navOverlay} ${styles.navLeft}`.trim()}>
+            <button type="button" className={styles.navArrow} aria-label="Previous" onClick={() => scrollByPage(-1)}>
+              {"<"}
+            </button>
+          </div>
+        ) : null}
         <div className={styles.track} ref={listRef}>
           {items.map((entry) => {
             const id = entry.kind === "preset" ? `preset:${entry.preset.id}` : `saved:${entry.saved.id}`;
@@ -281,82 +305,83 @@ const handleSaveCurrent = React.useCallback(async () => {
                   onBlur={() => endPreviewThemeVars()}
                   onKeyDown={onKeyDownTile}
                 >
-                  <div className={promo.head}>
-                    <span>{title}</span>
-                    <span className={promo.small}>{entry.kind === "saved" ? "Saved" : "Preset"}</span>
+                  <div className={styles.menuTopRight}>
+                    <button
+                      type="button"
+                      className={styles.ellipsisBtn}
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpen}
+                      onClick={() => setMenuOpenFor(menuOpen ? null : id)}
+                      aria-label="Theme actions"
+                    >
+                      ...
+                    </button>
+                    {menuOpen ? (
+                      <div className={styles.menu} role="menu" onMouseLeave={() => setMenuOpenFor(null)}>
+                        <button
+                          className={styles.menuItem}
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOpenFor(null);
+                            handleApply(entry);
+                          }}
+                        >
+                          Apply
+                        </button>
+                        {entry.kind === "saved" ? (
+                          <>
+                            <button
+                              className={styles.menuItem}
+                              role="menuitem"
+                              onClick={() => {
+                                setMenuOpenFor(null);
+                                void handleRename(entry);
+                              }}
+                            >
+                              Rename
+                            </button>
+                            <button
+                              className={`${styles.menuItem} ${styles.danger}`.trim()}
+                              role="menuitem"
+                              onClick={() => {
+                                setMenuOpenFor(null);
+                                void handleDelete(entry);
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
-                  <div className={promo.short} style={buildPreviewStyle(vars)} aria-hidden>
+
+                  <div className={styles.tileHeader}>
+                    <div className={styles.tileTitle}>{title}</div>
+                    <div className={styles.tileBadge}>{entry.kind === "saved" ? "Saved" : "Preset"}</div>
+                  </div>
+                  <div className={`${promo.short} ${styles.previewHalf}`.trim()} style={buildPreviewStyle(vars)} aria-hidden>
                     <div className={styles.swatchBg} />
                     <div className={styles.swatchCard} />
                   </div>
-                  {desc ? <div className={promo.small}>{desc}</div> : null}
-                  <div className={styles.itemHead}>
-                    <div className={styles.actions}>
-                      <button type="button" className={`${styles.btn} ${styles.btnPrimary}`.trim()} onClick={() => handleApply(entry)}>
-                        Apply
-                      </button>
-                    </div>
-                    <div className={styles.menuWrap}>
-                      <button
-                        type="button"
-                        className={styles.ellipsisBtn}
-                        aria-haspopup="menu"
-                        aria-expanded={menuOpen}
-                        onClick={() => setMenuOpenFor(menuOpen ? null : id)}
-                        aria-label="Theme actions"
-                      >
-                        ...
-                      </button>
-                      {menuOpen ? (
-                        <div className={styles.menu} role="menu" onMouseLeave={() => setMenuOpenFor(null)}>
-                          <button
-                            className={styles.menuItem}
-                            role="menuitem"
-                            onClick={() => {
-                              setMenuOpenFor(null);
-                              handleApply(entry);
-                            }}
-                          >
-                            Apply
-                          </button>
-                          {entry.kind === "saved" ? (
-                            <>
-                              <button
-                                className={styles.menuItem}
-                                role="menuitem"
-                                onClick={() => {
-                                  setMenuOpenFor(null);
-                                  void handleRename(entry);
-                                }}
-                              >
-                                Rename
-                              </button>
-                              <button
-                                className={`${styles.menuItem} ${styles.danger}`.trim()}
-                                role="menuitem"
-                                onClick={() => {
-                                  setMenuOpenFor(null);
-                                  void handleDelete(entry);
-                                }}
-                              >
-                                Delete
-                              </button>
-                            </>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
+                  {desc ? <div className={styles.descArea}>{desc}</div> : null}
+                  <div className={styles.actions}>
+                    <Button variant="primary" size="sm" onClick={() => handleApply(entry)}>
+                      Apply
+                    </Button>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-        <div className={`${styles.navOverlay} ${styles.navRight}`.trim()}>
-          <button type="button" className={styles.navArrow} aria-label="Next" onClick={() => scrollByPage(1)}>
-            {">"}
-          </button>
-        </div>
+        {canRight ? (
+          <div className={`${styles.navOverlay} ${styles.navRight}`.trim()}>
+            <button type="button" className={styles.navArrow} aria-label="Next" onClick={() => scrollByPage(1)}>
+              {">"}
+            </button>
+          </div>
+        ) : null}
       </div>
       {loading ? <div className={styles.meta}>Loading…</div> : null}
       {!loading && items.length === 0 ? (
