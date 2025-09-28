@@ -31,24 +31,15 @@
 .track {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(220px, 1fr);
+  grid-auto-columns: minmax(240px, 1fr);
   gap: 12px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   padding: 10px 12px;
 }
 
-.slide {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid var(--pill-border, rgba(255,255,255,0.16));
-  background: linear-gradient(160deg, var(--glass-bg-1), var(--glass-bg-2));
-  color: var(--text);
-  scroll-snap-align: start;
-}
+/* Slide wrapper so promo tile can be reused without extra chrome */
+.slide { scroll-snap-align: start; }
 
 .swatch {
   position: relative;
@@ -128,6 +119,7 @@
   border: 1px solid var(--card-border);
   background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
   box-shadow: var(--shadow-lg, 0 16px 36px rgba(5,10,30,0.4));
+  z-index: 5;
 }
 
 .menuItem {
@@ -150,3 +142,26 @@
 .ellipsisBtn { composes: btn from global; width: 34px; height: 34px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; }
 
 .empty { padding: 16px; color: var(--text-2); }
+
+/* Large nav arrows overlayed at sides */
+.navOverlay {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  z-index: 4;
+}
+.navLeft { left: 6px; }
+.navRight { right: 6px; }
+.navArrow {
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border);
+  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+  color: var(--text);
+  font-weight: 800;
+}

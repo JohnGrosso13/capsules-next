@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import styles from "./theme-style-carousel.module.css";
+import promo from "./promo-row.module.css";
 
 import {
   applyThemeVars,
@@ -257,9 +258,11 @@ const handleSaveCurrent = React.useCallback(async () => {
       </div>
 
       <div className={styles.carousel}>
-        <button type="button" className={styles.btn} aria-label="Previous" onClick={() => scrollByPage(-1)}>
-          {"<"}
-        </button>
+        <div className={`${styles.navOverlay} ${styles.navLeft}`.trim()}>
+          <button type="button" className={styles.navArrow} aria-label="Previous" onClick={() => scrollByPage(-1)}>
+            {"<"}
+          </button>
+        </div>
         <div className={styles.track} ref={listRef}>
           {items.map((entry) => {
             const id = entry.kind === "preset" ? `preset:${entry.preset.id}` : `saved:${entry.saved.id}`;
@@ -268,98 +271,92 @@ const handleSaveCurrent = React.useCallback(async () => {
             const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
             const menuOpen = menuOpenFor === id;
             return (
-              <div
-                key={id}
-                className={styles.slide}
-                tabIndex={0}
-                onMouseEnter={() => startPreviewThemeVars(vars)}
-                onMouseLeave={() => endPreviewThemeVars()}
-                onFocus={() => startPreviewThemeVars(vars)}
-                onBlur={() => endPreviewThemeVars()}
-                onKeyDown={onKeyDownTile}
-              >
-                <div className={styles.swatch} style={buildPreviewStyle(vars)} aria-hidden>
-                  <div className={styles.swatchBg} />
-                  <div className={styles.swatchCard} />
-                </div>
-                <div className={styles.itemHead}>
-                  <div>
-                    <div className={styles.itemTitle}>{title}</div>
-                    {desc ? <div className={styles.meta}>{desc}</div> : null}
+              <div key={id} className={styles.slide}>
+                <div
+                  className={promo.tile}
+                  tabIndex={0}
+                  onMouseEnter={() => startPreviewThemeVars(vars)}
+                  onMouseLeave={() => endPreviewThemeVars()}
+                  onFocus={() => startPreviewThemeVars(vars)}
+                  onBlur={() => endPreviewThemeVars()}
+                  onKeyDown={onKeyDownTile}
+                >
+                  <div className={promo.head}>
+                    <span>{title}</span>
+                    <span className={promo.small}>{entry.kind === "saved" ? "Saved" : "Preset"}</span>
                   </div>
-                  <div className={styles.menuWrap}>
-                    <button
-                      type="button"
-                      className={styles.ellipsisBtn}
-                      aria-haspopup="menu"
-                      aria-expanded={menuOpen}
-                      onClick={() => setMenuOpenFor(menuOpen ? null : id)}
-                      aria-label="Theme actions"
-                    >
-                      ...
-                    </button>
-                    {menuOpen ? (
-                      <div className={styles.menu} role="menu" onMouseLeave={() => setMenuOpenFor(null)}>
-                        <button
-                          className={styles.menuItem}
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuOpenFor(null);
-                            handleApply(entry);
-                          }}
-                        >
-                          Apply
-                        </button>
-                        {entry.kind === "saved" ? (
-                          <>
-                            <button
-                              className={styles.menuItem}
-                              role="menuitem"
-                              onClick={() => {
-                                setMenuOpenFor(null);
-                                void handleRename(entry);
-                              }}
-                            >
-                              Rename
-                            </button>
-                            <button
-                              className={`${styles.menuItem} ${styles.danger}`.trim()}
-                              role="menuitem"
-                              onClick={() => {
-                                setMenuOpenFor(null);
-                                void handleDelete(entry);
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </>
-                        ) : null}
-                      </div>
-                    ) : null}
+                  <div className={promo.short} style={buildPreviewStyle(vars)} aria-hidden>
+                    <div className={styles.swatchBg} />
+                    <div className={styles.swatchCard} />
                   </div>
-                </div>
-                <div className={styles.actions}>
-                  <button type="button" className={`${styles.btn} ${styles.btnPrimary}`.trim()} onClick={() => handleApply(entry)}>
-                    Apply
-                  </button>
-                  {entry.kind === "saved" ? (
-                    <>
-                      <button type="button" className={styles.btn} onClick={() => void handleRename(entry)}>
-                        Rename
+                  {desc ? <div className={promo.small}>{desc}</div> : null}
+                  <div className={styles.itemHead}>
+                    <div className={styles.actions}>
+                      <button type="button" className={`${styles.btn} ${styles.btnPrimary}`.trim()} onClick={() => handleApply(entry)}>
+                        Apply
                       </button>
-                      <button type="button" className={styles.btn} onClick={() => void handleDelete(entry)}>
-                        Delete
+                    </div>
+                    <div className={styles.menuWrap}>
+                      <button
+                        type="button"
+                        className={styles.ellipsisBtn}
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        onClick={() => setMenuOpenFor(menuOpen ? null : id)}
+                        aria-label="Theme actions"
+                      >
+                        ...
                       </button>
-                    </>
-                  ) : null}
+                      {menuOpen ? (
+                        <div className={styles.menu} role="menu" onMouseLeave={() => setMenuOpenFor(null)}>
+                          <button
+                            className={styles.menuItem}
+                            role="menuitem"
+                            onClick={() => {
+                              setMenuOpenFor(null);
+                              handleApply(entry);
+                            }}
+                          >
+                            Apply
+                          </button>
+                          {entry.kind === "saved" ? (
+                            <>
+                              <button
+                                className={styles.menuItem}
+                                role="menuitem"
+                                onClick={() => {
+                                  setMenuOpenFor(null);
+                                  void handleRename(entry);
+                                }}
+                              >
+                                Rename
+                              </button>
+                              <button
+                                className={`${styles.menuItem} ${styles.danger}`.trim()}
+                                role="menuitem"
+                                onClick={() => {
+                                  setMenuOpenFor(null);
+                                  void handleDelete(entry);
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
-        <button type="button" className={styles.btn} aria-label="Next" onClick={() => scrollByPage(1)}>
-          {">"}
-        </button>
+        <div className={`${styles.navOverlay} ${styles.navRight}`.trim()}>
+          <button type="button" className={styles.navArrow} aria-label="Next" onClick={() => scrollByPage(1)}>
+            {">"}
+          </button>
+        </div>
       </div>
       {loading ? <div className={styles.meta}>Loading…</div> : null}
       {!loading && items.length === 0 ? (
