@@ -68,15 +68,7 @@
     --shadow-glow: 0 0 42px rgba(99, 102, 241, 0.4);
     --ring-primary: 0 0 0 1px rgba(99, 102, 241, 0.6);
     --ring-offset: 0 0 0 4px rgba(99, 102, 241, 0.16);
-    --icon-size: 1.5rem;
-    --icon-stroke: 1.75;
-    --icon-stroke-active: 2;
-    --icon-wght: 400;
-    --icon-wght-active: 520;
-    --icon-opsz: 24;
-    --icon-grad: 0;
-    --icon-color: rgba(255, 255, 255, 0.68);
-    --icon-color-active: rgba(255, 255, 255, 0.94);
+    /* Removed legacy Material icon tokens (using Phosphor components now) */
     /* Default glass fallbacks for dark theme (overridden by light theme or AI styler) */
     --glass-bg-1: rgba(255, 255, 255, 0.06);
     --glass-bg-2: rgba(255, 255, 255, 0.035);
@@ -127,12 +119,7 @@
     --shadow-glow: 0 0 36px rgba(79, 70, 229, 0.32);
     --ring-primary: 0 0 0 1px rgba(79, 70, 229, 0.45);
     --ring-offset: 0 0 0 4px rgba(79, 70, 229, 0.14);
-    --icon-color: rgba(14, 16, 36, 0.64);
-    --icon-color-active: rgba(14, 16, 36, 0.94);
-    --icon-wght: 420;
-    --icon-wght-active: 560;
-    --icon-opsz: 24;
-    --icon-grad: 0;
+    /* Removed legacy Material icon tokens (using Phosphor components now) */
     --cta-gradient: linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%);
     --cta-button-text: #ffffff;
   }
