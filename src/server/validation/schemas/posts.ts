@@ -25,6 +25,7 @@ const attachmentSchema = z.object({
   mimeType: z.string().nullable(),
   name: z.string().nullable(),
   thumbnailUrl: z.string().nullable(),
+  storageKey: z.string().nullable().optional(),
 });
 
 const normalizedPostSchema = z.object({
@@ -59,3 +60,4 @@ export const createPostResponseSchema = z.object({
   success: z.literal(true),
   id: z.string(),
 });
+

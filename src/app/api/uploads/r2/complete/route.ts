@@ -79,7 +79,10 @@ export async function POST(req: Request) {
     });
   }
 
-  const url = getStorageObjectUrl(key);
+  const publicUrl =
+    (updatedSession?.absolute_url && updatedSession.absolute_url.trim()) ||
+    (session?.absolute_url && session.absolute_url.trim()) ||
+    getStorageObjectUrl(key);
 
   try {
     await enqueueUploadEvent({
@@ -91,7 +94,7 @@ export async function POST(req: Request) {
       bucket: session?.r2_bucket ?? updatedSession?.r2_bucket ?? "",
       contentType: session?.content_type ?? updatedSession?.content_type ?? null,
       metadata: payload.metadata ?? session?.metadata ?? updatedSession?.metadata ?? null,
-      absoluteUrl: updatedSession?.absolute_url ?? session?.absolute_url ?? null,
+      absoluteUrl: (updatedSession?.absolute_url ?? session?.absolute_url ?? null) ?? publicUrl ?? null,
     });
   } catch (queueError) {
     console.warn("enqueue upload event failed", queueError);
@@ -100,6 +103,6 @@ export async function POST(req: Request) {
   return validatedJson(completeUploadResponseSchema, {
     sessionId: updatedSession?.id ?? null,
     key,
-    url,
+    url: publicUrl,
   });
 }

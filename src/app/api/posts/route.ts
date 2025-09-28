@@ -4,6 +4,7 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import type { IncomingUserPayload } from "@/lib/auth/payload";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createPostRecord } from "@/lib/supabase/posts";
+import { serverEnv } from "@/lib/env/server";
 import { normalizeMediaUrl } from "@/lib/media";
 import type { CreatePostInput } from "@/server/posts/types";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
@@ -27,10 +28,71 @@ function parsePublicStorageObject(url: string): { bucket: string; key: string } 
     return null;
   }
 }
+function rewriteR2MediaUrl(url: string): string | null {
+  const base = serverEnv.R2_PUBLIC_BASE_URL;
+  if (!base) return null;
+  try {
+    const candidate = new URL(url);
+    const baseUrl = (() => {
+      try {
+        return new URL(base);
+      } catch {
+        return null;
+      }
+    })();
+    if (!baseUrl) {
+      return null;
+    }
+    if (candidate.protocol === "data:" || candidate.protocol === "blob:") {
+      return url;
+    }
+    if (candidate.host === baseUrl.host) {
+      return url;
+    }
+    const suffix = ".r2.cloudflarestorage.com";
+    if (!candidate.host.endsWith(suffix)) {
+      return null;
+    }
+    const bucket = serverEnv.R2_BUCKET.trim();
+    const account = serverEnv.R2_ACCOUNT_ID.trim();
+    if (!bucket || !account) {
+      return null;
+    }
+    const lowerBucket = bucket.toLowerCase();
+    const accountHost = `${account.toLowerCase()}${suffix}`;
+    const bucketHost = `${lowerBucket}.${accountHost}`;
+    let key: string | null = null;
+    const candidateHost = candidate.host.toLowerCase();
+    if (candidateHost === bucketHost) {
+      key = candidate.pathname.replace(/^\/+/, "");
+    } else if (candidateHost === accountHost) {
+      const parts = candidate.pathname.replace(/^\/+/, "").split("/");
+      if (parts.length > 1 && parts[0]?.toLowerCase() === lowerBucket) {
+        key = parts.slice(1).join("/");
+      }
+    }
+    if (!key) {
+      const fallbackParts = candidate.pathname.replace(/^\/+/, "").split("/");
+      if (fallbackParts.length > 1 && fallbackParts[0]?.toLowerCase() === lowerBucket) {
+        key = fallbackParts.slice(1).join("/");
+      }
+    }
+    if (!key) {
+      return null;
+    }
+    const normalizedKey = key.replace(/^\/+/, "");
+    const baseHref = baseUrl.href.endsWith("/") ? baseUrl.href : `${baseUrl.href}/`;
+    return new URL(normalizedKey, baseHref).toString();
+  } catch {
+    return null;
+  }
+}
 
 async function ensureAccessibleMediaUrl(candidate: string | null): Promise<string | null> {
   const value = normalizeMediaUrl(candidate);
   if (!value) return null;
+  const r2Url = rewriteR2MediaUrl(value);
+  if (r2Url) return r2Url;
   const parsed = parsePublicStorageObject(value);
   if (!parsed) return value;
   try {
@@ -86,6 +148,7 @@ type NormalizedAttachment = {
   mimeType: string | null;
   name: string | null;
   thumbnailUrl: string | null;
+  storageKey: string | null;
 };
 
 type MemoryPostRow = { post_id: unknown } | null;
@@ -371,6 +434,12 @@ export async function GET(req: Request) {
               );
               if (!url) return null;
               const meta = (row?.meta ?? {}) as Record<string, unknown>;
+              const storageKey =
+                typeof meta?.storage_key === "string"
+                  ? (meta.storage_key as string)
+                  : typeof meta?.storageKey === "string"
+                    ? (meta.storageKey as string)
+                    : null;
               const thumbCandidate =
                 typeof meta?.thumbnail_url === "string"
                   ? (meta.thumbnail_url as string)
@@ -392,6 +461,7 @@ export async function GET(req: Request) {
                   typeof row?.media_type === "string" ? row.media_type : null,
                 name: typeof row?.title === "string" ? row.title : null,
                 thumbnailUrl,
+                storageKey: storageKey ?? null,
               };
               return { postId, attachment };
             }),

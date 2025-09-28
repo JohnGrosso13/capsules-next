@@ -1,6 +1,7 @@
 import { CreatePostInput } from "./types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
+import { getStorageObjectUrl } from "@/lib/storage/multipart";
 import { indexMemory } from "@/lib/supabase/memories";
 import { captionImage } from "@/lib/ai/openai";
 
@@ -568,6 +569,24 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
       const mime = typeof att.mimeType === "string" ? att.mimeType : null;
       const name = typeof att.name === "string" ? att.name : null;
       const attRec = att as Record<string, unknown>;
+      const storageKeyRaw =
+        typeof (attRec as { storageKey?: unknown }).storageKey === "string"
+          ? (attRec as { storageKey: string }).storageKey
+          : typeof (attRec as { key?: unknown }).key === "string"
+            ? (attRec as { key: string }).key
+            : typeof (attRec as { storage_key?: unknown }).storage_key === "string"
+              ? (attRec as { storage_key: string }).storage_key
+              : null;
+      const storageKey = storageKeyRaw && storageKeyRaw.trim().length ? storageKeyRaw.trim() : null;
+      let effectiveUrl = url;
+      if (storageKey) {
+        try {
+          effectiveUrl = getStorageObjectUrl(storageKey);
+        } catch (resolveError) {
+          console.warn("attachment url resolve failed", resolveError);
+        }
+      }
+      if (!effectiveUrl) continue;
       const thumb =
         (typeof attRec.thumbnailUrl === "string" ? (attRec.thumbnailUrl as string) : null) ||
         (typeof (attRec as { thumbUrl?: unknown }).thumbUrl === "string"
@@ -589,7 +608,7 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
         try {
           let cap: string | null = null;
           if (mime && mime.startsWith("image/")) {
-            cap = await captionImage(url);
+            cap = await captionImage(effectiveUrl);
           } else if (mime && mime.startsWith("video/")) {
             if (thumb) {
               cap = await captionImage(thumb);
@@ -605,12 +624,16 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
       await indexMemory({
         ownerId,
         kind: mime && mime.startsWith("video/") ? "video" : "upload",
-        mediaUrl: url,
+        mediaUrl: effectiveUrl,
         mediaType: mime,
         title: name,
         description: description || null,
         postId: clientId,
-        metadata: { source: "post_attachment", thumbnail_url: thumb ?? undefined },
+        metadata: {
+          source: "post_attachment",
+          thumbnail_url: thumb ?? undefined,
+          storage_key: storageKey ?? undefined,
+        },
       });
     }
   } catch (error) {

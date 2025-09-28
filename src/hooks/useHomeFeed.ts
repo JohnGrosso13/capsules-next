@@ -11,6 +11,7 @@ export type HomeFeedAttachment = {
   mimeType: string | null;
   name: string | null;
   thumbnailUrl: string | null;
+  storageKey: string | null;
 };
 
 export type HomeFeedPost = {
@@ -204,6 +205,12 @@ export function useHomeFeed() {
                     ? (data["thumbUrl"] as string)
                     : null;
             const thumbnailUrl = normalizeMediaUrl(thumbSource);
+            const storageKey =
+              typeof data["storageKey"] === "string"
+                ? (data["storageKey"] as string)
+                : typeof data["storage_key"] === "string"
+                  ? (data["storage_key"] as string)
+                  : null;
             const identifier = data["id"];
             const id =
               typeof identifier === "string"
@@ -217,6 +224,7 @@ export function useHomeFeed() {
               mimeType: mime ?? null,
               name: name ?? null,
               thumbnailUrl: thumbnailUrl ?? null,
+              storageKey: storageKey ?? null,
             } satisfies HomeFeedAttachment;
           })
           .filter((value): value is HomeFeedAttachment => Boolean(value));
