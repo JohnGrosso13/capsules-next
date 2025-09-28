@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { deleteMemoryVectors } from "@/lib/pinecone/memories";
+import { deleteMemoryVectors } from "@/services/memories/vector-store";
 import { indexMemory } from "@/lib/supabase/memories";
 import { resolvePostId } from "@/lib/supabase/posts";
 

@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import type { Types as AblyTypes } from "ably";
-import {
-  getRealtimeClient,
-  resetRealtimeClient,
-  type TokenResponse,
-} from "@/lib/realtime/ably-client";
+
+import { getRealtimeClientFactory } from "@/config/realtime-client";
+import type {
+  RealtimeAuthPayload,
+  RealtimeClient,
+  RealtimePresenceChannel,
+} from "@/ports/realtime";
 
 export type PresenceStatus = "online" | "offline" | "away";
 export type PresenceMap = Record<string, { status: PresenceStatus; updatedAt: string | null }>;
@@ -14,51 +15,77 @@ export type ChannelInfo = { events: string; presence: string } | null;
 
 export function useFriendsRealtime(
   channels: ChannelInfo,
-  tokenProvider: () => Promise<TokenResponse>,
+  tokenProvider: () => Promise<RealtimeAuthPayload>,
   onEvent: () => void,
   setPresence: React.Dispatch<React.SetStateAction<PresenceMap>>,
 ) {
   React.useEffect(() => {
     if (!channels || !channels.events || !channels.presence) return;
+    const factory = getRealtimeClientFactory();
+    if (!factory) {
+      console.warn("Realtime client factory not configured");
+      return;
+    }
+
     let unsubscribed = false;
-    let eventsChannel: AblyTypes.RealtimeChannelPromise | null = null;
-    let presenceChannel: AblyTypes.RealtimeChannelPromise | null = null;
+    let unsubscribeEvents: (() => void) | null = null;
+    let unsubscribePresence: (() => void) | null = null;
+    let presenceChannel: RealtimePresenceChannel | null = null;
+    let clientInstance: RealtimeClient | null = null;
     let visibilityHandler: (() => void) | null = null;
 
-    getRealtimeClient(tokenProvider)
+    factory
+      .getClient(tokenProvider)
       .then(async (client) => {
-        if (unsubscribed) return;
-        eventsChannel = client.channels.get(channels.events);
-        const handleEvent = () => onEvent();
-        eventsChannel.subscribe(handleEvent);
+        if (unsubscribed) {
+          await client.close();
+          return;
+        }
 
-        presenceChannel = client.channels.get(channels.presence);
-        presenceChannel.presence.subscribe((message) => {
-          const clientId = String(message.clientId ?? "");
+        clientInstance = client;
+
+        const eventsCleanup = await client.subscribe(channels.events, () => onEvent());
+        unsubscribeEvents = () => {
+          Promise.resolve(eventsCleanup()).catch((error) => {
+            console.error("Realtime events unsubscribe error", error);
+          });
+        };
+
+        presenceChannel = client.presence(channels.presence);
+        const presenceCleanup = await presenceChannel.subscribe((message) => {
+          const clientId = String(message.clientId ?? "").trim();
           if (!clientId) return;
+          const data = (message.data ?? {}) as {
+            status?: string;
+            updatedAt?: string;
+          };
           setPresence((prev) => ({
             ...prev,
             [clientId]: {
-              status: (message.data && typeof message.data.status === "string"
-                ? message.data.status
-                : "online") as PresenceStatus,
-              updatedAt:
-                typeof message.data?.updatedAt === "string" ? message.data.updatedAt : null,
+              status: (typeof data.status === "string" ? data.status : "online") as PresenceStatus,
+              updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null,
             },
           }));
         });
+        unsubscribePresence = () => {
+          Promise.resolve(presenceCleanup()).catch((error) => {
+            console.error("Realtime presence unsubscribe error", error);
+          });
+        };
 
         try {
-          const members = await presenceChannel.presence.get();
+          const members = await presenceChannel.getMembers();
           const current: PresenceMap = {};
           members.forEach((member) => {
-            const clientId = String(member.clientId ?? "");
+            const clientId = String(member.clientId ?? "").trim();
             if (!clientId) return;
+            const data = (member.data ?? {}) as {
+              status?: string;
+              updatedAt?: string;
+            };
             current[clientId] = {
-              status: (member.data && typeof member.data.status === "string"
-                ? member.data.status
-                : "online") as PresenceStatus,
-              updatedAt: typeof member.data?.updatedAt === "string" ? member.data.updatedAt : null,
+              status: (typeof data.status === "string" ? data.status : "online") as PresenceStatus,
+              updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null,
             };
           });
           setPresence((prev) => ({ ...prev, ...current }));
@@ -66,10 +93,10 @@ export function useFriendsRealtime(
           console.error("presence get failed", err);
         }
 
-        const clientId = client.auth.clientId ? String(client.auth.clientId) : null;
+        const clientId = client.clientId();
         if (clientId) {
           try {
-            await presenceChannel.presence.enter({
+            await presenceChannel.enter({
               status: "online",
               updatedAt: new Date().toISOString(),
             });
@@ -79,24 +106,11 @@ export function useFriendsRealtime(
         }
 
         visibilityHandler = () => {
+          if (!presenceChannel) return;
           const status: PresenceStatus = document.visibilityState === "hidden" ? "away" : "online";
-          presenceChannel?.presence
-            .update({ status, updatedAt: new Date().toISOString() })
-            .catch(() => {});
+          presenceChannel.update({ status, updatedAt: new Date().toISOString() }).catch(() => {});
         };
         document.addEventListener("visibilitychange", visibilityHandler);
-
-        // return a cleanup function reference if needed
-        return () => {
-          eventsChannel?.unsubscribe();
-          presenceChannel?.presence.unsubscribe();
-          if (document.visibilityState === "hidden") {
-            presenceChannel?.presence
-              .update({ status: "offline", updatedAt: new Date().toISOString() })
-              .catch(() => {});
-          }
-          presenceChannel?.presence.leave().catch(() => {});
-        };
       })
       .catch((err) => {
         console.error("Realtime connect failed", err);
@@ -107,8 +121,18 @@ export function useFriendsRealtime(
       if (visibilityHandler) {
         document.removeEventListener("visibilitychange", visibilityHandler);
       }
-      // also reset global client on unmount to avoid leaks
-      resetRealtimeClient();
+      if (unsubscribeEvents) unsubscribeEvents();
+      if (unsubscribePresence) unsubscribePresence();
+      if (presenceChannel) {
+        presenceChannel
+          .update({ status: "offline", updatedAt: new Date().toISOString() })
+          .catch(() => {});
+        presenceChannel.leave().catch(() => {});
+      }
+      if (clientInstance) {
+        clientInstance.close().catch(() => {});
+      }
+      factory.reset();
     };
   }, [channels, tokenProvider, onEvent, setPresence]);
 }

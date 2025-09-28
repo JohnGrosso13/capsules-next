@@ -5,7 +5,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import "./light-theme.css";
 import "./cta-overrides.css";
-import { BackgroundFX } from "@/components/background-fx";
 import { SignedIn } from "@clerk/nextjs";
 import { MobileCommandBar } from "@/components/mobile-command-bar";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme/script";
@@ -34,7 +33,7 @@ export default function RootLayout({
           <Script id="theme-init" strategy="beforeInteractive">
             {THEME_BOOTSTRAP_SCRIPT}
           </Script>
-          <BackgroundFX />
+          {/* BackgroundFX removed: no animated/static glow overlay */}
           <ComposerProvider>
             {children}
             <AiComposerRoot />

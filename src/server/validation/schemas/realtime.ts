@@ -16,6 +16,7 @@ export const ablyTokenRequestSchema = z
   .passthrough();
 
 export const realtimeTokenResponseSchema = z.object({
-  tokenRequest: ablyTokenRequestSchema,
-  environment: z.string().nullable(),
+  provider: z.string(),
+  token: z.unknown(),
+  environment: z.string().nullable().optional(),
 });

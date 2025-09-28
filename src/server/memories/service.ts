@@ -2,7 +2,7 @@ import { embedText } from "@/lib/ai/openai";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
-import { deleteMemoryVectors, queryMemoryVectors, upsertMemoryVector } from "@/lib/pinecone/memories";
+import { deleteMemoryVectors, queryMemoryVectors, upsertMemoryVector } from "@/services/memories/vector-store";
 
 import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 
@@ -447,4 +447,5 @@ export async function deleteMemories({
 
   return { memories: deletedMemories, legacy: deletedLegacy };
 }
+
 

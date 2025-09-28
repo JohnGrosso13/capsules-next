@@ -1,0 +1,161 @@
+"use client";
+
+import * as Ably from "ably/promises";
+import type { Types as AblyTypes } from "ably";
+
+import type {
+  PresenceMember,
+  RealtimeAuthPayload,
+  RealtimeClient,
+  RealtimeClientFactory,
+  RealtimeEvent,
+  RealtimePresenceChannel,
+} from "@/ports/realtime";
+
+function assertAblyAuth(payload: RealtimeAuthPayload): {
+  tokenRequest: AblyTypes.TokenRequest;
+  environment?: string | null;
+} {
+  if (!payload || payload.provider !== "ably") {
+    throw new Error("Realtime auth payload is not for Ably");
+  }
+  return {
+    tokenRequest: payload.token as AblyTypes.TokenRequest,
+    environment: payload.environment ?? null,
+  };
+}
+
+class AblyPresenceChannel implements RealtimePresenceChannel {
+  constructor(private readonly channel: AblyTypes.RealtimeChannelPromise) {}
+
+  async subscribe(handler: (member: PresenceMember) => void): Promise<() => void> {
+    const listener = (message: AblyTypes.PresenceMessage) => {
+      handler({
+        clientId: message.clientId ? String(message.clientId) : "",
+        data: message.data,
+      });
+    };
+    await this.channel.presence.subscribe(listener);
+    return async () => {
+      try {
+        await this.channel.presence.unsubscribe(listener);
+      } catch (error) {
+        console.error("Ably presence unsubscribe error", error);
+      }
+    };
+  }
+
+  async getMembers(): Promise<PresenceMember[]> {
+    try {
+      const members = await this.channel.presence.get();
+      return members.map((member) => ({
+        clientId: member.clientId ? String(member.clientId) : "",
+        data: member.data,
+      }));
+    } catch (error) {
+      console.error("Ably presence get error", error);
+      return [];
+    }
+  }
+
+  async enter(data: unknown): Promise<void> {
+    await this.channel.presence.enter(data);
+  }
+
+  async update(data: unknown): Promise<void> {
+    await this.channel.presence.update(data);
+  }
+
+  async leave(): Promise<void> {
+    await this.channel.presence.leave();
+  }
+}
+
+class AblyRealtimeConnection implements RealtimeClient {
+  constructor(private readonly client: AblyTypes.RealtimePromise) {}
+
+  async subscribe(channelName: string, handler: (event: RealtimeEvent) => void): Promise<() => void> {
+    const channel = this.client.channels.get(channelName);
+    const listener = (message: AblyTypes.Message) => {
+      handler({
+        name: message.name ?? "",
+        data: message.data,
+      });
+    };
+    await channel.subscribe(listener);
+    return async () => {
+      try {
+        await channel.unsubscribe(listener);
+      } catch (error) {
+        console.error("Ably unsubscribe error", error);
+      }
+    };
+  }
+
+  presence(channelName: string): RealtimePresenceChannel {
+    const channel = this.client.channels.get(channelName);
+    return new AblyPresenceChannel(channel);
+  }
+
+  clientId(): string | null {
+    const id = this.client.auth.clientId;
+    return id ? String(id) : null;
+  }
+
+  async close(): Promise<void> {
+    try {
+      await this.client.close();
+    } catch (error) {
+      console.error("Ably close error", error);
+    }
+  }
+}
+
+class AblyRealtimeClientFactory implements RealtimeClientFactory {
+  private clientPromise: Promise<AblyRealtimeConnection> | null = null;
+
+  async getClient(fetchAuth: () => Promise<RealtimeAuthPayload>): Promise<RealtimeClient> {
+    if (!this.clientPromise) {
+      this.clientPromise = (async () => {
+        const initial = assertAblyAuth(await fetchAuth());
+        const options: Ably.Types.ClientOptions = {
+          authCallback: async (_, callback) => {
+            try {
+              const next = assertAblyAuth(await fetchAuth());
+              callback(null, next.tokenRequest);
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              callback(message, null);
+            }
+          },
+        };
+        if (initial.environment) {
+          options.environment = initial.environment;
+        }
+        const createRealtime =
+          Ably.Realtime as unknown as (options: Ably.Types.ClientOptions) => AblyTypes.RealtimePromise;
+        const client = createRealtime(options);
+        await client.connection.once("connected");
+        return new AblyRealtimeConnection(client);
+      })();
+    }
+    return this.clientPromise;
+  }
+
+  reset(): void {
+    if (this.clientPromise) {
+      this.clientPromise
+        .then((connection) => connection.close())
+        .catch((error) => {
+          console.error("Ably reset close error", error);
+        });
+    }
+    this.clientPromise = null;
+  }
+}
+
+const factoryInstance = new AblyRealtimeClientFactory();
+
+export function getAblyRealtimeClientFactory(): RealtimeClientFactory {
+  return factoryInstance;
+}

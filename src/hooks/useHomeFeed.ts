@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { useUser } from "@clerk/nextjs";
+import { useCurrentUser } from "@/services/auth/client";
 import { normalizeMediaUrl } from "@/lib/media";
 
 export type HomeFeedAttachment = {
@@ -75,7 +75,7 @@ function buildFriendTarget(post: HomeFeedPost): FriendTarget {
 }
 
 export function useHomeFeed() {
-  const { user } = useUser();
+  const { user } = useCurrentUser();
   const canRemember = Boolean(user);
   const [posts, setPosts] = React.useState<HomeFeedPost[]>(fallbackPosts);
   const [activeFriendTarget, setActiveFriendTarget] = React.useState<string | null>(null);
@@ -353,17 +353,14 @@ export function useHomeFeed() {
 
       const postKey = post.id;
       const previousRemembered = Boolean(post.viewerRemembered ?? post.viewer_remembered);
-      const nextRemembered =
-        typeof desired === "boolean" ? desired : !previousRemembered;
+      const nextRemembered = typeof desired === "boolean" ? desired : !previousRemembered;
 
       if (nextRemembered === previousRemembered) {
         return previousRemembered;
       }
 
       const requestId =
-        typeof post.dbId === "string" && post.dbId.trim().length
-          ? post.dbId
-          : post.id;
+        typeof post.dbId === "string" && post.dbId.trim().length ? post.dbId : post.id;
 
       let mediaUrl = normalizeMediaUrl(post.media_url) ?? normalizeMediaUrl(post.mediaUrl) ?? null;
       if (!mediaUrl && Array.isArray(post.attachments)) {
@@ -411,9 +408,9 @@ export function useHomeFeed() {
           throw new Error(`Memory request failed (${response.status})`);
         }
 
-        const payload = (await response.json().catch(() => null)) as
-          | { remembered?: boolean }
-          | null;
+        const payload = (await response.json().catch(() => null)) as {
+          remembered?: boolean;
+        } | null;
         const confirmed =
           typeof payload?.remembered === "boolean" ? payload.remembered : nextRemembered;
 

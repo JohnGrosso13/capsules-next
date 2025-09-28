@@ -1,7 +1,7 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
-import { publishFriendEvents } from "@/lib/realtime/ably-server";
-import type { FriendRealtimeEvent } from "@/lib/realtime/ably-server";
+import { publishFriendEvents } from "@/services/realtime/friends";
+import type { FriendRealtimeEvent } from "@/services/realtime/friends";
 
 import {
   FriendGraphError,
@@ -914,3 +914,4 @@ export async function unblockUser(
 
   return blockSummary;
 }
+

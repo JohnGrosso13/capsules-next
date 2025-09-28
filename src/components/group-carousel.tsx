@@ -39,7 +39,7 @@ export function GroupCarousel({ items, animate = false }: GroupCarouselProps) {
   const doubled = animate ? [...normalized, ...normalized] : normalized;
 
   return (
-    <div className="border-border/40 bg-surface-muted/60 relative overflow-hidden rounded-3xl border p-4 shadow-md backdrop-blur">
+    <div className="glass-panel relative overflow-hidden rounded-3xl p-4">
       <div
         className={cn(
           "flex min-w-max items-center gap-3",

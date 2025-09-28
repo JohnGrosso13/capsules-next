@@ -74,7 +74,8 @@
   filter: blur(45px) saturate(140%);
   opacity: 0.45;
   mix-blend-mode: screen;
-  animation: mist-drift 60s linear infinite;
+  /* Static: disable drift animation */
+  animation: none;
 }
 
 @keyframes mist-drift {

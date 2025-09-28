@@ -1,5 +1,5 @@
-﻿import { ensureUserFromRequest } from "@/lib/auth/payload";
-import { PRESENCE_CHANNEL } from "@/lib/realtime/ably-server";
+import { ensureUserFromRequest } from "@/lib/auth/payload";
+import { FRIEND_PRESENCE_CHANNEL, friendEventsChannel } from "@/services/realtime/friends";
 import { listSocialGraph } from "@/lib/supabase/friends";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
@@ -31,12 +31,12 @@ async function handle(req: Request) {
       status: "offline" as const,
     }));
 
-    const eventsChannel = `user:${ownerId}:friends`;
+    const eventsChannel = friendEventsChannel(ownerId);
 
     return validatedJson(friendSyncResponseSchema, {
       friends,
       graph,
-      channels: { events: eventsChannel, presence: PRESENCE_CHANNEL },
+      channels: { events: eventsChannel, presence: FRIEND_PRESENCE_CHANNEL },
     });
   } catch (error) {
     console.error("Friends sync error", error);
@@ -52,3 +52,6 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   return handle(req);
 }
+
+
+

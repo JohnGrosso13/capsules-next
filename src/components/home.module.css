@@ -1247,24 +1247,8 @@
   box-shadow: var(--tile-shadow-hover, var(--tile-shadow-hover-base));
 }
 
-/* Soft animated glow behind content */
-.connectionTile::before {
-  content: "";
-  position: absolute;
-  inset: -20%;
-  border-radius: inherit;
-  background:
-    radial-gradient(600px 380px at 18% 22%, color-mix(in srgb, var(--tile-accent-a) 55%, transparent), transparent 68%),
-    radial-gradient(520px 360px at 82% 78%, color-mix(in srgb, var(--tile-accent-b) 45%, transparent), transparent 66%),
-    radial-gradient(680px 420px at 40% 120%, color-mix(in srgb, var(--tile-accent-c) 38%, transparent), transparent 72%);
-  filter: blur(22px);
-  opacity: var(--tile-glow-opacity);
-  z-index: 0;
-  animation: tileGlow 18s ease-in-out infinite;
-}
-.connectionTile:hover::before {
-  opacity: var(--tile-glow-opacity-hover);
-}
+/* Remove soft animated glow behind content */
+.connectionTile::before { content: none; }
 .connectionTileHeader {
   display: flex;
   align-items: center;

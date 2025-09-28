@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useUser } from "@clerk/nextjs";
+import type { AuthClientUser } from "@/ports/auth-client";
+import { useCurrentUser } from "@/services/auth/client";
 
 import { AiComposerDrawer } from "@/components/ai-composer";
 import type { ComposerChoice } from "@/components/composer/ComposerForm";
@@ -231,44 +232,34 @@ export function useComposer() {
   return ctx;
 }
 
-function formatAuthor(
-  user: ReturnType<typeof useUser>["user"],
-  name: string | null,
-  avatar: string | null,
-) {
+function formatAuthor(user: AuthClientUser | null, name: string | null, avatar: string | null) {
   return {
     name,
     avatar,
     toEnvelope(): Record<string, unknown> | null {
       if (!user) return null;
       const envelope: Record<string, unknown> = {
-        clerk_id: user.id,
-        email: user.primaryEmailAddress?.emailAddress ?? null,
+        clerk_id: user.provider === "clerk" ? user.id : null,
+        email: user.email,
         full_name: name,
         avatar_url: avatar,
-        provider: user.primaryEmailAddress?.verification?.strategy ?? "clerk",
+        provider: user.provider ?? "guest",
       };
-      if (user.id) envelope.key = `clerk:${user.id}`;
+      envelope.key = user.key ?? (user.provider === "clerk" ? `clerk:${user.id}` : user.id);
       return envelope;
     },
   };
 }
 
 export function ComposerProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useUser();
+  const { user } = useCurrentUser();
   const [state, setState] = React.useState<ComposerState>(initialState);
 
   const currentUserName = React.useMemo(() => {
     if (!user) return null;
-    const name =
-      (user.fullName && user.fullName.trim()) ||
-      (user.username && user.username.trim()) ||
-      (user.firstName && user.firstName.trim()) ||
-      (user.lastName && user.lastName.trim()) ||
-      null;
-    return name ?? user.primaryEmailAddress?.emailAddress ?? null;
+    return user.name ?? user.email ?? null;
   }, [user]);
-  const currentUserAvatar = user?.imageUrl ?? null;
+  const currentUserAvatar = user?.avatarUrl ?? null;
 
   const author = React.useMemo(
     () => formatAuthor(user, currentUserName, currentUserAvatar),

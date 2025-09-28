@@ -1,7 +1,6 @@
-﻿import { ensureUserFromRequest } from "@/lib/auth/payload";
+import { ensureUserFromRequest } from "@/lib/auth/payload";
 import type { IncomingUserPayload } from "@/lib/auth/payload";
-import { serverEnv } from "@/lib/env/server";
-import { createRealtimeToken } from "@/lib/realtime/ably-server";
+import { createFriendRealtimeAuth } from "@/services/realtime/friends";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { requestUserEnvelopeSchema } from "@/server/validation/schemas/auth";
 import {
@@ -22,15 +21,20 @@ async function handle(req: Request) {
   }
 
   try {
-    const tokenRequest = await createRealtimeToken(ownerId);
-    if (!tokenRequest) {
+    const authPayload = await createFriendRealtimeAuth(ownerId);
+    if (!authPayload) {
       return returnError(503, "realtime_disabled", "Realtime not configured");
     }
 
-    const parsedToken = ablyTokenRequestSchema.parse(tokenRequest);
+    const token =
+      authPayload.provider === "ably"
+        ? ablyTokenRequestSchema.parse(authPayload.token)
+        : authPayload.token;
+
     return validatedJson(realtimeTokenResponseSchema, {
-      tokenRequest: parsedToken,
-      environment: serverEnv.ABLY_ENVIRONMENT ?? null,
+      provider: authPayload.provider,
+      token,
+      environment: authPayload.environment ?? null,
     });
   } catch (error) {
     console.error("Realtime token error", error);

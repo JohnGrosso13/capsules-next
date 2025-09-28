@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useUser } from "@clerk/nextjs";
+import type { AuthClientUser } from "@/ports/auth-client";
+import { useCurrentUser } from "@/services/auth/client";
 
 import { applyThemeVars, clearThemeVars, getStoredThemeVars } from "@/lib/theme";
 
@@ -20,8 +21,6 @@ type SavedStyle = {
 };
 
 type MemoryEnvelope = Record<string, unknown>;
-
-type ClerkUser = ReturnType<typeof useUser>["user"];
 
 type MemoryListResponse = {
   items?: unknown[];
@@ -103,22 +102,16 @@ function normalizeStyles(items: unknown[] | undefined): SavedStyle[] {
   return result;
 }
 
-function buildUserEnvelope(user: ClerkUser): MemoryEnvelope | null {
+function buildUserEnvelope(user: AuthClientUser | null): MemoryEnvelope | null {
   if (!user) return null;
-  const fullName =
-    user.fullName?.trim() ||
-    user.username?.trim() ||
-    user.firstName?.trim() ||
-    user.lastName?.trim() ||
-    user.primaryEmailAddress?.emailAddress ||
-    null;
+  const fullName = user.name ?? user.email ?? null;
   return {
-    clerk_id: user.id,
-    email: user.primaryEmailAddress?.emailAddress ?? null,
+    clerk_id: user.provider === "clerk" ? user.id : null,
+    email: user.email ?? null,
     full_name: fullName,
-    avatar_url: user.imageUrl ?? null,
-    provider: user.primaryEmailAddress?.verification?.strategy ?? "clerk",
-    key: user.username ? `clerk:${user.username}` : `clerk:${user.id}`,
+    avatar_url: user.avatarUrl ?? null,
+    provider: user.provider ?? "guest",
+    key: user.key ?? (user.provider === "clerk" ? `clerk:${user.id}` : user.id),
   };
 }
 
@@ -129,7 +122,7 @@ function sourceLabel(source: SavedStyle["source"]): string {
 }
 
 export function SavedStylesPanel() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded } = useCurrentUser();
   const mountedRef = React.useRef(true);
   React.useEffect(() => {
     return () => {

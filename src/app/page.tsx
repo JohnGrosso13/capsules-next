@@ -7,9 +7,8 @@ import { LandingAuthCard } from "@/components/landing-auth-card";
 import { HowItWorks } from "@/components/how-it-works";
 import { LaunchCta } from "@/components/launch-cta";
 import { HomeSignedIn } from "@/components/home-signed-in";
-import { PrimaryHeader } from "@/components/primary-header";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
 const heroPrompts = [
   "Make a hello post",
@@ -129,12 +128,12 @@ export default async function HomePage() {
 
   return (
     <div className="relative flex min-h-screen flex-col">
-      {!isSignedIn ? <PrimaryHeader activeKey="home" /> : null}
+      {/* Header removed for signed-out landing experience */}
 
       {isSignedIn ? (
         <HomeSignedIn />
       ) : (
-        <main className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col gap-24 px-5 py-16 sm:px-6 lg:px-8">
+        <main className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col gap-24 px-5 py-20 sm:px-6 lg:px-8">
           <div className="contents">
             <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="flex flex-col gap-8">
@@ -159,7 +158,7 @@ export default async function HomePage() {
                   {heroPrompts.map((prompt) => (
                     <span
                       key={prompt}
-                      className="rounded-pill border-border/50 bg-surface-muted/70 text-fg-subtle border px-3.5 py-1.5 text-sm font-medium shadow-xs backdrop-blur"
+                      className="glass-chip text-fg-subtle px-3.5 py-1.5 text-sm font-medium"
                     >
                       {prompt}
                     </span>
@@ -169,7 +168,7 @@ export default async function HomePage() {
                   <LaunchCta size="lg" />
                   <Link
                     href="#features"
-                    className="rounded-pill border-border/60 text-fg-subtle hover:border-border hover:text-fg inline-flex items-center gap-2 border px-5 py-2.5 text-sm font-medium transition"
+                    className="glass-chip inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium hover:translate-y-[-1px] transition"
                   >
                     Explore features
                     <span aria-hidden="true">→</span>
@@ -243,7 +242,7 @@ export default async function HomePage() {
                 {superpowers.map((power) => (
                   <div
                     key={power}
-                    className="border-border/40 bg-surface-elevated/80 text-fg-subtle rounded-2xl border px-5 py-4 text-sm font-medium shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:shadow-lg"
+                    className="glass-panel text-fg-subtle rounded-2xl px-5 py-4 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-lg"
                   >
                     {power}
                   </div>
@@ -271,14 +270,10 @@ export default async function HomePage() {
               </div>
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {differentiators.map((feature) => (
-                  <Card
-                    key={feature.title}
-                    variant="soft"
-                    className="border-border/40 bg-surface-elevated/80 border backdrop-blur"
-                  >
+                  <Card key={feature.title} variant="soft" className="backdrop-blur-xl">
                     <CardContent className="space-y-4 pt-6">
                       <CardTitle className="text-fg text-xl">{feature.title}</CardTitle>
-                      <CardDescription className="text-fg-subtle space-y-3 text-sm leading-6">
+                      <div className="text-fg-subtle space-y-3 text-sm leading-6">
                         <ul className="space-y-2 text-left">
                           {feature.points.map((point) => (
                             <li key={point} className="flex items-start gap-2 text-left">
@@ -290,7 +285,7 @@ export default async function HomePage() {
                             </li>
                           ))}
                         </ul>
-                      </CardDescription>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}

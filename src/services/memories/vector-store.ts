@@ -1,13 +1,9 @@
-import type { RecordMetadata, ScoredPineconeRecord } from "@pinecone-database/pinecone";
+import "server-only";
 
-import { getPineconeIndex, isPineconeEnabled } from "./client";
+import { getVectorStore } from "@/config/vector-store";
+import type { VectorMatch } from "@/ports/vector-store";
 
-const TITLE_LIMIT = 256;
-const DESCRIPTION_LIMIT = 768;
-const MEDIA_URL_LIMIT = 512;
-const MEDIA_TYPE_LIMIT = 120;
-
-export type MemoryVectorMetadata = RecordMetadata & {
+export type MemoryVectorMetadata = {
   ownerId: string;
   kind?: string;
   postId?: string;
@@ -19,6 +15,12 @@ export type MemoryVectorMetadata = RecordMetadata & {
   postAuthorName?: string;
   postExcerpt?: string;
 };
+
+const TITLE_LIMIT = 256;
+const DESCRIPTION_LIMIT = 768;
+const MEDIA_URL_LIMIT = 512;
+const MEDIA_TYPE_LIMIT = 120;
+const AUTHOR_LIMIT = 160;
 
 function normalize(value: string | null | undefined, limit: number) {
   if (!value) return null;
@@ -49,15 +51,12 @@ export async function upsertMemoryVector({
   mediaUrl?: string | null;
   mediaType?: string | null;
   extra?: Record<string, unknown> | null;
-}) {
-  if (!isPineconeEnabled()) return;
+}): Promise<void> {
+  const store = getVectorStore<MemoryVectorMetadata>();
+  if (!store) return;
   if (!id || !ownerId || !Array.isArray(values) || !values.length) return;
 
-  const index = getPineconeIndex<MemoryVectorMetadata>();
-  if (!index) return;
-
   const metadata: MemoryVectorMetadata = { ownerId };
-
   if (kind) metadata.kind = kind;
   if (postId) metadata.postId = postId;
 
@@ -77,61 +76,42 @@ export async function upsertMemoryVector({
     const source = typeof extra.source === "string" ? normalize(extra.source, MEDIA_TYPE_LIMIT) : null;
     if (source) metadata.source = source;
 
-    const author = typeof extra.post_author_name === "string" ? normalize(extra.post_author_name, 160) : null;
+    const author =
+      typeof extra.post_author_name === "string"
+        ? normalize(extra.post_author_name, AUTHOR_LIMIT)
+        : null;
     if (author) metadata.postAuthorName = author;
 
-    const excerpt = typeof extra.post_excerpt === "string" ? normalize(extra.post_excerpt, DESCRIPTION_LIMIT) : null;
+    const excerpt =
+      typeof extra.post_excerpt === "string" ? normalize(extra.post_excerpt, DESCRIPTION_LIMIT) : null;
     if (excerpt) metadata.postExcerpt = excerpt;
   }
 
-  try {
-    await index.upsert([
-      {
-        id,
-        values,
-        metadata,
-      },
-    ]);
-  } catch (error) {
-    console.warn("Pinecone upsert failed", error);
-  }
+  await store.upsert([
+    {
+      id,
+      values,
+      metadata,
+    },
+  ]);
 }
 
-export async function deleteMemoryVectors(ids: string[]) {
-  if (!isPineconeEnabled()) return;
+export async function deleteMemoryVectors(ids: string[]): Promise<void> {
+  const store = getVectorStore<MemoryVectorMetadata>();
+  if (!store) return;
   if (!Array.isArray(ids) || !ids.length) return;
-
-  const index = getPineconeIndex();
-  if (!index) return;
-
-  try {
-    await index.deleteMany(ids);
-  } catch (error) {
-    console.warn("Pinecone delete failed", error);
-  }
+  await store.delete(ids);
 }
 
-export type MemoryVectorMatch = ScoredPineconeRecord<MemoryVectorMetadata>;
+export type MemoryVectorMatch = VectorMatch<MemoryVectorMetadata>;
 
-export async function queryMemoryVectors(ownerId: string, vector: number[], topK: number) {
-  if (!isPineconeEnabled()) return [] as MemoryVectorMatch[];
-  if (!ownerId || !Array.isArray(vector) || !vector.length) return [] as MemoryVectorMatch[];
-
-  const index = getPineconeIndex<MemoryVectorMetadata>();
-  if (!index) return [] as MemoryVectorMatch[];
-
-  const k = Math.max(1, Math.min(topK, 200));
-
-  try {
-    const response = await index.query({
-      vector,
-      topK: k,
-      includeMetadata: true,
-      filter: { ownerId },
-    });
-    return Array.isArray(response?.matches) ? (response.matches as MemoryVectorMatch[]) : [];
-  } catch (error) {
-    console.warn("Pinecone query failed", error);
-    return [] as MemoryVectorMatch[];
-  }
+export async function queryMemoryVectors(
+  ownerId: string,
+  vector: number[],
+  topK: number,
+): Promise<MemoryVectorMatch[]> {
+  const store = getVectorStore<MemoryVectorMetadata>();
+  if (!store) return [];
+  if (!ownerId || !Array.isArray(vector) || !vector.length) return [];
+  return store.query({ vector, topK, filter: { ownerId } });
 }

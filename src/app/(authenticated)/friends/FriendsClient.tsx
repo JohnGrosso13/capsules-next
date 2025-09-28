@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useCurrentUser } from "@/services/auth/client";
 
-import { type TokenResponse } from "@/lib/realtime/ably-client";
 import { useFriendsRealtime, type PresenceMap } from "@/hooks/useFriendsRealtime";
+import type { RealtimeAuthPayload } from "@/ports/realtime";
 import type { SocialGraphSnapshot } from "@/lib/supabase/friends";
 
 import styles from "./friends.module.css";
@@ -79,7 +79,7 @@ async function fetchGraph(
   };
 }
 
-async function fetchToken(envelope: Record<string, unknown> | null): Promise<TokenResponse> {
+async function fetchToken(envelope: Record<string, unknown> | null): Promise<RealtimeAuthPayload> {
   const res = await fetch("/api/realtime/token", {
     method: "POST",
     credentials: "include",
@@ -95,22 +95,24 @@ async function fetchToken(envelope: Record<string, unknown> | null): Promise<Tok
   if (!res.ok) {
     throw new Error(`Token request failed (${res.status})`);
   }
-  return (await res.json()) as TokenResponse;
+  const data = await res.json();
+  if (!data || typeof data.provider !== "string") {
+    throw new Error("Invalid realtime token response");
+  }
+  return {
+    provider: data.provider as string,
+    token: data.token,
+    environment: (data.environment ?? null) as string | null,
+  };
 }
 
 export function FriendsClient() {
-  const { user } = useUser();
+  const { user } = useCurrentUser();
   const currentUserName = React.useMemo(() => {
     if (!user) return null;
-    return (
-      (user.fullName && user.fullName.trim()) ||
-      (user.username && user.username.trim()) ||
-      (user.firstName && user.firstName.trim()) ||
-      (user.lastName && user.lastName.trim()) ||
-      (user.primaryEmailAddress?.emailAddress ?? null)
-    );
+    return user.name ?? user.email ?? null;
   }, [user]);
-  const currentUserAvatar = user?.imageUrl ?? null;
+  const currentUserAvatar = user?.avatarUrl ?? null;
   const currentUserEnvelope = React.useMemo(() => {
     if (!user) return null;
     return {
