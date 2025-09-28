@@ -5,7 +5,7 @@
 import * as React from "react";
 
 import styles from "./home.module.css";
-import { Brain, Heart, ChatCircle, ShareNetwork, DotsThree, Trash, HourglassHigh } from "@phosphor-icons/react/dist/ssr";
+import { Brain, Heart, ChatCircle, ShareNetwork, DotsThreeCircleVertical, Trash, HourglassHigh } from "@phosphor-icons/react/dist/ssr";
 import { normalizeMediaUrl } from "@/lib/media";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 
@@ -279,7 +279,7 @@ export function HomeFeedList({
                   aria-expanded={isFriendOptionOpen}
                   onClick={() => onToggleFriendTarget(isFriendOptionOpen ? null : identifier)}
                 >
-                  <DotsThree weight="duotone" />
+                  <DotsThreeCircleVertical weight="duotone" />
                 </button>
 
                 <button
