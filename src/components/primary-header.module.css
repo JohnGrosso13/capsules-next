@@ -99,10 +99,8 @@
   align-items: center;
   gap: 12px;
   text-decoration: none;
-  /* Align brand baseline with nav/actions */
-  align-self: flex-end;
-  padding-bottom: 2px;
-  transform: translateY(4px);
+  /* Center-align brand with nav/actions for consistent baseline */
+  align-self: center;
 }
 .brandMark {
   /* Reduce brand mark to fit the compact header */
@@ -151,12 +149,9 @@
 @media (min-width: 768px) {
   .nav {
     display: inline-flex;
-    /* Align the nav buttons with the CTA baseline */
-    align-items: flex-end;
-    align-self: flex-end;
+    align-items: center;
+    align-self: center;
     gap: 8px;
-    padding-bottom: 2px;
-    transform: translateY(4px);
   }
 }
 
@@ -200,14 +195,9 @@
 
 .actions {
   display: inline-flex;
-  /* Align buttons to the visual bottom edge without increasing header height */
-  align-items: flex-end;
-  align-self: flex-end;
+  align-items: center;
+  align-self: center;
   gap: 12px;
-  /* Nudge group down slightly for better baseline alignment with header bottom */
-  padding-bottom: 2px;
-  /* Visual shift without affecting header height */
-  transform: translateY(4px);
 }
 
 .iconButton {
