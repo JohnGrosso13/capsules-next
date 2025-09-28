@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { HeaderAuth } from "@/components/header-auth";
-import { Gear } from "@phosphor-icons/react/dist/ssr";
+import { Gear, Brain, User } from "@phosphor-icons/react/dist/ssr";
 import { LaunchCta } from "@/components/launch-cta";
 import { cn } from "@/lib/cn";
 import styles from "./primary-header.module.css";
@@ -62,7 +62,16 @@ export function PrimaryHeader({
     >
       <div className={styles.inner}>
         <Link href="/" aria-label="Capsules home" className={styles.brand}>
-          <span className={styles.brandMark} />
+          <span className={styles.brandMark} aria-hidden>
+            <Brain
+              className={`${styles.brandGlyph} ${styles.brandGlyphAi}`.trim()}
+              weight="duotone"
+            />
+            <User
+              className={`${styles.brandGlyph} ${styles.brandGlyphHuman}`.trim()}
+              weight="duotone"
+            />
+          </span>
           <span className={styles.brandName}>Capsules</span>
         </Link>
         <nav className={styles.nav} aria-label="Primary navigation">
