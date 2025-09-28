@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import styles from "./theme-style-carousel.module.css";
@@ -15,14 +15,24 @@ import {
 import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { useCurrentUser } from "@/services/auth/client";
 
-type Preset = { id: string; title: string; desc?: string; vars: Record<string, string>; theme?: "light" | "dark" };
+type Preset = {
+  id: string;
+  title: string;
+  desc?: string;
+  vars: Record<string, string>;
+  theme?: "light" | "dark";
+};
+
 type SavedStyle = {
   id: string;
   title: string;
   summary?: string;
+  description?: string;
   vars: Record<string, string>;
   createdLabel?: string;
 };
+
+type ThemeEntry = { kind: "preset"; preset: Preset } | { kind: "saved"; saved: SavedStyle };
 
 function builtInPresets(): Preset[] {
   return [
@@ -77,200 +87,280 @@ function builtInPresets(): Preset[] {
 
 function buildPreviewStyle(vars: Record<string, string>): React.CSSProperties {
   const style: React.CSSProperties = {};
-  Object.entries(vars).forEach(([k, v]) => {
-    (style as unknown as Record<string, string>)[k] = v;
+  Object.entries(vars).forEach(([key, value]) => {
+    (style as unknown as Record<string, string>)[key] = value;
   });
   return style;
 }
 
+function getEntryId(entry: ThemeEntry): string {
+  return entry.kind === "preset" ? `preset:${entry.preset.id}` : `saved:${entry.saved.id}`;
+}
+
 export function ThemeStyleCarousel() {
-const { user, isLoaded } = useCurrentUser();
-const envelope = React.useMemo(() => (user ? buildMemoryEnvelope(user) : null), [user]);
-const envelopeSignature = React.useMemo(() => (envelope ? JSON.stringify(envelope) : "anon"), [envelope]);
+  const { user, isLoaded } = useCurrentUser();
+  const envelope = React.useMemo(() => (user ? buildMemoryEnvelope(user) : null), [user]);
+  const envelopeSignature = React.useMemo(
+    () => (envelope ? JSON.stringify(envelope) : "anon"),
+    [envelope],
+  );
 
-const basePresets = React.useMemo(() => builtInPresets(), []);
+  const basePresets = React.useMemo(() => builtInPresets(), []);
 
-const envelopeRef = React.useRef<typeof envelope>(envelope);
-React.useEffect(() => {
-  envelopeRef.current = envelope;
-}, [envelope]);
+  const envelopeRef = React.useRef(envelope);
+  React.useEffect(() => {
+    envelopeRef.current = envelope;
+  }, [envelope]);
 
-const listRef = React.useRef<HTMLDivElement | null>(null);
-const [menuOpenFor, setMenuOpenFor] = React.useState<string | null>(null);
-const [headerMenuOpen, setHeaderMenuOpen] = React.useState(false);
-const [loading, setLoading] = React.useState(false);
-const [items, setItems] = React.useState<Array<{ kind: "preset"; preset: Preset } | { kind: "saved"; saved: SavedStyle }>>(
-  () => basePresets.map((preset) => ({ kind: "preset", preset })),
-);
-const [canLeft, setCanLeft] = React.useState(false);
-const [canRight, setCanRight] = React.useState(false);
+  const listRef = React.useRef<HTMLDivElement | null>(null);
+  const [headerMenuOpen, setHeaderMenuOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [items, setItems] = React.useState<ThemeEntry[]>(() =>
+    basePresets.map((preset) => ({ kind: "preset", preset })),
+  );
+  const [canLeft, setCanLeft] = React.useState(false);
+  const [canRight, setCanRight] = React.useState(false);
+  const [previewingId, setPreviewingId] = React.useState<string | null>(null);
+  const [activeId, setActiveId] = React.useState<string | null>(null);
 
-const fetchSaved = React.useCallback(async () => {
-  const envelopePayload = envelopeRef.current;
-  if (!envelopePayload) {
-    setItems(basePresets.map((preset) => ({ kind: "preset", preset })));
-    return;
-  }
-  setLoading(true);
-  try {
-    const res = await fetch("/api/memory/list", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ kind: "theme", user: envelopePayload }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { items?: unknown[] };
-    const saved: SavedStyle[] = Array.isArray(json.items)
-      ? json.items
-          .map((raw) => {
-            const rec = raw as Record<string, unknown>;
-            const id = typeof rec.id === "string" ? rec.id : null;
-            const meta = (rec.meta as Record<string, unknown>) ?? {};
-            const vars = (meta.vars as Record<string, string>) ?? {};
-            if (!id || !vars || !Object.keys(vars).length) return null;
-            return {
-              id,
-              title: (rec.title as string) || "Saved style",
-              summary: (meta.summary as string) || "",
-              vars,
-              createdLabel: typeof rec.created_at === "string" ? rec.created_at : undefined,
-            } as SavedStyle;
-          })
-          .filter(Boolean) as SavedStyle[]
-      : [];
-    const merged = [
-      ...basePresets.map((preset) => ({ kind: "preset", preset }) as const),
-      ...saved.map((saved) => ({ kind: "saved", saved }) as const),
-    ];
-    setItems(merged);
-  } finally {
-    setLoading(false);
-  }
-}, [basePresets]);
-
-React.useEffect(() => {
-  if (!isLoaded) return;
-  fetchSaved();
-}, [isLoaded, envelopeSignature, fetchSaved]);
-
-// Track scroll availability for nav arrows
-React.useEffect(() => {
-  const el = listRef.current;
-  if (!el) return;
-  const update = () => {
+  const updateScrollState = React.useCallback(() => {
+    const el = listRef.current;
+    if (!el) {
+      setCanLeft(false);
+      setCanRight(false);
+      return;
+    }
     setCanLeft(el.scrollLeft > 4);
     setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  };
-  update();
-  el.addEventListener("scroll", update, { passive: true });
-  window.addEventListener("resize", update);
-  const id = window.setInterval(update, 300); // handle font/CSS late paints
-  return () => {
-    el.removeEventListener("scroll", update);
-    window.removeEventListener("resize", update);
-    window.clearInterval(id);
-  };
-}, [items.length]);
+  }, []);
 
-  const scrollByPage = React.useCallback((dir: 1 | -1) => {
+  const scrollByPage = React.useCallback(
+    (dir: 1 | -1) => {
+      const el = listRef.current;
+      if (!el) return;
+      const amount = el.clientWidth || 0;
+      el.scrollBy({ left: dir * (amount * 0.95), behavior: "smooth" });
+      window.setTimeout(updateScrollState, 320);
+    },
+    [updateScrollState],
+  );
+
+  const fetchSaved = React.useCallback(async () => {
+    const envelopePayload = envelopeRef.current;
+    if (!envelopePayload) {
+      setItems(basePresets.map((preset) => ({ kind: "preset", preset })));
+      window.requestAnimationFrame(updateScrollState);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/memory/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ kind: "theme", user: envelopePayload }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { items?: unknown[] };
+      const saved: SavedStyle[] = Array.isArray(json.items)
+        ? json.items
+            .map((raw) => {
+              const rec = raw as Record<string, unknown>;
+              const id = typeof rec.id === "string" ? rec.id : null;
+              const meta = (rec.meta as Record<string, unknown>) ?? {};
+              const vars = (meta.vars as Record<string, string>) ?? {};
+              if (!id || !vars || !Object.keys(vars).length) return null;
+              const titleRaw = typeof rec.title === "string" ? rec.title.trim() : "";
+              const metaSummary = typeof meta.summary === "string" ? (meta.summary as string).trim() : "";
+              const prompt = typeof meta.prompt === "string" ? (meta.prompt as string).trim() : "";
+              const summary = titleRaw || metaSummary;
+              const title = summary || prompt || "Saved theme";
+              return {
+                id,
+                title,
+                summary,
+                description: summary || prompt,
+                vars,
+                createdLabel: typeof rec.created_at === "string" ? rec.created_at : undefined,
+              } as SavedStyle;
+            })
+            .filter(Boolean) as SavedStyle[]
+        : [];
+      const merged: ThemeEntry[] = [
+        ...basePresets.map((preset) => ({ kind: "preset", preset } as ThemeEntry)),
+        ...saved.map((saved) => ({ kind: "saved", saved } as ThemeEntry)),
+      ];
+      setItems(merged);
+      window.requestAnimationFrame(updateScrollState);
+    } finally {
+      setLoading(false);
+    }
+  }, [basePresets, updateScrollState]);
+
+  React.useEffect(() => {
+    if (!isLoaded) return;
+    fetchSaved();
+  }, [isLoaded, envelopeSignature, fetchSaved]);
+
+  React.useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    const amount = el.clientWidth || 0;
-    el.scrollBy({ left: dir * amount, behavior: "smooth" });
+    const update = () => updateScrollState();
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    resizeObserver?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      resizeObserver?.disconnect();
+    };
+  }, [updateScrollState, items.length]);
+
+  const stopPreview = React.useCallback(() => {
+    endPreviewThemeVars();
+    setPreviewingId(null);
   }, []);
 
-  const onKeyDownTile = React.useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      endPreviewThemeVars();
-      (e.currentTarget as HTMLElement).blur();
-      setMenuOpenFor(null);
-    }
-  }, []);
+  const onKeyDownTile = React.useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        stopPreview();
+        (event.currentTarget as HTMLElement).blur();
+      }
+    },
+    [stopPreview],
+  );
 
-const handleApply = React.useCallback((entry: (typeof items)[number]) => {
-  if (entry.kind === "preset") {
-    if (entry.preset.theme) setTheme(entry.preset.theme);
-    if (Object.keys(entry.preset.vars).length) applyThemeVars(entry.preset.vars);
-    return;
-  }
-  applyThemeVars(entry.saved.vars);
-}, []);
+  const handleApply = React.useCallback(
+    (entry: ThemeEntry) => {
+      stopPreview();
+      const id = getEntryId(entry);
+      setActiveId(id);
+      if (entry.kind === "preset") {
+        if (entry.preset.theme) setTheme(entry.preset.theme);
+        if (Object.keys(entry.preset.vars).length) applyThemeVars(entry.preset.vars);
+      } else {
+        applyThemeVars(entry.saved.vars);
+      }
+    },
+    [stopPreview],
+  );
 
-  const handleRename = React.useCallback(async (entry: (typeof items)[number]) => {
-    if (entry.kind !== "saved") return;
-    const current = entry.saved.title || "Saved style";
-    const next = window.prompt("Rename theme", current)?.trim();
-    if (!next || next === current) return;
-    const res = await fetch("/api/memory/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ id: entry.saved.id, title: next, kind: "theme" }),
-    });
-    if (res.ok) fetchSaved();
-  }, [fetchSaved]);
+  const togglePreview = React.useCallback(
+    (entry: ThemeEntry) => {
+      const id = getEntryId(entry);
+      if (previewingId === id) {
+        stopPreview();
+        return;
+      }
+      stopPreview();
+      const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
+      if (Object.keys(vars).length) {
+        startPreviewThemeVars(vars);
+        setPreviewingId(id);
+      }
+    },
+    [previewingId, stopPreview],
+  );
 
-const handleDelete = React.useCallback(async (entry: (typeof items)[number]) => {
-  if (entry.kind !== "saved") return;
-  const res = await fetch("/api/memory/delete", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ ids: [entry.saved.id], kind: "theme", user: envelopeRef.current ?? {} }),
-  });
-  if (res.ok) fetchSaved();
-}, [fetchSaved]);
+  React.useEffect(() => () => endPreviewThemeVars(), []);
+
+  const handleRename = React.useCallback(
+    async (entry: ThemeEntry) => {
+      if (entry.kind !== "saved") return;
+      const current = entry.saved.title || "Saved theme";
+      const next = window.prompt("Rename theme", current)?.trim();
+      if (!next || next === current) return;
+      const res = await fetch("/api/memory/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id: entry.saved.id, title: next, kind: "theme" }),
+      });
+      if (res.ok) fetchSaved();
+    },
+    [fetchSaved],
+  );
+
+  const handleDelete = React.useCallback(
+    async (entry: ThemeEntry) => {
+      if (entry.kind !== "saved") return;
+      stopPreview();
+      const id = getEntryId(entry);
+      const res = await fetch("/api/memory/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ ids: [entry.saved.id], kind: "theme", user: envelopeRef.current ?? {} }),
+      });
+      if (res.ok) {
+        if (activeId === id) setActiveId(null);
+        fetchSaved();
+      }
+    },
+    [fetchSaved, stopPreview, activeId],
+  );
 
   const handleDeleteAll = React.useCallback(async () => {
     if (!window.confirm("Delete all saved styles? This cannot be undone.")) return;
+    stopPreview();
     await fetch("/api/memory/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ kind: "theme", all: true }),
     });
+    setActiveId(null);
     fetchSaved();
     setHeaderMenuOpen(false);
-  }, [fetchSaved]);
+  }, [fetchSaved, stopPreview]);
 
-const handleSaveCurrent = React.useCallback(async () => {
-  const vars = getStoredThemeVars();
-  if (!Object.keys(vars).length) {
-    window.alert("No theme overrides to save yet.");
-    return;
-  }
-  const title = window.prompt("Save theme as", "My theme")?.trim();
-  if (!title) return;
-  const res = await fetch("/api/memory/theme/save", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ title, summary: title, vars, user: envelopeRef.current ?? {} }),
-  });
-  if (res.ok) fetchSaved();
-}, [fetchSaved]);
+  const handleSaveCurrent = React.useCallback(async () => {
+    const vars = getStoredThemeVars();
+    if (!Object.keys(vars).length) {
+      window.alert("No theme overrides to save yet.");
+      return;
+    }
+    const title = window.prompt("Save theme as", "My theme")?.trim();
+    if (!title) return;
+    stopPreview();
+    const res = await fetch("/api/memory/theme/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ title, summary: title, vars, user: envelopeRef.current ?? {} }),
+    });
+    if (res.ok) fetchSaved();
+  }, [fetchSaved, stopPreview]);
 
   return (
     <div className={styles.wrap}>
       <div className={styles.headerRow}>
-        <div className={styles.lead}>Hover to preview. Apply to keep. Save for later.</div>
+        <div className={styles.lead}>Preview before you apply. Your saved looks live here.</div>
         <div className={styles.headerActions}>
-          <button type="button" className={styles.btn} onClick={handleSaveCurrent}>
+          <Button variant="secondary" size="sm" onClick={handleSaveCurrent}>
             Save current
-          </button>
-          <div className={styles.menuWrap}>
+          </Button>
+          <div className={styles.headerMenu}>
             <button
               type="button"
               className={styles.ellipsisBtn}
-              aria-label="More actions"
-              onClick={() => setHeaderMenuOpen((v) => !v)}
+              aria-label="More theme actions"
               aria-expanded={headerMenuOpen}
+              onClick={() => setHeaderMenuOpen((value) => !value)}
             >
-              ...
+              …
             </button>
             {headerMenuOpen ? (
               <div className={styles.menu} role="menu" onMouseLeave={() => setHeaderMenuOpen(false)}>
-                <button className={`${styles.menuItem} ${styles.danger}`.trim()} role="menuitem" onClick={handleDeleteAll}>
+                <button
+                  type="button"
+                  className={`${styles.menuItem} ${styles.menuDanger}`.trim()}
+                  role="menuitem"
+                  onClick={handleDeleteAll}
+                >
                   Delete all saved
                 </button>
               </div>
@@ -282,94 +372,68 @@ const handleSaveCurrent = React.useCallback(async () => {
       <div className={styles.carousel}>
         {canLeft ? (
           <div className={`${styles.navOverlay} ${styles.navLeft}`.trim()}>
-            <button type="button" className={styles.navArrow} aria-label="Previous" onClick={() => scrollByPage(-1)}>
+            <button
+              type="button"
+              className={styles.navArrow}
+              aria-label="Scroll left"
+              onClick={() => scrollByPage(-1)}
+            >
               {"<"}
             </button>
           </div>
         ) : null}
         <div className={styles.track} ref={listRef}>
           {items.map((entry) => {
-            const id = entry.kind === "preset" ? `preset:${entry.preset.id}` : `saved:${entry.saved.id}`;
+            const id = getEntryId(entry);
             const title = entry.kind === "preset" ? entry.preset.title : entry.saved.title;
-            const desc = entry.kind === "preset" ? entry.preset.desc ?? "" : entry.saved.summary ?? "";
             const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
-            const menuOpen = menuOpenFor === id;
+            const descriptionRaw =
+              entry.kind === "preset" ? entry.preset.desc : entry.saved.description;
+            const description =
+              descriptionRaw && descriptionRaw.trim().length
+                ? descriptionRaw
+                : "Capsule AI custom theme";
+            const isPreviewing = previewingId === id;
+            const isActive = activeId === id;
             return (
               <div key={id} className={styles.slide}>
                 <div
-                  className={promo.tile}
+                  className={`${promo.tile} ${isActive ? styles.activeTile : ""}`.trim()}
                   tabIndex={0}
-                  onMouseEnter={() => startPreviewThemeVars(vars)}
-                  onMouseLeave={() => endPreviewThemeVars()}
-                  onFocus={() => startPreviewThemeVars(vars)}
-                  onBlur={() => endPreviewThemeVars()}
                   onKeyDown={onKeyDownTile}
                 >
-                  <div className={styles.menuTopRight}>
-                    <button
-                      type="button"
-                      className={styles.ellipsisBtn}
-                      aria-haspopup="menu"
-                      aria-expanded={menuOpen}
-                      onClick={() => setMenuOpenFor(menuOpen ? null : id)}
-                      aria-label="Theme actions"
-                    >
-                      ...
-                    </button>
-                    {menuOpen ? (
-                      <div className={styles.menu} role="menu" onMouseLeave={() => setMenuOpenFor(null)}>
-                        <button
-                          className={styles.menuItem}
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuOpenFor(null);
-                            handleApply(entry);
-                          }}
-                        >
-                          Apply
-                        </button>
-                        {entry.kind === "saved" ? (
-                          <>
-                            <button
-                              className={styles.menuItem}
-                              role="menuitem"
-                              onClick={() => {
-                                setMenuOpenFor(null);
-                                void handleRename(entry);
-                              }}
-                            >
-                              Rename
-                            </button>
-                            <button
-                              className={`${styles.menuItem} ${styles.danger}`.trim()}
-                              role="menuitem"
-                              onClick={() => {
-                                setMenuOpenFor(null);
-                                void handleDelete(entry);
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-
                   <div className={styles.tileHeader}>
                     <div className={styles.tileTitle}>{title}</div>
                     <div className={styles.tileBadge}>{entry.kind === "saved" ? "Saved" : "Preset"}</div>
                   </div>
-                  <div className={`${promo.short} ${styles.previewHalf}`.trim()} style={buildPreviewStyle(vars)} aria-hidden>
+                  <div
+                    className={`${promo.short} ${styles.previewHalf}`.trim()}
+                    style={buildPreviewStyle(vars)}
+                    aria-hidden
+                  >
                     <div className={styles.swatchBg} />
                     <div className={styles.swatchCard} />
+                    {isActive ? <span className={styles.activeBadge}>Active</span> : null}
                   </div>
-                  {desc ? <div className={styles.descArea}>{desc}</div> : null}
-                  <div className={styles.actions}>
+                  <div className={styles.descArea}>{description}</div>
+                  <div className={styles.buttonRow}>
+                    <Button variant="secondary" size="sm" onClick={() => togglePreview(entry)}>
+                      {isPreviewing ? "End preview" : "Preview"}
+                    </Button>
                     <Button variant="primary" size="sm" onClick={() => handleApply(entry)}>
                       Apply
                     </Button>
                   </div>
+                  {entry.kind === "saved" ? (
+                    <div className={styles.manageRow}>
+                      <button type="button" className={styles.manageLink} onClick={() => handleRename(entry)}>
+                        Rename
+                      </button>
+                      <button type="button" className={styles.manageLink} onClick={() => handleDelete(entry)}>
+                        Delete
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );
@@ -377,7 +441,12 @@ const handleSaveCurrent = React.useCallback(async () => {
         </div>
         {canRight ? (
           <div className={`${styles.navOverlay} ${styles.navRight}`.trim()}>
-            <button type="button" className={styles.navArrow} aria-label="Next" onClick={() => scrollByPage(1)}>
+            <button
+              type="button"
+              className={styles.navArrow}
+              aria-label="Scroll right"
+              onClick={() => scrollByPage(1)}
+            >
               {">"}
             </button>
           </div>
@@ -385,7 +454,7 @@ const handleSaveCurrent = React.useCallback(async () => {
       </div>
       {loading ? <div className={styles.meta}>Loading…</div> : null}
       {!loading && items.length === 0 ? (
-        <div className={styles.empty}>No themes yet. Try styling with Capsule AI.</div>
+        <div className={styles.empty}>No themes yet. Ask Capsule AI to style your capsule.</div>
       ) : null}
     </div>
   );
