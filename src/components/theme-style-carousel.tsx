@@ -4,6 +4,7 @@ import * as React from "react";
 import styles from "./theme-style-carousel.module.css";
 import promo from "./promo-row.module.css";
 import { Button } from "@/components/ui/button";
+import cm from "@/components/ui/context-menu.module.css";
 
 import {
   applyThemeVars,
@@ -354,10 +355,10 @@ export function ThemeStyleCarousel() {
               …
             </button>
             {headerMenuOpen ? (
-              <div className={styles.menu} role="menu" onMouseLeave={() => setHeaderMenuOpen(false)}>
+              <div className={cm.menu} role="menu" onMouseLeave={() => setHeaderMenuOpen(false)} style={{ right: 0, top: 40 }}>
                 <button
                   type="button"
-                  className={`${styles.menuItem} ${styles.menuDanger}`.trim()}
+                  className={`${cm.item} ${cm.danger}`.trim()}
                   role="menuitem"
                   onClick={handleDeleteAll}
                 >

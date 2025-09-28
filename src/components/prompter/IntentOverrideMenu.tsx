@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import styles from "@/components/home.module.css";
+import cm from "@/components/ui/context-menu.module.css";
 import { intentLabel } from "@/lib/ai/intent";
 import type { PromptIntent } from "@/lib/ai/intent";
 
@@ -46,9 +47,10 @@ export function IntentOverrideMenu({
         </button>
       ) : null}
       {open ? (
-        <div className={styles.intentMenu} role="listbox">
+        <div className={cm.menu} role="listbox" style={{ top: "calc(100% + 8px)", right: 0 }}>
           <button
             type="button"
+            className={cm.item}
             onClick={() => onSelect(null)}
             role="option"
             aria-selected={manualIntent === null}
@@ -57,6 +59,7 @@ export function IntentOverrideMenu({
           </button>
           <button
             type="button"
+            className={cm.item}
             onClick={() => onSelect("post")}
             role="option"
             aria-selected={manualIntent === "post"}
@@ -65,6 +68,7 @@ export function IntentOverrideMenu({
           </button>
           <button
             type="button"
+            className={cm.item}
             onClick={() => onSelect("navigate")}
             role="option"
             aria-selected={manualIntent === "navigate"}
@@ -73,6 +77,7 @@ export function IntentOverrideMenu({
           </button>
           <button
             type="button"
+            className={cm.item}
             onClick={() => onSelect("style")}
             role="option"
             aria-selected={manualIntent === "style"}
@@ -81,6 +86,7 @@ export function IntentOverrideMenu({
           </button>
           <button
             type="button"
+            className={cm.item}
             onClick={() => onSelect("generate")}
             role="option"
             aria-selected={manualIntent === "generate"}

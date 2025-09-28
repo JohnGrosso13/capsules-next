@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import styles from "@/app/(authenticated)/friends/friends.module.css";
+import cm from "@/components/ui/context-menu.module.css";
 
 type FriendMenuProps = {
   canTarget: boolean;
@@ -60,10 +61,12 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
         </svg>
       </button>
       {open ? (
-        <div className={styles.friendMenu} role="menu">
+        <>
+          <div className={cm.backdrop} onClick={() => setOpen(false)} />
+          <div className={cm.menu} role="menu" style={{ top: "calc(100% + 8px)", right: 0 }}>
           <button
             type="button"
-            className={styles.friendMenuItem}
+            className={cm.item}
             role="menuitem"
             onClick={() => {
               setOpen(false);
@@ -75,7 +78,7 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
           </button>
           <button
             type="button"
-            className={styles.friendMenuItem}
+            className={cm.item}
             role="menuitem"
             onClick={() => {
               setOpen(false);
@@ -89,7 +92,7 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
           </button>
           <button
             type="button"
-            className={styles.friendMenuItem}
+            className={cm.item}
             role="menuitem"
             onClick={() => {
               setOpen(false);
@@ -101,7 +104,7 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
           </button>
           <button
             type="button"
-            className={styles.friendMenuItem}
+            className={`${cm.item} ${cm.danger}`.trim()}
             role="menuitem"
             onClick={() => {
               setOpen(false);
@@ -110,12 +113,16 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
             disabled={disabledAll}
             aria-busy={Boolean(pending)}
           >
-            {pending ? "Removing…" : "Delete"}
+            {pending ? "Removingâ€¦" : "Delete"}
           </button>
         </div>
+      </>
       ) : null}
     </div>
   );
 }
 
 export default FriendMenu;
+
+
+
