@@ -47,7 +47,7 @@ const howSteps = [
     desc: "Create posts, logos, polls, and store items with prompts.",
   },
   {
-    title: "Open the Barrier To Growth",
+    title: "Enjoy a New Era",
     desc: "Post, stream, chat, and sell with built-in integrations.",
   },
 ];

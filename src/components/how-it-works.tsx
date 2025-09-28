@@ -27,8 +27,8 @@ export function HowItWorks({ steps }: { steps: Step[] }) {
               <div className="icon-tile mb-4 grid h-16 w-16 place-items-center rounded-2xl md:h-20 md:w-20">
                 {React.isValidElement(step.icon) ? step.icon : DEFAULT_ICONS[index] ?? null}
               </div>
-              <div className="mb-1 flex items-center justify-center gap-2">
-                <span className="number-badge">{index + 1}</span>
+              <div className="mb-1 flex items-start justify-center gap-2">
+                <span className="number-badge mt-0.5">{index + 1}</span>
                 <h3 className="text-fg text-base font-semibold md:text-lg">{step.title}</h3>
               </div>
               <p className="text-fg-subtle text-xs leading-5 md:text-sm md:leading-6">{step.desc}</p>
