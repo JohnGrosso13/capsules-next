@@ -170,13 +170,15 @@ export default async function HomePage() {
             </section>
 
             <section className="space-y-6" id="how-it-works">
-              <div className="section-shell section-alt rounded-3xl p-6 space-y-6 text-center">
-                <h2 className="font-display text-fg text-3xl tracking-tight">How It Works</h2>
-                <p className="text-fg-subtle max-w-2xl text-base mx-auto">
-                  Guided workflows make it easy to launch, grow, and monetize a space with AI
-                  copilots at every step.
-                </p>
-                <HowItWorks steps={howSteps} />
+              <div className="section-shell section-alt rounded-3xl px-6 py-10 md:py-12 text-center">
+                <div className="mx-auto max-w-5xl space-y-6">
+                  <h2 className="font-display text-fg text-3xl tracking-tight">How It Works</h2>
+                  <p className="text-fg-subtle max-w-2xl text-base mx-auto">
+                    Guided workflows make it easy to launch, grow, and monetize a space with AI
+                    copilots at every step.
+                  </p>
+                  <HowItWorks steps={howSteps} />
+                </div>
               </div>
             </section>
 

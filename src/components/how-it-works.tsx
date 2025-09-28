@@ -20,25 +20,18 @@ export function HowItWorks({ steps }: { steps: Step[] }) {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="flex flex-col items-center justify-center gap-8 md:flex-row md:justify-between md:gap-10">
+      <div className="grid grid-cols-1 place-items-center gap-8 md:grid-cols-3 md:gap-10">
         {list.map((step, index) => (
-          <React.Fragment key={step.title}>
-            <div className="flex max-w-[320px] flex-col items-center text-center">
-              <div className="icon-tile mb-4 grid h-16 w-16 place-items-center rounded-2xl md:h-20 md:w-20">
-                {React.isValidElement(step.icon) ? step.icon : DEFAULT_ICONS[index] ?? null}
-              </div>
-              <div className="mb-1 flex items-start justify-center gap-2">
-                <span className="number-badge mt-0.5">{index + 1}</span>
-                <h3 className="text-fg text-base font-semibold md:text-lg">{step.title}</h3>
-              </div>
-              <p className="text-fg-subtle text-xs leading-5 md:text-sm md:leading-6">{step.desc}</p>
+          <div key={step.title} className="flex max-w-[360px] flex-col items-center text-center">
+            <div className="icon-tile mb-5 grid h-16 w-16 place-items-center rounded-2xl md:h-20 md:w-20 md:mb-6">
+              {React.isValidElement(step.icon) ? step.icon : DEFAULT_ICONS[index] ?? null}
             </div>
-            {index < list.length - 1 ? (
-              <div className="hidden items-center justify-center md:flex" aria-hidden>
-                <CaretRight weight="duotone" className="text-fg-subtle/80" size={22} />
-              </div>
-            ) : null}
-          </React.Fragment>
+            <div className="mb-1 flex items-start justify-center gap-2">
+              <span className="number-badge mt-0.5">{index + 1}</span>
+              <h3 className="text-fg text-base font-semibold md:text-lg max-w-[14rem] mx-auto">{step.title}</h3>
+            </div>
+            <p className="text-fg-subtle text-xs leading-5 md:text-sm md:leading-6 max-w-[24rem] mx-auto">{step.desc}</p>
+          </div>
         ))}
       </div>
     </div>
