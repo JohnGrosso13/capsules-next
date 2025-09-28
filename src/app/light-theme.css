@@ -42,12 +42,12 @@
 
     /* Header acrylic tokens to blend with page background gently */
     /* Make header fully readable: nearly-opaque acrylic with soft brand tint */
-    --header-glass-top: rgba(255, 255, 255, 0.98);
-    --header-glass-bottom: rgba(252, 253, 255, 0.96);
-    --header-tint-from: rgba(79, 70, 229, 0.04); /* minimal */
-    --header-tint-to: rgba(34, 211, 238, 0.03);
-    --header-border-color: rgba(14, 23, 42, 0.14);
-    --header-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
-    --header-scrim: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+    --header-glass-top: rgba(245, 247, 255, 0.88);
+    --header-glass-bottom: rgba(236, 240, 255, 0.74);
+    --header-tint-from: rgba(79, 70, 229, 0.08);
+    --header-tint-to: rgba(34, 211, 238, 0.06);
+    --header-border-color: rgba(14, 23, 42, 0.18);
+    --header-shadow: 0 20px 36px rgba(15, 23, 42, 0.22);
+    --header-scrim: linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
   }
 }

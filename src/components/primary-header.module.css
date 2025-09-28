@@ -14,10 +14,10 @@
   display: block;
   overflow: hidden;
   /* Frosted glass variables (tuned for true backdrop blur) */
-  --blur-amount: 10px;
-  --scrim-opacity: 0.10;
-  --header-glass-top: rgba(15, 18, 42, 0.58);
-  --header-glass-bottom: rgba(15, 18, 42, 0.44);
+  --blur-amount: 18px;
+  --scrim-opacity: 0.18;
+  --header-glass-top: rgba(15, 18, 42, 0.78);
+  --header-glass-bottom: rgba(15, 18, 42, 0.64);
   /* Acrylic header that respects theme tokens (dark/light) */
   background:
     linear-gradient(180deg, var(--header-glass-top), var(--header-glass-bottom)),
@@ -49,10 +49,10 @@
 /* On scroll: apply frosted glass while remaining opaque */
 .headerScrolled {
   /* Slightly deepen tint and shadow when scrolled */
-  --blur-amount: 14px;
-  --scrim-opacity: 0.16;
-  --header-glass-top: rgba(15, 18, 42, 0.66);
-  --header-glass-bottom: rgba(15, 18, 42, 0.52);
+  --blur-amount: 22px;
+  --scrim-opacity: 0.24;
+  --header-glass-top: rgba(15, 18, 42, 0.86);
+  --header-glass-bottom: rgba(15, 18, 42, 0.7);
   background:
     linear-gradient(180deg, var(--header-glass-top), var(--header-glass-bottom)),
     linear-gradient(180deg, var(--header-tint-from, rgba(79, 70, 229, 0.14)), var(--header-tint-to, rgba(34, 211, 238, 0.1)));
@@ -61,10 +61,10 @@
 
 /* Transient while the user is actively scrolling */
 .headerScrolling {
-  --blur-amount: 18px;
-  --scrim-opacity: 0.22;
-  --header-glass-top: rgba(15, 18, 42, 0.72);
-  --header-glass-bottom: rgba(15, 18, 42, 0.58);
+  --blur-amount: 26px;
+  --scrim-opacity: 0.3;
+  --header-glass-top: rgba(15, 18, 42, 0.9);
+  --header-glass-bottom: rgba(15, 18, 42, 0.74);
 }
 
 @media (prefers-reduced-motion: reduce) {
