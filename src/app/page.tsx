@@ -137,16 +137,16 @@ export default async function HomePage() {
           <div className="contents">
             <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="flex flex-col gap-8">
-                <div className="space-y-4">
+                <div className="space-y-4 text-center md:text-left">
                   <h1 className="font-display text-fg text-4xl tracking-tight sm:text-5xl lg:text-6xl">
                     Create AI powered spaces that remember
                   </h1>
-                  <p className="text-fg-subtle max-w-xl text-lg leading-8">
+                  <p className="text-fg-subtle max-w-xl text-lg leading-8 mx-auto md:mx-0">
                     The first social platform that couples channel memory with AI building blocks so
                     your community stays connected, organized, and inspired.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                   {heroPrompts.map((prompt) => (
                     <span
                       key={prompt}
@@ -156,7 +156,7 @@ export default async function HomePage() {
                     </span>
                   ))}
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 justify-center md:justify-start">
                   <LaunchCta size="lg" />
                   <Link
                     href="#features"
@@ -184,11 +184,11 @@ export default async function HomePage() {
             </section>
 
             <section className="space-y-6" id="categories">
-              <div className="space-y-3">
+              <div className="space-y-3 text-center">
                 <h2 className="font-display text-fg text-3xl tracking-tight">
                   Any group can benefit
                 </h2>
-                <p className="text-fg-subtle max-w-xl text-base">
+                <p className="text-fg-subtle max-w-xl text-base mx-auto">
                   Purpose-built templates and memory models adapt to how your community
                   collaborates.
                 </p>
@@ -197,11 +197,11 @@ export default async function HomePage() {
             </section>
 
             <section className="space-y-6" id="superpowers">
-              <div className="space-y-3 section-shell section-alt rounded-3xl p-6">
+              <div className="space-y-3 section-shell section-alt rounded-3xl p-6 text-center">
                 <h2 className="font-display text-fg text-3xl tracking-tight">
                   Superpowers for your community
                 </h2>
-                <p className="text-fg-subtle max-w-xl text-base">
+                <p className="text-fg-subtle max-w-xl text-base mx-auto">
                   Automations and copilots keep your space lively without requiring a full-time
                   team.
                 </p>
@@ -219,11 +219,11 @@ export default async function HomePage() {
             </section>
 
             <section className="space-y-6" id="features">
-              <div className="space-y-3 section-shell rounded-3xl p-6">
+              <div className="space-y-3 section-shell rounded-3xl p-6 text-center">
                 <h2 className="font-display text-fg text-3xl tracking-tight">
                   What makes us different
                 </h2>
-                <p className="text-fg-subtle max-w-xl text-base">
+                <p className="text-fg-subtle max-w-xl text-base mx-auto">
                   Everything you need to power a modern community, backed by AI context that
                   remembers every moment.
                 </p>
