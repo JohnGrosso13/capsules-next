@@ -2,6 +2,14 @@ import * as React from "react";
 
 import { normalizeMediaUrl } from "@/lib/media";
 
+export type HomeFeedAttachment = {
+  id: string;
+  url: string;
+  mimeType: string | null;
+  name: string | null;
+  thumbnailUrl: string | null;
+};
+
 export type HomeFeedPost = {
   id: string;
   dbId?: string | null;
@@ -20,6 +28,7 @@ export type HomeFeedPost = {
   shares?: number | null;
   viewer_liked?: boolean | null;
   viewerLiked?: boolean | null;
+  attachments?: HomeFeedAttachment[];
 };
 
 const fallbackPosts: HomeFeedPost[] = [
@@ -34,6 +43,7 @@ const fallbackPosts: HomeFeedPost[] = [
     comments: 14,
     shares: 6,
     viewerLiked: false,
+    attachments: [],
   },
 ];
 
@@ -96,7 +106,7 @@ export function useHomeFeed() {
       }
       const normalized: HomeFeedPost[] = arr.map((raw: unknown) => {
         const record = raw as Record<string, unknown>;
-        const media =
+        let media =
           normalizeMediaUrl(record["mediaUrl"]) ?? normalizeMediaUrl(record["media_url"]) ?? null;
         const createdAt =
           typeof record["created_at"] === "string"
@@ -147,6 +157,61 @@ export function useHomeFeed() {
               ? (record["viewer_liked"] as boolean)
               : false;
 
+        const attachmentsRaw = Array.isArray(record["attachments"])
+          ? (record["attachments"] as Array<Record<string, unknown>>)
+          : [];
+        const seenAttachmentUrls = new Set<string>();
+        const attachments: HomeFeedAttachment[] = attachmentsRaw
+          .map((entry) => {
+            if (!entry || typeof entry !== "object") return null;
+            const data = entry as Record<string, unknown>;
+            const url = normalizeMediaUrl(data["url"]);
+            if (!url || seenAttachmentUrls.has(url)) return null;
+            seenAttachmentUrls.add(url);
+            const mime =
+              typeof data["mimeType"] === "string"
+                ? (data["mimeType"] as string)
+                : typeof data["mime_type"] === "string"
+                  ? (data["mime_type"] as string)
+                  : null;
+            const name =
+              typeof data["name"] === "string"
+                ? (data["name"] as string)
+                : typeof data["title"] === "string"
+                  ? (data["title"] as string)
+                  : null;
+            const thumbSource =
+              typeof data["thumbnailUrl"] === "string"
+                ? (data["thumbnailUrl"] as string)
+                : typeof data["thumbnail_url"] === "string"
+                  ? (data["thumbnail_url"] as string)
+                  : typeof data["thumbUrl"] === "string"
+                    ? (data["thumbUrl"] as string)
+                    : null;
+            const thumbnailUrl = normalizeMediaUrl(thumbSource);
+            const identifier = data["id"];
+            const id =
+              typeof identifier === "string"
+                ? identifier
+                : typeof identifier === "number"
+                  ? String(identifier)
+                  : crypto.randomUUID();
+            return {
+              id,
+              url,
+              mimeType: mime ?? null,
+              name: name ?? null,
+              thumbnailUrl: thumbnailUrl ?? null,
+            } satisfies HomeFeedAttachment;
+          })
+          .filter((value): value is HomeFeedAttachment => Boolean(value));
+        if (!media && attachments.length) {
+          const primary = attachments[0] ?? null;
+          if (primary) {
+            media = normalizeMediaUrl(primary.thumbnailUrl ?? primary.url) ?? primary.url;
+          }
+        }
+
         return {
           id: String(identifier),
           dbId:
@@ -179,6 +244,7 @@ export function useHomeFeed() {
           comments,
           shares,
           viewerLiked,
+          attachments,
         } satisfies HomeFeedPost;
       });
       if (refreshGeneration.current === requestToken) {

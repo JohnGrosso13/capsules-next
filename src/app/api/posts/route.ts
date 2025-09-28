@@ -1,4 +1,6 @@
-﻿import { ensureUserFromRequest } from "@/lib/auth/payload";
+import { randomUUID } from "crypto";
+
+import { ensureUserFromRequest } from "@/lib/auth/payload";
 import type { IncomingUserPayload } from "@/lib/auth/payload";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createPostRecord } from "@/lib/supabase/posts";
@@ -74,7 +76,17 @@ function normalizePost(row: Record<string, unknown>) {
   };
 }
 
-type NormalizedPost = ReturnType<typeof normalizePost>;
+type NormalizedAttachment = {
+  id: string;
+  url: string;
+  mimeType: string | null;
+  name: string | null;
+  thumbnailUrl: string | null;
+};
+
+type NormalizedPost = ReturnType<typeof normalizePost> & {
+  attachments?: NormalizedAttachment[];
+};
 
 const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
   {
@@ -96,6 +108,7 @@ const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
     source: "demo",
     ownerUserId: null,
     viewerLiked: false,
+    attachments: [],
   },
   {
     id: "demo-prompt-ideas",
@@ -116,6 +129,7 @@ const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
     source: "demo",
     ownerUserId: null,
     viewerLiked: false,
+    attachments: [],
   },
 ];
 
@@ -259,18 +273,102 @@ export async function GET(req: Request) {
     }
   }
 
-  const posts = await Promise.all(
+  const posts: NormalizedPost[] = await Promise.all(
     activeRows.map(async (row) => {
-      const p = normalizePost(row as Record<string, unknown>);
-      if (p.dbId && viewerLikedIds.has(p.dbId)) {
-        p.viewerLiked = true;
+      const base = normalizePost(row as Record<string, unknown>);
+      const normalized: NormalizedPost = { ...base };
+      if (normalized.dbId && viewerLikedIds.has(normalized.dbId)) {
+        normalized.viewerLiked = true;
       } else {
-        p.viewerLiked = Boolean(p.viewerLiked);
+        normalized.viewerLiked = Boolean(normalized.viewerLiked);
       }
-      p.mediaUrl = await ensureAccessibleMediaUrl(p.mediaUrl);
-      return p;
+      normalized.mediaUrl = await ensureAccessibleMediaUrl(normalized.mediaUrl);
+      return normalized;
     }),
   );
+
+  if (posts.length) {
+    const attachmentPostIds = posts
+      .map((post) => post.id)
+      .filter((value): value is string => Boolean(value));
+    if (attachmentPostIds.length) {
+      try {
+        const { data: attachmentRows, error: attachmentError } = await supabase
+          .from("memories")
+          .select("id, post_id, media_url, media_type, title, meta")
+          .in("post_id", attachmentPostIds)
+          .contains("meta", { source: "post_attachment" });
+
+        if (attachmentError) {
+          console.warn("attachments fetch failed", attachmentError);
+        } else if (attachmentRows?.length) {
+          const attachmentsByPost = new Map<string, NormalizedAttachment[]>();
+          const normalizedAttachments = await Promise.all(
+            attachmentRows.map(async (row) => {
+              const postId = typeof row?.post_id === "string" ? row.post_id : null;
+              if (!postId) return null;
+              const url = await ensureAccessibleMediaUrl(
+                typeof row?.media_url === "string" ? row.media_url : null,
+              );
+              if (!url) return null;
+              const meta = (row?.meta ?? {}) as Record<string, unknown>;
+              const thumbCandidate =
+                typeof meta?.thumbnail_url === "string"
+                  ? (meta.thumbnail_url as string)
+                  : typeof meta?.thumbnailUrl === "string"
+                    ? (meta.thumbnailUrl as string)
+                    : typeof meta?.thumbUrl === "string"
+                      ? (meta.thumbUrl as string)
+                      : null;
+              const thumbnailUrl = await ensureAccessibleMediaUrl(thumbCandidate);
+              const attachment: NormalizedAttachment = {
+                id:
+                  typeof row?.id === "string"
+                    ? row.id
+                    : typeof row?.id === "number"
+                      ? String(row.id)
+                      : randomUUID(),
+                url,
+                mimeType:
+                  typeof row?.media_type === "string" ? row.media_type : null,
+                name: typeof row?.title === "string" ? row.title : null,
+                thumbnailUrl,
+              };
+              return { postId, attachment };
+            }),
+          );
+
+          for (const entry of normalizedAttachments) {
+            if (!entry) continue;
+            const existing = attachmentsByPost.get(entry.postId);
+            if (existing) {
+              existing.push(entry.attachment);
+            } else {
+              attachmentsByPost.set(entry.postId, [entry.attachment]);
+            }
+          }
+
+          posts.forEach((post) => {
+            const attachments =
+              attachmentsByPost.get(post.id) ??
+              (post.dbId ? attachmentsByPost.get(post.dbId) : undefined) ??
+              [];
+            if (!attachments.length) return;
+            post.attachments = attachments;
+            if (!post.mediaUrl) {
+              const primary = attachments[0] ?? null;
+              if (primary) {
+                post.mediaUrl = primary.thumbnailUrl ?? primary.url;
+              }
+            }
+          });
+        }
+      } catch (attachmentFetchError) {
+        console.warn("attachments processing failed", attachmentFetchError);
+      }
+    }
+  }
+
   return validatedJson(postsResponseSchema, { posts, deleted: deletedIds });
 }
 

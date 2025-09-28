@@ -41,7 +41,7 @@ export function HomeFeedList({
   return (
     <>
       {posts.map((post) => {
-        const media = normalizeMediaUrl(post.media_url) ?? normalizeMediaUrl(post.mediaUrl) ?? null;
+        let media = normalizeMediaUrl(post.media_url) ?? normalizeMediaUrl(post.mediaUrl) ?? null;
         const identifier =
           post.owner_user_id ??
           post.ownerUserId ??
@@ -79,7 +79,103 @@ export function HomeFeedList({
           { key: "comment", label: "Comment", icon: "mode_comment", count: commentCount },
           { key: "share", label: "Share", icon: "ios_share", count: shareCount },
         ];
+        const attachmentsList = Array.isArray(post.attachments)
+          ? post.attachments.filter((attachment): attachment is NonNullable<HomeFeedPost["attachments"]>[number] =>
+              Boolean(attachment && attachment.url),
+            )
+          : [];
+        const inferAttachmentKind = (
+          mime: string | null | undefined,
+          url: string,
+        ): "image" | "video" | "file" => {
+          const loweredMime = mime?.toLowerCase() ?? "";
+          if (loweredMime.startsWith("image/")) return "image";
+          if (loweredMime.startsWith("video/")) return "video";
+          const lowerUrl = url.toLowerCase();
+          if (/\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv)(\?|#|$)/.test(lowerUrl)) return "video";
+          if (/\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/.test(lowerUrl)) return "image";
+          return "file";
+        };
+        const seenMedia = new Set<string>();
+        const galleryItems: Array<{
+          id: string;
+          url: string;
+          kind: "image" | "video";
+          name: string | null;
+          thumbnailUrl: string | null;
+          mimeType: string | null;
+        }> = [];
+        const fileAttachments: Array<{
+          id: string;
+          url: string;
+          name: string | null;
+          mimeType: string | null;
+        }> = [];
+        const pushMedia = (item: {
+          id: string;
+          url: string;
+          kind: "image" | "video";
+          name: string | null;
+          thumbnailUrl: string | null;
+          mimeType: string | null;
+        }) => {
+          if (!item.url || seenMedia.has(item.url)) return;
+          seenMedia.add(item.url);
+          galleryItems.push(item);
+        };
 
+        if (media) {
+          const inferred = inferAttachmentKind(null, media) === "video" ? "video" : "image";
+          pushMedia({
+            id: `${post.id}-primary`,
+            url: media,
+            kind: inferred,
+            name: null,
+            thumbnailUrl: media,
+            mimeType: null,
+          });
+        }
+
+        attachmentsList.forEach((attachment, index) => {
+          if (!attachment || !attachment.url) return;
+          const kind = inferAttachmentKind(attachment.mimeType ?? null, attachment.url);
+          const baseId = attachment.id || `${post.id}-att-${index}`;
+          if (kind === "image" || kind === "video") {
+            pushMedia({
+              id: baseId,
+              url: attachment.url,
+              kind,
+              name: attachment.name ?? null,
+              thumbnailUrl: attachment.thumbnailUrl ?? null,
+              mimeType: attachment.mimeType ?? null,
+            });
+          } else {
+            if (fileAttachments.some((file) => file.url === attachment.url)) return;
+            let fallbackName = attachment.name ?? null;
+            if (!fallbackName) {
+              try {
+                const tail = decodeURIComponent(attachment.url.split("/").pop() ?? "");
+                const clean = tail.split("?")[0];
+                fallbackName = clean || tail || "Attachment";
+              } catch {
+                fallbackName = "Attachment";
+              }
+            }
+            fileAttachments.push({
+              id: baseId,
+              url: attachment.url,
+              name: fallbackName,
+              mimeType: attachment.mimeType ?? null,
+            });
+          }
+        });
+
+        if (!media && galleryItems.length) {
+          const primaryMedia = galleryItems[0] ?? null;
+          if (primaryMedia) {
+            media = primaryMedia.thumbnailUrl ?? primaryMedia.url;
+          }
+        }
         return (
           <article key={post.id} className={styles.card}>
             <header className={styles.cardHead}>
@@ -177,7 +273,50 @@ export function HomeFeedList({
               {post.content ? <div className={styles.postText}>{post.content}</div> : null}
             </div>
 
-            {media ? <img className={styles.media} src={media} alt="Post media" /> : null}
+            {galleryItems.length ? (
+              <div className={styles.mediaGallery} data-count={galleryItems.length}>
+                {galleryItems.map((item) =>
+                  item.kind === "video" ? (
+                    <video
+                      key={item.id}
+                      className={`${styles.media} ${styles.mediaVideo}`.trim()}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      poster={item.thumbnailUrl ?? undefined}
+                    >
+                      <source src={item.url} type={item.mimeType ?? undefined} />
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <img
+                      key={item.id}
+                      className={`${styles.media} ${styles.mediaImage}`.trim()}
+                      src={item.url}
+                      alt={item.name ?? "Post attachment"}
+                      loading="lazy"
+                    />
+                  ),
+                )}
+              </div>
+            ) : null}
+
+            {fileAttachments.length ? (
+              <ul className={styles.attachmentList}>
+                {fileAttachments.map((file) => (
+                  <li key={file.id} className={styles.attachmentListItem}>
+                    <a
+                      href={file.url}
+                      className={styles.attachmentLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <span className={styles.attachmentFileName}>{file.name ?? "Attachment"}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
 
             <footer className={styles.actionBar}>
               {actionItems.map((action) => {

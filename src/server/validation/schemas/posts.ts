@@ -19,6 +19,14 @@ export const createPostRequestSchema = requestUserEnvelopeSchema.extend({
   post: postPayloadSchema,
 });
 
+const attachmentSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  mimeType: z.string().nullable(),
+  name: z.string().nullable(),
+  thumbnailUrl: z.string().nullable(),
+});
+
 const normalizedPostSchema = z.object({
   id: z.union([z.string(), z.number()]).transform((value) => String(value)),
   dbId: z.string().optional(),
@@ -38,6 +46,7 @@ const normalizedPostSchema = z.object({
   source: z.string(),
   ownerUserId: z.string().nullable(),
   viewerLiked: z.boolean().optional(),
+  attachments: z.array(attachmentSchema).optional(),
 });
 
 export const postsResponseSchema = z.object({
