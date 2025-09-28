@@ -330,6 +330,96 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Tool: Poll (route to AI prompt with poll preference)
+      if (action.kind === "tool_poll") {
+        const prompt = action.prompt;
+        setState((prev) => ({ ...prev, open: true, loading: true, prompt, message: null, choices: null }));
+        try {
+          const payload = await callAiPrompt(prompt, { prefer: "poll" });
+          handleAiResponse(prompt, payload);
+        } catch (error) {
+          console.error("Poll tool failed", error);
+          setState(initialState);
+        }
+        return;
+      }
+
+      // Tool: Logo (generate an image from prompt then open composer)
+      if (action.kind === "tool_logo") {
+        const prompt = action.prompt;
+        setState((prev) => ({ ...prev, open: true, loading: true, prompt, message: null, choices: null }));
+        try {
+          const res = await fetch("/api/ai/image/generate", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt }),
+          });
+          const json = (await res.json().catch(() => null)) as { url?: string } | null;
+          if (!res.ok || !json?.url) throw new Error(`Image generate failed (${res.status})`);
+          const draft: ComposerDraft = {
+            kind: "image",
+            title: null,
+            content: "",
+            mediaUrl: json.url,
+            mediaPrompt: prompt,
+            poll: null,
+          };
+          setState(() => ({
+            open: true,
+            loading: false,
+            prompt,
+            draft,
+            rawPost: { kind: "image", media_url: json.url, media_prompt: prompt, source: "ai-prompter" },
+            message: "Generated a logo concept from your prompt.",
+            choices: null,
+          }));
+        } catch (error) {
+          console.error("Logo tool failed", error);
+          setState(initialState);
+        }
+        return;
+      }
+
+      // Tool: Image edit/vibe (requires attachment image)
+      if (action.kind === "tool_image_edit") {
+        const prompt = action.prompt;
+        const attachment = action.attachments?.[0] ?? null;
+        if (!attachment?.url) return;
+        setState((prev) => ({ ...prev, open: true, loading: true, prompt, message: null, choices: null }));
+        try {
+          const res = await fetch("/api/ai/image/edit", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageUrl: attachment.url, instruction: prompt }),
+          });
+          const json = (await res.json().catch(() => null)) as { url?: string } | null;
+          if (!res.ok || !json?.url) throw new Error(`Image edit failed (${res.status})`);
+          const draft: ComposerDraft = {
+            kind: "image",
+            title: null,
+            content: "",
+            mediaUrl: json.url,
+            mediaPrompt: prompt,
+            poll: null,
+          };
+          setState(() => ({
+            open: true,
+            loading: false,
+            prompt,
+            draft,
+            rawPost: { kind: "image", media_url: json.url, media_prompt: prompt, source: "ai-prompter" },
+            message: "Updated your image with those vibes.",
+            choices: null,
+          }));
+        } catch (error) {
+          console.error("Image edit tool failed", error);
+          setState(initialState);
+        }
+        return;
+      }
+
       const prompt = action.kind === "post_ai" ? action.prompt : action.text;
       const composeOptions: Record<string, unknown> | undefined =
         action.kind === "post_ai" ? { compose: action.mode as ComposerMode } : undefined;

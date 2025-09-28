@@ -16,6 +16,7 @@ import type { ComposerMode } from "@/lib/ai/nav";
 
 import styles from "./home.module.css";
 import { PrompterInputBar } from "@/components/prompter/PrompterInputBar";
+import { detectSuggestedTools, type PrompterToolKey } from "@/components/prompter/tools";
 
 const cssClass = (...keys: Array<keyof typeof styles>): string =>
   keys
@@ -59,7 +60,10 @@ export type PrompterAction =
       attachments?: PrompterAttachment[];
     }
   | { kind: "generate"; text: string; raw: string; attachments?: PrompterAttachment[] }
-  | { kind: "style"; prompt: string; raw: string; attachments?: PrompterAttachment[] };
+  | { kind: "style"; prompt: string; raw: string; attachments?: PrompterAttachment[] }
+  | { kind: "tool_logo"; prompt: string; raw: string; attachments?: PrompterAttachment[] }
+  | { kind: "tool_poll"; prompt: string; raw: string; attachments?: PrompterAttachment[] }
+  | { kind: "tool_image_edit"; prompt: string; raw: string; attachments?: PrompterAttachment[] };
 
 type Props = {
   placeholder?: string;
@@ -157,6 +161,7 @@ export function AiPrompterStage({
   const anchorRef = React.useRef<HTMLButtonElement | null>(null);
   const requestRef = React.useRef(0);
   const textRef = React.useRef<HTMLInputElement | null>(null);
+  const [manualTool, setManualTool] = React.useState<PrompterToolKey | null>(null);
   const [voiceError, setVoiceError] = React.useState<string | null>(null);
   const [voiceDraft, setVoiceDraft] = React.useState<{ session: number; text: string } | null>(null);
   const [pendingVoiceSubmission, setPendingVoiceSubmission] = React.useState<string | null>(null);
@@ -245,6 +250,7 @@ export function AiPrompterStage({
 
   const trimmed = text.trim();
   const hasAttachment = Boolean(readyAttachment);
+  const attachmentMime = readyAttachment?.mimeType ?? null;
   // Determine base intent without considering manual override
   const baseIntent = hasAttachment && trimmed.length === 0 ? "post" : autoIntent.intent;
   const navTarget = React.useMemo(() => resolveNavigationTarget(trimmed), [trimmed]);
@@ -252,6 +258,15 @@ export function AiPrompterStage({
   // Manual override takes precedence over heuristics/AI.
   const effectiveIntent: PromptIntent =
     manualIntent ?? (navTarget ? "navigate" : postPlan.mode !== "none" ? "post" : baseIntent);
+
+  const suggestedTools = React.useMemo(
+    () =>
+      detectSuggestedTools(trimmed, { hasAttachment, attachmentMime }).filter((s) =>
+        // Limit to currently enabled tools
+        ["poll", "logo", "image_edit"].includes(s.key),
+      ),
+    [trimmed, hasAttachment, attachmentMime],
+  );
 
   const buttonBusy = isResolving && manualIntent === null;
   const navigateReady = effectiveIntent === "navigate" && navTarget !== null;
@@ -438,6 +453,34 @@ export function AiPrompterStage({
       return;
     }
 
+    // Tool routing
+    const selectedTool: PrompterToolKey | null = manualTool ?? (suggestedTools[0]?.key ?? null);
+
+    if (selectedTool === "poll") {
+      emitAction({
+        kind: "post_ai",
+        prompt: value,
+        mode: "poll",
+        raw: value,
+      });
+      resetAfterSubmit();
+      return;
+    }
+
+    if (selectedTool === "logo") {
+      emitAction({ kind: "tool_logo", prompt: value, raw: value });
+      resetAfterSubmit();
+      return;
+    }
+
+    if (selectedTool === "image_edit") {
+      if (hasAttachmentPayload) {
+        emitAction({ kind: "tool_image_edit", prompt: value, raw: value });
+        resetAfterSubmit();
+        return;
+      }
+    }
+
     if (effectiveIntent === "post") {
       if (postPlan.mode === "manual") {
         const content = postPlan.content.trim();
@@ -467,7 +510,7 @@ export function AiPrompterStage({
 
     emitAction({ kind: "generate", text: value, raw: value });
     resetAfterSubmit();
-  }, [attachmentUploading, readyAttachment, onAction, trimmed, textRef, setText, setManualIntent, setMenuOpen, clearAttachment, effectiveIntent, navTarget, postPlan, router]);
+  }, [attachmentUploading, readyAttachment, onAction, trimmed, textRef, setText, setManualIntent, setMenuOpen, clearAttachment, effectiveIntent, navTarget, postPlan, router, manualTool, suggestedTools]);
 
   React.useEffect(() => {
     if (!pendingVoiceSubmission) return;
@@ -582,6 +625,34 @@ export function AiPrompterStage({
             </span>
           ) : null}
         </div>
+
+        {suggestedTools.length ? (
+          <div className={styles.chips}>
+            {suggestedTools.map((t) => (
+              <button
+                key={t.key}
+                className={styles.chip}
+                type="button"
+                onClick={() => setManualTool(t.key)}
+                data-active={manualTool === t.key || undefined}
+                aria-pressed={manualTool === t.key}
+                title={t.label}
+              >
+                {t.label}
+              </button>
+            ))}
+            {manualTool ? (
+              <button
+                type="button"
+                className={styles.chip}
+                onClick={() => setManualTool(null)}
+                aria-label="Clear tool override"
+              >
+                Clear tool
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className={styles.chips}>
           {chips.map((c) => (

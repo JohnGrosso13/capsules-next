@@ -73,3 +73,11 @@ Reach out to the Capsules platform team for access to production credentials or 
 
 Direct upload support, background processing, and worker configuration are documented in [docs/cloudflare-r2-pipeline.md](docs/cloudflare-r2-pipeline.md).
 
+## AI Prompter overhaul
+
+- The prompter now suggests context-aware tools from `src/components/prompter/tools.ts` (polls, logo generation, image vibe/edit), shown as quick chips under the input. Selecting a tool routes the prompt appropriately (e.g., creates a poll draft or generates/edits an image) and opens the Composer.
+- New API routes power image workflows:
+  - `src/app/api/ai/image/generate/route.ts` – generates an image from a prompt (OpenAI).
+  - `src/app/api/ai/image/edit/route.ts` – edits an existing image by instruction.
+- Video attachments are supported in the prompter picker (images and videos). The upload pipeline remains unchanged.
+- The system is designed to extend with more tools (documents, tournaments, ladders) with minimal UI/logic changes.

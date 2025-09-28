@@ -98,7 +98,7 @@ export function PrompterInputBar({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
         className={styles.attachInput}
         onChange={onFileChange}
       />
