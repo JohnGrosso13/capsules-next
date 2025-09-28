@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import styles from "./theme-style-carousel.module.css";
@@ -12,6 +12,7 @@ import {
   endPreviewThemeVars,
   getStoredThemeVars,
   setTheme,
+  clearThemeVars,
 } from "@/lib/theme";
 import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { useCurrentUser } from "@/services/auth/client";
@@ -30,27 +31,15 @@ type SavedStyle = {
   summary?: string;
   description?: string;
   vars: Record<string, string>;
-  createdLabel?: string;
+  createdLabel?: string | null;
 };
 
 type ThemeEntry = { kind: "preset"; preset: Preset } | { kind: "saved"; saved: SavedStyle };
 
 function builtInPresets(): Preset[] {
   return [
-    {
-      id: "light",
-      title: "Light Mode",
-      desc: "System light theme",
-      vars: {},
-      theme: "light",
-    },
-    {
-      id: "dark",
-      title: "Dark Mode",
-      desc: "System dark theme",
-      vars: {},
-      theme: "dark",
-    },
+    { id: "light", title: "Light Mode", desc: "System light theme", vars: {}, theme: "light" },
+    { id: "dark", title: "Dark Mode", desc: "System dark theme", vars: {}, theme: "dark" },
     {
       id: "aurora",
       title: "Aurora Glow",
@@ -101,56 +90,155 @@ function getEntryId(entry: ThemeEntry): string {
 export function ThemeStyleCarousel() {
   const { user, isLoaded } = useCurrentUser();
   const envelope = React.useMemo(() => (user ? buildMemoryEnvelope(user) : null), [user]);
-  const envelopeSignature = React.useMemo(
-    () => (envelope ? JSON.stringify(envelope) : "anon"),
-    [envelope],
-  );
 
   const basePresets = React.useMemo(() => builtInPresets(), []);
+  const placeholderSaved = React.useMemo<SavedStyle[]>(
+    () =>
+      Array.from({ length: 6 }).map((_, index) => ({
+        id: `placeholder-${index}`,
+        title: `Capsule Vibe ${index + 1}`,
+        summary: `AI moodboard style ${index + 1}`,
+        description: `Futuristic gradient #${index + 1}`,
+        vars: basePresets[index % basePresets.length]?.vars ?? {},
+        createdLabel: null,
+      })),
+    [basePresets],
+  );
 
   const envelopeRef = React.useRef(envelope);
   React.useEffect(() => {
     envelopeRef.current = envelope;
   }, [envelope]);
 
-  const listRef = React.useRef<HTMLDivElement | null>(null);
+  const [savedStyles, setSavedStyles] = React.useState<SavedStyle[]>(placeholderSaved);
   const [headerMenuOpen, setHeaderMenuOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
-  const [items, setItems] = React.useState<ThemeEntry[]>(() =>
-    basePresets.map((preset) => ({ kind: "preset", preset })),
-  );
-  const [canLeft, setCanLeft] = React.useState(false);
-  const [canRight, setCanRight] = React.useState(false);
   const [previewingId, setPreviewingId] = React.useState<string | null>(null);
   const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [canLeft, setCanLeft] = React.useState(false);
+  const [canRight, setCanRight] = React.useState(false);
 
-  const updateScrollState = React.useCallback(() => {
-    const el = listRef.current;
-    if (!el) {
-      setCanLeft(false);
-      setCanRight(false);
-      return;
-    }
-    setCanLeft(el.scrollLeft > 4);
-    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
+  const items = React.useMemo<ThemeEntry[]>(
+    () => [
+      ...basePresets.map((preset) => ({ kind: "preset", preset } as ThemeEntry)),
+      ...savedStyles.map((saved) => ({ kind: "saved", saved } as ThemeEntry)),
+    ],
+    [basePresets, savedStyles],
+  );
+
+  const listRef = React.useRef<HTMLDivElement | null>(null);
+  const itemWidthRef = React.useRef(0);
+
+  const loopCount = items.length;
+  const loopItems = React.useMemo(() => (loopCount ? [...items, ...items, ...items] : []), [items, loopCount]);
 
   const scrollByPage = React.useCallback(
     (dir: 1 | -1) => {
       const el = listRef.current;
-      if (!el) return;
-      const amount = el.clientWidth || 0;
-      el.scrollBy({ left: dir * (amount * 0.95), behavior: "smooth" });
-      window.setTimeout(updateScrollState, 320);
+      const span = itemWidthRef.current || el?.clientWidth || 0;
+      if (!el || !span) return;
+      el.scrollBy({ left: dir * span * 2.5, behavior: "smooth" });
     },
-    [updateScrollState],
+    [],
+  );
+
+  const updateScrollState = React.useCallback(() => {
+    const hasItems = loopCount > 0;
+    setCanLeft(hasItems);
+    setCanRight(hasItems);
+  }, [loopCount]);
+
+  const measureAndPrime = React.useCallback(() => {
+    const el = listRef.current;
+    if (!el || !loopCount) return;
+    const firstSlide = el.querySelector<HTMLElement>(`.${styles.slide}`);
+    if (!firstSlide) return;
+    const gap = parseFloat(getComputedStyle(el).columnGap || "0");
+    itemWidthRef.current = firstSlide.getBoundingClientRect().width + gap;
+    el.scrollLeft = itemWidthRef.current * loopCount;
+  }, [loopCount]);
+
+  React.useEffect(() => {
+    if (!loopCount) return;
+    requestAnimationFrame(() => {
+      measureAndPrime();
+      updateScrollState();
+    });
+  }, [loopCount, measureAndPrime, updateScrollState, loopItems]);
+
+  const handleScroll = React.useCallback(() => {
+    const el = listRef.current;
+    const span = itemWidthRef.current;
+    if (!el || !loopCount || !span) return;
+    const total = span * loopCount;
+    if (el.scrollLeft < total * 0.5) {
+      el.scrollLeft += total;
+    } else if (el.scrollLeft > total * 1.5) {
+      el.scrollLeft -= total;
+    }
+    updateScrollState();
+  }, [loopCount, updateScrollState]);
+
+  React.useEffect(() => {
+    const resizeHandler = () => {
+      measureAndPrime();
+      updateScrollState();
+    };
+    window.addEventListener("resize", resizeHandler);
+    return () => window.removeEventListener("resize", resizeHandler);
+  }, [measureAndPrime, updateScrollState]);
+
+  const startPreview = React.useCallback((entry: ThemeEntry) => {
+    const id = getEntryId(entry);
+    setPreviewingId(id);
+    const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
+    if (Object.keys(vars).length) startPreviewThemeVars(vars);
+  }, []);
+
+  const stopPreview = React.useCallback(() => {
+    endPreviewThemeVars();
+    setPreviewingId(null);
+  }, []);
+
+  React.useEffect(() => () => endPreviewThemeVars(), []);
+
+  const handleApply = React.useCallback(
+    (entry: ThemeEntry) => {
+      stopPreview();
+      const id = getEntryId(entry);
+      setActiveId(id);
+      clearThemeVars();
+      if (entry.kind === "preset") {
+        if (entry.preset.theme) setTheme(entry.preset.theme);
+        if (Object.keys(entry.preset.vars).length) applyThemeVars(entry.preset.vars);
+      } else {
+        applyThemeVars(entry.saved.vars);
+      }
+    },
+    [stopPreview],
+  );
+
+  const handleSetMode = React.useCallback(
+    (mode: "light" | "dark") => {
+      stopPreview();
+      clearThemeVars();
+      setTheme(mode);
+      setActiveId(`preset:${mode}`);
+    },
+    [stopPreview],
+  );
+
+  const updateFromSaved = React.useCallback(
+    (saved: SavedStyle[]) => {
+      setSavedStyles(saved.length ? saved : placeholderSaved);
+    },
+    [placeholderSaved],
   );
 
   const fetchSaved = React.useCallback(async () => {
     const envelopePayload = envelopeRef.current;
     if (!envelopePayload) {
-      setItems(basePresets.map((preset) => ({ kind: "preset", preset })));
-      window.requestAnimationFrame(updateScrollState);
+      updateFromSaved([]);
       return;
     }
     setLoading(true);
@@ -162,134 +250,65 @@ export function ThemeStyleCarousel() {
         body: JSON.stringify({ kind: "theme", user: envelopePayload }),
       });
       const json = (await res.json().catch(() => ({}))) as { items?: unknown[] };
-      const saved: SavedStyle[] = Array.isArray(json.items)
+      const normalized: SavedStyle[] = Array.isArray(json.items)
         ? json.items
             .map((raw) => {
-              const rec = raw as Record<string, unknown>;
-              const id = typeof rec.id === "string" ? rec.id : null;
-              const meta = (rec.meta as Record<string, unknown>) ?? {};
+              const record = raw as Record<string, unknown>;
+              const id = typeof record.id === "string" ? record.id : null;
+              const meta = (record.meta as Record<string, unknown>) ?? {};
               const vars = (meta.vars as Record<string, string>) ?? {};
-              if (!id || !vars || !Object.keys(vars).length) return null;
-              const titleRaw = typeof rec.title === "string" ? rec.title.trim() : "";
-              const metaSummary = typeof meta.summary === "string" ? (meta.summary as string).trim() : "";
+              if (!id || !Object.keys(vars).length) return null;
+              const titleRaw = typeof record.title === "string" ? record.title.trim() : "";
+              const summaryRaw = typeof meta.summary === "string" ? (meta.summary as string).trim() : "";
               const prompt = typeof meta.prompt === "string" ? (meta.prompt as string).trim() : "";
-              const summary = titleRaw || metaSummary;
-              const title = summary || prompt || "Saved theme";
+              const summary = titleRaw || summaryRaw;
               return {
                 id,
-                title,
+                title: summary || prompt || "Saved theme",
                 summary,
                 description: summary || prompt,
                 vars,
-                createdLabel: typeof rec.created_at === "string" ? rec.created_at : undefined,
+                createdLabel: typeof record.created_at === "string" ? record.created_at : undefined,
               } as SavedStyle;
             })
-            .filter(Boolean) as SavedStyle[]
+            .filter((style): style is SavedStyle => Boolean(style))
         : [];
-      const merged: ThemeEntry[] = [
-        ...basePresets.map((preset) => ({ kind: "preset", preset } as ThemeEntry)),
-        ...saved.map((saved) => ({ kind: "saved", saved } as ThemeEntry)),
-      ];
-      setItems(merged);
-      window.requestAnimationFrame(updateScrollState);
+      updateFromSaved(normalized);
     } finally {
       setLoading(false);
     }
-  }, [basePresets, updateScrollState]);
+  }, [updateFromSaved]);
 
   React.useEffect(() => {
     if (!isLoaded) return;
-    fetchSaved();
-  }, [isLoaded, envelopeSignature, fetchSaved]);
-
-  React.useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    const update = () => updateScrollState();
-    update();
-    el.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    const resizeObserver =
-      typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
-    resizeObserver?.observe(el);
-    return () => {
-      el.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      resizeObserver?.disconnect();
-    };
-  }, [updateScrollState, items.length]);
-
-  const stopPreview = React.useCallback(() => {
-    endPreviewThemeVars();
-    setPreviewingId(null);
-  }, []);
-
-  const onKeyDownTile = React.useCallback(
-    (event: React.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        stopPreview();
-        (event.currentTarget as HTMLElement).blur();
-      }
-    },
-    [stopPreview],
-  );
-
-  const handleApply = React.useCallback(
-    (entry: ThemeEntry) => {
-      stopPreview();
-      const id = getEntryId(entry);
-      setActiveId(id);
-      if (entry.kind === "preset") {
-        if (entry.preset.theme) setTheme(entry.preset.theme);
-        if (Object.keys(entry.preset.vars).length) applyThemeVars(entry.preset.vars);
-      } else {
-        applyThemeVars(entry.saved.vars);
-      }
-    },
-    [stopPreview],
-  );
-
-  const togglePreview = React.useCallback(
-    (entry: ThemeEntry) => {
-      const id = getEntryId(entry);
-      if (previewingId === id) {
-        stopPreview();
-        return;
-      }
-      stopPreview();
-      const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
-      if (Object.keys(vars).length) {
-        startPreviewThemeVars(vars);
-        setPreviewingId(id);
-      }
-    },
-    [previewingId, stopPreview],
-  );
-
-  React.useEffect(() => () => endPreviewThemeVars(), []);
+    void fetchSaved();
+  }, [isLoaded, fetchSaved]);
 
   const handleRename = React.useCallback(
     async (entry: ThemeEntry) => {
-      if (entry.kind !== "saved") return;
-      const current = entry.saved.title || "Saved theme";
-      const next = window.prompt("Rename theme", current)?.trim();
-      if (!next || next === current) return;
+      if (entry.kind !== "saved" || entry.saved.id.startsWith("placeholder-")) return;
+      const currentTitle = entry.saved.title || "Saved theme";
+      const next = window.prompt("Rename theme", currentTitle)?.trim();
+      if (!next || next === currentTitle) return;
       const res = await fetch("/api/memory/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ id: entry.saved.id, title: next, kind: "theme" }),
       });
-      if (res.ok) fetchSaved();
+      if (res.ok) {
+        setSavedStyles((prev) =>
+          prev.map((style) => (style.id === entry.saved.id ? { ...style, title: next, summary: next } : style)),
+        );
+      }
     },
-    [fetchSaved],
+    [],
   );
 
   const handleDelete = React.useCallback(
     async (entry: ThemeEntry) => {
-      if (entry.kind !== "saved") return;
+      if (entry.kind !== "saved" || entry.saved.id.startsWith("placeholder-")) return;
       stopPreview();
-      const id = getEntryId(entry);
       const res = await fetch("/api/memory/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -297,26 +316,29 @@ export function ThemeStyleCarousel() {
         body: JSON.stringify({ ids: [entry.saved.id], kind: "theme", user: envelopeRef.current ?? {} }),
       });
       if (res.ok) {
-        if (activeId === id) setActiveId(null);
-        fetchSaved();
+        setSavedStyles((prev) => {
+          const next = prev.filter((style) => style.id !== entry.saved.id);
+          return next.length ? next : placeholderSaved;
+        });
       }
     },
-    [fetchSaved, stopPreview, activeId],
+    [placeholderSaved, stopPreview],
   );
 
   const handleDeleteAll = React.useCallback(async () => {
-    if (!window.confirm("Delete all saved styles? This cannot be undone.")) return;
     stopPreview();
-    await fetch("/api/memory/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ kind: "theme", all: true }),
-    });
-    setActiveId(null);
-    fetchSaved();
+    const hasRealSaved = savedStyles.some((style) => !style.id.startsWith("placeholder-"));
+    if (hasRealSaved) {
+      await fetch("/api/memory/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ kind: "theme", all: true, user: envelopeRef.current ?? {} }),
+      });
+    }
+    setSavedStyles(placeholderSaved);
     setHeaderMenuOpen(false);
-  }, [fetchSaved, stopPreview]);
+  }, [placeholderSaved, savedStyles, stopPreview]);
 
   const handleSaveCurrent = React.useCallback(async () => {
     const vars = getStoredThemeVars();
@@ -333,8 +355,15 @@ export function ThemeStyleCarousel() {
       credentials: "include",
       body: JSON.stringify({ title, summary: title, vars, user: envelopeRef.current ?? {} }),
     });
-    if (res.ok) fetchSaved();
+    if (res.ok) {
+      void fetchSaved();
+    }
   }, [fetchSaved, stopPreview]);
+
+  const hasRealSaved = React.useMemo(
+    () => savedStyles.some((style) => !style.id.startsWith("placeholder-")),
+    [savedStyles],
+  );
 
   return (
     <div className={styles.wrap}>
@@ -355,12 +384,14 @@ export function ThemeStyleCarousel() {
               …
             </button>
             {headerMenuOpen ? (
-              <div className={cm.menu} role="menu" onMouseLeave={() => setHeaderMenuOpen(false)} style={{ right: 0, top: 40 }}>
+              <div className={cm.menu} role="menu" style={{ right: 0, top: 40 }} onMouseLeave={() => setHeaderMenuOpen(false)}>
                 <button
                   type="button"
                   className={`${cm.item} ${cm.danger}`.trim()}
                   role="menuitem"
                   onClick={handleDeleteAll}
+                  disabled={!hasRealSaved}
+                  aria-disabled={!hasRealSaved}
                 >
                   Delete all saved
                 </button>
@@ -368,6 +399,23 @@ export function ThemeStyleCarousel() {
             ) : null}
           </div>
         </div>
+      </div>
+
+      <div className={styles.modeButtons}>
+        <Button
+          variant={activeId === "preset:light" ? "primary" : "secondary"}
+          size="sm"
+          onClick={() => handleSetMode("light")}
+        >
+          Light mode
+        </Button>
+        <Button
+          variant={activeId === "preset:dark" ? "primary" : "secondary"}
+          size="sm"
+          onClick={() => handleSetMode("dark")}
+        >
+          Dark mode
+        </Button>
       </div>
 
       <div className={styles.carousel}>
@@ -383,58 +431,47 @@ export function ThemeStyleCarousel() {
             </button>
           </div>
         ) : null}
-        <div className={styles.track} ref={listRef}>
-          {items.map((entry) => {
-            const id = getEntryId(entry);
-            const title = entry.kind === "preset" ? entry.preset.title : entry.saved.title;
+        <div className={styles.track} ref={listRef} onScroll={handleScroll}>
+          {loopItems.map((entry, index) => {
+            const baseId = getEntryId(entry);
+            const key = `${baseId}::${index}`;
             const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
-            const descriptionRaw =
-              entry.kind === "preset" ? entry.preset.desc : entry.saved.description;
+            const descriptionRaw = entry.kind === "preset" ? entry.preset.desc : entry.saved.description;
             const description =
-              descriptionRaw && descriptionRaw.trim().length
-                ? descriptionRaw
-                : "Capsule AI custom theme";
-            const isPreviewing = previewingId === id;
-            const isActive = activeId === id;
+              descriptionRaw && descriptionRaw.trim().length ? descriptionRaw : "Capsule AI custom theme";
+            const isActive = activeId === baseId;
+            const isEditable = entry.kind === "saved" && !entry.saved.id.startsWith("placeholder-");
             return (
-              <div key={id} className={styles.slide}>
+              <div key={key} className={styles.slide}>
                 <div
                   className={`${promo.tile} ${isActive ? styles.activeTile : ""}`.trim()}
                   tabIndex={0}
-                  onKeyDown={onKeyDownTile}
+                  onMouseEnter={() => startPreview(entry)}
+                  onMouseLeave={stopPreview}
+                  onFocus={() => startPreview(entry)}
+                  onBlur={stopPreview}
                 >
                   <div className={styles.tileHeader}>
-                    <div className={styles.tileTitle}>{title}</div>
+                    <div className={styles.tileTitle}>{entry.kind === "preset" ? entry.preset.title : entry.saved.title}</div>
                     <div className={styles.tileBadge}>{entry.kind === "saved" ? "Saved" : "Preset"}</div>
                   </div>
-                  <div
-                    className={`${promo.short} ${styles.previewHalf}`.trim()}
-                    style={buildPreviewStyle(vars)}
-                    aria-hidden
-                  >
+                  <div className={`${promo.short} ${styles.previewHalf}`.trim()} style={buildPreviewStyle(vars)} aria-hidden>
                     <div className={styles.swatchBg} />
                     <div className={styles.swatchCard} />
                     {isActive ? <span className={styles.activeBadge}>Active</span> : null}
                   </div>
                   <div className={styles.descArea}>{description}</div>
                   <div className={styles.buttonRow}>
-                    <Button variant="secondary" size="sm" onClick={() => togglePreview(entry)}>
-                      {isPreviewing ? "End preview" : "Preview"}
-                    </Button>
                     <Button variant="primary" size="sm" onClick={() => handleApply(entry)}>
                       Apply
                     </Button>
+                    <Button variant="secondary" size="sm" onClick={() => isEditable && handleRename(entry)} disabled={!isEditable}>
+                      Rename
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => isEditable && handleDelete(entry)} disabled={!isEditable}>
+                      Delete
+                    </Button>
                   </div>
-                  {entry.kind === "saved" ? (
-                    <div className={styles.manageRow}>
-                      <button type="button" className={styles.manageLink} onClick={() => handleRename(entry)}>
-                        Rename
-                      </button>
-                      <button type="button" className={styles.manageLink} onClick={() => handleDelete(entry)}>
-                        Delete
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
               </div>
             );
@@ -454,9 +491,6 @@ export function ThemeStyleCarousel() {
         ) : null}
       </div>
       {loading ? <div className={styles.meta}>Loading…</div> : null}
-      {!loading && items.length === 0 ? (
-        <div className={styles.empty}>No themes yet. Ask Capsule AI to style your capsule.</div>
-      ) : null}
     </div>
   );
 }

@@ -58,7 +58,8 @@
   outline: 2px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
   outline-offset: 2px;
 }
-.item[aria-disabled="true"] {
+.item[aria-disabled="true"],
+.item:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -76,4 +77,3 @@
   background: rgba(255,255,255,0.12);
   border-radius: 1px;
 }
-

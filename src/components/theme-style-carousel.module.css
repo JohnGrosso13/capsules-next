@@ -92,38 +92,17 @@
   font-size: 0.75rem;
 }
 
-.actions {
+.modeButtons {
   display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-top: 12px;
+  gap: 12px;
+  margin: 4px 0 8px;
 }
 
 .buttonRow {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
   margin-top: 12px;
-}
-
-.manageRow {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  margin-top: 6px;
-}
-
-.manageLink {
-  background: none;
-  border: none;
-  color: var(--text-2, rgba(255,255,255,0.72));
-  font-size: 0.78rem;
-  cursor: pointer;
-  text-decoration: underline;
-  padding: 0;
-}
-.manageLink:hover {
-  color: var(--text);
 }
 
 .headerActions { display: flex; gap: 8px; align-items: center; }

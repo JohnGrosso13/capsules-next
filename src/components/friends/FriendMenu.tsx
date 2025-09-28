@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import styles from "@/app/(authenticated)/friends/friends.module.css";
@@ -113,16 +113,17 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
             disabled={disabledAll}
             aria-busy={Boolean(pending)}
           >
-            {pending ? "Removingâ€¦" : "Delete"}
+            {pending ? "Removing..." : "Delete"}
           </button>
-        </div>
-      </>
+          </div>
+        </>
       ) : null}
     </div>
   );
 }
 
 export default FriendMenu;
+
 
 
 
