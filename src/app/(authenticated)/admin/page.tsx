@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
+import { TrendUp, TrendDown, ChartLine } from "@phosphor-icons/react/dist/ssr";
 
 import { AppPage } from "@/components/app-page";
 import { fetchAnalyticsOverview, fetchDailyActiveUsers, fetchDailyPosts } from "@/lib/analytics";
@@ -88,29 +89,13 @@ export default async function AdminOverviewPage() {
                 <header className={styles.seriesHeader}>{serie.label}</header>
                 <div className={styles.seriesBody}>
                   <div className={styles.sparkline}>
-                    {serie.points.length === 0 ? (
-                      <span className={styles.empty}>No data</span>
-                    ) : (
-                      <svg
-                        className={styles.sparklineSvg}
-                        preserveAspectRatio="none"
-                        viewBox="0 0 100 40"
-                      >
-                        {(() => {
-                          const max = Math.max(...serie.points.map((p) => p.value), 1);
-                          const min = Math.min(...serie.points.map((p) => p.value), 0);
-                          const range = Math.max(max - min, 1);
-                          const step = 100 / Math.max(serie.points.length - 1, 1);
-                          const points = serie.points.map((point, index) => {
-                            const x = index * step;
-                            const normalized = (point.value - min) / range;
-                            const y = 40 - normalized * 36 - 2;
-                            return `${x},${y}`;
-                          });
-                          return <polyline points={points.join(" ")} />;
-                        })()}
-                      </svg>
-                    )}
+                    {(() => {
+                      if (serie.points.length === 0) return <span className={styles.empty}>No data</span>;
+                      const first = serie.points[0]?.value ?? 0;
+                      const last = serie.points[serie.points.length - 1]?.value ?? first;
+                      const Icon = last > first ? TrendUp : last < first ? TrendDown : ChartLine;
+                      return <Icon weight="duotone" className={styles.trendIcon} />;
+                    })()}
                   </div>
                   <ul className={styles.seriesList}>
                     {serie.points.slice(-5).map((point) => (
