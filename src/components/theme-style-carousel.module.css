@@ -1,0 +1,153 @@
+.wrap {
+  display: grid;
+  gap: 12px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.lead {
+  color: var(--text-2, rgba(255,255,255,0.72));
+  font-size: 0.9rem;
+}
+
+.carousel {
+  position: relative;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.08)), var(--glass-bg-2, rgba(255,255,255,0.04)));
+  border: 1px solid var(--card-border, rgba(255,255,255,0.16));
+  box-shadow: var(--shadow-md, 0 16px 34px rgba(5,10,30,0.3));
+  padding: 10px 0;
+}
+
+.track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 10px 12px;
+}
+
+.slide {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--pill-border, rgba(255,255,255,0.16));
+  background: linear-gradient(160deg, var(--glass-bg-1), var(--glass-bg-2));
+  color: var(--text);
+  scroll-snap-align: start;
+}
+
+.swatch {
+  position: relative;
+  height: 120px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border, rgba(255,255,255,0.18));
+  overflow: hidden;
+}
+
+.swatchBg {
+  position: absolute;
+  inset: 0;
+  background: var(--app-bg);
+  filter: saturate(1.1) contrast(1.02);
+}
+
+.swatchCard {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--card-bg-1, rgba(255,255,255,0.12)), var(--card-bg-2, rgba(255,255,255,0.06)));
+  border: 1px solid var(--card-border, rgba(255,255,255,0.18));
+  box-shadow: var(--card-shadow, 0 10px 24px rgba(5,10,30,0.28));
+}
+
+.itemHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.itemTitle {
+  font-weight: 800;
+}
+
+.meta {
+  color: var(--text-2, rgba(255,255,255,0.7));
+  font-size: 0.75rem;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border, rgba(255,255,255,0.16));
+  background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.1)), var(--glass-bg-2, rgba(255,255,255,0.04)));
+  color: var(--text);
+  font-weight: 700;
+}
+
+.btnPrimary {
+  background: var(--cta-gradient);
+  color: var(--text-on-brand, #0e1024);
+  border-color: color-mix(in srgb, var(--color-brand) 42%, transparent);
+}
+
+.menuWrap { position: relative; }
+.moreBtn { composes: btn from global; }
+
+.menu {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  min-width: 180px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+  box-shadow: var(--shadow-lg, 0 16px 36px rgba(5,10,30,0.4));
+}
+
+.menuItem {
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+}
+
+.menuItem:hover {
+  border-color: var(--pill-border);
+  background: linear-gradient(180deg, var(--pill-bg-1, rgba(255,255,255,0.16)), var(--pill-bg-2, rgba(255,255,255,0.06)));
+}
+
+.danger { color: color-mix(in srgb, var(--color-danger) 60%, var(--text)); }
+
+.headerActions { display: flex; gap: 8px; align-items: center; }
+.ellipsisBtn { composes: btn from global; width: 34px; height: 34px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; }
+
+.empty { padding: 16px; color: var(--text-2); }
+
