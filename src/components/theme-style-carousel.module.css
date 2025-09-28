@@ -22,10 +22,10 @@
 .carousel {
   position: relative;
   border-radius: 18px;
-  background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.08)), var(--glass-bg-2, rgba(255,255,255,0.04)));
-  border: 1px solid var(--card-border, rgba(255,255,255,0.16));
-  box-shadow: var(--shadow-md, 0 16px 34px rgba(5,10,30,0.3));
-  padding: 10px 0;
+  background: transparent; /* Let the parent card provide glass */
+  border: none;            /* Avoid double borders inside card */
+  box-shadow: none;        /* Keep it minimal; tiles carry the depth */
+  padding: 4px 0;
 }
 
 .track {
@@ -150,4 +150,3 @@
 .ellipsisBtn { composes: btn from global; width: 34px; height: 34px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; }
 
 .empty { padding: 16px; color: var(--text-2); }
-

@@ -82,58 +82,72 @@ function buildPreviewStyle(vars: Record<string, string>): React.CSSProperties {
 }
 
 export function ThemeStyleCarousel() {
-  const { user, isLoaded } = useCurrentUser();
-  const envelope = React.useMemo(() => (user ? buildMemoryEnvelope(user) : null), [user]);
+const { user, isLoaded } = useCurrentUser();
+const envelope = React.useMemo(() => (user ? buildMemoryEnvelope(user) : null), [user]);
+const envelopeSignature = React.useMemo(() => (envelope ? JSON.stringify(envelope) : "anon"), [envelope]);
 
-  const listRef = React.useRef<HTMLDivElement | null>(null);
-  const [menuOpenFor, setMenuOpenFor] = React.useState<string | null>(null);
-  const [headerMenuOpen, setHeaderMenuOpen] = React.useState(false);
-  const [loading, setLoading] = React.useState(false);
-  const [items, setItems] = React.useState<Array<{ kind: "preset"; preset: Preset } | { kind: "saved"; saved: SavedStyle }>>([]);
+const basePresets = React.useMemo(() => builtInPresets(), []);
 
-  const fetchSaved = React.useCallback(async () => {
-    if (!envelope) {
-      setItems(builtInPresets().map((p) => ({ kind: "preset", preset: p })));
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch("/api/memory/list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ kind: "theme", user: envelope }),
-      });
-      const json = (await res.json().catch(() => ({}))) as { items?: unknown[] };
-      const saved: SavedStyle[] = Array.isArray(json.items)
-        ? json.items
-            .map((raw) => {
-              const rec = raw as Record<string, unknown>;
-              const id = typeof rec.id === "string" ? rec.id : null;
-              const meta = (rec.meta as Record<string, unknown>) ?? {};
-              const vars = (meta.vars as Record<string, string>) ?? {};
-              if (!id || !vars || !Object.keys(vars).length) return null;
-              return {
-                id,
-                title: (rec.title as string) || "Saved style",
-                summary: (meta.summary as string) || "",
-                vars,
-                createdLabel: typeof rec.created_at === "string" ? rec.created_at : undefined,
-              } as SavedStyle;
-            })
-            .filter(Boolean) as SavedStyle[]
-        : [];
-      const merged = [...builtInPresets().map((p) => ({ kind: "preset", preset: p }) as const), ...saved.map((s) => ({ kind: "saved", saved: s }) as const)];
-      setItems(merged);
-    } finally {
-      setLoading(false);
-    }
-  }, [envelope]);
+const envelopeRef = React.useRef<typeof envelope>(envelope);
+React.useEffect(() => {
+  envelopeRef.current = envelope;
+}, [envelope]);
 
-  React.useEffect(() => {
-    if (!isLoaded) return;
-    fetchSaved();
-  }, [isLoaded, fetchSaved]);
+const listRef = React.useRef<HTMLDivElement | null>(null);
+const [menuOpenFor, setMenuOpenFor] = React.useState<string | null>(null);
+const [headerMenuOpen, setHeaderMenuOpen] = React.useState(false);
+const [loading, setLoading] = React.useState(false);
+const [items, setItems] = React.useState<Array<{ kind: "preset"; preset: Preset } | { kind: "saved"; saved: SavedStyle }>>(
+  () => basePresets.map((preset) => ({ kind: "preset", preset })),
+);
+
+const fetchSaved = React.useCallback(async () => {
+  const envelopePayload = envelopeRef.current;
+  if (!envelopePayload) {
+    setItems(basePresets.map((preset) => ({ kind: "preset", preset })));
+    return;
+  }
+  setLoading(true);
+  try {
+    const res = await fetch("/api/memory/list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ kind: "theme", user: envelopePayload }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { items?: unknown[] };
+    const saved: SavedStyle[] = Array.isArray(json.items)
+      ? json.items
+          .map((raw) => {
+            const rec = raw as Record<string, unknown>;
+            const id = typeof rec.id === "string" ? rec.id : null;
+            const meta = (rec.meta as Record<string, unknown>) ?? {};
+            const vars = (meta.vars as Record<string, string>) ?? {};
+            if (!id || !vars || !Object.keys(vars).length) return null;
+            return {
+              id,
+              title: (rec.title as string) || "Saved style",
+              summary: (meta.summary as string) || "",
+              vars,
+              createdLabel: typeof rec.created_at === "string" ? rec.created_at : undefined,
+            } as SavedStyle;
+          })
+          .filter(Boolean) as SavedStyle[]
+      : [];
+    const merged = [
+      ...basePresets.map((preset) => ({ kind: "preset", preset }) as const),
+      ...saved.map((saved) => ({ kind: "saved", saved }) as const),
+    ];
+    setItems(merged);
+  } finally {
+    setLoading(false);
+  }
+}, [basePresets]);
+
+React.useEffect(() => {
+  if (!isLoaded) return;
+  fetchSaved();
+}, [isLoaded, envelopeSignature, fetchSaved]);
 
   const scrollByPage = React.useCallback((dir: 1 | -1) => {
     const el = listRef.current;
@@ -150,14 +164,14 @@ export function ThemeStyleCarousel() {
     }
   }, []);
 
-  const handleApply = React.useCallback((entry: (typeof items)[number]) => {
-    if (entry.kind === "preset") {
-      if (entry.preset.theme) setTheme(entry.preset.theme);
-      if (Object.keys(entry.preset.vars).length) applyThemeVars(entry.preset.vars);
-      return;
-    }
-    applyThemeVars(entry.saved.vars);
-  }, [items]);
+const handleApply = React.useCallback((entry: (typeof items)[number]) => {
+  if (entry.kind === "preset") {
+    if (entry.preset.theme) setTheme(entry.preset.theme);
+    if (Object.keys(entry.preset.vars).length) applyThemeVars(entry.preset.vars);
+    return;
+  }
+  applyThemeVars(entry.saved.vars);
+}, []);
 
   const handleRename = React.useCallback(async (entry: (typeof items)[number]) => {
     if (entry.kind !== "saved") return;
@@ -173,16 +187,16 @@ export function ThemeStyleCarousel() {
     if (res.ok) fetchSaved();
   }, [fetchSaved]);
 
-  const handleDelete = React.useCallback(async (entry: (typeof items)[number]) => {
-    if (entry.kind !== "saved") return;
-    const res = await fetch("/api/memory/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ ids: [entry.saved.id], kind: "theme", user: envelope }),
-    });
-    if (res.ok) fetchSaved();
-  }, [fetchSaved, envelope]);
+const handleDelete = React.useCallback(async (entry: (typeof items)[number]) => {
+  if (entry.kind !== "saved") return;
+  const res = await fetch("/api/memory/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ ids: [entry.saved.id], kind: "theme", user: envelopeRef.current ?? {} }),
+  });
+  if (res.ok) fetchSaved();
+}, [fetchSaved]);
 
   const handleDeleteAll = React.useCallback(async () => {
     if (!window.confirm("Delete all saved styles? This cannot be undone.")) return;
@@ -196,30 +210,27 @@ export function ThemeStyleCarousel() {
     setHeaderMenuOpen(false);
   }, [fetchSaved]);
 
-  const handleSaveCurrent = React.useCallback(async () => {
-    const vars = getStoredThemeVars();
-    if (!Object.keys(vars).length) {
-      window.alert("No theme overrides to save yet.");
-      return;
-    }
-    const title = window.prompt("Save theme as", "My theme")?.trim();
-    if (!title) return;
-    const res = await fetch("/api/memory/theme/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ title, summary: title, vars, user: envelope ?? {} }),
-    });
-    if (res.ok) fetchSaved();
-  }, [envelope, fetchSaved]);
+const handleSaveCurrent = React.useCallback(async () => {
+  const vars = getStoredThemeVars();
+  if (!Object.keys(vars).length) {
+    window.alert("No theme overrides to save yet.");
+    return;
+  }
+  const title = window.prompt("Save theme as", "My theme")?.trim();
+  if (!title) return;
+  const res = await fetch("/api/memory/theme/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ title, summary: title, vars, user: envelopeRef.current ?? {} }),
+  });
+  if (res.ok) fetchSaved();
+}, [fetchSaved]);
 
   return (
     <div className={styles.wrap}>
       <div className={styles.headerRow}>
-        <div>
-          <div className={styles.title}>Themes</div>
-          <div className={styles.lead}>Hover to preview. Apply to keep. Save for later.</div>
-        </div>
+        <div className={styles.lead}>Hover to preview. Apply to keep. Save for later.</div>
         <div className={styles.headerActions}>
           <button type="button" className={styles.btn} onClick={handleSaveCurrent}>
             Save current
@@ -357,4 +368,3 @@ export function ThemeStyleCarousel() {
     </div>
   );
 }
-
