@@ -173,14 +173,14 @@ export default async function HomePage() {
             </section>
 
             <section className="space-y-6" id="how-it-works">
-              <div className="space-y-3">
+              <div className="section-shell section-alt rounded-3xl p-6 space-y-6 text-center">
                 <h2 className="font-display text-fg text-3xl tracking-tight">How it works</h2>
                 <p className="text-fg-subtle max-w-2xl text-base">
                   Guided workflows make it easy to launch, grow, and monetize a space with AI
                   copilots at every step.
                 </p>
+                <HowItWorks steps={howSteps} />
               </div>
-              <HowItWorks steps={howSteps} />
             </section>
 
             <section className="space-y-6" id="categories">

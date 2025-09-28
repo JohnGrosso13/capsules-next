@@ -1,29 +1,47 @@
-﻿type Step = {
+"use client";
+
+import * as React from "react";
+import { UserCircle, MagicWand, ShareNetwork, CaretRight } from "@phosphor-icons/react/dist/ssr";
+
+type Step = {
   title: string;
   desc: string;
-  icon?: string;
+  icon?: React.ReactNode;
 };
+
+const DEFAULT_ICONS = [
+  <UserCircle key="u" weight="duotone" size={26} />,
+  <MagicWand key="m" weight="duotone" size={26} />,
+  <ShareNetwork key="s" weight="duotone" size={26} />,
+];
 
 export function HowItWorks({ steps }: { steps: Step[] }) {
   const list = steps.slice(0, 3);
 
   return (
-    <div className="grid gap-6 md:grid-cols-3">
-      {list.map((step, index) => (
-        <div
-          key={step.title}
-          className="border-border/50 bg-surface-elevated/80 relative flex h-full flex-col rounded-2xl border p-6 shadow-md backdrop-blur"
-        >
-          <div className="flex items-center gap-3">
-            <span className="rounded-pill border-brand/40 bg-brand/10 text-brand flex h-10 w-10 items-center justify-center border text-base font-semibold">
-              {index + 1}
-            </span>
-            <div className="text-2xl">{step.icon ?? "✨"}</div>
-          </div>
-          <h3 className="text-fg mt-6 text-lg font-semibold">{step.title}</h3>
-          <p className="text-fg-subtle mt-2 text-sm leading-6">{step.desc}</p>
-        </div>
-      ))}
+    <div className="mx-auto max-w-5xl">
+      <div className="flex flex-col items-center justify-center gap-8 md:flex-row md:justify-between md:gap-10">
+        {list.map((step, index) => (
+          <React.Fragment key={step.title}>
+            <div className="flex max-w-[320px] flex-col items-center text-center">
+              <div className="icon-tile mb-4 grid h-16 w-16 place-items-center rounded-2xl md:h-20 md:w-20">
+                {step.icon ?? DEFAULT_ICONS[index] ?? null}
+              </div>
+              <div className="mb-1 flex items-center justify-center gap-2">
+                <span className="number-badge">{index + 1}</span>
+                <h3 className="text-fg text-base font-semibold md:text-lg">{step.title}</h3>
+              </div>
+              <p className="text-fg-subtle text-xs leading-5 md:text-sm md:leading-6">{step.desc}</p>
+            </div>
+            {index < list.length - 1 ? (
+              <div className="hidden items-center justify-center md:flex" aria-hidden>
+                <CaretRight weight="duotone" className="text-fg-subtle/80" size={22} />
+              </div>
+            ) : null}
+          </React.Fragment>
+        ))}
+      </div>
     </div>
   );
 }
+
