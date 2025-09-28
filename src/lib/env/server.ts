@@ -10,6 +10,7 @@ export type ServerEnv = {
   OPENAI_API_KEY: string | null;
   OPENAI_MODEL: string;
   OPENAI_EMBED_MODEL: string | null;
+  OPENAI_EMBED_DIM: number | null;
   OPENAI_IMAGE_MODEL: string;
   OPENAI_TRANSCRIBE_MODEL: string;
   OPENAI_IMAGE_QUALITY: "low" | "standard" | "high" | null;
@@ -88,8 +89,14 @@ export const serverEnv: ServerEnv = {
   OPENAI_MODEL: openAiModel,
   OPENAI_EMBED_MODEL: getEnv(
     "OPENAI_EMBED_MODEL",
-    ["OPENAI_TRANSCRIBE_MODEL", "OPENAI_EMBEDDING_MODEL", "OPENAI_EMBED_MODEL"],
+    ["OPENAI_EMBEDDING_MODEL"],
   ),
+  OPENAI_EMBED_DIM: (function () {
+    const raw = getEnv("OPENAI_EMBED_DIM", ["OPENAI_EMBED_DIMENSIONS"]);
+    if (!raw) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  })(),
   OPENAI_IMAGE_MODEL: openAiImageModel,
   OPENAI_TRANSCRIBE_MODEL: openAiTranscribeModel,
   OPENAI_IMAGE_QUALITY:

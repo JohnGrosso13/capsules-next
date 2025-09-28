@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 
 import { getStorageProvider } from "@/config/storage";
 import { generateStorageObjectKey } from "@/lib/storage/keys";
+import { serverEnv } from "@/lib/env/server";
 import type { StorageMetadataValue } from "@/ports/storage";
 
 function extFromContentType(contentType: string) {
@@ -74,13 +75,65 @@ export async function storeImageSrcToSupabase(src: string, filenameHint = "image
     return uploadBufferToStorage(buffer, contentType, filenameHint);
   }
 
-  const response = await fetch(src);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch remote image (${response.status})`);
-  }
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const contentType = response.headers.get("content-type") || "image/png";
+  const parseUrl = (() => {
+    try {
+      return new URL(src);
+    } catch {
+      return null;
+    }
+  })();
 
-  return uploadBufferToStorage(buffer, contentType, filenameHint);
+  if (parseUrl) {
+    const host = parseUrl.hostname.toLowerCase();
+    const isLocalHost =
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1" ||
+      host.endsWith(".local") ||
+      host.endsWith(".localdomain") ||
+      host.endsWith(".test") ||
+      host.endsWith(".example");
+
+    const r2Account = (serverEnv.R2_ACCOUNT_ID ?? "").toLowerCase().trim();
+    const r2Bucket = (serverEnv.R2_BUCKET ?? "").toLowerCase().trim();
+    const r2AccountHost = r2Account ? `${r2Account}.r2.cloudflarestorage.com` : "";
+    const r2BucketHost = r2Account && r2Bucket ? `${r2Bucket}.${r2AccountHost}` : "";
+    let r2BaseHost = "";
+    if (serverEnv.R2_PUBLIC_BASE_URL) {
+      try {
+        r2BaseHost = new URL(serverEnv.R2_PUBLIC_BASE_URL).hostname.toLowerCase();
+      } catch {
+        r2BaseHost = "";
+      }
+    }
+
+    const isAccountHost = r2AccountHost && host === r2AccountHost;
+    const isBucketHost = r2BucketHost && host === r2BucketHost;
+    const isCustomR2Host = r2BaseHost && host === r2BaseHost;
+    const isAccountBucketPath =
+      isAccountHost && r2Bucket && parseUrl.pathname.replace(/^\/+/, "").toLowerCase().startsWith(`${r2Bucket}/`);
+    const isKnownR2Host = isBucketHost || isCustomR2Host || isAccountBucketPath;
+
+    if (isLocalHost || isKnownR2Host) {
+      return { url: src, key: null };
+    }
+  }
+
+  try {
+    const response = await fetch(src);
+
+    if (!response.ok) {
+      console.warn(`Failed to fetch remote image (${response.status})`);
+      return { url: src, key: null };
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = response.headers.get("content-type") || "image/png";
+
+    return uploadBufferToStorage(buffer, contentType, filenameHint);
+  } catch (error) {
+    console.warn("storeImageSrcToSupabase fetch failed", error);
+    return { url: src, key: null };
+  }
 }

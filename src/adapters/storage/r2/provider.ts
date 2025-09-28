@@ -4,6 +4,7 @@ import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
+  GetObjectCommand,
   PutObjectCommand,
   S3Client,
   UploadPartCommand,
@@ -134,10 +135,10 @@ class R2StorageProvider implements StorageProvider {
       }),
     );
 
-    const baseUrl = serverEnv.R2_PUBLIC_BASE_URL;
-    const absoluteUrl = baseUrl
-      ? `${baseUrl.replace(/\/$/, "")}/${key.replace(/^\//, "")}`
-      : null;
+    // Prefer a usable public URL even in local dev. If a placeholder base
+    // URL (e.g. *.local.example) is configured, fall back to a proxy or
+    // direct R2 URL via getPublicUrl().
+    const absoluteUrl = this.getPublicUrl(key);
 
     return {
       uploadId,
@@ -188,6 +189,23 @@ class R2StorageProvider implements StorageProvider {
   getPublicUrl(key: string): string {
     const normalizedKey = key.replace(/^\/+/, "");
     const base = serverEnv.R2_PUBLIC_BASE_URL;
+    let baseHost = "";
+    if (base) {
+      try {
+        baseHost = new URL(base).host.toLowerCase();
+      } catch {
+        baseHost = "";
+      }
+    }
+    const isPlaceholder = baseHost.endsWith(".local.example");
+    const shouldUseProxy = !base || isPlaceholder;
+    if (shouldUseProxy) {
+      const site = serverEnv.SITE_URL || "http://localhost:3000";
+      const prefix = site.replace(/\/$/, "");
+      const encodedKey = normalizedKey.split("/").map(encodeURIComponent).join("/");
+      return `${prefix}/api/uploads/r2/object/${encodedKey}`;
+    }
+
     if (base) {
       return `${base.replace(/\/$/, "")}/${normalizedKey}`;
     }
@@ -219,6 +237,15 @@ class R2StorageProvider implements StorageProvider {
       url: this.getPublicUrl(params.key),
     };
   }
+
+  async getSignedObjectUrl(key: string, expiresInSeconds = 3600): Promise<string> {
+    const client = this.getClient();
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+    return getSignedUrl(client, command, { expiresIn: expiresInSeconds });
+  }
 }
 
 let providerInstance: StorageProvider | null = null;
@@ -228,4 +255,12 @@ export function getR2StorageProvider(): StorageProvider {
     providerInstance = new R2StorageProvider();
   }
   return providerInstance;
+}
+
+export async function getR2SignedObjectUrl(
+  key: string,
+  expiresInSeconds = 3600,
+): Promise<string> {
+  const provider = getR2StorageProvider() as R2StorageProvider;
+  return provider.getSignedObjectUrl(key, expiresInSeconds);
 }

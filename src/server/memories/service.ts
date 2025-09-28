@@ -1,4 +1,4 @@
-import { embedText } from "@/lib/ai/openai";
+import { embedText, getEmbeddingModelConfig } from "@/lib/ai/openai";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -67,20 +67,26 @@ export async function indexMemory({
 
   const text = [title, description, mediaType].filter(Boolean).join(" ");
 
+  const { dimensions: expectedEmbeddingDim } = getEmbeddingModelConfig();
+
   let embedding: number[] | null = null;
 
   try {
     embedding = await embedText(text);
 
-    if (embedding && embedding.length === 3072) {
-      record.embedding = embedding;
-    } else if (embedding && embedding.length) {
-      console.warn(
-        "embedding dimension mismatch",
-        embedding.length,
-        "expected 3072 – skipping stored embedding",
-      );
-      embedding = null;
+    if (embedding && embedding.length) {
+      if (!expectedEmbeddingDim || embedding.length === expectedEmbeddingDim) {
+        record.embedding = embedding;
+      } else {
+        console.warn(
+          "embedding dimension mismatch",
+          embedding.length,
+          "expected",
+          expectedEmbeddingDim,
+          "- skipping stored embedding",
+        );
+        embedding = null;
+      }
     }
   } catch (error) {
     console.warn("embedding failed", error);
@@ -108,14 +114,19 @@ export async function indexMemory({
         : null;
     const persistedEmbedding = Array.isArray(embeddingValue) ? (embeddingValue as number[]) : null;
 
-    const vector =
-      embedding && embedding.length === 3072
+    const vectorCandidate =
+      embedding && embedding.length
         ? embedding
-        : persistedEmbedding && persistedEmbedding.length === 3072
+        : persistedEmbedding && persistedEmbedding.length
           ? persistedEmbedding
           : null;
 
-    if (memoryId && vector && vector.length === 3072) {
+    const vector =
+      expectedEmbeddingDim && vectorCandidate && vectorCandidate.length !== expectedEmbeddingDim
+        ? null
+        : vectorCandidate;
+
+    if (memoryId && vector && (!expectedEmbeddingDim || vector.length === expectedEmbeddingDim)) {
       await upsertMemoryVector({
         id: memoryId,
         ownerId,

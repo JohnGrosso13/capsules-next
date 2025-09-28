@@ -30,39 +30,40 @@ function parsePublicStorageObject(url: string): { bucket: string; key: string } 
 }
 function rewriteR2MediaUrl(url: string): string | null {
   const base = serverEnv.R2_PUBLIC_BASE_URL;
-  if (!base) return null;
+  let baseHost = "";
+  let baseUrl: URL | null = null;
+  if (base) {
+    try {
+      baseUrl = new URL(base);
+      baseHost = baseUrl.host.toLowerCase();
+    } catch {
+      baseUrl = null;
+      baseHost = "";
+    }
+  }
+  const bucket = serverEnv.R2_BUCKET.trim();
+  const account = serverEnv.R2_ACCOUNT_ID.trim();
+  if (!bucket || !account) return null;
+
   try {
     const candidate = new URL(url);
-    const baseUrl = (() => {
-      try {
-        return new URL(base);
-      } catch {
-        return null;
-      }
-    })();
-    if (!baseUrl) {
-      return null;
-    }
     if (candidate.protocol === "data:" || candidate.protocol === "blob:") {
       return url;
     }
-    if (candidate.host === baseUrl.host) {
-      return url;
-    }
     const suffix = ".r2.cloudflarestorage.com";
-    if (!candidate.host.endsWith(suffix)) {
-      return null;
-    }
-    const bucket = serverEnv.R2_BUCKET.trim();
-    const account = serverEnv.R2_ACCOUNT_ID.trim();
-    if (!bucket || !account) {
-      return null;
-    }
     const lowerBucket = bucket.toLowerCase();
     const accountHost = `${account.toLowerCase()}${suffix}`;
     const bucketHost = `${lowerBucket}.${accountHost}`;
-    let key: string | null = null;
     const candidateHost = candidate.host.toLowerCase();
+
+    if (
+      baseUrl &&
+      candidateHost === baseUrl.host.toLowerCase()
+    ) {
+      return url;
+    }
+
+    let key: string | null = null;
     if (candidateHost === bucketHost) {
       key = candidate.pathname.replace(/^\/+/, "");
     } else if (candidateHost === accountHost) {
@@ -77,10 +78,21 @@ function rewriteR2MediaUrl(url: string): string | null {
         key = fallbackParts.slice(1).join("/");
       }
     }
-    if (!key) {
+    if (!key) return null;
+    const normalizedKey = key.replace(/^\/+/, "");
+
+    const isPlaceholder = baseHost.endsWith(".local.example");
+    const shouldUseProxy = !baseUrl || isPlaceholder;
+    if (shouldUseProxy) {
+      const site = serverEnv.SITE_URL || "http://localhost:3000";
+      const prefix = site.replace(/\/$/, "");
+      const encodedKey = normalizedKey.split("/").map(encodeURIComponent).join("/");
+      return `${prefix}/api/uploads/r2/object/${encodedKey}`;
+    }
+
+    if (!baseUrl) {
       return null;
     }
-    const normalizedKey = key.replace(/^\/+/, "");
     const baseHref = baseUrl.href.endsWith("/") ? baseUrl.href : `${baseUrl.href}/`;
     return new URL(normalizedKey, baseHref).toString();
   } catch {
