@@ -667,7 +667,8 @@
   opacity: 1;
 }
 .cardHead {
-  padding: 14px 16px;
+  /* Slightly tighter header without shrinking icons/avatars */
+  padding: 10px 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -687,7 +688,7 @@
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .iconBtn {
   width: 34px;
@@ -925,7 +926,7 @@
 .userMeta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
 }

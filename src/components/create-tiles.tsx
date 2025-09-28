@@ -1,6 +1,14 @@
 "use client";
 
 import * as React from "react";
+import {
+  ChartLineUp,
+  Trophy,
+  MagicWand,
+  ShieldCheck,
+  GameController,
+  Robot,
+} from "@phosphor-icons/react/dist/ssr";
 import styles from "./create-tiles.module.css";
 
 export type CreateTileKey =
@@ -11,17 +19,11 @@ export type CreateTileKey =
   | "insights"
   | "automations";
 
-const QUICK_CHIPS = [
-  "Draft a welcome post",
-  "Create a 16-team bracket",
-  "Launch a weekly digest",
-  "Auto-summarize yesterday",
-  "Plan a highlights reel",
-];
+// Intent chips removed: shown beneath the AI prompter
 
-const TILE_META: Record<CreateTileKey, { title: string; icon: string; bullets: string[] }> = {
+const TILE_META: Record<CreateTileKey, { title: string; icon: React.ReactNode; bullets: string[] }> = {
   growth: {
-    icon: "??",
+    icon: <ChartLineUp weight="fill" />,
     title: "Community Growth",
     bullets: [
       "Generate weekly digest",
@@ -31,7 +33,7 @@ const TILE_META: Record<CreateTileKey, { title: string; icon: string; bullets: s
     ],
   },
   events: {
-    icon: "??",
+    icon: <Trophy weight="fill" />,
     title: "Events & Tournaments",
     bullets: [
       "Create tournament",
@@ -41,7 +43,7 @@ const TILE_META: Record<CreateTileKey, { title: string; icon: string; bullets: s
     ],
   },
   content: {
-    icon: "??",
+    icon: <MagicWand weight="fill" />,
     title: "Content Creation",
     bullets: [
       "Generate highlight reel",
@@ -51,7 +53,7 @@ const TILE_META: Record<CreateTileKey, { title: string; icon: string; bullets: s
     ],
   },
   moderation: {
-    icon: "???",
+    icon: <ShieldCheck weight="fill" />,
     title: "Moderation & Safety",
     bullets: [
       "Scan last 24 hours",
@@ -61,7 +63,7 @@ const TILE_META: Record<CreateTileKey, { title: string; icon: string; bullets: s
     ],
   },
   insights: {
-    icon: "??",
+    icon: <GameController weight="fill" />,
     title: "Gaming Insights",
     bullets: [
       "Run live match analysis",
@@ -71,7 +73,7 @@ const TILE_META: Record<CreateTileKey, { title: string; icon: string; bullets: s
     ],
   },
   automations: {
-    icon: "??",
+    icon: <Robot weight="fill" />,
     title: "Platform Automations",
     bullets: [
       "Set weekly digest schedule",
@@ -114,16 +116,7 @@ export function CreateTiles() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.headerRow}>
-        <h2 className={styles.title}>Suggested prompts</h2>
-      </div>
-      <div className={styles.chipRow}>
-        {QUICK_CHIPS.map((chip) => (
-          <button key={chip} type="button" className={styles.chip}>
-            {chip}
-          </button>
-        ))}
-      </div>
+      {/* Header and quick intent chips removed */}
       <div className={styles.grid}>
         {(Object.keys(TILE_META) as CreateTileKey[]).map((key) => {
           const t = TILE_META[key];

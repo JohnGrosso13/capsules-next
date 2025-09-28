@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { HeaderAuth } from "@/components/header-auth";
-import { GearSix } from "@phosphor-icons/react/dist/ssr";
+import { Gear } from "@phosphor-icons/react/dist/ssr";
 import { LaunchCta } from "@/components/launch-cta";
 import { cn } from "@/lib/cn";
 import styles from "./primary-header.module.css";
@@ -82,7 +82,7 @@ export function PrimaryHeader({
           <HeaderAuth />
           {showSettingsLink ? (
             <Link href="/settings" aria-label="Settings" title="Settings" className={styles.iconButton}>
-              <GearSix className={styles.iconSvg} weight="duotone" />
+              <Gear className={styles.iconSvg} weight="duotone" />
             </Link>
           ) : null}
           <LaunchCta
@@ -97,5 +97,3 @@ export function PrimaryHeader({
     </header>
   );
 }
-
-
