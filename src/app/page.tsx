@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 
@@ -39,19 +39,19 @@ const groupTypes = [
 ];
 const howSteps = [
   {
-    title: "Create your Capsule",
+    title: "Create Your Capsule",
     desc: "With Channel Memory you can recall anything from your space.",
-    icon: "📦",
+    icon: "??",
   },
   {
-    title: "Ask AI to make anything",
+    title: "Ask AI To Make Anything",
     desc: "Create posts, logos, polls, and store items with prompts.",
-    icon: "🛠️",
+    icon: "???",
   },
   {
-    title: "Open the barrier to growth",
+    title: "Open the Barrier To Growth",
     desc: "Post, stream, chat, and sell with built-in integrations.",
-    icon: "🚀",
+    icon: "??",
   },
 ];
 const superpowers = [
@@ -163,7 +163,7 @@ export default async function HomePage() {
                     className="glass-chip inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium hover:translate-y-[-1px] transition"
                   >
                     Explore features
-                    <span aria-hidden="true">→</span>
+                    <span aria-hidden="true">?</span>
                   </Link>
                 </div>
               </div>
@@ -174,8 +174,8 @@ export default async function HomePage() {
 
             <section className="space-y-6" id="how-it-works">
               <div className="section-shell section-alt rounded-3xl p-6 space-y-6 text-center">
-                <h2 className="font-display text-fg text-3xl tracking-tight">How it works</h2>
-                <p className="text-fg-subtle max-w-2xl text-base">
+                <h2 className="font-display text-fg text-3xl tracking-tight">How It Works</h2>
+                <p className="text-fg-subtle max-w-2xl text-base mx-auto">
                   Guided workflows make it easy to launch, grow, and monetize a space with AI
                   copilots at every step.
                 </p>
@@ -186,7 +186,7 @@ export default async function HomePage() {
             <section className="space-y-6" id="categories">
               <div className="space-y-3 text-center">
                 <h2 className="font-display text-fg text-3xl tracking-tight">
-                  Any group can benefit
+                  Any Group Can Benefit
                 </h2>
                 <p className="text-fg-subtle max-w-xl text-base mx-auto">
                   Purpose-built templates and memory models adapt to how your community
@@ -199,7 +199,7 @@ export default async function HomePage() {
             <section className="space-y-6" id="superpowers">
               <div className="space-y-3 section-shell section-alt rounded-3xl p-6 text-center">
                 <h2 className="font-display text-fg text-3xl tracking-tight">
-                  Superpowers for your community
+                  Superpowers For Your Community
                 </h2>
                 <p className="text-fg-subtle max-w-xl text-base mx-auto">
                   Automations and copilots keep your space lively without requiring a full-time
@@ -221,7 +221,7 @@ export default async function HomePage() {
             <section className="space-y-6" id="features">
               <div className="space-y-3 section-shell rounded-3xl p-6 text-center">
                 <h2 className="font-display text-fg text-3xl tracking-tight">
-                  What makes us different
+                  What Makes Us Different
                 </h2>
                 <p className="text-fg-subtle max-w-xl text-base mx-auto">
                   Everything you need to power a modern community, backed by AI context that
@@ -262,7 +262,7 @@ export default async function HomePage() {
               />
               <div className="relative z-10 mx-auto max-w-3xl space-y-6">
                 <h2 className="font-display text-brand-foreground text-3xl tracking-tight">
-                  Keep 90% of your creator revenue
+                  Keep 90% of Your Creator Revenue
                 </h2>
                 <p className="text-brand-foreground/80 text-base">
                   Capsules only takes a 10% platform fee so you can reinvest more into your
