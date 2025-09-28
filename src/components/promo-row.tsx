@@ -5,7 +5,7 @@
 import React from "react";
 import Link from "next/link";
 import styles from "./promo-row.module.css";
-import { MaterialSymbol } from "./material-symbol";
+import { ImageSquare, Sparkle } from "@phosphor-icons/react/dist/ssr";
 
 type Post = { id: string; media_url?: string | null; content?: string | null };
 type Friend = { name: string; avatar?: string | null };
@@ -82,7 +82,7 @@ export function PromoRow() {
             <img className={styles.media} src={p1.media_url} alt="Post media" />
           ) : (
             <div className={styles.fallback}>
-              <MaterialSymbol name="auto_stories" className={styles.fallbackIcon} />
+              <ImageSquare className={styles.fallbackIcon} weight="duotone" />
             </div>
           )}
         </div>
@@ -98,7 +98,7 @@ export function PromoRow() {
             <img className={styles.media} src={p2.media_url} alt="Post media" />
           ) : (
             <div className={styles.fallback}>
-              <MaterialSymbol name="blur_on" className={styles.fallbackIcon} />
+              <Sparkle className={styles.fallbackIcon} weight="duotone" />
             </div>
           )}
         </div>
