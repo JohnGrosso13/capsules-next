@@ -7,6 +7,7 @@ type Item = string | { label: string; icon?: string };
 type GroupCarouselProps = {
   items: Item[];
   animate?: boolean;
+  speed?: "normal" | "slow";
 };
 
 const DEFAULT_ICONS: Record<string, string> = {
@@ -30,7 +31,7 @@ const DEFAULT_ICONS: Record<string, string> = {
   "Alumni Networks": "🎓",
 };
 
-export function GroupCarousel({ items, animate = false }: GroupCarouselProps) {
+export function GroupCarousel({ items, animate = false, speed = "slow" }: GroupCarouselProps) {
   const normalized = items.map((item) =>
     typeof item === "string"
       ? { label: item, icon: DEFAULT_ICONS[item] }
@@ -43,7 +44,7 @@ export function GroupCarousel({ items, animate = false }: GroupCarouselProps) {
       <div
         className={cn(
           "flex min-w-max items-center gap-3",
-          animate ? "animate-marquee" : "flex-wrap",
+          animate ? (speed === "slow" ? "animate-marquee-slow" : "animate-marquee") : "flex-wrap",
         )}
         role="list"
         aria-label="Popular group types"

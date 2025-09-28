@@ -133,19 +133,11 @@ export default async function HomePage() {
       {isSignedIn ? (
         <HomeSignedIn />
       ) : (
-        <main className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col gap-24 px-5 py-20 sm:px-6 lg:px-8">
+        <main className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col gap-16 px-5 py-10 sm:px-6 lg:px-8">
           <div className="contents">
             <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="flex flex-col gap-8">
                 <div className="space-y-4">
-                  <Badge
-                    tone="brand"
-                    variant="soft"
-                    size="md"
-                    className="w-max tracking-[0.2em] uppercase"
-                  >
-                    Capsules AI
-                  </Badge>
                   <h1 className="font-display text-fg text-4xl tracking-tight sm:text-5xl lg:text-6xl">
                     Create AI powered spaces that remember
                   </h1>
@@ -180,16 +172,8 @@ export default async function HomePage() {
               </div>
             </section>
 
-            <section className="space-y-8" id="how-it-works">
+            <section className="space-y-6" id="how-it-works">
               <div className="space-y-3">
-                <Badge
-                  tone="brand"
-                  variant="soft"
-                  size="sm"
-                  className="tracking-[0.25em] uppercase"
-                >
-                  Overview
-                </Badge>
                 <h2 className="font-display text-fg text-3xl tracking-tight">How it works</h2>
                 <p className="text-fg-subtle max-w-2xl text-base">
                   Guided workflows make it easy to launch, grow, and monetize a space with AI
@@ -199,16 +183,8 @@ export default async function HomePage() {
               <HowItWorks steps={howSteps} />
             </section>
 
-            <section className="space-y-8" id="categories">
+            <section className="space-y-6" id="categories">
               <div className="space-y-3">
-                <Badge
-                  tone="neutral"
-                  variant="outline"
-                  size="sm"
-                  className="tracking-[0.25em] uppercase"
-                >
-                  For everyone
-                </Badge>
                 <h2 className="font-display text-fg text-3xl tracking-tight">
                   Any group can benefit
                 </h2>
@@ -217,7 +193,7 @@ export default async function HomePage() {
                   collaborates.
                 </p>
               </div>
-              <GroupCarousel items={groupTypes} animate />
+              <GroupCarousel items={groupTypes} animate speed="slow" />
             </section>
 
             <section className="space-y-8" id="superpowers">
