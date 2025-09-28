@@ -1,4 +1,9 @@
-import type { ScoredPineconeRecord } from "@pinecone-database/pinecone";
+import type {
+  PineconeRecord,
+  QueryOptions as PineconeQueryOptions,
+  RecordMetadata,
+  ScoredPineconeRecord,
+} from "@pinecone-database/pinecone";
 
 import { getPineconeIndex, isPineconeEnabled } from "@/lib/pinecone/client";
 import type {
@@ -8,30 +13,40 @@ import type {
   VectorStore,
 } from "@/ports/vector-store";
 
-function toVectorMatches<T extends Record<string, unknown>>(
+function toVectorMatches<T extends RecordMetadata>(
   matches: readonly ScoredPineconeRecord<T>[] | undefined,
 ): VectorMatch<T>[] {
   if (!Array.isArray(matches)) return [];
-  return matches.map((match) => ({
-    id: String(match.id),
-    score: typeof match.score === "number" ? match.score : 0,
-    metadata: (match.metadata ?? undefined) as T | undefined,
-  }));
+  return matches.map((match) => {
+    const base: VectorMatch<T> = {
+      id: String(match.id),
+      score: typeof match.score === "number" ? match.score : 0,
+    };
+    if (match.metadata) {
+      base.metadata = match.metadata as T;
+    }
+    return base;
+  });
 }
 
-class PineconeVectorStore<TMeta extends Record<string, unknown>> implements VectorStore<TMeta> {
+class PineconeVectorStore<TMeta extends RecordMetadata> implements VectorStore<TMeta> {
   async upsert(records: VectorRecord<TMeta>[]): Promise<void> {
     if (!isPineconeEnabled()) return;
     if (!Array.isArray(records) || !records.length) return;
     const index = getPineconeIndex<TMeta>();
     if (!index) return;
-    const payload = records
-      .filter((record) => record && record.id && Array.isArray(record.values) && record.values.length)
-      .map((record) => ({
+    const payload: PineconeRecord<TMeta>[] = [];
+    for (const record of records) {
+      if (!record || !record.id || !Array.isArray(record.values) || !record.values.length) continue;
+      const entry: PineconeRecord<TMeta> = {
         id: record.id,
         values: record.values,
-        metadata: record.metadata ?? undefined,
-      }));
+      };
+      if (record.metadata) {
+        entry.metadata = record.metadata;
+      }
+      payload.push(entry);
+    }
     if (!payload.length) return;
     try {
       await index.upsert(payload);
@@ -48,12 +63,13 @@ class PineconeVectorStore<TMeta extends Record<string, unknown>> implements Vect
     if (!index) return [];
     const k = Math.max(1, Math.min(topK ?? 1, 200));
     try {
-      const response = await index.query({
+      const queryOptions: PineconeQueryOptions = {
         vector,
         topK: k,
         includeMetadata: true,
-        filter: filter as Record<string, unknown> | undefined,
-      });
+        ...(filter && Object.keys(filter).length ? { filter: filter as object } : {}),
+      };
+      const response = await index.query(queryOptions);
       return toVectorMatches(response?.matches as ScoredPineconeRecord<TMeta>[] | undefined);
     } catch (error) {
       console.warn("Pinecone query failed", error);
@@ -74,8 +90,8 @@ class PineconeVectorStore<TMeta extends Record<string, unknown>> implements Vect
   }
 }
 
-const pineconeStore = new PineconeVectorStore<Record<string, unknown>>();
+const pineconeStore = new PineconeVectorStore<RecordMetadata>();
 
-export function getPineconeVectorStore(): VectorStore<Record<string, unknown>> {
+export function getPineconeVectorStore(): VectorStore<RecordMetadata> {
   return pineconeStore;
 }

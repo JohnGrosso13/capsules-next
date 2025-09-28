@@ -30,7 +30,7 @@ const toneClasses: Record<InputTone, string> = {
   success: "border-success/60 focus-visible:ring-success",
 };
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
   variant?: InputVariant;
   size?: InputSize;
   tone?: InputTone;

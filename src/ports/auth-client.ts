@@ -1,3 +1,5 @@
+import type { AuthServerAdapter } from "@/ports/auth";
+
 export type AuthClientUser = {
   id: string;
   key: string | null;

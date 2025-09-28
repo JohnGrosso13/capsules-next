@@ -1,10 +1,16 @@
 "use client";
 
 import * as React from "react";
-import type { AuthClientUser } from "@/ports/auth-client";
 import { useCurrentUser } from "@/services/auth/client";
 
-import { applyThemeVars, clearThemeVars, getStoredThemeVars } from "@/lib/theme";
+import {
+  applyThemeVars,
+  clearThemeVars,
+  getStoredThemeVars,
+  startPreviewThemeVars,
+  endPreviewThemeVars,
+} from "@/lib/theme";
+import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 
 import panelStyles from "./saved-styles-panel.module.css";
 
@@ -20,7 +26,6 @@ type SavedStyle = {
   keyCount: number;
 };
 
-type MemoryEnvelope = Record<string, unknown>;
 
 type MemoryListResponse = {
   items?: unknown[];
@@ -102,19 +107,6 @@ function normalizeStyles(items: unknown[] | undefined): SavedStyle[] {
   return result;
 }
 
-function buildUserEnvelope(user: AuthClientUser | null): MemoryEnvelope | null {
-  if (!user) return null;
-  const fullName = user.name ?? user.email ?? null;
-  return {
-    clerk_id: user.provider === "clerk" ? user.id : null,
-    email: user.email ?? null,
-    full_name: fullName,
-    avatar_url: user.avatarUrl ?? null,
-    provider: user.provider ?? "guest",
-    key: user.key ?? (user.provider === "clerk" ? `clerk:${user.id}` : user.id),
-  };
-}
-
 function sourceLabel(source: SavedStyle["source"]): string {
   if (source === "ai") return "Capsule AI";
   if (source === "heuristic") return "Quick heuristics";
@@ -130,22 +122,46 @@ export function SavedStylesPanel() {
     };
   }, []);
 
-  const envelope = React.useMemo(() => (user ? buildUserEnvelope(user) : null), [user]);
+  const envelope = React.useMemo(() => (user ? buildMemoryEnvelope(user) : null), [user]);
 
   const [savedStyles, setSavedStyles] = React.useState<SavedStyle[]>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [status, setStatus] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [currentVars, setCurrentVars] = React.useState<Record<string, string>>(() =>
-    getStoredThemeVars(),
-  );
+  const [currentVars, setCurrentVars] = React.useState<Record<string, string>>({});
   const [applyingId, setApplyingId] = React.useState<string | null>(null);
+  const [menuOpenFor, setMenuOpenFor] = React.useState<string | null>(null);
+  const [headerMenuOpen, setHeaderMenuOpen] = React.useState<boolean>(false);
+  const listRef = React.useRef<HTMLDivElement | null>(null);
+  const fetchInFlight = React.useRef(false);
+  const lastFetchedAt = React.useRef(0);
+  const didInitialFetch = React.useRef(false);
 
-  const refreshCurrentVars = React.useCallback(() => {
-    setCurrentVars(getStoredThemeVars());
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        endPreviewThemeVars();
+        setMenuOpenFor(null);
+        setHeaderMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const fetchStyles = React.useCallback(async () => {
+  const refreshCurrentVars = React.useCallback(() => {
+    try {
+      setCurrentVars(getStoredThemeVars());
+    } catch {
+      setCurrentVars({});
+    }
+  }, []);
+
+  React.useEffect(() => {
+    refreshCurrentVars();
+  }, [refreshCurrentVars]);
+
+  const fetchStyles = React.useCallback(async (force = false) => {
     if (!envelope) {
       if (mountedRef.current) {
         setSavedStyles([]);
@@ -153,6 +169,10 @@ export function SavedStylesPanel() {
       }
       return;
     }
+    const now = Date.now();
+    if (!force && now - lastFetchedAt.current < 5000) return;
+    if (fetchInFlight.current) return;
+    fetchInFlight.current = true;
     if (mountedRef.current) {
       setLoading(true);
       setError(null);
@@ -172,7 +192,8 @@ export function SavedStylesPanel() {
       const payload = (await response.json().catch(() => ({}))) as MemoryListResponse;
       if (!mountedRef.current) return;
       const normalized = normalizeStyles(payload.items);
-      setSavedStyles(normalized);
+      setSavedStyles([...normalized,
+      ]);
       if (!normalized.length) {
         setStatus("Ask Capsule AI to style something to save it here.");
       }
@@ -184,18 +205,28 @@ export function SavedStylesPanel() {
       if (mountedRef.current) {
         setLoading(false);
       }
+      fetchInFlight.current = false;
+      lastFetchedAt.current = Date.now();
     }
   }, [envelope]);
 
   React.useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || didInitialFetch.current) return;
+    didInitialFetch.current = true;
+    // Seed UI with built-ins while fetching user styles
+    setSavedStyles([]);
     if (!envelope) {
-      setSavedStyles([]);
       setLoading(false);
       return;
     }
     fetchStyles();
   }, [isLoaded, envelope, fetchStyles]);
+
+  // When auth identity changes, allow a fresh fetch next time we become loaded
+  const envelopeKey = String((envelope && (envelope as Record<string, unknown>).key) || "");
+  React.useEffect(() => {
+    didInitialFetch.current = false;
+  }, [envelopeKey]);
 
   React.useEffect(() => {
     if (!status) return;
@@ -276,6 +307,64 @@ export function SavedStylesPanel() {
     return style;
   }, []);
 
+  const handleRename = React.useCallback(
+    async (style: SavedStyle) => {
+      const currentTitle = style.title || "Saved style";
+      const next = window.prompt("Rename theme", currentTitle)?.trim();
+      if (!next || next === currentTitle) return;
+      try {
+        const res = await fetch("/api/memory/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ id: style.id, title: next, kind: "theme" }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        setSavedStyles((prev) => prev.map((s) => (s.id === style.id ? { ...s, title: next } : s)));
+        setStatus("Renamed.");
+      } catch (err) {
+        console.error("Rename error", err);
+        setStatus("Couldn't rename that style.");
+      }
+    },
+    [],
+  );
+
+  const handleDeleteAll = React.useCallback(async () => {
+    try {
+      if (!window.confirm("Delete all saved styles? This cannot be undone.")) return;
+      const res = await fetch("/api/memory/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ kind: "theme", all: true }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setSavedStyles([]);
+      setStatus("Deleted all.");
+    } catch (err) {
+      console.error("Delete all error", err);
+      setStatus("Couldn't delete all styles.");
+    } finally {
+      setHeaderMenuOpen(false);
+    }
+  }, []);
+
+  const onKeyDownTile = React.useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      endPreviewThemeVars();
+      (e.currentTarget as HTMLElement).blur();
+      setMenuOpenFor(null);
+    }
+  }, []);
+
+  const scrollByPage = React.useCallback((dir: 1 | -1) => {
+    const el = listRef.current;
+    if (!el) return;
+    const amount = el.clientWidth || 0;
+    el.scrollBy({ left: dir * amount, behavior: "smooth" });
+  }, []);
+
   return (
     <div className={panelStyles.panel}>
       <div className={panelStyles.headerRow}>
@@ -287,7 +376,7 @@ export function SavedStylesPanel() {
           <button
             type="button"
             className={panelStyles.actionBtn}
-            onClick={fetchStyles}
+            onClick={() => fetchStyles(true)}
             disabled={loading}
           >
             {loading ? "Refreshing..." : "Refresh"}
@@ -300,6 +389,27 @@ export function SavedStylesPanel() {
           >
             Reset theme
           </button>
+          <div className={panelStyles.headerMenuWrap}>
+            <button
+              type="button"
+              className={panelStyles.ellipsisBtn}
+              aria-label="More saved styles actions"
+              onClick={() => setHeaderMenuOpen((v) => !v)}
+            >
+              ...
+            </button>
+            {headerMenuOpen ? (
+              <div
+                className={panelStyles.menu}
+                role="menu"
+                onMouseLeave={() => setHeaderMenuOpen(false)}
+              >
+                <button className={panelStyles.menuItem} onClick={handleDeleteAll} role="menuitem">
+                  Delete all
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
       {status ? <p className={panelStyles.status}>{status}</p> : null}
@@ -307,70 +417,136 @@ export function SavedStylesPanel() {
       {loading ? (
         <div className={panelStyles.empty}>Loading saved styles...</div>
       ) : savedStyles.length ? (
-        <ul className={panelStyles.list}>
-          {savedStyles.map((style) => {
-            const isActive =
-              style.keyCount > 0 &&
-              Object.entries(style.vars).every(([key, value]) => currentVars[key] === value);
-            const metaParts: string[] = [];
-            if (style.createdLabel) metaParts.push(`Saved ${style.createdLabel}`);
-            metaParts.push(`${style.keyCount} ${style.keyCount === 1 ? "variable" : "variables"}`);
-            return (
-              <li key={style.id} className={panelStyles.item} data-active={isActive || undefined}>
+        <div className={panelStyles.carousel}>
+          <button
+            type="button"
+            className={panelStyles.navBtn}
+            aria-label="Previous"
+            onClick={() => scrollByPage(-1)}
+          >
+            {"<"}
+          </button>
+          <div className={panelStyles.track} ref={listRef}>
+            {savedStyles.map((style) => {
+              const isActive =
+                style.keyCount > 0 &&
+                Object.entries(style.vars).every(([key, value]) => currentVars[key] === value);
+              const metaParts: string[] = [];
+              if (style.createdLabel) metaParts.push(`Saved ${style.createdLabel}`);
+              metaParts.push(`${style.keyCount} ${style.keyCount === 1 ? "variable" : "variables"}`);
+              const menuOpen = menuOpenFor === style.id;
+              return (
                 <div
-                  className={panelStyles.swatch}
-                  style={buildPreviewStyle(style.vars)}
-                  aria-hidden
+                  key={style.id}
+                  className={panelStyles.slide}
+                  tabIndex={0}
+                  data-active={isActive || undefined}
+                  onMouseEnter={() => startPreviewThemeVars(style.vars)}
+                  onMouseLeave={() => endPreviewThemeVars()}
+                  onFocus={() => startPreviewThemeVars(style.vars)}
+                  onBlur={() => endPreviewThemeVars()}
+                  onKeyDown={onKeyDownTile}
                 >
-                  <div className={panelStyles.swatchBg} />
-                  <div className={panelStyles.swatchCard} />
-                </div>
-                <div className={panelStyles.itemHead}>
-                  <div className={panelStyles.titleWrap}>
-                    <h3 className={panelStyles.itemTitle}>{style.title}</h3>
-                    <div className={panelStyles.itemMeta}>{metaParts.join(" | ")}</div>
+                  <div className={panelStyles.swatch} style={buildPreviewStyle(style.vars)} aria-hidden>
+                    <div className={panelStyles.swatchBg} />
+                    <div className={panelStyles.swatchCard} />
                   </div>
-                  <div className={panelStyles.actionsInline}>
-                    <button
-                      type="button"
-                      className={panelStyles.applyBtn}
-                      onClick={() => handleApply(style)}
-                      disabled={applyingId === style.id || isActive}
-                    >
-                      {applyingId === style.id ? "Applying..." : isActive ? "Active" : "Apply"}
-                    </button>
-                    <button
-                      type="button"
-                      className={`${panelStyles.ghostBtn} ${panelStyles.dangerBtn}`.trim()}
-                      onClick={() => handleDelete(style)}
-                      disabled={applyingId === style.id}
-                      aria-label="Delete saved style"
-                    >
-                      Delete
-                    </button>
+                  <div className={panelStyles.itemHead}>
+                    <div className={panelStyles.titleWrap}>
+                      <h3 className={panelStyles.itemTitle}>{style.title}</h3>
+                      <div className={panelStyles.itemMeta}>{metaParts.join(" | ")}</div>
+                    </div>
+                    <div className={panelStyles.actionsInline}>
+                      <button
+                        type="button"
+                        className={panelStyles.applyBtn}
+                        onClick={() => handleApply(style)}
+                        disabled={applyingId === style.id || isActive}
+                      >
+                        {applyingId === style.id ? "Applying..." : isActive ? "Active" : "Apply"}
+                      </button>
+                      <div className={panelStyles.menuWrap}>
+                        <button
+                          type="button"
+                          className={panelStyles.ellipsisBtn}
+                          aria-haspopup="menu"
+                          aria-expanded={menuOpen}
+                          onClick={() => setMenuOpenFor(menuOpen ? null : style.id)}
+                          aria-label="Theme actions"
+                        >
+                          ...
+                        </button>
+                        {menuOpen ? (
+                          <div
+                            className={panelStyles.menu}
+                            role="menu"
+                            onMouseLeave={() => setMenuOpenFor(null)}
+                          >
+                            <button
+                              className={panelStyles.menuItem}
+                              role="menuitem"
+                              onClick={() => {
+                                setMenuOpenFor(null);
+                                handleApply(style);
+                              }}
+                              disabled={isActive}
+                            >
+                              Apply
+                            </button>
+                            <button
+                              className={panelStyles.menuItem}
+                              role="menuitem"
+                              onClick={() => {
+                                setMenuOpenFor(null);
+                                handleRename(style);
+                              }}
+                            >
+                              Rename
+                            </button>
+                            <button
+                              className={`${panelStyles.menuItem} ${panelStyles.menuDanger}`.trim()}
+                              role="menuitem"
+                              onClick={() => {
+                                setMenuOpenFor(null);
+                                handleDelete(style);
+                              }}
+                              disabled={applyingId === style.id}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                {style.summary ? (
-                  <p className={panelStyles.summary}>{truncate(style.summary, 140)}</p>
-                ) : null}
-                {style.prompt ? (
-                  <p className={panelStyles.prompt}>
-                    Prompt: &quot;{truncate(style.prompt, 120)}&quot;
-                  </p>
-                ) : null}
-                <div className={panelStyles.tagRow}>
-                  <span className={panelStyles.varBadge}>{style.keyCount} vars</span>
-                  <span className={panelStyles.varBadge}>{sourceLabel(style.source)}</span>
-                  {isActive ? (
-                    <span className={`${panelStyles.varBadge} ${panelStyles.activeBadge}`.trim()}>
-                      Active
-                    </span>
+                  {style.summary ? (
+                    <p className={panelStyles.summary}>{truncate(style.summary, 140)}</p>
                   ) : null}
+                  {style.prompt ? (
+                    <p className={panelStyles.prompt}>Prompt: &quot;{truncate(style.prompt, 120)}&quot;</p>
+                  ) : null}
+                  <div className={panelStyles.tagRow}>
+                    <span className={panelStyles.varBadge}>{style.keyCount} vars</span>
+                    <span className={panelStyles.varBadge}>{sourceLabel(style.source)}</span>
+                    {isActive ? (
+                      <span className={`${panelStyles.varBadge} ${panelStyles.activeBadge}`.trim()}>
+                        Active
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-              </li>
-            );
-          })}
-        </ul>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            className={panelStyles.navBtn}
+            aria-label="Next"
+            onClick={() => scrollByPage(1)}
+          >
+            {">"}
+          </button>
+        </div>
       ) : (
         <div className={panelStyles.empty}>
           No saved styles yet. Try &quot;Style my capsule like winter&quot; to get started.
@@ -379,3 +555,7 @@ export function SavedStylesPanel() {
     </div>
   );
 }
+
+
+
+

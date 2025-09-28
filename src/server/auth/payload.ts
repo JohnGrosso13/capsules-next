@@ -4,6 +4,7 @@ export {
   mergeUserPayloadFromRequest,
   normalizeProfileFromPayload,
   ensureUserFromRequest,
+  ensureSupabaseUser,
   resolveUserKey,
   isAdminRequest,
   getAuthVendor,

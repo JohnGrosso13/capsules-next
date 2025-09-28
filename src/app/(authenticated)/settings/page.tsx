@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AppPage } from "@/components/app-page";
 import cards from "@/components/home.module.css";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemePresetsCarousel } from "@/components/theme-presets-carousel";
 import { SavedStylesPanel } from "@/components/saved-styles-panel";
 
 import layout from "./settings.module.css";
@@ -54,20 +55,24 @@ export default function SettingsPage() {
 
           <div className={layout.content}>
             <section aria-label="Appearance settings" className={layout.section}>
-              <div className={layout.grid}>
-                <article className={`${cards.card} ${layout.card}`}>
-                  <header className={cards.cardHead}>Theme</header>
-                  <div className={cards.cardBody}>
-                    <ThemeToggle />
-                  </div>
-                </article>
-                <article className={`${cards.card} ${layout.card}`}>
-                  <header className={cards.cardHead}>Saved Styles</header>
-                  <div className={cards.cardBody}>
-                    <SavedStylesPanel />
-                  </div>
-                </article>
-              </div>
+              <article className={`${cards.card} ${layout.card}`}>
+                <header className={cards.cardHead}>Theme</header>
+                <div className={cards.cardBody}>
+                  <ThemeToggle />
+                </div>
+              </article>
+              <article className={`${cards.card} ${layout.card}`}>
+                <header className={cards.cardHead}>Themes</header>
+                <div className={cards.cardBody}>
+                  <ThemePresetsCarousel />
+                </div>
+              </article>
+              <article className={`${cards.card} ${layout.card}`}>
+                <header className={cards.cardHead}>Saved Styles</header>
+                <div className={cards.cardBody}>
+                  <SavedStylesPanel />
+                </div>
+              </article>
             </section>
           </div>
         </section>

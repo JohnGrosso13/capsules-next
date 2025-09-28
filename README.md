@@ -68,3 +68,8 @@ Useful environment variables:
 ## Questions
 
 Reach out to the Capsules platform team for access to production credentials or to coordinate schema migrations.
+
+## Cloudflare R2 Pipeline
+
+Direct upload support, background processing, and worker configuration are documented in [docs/cloudflare-r2-pipeline.md](docs/cloudflare-r2-pipeline.md).
+

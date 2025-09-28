@@ -126,7 +126,10 @@ export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
 
     useEffect(() => {
       if (!isControlled && internalValue == null && registeredValues.length > 0) {
-        setInternalValue(registeredValues[0]);
+        const firstValue = registeredValues[0];
+        if (typeof firstValue === "string") {
+          setInternalValue(firstValue);
+        }
       }
     }, [isControlled, internalValue, registeredValues]);
 
@@ -265,12 +268,18 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(
           if (!values.length) return;
           if (event.key === "Home") {
             event.preventDefault();
-            select(values[0]);
+            const firstValue = values[0];
+            if (typeof firstValue === "string") {
+              select(firstValue);
+            }
             return;
           }
           if (event.key === "End") {
             event.preventDefault();
-            select(values[values.length - 1]);
+            const lastValue = values[values.length - 1];
+            if (typeof lastValue === "string") {
+              select(lastValue);
+            }
             return;
           }
           const keys =
@@ -283,7 +292,10 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(
           const currentIndex = values.indexOf(itemValue);
           const nextIndex =
             currentIndex === -1 ? 0 : (currentIndex + direction + values.length) % values.length;
-          select(values[nextIndex]);
+          const nextValue = values[nextIndex];
+          if (typeof nextValue === "string") {
+            select(nextValue);
+          }
         }}
         {...props}
       />

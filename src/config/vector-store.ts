@@ -1,11 +1,12 @@
 import "server-only";
 
 import { getPineconeVectorStore } from "@/adapters/vector/pinecone";
+import type { RecordMetadata } from "@pinecone-database/pinecone";
 import type { VectorStore } from "@/ports/vector-store";
 
 const vectorVendor = process.env.VECTOR_VENDOR ?? "pinecone";
 
-let vectorStoreInstance: VectorStore<Record<string, unknown>> | null = null;
+let vectorStoreInstance: VectorStore<RecordMetadata> | null = null;
 
 switch (vectorVendor) {
   case "pinecone":
@@ -18,7 +19,7 @@ switch (vectorVendor) {
     vectorStoreInstance = null;
 }
 
-export function getVectorStore<T extends Record<string, unknown> = Record<string, unknown>>():
+export function getVectorStore<T extends RecordMetadata = RecordMetadata>():
   | VectorStore<T>
   | null {
   return vectorStoreInstance as VectorStore<T> | null;

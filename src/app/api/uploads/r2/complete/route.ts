@@ -1,0 +1,105 @@
+import { ensureUserFromRequest } from "@/lib/auth/payload";
+import { completeMultipartUpload, getStorageObjectUrl } from "@/lib/storage/multipart";
+import { returnError, validatedJson } from "@/server/validation/http";
+import { enqueueUploadEvent } from "@/lib/cloudflare/client";
+import {
+  completeUploadResponseSchema,
+  completeUploadSchema,
+} from "@/server/validation/schemas/uploads";
+import {
+  getUploadSessionById,
+  getUploadSessionByUploadId,
+  markUploadSessionUploaded,
+} from "@/server/memories/uploads";
+
+export async function POST(req: Request) {
+  const raw = await req.json().catch(() => null);
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return returnError(400, "invalid_request", "Body must be a JSON object");
+  }
+
+  const { user, ...rest } = raw as Record<string, unknown>;
+  const parsed = completeUploadSchema.safeParse(rest);
+  if (!parsed.success) {
+    return returnError(
+      400,
+      "invalid_request",
+      "Upload completion payload failed validation",
+      parsed.error.flatten(),
+    );
+  }
+
+  const payload = parsed.data;
+
+  const ownerId = await ensureUserFromRequest(req, (user as Record<string, unknown>) ?? {}, {
+    allowGuests: false,
+  });
+  if (!ownerId) {
+    return returnError(401, "auth_required", "Authentication required");
+  }
+
+  let session = null;
+  if (payload.sessionId) {
+    session = await getUploadSessionById(payload.sessionId);
+    if (!session) {
+      return returnError(404, "session_not_found", "Upload session not found");
+    }
+    if (session.owner_user_id !== ownerId) {
+      return returnError(403, "forbidden", "You do not have access to this upload session");
+    }
+  } else if (payload.uploadId) {
+    session = await getUploadSessionByUploadId(payload.uploadId, ownerId);
+  }
+
+  const uploadId = payload.uploadId ?? session?.upload_id ?? null;
+  const key = payload.key ?? session?.r2_key ?? null;
+  if (!uploadId || !key) {
+    return returnError(400, "missing_upload", "uploadId and key are required");
+  }
+
+  try {
+    await completeMultipartUpload({ uploadId, key, parts: payload.parts });
+  } catch (error) {
+    console.error("complete multipart upload failed", error);
+    return returnError(500, "complete_failed", "Failed to finalize upload");
+  }
+
+  let updatedSession = session;
+  if (session) {
+    const mergedMetadata =
+      session.metadata && payload.metadata
+        ? { ...session.metadata, ...payload.metadata }
+        : payload.metadata ?? session?.metadata ?? null;
+    updatedSession = await markUploadSessionUploaded({
+      sessionId: session.id,
+      uploadId,
+      key,
+      parts: payload.parts,
+      metadata: mergedMetadata,
+    });
+  }
+
+  const url = getStorageObjectUrl(key);
+
+  try {
+    await enqueueUploadEvent({
+      type: "upload.completed",
+      sessionId: updatedSession?.id ?? session?.id ?? null,
+      uploadId,
+      ownerId: session?.owner_user_id ?? updatedSession?.owner_user_id ?? null,
+      key,
+      bucket: session?.r2_bucket ?? updatedSession?.r2_bucket ?? "",
+      contentType: session?.content_type ?? updatedSession?.content_type ?? null,
+      metadata: payload.metadata ?? session?.metadata ?? updatedSession?.metadata ?? null,
+      absoluteUrl: updatedSession?.absolute_url ?? session?.absolute_url ?? null,
+    });
+  } catch (queueError) {
+    console.warn("enqueue upload event failed", queueError);
+  }
+
+  return validatedJson(completeUploadResponseSchema, {
+    sessionId: updatedSession?.id ?? null,
+    key,
+    url,
+  });
+}

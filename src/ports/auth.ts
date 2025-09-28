@@ -32,6 +32,7 @@ export interface AuthServerAdapter {
     options?: EnsureUserOptions,
   ): Promise<string | null>;
   resolveUserKey(payload: IncomingUserPayload): Promise<string | null>;
+  ensureSupabaseUser?(profile: NormalizedProfile): Promise<string>;
   isAdminRequest?(
     req: Request,
     payload?: IncomingUserPayload,

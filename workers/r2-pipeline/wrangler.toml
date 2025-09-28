@@ -1,0 +1,37 @@
+name = "r2-pipeline"
+main = "src/index.ts"
+compatibility_date = "2024-09-01"
+
+[[queues.consumers]]
+queue = "r2-upload-events"
+binding = "UPLOAD_EVENTS_QUEUE"
+
+[[queues.consumers]]
+queue = "r2-processing-tasks"
+binding = "PROCESSING_QUEUE"
+
+[[kv_namespaces]]
+binding = "UPLOAD_SESSIONS_KV"
+id = "00000000000000000000000000000000"
+
+[[durable_objects.bindings]]
+name = "UPLOAD_COORDINATOR"
+class_name = "UploadCoordinator"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["UploadCoordinator"]
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "capsules-media"
+
+[vars]
+PUBLIC_MEDIA_BASE_URL = "https://media.example.com"
+IMAGE_RESIZE_BASE_URL = "https://media.example.com/cdn-cgi/image"
+SUPABASE_URL = "https://your-project.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY = ""
+CF_ACCOUNT_ID = "00000000000000000000000000000000"
+CF_STREAM_API_TOKEN = ""
+CF_AI_TOKEN = ""
+CF_WAF_RULE_ID = ""

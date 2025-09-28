@@ -38,7 +38,7 @@ export default function CreatePage() {
             <p className={styles.heroSubtitle}>
               Capsules uses AI to help you design posts, automations, and events for your community.
             </p>
-            <LaunchCta className={styles.heroCta} label="Launch Capsule" />
+            <LaunchCta className={styles.heroCta ?? ""} label="Launch Capsule" />
           </main>
         </div>
       </SignedOut>

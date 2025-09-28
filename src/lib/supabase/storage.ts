@@ -1,57 +1,63 @@
 import { Buffer } from "node:buffer";
 
-import { randomUUID } from "node:crypto";
-
-import { getSupabaseAdminClient } from "./admin";
-
-import { serverEnv } from "../env/server";
+import { getStorageProvider } from "@/config/storage";
+import { generateStorageObjectKey } from "@/lib/storage/keys";
+import type { StorageMetadataValue } from "@/ports/storage";
 
 function extFromContentType(contentType: string) {
   const map: Record<string, string> = {
     "image/jpeg": "jpg",
-
     "image/png": "png",
-
     "image/gif": "gif",
-
     "image/webp": "webp",
-
     "image/svg+xml": "svg",
+    "video/mp4": "mp4",
+    "video/webm": "webm",
   };
 
-  return map[contentType.toLowerCase()] ?? "png";
+  const normalized = contentType.toLowerCase();
+  if (map[normalized]) return map[normalized];
+  const parts = normalized.split("/");
+  return parts.length > 1 ? parts[1] : "bin";
 }
 
 export async function uploadBufferToStorage(
   buffer: Buffer,
   contentType: string,
   filenameHint = "asset",
+  options?: {
+    ownerId?: string;
+    kind?: string | null;
+    metadata?: Record<string, string | number | null | undefined>;
+  },
 ) {
-  const supabase = getSupabaseAdminClient();
+  const provider = getStorageProvider();
+  const ownerId = options?.ownerId ?? "system";
 
-  const bucket = serverEnv.SUPABASE_BUCKET;
-
-  const timestamp = Date.now();
-
-  const key = `uploads/${new Date(timestamp).toISOString().slice(0, 10)}/${filenameHint}-${randomUUID()}.${extFromContentType(contentType)}`;
-
-  const { error } = await supabase.storage.from(bucket).upload(key, buffer, {
+  const key = generateStorageObjectKey({
+    prefix: provider.getUploadPrefix(),
+    ownerId,
+    filename: `${filenameHint}.${extFromContentType(contentType)}`,
     contentType,
-
-    upsert: false,
+    kind: options?.kind ?? "uploads",
   });
 
-  if (error) throw error;
+  const metadata: Record<string, StorageMetadataValue> = {
+    origin: "server",
+  };
+  if (options?.metadata) {
+    for (const [k, v] of Object.entries(options.metadata)) {
+      if (v === undefined || v === null) continue;
+      metadata[k.toLowerCase()] = typeof v === "number" || typeof v === "boolean" ? v : String(v);
+    }
+  }
 
-  // Prefer a long‑lived signed URL to ensure accessibility even if the
-  // bucket is private. If public access is enabled, both URLs will work.
-  // We still attempt to read the public URL for completeness, but default
-  // to the signed URL when available.
-  const publicUrl = supabase.storage.from(bucket).getPublicUrl(key).data.publicUrl ?? null;
-  const signed = await supabase.storage.from(bucket).createSignedUrl(key, 3600 * 24 * 365);
-  const signedUrl = signed.data?.signedUrl ?? null;
-
-  const url = signedUrl || publicUrl;
+  const { url } = await provider.uploadBuffer({
+    key,
+    contentType,
+    body: buffer,
+    metadata,
+  });
 
   return { url, key };
 }
@@ -61,26 +67,19 @@ export async function storeImageSrcToSupabase(src: string, filenameHint = "image
 
   if (/^data:/i.test(src)) {
     const match = src.match(/^data:([^;]+);base64,(.*)$/i);
-
     if (!match) throw new Error("Invalid data URI");
-
     const contentType = match[1] || "image/png";
-
     const base64 = match[2] || "";
-
     const buffer = Buffer.from(base64, "base64");
-
     return uploadBufferToStorage(buffer, contentType, filenameHint);
   }
 
   const response = await fetch(src);
-
-  if (!response.ok) throw new Error(`Failed to fetch remote image (${response.status})`);
-
+  if (!response.ok) {
+    throw new Error(`Failed to fetch remote image (${response.status})`);
+  }
   const arrayBuffer = await response.arrayBuffer();
-
   const buffer = Buffer.from(arrayBuffer);
-
   const contentType = response.headers.get("content-type") || "image/png";
 
   return uploadBufferToStorage(buffer, contentType, filenameHint);

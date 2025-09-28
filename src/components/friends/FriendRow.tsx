@@ -37,33 +37,46 @@ export function FriendRow({
   );
   const { presenceClass } = useFriendPresence(presenceStyles);
   const sinceLabel = since ? new Date(since).toLocaleDateString() : null;
+  const presenceLabel = React.useMemo(() => {
+    if (status === "online") return "Online";
+    if (status === "away") return "Away";
+    return "Offline";
+  }, [status]);
 
   return (
     <div className={`${styles.friendRow} ${className || ""}`.trim()}>
-      <span className={styles.avatarWrap}>
-        {avatar ? (
-          <img className={styles.avatarImg} src={avatar} alt="" aria-hidden />
-        ) : (
-          <span className={styles.avatar} aria-hidden />
-        )}
-        <span className={`${styles.presence} ${presenceClass(status)}`.trim()} aria-hidden />
-      </span>
-      <div className={styles.friendMeta}>
-        {onNameClick ? (
-          <button
-            type="button"
-            className={`${styles.friendNameButton} ${styles.friendName}`.trim()}
-            onClick={onNameClick}
-            aria-expanded={open}
+      <div className={styles.friendRowMain}>
+        <span className={styles.avatarWrap}>
+          {avatar ? (
+            <img className={styles.avatarImg} src={avatar} alt="" aria-hidden />
+          ) : (
+            <span className={styles.avatar} aria-hidden />
+          )}
+          <span
+            className={`${styles.presence} ${presenceClass(status)}`.trim()}
+            aria-label={`Status: ${presenceLabel}`}
           >
-            {name}
-          </button>
-        ) : (
-          <span className={styles.friendName}>{name}</span>
-        )}
-        {sinceLabel ? <div className={styles.friendSince}>Since {sinceLabel}</div> : null}
-        {open && actions ? actions : null}
+            <span className={styles.presenceDot} aria-hidden />
+            <span className={styles.presenceLabel}>{presenceLabel}</span>
+          </span>
+        </span>
+        <div className={styles.friendMeta}>
+          {onNameClick ? (
+            <button
+              type="button"
+              className={`${styles.friendNameButton} ${styles.friendName}`.trim()}
+              onClick={onNameClick}
+              aria-expanded={open}
+            >
+              {name}
+            </button>
+          ) : (
+            <span className={styles.friendName}>{name}</span>
+          )}
+          {sinceLabel ? <div className={styles.friendSince}>Since {sinceLabel}</div> : null}
+        </div>
       </div>
+      {actions ? <div className={styles.friendRowRight}>{actions}</div> : null}
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import "server-only";
 
 import { getVectorStore } from "@/config/vector-store";
+import type { RecordMetadata } from "@pinecone-database/pinecone";
 import type { VectorMatch } from "@/ports/vector-store";
 
-export type MemoryVectorMetadata = {
+export type MemoryVectorMetadata = RecordMetadata & {
   ownerId: string;
   kind?: string;
   postId?: string;

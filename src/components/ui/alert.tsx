@@ -4,10 +4,12 @@ import { cn } from "@/lib/cn";
 
 type AlertTone = "neutral" | "info" | "success" | "warning" | "danger";
 
+type CSSVarProperties = CSSProperties & Record<`--${string}`, string>;
+
 const baseClasses =
   "relative w-full overflow-hidden rounded-lg border bg-[var(--alert-bg,var(--surface-muted))] px-5 py-4 pl-6 text-[var(--alert-fg,var(--color-fg))] shadow-xs transition duration-200 ease-emphasized-out before:absolute before:inset-y-3 before:left-2 before:w-1.5 before:rounded-full before:bg-[var(--alert-accent,var(--color-brand))]";
 
-const toneStyles: Record<AlertTone, CSSProperties> = {
+const toneStyles: Record<AlertTone, CSSVarProperties> = {
   neutral: {
     "--alert-bg": "var(--surface-muted)",
     "--alert-border": "color-mix(in srgb, var(--color-border) 70%, transparent)",

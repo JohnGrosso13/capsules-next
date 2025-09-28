@@ -33,6 +33,9 @@ const defaultChips = [
 ];
 
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { useCurrentUser } from "@/services/auth/client";
+import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { intentResponseSchema } from "@/shared/schemas/ai";
 
 export type PrompterAttachment = {
@@ -106,6 +109,30 @@ function truncate(text: string, length = 80): string {
   return `${text.slice(0, length - 1)}...`;
 }
 
+function describeVoiceError(code: string | null): string | null {
+  if (!code) return null;
+  const normalized = code.toLowerCase();
+  if (normalized.includes("not-allowed")) {
+    return "Microphone access is blocked. Enable it in your browser settings.";
+  }
+  if (normalized === "service-not-allowed") {
+    return "Microphone access is blocked by your browser.";
+  }
+  if (normalized === "no-speech") {
+    return "Didn't catch that. Try speaking again.";
+  }
+  if (normalized === "aborted") {
+    return null;
+  }
+  if (normalized === "audio-capture") {
+    return "No microphone was detected.";
+  }
+  if (normalized === "unsupported") {
+    return "Voice input isn't supported in this browser.";
+  }
+  return "Voice input is unavailable right now.";
+}
+
 export function AiPrompterStage({
   placeholder = "Ask your Capsule AI to create anything...",
   chips = defaultChips,
@@ -113,6 +140,9 @@ export function AiPrompterStage({
   onAction,
 }: Props) {
   const router = useRouter();
+
+  const { user: authUser } = useCurrentUser();
+  const userEnvelope = React.useMemo(() => buildMemoryEnvelope(authUser), [authUser]);
 
   const [text, setText] = React.useState("");
   const [autoIntent, setAutoIntent] = React.useState<IntentResolution>(() =>
@@ -125,6 +155,13 @@ export function AiPrompterStage({
   const anchorRef = React.useRef<HTMLButtonElement | null>(null);
   const requestRef = React.useRef(0);
   const textRef = React.useRef<HTMLInputElement | null>(null);
+  const [voiceError, setVoiceError] = React.useState<string | null>(null);
+  const [voiceDraft, setVoiceDraft] = React.useState<{ session: number; text: string } | null>(null);
+  const [pendingVoiceSubmission, setPendingVoiceSubmission] = React.useState<string | null>(null);
+  const sessionCounterRef = React.useRef(1);
+  const activeVoiceSessionRef = React.useRef<number | null>(null);
+  const processedVoiceSessionRef = React.useRef<number | null>(null);
+
   const {
     fileInputRef,
     attachment,
@@ -134,6 +171,75 @@ export function AiPrompterStage({
     handleAttachClick,
     handleAttachmentSelect,
   } = useAttachmentUpload();
+
+  const {
+    supported: voiceSupported,
+    status: voiceStatus,
+    start: startVoice,
+    stop: stopVoice,
+  } = useSpeechRecognition({
+    onFinalResult: (fullTranscript) => {
+      const sessionId = activeVoiceSessionRef.current;
+      if (!sessionId) return;
+      const normalized = fullTranscript.trim();
+      if (!normalized) return;
+      setText(normalized);
+      setVoiceDraft({ session: sessionId, text: normalized });
+    },
+    onError: (message) => {
+      setVoiceError(message);
+    },
+  });
+
+  React.useEffect(() => () => stopVoice(), [stopVoice]);
+
+  const saveVoiceTranscript = React.useCallback(
+    async (textValue: string) => {
+      if (!textValue || !userEnvelope) return;
+      try {
+        const language =
+          typeof window !== "undefined" && typeof window.navigator?.language === "string"
+            ? window.navigator.language
+            : null;
+        await fetch("/api/memory/transcript", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            text: textValue,
+            language,
+            user: userEnvelope,
+          }),
+        });
+      } catch (error) {
+        console.error("Voice transcript memory error", error);
+      }
+    },
+    [userEnvelope],
+  );
+
+  const handleVoiceToggle = React.useCallback(() => {
+    if (!voiceSupported) {
+      setVoiceError("unsupported");
+      return;
+    }
+    if (voiceStatus === "stopping") return;
+    if (voiceStatus === "listening") {
+      stopVoice();
+      return;
+    }
+    setVoiceError(null);
+    setPendingVoiceSubmission(null);
+    const started = startVoice();
+    if (started) {
+      const sessionId = sessionCounterRef.current;
+      sessionCounterRef.current += 1;
+      activeVoiceSessionRef.current = sessionId;
+      processedVoiceSessionRef.current = null;
+      setVoiceDraft(null);
+      setMenuOpen(false);
+    }
+  }, [voiceSupported, voiceStatus, startVoice, stopVoice, setMenuOpen]);
 
   const trimmed = text.trim();
   const hasAttachment = Boolean(readyAttachment);
@@ -190,6 +296,22 @@ export function AiPrompterStage({
       document.removeEventListener("mousedown", handleClick);
     };
   }, [menuOpen]);
+
+  React.useEffect(() => {
+    if (!voiceDraft) return;
+    if (voiceStatus !== "idle" && voiceStatus !== "error" && voiceStatus !== "unsupported") return;
+    const { session, text: draftText } = voiceDraft;
+    if (processedVoiceSessionRef.current === session) return;
+    processedVoiceSessionRef.current = session;
+    activeVoiceSessionRef.current = null;
+    const normalized = draftText.trim();
+    if (!normalized) {
+      setVoiceDraft(null);
+      return;
+    }
+    setPendingVoiceSubmission(normalized);
+    setVoiceDraft(null);
+  }, [voiceDraft, voiceStatus]);
 
   React.useEffect(() => {
     const currentText = trimmed;
@@ -260,7 +382,7 @@ export function AiPrompterStage({
 
   // Attachment handlers provided by hook
 
-  function handleGenerate() {
+  const handleGenerate = React.useCallback(() => {
     if (attachmentUploading) return;
 
     const readyAttachments: PrompterAttachment[] | null =
@@ -341,7 +463,17 @@ export function AiPrompterStage({
 
     emitAction({ kind: "generate", text: value, raw: value });
     resetAfterSubmit();
-  }
+  }, [attachmentUploading, readyAttachment, onAction, trimmed, textRef, setText, setManualIntent, setMenuOpen, clearAttachment, effectiveIntent, navTarget, postPlan, router]);
+
+  React.useEffect(() => {
+    if (!pendingVoiceSubmission) return;
+    if (voiceStatus === "listening" || voiceStatus === "stopping") return;
+    if (buttonBusy) return;
+    if (trimmed !== pendingVoiceSubmission) return;
+    handleGenerate();
+    void saveVoiceTranscript(pendingVoiceSubmission);
+    setPendingVoiceSubmission(null);
+  }, [pendingVoiceSubmission, voiceStatus, buttonBusy, trimmed, handleGenerate, saveVoiceTranscript]);
 
   function applyManualIntent(intent: PromptIntent | null) {
     setManualIntent(intent);
@@ -369,8 +501,22 @@ export function AiPrompterStage({
         : null;
   const styleHint = effectiveIntent === "style" ? "AI Styler is ready." : null;
 
+  const voiceStatusMessage =
+    voiceStatus === "listening"
+      ? "Listening for voice command..."
+      : voiceStatus === "stopping"
+        ? "Processing your voice command..."
+        : describeVoiceError(voiceError);
+
+  const voiceButtonLabel = voiceSupported
+    ? voiceStatus === "listening"
+      ? "Stop voice capture"
+      : "Start voice capture"
+    : "Voice input not supported in this browser";
+
   const hint =
     statusMessage ??
+    voiceStatusMessage ??
     manualNote ??
     navMessage ??
     postHint ??
@@ -401,6 +547,10 @@ export function AiPrompterStage({
           onSelect={applyManualIntent}
           anchorRef={anchorRef}
           menuRef={menuRef}
+          voiceSupported={voiceSupported}
+          voiceStatus={voiceStatus}
+          onVoiceToggle={handleVoiceToggle}
+          voiceLabel={voiceButtonLabel}
         />
 
         <div className={styles.intentControls}>

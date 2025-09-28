@@ -2,6 +2,10 @@
 
 import * as React from "react";
 
+import { uploadFileDirect } from "@/lib/uploads/direct-client";
+
+const DEFAULT_MAX_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB
+
 export type LocalAttachment = {
   id: string;
   name: string;
@@ -11,6 +15,9 @@ export type LocalAttachment = {
   url: string | null;
   thumbUrl?: string | null;
   error?: string;
+  progress: number;
+  key?: string;
+  sessionId?: string | null;
 };
 
 async function readFileAsDataUrl(file: File): Promise<string> {
@@ -69,7 +76,7 @@ async function captureVideoThumbnail(file: File, atSeconds = 0.3): Promise<strin
   });
 }
 
-export function useAttachmentUpload(maxSizeBytes = 8 * 1024 * 1024) {
+export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [attachment, setAttachment] = React.useState<LocalAttachment | null>(null);
 
@@ -104,11 +111,13 @@ export function useAttachmentUpload(maxSizeBytes = 8 * 1024 * 1024) {
           status: "error",
           url: null,
           error: "Only image or video attachments are supported right now.",
+          progress: 0,
         });
         return;
       }
 
       if (file.size > maxSizeBytes) {
+        const maxMB = Math.round(maxSizeBytes / (1024 * 1024));
         setAttachment({
           id,
           name: file.name,
@@ -116,7 +125,8 @@ export function useAttachmentUpload(maxSizeBytes = 8 * 1024 * 1024) {
           mimeType,
           status: "error",
           url: null,
-          error: "Image is too large (max 8 MB).",
+          error: `File is too large (max ${maxMB.toLocaleString()} MB).`,
+          progress: 0,
         });
         return;
       }
@@ -129,58 +139,74 @@ export function useAttachmentUpload(maxSizeBytes = 8 * 1024 * 1024) {
         status: "uploading",
         url: null,
         thumbUrl: null,
+        progress: 0,
       });
 
       try {
-        const dataUrl = await readFileAsDataUrl(file);
-        const base64 = dataUrl.split(",").pop() ?? "";
-        const response = await fetch("/api/upload_base64", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            filename: file.name,
-            content_type: mimeType,
-            data_base64: base64,
-          }),
+        const result = await uploadFileDirect(file, {
+          kind: mimeType.startsWith("video/") ? "video" : "image",
+          metadata: {
+            original_filename: file.name,
+            mime_type: mimeType,
+            file_size: file.size,
+            source: "attachment",
+          },
+          onProgress: ({ uploadedBytes, totalBytes }) => {
+            setAttachment((prev) =>
+              prev && prev.id === id
+                ? { ...prev, progress: totalBytes ? uploadedBytes / totalBytes : 0 }
+                : prev,
+            );
+          },
         });
-        if (!response.ok) {
-          const message = await response.text().catch(() => "");
-          throw new Error(message || "Upload failed");
-        }
-        const payload = (await response.json()) as { url?: string };
+
         let thumbUrl: string | null = null;
         if (mimeType.startsWith("video/")) {
           try {
             const thumbDataUrl = await captureVideoThumbnail(file, 0.3);
             const thumbBase64 = thumbDataUrl.split(",").pop() ?? "";
-            const thumbRes = await fetch("/api/upload_base64", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                filename: `thumb-${file.name.replace(/\.[^.]+$/, "")}.jpg`,
-                content_type: "image/jpeg",
-                data_base64: thumbBase64,
-              }),
-            });
-            if (thumbRes.ok) {
-              const t = (await thumbRes.json()) as { url?: string };
-              if (t?.url) thumbUrl = t.url;
+            if (thumbBase64) {
+              const thumbRes = await fetch("/api/upload_base64", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  filename: `thumb-${file.name.replace(/\.[^.]+$/, "")}.jpg`,
+                  content_type: "image/jpeg",
+                  data_base64: thumbBase64,
+                }),
+              });
+              if (thumbRes.ok) {
+                const json = (await thumbRes.json()) as { url?: string };
+                thumbUrl = json?.url ?? thumbDataUrl;
+              } else {
+                thumbUrl = thumbDataUrl;
+              }
             }
-          } catch (err) {
-            console.warn("thumbnail extract failed", err);
+          } catch (thumbError) {
+            console.warn("thumbnail extract failed", thumbError);
           }
         }
-        if (!payload?.url) throw new Error("Upload failed");
+
         setAttachment((prev) =>
           prev && prev.id === id
-            ? { ...prev, status: "ready", url: payload.url ?? null, thumbUrl }
+            ? {
+                ...prev,
+                status: "ready",
+                url: result.url,
+                thumbUrl: thumbUrl ?? prev.thumbUrl ?? null,
+                progress: 1,
+                key: result.key,
+                sessionId: result.sessionId,
+              }
             : prev,
         );
       } catch (error) {
         console.error("Attachment upload failed", error);
         const message = error instanceof Error ? error.message : "Upload failed";
         setAttachment((prev) =>
-          prev && prev.id === id ? { ...prev, status: "error", url: null, error: message } : prev,
+          prev && prev.id === id
+            ? { ...prev, status: "error", url: null, error: message, progress: 0 }
+            : prev,
         );
       }
     },

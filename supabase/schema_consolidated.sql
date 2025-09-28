@@ -1065,3 +1065,70 @@ analyze public.memories;
 -- END MIGRATION: 0007_memories_post_memory_indexes.sql
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+--
+-- Name: media_upload_sessions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.media_upload_sessions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    owner_user_id uuid NOT NULL,
+    upload_id text NOT NULL,
+    r2_key text NOT NULL,
+    r2_bucket text NOT NULL,
+    absolute_url text,
+    content_type text,
+    content_length bigint,
+    part_size bigint,
+    total_parts integer,
+    checksum text,
+    metadata jsonb,
+    derived_assets jsonb,
+    parts jsonb,
+    status text DEFAULT 'initialized'::text NOT NULL,
+    client_ip text,
+    turnstile_action text,
+    turnstile_cdata text,
+    memory_id uuid,
+    error_reason text,
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL,
+    uploaded_at timestamptz,
+    completed_at timestamptz
+);
+
+ALTER TABLE ONLY public.media_upload_sessions
+    ADD CONSTRAINT media_upload_sessions_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.media_upload_sessions
+    ADD CONSTRAINT media_upload_sessions_owner_fkey FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.media_upload_sessions
+    ADD CONSTRAINT media_upload_sessions_memory_fkey FOREIGN KEY (memory_id) REFERENCES public.memories(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.media_upload_sessions
+    ADD CONSTRAINT media_upload_sessions_status_check CHECK (status = ANY (ARRAY['initialized'::text, 'uploading'::text, 'uploaded'::text, 'processing'::text, 'completed'::text, 'failed'::text]));
+
+CREATE INDEX idx_media_upload_sessions_owner_created ON public.media_upload_sessions USING btree (owner_user_id, created_at DESC);
+
+CREATE UNIQUE INDEX idx_media_upload_sessions_upload_id ON public.media_upload_sessions USING btree (upload_id);
+
+CREATE INDEX idx_media_upload_sessions_status ON public.media_upload_sessions USING btree (status);
+do $$
+begin
+  create trigger trg_media_upload_sessions_updated_at
+    before update on public.media_upload_sessions
+    for each row execute function public.set_updated_at();
+exception when duplicate_object then null;
+end $$;
+ALTER TABLE public.media_upload_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY media_upload_sessions_service ON public.media_upload_sessions
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY media_upload_sessions_owner_read ON public.media_upload_sessions
+    FOR SELECT
+    USING (auth.uid() = owner_user_id);
+

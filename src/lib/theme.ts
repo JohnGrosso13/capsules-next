@@ -79,3 +79,67 @@ export function clearThemeVars(keys?: string[]) {
     localStorage.removeItem("themeVars");
   } catch {}
 }
+
+// -- Preview support -------------------------------------------------------
+
+type PreviewState = {
+  applied: Record<string, string>;
+  previous: Record<string, string | null>;
+};
+
+let currentPreview: PreviewState | null = null;
+
+/**
+ * Temporarily apply theme variables to the document root without persisting them.
+ * Call endPreviewThemeVars() to restore previous inline values.
+ */
+export function startPreviewThemeVars(vars: Record<string, string>) {
+  try {
+    const sanitized = normalizeThemeVars(vars);
+    if (!Object.keys(sanitized).length) return;
+    // If a preview is already active, end it before starting a new one
+    if (currentPreview) endPreviewThemeVars();
+
+    const root = document.documentElement;
+    const previous: Record<string, string | null> = {};
+
+    Object.entries(sanitized).forEach(([key, value]) => {
+      try {
+        previous[key] = root.style.getPropertyValue(key) || null;
+        root.style.setProperty(key, value);
+      } catch {}
+    });
+
+    (root.dataset as Record<string, string>).previewTheme = "1";
+    currentPreview = { applied: sanitized, previous };
+  } catch {}
+}
+
+/** Restore the inline CSS variables present before the preview began. */
+export function endPreviewThemeVars() {
+  try {
+    if (!currentPreview) return;
+    const { applied, previous } = currentPreview;
+    const root = document.documentElement;
+
+    Object.keys(applied).forEach((key) => {
+      try {
+        const prior = previous[key];
+        if (prior && prior.length) {
+          root.style.setProperty(key, prior);
+        } else {
+          root.style.removeProperty(key);
+        }
+      } catch {}
+    });
+
+    delete (root.dataset as Record<string, string | undefined>).previewTheme;
+  } finally {
+    currentPreview = null;
+  }
+}
+
+/** Whether a theme preview is currently active. */
+export function isPreviewingTheme(): boolean {
+  return currentPreview !== null;
+}

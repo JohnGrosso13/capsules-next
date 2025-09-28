@@ -114,6 +114,7 @@ const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
     source: "demo",
     ownerUserId: null,
     viewerLiked: false,
+    viewerRemembered: false,
     attachments: [],
   },
   {
@@ -135,6 +136,7 @@ const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
     source: "demo",
     ownerUserId: null,
     viewerLiked: false,
+    viewerRemembered: false,
     attachments: [],
   },
 ];

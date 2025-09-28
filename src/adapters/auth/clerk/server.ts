@@ -295,7 +295,20 @@ export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<st
 
   const { data, error } = await supabase.from("users").insert([insert]).select("id").single();
 
-  if (error) throw error;
+  if (error) {
+    if ((error as { code?: string }).code === "23505") {
+      const retry = await supabase
+        .from("users")
+        .select("id")
+        .eq("user_key", key)
+        .maybeSingle();
+
+      if (retry.error && retry.error.code !== "PGRST116") throw retry.error;
+      if (retry.data?.id) return retry.data.id as string;
+    }
+
+    throw error;
+  }
 
   return data.id as string;
 }
@@ -400,6 +413,7 @@ export const clerkAuthServerAdapter: AuthServerAdapter = {
   mergeUserPayloadFromRequest,
   normalizeProfileFromPayload,
   ensureUserFromRequest,
+  ensureSupabaseUser,
   resolveUserKey,
   isAdminRequest,
 };

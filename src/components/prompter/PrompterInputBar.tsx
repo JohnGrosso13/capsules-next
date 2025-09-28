@@ -2,33 +2,12 @@
 
 import * as React from "react";
 import styles from "@/components/home.module.css";
-import { Paperclip } from "@phosphor-icons/react/dist/ssr";
+import { Paperclip, Microphone, MicrophoneSlash } from "@phosphor-icons/react/dist/ssr";
 import { IntentOverrideMenu } from "@/components/prompter/IntentOverrideMenu";
 import type { PromptIntent } from "@/lib/ai/intent";
+import type { RecognitionStatus } from "@/hooks/useSpeechRecognition";
 
-export function PrompterInputBar({
-  inputRef,
-  value,
-  placeholder,
-  onChange,
-  buttonLabel,
-  buttonClassName,
-  buttonDisabled,
-  onGenerate,
-  dataIntent,
-  // attachments inline
-  fileInputRef,
-  uploading,
-  onAttachClick,
-  onFileChange,
-  // intent menu inside Generate split button
-  manualIntent,
-  menuOpen,
-  onToggleMenu,
-  onSelect,
-  anchorRef,
-  menuRef,
-}: {
+type Props = {
   inputRef: React.RefObject<HTMLInputElement | null>;
   value: string;
   placeholder?: string;
@@ -48,7 +27,49 @@ export function PrompterInputBar({
   onSelect: (intent: PromptIntent | null) => void;
   anchorRef: React.RefObject<HTMLButtonElement | null>;
   menuRef: React.RefObject<HTMLDivElement | null>;
-}) {
+  voiceSupported: boolean;
+  voiceStatus: RecognitionStatus;
+  onVoiceToggle: () => void;
+  voiceDisabled?: boolean;
+  voiceLabel?: string;
+};
+
+export function PrompterInputBar({
+  inputRef,
+  value,
+  placeholder,
+  onChange,
+  buttonLabel,
+  buttonClassName,
+  buttonDisabled,
+  onGenerate,
+  dataIntent,
+  fileInputRef,
+  uploading,
+  onAttachClick,
+  onFileChange,
+  manualIntent,
+  menuOpen,
+  onToggleMenu,
+  onSelect,
+  anchorRef,
+  menuRef,
+  voiceSupported,
+  voiceStatus,
+  onVoiceToggle,
+  voiceDisabled = false,
+  voiceLabel,
+}: Props) {
+  const isListening = voiceStatus === "listening" || voiceStatus === "stopping";
+  const computedLabel =
+    voiceLabel ??
+    (!voiceSupported
+      ? "Voice input not supported in this browser"
+      : isListening
+        ? "Stop voice capture"
+        : "Start voice capture");
+  const voiceButtonDisabled = voiceDisabled || !voiceSupported || voiceStatus === "stopping";
+
   return (
     <div className={styles.promptBar}>
       <button
@@ -81,6 +102,24 @@ export function PrompterInputBar({
         className={styles.attachInput}
         onChange={onFileChange}
       />
+      <button
+        type="button"
+        className={`${styles.promptAttachBtn} ${styles.voiceBtn}`.trim()}
+        aria-label={computedLabel}
+        title={computedLabel}
+        aria-pressed={isListening}
+        onClick={onVoiceToggle}
+        disabled={voiceButtonDisabled}
+        data-status={voiceStatus}
+        data-active={isListening || undefined}
+      >
+        <span className={styles.voicePulse} aria-hidden />
+        {isListening ? (
+          <MicrophoneSlash size={18} weight="fill" className={styles.voiceIcon} />
+        ) : (
+          <Microphone size={18} weight="duotone" className={styles.voiceIcon} />
+        )}
+      </button>
       <div className={styles.genSplit} role="group">
         <button
           className={`${buttonClassName} ${styles.genSplitMain}`.trim()}
@@ -109,10 +148,11 @@ export function PrompterInputBar({
           menuRef={menuRef}
           onToggle={onToggleMenu}
           onSelect={onSelect}
-          className={styles.intentOverrideInline}
+          className={styles.intentOverrideInline ?? ""}
           renderTrigger={false}
         />
       </div>
     </div>
   );
 }
+

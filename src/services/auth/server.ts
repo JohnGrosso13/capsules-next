@@ -39,6 +39,14 @@ export async function ensureUserFromRequest(
   return requireAdapter().ensureUserFromRequest(req, basePayload, options);
 }
 
+export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<string> {
+  const adapter = requireAdapter();
+  if (adapter.ensureSupabaseUser) {
+    return adapter.ensureSupabaseUser(profile);
+  }
+  throw new Error("ensureSupabaseUser is not implemented for the current auth adapter");
+}
+
 export async function resolveUserKey(payload: IncomingUserPayload): Promise<string | null> {
   return requireAdapter().resolveUserKey(payload);
 }

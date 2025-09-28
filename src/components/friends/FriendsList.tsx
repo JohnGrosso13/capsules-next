@@ -20,11 +20,17 @@ export function FriendsList({
   pendingId,
   notice,
   onDelete,
+  onBlock,
+  onView,
+  onStartChat,
 }: {
   items: FriendItem[];
   pendingId: string | null;
   notice: string | null;
   onDelete: (item: FriendItem, identifier: string) => void;
+  onBlock?: (item: FriendItem, identifier: string) => void;
+  onView?: (item: FriendItem, identifier: string) => void;
+  onStartChat?: (item: FriendItem, identifier: string) => void;
 }) {
   return (
     <div className={`${styles.list} ${styles.listLarge}`.trim()}>
@@ -40,12 +46,14 @@ export function FriendsList({
             avatar={friend.avatar}
             since={friend.since ?? null}
             status={friend.status}
-            open
             actions={
               <FriendMenu
                 canTarget={canTarget}
                 pending={isPending}
                 onDelete={() => onDelete(friend, identifier)}
+                onBlock={onBlock ? () => onBlock(friend, identifier) : null}
+                onView={onView ? () => onView(friend, identifier) : null}
+                onStartChat={onStartChat ? () => onStartChat(friend, identifier) : null}
               />
             }
           />

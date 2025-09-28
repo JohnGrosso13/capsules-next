@@ -189,11 +189,26 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  justify-content: space-between;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid var(--card-border);
   background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
   box-shadow: var(--card-shadow);
+}
+
+.friendRowMain {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.friendRowRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
 .avatarWrap {
@@ -332,7 +347,7 @@
 .friendMenu {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
+  right: 0;
   min-width: 180px;
   padding: 12px;
   border-radius: 16px;
@@ -343,6 +358,39 @@
   flex-direction: column;
   gap: 8px;
   z-index: 50;
+}
+
+.friendMenuContainer {
+  position: relative;
+  display: inline-flex;
+}
+
+.friendMenuTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.04))
+  );
+  color: var(--text);
+  cursor: pointer;
+}
+
+.friendMenuTrigger:hover {
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.28));
+}
+
+.friendMenuIcon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  line-height: 1;
 }
 
 .friendMenuItem {

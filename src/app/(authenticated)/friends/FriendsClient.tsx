@@ -113,17 +113,31 @@ export function FriendsClient() {
     return user.name ?? user.email ?? null;
   }, [user]);
   const currentUserAvatar = user?.avatarUrl ?? null;
+  const currentUserEmail = React.useMemo(() => {
+    if (!user) return null;
+    const userWithAddresses = user as unknown as {
+      emailAddresses?: Array<{ id: string; emailAddress?: string | null }>;
+      primaryEmailAddressId?: string | null;
+    };
+    const addresses = userWithAddresses.emailAddresses ?? [];
+    const primaryId = userWithAddresses.primaryEmailAddressId;
+    if (primaryId) {
+      const primary = addresses.find((address) => address.id === primaryId);
+      if (primary?.emailAddress) return primary.emailAddress;
+    }
+    return addresses[0]?.emailAddress ?? null;
+  }, [user]);
   const currentUserEnvelope = React.useMemo(() => {
     if (!user) return null;
     return {
       clerk_id: user.id,
-      email: user.primaryEmailAddress?.emailAddress ?? null,
+      email: currentUserEmail,
       full_name: currentUserName ?? null,
       avatar_url: currentUserAvatar ?? null,
       provider: "clerk",
       key: `clerk:${user.id}`,
     } as Record<string, unknown>;
-  }, [user, currentUserName, currentUserAvatar]);
+  }, [user, currentUserEmail, currentUserName, currentUserAvatar]);
   const searchParams = useSearchParams();
   const router = useRouter();
   const requestedTab = searchParams.get("tab");
@@ -322,6 +336,42 @@ export function FriendsClient() {
     [buildFriendTargetPayload, mutateGraph, scheduleRefresh],
   );
 
+  const handleFriendBlock = React.useCallback(
+    async (friend: FriendItem, identifier: string) => {
+      const target = buildFriendTargetPayload(friend);
+      if (!target) {
+        setFriendNotice("That profile can't be blocked right now.");
+        return;
+      }
+      setFriendActionPendingId(identifier);
+      const name = friend.name || "Friend";
+      try {
+        await mutateGraph({ action: "block", target });
+        setFriendNotice(`${name} has been blocked.`);
+        scheduleRefresh();
+      } catch (error) {
+        console.error("Friend block error", error);
+        setFriendNotice(
+          error instanceof Error && error.message ? error.message : "Couldn't block that friend.",
+        );
+      } finally {
+        setFriendActionPendingId(null);
+      }
+    },
+    [buildFriendTargetPayload, mutateGraph, scheduleRefresh],
+  );
+
+  const handleFriendView = React.useCallback((friend: FriendItem) => {
+    // No dedicated profile route available yet; keep UX consistent
+    const name = friend.name || "Friend";
+    setFriendNotice(`Viewing ${name} is coming soon.`);
+  }, []);
+
+  const handleStartChat = React.useCallback((friend: FriendItem) => {
+    const name = friend.name || "Friend";
+    setFriendNotice(`Chat with ${name} is coming soon.`);
+  }, []);
+
   async function handleAccept(requestId: string) {
     await mutateGraph({ action: "accept", requestId });
   }
@@ -376,6 +426,11 @@ export function FriendsClient() {
           onDelete={(friend, id) => {
             void handleFriendRemove(friend, id);
           }}
+          onBlock={(friend, id) => {
+            void handleFriendBlock(friend, id);
+          }}
+          onView={(friend) => handleFriendView(friend)}
+          onStartChat={(friend) => handleStartChat(friend)}
         />
       </div>
 

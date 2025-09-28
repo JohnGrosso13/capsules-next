@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { UserCircle, MagicWand, ShareNetwork, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { UserCircle, MagicWand, ShareNetwork } from "@phosphor-icons/react/dist/ssr";
 
 type Step = {
   title: string;
