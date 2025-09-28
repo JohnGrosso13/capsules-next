@@ -181,18 +181,75 @@ export async function resolveRequestProfile(
 export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<string> {
   const supabase = getSupabaseAdminClient();
 
+  const normalizeString = (value: unknown): string | null => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  };
+
+  const syncUserProfileFields = async (
+    userId: string,
+    existing: Record<string, unknown>,
+    incoming: {
+      provider: string;
+      clerk_id: string | null;
+      email: string | null;
+      full_name: string | null;
+      avatar_url: string | null;
+    },
+  ) => {
+    const updates: Record<string, unknown> = {};
+
+    const nextName = normalizeString(incoming.full_name);
+    const currentName = normalizeString(existing.full_name);
+    if (nextName && nextName !== currentName) updates.full_name = nextName;
+
+    const nextAvatar = normalizeString(incoming.avatar_url);
+    const currentAvatar = normalizeString(existing.avatar_url);
+    if (nextAvatar && nextAvatar !== currentAvatar) updates.avatar_url = nextAvatar;
+
+    const nextEmail = normalizeString(incoming.email);
+    const currentEmail = normalizeString(existing.email);
+    if (nextEmail && nextEmail !== currentEmail) updates.email = nextEmail;
+
+    const nextClerkId = normalizeString(incoming.clerk_id);
+    const currentClerkId = normalizeString(existing.clerk_id);
+    if (nextClerkId && nextClerkId !== currentClerkId) updates.clerk_id = nextClerkId;
+
+    const currentProvider = normalizeString(existing.provider);
+    if (incoming.provider && incoming.provider !== currentProvider) updates.provider = incoming.provider;
+
+    if (!Object.keys(updates).length) return;
+
+    updates.updated_at = new Date().toISOString();
+    await supabase.from("users").update(updates).eq("id", userId);
+  };
+
   const { key, provider, clerk_id, email, full_name, avatar_url } = profile;
 
-  const existingByKey = await supabase.from("users").select("id").eq("user_key", key).maybeSingle();
-
-  if (existingByKey.data?.id) return existingByKey.data.id as string;
+  const existingByKey = await supabase
+    .from("users")
+    .select("id, provider, clerk_id, email, full_name, avatar_url")
+    .eq("user_key", key)
+    .maybeSingle();
 
   if (existingByKey.error && existingByKey.error.code !== "PGRST116") throw existingByKey.error;
+
+  if (existingByKey.data?.id) {
+    await syncUserProfileFields(existingByKey.data.id as string, existingByKey.data, {
+      provider,
+      clerk_id,
+      email,
+      full_name,
+      avatar_url,
+    });
+    return existingByKey.data.id as string;
+  }
 
   if (clerk_id) {
     const existingByClerk = await supabase
       .from("users")
-      .select("id, user_key")
+      .select("id, user_key, provider, email, full_name, avatar_url")
       .eq("clerk_id", clerk_id)
       .maybeSingle();
 
@@ -204,6 +261,14 @@ export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<st
         await supabase.from("users").update({ user_key: key }).eq("id", existingByClerk.data.id);
       }
 
+      await syncUserProfileFields(existingByClerk.data.id as string, existingByClerk.data, {
+        provider,
+        clerk_id,
+        email,
+        full_name,
+        avatar_url,
+      });
+
       return existingByClerk.data.id as string;
     }
   }
@@ -211,14 +276,28 @@ export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<st
   if (email) {
     const existingByEmail = await supabase
       .from("users")
-      .select("id")
+      .select("id, provider, clerk_id, user_key, email, full_name, avatar_url")
       .eq("email", email)
       .maybeSingle();
 
     if (existingByEmail.error && existingByEmail.error.code !== "PGRST116")
       throw existingByEmail.error;
 
-    if (existingByEmail.data?.id) return existingByEmail.data.id as string;
+    if (existingByEmail.data?.id) {
+      if (existingByEmail.data.user_key !== key) {
+        await supabase.from("users").update({ user_key: key }).eq("id", existingByEmail.data.id);
+      }
+
+      await syncUserProfileFields(existingByEmail.data.id as string, existingByEmail.data, {
+        provider,
+        clerk_id,
+        email,
+        full_name,
+        avatar_url,
+      });
+
+      return existingByEmail.data.id as string;
+    }
   }
 
   const insert = {
