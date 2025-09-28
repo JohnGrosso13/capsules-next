@@ -1,0 +1,7 @@
+/* Neutralize old Material Symbols helpers (no longer used) */
+@layer components {
+  .msr { font-family: inherit !important; }
+  .msr-fill { --msr-fill: 0 !important; }
+  .msr-active { --msr-wght: var(--icon-wght) !important; color: inherit !important; }
+}
+
