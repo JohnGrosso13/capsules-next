@@ -1,8 +1,27 @@
-﻿"use client";
+"use client";
 
+import * as React from "react";
 import { cn } from "@/lib/cn";
+import {
+  UsersThree,
+  PencilSimple,
+  Palette,
+  MapPin,
+  GameController,
+  GraduationCap,
+  Storefront,
+  VideoCamera,
+  Trophy,
+  TextAa,
+  Microphone,
+  Camera,
+  Handshake,
+  CalendarBlank,
+  ChalkboardTeacher,
+} from "@phosphor-icons/react/dist/ssr";
 
-type Item = string | { label: string; icon?: string };
+type ItemIcon = React.ReactNode;
+type Item = string | { label: string; icon?: ItemIcon };
 
 type GroupCarouselProps = {
   items: Item[];
@@ -10,25 +29,27 @@ type GroupCarouselProps = {
   speed?: "normal" | "slow";
 };
 
-const DEFAULT_ICONS: Record<string, string> = {
-  Creators: "✨",
-  Teams: "🤝",
-  Families: "👪",
-  "Community Founders": "🌱",
-  "Event Organizers": "🎉",
-  "Educators & Coaches": "🎓",
-  Clubs: "🏛️",
-  "Designers & Illustrators": "🎨",
-  "Local Groups": "📍",
-  "Gaming Communities": "🕹️",
-  Schools: "🏫",
-  "Independent Sellers": "🛍️",
-  Streamers: "📡",
-  Leagues: "🏆",
-  Writers: "✍️",
-  Podcasters: "🎙️",
-  Photographers: "📸",
-  "Alumni Networks": "🎓",
+const size = 16;
+const weight = "duotone" as const;
+const DEFAULT_ICONS: Record<string, ItemIcon> = {
+  Creators: <PencilSimple size={size} weight={weight} />,
+  Teams: <UsersThree size={size} weight={weight} />,
+  Families: <UsersThree size={size} weight={weight} />,
+  "Community Founders": <Handshake size={size} weight={weight} />,
+  "Event Organizers": <CalendarBlank size={size} weight={weight} />,
+  "Educators & Coaches": <ChalkboardTeacher size={size} weight={weight} />,
+  Clubs: <UsersThree size={size} weight={weight} />,
+  "Designers & Illustrators": <Palette size={size} weight={weight} />,
+  "Local Groups": <MapPin size={size} weight={weight} />,
+  "Gaming Communities": <GameController size={size} weight={weight} />,
+  Schools: <GraduationCap size={size} weight={weight} />,
+  "Independent Sellers": <Storefront size={size} weight={weight} />,
+  Streamers: <VideoCamera size={size} weight={weight} />,
+  Leagues: <Trophy size={size} weight={weight} />,
+  Writers: <TextAa size={size} weight={weight} />,
+  Podcasters: <Microphone size={size} weight={weight} />,
+  Photographers: <Camera size={size} weight={weight} />,
+  "Alumni Networks": <GraduationCap size={size} weight={weight} />,
 };
 
 export function GroupCarousel({ items, animate = false, speed = "slow" }: GroupCarouselProps) {
@@ -55,11 +76,7 @@ export function GroupCarousel({ items, animate = false, speed = "slow" }: GroupC
             className="rounded-pill border-border/40 bg-surface-elevated/80 text-fg/90 inline-flex items-center gap-2 border px-4 py-2 text-sm font-medium shadow-xs backdrop-blur"
             role="listitem"
           >
-            {entry.icon ? (
-              <span aria-hidden="true" className="text-base">
-                {entry.icon}
-              </span>
-            ) : null}
+            {entry.icon ? <span aria-hidden="true">{entry.icon}</span> : null}
             <span>{entry.label}</span>
           </span>
         ))}
@@ -67,3 +84,4 @@ export function GroupCarousel({ items, animate = false, speed = "slow" }: GroupC
     </div>
   );
 }
+
