@@ -1,7 +1,6 @@
 "use client";
 
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -23,8 +22,8 @@ export function LandingAuthCard() {
       className="border-border/50 bg-surface-elevated/80 shadow-glow w-full max-w-md border backdrop-blur-xl"
     >
       <SignedOut>
-        <CardHeader className="gap-3">
-          <CardTitle className="text-fg text-2xl font-semibold">Start your space</CardTitle>
+        <CardHeader className="gap-3 items-center text-center">
+          <CardTitle className="text-fg text-2xl font-semibold">Start Your Space</CardTitle>
           <CardDescription className="text-fg-subtle text-[15px] leading-6">
             Sign in to launch your Capsule and explore features with our AI prompter.
           </CardDescription>
@@ -40,9 +39,6 @@ export function LandingAuthCard() {
               Sign Up
             </Button>
           </SignUpButton>
-          <Button asChild variant="ghost" className="w-full" size="lg">
-            <Link href="#features">Explore Features</Link>
-          </Button>
         </CardContent>
       </SignedOut>
       <SignedIn>
