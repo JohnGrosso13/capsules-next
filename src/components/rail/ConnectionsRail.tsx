@@ -1,5 +1,4 @@
 "use client";
-
 import * as React from "react";
 import homeStyles from "@/components/home.module.css";
 import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
@@ -7,7 +6,7 @@ import { FriendsRail } from "@/components/rail/FriendsRail";
 import {
   useFriendsGraph,
   type Friend,
-  mapFriendList as sharedMapFriendList,
+  mapFriendList,
   broadcastFriendsGraphRefresh,
 } from "@/hooks/useFriendsGraph";
 import { useFriendsRealtime, type PresenceMap } from "@/hooks/useFriendsRealtime";
@@ -23,29 +22,21 @@ type RailTab = "friends" | "chats" | "requests";
 const CHAT_REMINDER_KEY = "capsule:lastChatReminder";
 const CHAT_UNREAD_COUNT_KEY = "capsule:unreadChatCount";
 
-const CONNECTION_TILE_DEFS: Array<{
-  key: RailTab;
-  title: string;
-  icon: React.ReactNode;
-  href: string;
-}> = [
+const CONNECTION_TILE_DEFS: Array<{ key: RailTab; title: string; icon: React.ReactNode }> = [
   {
     key: "friends",
     title: "Friends",
     icon: <UsersThree size={28} weight="duotone" className="duo" />,
-    href: "/friends?tab=friends",
   },
   {
     key: "chats",
     title: "Chats",
     icon: <ChatsCircle size={28} weight="duotone" className="duo" />,
-    href: "/friends?tab=chats",
   },
   {
     key: "requests",
     title: "Requests",
     icon: <Handshake size={28} weight="duotone" className="duo" />,
-    href: "/friends?tab=requests",
   },
 ];
 
@@ -132,56 +123,18 @@ type ConnectionSummaryDetail = Partial<
 >;
 
 export function ConnectionsRail() {
-  const { friends, setFriends, incomingRequestCount, outgoingRequestCount } =
-    useFriendsGraph(FALLBACK_FRIENDS);
+  const {
+    friends,
+    setFriends,
+    incomingRequests,
+    outgoingRequests,
+    incomingRequestCount,
+    outgoingRequestCount,
+    channels,
+    refresh,
+  } = useFriendsGraph(FALLBACK_FRIENDS);
 
-  // Lightweight realtime hook to refresh the rail when cross-user events arrive
   const [presence, setPresence] = React.useState<PresenceMap>({});
-  const [channels, setChannels] = React.useState<{ events: string; presence: string } | null>(
-    null,
-  );
-  const [incoming, setIncoming] = React.useState<Array<{ id: string; user?: { name?: string | null } | null }>>([]);
-  const [outgoing, setOutgoing] = React.useState<Array<{ id: string; user?: { name?: string | null } | null }>>([]);
-
-  const refreshRail = React.useCallback(async () => {
-    try {
-      const res = await fetch("/api/friends/sync", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: {} }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const graph = (data && data.graph) || null;
-      if (graph && Array.isArray(graph.incomingRequests)) {
-        setIncoming(
-          graph.incomingRequests.map((r: any) => ({
-            id: String(r.id),
-            user: r.user ? { name: r.user.name ?? null } : null,
-          })),
-        );
-      } else setIncoming([]);
-      if (graph && Array.isArray(graph.outgoingRequests)) {
-        setOutgoing(
-          graph.outgoingRequests.map((r: any) => ({
-            id: String(r.id),
-            user: r.user ? { name: r.user.name ?? null } : null,
-          })),
-        );
-      } else setOutgoing([]);
-      const ch = data && data.channels && data.channels.events && data.channels.presence
-        ? (data.channels as { events: string; presence: string })
-        : null;
-      setChannels(ch);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  React.useEffect(() => {
-    void refreshRail();
-  }, [refreshRail]);
 
   useFriendsRealtime(
     channels,
@@ -196,8 +149,7 @@ export function ConnectionsRail() {
       return { provider: data.provider, token: data.token, environment: data.environment } as any;
     },
     () => {
-      void refreshRail();
-      broadcastFriendsGraphRefresh();
+      void refresh();
     },
     setPresence,
   );
@@ -209,9 +161,9 @@ export function ConnectionsRail() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "accept", requestId }),
     });
-    void refreshRail();
+    await refresh();
     broadcastFriendsGraphRefresh();
-  }, [refreshRail]);
+  }, [refresh]);
 
   const declineRequest = React.useCallback(async (requestId: string) => {
     await fetch("/api/friends/update", {
@@ -220,9 +172,9 @@ export function ConnectionsRail() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "decline", requestId }),
     });
-    void refreshRail();
+    await refresh();
     broadcastFriendsGraphRefresh();
-  }, [refreshRail]);
+  }, [refresh]);
 
   const cancelRequest = React.useCallback(async (requestId: string) => {
     await fetch("/api/friends/update", {
@@ -231,9 +183,9 @@ export function ConnectionsRail() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "cancel", requestId }),
     });
-    void refreshRail();
+    await refresh();
     broadcastFriendsGraphRefresh();
-  }, [refreshRail]);
+  }, [refresh]);
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
@@ -244,11 +196,10 @@ export function ConnectionsRail() {
   const [chatTicker, setChatTicker] = React.useState(0);
   const [connectionOverrides, setConnectionOverrides] = React.useState<ConnectionOverrideMap>({});
 
-  const mapFriendList = React.useCallback(
-    (items: unknown[]): Friend[] => sharedMapFriendList(items),
+  const convertFriends = React.useCallback(
+    (items: unknown[]): Friend[] => mapFriendList(items),
     [],
   );
-
   React.useEffect(() => {
     try {
       const storedUnread = localStorage.getItem(CHAT_UNREAD_COUNT_KEY);
@@ -475,7 +426,7 @@ export function ConnectionsRail() {
         if (data && typeof data === "object") {
           const friendsData = (data as { friends?: unknown[] }).friends;
           if (Array.isArray(friendsData)) {
-            setFriends(mapFriendList(friendsData));
+            setFriends(convertFriends(friendsData));
           }
         }
       } catch (error) {
@@ -485,7 +436,7 @@ export function ConnectionsRail() {
         setActiveFriendTarget(null);
       }
     },
-    [removeFriend, mapFriendList, setFriends],
+    [removeFriend, convertFriends, setFriends],
   );
 
   return (
@@ -561,8 +512,8 @@ export function ConnectionsRail() {
           </div>
           <div className={homeStyles.railPanel} hidden={activeRailTab !== "requests"}>
             <RequestsList
-              incoming={incoming.map((it) => ({ id: it.id, user: it.user, kind: "incoming" }))}
-              outgoing={outgoing.map((it) => ({ id: it.id, user: it.user, kind: "outgoing" }))}
+              incoming={incomingRequests.map((it) => ({ id: it.id, user: it.user ?? null, kind: "incoming" }))}
+              outgoing={outgoingRequests.map((it) => ({ id: it.id, user: it.user ?? null, kind: "outgoing" }))}
               onAccept={acceptRequest}
               onDecline={declineRequest}
               onCancel={cancelRequest}
@@ -575,3 +526,15 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
+
+
+
+
+
+
+
+
+
+
+
+
