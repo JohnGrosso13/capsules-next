@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ClerkProvider, SignedIn, SignedOut } from "@clerk/nextjs";
 import Script from "next/script";
 import { Inter } from "next/font/google";
@@ -14,6 +14,16 @@ const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-int
 export const metadata: Metadata = {
   title: "Capsules",
   description: "Capsules network with Supabase and Clerk",
+};
+
+// iOS Safari: lock initial scale and avoid auto-zoom on load/keyboard
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-visual",
 };
 
 export default function RootLayout({
