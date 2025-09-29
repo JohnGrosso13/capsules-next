@@ -90,10 +90,15 @@ export function useSpeechRecognition(
   const recognitionRef = React.useRef<SpeechRecognitionInstance | null>(null);
   const resultRef = React.useRef("");
   const optionsRef = React.useRef(options);
+  const statusRef = React.useRef(status);
 
   React.useEffect(() => {
     optionsRef.current = options;
   }, [options]);
+
+  React.useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   const cleanupRecognition = React.useCallback(() => {
     const recognition = recognitionRef.current;
@@ -219,6 +224,7 @@ export function useSpeechRecognition(
     } catch (err) {
       const message = err instanceof Error ? err.message : "speech-start-error";
       setError(message);
+      statusRef.current = "error";
       setStatus("error");
       optionsRef.current?.onError?.(message);
       return false;
@@ -228,20 +234,23 @@ export function useSpeechRecognition(
   const stop = React.useCallback(() => {
     const recognition = recognitionRef.current;
     if (!recognition) return;
-    if (status !== "listening") {
-      recognition.stop();
+    const currentStatus = statusRef.current;
+    if (currentStatus !== "listening") {
       return;
     }
+
+    statusRef.current = "stopping";
     setStatus("stopping");
     try {
       recognition.stop();
     } catch (err) {
       const message = err instanceof Error ? err.message : "speech-stop-error";
       setError(message);
+      statusRef.current = "error";
       setStatus("error");
       optionsRef.current?.onError?.(message);
     }
-  }, [status]);
+  }, []);
 
   const reset = React.useCallback(() => {
     setTranscript("");

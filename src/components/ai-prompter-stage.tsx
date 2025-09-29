@@ -198,7 +198,15 @@ export function AiPrompterStage({
     },
   });
 
-  React.useEffect(() => () => stopVoice(), [stopVoice]);
+  const stopVoiceRef = React.useRef(stopVoice);
+
+  React.useEffect(() => {
+    stopVoiceRef.current = stopVoice;
+  }, [stopVoice]);
+
+  React.useEffect(() => () => {
+    stopVoiceRef.current?.();
+  }, []);
 
   const saveVoiceTranscript = React.useCallback(
     async (textValue: string) => {
