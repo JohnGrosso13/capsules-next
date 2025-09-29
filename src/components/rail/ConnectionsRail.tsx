@@ -137,21 +137,25 @@ export function ConnectionsRail() {
   const requestActions = useFriendRequestActions(refresh);
   const noopSetPresence = React.useCallback<React.Dispatch<React.SetStateAction<PresenceMap>>>(() => undefined, []);
 
+  const realtimeTokenProvider = React.useCallback(async () => {
+    const res = await fetch("/api/realtime/token", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user: {} }),
+    });
+    const data = await res.json();
+    return { provider: data.provider, token: data.token, environment: data.environment } as any;
+  }, []);
+
+  const handleRealtimeEvent = React.useCallback(() => {
+    void refresh();
+  }, [refresh]);
+
   useFriendsRealtime(
     channels,
-    async () => {
-      const res = await fetch("/api/realtime/token", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: {} }),
-      });
-      const data = await res.json();
-      return { provider: data.provider, token: data.token, environment: data.environment } as any;
-    },
-    () => {
-      void refresh();
-    },
+    realtimeTokenProvider,
+    handleRealtimeEvent,
     noopSetPresence,
   );
 

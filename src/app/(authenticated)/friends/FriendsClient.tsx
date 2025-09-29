@@ -215,7 +215,9 @@ export function FriendsClient() {
     };
   }, [currentUserEnvelope]);
 
-  useFriendsRealtime(channels, () => fetchToken(currentUserEnvelope), scheduleRefresh, setPresence);
+  const realtimeTokenProvider = React.useCallback(() => fetchToken(currentUserEnvelope), [currentUserEnvelope]);
+
+  useFriendsRealtime(channels, realtimeTokenProvider, scheduleRefresh, setPresence);
 
   React.useEffect(() => {
     function handleExternalGraphUpdate() {
@@ -456,7 +458,7 @@ export function FriendsClient() {
         role="tabpanel"
         aria-labelledby="tab-friends"
         hidden={active !== "Friends"}
-        className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
+        className={`${styles.tabPanel} ${styles.panelFull} ${styles.panelOverflowVisible}`.trim()}
       >
         <FriendsList
           items={friends}
@@ -491,5 +493,4 @@ export function FriendsClient() {
     </section>
   );
 }
-
 
