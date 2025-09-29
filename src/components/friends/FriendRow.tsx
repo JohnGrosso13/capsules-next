@@ -1,8 +1,7 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import * as React from "react";
+import Image from "next/image";
 import styles from "@/app/(authenticated)/friends/friends.module.css";
 import { useFriendPresence, type PresenceStatus } from "@/hooks/useFriendPresence";
 
@@ -48,7 +47,16 @@ export function FriendRow({
       <div className={styles.friendRowMain}>
         <span className={styles.avatarWrap}>
           {avatar ? (
-            <img className={styles.avatarImg} src={avatar} alt="" aria-hidden />
+            <Image
+              src={avatar}
+              alt=""
+              aria-hidden
+              width={52}
+              height={52}
+              className={styles.avatarImg}
+              sizes="52px"
+              unoptimized
+            />
           ) : (
             <span className={styles.avatar} aria-hidden />
           )}

@@ -1,5 +1,7 @@
 .page {
+  /* Fallback then dynamic viewport height for mobile */
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--app-bg);
@@ -31,6 +33,8 @@
   position: sticky;
   top: 0;
   z-index: 60;
+  /* Respect notches on iOS and modern Android */
+  padding-top: env(safe-area-inset-top, 0px);
   background:
     linear-gradient(
       180deg,

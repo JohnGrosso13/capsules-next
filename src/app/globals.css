@@ -83,6 +83,11 @@
     --dock-active-shadow: 0 12px 24px rgba(3, 7, 18, 0.45);
     --dock-active-glow: rgba(99, 102, 241, 0.32);
     --dock-text-muted: var(--color-fg-muted);
+    --dock-sheet-bg-1: rgba(18, 24, 49, 0.95);
+    --dock-sheet-bg-2: rgba(9, 14, 33, 0.92);
+    --dock-sheet-border: rgba(148, 163, 184, 0.24);
+    --dock-sheet-shadow: 0 24px 46px rgba(3, 7, 18, 0.55);
+
     --mobile-page-gutter: 0px;
     --mobile-dock-height: 0px;
   }

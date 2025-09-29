@@ -1,8 +1,7 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import * as React from "react";
+import Image from "next/image";
 
 import styles from "./home.module.css";
 import { Brain, Heart, ChatCircle, ShareNetwork, DotsThreeCircleVertical, Trash, HourglassHigh } from "@phosphor-icons/react/dist/ssr";
@@ -204,11 +203,14 @@ export function HomeFeedList({
               <div className={styles.userMeta}>
                 <span className={styles.avatarWrap} aria-hidden>
                   {post.user_avatar ? (
-                    <img
+                    <Image
                       className={styles.avatarImg}
                       src={post.user_avatar}
                       alt=""
-                      loading="lazy"
+                      width={44}
+                      height={44}
+                      sizes="44px"
+                      unoptimized
                     />
                   ) : (
                     <span className={styles.avatar} />
@@ -328,12 +330,15 @@ export function HomeFeedList({
                       Your browser does not support the video tag.
                     </video>
                   ) : (
-                    <img
+                    <Image
                       key={item.id}
                       className={`${styles.media} ${styles.mediaImage}`.trim()}
                       src={item.url}
                       alt={item.name ?? "Post attachment"}
-                      loading="lazy"
+                      width={1200}
+                      height={800}
+                      sizes="(max-width: 640px) 100vw, 600px"
+                      unoptimized
                     />
                   ),
                 )}

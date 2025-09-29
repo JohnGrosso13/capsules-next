@@ -1,5 +1,7 @@
 .page {
+  /* Fallback then dynamic viewport height for mobile */
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--app-bg);
@@ -11,6 +13,7 @@
   top: 0;
   z-index: 1000;
   isolation: isolate;
+  padding-top: env(safe-area-inset-top, 0px);
   background:
   /* highlight → tint → base scrim */
     linear-gradient(
@@ -199,7 +202,9 @@
 }
 
 .signedOutWrap {
+  /* Fallback then dynamic viewport height for mobile */
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--app-bg);

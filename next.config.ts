@@ -7,6 +7,16 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "**.r2.cloudflarestorage.com" },
+      { protocol: "https", hostname: "**.cloudflarestorage.com" },
+      { protocol: "https", hostname: "**.supabase.co" },
+      { protocol: "https", hostname: "media.example.com" },
+      { protocol: "http", hostname: "localhost" },
+      { protocol: "https", hostname: "localhost" },
+    ],
+  },
   async headers() {
     const securityHeaders: Array<{ key: string; value: string }> = [
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

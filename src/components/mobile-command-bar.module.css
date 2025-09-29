@@ -152,9 +152,9 @@
   bottom: calc(100% + 12px);
   width: 260px;
   border-radius: 16px;
-  border: 1px solid var(--card-border);
-  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
-  box-shadow: var(--card-shadow);
+  border: 1px solid var(--dock-sheet-border, var(--card-border));
+  background: linear-gradient(180deg, var(--dock-sheet-bg-1, var(--card-bg-1)), var(--dock-sheet-bg-2, var(--card-bg-2)));
+  box-shadow: var(--dock-sheet-shadow, var(--card-shadow));
   padding: 8px;
   display: grid;
   gap: 6px;
@@ -181,7 +181,7 @@
   border-radius: 12px;
   font-weight: 700;
   color: var(--text);
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--dock-sheet-border, var(--card-border));
   background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
   transition: border-color 0.18s ease, transform 0.18s ease;
 }

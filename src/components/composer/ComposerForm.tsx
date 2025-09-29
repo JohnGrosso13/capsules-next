@@ -1,8 +1,7 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import * as React from "react";
+import Image from "next/image";
 
 import styles from "../ai-composer.module.css";
 import {
@@ -205,10 +204,14 @@ export function ComposerForm({
                   {workingDraft.mediaUrl ? (
                     <div className={styles.previewBlock}>
                       {workingDraft.kind === "image" ? (
-                        <img
+                        <Image
                           src={workingDraft.mediaUrl}
                           alt="Draft preview"
                           className={styles.previewImage}
+                          width={1200}
+                          height={800}
+                          sizes="(max-width: 640px) 100vw, 480px"
+                          unoptimized
                         />
                       ) : (
                         <video

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ClerkProvider, SignedIn, SignedOut } from "@clerk/nextjs";
 import Script from "next/script";
 import { Inter } from "next/font/google";
@@ -49,3 +49,11 @@ export default function RootLayout({
 
 
 
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  minimumScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+};

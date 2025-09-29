@@ -1,5 +1,5 @@
-/* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
+import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 
 import { AppPage } from "@/components/app-page";
@@ -41,7 +41,15 @@ export default async function MemoryPage() {
             {items.map((m) => (
               <article key={m.id} className={styles.card}>
                 {m.media_url ? (
-                  <img className={styles.thumb} alt={m.title || "Memory"} src={m.media_url} />
+                  <Image
+                    className={styles.thumb}
+                    alt={m.title || "Memory"}
+                    src={m.media_url}
+                    width={800}
+                    height={450}
+                    sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 220px"
+                    unoptimized
+                  />
                 ) : null}
                 <div className={styles.meta}>
                   <strong>{m.title || m.kind}</strong>

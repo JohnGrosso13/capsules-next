@@ -1,8 +1,7 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import React from "react";
+import Image from "next/image";
 import { safeRandomUUID } from "@/lib/random";
 import Link from "next/link";
 import styles from "./promo-row.module.css";
@@ -80,7 +79,14 @@ export function PromoRow() {
         </div>
         <div className={styles.short}>
           {p1?.media_url ? (
-            <img className={styles.media} src={p1.media_url} alt="Post media" />
+            <Image
+              src={p1.media_url}
+              alt="Post media"
+              fill
+              sizes="(max-width: 900px) 50vw, 25vw"
+              className={styles.media}
+              unoptimized
+            />
           ) : (
             <div className={styles.fallback}>
               <ImageSquare className={styles.fallbackIcon} weight="duotone" />
@@ -96,7 +102,14 @@ export function PromoRow() {
         </div>
         <div className={styles.short}>
           {p2?.media_url ? (
-            <img className={styles.media} src={p2.media_url} alt="Post media" />
+            <Image
+              src={p2.media_url}
+              alt="Post media"
+              fill
+              sizes="(max-width: 900px) 50vw, 25vw"
+              className={styles.media}
+              unoptimized
+            />
           ) : (
             <div className={styles.fallback}>
               <Sparkle className={styles.fallbackIcon} weight="duotone" />
