@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 
 import { GroupCarousel } from "@/components/group-carousel";
 import { LandingAuthCard } from "@/components/landing-auth-card";
-import { CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown } from "@phosphor-icons/react/dist/ssr";
 import { HowItWorks } from "@/components/how-it-works";
 import { LaunchCta } from "@/components/launch-cta";
 import { HomeSignedIn } from "@/components/home-signed-in";
@@ -175,7 +175,7 @@ export default async function HomePage() {
                     className="glass-chip inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium hover:translate-y-[-1px] transition"
                   >
                     Explore Features
-                    <CaretRight aria-hidden="true" size={16} weight="bold" />
+                    <CaretDown aria-hidden="true" size={16} weight="bold" />
                   </Link>
                 </div>
               </div>
