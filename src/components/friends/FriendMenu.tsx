@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import styles from "@/app/(authenticated)/friends/friends.module.css";
 import cm from "@/components/ui/context-menu.module.css";
 
@@ -17,6 +18,8 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const menuRef = React.useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = React.useState<{ top: number; right: number } | null>(null);
 
   React.useEffect(() => {
     function onDocPointerDown(e: MouseEvent | PointerEvent) {
@@ -41,6 +44,40 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
     };
   }, [open]);
 
+  // Recompute fixed position for the portal-based menu
+  const recomputePosition = React.useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const spacing = 8;
+    // Prefer bottom alignment; fallback to above if overflowing viewport
+    let top = rect.bottom + spacing;
+    let right = Math.max(8, window.innerWidth - rect.right);
+
+    // If we have menu size, nudge above when it would overflow bottom
+    const menu = menuRef.current;
+    if (menu) {
+      const h = menu.offsetHeight || 0;
+      if (top + h + 8 > window.innerHeight) {
+        top = Math.max(8, rect.top - spacing - h);
+      }
+    }
+    setPosition({ top, right });
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    recomputePosition();
+    const onScroll = () => recomputePosition();
+    const onResize = () => recomputePosition();
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open, recomputePosition]);
+
   const disabledAll = !canTarget || Boolean(pending);
 
   return (
@@ -60,71 +97,76 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
           <circle cx="12" cy="19" r="2" />
         </svg>
       </button>
-      {open ? (
-        <>
-          <div className={cm.backdrop} onClick={() => setOpen(false)} />
-          <div className={cm.menu} role="menu" style={{ top: "calc(100% + 8px)", right: 0 }}>
-            <button
-              type="button"
-              className={cm.item}
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onView?.();
-              }}
-              disabled={disabledAll}
+      {open
+        ? createPortal(
+          <>
+            <div className={cm.backdrop} onClick={() => setOpen(false)} />
+            <div
+              ref={menuRef}
+              className={cm.menu}
+              role="menu"
+              style={{ position: "fixed", top: position?.top ?? 0, right: position?.right ?? 0 }}
             >
-              View
-            </button>
-            <button
-              type="button"
-              className={cm.item}
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onStartChat?.();
-              }}
-              disabled={true /* disabled for now per spec */}
-              aria-disabled="true"
-              title="Chat coming soon"
-            >
-              Start chat
-            </button>
-            <div className={cm.separator} aria-hidden />
-            <button
-              type="button"
-              className={cm.item}
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onBlock?.();
-              }}
-              disabled={disabledAll}
-            >
-              Block
-            </button>
-            <button
-              type="button"
-              className={`${cm.item} ${cm.danger}`.trim()}
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onDelete();
-              }}
-              disabled={disabledAll}
-              aria-busy={Boolean(pending)}
-            >
-              {pending ? "Removing..." : "Delete"}
-            </button>
-          </div>
-        </>
-      ) : null}
+              <button
+                type="button"
+                className={cm.item}
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onView?.();
+                }}
+                disabled={disabledAll}
+              >
+                View
+              </button>
+              <button
+                type="button"
+                className={cm.item}
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onStartChat?.();
+                }}
+                disabled={true /* disabled for now per spec */}
+                aria-disabled="true"
+                title="Chat coming soon"
+              >
+                Start chat
+              </button>
+              <div className={cm.separator} aria-hidden />
+              <button
+                type="button"
+                className={cm.item}
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onBlock?.();
+                }}
+                disabled={disabledAll}
+              >
+                Block
+              </button>
+              <button
+                type="button"
+                className={`${cm.item} ${cm.danger}`.trim()}
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onDelete();
+                }}
+                disabled={disabledAll}
+                aria-busy={Boolean(pending)}
+              >
+                {pending ? "Removing..." : "Delete"}
+              </button>
+            </div>
+          </>,
+          document.body,
+        )
+        : null}
     </div>
   );
 }
 
 export default FriendMenu;
-
-
-
 

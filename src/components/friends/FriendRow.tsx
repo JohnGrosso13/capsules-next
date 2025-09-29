@@ -52,13 +52,6 @@ export function FriendRow({
           ) : (
             <span className={styles.avatar} aria-hidden />
           )}
-          <span
-            className={`${styles.presence} ${presenceClass(status)}`.trim()}
-            aria-label={`Status: ${presenceLabel}`}
-          >
-            <span className={styles.presenceDot} aria-hidden />
-            <span className={styles.presenceLabel}>{presenceLabel}</span>
-          </span>
         </span>
         <div className={styles.friendMeta}>
           {onNameClick ? (
@@ -75,6 +68,13 @@ export function FriendRow({
           )}
           {sinceLabel ? <div className={styles.friendSince}>Since {sinceLabel}</div> : null}
         </div>
+        <span
+          className={`${styles.presence} ${presenceClass(status)}`.trim()}
+          role="status"
+          aria-label={`Status: ${presenceLabel}`}
+        >
+          <span className={styles.presenceDot} aria-hidden />
+        </span>
       </div>
       {actions ? <div className={styles.friendRowRight}>{actions}</div> : null}
     </div>
