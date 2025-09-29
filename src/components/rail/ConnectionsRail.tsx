@@ -8,7 +8,10 @@ import {
   useFriendsGraph,
   type Friend,
   mapFriendList as sharedMapFriendList,
+  broadcastFriendsGraphRefresh,
 } from "@/hooks/useFriendsGraph";
+import { useFriendsRealtime, type PresenceMap } from "@/hooks/useFriendsRealtime";
+import { RequestsList } from "@/components/friends/RequestsList";
 import {
   useFriendActions,
   buildFriendTargetPayload as buildTarget,
@@ -131,6 +134,106 @@ type ConnectionSummaryDetail = Partial<
 export function ConnectionsRail() {
   const { friends, setFriends, incomingRequestCount, outgoingRequestCount } =
     useFriendsGraph(FALLBACK_FRIENDS);
+
+  // Lightweight realtime hook to refresh the rail when cross-user events arrive
+  const [presence, setPresence] = React.useState<PresenceMap>({});
+  const [channels, setChannels] = React.useState<{ events: string; presence: string } | null>(
+    null,
+  );
+  const [incoming, setIncoming] = React.useState<Array<{ id: string; user?: { name?: string | null } | null }>>([]);
+  const [outgoing, setOutgoing] = React.useState<Array<{ id: string; user?: { name?: string | null } | null }>>([]);
+
+  const refreshRail = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/friends/sync", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: {} }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const graph = (data && data.graph) || null;
+      if (graph && Array.isArray(graph.incomingRequests)) {
+        setIncoming(
+          graph.incomingRequests.map((r: any) => ({
+            id: String(r.id),
+            user: r.user ? { name: r.user.name ?? null } : null,
+          })),
+        );
+      } else setIncoming([]);
+      if (graph && Array.isArray(graph.outgoingRequests)) {
+        setOutgoing(
+          graph.outgoingRequests.map((r: any) => ({
+            id: String(r.id),
+            user: r.user ? { name: r.user.name ?? null } : null,
+          })),
+        );
+      } else setOutgoing([]);
+      const ch = data && data.channels && data.channels.events && data.channels.presence
+        ? (data.channels as { events: string; presence: string })
+        : null;
+      setChannels(ch);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void refreshRail();
+  }, [refreshRail]);
+
+  useFriendsRealtime(
+    channels,
+    async () => {
+      const res = await fetch("/api/realtime/token", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: {} }),
+      });
+      const data = await res.json();
+      return { provider: data.provider, token: data.token, environment: data.environment } as any;
+    },
+    () => {
+      void refreshRail();
+      broadcastFriendsGraphRefresh();
+    },
+    setPresence,
+  );
+
+  const acceptRequest = React.useCallback(async (requestId: string) => {
+    await fetch("/api/friends/update", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "accept", requestId }),
+    });
+    void refreshRail();
+    broadcastFriendsGraphRefresh();
+  }, [refreshRail]);
+
+  const declineRequest = React.useCallback(async (requestId: string) => {
+    await fetch("/api/friends/update", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "decline", requestId }),
+    });
+    void refreshRail();
+    broadcastFriendsGraphRefresh();
+  }, [refreshRail]);
+
+  const cancelRequest = React.useCallback(async (requestId: string) => {
+    await fetch("/api/friends/update", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "cancel", requestId }),
+    });
+    void refreshRail();
+    broadcastFriendsGraphRefresh();
+  }, [refreshRail]);
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
@@ -457,7 +560,13 @@ export function ConnectionsRail() {
             <div className={friendsStyles.empty}>Chats are coming soon.</div>
           </div>
           <div className={homeStyles.railPanel} hidden={activeRailTab !== "requests"}>
-            <div className={friendsStyles.empty}>No pending requests.</div>
+            <RequestsList
+              incoming={incoming.map((it) => ({ id: it.id, user: it.user, kind: "incoming" }))}
+              outgoing={outgoing.map((it) => ({ id: it.id, user: it.user, kind: "outgoing" }))}
+              onAccept={acceptRequest}
+              onDecline={declineRequest}
+              onCancel={cancelRequest}
+            />
           </div>
         </div>
       )}

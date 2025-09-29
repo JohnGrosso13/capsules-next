@@ -1,4 +1,4 @@
-import type { DurableObjectStub, ExecutionContext, MessageBatch } from "@cloudflare/workers-types";
+import type { DurableObjectStub, MessageBatch } from "@cloudflare/workers-types";
 
 import { UploadCoordinator } from "./upload-coordinator";
 import {
@@ -18,8 +18,8 @@ const PLACEHOLDER_POSTER_BASE64 =
   "xAAUAQEAAAAAAAAAAAAAAAAAAAAC/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AygD/" +
   "2Q==";
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+const worker = {
+  async fetch(request: Request, _env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/health") {
       return new Response("ok", { headers: { "content-type": "text/plain" } });
@@ -27,12 +27,12 @@ export default {
     return new Response("Not found", { status: 404 });
   },
 
-  async queue(batch: MessageBatch<unknown>, env: Env, ctx: ExecutionContext): Promise<void> {
+  async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
     if ((batch as MessageBatch<UploadEventMessage>).queue === "r2-upload-events") {
       await handleUploadEvents(batch as MessageBatch<UploadEventMessage>, env);
       return;
     }
-    await handleProcessingTasks(batch as MessageBatch<ProcessingTaskMessage>, env, ctx);
+    await handleProcessingTasks(batch as MessageBatch<ProcessingTaskMessage>, env);
   },
 };
 
@@ -89,7 +89,6 @@ async function handleUploadEvents(batch: MessageBatch<UploadEventMessage>, env: 
 async function handleProcessingTasks(
   batch: MessageBatch<ProcessingTaskMessage>,
   env: Env,
-  ctx: ExecutionContext,
 ): Promise<void> {
   for (const message of batch.messages) {
     const taskMessage = message.body;
@@ -307,3 +306,5 @@ function decodeBase64(value: string): ArrayBuffer {
 }
 
 
+
+export default worker;

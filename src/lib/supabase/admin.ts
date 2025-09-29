@@ -17,7 +17,7 @@ type SupabaseStyleError = {
   code: string | null;
 };
 
-interface SupabaseArrayResult<T = any> {
+interface SupabaseArrayResult<T = unknown> {
   data: T[] | null;
   error: SupabaseStyleError | null;
   count: number | null;
@@ -25,7 +25,7 @@ interface SupabaseArrayResult<T = any> {
   statusText: string;
 }
 
-interface SupabaseSingleResult<T = any> {
+interface SupabaseSingleResult<T = unknown> {
   data: T | null;
   error: SupabaseStyleError | null;
   count: number | null;
@@ -68,7 +68,7 @@ function toSingleResult<T>(result: DatabaseResult<T | null>): SupabaseSingleResu
   };
 }
 
-class SupabaseQueryShim<T = any> {
+class SupabaseQueryShim<T = unknown> {
   constructor(private readonly builder: DatabaseQueryBuilder<T>) {}
 
   private wrap<TResult>(builder: DatabaseQueryBuilder<TResult>): SupabaseQueryShim<TResult> {
@@ -149,13 +149,13 @@ class SupabaseQueryShim<T = any> {
 
   then<TResult1 = SupabaseArrayResult<T>, TResult2 = never>(
     onfulfilled?: ((value: SupabaseArrayResult<T>) => TResult1 | PromiseLike<TResult1>) | undefined | null,
-    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | undefined | null,
   ) {
     return this.toArrayPromise().then(onfulfilled, onrejected);
   }
 
   catch<TResult = never>(
-    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null,
+    onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | undefined | null,
   ) {
     return this.toArrayPromise().catch(onrejected);
   }
@@ -180,29 +180,29 @@ class SupabaseQueryShim<T = any> {
 class SupabaseTableShim {
   constructor(private readonly table: DatabaseTableBuilder) {}
 
-  select<T = any>(columns?: string): SupabaseQueryShim<T> {
+  select<T = unknown>(columns?: string): SupabaseQueryShim<T> {
     return new SupabaseQueryShim<T>(this.table.select<T>(columns ?? "*"));
   }
 
-  insert<T = any>(
+  insert<T = unknown>(
     values: Record<string, unknown> | Array<Record<string, unknown>>,
     options?: Record<string, unknown>,
   ): SupabaseQueryShim<T> {
     return new SupabaseQueryShim<T>(this.table.insert<T>(values, options));
   }
 
-  update<T = any>(values: Record<string, unknown>): SupabaseQueryShim<T> {
+  update<T = unknown>(values: Record<string, unknown>): SupabaseQueryShim<T> {
     return new SupabaseQueryShim<T>(this.table.update<T>(values));
   }
 
-  upsert<T = any>(
+  upsert<T = unknown>(
     values: Record<string, unknown> | Array<Record<string, unknown>>,
     options?: Record<string, unknown>,
   ): SupabaseQueryShim<T> {
     return new SupabaseQueryShim<T>(this.table.upsert<T>(values, options));
   }
 
-  delete<T = any>(options?: Record<string, unknown>): SupabaseQueryShim<T> {
+  delete<T = unknown>(options?: Record<string, unknown>): SupabaseQueryShim<T> {
     return new SupabaseQueryShim<T>(this.table.delete<T>(options));
   }
 }

@@ -5,6 +5,13 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useCurrentUser } from "@/services/auth/client";
 
 import { useFriendsRealtime, type PresenceMap } from "@/hooks/useFriendsRealtime";
+import {
+  FRIENDS_GRAPH_UPDATE_EVENT,
+  FRIENDS_GRAPH_REFRESH_EVENT,
+  broadcastFriendsGraphRefresh,
+  broadcastFriendsGraphUpdate,
+  type FriendsGraphUpdateEventDetail,
+} from "@/hooks/useFriendsGraph";
 import type { RealtimeAuthPayload } from "@/ports/realtime";
 import type { SocialGraphSnapshot } from "@/lib/supabase/friends";
 
@@ -210,6 +217,30 @@ export function FriendsClient() {
 
   useFriendsRealtime(channels, () => fetchToken(currentUserEnvelope), scheduleRefresh, setPresence);
 
+  React.useEffect(() => {
+    function handleExternalGraphUpdate() {
+      scheduleRefresh();
+    }
+    window.addEventListener(
+      FRIENDS_GRAPH_UPDATE_EVENT,
+      handleExternalGraphUpdate as EventListener,
+    );
+    window.addEventListener(
+      FRIENDS_GRAPH_REFRESH_EVENT,
+      handleExternalGraphUpdate as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        FRIENDS_GRAPH_UPDATE_EVENT,
+        handleExternalGraphUpdate as EventListener,
+      );
+      window.removeEventListener(
+        FRIENDS_GRAPH_REFRESH_EVENT,
+        handleExternalGraphUpdate as EventListener,
+      );
+    };
+  }, [scheduleRefresh]);
+
   const mutateGraph = React.useCallback(
     async (payload: Record<string, unknown>) => {
       const res = await fetch("/api/friends/update", {
@@ -229,7 +260,15 @@ export function FriendsClient() {
         throw new Error((data && data.error) || "Failed to update friends");
       }
       if (data?.graph) {
-        setGraph(data.graph as SocialGraphSnapshot);
+        const graph = data.graph as SocialGraphSnapshot;
+        setGraph(graph);
+        const detail: FriendsGraphUpdateEventDetail = {
+          friends: Array.isArray(data?.friends) ? data.friends : undefined,
+          incomingCount: graph.incomingRequests.length,
+          outgoingCount: graph.outgoingRequests.length,
+        };
+        broadcastFriendsGraphUpdate(detail);
+        broadcastFriendsGraphRefresh();
       }
     },
     [currentUserEnvelope],
@@ -452,3 +491,5 @@ export function FriendsClient() {
     </section>
   );
 }
+
+

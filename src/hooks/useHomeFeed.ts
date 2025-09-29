@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { useCurrentUser } from "@/services/auth/client";
 import { normalizeMediaUrl } from "@/lib/media";
+import { broadcastFriendsGraphRefresh } from "@/hooks/useFriendsGraph";
 
 export type HomeFeedAttachment = {
   id: string;
@@ -522,6 +523,7 @@ export function useHomeFeed() {
       }
       setFriendMessage(`Friend request sent to ${post.user_name || "this member"}.`);
       setActiveFriendTarget(null);
+      broadcastFriendsGraphRefresh();
     } catch (error) {
       console.error("Post friend request error", error);
       setFriendMessage(

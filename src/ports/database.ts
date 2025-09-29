@@ -10,7 +10,7 @@ export type DatabaseResult<T> = {
   error: DatabaseError | null;
 };
 
-export interface DatabaseQueryBuilder<T = any> {
+export interface DatabaseQueryBuilder<T = unknown> {
   select<TResult = T>(columns?: string): DatabaseQueryBuilder<TResult>;
   eq(column: string, value: unknown): DatabaseQueryBuilder<T>;
   neq(column: string, value: unknown): DatabaseQueryBuilder<T>;
@@ -41,17 +41,17 @@ export interface DatabaseQueryBuilder<T = any> {
 }
 
 export interface DatabaseTableBuilder {
-  select<T = any>(columns?: string): DatabaseQueryBuilder<T>;
-  insert<T = any>(
+  select<T = unknown>(columns?: string): DatabaseQueryBuilder<T>;
+  insert<T = unknown>(
     values: Record<string, unknown> | Array<Record<string, unknown>>,
     options?: Record<string, unknown>,
   ): DatabaseQueryBuilder<T>;
-  update<T = any>(values: Record<string, unknown>): DatabaseQueryBuilder<T>;
-  upsert<T = any>(
+  update<T = unknown>(values: Record<string, unknown>): DatabaseQueryBuilder<T>;
+  upsert<T = unknown>(
     values: Record<string, unknown> | Array<Record<string, unknown>>,
     options?: Record<string, unknown>,
   ): DatabaseQueryBuilder<T>;
-  delete<T = any>(options?: Record<string, unknown>): DatabaseQueryBuilder<T>;
+  delete<T = unknown>(options?: Record<string, unknown>): DatabaseQueryBuilder<T>;
 }
 
 export interface DatabaseClient {

@@ -23,11 +23,49 @@ function mapError(error: unknown): DatabaseError {
   };
 }
 
-class SupabaseQueryBuilder<T> implements DatabaseQueryBuilder<T> {
-  constructor(private readonly builder: any) {}
+type SupabaseQueryResponse<T> = {
+  data: T[] | null;
+  error: unknown;
+  [key: string]: unknown;
+};
 
-  select<TResult = T>(columns: string): DatabaseQueryBuilder<TResult> {
-    return new SupabaseQueryBuilder<TResult>(this.builder.select(columns));
+type SupabaseSingleQueryResponse<T> = {
+  data: T | null;
+  error: unknown;
+  [key: string]: unknown;
+};
+
+type SupabaseFilterLike<T> = PromiseLike<SupabaseQueryResponse<T>> & {
+  select<TResult = T>(columns?: string): SupabaseFilterLike<TResult>;
+  eq(column: string, value: unknown): SupabaseFilterLike<T>;
+  neq(column: string, value: unknown): SupabaseFilterLike<T>;
+  gt(column: string, value: unknown): SupabaseFilterLike<T>;
+  gte(column: string, value: unknown): SupabaseFilterLike<T>;
+  lt(column: string, value: unknown): SupabaseFilterLike<T>;
+  lte(column: string, value: unknown): SupabaseFilterLike<T>;
+  is(column: string, value: unknown): SupabaseFilterLike<T>;
+  like(column: string, value: string): SupabaseFilterLike<T>;
+  ilike(column: string, value: string): SupabaseFilterLike<T>;
+  in(column: string, values: readonly unknown[]): SupabaseFilterLike<T>;
+  contains(column: string, value: unknown, options?: Record<string, unknown>): SupabaseFilterLike<T>;
+  filter(column: string, operator: string, value: unknown): SupabaseFilterLike<T>;
+  or(filters: string, options?: { foreignTable?: string }): SupabaseFilterLike<T>;
+  order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }): SupabaseFilterLike<T>;
+  limit(count: number): SupabaseFilterLike<T>;
+  range(from: number, to: number): SupabaseFilterLike<T>;
+  maybeSingle(): Promise<SupabaseSingleQueryResponse<T>>;
+  single(): Promise<SupabaseSingleQueryResponse<T>>;
+};
+
+function toSupabaseFilter<T>(builder: unknown): SupabaseFilterLike<T> {
+  return builder as SupabaseFilterLike<T>;
+}
+
+class SupabaseQueryBuilder<T> implements DatabaseQueryBuilder<T> {
+  constructor(private readonly builder: SupabaseFilterLike<T>) {}
+
+  select<TResult = T>(columns?: string): DatabaseQueryBuilder<TResult> {
+    return new SupabaseQueryBuilder<TResult>(this.builder.select<TResult>(columns));
   }
 
   eq(column: string, value: unknown): DatabaseQueryBuilder<T> {
@@ -125,30 +163,35 @@ class SupabaseQueryBuilder<T> implements DatabaseQueryBuilder<T> {
 class SupabaseTableBuilder implements DatabaseTableBuilder {
   constructor(private readonly client: SupabaseClient, private readonly table: string) {}
 
-  select<T = unknown>(columns: string): DatabaseQueryBuilder<T> {
-    return new SupabaseQueryBuilder<T>(this.client.from(this.table).select(columns));
+  select<T = unknown>(columns?: string): DatabaseQueryBuilder<T> {
+    const query = this.client.from(this.table).select(columns);
+    return new SupabaseQueryBuilder<T>(toSupabaseFilter<T>(query));
   }
 
   insert<T = unknown>(
     values: Record<string, unknown> | Array<Record<string, unknown>>,
     options?: Record<string, unknown>,
   ): DatabaseQueryBuilder<T> {
-    return new SupabaseQueryBuilder<T>(this.client.from(this.table).insert(values as any, options));
+    const query = this.client.from(this.table).insert(values as never, options);
+    return new SupabaseQueryBuilder<T>(toSupabaseFilter<T>(query));
   }
 
   update<T = unknown>(values: Record<string, unknown>): DatabaseQueryBuilder<T> {
-    return new SupabaseQueryBuilder<T>(this.client.from(this.table).update(values));
+    const query = this.client.from(this.table).update(values);
+    return new SupabaseQueryBuilder<T>(toSupabaseFilter<T>(query));
   }
 
   upsert<T = unknown>(
     values: Record<string, unknown> | Array<Record<string, unknown>>,
     options?: Record<string, unknown>,
   ): DatabaseQueryBuilder<T> {
-    return new SupabaseQueryBuilder<T>(this.client.from(this.table).upsert(values as any, options));
+    const query = this.client.from(this.table).upsert(values as never, options);
+    return new SupabaseQueryBuilder<T>(toSupabaseFilter<T>(query));
   }
 
   delete<T = unknown>(options?: Record<string, unknown>): DatabaseQueryBuilder<T> {
-    return new SupabaseQueryBuilder<T>(this.client.from(this.table).delete(options));
+    const query = this.client.from(this.table).delete(options);
+    return new SupabaseQueryBuilder<T>(toSupabaseFilter<T>(query));
   }
 }
 

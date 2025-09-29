@@ -170,7 +170,6 @@ type NormalizedAttachment = {
   storageKey: string | null;
 };
 
-type MemoryPostRow = { post_id: unknown } | null;
 
 type NormalizedPost = ReturnType<typeof normalizePost> & {
   attachments?: NormalizedAttachment[];
