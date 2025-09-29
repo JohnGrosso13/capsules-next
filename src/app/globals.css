@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 @config "../../tailwind.config.ts";
 @layer base {
   *,
@@ -72,6 +72,17 @@
     /* Default glass fallbacks for dark theme (overridden by light theme or AI styler) */
     --glass-bg-1: rgba(255, 255, 255, 0.06);
     --glass-bg-2: rgba(255, 255, 255, 0.035);
+    --dock-bg-1: rgba(10, 13, 28, 0.94);
+    --dock-bg-2: rgba(6, 9, 22, 0.88);
+    --dock-border: rgba(148, 163, 184, 0.16);
+    --dock-shadow: 0 -1px 0 rgba(3, 7, 18, 0.55), 0 18px 38px rgba(3, 7, 18, 0.5);
+    --dock-btn-bg-1: rgba(255, 255, 255, 0.16);
+    --dock-btn-bg-2: rgba(255, 255, 255, 0.05);
+    --dock-btn-border: rgba(255, 255, 255, 0.16);
+    --dock-btn-hover-border: rgba(255, 255, 255, 0.28);
+    --dock-active-shadow: 0 12px 24px rgba(3, 7, 18, 0.45);
+    --dock-active-glow: rgba(99, 102, 241, 0.32);
+    --dock-text-muted: var(--color-fg-muted);
     --mobile-page-gutter: 0px;
     --mobile-dock-height: 0px;
   }
