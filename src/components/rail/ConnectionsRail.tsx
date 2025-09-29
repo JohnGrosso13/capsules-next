@@ -1,22 +1,22 @@
 "use client";
+
 import * as React from "react";
 import homeStyles from "@/components/home.module.css";
 import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import { FriendsRail } from "@/components/rail/FriendsRail";
-import {
-  useFriendsGraph,
-  type Friend,
-  mapFriendList,
-  broadcastFriendsGraphRefresh,
-} from "@/hooks/useFriendsGraph";
 import { useFriendsRealtime, type PresenceMap } from "@/hooks/useFriendsRealtime";
+import { useFriendRequestActions } from "@/hooks/useFriendRequestActions";
 import { RequestsList } from "@/components/friends/RequestsList";
 import {
   useFriendActions,
   buildFriendTargetPayload as buildTarget,
 } from "@/hooks/useFriendActions";
+import {
+  useFriendsGraph,
+  type Friend,
+  mapFriendList,
+} from "@/hooks/useFriendsGraph";
 import { UsersThree, ChatsCircle, Handshake } from "@phosphor-icons/react/dist/ssr";
-
 type RailTab = "friends" | "chats" | "requests";
 
 const CHAT_REMINDER_KEY = "capsule:lastChatReminder";
@@ -134,7 +134,8 @@ export function ConnectionsRail() {
     refresh,
   } = useFriendsGraph(FALLBACK_FRIENDS);
 
-  const [presence, setPresence] = React.useState<PresenceMap>({});
+  const requestActions = useFriendRequestActions(refresh);
+  const noopSetPresence = React.useCallback<React.Dispatch<React.SetStateAction<PresenceMap>>>(() => undefined, []);
 
   useFriendsRealtime(
     channels,
@@ -151,41 +152,8 @@ export function ConnectionsRail() {
     () => {
       void refresh();
     },
-    setPresence,
+    noopSetPresence,
   );
-
-  const acceptRequest = React.useCallback(async (requestId: string) => {
-    await fetch("/api/friends/update", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "accept", requestId }),
-    });
-    await refresh();
-    broadcastFriendsGraphRefresh();
-  }, [refresh]);
-
-  const declineRequest = React.useCallback(async (requestId: string) => {
-    await fetch("/api/friends/update", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "decline", requestId }),
-    });
-    await refresh();
-    broadcastFriendsGraphRefresh();
-  }, [refresh]);
-
-  const cancelRequest = React.useCallback(async (requestId: string) => {
-    await fetch("/api/friends/update", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "cancel", requestId }),
-    });
-    await refresh();
-    broadcastFriendsGraphRefresh();
-  }, [refresh]);
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
@@ -514,9 +482,27 @@ export function ConnectionsRail() {
             <RequestsList
               incoming={incomingRequests.map((it) => ({ id: it.id, user: it.user ?? null, kind: "incoming" }))}
               outgoing={outgoingRequests.map((it) => ({ id: it.id, user: it.user ?? null, kind: "outgoing" }))}
-              onAccept={acceptRequest}
-              onDecline={declineRequest}
-              onCancel={cancelRequest}
+              onAccept={async (id) => {
+                try {
+                  await requestActions.accept(id);
+                } catch (error) {
+                  console.error("Friend request accept error", error);
+                }
+              }}
+              onDecline={async (id) => {
+                try {
+                  await requestActions.decline(id);
+                } catch (error) {
+                  console.error("Friend request decline error", error);
+                }
+              }}
+              onCancel={async (id) => {
+                try {
+                  await requestActions.cancel(id);
+                } catch (error) {
+                  console.error("Friend request cancel error", error);
+                }
+              }}
             />
           </div>
         </div>
@@ -526,6 +512,8 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
+
+
 
 
 
