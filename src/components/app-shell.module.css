@@ -5,12 +5,13 @@
 @media (max-width: 640px) {
   .outer {
     --header-height: 0px;
-    padding: calc(env(safe-area-inset-top, 0px) + 24px) 0
-      calc(var(--mobile-dock-height, 0px) + 64px);
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 0
+      calc(var(--mobile-dock-height, 0px) + 24px);
   }
   .page {
     width: 100%;
     margin: 0;
+    padding: 12px 0 16px;
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
   }
@@ -21,6 +22,7 @@
     gap: 20px;
   }
 }
+
 .page {
   /* Match Home page container width */
   width: min(1200px, calc(100% - 56px));
