@@ -4,17 +4,7 @@
 }
 @media (max-width: 640px) {
   .outer {
-    --header-height: 0px;
-    padding: calc(env(safe-area-inset-top, 0px) + 24px) 0 calc(var(--mobile-dock-height, 0px) + 64px);
-  }
-  .page {
-    width: 100%;
-  }
-  .main {
-    gap: 20px;
-  }
-  .layout {
-    gap: 20px;
+    padding: calc(var(--header-height, 72px) + 24px) 0 64px;
   }
 }
 .page {

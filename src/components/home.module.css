@@ -35,15 +35,6 @@
   .prompterStage {
     margin-bottom: 0;
   }
-  .promptBar::before {
-    left: calc(-1 * var(--mobile-prompter-glow-outset, 12px));
-    right: calc(-1 * var(--mobile-prompter-glow-outset, 12px));
-    top: -12px;
-    bottom: -12px;
-  }
-  .chips {
-    padding-left: 0;
-  }
 }
 .prompter {
   display: grid;
@@ -101,11 +92,6 @@
   font-size: 16px;
   outline: none;
   padding: 8px 4px;
-}
-@media (max-width: 640px) {
-  .input {
-    font-size: 17px;
-  }
 }
 /* Inline attach button inside the prompter */
 .promptAttachBtn {
