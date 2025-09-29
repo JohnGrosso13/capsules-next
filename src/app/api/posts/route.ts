@@ -6,6 +6,13 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createPostRecord } from "@/lib/supabase/posts";
 import { serverEnv } from "@/lib/env/server";
 import { normalizeMediaUrl } from "@/lib/media";
+import {
+  listAttachmentsForPosts,
+  listPostsView,
+  listViewerLikedPostIds,
+  listViewerRememberedPostIds,
+  type PostsViewRow,
+} from "@/server/posts/repository";
 import type { CreatePostInput } from "@/server/posts/types";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
@@ -251,13 +258,13 @@ function shouldReturnFallback(error: unknown): boolean {
 }
 
 export async function GET(req: Request) {
-  const supabase = getSupabaseAdminClient();
   let viewerId: string | null = null;
   try {
     viewerId = await ensureUserFromRequest(req, null, { allowGuests: false });
   } catch (viewerError) {
     console.warn("posts viewer resolve failed", viewerError);
   }
+
   const url = new URL(req.url);
   const rawQuery = {
     capsuleId: url.searchParams.get("capsuleId") ?? undefined,
@@ -278,27 +285,15 @@ export async function GET(req: Request) {
   const { capsuleId, before, after } = parsedQuery.data;
   const limit = parsedQuery.data.limit ?? 60;
 
-  let query = supabase
-    .from("posts_view")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (capsuleId) query = query.eq("capsule_id", capsuleId);
-  if (after) query = query.gt("created_at", after);
-  if (before) query = query.lt("created_at", before);
-
-  let data: Record<string, unknown>[] | null | undefined;
-  let error: unknown;
+  let rows: PostsViewRow[];
   try {
-    const result = await query;
-    data = result.data;
-    error = result.error;
-  } catch (fetchError) {
-    error = fetchError;
-  }
-
-  if (error) {
+    rows = await listPostsView({
+      capsuleId: capsuleId ?? null,
+      limit,
+      after: after ?? null,
+      before: before ?? null,
+    });
+  } catch (error) {
     console.error("Fetch posts error", error);
     if (shouldReturnFallback(error)) {
       console.warn("Supabase unreachable - returning demo posts for local development.");
@@ -308,7 +303,7 @@ export async function GET(req: Request) {
   }
 
   const deletedIds: string[] = [];
-  const activeRows = (data ?? []).filter((row) => {
+  const activeRows = rows.filter((row) => {
     if (row && (row as Record<string, unknown>).deleted_at) {
       const id = (row as Record<string, unknown>).client_id ?? (row as Record<string, unknown>).id;
       if (id) deletedIds.push(String(id));
@@ -332,64 +327,36 @@ export async function GET(req: Request) {
   let viewerLikedIds: Set<string> = new Set<string>();
   if (viewerId && dbIds.length) {
     try {
-      const { data: likedRows, error: likedError } = await supabase
-        .from("post_likes")
-        .select("post_id")
-        .eq("user_id", viewerId)
-        .in("post_id", dbIds);
-
-      if (likedError) {
-        console.warn("viewer likes fetch failed", likedError);
-      } else if (Array.isArray(likedRows)) {
-        viewerLikedIds = new Set(
-          likedRows
-            .map((entry) =>
-              typeof entry?.post_id === "string" || typeof entry?.post_id === "number"
-                ? String(entry.post_id)
-                : null,
-            )
-            .filter((value): value is string => Boolean(value)),
-        );
-      }
+      const likedIds = await listViewerLikedPostIds(viewerId, dbIds);
+      viewerLikedIds = new Set(likedIds);
     } catch (viewerLikesError) {
       console.warn("viewer likes query failed", viewerLikesError);
     }
   }
 
-  // Compute which posts the viewer has remembered (saved to Memory)
   let viewerRememberedSet: Set<string> = new Set<string>();
   if (viewerId && activeRows.length) {
     const rememberIdSet = new Set<string>();
     for (const row of activeRows) {
-      const rawClientId = (row as Record<string, unknown>).client_id ?? (row as Record<string, unknown>).id;
-      const cid = typeof rawClientId === "string" || typeof rawClientId === "number" ? String(rawClientId) : null;
+      const rowRecord = row as Record<string, unknown>;
+      const rawClientId = rowRecord["client_id"] ?? rowRecord["id"];
+      const cid =
+        typeof rawClientId === "string" || typeof rawClientId === "number"
+          ? String(rawClientId)
+          : null;
       if (cid) rememberIdSet.add(cid);
-      const rawDbId = (row as Record<string, unknown>).id;
-      const dbid = typeof rawDbId === "string" || typeof rawDbId === "number" ? String(rawDbId) : null;
+      const rawDbId = rowRecord["id"];
+      const dbid =
+        typeof rawDbId === "string" || typeof rawDbId === "number"
+          ? String(rawDbId)
+          : null;
       if (dbid) rememberIdSet.add(dbid);
     }
     const rememberIds = Array.from(rememberIdSet);
     if (rememberIds.length) {
       try {
-        const { data: memRows, error: memErr } = await supabase
-          .from("memories")
-          .select("post_id")
-          .eq("owner_user_id", viewerId)
-          .in("kind", ["post", "text"])
-          .eq("meta->>source", "post_memory")
-          .in("post_id", rememberIds);
-        if (memErr) {
-          console.warn("viewer memories fetch failed", memErr);
-        } else if (Array.isArray(memRows)) {
-          viewerRememberedSet = new Set(
-            (memRows as MemoryPostRow[])
-              .map((row) => {
-                const value = row?.post_id;
-                return typeof value === "string" || typeof value === "number" ? String(value) : null;
-              })
-              .filter((v): v is string => Boolean(v)),
-          );
-        }
+        const rememberedIds = await listViewerRememberedPostIds(viewerId, rememberIds);
+        viewerRememberedSet = new Set(rememberedIds);
       } catch (memFetchErr) {
         console.warn("viewer memories query failed", memFetchErr);
       }
@@ -427,19 +394,15 @@ export async function GET(req: Request) {
       .filter((value): value is string => Boolean(value));
     if (attachmentPostIds.length) {
       try {
-        const { data: attachmentRows, error: attachmentError } = await supabase
-          .from("memories")
-          .select("id, post_id, media_url, media_type, title, meta")
-          .in("post_id", attachmentPostIds)
-          .contains("meta", { source: "post_attachment" });
-
-        if (attachmentError) {
-          console.warn("attachments fetch failed", attachmentError);
-        } else if (attachmentRows?.length) {
+        const attachmentRows = await listAttachmentsForPosts(attachmentPostIds);
+        if (attachmentRows.length) {
           const attachmentsByPost = new Map<string, NormalizedAttachment[]>();
           const normalizedAttachments = await Promise.all(
             attachmentRows.map(async (row) => {
-              const postId = typeof row?.post_id === "string" ? row.post_id : null;
+              const postId =
+                typeof row?.post_id === "string" || typeof row?.post_id === "number"
+                  ? String(row.post_id)
+                  : null;
               if (!postId) return null;
               const url = await ensureAccessibleMediaUrl(
                 typeof row?.media_url === "string" ? row.media_url : null,

@@ -75,6 +75,99 @@ function builtInPresets(): Preset[] {
   ];
 }
 
+const PLACEHOLDER_THEMES: SavedStyle[] = [
+  {
+    id: "placeholder-neon",
+    title: "Neon Pulse",
+    summary: "Electric synthwave glow",
+    description: "Electric gradients with synth glow.",
+    vars: {
+      "--color-brand": "#f472b6",
+      "--color-accent": "#22d3ee",
+      "--gradient-brand": "linear-gradient(120deg,#f472b6 0%,#a855f7 60%,#22d3ee 100%)",
+      "--cta-gradient": "linear-gradient(120deg,#f472b6 0%,#a855f7 70%,#22d3ee 100%)",
+      "--app-bg":
+        "radial-gradient(1100px 680px at 10% -10%, rgba(244,114,182,0.18), transparent 64%), radial-gradient(900px 600px at 100% 0%, rgba(34,211,238,0.16), transparent 66%), linear-gradient(90deg, rgba(18,22,46,0.92), rgba(10,12,32,0.92))",
+    },
+    createdLabel: null,
+  },
+  {
+    id: "placeholder-ocean",
+    title: "Ocean Mist",
+    summary: "Calming teal shoreline",
+    description: "Glass blues inspired by coastal dawns.",
+    vars: {
+      "--color-brand": "#0ea5e9",
+      "--color-accent": "#14b8a6",
+      "--gradient-brand": "linear-gradient(120deg,#0ea5e9 0%,#14b8a6 55%,#38bdf8 100%)",
+      "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#0ea5e9 65%,#14b8a6 100%)",
+      "--app-bg":
+        "radial-gradient(1200px 720px at 0% -10%, rgba(14,165,233,0.16), transparent 62%), radial-gradient(1000px 600px at 100% 0%, rgba(13,148,136,0.18), transparent 66%), linear-gradient(90deg, rgba(8,18,40,0.94), rgba(6,12,30,0.94))",
+    },
+    createdLabel: null,
+  },
+  {
+    id: "placeholder-sunset",
+    title: "Sunset Haze",
+    summary: "Warm citrus horizon",
+    description: "Amber and magenta with soft haze.",
+    vars: {
+      "--color-brand": "#fb923c",
+      "--color-accent": "#f97316",
+      "--gradient-brand": "linear-gradient(120deg,#fb7185 0%,#f97316 55%,#f59e0b 100%)",
+      "--cta-gradient": "linear-gradient(120deg,#fb923c 0%,#f97316 50%,#ef4444 100%)",
+      "--app-bg":
+        "radial-gradient(1200px 720px at 0% -20%, rgba(249,115,22,0.16), transparent 62%), radial-gradient(1000px 620px at 100% 0%, rgba(236,72,153,0.18), transparent 66%), linear-gradient(90deg, rgba(22,12,32,0.95), rgba(12,8,24,0.95))",
+    },
+    createdLabel: null,
+  },
+  {
+    id: "placeholder-forest",
+    title: "Forest Canopy",
+    summary: "Emerald mist",
+    description: "Emerald canopy with glass morning dew.",
+    vars: {
+      "--color-brand": "#10b981",
+      "--color-accent": "#22d3ee",
+      "--gradient-brand": "linear-gradient(120deg,#10b981 0%,#22d3ee 55%,#34d399 100%)",
+      "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#34d399 55%,#0ea5e9 100%)",
+      "--app-bg":
+        "radial-gradient(1100px 680px at 0% -10%, rgba(16,185,129,0.18), transparent 64%), radial-gradient(1000px 620px at 100% 0%, rgba(14,165,233,0.16), transparent 68%), linear-gradient(90deg, rgba(10,18,28,0.95), rgba(8,16,24,0.95))",
+    },
+    createdLabel: null,
+  },
+  {
+    id: "placeholder-stardust",
+    title: "Stardust",
+    summary: "Iridescent midnight",
+    description: "Cosmic purples with starlit grain.",
+    vars: {
+      "--color-brand": "#a855f7",
+      "--color-accent": "#6366f1",
+      "--gradient-brand": "linear-gradient(120deg,#6366f1 0%,#a855f7 55%,#22d3ee 100%)",
+      "--cta-gradient": "linear-gradient(120deg,#4f46e5 0%,#7c3aed 60%,#22d3ee 100%)",
+      "--app-bg":
+        "radial-gradient(1200px 720px at 0% -20%, rgba(99,102,241,0.16), transparent 64%), radial-gradient(1000px 640px at 100% 0%, rgba(168,85,247,0.18), transparent 66%), linear-gradient(90deg, rgba(10,14,32,0.95), rgba(6,10,24,0.96))",
+    },
+    createdLabel: null,
+  },
+  {
+    id: "placeholder-cyber",
+    title: "Cyber Grid",
+    summary: "Glitch teal",
+    description: "Cyberpunk cyan with grid glow.",
+    vars: {
+      "--color-brand": "#22d3ee",
+      "--color-accent": "#6366f1",
+      "--gradient-brand": "linear-gradient(120deg,#22d3ee 0%,#0ea5e9 50%,#6366f1 100%)",
+      "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#38bdf8 60%,#8b5cf6 100%)",
+      "--app-bg":
+        "radial-gradient(1100px 660px at 0% -20%, rgba(34,211,238,0.18), transparent 64%), radial-gradient(900px 580px at 100% 0%, rgba(99,102,241,0.18), transparent 66%), linear-gradient(90deg, rgba(6,14,28,0.96), rgba(4,12,24,0.96))",
+    },
+    createdLabel: null,
+  },
+];
+
 function buildPreviewStyle(vars: Record<string, string>): React.CSSProperties {
   const style: React.CSSProperties = {};
   Object.entries(vars).forEach(([key, value]) => {
@@ -92,25 +185,14 @@ export function ThemeStyleCarousel() {
   const envelope = React.useMemo(() => (user ? buildMemoryEnvelope(user) : null), [user]);
 
   const basePresets = React.useMemo(() => builtInPresets(), []);
-  const placeholderSaved = React.useMemo<SavedStyle[]>(
-    () =>
-      Array.from({ length: 6 }).map((_, index) => ({
-        id: `placeholder-${index}`,
-        title: `Capsule Vibe ${index + 1}`,
-        summary: `AI moodboard style ${index + 1}`,
-        description: `Futuristic gradient #${index + 1}`,
-        vars: basePresets[index % basePresets.length]?.vars ?? {},
-        createdLabel: null,
-      })),
-    [basePresets],
-  );
+  const placeholderThemes = React.useMemo(() => PLACEHOLDER_THEMES, []);
 
   const envelopeRef = React.useRef(envelope);
   React.useEffect(() => {
     envelopeRef.current = envelope;
   }, [envelope]);
 
-  const [savedStyles, setSavedStyles] = React.useState<SavedStyle[]>(placeholderSaved);
+  const [savedStyles, setSavedStyles] = React.useState<SavedStyle[]>([]);
   const [headerMenuOpen, setHeaderMenuOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [previewingId, setPreviewingId] = React.useState<string | null>(null);
@@ -118,13 +200,18 @@ export function ThemeStyleCarousel() {
   const [canLeft, setCanLeft] = React.useState(false);
   const [canRight, setCanRight] = React.useState(false);
 
-  const items = React.useMemo<ThemeEntry[]>(
-    () => [
-      ...basePresets.map((preset) => ({ kind: "preset", preset } as ThemeEntry)),
-      ...savedStyles.map((saved) => ({ kind: "saved", saved } as ThemeEntry)),
-    ],
-    [basePresets, savedStyles],
+  const displayedSavedStyles = React.useMemo(
+    () => (savedStyles.length ? savedStyles : placeholderThemes),
+    [savedStyles, placeholderThemes],
   );
+
+  const items = React.useMemo<ThemeEntry[]>(() => {
+    const presetEntries = basePresets
+      .filter((preset) => preset.id !== "light" && preset.id !== "dark")
+      .map((preset) => ({ kind: "preset", preset } as ThemeEntry));
+    const savedEntries = displayedSavedStyles.map((saved) => ({ kind: "saved", saved } as ThemeEntry));
+    return [...presetEntries, ...savedEntries];
+  }, [basePresets, displayedSavedStyles]);
 
   const listRef = React.useRef<HTMLDivElement | null>(null);
   const itemWidthRef = React.useRef(0);
@@ -132,21 +219,31 @@ export function ThemeStyleCarousel() {
   const loopCount = items.length;
   const loopItems = React.useMemo(() => (loopCount ? [...items, ...items, ...items] : []), [items, loopCount]);
 
+  const primeOffsetRef = React.useRef(0);
+
+  const updateScrollState = React.useCallback(() => {
+    const el = listRef.current;
+    if (!el || !loopCount) {
+      setCanLeft(false);
+      setCanRight(false);
+      return;
+    }
+    const span = itemWidthRef.current || el.clientWidth || 1;
+    const delta = Math.abs(el.scrollLeft - primeOffsetRef.current);
+    setCanLeft(delta > span * 0.35);
+    setCanRight(loopCount > 1);
+  }, [loopCount]);
+
   const scrollByPage = React.useCallback(
     (dir: 1 | -1) => {
       const el = listRef.current;
       const span = itemWidthRef.current || el?.clientWidth || 0;
       if (!el || !span) return;
-      el.scrollBy({ left: dir * span * 2.5, behavior: "smooth" });
+      el.scrollBy({ left: dir * span * 1.2, behavior: "smooth" });
+      window.setTimeout(updateScrollState, 280);
     },
-    [],
+    [updateScrollState],
   );
-
-  const updateScrollState = React.useCallback(() => {
-    const hasItems = loopCount > 0;
-    setCanLeft(hasItems);
-    setCanRight(hasItems);
-  }, [loopCount]);
 
   const measureAndPrime = React.useCallback(() => {
     const el = listRef.current;
@@ -155,7 +252,10 @@ export function ThemeStyleCarousel() {
     if (!firstSlide) return;
     const gap = parseFloat(getComputedStyle(el).columnGap || "0");
     itemWidthRef.current = firstSlide.getBoundingClientRect().width + gap;
-    el.scrollLeft = itemWidthRef.current * loopCount;
+    primeOffsetRef.current = itemWidthRef.current * loopCount;
+    el.scrollLeft = primeOffsetRef.current;
+    setCanLeft(false);
+    setCanRight(loopCount > 1);
   }, [loopCount]);
 
   React.useEffect(() => {
@@ -171,9 +271,9 @@ export function ThemeStyleCarousel() {
     const span = itemWidthRef.current;
     if (!el || !loopCount || !span) return;
     const total = span * loopCount;
-    if (el.scrollLeft < total * 0.5) {
+    if (el.scrollLeft < primeOffsetRef.current - total + span) {
       el.scrollLeft += total;
-    } else if (el.scrollLeft > total * 1.5) {
+    } else if (el.scrollLeft > primeOffsetRef.current + total - span) {
       el.scrollLeft -= total;
     }
     updateScrollState();
@@ -190,10 +290,11 @@ export function ThemeStyleCarousel() {
 
   const startPreview = React.useCallback((entry: ThemeEntry) => {
     const id = getEntryId(entry);
+    if (previewingId === id) return;
     setPreviewingId(id);
     const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
     if (Object.keys(vars).length) startPreviewThemeVars(vars);
-  }, []);
+  }, [previewingId]);
 
   const stopPreview = React.useCallback(() => {
     endPreviewThemeVars();
@@ -228,12 +329,10 @@ export function ThemeStyleCarousel() {
     [stopPreview],
   );
 
-  const updateFromSaved = React.useCallback(
-    (saved: SavedStyle[]) => {
-      setSavedStyles(saved.length ? saved : placeholderSaved);
-    },
-    [placeholderSaved],
-  );
+  const updateFromSaved = React.useCallback((saved: SavedStyle[]) => {
+    const filtered = saved.filter((style) => Boolean(style?.id));
+    setSavedStyles(filtered);
+  }, []);
 
   const fetchSaved = React.useCallback(async () => {
     const envelopePayload = envelopeRef.current;
@@ -316,13 +415,10 @@ export function ThemeStyleCarousel() {
         body: JSON.stringify({ ids: [entry.saved.id], kind: "theme", user: envelopeRef.current ?? {} }),
       });
       if (res.ok) {
-        setSavedStyles((prev) => {
-          const next = prev.filter((style) => style.id !== entry.saved.id);
-          return next.length ? next : placeholderSaved;
-        });
+        setSavedStyles((prev) => prev.filter((style) => style.id !== entry.saved.id));
       }
     },
-    [placeholderSaved, stopPreview],
+    [stopPreview],
   );
 
   const handleDeleteAll = React.useCallback(async () => {
@@ -336,9 +432,9 @@ export function ThemeStyleCarousel() {
         body: JSON.stringify({ kind: "theme", all: true, user: envelopeRef.current ?? {} }),
       });
     }
-    setSavedStyles(placeholderSaved);
+    setSavedStyles([]);
     setHeaderMenuOpen(false);
-  }, [placeholderSaved, savedStyles, stopPreview]);
+  }, [savedStyles, stopPreview]);
 
   const handleSaveCurrent = React.useCallback(async () => {
     const vars = getStoredThemeVars();
@@ -360,10 +456,7 @@ export function ThemeStyleCarousel() {
     }
   }, [fetchSaved, stopPreview]);
 
-  const hasRealSaved = React.useMemo(
-    () => savedStyles.some((style) => !style.id.startsWith("placeholder-")),
-    [savedStyles],
-  );
+  const hasRealSaved = savedStyles.length > 0;
 
   return (
     <div className={styles.wrap}>
@@ -431,7 +524,13 @@ export function ThemeStyleCarousel() {
             </button>
           </div>
         ) : null}
-        <div className={styles.track} ref={listRef} onScroll={handleScroll}>
+        <div
+          className={styles.track}
+          ref={listRef}
+          onScroll={handleScroll}
+          data-can-left={canLeft ? 'true' : undefined}
+          data-can-right={canRight ? 'true' : undefined}
+        >
           {loopItems.map((entry, index) => {
             const baseId = getEntryId(entry);
             const key = `${baseId}::${index}`;

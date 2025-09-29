@@ -4,7 +4,6 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 import { deleteMemoryVectors, queryMemoryVectors, upsertMemoryVector } from "@/services/memories/vector-store";
 
-import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 
 import { normalizeLegacyMemoryRow } from "@/lib/supabase/posts";
 
@@ -350,14 +349,16 @@ export async function deleteMemories({
     return scoped as T;
   };
 
-  const run = async (promise: PromiseLike<PostgrestSingleResponse<unknown>>) => {
+  const run = async (promise: PromiseLike<{ data: any; error: any; count?: number | null }>) => {
     const res = await promise;
 
-    if (res.error) return 0;
+    if (res?.error) return 0;
 
-    if (Array.isArray(res.data)) return res.data.length;
+    if (Array.isArray(res?.data)) return res.data.length;
 
-    return (res as { count?: number }).count ?? 0;
+    if (typeof res?.count === "number") return res.count ?? 0;
+
+    return 0;
   };
 
   let deletedMemories = 0;
@@ -468,5 +469,7 @@ export async function deleteMemories({
 
   return { memories: deletedMemories, legacy: deletedLegacy };
 }
+
+
 
 

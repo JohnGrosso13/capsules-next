@@ -4,7 +4,7 @@ import { Buffer } from "node:buffer";
 
 import { serverEnv } from "../env/server";
 
-import { getSupabaseAdminClient } from "../supabase/admin";
+import { getDatabaseAdminClient } from "@/config/database";
 
 import { storeImageSrcToSupabase } from "../supabase/storage";
 
@@ -827,27 +827,37 @@ export async function summarizeFeedFromDB({
 
   limit?: number;
 }): Promise<FeedSummary> {
-  const supabase = getSupabaseAdminClient();
+  const db = getDatabaseAdminClient();
 
-  let query = supabase
+  type FeedRow = {
+    id: string;
+    kind: string | null;
+    content: string | null;
+    media_url: string | null;
+    media_prompt: string | null;
+    user_name: string | null;
+    capsule_id: string | null;
+    created_at: string | null;
+  };
 
+  let query = db
     .from("posts_view")
-
-    .select("id,kind,content,media_url,media_prompt,user_name,capsule_id,created_at")
-
+    .select<FeedRow>("id,kind,content,media_url,media_prompt,user_name,capsule_id,created_at")
     .order("created_at", { ascending: false })
-
     .limit(limit);
 
   if (capsuleId) {
     query = query.eq("capsule_id", capsuleId);
   }
 
-  const { data, error } = await query;
+  const result = await query.fetch();
+  if (result.error) {
+    throw new Error("summarizeFeedFromDB failed: " + result.error.message);
+  }
 
-  if (error) throw error;
+  const rows = result.data ?? [];
 
-  const posts = (data ?? []).map((row) => ({
+  const posts = rows.map((row) => ({
     id: row.id,
 
     kind: row.kind,

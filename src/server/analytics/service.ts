@@ -1,4 +1,8 @@
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  fetchDailyActiveRows,
+  fetchDailyPostRows,
+  fetchOverviewSnapshot,
+} from "./repository";
 
 export type AnalyticsOverview = {
   totalUsers: number;
@@ -11,12 +15,8 @@ export type AnalyticsOverview = {
 };
 
 export async function fetchAnalyticsOverview(): Promise<AnalyticsOverview> {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase.rpc("analytics_overview_snapshot");
-  if (error) {
-    throw error;
-  }
-  const row = (data as Record<string, unknown>[] | null)?.[0] ?? {};
+  const rows = await fetchOverviewSnapshot();
+  const row = rows[0] ?? {};
   const isoNow = new Date().toISOString();
   return {
     totalUsers: Number(row.total_users ?? 0),
@@ -34,28 +34,21 @@ export type TimeSeriesPoint = {
   value: number;
 };
 
-export async function fetchDailyActiveUsers(days: number = 30): Promise<TimeSeriesPoint[]> {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("analytics_daily_active_users")
-    .select("date, active_count")
-    .order("date", { ascending: false })
-    .limit(days);
-  if (error) throw error;
-  return (data ?? [])
-    .map((row) => ({ date: String(row.date), value: Number(row.active_count ?? 0) }))
+function normalizeSeries(rows: Array<{ date: string | null; value: number }>): TimeSeriesPoint[] {
+  return rows
+    .filter((row) => typeof row.date === "string" && row.date.trim().length > 0)
+    .map((row) => ({ date: row.date!.trim(), value: row.value }))
     .reverse();
 }
 
+export async function fetchDailyActiveUsers(days: number = 30): Promise<TimeSeriesPoint[]> {
+  const rows = await fetchDailyActiveRows(days);
+  return normalizeSeries(
+    rows.map((row) => ({ date: row.date, value: Number(row.active_count ?? 0) })),
+  );
+}
+
 export async function fetchDailyPosts(days: number = 30): Promise<TimeSeriesPoint[]> {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("analytics_daily_posts")
-    .select("date, posts_count")
-    .order("date", { ascending: false })
-    .limit(days);
-  if (error) throw error;
-  return (data ?? [])
-    .map((row) => ({ date: String(row.date), value: Number(row.posts_count ?? 0) }))
-    .reverse();
+  const rows = await fetchDailyPostRows(days);
+  return normalizeSeries(rows.map((row) => ({ date: row.date, value: Number(row.posts_count ?? 0) })));
 }

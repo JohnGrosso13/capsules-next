@@ -64,57 +64,58 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
         <>
           <div className={cm.backdrop} onClick={() => setOpen(false)} />
           <div className={cm.menu} role="menu" style={{ top: "calc(100% + 8px)", right: 0 }}>
-          <button
-            type="button"
-            className={cm.item}
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onView?.();
-            }}
-            disabled={disabledAll}
-          >
-            View
-          </button>
-          <button
-            type="button"
-            className={cm.item}
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onStartChat?.();
-            }}
-            disabled={true /* disabled for now per spec */}
-            aria-disabled="true"
-            title="Chat coming soon"
-          >
-            Start chat
-          </button>
-          <button
-            type="button"
-            className={cm.item}
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onBlock?.();
-            }}
-            disabled={disabledAll}
-          >
-            Block
-          </button>
-          <button
-            type="button"
-            className={`${cm.item} ${cm.danger}`.trim()}
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onDelete();
-            }}
-            disabled={disabledAll}
-            aria-busy={Boolean(pending)}
-          >
-            {pending ? "Removing..." : "Delete"}
-          </button>
+            <button
+              type="button"
+              className={cm.item}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onView?.();
+              }}
+              disabled={disabledAll}
+            >
+              View
+            </button>
+            <button
+              type="button"
+              className={cm.item}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onStartChat?.();
+              }}
+              disabled={true /* disabled for now per spec */}
+              aria-disabled="true"
+              title="Chat coming soon"
+            >
+              Start chat
+            </button>
+            <div className={cm.separator} aria-hidden />
+            <button
+              type="button"
+              className={cm.item}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onBlock?.();
+              }}
+              disabled={disabledAll}
+            >
+              Block
+            </button>
+            <button
+              type="button"
+              className={`${cm.item} ${cm.danger}`.trim()}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onDelete();
+              }}
+              disabled={disabledAll}
+              aria-busy={Boolean(pending)}
+            >
+              {pending ? "Removing..." : "Delete"}
+            </button>
           </div>
         </>
       ) : null}

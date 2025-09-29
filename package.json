@@ -14,9 +14,12 @@
     "lint:fix": "eslint --fix .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check": "npm run lint && npm run typecheck",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "vitest"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.684.0",
+    "@aws-sdk/s3-request-presigner": "^3.684.0",
     "@clerk/nextjs": "^6.32.2",
     "@phosphor-icons/react": "^2.1.10",
     "@pinecone-database/pinecone": "^6.1.2",
@@ -31,11 +34,10 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "tailwind-merge": "^2.4.0",
-    "zod": "^4.1.11",
-    "@aws-sdk/client-s3": "^3.684.0",
-    "@aws-sdk/s3-request-presigner": "^3.684.0"
+    "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241018.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "4.1.13",
     "@types/bcryptjs": "^2.4.2",
@@ -50,7 +52,7 @@
     "prettier-plugin-tailwindcss": "^0.6.14",
     "tailwindcss": "4.1.13",
     "typescript": "^5.9.0",
-    "@cloudflare/workers-types": "^4.20241018.0",
+    "vitest": "^3.2.4",
     "wrangler": "^3.80.2"
   },
   "engines": {

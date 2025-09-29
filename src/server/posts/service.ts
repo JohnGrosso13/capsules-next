@@ -1,9 +1,21 @@
 import { CreatePostInput } from "./types";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  fetchActivePostByClientId,
+  fetchPostRowByIdentifier as fetchPostRowByIdentifierFromRepository,
+  fetchUserProfile,
+  listMemoriesByOwnerAndColumn,
+  resolvePostIdByClientId,
+  updateLegacyMemoryItems,
+  updateMemoryById,
+  upsertCommentRow,
+  upsertPostRow,
+} from "./repository";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { getStorageObjectUrl } from "@/lib/storage/multipart";
 import { indexMemory } from "@/lib/supabase/memories";
 import { captionImage } from "@/lib/ai/openai";
+
+export { fetchPostRowByIdentifierFromRepository as fetchPostRowByIdentifier };
 
 function parseMaybeJSON(value: unknown): Record<string, unknown> | null {
   if (value === null || value === undefined) return null;
@@ -175,22 +187,15 @@ export async function markLegacyMemoryItemsUnused({
   deletionTime: string;
 }) {
   if (!ownerId) return 0;
-  const supabase = getSupabaseAdminClient();
-  let updated = 0;
+  const metaPayload = parseAdminMeta(deletionTime, clientId);
   const attempts: Array<[string, string]> = [];
   if (clientId) attempts.push(["post_id", clientId]);
   if (mediaUrl) attempts.push(["media_url", mediaUrl]);
+
+  let updated = 0;
   for (const [column, value] of attempts) {
     try {
-      const res = await supabase
-        .from("memory_items")
-        .update({ meta: parseAdminMeta(deletionTime, clientId) })
-        .eq("owner_user_id", ownerId)
-        .eq(column, value)
-        .select("id");
-      if (!res.error) {
-        updated += Array.isArray(res.data) ? res.data.length : 0;
-      }
+      updated += await updateLegacyMemoryItems(ownerId, column, value, { meta: metaPayload });
     } catch (err) {
       console.warn("markLegacyMemoryItemsUnused error", err);
     }
@@ -207,7 +212,6 @@ export async function markPostAttachmentsUnused(
   },
   deletionTime: string,
 ) {
-  const supabase = getSupabaseAdminClient();
   const ownerId = postRow.author_user_id ?? null;
   if (!ownerId) return { memories: 0, legacy: 0 };
   const clientId = postRow.client_id ?? null;
@@ -217,43 +221,23 @@ export async function markPostAttachmentsUnused(
 
   const updateMemories = async (column: string, value: string | null) => {
     if (!value) return;
-    const res = await supabase
-      .from("memories")
-      .select("id, meta")
-      .eq("owner_user_id", ownerId)
-      .eq(column, value);
-    if (res.error) {
-      const msg = String(res.error.message || "").toLowerCase();
-      if (
-        msg.includes("does not exist") ||
-        res.error.code === "PGRST204" ||
-        res.error.code === "42703"
-      )
-        return;
-      throw res.error;
-    }
-    for (const row of res.data ?? []) {
-      if (!row || !row.id) continue;
-      const id = String(row.id);
-      if (seen.has(id)) continue;
-      const nextMeta = parseAdminMeta(deletionTime, clientId ?? postRow.id);
-      const updateRes = await supabase
-        .from("memories")
-        .update({ meta: nextMeta, updated_at: deletionTime })
-        .eq("id", row.id);
-      if (!updateRes.error) {
+    try {
+      const rows = await listMemoriesByOwnerAndColumn(ownerId, column, value);
+      for (const row of rows) {
+        const id = typeof row?.id === "string" ? row.id : null;
+        if (!id || seen.has(id)) continue;
+        const nextMeta = parseAdminMeta(deletionTime, clientId ?? postRow.id);
+        await updateMemoryById(id, { meta: nextMeta, updated_at: deletionTime });
         seen.add(id);
         memoryUpdates += 1;
       }
+    } catch (err) {
+      console.warn("markPostAttachmentsUnused memory error", err);
     }
   };
 
-  try {
-    await updateMemories("post_id", clientId);
-    await updateMemories("media_url", mediaUrl);
-  } catch (err) {
-    console.warn("markPostAttachmentsUnused memory error", err);
-  }
+  await updateMemories("post_id", clientId);
+  await updateMemories("media_url", mediaUrl);
 
   let legacyUpdates = 0;
   try {
@@ -270,51 +254,14 @@ export async function markPostAttachmentsUnused(
   return { memories: memoryUpdates, legacy: legacyUpdates };
 }
 
-const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export async function fetchPostRowByIdentifier(identifier: string) {
-  const supabase = getSupabaseAdminClient();
-  const normalized = identifier.trim();
-  if (!normalized) return null;
-  const attempts: Array<{ column: string; value: string | number }> = [];
-  if (uuidRegex.test(normalized)) attempts.push({ column: "id", value: normalized });
-  if (/^\d+$/.test(normalized)) attempts.push({ column: "id", value: Number(normalized) });
-  attempts.push({ column: "client_id", value: normalized });
-
-  for (const attempt of attempts) {
-    const { data, error } = await supabase
-      .from("posts")
-      .select("id, client_id, author_user_id, media_url, deleted_at")
-      .eq(attempt.column, attempt.value)
-      .maybeSingle();
-    if (error) {
-      const msg = String(error.message || "").toLowerCase();
-      if (msg.includes("row not found") || error.code === "PGRST116" || error.code === "406")
-        continue;
-      throw error;
-    }
-    if (data) return data;
-  }
-  return null;
-}
-
 export async function resolvePostId(maybeId: string | null | undefined) {
-  const supabase = getSupabaseAdminClient();
   const value = String(maybeId ?? "").trim();
   if (!value) return null;
-  if (uuidRegex.test(value)) return value;
-  const { data, error } = await supabase
-    .from("posts")
-    .select("id")
-    .eq("client_id", value)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (error) throw error;
-  return data ? (data.id as string) : null;
+  if (UUID_REGEX.test(value)) return value;
+  return resolvePostIdByClientId(value);
 }
 
 export async function persistCommentToDB(comment: Record<string, unknown>, userId: string | null) {
-  const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
   const postId = await resolvePostId((comment.postId as string) ?? (comment.post_id as string));
   const commentCapsuleId = normalizeUuid(
@@ -344,13 +291,7 @@ export async function persistCommentToDB(comment: Record<string, unknown>, userI
     const err = new Error("post_id and content required");
     throw err;
   }
-  const { data, error } = await supabase
-    .from("comments")
-    .upsert([row], { onConflict: "client_id" })
-    .select("id")
-    .single();
-  if (error) throw error;
-  return data.id as string;
+  return upsertCommentRow(row);
 }
 
 function normalizeTags(value: unknown): string[] | null {
@@ -383,7 +324,6 @@ function pruneNullish(payload: Record<string, unknown>) {
 }
 
 export async function createPostRecord(post: CreatePostInput, ownerId: string) {
-  const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
   const draft = { ...post } as Record<string, unknown>;
 
@@ -462,47 +402,31 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
   const tags = normalizeTags(draft.tags);
   if (tags) row.tags = tags;
 
-  let existing: Record<string, unknown> | null = null;
-  if (row.client_id) {
-    const { data, error } = await supabase
-      .from("posts")
-      .select("id, capsule_id, media_url, media_prompt, user_name, user_avatar, source, created_at")
-      .eq("client_id", row.client_id)
-      .is("deleted_at", null)
-      .maybeSingle();
-    if (!error && data) existing = data as Record<string, unknown>;
-  }
-
-  if (existing) {
-    if (!row.capsule_id && existing.capsule_id) row.capsule_id = existing.capsule_id;
-    if (!row.media_url && existing.media_url) row.media_url = existing.media_url;
-    if (!row.media_prompt && existing.media_prompt) row.media_prompt = existing.media_prompt;
-    if (!row.user_name && existing.user_name) row.user_name = existing.user_name;
-    if (!row.user_avatar && existing.user_avatar) row.user_avatar = existing.user_avatar;
-    if (!row.source && existing.source) row.source = existing.source;
-    if (existing.created_at) row.created_at = existing.created_at;
+  if (clientId) {
+    try {
+      const existing = await fetchActivePostByClientId(clientId);
+      if (existing) {
+        if (!row.capsule_id && existing.capsule_id) row.capsule_id = existing.capsule_id;
+        if (!row.media_url && existing.media_url) row.media_url = existing.media_url;
+        if (!row.media_prompt && existing.media_prompt) row.media_prompt = existing.media_prompt;
+        if (!row.user_name && existing.user_name) row.user_name = existing.user_name;
+        if (!row.user_avatar && existing.user_avatar) row.user_avatar = existing.user_avatar;
+        if (!row.source && existing.source) row.source = existing.source;
+        if (existing.created_at) row.created_at = existing.created_at;
+      }
+    } catch (error) {
+      console.warn("existing post lookup failed", error);
+    }
   }
 
   if ((!row.user_name || !row.user_avatar) && ownerId) {
     try {
-      const { data: ownerProfile } = await supabase
-        .from("users")
-        .select("full_name, avatar_url")
-        .eq("id", ownerId)
-        .maybeSingle();
+      const ownerProfile = await fetchUserProfile(ownerId);
       if (ownerProfile) {
-        if (
-          !row.user_name &&
-          typeof ownerProfile.full_name === "string" &&
-          ownerProfile.full_name.trim()
-        ) {
+        if (!row.user_name && typeof ownerProfile.full_name === "string" && ownerProfile.full_name.trim()) {
           row.user_name = ownerProfile.full_name.trim();
         }
-        if (
-          !row.user_avatar &&
-          typeof ownerProfile.avatar_url === "string" &&
-          ownerProfile.avatar_url.trim()
-        ) {
+        if (!row.user_avatar && typeof ownerProfile.avatar_url === "string" && ownerProfile.avatar_url.trim()) {
           row.user_avatar = ownerProfile.avatar_url.trim();
         }
       }
@@ -535,7 +459,6 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
         (memoryKind === "generated" ? "Generated media" : "Upload");
       let memoryDescription = prompt || (typeof draft.content === "string" ? draft.content : "");
       if (!memoryDescription || memoryDescription.trim().length < 6) {
-        // Enrich with a short machine caption so text queries can find images
         try {
           const cap = await captionImage(row.media_url as string);
           if (cap) memoryDescription = memoryDescription ? `${memoryDescription} | ${cap}` : cap;
@@ -558,7 +481,6 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
     }
   }
 
-  // Index any additional attachments for this post (not just the primary mediaUrl)
   try {
     const attachmentsRaw = Array.isArray((draft as Record<string, unknown>).attachments)
       ? ((draft as Record<string, unknown>).attachments as Array<Record<string, unknown>>)
@@ -639,28 +561,24 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
   } catch (error) {
     console.warn("attachments index failed", error);
   }
-  let upsert = await supabase
-    .from("posts")
-    .upsert([payload], { onConflict: "client_id" })
-    .select("id")
-    .single();
 
-  if (
-    upsert.error &&
-    (upsert.error.code === "PGRST204" || (upsert.error.message ?? "").includes("'poll'"))
-  ) {
-    const fallback = { ...payload };
-    delete fallback.poll;
-    if (typeof payload.poll !== "undefined") {
-      fallback.media_prompt = fallback.media_prompt || `__POLL__${JSON.stringify(payload.poll)}`;
+  let postId: string;
+  try {
+    postId = await upsertPostRow(payload, { onConflict: "client_id" });
+  } catch (error) {
+    const code = (error as { code?: string }).code ?? "";
+    const message = error instanceof Error ? error.message : "";
+    if (code === "PGRST204" || message.includes("'poll'")) {
+      const fallback = { ...payload };
+      delete fallback.poll;
+      if (typeof payload.poll !== "undefined") {
+        fallback.media_prompt = fallback.media_prompt || `__POLL__${JSON.stringify(payload.poll)}`;
+      }
+      postId = await upsertPostRow(fallback, { onConflict: "client_id" });
+    } else {
+      throw error;
     }
-    upsert = await supabase
-      .from("posts")
-      .upsert([fallback], { onConflict: "client_id" })
-      .select("id")
-      .single();
   }
 
-  if (upsert.error) throw upsert.error;
-  return upsert.data?.id as string;
+  return postId;
 }
