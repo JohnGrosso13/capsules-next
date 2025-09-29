@@ -61,7 +61,7 @@ export function PrimaryHeader({
       )}
     >
       <div className={styles.inner}>
-        <Link href="/" aria-label="Capsules home" className={styles.brand}>
+        <div className={styles.brand} role="img" aria-label="Capsules brand mark">
           <span className={styles.brandMark} aria-hidden>
             <Brain
               className={`${styles.brandGlyph} ${styles.brandGlyphAi}`.trim()}
@@ -72,8 +72,7 @@ export function PrimaryHeader({
               weight="duotone"
             />
           </span>
-          <span className={styles.brandName}>Capsules</span>
-        </Link>
+        </div>
         <nav className={styles.nav} aria-label="Primary navigation">
           {navItems.map((item) => {
             const isActive = activeKey === item.key;
@@ -89,7 +88,7 @@ export function PrimaryHeader({
           })}
         </nav>
         <div className={styles.actions}>
-          {/* Order: Profile → Settings → Launch Capsule */}
+          {/* Order: Profile â†’ Settings â†’ Launch Capsule */}
           <HeaderAuth />
           {showSettingsLink ? (
             <Link href="/settings" aria-label="Settings" title="Settings" className={styles.iconButton}>
@@ -108,3 +107,4 @@ export function PrimaryHeader({
     </header>
   );
 }
+

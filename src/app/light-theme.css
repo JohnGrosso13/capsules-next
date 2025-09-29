@@ -1,4 +1,4 @@
-@layer base {
+﻿@layer base {
   :root[data-theme="light"] {
     /* Readable text tokens for components expecting --text/--text-2 */
     --text: var(--color-fg, rgba(14, 16, 36, 0.96));
@@ -12,7 +12,7 @@
     --pill-bg-2: rgba(255, 255, 255, 0.78);
     --pill-border: rgba(14, 23, 42, 0.16);
 
-    /* Cards (posts, tiles) — soft, low-contrast layers */
+    /* Cards (posts, tiles) â€” soft, low-contrast layers */
     --card-bg-1: rgba(255, 255, 255, 0.96);
     --card-bg-2: rgba(255, 255, 255, 0.9);
     --card-border: rgba(14, 23, 42, 0.12);
@@ -42,12 +42,13 @@
 
     /* Header acrylic tokens to blend with page background gently */
     /* Make header fully readable: nearly-opaque acrylic with soft brand tint */
-    --header-glass-top: rgba(245, 247, 255, 0.88);
-    --header-glass-bottom: rgba(236, 240, 255, 0.74);
-    --header-tint-from: rgba(79, 70, 229, 0.08);
-    --header-tint-to: rgba(34, 211, 238, 0.06);
-    --header-border-color: rgba(14, 23, 42, 0.18);
-    --header-shadow: 0 20px 36px rgba(15, 23, 42, 0.22);
-    --header-scrim: linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
+       --header-glass-top: rgba(26, 44, 92, 0.9);
+       --header-glass-bottom: rgba(40, 72, 140, 0.82);
+       --header-tint-from: rgba(56, 189, 248, 0.14);
+       --header-tint-to: rgba(37, 99, 235, 0.1);
+       --header-border-color: rgba(148, 197, 255, 0.32);
+       --header-shadow: 0 18px 42px rgba(15, 36, 86, 0.28);
+       --header-scrim: linear-gradient(180deg, rgba(17, 42, 96, 0.18), rgba(17, 42, 96, 0));
   }
 }
+

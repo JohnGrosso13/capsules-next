@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @config "../../tailwind.config.ts";
 @layer base {
   *,
@@ -19,18 +19,18 @@
       "Liberation Mono", "Courier New", monospace;
     --surface-app: var(
       --app-bg,
-      radial-gradient(1200px 720px at 0% 0%, rgba(99, 102, 241, 0.12), transparent 60%),
-      radial-gradient(1020px 680px at 100% 0%, rgba(124, 58, 237, 0.1), transparent 62%),
+      radial-gradient(1200px 720px at 0% 0%, rgba(59, 130, 246, 0.16), transparent 60%),
+      radial-gradient(1020px 680px at 100% 0%, rgba(14, 165, 233, 0.14), transparent 62%),
       linear-gradient(
         90deg,
-        rgba(99, 102, 241, 0.09) 0%,
-        rgba(99, 102, 241, 0.04) 20%,
+        rgba(59, 130, 246, 0.10) 0%,
+        rgba(59, 130, 246, 0.05) 20%,
         rgba(5, 10, 27, 0) 42%,
         rgba(5, 10, 27, 0) 58%,
-        rgba(124, 58, 237, 0.04) 80%,
-        rgba(124, 58, 237, 0.09) 100%
+        rgba(14, 165, 233, 0.05) 80%,
+        rgba(14, 165, 233, 0.10) 100%
       ),
-      radial-gradient(880px 560px at 50% 108%, rgba(236, 72, 153, 0.08), transparent 74%),
+      radial-gradient(880px 560px at 50% 108%, rgba(56, 189, 248, 0.10), transparent 74%),
       #050a1b
     );
     --surface-muted: rgba(17, 22, 45, 0.8);
@@ -73,56 +73,56 @@
     --glass-bg-1: rgba(255, 255, 255, 0.06);
     --glass-bg-2: rgba(255, 255, 255, 0.035);
   }
-  :root[data-theme="light"] {
-    color-scheme: light;
-    --surface-app: var(
-      --app-bg,
-      radial-gradient(1200px 720px at 0% 0%, rgba(180, 188, 255, 0.28), transparent 60%),
-      radial-gradient(1020px 680px at 100% 0%, rgba(200, 210, 255, 0.24), transparent 62%),
-      linear-gradient(
-        90deg,
-        rgba(194, 202, 255, 0.26) 0%,
-        rgba(194, 202, 255, 0.1) 20%,
-        rgba(247, 249, 255, 0) 42%,
-        rgba(247, 249, 255, 0) 58%,
-        rgba(203, 212, 255, 0.12) 80%,
-        rgba(203, 212, 255, 0.26) 100%
-      ),
-      radial-gradient(840px 560px at 50% 110%, rgba(147, 197, 253, 0.18), transparent 78%),
-      #f7f9ff
-    );
-    --surface-muted: rgba(255, 255, 255, 0.86);
-    --surface-elevated: rgba(255, 255, 255, 0.92);
-    --surface-overlay: rgba(255, 255, 255, 0.78);
-    --color-fg: rgba(14, 16, 36, 0.96);
-    --color-fg-muted: rgba(14, 16, 36, 0.76);
-    --color-fg-subtle: rgba(14, 16, 36, 0.58);
-    --color-border: rgba(14, 23, 42, 0.12);
-    --color-border-strong: rgba(14, 23, 42, 0.2);
-    --color-brand: #4f46e5;
-    --color-brand-strong: #312e81;
-    --color-brand-foreground: #0e1024;
-    --color-brand-muted: rgba(79, 70, 229, 0.16);
-    --gradient-brand: linear-gradient(120deg, #4f46e5 0%, #6366f1 45%, #22d3ee 100%);
-    --cta-gradient: linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%);
-    --cta-button-text: #ffffff;
-    --color-accent: #0ea5e9;
-    --color-info: #0284c7;
-    --color-success: #059669;
-    --color-warning: #d97706;
-    --color-danger: #dc2626;
-    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.1);
-    --shadow-sm: 0 4px 10px rgba(15, 23, 42, 0.12);
-    --shadow-md: 0 14px 30px rgba(15, 23, 42, 0.16);
-    --shadow-lg: 0 22px 44px rgba(15, 23, 42, 0.18);
-    --shadow-xl: 0 32px 64px rgba(15, 23, 42, 0.22);
-    --shadow-glow: 0 0 36px rgba(79, 70, 229, 0.32);
-    --ring-primary: 0 0 0 1px rgba(79, 70, 229, 0.45);
-    --ring-offset: 0 0 0 4px rgba(79, 70, 229, 0.14);
-    /* Removed legacy Material icon tokens (using Phosphor components now) */
-    --cta-gradient: linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%);
-    --cta-button-text: #ffffff;
-  }
+:root[data-theme="light"] {
+  color-scheme: light;
+  --surface-app: var(
+    --app-bg,
+    radial-gradient(1200px 720px at 0% 0%, rgba(147, 197, 253, 0.24), transparent 60%),
+    radial-gradient(1020px 680px at 100% 0%, rgba(125, 211, 252, 0.22), transparent 62%),
+    linear-gradient(
+      90deg,
+      rgba(147, 197, 253, 0.22) 0%,
+      rgba(147, 197, 253, 0.10) 20%,
+      rgba(247, 249, 255, 0) 42%,
+      rgba(247, 249, 255, 0) 58%,
+      rgba(125, 211, 252, 0.12) 80%,
+      rgba(125, 211, 252, 0.24) 100%
+    ),
+    radial-gradient(840px 560px at 50% 110%, rgba(147, 197, 253, 0.18), transparent 78%),
+    #f7f9ff
+  );
+  --surface-muted: rgba(255, 255, 255, 0.86);
+  --surface-elevated: rgba(255, 255, 255, 0.92);
+  --surface-overlay: rgba(255, 255, 255, 0.78);
+  --color-fg: rgba(14, 16, 36, 0.96);
+  --color-fg-muted: rgba(14, 16, 36, 0.76);
+  --color-fg-subtle: rgba(14, 16, 36, 0.58);
+  --color-border: rgba(14, 23, 42, 0.12);
+  --color-border-strong: rgba(14, 23, 42, 0.2);
+  --color-brand: #4f46e5;
+  --color-brand-strong: #312e81;
+  --color-brand-foreground: #0e1024;
+  --color-brand-muted: rgba(79, 70, 229, 0.16);
+  --gradient-brand: linear-gradient(120deg, #4f46e5 0%, #6366f1 45%, #22d3ee 100%);
+  --cta-gradient: linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%);
+  --cta-button-text: #ffffff;
+  --color-accent: #0ea5e9;
+  --color-info: #0284c7;
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.1);
+  --shadow-sm: 0 4px 10px rgba(15, 23, 42, 0.12);
+  --shadow-md: 0 14px 30px rgba(15, 23, 42, 0.16);
+  --shadow-lg: 0 22px 44px rgba(15, 23, 42, 0.18);
+  --shadow-xl: 0 32px 64px rgba(15, 23, 42, 0.22);
+  --shadow-glow: 0 0 36px rgba(79, 70, 229, 0.32);
+  --ring-primary: 0 0 0 1px rgba(79, 70, 229, 0.45);
+  --ring-offset: 0 0 0 4px rgba(79, 70, 229, 0.14);
+  /* Removed legacy Material icon tokens (using Phosphor components now) */
+  --cta-gradient: linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%);
+  --cta-button-text: #ffffff;
+}
   html,
   body {
     min-height: 100%;
@@ -290,3 +290,5 @@
     animation: marquee 60s linear infinite;
   }
 }
+
+
