@@ -2,38 +2,46 @@ import { NextResponse } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { persistCommentToDB, resolvePostId } from "@/lib/supabase/posts";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { listCommentsForPost } from "@/server/posts/repository";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const rawPostId = url.searchParams.get("postId") ?? url.searchParams.get("post_id");
-  const supabase = getSupabaseAdminClient();
   const resolved = await resolvePostId(rawPostId);
   if (!resolved) {
     return NextResponse.json({ success: true, comments: [] });
   }
 
-  const { data, error } = await supabase
-    .from("comments")
-    .select("id, client_id, post_id, content, user_name, user_avatar, capsule_id, created_at")
-    .eq("post_id", resolved)
-    .order("created_at", { ascending: true })
-    .limit(200);
-
-  if (error) {
+  let rows;
+  try {
+    rows = await listCommentsForPost(resolved, 200);
+  } catch (error) {
     console.error("Fetch comments error", error);
     return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });
   }
 
-  const comments = (data ?? []).map((row) => ({
-    id: row.client_id ?? row.id,
-    postId: rawPostId,
-    content: row.content,
-    userName: row.user_name,
-    userAvatar: row.user_avatar,
-    capsuleId: row.capsule_id,
-    ts: row.created_at,
-  }));
+  const comments = rows.map((row) => {
+    const identifierCandidate =
+      (typeof row.client_id === "string" && row.client_id.length
+        ? row.client_id
+        : typeof row.client_id === "number"
+          ? String(row.client_id)
+          : typeof row.id === "string"
+            ? row.id
+            : typeof row.id === "number"
+              ? String(row.id)
+              : null) ?? rawPostId ?? resolved;
+
+    return {
+      id: identifierCandidate,
+      postId: rawPostId,
+      content: row.content,
+      userName: row.user_name,
+      userAvatar: row.user_avatar,
+      capsuleId: row.capsule_id,
+      ts: row.created_at,
+    };
+  });
 
   return NextResponse.json({ success: true, comments });
 }

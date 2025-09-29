@@ -6,11 +6,10 @@ import {
   mergeUserPayloadFromRequest,
   ensureUserFromRequest,
 } from "@/lib/auth/payload";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { fetchPostRowByIdentifier, markPostAttachmentsUnused } from "@/lib/supabase/posts";
+import { softDeletePostById } from "@/server/posts/repository";
 
 export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const supabase = getSupabaseAdminClient();
   const { id } = await context.params;
   const rawId = decodeURIComponent(id ?? "").trim();
   if (!rawId) {
@@ -62,13 +61,10 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     });
   }
 
-  const { error: updateError } = await supabase
-    .from("posts")
-    .update({ deleted_at: deletionTime, updated_at: deletionTime })
-    .eq("id", postRow.id);
-
-  if (updateError) {
-    console.error("Soft delete error", updateError);
+  try {
+    await softDeletePostById(String(postRow.id), deletionTime);
+  } catch (error) {
+    console.error("Soft delete error", error);
     return NextResponse.json({ error: "Failed to delete post" }, { status: 500 });
   }
 

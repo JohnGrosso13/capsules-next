@@ -1,6 +1,8 @@
 import "server-only";
 
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getDatabaseAdminClient } from "@/config/database";
+
+const db = getDatabaseAdminClient();
 
 export type UploadSessionStatus =
   | "initialized"
@@ -115,8 +117,7 @@ export async function createUploadSessionRecord(options: {
   turnstileCdata?: string | null;
   clientIp?: string | null;
 }): Promise<UploadSessionRecord | null> {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
+  const result = await db
     .from("media_upload_sessions")
     .insert({
       owner_user_id: options.ownerId,
@@ -135,15 +136,16 @@ export async function createUploadSessionRecord(options: {
       client_ip: options.clientIp ?? null,
       status: "initialized",
     })
-    .select()
+    .select<Record<string, unknown>>("*")
     .single();
 
-  if (error) {
-    console.warn("create upload session failed", error);
+  if (result.error) {
+    console.warn("create upload session failed", result.error);
     return null;
   }
 
-  return mapRow(data as Record<string, unknown>);
+  const row = result.data;
+  return row ? mapRow(row as Record<string, unknown>) : null;
 }
 
 export async function markUploadSessionUploaded(options: {
@@ -153,8 +155,7 @@ export async function markUploadSessionUploaded(options: {
   parts: Array<{ partNumber: number; etag: string }>;
   metadata?: Record<string, unknown> | null;
 }): Promise<UploadSessionRecord | null> {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
+  const result = await db
     .from("media_upload_sessions")
     .update({
       upload_id: options.uploadId,
@@ -165,49 +166,58 @@ export async function markUploadSessionUploaded(options: {
       metadata: options.metadata ?? null,
     })
     .eq("id", options.sessionId)
-    .select()
+    .select<Record<string, unknown>>("*")
     .single();
 
-  if (error) {
-    console.warn("mark upload session uploaded failed", error);
+  if (result.error) {
+    console.warn("mark upload session uploaded failed", result.error);
     return null;
   }
 
-  return mapRow(data as Record<string, unknown>);
+  const row = result.data;
+  return row ? mapRow(row as Record<string, unknown>) : null;
 }
 
 export async function getUploadSessionById(sessionId: string): Promise<UploadSessionRecord | null> {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
+  const result = await db
     .from("media_upload_sessions")
-    .select("*")
+    .select<Record<string, unknown>>("*")
     .eq("id", sessionId)
-    .single();
+    .maybeSingle();
 
-  if (error) {
-    console.warn("get upload session failed", error);
+  if (result.error) {
+    console.warn("get upload session failed", result.error);
     return null;
   }
 
-  return mapRow(data as Record<string, unknown>);
+  const row = result.data;
+  return row ? mapRow(row as Record<string, unknown>) : null;
 }
 
 export async function getUploadSessionByUploadId(
   uploadId: string,
   ownerId?: string | null,
 ): Promise<UploadSessionRecord | null> {
-  const supabase = getSupabaseAdminClient();
-  let query = supabase.from("media_upload_sessions").select("*").eq("upload_id", uploadId);
+  let builder = db
+    .from("media_upload_sessions")
+    .select<Record<string, unknown>>("*")
+    .eq("upload_id", uploadId);
+
   if (ownerId) {
-    query = query.eq("owner_user_id", ownerId);
+    builder = builder.eq("owner_user_id", ownerId);
   }
-  const { data, error } = await query.single();
-  if (error) {
-    console.warn("get upload session by upload id failed", error);
+
+  const result = await builder.maybeSingle();
+
+  if (result.error) {
+    console.warn("get upload session by upload id failed", result.error);
     return null;
   }
-  return mapRow(data as Record<string, unknown>);
+
+  const row = result.data;
+  return row ? mapRow(row as Record<string, unknown>) : null;
 }
+
 export async function updateUploadSessionStatus(
   sessionId: string,
   patch: Partial<{
@@ -218,8 +228,13 @@ export async function updateUploadSessionStatus(
     completed_at: string | null;
   }>,
 ): Promise<void> {
-  const supabase = getSupabaseAdminClient();
-  await supabase.from("media_upload_sessions").update(patch).eq("id", sessionId);
+  const result = await db
+    .from("media_upload_sessions")
+    .update(patch)
+    .eq("id", sessionId)
+    .fetch();
+
+  if (result.error) {
+    console.warn("update upload session status failed", result.error);
+  }
 }
-
-

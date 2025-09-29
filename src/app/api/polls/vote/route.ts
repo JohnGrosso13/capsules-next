@@ -6,10 +6,12 @@ import {
   resolveUserKey,
   type IncomingUserPayload,
 } from "@/lib/auth/payload";
-
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-
 import { resolvePostId } from "@/lib/supabase/posts";
+import {
+  fetchPostCoreById,
+  listPollVotesForPost,
+  upsertPollVote,
+} from "@/server/posts/repository";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -49,8 +51,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "auth required" }, { status: 401 });
   }
 
-  const supabase = getSupabaseAdminClient();
-
   const postId = await resolvePostId(postIdInput);
 
   if (!postId) {
@@ -58,71 +58,35 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { error: upsertError } = await supabase
+    await upsertPollVote(postId, userKey, optionIndex);
 
-      .from("poll_votes")
-
-      .upsert(
-        [
-          {
-            post_id: postId,
-
-            user_key: userKey,
-
-            option_index: optionIndex,
-          },
-        ],
-
-        { onConflict: "post_id,user_key" },
-      );
-
-    if (upsertError) throw upsertError;
-
-    const { data: voteRows, error: selectVotesError } = await supabase
-
-      .from("poll_votes")
-
-      .select("option_index")
-
-      .eq("post_id", postId)
-
-      .limit(5000);
-
-    if (selectVotesError) throw selectVotesError;
+    const voteRows = await listPollVotesForPost(postId);
 
     const countsMap = new Map<number, number>();
-
-    (voteRows ?? []).forEach((row) => {
+    voteRows.forEach((row) => {
       const index = Number(row.option_index) || 0;
-
       countsMap.set(index, (countsMap.get(index) ?? 0) + 1);
     });
 
-    const optionKeys = Array.from(countsMap.keys());
+    let poll: unknown = null;
+    let mediaPrompt: string | null = null;
 
-    const maxIndex = optionKeys.length ? Math.max(...optionKeys) : -1;
-
-    const { data: pollRow, error: pollError } = await supabase
-
-      .from("posts")
-
-      .select("poll, media_prompt")
-
-      .eq("id", postId)
-
-      .maybeSingle();
-
-    if (pollError) throw pollError;
-
-    let poll: unknown = pollRow?.poll ?? null;
+    try {
+      const pollCore = await fetchPostCoreById(postId);
+      poll = pollCore?.poll ?? null;
+      mediaPrompt =
+        typeof pollCore?.media_prompt === "string" ? pollCore.media_prompt : null;
+    } catch (pollFetchError) {
+      console.warn("Poll post fetch failed", pollFetchError);
+    }
 
     if (
       !poll &&
-      typeof pollRow?.media_prompt === "string" &&
-      pollRow.media_prompt.startsWith("__POLL__")
+      typeof mediaPrompt === "string" &&
+      mediaPrompt.startsWith("__POLL__")
     ) {
       try {
-        poll = JSON.parse(pollRow.media_prompt.slice(8));
+        poll = JSON.parse(mediaPrompt.slice(8));
       } catch {
         poll = null;
       }
@@ -132,8 +96,9 @@ export async function POST(req: Request) {
       ? (poll as { options: unknown[] }).options.length
       : 0;
 
+    const optionKeys = Array.from(countsMap.keys());
+    const maxIndex = optionKeys.length ? Math.max(...optionKeys) : -1;
     const computedLength = Math.max(maxIndex + 1, optionsLength);
-
     const finalLength = computedLength > 0 ? computedLength : optionsLength;
 
     const counts = Array.from({ length: finalLength }, (_, idx) => countsMap.get(idx) ?? 0);

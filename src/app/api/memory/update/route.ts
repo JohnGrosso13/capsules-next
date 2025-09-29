@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { updateMemoryTitleForOwner } from "@/server/posts/repository";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -15,9 +15,9 @@ export async function POST(req: Request) {
   const titleRaw = body?.title;
   const kindRaw = body?.kind;
 
-  const id = typeof idRaw === "string" && idRaw.trim() ? (idRaw as string).trim() : null;
-  const title = typeof titleRaw === "string" ? (titleRaw as string).trim() : null;
-  const kind = typeof kindRaw === "string" && kindRaw.trim() ? (kindRaw as string).trim() : null;
+  const id = typeof idRaw === "string" && idRaw.trim() ? idRaw.trim() : null;
+  const title = typeof titleRaw === "string" ? titleRaw.trim() : null;
+  const kind = typeof kindRaw === "string" && kindRaw.trim() ? kindRaw.trim() : null;
 
   if (!id) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -27,22 +27,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    const supabase = getSupabaseAdminClient();
-
-    let query = supabase
-      .from("memories")
-      .update({ title })
-      .eq("owner_user_id", ownerId)
-      .eq("id", id);
-
-    if (kind) query = query.eq("kind", kind);
-
-    const { error } = await query;
-    if (error) throw error;
+    await updateMemoryTitleForOwner({ ownerId, memoryId: id, title, kind });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("memory update error", error);
     return NextResponse.json({ error: "Failed to update memory" }, { status: 500 });
   }
 }
-

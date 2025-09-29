@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getDatabaseAdminClient } from "@/config/database";
 import type { AuthServerAdapter, IncomingUserPayload, NormalizedProfile } from "@/ports/auth";
 
 const ADMIN_CONFIG = {
@@ -9,6 +9,16 @@ const ADMIN_CONFIG = {
   keys: parseEnvList("CAPSULES_ADMIN_KEYS", "ADMIN_USER_KEYS", "ADMIN_KEYS"),
 
   emails: parseEnvList("CAPSULES_ADMIN_EMAILS", "ADMIN_EMAILS"),
+};
+
+type UserRecord = {
+  id: string | number | null;
+  user_key?: string | null;
+  provider?: string | null;
+  clerk_id?: string | null;
+  email?: string | null;
+  full_name?: string | null;
+  avatar_url?: string | null;
 };
 
 function parseEnvList(...keys: string[]) {
@@ -156,13 +166,21 @@ export async function resolveRequestProfile(
   return normalizeProfileFromPayload(payload);
 }
 
-export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<string> {
-  const supabase = getSupabaseAdminClient();
+export async function ensureSupabaseUser(
+  profile: NormalizedProfile,
+): Promise<string> {
+  const db = getDatabaseAdminClient();
 
   const normalizeString = (value: unknown): string | null => {
     if (typeof value !== "string") return null;
     const trimmed = value.trim();
     return trimmed.length ? trimmed : null;
+  };
+
+  const toId = (value: unknown): string | null => {
+    if (typeof value === "string") return value;
+    if (typeof value === "number") return `${value}`;
+    return null;
   };
 
   const syncUserProfileFields = async (
@@ -201,46 +219,57 @@ export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<st
     if (!Object.keys(updates).length) return;
 
     updates.updated_at = new Date().toISOString();
-    await supabase.from("users").update(updates).eq("id", userId);
+    const result = await db.from("users").update(updates).eq("id", userId).fetch();
+    if (result.error) throw result.error;
   };
 
   const { key, provider, clerk_id, email, full_name, avatar_url } = profile;
 
-  const existingByKey = await supabase
+  const existingByKey = await db
     .from("users")
-    .select("id, provider, clerk_id, email, full_name, avatar_url")
+    .select<UserRecord>("id, provider, clerk_id, email, full_name, avatar_url")
     .eq("user_key", key)
     .maybeSingle();
 
   if (existingByKey.error && existingByKey.error.code !== "PGRST116") throw existingByKey.error;
 
-  if (existingByKey.data?.id) {
-    await syncUserProfileFields(existingByKey.data.id as string, existingByKey.data, {
+  const existingByKeyRow = existingByKey.data;
+  const existingByKeyId = toId(existingByKeyRow?.id);
+
+  if (existingByKeyId && existingByKeyRow) {
+    await syncUserProfileFields(existingByKeyId, existingByKeyRow, {
       provider,
       clerk_id,
       email,
       full_name,
       avatar_url,
     });
-    return existingByKey.data.id as string;
+    return existingByKeyId;
   }
 
   if (clerk_id) {
-    const existingByClerk = await supabase
+    const existingByClerk = await db
       .from("users")
-      .select("id, user_key, provider, email, full_name, avatar_url")
+      .select<UserRecord>("id, user_key, provider, email, full_name, avatar_url")
       .eq("clerk_id", clerk_id)
       .maybeSingle();
 
     if (existingByClerk.error && existingByClerk.error.code !== "PGRST116")
       throw existingByClerk.error;
 
-    if (existingByClerk.data?.id) {
+    const existingByClerkId = toId(existingByClerk.data?.id);
+
+    if (existingByClerkId && existingByClerk.data) {
       if (existingByClerk.data.user_key !== key) {
-        await supabase.from("users").update({ user_key: key }).eq("id", existingByClerk.data.id);
+        const updateResult = await db
+          .from("users")
+          .update({ user_key: key })
+          .eq("id", existingByClerkId)
+          .fetch();
+        if (updateResult.error) throw updateResult.error;
       }
 
-      await syncUserProfileFields(existingByClerk.data.id as string, existingByClerk.data, {
+      await syncUserProfileFields(existingByClerkId, existingByClerk.data, {
         provider,
         clerk_id,
         email,
@@ -248,26 +277,33 @@ export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<st
         avatar_url,
       });
 
-      return existingByClerk.data.id as string;
+      return existingByClerkId;
     }
   }
 
   if (email) {
-    const existingByEmail = await supabase
+    const existingByEmail = await db
       .from("users")
-      .select("id, provider, clerk_id, user_key, email, full_name, avatar_url")
+      .select<UserRecord>("id, provider, clerk_id, user_key, email, full_name, avatar_url")
       .eq("email", email)
       .maybeSingle();
 
     if (existingByEmail.error && existingByEmail.error.code !== "PGRST116")
       throw existingByEmail.error;
 
-    if (existingByEmail.data?.id) {
+    const existingByEmailId = toId(existingByEmail.data?.id);
+
+    if (existingByEmailId && existingByEmail.data) {
       if (existingByEmail.data.user_key !== key) {
-        await supabase.from("users").update({ user_key: key }).eq("id", existingByEmail.data.id);
+        const updateResult = await db
+          .from("users")
+          .update({ user_key: key })
+          .eq("id", existingByEmailId)
+          .fetch();
+        if (updateResult.error) throw updateResult.error;
       }
 
-      await syncUserProfileFields(existingByEmail.data.id as string, existingByEmail.data, {
+      await syncUserProfileFields(existingByEmailId, existingByEmail.data, {
         provider,
         clerk_id,
         email,
@@ -275,43 +311,49 @@ export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<st
         avatar_url,
       });
 
-      return existingByEmail.data.id as string;
+      return existingByEmailId;
     }
   }
 
   const insert = {
     user_key: key,
-
     provider,
-
     clerk_id,
-
     email,
-
     full_name,
-
     avatar_url,
   };
 
-  const { data, error } = await supabase.from("users").insert([insert]).select("id").single();
+  const inserted = await db
+    .from("users")
+    .insert([insert])
+    .select<UserRecord>("id")
+    .single();
 
-  if (error) {
-    if ((error as { code?: string }).code === "23505") {
-      const retry = await supabase
+  if (inserted.error) {
+    if (inserted.error.code === "23505") {
+      const retry = await db
         .from("users")
-        .select("id")
+        .select<UserRecord>("id")
         .eq("user_key", key)
         .maybeSingle();
 
       if (retry.error && retry.error.code !== "PGRST116") throw retry.error;
-      if (retry.data?.id) return retry.data.id as string;
+      const retryId = toId(retry.data?.id);
+      if (retryId) return retryId;
     }
 
-    throw error;
+    throw inserted.error;
   }
 
-  return data.id as string;
+  const insertedId = toId(inserted.data?.id);
+  if (!insertedId) {
+    throw new Error("ensureSupabaseUser: insert returned invalid id");
+  }
+
+  return insertedId;
 }
+
 
 export async function ensureUserFromRequest(
   req: Request,

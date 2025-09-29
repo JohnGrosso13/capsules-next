@@ -61,6 +61,58 @@ type MemoryItemRow = {
   id: string;
 };
 
+type CommentDbRow = {
+  id: string | number | null;
+  client_id: string | number | null;
+  post_id: string | null;
+  content: string | null;
+  user_name: string | null;
+  user_avatar: string | null;
+  capsule_id: string | null;
+  created_at: string | null;
+};
+
+type PostCoreDbRow = {
+  id: string | number | null;
+  client_id: string | number | null;
+  content: string | null;
+  user_name: string | null;
+  media_url: string | null;
+  author_user_id: string | null;
+  media_prompt?: string | null;
+  poll?: unknown;
+};
+
+type OwnedPostDbRow = {
+  id: string | number | null;
+  client_id: string | null;
+};
+
+type MemoryIdDbRow = {
+  id: string | number | null;
+};
+
+type MemoryRecordDbRow = {
+  id: string | number | null;
+  owner_user_id?: string | null;
+  kind?: string | null;
+  post_id?: string | null;
+  title?: string | null;
+  description?: string | null;
+  media_url?: string | null;
+  media_type?: string | null;
+  meta?: Record<string, unknown> | null;
+  embedding?: number[] | null;
+};
+
+type PostLikesCountRow = {
+  likes_count: number | null;
+};
+
+type PollVoteDbRow = {
+  option_index: number | null;
+};
+
 export async function listPostsView(options: {
   capsuleId?: string | null;
   limit: number;
@@ -269,3 +321,242 @@ export async function updateLegacyMemoryItems(
   if (result.error) throw decorateDatabaseError("posts.memoryItems.update", result.error);
   return (result.data ?? []).length;
 }
+
+export async function listCommentsForPost(postId: string, limit = 200): Promise<CommentDbRow[]> {
+  const result = await db
+    .from("comments")
+    .select<CommentDbRow>("id, client_id, post_id, content, user_name, user_avatar, capsule_id, created_at")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true })
+    .limit(limit)
+    .fetch();
+  if (result.error) throw decorateDatabaseError("posts.comments.list", result.error);
+  return result.data ?? [];
+}
+
+export async function fetchPostCoreById(postId: string): Promise<PostCoreDbRow | null> {
+  const result = await db
+    .from("posts")
+    .select<PostCoreDbRow>("id, client_id, content, user_name, media_url, author_user_id, media_prompt, poll")
+    .eq("id", postId)
+    .maybeSingle();
+  if (result.error) {
+    if (NOT_FOUND_CODES.has(result.error.code ?? "")) return null;
+    throw decorateDatabaseError("posts.fetchCore", result.error);
+  }
+  return result.data ?? null;
+}
+
+export async function upsertPostLike(postId: string, userId: string): Promise<void> {
+  const result = await db
+    .from("post_likes")
+    .upsert(
+      [
+        {
+          post_id: postId,
+          user_id: userId,
+        },
+      ],
+      { onConflict: "post_id,user_id" },
+    )
+    .select<PostLikeRow>("post_id")
+    .fetch();
+  if (result.error) throw decorateDatabaseError("posts.likes.upsert", result.error);
+}
+
+export async function deletePostLike(postId: string, userId: string): Promise<number> {
+  const result = await db
+    .from("post_likes")
+    .delete()
+    .eq("post_id", postId)
+    .eq("user_id", userId)
+    .select<PostLikeRow>("post_id")
+    .fetch();
+  if (result.error) throw decorateDatabaseError("posts.likes.delete", result.error);
+  return (result.data ?? []).length;
+}
+
+export async function listMemoryIdsForPostOwnerAndSource(
+  ownerId: string,
+  postId: string,
+  source: string,
+  kind?: string | null,
+): Promise<string[]> {
+  let query = db
+    .from("memories")
+    .select<MemoryIdDbRow>("id")
+    .eq("owner_user_id", ownerId)
+    .eq("post_id", postId)
+    .filter("meta->>source", "eq", source);
+  if (kind) {
+    query = query.eq("kind", kind);
+  }
+  const result = await query.fetch();
+  if (result.error) throw decorateDatabaseError("posts.memories.listBySource", result.error);
+  return (result.data ?? [])
+    .map((row) => (typeof row?.id === "string" || typeof row?.id === "number" ? String(row.id) : null))
+    .filter((value): value is string => Boolean(value));
+}
+
+export async function deleteMemoriesByOwnerPostAndSource(
+  ownerId: string,
+  postId: string,
+  source: string,
+  kind?: string | null,
+): Promise<number> {
+  let query = db
+    .from("memories")
+    .delete()
+    .eq("owner_user_id", ownerId)
+    .eq("post_id", postId)
+    .filter("meta->>source", "eq", source)
+    .select<MemoryIdDbRow>("id");
+  if (kind) {
+    query = query.eq("kind", kind);
+  }
+  const result = await query.fetch();
+  if (result.error) throw decorateDatabaseError("posts.memories.deleteBySource", result.error);
+  return (result.data ?? []).length;
+}
+
+export async function fetchPostLikesCount(postId: string): Promise<number> {
+  const result = await db
+    .from("posts_view")
+    .select<PostLikesCountRow>("likes_count")
+    .eq("id", postId)
+    .maybeSingle();
+  if (result.error) {
+    if (NOT_FOUND_CODES.has(result.error.code ?? "")) return 0;
+    throw decorateDatabaseError("posts.metrics.likes", result.error);
+  }
+  return Number(result.data?.likes_count ?? 0);
+}
+
+export async function softDeletePostById(postId: string, deletionTime: string): Promise<void> {
+  const result = await db
+    .from("posts")
+    .update({ deleted_at: deletionTime, updated_at: deletionTime })
+    .eq("id", postId)
+    .select<PostRow>("id")
+    .maybeSingle();
+  if (result.error) throw decorateDatabaseError("posts.softDelete", result.error);
+}
+
+export async function listOwnedPostClientIds(ownerId: string): Promise<string[]> {
+  const result = await db
+    .from("posts")
+    .select<OwnedPostDbRow>("id, client_id")
+    .eq("author_user_id", ownerId)
+    .is("deleted_at", null)
+    .fetch();
+  if (result.error) throw decorateDatabaseError("posts.owned", result.error);
+  return (result.data ?? [])
+    .map((row) => {
+      if (typeof row?.client_id === "string" && row.client_id.trim()) return row.client_id.trim();
+      if (typeof row?.client_id === "number") return String(row.client_id);
+      if (typeof row?.id === "string" || typeof row?.id === "number") return String(row.id);
+      return null;
+    })
+    .filter((value): value is string => Boolean(value));
+}
+
+export async function upsertPostMemory(options: {
+  ownerId: string;
+  postId: string;
+  kind: string;
+  title: string | null;
+  description: string | null;
+  mediaUrl: string | null;
+  mediaType: string | null;
+  metadata: Record<string, unknown> | null;
+  embedding: number[] | null;
+}): Promise<void> {
+  const result = await db.rpc("upsert_post_memory", {
+    p_owner_user_id: options.ownerId,
+    p_post_id: options.postId,
+    p_kind: options.kind,
+    p_title: options.title,
+    p_description: options.description,
+    p_media_url: options.mediaUrl,
+    p_media_type: options.mediaType,
+    p_meta: options.metadata,
+    p_embedding: options.embedding,
+  });
+  if (result.error) throw decorateDatabaseError("posts.memories.upsert", result.error);
+}
+
+export async function fetchLatestPostMemoryRecord(options: {
+  ownerId: string;
+  postId: string;
+  source: string;
+  kind?: string | null;
+}): Promise<MemoryRecordDbRow | null> {
+  let query = db
+    .from("memories")
+    .select<MemoryRecordDbRow>(
+      "id, owner_user_id, kind, post_id, title, description, media_url, media_type, meta, embedding",
+    )
+    .eq("owner_user_id", options.ownerId)
+    .eq("post_id", options.postId)
+    .filter("meta->>source", "eq", options.source)
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  if (options.kind) {
+    query = query.eq("kind", options.kind);
+  }
+  const result = await query.maybeSingle();
+  if (result.error) {
+    if (NOT_FOUND_CODES.has(result.error.code ?? "")) return null;
+    throw decorateDatabaseError("posts.memories.fetchLatest", result.error);
+  }
+  return result.data ?? null;
+}
+
+export async function updateMemoryTitleForOwner(options: {
+  ownerId: string;
+  memoryId: string;
+  title: string;
+  kind?: string | null;
+}): Promise<void> {
+  let query = db
+    .from("memories")
+    .update({ title: options.title })
+    .eq("owner_user_id", options.ownerId)
+    .eq("id", options.memoryId)
+    .select<MemoryIdDbRow>("id");
+  if (options.kind) {
+    query = query.eq("kind", options.kind);
+  }
+  const result = await query.fetch();
+  if (result.error) throw decorateDatabaseError("posts.memories.updateTitle", result.error);
+}
+
+export async function upsertPollVote(postId: string, userKey: string, optionIndex: number): Promise<void> {
+  const result = await db
+    .from("poll_votes")
+    .upsert(
+      [
+        {
+          post_id: postId,
+          user_key: userKey,
+          option_index: optionIndex,
+        },
+      ],
+      { onConflict: "post_id,user_key" },
+    )
+    .select<PollVoteDbRow>("option_index")
+    .fetch();
+  if (result.error) throw decorateDatabaseError("posts.polls.vote", result.error);
+}
+
+export async function listPollVotesForPost(postId: string, limit = 5000): Promise<PollVoteDbRow[]> {
+  const result = await db
+    .from("poll_votes")
+    .select<PollVoteDbRow>("option_index")
+    .eq("post_id", postId)
+    .limit(limit)
+    .fetch();
+  if (result.error) throw decorateDatabaseError("posts.polls.votes", result.error);
+  return result.data ?? [];
+}
+
