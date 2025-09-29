@@ -72,6 +72,8 @@
     /* Default glass fallbacks for dark theme (overridden by light theme or AI styler) */
     --glass-bg-1: rgba(255, 255, 255, 0.06);
     --glass-bg-2: rgba(255, 255, 255, 0.035);
+    --mobile-page-gutter: 0px;
+    --mobile-dock-height: 0px;
   }
 :root[data-theme="light"] {
   color-scheme: light;
@@ -127,6 +129,10 @@
   body {
     min-height: 100%;
   }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
   body {
     margin: 0;
     color: var(--color-fg);
@@ -137,6 +143,10 @@
       "ss02" 1;
     letter-spacing: -0.01em;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+  body.has-mobile-dock {
+    padding-bottom: calc(var(--mobile-dock-height, 0px) + env(safe-area-inset-bottom, 0px));
   }
   a {
     color: inherit;
@@ -156,6 +166,13 @@
   select {
     font: inherit;
     color: inherit;
+  }
+  @media (max-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
   }
 }
 @layer components {
@@ -290,5 +307,3 @@
     animation: marquee 60s linear infinite;
   }
 }
-
-

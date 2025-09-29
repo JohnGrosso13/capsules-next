@@ -27,6 +27,12 @@
   transition: none;
 }
 
+@media (max-width: 640px) {
+  .header {
+    display: none;
+  }
+}
+
 /* Disable decorative overlays to avoid any blend with page content */
 .header::before,
 .header::after {
@@ -236,7 +242,6 @@
   transform: translateY(0) scale(0.98);
   box-shadow: 0 20px 40px rgba(72, 118, 221, 0.45) !important;
 }
-
 
 
 

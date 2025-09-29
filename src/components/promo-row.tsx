@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React from "react";
+import { safeRandomUUID } from "@/lib/random";
 import Link from "next/link";
 import styles from "./promo-row.module.css";
 import { ImageSquare, Sparkle } from "@phosphor-icons/react/dist/ssr";
@@ -35,7 +36,7 @@ export function PromoRow() {
           .map((p) => p as Record<string, unknown>)
           .filter((p) => typeof p.mediaUrl === "string" || typeof p.media_url === "string")
           .map((p) => ({
-            id: String(p.id ?? crypto.randomUUID()),
+            id: String(p.id ?? safeRandomUUID()),
             media_url: (p.mediaUrl as string) || (p.media_url as string),
             content: (p.content as string) ?? null,
           }));

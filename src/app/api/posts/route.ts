@@ -91,10 +91,8 @@ function rewriteR2MediaUrl(url: string): string | null {
     const isPlaceholder = baseHost.endsWith(".local.example");
     const shouldUseProxy = !baseUrl || isPlaceholder;
     if (shouldUseProxy) {
-      const site = serverEnv.SITE_URL || "http://localhost:3000";
-      const prefix = site.replace(/\/$/, "");
       const encodedKey = normalizedKey.split("/").map(encodeURIComponent).join("/");
-      return `${prefix}/api/uploads/r2/object/${encodedKey}`;
+      return `/api/uploads/r2/object/${encodedKey}`;
     }
 
     if (!baseUrl) {

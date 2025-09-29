@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { safeRandomUUID } from "@/lib/random";
 
 import { uploadFileDirect } from "@/lib/uploads/direct-client";
 
@@ -99,7 +100,7 @@ export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
       if (event.target.value) event.target.value = "";
       if (!file) return;
 
-      const id = crypto.randomUUID();
+      const id = safeRandomUUID();
       const mimeType = file.type || "application/octet-stream";
 
       if (!mimeType.startsWith("image/") && !mimeType.startsWith("video/")) {

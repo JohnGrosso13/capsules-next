@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { safeRandomUUID } from "@/lib/random";
 
 import { useCurrentUser } from "@/services/auth/client";
 import { normalizeMediaUrl } from "@/lib/media";
@@ -142,7 +143,7 @@ export function useHomeFeed() {
             ? record["id"]
             : typeof record["client_id"] === "string"
               ? record["client_id"]
-              : (ownerId ?? crypto.randomUUID());
+              : (ownerId ?? safeRandomUUID());
         const likes =
           typeof record["likes"] === "number"
             ? (record["likes"] as number)
@@ -218,7 +219,7 @@ export function useHomeFeed() {
                 ? identifier
                 : typeof identifier === "number"
                   ? String(identifier)
-                  : crypto.randomUUID();
+                  : safeRandomUUID();
             return {
               id,
               url,

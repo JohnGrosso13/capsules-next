@@ -16,9 +16,9 @@
 }
 
 .inner {
-  max-width: 100%;
+  width: 100%;
   margin: 0;
-  padding: 4px 10px 0;
+  padding: 4px 0 0;
   pointer-events: none;
 }
 
@@ -39,7 +39,11 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 -1px 0 rgba(2, 6, 23, 0.35),
     0 12px 28px rgba(5, 10, 30, 0.26);
+  width: 100%;
+  box-sizing: border-box;
   padding: 6px;
+  padding-left: max(var(--mobile-page-gutter, 0px), env(safe-area-inset-left));
+  padding-right: max(var(--mobile-page-gutter, 0px), env(safe-area-inset-right));
   padding-bottom: max(6px, env(safe-area-inset-bottom));
   align-items: stretch;
   pointer-events: auto;

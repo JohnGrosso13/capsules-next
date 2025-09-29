@@ -318,7 +318,13 @@ export async function updateLegacyMemoryItems(
     .eq(column, value)
     .select<MemoryItemRow>("id")
     .fetch();
-  if (result.error) throw decorateDatabaseError("posts.memoryItems.update", result.error);
+  if (result.error) {
+    const code = ((result.error as { code?: string })?.code ?? "").toUpperCase();
+    if (code === "PGRST205") {
+      return 0;
+    }
+    throw decorateDatabaseError("posts.memoryItems.update", result.error);
+  }
   return (result.data ?? []).length;
 }
 

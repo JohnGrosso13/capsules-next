@@ -4,7 +4,21 @@
 }
 @media (max-width: 640px) {
   .outer {
-    padding: calc(var(--header-height, 72px) + 24px) 0 64px;
+    --header-height: 0px;
+    padding: calc(env(safe-area-inset-top, 0px) + 24px) 0
+      calc(var(--mobile-dock-height, 0px) + 64px);
+  }
+  .page {
+    width: 100%;
+    margin: 0;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .main {
+    gap: 20px;
+  }
+  .layout {
+    gap: 20px;
   }
 }
 .page {
@@ -144,4 +158,3 @@
   width: 100%;
   margin: 0;
 }
-

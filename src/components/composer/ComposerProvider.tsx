@@ -8,6 +8,7 @@ import { AiComposerDrawer } from "@/components/ai-composer";
 import type { ComposerChoice } from "@/components/composer/ComposerForm";
 import type { PrompterAction, PrompterAttachment } from "@/components/ai-prompter-stage";
 import { applyThemeVars } from "@/lib/theme";
+import { safeRandomUUID } from "@/lib/random";
 import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerMode } from "@/lib/ai/nav";
 import {
@@ -87,7 +88,7 @@ function buildPostPayload(
   author?: { name: string | null; avatar: string | null },
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {
-    client_id: typeof rawPost?.client_id === "string" ? rawPost.client_id : crypto.randomUUID(),
+    client_id: typeof rawPost?.client_id === "string" ? rawPost.client_id : safeRandomUUID(),
     kind: (draft.kind ?? "text").toLowerCase(),
     content: draft.content ?? "",
     source: rawPost?.source ?? "ai-prompter",
@@ -290,7 +291,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         setState((prev) => ({ ...prev, loading: true }));
       try {
         const postPayload: Record<string, unknown> = {
-          client_id: crypto.randomUUID(),
+          client_id: safeRandomUUID(),
           kind: "text",
           content,
           source: "ai-prompter",

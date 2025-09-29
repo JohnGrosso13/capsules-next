@@ -9,6 +9,32 @@ const MAX_METADATA_VALUE = 1024;
 const MAX_TURNSTILE_TOKEN = 2048;
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024 * 1024; // 50 GB
 
+const relativeOrAbsoluteUrlSchema = z
+  .string()
+  .transform((value) => value.trim())
+  .pipe(
+    z.string().superRefine((value, ctx) => {
+      if (!value) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.invalid_string,
+          validation: "url",
+          message: "Invalid URL",
+        });
+        return;
+      }
+      if (value.startsWith("/")) return;
+      try {
+        new URL(value);
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.invalid_string,
+          validation: "url",
+          message: "Invalid URL",
+        });
+      }
+    }),
+  );
+
 export const uploadRequestSchema = z
   .object({
     filename: z.string().trim().min(1).max(MAX_LABEL_LENGTH).optional(),
@@ -41,7 +67,7 @@ export const uploadRequestSchema = z
 export type UploadRequest = z.infer<typeof uploadRequestSchema>;
 
 export const uploadResponseSchema = z.object({
-  url: z.string().url(),
+  url: relativeOrAbsoluteUrlSchema,
   key: z.string().trim().min(1).optional(),
 });
 
@@ -154,9 +180,8 @@ export const directUploadResponseSchema = z.object({
       }),
     )
     .min(1),
-  absoluteUrl: z.string().url().optional(),
+  absoluteUrl: relativeOrAbsoluteUrlSchema.optional(),
 });
-
 export type DirectUploadResponse = z.infer<typeof directUploadResponseSchema>;
 
 export const completeUploadSchema = z
@@ -214,7 +239,7 @@ export type CompleteUploadRequest = z.infer<typeof completeUploadSchema>;
 export const completeUploadResponseSchema = z.object({
   sessionId: z.string().uuid().nullable(),
   key: z.string().min(1),
-  url: z.string().url(),
+  url: relativeOrAbsoluteUrlSchema,
 });
 
 export type CompleteUploadResponse = z.infer<typeof completeUploadResponseSchema>;

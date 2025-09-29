@@ -77,6 +77,12 @@
   opacity: var(--prompt-glow-opacity, 0.54);
   z-index: -1;
 }
+@media (max-width: 640px) {
+  .promptBar::before {
+    left: -12px;
+    right: -12px;
+  }
+}
 .promptBar:focus-within {
   border-color: rgba(147, 197, 253, 0.5);
   box-shadow:
@@ -308,6 +314,11 @@
   gap: 10px;
   justify-content: flex-start;
   padding-left: 6px;
+}
+@media (max-width: 640px) {
+  .chips {
+    padding-left: 0;
+  }
 }
 .chip {
   padding: 7px 12px;
