@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProvider, SignedIn, SignedOut } from "@clerk/nextjs";
 import Script from "next/script";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import "./light-theme.css";
 import "./cta-overrides.css";
-import { SignedIn } from "@clerk/nextjs";
 import { MobileCommandBar } from "@/components/mobile-command-bar";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme/script";
 import { ComposerProvider, AiComposerRoot } from "@/components/composer/ComposerProvider";
@@ -34,15 +33,19 @@ export default function RootLayout({
             {THEME_BOOTSTRAP_SCRIPT}
           </Script>
           {/* BackgroundFX removed: no animated/static glow overlay */}
-          <ComposerProvider>
-            {children}
-            <AiComposerRoot />
-          </ComposerProvider>
           <SignedIn>
+            <ComposerProvider>
+              {children}
+              <AiComposerRoot />
+            </ComposerProvider>
             <MobileCommandBar />
           </SignedIn>
+          <SignedOut>{children}</SignedOut>
         </body>
       </html>
     </ClerkProvider>
   );
 }
+
+
+

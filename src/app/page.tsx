@@ -122,6 +122,20 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const { userId } = await auth();
   const isSignedIn = Boolean(userId);
+  const contactEmail = "hello@capsules-platform.com";
+  const footerLinks: Array<{ label: string; href: string; external?: boolean }> = isSignedIn
+    ? [
+        { label: "Settings", href: "/settings" },
+        { label: "Create", href: "/create" },
+        { label: "Contact", href: "mailto:" + contactEmail, external: true },
+      ]
+    : [
+        { label: "Features", href: "/#features" },
+        { label: "Use Cases", href: "/#categories" },
+        { label: "Pricing", href: "/#revenue" },
+        { label: "Contact", href: "mailto:" + contactEmail, external: true },
+      ];
+  const footerYear = new Date().getFullYear();
 
   return (
     <div className="relative flex min-h-screen flex-col">
@@ -282,25 +296,26 @@ export default async function HomePage() {
         </main>
       )}
 
-      {isSignedIn ? (
-        <footer className="border-border/40 bg-surface-muted/70 border-t backdrop-blur">
-          <div className="text-fg-subtle mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-5 py-6 text-sm sm:flex-row sm:justify-between">
-            <span className="text-fg font-medium">Capsules</span>
-            <div className="flex flex-wrap items-center gap-4">
-              <Link href="/settings" className="hover:text-fg transition">
-                Settings
-              </Link>
-              <Link href="/create" className="hover:text-fg transition">
-                Create
-              </Link>
-              <a href="mailto:hello@capsules-platform.com" className="hover:text-fg transition">
-                Contact
-              </a>
-            </div>
-            <span>&copy; {new Date().getFullYear()} Capsules</span>
+      <footer className="border-border/40 bg-surface-muted/70 border-t backdrop-blur">
+        <div className="text-fg-subtle mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-5 py-6 text-sm sm:flex-row sm:justify-between">
+          <span className="text-fg font-medium">Capsules</span>
+          <div className="flex flex-wrap items-center gap-4">
+            {footerLinks.map((link) =>
+              link.external ? (
+                <a key={link.label} href={link.href} className="hover:text-fg transition">
+                  {link.label}
+                </a>
+              ) : (
+                <Link key={link.label} href={link.href} className="hover:text-fg transition">
+                  {link.label}
+                </Link>
+              )
+            )}
           </div>
-        </footer>
-      ) : null}
+          <span>&copy; {footerYear} Capsules</span>
+        </div>
+      </footer>
+
     </div>
   );
 }
