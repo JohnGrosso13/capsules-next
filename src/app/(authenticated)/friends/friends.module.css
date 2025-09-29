@@ -115,8 +115,7 @@
 
 .tabIcon {
   font-size: 1.05rem;
-  line-height: 1;
-}
+  line-height: 1;\n  font-weight: 800;\n  letter-spacing: 0.02em;\n  text-transform: uppercase;\n  font-size: 10px;\n  color: var(--text);\n  opacity: 0.92;\n}
 
 .tabLabel {
   position: relative;
@@ -138,7 +137,7 @@
   min-width: 18px;
   height: 18px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: 12px;
   font-size: 12px;
   font-weight: 800;
   color: var(--text-on-brand, #0e1024);
@@ -252,34 +251,33 @@
 
 .presence {
   position: absolute;
-  right: -8px;
-  bottom: -8px;
+  right: -2px;
+  bottom: -2px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  border-radius: 999px;
+  padding: 3px 8px;
+  border-radius: 12px;
   border: 1px solid var(--presence-border, var(--pill-border, rgba(255, 255, 255, 0.16)));
-  background: var(--presence-bg, var(--surface-overlay));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)),\n  radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--color-brand) 28%, transparent) 0%, transparent 60%);
   color: var(--presence-text, var(--text));
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  box-shadow: var(--shadow-md, 0 18px 32px rgba(5, 10, 30, 0.32));
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--color-brand) 28%, rgba(5,10,30,0.3)),\n  inset 0 1px 0 rgba(255,255,255,0.16),\n  inset 0 -1px 0 rgba(2,6,23,0.35);
 }
 
 .presenceDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
+  width: 9px;
+  height: 9px;
+  border-radius: 12px;
   background: var(--presence-dot, rgba(255, 255, 255, 0.82));
-  box-shadow: 0 0 0 3px rgba(9, 12, 32, 0.6);
+  box-shadow: 0 0 0 2px rgba(6, 8, 22, 0.6),\n  0 0 10px color-mix(in srgb, var(--color-brand) 45%, transparent);
 }
 
 .presenceLabel {
-  line-height: 1;
-}
+  line-height: 1;\n  font-weight: 800;\n  letter-spacing: 0.02em;\n  text-transform: uppercase;\n  font-size: 10px;\n  color: var(--text);\n  opacity: 0.92;\n}
 
 .online {
   background: radial-gradient(circle at 30% 30%, #22d3ee, #10b981);
@@ -344,21 +342,7 @@
   border-radius: 6px;
 }
 
-.friendMenu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 180px;
-  padding: 12px;
-  border-radius: 16px;
-  border: 1px solid var(--card-border);
-  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
-  box-shadow: var(--card-shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 50;
-}
+.friendMenu {\n  position: absolute;\n  top: calc(100% + 8px);\n  right: 0;\n  min-width: 180px;\n  z-index: 1200;\n  border-radius: 12px;\n  border: 1px solid rgba(255, 255, 255, 0.14);\n  background: rgba(10, 14, 36, 0.96);\n  box-shadow: 0 20px 40px rgba(5, 10, 30, 0.45);\n}
 
 .friendMenuContainer {
   position: relative;
@@ -371,7 +355,7 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 999px;
+  border-radius: 12px;
   border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
   background: linear-gradient(
     180deg,
@@ -390,8 +374,7 @@
   width: 18px;
   height: 18px;
   display: inline-block;
-  line-height: 1;
-}
+  line-height: 1;\n  font-weight: 800;\n  letter-spacing: 0.02em;\n  text-transform: uppercase;\n  font-size: 10px;\n  color: var(--text);\n  opacity: 0.92;\n}
 
 .friendMenuItem {
   display: flex;
@@ -422,10 +405,7 @@
   color: var(--text);
 }
 
-.friendMenuItem:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-brand) 60%, transparent);
-  outline-offset: 2px;
-}
+.friendMenuItem:focus-visible {\n  outline: none;\n}
 
 .friendMenuItem[disabled] {
   opacity: 0.5;
@@ -442,7 +422,7 @@
 
 .friendActionButton {
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: 12px;
   border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
   background: linear-gradient(
     180deg,
@@ -599,8 +579,8 @@
   }
 
   .friendRow {
-    padding: 14px 18px;
-    border-radius: 18px;
+    padding: 12px 14px;
+    border-radius: 16px;
   }
 }
 
@@ -649,7 +629,7 @@
 
 .requestActions button {
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: 12px;
   border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
   background: linear-gradient(
     180deg,
@@ -669,3 +649,4 @@
     var(--pill-bg-2, rgba(255, 255, 255, 0.06))
   );
 }
+
