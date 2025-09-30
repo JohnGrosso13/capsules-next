@@ -113,6 +113,23 @@ type PollVoteDbRow = {
   option_index: number | null;
 };
 
+function decodePollFromMediaPrompt(raw: unknown): unknown | null {
+  if (typeof raw !== "string") return null;
+  if (!raw.startsWith("__POLL__")) return null;
+  try {
+    return JSON.parse(raw.slice(8));
+  } catch {
+    return null;
+  }
+}
+
+function attachPollFromMediaPrompt(row: PostCoreDbRow | null): PostCoreDbRow | null {
+  if (!row) return null;
+  if (typeof row.poll !== "undefined" && row.poll !== null) return row;
+  const decoded = decodePollFromMediaPrompt(row.media_prompt ?? null);
+  if (decoded === null) return row;
+  return { ...row, poll: decoded };
+}
 export async function listPostsView(options: {
   capsuleId?: string | null;
   limit: number;
@@ -347,10 +364,25 @@ export async function fetchPostCoreById(postId: string): Promise<PostCoreDbRow |
     .eq("id", postId)
     .maybeSingle();
   if (result.error) {
-    if (NOT_FOUND_CODES.has(result.error.code ?? "")) return null;
+    const code = (result.error.code ?? "").toUpperCase();
+    const message = result.error.message ?? "";
+    if (code === "42703" || message.includes("column posts.poll") || message.includes("column \"poll\"")) {
+      const fallback = await db
+        .from("posts")
+        .select<PostCoreDbRow>("id, client_id, content, user_name, media_url, author_user_id, media_prompt")
+        .eq("id", postId)
+        .maybeSingle();
+      if (fallback.error) {
+        const fallbackCode = (fallback.error.code ?? "").toUpperCase();
+        if (NOT_FOUND_CODES.has(fallbackCode)) return null;
+        throw decorateDatabaseError("posts.fetchCore", fallback.error);
+      }
+      return attachPollFromMediaPrompt(fallback.data ?? null);
+    }
+    if (NOT_FOUND_CODES.has(code)) return null;
     throw decorateDatabaseError("posts.fetchCore", result.error);
   }
-  return result.data ?? null;
+  return attachPollFromMediaPrompt(result.data ?? null);
 }
 
 export async function upsertPostLike(postId: string, userId: string): Promise<void> {
@@ -565,4 +597,3 @@ export async function listPollVotesForPost(postId: string, limit = 5000): Promis
   if (result.error) throw decorateDatabaseError("posts.polls.votes", result.error);
   return result.data ?? [];
 }
-

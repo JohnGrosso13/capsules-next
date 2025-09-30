@@ -27,6 +27,20 @@ function buildFilters(query: SearchIndexQuery): string {
   return filters.join(" AND ");
 }
 
+function isAlgoliaPermissionError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const maybe = error as { status?: number | null; message?: unknown };
+  const message = typeof maybe.message === "string" ? maybe.message.toLowerCase() : "";
+  if (message.includes("not enough rights")) return true;
+  if (typeof maybe.status === "number" && (maybe.status === 400 || maybe.status === 403)) {
+    return (
+      message.includes("forbidden") ||
+      message.includes("not authorized") ||
+      message.includes("not enough rights")
+    );
+  }
+  return false;
+}
 export function createAlgoliaSearchIndex(
   client: SearchClient,
   indexName: string,
@@ -52,11 +66,27 @@ export function createAlgoliaSearchIndex(
           createdAt_ts: createdAtTs,
         };
       });
-      await client.saveObjects({ indexName, objects: payload });
+      try {
+        await client.saveObjects({ indexName, objects: payload });
+      } catch (error) {
+        if (isAlgoliaPermissionError(error)) {
+          console.warn("search index upsert skipped: insufficient Algolia permissions", error);
+          return;
+        }
+        throw error;
+      }
     },
     async delete(ids: string[]) {
       if (!ids.length) return;
-      await client.deleteObjects({ indexName, objectIDs: ids });
+      try {
+        await client.deleteObjects({ indexName, objectIDs: ids });
+      } catch (error) {
+        if (isAlgoliaPermissionError(error)) {
+          console.warn("search index delete skipped: insufficient Algolia permissions", error);
+          return;
+        }
+        throw error;
+      }
     },
     async search(query: SearchIndexQuery) {
       const response = await client.searchSingleIndex<Record<string, unknown>>({
