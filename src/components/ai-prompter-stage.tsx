@@ -17,6 +17,7 @@ import type { ComposerMode } from "@/lib/ai/nav";
 import styles from "./home.module.css";
 import { PrompterInputBar } from "@/components/prompter/PrompterInputBar";
 import { detectSuggestedTools, type PrompterToolKey } from "@/components/prompter/tools";
+import { Paperclip } from "@phosphor-icons/react/dist/ssr";
 
 const cssClass = (...keys: Array<keyof typeof styles>): string =>
   keys
@@ -119,6 +120,16 @@ function truncate(text: string, length = 80): string {
   return `${text.slice(0, length - 1)}...`;
 }
 
+function dragEventHasFiles(event: React.DragEvent<HTMLElement>): boolean {
+  const dataTransfer = event.dataTransfer;
+  if (!dataTransfer) return false;
+  if (dataTransfer.items && dataTransfer.items.length > 0) {
+    return Array.from(dataTransfer.items).some((item) => item.kind === "file");
+  }
+  if (dataTransfer.files && dataTransfer.files.length > 0) return true;
+  return Array.from(dataTransfer.types).includes("Files");
+}
+
 function describeVoiceError(code: string | null): string | null {
   if (!code) return null;
   const normalized = code.toLowerCase();
@@ -205,7 +216,100 @@ export function AiPrompterStage({
     clearAttachment,
     handleAttachClick,
     handleAttachmentSelect,
+    handleAttachmentFile,
   } = useAttachmentUpload();
+
+  const [isDraggingFile, setIsDraggingFile] = React.useState(false);
+  const dragCounterRef = React.useRef(0);
+
+  const resetDragState = React.useCallback(() => {
+    dragCounterRef.current = 0;
+    setIsDraggingFile(false);
+  }, []);
+
+  const handleDragEnter = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (!dragEventHasFiles(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const related = event.relatedTarget as Node | null;
+    if (related && (event.currentTarget as Node).contains(related)) {
+      return;
+    }
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) {
+      setIsDraggingFile(true);
+    }
+  }, []);
+
+  const handleDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (!dragEventHasFiles(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+
+  const handleDragLeave = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (!dragEventHasFiles(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const related = event.relatedTarget as Node | null;
+    if (related && (event.currentTarget as Node).contains(related)) {
+      return;
+    }
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) {
+      setIsDraggingFile(false);
+    }
+  }, []);
+
+  const handleDrop = React.useCallback(
+    async (event: React.DragEvent<HTMLElement>) => {
+      if (!dragEventHasFiles(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      resetDragState();
+      const dataTransfer = event.dataTransfer;
+      if (!dataTransfer) return;
+
+      let droppedFile: File | null = null;
+      if (dataTransfer.items && dataTransfer.items.length > 0) {
+        for (const item of Array.from(dataTransfer.items)) {
+          if (item.kind === "file") {
+            droppedFile = item.getAsFile();
+            if (droppedFile) break;
+          }
+        }
+      }
+
+      if (!droppedFile && dataTransfer.files && dataTransfer.files.length > 0) {
+        droppedFile = dataTransfer.files[0];
+      }
+
+      if (droppedFile) {
+        await handleAttachmentFile(droppedFile);
+      }
+    },
+    [handleAttachmentFile, resetDragState],
+  );
+
+  React.useEffect(() => {
+    if (!isDraggingFile) return;
+    if (typeof window === "undefined") return;
+
+    const handleWindowDragEnd = () => {
+      resetDragState();
+    };
+
+    window.addEventListener("dragend", handleWindowDragEnd);
+    window.addEventListener("drop", handleWindowDragEnd);
+
+    return () => {
+      window.removeEventListener("dragend", handleWindowDragEnd);
+      window.removeEventListener("drop", handleWindowDragEnd);
+    };
+  }, [isDraggingFile, resetDragState]);
 
   const {
     supported: voiceSupported,
@@ -613,8 +717,24 @@ export function AiPrompterStage({
     (buttonBusy ? "Analyzing intent..." : (autoIntent.reason ?? null));
 
   return (
-    <section className={styles.prompterStage} aria-label="AI Prompter">
+    <section
+      className={styles.prompterStage}
+      aria-label="AI Prompter"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      data-dropping={isDraggingFile ? "true" : undefined}
+    >
       <div className={styles.prompter}>
+        {isDraggingFile ? (
+          <div className={styles.prompterDropOverlay} aria-hidden>
+            <div className={styles.prompterDropCard}>
+              <Paperclip size={28} weight="duotone" className={styles.prompterDropIcon} />
+              <span className={styles.prompterDropLabel}>Drop to attach</span>
+            </div>
+          </div>
+        ) : null}
         <PrompterInputBar
           inputRef={textRef}
           value={text}

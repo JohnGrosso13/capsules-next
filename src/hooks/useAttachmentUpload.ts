@@ -94,12 +94,8 @@ export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
     fileInputRef.current?.click();
   }, []);
 
-  const handleAttachmentSelect = React.useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0] ?? null;
-      if (event.target.value) event.target.value = "";
-      if (!file) return;
-
+  const processFile = React.useCallback(
+    async (file: File) => {
       const id = safeRandomUUID();
       const mimeType = file.type || "application/octet-stream";
 
@@ -253,6 +249,25 @@ export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
     [maxSizeBytes],
   );
 
+  const handleAttachmentSelect = React.useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0] ?? null;
+      if (event.target.value) event.target.value = "";
+      if (!file) return;
+
+      await processFile(file);
+    },
+    [processFile],
+  );
+
+  const handleAttachmentFile = React.useCallback(
+    async (file: File | null | undefined) => {
+      if (!file) return;
+      await processFile(file);
+    },
+    [processFile],
+  );
+
   return {
     fileInputRef,
     attachment,
@@ -261,5 +276,6 @@ export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
     clearAttachment,
     handleAttachClick,
     handleAttachmentSelect,
+    handleAttachmentFile,
   } as const;
 }
