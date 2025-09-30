@@ -19,6 +19,13 @@ export const createPostRequestSchema = requestUserEnvelopeSchema.extend({
   post: postPayloadSchema,
 });
 
+const attachmentVariantsSchema = z.object({
+  original: z.string(),
+  thumb: z.string().nullable().optional(),
+  feed: z.string().nullable().optional(),
+  full: z.string().nullable().optional(),
+});
+
 const attachmentSchema = z.object({
   id: z.string(),
   url: z.string(),
@@ -26,6 +33,7 @@ const attachmentSchema = z.object({
   name: z.string().nullable(),
   thumbnailUrl: z.string().nullable(),
   storageKey: z.string().nullable().optional(),
+  variants: attachmentVariantsSchema.nullable().optional(),
 });
 
 const normalizedPostSchema = z.object({

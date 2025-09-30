@@ -14,6 +14,12 @@ export type HomeFeedAttachment = {
   name: string | null;
   thumbnailUrl: string | null;
   storageKey: string | null;
+  variants?: {
+    original: string;
+    thumb?: string | null;
+    feed?: string | null;
+    full?: string | null;
+  } | null;
 };
 
 export type HomeFeedPost = {
@@ -213,6 +219,22 @@ export function useHomeFeed() {
                 : typeof data["storage_key"] === "string"
                   ? (data["storage_key"] as string)
                   : null;
+            const variantsSource = data["variants"];
+            const variants = (() => {
+              if (!variantsSource || typeof variantsSource !== "object") return null;
+              const record = variantsSource as Record<string, unknown>;
+              const original = normalizeMediaUrl(record["original"]);
+              if (!original) return null;
+              const thumb = normalizeMediaUrl(record["thumb"]);
+              const feed = normalizeMediaUrl(record["feed"]);
+              const full = normalizeMediaUrl(record["full"]);
+              return {
+                original,
+                thumb: thumb ?? null,
+                feed: feed ?? null,
+                full: full ?? null,
+              };
+            })();
             const identifier = data["id"];
             const id =
               typeof identifier === "string"
@@ -227,13 +249,19 @@ export function useHomeFeed() {
               name: name ?? null,
               thumbnailUrl: thumbnailUrl ?? null,
               storageKey: storageKey ?? null,
+              variants,
             } satisfies HomeFeedAttachment;
           })
           .filter((value): value is HomeFeedAttachment => Boolean(value));
         if (!media && attachments.length) {
           const primary = attachments[0] ?? null;
           if (primary) {
-            media = normalizeMediaUrl(primary.thumbnailUrl ?? primary.url) ?? primary.url;
+            const preferred =
+              primary.variants?.feed ??
+              primary.variants?.thumb ??
+              primary.thumbnailUrl ??
+              primary.url;
+            media = normalizeMediaUrl(preferred) ?? preferred;
           }
         }
 
@@ -376,9 +404,12 @@ export function useHomeFeed() {
       if (!mediaUrl && Array.isArray(post.attachments)) {
         const firstAttachment = post.attachments.find((attachment) => attachment && attachment.url);
         if (firstAttachment) {
-          mediaUrl =
-            normalizeMediaUrl(firstAttachment.thumbnailUrl ?? firstAttachment.url) ??
+          const preferred =
+            firstAttachment.variants?.feed ??
+            firstAttachment.variants?.thumb ??
+            firstAttachment.thumbnailUrl ??
             firstAttachment.url;
+          mediaUrl = normalizeMediaUrl(preferred) ?? preferred;
         }
       }
 

@@ -7,6 +7,7 @@ import styles from "./home.module.css";
 import { Brain, Heart, ChatCircle, ShareNetwork, DotsThreeCircleVertical, Trash, HourglassHigh } from "@phosphor-icons/react/dist/ssr";
 import { normalizeMediaUrl } from "@/lib/media";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
+import { buildImageVariants, pickBestDisplayVariant, pickBestFullVariant } from "@/lib/cloudflare/images";
 
 type ActionKey = "like" | "comment" | "share";
 
@@ -43,6 +44,66 @@ export function HomeFeedList({
   exactTime,
   canRemember,
 }: HomeFeedListProps) {
+  const [lightbox, setLightbox] = React.useState<
+    | {
+        postId: string;
+        index: number;
+        items: Array<{
+          id: string;
+          kind: "image" | "video";
+          fullUrl: string;
+          displayUrl: string;
+          name: string | null;
+          alt: string;
+          mimeType: string | null;
+        }>;
+      }
+    | null
+  >(null);
+
+  const closeLightbox = React.useCallback(() => {
+    setLightbox(null);
+  }, []);
+
+  const navigateLightbox = React.useCallback((step: number) => {
+    setLightbox((prev) => {
+      if (!prev || !prev.items.length) return prev;
+      const total = prev.items.length;
+      const nextIndex = ((prev.index + step) % total + total) % total;
+      return {
+        ...prev,
+        index: nextIndex,
+      };
+    });
+  }, []);
+
+  React.useEffect(() => {
+    if (!lightbox) return undefined;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeLightbox();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        navigateLightbox(1);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        navigateLightbox(-1);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightbox, closeLightbox, navigateLightbox]);
+
+  React.useEffect(() => {
+    if (!lightbox) return undefined;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [lightbox]);
+
   return (
     <>
       {posts.map((post) => {
@@ -128,7 +189,9 @@ export function HomeFeedList({
         const seenMedia = new Set<string>();
         const galleryItems: Array<{
           id: string;
-          url: string;
+          originalUrl: string;
+          displayUrl: string;
+          fullUrl: string;
           kind: "image" | "video";
           name: string | null;
           thumbnailUrl: string | null;
@@ -142,25 +205,41 @@ export function HomeFeedList({
         }> = [];
         const pushMedia = (item: {
           id: string;
-          url: string;
+          originalUrl: string;
+          displayUrl: string;
+          fullUrl: string;
           kind: "image" | "video";
           name: string | null;
           thumbnailUrl: string | null;
           mimeType: string | null;
         }) => {
-          if (!item.url || seenMedia.has(item.url)) return;
-          seenMedia.add(item.url);
+          if (!item.originalUrl || seenMedia.has(item.originalUrl)) return;
+          seenMedia.add(item.originalUrl);
           galleryItems.push(item);
         };
 
         if (media) {
           const inferred = inferAttachmentKind(null, media) === "video" ? "video" : "image";
+          const variants = inferred === "image"
+            ? buildImageVariants(media, {
+                thumbnailUrl: media,
+                origin: typeof window !== "undefined" ? window.location.origin : undefined,
+              })
+            : null;
+          const displayUrl = inferred === "image"
+            ? pickBestDisplayVariant(variants) ?? media
+            : media;
+          const fullUrl = inferred === "image"
+            ? pickBestFullVariant(variants) ?? media
+            : media;
           pushMedia({
             id: `${post.id}-primary`,
-            url: media,
+            originalUrl: media,
+            displayUrl,
+            fullUrl,
             kind: inferred,
             name: null,
-            thumbnailUrl: media,
+            thumbnailUrl: inferred === "image" ? variants?.thumb ?? media : media,
             mimeType: null,
           });
         }
@@ -170,12 +249,32 @@ export function HomeFeedList({
           const kind = inferAttachmentKind(attachment.mimeType ?? null, attachment.url, attachment.storageKey ?? null, attachment.thumbnailUrl ?? null);
           const baseId = attachment.id || `${post.id}-att-${index}`;
           if (kind === "image" || kind === "video") {
+            let variants = attachment.variants ?? null;
+            if (kind === "image" && !variants) {
+              variants = buildImageVariants(attachment.url, {
+                thumbnailUrl: attachment.thumbnailUrl ?? null,
+                origin: typeof window !== "undefined" ? window.location.origin : undefined,
+              });
+            }
+            const displayCandidate =
+              kind === "image"
+                ? pickBestDisplayVariant(variants) ?? attachment.thumbnailUrl ?? attachment.url
+                : attachment.url;
+            const fullCandidate =
+              kind === "image"
+                ? pickBestFullVariant(variants) ?? attachment.url
+                : attachment.url;
             pushMedia({
               id: baseId,
-              url: attachment.url,
+              originalUrl: attachment.url,
+              displayUrl: displayCandidate,
+              fullUrl: fullCandidate,
               kind,
               name: attachment.name ?? null,
-              thumbnailUrl: attachment.thumbnailUrl ?? null,
+              thumbnailUrl:
+                kind === "image"
+                  ? variants?.thumb ?? attachment.thumbnailUrl ?? null
+                  : attachment.thumbnailUrl ?? null,
               mimeType: attachment.mimeType ?? null,
             });
           } else {
@@ -322,36 +421,73 @@ export function HomeFeedList({
               {post.content ? <div className={styles.postText}>{post.content}</div> : null}
             </div>
 
-            {galleryItems.length ? (
-              <div className={styles.mediaGallery} data-count={galleryItems.length}>
-                {galleryItems.map((item) =>
-                  item.kind === "video" ? (
-                    <video
-                      key={item.id}
-                      className={`${styles.media} ${styles.mediaVideo}`.trim()}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      poster={item.thumbnailUrl ?? undefined}
-                    >
-                      <source src={item.url} type={item.mimeType ?? undefined} />
-                      Your browser does not support the video tag.
-                    </video>
-                  ) : (
+        {galleryItems.length ? (
+          <div className={styles.mediaGallery} data-count={galleryItems.length}>
+            {(() => {
+              const imageItems = galleryItems.filter((entry) => entry.kind === "image");
+              const lightboxLookup = new Map<string, number>(
+                imageItems.map((entry, idx) => [entry.id, idx]),
+              );
+              const mappedLightboxItems = imageItems.map((entry) => ({
+                id: entry.id,
+                kind: entry.kind,
+                fullUrl: entry.fullUrl,
+                displayUrl: entry.displayUrl,
+                name: entry.name,
+                alt: entry.name ?? "Post attachment",
+                mimeType: entry.mimeType,
+              }));
+
+              return galleryItems.map((item) => {
+                if (item.kind === "video") {
+                  return (
+                    <div key={item.id} className={styles.mediaWrapper} data-kind="video">
+                      <video
+                        className={`${styles.media} ${styles.mediaVideo}`.trim()}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        poster={item.thumbnailUrl ?? undefined}
+                      >
+                        <source src={item.fullUrl} type={item.mimeType ?? undefined} />
+                        Your browser does not support the video tag.
+                      </video>
+                    </div>
+                  );
+                }
+
+                const imageIndex = lightboxLookup.get(item.id) ?? 0;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`${styles.mediaButton} ${styles.mediaImageButton}`.trim()}
+                    onClick={() => {
+                      if (!mappedLightboxItems.length) return;
+                      setLightbox({
+                        postId: post.id,
+                        index: imageIndex,
+                        items: mappedLightboxItems,
+                      });
+                    }}
+                    aria-label={item.name ? `View ${item.name}` : "View attachment"}
+                  >
                     <Image
-                      key={item.id}
                       className={`${styles.media} ${styles.mediaImage}`.trim()}
-                      src={item.url}
+                      src={item.displayUrl}
                       alt={item.name ?? "Post attachment"}
-                      width={1200}
-                      height={800}
+                      width={960}
+                      height={960}
                       sizes="(max-width: 640px) 100vw, 600px"
                       unoptimized
                     />
-                  ),
-                )}
-              </div>
-            ) : null}
+                  </button>
+                );
+              });
+            })()}
+          </div>
+        ) : null}
 
             {fileAttachments.length ? (
               <ul className={styles.attachmentList}>
@@ -402,7 +538,85 @@ export function HomeFeedList({
           </article>
         );
       })}
+
+      {lightbox
+        ? (() => {
+            const current = lightbox.items[lightbox.index] ?? null;
+            if (!current) return null;
+            const hasMultiple = lightbox.items.length > 1;
+            return (
+              <div
+                className={styles.lightboxOverlay}
+                role="dialog"
+                aria-modal="true"
+                aria-label={current.name ?? "Post attachment"}
+                onClick={closeLightbox}
+              >
+                <div
+                  className={styles.lightboxContent}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    className={styles.lightboxClose}
+                    onClick={closeLightbox}
+                    aria-label="Close attachment viewer"
+                  >
+                    ×
+                  </button>
+                  {hasMultiple ? (
+                    <>
+                      <button
+                        type="button"
+                        className={`${styles.lightboxNav} ${styles.lightboxNavPrev}`.trim()}
+                        onClick={() => navigateLightbox(-1)}
+                        aria-label="Previous attachment"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.lightboxNav} ${styles.lightboxNavNext}`.trim()}
+                        onClick={() => navigateLightbox(1)}
+                        aria-label="Next attachment"
+                      >
+                        ›
+                      </button>
+                    </>
+                  ) : null}
+                  <div className={styles.lightboxBody}>
+                    {current.kind === "video" ? (
+                      <video
+                        className={`${styles.lightboxMedia} ${styles.lightboxVideo}`.trim()}
+                        controls
+                        playsInline
+                        preload="auto"
+                      >
+                        <source src={current.fullUrl} type={current.mimeType ?? undefined} />
+                        Your browser does not support embedded video.
+                      </video>
+                    ) : (
+                      <div className={`${styles.lightboxMedia} ${styles.lightboxImageWrap}`.trim()}>
+                        <Image
+                          src={current.fullUrl}
+                          alt={current.alt}
+                          fill
+                          priority
+                          sizes="100vw"
+                          className={styles.lightboxImage}
+                          unoptimized
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {current.name ? (
+                    <div className={styles.lightboxCaption}>{current.name}</div>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })()
+        : null}
     </>
   );
 }
-

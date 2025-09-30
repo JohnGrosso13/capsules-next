@@ -13,6 +13,7 @@ import {
   listViewerRememberedPostIds,
   type PostsViewRow,
 } from "@/server/posts/repository";
+import { buildImageVariants } from "@/lib/cloudflare/images";
 import type { CreatePostInput } from "@/server/posts/types";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
@@ -159,6 +160,15 @@ function normalizePost(row: Record<string, unknown>) {
   };
 }
 
+function isLikelyImage(mimeType: string | null | undefined, url: string | null | undefined): boolean {
+  if (typeof mimeType === "string" && mimeType.toLowerCase().startsWith("image/")) {
+    return true;
+  }
+  if (!url) return false;
+  const lower = url.split("?")[0].toLowerCase();
+  return /(\.png|\.jpe?g|\.webp|\.gif|\.avif|\.heic|\.heif)$/i.test(lower);
+}
+
 type NormalizedAttachment = {
   id: string;
   url: string;
@@ -166,6 +176,12 @@ type NormalizedAttachment = {
   name: string | null;
   thumbnailUrl: string | null;
   storageKey: string | null;
+  variants?: {
+    original: string;
+    thumb?: string | null;
+    feed?: string | null;
+    full?: string | null;
+  } | null;
 };
 
 
@@ -421,6 +437,14 @@ export async function GET(req: Request) {
                       ? (meta.thumbUrl as string)
                       : null;
               const thumbnailUrl = await ensureAccessibleMediaUrl(thumbCandidate);
+              const variants =
+                isLikelyImage(typeof row?.media_type === "string" ? row.media_type : null, url)
+                  ? buildImageVariants(url, {
+                      base: serverEnv.CLOUDFLARE_IMAGE_RESIZE_BASE_URL,
+                      thumbnailUrl,
+                      origin: serverEnv.SITE_URL,
+                    })
+                  : null;
               const attachment: NormalizedAttachment = {
                 id:
                   typeof row?.id === "string"
@@ -434,6 +458,7 @@ export async function GET(req: Request) {
                 name: typeof row?.title === "string" ? row.title : null,
                 thumbnailUrl,
                 storageKey: storageKey ?? null,
+                variants,
               };
               return { postId, attachment };
             }),
