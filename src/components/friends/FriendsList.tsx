@@ -1,18 +1,20 @@
 "use client";
 
 import * as React from "react";
+
 import styles from "@/app/(authenticated)/friends/friends.module.css";
 import { FriendRow } from "@/components/friends/FriendRow";
 import { FriendMenu } from "@/components/friends/FriendMenu";
+import type { FriendItem } from "@/hooks/useFriendsData";
 
-export type FriendItem = {
-  id: string;
-  userId: string | null;
-  key: string | null;
-  name: string;
-  avatar: string | null;
-  since: string | null;
-  status: "online" | "offline" | "away";
+type FriendsListProps = {
+  items: FriendItem[];
+  pendingId: string | null;
+  notice: string | null;
+  onDelete: (item: FriendItem, identifier: string) => void;
+  onBlock?: (item: FriendItem, identifier: string) => void;
+  onView?: (item: FriendItem, identifier: string) => void;
+  onStartChat?: (item: FriendItem, identifier: string) => void;
 };
 
 export function FriendsList({
@@ -23,28 +25,25 @@ export function FriendsList({
   onBlock,
   onView,
   onStartChat,
-}: {
-  items: FriendItem[];
-  pendingId: string | null;
-  notice: string | null;
-  onDelete: (item: FriendItem, identifier: string) => void;
-  onBlock?: (item: FriendItem, identifier: string) => void;
-  onView?: (item: FriendItem, identifier: string) => void;
-  onStartChat?: (item: FriendItem, identifier: string) => void;
-}) {
+}: FriendsListProps) {
+  if (!items.length) {
+    return <div className={styles.empty}>No friends yet. Invite your circle to get started.</div>;
+  }
+
   return (
     <div className={`${styles.list} ${styles.listLarge}`.trim()}>
-      {notice ? <div className={styles.friendNotice}>{notice}</div> : null}
+      {notice ? <div className={styles.notice}>{notice}</div> : null}
       {items.map((friend, index) => {
-        const identifier = friend.userId ?? friend.key ?? friend.id ?? `friend-${index}`;
-        const canTarget = Boolean(friend.userId || friend.key);
+        const identifier = friend.userId ?? friend.key ?? (friend.id ? String(friend.id) : `friend-${index}`);
         const isPending = pendingId === identifier;
+        const canTarget = Boolean(friend.userId || friend.key || friend.id);
+
         return (
           <FriendRow
             key={`${identifier}-${index}`}
             name={friend.name}
             avatar={friend.avatar}
-            since={friend.since ?? null}
+            since={friend.since}
             status={friend.status}
             actions={
               <FriendMenu

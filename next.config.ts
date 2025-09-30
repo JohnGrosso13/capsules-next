@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**.r2.cloudflarestorage.com" },
       { protocol: "https", hostname: "**.cloudflarestorage.com" },
       { protocol: "https", hostname: "**.supabase.co" },
+      { protocol: "https", hostname: "img.clerk.com" },
       { protocol: "https", hostname: "media.example.com" },
       { protocol: "http", hostname: "localhost" },
       { protocol: "https", hostname: "localhost" },

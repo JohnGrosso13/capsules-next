@@ -284,7 +284,8 @@ export function AiPrompterStage({
       }
 
       if (!droppedFile && dataTransfer.files && dataTransfer.files.length > 0) {
-        droppedFile = dataTransfer.files[0];
+        const file = dataTransfer.files.item(0);
+        if (file) droppedFile = file;
       }
 
       if (droppedFile) {
@@ -826,3 +827,4 @@ export function AiPrompterStage({
     </section>
   );
 }
+

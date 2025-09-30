@@ -181,74 +181,73 @@ export function useHomeFeed() {
           ? (record["attachments"] as Array<Record<string, unknown>>)
           : [];
         const seenAttachmentUrls = new Set<string>();
-        const attachments: HomeFeedAttachment[] = attachmentsRaw
-          .map((entry) => {
-            if (!entry || typeof entry !== "object") return null;
-            const data = entry as Record<string, unknown>;
-            const url = normalizeMediaUrl(data["url"]);
-            if (!url || seenAttachmentUrls.has(url)) return null;
-            seenAttachmentUrls.add(url);
-            const mime =
-              typeof data["mimeType"] === "string"
-                ? (data["mimeType"] as string)
-                : typeof data["mime_type"] === "string"
-                  ? (data["mime_type"] as string)
+        const attachments: HomeFeedAttachment[] = [];
+        for (const entry of attachmentsRaw) {
+          if (!entry || typeof entry !== "object") continue;
+          const data = entry as Record<string, unknown>;
+          const url = normalizeMediaUrl(data["url"]);
+          if (!url || seenAttachmentUrls.has(url)) continue;
+          seenAttachmentUrls.add(url);
+          const mime =
+            typeof data["mimeType"] === "string"
+              ? (data["mimeType"] as string)
+              : typeof data["mime_type"] === "string"
+                ? (data["mime_type"] as string)
+                : null;
+          const name =
+            typeof data["name"] === "string"
+              ? (data["name"] as string)
+              : typeof data["title"] === "string"
+                ? (data["title"] as string)
+                : null;
+          const thumbSource =
+            typeof data["thumbnailUrl"] === "string"
+              ? (data["thumbnailUrl"] as string)
+              : typeof data["thumbnail_url"] === "string"
+                ? (data["thumbnail_url"] as string)
+                : typeof data["thumbUrl"] === "string"
+                  ? (data["thumbUrl"] as string)
                   : null;
-            const name =
-              typeof data["name"] === "string"
-                ? (data["name"] as string)
-                : typeof data["title"] === "string"
-                  ? (data["title"] as string)
-                  : null;
-            const thumbSource =
-              typeof data["thumbnailUrl"] === "string"
-                ? (data["thumbnailUrl"] as string)
-                : typeof data["thumbnail_url"] === "string"
-                  ? (data["thumbnail_url"] as string)
-                  : typeof data["thumbUrl"] === "string"
-                    ? (data["thumbUrl"] as string)
-                    : null;
-            const thumbnailUrl = normalizeMediaUrl(thumbSource);
-            const storageKey =
-              typeof data["storageKey"] === "string"
-                ? (data["storageKey"] as string)
-                : typeof data["storage_key"] === "string"
-                  ? (data["storage_key"] as string)
-                  : null;
-            const variantsSource = data["variants"];
-            const variants = (() => {
-              if (!variantsSource || typeof variantsSource !== "object") return null;
-              const record = variantsSource as Record<string, unknown>;
-              const original = normalizeMediaUrl(record["original"]);
-              if (!original) return null;
-              const thumb = normalizeMediaUrl(record["thumb"]);
-              const feed = normalizeMediaUrl(record["feed"]);
-              const full = normalizeMediaUrl(record["full"]);
-              return {
-                original,
-                thumb: thumb ?? null,
-                feed: feed ?? null,
-                full: full ?? null,
-              };
-            })();
-            const identifier = data["id"];
-            const id =
-              typeof identifier === "string"
-                ? identifier
-                : typeof identifier === "number"
-                  ? String(identifier)
-                  : safeRandomUUID();
+          const thumbnailUrl = normalizeMediaUrl(thumbSource);
+          const storageKey =
+            typeof data["storageKey"] === "string"
+              ? (data["storageKey"] as string)
+              : typeof data["storage_key"] === "string"
+                ? (data["storage_key"] as string)
+                : null;
+          const variantsSource = data["variants"];
+          const variants = (() => {
+            if (!variantsSource || typeof variantsSource !== "object") return null;
+            const record = variantsSource as Record<string, unknown>;
+            const original = normalizeMediaUrl(record["original"]);
+            if (!original) return null;
+            const thumb = normalizeMediaUrl(record["thumb"]);
+            const feed = normalizeMediaUrl(record["feed"]);
+            const full = normalizeMediaUrl(record["full"]);
             return {
-              id,
-              url,
-              mimeType: mime ?? null,
-              name: name ?? null,
-              thumbnailUrl: thumbnailUrl ?? null,
-              storageKey: storageKey ?? null,
-              variants,
-            } satisfies HomeFeedAttachment;
-          })
-          .filter((value): value is HomeFeedAttachment => Boolean(value));
+              original,
+              thumb: thumb ?? null,
+              feed: feed ?? null,
+              full: full ?? null,
+            };
+          })();
+          const identifier = data["id"];
+          const id =
+            typeof identifier === "string"
+              ? identifier
+              : typeof identifier === "number"
+                ? String(identifier)
+                : safeRandomUUID();
+          attachments.push({
+            id,
+            url,
+            mimeType: mime ?? null,
+            name: name ?? null,
+            thumbnailUrl: thumbnailUrl ?? null,
+            storageKey: storageKey ?? null,
+            variants,
+          });
+        }
         if (!media && attachments.length) {
           const primary = attachments[0] ?? null;
           if (primary) {
@@ -583,3 +582,4 @@ export function useHomeFeed() {
     canRemember,
   };
 }
+

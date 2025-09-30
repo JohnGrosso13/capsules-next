@@ -338,7 +338,7 @@ export function HomeFeedList({
             ? cloudflareEnabled
               ? buildImageVariants(media, {
                   thumbnailUrl: media,
-                  origin: currentOrigin,
+                  origin: currentOrigin ?? null,
                 })
               : buildLocalImageVariants(media, media)
             : null;
@@ -381,7 +381,7 @@ export function HomeFeedList({
               variants = cloudflareEnabled
                 ? buildImageVariants(attachment.url, {
                     thumbnailUrl: attachment.thumbnailUrl ?? null,
-                    origin: currentOrigin,
+                    origin: currentOrigin ?? null,
                   })
                 : buildLocalImageVariants(attachment.url, attachment.thumbnailUrl ?? null);
             }
@@ -440,7 +440,7 @@ export function HomeFeedList({
         if (!media && galleryItems.length) {
           const primaryMedia = galleryItems[0] ?? null;
           if (primaryMedia) {
-            media = primaryMedia.thumbnailUrl ?? primaryMedia.url;
+            media = primaryMedia.thumbnailUrl ?? primaryMedia.displayUrl ?? primaryMedia.fullUrl;
           }
         }
         return (
@@ -619,8 +619,7 @@ export function HomeFeedList({
                       src={item.displayUrl}
                       alt={item.name ?? "Post attachment"}
                       width={1080}
-                      height={1080}
-                      srcSet={item.displaySrcSet ?? undefined}
+                      height={1080}
                       sizes="(max-width: 640px) 100vw, 720px"
                       unoptimized
                     />
@@ -743,8 +742,7 @@ export function HomeFeedList({
                           src={current.fullUrl}
                           alt={current.alt}
                           fill
-                          priority
-                          srcSet={current.fullSrcSet ?? undefined}
+                          priority
                           sizes="100vw"
                           className={styles.lightboxImage}
                           unoptimized
@@ -763,3 +761,6 @@ export function HomeFeedList({
     </>
   );
 }
+
+
+

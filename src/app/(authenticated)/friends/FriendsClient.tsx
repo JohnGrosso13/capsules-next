@@ -1,495 +1,245 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useCurrentUser } from "@/services/auth/client";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { useFriendsRealtime, type PresenceMap } from "@/hooks/useFriendsRealtime";
-import {
-  FRIENDS_GRAPH_UPDATE_EVENT,
-  FRIENDS_GRAPH_REFRESH_EVENT,
-  broadcastFriendsGraphRefresh,
-  broadcastFriendsGraphUpdate,
-  type FriendsGraphUpdateEventDetail,
-} from "@/hooks/useFriendsGraph";
-import type { RealtimeAuthPayload } from "@/ports/realtime";
-import type { SocialGraphSnapshot } from "@/lib/supabase/friends";
+import { useFriendsData, type FriendItem } from "@/hooks/useFriendsData";
+import { FriendsTabs } from "@/components/friends/FriendsTabs";
+import { FriendsList } from "@/components/friends/FriendsList";
+import { RequestsList } from "@/components/friends/RequestsList";
 
 import styles from "./friends.module.css";
-import { FriendsTabs } from "@/components/friends/FriendsTabs";
-import { FriendsList, type FriendItem } from "@/components/friends/FriendsList";
-import { RequestsList } from "@/components/friends/RequestsList";
-import type { RequestItem as RequestsListItem } from "@/components/friends/RequestsList";
-
-type ChannelInfo = { events: string; presence: string };
-
-// presence state managed via useFriendsRealtime hook
-
-const FALLBACK_FRIENDS: FriendItem[] = [
-  {
-    id: "capsules",
-    userId: "capsules",
-    key: null,
-    name: "Capsules Team",
-    avatar: null,
-    since: null,
-    status: "online",
-  },
-  {
-    id: "memory",
-    userId: "memory",
-    key: null,
-    name: "Memory Bot",
-    avatar: null,
-    since: null,
-    status: "online",
-  },
-  {
-    id: "dream",
-    userId: "dream",
-    key: null,
-    name: "Dream Studio",
-    avatar: null,
-    since: null,
-    status: "online",
-  },
-];
 
 const tabs = ["Friends", "Chats", "Requests"] as const;
 type Tab = (typeof tabs)[number];
 
-async function fetchGraph(
-  envelope: Record<string, unknown> | null,
-): Promise<{ graph: SocialGraphSnapshot; channels: ChannelInfo; friends: FriendItem[] } | null> {
-  const res = await fetch("/api/friends/sync", {
-    method: "POST",
-    credentials: "include",
-    headers: (() => {
-      const h: Record<string, string> = { "Content-Type": "application/json" };
-      try {
-        if (envelope) h["X-Capsules-User"] = JSON.stringify(envelope);
-      } catch {}
-      return h;
-    })(),
-    body: JSON.stringify({ user: envelope ?? {} }),
-  });
-  if (!res.ok) {
-    console.error("friends sync failed", await res.text());
-    return null;
-  }
-  const data = await res.json();
-  if (!data?.graph) return null;
-  return {
-    graph: data.graph as SocialGraphSnapshot,
-    channels: ((data.channels ?? null) as ChannelInfo | null) ?? { events: "", presence: "" },
-    friends: Array.isArray(data.friends) ? (data.friends as FriendItem[]) : [],
-  };
-}
+type TabStateHook = [Tab, (tab: Tab) => void];
 
-async function fetchToken(envelope: Record<string, unknown> | null): Promise<RealtimeAuthPayload> {
-  const res = await fetch("/api/realtime/token", {
-    method: "POST",
-    credentials: "include",
-    headers: (() => {
-      const h: Record<string, string> = { "Content-Type": "application/json" };
-      try {
-        if (envelope) h["X-Capsules-User"] = JSON.stringify(envelope);
-      } catch {}
-      return h;
-    })(),
-    body: JSON.stringify({ user: envelope ?? {} }),
-  });
-  if (!res.ok) {
-    throw new Error(`Token request failed (${res.status})`);
-  }
-  const data = await res.json();
-  if (!data || typeof data.provider !== "string") {
-    throw new Error("Invalid realtime token response");
-  }
-  return {
-    provider: data.provider as string,
-    token: data.token,
-    environment: (data.environment ?? null) as string | null,
-  };
-}
-
-export function FriendsClient() {
-  const { user } = useCurrentUser();
-  const currentUserName = React.useMemo(() => {
-    if (!user) return null;
-    return user.name ?? user.email ?? null;
-  }, [user]);
-  const currentUserAvatar = user?.avatarUrl ?? null;
-  const currentUserEmail = React.useMemo(() => {
-    if (!user) return null;
-    const userWithAddresses = user as unknown as {
-      emailAddresses?: Array<{ id: string; emailAddress?: string | null }>;
-      primaryEmailAddressId?: string | null;
-    };
-    const addresses = userWithAddresses.emailAddresses ?? [];
-    const primaryId = userWithAddresses.primaryEmailAddressId;
-    if (primaryId) {
-      const primary = addresses.find((address) => address.id === primaryId);
-      if (primary?.emailAddress) return primary.emailAddress;
-    }
-    return addresses[0]?.emailAddress ?? null;
-  }, [user]);
-  const currentUserEnvelope = React.useMemo(() => {
-    if (!user) return null;
-    return {
-      clerk_id: user.id,
-      email: currentUserEmail,
-      full_name: currentUserName ?? null,
-      avatar_url: currentUserAvatar ?? null,
-      provider: "clerk",
-      key: `clerk:${user.id}`,
-    } as Record<string, unknown>;
-  }, [user, currentUserEmail, currentUserName, currentUserAvatar]);
+function useTabFromSearch(): TabStateHook {
   const searchParams = useSearchParams();
   const router = useRouter();
+
   const requestedTab = searchParams.get("tab");
-  const normalized = React.useMemo<Tab>(
-    () => tabs.find((tab) => tab.toLowerCase() === (requestedTab ?? "").toLowerCase()) ?? "Friends",
-    [requestedTab],
-  );
+  const normalized = React.useMemo<Tab>(() => {
+    if (!requestedTab) return "Friends";
+    const match = tabs.find((tab) => tab.toLowerCase() === requestedTab.toLowerCase());
+    return match ?? "Friends";
+  }, [requestedTab]);
 
   const [active, setActive] = React.useState<Tab>(normalized);
   React.useEffect(() => {
     setActive(normalized);
   }, [normalized]);
 
-  const [graph, setGraph] = React.useState<SocialGraphSnapshot | null>(null);
-  const [channels, setChannels] = React.useState<ChannelInfo | null>(null);
-  const [presence, setPresence] = React.useState<PresenceMap>({});
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const refreshPending = React.useRef(false);
-
-  const scheduleRefresh = React.useCallback(() => {
-    if (refreshPending.current) return;
-    refreshPending.current = true;
-    window.setTimeout(async () => {
-      try {
-        const data = await fetchGraph(currentUserEnvelope);
-        if (data) {
-          setGraph(data.graph);
-          setChannels((prev) => {
-            if (prev && prev.events === data.channels.events && prev.presence === data.channels.presence) {
-              return prev;
-            }
-            return data.channels;
-          });
-        }
-      } finally {
-        refreshPending.current = false;
-      }
-    }, 200);
-  }, [currentUserEnvelope]);
-
-  React.useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const data = await fetchGraph(currentUserEnvelope);
-        if (!mounted) return;
-        if (data) {
-          setGraph(data.graph);
-          setChannels((prev) => {
-            if (prev && prev.events === data.channels.events && prev.presence === data.channels.presence) {
-              return prev;
-            }
-            return data.channels;
-          });
-          const initialPresence: PresenceMap = {};
-          for (const friend of data.graph.friends ?? []) {
-            initialPresence[friend.friendUserId] = {
-              status: "offline",
-              updatedAt: friend.since ?? null,
-            };
-          }
-          setPresence(initialPresence);
-          setError(null);
-        } else {
-          setError("Failed to load friends");
-        }
-      } catch (err) {
-        console.error(err);
-        if (mounted) setError("Failed to load friends");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [currentUserEnvelope]);
-
-  const realtimeTokenProvider = React.useCallback(() => fetchToken(currentUserEnvelope), [currentUserEnvelope]);
-
-  useFriendsRealtime(channels, realtimeTokenProvider, scheduleRefresh, setPresence);
-
-  React.useEffect(() => {
-    function handleExternalGraphUpdate() {
-      scheduleRefresh();
-    }
-    window.addEventListener(
-      FRIENDS_GRAPH_UPDATE_EVENT,
-      handleExternalGraphUpdate as EventListener,
-    );
-    window.addEventListener(
-      FRIENDS_GRAPH_REFRESH_EVENT,
-      handleExternalGraphUpdate as EventListener,
-    );
-    return () => {
-      window.removeEventListener(
-        FRIENDS_GRAPH_UPDATE_EVENT,
-        handleExternalGraphUpdate as EventListener,
-      );
-      window.removeEventListener(
-        FRIENDS_GRAPH_REFRESH_EVENT,
-        handleExternalGraphUpdate as EventListener,
-      );
-    };
-  }, [scheduleRefresh]);
-
-  const mutateGraph = React.useCallback(
-    async (payload: Record<string, unknown>) => {
-      const res = await fetch("/api/friends/update", {
-        method: "POST",
-        credentials: "include",
-        headers: (() => {
-          const h: Record<string, string> = { "Content-Type": "application/json" };
-          try {
-            if (currentUserEnvelope) h["X-Capsules-User"] = JSON.stringify(currentUserEnvelope);
-          } catch {}
-          return h;
-        })(),
-        body: JSON.stringify({ ...payload, user: currentUserEnvelope ?? {} }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error((data && data.error) || "Failed to update friends");
-      }
-      if (data?.graph) {
-        const graph = data.graph as SocialGraphSnapshot;
-        setGraph(graph);
-        const detail: FriendsGraphUpdateEventDetail = {
-          friends: Array.isArray(data?.friends) ? data.friends : undefined,
-          incomingCount: graph.incomingRequests.length,
-          outgoingCount: graph.outgoingRequests.length,
-        };
-        broadcastFriendsGraphUpdate(detail);
-        broadcastFriendsGraphRefresh();
-      }
-    },
-    [currentUserEnvelope],
-  );
-
   const selectTab = React.useCallback(
     (tab: Tab) => {
       setActive(tab);
       const params = new URLSearchParams(searchParams.toString());
-      params.set("tab", tab.toLowerCase());
-      router.replace(`?${params.toString()}`, { scroll: false });
+      if (tab === "Friends") {
+        params.delete("tab");
+      } else {
+        params.set("tab", tab.toLowerCase());
+      }
+      const query = params.toString();
+      const url = query ? `?${query}` : "";
+      router.replace(url, { scroll: false });
     },
     [router, searchParams],
   );
 
-  const friends: FriendItem[] = React.useMemo(() => {
-    if (!graph) return FALLBACK_FRIENDS;
-    return graph.friends.map((friend) => {
-      const info = presence[friend.friendUserId];
-      return {
-        id: friend.id,
-        userId: friend.friendUserId,
-        key: friend.user?.key ?? null,
-        name: friend.user?.name ?? "Friend",
-        avatar: friend.user?.avatarUrl ?? null,
-        since: friend.since,
-        status: info?.status ?? "offline",
-      } satisfies FriendItem;
-    });
-  }, [graph, presence]);
+  return [active, selectTab];
+}
 
-  const incomingRequests: RequestsListItem[] = React.useMemo(() => {
-    if (!graph) return [];
-    return graph.incomingRequests.map((request) => ({
-      id: request.id,
-      user: request.user ? { name: request.user.name } : null,
-      kind: "incoming",
-    }));
-  }, [graph]);
-
-  const outgoingRequests: RequestsListItem[] = React.useMemo(() => {
-    if (!graph) return [];
-    return graph.outgoingRequests.map((request) => ({
-      id: request.id,
-      user: request.user ? { name: request.user.name } : null,
-      kind: "outgoing",
-    }));
-  }, [graph]);
-
-  const counters: Record<Tab, number> = {
-    Friends: friends.length,
+function mergeCounters(friends: number, requests: number): Record<Tab, number> {
+  return {
+    Friends: friends,
     Chats: 0,
-    Requests: incomingRequests.length,
-  };
+    Requests: requests,
+  } satisfies Record<Tab, number>;
+}
 
-  const [friendActionPendingId, setFriendActionPendingId] = React.useState<string | null>(null);
-  const [friendNotice, setFriendNotice] = React.useState<string | null>(null);
+export function FriendsClient() {
+  const {
+    friends,
+    incomingRequests,
+    outgoingRequests,
+    counters,
+    loading,
+    error,
+    setError,
+    refresh,
+    removeFriend,
+    blockFriend,
+    acceptRequest,
+    declineRequest,
+    cancelRequest,
+  } = useFriendsData();
+
+  const [activeTab, selectTab] = useTabFromSearch();
+  const [notice, setNotice] = React.useState<string | null>(null);
+  const [pendingId, setPendingId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!friendNotice) return;
-    const timer = window.setTimeout(() => setFriendNotice(null), 4000);
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 4000);
     return () => window.clearTimeout(timer);
-  }, [friendNotice]);
+  }, [notice]);
 
-  const buildFriendTargetPayload = React.useCallback(
-    (friend: FriendItem): Record<string, string> | null => {
-      const target: Record<string, string> = {};
-      if (friend.userId) {
-        target.userId = friend.userId;
-      } else if (friend.key) {
-        target.userKey = friend.key;
-      } else {
-        return null;
-      }
-      if (friend.name) target.name = friend.name;
-      if (friend.avatar) target.avatar = friend.avatar;
-      return target;
-    },
-    [],
-  );
-
-  const handleFriendRemove = React.useCallback(
-    async (friend: FriendItem, identifier: string) => {
-      const target = buildFriendTargetPayload(friend);
-      if (!target) {
-        setFriendNotice("That profile can't be removed right now.");
-        return;
-      }
-      setFriendActionPendingId(identifier);
-      const name = friend.name || "Friend";
+  const withPendingAction = React.useCallback(
+    async (
+      friend: FriendItem,
+      identifier: string,
+      perform: () => Promise<void>,
+      successMessage: string,
+    ) => {
+      setPendingId(identifier);
+      setError(null);
       try {
-        await mutateGraph({ action: "remove", target });
-        setFriendNotice(`${name} removed from friends.`);
-        scheduleRefresh();
-      } catch (error) {
-        console.error("Friend remove error", error);
-        setFriendNotice(
-          error instanceof Error && error.message ? error.message : "Couldn't remove that friend.",
-        );
+        await perform();
+        setNotice(successMessage);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "That action failed.";
+        setNotice(message);
       } finally {
-        setFriendActionPendingId(null);
+        setPendingId((prev) => (prev === identifier ? null : prev));
       }
     },
-    [buildFriendTargetPayload, mutateGraph, scheduleRefresh],
+    [setError],
   );
 
-  const handleFriendBlock = React.useCallback(
+  const handleRemove = React.useCallback(
     async (friend: FriendItem, identifier: string) => {
-      const target = buildFriendTargetPayload(friend);
-      if (!target) {
-        setFriendNotice("That profile can't be blocked right now.");
-        return;
-      }
-      setFriendActionPendingId(identifier);
-      const name = friend.name || "Friend";
-      try {
-        await mutateGraph({ action: "block", target });
-        setFriendNotice(`${name} has been blocked.`);
-        scheduleRefresh();
-      } catch (error) {
-        console.error("Friend block error", error);
-        setFriendNotice(
-          error instanceof Error && error.message ? error.message : "Couldn't block that friend.",
-        );
-      } finally {
-        setFriendActionPendingId(null);
-      }
+      await withPendingAction(friend, identifier, () => removeFriend(friend), `${friend.name || "Friend"} removed.`);
     },
-    [buildFriendTargetPayload, mutateGraph, scheduleRefresh],
+    [removeFriend, withPendingAction],
   );
 
-  const handleFriendView = React.useCallback((friend: FriendItem) => {
-    // No dedicated profile route available yet; keep UX consistent
-    const name = friend.name || "Friend";
-    setFriendNotice(`Viewing ${name} is coming soon.`);
+  const handleBlock = React.useCallback(
+    async (friend: FriendItem, identifier: string) => {
+      await withPendingAction(friend, identifier, () => blockFriend(friend), `${friend.name || "Friend"} blocked.`);
+    },
+    [blockFriend, withPendingAction],
+  );
+
+  const handleView = React.useCallback((friend: FriendItem) => {
+    const label = friend.name || "Friend";
+    setNotice(`Viewing ${label} is coming soon.`);
   }, []);
 
   const handleStartChat = React.useCallback((friend: FriendItem) => {
-    const name = friend.name || "Friend";
-    setFriendNotice(`Chat with ${name} is coming soon.`);
+    const label = friend.name || "Friend";
+    setNotice(`Chat with ${label} is coming soon.`);
   }, []);
 
-  async function handleAccept(requestId: string) {
-    await mutateGraph({ action: "accept", requestId });
-  }
+  const handleAccept = React.useCallback(
+    async (requestId: string) => {
+      try {
+        await acceptRequest(requestId);
+        setNotice("Request accepted.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Couldn't accept that request.";
+        setNotice(message);
+      }
+    },
+    [acceptRequest],
+  );
 
-  async function handleDecline(requestId: string) {
-    await mutateGraph({ action: "decline", requestId });
-  }
+  const handleDecline = React.useCallback(
+    async (requestId: string) => {
+      try {
+        await declineRequest(requestId);
+        setNotice("Request declined.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Couldn't decline that request.";
+        setNotice(message);
+      }
+    },
+    [declineRequest],
+  );
 
-  async function handleCancel(requestId: string) {
-    await mutateGraph({ action: "cancel", requestId });
-  }
+  const handleCancel = React.useCallback(
+    async (requestId: string) => {
+      try {
+        await cancelRequest(requestId);
+        setNotice("Request cancelled.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Couldn't cancel that request.";
+        setNotice(message);
+      }
+    },
+    [cancelRequest],
+  );
 
-  // Presence class mapping handled by FriendRow via useFriendPresence
+  const tabCounters = React.useMemo(
+    () => mergeCounters(counters.friends, counters.requests),
+    [counters.friends, counters.requests],
+  );
 
-  if (loading) {
-    return <div className={styles.empty}>Loading friends…</div>;
+  if (loading && friends.length === 0) {
+    return <div className={styles.empty}>Loading friends...</div>;
   }
 
   if (error) {
     return (
-      <div className={styles.empty} role="alert">
-        {error}
+      <div className={`${styles.empty} ${styles.error}`} role="alert">
+        <div>{error}</div>
+        <button
+          type="button"
+          className={styles.retryButton}
+          onClick={() => {
+            setError(null);
+            void refresh();
+          }}
+        >
+          Try again
+        </button>
       </div>
     );
   }
 
+  const listNotice = notice;
+
   return (
     <section className={styles.friendsSection}>
-      <FriendsTabs active={active} counters={counters} onSelect={selectTab} />
+      <FriendsTabs active={activeTab} counters={tabCounters} onSelect={selectTab} />
+
+      <div
+        id="panel-friends"
+        role="tabpanel"
+        aria-labelledby="tab-friends"
+        hidden={activeTab !== "Friends"}
+        className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
+      >
+        <FriendsList
+          items={friends}
+          pendingId={pendingId}
+          notice={listNotice}
+          onDelete={(friend, identifier) => {
+            void handleRemove(friend, identifier);
+          }}
+          onBlock={(friend, identifier) => {
+            void handleBlock(friend, identifier);
+          }}
+          onView={(friend) => handleView(friend)}
+          onStartChat={(friend) => handleStartChat(friend)}
+        />
+      </div>
 
       <div
         id="panel-chats"
         role="tabpanel"
         aria-labelledby="tab-chats"
-        hidden={active !== "Chats"}
+        hidden={activeTab !== "Chats"}
         className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
       >
         <div className={styles.empty}>Chats are coming soon.</div>
       </div>
 
       <div
-        id="panel-friends"
-        role="tabpanel"
-        aria-labelledby="tab-friends"
-        hidden={active !== "Friends"}
-        className={`${styles.tabPanel} ${styles.panelFull} ${styles.panelOverflowVisible}`.trim()}
-      >
-        <FriendsList
-          items={friends}
-          pendingId={friendActionPendingId}
-          notice={friendNotice}
-          onDelete={(friend, id) => {
-            void handleFriendRemove(friend, id);
-          }}
-          onBlock={(friend, id) => {
-            void handleFriendBlock(friend, id);
-          }}
-          onView={(friend) => handleFriendView(friend)}
-          onStartChat={(friend) => handleStartChat(friend)}
-        />
-      </div>
-
-      <div
         id="panel-requests"
         role="tabpanel"
         aria-labelledby="tab-requests"
-        hidden={active !== "Requests"}
+        hidden={activeTab !== "Requests"}
         className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
       >
         <RequestsList

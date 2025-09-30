@@ -4,23 +4,30 @@ import * as React from "react";
 import homeStyles from "@/components/home.module.css";
 import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import { FriendsRail } from "@/components/rail/FriendsRail";
-import { useFriendsRealtime, type PresenceMap } from "@/hooks/useFriendsRealtime";
-import { useFriendRequestActions } from "@/hooks/useFriendRequestActions";
 import { RequestsList } from "@/components/friends/RequestsList";
-import {
-  useFriendActions,
-  buildFriendTargetPayload as buildTarget,
-} from "@/hooks/useFriendActions";
-import {
-  useFriendsGraph,
-  type Friend,
-  mapFriendList,
-} from "@/hooks/useFriendsGraph";
+import { useFriendsData, type FriendItem } from "@/hooks/useFriendsData";
 import { UsersThree, ChatsCircle, Handshake } from "@phosphor-icons/react/dist/ssr";
+
 type RailTab = "friends" | "chats" | "requests";
 
-const CHAT_REMINDER_KEY = "capsule:lastChatReminder";
-const CHAT_UNREAD_COUNT_KEY = "capsule:unreadChatCount";
+type ConnectionOverride = {
+  description?: string;
+  badge?: number;
+};
+
+type ConnectionOverrideMap = Partial<Record<RailTab, ConnectionOverride>>;
+
+type ConnectionSummaryDetail = Partial<
+  Record<RailTab, { description?: string | null; badge?: number | null }>
+>;
+
+type ConnectionTile = {
+  key: RailTab;
+  title: string;
+  icon: React.ReactNode;
+  description: string;
+  badge: number | null;
+};
 
 const CONNECTION_TILE_DEFS: Array<{ key: RailTab; title: string; icon: React.ReactNode }> = [
   {
@@ -40,14 +47,8 @@ const CONNECTION_TILE_DEFS: Array<{ key: RailTab; title: string; icon: React.Rea
   },
 ];
 
-const RAIL_TAB_DEFS: Array<{ key: RailTab; label: string; icon: React.ReactNode }> =
-  CONNECTION_TILE_DEFS.map(({ key, title, icon }) => ({ key, label: title, icon }));
-
-const FALLBACK_FRIENDS: Friend[] = [
-  { id: "capsules", userId: null, key: null, name: "Capsules Team", status: "online" },
-  { id: "memory", userId: null, key: null, name: "Memory Bot", status: "online" },
-  { id: "dream", userId: null, key: null, name: "Dream Studio", status: "online" },
-];
+const CHAT_REMINDER_KEY = "capsule:lastChatReminder";
+const CHAT_UNREAD_COUNT_KEY = "capsule:unreadChatCount";
 
 function isRailTab(value: unknown): value is RailTab {
   return value === "friends" || value === "chats" || value === "requests";
@@ -99,11 +100,13 @@ function sanitizeOverrideText(value: unknown): string | null {
   if (!trimmed) return null;
   return trimmed.length > 220 ? `${trimmed.slice(0, 219)}...` : trimmed;
 }
+
 function coerceBadge(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   const safe = Math.max(0, Math.round(value));
   return safe > 0 ? safe : null;
 }
+
 function readStoredTimestamp(value: string | null): number | null {
   if (!value) return null;
   const numeric = Number(value);
@@ -111,53 +114,23 @@ function readStoredTimestamp(value: string | null): number | null {
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? null : parsed;
 }
+
 function coerceTimestamp(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") return readStoredTimestamp(value);
   return null;
 }
 
-type ConnectionOverrideMap = Partial<Record<RailTab, { description?: string; badge?: number }>>;
-type ConnectionSummaryDetail = Partial<
-  Record<RailTab, { description?: string | null; badge?: number | null }>
->;
-
 export function ConnectionsRail() {
   const {
     friends,
-    setFriends,
     incomingRequests,
     outgoingRequests,
-    incomingRequestCount,
-    outgoingRequestCount,
-    channels,
-    refresh,
-  } = useFriendsGraph(FALLBACK_FRIENDS);
-
-  const requestActions = useFriendRequestActions(refresh);
-  const noopSetPresence = React.useCallback<React.Dispatch<React.SetStateAction<PresenceMap>>>(() => undefined, []);
-
-  const realtimeTokenProvider = React.useCallback(async () => {
-    const res = await fetch("/api/realtime/token", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user: {} }),
-    });
-    const data = await res.json();
-    return { provider: data.provider, token: data.token, environment: data.environment } as any;
-  }, []);
-
-  const handleRealtimeEvent = React.useCallback(() => {
-    void refresh();
-  }, [refresh]);
-
-  useFriendsRealtime(
-    channels,
-    realtimeTokenProvider,
-    handleRealtimeEvent,
-    noopSetPresence,
-  );
+    removeFriend,
+    acceptRequest,
+    declineRequest,
+    cancelRequest,
+  } = useFriendsData();
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
@@ -168,10 +141,6 @@ export function ConnectionsRail() {
   const [chatTicker, setChatTicker] = React.useState(0);
   const [connectionOverrides, setConnectionOverrides] = React.useState<ConnectionOverrideMap>({});
 
-  const convertFriends = React.useCallback(
-    (items: unknown[]): Friend[] => mapFriendList(items),
-    [],
-  );
   React.useEffect(() => {
     try {
       const storedUnread = localStorage.getItem(CHAT_UNREAD_COUNT_KEY);
@@ -213,6 +182,7 @@ export function ConnectionsRail() {
       else localStorage.removeItem(CHAT_UNREAD_COUNT_KEY);
     } catch {}
   }, [unreadChats]);
+
   React.useEffect(() => {
     try {
       if (lastChatReminder) localStorage.setItem(CHAT_REMINDER_KEY, String(lastChatReminder));
@@ -237,8 +207,9 @@ export function ConnectionsRail() {
         }>
       ).detail;
       if (!detail || typeof detail !== "object") return;
-      if (typeof detail.unreadCount === "number" && Number.isFinite(detail.unreadCount))
+      if (typeof detail.unreadCount === "number" && Number.isFinite(detail.unreadCount)) {
         setUnreadChats(Math.max(0, Math.round(detail.unreadCount)));
+      }
       if (Object.prototype.hasOwnProperty.call(detail, "lastReceivedAt")) {
         const raw = (detail as { lastReceivedAt?: number | string | null }).lastReceivedAt;
         if (raw === null) setLastChatReminder(null);
@@ -254,21 +225,23 @@ export function ConnectionsRail() {
         setConnectionOverrides((prev) => {
           const next: ConnectionOverrideMap = { ...prev };
           const existing = next.chats ?? {};
-          let changed = false;
+          const updated: ConnectionOverride = { ...existing };
+          let mutated = false;
           if (overrideText) {
-            if (existing.description !== overrideText) {
-              next.chats = { ...existing, description: overrideText };
-              changed = true;
+            if (updated.description !== overrideText) {
+              updated.description = overrideText;
+              mutated = true;
             }
-          } else if (existing.description) {
-            const rest = { ...existing };
-            delete (rest as { description?: string }).description;
-            if (Object.keys(rest).length)
-              next.chats = rest as { description?: string; badge?: number };
-            else delete next.chats;
-            changed = true;
+          } else if (updated.description) {
+            delete updated.description;
+            mutated = true;
           }
-          return changed ? next : prev;
+          if (mutated) {
+            if (Object.keys(updated).length) next.chats = updated;
+            else delete next.chats;
+            return next;
+          }
+          return prev;
         });
       }
     }
@@ -295,44 +268,36 @@ export function ConnectionsRail() {
               return;
             }
             const patchValue = patch as { description?: string | null; badge?: number | null };
-            const current = { ...(next[rawKey] ?? {}) } as { description?: string; badge?: number };
-            let localChanged = false;
+            const current = { ...(next[rawKey] ?? {}) };
+            let localMutated = false;
             if (Object.prototype.hasOwnProperty.call(patchValue, "description")) {
               const normalized = sanitizeOverrideText(patchValue.description ?? null);
               if (normalized) {
                 if (current.description !== normalized) {
                   current.description = normalized;
-                  localChanged = true;
+                  localMutated = true;
                 }
               } else if (current.description) {
                 delete current.description;
-                localChanged = true;
+                localMutated = true;
               }
             }
             if (Object.prototype.hasOwnProperty.call(patchValue, "badge")) {
-              const badgeRaw = patchValue.badge;
-              if (badgeRaw === null) {
-                if (current.badge !== undefined) {
-                  delete current.badge;
-                  localChanged = true;
+              const normalizedBadge = coerceBadge(patchValue.badge ?? null);
+              if (normalizedBadge !== null) {
+                if (current.badge !== normalizedBadge) {
+                  current.badge = normalizedBadge;
+                  localMutated = true;
                 }
-              } else {
-                const normalizedBadge = coerceBadge(badgeRaw);
-                if (normalizedBadge !== null) {
-                  if (current.badge !== normalizedBadge) {
-                    current.badge = normalizedBadge;
-                    localChanged = true;
-                  }
-                } else if (current.badge !== undefined) {
-                  delete current.badge;
-                  localChanged = true;
-                }
+              } else if (current.badge !== undefined) {
+                delete current.badge;
+                localMutated = true;
               }
             }
-            if (localChanged) {
+            if (localMutated) {
               mutated = true;
               if (Object.keys(current).length) next[rawKey] = current;
-              else if (next[rawKey]) delete next[rawKey];
+              else delete next[rawKey];
             }
           },
         );
@@ -341,13 +306,10 @@ export function ConnectionsRail() {
     }
     window.addEventListener("capsule:connections:update", handleConnectionUpdate as EventListener);
     return () =>
-      window.removeEventListener(
-        "capsule:connections:update",
-        handleConnectionUpdate as EventListener,
-      );
+      window.removeEventListener("capsule:connections:update", handleConnectionUpdate as EventListener);
   }, []);
 
-  const connectionTiles = React.useMemo(() => {
+  const connectionTiles = React.useMemo<ConnectionTile[]>(() => {
     const now = chatTicker || Date.now();
     const defaults = {
       friends: {
@@ -359,24 +321,32 @@ export function ConnectionsRail() {
         badge: unreadChats > 0 ? unreadChats : null,
       },
       requests: {
-        description: formatRequestsSummary(incomingRequestCount, outgoingRequestCount),
-        badge: incomingRequestCount > 0 ? incomingRequestCount : null,
+        description: formatRequestsSummary(incomingRequests.length, outgoingRequests.length),
+        badge: incomingRequests.length > 0 ? incomingRequests.length : null,
       },
     } as const;
+
     return CONNECTION_TILE_DEFS.map((def) => {
       const override = connectionOverrides[def.key];
       const fallback = defaults[def.key];
       const description = override?.description ?? fallback.description;
-      const badgeValue = override?.badge ?? fallback.badge;
-      const badge = typeof badgeValue === "number" && badgeValue > 0 ? badgeValue : undefined;
-      return { ...def, description, badge } as const;
+      const candidateBadge =
+        typeof override?.badge === "number" ? override.badge : fallback.badge;
+      const badge = typeof candidateBadge === "number" && candidateBadge > 0 ? candidateBadge : null;
+      return {
+        key: def.key,
+        title: def.title,
+        icon: def.icon,
+        description,
+        badge,
+      } satisfies ConnectionTile;
     });
   }, [
     friends.length,
+    incomingRequests.length,
+    outgoingRequests.length,
     unreadChats,
     lastChatReminder,
-    incomingRequestCount,
-    outgoingRequestCount,
     connectionOverrides,
     chatTicker,
   ]);
@@ -386,29 +356,53 @@ export function ConnectionsRail() {
       setActiveFriendTarget((prev) => (prev === identifier ? null : identifier)),
     [],
   );
-  const { remove: removeFriend } = useFriendActions();
 
   const handleFriendRemove = React.useCallback(
-    async (friend: Friend, identifier: string) => {
-      const target = buildTarget(friend);
-      if (!target) return;
+    async (friend: FriendItem, identifier: string) => {
       setFriendActionPendingId(identifier);
       try {
-        const data = await removeFriend(target);
-        if (data && typeof data === "object") {
-          const friendsData = (data as { friends?: unknown[] }).friends;
-          if (Array.isArray(friendsData)) {
-            setFriends(convertFriends(friendsData));
-          }
-        }
+        await removeFriend(friend);
       } catch (error) {
         console.error("Friend remove error", error);
       } finally {
-        setFriendActionPendingId(null);
+        setFriendActionPendingId((prev) => (prev === identifier ? null : prev));
         setActiveFriendTarget(null);
       }
     },
-    [removeFriend, convertFriends, setFriends],
+    [removeFriend],
+  );
+
+  const handleAccept = React.useCallback(
+    async (id: string) => {
+      try {
+        await acceptRequest(id);
+      } catch (error) {
+        console.error("Friend request accept error", error);
+      }
+    },
+    [acceptRequest],
+  );
+
+  const handleDecline = React.useCallback(
+    async (id: string) => {
+      try {
+        await declineRequest(id);
+      } catch (error) {
+        console.error("Friend request decline error", error);
+      }
+    },
+    [declineRequest],
+  );
+
+  const handleCancel = React.useCallback(
+    async (id: string) => {
+      try {
+        await cancelRequest(id);
+      } catch (error) {
+        console.error("Friend request cancel error", error);
+      }
+    },
+    [cancelRequest],
   );
 
   return (
@@ -433,7 +427,7 @@ export function ConnectionsRail() {
                   </span>
                   <span className={homeStyles.connectionTileTitle}>{tile.title}</span>
                 </div>
-                {tile.badge ? (
+                {tile.badge !== null ? (
                   <span className={homeStyles.connectionTileBadge}>{tile.badge}</span>
                 ) : null}
               </div>
@@ -454,19 +448,21 @@ export function ConnectionsRail() {
             </button>
           </div>
           <div className={homeStyles.railTabs} role="tablist" aria-label="Connections">
-            {RAIL_TAB_DEFS.map((tab) => (
+            {CONNECTION_TILE_DEFS.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
                 role="tab"
                 aria-selected={activeRailTab === tab.key}
-                className={`${homeStyles.railTab} ${activeRailTab === tab.key ? homeStyles.railTabActive : ""}`.trim()}
+                className={`${homeStyles.railTab} ${
+                  activeRailTab === tab.key ? homeStyles.railTabActive : ""
+                }`.trim()}
                 onClick={() => setActiveRailTab(tab.key)}
               >
                 <span className={homeStyles.railTabIcon} aria-hidden>
                   {tab.icon}
                 </span>
-                <span>{tab.label}</span>
+                <span>{tab.title}</span>
               </button>
             ))}
           </div>
@@ -484,29 +480,11 @@ export function ConnectionsRail() {
           </div>
           <div className={homeStyles.railPanel} hidden={activeRailTab !== "requests"}>
             <RequestsList
-              incoming={incomingRequests.map((it) => ({ id: it.id, user: it.user ?? null, kind: "incoming" }))}
-              outgoing={outgoingRequests.map((it) => ({ id: it.id, user: it.user ?? null, kind: "outgoing" }))}
-              onAccept={async (id) => {
-                try {
-                  await requestActions.accept(id);
-                } catch (error) {
-                  console.error("Friend request accept error", error);
-                }
-              }}
-              onDecline={async (id) => {
-                try {
-                  await requestActions.decline(id);
-                } catch (error) {
-                  console.error("Friend request decline error", error);
-                }
-              }}
-              onCancel={async (id) => {
-                try {
-                  await requestActions.cancel(id);
-                } catch (error) {
-                  console.error("Friend request cancel error", error);
-                }
-              }}
+              incoming={incomingRequests}
+              outgoing={outgoingRequests}
+              onAccept={handleAccept}
+              onDecline={handleDecline}
+              onCancel={handleCancel}
             />
           </div>
         </div>
@@ -516,17 +494,3 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
-
-
-
-
-
-
-
-
-
-
-
-
-
-

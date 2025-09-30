@@ -308,23 +308,26 @@ export function buildImageVariants(
       const preferredFeed = pickPreferredEntry(feedEntries, FEED_DEFAULT_BASE_WIDTH);
       if (preferredFeed) {
         variants.feed = preferredFeed.url;
-      } else if (feedEntries.length) {
-        variants.feed = feedEntries[feedEntries.length - 1].url;
       } else {
-        variants.feed = buildCloudflareImageUrl(
-          originalUrl,
-          {
-            width: FEED_DEFAULT_BASE_WIDTH,
-            height: FEED_DEFAULT_BASE_WIDTH,
-            fit: 'cover',
-            gravity: 'faces',
-            quality: 90,
-            format: 'auto',
-            sharpen: 1,
-          },
-          resizeBase,
-          origin,
-        );
+        const fallbackFeed = feedEntries.at(-1);
+        if (fallbackFeed) {
+          variants.feed = fallbackFeed.url;
+        } else {
+          variants.feed = buildCloudflareImageUrl(
+            originalUrl,
+            {
+              width: FEED_DEFAULT_BASE_WIDTH,
+              height: FEED_DEFAULT_BASE_WIDTH,
+              fit: 'cover',
+              gravity: 'faces',
+              quality: 90,
+              format: 'auto',
+              sharpen: 1,
+            },
+            resizeBase,
+            origin,
+          );
+        }
       }
     }
   }
@@ -357,20 +360,23 @@ export function buildImageVariants(
       const preferredFull = pickPreferredEntry(fullEntries, FULL_DEFAULT_BASE_WIDTH);
       if (preferredFull) {
         variants.full = preferredFull.url;
-      } else if (fullEntries.length) {
-        variants.full = fullEntries[fullEntries.length - 1].url;
       } else {
-        variants.full = buildCloudflareImageUrl(
-          originalUrl,
-          {
-            width: FULL_DEFAULT_BASE_WIDTH,
-            fit: 'contain',
-            quality: 92,
-            format: 'auto',
-          },
-          resizeBase,
-          origin,
-        );
+        const fallbackFull = fullEntries.at(-1);
+        if (fallbackFull) {
+          variants.full = fallbackFull.url;
+        } else {
+          variants.full = buildCloudflareImageUrl(
+            originalUrl,
+            {
+              width: FULL_DEFAULT_BASE_WIDTH,
+              fit: 'contain',
+              quality: 92,
+              format: 'auto',
+            },
+            resizeBase,
+            origin,
+          );
+        }
       }
     }
   }
@@ -426,3 +432,4 @@ export function pickBestFullVariant(variants: CloudflareImageVariantSet | null |
   if (variants.feed) return variants.feed;
   return variants.original ?? null;
 }
+

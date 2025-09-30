@@ -164,10 +164,13 @@ function isLikelyImage(mimeType: string | null | undefined, url: string | null |
   if (typeof mimeType === "string" && mimeType.toLowerCase().startsWith("image/")) {
     return true;
   }
-  if (!url) return false;
-  const lower = url.split("?")[0].toLowerCase();
+  const normalizedUrl = typeof url === "string" ? url : null;
+  if (!normalizedUrl) return false;
+  const lower = normalizedUrl.split("?")[0]?.toLowerCase() ?? "";
+  if (!lower) return false;
   return /(\.png|\.jpe?g|\.webp|\.gif|\.avif|\.heic|\.heif)$/i.test(lower);
 }
+
 
 type NormalizedAttachment = {
   id: string;
@@ -521,3 +524,6 @@ export async function POST(req: Request) {
     return returnError(500, "post_save_failed", "Failed to save post");
   }
 }
+
+
+
