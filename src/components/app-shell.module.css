@@ -160,3 +160,22 @@
   width: 100%;
   margin: 0;
 }
+@media (max-width: 640px) {
+  .outer {
+    --header-height: 0px;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 0 calc(var(--mobile-dock-height, 0px) + 24px);
+  }
+  .page {
+    width: 100%;
+    margin: 0;
+    padding: 12px 0 16px;
+    padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
+    padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
+  }
+  .main {
+    gap: 20px;
+  }
+  .layout {
+    gap: 20px;
+  }
+}

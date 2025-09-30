@@ -290,12 +290,12 @@
   --presence-dot: var(--presence-online-dot);
   --presence-ring: var(--presence-online-ring);
 }
-.online .presence {
+.presence.online {
   width: 14px;
   height: 14px;
   margin-left: 12px;
 }
-.online .presenceDot {
+.presence.online .presenceDot {
   opacity: 1;
   transform: scale(1);
   background-color: var(--presence-online-dot-bright, #7efce1);
@@ -309,12 +309,12 @@
   --presence-dot: transparent;
   --presence-ring: transparent;
 }
-.offline .presence {
+.presence.offline {
   width: 0;
   height: 0;
   margin-left: 0;
 }
-.offline .presenceDot {
+.presence.offline .presenceDot {
   opacity: 0;
   transform: scale(0);
   box-shadow: none;
@@ -325,12 +325,12 @@
   --presence-dot: var(--presence-away-dot);
   --presence-ring: var(--presence-away-ring);
 }
-.away .presence {
+.presence.away {
   width: 14px;
   height: 14px;
   margin-left: 12px;
 }
-.away .presenceDot {
+.presence.away .presenceDot {
   opacity: 1;
   transform: scale(0.9);
 }
@@ -701,5 +701,4 @@
     var(--pill-bg-2, rgba(255, 255, 255, 0.06))
   );
 }
-
 

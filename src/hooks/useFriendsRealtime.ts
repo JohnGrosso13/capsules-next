@@ -19,8 +19,11 @@ export function useFriendsRealtime(
   onEvent: () => void,
   setPresence: React.Dispatch<React.SetStateAction<PresenceMap>>,
 ) {
+  const eventsChannelName = channels?.events ?? "";
+  const presenceChannelName = channels?.presence ?? "";
+
   React.useEffect(() => {
-    if (!channels || !channels.events || !channels.presence) return;
+    if (!eventsChannelName || !presenceChannelName) return;
     const factory = getRealtimeClientFactory();
     if (!factory) {
       console.warn("Realtime client factory not configured");
@@ -44,14 +47,14 @@ export function useFriendsRealtime(
 
         clientInstance = client;
 
-        const eventsCleanup = await client.subscribe(channels.events, () => onEvent());
+        const eventsCleanup = await client.subscribe(eventsChannelName, () => onEvent());
         unsubscribeEvents = () => {
           Promise.resolve(eventsCleanup()).catch((error) => {
             console.error("Realtime events unsubscribe error", error);
           });
         };
 
-        presenceChannel = client.presence(channels.presence);
+        presenceChannel = client.presence(presenceChannelName);
         const presenceCleanup = await presenceChannel.subscribe((message) => {
           const clientId = String(message.clientId ?? "").trim();
           if (!clientId) return;
@@ -134,5 +137,5 @@ export function useFriendsRealtime(
       }
       factory.reset();
     };
-  }, [channels, tokenProvider, onEvent, setPresence]);
+  }, [eventsChannelName, presenceChannelName, tokenProvider, onEvent, setPresence]);
 }

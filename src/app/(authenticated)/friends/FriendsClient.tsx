@@ -173,7 +173,12 @@ export function FriendsClient() {
         const data = await fetchGraph(currentUserEnvelope);
         if (data) {
           setGraph(data.graph);
-          setChannels(data.channels);
+          setChannels((prev) => {
+            if (prev && prev.events === data.channels.events && prev.presence === data.channels.presence) {
+              return prev;
+            }
+            return data.channels;
+          });
         }
       } finally {
         refreshPending.current = false;
@@ -190,7 +195,12 @@ export function FriendsClient() {
         if (!mounted) return;
         if (data) {
           setGraph(data.graph);
-          setChannels(data.channels);
+          setChannels((prev) => {
+            if (prev && prev.events === data.channels.events && prev.presence === data.channels.presence) {
+              return prev;
+            }
+            return data.channels;
+          });
           const initialPresence: PresenceMap = {};
           for (const friend of data.graph.friends ?? []) {
             initialPresence[friend.friendUserId] = {
@@ -493,4 +503,3 @@ export function FriendsClient() {
     </section>
   );
 }
-
