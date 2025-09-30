@@ -65,6 +65,15 @@ export function HomeFeedList({
     setLightbox(null);
   }, []);
 
+  const handleCloseButtonClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      closeLightbox();
+    },
+    [closeLightbox],
+  );
+
   const navigateLightbox = React.useCallback((step: number) => {
     setLightbox((prev) => {
       if (!prev || !prev.items.length) return prev;
@@ -559,10 +568,10 @@ export function HomeFeedList({
                   <button
                     type="button"
                     className={styles.lightboxClose}
-                    onClick={closeLightbox}
+                    onClick={handleCloseButtonClick}
                     aria-label="Close attachment viewer"
                   >
-                    ×
+                    {"\u00d7"}
                   </button>
                   {hasMultiple ? (
                     <>

@@ -1106,6 +1106,8 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.15s ease, background-color 0.15s ease;
+  z-index: 5; /* ensure above image content */
+  pointer-events: auto;
 }
 
 .lightboxClose:hover,
