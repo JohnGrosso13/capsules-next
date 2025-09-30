@@ -619,7 +619,8 @@ export function HomeFeedList({
                       src={item.displayUrl}
                       alt={item.name ?? "Post attachment"}
                       width={1080}
-                      height={1080}
+                      height={1080}
+
                       sizes="(max-width: 640px) 100vw, 720px"
                       unoptimized
                     />
@@ -726,29 +727,29 @@ export function HomeFeedList({
                     </>
                   ) : null}
                   <div className={styles.lightboxBody}>
-                    {current.kind === "video" ? (
-                      <video
-                        className={`${styles.lightboxMedia} ${styles.lightboxVideo}`.trim()}
-                        controls
-                        playsInline
-                        preload="auto"
-                      >
-                        <source src={current.fullUrl} type={current.mimeType ?? undefined} />
-                        Your browser does not support embedded video.
-                      </video>
-                    ) : (
-                      <div className={`${styles.lightboxMedia} ${styles.lightboxImageWrap}`.trim()}>
-                        <Image
-                          src={current.fullUrl}
-                          alt={current.alt}
-                          fill
-                          priority
-                          sizes="100vw"
+                    <div className={styles.lightboxMedia}>
+                      {current.kind === "video" ? (
+                        <video
+                          className={styles.lightboxVideo}
+                          controls
+                          playsInline
+                          preload="auto"
+                        >
+                          <source src={current.fullUrl} type={current.mimeType ?? undefined} />
+                          Your browser does not support embedded video.
+                        </video>
+                      ) : (
+                        <img
                           className={styles.lightboxImage}
-                          unoptimized
+                          src={current.fullUrl}
+                          srcSet={current.fullSrcSet ?? current.displaySrcSet ?? undefined}
+                          sizes="(min-width: 768px) 70vw, 90vw"
+                          alt={current.alt}
+                          loading="eager"
+                          draggable={false}
                         />
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                   {current.name ? (
                     <div className={styles.lightboxCaption}>{current.name}</div>
