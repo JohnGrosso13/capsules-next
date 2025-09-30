@@ -92,6 +92,7 @@
 }
 .input {
   flex: 1;
+  min-width: 0; /* allow prompt to shrink on narrow viewports */
   background: transparent;
   border: none;
   color: var(--text);
@@ -222,10 +223,17 @@
   display: inline-flex;
   align-items: stretch;
   border-radius: 999px;
+  flex-shrink: 0;
 }
 .genSplitMain {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Prevent the label from shrinking under the caret on small screens */
+  flex: 0 0 auto;
+  min-width: max-content;
 }
 .genSplitCaret {
   display: inline-flex;
@@ -251,6 +259,33 @@
 .caretGlyph {
   font-size: 0.9rem;
   line-height: 1;
+}
+
+@media (max-width: 480px) {
+  .promptBar {
+    gap: 6px;
+    padding: 10px 12px;
+  }
+
+  .promptAttachBtn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .genSplit {
+    flex-shrink: 0;
+    min-width: 132px;
+  }
+
+  .genSplitMain {
+    padding: 9px 18px;
+    /* Ensure full word "Generate" always fits next to caret */
+    min-width: max-content;
+  }
+
+  .genSplitCaret {
+    padding: 0 10px;
+  }
 }
 
 /* Override intent chip wrapper when rendered inside split group */
@@ -312,6 +347,7 @@
   position: relative;
   top: 0.5px;
   font-size: 0.95rem;
+  white-space: nowrap;
 }
 .chips {
   display: flex;

@@ -33,6 +33,10 @@ const defaultChips = [
   "Style my capsule",
 ];
 
+const DEFAULT_PLACEHOLDER = "Ask your Capsule AI to create anything...";
+const COMPACT_PLACEHOLDER = "Ask Capsule AI for ideas...";
+const COMPACT_VIEWPORT_QUERY = "(max-width: 480px)";
+
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useCurrentUser } from "@/services/auth/client";
@@ -140,7 +144,7 @@ function describeVoiceError(code: string | null): string | null {
 }
 
 export function AiPrompterStage({
-  placeholder = "Ask your Capsule AI to create anything...",
+  placeholder = DEFAULT_PLACEHOLDER,
   chips = defaultChips,
   statusMessage = null,
   onAction,
@@ -165,9 +169,33 @@ export function AiPrompterStage({
   const [voiceError, setVoiceError] = React.useState<string | null>(null);
   const [voiceDraft, setVoiceDraft] = React.useState<{ session: number; text: string } | null>(null);
   const [pendingVoiceSubmission, setPendingVoiceSubmission] = React.useState<string | null>(null);
+  const [isCompactViewport, setIsCompactViewport] = React.useState(false);
   const sessionCounterRef = React.useRef(1);
   const activeVoiceSessionRef = React.useRef<number | null>(null);
   const processedVoiceSessionRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia(COMPACT_VIEWPORT_QUERY);
+
+    const updateViewportMatch = () => setIsCompactViewport(media.matches);
+    updateViewportMatch();
+
+    const handleChange = (event: MediaQueryListEvent) => setIsCompactViewport(event.matches);
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", handleChange);
+      return () => media.removeEventListener("change", handleChange);
+    }
+
+    if (typeof media.addListener === "function") {
+      media.addListener(handleChange);
+      return () => media.removeListener(handleChange);
+    }
+
+    return undefined;
+  }, []);
 
   const {
     fileInputRef,
@@ -255,6 +283,11 @@ export function AiPrompterStage({
       setMenuOpen(false);
     }
   }, [voiceSupported, voiceStatus, startVoice, stopVoice, setMenuOpen]);
+
+  const resolvedPlaceholder =
+    placeholder === DEFAULT_PLACEHOLDER && isCompactViewport
+      ? COMPACT_PLACEHOLDER
+      : placeholder;
 
   const trimmed = text.trim();
   const hasAttachment = Boolean(readyAttachment);
@@ -585,7 +618,7 @@ export function AiPrompterStage({
         <PrompterInputBar
           inputRef={textRef}
           value={text}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           onChange={setText}
           buttonLabel={buttonLabel}
           buttonClassName={buttonClassName}
