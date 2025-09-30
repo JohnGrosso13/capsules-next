@@ -24,9 +24,15 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
   React.useEffect(() => {
     function onDocPointerDown(e: MouseEvent | PointerEvent) {
       if (!open) return;
-      const el = containerRef.current;
-      if (!el) return;
-      if (!el.contains(e.target as Node)) setOpen(false);
+      const container = containerRef.current;
+      const menu = menuRef.current;
+      const target = e.target as Node | null;
+      if (!target) return;
+      const insideContainer = !!(container && container.contains(target));
+      const insideMenu = !!(menu && menu.contains(target));
+      if (!insideContainer && !insideMenu) {
+        setOpen(false);
+      }
     }
     function onKeyDown(e: KeyboardEvent) {
       if (!open) return;
@@ -99,9 +105,7 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
       </button>
       {open
         ? createPortal(
-          <>
-            <div className={cm.backdrop} onClick={() => setOpen(false)} />
-            <div
+          <><div
               ref={menuRef}
               className={cm.menu}
               role="menu"
@@ -169,4 +173,5 @@ export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onSt
 }
 
 export default FriendMenu;
+
 
