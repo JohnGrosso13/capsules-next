@@ -1,4 +1,4 @@
-import algoliasearch, { type SearchClient } from "algoliasearch";
+import { type SearchClient, searchClient } from "@algolia/client-search";
 
 import type {
   SearchIndex,
@@ -31,7 +31,6 @@ export function createAlgoliaSearchIndex(
   client: SearchClient,
   indexName: string,
 ): SearchIndex {
-  const index = client.initIndex(indexName);
 
   return {
     async upsert(records: SearchIndexRecord[]) {
@@ -53,21 +52,24 @@ export function createAlgoliaSearchIndex(
           createdAt_ts: createdAtTs,
         };
       });
-      await index.saveObjects(payload, { autoGenerateObjectIDIfNotExist: false });
+      await client.saveObjects({ indexName, objects: payload });
     },
     async delete(ids: string[]) {
       if (!ids.length) return;
-      await index.deleteObjects(ids);
+      await client.deleteObjects({ indexName, objectIDs: ids });
     },
     async search(query: SearchIndexQuery) {
-      const params: Record<string, unknown> = {
-        hitsPerPage: query.limit,
-        filters: buildFilters(query),
-      };
-      const response = await index.search<Record<string, unknown>>(query.text || "", params);
+      const response = await client.searchSingleIndex<Record<string, unknown>>({
+        indexName,
+        searchParams: {
+          query: query.text || "",
+          hitsPerPage: query.limit,
+          filters: buildFilters(query),
+        },
+      });
       const matches: SearchIndexMatch[] = [];
       const total = response.hits?.length ?? 0;
-      response.hits?.forEach((hit, index) => {
+      response.hits?.forEach((hit: Record<string, unknown>, index: number) => {
         const objectID = typeof hit.objectID === "string" ? hit.objectID : String(hit.objectID ?? "");
         const match: SearchIndexMatch = {
           id: objectID,
@@ -105,5 +107,5 @@ export function createAlgoliaSearchIndex(
 }
 
 export function createAlgoliaClient(appId: string, apiKey: string): SearchClient {
-  return algoliasearch(appId, apiKey);
+  return searchClient(appId, apiKey);
 }
