@@ -266,15 +266,21 @@
   flex: 0 0 auto;
   width: 14px;
   height: 14px;
+  transition: width 160ms ease, height 160ms ease, margin 160ms ease;
 }
+
 
 .presenceDot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--presence-dot, var(--presence-offline-dot));
-  box-shadow: 0 0 0 2px var(--presence-ring, var(--presence-offline-ring));
+  background-color: var(--presence-dot, transparent);
+  box-shadow: 0 0 0 2px var(--presence-ring, transparent);
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 160ms ease, transform 160ms ease, box-shadow 180ms ease, background-color 160ms ease;
 }
+
 
 .presenceLabel {
   display: none;
@@ -284,16 +290,51 @@
   --presence-dot: var(--presence-online-dot);
   --presence-ring: var(--presence-online-ring);
 }
+.online .presence {
+  width: 14px;
+  height: 14px;
+  margin-left: 12px;
+}
+.online .presenceDot {
+  opacity: 1;
+  transform: scale(1);
+  background-color: var(--presence-online-dot-bright, #7efce1);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--presence-online-ring, rgba(255, 255, 255, 0.24)) 60%, transparent),
+    0 0 12px color-mix(in srgb, var(--presence-online-dot-bright, #7efce1) 75%, transparent);
+}
+
 
 .offline {
-  --presence-dot: var(--presence-offline-dot);
-  --presence-ring: var(--presence-offline-ring);
+  --presence-dot: transparent;
+  --presence-ring: transparent;
 }
+.offline .presence {
+  width: 0;
+  height: 0;
+  margin-left: 0;
+}
+.offline .presenceDot {
+  opacity: 0;
+  transform: scale(0);
+  box-shadow: none;
+}
+
 
 .away {
   --presence-dot: var(--presence-away-dot);
   --presence-ring: var(--presence-away-ring);
 }
+.away .presence {
+  width: 14px;
+  height: 14px;
+  margin-left: 12px;
+}
+.away .presenceDot {
+  opacity: 1;
+  transform: scale(0.9);
+}
+
 
 .friendMeta {
   position: relative;
@@ -660,4 +701,5 @@
     var(--pill-bg-2, rgba(255, 255, 255, 0.06))
   );
 }
+
 

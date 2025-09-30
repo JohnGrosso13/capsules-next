@@ -159,7 +159,7 @@ export function HomeFeedList({
 
         attachmentsList.forEach((attachment, index) => {
           if (!attachment || !attachment.url) return;
-          const kind = inferAttachmentKind(attachment.mimeType ?? null, attachment.url);
+          const kind = inferAttachmentKind(attachment.mimeType ?? null, attachment.url, attachment.storageKey ?? null, attachment.thumbnailUrl ?? null);
           const baseId = attachment.id || `${post.id}-att-${index}`;
           if (kind === "image" || kind === "video") {
             pushMedia({
@@ -397,3 +397,4 @@ export function HomeFeedList({
     </>
   );
 }
+

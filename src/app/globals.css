@@ -54,6 +54,9 @@
     --color-warning: #fbbf24;
     --color-danger: #f87171;
     --presence-online-dot: var(--color-success);
+    --presence-online-dot-bright: color-mix(in srgb, var(--color-success) 70%, #7efce1);
+
+
     --presence-online-ring: color-mix(in srgb, var(--color-success) 35%, transparent);
     --presence-away-dot: var(--color-warning);
     --presence-away-ring: color-mix(in srgb, var(--color-warning) 30%, transparent);
@@ -136,6 +139,10 @@
   --color-warning: #d97706;
   --color-danger: #dc2626;
   --presence-online-dot: var(--color-success);
+  --presence-online-dot-bright: color-mix(in srgb, var(--color-success) 70%, #34d399);
+
+
+
   --presence-online-ring: color-mix(in srgb, var(--color-success) 30%, transparent);
   --presence-away-dot: var(--color-warning);
   --presence-away-ring: color-mix(in srgb, var(--color-warning) 26%, transparent);
@@ -335,3 +342,5 @@
     animation: marquee 60s linear infinite;
   }
 }
+
+
