@@ -16,8 +16,7 @@ const relativeOrAbsoluteUrlSchema = z
     z.string().superRefine((value, ctx) => {
       if (!value) {
         ctx.addIssue({
-          code: z.ZodIssueCode.invalid_string,
-          validation: "url",
+          code: z.ZodIssueCode.custom,
           message: "Invalid URL",
         });
         return;
@@ -27,8 +26,7 @@ const relativeOrAbsoluteUrlSchema = z
         new URL(value);
       } catch {
         ctx.addIssue({
-          code: z.ZodIssueCode.invalid_string,
-          validation: "url",
+          code: z.ZodIssueCode.custom,
           message: "Invalid URL",
         });
       }
@@ -230,7 +228,7 @@ export const completeUploadSchema = z
         code: z.ZodIssueCode.custom,
         message: "sessionId or uploadId is required",
         path: ["sessionId"],
-      })
+      });
     }
   });
 

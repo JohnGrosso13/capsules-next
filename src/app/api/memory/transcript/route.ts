@@ -43,6 +43,9 @@ export async function POST(req: Request) {
       description: text,
       postId: null,
       metadata,
+      rawText: text,
+      source: typeof metadata.source === "string" ? (metadata.source as string) : "voice_transcription",
+      eventAt: typeof metadata.captured_at === "string" ? (metadata.captured_at as string) : null,
     });
     return NextResponse.json({ success: true });
   } catch (error) {

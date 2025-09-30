@@ -74,13 +74,194 @@ export async function embedText(input: string) {
   return embedding;
 }
 
+export type MemorySummaryInput = {
+  text: string;
+  title?: string | null;
+  kind?: string | null;
+  source?: string | null;
+  mediaType?: string | null;
+  hasMedia?: boolean;
+  timestamp?: string | null;
+  tags?: string[] | null;
+};
+
+export type MemorySummaryResult = {
+  summary: string;
+  title?: string | null;
+  tags: string[];
+  entities: Record<string, string[]>;
+  timeHints: {
+    isoDate?: string | null;
+    year?: number | null;
+    month?: number | null;
+    holiday?: string | null;
+    relative?: string | null;
+  };
+};
+
+function sanitizeStringArray(value: unknown, limit: number): string[] {
+  if (!Array.isArray(value)) return [];
+  const results: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const normalized = entry.replace(/\s+/g, " ").trim();
+    if (!normalized) continue;
+    results.push(normalized.slice(0, limit));
+    if (results.length >= 24) break;
+  }
+  return results;
+}
+
+export async function summarizeMemory(input: MemorySummaryInput): Promise<MemorySummaryResult | null> {
+  if (!serverEnv.OPENAI_API_KEY) return null;
+  const text = input.text?.trim();
+  if (!text) return null;
+
+  const contextParts: string[] = [];
+  if (input.kind) contextParts.push(`kind: ${input.kind}`);
+  if (input.source) contextParts.push(`source: ${input.source}`);
+  if (input.mediaType) contextParts.push(`media: ${input.mediaType}`);
+  if (input.hasMedia) contextParts.push("hasMedia: true");
+  if (input.timestamp) contextParts.push(`timestamp: ${input.timestamp}`);
+  if (input.tags?.length) contextParts.push(`tags: ${input.tags.join(", ")}`);
+
+  try {
+    const model = serverEnv.OPENAI_MODEL || "gpt-4o-mini";
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.35,
+        max_tokens: 220,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: [
+              "You summarize user memories for fast recall.",
+              "Return JSON with summary, title, tags, entities, time_hints.",
+              "summary: 1-2 vivid sentences (<= 220 chars).",
+              "title: optional catchy label (<= 60 chars).",
+              "tags: 4-8 short search cues (lowercase).",
+              "entities: object of string arrays (people, places, objects, colors, topics, animals, events).",
+              "time_hints: include iso_date (YYYY-MM-DD if known), year, month, holiday, relative (e.g. 'last week').",
+              "Never invent facts beyond the provided text.",
+            ].join(" "),
+          },
+          {
+            role: "user",
+            content: [
+              input.title ? `title: ${input.title}` : null,
+              contextParts.length ? `context: ${contextParts.join(" | ")}` : null,
+              "content:",
+              text,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          },
+        ],
+      }),
+    });
+
+    const raw = (await response.json().catch(() => null)) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    } | null;
+    if (!response.ok || !raw) {
+      console.warn("summarizeMemory error", raw);
+      return null;
+    }
+    const payload = raw.choices?.[0]?.message?.content;
+    if (!payload) return null;
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(payload) as Record<string, unknown>;
+    } catch (error) {
+      console.warn("summarizeMemory parse error", error);
+      return null;
+    }
+    const summaryRaw = typeof parsed.summary === "string" ? parsed.summary.trim() : "";
+    if (!summaryRaw) return null;
+    const titleRaw = typeof parsed.title === "string" ? parsed.title.trim() : "";
+    const tags = sanitizeStringArray(parsed.tags, 48);
+    const entitiesRaw = (parsed.entities as Record<string, unknown> | undefined) ?? {};
+    const entities: Record<string, string[]> = {};
+    for (const [key, value] of Object.entries(entitiesRaw)) {
+      const sanitized = sanitizeStringArray(value, 72);
+      if (sanitized.length) {
+        entities[key] = sanitized;
+      }
+    }
+    const timeRaw = (parsed.time_hints as Record<string, unknown> | undefined) ?? {};
+    const timeHints = {
+      isoDate:
+        typeof timeRaw.iso_date === "string" && timeRaw.iso_date.trim().length
+          ? timeRaw.iso_date.trim()
+          : null,
+      year: typeof timeRaw.year === "number" && Number.isFinite(timeRaw.year) ? timeRaw.year : null,
+      month: typeof timeRaw.month === "number" && Number.isFinite(timeRaw.month) ? timeRaw.month : null,
+      holiday:
+        typeof timeRaw.holiday === "string" && timeRaw.holiday.trim().length
+          ? timeRaw.holiday.trim()
+          : null,
+      relative:
+        typeof timeRaw.relative === "string" && timeRaw.relative.trim().length
+          ? timeRaw.relative.trim()
+          : null,
+    } as const;
+
+    return {
+      summary: summaryRaw.slice(0, 360),
+      title: titleRaw ? titleRaw.slice(0, 64) : null,
+      tags,
+      entities,
+      timeHints,
+    };
+  } catch (error) {
+    console.error("summarizeMemory request failed", error);
+    return null;
+  }
+}
+
 // Generate a compact caption and salient tags for an image URL.
 // Used to enrich vector memory for natural language recall of images.
+function resolveCaptionUrl(raw: string): string | null {
+  const source = typeof raw === "string" ? raw.trim() : "";
+  if (!source) return null;
+  if (source.startsWith("data:") || source.startsWith("blob:")) return null;
+
+  try {
+    const direct = new URL(source);
+    if (direct.protocol === "http:" || direct.protocol === "https:") {
+      return direct.toString();
+    }
+    return null;
+  } catch {
+    // fall through to relative handling
+  }
+
+  if (source.startsWith("//")) {
+    return resolveCaptionUrl(`https:${source}`);
+  }
+
+  try {
+    const base = serverEnv.SITE_URL || "";
+    if (!base) return null;
+    return new URL(source, `${base}/`).toString();
+  } catch {
+    return null;
+  }
+}
+
 export async function captionImage(url: string): Promise<string | null> {
   if (!serverEnv.OPENAI_API_KEY) return null;
-  if (!url) return null;
+  const resolvedUrl = resolveCaptionUrl(url);
+  if (!resolvedUrl) return null;
   try {
-    const normalized = url.toLowerCase();
+    const normalized = resolvedUrl.toLowerCase();
     if (
       normalized.includes("media.local.example") ||
       normalized.startsWith("http://localhost") ||
@@ -113,7 +294,7 @@ export async function captionImage(url: string): Promise<string | null> {
             role: "user",
             content: [
               { type: "text", text: "Describe this image for later semantic search:" },
-              { type: "image_url", image_url: { url } },
+              { type: "image_url", image_url: { url: resolvedUrl } },
             ],
           },
         ],

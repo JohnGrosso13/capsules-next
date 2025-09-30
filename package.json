@@ -26,6 +26,7 @@
     "@radix-ui/react-slot": "^1.1.1",
     "@supabase/functions-js": "^2.5.0",
     "@supabase/supabase-js": "^2.57.4",
+    "algoliasearch": "^4.24.0",
     "ably": "^1.2.50",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",

@@ -26,6 +26,17 @@ export async function POST(req: Request) {
       description: typeof item.description === "string" ? item.description : null,
       postId: typeof item.post_id === "string" ? item.post_id : null,
       metadata: (item.meta as Record<string, unknown>) ?? null,
+      rawText:
+        typeof item.raw_text === "string"
+          ? item.raw_text
+          : typeof item.description === "string"
+            ? item.description
+            : null,
+      source: typeof item.source === "string" ? item.source : null,
+      tags: Array.isArray(item.tags)
+        ? (item.tags as unknown[]).filter((value): value is string => typeof value === "string")
+        : null,
+      eventAt: typeof item.created_at === "string" ? item.created_at : null,
     });
     return NextResponse.json({ success: true });
   } catch (error) {

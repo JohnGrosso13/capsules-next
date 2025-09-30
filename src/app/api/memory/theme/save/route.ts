@@ -43,6 +43,9 @@ export async function POST(req: Request) {
         summary: summary ?? title ?? "Saved theme",
         prompt: prompt ?? title ?? "",
       },
+      rawText: [title ?? "Saved theme", summary ?? "", prompt ?? ""].filter(Boolean).join(" | "),
+      source: "theme",
+      tags: ["theme", "style"],
     });
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -52,4 +55,3 @@ export async function POST(req: Request) {
 }
 
 export const runtime = "nodejs";
-

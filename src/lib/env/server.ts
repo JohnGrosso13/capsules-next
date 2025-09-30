@@ -38,6 +38,9 @@ export type ServerEnv = {
   R2_UPLOAD_COMPLETIONS_QUEUE: string | null;
   CLOUDFLARE_IMAGE_RESIZE_BASE_URL: string | null;
   TURNSTILE_SECRET_KEY: string | null;
+  ALGOLIA_APP_ID: string | null;
+  ALGOLIA_API_KEY: string | null;
+  ALGOLIA_INDEX_PREFIX: string | null;
 };
 
 function getEnv(name: string, fallbacks: string[] = [], options: { required?: boolean } = {}) {
@@ -71,6 +74,9 @@ const r2PublicBaseUrlRaw = getEnv("R2_PUBLIC_BASE_URL", ["NEXT_PUBLIC_R2_PUBLIC_
 const r2PublicBaseUrl = r2PublicBaseUrlRaw ? r2PublicBaseUrlRaw.replace(/\/$/, "") : null;
 const imageResizeBaseUrlRaw = getEnv("CLOUDFLARE_IMAGE_RESIZE_BASE_URL", []);
 const imageResizeBaseUrl = imageResizeBaseUrlRaw ? imageResizeBaseUrlRaw.replace(/\/$/, "") : null;
+const algoliaAppId = getEnv("ALGOLIA_APP_ID", ["NEXT_PUBLIC_ALGOLIA_APP_ID"]);
+const algoliaApiKey = getEnv("ALGOLIA_API_KEY", []);
+const algoliaIndexPrefix = getEnv("ALGOLIA_INDEX_PREFIX", ["NEXT_PUBLIC_ALGOLIA_INDEX_PREFIX"]);
 
 export const serverEnv: ServerEnv = {
   SUPABASE_URL: getEnv("SUPABASE_URL", ["NEXT_PUBLIC_SUPABASE_URL"], { required: true })!,
@@ -138,4 +144,7 @@ export const serverEnv: ServerEnv = {
   ),
   CLOUDFLARE_IMAGE_RESIZE_BASE_URL: imageResizeBaseUrl,
   TURNSTILE_SECRET_KEY: getEnv("TURNSTILE_SECRET_KEY", ["CLOUDFLARE_TURNSTILE_SECRET"]),
+  ALGOLIA_APP_ID: algoliaAppId,
+  ALGOLIA_API_KEY: algoliaApiKey,
+  ALGOLIA_INDEX_PREFIX: algoliaIndexPrefix,
 };

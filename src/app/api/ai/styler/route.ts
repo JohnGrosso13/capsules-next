@@ -18,6 +18,10 @@ async function tryIndexStylerMemory(payload: {
   description: string | null;
   postId: string | null;
   metadata: Record<string, unknown> | null;
+  rawText?: string | null;
+  source?: string | null;
+  tags?: string[] | null;
+  eventAt?: string | Date | null;
 }) {
   try {
     const { indexMemory } = await import("@/lib/supabase/memories");
@@ -91,6 +95,9 @@ export async function POST(req: Request) {
           summary: plan.summary,
           prompt,
         },
+        rawText: `${prompt}\n${plan.summary}`,
+        source: "styler",
+        tags: [plan.source, "styler"],
       });
     }
 

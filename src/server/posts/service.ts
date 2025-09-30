@@ -474,7 +474,17 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
         title: memoryTitle,
         description: memoryDescription,
         postId: payload.client_id as string | null,
-        metadata: { source: "post", kind: memoryKind },
+        metadata: {
+          source: "post",
+          kind: memoryKind,
+          post_author_name: typeof row.user_name === "string" ? row.user_name : null,
+          post_id: payload.client_id ?? null,
+          post_excerpt: typeof draft.content === "string" ? draft.content : null,
+        },
+        rawText: [prompt, typeof draft.content === "string" ? draft.content : ""].filter(Boolean).join(" "),
+        source: "post",
+        tags: Array.isArray(draft.tags) ? (draft.tags as string[]) : null,
+        eventAt: typeof row.created_at === "string" ? row.created_at : null,
       });
     } catch (error) {
       console.warn("Memory index (post) failed", error);
@@ -556,6 +566,10 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
           thumbnail_url: thumb ?? undefined,
           storage_key: storageKey ?? undefined,
         },
+        rawText: description,
+        source: "post_attachment",
+        tags: Array.isArray(draft.tags) ? (draft.tags as string[]) : null,
+        eventAt: typeof row.created_at === "string" ? row.created_at : null,
       });
     }
   } catch (error) {

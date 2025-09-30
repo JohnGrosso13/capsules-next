@@ -1,14 +1,14 @@
 ﻿// Safari < 15.4 lacks crypto.randomUUID; this helper keeps client code working.
 export function safeRandomUUID(): string {
-  const cryptoObj = typeof globalThis.crypto !== "undefined" ? globalThis.crypto : undefined;
-
-  if (cryptoObj && typeof cryptoObj.randomUUID === "function") {
-    return cryptoObj.randomUUID();
+  if (typeof globalThis.crypto !== "undefined" && typeof globalThis.crypto.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
   }
+
+  const cryptoObj = typeof globalThis.crypto !== "undefined" ? globalThis.crypto : undefined;
 
   const bytes = new Uint8Array(16);
 
-  if (cryptoObj && typeof cryptoObj.getRandomValues === "function") {
+  if (cryptoObj?.getRandomValues) {
     cryptoObj.getRandomValues(bytes);
   } else {
     for (let i = 0; i < bytes.length; i += 1) {
@@ -16,8 +16,10 @@ export function safeRandomUUID(): string {
     }
   }
 
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const sixth = bytes[6] ?? 0;
+  const eighth = bytes[8] ?? 0;
+  bytes[6] = (sixth & 0x0f) | 0x40;
+  bytes[8] = (eighth & 0x3f) | 0x80;
 
   const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 

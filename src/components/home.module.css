@@ -1402,20 +1402,20 @@
     --style-friends-bg,
     linear-gradient(
         155deg,
-        color-mix(in srgb, var(--color-success) 52%, rgba(16, 185, 129, 0.26)),
+        color-mix(in srgb, var(--color-success) 48%, rgba(16, 185, 129, 0.26)),
         color-mix(in srgb, var(--color-accent) 28%, rgba(13, 148, 136, 0.12))
       ),
     var(--tile-bg-base)
   );
   --tile-border-final: var(
     --style-friends-border,
-    color-mix(in srgb, var(--color-success) 58%, var(--tile-border-base))
+    color-mix(in srgb, var(--color-success) 54%, var(--tile-border-base))
   );
   --tile-text-final: var(--style-friends-text, var(--tile-text-base));
   --tile-shadow-final: var(--style-friends-shadow, var(--tile-shadow-base));
   --tile-icon-bg-final: var(
     --style-friends-icon-bg,
-    color-mix(in srgb, var(--color-success) 48%, rgba(255, 255, 255, 0.14))
+    color-mix(in srgb, var(--color-success) 44%, rgba(255, 255, 255, 0.14))
   );
   --tile-icon-color-final: var(--style-friends-icon-color, var(--tile-icon-color-base));
   --tile-desc-final: var(--style-friends-desc, var(--tile-desc-base));
@@ -1423,10 +1423,10 @@
   --tile-badge-color-final: var(--style-friends-badge-color, var(--tile-badge-color-base));
   --tile-border-hover: var(--style-friends-border-hover, var(--tile-border-hover-base));
   --tile-shadow-hover: var(--style-friends-shadow-hover, var(--tile-shadow-hover-base));
-  --tile-accent-a: color-mix(in srgb, var(--color-success) 70%, #2dd4bf);
-  --tile-accent-b: color-mix(in srgb, var(--color-success) 55%, #34d399);
-  --tile-accent-c: color-mix(in srgb, var(--color-success) 38%, rgba(20, 83, 45, 0.85));
-  --tile-glow-opacity: 0.42;
+  --tile-accent-a: color-mix(in srgb, var(--color-success) 66%, #2dd4bf);
+  --tile-accent-b: color-mix(in srgb, var(--color-success) 51%, #34d399);
+  --tile-accent-c: color-mix(in srgb, var(--color-success) 34%, rgba(20, 83, 45, 0.85));
+  --tile-glow-opacity: 0.38;
 }
 .connectionTile[data-tile="chats"] {
   /* Distinct indigo/azure tint fallback if style tokens are absent */

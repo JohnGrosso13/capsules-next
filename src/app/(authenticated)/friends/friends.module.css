@@ -245,7 +245,7 @@
   width: 100%;
   height: 100%;
   border-radius: inherit;
-  background: var(--brand-gradient, linear-gradient(135deg, #8b5cf6, #6366f1, #22d3ee));
+  background: var(--brand-gradient, var(--gradient-brand));
   display: block;
 }
 
@@ -272,8 +272,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--presence-dot, #475569);
-  box-shadow: 0 0 0 2px var(--presence-ring, rgba(15, 23, 42, 0.75));
+  background-color: var(--presence-dot, var(--presence-offline-dot));
+  box-shadow: 0 0 0 2px var(--presence-ring, var(--presence-offline-ring));
 }
 
 .presenceLabel {
@@ -281,18 +281,18 @@
 }
 
 .online {
-  --presence-dot: #22c55e;
-  --presence-ring: rgba(34, 197, 94, 0.32);
+  --presence-dot: var(--presence-online-dot);
+  --presence-ring: var(--presence-online-ring);
 }
 
 .offline {
-  --presence-dot: #475569;
-  --presence-ring: rgba(71, 85, 105, 0.28);
+  --presence-dot: var(--presence-offline-dot);
+  --presence-ring: var(--presence-offline-ring);
 }
 
 .away {
-  --presence-dot: #f59e0b;
-  --presence-ring: rgba(251, 191, 36, 0.3);
+  --presence-dot: var(--presence-away-dot);
+  --presence-ring: var(--presence-away-ring);
 }
 
 .friendMeta {
@@ -316,7 +316,7 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--link-color, #c7d2fe);
+  color: var(--link-color, color-mix(in srgb, var(--color-brand, #6366f1) 70%, var(--color-fg)));
   font: inherit;
   font-weight: inherit;
   letter-spacing: inherit;

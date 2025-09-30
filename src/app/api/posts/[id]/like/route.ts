@@ -104,6 +104,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           description: memoryDescription,
           postId: memoryPostId ?? null,
           metadata,
+          rawText: [memoryTitle, memoryDescription].filter(Boolean).join(" | "),
+          source: "post_like",
+          tags: ["like", "post", memoryPostId ?? ""].filter(Boolean),
         });
       } catch (memoryError) {
         console.warn("Like memory index failed", memoryError);

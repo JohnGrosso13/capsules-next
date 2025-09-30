@@ -1,8 +1,11 @@
-import { embedText, getEmbeddingModelConfig } from "@/lib/ai/openai";
+import { embedText, getEmbeddingModelConfig, summarizeMemory } from "@/lib/ai/openai";
 import { getDatabaseAdminClient } from "@/config/database";
 import type { DatabaseError, DatabaseQueryBuilder } from "@/ports/database";
 import { deleteMemoryVectors, queryMemoryVectors, upsertMemoryVector } from "@/services/memories/vector-store";
 import { normalizeLegacyMemoryRow } from "@/lib/supabase/posts";
+import { getSearchIndex } from "@/config/search-index";
+import type { SearchIndexRecord } from "@/ports/search-index";
+import { serverEnv } from "@/lib/env/server";
 
 const db = getDatabaseAdminClient();
 const DEFAULT_LIST_LIMIT = 200;
@@ -54,6 +57,10 @@ export async function indexMemory({
   description,
   postId,
   metadata,
+  rawText,
+  source,
+  tags,
+  eventAt,
 }: {
   ownerId: string;
   kind: string;
@@ -63,19 +70,123 @@ export async function indexMemory({
   description: string | null;
   postId: string | null;
   metadata: Record<string, unknown> | null;
+  rawText?: string | null;
+  source?: string | null;
+  tags?: string[] | null;
+  eventAt?: string | Date | null;
 }) {
+  const meta: Record<string, unknown> = metadata && typeof metadata === "object" ? { ...metadata } : {};
+
+  const originalTitle = typeof title === "string" && title.trim().length ? title.trim() : null;
+  const originalDescription = typeof description === "string" && description.trim().length ? description.trim() : null;
+
+  if (originalTitle && typeof meta.original_title !== "string") {
+    meta.original_title = originalTitle;
+  }
+  if (originalDescription && typeof meta.original_description !== "string") {
+    meta.original_description = originalDescription;
+  }
+  if (typeof rawText === "string" && rawText.trim().length && typeof meta.raw_text !== "string") {
+    meta.raw_text = rawText.trim();
+  }
+  if (source && typeof meta.source !== "string") {
+    meta.source = source;
+  }
+
+  const effectiveSource = typeof meta.source === "string" ? meta.source : null;
+
+  const existingTags = Array.isArray(meta.summary_tags)
+    ? (meta.summary_tags as unknown[]).filter((value): value is string => typeof value === "string")
+    : [];
+  const explicitTags = Array.isArray(tags)
+    ? Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)))
+    : [];
+  const collectedTags = Array.from(new Set([...existingTags, ...explicitTags]));
+  if (collectedTags.length) {
+    meta.summary_tags = collectedTags;
+  }
+
+  const eventIso = (() => {
+    if (eventAt instanceof Date) return eventAt.toISOString();
+    if (typeof eventAt === "string" && eventAt.trim().length) return eventAt.trim();
+    const metaDateCandidates = [meta.event_at, meta.captured_at, meta.created_at];
+    for (const candidate of metaDateCandidates) {
+      if (typeof candidate === "string" && candidate.trim().length) return candidate.trim();
+    }
+    return null;
+  })();
+
+  const summaryPieces: string[] = [];
+  const maybeAdd = (value: unknown) => {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed) summaryPieces.push(trimmed);
+    }
+  };
+  maybeAdd(rawText);
+  maybeAdd(originalDescription);
+  maybeAdd(originalTitle);
+  maybeAdd(meta.post_excerpt);
+  maybeAdd(meta.prompt);
+  maybeAdd(meta.transcript);
+  maybeAdd(meta.raw_text);
+  maybeAdd(meta.original_text);
+
+  const summaryInputText = summaryPieces.length ? summaryPieces.join("\n") : originalDescription ?? originalTitle ?? "";
+
+  let finalTitle = originalTitle;
+  let finalDescription = originalDescription ?? summaryInputText;
+
+  try {
+    const summary = await summarizeMemory({
+      text: summaryInputText,
+      title: originalTitle,
+      kind,
+      source: effectiveSource,
+      mediaType,
+      hasMedia: Boolean(mediaUrl),
+      timestamp: eventIso,
+      tags: collectedTags,
+    });
+    if (summary) {
+      finalDescription = summary.summary;
+      if (summary.title) {
+        finalTitle = summary.title;
+      } else if (!finalTitle && summary.summary) {
+        finalTitle = summary.summary.slice(0, 64);
+      }
+      if (summary.tags.length) {
+        meta.summary_tags = Array.from(new Set([...summary.tags, ...collectedTags]));
+      }
+      if (Object.keys(summary.entities).length) {
+        meta.summary_entities = summary.entities;
+      }
+      meta.summary_time = summary.timeHints;
+      meta.summary_model = serverEnv.OPENAI_MODEL || "gpt-4o-mini";
+    }
+  } catch (error) {
+    console.warn("memory summarization failed", error);
+  }
+
+  if (originalDescription && finalDescription !== originalDescription && typeof meta.original_text !== "string") {
+    meta.original_text = originalDescription;
+  }
+
   const record: Record<string, unknown> = {
     owner_user_id: ownerId,
     kind,
     media_url: mediaUrl,
     media_type: mediaType,
-    title,
-    description,
+    title: finalTitle ?? null,
+    description: finalDescription ?? null,
     post_id: postId,
-    meta: metadata ?? null,
+    meta,
   };
 
-  const text = [title, description, mediaType].filter(Boolean).join(" ");
+  const embeddingSource = [finalTitle, finalDescription, mediaType, ...(Array.isArray(meta.summary_tags) ? (meta.summary_tags as string[]) : [])]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .join(" ");
+  const text = embeddingSource.length ? embeddingSource : [title, description, mediaType].filter(Boolean).join(" ");
   const { dimensions: expectedEmbeddingDim } = getEmbeddingModelConfig();
   let embedding: number[] | null = null;
 
@@ -137,15 +248,46 @@ export async function indexMemory({
           values: vector,
           kind,
           postId,
-          title,
-          description,
+          title: finalTitle ?? null,
+          description: finalDescription ?? null,
           mediaUrl,
           mediaType,
-          extra: metadata ?? null,
+          extra: meta ?? null,
         });
       } catch (error) {
         console.warn("memories vector upsert failed", error);
       }
+    }
+
+    try {
+      const searchIndex = getSearchIndex();
+      if (searchIndex) {
+        const searchRecord: SearchIndexRecord = {
+          id: memoryId,
+          ownerId,
+          title: finalTitle ?? null,
+          description: finalDescription ?? null,
+          kind,
+          mediaUrl,
+          createdAt: typeof inserted?.created_at === "string" ? inserted?.created_at : null,
+          tags: Array.isArray(meta.summary_tags)
+            ? (meta.summary_tags as unknown[])
+                .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+                .map((value) => value.trim())
+            : null,
+          facets: {
+            source: effectiveSource ?? undefined,
+            holiday:
+              meta.summary_time && typeof (meta.summary_time as Record<string, unknown>).holiday === "string"
+                ? ((meta.summary_time as Record<string, unknown>).holiday as string)
+                : undefined,
+          },
+          extra: meta,
+        };
+        await searchIndex.upsert([searchRecord]);
+      }
+    } catch (error) {
+      console.warn("memory search index upsert failed", error);
     }
   } catch (error) {
     console.warn("memories insert error", error);
@@ -217,70 +359,137 @@ export async function searchMemories({
   query: string;
   limit: number;
 }) {
-  const embedding = await embedText(query);
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const searchIndex = getSearchIndex();
+  const highlightMap = new Map<string, string | null>();
+  const algoliaRecordMap = new Map<string, SearchIndexRecord>();
+  const candidateOrder: string[] = [];
+  const ranking = new Map<string, number>();
+
+  const addCandidate = (id: unknown, score: number) => {
+    if (typeof id !== "string" || !id.trim().length) return;
+    const existing = ranking.get(id);
+    if (existing == null) {
+      ranking.set(id, score);
+      candidateOrder.push(id);
+    } else if (score > existing) {
+      ranking.set(id, score);
+    }
+  };
+
+  let embedding: number[] | null = null;
+  try {
+    embedding = await embedText(trimmed);
+  } catch (error) {
+    console.warn("memory query embed failed", error);
+  }
 
   if (embedding) {
     try {
-      const matches = await queryMemoryVectors(ownerId, embedding, limit);
-      const ids = matches
-        .map((match) => (typeof match.id === "string" ? match.id : null))
-        .filter((id): id is string => Boolean(id));
-
-      if (ids.length) {
-        const result = await db
-          .from("memories")
-          .select<Record<string, unknown>>(
-            "id, kind, media_url, media_type, title, description, created_at, meta",
-          )
-          .in("id", ids)
-          .fetch();
-
-        if (!result.error && Array.isArray(result.data)) {
-          const map = new Map<string, Record<string, unknown>>();
-          for (const row of result.data) {
-            if (row && typeof row === "object") {
-              const id = toStringId((row as { id?: unknown }).id);
-              if (id) {
-                map.set(id, row as Record<string, unknown>);
-              }
-            }
-          }
-
-          const ordered = matches
-            .map((match) => (typeof match.id === "string" ? map.get(match.id) : null))
-            .filter((row): row is Record<string, unknown> => Boolean(row));
-
-          if (ordered.length) {
-            return ordered.slice(0, limit);
-          }
-        } else if (result.error) {
-          console.warn("memories fetch after pinecone query failed", result.error);
-        }
-      }
+      const matches = await queryMemoryVectors(ownerId, embedding, Math.max(limit * 3, limit));
+      matches.forEach((match, index) => {
+        const score = (typeof match.score === "number" ? match.score : 0) - index * 0.001;
+        addCandidate(match.id, score);
+      });
     } catch (error) {
       console.warn("pinecone memory query failed", error);
     }
   }
 
-  if (!embedding) {
+  if (searchIndex) {
+    try {
+      const matches = await searchIndex.search({ ownerId, text: trimmed, limit: Math.max(limit * 3, limit) });
+      matches.forEach((match, index) => {
+        const score = (typeof match.score === "number" ? match.score : 0) - index * 0.001;
+        addCandidate(match.id, score);
+        if (match.highlight) {
+          highlightMap.set(match.id, match.highlight);
+        }
+        if (match.record) {
+          algoliaRecordMap.set(match.id, match.record);
+        }
+      });
+    } catch (error) {
+      console.warn("algolia memory query failed", error);
+    }
+  }
+
+  const ids = candidateOrder.slice(0, limit);
+  if (!ids.length) {
     const fallback = await listMemories({ ownerId });
     return fallback.slice(0, limit);
   }
 
-  const result = await db.rpc("search_memories_cosine", {
-    p_owner_id: ownerId,
-    p_query_embedding: embedding,
-    p_match_threshold: 0.15,
-    p_match_count: limit,
-  });
+  try {
+    const result = await db
+      .from("memories")
+      .select<Record<string, unknown>>(
+        "id, kind, media_url, media_type, title, description, created_at, meta",
+      )
+      .in("id", ids)
+      .fetch();
 
-  if (result.error) {
-    console.warn("search_memories_cosine error", result.error);
-    const fallback = await listMemories({ ownerId });
-    return fallback.slice(0, limit);
+    const map = new Map<string, Record<string, unknown>>();
+    if (!result.error && Array.isArray(result.data)) {
+      for (const row of result.data) {
+        if (row && typeof row === "object") {
+          const id = toStringId((row as { id?: unknown }).id);
+          if (id) {
+            map.set(id, row as Record<string, unknown>);
+          }
+        }
+      }
+    } else if (result.error) {
+      console.warn("memories fetch after search failed", result.error);
+    }
+
+    const ordered: Record<string, unknown>[] = [];
+    for (const id of ids) {
+      const row = map.get(id);
+      if (row) {
+        if (highlightMap.has(id)) {
+          const highlight = highlightMap.get(id);
+          const meta = (row.meta ?? {}) as Record<string, unknown>;
+          const mergedMeta = { ...meta };
+          if (highlight && !mergedMeta.search_highlight) {
+            mergedMeta.search_highlight = highlight;
+          }
+          row.meta = mergedMeta;
+        }
+        ordered.push(row);
+        continue;
+      }
+
+      const record = algoliaRecordMap.get(id);
+      if (record) {
+        const fallbackRow: Record<string, unknown> = {
+          id,
+          kind: record.kind ?? null,
+          media_url: record.mediaUrl ?? null,
+          media_type: null,
+          title: record.title ?? null,
+          description: record.description ?? null,
+          created_at: record.createdAt ?? null,
+          meta: {
+            ...(record.extra ?? {}),
+            search_highlight: highlightMap.get(id) ?? null,
+          },
+        };
+        ordered.push(fallbackRow);
+      }
+    }
+
+    if (ordered.length) {
+      return ordered;
+    }
+  } catch (error) {
+    console.warn("memory search hydrate failed", error);
   }
 
-  return result.data ?? [];
+  const fallback = await listMemories({ ownerId });
+  return fallback.slice(0, limit);
 }
 
 export async function deleteMemories({
@@ -343,6 +552,14 @@ export async function deleteMemories({
 
   if (deletedMemories > 0 && pineconeIds.size) {
     await deleteMemoryVectors(Array.from(pineconeIds));
+    try {
+      const searchIndex = getSearchIndex();
+      if (searchIndex) {
+        await searchIndex.delete(Array.from(pineconeIds));
+      }
+    } catch (error) {
+      console.warn("memory search index delete failed", error);
+    }
   }
 
   const deleteLegacyRecords = async (
