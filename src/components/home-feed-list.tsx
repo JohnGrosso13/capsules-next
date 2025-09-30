@@ -108,13 +108,21 @@ export function HomeFeedList({
         const inferAttachmentKind = (
           mime: string | null | undefined,
           url: string,
+          storageKey?: string | null,
+          thumbnailUrl?: string | null,
         ): "image" | "video" | "file" => {
           const loweredMime = mime?.toLowerCase() ?? "";
           if (loweredMime.startsWith("image/")) return "image";
           if (loweredMime.startsWith("video/")) return "video";
-          const lowerUrl = url.toLowerCase();
-          if (/\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv)(\?|#|$)/.test(lowerUrl)) return "video";
-          if (/\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/.test(lowerUrl)) return "image";
+
+          const mediaSources = [url, storageKey ?? null, thumbnailUrl ?? null]
+            .map((value) => (typeof value === "string" ? value.toLowerCase() : ""));
+
+          const hasMatch = (pattern: RegExp) =>
+            mediaSources.some((source) => pattern.test(source));
+
+          if (hasMatch(/\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv)(\?|#|$)/)) return "video";
+          if (hasMatch(/\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/)) return "image";
           return "file";
         };
         const seenMedia = new Set<string>();
