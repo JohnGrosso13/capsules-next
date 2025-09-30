@@ -5,6 +5,7 @@ import { safeRandomUUID } from "@/lib/random";
 
 import { useCurrentUser } from "@/services/auth/client";
 import { normalizeMediaUrl } from "@/lib/media";
+import type { CloudflareImageVariantSet } from "@/lib/cloudflare/images";
 import { broadcastFriendsGraphRefresh } from "@/hooks/useFriendsGraph";
 
 export type HomeFeedAttachment = {
@@ -14,12 +15,7 @@ export type HomeFeedAttachment = {
   name: string | null;
   thumbnailUrl: string | null;
   storageKey: string | null;
-  variants?: {
-    original: string;
-    thumb?: string | null;
-    feed?: string | null;
-    full?: string | null;
-  } | null;
+  variants?: CloudflareImageVariantSet | null;
 };
 
 export type HomeFeedPost = {

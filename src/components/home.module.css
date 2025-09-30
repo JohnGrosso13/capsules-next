@@ -955,13 +955,13 @@
 .cardBody {
   padding: 14px 16px 12px;
 }
+
 .media {
   width: 100%;
   max-height: 440px;
   display: block;
   border-radius: 16px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--surface-1) 70%, var(--surface-3) 30%);
 }
 
 .mediaButton {
@@ -989,7 +989,8 @@
 }
 
 .mediaImage {
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
 }
 
 .mediaVideo {

@@ -1,5 +1,19 @@
 type CloudflareImageFit = "cover" | "contain" | "fill" | "outside" | "scale-down";
 
+type CloudflareImageGravity =
+  | "auto"
+  | "center"
+  | "north"
+  | "south"
+  | "east"
+  | "west"
+  | "northeast"
+  | "northwest"
+  | "southeast"
+  | "southwest"
+  | "faces"
+  | "face";
+
 export type CloudflareImageOptions = {
   width?: number | null;
   height?: number | null;
@@ -9,6 +23,7 @@ export type CloudflareImageOptions = {
   dpr?: number | null;
   sharpen?: number | null;
   background?: string | null;
+  gravity?: CloudflareImageGravity | null;
   namedVariant?: string | null;
 };
 
@@ -16,7 +31,9 @@ export type CloudflareImageVariantSet = {
   original: string;
   thumb?: string | null;
   feed?: string | null;
+  feedSrcset?: string | null;
   full?: string | null;
+  fullSrcset?: string | null;
 };
 
 const DEFAULT_RESIZE_BASE = process.env.NEXT_PUBLIC_CLOUDFLARE_IMAGE_BASE?.trim() || "/cdn-cgi/image";
@@ -34,6 +51,11 @@ const NAMED_VARIANTS = {
     process.env.CLOUDFLARE_IMAGE_VARIANT_THUMB?.trim() ||
     "",
 } as const;
+
+const FEED_WIDTH_STEPS = [720, 1080, 1440, 1920] as const;
+const FEED_DEFAULT_BASE_WIDTH = 1080;
+const FULL_WIDTH_STEPS = [1280, 1600, 2048, 2560] as const;
+const FULL_DEFAULT_BASE_WIDTH = 2048;
 
 function isDataOrBlobUrl(url: string): boolean {
   return /^data:/i.test(url) || /^blob:/i.test(url);
@@ -62,6 +84,7 @@ function buildResizeOperations(options: CloudflareImageOptions): string[] {
   if (options.background && options.background.trim().length) {
     ops.push(`background=${encodeURIComponent(options.background.trim())}`);
   }
+  if (options.gravity) ops.push(`gravity=${options.gravity}`);
   return ops;
 }
 
@@ -152,6 +175,61 @@ export function buildCloudflareImageUrl(
   return `${resizeBase}/${operations.join(",")}/${encodedSource}`;
 }
 
+type CloudflareSrcSetEntry = {
+  url: string;
+  width: number;
+};
+
+function buildSrcSetEntries(
+  originalUrl: string,
+  widths: readonly number[],
+  builder: (width: number) => CloudflareImageOptions,
+  base: string,
+  origin?: string | null,
+): CloudflareSrcSetEntry[] {
+  const seen = new Set<string>();
+  const entries: CloudflareSrcSetEntry[] = [];
+
+  for (const candidate of widths) {
+    const numericWidth = Number(candidate);
+    if (!Number.isFinite(numericWidth) || numericWidth <= 0) continue;
+    const roundedWidth = Math.max(1, Math.round(numericWidth));
+    const rawOptions = builder(roundedWidth);
+    if (!rawOptions) continue;
+    const options = { ...rawOptions };
+    if (!options.width) {
+      options.width = roundedWidth;
+    }
+    if (options.height && options.height > 0) {
+      options.height = Math.max(1, Math.round(options.height));
+    }
+    const url = buildCloudflareImageUrl(originalUrl, options, base, origin);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    entries.push({ url, width: roundedWidth });
+  }
+
+  return entries;
+}
+
+function serializeSrcSet(entries: CloudflareSrcSetEntry[]): string | null {
+  if (!entries.length) return null;
+  return entries.map(({ url, width }) => `${url} ${width}w`).join(', ');
+}
+
+function pickPreferredEntry(
+  entries: CloudflareSrcSetEntry[],
+  targetWidth: number,
+): CloudflareSrcSetEntry | null {
+  if (!entries.length) return null;
+  const sorted = [...entries].sort((a, b) => a.width - b.width);
+  for (const entry of sorted) {
+    if (entry.width >= targetWidth) {
+      return entry;
+    }
+  }
+  return sorted[sorted.length - 1] ?? null;
+}
 export function buildImageVariants(
   originalUrl: string,
   {
@@ -182,8 +260,9 @@ export function buildImageVariants(
   const isLocal = isLocalOrigin(normalizedOrigin);
   const hasNamedFeed = isCloudflareImagesDelivery(originalUrl) && NAMED_VARIANTS.feed.length > 0;
   const hasNamedFull = isCloudflareImagesDelivery(originalUrl) && NAMED_VARIANTS.full.length > 0;
-  const hasNamedThumb =
-    (thumbnailUrl && isCloudflareImagesDelivery(thumbnailUrl)) || isCloudflareImagesDelivery(originalUrl);
+  const canUseNamedThumb =
+    ((thumbnailUrl && isCloudflareImagesDelivery(thumbnailUrl)) || isCloudflareImagesDelivery(originalUrl)) &&
+    NAMED_VARIANTS.thumb.length > 0;
 
   if (isLocal) {
     const thumbSource = thumbnailUrl ?? originalUrl;
@@ -199,64 +278,134 @@ export function buildImageVariants(
   }
 
   if (includeFeed) {
-    variants.feed = buildCloudflareImageUrl(
-      originalUrl,
-      {
-        width: hasNamedFeed ? null : 1280,
-        fit: hasNamedFeed ? null : "contain",
-        quality: hasNamedFeed ? null : 88,
-        format: hasNamedFeed ? null : "auto",
-        namedVariant: hasNamedFeed ? NAMED_VARIANTS.feed : null,
-      },
-      resizeBase,
-      origin,
-    );
+    if (hasNamedFeed) {
+      variants.feed = buildCloudflareImageUrl(
+        originalUrl,
+        {
+          namedVariant: NAMED_VARIANTS.feed,
+        },
+        resizeBase,
+        origin,
+      );
+      variants.feedSrcset = null;
+    } else {
+      const feedEntries = buildSrcSetEntries(
+        originalUrl,
+        FEED_WIDTH_STEPS,
+        (width) => ({
+          width,
+          height: width,
+          fit: 'cover',
+          gravity: 'faces',
+          quality: 90,
+          format: 'auto',
+          sharpen: 1,
+        }),
+        resizeBase,
+        origin,
+      );
+      variants.feedSrcset = serializeSrcSet(feedEntries);
+      const preferredFeed = pickPreferredEntry(feedEntries, FEED_DEFAULT_BASE_WIDTH);
+      if (preferredFeed) {
+        variants.feed = preferredFeed.url;
+      } else if (feedEntries.length) {
+        variants.feed = feedEntries[feedEntries.length - 1].url;
+      } else {
+        variants.feed = buildCloudflareImageUrl(
+          originalUrl,
+          {
+            width: FEED_DEFAULT_BASE_WIDTH,
+            height: FEED_DEFAULT_BASE_WIDTH,
+            fit: 'cover',
+            gravity: 'faces',
+            quality: 90,
+            format: 'auto',
+            sharpen: 1,
+          },
+          resizeBase,
+          origin,
+        );
+      }
+    }
   }
 
   if (includeFull) {
-    variants.full = buildCloudflareImageUrl(
-      originalUrl,
-      {
-        width: hasNamedFull ? null : 2048,
-        fit: hasNamedFull ? null : "contain",
-        quality: hasNamedFull ? null : 92,
-        format: hasNamedFull ? null : "auto",
-        namedVariant: hasNamedFull ? NAMED_VARIANTS.full : null,
-      },
-      resizeBase,
-      origin,
-    );
+    if (hasNamedFull) {
+      variants.full = buildCloudflareImageUrl(
+        originalUrl,
+        {
+          namedVariant: NAMED_VARIANTS.full,
+        },
+        resizeBase,
+        origin,
+      );
+      variants.fullSrcset = null;
+    } else {
+      const fullEntries = buildSrcSetEntries(
+        originalUrl,
+        FULL_WIDTH_STEPS,
+        (width) => ({
+          width,
+          fit: 'contain',
+          quality: 92,
+          format: 'auto',
+        }),
+        resizeBase,
+        origin,
+      );
+      variants.fullSrcset = serializeSrcSet(fullEntries);
+      const preferredFull = pickPreferredEntry(fullEntries, FULL_DEFAULT_BASE_WIDTH);
+      if (preferredFull) {
+        variants.full = preferredFull.url;
+      } else if (fullEntries.length) {
+        variants.full = fullEntries[fullEntries.length - 1].url;
+      } else {
+        variants.full = buildCloudflareImageUrl(
+          originalUrl,
+          {
+            width: FULL_DEFAULT_BASE_WIDTH,
+            fit: 'contain',
+            quality: 92,
+            format: 'auto',
+          },
+          resizeBase,
+          origin,
+        );
+      }
+    }
   }
 
   if (thumbnailUrl && !isDataOrBlobUrl(thumbnailUrl)) {
     variants.thumb = buildCloudflareImageUrl(
       thumbnailUrl,
-      {
-        width: hasNamedThumb && NAMED_VARIANTS.thumb.length ? null : 512,
-        fit: hasNamedThumb && NAMED_VARIANTS.thumb.length ? null : "contain",
-        quality: hasNamedThumb && NAMED_VARIANTS.thumb.length ? null : 82,
-        format: hasNamedThumb && NAMED_VARIANTS.thumb.length ? null : "auto",
-        namedVariant:
-          hasNamedThumb && NAMED_VARIANTS.thumb.length
-            ? NAMED_VARIANTS.thumb
-            : null,
-      },
+      canUseNamedThumb
+        ? { namedVariant: NAMED_VARIANTS.thumb }
+        : {
+            width: 512,
+            height: 512,
+            fit: 'cover',
+            gravity: 'faces',
+            quality: 82,
+            format: 'auto',
+            sharpen: 1,
+          },
       resizeBase,
       origin,
     );
   } else {
     variants.thumb = buildCloudflareImageUrl(
       originalUrl,
-      {
-        width: hasNamedThumb && NAMED_VARIANTS.thumb.length ? null : 512,
-        fit: hasNamedThumb && NAMED_VARIANTS.thumb.length ? null : "contain",
-        quality: hasNamedThumb && NAMED_VARIANTS.thumb.length ? null : 80,
-        format: hasNamedThumb && NAMED_VARIANTS.thumb.length ? null : "auto",
-        namedVariant:
-          hasNamedThumb && NAMED_VARIANTS.thumb.length
-            ? NAMED_VARIANTS.thumb
-            : null,
-      },
+      canUseNamedThumb
+        ? { namedVariant: NAMED_VARIANTS.thumb }
+        : {
+            width: 512,
+            height: 512,
+            fit: 'cover',
+            gravity: 'faces',
+            quality: 80,
+            format: 'auto',
+            sharpen: 1,
+          },
       resizeBase,
       origin,
     );
@@ -264,7 +413,6 @@ export function buildImageVariants(
 
   return variants;
 }
-
 export function pickBestDisplayVariant(variants: CloudflareImageVariantSet | null | undefined): string | null {
   if (!variants) return null;
   if (variants.feed) return variants.feed;

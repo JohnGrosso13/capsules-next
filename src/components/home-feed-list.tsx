@@ -8,8 +8,100 @@ import { Brain, Heart, ChatCircle, ShareNetwork, DotsThreeCircleVertical, Trash,
 import { normalizeMediaUrl } from "@/lib/media";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { buildImageVariants, pickBestDisplayVariant, pickBestFullVariant } from "@/lib/cloudflare/images";
+import type { CloudflareImageVariantSet } from "@/lib/cloudflare/images";
 
 type ActionKey = "like" | "comment" | "share";
+
+function isLocalLikeHostname(hostname: string): boolean {
+  if (!hostname) return false;
+  const value = hostname.toLowerCase();
+  if (value === "localhost" || value === "127.0.0.1" || value === "::1" || value === "[::]") return true;
+  if (value === "0.0.0.0") return true;
+  if (value.endsWith(".local") || value.endsWith(".localdomain") || value.endsWith(".test")) return true;
+  if (/^10\./.test(value)) return true;
+  if (/^192\.168\./.test(value)) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(value)) return true;
+  if (value.startsWith("fe80:")) return true;
+  if (/^169\.254\./.test(value)) return true;
+  return false;
+}
+
+function shouldBypassCloudflareImages(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname?.toLowerCase() ?? "";
+  if (!host.length) return false;
+  if (isLocalLikeHostname(host)) return true;
+  if (/ngrok/.test(host)) return true;
+  return false;
+}
+
+function containsCloudflareResize(url: string | null | undefined): boolean {
+  return typeof url === "string" && url.includes("/cdn-cgi/image/");
+}
+
+function resolveToAbsoluteUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const absolute = new URL(url);
+    if (typeof window !== "undefined") {
+      try {
+        const currentOrigin = new URL(window.location.origin);
+        if (
+          isLocalLikeHostname(absolute.hostname) &&
+          isLocalLikeHostname(currentOrigin.hostname) &&
+          absolute.hostname !== currentOrigin.hostname
+        ) {
+          absolute.protocol = currentOrigin.protocol;
+          absolute.hostname = currentOrigin.hostname;
+          absolute.port = currentOrigin.port;
+        }
+      } catch {
+        // swallow and fall back to the parsed absolute URL
+      }
+    }
+    return absolute.toString();
+  } catch {
+    if (typeof window === "undefined") return url;
+    try {
+      return new URL(url, window.location.origin).toString();
+    } catch {
+      return url;
+    }
+  }
+}
+
+function buildLocalImageVariants(
+  originalUrl: string,
+  thumbnailUrl?: string | null,
+): CloudflareImageVariantSet {
+  const absoluteOriginal = resolveToAbsoluteUrl(originalUrl) ?? originalUrl;
+  const absoluteThumbCandidate = resolveToAbsoluteUrl(thumbnailUrl ?? null);
+  const safeThumb =
+    absoluteThumbCandidate && !containsCloudflareResize(absoluteThumbCandidate)
+      ? absoluteThumbCandidate
+      : absoluteOriginal;
+  return {
+    original: absoluteOriginal,
+    feed: safeThumb,
+    thumb: safeThumb,
+    full: absoluteOriginal,
+    feedSrcset: null,
+    fullSrcset: null,
+  };
+}
+
+function shouldRebuildVariantsForEnvironment(
+  variants: CloudflareImageVariantSet | null | undefined,
+  cloudflareEnabled: boolean,
+): boolean {
+  if (!cloudflareEnabled) return true;
+  if (!variants) return true;
+  if (containsCloudflareResize(variants.feed)) return true;
+  if (containsCloudflareResize(variants.full)) return true;
+  if (containsCloudflareResize(variants.thumb)) return true;
+  return false;
+}
+
 
 type HomeFeedListProps = {
   posts: HomeFeedPost[];
@@ -52,7 +144,9 @@ export function HomeFeedList({
           id: string;
           kind: "image" | "video";
           fullUrl: string;
+          fullSrcSet?: string | null;
           displayUrl: string;
+          displaySrcSet?: string | null;
           name: string | null;
           alt: string;
           mimeType: string | null;
@@ -60,6 +154,12 @@ export function HomeFeedList({
       }
     | null
   >(null);
+
+  const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
+  const currentOrigin = React.useMemo(
+    () => (typeof window !== "undefined" ? window.location.origin : undefined),
+    [],
+  );
 
   const closeLightbox = React.useCallback(() => {
     setLightbox(null);
@@ -200,7 +300,9 @@ export function HomeFeedList({
           id: string;
           originalUrl: string;
           displayUrl: string;
+          displaySrcSet: string | null;
           fullUrl: string;
+          fullSrcSet: string | null;
           kind: "image" | "video";
           name: string | null;
           thumbnailUrl: string | null;
@@ -216,7 +318,9 @@ export function HomeFeedList({
           id: string;
           originalUrl: string;
           displayUrl: string;
+          displaySrcSet: string | null;
           fullUrl: string;
+          fullSrcSet: string | null;
           kind: "image" | "video";
           name: string | null;
           thumbnailUrl: string | null;
@@ -229,26 +333,40 @@ export function HomeFeedList({
 
         if (media) {
           const inferred = inferAttachmentKind(null, media) === "video" ? "video" : "image";
+          const absoluteMedia = resolveToAbsoluteUrl(media) ?? media;
           const variants = inferred === "image"
-            ? buildImageVariants(media, {
-                thumbnailUrl: media,
-                origin: typeof window !== "undefined" ? window.location.origin : undefined,
-              })
+            ? cloudflareEnabled
+              ? buildImageVariants(media, {
+                  thumbnailUrl: media,
+                  origin: currentOrigin,
+                })
+              : buildLocalImageVariants(media, media)
             : null;
           const displayUrl = inferred === "image"
-            ? pickBestDisplayVariant(variants) ?? media
-            : media;
+            ? pickBestDisplayVariant(variants) ?? absoluteMedia
+            : absoluteMedia;
           const fullUrl = inferred === "image"
-            ? pickBestFullVariant(variants) ?? media
-            : media;
+            ? pickBestFullVariant(variants) ?? absoluteMedia
+            : absoluteMedia;
+          const displaySrcSet =
+            cloudflareEnabled && inferred === "image" ? variants?.feedSrcset ?? null : null;
+          const fullSrcSet =
+            cloudflareEnabled && inferred === "image"
+              ? variants?.fullSrcset ?? variants?.feedSrcset ?? null
+              : null;
           pushMedia({
             id: `${post.id}-primary`,
-            originalUrl: media,
+            originalUrl: variants?.original ?? absoluteMedia,
             displayUrl,
+            displaySrcSet,
             fullUrl,
+            fullSrcSet,
             kind: inferred,
             name: null,
-            thumbnailUrl: inferred === "image" ? variants?.thumb ?? media : media,
+            thumbnailUrl:
+              inferred === "image"
+                ? variants?.thumb ?? absoluteMedia
+                : absoluteMedia,
             mimeType: null,
           });
         }
@@ -259,31 +377,43 @@ export function HomeFeedList({
           const baseId = attachment.id || `${post.id}-att-${index}`;
           if (kind === "image" || kind === "video") {
             let variants = attachment.variants ?? null;
-            if (kind === "image" && !variants) {
-              variants = buildImageVariants(attachment.url, {
-                thumbnailUrl: attachment.thumbnailUrl ?? null,
-                origin: typeof window !== "undefined" ? window.location.origin : undefined,
-              });
+            if (kind === "image" && shouldRebuildVariantsForEnvironment(variants, cloudflareEnabled)) {
+              variants = cloudflareEnabled
+                ? buildImageVariants(attachment.url, {
+                    thumbnailUrl: attachment.thumbnailUrl ?? null,
+                    origin: currentOrigin,
+                  })
+                : buildLocalImageVariants(attachment.url, attachment.thumbnailUrl ?? null);
             }
+            const absoluteOriginal = resolveToAbsoluteUrl(attachment.url) ?? attachment.url;
+            const absoluteThumb = resolveToAbsoluteUrl(attachment.thumbnailUrl ?? null);
             const displayCandidate =
               kind === "image"
-                ? pickBestDisplayVariant(variants) ?? attachment.thumbnailUrl ?? attachment.url
-                : attachment.url;
+                ? pickBestDisplayVariant(variants) ?? absoluteThumb ?? absoluteOriginal
+                : absoluteOriginal;
             const fullCandidate =
               kind === "image"
-                ? pickBestFullVariant(variants) ?? attachment.url
-                : attachment.url;
+                ? pickBestFullVariant(variants) ?? absoluteOriginal
+                : absoluteOriginal;
+            const displaySrcSet =
+              cloudflareEnabled && kind === "image" ? variants?.feedSrcset ?? null : null;
+            const fullSrcSet =
+              cloudflareEnabled && kind === "image"
+                ? variants?.fullSrcset ?? variants?.feedSrcset ?? null
+                : null;
             pushMedia({
               id: baseId,
-              originalUrl: attachment.url,
+              originalUrl: variants?.original ?? absoluteOriginal,
               displayUrl: displayCandidate,
+              displaySrcSet,
               fullUrl: fullCandidate,
+              fullSrcSet,
               kind,
               name: attachment.name ?? null,
               thumbnailUrl:
                 kind === "image"
-                  ? variants?.thumb ?? attachment.thumbnailUrl ?? null
-                  : attachment.thumbnailUrl ?? null,
+                  ? variants?.thumb ?? absoluteThumb ?? absoluteOriginal
+                  : absoluteThumb ?? attachment.thumbnailUrl ?? null,
               mimeType: attachment.mimeType ?? null,
             });
           } else {
@@ -441,7 +571,9 @@ export function HomeFeedList({
                 id: entry.id,
                 kind: entry.kind,
                 fullUrl: entry.fullUrl,
+                fullSrcSet: entry.fullSrcSet,
                 displayUrl: entry.displayUrl,
+                displaySrcSet: entry.displaySrcSet,
                 name: entry.name,
                 alt: entry.name ?? "Post attachment",
                 mimeType: entry.mimeType,
@@ -486,9 +618,10 @@ export function HomeFeedList({
                       className={`${styles.media} ${styles.mediaImage}`.trim()}
                       src={item.displayUrl}
                       alt={item.name ?? "Post attachment"}
-                      width={960}
-                      height={960}
-                      sizes="(max-width: 640px) 100vw, 600px"
+                      width={1080}
+                      height={1080}
+                      srcSet={item.displaySrcSet ?? undefined}
+                      sizes="(max-width: 640px) 100vw, 720px"
                       unoptimized
                     />
                   </button>
@@ -611,6 +744,7 @@ export function HomeFeedList({
                           alt={current.alt}
                           fill
                           priority
+                          srcSet={current.fullSrcSet ?? undefined}
                           sizes="100vw"
                           className={styles.lightboxImage}
                           unoptimized
