@@ -6,6 +6,7 @@ import "./globals.css";
 import "./light-theme.css";
 import "./cta-overrides.css";
 import { MobileCommandBar } from "@/components/mobile-command-bar";
+import { GlobalSearchOverlay } from "@/components/global-search-overlay";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme/script";
 import { ComposerProvider, AiComposerRoot } from "@/components/composer/ComposerProvider";
 
@@ -38,6 +39,7 @@ export default function RootLayout({
               {children}
               <AiComposerRoot />
             </ComposerProvider>
+            <GlobalSearchOverlay />
             <MobileCommandBar />
           </SignedIn>
           <SignedOut>{children}</SignedOut>
