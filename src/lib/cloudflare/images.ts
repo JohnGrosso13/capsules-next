@@ -89,6 +89,10 @@ function isLocalOrigin(origin: string | null): boolean {
     if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
     if (host === "0.0.0.0" || host === "[::]") return true;
     if (host.endsWith(".local") || host.endsWith(".localdomain") || host.endsWith(".test")) return true;
+    if (/^10\./.test(host)) return true;
+    if (/^192\.168\./.test(host)) return true;
+    if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return true;
+    if (host.startsWith("fe80:")) return true;
   } catch {
     return false;
   }
