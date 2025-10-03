@@ -1,50 +1,49 @@
-.outer {
+﻿.outer {
   /* Align page offset to compact header height */
-  padding: calc(var(--header-height, 72px) + 36px) 0 80px;
+  padding: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset)) 0 var(--layout-desktop-bottom-padding);
 }
 @media (max-width: 640px) {
   .outer {
     --header-height: 0px;
-    padding: calc(env(safe-area-inset-top, 0px) + 12px) 0
-      calc(var(--mobile-dock-height, 0px) + 24px);
+    padding: calc(env(safe-area-inset-top, 0px) + var(--layout-mobile-top-offset)) 0 calc(var(--mobile-dock-height, 0px) + var(--layout-mobile-bottom-offset));
   }
   .page {
     width: 100%;
     margin: 0;
-    padding: 12px 0 16px;
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
+    padding: var(--layout-mobile-top-offset) 0 var(--layout-mobile-outer-padding-bottom);
+    padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
+    padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
   }
   .main {
-    gap: 20px;
+    gap: var(--layout-mobile-section-gap);
   }
   .layout {
-    gap: 20px;
+    gap: var(--layout-mobile-section-gap);
   }
 }
 
 .page {
   /* Match Home page container width */
-  width: min(1200px, calc(100% - 56px));
+  width: min(1200px, calc(100% - var(--layout-page-width-offset)));
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--layout-page-gap);
 }
 
 .header {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-sm);
 }
 .headerInner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-lg);
 }
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-sm-plus);
   font-weight: 900;
   letter-spacing: 0.02em;
   color: var(--text, rgba(255, 255, 255, 0.92));
@@ -62,7 +61,7 @@
 
 .nav {
   display: flex;
-  gap: 18px;
+  gap: var(--space-lg-plus);
   font-weight: 700;
 }
 .navLink {
@@ -75,7 +74,7 @@
 .headerActions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-md);
 }
 .iconButton {
   display: inline-flex;
@@ -101,27 +100,27 @@
 
 .main {
   display: grid;
-  gap: 24px;
+  gap: var(--layout-page-gap);
 }
 .prompterStage {
   /* Match Home prompter spacing and width exactly */
   max-width: 860px;
   width: 100%;
-  margin: 0 auto 64px;
+  margin: 0 auto var(--layout-prompter-margin-bottom);
   position: relative;
   z-index: 300;
   isolation: isolate;
 }
 @media (max-width: 640px) {
   .prompterStage {
-    margin-bottom: 22px;
+    margin-bottom: var(--layout-prompter-margin-bottom-mobile);
   }
 }
 
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(260px, 24vw, 320px);
-  gap: 24px;
+  gap: var(--layout-column-gap);
   align-items: start;
 }
 @media (max-width: 1000px) {
@@ -132,13 +131,13 @@
 
 .content {
   display: grid;
-  gap: 24px;
+  gap: var(--layout-page-gap);
 }
 
 .rail {
   position: sticky;
   /* Match page top padding so rail aligns with content start */
-  top: calc(var(--header-height, 72px) + 36px);
+  top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
   display: block;
   /* Borderless rail: containers inside (tiles/panel) own their glass shells */
 }
@@ -163,19 +162,21 @@
 @media (max-width: 640px) {
   .outer {
     --header-height: 0px;
-    padding: calc(env(safe-area-inset-top, 0px) + 12px) 0 calc(var(--mobile-dock-height, 0px) + 24px);
+    padding: calc(env(safe-area-inset-top, 0px) + var(--layout-mobile-top-offset)) 0 calc(var(--mobile-dock-height, 0px) + var(--layout-mobile-bottom-offset));
   }
   .page {
     width: 100%;
     margin: 0;
-    padding: 12px 0 16px;
+    padding: var(--layout-mobile-top-offset) 0 var(--layout-mobile-outer-padding-bottom);
     padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
     padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
   }
   .main {
-    gap: 20px;
+    gap: var(--layout-mobile-section-gap);
   }
   .layout {
-    gap: 20px;
+    gap: var(--layout-mobile-section-gap);
   }
 }
+
+

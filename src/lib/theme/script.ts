@@ -1,6 +1,4 @@
-import { normalizeThemeVars } from "./shared";
-
-const normalizeThemeVarsSource = normalizeThemeVars.toString();
+﻿import { NORMALIZE_THEME_VARS_BOOTSTRAP_SOURCE } from "./shared";
 
 export const THEME_BOOTSTRAP_SCRIPT = `(function(){
   try {
@@ -13,7 +11,7 @@ export const THEME_BOOTSTRAP_SCRIPT = `(function(){
     if (stored) {
       try {
         var parsed = JSON.parse(stored) || {};
-        var sanitizeThemeVars = ${normalizeThemeVarsSource};
+        var sanitizeThemeVars = ${NORMALIZE_THEME_VARS_BOOTSTRAP_SOURCE};
         var normalized = sanitizeThemeVars(parsed);
         var root = document.documentElement;
         for (var key in normalized) {

@@ -2,7 +2,7 @@
 
 .header {
   /* Balanced gradient header that blends with app background */
-  --header-height: 72px;
+  --header-height: var(--space-8xl);
   --header-brand: var(--color-brand, #6366f1);
   --header-brand-strong: var(--color-brand-strong, #4f46e5);
   --header-accent: var(--color-accent, #22d3ee);
@@ -99,14 +99,14 @@
 
 .inner {
   position: relative;
-  width: min(1200px, calc(100% - 56px));
+  width: min(1200px, calc(100% - var(--layout-page-width-offset)));
   margin: 0 auto;
   min-height: var(--header-height);
-  padding: 14px 0;
+  padding: var(--space-md-plus) 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--space-xl);
 }
 
 
@@ -119,7 +119,7 @@
   width: 48px;
   height: 48px;
   border-radius: 24px;
-  margin-right: 12px;
+  margin-right: var(--space-md);
 }
 .brandMark {
   width: 44px;
@@ -168,8 +168,8 @@
   .nav {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
-    margin-left: 12px;
+    gap: var(--space-md);
+    margin-left: var(--space-md);
   }
 }
 
@@ -178,7 +178,7 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 0 20px;
+  padding: 0 var(--space-xl);
   border-radius: 999px;
   border: 1px solid var(--header-button-border);
   color: var(--header-button-text);
@@ -190,7 +190,7 @@
     inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong) 18%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 55%, transparent),
     var(--header-button-shadow);
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  transition: background var(--motion-duration-medium) var(--motion-ease-standard), border-color var(--motion-duration-medium) var(--motion-ease-standard), color var(--motion-duration-medium) var(--motion-ease-standard), box-shadow var(--motion-duration-medium) var(--motion-ease-standard);
 }
 .navItem:hover {
   background: var(--header-button-hover-bg);
@@ -214,7 +214,7 @@
 .actions {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-md-plus);
   margin-left: auto;
 }
 
@@ -229,7 +229,7 @@
   background: var(--header-button-bg);
   color: var(--header-button-text);
   box-shadow: var(--header-button-shadow);
-  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  transition: background var(--motion-duration-medium) var(--motion-ease-standard), border-color var(--motion-duration-medium) var(--motion-ease-standard), box-shadow var(--motion-duration-medium) var(--motion-ease-standard);
 }
 .iconButton:hover {
   background: var(--header-button-hover-bg);
@@ -261,7 +261,7 @@
 /* Exact CTA per screenshot: lavender core with subtle purple/cyan edges */
 .launchCta {
   min-width: 176px;
-  padding-inline: 24px;
+  padding-inline: var(--space-2xl);
   height: 48px;
   border-radius: 999px;
   font-weight: 800;
@@ -279,6 +279,8 @@
   transform: translateY(0) scale(0.98);
   box-shadow: var(--header-launch-shadow-active) !important;
 }
+
+
 
 
 
