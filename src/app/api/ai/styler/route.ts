@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { groupUsageFromVars, summarizeGroupLabels } from "@/lib/theme/token-groups";
 import { resolveStylerPlan } from "@/server/ai/styler";
 import { returnError, validatedJson } from "@/server/validation/http";
 
@@ -7,6 +8,7 @@ const responseSchema = z.object({
   source: z.union([z.literal("heuristic"), z.literal("ai")]),
   summary: z.string(),
   vars: z.record(z.string(), z.string()),
+  details: z.string().optional(),
 });
 
 async function tryIndexStylerMemory(payload: {
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
       return returnError(422, "styler_unavailable", "I couldn't figure out how to style that yet.");
     }
 
-    // Allow a larger—but still bounded—set of CSS variables from the styler
+    // Allow a largerÃ¢â‚¬â€but still boundedÃ¢â‚¬â€set of CSS variables from the styler
     const sanitizedVars = Object.fromEntries(Object.entries(plan.vars).slice(0, 64));
     if (!Object.keys(sanitizedVars).length) {
       return returnError(
@@ -71,6 +73,10 @@ export async function POST(req: Request) {
         "That request didn't translate to any visual changes yet.",
       );
     }
+
+    const usage = groupUsageFromVars(sanitizedVars);
+    const inferredDetails = plan.details ?? summarizeGroupLabels(usage);
+    const groupIds = usage.map((entry) => entry.group.id);
 
     let ownerId: string | null = null;
     try {
@@ -94,6 +100,8 @@ export async function POST(req: Request) {
           source: plan.source,
           summary: plan.summary,
           prompt,
+          details: inferredDetails ?? null,
+          groups: groupIds,
         },
         rawText: `${prompt}\n${plan.summary}`,
         source: "styler",
@@ -106,6 +114,7 @@ export async function POST(req: Request) {
       source: plan.source,
       summary: plan.summary,
       vars: sanitizedVars,
+      details: inferredDetails ?? undefined,
     });
   } catch (error) {
     console.error("styler route error", error);

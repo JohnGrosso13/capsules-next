@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import styles from "./theme-style-carousel.module.css";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/theme";
 import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { useCurrentUser } from "@/services/auth/client";
+import { buildThemePreview, summarizeGroupLabels } from "@/lib/theme/token-groups";
 
 type Preset = {
   id: string;
@@ -32,9 +33,98 @@ type SavedStyle = {
   description?: string;
   vars: Record<string, string>;
   createdLabel?: string | null;
+  details?: string | null;
 };
 
 type ThemeEntry = { kind: "preset"; preset: Preset } | { kind: "saved"; saved: SavedStyle };
+const TITLE_FALLBACK = "Saved theme";
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function coerceString(value: unknown, limit?: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (typeof limit === "number" && trimmed.length > limit) {
+    return trimmed.slice(0, limit);
+  }
+  return trimmed;
+}
+
+function extractVars(input: unknown): Record<string, string> {
+  if (!isPlainObject(input)) return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof key !== "string") continue;
+    if (typeof value !== "string") continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function mapThemeRecord(raw: unknown): SavedStyle | null {
+  if (!isPlainObject(raw)) return null;
+  const id = coerceString(raw.id);
+  if (!id) return null;
+
+  const meta = isPlainObject(raw.meta) ? raw.meta : undefined;
+  let vars = extractVars(raw.vars);
+  if (!Object.keys(vars).length && meta) {
+    vars = extractVars(meta.vars);
+  }
+  if (!Object.keys(vars).length) return null;
+
+  const title =
+    coerceString(raw.title) ??
+    coerceString(meta?.["title"]) ??
+    coerceString(raw.summary) ??
+    coerceString(meta?.["summary"]) ??
+    coerceString(raw.description) ??
+    coerceString(meta?.["description"]) ??
+    coerceString(raw.prompt) ??
+    coerceString(meta?.["prompt"]) ??
+    TITLE_FALLBACK;
+
+  const summary =
+    coerceString(raw.summary) ??
+    coerceString(meta?.["summary"]) ??
+    null;
+
+  const prompt =
+    coerceString(raw.prompt) ??
+    coerceString(meta?.["prompt"]) ??
+    null;
+
+  const description =
+    coerceString(raw.description) ??
+    coerceString(meta?.["description"]) ??
+    summary ??
+    prompt ??
+    title;
+
+  const details =
+    coerceString(raw.details) ??
+    coerceString(meta?.["details"]) ??
+    null;
+
+  const createdLabel =
+    coerceString(raw.created_at) ??
+    coerceString(raw.createdAt) ??
+    coerceString(meta?.["created_at"]) ??
+    null;
+
+  return {
+    id,
+    title,
+    summary: summary ?? description ?? title,
+    description: description ?? title,
+    details: details ?? prompt ?? null,
+    vars,
+    createdLabel: createdLabel ?? null,
+  };
+}
 
 function builtInPresets(): Preset[] {
   return [
@@ -350,28 +440,9 @@ export function ThemeStyleCarousel() {
       });
       const json = (await res.json().catch(() => ({}))) as { items?: unknown[] };
       const normalized: SavedStyle[] = Array.isArray(json.items)
-        ? json.items
-            .map((raw) => {
-              const record = raw as Record<string, unknown>;
-              const id = typeof record.id === "string" ? record.id : null;
-              const meta = (record.meta as Record<string, unknown>) ?? {};
-              const vars = (meta.vars as Record<string, string>) ?? {};
-              if (!id || !Object.keys(vars).length) return null;
-              const titleRaw = typeof record.title === "string" ? record.title.trim() : "";
-              const summaryRaw = typeof meta.summary === "string" ? (meta.summary as string).trim() : "";
-              const prompt = typeof meta.prompt === "string" ? (meta.prompt as string).trim() : "";
-              const summary = titleRaw || summaryRaw;
-              return {
-                id,
-                title: summary || prompt || "Saved theme",
-                summary,
-                description: summary || prompt,
-                vars,
-                createdLabel: typeof record.created_at === "string" ? record.created_at : undefined,
-              } as SavedStyle;
-            })
-            .filter((style): style is SavedStyle => Boolean(style))
+        ? json.items.map(mapThemeRecord).filter((style): style is SavedStyle => Boolean(style))
         : [];
+
       updateFromSaved(normalized);
     } finally {
       setLoading(false);
@@ -397,7 +468,7 @@ export function ThemeStyleCarousel() {
       });
       if (res.ok) {
         setSavedStyles((prev) =>
-          prev.map((style) => (style.id === entry.saved.id ? { ...style, title: next, summary: next } : style)),
+          prev.map((style) => (style.id === entry.saved.id ? { ...style, title: next, summary: next, description: next } : style)),
         );
       }
     },
@@ -474,7 +545,7 @@ export function ThemeStyleCarousel() {
               aria-expanded={headerMenuOpen}
               onClick={() => setHeaderMenuOpen((value) => !value)}
             >
-              …
+              ...
             </button>
             {headerMenuOpen ? (
               <div className={cm.menu} role="menu" style={{ right: 0, top: 40 }} onMouseLeave={() => setHeaderMenuOpen(false)}>
@@ -535,11 +606,25 @@ export function ThemeStyleCarousel() {
             const baseId = getEntryId(entry);
             const key = `${baseId}::${index}`;
             const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
+            const preview = buildThemePreview(vars);
+            const groupBadges = preview.usages.slice(0, 3);
+            const palette = preview.palette.slice(0, 4);
             const descriptionRaw = entry.kind === "preset" ? entry.preset.desc : entry.saved.description;
-            const description =
-              descriptionRaw && descriptionRaw.trim().length ? descriptionRaw : "Capsule AI custom theme";
+            const savedDetails = entry.kind === "saved" ? entry.saved.details : undefined;
+            const fallbackDetails = summarizeGroupLabels(preview.usages);
+            let description = descriptionRaw && descriptionRaw.trim().length ? descriptionRaw.trim() : "";
+            if (!description && savedDetails && savedDetails.trim().length) {
+              description = savedDetails.trim();
+            }
+            if (!description && fallbackDetails && fallbackDetails.length) {
+              description = fallbackDetails;
+            }
+            if (!description) {
+              description = "Capsule AI custom theme";
+            }
             const isActive = activeId === baseId;
             const isEditable = entry.kind === "saved" && !entry.saved.id.startsWith("placeholder-");
+            const showPreviewMeta = groupBadges.length > 0 || palette.length > 0;
             return (
               <div key={key} className={styles.slide}>
                 <div
@@ -560,6 +645,30 @@ export function ThemeStyleCarousel() {
                     {isActive ? <span className={styles.activeBadge}>Active</span> : null}
                   </div>
                   <div className={styles.descArea}>{description}</div>
+                  {showPreviewMeta ? (
+                    <div className={styles.previewMeta}>
+                      {groupBadges.length ? (
+                        <div className={styles.previewTags}>
+                          {groupBadges.map(({ group }) => (
+                            <span key={`${baseId}-group-${group.id}`} className={styles.previewTag}>
+                              {group.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      {palette.length ? (
+                        <div className={styles.previewPalette} aria-hidden>
+                          {palette.map((value, swatchIndex) => (
+                            <span
+                              key={`${baseId}-swatch-${swatchIndex}`}
+                              className={styles.previewColor}
+                              style={{ background: value }}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className={styles.buttonRow}>
                     <Button variant="primary" size="sm" onClick={() => handleApply(entry)}>
                       Apply
@@ -589,7 +698,19 @@ export function ThemeStyleCarousel() {
           </div>
         ) : null}
       </div>
-      {loading ? <div className={styles.meta}>Loading…</div> : null}
+      {loading ? <div className={styles.meta}>Loading...</div> : null}
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+

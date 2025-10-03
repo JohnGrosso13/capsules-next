@@ -1,3 +1,10 @@
+import { normalizeThemeVars } from "@/lib/theme/shared";
+import {
+  detectIntentGroupsFromPrompt,
+  groupUsageFromVars,
+  summarizeGroupLabels,
+  type ThemeTokenGroupUsage,
+} from "@/lib/theme/token-groups";
 const OPENAI_API_KEY =
   process.env.OPENAI_API_KEY ?? process.env.OPENAI_KEY ?? process.env.OPENAI_SECRET_KEY ?? null;
 
@@ -106,8 +113,6 @@ const TARGETS: Target[] = [
   { id: "buttons", label: "Buttons", type: "site", keywords: ["buttons", "button", "cta"] },
 ];
 
-const SAFE_VALUE_REGEX = /^[A-Za-z0-9#(),.%\/_\-\s:+]*$/;
-
 export async function resolveStylerPlan(prompt: string): Promise<StylerPlan | null> {
   const heuristic = buildHeuristicPlan(prompt);
   if (heuristic) {
@@ -147,17 +152,22 @@ function buildHeuristicPlan(prompt: string): StylerPlan | null {
     descriptions.push(descriptor);
   }
 
-  let sanitized = sanitizeVars(vars);
+  let sanitized = normalizeThemeVars(vars);
   if (!Object.keys(sanitized).length) {
     const fallbackColor = extractColor(prompt);
     if (fallbackColor) {
-      sanitized = sanitizeVars(buildSiteThemeVars(fallbackColor));
+      sanitized = normalizeThemeVars(buildSiteThemeVars(fallbackColor));
     }
   }
   if (!Object.keys(sanitized).length) return null;
 
   const summary = buildSummary(descriptions);
-  return { summary, vars: sanitized, source: "heuristic" };
+  const details = buildPlanDetails(prompt, sanitized);
+  const plan: StylerPlan = { summary, vars: sanitized, source: "heuristic" };
+  if (details) {
+    plan.details = details;
+  }
+  return plan;
 }
 
 function splitSegments(prompt: string): string[] {
@@ -643,6 +653,17 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   return vars;
 }
 
+function buildPlanDetails(prompt: string, vars: Record<string, string>): string | undefined {
+  const usage = groupUsageFromVars(vars);
+  const detailsFromVars = summarizeGroupLabels(usage);
+  if (detailsFromVars) return detailsFromVars;
+  const promptGroups = detectIntentGroupsFromPrompt(prompt);
+  if (promptGroups.length) {
+    const syntheticUsage: ThemeTokenGroupUsage[] = promptGroups.map((group) => ({ group, count: 1 }));
+    return summarizeGroupLabels(syntheticUsage);
+  }
+  return undefined;
+}
 function buildSummary(parts: string[]): string {
   if (!parts.length) return "Updated your capsule style.";
   if (parts.length === 1) return `Styled ${parts[0]}.`;
@@ -697,25 +718,6 @@ function formatColorLabel(modifier: string | null, baseName: string): string {
   return `${prettyModifier} ${prettyBase}`;
 }
 
-function sanitizeVars(vars: Record<string, string>): Record<string, string> {
-  const sanitized: Record<string, string> = {};
-  const entries = Object.entries(vars);
-  for (const [key, value] of entries) {
-    if (typeof key !== "string" || typeof value !== "string") continue;
-    const trimmedKey = key.trim();
-    if (!trimmedKey.startsWith("--")) continue;
-    if (trimmedKey.length > 80) continue;
-    const trimmedValue = value.trim();
-    if (!trimmedValue || trimmedValue.length > 400) continue;
-    if (!SAFE_VALUE_REGEX.test(trimmedValue)) continue;
-    const lower = trimmedValue.toLowerCase();
-    if (lower.includes("url(") || lower.includes("expression(")) continue;
-    sanitized[trimmedKey] = trimmedValue;
-    if (Object.keys(sanitized).length >= 72) break;
-  }
-  return sanitized;
-}
-
 async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
   if (!OPENAI_API_KEY) return null;
   try {
@@ -761,14 +763,32 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
     }
     const summaryRaw = typeof parsed.summary === "string" ? parsed.summary.trim() : "";
     const varsRaw = parsed.vars as Record<string, unknown> | undefined;
-    const sanitized = sanitizeVars(varsRaw ? (varsRaw as Record<string, string>) : {});
-    return {
+    const sanitized = normalizeThemeVars(varsRaw ? (varsRaw as Record<string, string>) : {});
+    const details = buildPlanDetails(prompt, sanitized);
+    const plan: StylerPlan = {
       summary: summaryRaw || "Updated your capsule style.",
       vars: sanitized,
       source: "ai",
     };
+    if (details) {
+      plan.details = details;
+    }
+    return plan;
   } catch (error) {
     console.error("styler ai request failed", error);
     return null;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

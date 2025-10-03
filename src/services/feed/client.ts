@@ -56,7 +56,11 @@ function buildFeedUrl(options: FeedFetchOptions): string {
 
 export async function fetchHomeFeed(options: FeedFetchOptions = {}): Promise<FeedFetchResult> {
   const requestUrl = buildFeedUrl(options);
-  const response = await fetch(requestUrl, { signal: options.signal });
+  const init: RequestInit = {};
+  if (options.signal) {
+    init.signal = options.signal;
+  }
+  const response = await fetch(requestUrl, init);
   const payload = await ensureOk(response, `Feed request failed (${response.status})`);
   const postsRaw = Array.isArray(payload?.posts) ? (payload!.posts as unknown[]) : [];
   const cursorRaw = payload && typeof payload.cursor === "string" ? payload.cursor : null;
@@ -76,13 +80,16 @@ export type ToggleLikeResult = {
 
 export async function togglePostLike(params: ToggleLikeParams): Promise<ToggleLikeResult> {
   const { postId, action, signal } = params;
-  const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/like`, {
+  const init: RequestInit = {
     method: "POST",
     credentials: "include",
-    signal,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action }),
-  });
+  };
+  if (signal) {
+    init.signal = signal;
+  }
+  const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/like`, init);
   const payload = await ensureOk(response, `Like request failed (${response.status})`);
   const likes = typeof payload?.likes === "number" ? (payload.likes as number) : null;
   const viewerLiked =
@@ -107,17 +114,20 @@ export type ToggleMemoryResult = {
 
 export async function togglePostMemory(params: ToggleMemoryParams): Promise<ToggleMemoryResult> {
   const { postId, action, payload, signal } = params;
-  const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/memory`, {
+  const init: RequestInit = {
     method: "POST",
     credentials: "include",
-    signal,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(
       action === "remember"
         ? { action, payload: payload ?? {} }
         : { action },
     ),
-  });
+  };
+  if (signal) {
+    init.signal = signal;
+  }
+  const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/memory`, init);
   const data = await ensureOk(response, `Memory request failed (${response.status})`);
   const remembered =
     typeof data?.remembered === "boolean"
@@ -145,13 +155,16 @@ export type UpdateFriendResult = {
 
 export async function updatePostFriendship(options: UpdateFriendOptions): Promise<UpdateFriendResult> {
   const { action, target, signal } = options;
-  const response = await fetch("/api/friends/update", {
+  const init: RequestInit = {
     method: "POST",
     credentials: "include",
-    signal,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action, target }),
-  });
+  };
+  if (signal) {
+    init.signal = signal;
+  }
+  const response = await fetch("/api/friends/update", init);
   const payload = await ensureOk(response, `Friend ${action} failed (${response.status})`);
   const message =
     typeof payload?.message === "string"
@@ -169,11 +182,14 @@ export type DeletePostParams = {
 
 export async function deletePost(params: DeletePostParams): Promise<void> {
   const { postId, signal } = params;
-  const response = await fetch(`/api/posts/${encodeURIComponent(postId)}`, {
+  const init: RequestInit = {
     method: "DELETE",
     credentials: "include",
-    signal,
-  });
+  };
+  if (signal) {
+    init.signal = signal;
+  }
+  const response = await fetch(`/api/posts/${encodeURIComponent(postId)}`, init);
   if (!response.ok) {
     const payload = await parseJsonSafe(response);
     throw new Error(resolveErrorMessage(payload, `Delete failed (${response.status})`));

@@ -235,3 +235,42 @@
   padding: 4px 8px;
   color: var(--text);
 }
+.previewMeta {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.previewTags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.previewTag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
+  background: linear-gradient(180deg, var(--glass-bg-1, rgba(255, 255, 255, 0.18)), var(--glass-bg-2, rgba(255, 255, 255, 0.08)));
+  color: var(--text, rgba(255, 255, 255, 0.92));
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.previewPalette {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.previewColor {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 4px 10px rgba(5, 10, 30, 0.35);
+}

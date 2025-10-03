@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import { indexMemory } from "@/lib/supabase/memories";
+import { createThemeStyle, type ThemeMode } from "@/server/theme/service";
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -21,6 +21,10 @@ export async function POST(req: Request) {
   const summary = summaryRaw.trim() || null;
   const promptRaw = typeof body.prompt === "string" ? body.prompt : "";
   const prompt = promptRaw.trim() || null;
+  const detailsRaw = typeof body.details === "string" ? body.details : "";
+  const details = detailsRaw.trim() || null;
+  const modeRaw = typeof body.mode === "string" ? body.mode.trim().toLowerCase() : null;
+  const mode: ThemeMode = modeRaw === "light" || modeRaw === "dark" ? (modeRaw as ThemeMode) : null;
   const varsRaw = body.vars;
   const vars = varsRaw && typeof varsRaw === "object" ? (varsRaw as Record<string, unknown>) : null;
 
@@ -29,25 +33,18 @@ export async function POST(req: Request) {
   }
 
   try {
-    await indexMemory({
+    const style = await createThemeStyle({
       ownerId,
-      kind: "theme",
-      mediaUrl: null,
-      mediaType: "style",
       title,
-      description: summary || prompt,
-      postId: null,
-      metadata: {
-        vars,
-        source: "heuristic",
-        summary: summary ?? title ?? "Saved theme",
-        prompt: prompt ?? title ?? "",
-      },
-      rawText: [title ?? "Saved theme", summary ?? "", prompt ?? ""].filter(Boolean).join(" | "),
-      source: "theme",
-      tags: ["theme", "style"],
+      summary,
+      description: summary || prompt || title,
+      prompt,
+      details,
+      mode,
+      vars,
     });
-    return NextResponse.json({ success: true });
+
+    return NextResponse.json({ success: true, id: style.id });
   } catch (error) {
     console.error("theme save error", error);
     return NextResponse.json({ error: "failed to save" }, { status: 500 });

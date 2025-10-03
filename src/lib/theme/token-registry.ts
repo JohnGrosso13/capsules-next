@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Registry of semantic design tokens that map to CSS custom properties.
  * This powers Tailwind integration, runtime sanitisation, and AI styling prompts.
  */
@@ -1131,6 +1131,30 @@ export const themeTokenRegistry = [
 export type ThemeTokenId = (typeof themeTokenRegistry)[number]["id"];
 export type ThemeTokenCssVar = (typeof themeTokenRegistry)[number]["cssVar"];
 
+export type ThemeTokenMeta = {
+  readonly id: ThemeTokenId;
+  readonly cssVar: ThemeTokenCssVar;
+  readonly category: ThemeTokenCategory;
+  readonly valueKind: ThemeTokenValueKind;
+  readonly label: string;
+  readonly tags: readonly string[];
+};
+
+const THEME_TOKEN_META_ENTRIES = themeTokenRegistry.map((token) => [
+  token.cssVar,
+  {
+    id: token.id as ThemeTokenId,
+    cssVar: token.cssVar as ThemeTokenCssVar,
+    category: token.category,
+    valueKind: token.valueKind,
+    label: token.label,
+    tags: token.tags ?? [],
+  },
+] as const);
+
+export const themeTokenMetaByCssVar = Object.freeze(
+  Object.fromEntries(THEME_TOKEN_META_ENTRIES),
+) as unknown as Record<ThemeTokenCssVar, ThemeTokenMeta>;
 export const themeTokensById: ReadonlyMap<ThemeTokenId, ThemeTokenDefinition> = new Map(
   themeTokenRegistry.map((token) => [token.id as ThemeTokenId, token]),
 );
@@ -1182,3 +1206,5 @@ export function asCssVar(value: ThemeTokenCssVar): string {
 }
 
 export const tailwindThemeExtension = buildTailwindThemeExtension();
+
+

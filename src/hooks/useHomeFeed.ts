@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { useCurrentUser } from "@/services/auth/client";
+import type { FeedFetchOptions } from "@/services/feed/client";
 
 import type { HomeFeedPost } from "./useHomeFeed/types";
 import { homeFeedStore } from "./useHomeFeed/homeFeedStore";
@@ -19,8 +20,8 @@ type HomeFeedSnapshot = ReturnType<typeof homeFeedStore.getState>;
 
 
 function useHomeFeedData(): HomeFeedSnapshot {
-  const subscribe = React.useCallback(homeFeedStore.subscribe, []);
-  const getState = React.useCallback(homeFeedStore.getState, []);
+  const subscribe = React.useCallback((listener: () => void) => homeFeedStore.subscribe(listener), []);
+  const getState = React.useCallback(() => homeFeedStore.getState(), []);
   return React.useSyncExternalStore(subscribe, getState, getState);
 }
 
@@ -38,10 +39,21 @@ function useHomeFeedActions(canRemember: boolean) {
   const getState = homeFeedStore.getState;
 
   return React.useMemo(() => {
-    const refreshPosts = (signal?: AbortSignal) => refresh({ limit: FEED_LIMIT, signal });
+    const refreshPosts = (signal?: AbortSignal) => {
+      const options: FeedFetchOptions = { limit: FEED_LIMIT };
+      if (signal) {
+        options.signal = signal;
+      }
+      return refresh(options);
+    };
     const handleToggleLike = (postId: string) => toggleLike(postId);
-    const handleToggleMemory = (post: HomeFeedPost, desired?: boolean) =>
-      toggleMemory(post.id, { desired, canRemember });
+    const handleToggleMemory = (post: HomeFeedPost, desired?: boolean) => {
+      const options: { canRemember: boolean; desired?: boolean } = { canRemember };
+      if (typeof desired === "boolean") {
+        options.desired = desired;
+      }
+      return toggleMemory(post.id, options);
+    };
     const handleFriendRequest = (post: HomeFeedPost, identifier: string) =>
       requestFriend(post.id, identifier);
     const handleFriendRemove = (post: HomeFeedPost, identifier: string) =>
@@ -128,3 +140,4 @@ export function useHomeFeed() {
     isRefreshing: state.isRefreshing,
   };
 }
+

@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-
-export const runtime = "nodejs";
-
+﻿import { NextResponse } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
+import { updateThemeStyleTitle } from "@/server/theme/service";
 import { updateMemoryTitleForOwner } from "@/server/posts/repository";
+
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -30,7 +30,11 @@ export async function POST(req: Request) {
   }
 
   try {
-    await updateMemoryTitleForOwner({ ownerId, memoryId: id, title, kind });
+    if (kind === "theme") {
+      await updateThemeStyleTitle({ ownerId, id, title });
+    } else {
+      await updateMemoryTitleForOwner({ ownerId, memoryId: id, title, kind });
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("memory update error", error);

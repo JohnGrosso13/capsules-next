@@ -599,13 +599,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         ]);
         const index = session.messageIndex.get(messageId);
         if (typeof index === "number") {
-          session.messages[index] = { ...session.messages[index], status: "sent" };
+          const existing = session.messages[index];
+          if (existing) {
+            session.messages[index] = { ...existing, status: "sent" };
+          }
         }
         syncState();
       } catch (error) {
         const index = session.messageIndex.get(messageId);
         if (typeof index === "number") {
-          session.messages[index] = { ...session.messages[index], status: "failed" };
+          const existing = session.messages[index];
+          if (existing) {
+            session.messages[index] = { ...existing, status: "failed" };
+          }
         }
         syncState();
         throw error;
@@ -647,3 +653,4 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 export function useChatFriendlyTarget(friend: FriendItem): ChatFriendTarget | null {
   return React.useMemo(() => coerceFriendTarget(friend), [friend]);
 }
+

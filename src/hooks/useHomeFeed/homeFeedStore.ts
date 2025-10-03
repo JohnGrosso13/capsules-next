@@ -175,7 +175,12 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
     setState({ isRefreshing: true });
 
     try {
-      const result = await client.fetch({ limit: options.limit, cursor: options.cursor, signal: options.signal });
+      const requestOptions: FeedFetchOptions = {
+        ...(options.limit !== undefined ? { limit: options.limit } : {}),
+        ...(options.cursor !== undefined ? { cursor: options.cursor } : {}),
+        ...(options.signal !== undefined ? { signal: options.signal } : {}),
+      };
+      const result = await client.fetch(requestOptions);
       if (token !== refreshGeneration) {
         return;
       }
@@ -288,7 +293,7 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
               content: typeof current.content === "string" ? current.content : null,
               userName: current.user_name ?? null,
             }
-          : undefined,
+          : null,
       });
       const confirmed =
         typeof response.remembered === "boolean" ? response.remembered : nextRemembered;
@@ -405,3 +410,9 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
 
 export const homeFeedStore = createHomeFeedStore();
 export const homeFeedFallbackPosts = clonePosts(defaultFallbackPosts);
+
+// Exposed only for tests that mock this module.
+export function __setMockState(_: Partial<HomeFeedStoreState>): void {
+  throw new Error("__setMockState is only available in tests.");
+}
+

@@ -14,8 +14,8 @@ import type { CloudflareImageVariantSet } from "@/lib/cloudflare/images";
 
 type LazyImageProps = React.ComponentProps<typeof Image>;
 
-const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(({ loading, ...rest }, ref) => (
-  <Image ref={ref} loading={loading ?? "lazy"} {...rest} />
+const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(({ loading, alt, ...rest }, ref) => (
+  <Image ref={ref} loading={loading ?? "lazy"} alt={alt} {...rest} />
 ));
 
 LazyImage.displayName = "LazyImage";
@@ -841,3 +841,4 @@ export function HomeFeedList({
     </>
   );
 }
+

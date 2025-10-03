@@ -23,5 +23,7 @@ export const stylerResponseSchema = z.object({
   source: z.union([z.literal("heuristic"), z.literal("ai")]),
   summary: z.string(),
   vars: z.record(z.string(), z.string()),
+  details: z.string().optional(),
 });
 export type StylerResponse = z.infer<typeof stylerResponseSchema>;
+
