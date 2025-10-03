@@ -1,0 +1,10 @@
+node_modules/
+.next/
+out/
+build/
+public/**/*.js
+archive/
+docs/reference/
+**/*.svg
+**/*.ico
+

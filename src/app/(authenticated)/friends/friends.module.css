@@ -1,0 +1,449 @@
+.friendsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 4px 32px;
+}
+
+.tabsSticky {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background: color-mix(in srgb, var(--app-bg, #060818) 85%, rgba(6, 8, 24, 0.85));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 12px 4px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.08)) 70%, transparent);
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.12)) 90%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgba(255, 255, 255, 0.11) 70%, transparent),
+    color-mix(in srgb, rgba(10, 12, 32, 0.65) 70%, transparent)
+  );
+  color: var(--text, rgba(255, 255, 255, 0.92));
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.tab:hover {
+  border-color: color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.18)) 90%, transparent);
+  transform: translateY(-1px);
+}
+
+.tabActive {
+  border-color: color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.6)) 80%, transparent);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.5)) 25%, transparent);
+}
+
+.tabLabel {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.95)) 72%, rgba(10, 12, 32, 0.85));
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tabPanel {
+  display: block;
+}
+
+.panelFull {
+  width: 100%;
+}
+
+.panelOverflowVisible {
+  overflow: visible;
+}
+
+.list {
+  display: grid;
+  gap: 14px;
+}
+
+.listLarge {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.notice {
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.6)) 45%, transparent);
+  background: color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.18)) 40%, transparent);
+  color: color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.95)) 92%, white 8%);
+  font-weight: 600;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 28px;
+  border-radius: 18px;
+  border: 1px dashed color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.14)) 80%, transparent);
+  color: var(--text-2, rgba(255, 255, 255, 0.65));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgba(12, 16, 46, 0.6) 70%, transparent),
+    color-mix(in srgb, rgba(8, 10, 30, 0.85) 70%, transparent)
+  );
+}
+
+.error {
+  row-gap: 12px;
+}
+
+.retryButton {
+  border: 1px solid color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.8)) 60%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.32)) 70%, transparent),
+    color-mix(in srgb, rgba(8, 10, 32, 0.75) 70%, transparent)
+  );
+  color: var(--text, rgba(255, 255, 255, 0.95));
+  border-radius: 14px;
+  padding: 8px 18px;
+  font-weight: 600;
+}
+
+.friendRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.12)) 85%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgba(255, 255, 255, 0.08) 80%, transparent),
+    color-mix(in srgb, rgba(8, 10, 30, 0.78) 85%, transparent)
+  );
+  padding: 16px 20px;
+  box-shadow: 0 10px 24px rgba(6, 8, 24, 0.28);
+}
+
+.friendRowMain {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.friendRowActions {
+  display: flex;
+  align-items: center;
+}
+
+.avatarWrap {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(10, 12, 36, 0.4));
+  display: grid;
+  place-items: center;
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarFallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 90%, white 10%);
+}
+
+.friendMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.friendMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.friendName {
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--text, rgba(255, 255, 255, 0.95));
+}
+
+.friendNameButton {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.friendNameButton:hover {
+  text-decoration: underline;
+}
+
+.friendSince {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-2, rgba(255, 255, 255, 0.65));
+}
+
+.presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.presenceDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(120, 122, 160, 0.9);
+}
+
+.presenceLabel {
+  color: var(--text-2, rgba(255, 255, 255, 0.68));
+}
+
+.presenceOnline .presenceDot {
+  background: #4ade80;
+}
+
+.presenceAway .presenceDot {
+  background: #f97316;
+}
+
+.presenceOffline .presenceDot {
+  background: rgba(120, 122, 160, 0.6);
+}
+
+.friendMenuContainer {
+  position: relative;
+}
+
+.friendMenuTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.16)) 85%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgba(255, 255, 255, 0.11) 80%, transparent),
+    color-mix(in srgb, rgba(8, 10, 36, 0.75) 80%, transparent)
+  );
+  color: var(--text, rgba(255, 255, 255, 0.9));
+}
+
+.friendMenuTrigger:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.friendMenuIcon {
+  display: grid;
+  gap: 4px;
+}
+
+.friendMenuIcon span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  display: block;
+}
+
+.friendMenuPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 160px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.16)) 85%, transparent);
+  background: color-mix(in srgb, var(--app-bg, #060818) 90%, rgba(10, 12, 36, 0.92));
+  box-shadow: 0 18px 32px rgba(6, 8, 24, 0.38);
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+  z-index: 20;
+}
+
+.friendMenuItem {
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+  font-size: 0.9rem;
+  padding: 8px 10px;
+}
+
+.friendMenuItem:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.4)) 40%, transparent);
+}
+
+.friendMenuItem:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.friendMenuDanger {
+  color: #f87171;
+}
+
+.friendMenuSeparator {
+  height: 1px;
+  background: color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.12)) 85%, transparent);
+  margin: 4px 0;
+}
+
+.requestList {
+  display: grid;
+  gap: 14px;
+}
+
+.requestRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.14)) 85%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgba(255, 255, 255, 0.09) 70%, transparent),
+    color-mix(in srgb, rgba(8, 10, 30, 0.78) 80%, transparent)
+  );
+}
+
+.requestMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.requestLabel {
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2, rgba(255, 255, 255, 0.62));
+}
+
+.requestActions {
+  display: flex;
+  gap: 10px;
+}
+
+.requestActions button {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.16)) 80%, transparent);
+  padding: 8px 14px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgba(255, 255, 255, 0.09) 70%, transparent),
+    color-mix(in srgb, rgba(8, 10, 30, 0.75) 80%, transparent)
+  );
+  color: var(--text, rgba(255, 255, 255, 0.9));
+  font-weight: 600;
+}
+
+.primaryAction {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.95)) 60%, rgba(10, 12, 32, 0.75)),
+    color-mix(in srgb, var(--color-brand, rgba(79, 70, 229, 0.9)) 70%, rgba(6, 8, 24, 0.85))
+  );
+  border-color: color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.9)) 70%, transparent);
+}
+
+.primaryAction:hover {
+  filter: brightness(1.05);
+}
+
+@media (min-width: 768px) {
+  .friendsSection {
+    padding: 0;
+    gap: 20px;
+  }
+
+  .tabsSticky {
+    position: sticky;
+  }
+
+  .tabs {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .listLarge {
+    max-width: 720px;
+  }
+}
+
+@media (max-width: 640px) {
+  .friendRow {
+    padding: 14px 16px;
+  }
+
+  .friendRowMain {
+    gap: 12px;
+  }
+
+  .friendRowActions {
+    flex-shrink: 0;
+  }
+
+  .requestRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .requestActions {
+    justify-content: flex-end;
+  }
+}

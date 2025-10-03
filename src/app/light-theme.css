@@ -1,0 +1,72 @@
+@layer base {
+  :root[data-theme="light"] {
+    /* Readable text tokens for components expecting --text/--text-2 */
+    --text: var(--color-fg, rgba(14, 16, 36, 0.96));
+    --text-2: var(--color-fg-muted, rgba(14, 16, 36, 0.76));
+    --text-on-brand: var(--color-brand-foreground, #0e1024);
+
+    --dock-bg-1: rgba(255, 255, 255, 0.96);
+    --dock-bg-2: rgba(246, 248, 255, 0.9);
+    --dock-border: rgba(14, 23, 42, 0.12);
+    --dock-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+    --dock-btn-bg-1: rgba(255, 255, 255, 0.96);
+    --dock-btn-bg-2: rgba(255, 255, 255, 0.88);
+    --dock-btn-border: rgba(14, 23, 42, 0.12);
+    --dock-btn-hover-border: rgba(14, 23, 42, 0.2);
+    --dock-active-shadow: 0 12px 22px rgba(37, 99, 235, 0.18);
+    --dock-active-glow: rgba(79, 70, 229, 0.24);
+    --dock-text-muted: var(--text-2);
+    --dock-sheet-bg-1: rgba(255, 255, 255, 0.98);
+    --dock-sheet-bg-2: rgba(247, 249, 255, 0.94);
+    --dock-sheet-border: rgba(14, 23, 42, 0.12);
+    --dock-sheet-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+
+
+
+    /* Acrylic glass base used throughout (pills, chips, prompts) */
+    --glass-bg-1: rgba(255, 255, 255, 0.9);
+    --glass-bg-2: rgba(255, 255, 255, 0.78);
+    --pill-bg-1: rgba(255, 255, 255, 0.9);
+    --pill-bg-2: rgba(255, 255, 255, 0.78);
+    --pill-border: rgba(14, 23, 42, 0.16);
+
+    /* Cards (posts, tiles) - soft, low-contrast layers */
+    --card-bg-1: rgba(255, 255, 255, 0.96);
+    --card-bg-2: rgba(255, 255, 255, 0.9);
+    --card-border: rgba(14, 23, 42, 0.12);
+    --card-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+    --card-hover-bg-1: rgba(255, 255, 255, 0.98);
+    --card-hover-bg-2: rgba(255, 255, 255, 0.92);
+    --card-hover-border: rgba(14, 23, 42, 0.2);
+    --card-hover-shadow: 0 22px 46px rgba(15, 23, 42, 0.18);
+
+    /* Quiet action plates in posts */
+    --feed-action-bg-1: rgba(255, 255, 255, 0.86);
+    --feed-action-bg-2: rgba(255, 255, 255, 0.76);
+    --feed-action-border: rgba(14, 23, 42, 0.12);
+    --feed-action-border-hover: rgba(14, 23, 42, 0.2);
+    --feed-action-shadow-hover: 0 12px 28px rgba(15, 23, 42, 0.18);
+
+    /* Icon plate tokens */
+    --icon-plate-bg-1: rgba(255, 255, 255, 0.9);
+    --icon-plate-bg-2: rgba(255, 255, 255, 0.8);
+    --icon-plate-border: rgba(14, 23, 42, 0.14);
+    --icon-plate-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+    /* Right-rail container tokens */
+    --rail-bg-1: rgba(255, 255, 255, 0.95);
+    --rail-bg-2: rgba(255, 255, 255, 0.86);
+    --rail-border: rgba(14, 23, 42, 0.12);
+
+    /* Header acrylic tokens to blend with page background gently */
+    /* Make header fully readable: nearly-opaque acrylic with soft brand tint */
+       --header-glass-top: rgba(26, 44, 92, 0.9);
+       --header-glass-bottom: rgba(40, 72, 140, 0.82);
+       --header-tint-from: rgba(56, 189, 248, 0.14);
+       --header-tint-to: rgba(37, 99, 235, 0.1);
+       --header-border-color: rgba(148, 197, 255, 0.32);
+       --header-shadow: 0 18px 42px rgba(15, 36, 86, 0.28);
+       --header-scrim: linear-gradient(180deg, rgba(17, 42, 96, 0.18), rgba(17, 42, 96, 0));
+  }
+}
+

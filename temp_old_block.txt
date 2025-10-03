@@ -1,0 +1,144 @@
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
+import { ensureUserFromRequest } from "@/lib/auth/payload";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { indexMemory } from "@/lib/supabase/memories";
+import { resolvePostId } from "@/lib/supabase/posts";
+import { normalizeMediaUrl } from "@/lib/media";
+
+function truncateContent(value: string | null | undefined, limit = 220) {
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized.length) return null;
+  return normalized.length > limit ? `${normalized.slice(0, limit - 1)}…` : normalized;
+}
+
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const body = await req.json().catch(() => null);
+  const action = body?.action === "forget" ? "forget" : "remember";
+  const payload = (body?.payload as Record<string, unknown> | null) ?? null;
+
+  const { id } = await context.params;
+  const rawId = decodeURIComponent(id ?? "").trim();
+  if (!rawId) {
+    return NextResponse.json({ error: "post id required" }, { status: 400 });
+  }
+
+  const userId = await ensureUserFromRequest(req);
+  if (!userId) {
+    return NextResponse.json({ error: "auth required" }, { status: 401 });
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const postId = await resolvePostId(rawId);
+  if (!postId) {
+    return NextResponse.json({ error: "post not found" }, { status: 404 });
+  }
+
+  let postRow: Record<string, unknown> | null = null;
+  try {
+    const { data, error } = await supabase
+      .from("posts")
+      .select("id, client_id, content, media_url, user_name, author_user_id")
+      .eq("id", postId)
+      .maybeSingle();
+    if (!error && data) {
+      postRow = data as Record<string, unknown>;
+    }
+  } catch (fetchError) {
+    console.warn("Memory API post fetch failed", fetchError);
+  }
+
+  const postClientId =
+    postRow && typeof postRow["client_id"] === "string" && postRow["client_id"]
+      ? String(postRow["client_id"])
+      : null;
+  const postUuid =
+    postRow && (typeof postRow["id"] === "string" || typeof postRow["id"] === "number")
+      ? String(postRow["id"])
+      : null;
+  const memoryPostId = postClientId ?? postUuid ?? rawId;
+
+  const payloadUserName =
+    payload && typeof payload.userName === "string" && payload.userName.trim()
+      ? payload.userName.trim()
+      : null;
+  const postAuthorName =
+    (postRow && typeof postRow["user_name"] === "string" && postRow["user_name"]
+      ? (postRow["user_name"] as string)
+      : null) ?? payloadUserName;
+  const postOwnerUserId =
+    postRow && typeof postRow["author_user_id"] === "string"
+      ? (postRow["author_user_id"] as string)
+      : null;
+  const postContent =
+    postRow && typeof postRow["content"] === "string"
+      ? (postRow["content"] as string)
+      : typeof payload?.content === "string"
+        ? payload.content
+        : null;
+  const truncatedContent = truncateContent(postContent);
+  const payloadMediaUrl =
+    payload && typeof payload.mediaUrl === "string"
+      ? normalizeMediaUrl(payload.mediaUrl) ?? payload.mediaUrl
+      : null;
+  const mediaUrl =
+    (postRow && typeof postRow["media_url"] === "string"
+      ? (postRow["media_url"] as string)
+      : null) ?? payloadMediaUrl;
+
+  const cleanupSavedMemories = async () => {
+    if (!memoryPostId) return;
+    try {
+      await supabase
+        .from("memories")
+        .delete()
+        .eq("owner_user_id", userId)
+        .eq("kind", "post")
+        .eq("meta->>source", "post_memory")
+        .eq("post_id", memoryPostId);
+    } catch (cleanupError) {
+      console.warn("Memory cleanup failed", cleanupError);
+    }
+  };
+
+  try {
+    if (action === "remember") {
+      await cleanupSavedMemories();
+
+      const metadata: Record<string, unknown> = {
+        source: "post_memory",
+        post_id: memoryPostId,
+      };
+      if (postOwnerUserId) metadata.post_owner_id = postOwnerUserId;
+      if (postAuthorName) metadata.post_author_name = postAuthorName;
+      if (truncatedContent) metadata.post_excerpt = truncatedContent;
+
+      const title = postAuthorName ? `Saved ${postAuthorName}'s post` : "Saved a post";
+      const descriptionParts: string[] = [];
+      if (postAuthorName) descriptionParts.push(`By ${postAuthorName}`);
+      if (truncatedContent) descriptionParts.push(truncatedContent);
+      const description = descriptionParts.length ? descriptionParts.join(" · ") : null;
+
+      await indexMemory({
+        ownerId: userId,
+        kind: "post",
+        mediaUrl: mediaUrl ?? null,
+        mediaType: null,
+        title,
+        description,
+        postId: memoryPostId,
+        metadata,
+      });
+
+      return NextResponse.json({ success: true, remembered: true });
+    }
+
+    await cleanupSavedMemories();
+    return NextResponse.json({ success: true, remembered: false });
+  } catch (error) {
+    console.error("Memory toggle error", error);
+    return NextResponse.json({ error: "Failed to update memory" }, { status: 500 });
+  }
+}

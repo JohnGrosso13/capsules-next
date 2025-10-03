@@ -1,0 +1,181 @@
+.outer {
+  /* Align page offset to compact header height */
+  padding: calc(var(--header-height, 72px) + 36px) 0 80px;
+}
+@media (max-width: 640px) {
+  .outer {
+    --header-height: 0px;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 0
+      calc(var(--mobile-dock-height, 0px) + 24px);
+  }
+  .page {
+    width: 100%;
+    margin: 0;
+    padding: 12px 0 16px;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .main {
+    gap: 20px;
+  }
+  .layout {
+    gap: 20px;
+  }
+}
+
+.page {
+  /* Match Home page container width */
+  width: min(1200px, calc(100% - 56px));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  margin-bottom: 8px;
+}
+.headerInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+.brandMark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--gradient-brand);
+  display: inline-block;
+}
+.brandName {
+  font-size: 1.1rem;
+}
+
+.nav {
+  display: flex;
+  gap: 18px;
+  font-weight: 700;
+}
+.navLink {
+  color: var(--text-2, rgba(255, 255, 255, 0.76));
+}
+.navLink:hover {
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.iconButton {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.04))
+  );
+}
+.iconGlyph {
+  width: 20px;
+  height: 20px;
+}
+.primaryCta {
+  white-space: nowrap;
+}
+
+.main {
+  display: grid;
+  gap: 24px;
+}
+.prompterStage {
+  /* Match Home prompter spacing and width exactly */
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto 64px;
+  position: relative;
+  z-index: 300;
+  isolation: isolate;
+}
+@media (max-width: 640px) {
+  .prompterStage {
+    margin-bottom: 22px;
+  }
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(260px, 24vw, 320px);
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.content {
+  display: grid;
+  gap: 24px;
+}
+
+.rail {
+  position: sticky;
+  /* Match page top padding so rail aligns with content start */
+  top: calc(var(--header-height, 72px) + 36px);
+  display: block;
+  /* Borderless rail: containers inside (tiles/panel) own their glass shells */
+}
+@media (max-width: 1000px) {
+  .rail {
+    position: static;
+  }
+}
+@media (max-width: 640px) {
+  .rail {
+    display: none;
+  }
+}
+
+.navLinkActive {
+  color: var(--text, rgba(255, 255, 255, 0.95));
+}
+.promoRowSpace {
+  width: 100%;
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .outer {
+    --header-height: 0px;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 0 calc(var(--mobile-dock-height, 0px) + 24px);
+  }
+  .page {
+    width: 100%;
+    margin: 0;
+    padding: 12px 0 16px;
+    padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
+    padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
+  }
+  .main {
+    gap: 20px;
+  }
+  .layout {
+    gap: 20px;
+  }
+}

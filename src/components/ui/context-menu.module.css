@@ -1,0 +1,73 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300; /* below menu, above content */
+  background:
+    radial-gradient(1200px 800px at 50% -10%, rgba(9, 12, 32, 0.55), transparent 60%),
+    linear-gradient(180deg, rgba(9, 12, 32, 0.45), rgba(9, 12, 32, 0.25));
+  backdrop-filter: blur(6px) saturate(120%);
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
+}
+
+.menu {
+  position: absolute;
+  min-width: 220px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.16));
+  background:
+    linear-gradient(180deg, rgba(15, 18, 42, 0.86), rgba(11, 14, 34, 0.78)),
+    linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.08)), var(--glass-bg-2, rgba(255,255,255,0.04)));
+  background-blend-mode: normal, overlay;
+  box-shadow: 0 20px 48px rgba(5, 10, 30, 0.5);
+  color: var(--text, rgba(255,255,255,0.92));
+  display: grid;
+  gap: 6px;
+  z-index: 1400;
+}
+
+.sectionLabel {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  padding: 2px 6px 4px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+.item:hover {
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.22));
+  background: linear-gradient(180deg, var(--pill-bg-1, rgba(255,255,255,0.12)), var(--pill-bg-2, rgba(255,255,255,0.06)));
+}
+.item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
+  outline-offset: 2px;
+}
+.item[aria-disabled="true"],
+.item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.danger {
+  color: color-mix(in srgb, var(--color-danger) 70%, var(--text));
+}
+.danger:hover {
+  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+}
+
+.separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 1px;
+}
