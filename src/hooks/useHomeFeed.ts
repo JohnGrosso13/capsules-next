@@ -1,142 +1,130 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 
 import { useCurrentUser } from "@/services/auth/client";
 
 import type { HomeFeedPost } from "./useHomeFeed/types";
-import { useFeedRefreshState } from "./useHomeFeed/useFeedRefreshState";
-import { usePostActions } from "./useHomeFeed/usePostActions";
+import { homeFeedStore } from "./useHomeFeed/homeFeedStore";
 import { formatExactTime, formatTimeAgo } from "./useHomeFeed/time";
-import { formatFeedCount, normalizePosts } from "./useHomeFeed/utils";
+import { formatFeedCount } from "./useHomeFeed/utils";
 
 export { formatFeedCount } from "./useHomeFeed/utils";
 export type { HomeFeedAttachment, HomeFeedPost } from "./useHomeFeed/types";
 
-const fallbackPosts: HomeFeedPost[] = [
-  {
-    id: "sample-feed",
-    dbId: "sample-feed",
-    user_name: "Capsules AI",
-    content: "Ask your Capsule AI to design posts, polls, and shopping drops for your community.",
-    mediaUrl: null,
-    created_at: null,
-    likes: 128,
-    comments: 14,
-    shares: 6,
-    viewerLiked: false,
-    attachments: [],
-  },
-];
+const FEED_LIMIT = 30;
+const MESSAGE_TIMEOUT_MS = 4_000;
+
+type HomeFeedSnapshot = ReturnType<typeof homeFeedStore.getState>;
+
+
+function useHomeFeedData(): HomeFeedSnapshot {
+  const subscribe = React.useCallback(homeFeedStore.subscribe, []);
+  const getState = React.useCallback(homeFeedStore.getState, []);
+  return React.useSyncExternalStore(subscribe, getState, getState);
+}
+
+function useHomeFeedActions(canRemember: boolean) {
+  const {
+    refresh,
+    toggleLike,
+    toggleMemory,
+    requestFriend,
+    removeFriend,
+    deletePost,
+    setActiveFriendTarget,
+    clearFriendMessage,
+  } = homeFeedStore.actions;
+  const getState = homeFeedStore.getState;
+
+  return React.useMemo(() => {
+    const refreshPosts = (signal?: AbortSignal) => refresh({ limit: FEED_LIMIT, signal });
+    const handleToggleLike = (postId: string) => toggleLike(postId);
+    const handleToggleMemory = (post: HomeFeedPost, desired?: boolean) =>
+      toggleMemory(post.id, { desired, canRemember });
+    const handleFriendRequest = (post: HomeFeedPost, identifier: string) =>
+      requestFriend(post.id, identifier);
+    const handleFriendRemove = (post: HomeFeedPost, identifier: string) =>
+      removeFriend(post.id, identifier);
+    const handleDelete = (postId: string) => deletePost(postId);
+    const setActiveFriendTargetSafe = (next: React.SetStateAction<string | null>) => {
+      const current = getState().activeFriendTarget;
+      const value = typeof next === "function" ? (next as (prev: string | null) => string | null)(current) : next;
+      setActiveFriendTarget(value);
+    };
+
+    return {
+      refreshPosts,
+      handleToggleLike,
+      handleToggleMemory,
+      handleFriendRequest,
+      handleFriendRemove,
+      handleDelete,
+      setActiveFriendTarget: setActiveFriendTargetSafe,
+      clearFriendMessage,
+    } satisfies {
+      refreshPosts: (signal?: AbortSignal) => Promise<void>;
+      handleToggleLike: (postId: string) => Promise<void>;
+      handleToggleMemory: (post: HomeFeedPost, desired?: boolean) => Promise<boolean>;
+      handleFriendRequest: (post: HomeFeedPost, identifier: string) => Promise<void>;
+      handleFriendRemove: (post: HomeFeedPost, identifier: string) => Promise<void>;
+      handleDelete: (postId: string) => Promise<void>;
+      setActiveFriendTarget: (next: React.SetStateAction<string | null>) => void;
+      clearFriendMessage: () => void;
+    };
+  }, [canRemember, deletePost, getState, refresh, removeFriend, requestFriend, setActiveFriendTarget, toggleLike, toggleMemory, clearFriendMessage]);
+}
 
 export function useHomeFeed() {
   const { user } = useCurrentUser();
   const canRemember = Boolean(user);
 
-  const [activeFriendTarget, setActiveFriendTarget] = React.useState<string | null>(null);
-  const [friendMessage, setFriendMessage] = React.useState<string | null>(null);
-
-  const {
-    items: posts,
-    setItems: setPosts,
-    itemsRef: postsRef,
-    beginRefresh,
-    completeRefresh,
-    failRefresh,
-    hasFetched,
-    isRefreshing,
-  } = useFeedRefreshState<HomeFeedPost[]>(fallbackPosts);
-
-  React.useEffect(() => {
-    if (!friendMessage) return;
-    const timer = window.setTimeout(() => setFriendMessage(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [friendMessage]);
-
-  const {
-    likePending,
-    memoryPending,
-    friendActionPending,
-    handleToggleLike,
-    handleToggleMemory,
-    handleFriendRequest,
-    handleFriendRemove,
-    handleDelete,
-    resetPendingStates,
-  } = usePostActions({
-    postsRef,
-    setPosts,
-    canRemember,
-    setFriendMessage,
-    setActiveFriendTarget,
-  });
-
-  const refreshPosts = React.useCallback(
-    async (signal?: AbortSignal) => {
-      const token = beginRefresh();
-      try {
-        const response = await fetch("/api/posts?limit=30", signal ? { signal } : undefined);
-        if (!response.ok) {
-          throw new Error(`Feed request failed (${response.status})`);
-        }
-        const data = (await response.json().catch(() => null)) as { posts?: unknown };
-        const arr = Array.isArray(data?.posts) ? data.posts : [];
-        if (!arr.length) {
-          if (completeRefresh(token, fallbackPosts)) {
-            resetPendingStates();
-          }
-          return;
-        }
-        const normalized = normalizePosts(arr);
-        if (completeRefresh(token, normalized.length ? normalized : fallbackPosts)) {
-          resetPendingStates();
-        }
-      } catch (error) {
-        if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
-          return;
-        }
-        failRefresh(token);
-        console.error("Posts refresh failed", error);
-      }
-    },
-    [beginRefresh, completeRefresh, failRefresh, resetPendingStates],
-  );
+  const state = useHomeFeedData();
+  const actions = useHomeFeedActions(canRemember);
 
   React.useEffect(() => {
     const controller = new AbortController();
-    void refreshPosts(controller.signal);
+    void actions.refreshPosts(controller.signal);
     return () => controller.abort();
-  }, [refreshPosts]);
+  }, [actions]);
 
   React.useEffect(() => {
     const handleRefresh = () => {
-      void refreshPosts();
+      void actions.refreshPosts();
     };
     window.addEventListener("posts:refresh", handleRefresh);
     return () => {
       window.removeEventListener("posts:refresh", handleRefresh);
     };
-  }, [refreshPosts]);
+  }, [actions]);
+
+  React.useEffect(() => {
+    if (!state.friendMessage) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => actions.clearFriendMessage(), MESSAGE_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [state.friendMessage, actions]);
 
   return {
-    posts,
-    likePending,
-    memoryPending,
-    friendMessage,
-    activeFriendTarget,
-    friendActionPending,
-    refreshPosts,
-    handleToggleLike,
-    handleToggleMemory,
-    handleFriendRequest,
-    handleFriendRemove,
-    handleDelete,
-    setActiveFriendTarget,
+    posts: state.posts,
+    likePending: state.likePending,
+    memoryPending: state.memoryPending,
+    friendMessage: state.friendMessage,
+    activeFriendTarget: state.activeFriendTarget,
+    friendActionPending: state.friendActionPending,
+    refreshPosts: actions.refreshPosts,
+    handleToggleLike: actions.handleToggleLike,
+    handleToggleMemory: actions.handleToggleMemory,
+    handleFriendRequest: actions.handleFriendRequest,
+    handleFriendRemove: actions.handleFriendRemove,
+    handleDelete: actions.handleDelete,
+    setActiveFriendTarget: actions.setActiveFriendTarget,
     formatCount: formatFeedCount,
     timeAgo: formatTimeAgo,
     exactTime: formatExactTime,
     canRemember,
-    hasFetched,
-    isRefreshing,
+    hasFetched: state.hasFetched,
+    isRefreshing: state.isRefreshing,
   };
 }
