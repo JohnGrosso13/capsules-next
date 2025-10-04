@@ -203,6 +203,114 @@
       color-mix(in srgb, var(--color-brand) 65%, rgba(22, 163, 255, 0.18))
     );
 
+    /* AI prompter tokens */
+    --prompter-ai-message-background: var(--cta-gradient);
+    --prompter-ai-message-text: var(--text);
+    --prompter-primary-button-background: var(--cta-gradient);
+    --prompter-primary-button-text: var(--cta-button-text, var(--text-on-brand, var(--text)));
+
+    /* Chats surface tokens */
+    --chats-panel-background: color-mix(in srgb, var(--surface-elevated, rgba(255, 255, 255, 0.92)) 96%, rgba(148, 197, 255, 0.2));
+    --chats-panel-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+    --chats-empty-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(226, 232, 255, 0.86) 70%, transparent),
+      color-mix(in srgb, rgba(203, 213, 255, 0.6) 70%, transparent)
+    );
+    --chats-thread-background: var(
+      --style-chats-bg,
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, rgba(221, 229, 255, 0.75) 70%, transparent),
+        color-mix(in srgb, rgba(195, 210, 255, 0.55) 70%, transparent)
+      )
+    );
+    --chats-thread-active-shadow: 0 16px 36px color-mix(in srgb, var(--color-brand) 24%, transparent);
+    --chats-avatar-background: var(
+      --style-chats-icon-bg,
+      color-mix(in srgb, var(--color-brand) 28%, rgba(255, 255, 255, 0.94))
+    );
+    --chats-thread-badge-background: var(
+      --style-chats-badge-bg,
+      color-mix(in srgb, var(--color-brand) 62%, rgba(59, 130, 246, 0.28))
+    );
+    --chats-thread-badge-text: var(--style-chats-badge-color, var(--text-on-brand, #0e1024));
+    --chats-conversation-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(224, 231, 255, 0.78) 70%, transparent),
+      color-mix(in srgb, rgba(210, 224, 255, 0.52) 70%, transparent)
+    );
+    --chats-control-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.96) 80%, transparent),
+      color-mix(in srgb, rgba(210, 224, 255, 0.34) 70%, transparent)
+    );
+    --chats-message-background: color-mix(in srgb, rgba(221, 229, 255, 0.82) 70%, rgba(199, 210, 255, 0.65));
+    --chats-message-shadow: 0 12px 22px rgba(15, 23, 42, 0.18);
+    --chats-message-self-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 65%, rgba(96, 165, 250, 0.32)),
+      color-mix(in srgb, rgba(96, 165, 250, 0.35) 70%, rgba(59, 130, 246, 0.3))
+    );
+    --chats-message-self-text: var(--text-on-brand, #0e1024);
+    --chats-error-border: color-mix(in srgb, var(--color-danger) 35%, rgba(14, 23, 42, 0.18));
+    --chats-error-background: color-mix(in srgb, var(--color-danger) 15%, rgba(255, 255, 255, 0.94));
+    --chats-error-text: color-mix(in srgb, var(--color-danger) 65%, rgba(14, 23, 42, 0.85));
+    --chats-composer-background: color-mix(in srgb, var(--surface-muted, rgba(255, 255, 255, 0.86)) 96%, rgba(203, 213, 255, 0.26));
+    --chats-input-border: color-mix(in srgb, rgba(148, 163, 184, 0.32) 70%, transparent);
+    --chats-input-background: color-mix(in srgb, rgba(255, 255, 255, 0.96) 80%, rgba(210, 224, 255, 0.32));
+    --chats-send-button-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
+    --chats-send-button-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 65%, rgba(37, 99, 235, 0.25)),
+      color-mix(in srgb, rgba(96, 165, 250, 0.35) 70%, rgba(59, 130, 246, 0.3))
+    );
+    --chats-send-button-text: var(--text-on-brand, #0e1024);
+    --chats-menu-panel-background: color-mix(in srgb, var(--surface-elevated, rgba(255, 255, 255, 0.92)) 95%, rgba(210, 224, 255, 0.32));
+    --chats-menu-panel-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+
+    /* Promo row tokens */
+    --promo-short-background: radial-gradient(
+      600px 300px at 30% 20%,
+      color-mix(in srgb, var(--color-brand) 20%, rgba(255, 255, 255, 0.92)),
+      transparent 60%
+    ),
+      radial-gradient(
+        400px 280px at 70% 80%,
+        color-mix(in srgb, var(--color-accent) 18%, rgba(255, 255, 255, 0.9)),
+        transparent 62%
+      ),
+      var(--surface-overlay, rgba(255, 255, 255, 0.78));
+    --promo-tile-hover-overlay: radial-gradient(120% 90% at 50% -10%, rgba(46, 72, 120, 0.12), rgba(46, 72, 120, 0) 68%),
+      linear-gradient(180deg, rgba(37, 59, 112, 0.08), rgba(37, 59, 112, 0));
+    --promo-overlay-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(14, 23, 42, 0.38));
+
+    /* Background FX tokens */
+    --background-fx-purple: radial-gradient(
+      closest-side at 50% 50%,
+      color-mix(in srgb, var(--color-brand) 24%, rgba(255, 255, 255, 0.9)),
+      transparent 70%
+    );
+    --background-fx-indigo: radial-gradient(
+      closest-side at 50% 50%,
+      color-mix(in srgb, rgba(96, 165, 250, 0.32), rgba(255, 255, 255, 0.9)),
+      transparent 70%
+    );
+    --background-fx-pink: radial-gradient(
+      closest-side at 50% 50%,
+      color-mix(in srgb, rgba(236, 72, 153, 0.24), rgba(255, 255, 255, 0.92)),
+      transparent 70%
+    );
+    --background-fx-mist: radial-gradient(60% 40% at 30% 30%, rgba(255, 255, 255, 0.24), transparent 70%),
+      radial-gradient(50% 45% at 70% 60%, rgba(210, 224, 255, 0.18), transparent 70%),
+      radial-gradient(45% 55% at 50% 80%, rgba(210, 224, 255, 0.12), transparent 70%);
+
+    /* CTA override tokens */
+    --cta-gradient-launch-light:
+      linear-gradient(180deg, rgba(198, 180, 255, 0.98), rgba(182, 164, 252, 0.98)),
+      radial-gradient(130% 180% at 12% 50%, rgba(79, 70, 229, 0.85), rgba(79, 70, 229, 0) 62%),
+      radial-gradient(130% 180% at 88% 50%, rgba(34, 211, 238, 0.82), rgba(34, 211, 238, 0) 62%);
+
     --surface-1: rgba(255, 255, 255, 0.98);
     --surface-3: rgba(245, 247, 255, 0.94);
     --surface-outline: rgba(14, 23, 42, 0.12);

@@ -96,10 +96,10 @@
   margin: 0;
   padding: 14px 16px;
   border-radius: 14px;
-  background: var(--cta-gradient);
+  background: var(--prompter-ai-message-background, var(--cta-gradient));
   border: 1px solid color-mix(in srgb, var(--color-brand) 28%, transparent);
   font-weight: 600;
-  color: var(--text);
+  color: var(--prompter-ai-message-text, var(--text));
   white-space: pre-wrap;
 }
 
@@ -279,8 +279,8 @@
   padding: 10px 18px;
   border-radius: 999px;
   border: none;
-  background: var(--cta-gradient);
-  color: var(--text);
+  background: var(--prompter-primary-button-background, var(--cta-gradient));
+  color: var(--prompter-primary-button-text, var(--cta-button-text, var(--text)));
   font-weight: 700;
   cursor: pointer;
 }
