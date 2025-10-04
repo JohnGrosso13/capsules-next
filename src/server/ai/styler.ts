@@ -152,7 +152,7 @@ const STYLER_SYSTEM_PROMPT = [
   "You are Capsules AI Styler, responsible for translating natural language into theme updates.",
   "You will receive a JSON contract describing the user's prompt, current theme snapshot, surface guide,",
   "allowed CSS variables, and output schema. Read the contract carefully.",
-  "Respond with a JSON object that strictly follows the schema: { "summary": string, "description"?: string, "vars": Record<string,string> }.",
+  'Respond with a JSON object that strictly follows the schema: { "summary": string, "description"?: string, "vars": Record<string,string> }.',
   "Only include CSS custom properties from the provided allowlist.",
   "Values must be valid CSS colors, gradients, or shadows (no url(), no external references).",
   "Prefer cohesive, site-wide updates. Cover app shell, cards, header, rail, CTA, and feed surfaces.",
@@ -249,7 +249,7 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < RETRY_DELAYS_MS.length; attempt++) {
-    const delay = RETRY_DELAYS_MS[attempt];
+    const delay = RETRY_DELAYS_MS[attempt] ?? 0;
     if (delay > 0) await wait(delay);
 
     try {
@@ -278,11 +278,10 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
         return null;
       }
 
-      let raw: {
-        choices?: Array<{ message?: { content?: string | null } }>;
-      } | null = null;
+      type OpenAIChatResponse = { choices?: Array<{ message?: { content?: string | null } | null } | null> };
+      let raw: OpenAIChatResponse | null = null;
       try {
-        raw = JSON.parse(rawText) as typeof raw;
+        raw = JSON.parse(rawText) as OpenAIChatResponse;
       } catch (error) {
         lastError = error;
         console.warn("styler ai response parse error", error, rawText.slice(0, 1000));
@@ -373,3 +372,4 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
   console.error("styler ai request failed", lastError);
   return null;
 }
+

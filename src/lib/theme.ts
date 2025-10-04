@@ -9,7 +9,8 @@ function readStoredThemeVars(): Record<string, string> {
     const raw = localStorage.getItem("themeVars");
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return normalizeThemeVars(parsed);
+    const normalized = normalizeThemeVars(parsed);
+    return stabilizeThemeVars(normalized);
   } catch {
     return {};
   }
@@ -42,10 +43,11 @@ export function getStoredThemeVars(): Record<string, string> {
 export function applyThemeVars(vars: Record<string, string>) {
   try {
     const sanitized = normalizeThemeVars(vars);
-    if (!Object.keys(sanitized).length) return;
+    const prepared = stabilizeThemeVars(sanitized);
+    if (!Object.keys(prepared).length) return;
     const root = document.documentElement;
-    Object.entries(sanitized).forEach(([key, value]) => root.style.setProperty(key, value));
-    const stored = { ...readStoredThemeVars(), ...sanitized };
+    Object.entries(prepared).forEach(([key, value]: [string, string]) => root.style.setProperty(key, value));
+    const stored = { ...readStoredThemeVars(), ...prepared };
     if (Object.keys(stored).length) {
       localStorage.setItem("themeVars", JSON.stringify(stored));
     } else {
@@ -96,14 +98,15 @@ let currentPreview: PreviewState | null = null;
 export function startPreviewThemeVars(vars: Record<string, string>) {
   try {
     const sanitized = normalizeThemeVars(vars);
-    if (!Object.keys(sanitized).length) return;
+    const prepared = stabilizeThemeVars(sanitized);
+    if (!Object.keys(prepared).length) return;
     // If a preview is already active, end it before starting a new one
     if (currentPreview) endPreviewThemeVars();
 
     const root = document.documentElement;
     const previous: Record<string, string | null> = {};
 
-    Object.entries(sanitized).forEach(([key, value]) => {
+    Object.entries(prepared).forEach(([key, value]: [string, string]) => {
       try {
         previous[key] = root.style.getPropertyValue(key) || null;
         root.style.setProperty(key, value);
@@ -111,7 +114,7 @@ export function startPreviewThemeVars(vars: Record<string, string>) {
     });
 
     (root.dataset as Record<string, string>).previewTheme = "1";
-    currentPreview = { applied: sanitized, previous };
+    currentPreview = { applied: prepared, previous };
   } catch {}
 }
 
@@ -143,3 +146,358 @@ export function endPreviewThemeVars() {
 export function isPreviewingTheme(): boolean {
   return currentPreview !== null;
 }
+
+
+
+function stabilizeThemeVars(vars: Record<string, string>): Record<string, string> {
+  return ensureBrandIdentity(ensureAppBackground(vars));
+}
+
+type RGBA = { r: number; g: number; b: number; a: number };
+
+function ensureAppBackground(vars: Record<string, string>): Record<string, string> {
+  let working = vars;
+  if (!working["--app-bg"]) {
+    const derived = deriveAppBackground(working);
+    if (derived) {
+      if (working === vars) working = { ...vars };
+      working["--app-bg"] = derived;
+    }
+  }
+  if (working["--app-bg"] && !working["--surface-app"]) {
+    if (working === vars) working = { ...vars };
+    working["--surface-app"] = "var(--app-bg)";
+  }
+  return working;
+}
+
+function ensureBrandIdentity(vars: Record<string, string>): Record<string, string> {
+  const gradientCandidates = [
+    vars["--cta-button-gradient"],
+    vars["--cta-gradient"],
+    vars["--brand-gradient"],
+    vars["--gradient-brand"],
+    vars["--cta-chip-gradient"],
+  ];
+  const existingGradient = gradientCandidates.find(isGradientValue) ?? null;
+  const accent =
+    pickColor(vars, ["--color-brand", "--brand-mid", "--cta-button-gradient", "--cta-gradient"]) ??
+    (existingGradient ? extractFirstColor(existingGradient) : null) ??
+    DEFAULT_ACCENT;
+  const palette = buildBrandPalette(accent);
+  let working = vars;
+  const ensure = (key: string, value: string) => {
+    if (working[key] === value) return;
+    if (working === vars) working = { ...vars };
+    working[key] = value;
+  };
+
+  const gradientKeys = [
+    "--cta-button-gradient",
+    "--cta-gradient",
+    "--cta-chip-gradient",
+    "--brand-gradient",
+    "--gradient-brand",
+  ];
+  gradientKeys.forEach((key) => {
+    if (!isGradientValue(working[key])) {
+      ensure(key, palette.gradient);
+    }
+  });
+
+  (
+    [
+      ["--brand-from", palette.fromHex],
+      ["--brand-mid", palette.midHex],
+      ["--brand-to", palette.toHex],
+    ]
+  ).forEach(([key, value]: [string, string]) => {
+    if (!working[key]) ensure(key, value);
+  });
+
+  if (!working["--color-brand"]) ensure("--color-brand", palette.midHex);
+  if (!working["--color-brand-strong"]) ensure("--color-brand-strong", palette.toHex);
+
+  const textKeys = [
+    "--cta-button-text",
+    "--cta-chip-text",
+    "--text-on-brand",
+    "--header-foreground-strong",
+    "--color-brand-foreground",
+  ];
+  textKeys.forEach((key) => {
+    const current = working[key];
+    if (!hasReadableContrast(current, palette.accent)) {
+      ensure(key, palette.textHex);
+    }
+  });
+
+  return working === vars ? vars : working;
+}
+
+function deriveAppBackground(vars: Record<string, string>): string | null {
+  const base = pickColor(vars, ["--card-bg-1", "--card-bg-2", "--surface-muted", "--surface-elevated"]);
+  const accent = pickColor(vars, ["--color-brand", "--brand-mid", "--accent-glow", "--cta-gradient", "--cta-button-gradient"]);
+  const baseColor = base ?? (accent ? mixColors(accent, DARK_ANCHOR, 0.3) : null);
+  if (!baseColor) return null;
+  const accentColor = accent ?? lighten(baseColor, 0.35);
+  return buildAmbientGradient(baseColor, accentColor);
+}
+
+function pickColor(vars: Record<string, string>, keys: string[]): RGBA | null {
+  for (const key of keys) {
+    const value = vars[key];
+    if (!value) continue;
+    const color = extractFirstColor(value);
+    if (color) return color;
+  }
+  return null;
+}
+
+function extractFirstColor(value: string): RGBA | null {
+  const hexMatch = value.match(/#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})/i);
+  if (hexMatch) {
+    const color = parseHexColor(hexMatch[0]);
+    if (color) return color;
+  }
+  const rgbaMatch = value.match(/rgba?\([^)]*\)/i);
+  if (rgbaMatch) {
+    const color = parseRgbColor(rgbaMatch[0]);
+    if (color) return color;
+  }
+  const hslaMatch = value.match(/hsla?\([^)]*\)/i);
+  if (hslaMatch) {
+    const color = parseHslColor(hslaMatch[0]);
+    if (color) return color;
+  }
+  return null;
+}
+
+function parseHexColor(raw: string): RGBA | null {
+  const value = raw.trim();
+  const match = value.match(/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
+  if (!match) return null;
+  const hex = match[1]!;
+  if (hex.length === 3 || hex.length === 4) {
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    const a = hex.length === 4 ? parseInt(hex[3] + hex[3], 16) / 255 : 1;
+    return { r, g, b, a };
+  }
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
+  return { r, g, b, a };
+}
+
+function parseRgbColor(raw: string): RGBA | null {
+  const match = raw.trim().match(/^rgba?\(([^)]+)\)$/i);
+  if (!match) return null;
+  const parts = match[1].split(',').map((part) => part.trim());
+  if (parts.length < 3) return null;
+  const r = parseRgbComponent(parts[0]);
+  const g = parseRgbComponent(parts[1]);
+  const b = parseRgbComponent(parts[2]);
+  if (r == null || g == null || b == null) return null;
+  const a = parts[3] != null ? parseAlphaComponent(parts[3]) : 1;
+  if (a == null) return null;
+  return { r, g, b, a };
+}
+
+function parseRgbComponent(part: string): number | null {
+  if (part.endsWith('%')) {
+    const value = parseFloat(part);
+    if (Number.isNaN(value)) return null;
+    return clampChannel((value / 100) * 255);
+  }
+  const value = parseFloat(part);
+  if (Number.isNaN(value)) return null;
+  return clampChannel(value);
+}
+
+function parseAlphaComponent(part: string): number | null {
+  if (part.endsWith('%')) {
+    const value = parseFloat(part);
+    if (Number.isNaN(value)) return null;
+    return clamp(value / 100, 0, 1);
+  }
+  const value = parseFloat(part);
+  if (Number.isNaN(value)) return null;
+  return clamp(value, 0, 1);
+}
+
+function parseHslColor(raw: string): RGBA | null {
+  const match = raw.trim().match(/^hsla?\(([^)]+)\)$/i);
+  if (!match) return null;
+  const parts = match[1].split(',').map((part) => part.trim());
+  if (parts.length < 3) return null;
+  const h = parseFloat(parts[0]);
+  if (Number.isNaN(h)) return null;
+  const s = parsePercent(parts[1]);
+  const l = parsePercent(parts[2]);
+  if (s == null || l == null) return null;
+  const a = parts[3] != null ? parseAlphaComponent(parts[3]) : 1;
+  if (a == null) return null;
+  const rgb = hslToRgb(((h % 360) + 360) % 360 / 360, s, l);
+  return { ...rgb, a };
+}
+
+function parsePercent(part: string): number | null {
+  if (!part.endsWith('%')) return null;
+  const value = parseFloat(part);
+  if (Number.isNaN(value)) return null;
+  return clamp(value / 100, 0, 1);
+}
+
+function hslToRgb(h: number, s: number, l: number): Omit<RGBA, 'a'> {
+  if (s === 0) {
+    const value = clampChannel(l * 255);
+    return { r: value, g: value, b: value };
+  }
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const r = clampChannel(hueToRgb(p, q, h + 1 / 3) * 255);
+  const g = clampChannel(hueToRgb(p, q, h) * 255);
+  const b = clampChannel(hueToRgb(p, q, h - 1 / 3) * 255);
+  return { r, g, b };
+}
+
+function hueToRgb(p: number, q: number, t: number): number {
+  let value = t;
+  if (value < 0) value += 1;
+  if (value > 1) value -= 1;
+  if (value < 1 / 6) return p + (q - p) * 6 * value;
+  if (value < 1 / 2) return q;
+  if (value < 2 / 3) return p + (q - p) * (2 / 3 - value) * 6;
+  return p;
+}
+
+function buildAmbientGradient(base: RGBA, accent: RGBA): string {
+  const baseOpaque = { ...base, a: 1 };
+  const accentOpaque = { ...accent, a: 1 };
+  const glow = mixColors(accentOpaque, baseOpaque, 0.35);
+  const highlight = mixColors(accentOpaque, baseOpaque, 0.2);
+  const top = lighten(baseOpaque, 0.26);
+  const mid = mixColors(accentOpaque, lighten(baseOpaque, 0.12), 0.35);
+  const bottom = darken(baseOpaque, 0.38);
+  const deep = darken(baseOpaque, 0.55);
+
+  return [
+    'radial-gradient(1200px 720px at 0% 0%, ' + toRgbaString(glow, 0.22) + ', transparent 60%)',
+    'radial-gradient(1020px 680px at 100% 0%, ' + toRgbaString(highlight, 0.18) + ', transparent 62%)',
+    'linear-gradient(120deg, ' + toRgbaString(top, 0.95) + ' 0%, ' + toRgbaString(mid, 0.88) + ' 45%, ' + toHex(bottom) + ' 100%)',
+    'radial-gradient(880px 560px at 50% 108%, ' + toRgbaString(highlight, 0.16) + ', transparent 74%)',
+    toHex(deep),
+  ].join(', ');
+}
+
+function mixColors(a: RGBA, b: RGBA, ratio: number): RGBA {
+  const t = clamp(ratio, 0, 1);
+  return {
+    r: a.r + (b.r - a.r) * t,
+    g: a.g + (b.g - a.g) * t,
+    b: a.b + (b.b - a.b) * t,
+    a: a.a + (b.a - a.a) * t,
+  };
+}
+
+function lighten(color: RGBA, ratio: number): RGBA {
+  return mixColors(color, WHITE, ratio);
+}
+
+function darken(color: RGBA, ratio: number): RGBA {
+  return mixColors(color, BLACK, ratio);
+}
+
+function toHex(color: RGBA): string {
+  const r = Math.round(clamp(color.r, 0, 255));
+  const g = Math.round(clamp(color.g, 0, 255));
+  const b = Math.round(clamp(color.b, 0, 255));
+  return '#' + r.toString(16).padStart(2, '0') + g.toString(16).padStart(2, '0') + b.toString(16).padStart(2, '0');
+}
+
+function toRgbaString(color: RGBA, alpha?: number): string {
+  const r = Math.round(clamp(color.r, 0, 255));
+  const g = Math.round(clamp(color.g, 0, 255));
+  const b = Math.round(clamp(color.b, 0, 255));
+  const a = alpha ?? color.a;
+  const normalizedAlpha = Math.round(clamp(a, 0, 1) * 100) / 100;
+  return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + normalizedAlpha + ')';
+}
+function buildBrandPalette(accent: RGBA) {
+  const accentOpaque: RGBA = { ...accent, a: 1 };
+  const from = lighten(accentOpaque, 0.32);
+  const to = darken(accentOpaque, 0.26);
+  const gradient = 
+    'linear-gradient(120deg, ' + toHex(from) + ' 0%, ' + toHex(accentOpaque) + ' 52%, ' + toHex(to) + ' 100%)';
+  return {
+    gradient,
+    fromHex: toHex(from),
+    midHex: toHex(accentOpaque),
+    toHex: toHex(to),
+    textHex: pickReadableTextHex(accentOpaque),
+    accent: accentOpaque,
+  };
+}
+
+function pickReadableTextHex(color: RGBA): string {
+  const contrastWithLight = contrastRatio(color, LIGHT_TEXT_COLOR);
+  const contrastWithDark = contrastRatio(color, DARK_TEXT_COLOR);
+  return contrastWithLight >= contrastWithDark ? LIGHT_TEXT_HEX : DARK_TEXT_HEX;
+}
+
+function hasReadableContrast(value: string | undefined, background: RGBA): boolean {
+  const candidate = value ? extractFirstColor(value) : null;
+  if (!candidate) return false;
+  return contrastRatio(candidate, background) >= 3.5;
+}
+
+function isGradientValue(value: unknown): value is string {
+  return typeof value === "string" && /\bgradient\(/i.test(value);
+}
+
+function contrastRatio(a: RGBA, b: RGBA): number {
+  const lumA = relativeLuminance(a);
+  const lumB = relativeLuminance(b);
+  const lighter = Math.max(lumA, lumB);
+  const darker = Math.min(lumA, lumB);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance(color: RGBA): number {
+  const r = srgbChannel(color.r);
+  const g = srgbChannel(color.g);
+  const b = srgbChannel(color.b);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function srgbChannel(value: number): number {
+  const channel = clamp(value, 0, 255) / 255;
+  return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+}
+
+
+function clampChannel(value: number): number {
+  return clamp(value, 0, 255);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+const WHITE: RGBA = { r: 255, g: 255, b: 255, a: 1 };
+const BLACK: RGBA = { r: 0, g: 0, b: 0, a: 1 };
+const DARK_ANCHOR: RGBA = { r: 8, g: 10, b: 22, a: 1 };
+
+
+
+
+const LIGHT_TEXT_HEX = '#f8fafc';
+const DARK_TEXT_HEX = '#0f172a';
+const LIGHT_TEXT_COLOR = parseHexColor(LIGHT_TEXT_HEX) ?? WHITE;
+const DARK_TEXT_COLOR = parseHexColor(DARK_TEXT_HEX) ?? BLACK;
+const DEFAULT_ACCENT = parseHexColor('#6366f1') ?? { r: 99, g: 102, b: 241, a: 1 };
+
+
