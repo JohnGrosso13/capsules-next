@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getRealtimeAuthProvider, getRealtimePublisher } from "@/config/realtime-server";
-import { getChatDirectChannel } from "@/lib/chat/channels";
+import { getChatDirectChannel, CHAT_CONSTANTS } from "@/lib/chat/channels";
 import { listFriendUserIds } from "@/server/friends/repository";
 import type { RealtimeAuthPayload, RealtimeCapabilities } from "@/ports/realtime";
 
@@ -59,6 +59,11 @@ export async function createFriendRealtimeAuth(userId: string): Promise<Realtime
     console.error("Friend realtime chat channel error", error);
   }
 
+  if (process.env.NODE_ENV !== "production") {
+    const wildcardChannel = `${CHAT_CONSTANTS.DIRECT_PREFIX}:*`;
+    grantCapability(capabilities, wildcardChannel, ["publish"]);
+  }
+
   try {
     const friendIds = await listFriendUserIds(userId);
     console.log("Realtime chat capabilities", { userId, friendIds, capabilitiesBeforeFriends: { ...capabilities } });
@@ -81,3 +86,4 @@ export async function createFriendRealtimeAuth(userId: string): Promise<Realtime
     throw error;
   }
 }
+
