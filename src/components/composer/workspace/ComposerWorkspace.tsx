@@ -6,8 +6,9 @@ import { ChatsCircle, SidebarSimple } from "@phosphor-icons/react/dist/ssr";
 import { useComposerArtifact, ComposerArtifactProvider } from "@/hooks/useComposerArtifact";
 import type { FocusedSlotRef } from "@/hooks/useComposerArtifact";
 import { useWorkspaceShortcuts } from "@/hooks/useWorkspaceShortcuts";
+import { safeRandomUUID } from "@/lib/random";
 import type { ComposerEventBus } from "@/lib/composer/event-bus";
-import type { Artifact } from "@/shared/types/artifacts";
+import type { Artifact, ArtifactBlock } from "@/shared/types/artifacts";
 
 import { ArtifactCanvas } from "./ArtifactCanvas";
 import { ChatControlPanel } from "./ChatControlPanel";
@@ -24,9 +25,8 @@ type ComposerWorkspaceProps = {
   onSelectReference?: (id: string) => void;
   onApplySuggestion?: (value: string) => void;
   onSendMessage?: (value: string) => Promise<void> | void;
+  onClose?: () => void;
 };
-
-type ComposerWorkspaceInnerProps = ComposerWorkspaceProps;
 
 function useMediaQuery(query: string): boolean {
   const getMatch = React.useCallback(() => {
@@ -48,6 +48,12 @@ function useMediaQuery(query: string): boolean {
   return matches;
 }
 
+function firstSlotId(block: ArtifactBlock | null | undefined): string | null {
+  if (!block) return null;
+  const entries = Object.keys(block.slots ?? {});
+  return entries.length ? entries[0] : null;
+}
+
 function ComposerWorkspaceInner({
   artifact,
   recents,
@@ -57,7 +63,8 @@ function ComposerWorkspaceInner({
   onSelectReference,
   onApplySuggestion,
   onSendMessage,
-}: ComposerWorkspaceInnerProps) {
+  onClose,
+}: ComposerWorkspaceProps) {
   const {
     artifact: currentArtifact,
     viewState,
@@ -67,6 +74,10 @@ function ComposerWorkspaceInner({
     lastStatus,
     selectBlock,
     setFocusedSlot,
+    setViewState,
+    emitEvent,
+    markPendingPersisted,
+    clearPending,
   } = useComposerArtifact({ artifact, autoHydrate: true });
 
   const [railCollapsed, setRailCollapsed] = React.useState(true);
@@ -111,11 +122,6 @@ function ComposerWorkspaceInner({
     }
   }, [isChatOverlay]);
 
-  useWorkspaceShortcuts({
-    onToggleContextRail: handleToggleContext,
-    onToggleChat: handleToggleChat,
-  });
-
   const focus: FocusedSlotRef = React.useMemo(
     () => ({
       blockId: focusedSlot?.blockId ?? selectedBlockId,
@@ -123,6 +129,155 @@ function ComposerWorkspaceInner({
     }),
     [focusedSlot, selectedBlockId],
   );
+
+  const blocks = React.useMemo(() => currentArtifact?.blocks ?? [], [currentArtifact]);
+
+  const ensureTargetBlock = React.useCallback((): ArtifactBlock | null => {
+    if (!currentArtifact) return null;
+    if (blocks.length) {
+      const focused = blocks.find((block) => block.id === focus.blockId);
+      return focused ?? blocks[0];
+    }
+    const seedBlock: ArtifactBlock = {
+      id: safeRandomUUID(),
+      type: "text.rich",
+      label: "Body",
+      state: { mode: "active" },
+      slots: {
+        body: {
+          id: "body",
+          kind: "text",
+          status: "ready",
+          value: {
+            kind: "text",
+            content: "",
+            format: "markdown",
+          },
+        },
+      },
+    };
+    emitEvent("insert_block", { artifactId: currentArtifact.id, block: seedBlock });
+    return seedBlock;
+  }, [blocks, currentArtifact, emitEvent, focus.blockId]);
+
+  const handleAddMediaSlot = React.useCallback(() => {
+    if (!currentArtifact) return;
+    const target = ensureTargetBlock();
+    if (!target) return;
+    const slotId = `media_${Date.now().toString(36)}`;
+    emitEvent("update_slot", {
+      artifactId: currentArtifact.id,
+      blockId: target.id,
+      slotId,
+      patch: {
+        kind: "media",
+        status: "empty",
+      },
+    });
+    selectBlock(target.id);
+    setFocusedSlot({ blockId: target.id, slotId });
+    setViewState("focusing-slot");
+    if (isChatOverlay) setChatOverlayOpen(true);
+  }, [currentArtifact, ensureTargetBlock, emitEvent, isChatOverlay, selectBlock, setFocusedSlot, setViewState]);
+
+  const handleRequestMediaUpload = React.useCallback(
+    (blockId: string, slotId: string) => {
+      if (!currentArtifact) return;
+      emitEvent("update_slot", {
+        artifactId: currentArtifact.id,
+        blockId,
+        slotId,
+        patch: {
+          status: "pending",
+          value: {
+            kind: "media",
+            url: "",
+            altText: "Awaiting upload",
+            descriptors: { source: "upload" },
+          },
+          provenance: {
+            source: "upload",
+            createdAt: new Date().toISOString(),
+          },
+        },
+      });
+      setViewState("drafting");
+    },
+    [currentArtifact, emitEvent, setViewState],
+  );
+
+  const handleRequestMediaGenerate = React.useCallback(
+    (blockId: string, slotId: string) => {
+      if (!currentArtifact) return;
+      emitEvent("update_slot", {
+        artifactId: currentArtifact.id,
+        blockId,
+        slotId,
+        patch: {
+          status: "pending",
+          value: {
+            kind: "media",
+            url: "",
+            altText: "Generating preview",
+            descriptors: { source: "ai" },
+          },
+          provenance: {
+            source: "ai",
+            createdAt: new Date().toISOString(),
+          },
+        },
+      });
+      setViewState("drafting");
+    },
+    [currentArtifact, emitEvent, setViewState],
+  );
+
+  const handleAcceptChange = React.useCallback((timestamp: number) => {
+    markPendingPersisted([timestamp]);
+    setViewState("drafting");
+  }, [markPendingPersisted, setViewState]);
+
+  const handleDiscardChange = React.useCallback((timestamp: number) => {
+    clearPending([timestamp]);
+    setViewState("drafting");
+  }, [clearPending, setViewState]);
+
+  const handleFocusNextBlock = React.useCallback(() => {
+    if (!blocks.length) return;
+    const currentIndex = blocks.findIndex((block) => block.id === focus.blockId);
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % blocks.length : 0;
+    const nextBlock = blocks[nextIndex];
+    selectBlock(nextBlock.id);
+    const slotId = firstSlotId(nextBlock);
+    if (slotId) {
+      setFocusedSlot({ blockId: nextBlock.id, slotId });
+    } else {
+      setFocusedSlot(null);
+    }
+    setViewState("drafting");
+  }, [blocks, focus.blockId, selectBlock, setFocusedSlot, setViewState]);
+
+  const handleFocusPreviousBlock = React.useCallback(() => {
+    if (!blocks.length) return;
+    const currentIndex = blocks.findIndex((block) => block.id === focus.blockId);
+    const prevIndex = currentIndex >= 0 ? (currentIndex - 1 + blocks.length) % blocks.length : blocks.length - 1;
+    const prevBlock = blocks[prevIndex];
+    selectBlock(prevBlock.id);
+    const slotId = firstSlotId(prevBlock);
+    if (slotId) {
+      setFocusedSlot({ blockId: prevBlock.id, slotId });
+    } else {
+      setFocusedSlot(null);
+    }
+    setViewState("drafting");
+  }, [blocks, focus.blockId, selectBlock, setFocusedSlot, setViewState]);
+
+  useWorkspaceShortcuts({
+    onToggleContextRail: handleToggleContext,
+    onToggleChat: handleToggleChat,
+    onFocusNextBlock: handleFocusNextBlock,
+    onFocusPreviousBlock: handleFocusPreviousBlock,
+  });
 
   const resolvedRecents: WorkspaceListItem[] = React.useMemo(() => {
     if (recents) return recents;
@@ -176,6 +331,13 @@ function ComposerWorkspaceInner({
             Chat
           </button>
         </div>
+        {onClose ? (
+          <div className={styles.workspaceHeaderActions}>
+            <button type="button" className={styles.secondaryButton} onClick={onClose}>
+              Close
+            </button>
+          </div>
+        ) : null}
       </header>
       <div
         className={styles.workspaceBody}
@@ -202,6 +364,8 @@ function ComposerWorkspaceInner({
             pendingChanges={pendingChanges}
             onSelectBlock={selectBlock}
             onFocusSlot={(blockId, slotId) => setFocusedSlot({ blockId, slotId })}
+            onRequestMediaUpload={handleRequestMediaUpload}
+            onRequestMediaGenerate={handleRequestMediaGenerate}
           />
         </div>
         <ChatControlPanel
@@ -211,19 +375,22 @@ function ComposerWorkspaceInner({
           open={isChatOverlay ? chatOverlayOpen : true}
           collapsed={chatCollapsed}
           suggestions={resolvedSuggestions}
-          onToggle={handleToggleChat}
+          onToggle={isChatOverlay ? handleToggleChat : undefined}
           onSendMessage={onSendMessage}
+          onAddMediaSlot={handleAddMediaSlot}
+          onAcceptChange={handleAcceptChange}
+          onDiscardChange={handleDiscardChange}
         />
       </div>
     </div>
   );
 }
 
-export function ComposerWorkspace(props: ComposerWorkspaceProps) {
-  const { artifact, eventBus, ...rest } = props;
+export function ComposerWorkspace({ artifact, eventBus, ...rest }: ComposerWorkspaceProps) {
   return (
     <ComposerArtifactProvider eventBus={eventBus}>
       <ComposerWorkspaceInner artifact={artifact} {...rest} />
     </ComposerArtifactProvider>
   );
 }
+

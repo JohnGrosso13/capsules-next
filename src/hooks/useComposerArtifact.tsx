@@ -20,6 +20,7 @@ import {
   useComposerEventBus,
   type ComposerEventBus,
 } from "@/lib/composer/event-bus";
+import { safeRandomUUID } from "@/lib/random";
 
 export type FocusedSlotRef = {
   blockId: string;
@@ -42,6 +43,47 @@ type ComposerArtifactState = {
   pendingChanges: PendingComposerChange[];
   lastStatus: ComposerStatusSnapshot | null;
 };
+
+
+function createSeedArtifact(): Artifact {
+  const id = safeRandomUUID();
+  const blockId = safeRandomUUID();
+  const now = new Date().toISOString();
+  return {
+    id,
+    ownerUserId: "local-user",
+    artifactType: "custom",
+    status: "draft",
+    title: "Untitled artifact",
+    description: null,
+    version: 1,
+    metadata: {},
+    blocks: [
+      {
+        id: blockId,
+        type: "text.rich",
+        label: "Body",
+        state: { mode: "active" },
+        slots: {
+          body: {
+            id: "body",
+            kind: "text",
+            status: "ready",
+            value: {
+              kind: "text",
+              content: "",
+              format: "markdown",
+            },
+          },
+        },
+      },
+    ],
+    context: undefined,
+    createdAt: now,
+    updatedAt: now,
+    committedAt: null,
+  };
+}
 
 const INITIAL_STATE: ComposerArtifactState = {
   artifact: null,
@@ -474,9 +516,12 @@ export function useComposerArtifact(options: UseComposerArtifactOptions): UseCom
     if (options.artifact) {
       dispatch({ type: "hydrate", artifact: options.artifact });
       artifactRef.current = options.artifact;
-    } else {
-      dispatch({ type: "reset" });
-      artifactRef.current = null;
+      return;
+    }
+    if (!artifactRef.current) {
+      const seed = createSeedArtifact();
+      dispatch({ type: "hydrate", artifact: seed });
+      artifactRef.current = seed;
     }
   }, [options.artifact, options.autoHydrate]);
 

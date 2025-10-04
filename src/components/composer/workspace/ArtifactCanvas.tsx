@@ -1,4 +1,5 @@
 import * as React from "react";
+import { MagicWand, UploadSimple } from "@phosphor-icons/react/dist/ssr";
 
 import type {
   Artifact,
@@ -17,6 +18,8 @@ type ArtifactCanvasProps = {
   pendingChanges: PendingComposerChange[];
   onSelectBlock?: (blockId: string) => void;
   onFocusSlot?: (blockId: string, slotId: string) => void;
+  onRequestMediaUpload?: (blockId: string, slotId: string) => void;
+  onRequestMediaGenerate?: (blockId: string, slotId: string) => void;
 };
 
 type RenderBlockOptions = {
@@ -24,7 +27,37 @@ type RenderBlockOptions = {
   focus: { blockId: string | null; slotId: string | null };
   onSelectBlock?: (blockId: string) => void;
   onFocusSlot?: (blockId: string, slotId: string) => void;
+  onRequestMediaUpload?: (blockId: string, slotId: string) => void;
+  onRequestMediaGenerate?: (blockId: string, slotId: string) => void;
 };
+
+type MediaSlotSelectorProps = {
+  onUpload(): void;
+  onGenerate(): void;
+  status: ArtifactSlot["status"];
+};
+
+function MediaSlotSelector({ onUpload, onGenerate, status }: MediaSlotSelectorProps) {
+  return (
+    <div className={styles.mediaSelector}>
+      <div className={styles.mediaSelectorTitle}>
+        {status === "pending" ? "Preparing media" : "Drop media into this slot"}
+      </div>
+      {status === "empty" ? (
+        <div className={styles.mediaSelectorActions}>
+          <button type="button" className={styles.primaryButton} onClick={onUpload}>
+            <UploadSimple size={16} weight="bold" aria-hidden /> Upload from device
+          </button>
+          <button type="button" className={styles.secondaryButton} onClick={onGenerate}>
+            <MagicWand size={16} weight="bold" aria-hidden /> Generate with AI
+          </button>
+        </div>
+      ) : (
+        <span className={styles.ghostMessage}>We will keep the chat thread open while media finishes.</span>
+      )}
+    </div>
+  );
+}
 
 function titleFromBlock(block: ArtifactBlock): string {
   if (block.label) return block.label;
@@ -32,20 +65,32 @@ function titleFromBlock(block: ArtifactBlock): string {
 }
 
 function renderSlot(blockId: string, slotId: string, slot: ArtifactSlot, options: RenderBlockOptions) {
+  const isFocused = options.focus.blockId === blockId && options.focus.slotId === slotId;
+  const handleClick = () => options.onFocusSlot?.(blockId, slotId);
+  const handleKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      options.onFocusSlot?.(blockId, slotId);
+    }
+  };
+
   return (
-    <button
+    <div
       key={slotId}
-      type="button"
       className={styles.canvasSlotCard}
-      onClick={() => options.onFocusSlot?.(blockId, slotId)}
+      role="button"
+      tabIndex={0}
+      data-state={isFocused ? "focus" : undefined}
+      onClick={handleClick}
+      onKeyDown={handleKey}
     >
       <span className={styles.canvasSlotStatus}>{slotId}</span>
       {slot.value ? (
         <span>
           {slot.value.kind === "text"
-            ? slot.value.content.slice(0, 160)
+            ? slot.value.content.slice(0, 160) || "Empty text"
             : slot.value.kind === "media"
-              ? slot.value.altText ?? slot.value.url
+              ? slot.value.altText ?? slot.value.url ?? "Media placeholder"
               : slot.value.kind === "poll"
                 ? `${slot.value.options.length} poll options`
                 : slot.value.kind === "data"
@@ -59,8 +104,14 @@ function renderSlot(blockId: string, slotId: string, slot: ArtifactSlot, options
       ) : (
         <span className={styles.ghostMessage}>Empty slot</span>
       )}
-      <span className={styles.ghostMessage}>{slot.status.toUpperCase()}</span>
-    </button>
+      {isFocused && slot.kind === "media" ? (
+        <MediaSlotSelector
+          status={slot.status}
+          onUpload={() => options.onRequestMediaUpload?.(blockId, slotId)}
+          onGenerate={() => options.onRequestMediaGenerate?.(blockId, slotId)}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -77,19 +128,35 @@ function renderBlock(block: ArtifactBlock, options: RenderBlockOptions): React.R
       </header>
       <div className={styles.canvasSlots}>
         {slots.length
-          ? slots.map(([slotId, slot]) => renderSlot(block.id, slotId, slot, options))
+          ? slots.map(([slotId, slot]) =>
+              renderSlot(block.id, slotId, slot, options),
+            )
           : <div className={styles.ghostMessage}>No slots defined</div>}
       </div>
       {block.children?.length ? (
         <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
-          {block.children.map((child) => renderBlock(child, { ...options, depth: options.depth + 1 }))}
+          {block.children.map((child) =>
+            renderBlock(child, {
+              ...options,
+              depth: options.depth + 1,
+            }),
+          )}
         </div>
       ) : null}
     </article>
   );
 }
 
-export function ArtifactCanvas({ artifact, focus, viewState, pendingChanges, onSelectBlock, onFocusSlot }: ArtifactCanvasProps) {
+export function ArtifactCanvas({
+  artifact,
+  focus,
+  viewState,
+  pendingChanges,
+  onSelectBlock,
+  onFocusSlot,
+  onRequestMediaUpload,
+  onRequestMediaGenerate,
+}: ArtifactCanvasProps) {
   const blockList = artifact?.blocks ?? [];
   const hasPending = pendingChanges.some((change) => !change.persisted);
 
@@ -116,6 +183,8 @@ export function ArtifactCanvas({ artifact, focus, viewState, pendingChanges, onS
               focus,
               onSelectBlock,
               onFocusSlot,
+              onRequestMediaUpload,
+              onRequestMediaGenerate,
             }),
           )
         ) : (

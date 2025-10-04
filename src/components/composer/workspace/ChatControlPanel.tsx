@@ -1,5 +1,5 @@
 import * as React from "react";
-import { PaperPlaneRight, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { CheckCircle, PaperPlaneRight, PlusCircle, Sparkle, XCircle } from "@phosphor-icons/react/dist/ssr";
 
 import type { ComposerViewState, PendingComposerChange } from "@/shared/types/artifacts";
 
@@ -26,7 +26,27 @@ type ChatControlPanelProps = {
   suggestions?: string[];
   onToggle?: () => void;
   onSendMessage?: (value: string) => Promise<void> | void;
+  onAddMediaSlot?: () => void;
+  onAcceptChange?: (timestamp: number) => void;
+  onDiscardChange?: (timestamp: number) => void;
 };
+
+function formatEventLabel(eventType: string): string {
+  switch (eventType) {
+    case "insert_block":
+      return "AI proposed a new block";
+    case "update_slot":
+      return "Slot updated";
+    case "remove_block":
+      return "Block removed";
+    case "preview_media":
+      return "Media preview ready";
+    case "commit_artifact":
+      return "Artifact committed";
+    default:
+      return eventType.replace(/_/g, " ");
+  }
+}
 
 export function ChatControlPanel({
   viewState,
@@ -37,6 +57,9 @@ export function ChatControlPanel({
   suggestions = DEFAULT_SUGGESTIONS,
   onToggle,
   onSendMessage,
+  onAddMediaSlot,
+  onAcceptChange,
+  onDiscardChange,
 }: ChatControlPanelProps) {
   const [draft, setDraft] = React.useState("");
   const [sending, setSending] = React.useState(false);
@@ -80,16 +103,56 @@ export function ChatControlPanel({
       aria-label="Composer chat"
     >
       <div className={styles.chatHistory}>
-        <div className={styles.ghostMessage}>View state: {viewState}</div>
+        <div className={styles.chatActionRow}>
+          <button
+            type="button"
+            className={styles.primaryButton}
+            onClick={onAddMediaSlot}
+            disabled={!onAddMediaSlot}
+          >
+            <PlusCircle size={18} weight="bold" aria-hidden /> Add media slot
+          </button>
+          {onToggle ? (
+            <button type="button" className={styles.secondaryButton} onClick={onToggle}>
+              {collapsed ? "Show chat" : "Hide chat"}
+            </button>
+          ) : null}
+        </div>
+        <span className={styles.ghostMessage}>View state: {viewState}</span>
         {recentChanges.length ? (
-          recentChanges.map(({ event, persisted }) => (
-            <div key={`${event.type}-${event.timestamp}`} className={styles.canvasSlotCard}>
-              <strong>{event.type}</strong>
-              <span className={styles.ghostMessage}>
-                {persisted ? "Persisted" : "Pending"} · {new Date(event.timestamp).toLocaleTimeString()}
-              </span>
-            </div>
-          ))
+          recentChanges.map(({ event, persisted }) => {
+            const readable = formatEventLabel(event.type);
+            const timestamp = new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            const actionable = !persisted;
+            return (
+              <div key={`${event.type}-${event.timestamp}`} className={styles.proposalCard}>
+                <strong>{readable}</strong>
+                <span className={styles.ghostMessage}>
+                  {persisted ? "Applied" : "Pending review"} | {timestamp}
+                </span>
+                {actionable ? (
+                  <div className={styles.proposalActions}>
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      onClick={() => onAcceptChange?.(event.timestamp)}
+                      disabled={!onAcceptChange}
+                    >
+                      <CheckCircle size={16} weight="bold" aria-hidden /> Accept
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={() => onDiscardChange?.(event.timestamp)}
+                      disabled={!onDiscardChange}
+                    >
+                      <XCircle size={16} weight="bold" aria-hidden /> Dismiss
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
         ) : (
           <div className={styles.ghostMessage}>No chat history yet. Start with a prompt below.</div>
         )}
@@ -115,7 +178,7 @@ export function ChatControlPanel({
             onChange={(event) => setDraft(event.target.value)}
             aria-label="Chat prompt"
           />
-          <button type="submit" className={styles.suggestionChip} disabled={sending}>
+          <button type="submit" className={styles.primaryButton} disabled={sending}>
             <PaperPlaneRight size={16} weight="bold" aria-hidden /> {sending ? "Sending..." : "Send"}
           </button>
         </div>
@@ -123,14 +186,17 @@ export function ChatControlPanel({
       </form>
       {lastStatus ? (
         <div className={styles.statusToast} role="status">
-          <span className={styles.statusDot} style={{
-            background:
-              statusTone === "error"
-                ? "#ff7676"
-                : statusTone === "pending"
-                  ? "#ffd86b"
-                  : "var(--accent-400, #74b9ff)",
-          }} />
+          <span
+            className={styles.statusDot}
+            style={{
+              background:
+                statusTone === "error"
+                  ? "#ff7676"
+                  : statusTone === "pending"
+                    ? "#ffd86b"
+                    : "var(--accent-400, #74b9ff)",
+            }}
+          />
           <span>{lastStatus.message ?? `${lastStatus.scope} ${lastStatus.status}`}</span>
           {typeof lastStatus.costCents === "number" ? (
             <span className={styles.ghostMessage}>{(lastStatus.costCents / 100).toFixed(2)} USD</span>

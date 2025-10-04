@@ -11,7 +11,7 @@ import { applyThemeVars } from "@/lib/theme";
 import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
 import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
-import type { ComposerMode } from "@/lib/ai/nav";
+import { detectComposerMode, type ComposerMode } from "@/lib/ai/nav";
 import {
   draftPostResponseSchema,
   stylerResponseSchema,
@@ -504,27 +504,29 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function AiComposerRoot() {
-  const { state, close, post, forceChoice, updateDraft } = useComposer();
-  const forceHandlers = forceChoice
-    ? {
-        onForceChoice: (key: string) => {
-          void forceChoice(key);
-        },
-      }
-    : {};
+  const { state, close, handlePrompterAction } = useComposer();
+
+  const handleSend = React.useCallback(
+    async (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      await handlePrompterAction({
+        kind: "post_ai",
+        prompt: trimmed,
+        raw: trimmed,
+        mode: detectComposerMode(trimmed),
+      });
+    },
+    [handlePrompterAction],
+  );
 
   return (
     <AiComposerDrawer
       open={state.open}
-      loading={state.loading}
       draft={state.draft}
       prompt={state.prompt}
-      message={state.message}
-      choices={state.choices}
-      onChange={updateDraft}
       onClose={close}
-      onPost={post}
-      {...forceHandlers}
+      onSendMessage={handleSend}
     />
   );
 }

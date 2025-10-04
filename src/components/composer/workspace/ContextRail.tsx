@@ -56,7 +56,7 @@ export function ContextRail({
           <button
             type="button"
             className={styles.suggestionChip}
-            onClick={onClose}
+            onClick={() => onClose?.()}
             style={{ justifyContent: "flex-start", width: "100%" }}
           >
             {title}
