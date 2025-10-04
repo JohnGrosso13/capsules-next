@@ -145,6 +145,64 @@
     --style-requests-badge-bg: var(--tile-badge-bg-base);
     --style-requests-badge-color: var(--tile-badge-color-base);
     --style-requests-border-hover: var(--tile-border-hover-base);
+
+    /* Friends surface tokens */
+    --friends-tabs-scrim: color-mix(in srgb, var(--surface-overlay, rgba(255, 255, 255, 0.78)) 82%, rgba(148, 197, 255, 0.22));
+    --friends-tab-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.92) 75%, transparent),
+      color-mix(in srgb, rgba(148, 197, 255, 0.35) 70%, transparent)
+    );
+    --friends-badge-background: color-mix(in srgb, var(--color-brand) 62%, rgba(59, 130, 246, 0.28));
+    --friends-badge-text: var(--text-on-brand, #0e1024);
+    --friends-notice-text: color-mix(in srgb, var(--text) 90%, var(--text-on-brand, #0e1024) 10%);
+    --friends-empty-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(220, 230, 255, 0.6) 70%, transparent),
+      color-mix(in srgb, rgba(183, 200, 255, 0.45) 70%, transparent)
+    );
+    --friends-retry-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 55%, transparent),
+      color-mix(in srgb, rgba(59, 130, 246, 0.32) 70%, transparent)
+    );
+    --friends-row-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.96) 75%, transparent),
+      color-mix(in srgb, rgba(221, 229, 255, 0.6) 75%, transparent)
+    );
+    --friends-row-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+    --friends-avatar-background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(226, 232, 255, 0.74));
+    --friends-avatar-fallback-text: color-mix(in srgb, var(--text) 92%, var(--text-on-brand, #0e1024) 8%);
+    --friends-presence-neutral-dot: color-mix(in srgb, var(--presence-offline-dot, rgba(148, 163, 184, 0.4)) 90%, transparent);
+    --friends-presence-neutral-dot-muted: color-mix(
+      in srgb,
+      var(--friends-presence-neutral-dot) 55%,
+      transparent
+    );
+    --friends-menu-trigger-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.92) 80%, transparent),
+      color-mix(in srgb, rgba(182, 196, 255, 0.32) 70%, transparent)
+    );
+    --friends-menu-panel-background: color-mix(in srgb, var(--surface-elevated, rgba(255, 255, 255, 0.92)) 94%, rgba(226, 232, 255, 0.78));
+    --friends-menu-panel-shadow: 0 18px 32px rgba(15, 23, 42, 0.16);
+    --friends-request-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(233, 239, 255, 0.7) 70%, transparent),
+      color-mix(in srgb, rgba(198, 210, 255, 0.48) 70%, transparent)
+    );
+    --friends-request-action-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(233, 239, 255, 0.68) 70%, transparent),
+      color-mix(in srgb, rgba(198, 210, 255, 0.46) 70%, transparent)
+    );
+    --friends-request-primary-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 55%, rgba(59, 130, 246, 0.2)),
+      color-mix(in srgb, var(--color-brand) 65%, rgba(22, 163, 255, 0.18))
+    );
+
     --surface-1: rgba(255, 255, 255, 0.98);
     --surface-3: rgba(245, 247, 255, 0.94);
     --surface-outline: rgba(14, 23, 42, 0.12);
