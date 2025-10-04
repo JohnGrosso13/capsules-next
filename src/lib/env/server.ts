@@ -41,6 +41,8 @@ export type ServerEnv = {
   ALGOLIA_APP_ID: string | null;
   ALGOLIA_API_KEY: string | null;
   ALGOLIA_INDEX_PREFIX: string | null;
+  ARTIFACT_EMBEDDING_QUEUE: string | null;
+  ARTIFACT_EMBED_GATEWAY: string | null;
 };
 
 function getEnv(name: string, fallbacks: string[] = [], options: { required?: boolean } = {}) {
@@ -77,6 +79,8 @@ const imageResizeBaseUrl = imageResizeBaseUrlRaw ? imageResizeBaseUrlRaw.replace
 const algoliaAppId = getEnv("ALGOLIA_APP_ID", ["NEXT_PUBLIC_ALGOLIA_APP_ID"]);
 const algoliaApiKey = getEnv("ALGOLIA_API_KEY", []);
 const algoliaIndexPrefix = getEnv("ALGOLIA_INDEX_PREFIX", ["NEXT_PUBLIC_ALGOLIA_INDEX_PREFIX"]);
+const artifactEmbeddingQueue = getEnv("ARTIFACT_EMBEDDING_QUEUE", []);
+const artifactEmbedGateway = getEnv("ARTIFACT_EMBED_GATEWAY", ["ARTIFACT_EMBEDDING_GATEWAY"]);
 
 export const serverEnv: ServerEnv = {
   SUPABASE_URL: getEnv("SUPABASE_URL", ["NEXT_PUBLIC_SUPABASE_URL"], { required: true })!,
@@ -147,4 +151,7 @@ export const serverEnv: ServerEnv = {
   ALGOLIA_APP_ID: algoliaAppId,
   ALGOLIA_API_KEY: algoliaApiKey,
   ALGOLIA_INDEX_PREFIX: algoliaIndexPrefix,
+  ARTIFACT_EMBEDDING_QUEUE: artifactEmbeddingQueue,
+  ARTIFACT_EMBED_GATEWAY: artifactEmbedGateway,
 };
+
