@@ -193,6 +193,9 @@ function applyAccentPalette(vars: Record<string, string>, accentHex: string, glo
   vars["--color-brand"] = accent.hex;
   vars["--color-brand-strong"] = rgbToHex(brandTo);
   vars["--color-brand-foreground"] = brandText;
+  vars["--color-brand-muted"] = rgba(accent.rgb, 0.2);
+  vars["--cta-chip-gradient"] = gradient;
+  vars["--cta-chip-text"] = brandText;
 
   const glowRgb = tint(accent.rgb, 0.42);
   vars["--accent-glow"] = rgba(glowRgb, glowAlpha);
@@ -717,6 +720,7 @@ function solveOverlayAlphaForContrast(bg: RGB, overlay: RGB, text: RGB, minRatio
   return clamp01(best);
 }
 
+
 function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   const { rgb } = color;
   const isLight = luminance(rgb) > 0.55;
@@ -783,7 +787,6 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
     textBase,
     MIN_SECONDARY,
   );
-  // Layered background highlights to avoid a flat backdrop
   const appLayer1 = rgba(mix(rgb, neutralBase, isLight ? 0.18 : 0.26), isLight ? 0.22 : 0.18);
   const appLayer2 = rgba(mix(rgb, neutralAlt, isLight ? 0.14 : 0.24), isLight ? 0.18 : 0.16);
   const appLayer3 = rgba(mix(rgb, neutralDeep, isLight ? 0.1 : 0.2), isLight ? 0.12 : 0.14);
@@ -793,6 +796,8 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
 
   const text2Alpha = solveTextAlphaForContrast(cardBg1Rgb, textBase, MIN_SECONDARY);
   const text2 = rgba(textBase, text2Alpha);
+  const text3Alpha = clamp01(Math.max(0.26, text2Alpha * 0.72));
+  const text3 = rgba(textBase, text3Alpha);
 
   const brandTextBase = pickTextBaseFor(brandMidRgb);
   const brandTextIsLight = brandTextBase.r > 128;
@@ -817,16 +822,69 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   const brandToAdjusted = blendOver(brandToRgb, overlayColor, overlayForBrand);
   const textOnBrand = rgba(brandTextBase, 1);
 
-  const brandGradient = `linear-gradient(120deg, ${rgbToHex(brandFromAdjusted)}, ${rgbToHex(brandMidAdjusted)}, ${rgbToHex(brandToAdjusted)})`;
+  const brandGradient = `linear-gradient(120deg, ${rgbToHex(brandFromAdjusted)}, ${rgbToHex(
+    brandMidAdjusted,
+  )}, ${rgbToHex(brandToAdjusted)})`;
   const ctaOverlayAlpha = Math.min(0.95, overlayForBrand + 0.08);
   const ctaFrom = blendOver(brandFromRgb, overlayColor, ctaOverlayAlpha);
   const ctaMid = blendOver(brandMidRgb, overlayColor, ctaOverlayAlpha);
   const ctaTo = blendOver(brandToRgb, overlayColor, ctaOverlayAlpha);
-  const ctaGradient = `linear-gradient(120deg, ${rgbToHex(ctaFrom)}, ${rgbToHex(ctaMid)}, ${rgbToHex(ctaTo)})`;
+  const ctaGradient = `linear-gradient(120deg, ${rgbToHex(ctaFrom)}, ${rgbToHex(ctaMid)}, ${rgbToHex(
+    ctaTo,
+  )})`;
 
   const textIsLight = textBase.r > 128;
   const accentGlow = textIsLight ? rgba(tint(rgb, 0.35), 0.3) : rgba(shade(rgb, 0.3), 0.24);
   const headerScrim = textIsLight ? "rgba(7,9,22,0.90)" : "rgba(255,255,255,0.92)";
+
+  const surfaceOverlayRgb = mix(neutralDeep, rgb, isLight ? 0.12 : 0.3);
+  const surfaceMuted = rgba(cardBg1Rgb, isLight ? 0.92 : 0.74);
+  const surfaceElevated = rgba(cardBg2Rgb, isLight ? 0.96 : 0.68);
+  const surfaceOverlay = rgba(surfaceOverlayRgb, isLight ? 0.76 : 0.58);
+
+  const borderDefault = rgba(cardBorderRgb, textIsLight ? 0.32 : 0.24);
+  const borderStrong = rgba(cardBorderRgb, textIsLight ? 0.48 : 0.34);
+  const brandMuted = rgba(brandMidAdjusted, textIsLight ? 0.18 : 0.22);
+
+  const shadowBaseRgb = shade(cardBg1Rgb, isLight ? 0.52 : 0.38);
+  const shadowLiftRgb = shade(cardBg1Rgb, isLight ? 0.62 : 0.48);
+  const shadowDeepRgb = shade(cardBg1Rgb, isLight ? 0.74 : 0.6);
+  const shadowGlowRgb = tint(brandMidAdjusted, isLight ? 0.45 : 0.25);
+
+  const dockBg1Rgb = mix(neutralAlt, rgb, isLight ? 0.11 : 0.28);
+  const dockBg2Rgb = mix(neutralDeep, rgb, isLight ? 0.09 : 0.24);
+  const dockBorderRgb = mix(cardBorderRgb, rgb, isLight ? 0.18 : 0.32);
+  const dockBtnBg1Rgb = mix(dockBg1Rgb, brandFromAdjusted, isLight ? 0.18 : 0.34);
+  const dockBtnBg2Rgb = mix(dockBg1Rgb, brandToAdjusted, isLight ? 0.12 : 0.28);
+  const dockBtnBorderRgb = mix(dockBorderRgb, brandMidAdjusted, isLight ? 0.28 : 0.42);
+  const dockBtnHoverBorderRgb = mix(dockBorderRgb, brandMidAdjusted, isLight ? 0.38 : 0.54);
+  const dockSheetBg1Rgb = mix(neutralAlt, rgb, isLight ? 0.14 : 0.34);
+  const dockSheetBg2Rgb = mix(neutralDeep, rgb, isLight ? 0.11 : 0.3);
+  const dockSheetBorderRgb = mix(dockBorderRgb, cardBorderRgb, 0.5);
+  const dockShadow = `0 -1px 0 ${rgba(dockBorderRgb, textIsLight ? 0.38 : 0.26)}, 0 18px 40px ${rgba(
+    shade(dockBg2Rgb, isLight ? 0.45 : 0.4),
+    textIsLight ? 0.24 : 0.2,
+  )}`;
+  const dockActiveShadow = `0 18px 36px ${rgba(
+    shade(brandMidAdjusted, isLight ? 0.32 : 0.22),
+    textIsLight ? 0.32 : 0.26,
+  )}`;
+  const dockActiveGlow = rgba(tint(brandMidAdjusted, 0.28), textIsLight ? 0.36 : 0.26);
+  const dockSheetShadow = `0 28px 52px ${rgba(
+    shade(cardBg1Rgb, isLight ? 0.48 : 0.42),
+    textIsLight ? 0.32 : 0.26,
+  )}`;
+
+  const tileBgBase = `linear-gradient(160deg, ${rgba(cardBg1Rgb, isLight ? 0.9 : 0.52)}, ${rgba(
+    cardBg2Rgb,
+    isLight ? 0.72 : 0.44,
+  )})`;
+  const tileBorderBaseRgb = mix(cardBorderRgb, rgb, isLight ? 0.12 : 0.24);
+  const tileBorderHoverRgb = mix(tileBorderBaseRgb, brandMidAdjusted, isLight ? 0.35 : 0.48);
+  const tileShadowBase = `0 18px 34px ${rgba(shadowBaseRgb, textIsLight ? 0.28 : 0.24)}`;
+  const tileShadowHover = `0 24px 50px ${rgba(shadowLiftRgb, textIsLight ? 0.32 : 0.28)}`;
+  const tileIconBgRgb = mix(cardBg2Rgb, brandMidAdjusted, isLight ? 0.26 : 0.34);
+  const tileBadgeBgRgb = tint(brandMidAdjusted, isLight ? 0.48 : 0.22);
 
   const vars: Record<string, string> = {
     "--app-bg": [
@@ -838,22 +896,57 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
     ].join(", "),
     "--text": text,
     "--text-2": text2,
+    "--text-3": text3,
     "--text-on-brand": textOnBrand,
     "--accent-glow": accentGlow,
+    "--surface-app": "var(--app-bg)",
+    "--surface-muted": surfaceMuted,
+    "--surface-elevated": surfaceElevated,
+    "--surface-overlay": surfaceOverlay,
+    "--color-fg": text,
+    "--color-fg-muted": text2,
+    "--color-fg-subtle": text3,
+    "--color-border": borderDefault,
+    "--color-border-strong": borderStrong,
+    "--color-brand": rgbToHex(brandMidAdjusted),
+    "--color-brand-strong": rgbToHex(brandToAdjusted),
+    "--color-brand-foreground": textOnBrand,
+    "--color-brand-muted": brandMuted,
+    "--gradient-brand": brandGradient,
+    "--cta-gradient": brandGradient,
+    "--cta-button-gradient": ctaGradient,
+    "--cta-button-text": textOnBrand,
+    "--brand-from": rgbToHex(brandFromAdjusted),
+    "--brand-mid": rgbToHex(brandMidAdjusted),
+    "--brand-to": rgbToHex(brandToAdjusted),
+    "--brand-gradient": brandGradient,
+    "--cta-chip-gradient": brandGradient,
+    "--cta-chip-text": textOnBrand,
+    "--glass-bg-1": rgbToHex(glassBg1Rgb),
+    "--glass-bg-2": rgbToHex(glassBg2Rgb),
     "--card-bg-1": rgbToHex(cardBg1Rgb),
     "--card-bg-2": rgbToHex(cardBg2Rgb),
-    "--card-border": rgba(cardBorderRgb, textIsLight ? 0.32 : 0.22),
-    "--card-shadow": `0 18px 40px ${rgba(shade(cardBg1Rgb, textIsLight ? 0.45 : 0.65), textIsLight ? 0.28 : 0.24)}`,
+    "--card-border": borderDefault,
+    "--card-shadow": `0 18px 40px ${rgba(
+      shade(cardBg1Rgb, textIsLight ? 0.45 : 0.65),
+      textIsLight ? 0.28 : 0.24,
+    )}`,
     "--card-hover-bg-1": rgbToHex(cardHoverBg1Rgb),
     "--card-hover-bg-2": rgbToHex(cardHoverBg2Rgb),
     "--card-hover-border": rgba(cardBorderRgb, textIsLight ? 0.36 : 0.28),
-    "--card-hover-shadow": `0 22px 46px ${rgba(shade(cardBg1Rgb, textIsLight ? 0.55 : 0.75), textIsLight ? 0.32 : 0.28)}`,
+    "--card-hover-shadow": `0 22px 46px ${rgba(
+      shade(cardBg1Rgb, textIsLight ? 0.55 : 0.75),
+      textIsLight ? 0.32 : 0.28,
+    )}`,
     "--header-glass-top": rgba(headerTopRgb, isLight ? 0.65 : 0.32),
     "--header-glass-bottom": rgba(headerBottomRgb, isLight ? 0.45 : 0.24),
     "--header-tint-from": rgba(headerTintFromRgb, textIsLight ? 0.35 : 0.28),
     "--header-tint-to": rgba(headerTintToRgb, textIsLight ? 0.32 : 0.26),
     "--header-border-color": rgba(headerTintFromRgb, textIsLight ? 0.28 : 0.22),
-    "--header-shadow": `0 18px 36px ${rgba(shade(headerBottomRgb, textIsLight ? 0.5 : 0.4), textIsLight ? 0.35 : 0.24)}`,
+    "--header-shadow": `0 18px 36px ${rgba(
+      shade(headerBottomRgb, textIsLight ? 0.5 : 0.4),
+      textIsLight ? 0.35 : 0.24,
+    )}`,
     "--header-scrim": headerScrim,
     "--pill-border": rgba(pillBg1Rgb, textIsLight ? 0.42 : 0.28),
     "--pill-bg-1": rgbToHex(pillBg1Rgb),
@@ -861,20 +954,52 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
     "--rail-bg-1": rgba(railBgRgb, isLight ? 0.92 : 0.18),
     "--rail-bg-2": rgba(railBg2Rgb, isLight ? 0.86 : 0.15),
     "--rail-border": rgba(railBorderRgb, textIsLight ? 0.28 : 0.2),
-    "--cta-gradient": brandGradient,
-    "--brand-from": rgbToHex(brandFromAdjusted),
-    "--brand-mid": rgbToHex(brandMidAdjusted),
-    "--brand-to": rgbToHex(brandToAdjusted),
-    "--brand-gradient": brandGradient,
-    // Tailwind-driven brand tokens so primary buttons/links follow the theme color
-    "--color-brand": rgbToHex(brandMidAdjusted),
-    "--color-brand-strong": rgbToHex(brandToAdjusted),
-    "--color-brand-foreground": textOnBrand,
-    "--gradient-brand": brandGradient,
-    "--cta-button-gradient": ctaGradient,
-    "--cta-button-text": textOnBrand,
-    "--glass-bg-1": rgbToHex(glassBg1Rgb),
-    "--glass-bg-2": rgbToHex(glassBg2Rgb),
+    "--shadow-xs": `0 1px 2px ${rgba(shadowBaseRgb, textIsLight ? 0.32 : 0.28)}`,
+    "--shadow-sm": `0 6px 16px ${rgba(shadowBaseRgb, textIsLight ? 0.26 : 0.24)}`,
+    "--shadow-md": `0 12px 32px ${rgba(shadowLiftRgb, textIsLight ? 0.28 : 0.26)}`,
+    "--shadow-lg": `0 20px 48px ${rgba(shadowLiftRgb, textIsLight ? 0.32 : 0.28)}`,
+    "--shadow-xl": `0 32px 64px ${rgba(shadowDeepRgb, textIsLight ? 0.36 : 0.3)}`,
+    "--shadow-glow": `0 0 48px ${rgba(shadowGlowRgb, textIsLight ? 0.42 : 0.32)}`,
+    "--ring-primary": `0 0 0 1px ${rgba(brandMidAdjusted, textIsLight ? 0.65 : 0.5)}`,
+    "--ring-offset": `0 0 0 4px ${rgba(brandMidAdjusted, textIsLight ? 0.22 : 0.18)}`,
+    "--dock-bg-1": rgba(dockBg1Rgb, isLight ? 0.92 : 0.26),
+    "--dock-bg-2": rgba(dockBg2Rgb, isLight ? 0.88 : 0.22),
+    "--dock-border": rgba(dockBorderRgb, textIsLight ? 0.32 : 0.24),
+    "--dock-shadow": dockShadow,
+    "--dock-text-muted": rgba(textBase, clamp01(text3Alpha + 0.1)),
+    "--dock-btn-bg-1": rgba(dockBtnBg1Rgb, isLight ? 0.94 : 0.28),
+    "--dock-btn-bg-2": rgba(dockBtnBg2Rgb, isLight ? 0.9 : 0.24),
+    "--dock-btn-border": rgba(dockBtnBorderRgb, textIsLight ? 0.4 : 0.3),
+    "--dock-btn-hover-border": rgba(dockBtnHoverBorderRgb, textIsLight ? 0.55 : 0.4),
+    "--dock-active-shadow": dockActiveShadow,
+    "--dock-active-glow": dockActiveGlow,
+    "--dock-sheet-bg-1": rgba(dockSheetBg1Rgb, isLight ? 0.96 : 0.3),
+    "--dock-sheet-bg-2": rgba(dockSheetBg2Rgb, isLight ? 0.92 : 0.26),
+    "--dock-sheet-border": rgba(dockSheetBorderRgb, textIsLight ? 0.28 : 0.22),
+    "--dock-sheet-shadow": dockSheetShadow,
+    "--tile-bg-base": tileBgBase,
+    "--tile-bg-final": tileBgBase,
+    "--tile-border-base": rgba(tileBorderBaseRgb, textIsLight ? 0.38 : 0.26),
+    "--tile-border-final": rgba(tileBorderBaseRgb, textIsLight ? 0.38 : 0.26),
+    "--tile-border-hover-base": rgba(tileBorderHoverRgb, textIsLight ? 0.52 : 0.34),
+    "--tile-border-hover": rgba(tileBorderHoverRgb, textIsLight ? 0.52 : 0.34),
+    "--tile-shadow-base": tileShadowBase,
+    "--tile-shadow-final": tileShadowBase,
+    "--tile-shadow-hover-base": tileShadowHover,
+    "--tile-shadow-hover": tileShadowHover,
+    "--tile-text-base": text,
+    "--tile-text-final": text,
+    "--tile-desc-base": text2,
+    "--tile-desc-final": text2,
+    "--tile-icon-bg-base": rgba(tileIconBgRgb, isLight ? 0.24 : 0.26),
+    "--tile-icon-bg-final": rgba(tileIconBgRgb, isLight ? 0.24 : 0.26),
+    "--tile-icon-color-base": text,
+    "--tile-icon-color-final": text,
+    "--tile-badge-bg-base": rgba(tileBadgeBgRgb, isLight ? 0.92 : 0.9),
+    "--tile-badge-bg-final": rgba(tileBadgeBgRgb, isLight ? 0.92 : 0.9),
+    "--tile-badge-color-base": textOnBrand,
+    "--tile-badge-color-final": textOnBrand,
+    "--tile-accent-a": rgba(tileBadgeBgRgb, isLight ? 0.36 : 0.26),
   };
 
   const baseLabel = color.label || "Theme";
@@ -901,6 +1026,7 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
 
   return vars;
 }
+
 
 export function buildPlanDetails(prompt: string, vars: Record<string, string>): string | undefined {
   const usage = groupUsageFromVars(vars);
