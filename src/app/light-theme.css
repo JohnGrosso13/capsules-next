@@ -29,6 +29,18 @@
     --pill-bg-1: rgba(255, 255, 255, 0.9);
     --pill-bg-2: rgba(255, 255, 255, 0.78);
     --pill-border: rgba(14, 23, 42, 0.16);
+    --chip-bg-1: var(--glass-bg-1, rgba(255, 255, 255, 0.9));
+    --chip-bg-2: var(--glass-bg-2, rgba(255, 255, 255, 0.78));
+    --chip-border: var(--pill-border, rgba(14, 23, 42, 0.16));
+    --chip-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), inset 0 -1px 0 rgba(14, 23, 42, 0.12), 0 8px 18px rgba(15, 23, 42, 0.14);
+    --chip-hover-bg-1: var(--pill-bg-1, rgba(255, 255, 255, 0.94));
+    --chip-hover-bg-2: var(--pill-bg-2, rgba(255, 255, 255, 0.86));
+    --chip-hover-border: var(--card-hover-border, rgba(14, 23, 42, 0.2));
+    --chip-hover-shadow: var(--card-hover-shadow, 0 18px 36px rgba(15, 23, 42, 0.18));
+    --chip-active-bg-1: color-mix(in srgb, var(--color-brand) 16%, rgba(255, 255, 255, 0.96));
+    --chip-active-bg-2: color-mix(in srgb, var(--color-accent) 12%, rgba(255, 255, 255, 0.94));
+    --chip-active-border: color-mix(in srgb, var(--color-brand) 46%, transparent);
+    --chip-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 14px 28px color-mix(in srgb, var(--color-brand) 18%, rgba(15, 23, 42, 0.18));
 
     /* Cards (posts, tiles) - soft, low-contrast layers */
     --card-bg-1: rgba(255, 255, 255, 0.96);
@@ -46,6 +58,7 @@
     --feed-action-border: rgba(14, 23, 42, 0.12);
     --feed-action-border-hover: rgba(14, 23, 42, 0.2);
     --feed-action-shadow-hover: 0 12px 28px rgba(15, 23, 42, 0.18);
+    --feed-icon-text: var(--text, var(--color-fg, rgba(14, 16, 36, 0.96)));
 
     /* Icon plate tokens */
     --icon-plate-bg-1: rgba(255, 255, 255, 0.9);
@@ -66,6 +79,12 @@
     --alert-accent: var(--color-brand);
     --brand-gradient: var(--gradient-brand);
     --cta-button-gradient: var(--cta-gradient);
+    --cta-chip-gradient: var(--cta-gradient);
+    --cta-chip-text: var(--cta-button-text, #0e1024);
+    --cta-chip-border: color-mix(in srgb, var(--color-brand) 38%, rgba(14, 23, 42, 0.18));
+    --cta-chip-shadow: 0 18px 32px rgba(37, 99, 235, 0.22);
+    --cta-chip-border-hover: color-mix(in srgb, var(--color-brand) 48%, rgba(14, 23, 42, 0.2));
+    --cta-chip-shadow-hover: 0 24px 44px rgba(37, 99, 235, 0.28);
     --cta-radius: var(--radius-pill, 999px);
     --card-radius: var(--radius-lg, 1rem);
     --prompt-glow-blur: 18px;

@@ -9,24 +9,24 @@
   --header-foreground-strong: var(--color-brand-foreground, #f8fafc);
   --header-button-bg: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 92%, var(--header-brand) 8%),
-    color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 90%, var(--header-brand-strong) 10%)
+    color-mix(in srgb, var(--surface-elevated) 92%, var(--header-brand) 8%),
+    color-mix(in srgb, var(--surface-muted) 90%, var(--header-brand-strong) 10%)
   );
   --header-button-hover-bg: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 86%, var(--header-brand) 14%),
-    color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 84%, var(--header-brand-strong) 16%)
+    color-mix(in srgb, var(--surface-elevated) 86%, var(--header-brand) 14%),
+    color-mix(in srgb, var(--surface-muted) 84%, var(--header-brand-strong) 16%)
   );
   --header-button-active-bg: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 78%, var(--header-brand) 22%),
-    color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 76%, var(--header-brand-strong) 24%)
+    color-mix(in srgb, var(--surface-elevated) 78%, var(--header-brand) 22%),
+    color-mix(in srgb, var(--surface-muted) 76%, var(--header-brand-strong) 24%)
   );
   --header-button-border: color-mix(in srgb, var(--header-brand) 35%, var(--color-border) 65%);
   --header-button-hover-border: color-mix(in srgb, var(--header-brand) 48%, var(--color-border) 52%);
-  --header-button-active-border: color-mix(in srgb, var(--header-brand) 60%, var(--color-border-strong, rgba(255, 255, 255, 0.24)) 40%);
-  --header-button-text: color-mix(in srgb, var(--color-fg, rgba(255, 255, 255, 0.94)) 96%, transparent);
-  --header-button-hover-text: color-mix(in srgb, var(--color-fg, rgba(255, 255, 255, 0.94)) 98%, transparent);
+  --header-button-active-border: color-mix(in srgb, var(--header-brand) 60%, var(--color-border-strong) 40%);
+  --header-button-text: color-mix(in srgb, var(--color-fg) 96%, transparent);
+  --header-button-hover-text: color-mix(in srgb, var(--color-fg) 98%, transparent);
   --header-shadow-color: color-mix(in srgb, var(--header-brand-strong) 28%, transparent);
   --header-shadow-lg: 0 18px 42px var(--header-shadow-color);
   --header-shadow-md: 0 12px 28px var(--header-shadow-color);
@@ -49,8 +49,8 @@
   display: block;
   overflow: hidden;
   --blur-amount: 14px;
-  --header-glass-top: color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 92%, var(--header-brand) 8%);
-  --header-glass-bottom: color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 88%, var(--header-brand-strong) 12%);
+  --header-glass-top: color-mix(in srgb, var(--surface-elevated) 92%, var(--header-brand) 8%);
+  --header-glass-bottom: color-mix(in srgb, var(--surface-muted) 88%, var(--header-brand-strong) 12%);
   background:
     linear-gradient(180deg, var(--header-glass-top), var(--header-glass-bottom)),
     linear-gradient(180deg, var(--header-tint-from, color-mix(in srgb, var(--header-accent) 18%, transparent)), var(--header-tint-to, color-mix(in srgb, var(--header-brand) 12%, transparent)));

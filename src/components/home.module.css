@@ -990,94 +990,32 @@
 
 
 
-.genBtn {
-
-
-
+.genBtn 
+{
   display: inline-flex;
-
-
-
   align-items: center;
-
-
-
   gap: 8px;
-
-
-
-  border-radius: 999px;
-
-
-
+  border-radius: var(--radius-pill, 999px);
   padding: 9px 16px;
-
-
-
-  /* Default (Generate) matches Launch Capsule gradient */
-
-
-
-  background: linear-gradient(95deg, #a855f7 0%, #6366f1 48%, #22d3ee 100%);
-
-
-
-  color: #ffffff;
-
-
-
+  background: var(
+    --cta-chip-gradient,
+    var(--cta-button-gradient, var(--cta-gradient))
+  );
+  color: var(--cta-chip-text, var(--cta-button-text, var(--text)));
   font-weight: 700;
-
-
-
   letter-spacing: 0.01em;
-
-
-
-  border: 1px solid rgba(180, 175, 255, 0.65);
-
-
-
-  box-shadow: 0 18px 36px rgba(88, 74, 204, 0.38);
-
-
-
+  border: 1px solid
+    var(--cta-chip-border, var(--chip-border, var(--pill-border)));
+  box-shadow: var(--cta-chip-shadow, var(--chip-shadow, var(--shadow-lg)));
   position: relative;
-
-
-
   overflow: hidden;
-
-
-
   isolation: isolate;
-
-
-
   transition:
-
-
-
     transform 0.16s ease,
-
-
-
     box-shadow 0.16s ease,
-
-
-
     border-color 0.16s ease,
-
-
-
     background 0.16s ease,
-
-
-
     color 0.16s ease;
-
-
-
 }
 
 
@@ -1382,46 +1320,28 @@
 
 
 
-.genBtn:hover {
-
-
-
+.genBtn:hover 
+{
   transform: translateY(-1px) scale(1.02);
-
-
-
-  border-color: rgba(200, 195, 255, 0.8);
-
-
-
-  box-shadow: 0 24px 48px rgba(88, 74, 204, 0.48);
-
-
-
+  border-color: var(
+    --cta-chip-border-hover,
+    var(--cta-chip-border, var(--chip-hover-border, var(--card-hover-border)))
+  );
+  box-shadow: var(
+    --cta-chip-shadow-hover,
+    var(--chip-hover-shadow, var(--shadow-lg))
+  );
+  color: var(--cta-chip-text, var(--cta-button-text, var(--text)));
 }
 
 
 
-.genBtn:disabled {
-
-
-
+.genBtn:disabled 
+{
   opacity: 0.6;
-
-
-
   cursor: not-allowed;
-
-
-
   transform: none;
-
-
-
-  box-shadow: 0 10px 22px rgba(5, 10, 30, 0.22);
-
-
-
+  box-shadow: var(--chip-shadow, var(--shadow-sm));
 }
 
 
@@ -1430,42 +1350,17 @@
 
 
 
-.genBtnNavigate {
-
-
-
+.genBtnNavigate 
+{
   background: linear-gradient(
-
-
-
     120deg,
-
-
-
     color-mix(in srgb, var(--color-success) 80%, transparent),
-
-
-
     color-mix(in srgb, var(--color-accent) 65%, transparent)
-
-
-
   );
-
-
-
   color: var(--text);
-
-
-
-  border: 1px solid rgba(34, 197, 94, 0.55);
-
-
-
-  box-shadow: var(--shadow-lg, 0 18px 36px rgba(34, 197, 94, 0.36));
-
-
-
+  border: 1px solid color-mix(in srgb, var(--color-success) 55%, transparent);
+  box-shadow: 0 18px 36px
+    color-mix(in srgb, var(--color-success) 36%, var(--surface-overlay, var(--surface-elevated)));
 }
 
 
@@ -1474,54 +1369,25 @@
 
 
 
-.genBtnPost {
-
-
-
+.genBtnPost 
+{
   background: linear-gradient(
-
-
-
     120deg,
-
-
-
     color-mix(in srgb, var(--color-warning) 72%, transparent),
-
-
-
     color-mix(in srgb, var(--color-accent) 40%, transparent)
-
-
-
   );
-
-
-
   color: var(--text);
-
-
-
-  border: 1px solid rgba(249, 115, 22, 0.55);
-
-
-
-  box-shadow: var(--shadow-lg, 0 18px 36px rgba(249, 115, 22, 0.34));
-
-
-
+  border: 1px solid color-mix(in srgb, var(--color-warning) 55%, transparent);
+  box-shadow: 0 18px 36px
+    color-mix(in srgb, var(--color-warning) 34%, var(--surface-overlay, var(--surface-elevated)));
 }
 
 
 
-.genBtnPost:hover {
-
-
-
-  box-shadow: var(--shadow-xl, 0 24px 48px rgba(249, 115, 22, 0.44));
-
-
-
+.genBtnPost:hover 
+{
+  box-shadow: 0 24px 48px
+    color-mix(in srgb, var(--color-warning) 44%, var(--surface-overlay, var(--surface-elevated)));
 }
 
 
@@ -1534,46 +1400,26 @@
 
 
 
-.genBtnStyle {
-
-
-
-  /* Vivid style intent gradient */
-
-
-
-  background: linear-gradient(100deg, #f472b6 0%, #8b5cf6 60%, #22d3ee 100%);
-
-
-
-  color: #ffffff;
-
-
-
-  border: 1px solid rgba(180, 175, 255, 0.65);
-
-
-
-  box-shadow: 0 18px 36px rgba(139, 92, 246, 0.38);
-
-
-
+.genBtnStyle 
+{
+  background: var(
+    --cta-chip-gradient,
+    var(--cta-button-gradient, var(--cta-gradient))
+  );
+  color: var(--cta-chip-text, var(--cta-button-text, var(--text)));
+  border: 1px solid var(--cta-chip-border, var(--chip-border));
+  box-shadow: var(--cta-chip-shadow, var(--shadow-lg));
 }
 
 
 
-.genBtnStyle:hover {
-
-
-
-  border-color: rgba(200, 195, 255, 0.8);
-
-
-
-  box-shadow: 0 22px 44px rgba(139, 92, 246, 0.48);
-
-
-
+.genBtnStyle:hover 
+{
+  box-shadow: var(
+    --cta-chip-shadow-hover,
+    var(--chip-hover-shadow, var(--shadow-xl, var(--shadow-lg)))
+  );
+  color: var(--cta-chip-text, var(--cta-button-text, var(--text)));
 }
 
 
@@ -1654,142 +1500,58 @@
 
 
 
-.chip {
-
-
-
+.chip 
+{
   padding: 7px 12px;
-
-
-
-  border-radius: 999px;
-
-
-
-  border: 1px solid var(--pill-border);
-
-
-
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--chip-border, var(--pill-border));
   background: linear-gradient(
-
-
-
     180deg,
-
-
-
-    var(--glass-bg-1, rgba(255, 255, 255, 0.08)),
-
-
-
-    var(--glass-bg-2, rgba(255, 255, 255, 0.04))
-
-
-
+    var(--chip-bg-1, var(--glass-bg-1, var(--pill-bg-1))),
+    var(--chip-bg-2, var(--glass-bg-2, var(--pill-bg-2)))
   );
-
-
-
   font-weight: 700;
-
-
-
   color: var(--text);
-
-
-
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-
-
-
-    inset 0 -1px 0 rgba(2, 6, 23, 0.38),
-
-
-
-    0 6px 12px rgba(5, 10, 30, 0.22);
-
-
-
+  box-shadow: var(--chip-shadow, var(--shadow-sm));
 }
 
 
 
-.chip:hover {
-
-
-
-  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.28));
-
-
-
+.chip:hover 
+{
+  border-color: var(--chip-hover-border, var(--chip-border, var(--pill-border)));
   background: linear-gradient(
-
-
-
     180deg,
-
-
-
-    var(--pill-bg-1),
-
-
-
-    var(--pill-bg-2)
-
-
-
+    var(--chip-hover-bg-1, var(--chip-bg-1)),
+    var(--chip-hover-bg-2, var(--chip-bg-2))
   );
-
-
-
+  color: var(--text);
+  box-shadow: var(--chip-hover-shadow, var(--shadow-md));
 }
 
 
 
-.chip[data-active="true"] {
-
-
-
-  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
-
-
-
-  background: linear-gradient(
-
-
-
-    180deg,
-
-
-
-    color-mix(in srgb, var(--color-brand) 18%, transparent),
-
-
-
-    color-mix(in srgb, var(--color-accent) 8%, transparent)
-
-
-
+.chip[data-active="true"] 
+{
+  border-color: var(
+    --chip-active-border,
+    color-mix(in srgb, var(--color-brand) 55%, transparent)
   );
-
-
-
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-
-
-
-    0 10px 20px color-mix(in srgb, var(--color-brand) 18%, rgba(5, 10, 30, 0.2));
-
-
-
+  background: linear-gradient(
+    180deg,
+    var(
+      --chip-active-bg-1,
+      color-mix(in srgb, var(--color-brand) 18%, transparent)
+    ),
+    var(
+      --chip-active-bg-2,
+      color-mix(in srgb, var(--color-accent) 8%, transparent)
+    )
+  );
+  box-shadow: var(
+    --chip-active-shadow,
+    var(--chip-hover-shadow, var(--shadow-md))
+  );
 }
 
 
@@ -4230,134 +3992,43 @@
 
 
 
-.iconBtn {
-
-
-
+.iconBtn 
+{
   width: 34px;
-
-
-
   height: 34px;
-
-
-
   display: inline-flex;
-
-
-
   align-items: center;
-
-
-
   justify-content: center;
-
-
-
   border-radius: 12px;
-
-
-
   border: 1px solid var(--pill-border);
-
-
-
   background: linear-gradient(
-
-
-
     180deg,
-
-
-
     var(--pill-bg-1),
-
-
-
     var(--pill-bg-2)
-
-
-
   );
-
-
-
-  color: var(--text);
-
-
-
+  color: var(--feed-icon-text, var(--text));
   font-weight: 700;
-
-
-
   font-size: 1rem;
-
-
-
   transition:
-
-
-
     transform 0.14s ease,
-
-
-
     border-color 0.16s ease,
-
-
-
     background 0.16s ease,
-
-
-
     color 0.16s ease;
-
-
-
 }
 
 
 
-.iconBtn:hover {
-
-
-
+.iconBtn:hover 
+{
   transform: translateY(-1px);
-
-
-
-  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.28));
-
-
-
+  border-color: var(--card-hover-border, var(--chip-hover-border));
   background: linear-gradient(
-
-
-
     180deg,
-
-
-
-    var(--pill-bg-1),
-
-
-
-    var(--pill-bg-2)
-
-
-
+    var(--chip-hover-bg-1, var(--pill-bg-1)),
+    var(--chip-hover-bg-2, var(--pill-bg-2))
   );
-
-
-
-  color: var(--text);
-
-
-
-  box-shadow: var(--shadow-md, 0 12px 24px rgba(5, 10, 30, 0.24));
-
-
-
+  color: var(--feed-icon-text, var(--text));
+  box-shadow: var(--chip-hover-shadow, var(--shadow-md));
 }
 
 
@@ -4410,158 +4081,60 @@
 
 
 
-.iconBtn[aria-expanded="true"] {
-
-
-
-  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.28));
-
-
-
-  color: var(--text);
-
-
-
+.iconBtn[aria-expanded="true"] 
+{
+  border-color: var(--card-hover-border, var(--chip-hover-border));
+  color: var(--feed-icon-text, var(--text));
 }
 
 
 
-.iconBtn[data-variant="memory"] {
-
-
-
-  /* neutral duotone base */
-
-
-
-  color: var(--text);
-
-
-
+.iconBtn[data-variant="memory"] 
+{
+  color: var(--feed-icon-text, var(--text));
 }
 
 
 
-.iconBtn[data-variant="memory"][data-active="true"] {
-
-
-
-  color: var(--text);
-
-
-
+.iconBtn[data-variant="memory"][data-active="true"] 
+{
+  color: var(--feed-icon-text, var(--text));
   border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
-
-
-
   background: linear-gradient(
-
-
-
     180deg,
-
-
-
     color-mix(in srgb, var(--color-brand) 20%, transparent),
-
-
-
     color-mix(in srgb, var(--color-accent) 8%, transparent)
-
-
-
   );
-
-
-
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-
-
-
-    0 12px 26px color-mix(in srgb, var(--color-brand) 22%, rgba(5, 10, 30, 0.28));
-
-
-
+  box-shadow: var(
+    --chip-active-shadow,
+    0 12px 26px color-mix(in srgb, var(--color-brand) 22%, var(--surface-overlay, var(--surface-elevated)))
+  );
 }
 
 
 
-.iconBtnDelete {
-
-
-
+.iconBtnDelete 
+{
   border-color: color-mix(in srgb, var(--color-danger) 32%, transparent);
-
-
-
-  color: color-mix(in srgb, var(--color-danger) 90%, var(--text));
-
-
-
+  color: color-mix(in srgb, var(--color-danger) 90%, var(--feed-icon-text, var(--text)));
   background: linear-gradient(
-
-
-
     180deg,
-
-
-
-    color-mix(in srgb, var(--color-danger) 16%, transparent),
-
-
-
-    color-mix(in srgb, var(--color-danger) 5%, transparent)
-
-
-
+    color-mix(in srgb, var(--color-danger) 24%, transparent),
+    color-mix(in srgb, var(--color-danger) 12%, transparent)
   );
-
-
-
 }
 
 
 
-.iconBtnDelete:hover {
-
-
-
-  color: var(--text);
-
-
-
+.iconBtnDelete:hover 
+{
+  color: var(--feed-icon-text, var(--text));
   border-color: color-mix(in srgb, var(--color-danger) 50%, transparent);
-
-
-
   background: linear-gradient(
-
-
-
     180deg,
-
-
-
     color-mix(in srgb, var(--color-danger) 30%, transparent),
-
-
-
-    color-mix(in srgb, var(--color-danger) 12%, transparent)
-
-
-
+    color-mix(in srgb, var(--color-danger) 14%, transparent)
   );
-
-
-
-  box-shadow: var(--shadow-lg, 0 16px 32px rgba(239, 68, 68, 0.28));
-
-
-
 }
 
 

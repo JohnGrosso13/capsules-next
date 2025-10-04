@@ -25,7 +25,7 @@ export function LaunchCta({
 }: Props) {
   const router = useRouter();
   const launchStyles: CSSProperties = {
-    background: "linear-gradient(95deg, #a855f7 0%, #6366f1 48%, #22d3ee 100%)",
+    background: "var(--cta-button-gradient, var(--cta-chip-gradient, var(--cta-gradient)))",
   };
 
   return (

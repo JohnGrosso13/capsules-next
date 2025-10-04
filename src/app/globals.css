@@ -89,6 +89,12 @@
     --gradient-brand: linear-gradient(120deg, #8b5cf6 0%, #6366f1 55%, #22d3ee 100%);
     --cta-gradient: linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%);
     --cta-button-text: #ffffff;
+    --cta-chip-gradient: linear-gradient(95deg, #a855f7 0%, #6366f1 48%, #22d3ee 100%);
+    --cta-chip-text: var(--cta-button-text, #ffffff);
+    --cta-chip-border: rgba(180, 175, 255, 0.65);
+    --cta-chip-shadow: 0 18px 36px rgba(88, 74, 204, 0.38);
+    --cta-chip-border-hover: rgba(200, 195, 255, 0.8);
+    --cta-chip-shadow-hover: 0 24px 48px rgba(88, 74, 204, 0.48);
     --color-accent: #22d3ee;
     --color-info: #38bdf8;
     --color-success: #34d399;
@@ -148,6 +154,18 @@
     --pill-bg-1: rgba(255, 255, 255, 0.12);
     --pill-bg-2: rgba(255, 255, 255, 0.06);
     --pill-border: rgba(255, 255, 255, 0.18);
+    --chip-bg-1: var(--glass-bg-1, rgba(255, 255, 255, 0.12));
+    --chip-bg-2: var(--glass-bg-2, rgba(255, 255, 255, 0.06));
+    --chip-border: var(--pill-border, rgba(255, 255, 255, 0.18));
+    --chip-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(2, 6, 23, 0.38), 0 6px 12px rgba(5, 10, 30, 0.22);
+    --chip-hover-bg-1: var(--pill-bg-1, rgba(255, 255, 255, 0.12));
+    --chip-hover-bg-2: var(--pill-bg-2, rgba(255, 255, 255, 0.06));
+    --chip-hover-border: var(--card-hover-border, rgba(255, 255, 255, 0.28));
+    --chip-hover-shadow: var(--shadow-md, 0 12px 24px rgba(5, 10, 30, 0.24));
+    --chip-active-bg-1: color-mix(in srgb, var(--color-brand) 18%, transparent);
+    --chip-active-bg-2: color-mix(in srgb, var(--color-accent) 8%, transparent);
+    --chip-active-border: color-mix(in srgb, var(--color-brand) 55%, transparent);
+    --chip-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 10px 20px color-mix(in srgb, var(--color-brand) 18%, rgba(5, 10, 30, 0.2));
     --pill-radius: var(--radius-pill, 999px);
     /* Feed action buttons */
     --feed-action-bg-1: rgba(255, 255, 255, 0.06);
@@ -155,6 +173,7 @@
     --feed-action-border: rgba(255, 255, 255, 0.08);
     --feed-action-border-hover: rgba(255, 255, 255, 0.2);
     --feed-action-shadow-hover: 0 12px 28px rgba(5, 10, 30, 0.28);
+    --feed-icon-text: var(--text, var(--color-fg, rgba(255, 255, 255, 0.94)));
     /* Prompt halo */
     --prompt-glow-blur: 18px;
     --prompt-glow-opacity: 0.54;
@@ -285,6 +304,12 @@
   --gradient-brand: linear-gradient(120deg, #4f46e5 0%, #6366f1 45%, #22d3ee 100%);
   --cta-gradient: linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%);
   --cta-button-text: #ffffff;
+  --cta-chip-gradient: linear-gradient(95deg, #a855f7 0%, #6366f1 48%, #22d3ee 100%);
+  --cta-chip-text: var(--cta-button-text, #ffffff);
+  --cta-chip-border: rgba(180, 175, 255, 0.65);
+  --cta-chip-shadow: 0 18px 36px rgba(88, 74, 204, 0.38);
+  --cta-chip-border-hover: rgba(200, 195, 255, 0.8);
+  --cta-chip-shadow-hover: 0 24px 48px rgba(88, 74, 204, 0.48);
   --color-accent: #0ea5e9;
   --color-info: #0284c7;
   --color-success: #059669;
@@ -452,10 +477,10 @@
     -webkit-backdrop-filter: blur(8px) saturate(120%);
   }
   .btn-gradient {
-    background: var(--cta-gradient, var(--gradient-brand));
-    color: var(--cta-button-text, var(--text-on-brand, #0e1024));
-    border: 1px solid color-mix(in srgb, var(--color-brand) 55%, #ffffff);
-    box-shadow: 0 20px 40px color-mix(in srgb, var(--color-brand) 28%, rgba(10, 12, 30, 0.6));
+    background: var(--cta-button-gradient, var(--cta-chip-gradient, var(--gradient-brand)));
+    color: var(--cta-button-text, var(--cta-chip-text, var(--text-on-brand, var(--text))));
+    border: 1px solid color-mix(in srgb, var(--color-brand) 55%, var(--color-border, #ffffff));
+    box-shadow: var(--cta-chip-shadow, 0 20px 40px color-mix(in srgb, var(--color-brand) 28%, rgba(10, 12, 30, 0.6)));
     transition:
       transform 0.2s ease,
       box-shadow 0.2s ease;

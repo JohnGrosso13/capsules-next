@@ -19,7 +19,7 @@ const variantClasses: Record<ButtonVariant, string> = {
     "border border-transparent bg-transparent text-fg hover:border-border hover:bg-surface-muted",
   link: "bg-transparent text-brand px-0 underline underline-offset-4 shadow-none hover:text-brand-foreground focus-visible:ring-0 focus-visible:ring-offset-0",
   gradient:
-    "btn-gradient bg-[var(--cta-gradient)] text-[var(--cta-button-text)] border border-transparent rounded-pill",
+    "btn-gradient bg-[var(--cta-button-gradient)] text-[var(--cta-button-text)] border border-transparent rounded-pill",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

@@ -32,15 +32,10 @@
   border-bottom-width: 0;
   background: linear-gradient(
     180deg,
-    var(--dock-bg-1, rgba(10, 12, 28, 0.94)),
-    var(--dock-bg-2, rgba(10, 12, 28, 0.88))
+    var(--dock-bg-1, var(--rail-bg-1, var(--card-bg-1))),
+    var(--dock-bg-2, var(--rail-bg-2, var(--card-bg-2)))
   );
-  box-shadow: var(
-    --dock-shadow,
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 -1px 0 rgba(2, 6, 23, 0.35),
-    0 12px 28px rgba(5, 10, 30, 0.26)
-  );
+  box-shadow: var(--dock-shadow, var(--card-shadow, var(--shadow-lg)));
   width: 100%;
   box-sizing: border-box;
   padding: var(--layout-dock-padding);
@@ -64,13 +59,13 @@
   background:
     linear-gradient(
       180deg,
-      var(--dock-btn-bg-1, rgba(255, 255, 255, 0.14)),
-      var(--dock-btn-bg-2, rgba(255, 255, 255, 0.05))
+      var(--dock-btn-bg-1, var(--chip-bg-1, var(--pill-bg-1))),
+      var(--dock-btn-bg-2, var(--chip-bg-2, var(--pill-bg-2)))
     ),
     linear-gradient(
       180deg,
-      var(--dock-bg-1, rgba(10, 12, 28, 0.94)),
-      var(--dock-bg-2, rgba(10, 12, 28, 0.88))
+      var(--dock-bg-1, var(--rail-bg-1, var(--card-bg-1))),
+      var(--dock-bg-2, var(--rail-bg-2, var(--card-bg-2)))
     );
   background-blend-mode: screen, normal;
   color: var(--dock-text-muted, var(--text));
@@ -104,7 +99,7 @@
 .btn:hover {
   border-color: var(--dock-btn-hover-border, var(--card-hover-border));
   transform: translateY(-2px);
-  box-shadow: var(--shadow-sm, 0 10px 16px rgba(5, 10, 30, 0.22));
+  box-shadow: var(--card-hover-shadow, var(--shadow-sm));
   color: var(--text);
 }
 .btn:focus-visible {
@@ -124,8 +119,8 @@
   background: var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee));
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--color-brand) 50%, transparent),
-    var(--dock-active-shadow, 0 6px 12px rgba(2, 6, 23, 0.28)),
-    0 0 22px var(--dock-active-glow, rgba(99, 102, 241, 0.26));
+    var(--dock-active-shadow, var(--shadow-sm)),
+    0 0 22px var(--dock-active-glow, var(--accent-glow, transparent));
 }
 
 .command {
