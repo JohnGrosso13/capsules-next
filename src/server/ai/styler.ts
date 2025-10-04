@@ -176,7 +176,7 @@ function sanitizeLine(text: string, max: number, fallback: string): string {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (!normalized.length) return fallback;
   if (normalized.length <= max) return normalized;
-  return `${normalized.slice(0, max - 1)}…`;
+  return `${normalized.slice(0, max - 1)}...`;
 }
 
 function buildContractPayload(prompt: string) {
@@ -341,7 +341,7 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
       const combinedDetails = [description, detailsFromUsage]
         .map((value) => value?.trim())
         .filter(Boolean)
-        .join(" – ");
+        .join(" - ");
 
       const plan: StylerPlan = {
         summary,
@@ -353,7 +353,7 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
       }
 
       console.info("styler_ai_telemetry", {
-        prompt: prompt.length > 240 ? `${prompt.slice(0, 239)}…` : prompt,
+        prompt: prompt.length > 240 ? `${prompt.slice(0, 239)}...` : prompt,
         summary,
         varCount: Object.keys(limitedVars).length,
         attempt: attempt + 1,
