@@ -1,4 +1,13 @@
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode, type Ref } from "react";
+"use client";
+
+import NextLink from "next/link";
+import {
+  forwardRef,
+  type ButtonHTMLAttributes,
+  type ComponentProps,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { Slot } from "@radix-ui/react-slot";
 
 import { cn } from "@/lib/cn";
@@ -34,6 +43,45 @@ const sizeClasses: Record<ButtonSize, string> = {
 const iconWrapper = "inline-flex h-4 w-4 items-center justify-center";
 const spinnerCircle = "h-4 w-4 animate-spin rounded-full border-2 border-border/60 border-t-brand";
 
+type ButtonStyleOptions = {
+  variant: ButtonVariant;
+  size: ButtonSize;
+  className?: string;
+};
+
+function buttonClassName({ variant, size, className }: ButtonStyleOptions) {
+  return cn(baseClasses, sizeClasses[size], variantClasses[variant], className);
+}
+
+type ButtonContentProps = {
+  size: ButtonSize;
+  showSpinner: boolean;
+  leftIcon?: ReactNode;
+  rightIcon?: ReactNode;
+  children?: ReactNode;
+};
+
+function ButtonContent({ size, showSpinner, leftIcon, rightIcon, children }: ButtonContentProps) {
+  return (
+    <>
+      {(showSpinner || leftIcon) && (
+        <span className={cn(iconWrapper, size === "icon" && "mr-0")} aria-hidden="true">
+          {showSpinner ? <span className={spinnerCircle} /> : leftIcon}
+        </span>
+      )}
+      {children && (
+        <span className={cn("flex items-center", size === "icon" && "sr-only")}>{children}</span>
+      )}
+      {rightIcon && !showSpinner && size !== "icon" && (
+        <span className={iconWrapper} aria-hidden="true">
+          {rightIcon}
+        </span>
+      )}
+      {showSpinner && <span className="sr-only">Loading</span>}
+    </>
+  );
+}
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -63,31 +111,17 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const isDisabled = disabled ?? false;
     const showSpinner = loading;
     const Component = asChild ? Slot : "button";
-
     const content = (
-      <>
-        {(showSpinner || leftIcon) && (
-          <span className={cn(iconWrapper, size === "icon" && "mr-0")} aria-hidden="true">
-            {showSpinner ? <span className={spinnerCircle} /> : leftIcon}
-          </span>
-        )}
-        {children && (
-          <span className={cn("flex items-center", size === "icon" && "sr-only")}>{children}</span>
-        )}
-        {rightIcon && !showSpinner && size !== "icon" && (
-          <span className={iconWrapper} aria-hidden="true">
-            {rightIcon}
-          </span>
-        )}
-        {showSpinner && <span className="sr-only">Loading</span>}
-      </>
+      <ButtonContent size={size} showSpinner={showSpinner} leftIcon={leftIcon} rightIcon={rightIcon}>
+        {children}
+      </ButtonContent>
     );
 
     if (asChild) {
       return (
         <Component
           ref={ref as Ref<HTMLButtonElement>}
-          className={cn(baseClasses, sizeClasses[size], variantClasses[variant], className)}
+          className={buttonClassName({ variant, size, className })}
           data-loading={showSpinner ? "true" : undefined}
           {...props}
         >
@@ -99,7 +133,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Component
         ref={ref}
-        className={cn(baseClasses, sizeClasses[size], variantClasses[variant], className)}
+        className={buttonClassName({ variant, size, className })}
         data-loading={showSpinner ? "true" : undefined}
         aria-busy={showSpinner || undefined}
         disabled={isDisabled || showSpinner}
@@ -113,5 +147,55 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = "Button";
+
+type NextLinkProps = ComponentProps<typeof NextLink>;
+
+export interface ButtonLinkProps extends Omit<NextLinkProps, "href"> {
+  href: NextLinkProps["href"];
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  leftIcon?: ReactNode;
+  rightIcon?: ReactNode;
+  loading?: boolean;
+  className?: string;
+  children?: ReactNode;
+}
+
+export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(
+  (
+    {
+      href,
+      variant = "primary",
+      size = "md",
+      leftIcon,
+      rightIcon,
+      loading = false,
+      className,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
+    const showSpinner = loading;
+
+    return (
+      <NextLink
+        ref={ref}
+        href={href}
+        className={buttonClassName({ variant, size, className })}
+        data-loading={showSpinner ? "true" : undefined}
+        aria-busy={showSpinner || undefined}
+        aria-disabled={showSpinner ? true : undefined}
+        {...props}
+      >
+        <ButtonContent size={size} showSpinner={showSpinner} leftIcon={leftIcon} rightIcon={rightIcon}>
+          {children}
+        </ButtonContent>
+      </NextLink>
+    );
+  },
+);
+
+ButtonLink.displayName = "ButtonLink";
 
 export type { ButtonVariant, ButtonSize };

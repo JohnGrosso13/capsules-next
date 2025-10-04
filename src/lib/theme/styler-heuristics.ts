@@ -208,18 +208,56 @@ function detectThemePreset(text: string): ThemePreset | null {
   return null;
 }
 
-function buildThemePresetVars(preset: ThemePreset): Record<string, string> {
-  const seed = colorSpecFromHex(preset.seedHex, preset.label);
+export function buildThemeVarsFromSeed(
+  seedHex: string,
+  options?: { accentHex?: string; accentGlow?: number; label?: string },
+): Record<string, string> {
+  const label = options?.label ?? "Preset";
+  const seed = colorSpecFromHex(seedHex, label);
   const vars = buildSiteThemeVars(seed);
-  if (preset.accentHex) {
-    applyAccentPalette(vars, preset.accentHex, preset.glowAlpha ?? 0.3);
+  Object.assign(vars, buildFeedActionVars(seed));
+  if (options?.accentHex) {
+    applyAccentPalette(vars, options.accentHex, options.accentGlow ?? 0.3);
   }
-  return vars;
+
+  const success = tint(seed.rgb, 0.25);
+  const warning = tint(seed.rgb, 0.45);
+  const danger = shade(seed.rgb, 0.35);
+  const successHex = rgbToHex(success);
+  const warningHex = rgbToHex(warning);
+  const dangerHex = rgbToHex(danger);
+
+  vars["--color-accent"] = options?.accentHex ?? vars["--color-accent"] ?? seed.hex;
+  vars["--color-info"] = vars["--color-info"] ?? options?.accentHex ?? seed.hex;
+  vars["--color-success"] = vars["--color-success"] ?? successHex;
+  vars["--color-warning"] = vars["--color-warning"] ?? warningHex;
+  vars["--color-danger"] = vars["--color-danger"] ?? dangerHex;
+
+  if (!vars["--presence-online-dot"]) vars["--presence-online-dot"] = successHex;
+  if (!vars["--presence-online-ring"]) vars["--presence-online-ring"] = rgba(success, 0.3);
+  if (!vars["--presence-away-dot"]) vars["--presence-away-dot"] = warningHex;
+  if (!vars["--presence-away-ring"]) vars["--presence-away-ring"] = rgba(warning, 0.3);
+  if (!vars["--presence-offline-dot"]) vars["--presence-offline-dot"] = rgba(seed.rgb, 0.36);
+  if (!vars["--presence-offline-ring"]) vars["--presence-offline-ring"] = rgba(seed.rgb, 0.24);
+
+  return normalizeThemeVars(vars);
+}
+
+function buildThemePresetVars(preset: ThemePreset): Record<string, string> {
+  return buildThemeVarsFromSeed(preset.seedHex, {
+    accentHex: preset.accentHex,
+    accentGlow: preset.glowAlpha,
+    label: preset.label,
+  });
 }
 
 export function getDefaultStylerThemeVars(): Record<string, string> {
   const defaultPreset = THEME_PRESETS.find((preset) => preset.id === "dark") ?? THEME_PRESETS[0];
-  return normalizeThemeVars(buildThemePresetVars(defaultPreset));
+  return buildThemeVarsFromSeed(defaultPreset.seedHex, {
+    accentHex: defaultPreset.accentHex,
+    accentGlow: defaultPreset.glowAlpha,
+    label: defaultPreset.label,
+  });
 }
 
 const SIMPLE_COLOR_STOPWORDS = new Set([
@@ -261,8 +299,8 @@ function isSimpleColorPrompt(prompt: string, color: ColorSpec): boolean {
   }
   const colorLabel = color.label.toLowerCase();
   const sanitized = normalized
-    .replace(colorLabel, )
-    .replace(/[^a-z0-9#\s]/g, );
+    .replace(colorLabel, " ")
+    .replace(/[^a-z0-9#\s]/g, " ");
   const tokens = sanitized
     .split(/\s+/)
     .map((token) => token.trim())

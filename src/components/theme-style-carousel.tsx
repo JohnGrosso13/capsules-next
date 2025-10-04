@@ -2,10 +2,9 @@
 
 import * as React from "react";
 
-import Link from "next/link";
 import styles from "./theme-style-carousel.module.css";
 import promo from "./promo-row.module.css";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Trash } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/lib/cn";
 
@@ -18,6 +17,7 @@ import {
   getTheme,
   clearThemeVars,
 } from "@/lib/theme";
+import { buildThemeVarsFromSeed } from "@/lib/theme/styler-heuristics";
 import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { useCurrentUser } from "@/services/auth/client";
 import { buildThemePreview, summarizeGroupLabels } from "@/lib/theme/token-groups";
@@ -66,6 +66,18 @@ function extractVars(input: unknown): Record<string, string> {
     out[key] = value;
   }
   return out;
+}
+
+function createThemePresetVars(
+  seedHex: string,
+  options: { accentHex?: string; accentGlow?: number; label?: string; overrides?: Record<string, string> } = {},
+): Record<string, string> {
+  const base = buildThemeVarsFromSeed(seedHex, {
+    accentHex: options.accentHex,
+    accentGlow: options.accentGlow,
+    label: options.label,
+  });
+  return Object.assign({}, base, options.overrides ?? {});
 }
 
 function mapThemeRecord(raw: unknown): SavedStyle | null {
@@ -131,7 +143,7 @@ function mapThemeRecord(raw: unknown): SavedStyle | null {
 }
 
 
-const SUMMER_THEME_VARS: Record<string, string> = {
+const SUMMER_THEME_OVERRIDES: Record<string, string> = {
   "--app-bg": "radial-gradient(1200px 720px at 0% 0%, rgba(255, 188, 122, 0.24), transparent 62%), radial-gradient(1000px 680px at 100% 0%, rgba(255, 154, 173, 0.22), transparent 64%), linear-gradient(120deg, rgba(255, 247, 226, 0.96) 0%, rgba(255, 238, 208, 0.94) 45%, #fff3dc 100%)",
   "--surface-app": "var(--app-bg)",
   "--surface-muted": "rgba(255, 242, 230, 0.94)",
@@ -193,7 +205,13 @@ const SUMMER_THEME_VARS: Record<string, string> = {
   "--dock-sheet-shadow": "0 24px 48px rgba(214, 116, 32, 0.24)",
 };
 
-const FALL_THEME_VARS: Record<string, string> = {
+const SUMMER_THEME_VARS: Record<string, string> = createThemePresetVars("#f97316", {
+  accentHex: "#fbbf24",
+  accentGlow: 0.28,
+  overrides: SUMMER_THEME_OVERRIDES,
+});
+
+const FALL_THEME_OVERRIDES: Record<string, string> = {
   "--app-bg": "radial-gradient(1100px 680px at 0% 0%, rgba(208, 120, 56, 0.22), transparent 62%), radial-gradient(900px 580px at 100% 0%, rgba(124, 45, 18, 0.3), transparent 66%), linear-gradient(135deg, rgba(34, 15, 8, 0.96) 0%, rgba(46, 20, 10, 0.94) 40%, #1b0b05 100%)",
   "--surface-app": "var(--app-bg)",
   "--surface-muted": "rgba(50, 26, 16, 0.9)",
@@ -255,7 +273,13 @@ const FALL_THEME_VARS: Record<string, string> = {
   "--dock-sheet-shadow": "0 24px 50px rgba(54, 22, 6, 0.52)",
 };
 
-const WINTER_THEME_VARS: Record<string, string> = {
+const FALL_THEME_VARS: Record<string, string> = createThemePresetVars("#ea580c", {
+  accentHex: "#f97316",
+  accentGlow: 0.25,
+  overrides: FALL_THEME_OVERRIDES,
+});
+
+const WINTER_THEME_OVERRIDES: Record<string, string> = {
   "--app-bg": "radial-gradient(1200px 720px at 0% 0%, rgba(96, 165, 250, 0.18), transparent 60%), radial-gradient(980px 640px at 100% 0%, rgba(59, 130, 246, 0.14), transparent 62%), linear-gradient(120deg, rgba(6, 13, 30, 0.98) 0%, rgba(4, 10, 26, 0.96) 45%, #04061a 100%)",
   "--surface-app": "var(--app-bg)",
   "--surface-muted": "rgba(12, 22, 40, 0.88)",
@@ -317,7 +341,13 @@ const WINTER_THEME_VARS: Record<string, string> = {
   "--dock-sheet-shadow": "0 24px 48px rgba(6, 16, 34, 0.5)",
 };
 
-const SPRING_THEME_VARS: Record<string, string> = {
+const WINTER_THEME_VARS: Record<string, string> = createThemePresetVars("#60a5fa", {
+  accentHex: "#38bdf8",
+  accentGlow: 0.26,
+  overrides: WINTER_THEME_OVERRIDES,
+});
+
+const SPRING_THEME_OVERRIDES: Record<string, string> = {
   "--app-bg": "radial-gradient(1200px 720px at 0% 0%, rgba(148, 223, 196, 0.24), transparent 60%), radial-gradient(1000px 680px at 100% 0%, rgba(216, 255, 217, 0.24), transparent 64%), linear-gradient(120deg, rgba(241, 255, 246, 0.96) 0%, rgba(229, 255, 243, 0.94) 45%, #f1fff8 100%)",
   "--surface-app": "var(--app-bg)",
   "--surface-muted": "rgba(235, 255, 246, 0.94)",
@@ -379,6 +409,12 @@ const SPRING_THEME_VARS: Record<string, string> = {
   "--dock-sheet-shadow": "0 24px 48px rgba(54, 164, 120, 0.24)",
 };
 
+const SPRING_THEME_VARS: Record<string, string> = createThemePresetVars("#34d399", {
+  accentHex: "#a3e635",
+  accentGlow: 0.24,
+  overrides: SPRING_THEME_OVERRIDES,
+});
+
 function builtInPresets(): Preset[] {
   return [
     { id: "light", title: "Light Mode", desc: "System light theme", vars: {}, theme: "light" },
@@ -392,33 +428,37 @@ function builtInPresets(): Preset[] {
       id: "aurora",
       title: "Aurora Glow",
       desc: "Vibrant purple-teal gradient",
-      vars: {
-        "--color-brand": "#8b5cf6",
-        "--color-accent": "#22d3ee",
-        "--gradient-brand": "linear-gradient(120deg,#8b5cf6 0%,#6366f1 55%,#22d3ee 100%)",
-        "--cta-gradient": "linear-gradient(120deg,#7c3aed 0%,#6366f1 55%,#22d3ee 100%)",
-        "--app-bg":
-          "radial-gradient(1200px 720px at 0% 0%, rgba(139,92,246,0.18), transparent 60%), radial-gradient(1020px 680px at 100% 0%, rgba(34,211,238,0.14), transparent 62%), linear-gradient(90deg, rgba(139,92,246,0.12), rgba(99,102,241,0.06), rgba(5,10,27,0), rgba(34,211,238,0.06), rgba(34,211,238,0.12)), #050a1b",
-      },
+      vars: createThemePresetVars("#8b5cf6", {
+        overrides: {
+          "--color-brand": "#8b5cf6",
+          "--color-accent": "#22d3ee",
+          "--gradient-brand": "linear-gradient(120deg,#8b5cf6 0%,#6366f1 55%,#22d3ee 100%)",
+          "--cta-gradient": "linear-gradient(120deg,#7c3aed 0%,#6366f1 55%,#22d3ee 100%)",
+          "--app-bg":
+            "radial-gradient(1200px 720px at 0% 0%, rgba(139,92,246,0.18), transparent 60%), radial-gradient(1020px 680px at 100% 0%, rgba(34,211,238,0.14), transparent 62%), linear-gradient(90deg, rgba(139,92,246,0.12), rgba(99,102,241,0.06), rgba(5,10,27,0), rgba(34,211,238,0.06), rgba(34,211,238,0.12)), #050a1b",
+        },
+      }),
     },
     {
       id: "noir",
       title: "Midnight Noir",
       desc: "Deep navy + cyan",
-      vars: {
-        "--color-brand": "#38bdf8",
-        "--color-accent": "#7dd3fc",
-        "--cta-gradient": "linear-gradient(120deg,#0ea5e9 0%,#38bdf8 55%,#7dd3fc 100%)",
-        "--gradient-brand": "linear-gradient(120deg,#1e3a8a 0%,#0ea5e9 55%,#38bdf8 100%)",
-        "--glass-bg-1": "rgba(255,255,255,0.08)",
-        "--glass-bg-2": "rgba(255,255,255,0.045)",
-        "--card-bg-1": "rgba(17, 24, 39, 0.86)",
-        "--card-bg-2": "rgba(17, 24, 39, 0.74)",
-        "--card-border": "rgba(255,255,255,0.12)",
-        "--card-shadow": "0 18px 40px rgba(2,6,23,0.5)",
-        "--app-bg":
-          "radial-gradient(1000px 640px at 10% 0%, rgba(2,132,199,0.14), transparent 60%), radial-gradient(880px 520px at 90% 0%, rgba(2,6,23,0.5), transparent 62%), linear-gradient(90deg, rgba(15,23,42,0.65), rgba(2,6,23,0.55), rgba(2,6,23,0.6)), #030814",
-      },
+      vars: createThemePresetVars("#0f172a", {
+        overrides: {
+          "--color-brand": "#38bdf8",
+          "--color-accent": "#7dd3fc",
+          "--cta-gradient": "linear-gradient(120deg,#0ea5e9 0%,#38bdf8 55%,#7dd3fc 100%)",
+          "--gradient-brand": "linear-gradient(120deg,#1e3a8a 0%,#0ea5e9 55%,#38bdf8 100%)",
+          "--glass-bg-1": "rgba(255,255,255,0.08)",
+          "--glass-bg-2": "rgba(255,255,255,0.045)",
+          "--card-bg-1": "rgba(17, 24, 39, 0.86)",
+          "--card-bg-2": "rgba(17, 24, 39, 0.74)",
+          "--card-border": "rgba(255,255,255,0.12)",
+          "--card-shadow": "0 18px 40px rgba(2,6,23,0.5)",
+          "--app-bg":
+            "radial-gradient(1000px 640px at 10% 0%, rgba(2,132,199,0.14), transparent 60%), radial-gradient(880px 520px at 90% 0%, rgba(2,6,23,0.5), transparent 62%), linear-gradient(90deg, rgba(15,23,42,0.65), rgba(2,6,23,0.55), rgba(2,6,23,0.6)), #030814",
+        },
+      }),
     },
   ];
 }
@@ -429,14 +469,16 @@ const PLACEHOLDER_THEMES: SavedStyle[] = [
     title: "Neon Pulse",
     summary: "Electric synthwave glow",
     description: "Electric gradients with synth glow.",
-    vars: {
-      "--color-brand": "#f472b6",
-      "--color-accent": "#22d3ee",
-      "--gradient-brand": "linear-gradient(120deg,#f472b6 0%,#a855f7 60%,#22d3ee 100%)",
-      "--cta-gradient": "linear-gradient(120deg,#f472b6 0%,#a855f7 70%,#22d3ee 100%)",
-      "--app-bg":
-        "radial-gradient(1100px 680px at 10% -10%, rgba(244,114,182,0.18), transparent 64%), radial-gradient(900px 600px at 100% 0%, rgba(34,211,238,0.16), transparent 66%), linear-gradient(90deg, rgba(18,22,46,0.92), rgba(10,12,32,0.92))",
-    },
+    vars: createThemePresetVars("#f472b6", {
+      overrides: {
+        "--color-brand": "#f472b6",
+        "--color-accent": "#22d3ee",
+        "--gradient-brand": "linear-gradient(120deg,#f472b6 0%,#a855f7 60%,#22d3ee 100%)",
+        "--cta-gradient": "linear-gradient(120deg,#f472b6 0%,#a855f7 70%,#22d3ee 100%)",
+        "--app-bg":
+          "radial-gradient(1100px 680px at 10% -10%, rgba(244,114,182,0.18), transparent 64%), radial-gradient(900px 600px at 100% 0%, rgba(34,211,238,0.16), transparent 66%), linear-gradient(90deg, rgba(18,22,46,0.92), rgba(10,12,32,0.92))",
+      },
+    }),
     createdLabel: null,
   },
   {
@@ -444,14 +486,16 @@ const PLACEHOLDER_THEMES: SavedStyle[] = [
     title: "Ocean Mist",
     summary: "Calming teal shoreline",
     description: "Glass blues inspired by coastal dawns.",
-    vars: {
-      "--color-brand": "#0ea5e9",
-      "--color-accent": "#14b8a6",
-      "--gradient-brand": "linear-gradient(120deg,#0ea5e9 0%,#14b8a6 55%,#38bdf8 100%)",
-      "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#0ea5e9 65%,#14b8a6 100%)",
-      "--app-bg":
-        "radial-gradient(1200px 720px at 0% -10%, rgba(14,165,233,0.16), transparent 62%), radial-gradient(1000px 600px at 100% 0%, rgba(13,148,136,0.18), transparent 66%), linear-gradient(90deg, rgba(8,18,40,0.94), rgba(6,12,30,0.94))",
-    },
+    vars: createThemePresetVars("#0ea5e9", {
+      overrides: {
+        "--color-brand": "#0ea5e9",
+        "--color-accent": "#14b8a6",
+        "--gradient-brand": "linear-gradient(120deg,#0ea5e9 0%,#14b8a6 55%,#38bdf8 100%)",
+        "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#0ea5e9 65%,#14b8a6 100%)",
+        "--app-bg":
+          "radial-gradient(1200px 720px at 0% -10%, rgba(14,165,233,0.16), transparent 62%), radial-gradient(1000px 600px at 100% 0%, rgba(13,148,136,0.18), transparent 66%), linear-gradient(90deg, rgba(8,18,40,0.94), rgba(6,12,30,0.94))",
+      },
+    }),
     createdLabel: null,
   },
   {
@@ -459,14 +503,16 @@ const PLACEHOLDER_THEMES: SavedStyle[] = [
     title: "Sunset Haze",
     summary: "Warm citrus horizon",
     description: "Amber and magenta with soft haze.",
-    vars: {
-      "--color-brand": "#fb923c",
-      "--color-accent": "#f97316",
-      "--gradient-brand": "linear-gradient(120deg,#fb7185 0%,#f97316 55%,#f59e0b 100%)",
-      "--cta-gradient": "linear-gradient(120deg,#fb923c 0%,#f97316 50%,#ef4444 100%)",
-      "--app-bg":
-        "radial-gradient(1200px 720px at 0% -20%, rgba(249,115,22,0.16), transparent 62%), radial-gradient(1000px 620px at 100% 0%, rgba(236,72,153,0.18), transparent 66%), linear-gradient(90deg, rgba(22,12,32,0.95), rgba(12,8,24,0.95))",
-    },
+    vars: createThemePresetVars("#fb923c", {
+      overrides: {
+        "--color-brand": "#fb923c",
+        "--color-accent": "#f97316",
+        "--gradient-brand": "linear-gradient(120deg,#fb7185 0%,#f97316 55%,#f59e0b 100%)",
+        "--cta-gradient": "linear-gradient(120deg,#fb923c 0%,#f97316 50%,#ef4444 100%)",
+        "--app-bg":
+          "radial-gradient(1200px 720px at 0% -20%, rgba(249,115,22,0.16), transparent 62%), radial-gradient(1000px 620px at 100% 0%, rgba(236,72,153,0.18), transparent 66%), linear-gradient(90deg, rgba(22,12,32,0.95), rgba(12,8,24,0.95))",
+      },
+    }),
     createdLabel: null,
   },
   {
@@ -474,14 +520,16 @@ const PLACEHOLDER_THEMES: SavedStyle[] = [
     title: "Forest Canopy",
     summary: "Emerald mist",
     description: "Emerald canopy with glass morning dew.",
-    vars: {
-      "--color-brand": "#10b981",
-      "--color-accent": "#22d3ee",
-      "--gradient-brand": "linear-gradient(120deg,#10b981 0%,#22d3ee 55%,#34d399 100%)",
-      "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#34d399 55%,#0ea5e9 100%)",
-      "--app-bg":
-        "radial-gradient(1100px 680px at 0% -10%, rgba(16,185,129,0.18), transparent 64%), radial-gradient(1000px 620px at 100% 0%, rgba(14,165,233,0.16), transparent 68%), linear-gradient(90deg, rgba(10,18,28,0.95), rgba(8,16,24,0.95))",
-    },
+    vars: createThemePresetVars("#10b981", {
+      overrides: {
+        "--color-brand": "#10b981",
+        "--color-accent": "#22d3ee",
+        "--gradient-brand": "linear-gradient(120deg,#10b981 0%,#22d3ee 55%,#34d399 100%)",
+        "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#34d399 55%,#0ea5e9 100%)",
+        "--app-bg":
+          "radial-gradient(1100px 680px at 0% -10%, rgba(16,185,129,0.18), transparent 64%), radial-gradient(1000px 620px at 100% 0%, rgba(14,165,233,0.16), transparent 68%), linear-gradient(90deg, rgba(10,18,28,0.95), rgba(8,16,24,0.95))",
+      },
+    }),
     createdLabel: null,
   },
   {
@@ -489,14 +537,16 @@ const PLACEHOLDER_THEMES: SavedStyle[] = [
     title: "Stardust",
     summary: "Iridescent midnight",
     description: "Cosmic purples with starlit grain.",
-    vars: {
-      "--color-brand": "#a855f7",
-      "--color-accent": "#6366f1",
-      "--gradient-brand": "linear-gradient(120deg,#6366f1 0%,#a855f7 55%,#22d3ee 100%)",
-      "--cta-gradient": "linear-gradient(120deg,#4f46e5 0%,#7c3aed 60%,#22d3ee 100%)",
-      "--app-bg":
-        "radial-gradient(1200px 720px at 0% -20%, rgba(99,102,241,0.16), transparent 64%), radial-gradient(1000px 640px at 100% 0%, rgba(168,85,247,0.18), transparent 66%), linear-gradient(90deg, rgba(10,14,32,0.95), rgba(6,10,24,0.96))",
-    },
+    vars: createThemePresetVars("#a855f7", {
+      overrides: {
+        "--color-brand": "#a855f7",
+        "--color-accent": "#6366f1",
+        "--gradient-brand": "linear-gradient(120deg,#6366f1 0%,#a855f7 55%,#22d3ee 100%)",
+        "--cta-gradient": "linear-gradient(120deg,#4f46e5 0%,#7c3aed 60%,#22d3ee 100%)",
+        "--app-bg":
+          "radial-gradient(1200px 720px at 0% -20%, rgba(99,102,241,0.16), transparent 64%), radial-gradient(1000px 640px at 100% 0%, rgba(168,85,247,0.18), transparent 66%), linear-gradient(90deg, rgba(10,14,32,0.95), rgba(6,10,24,0.96))",
+      },
+    }),
     createdLabel: null,
   },
   {
@@ -504,14 +554,16 @@ const PLACEHOLDER_THEMES: SavedStyle[] = [
     title: "Cyber Grid",
     summary: "Glitch teal",
     description: "Cyberpunk cyan with grid glow.",
-    vars: {
-      "--color-brand": "#22d3ee",
-      "--color-accent": "#6366f1",
-      "--gradient-brand": "linear-gradient(120deg,#22d3ee 0%,#0ea5e9 50%,#6366f1 100%)",
-      "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#38bdf8 60%,#8b5cf6 100%)",
-      "--app-bg":
-        "radial-gradient(1100px 660px at 0% -20%, rgba(34,211,238,0.18), transparent 64%), radial-gradient(900px 580px at 100% 0%, rgba(99,102,241,0.18), transparent 66%), linear-gradient(90deg, rgba(6,14,28,0.96), rgba(4,12,24,0.96))",
-    },
+    vars: createThemePresetVars("#22d3ee", {
+      overrides: {
+        "--color-brand": "#22d3ee",
+        "--color-accent": "#6366f1",
+        "--gradient-brand": "linear-gradient(120deg,#22d3ee 0%,#0ea5e9 50%,#6366f1 100%)",
+        "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#38bdf8 60%,#8b5cf6 100%)",
+        "--app-bg":
+          "radial-gradient(1100px 660px at 0% -20%, rgba(34,211,238,0.18), transparent 64%), radial-gradient(900px 580px at 100% 0%, rgba(99,102,241,0.18), transparent 66%), linear-gradient(90deg, rgba(6,14,28,0.96), rgba(4,12,24,0.96))",
+      },
+    }),
     createdLabel: null,
   },
 ];
@@ -915,9 +967,9 @@ export function ThemeStyleCarousel() {
           <Button variant="secondary" size="sm" onClick={handleSaveCurrent}>
             Save current
           </Button>
-          <Button variant="ghost" size="sm" asChild rightIcon={<ArrowRight weight="bold" />}>
-            <Link href="/settings/themes">View more</Link>
-          </Button>
+          <ButtonLink variant="ghost" size="sm" href="/settings/themes" rightIcon={<ArrowRight weight="bold" />}>
+            View more
+          </ButtonLink>
         </div>
       </div>
 
@@ -991,9 +1043,9 @@ export function ThemeStylesGallery() {
           >
             Delete all saved
           </Button>
-          <Button variant="ghost" size="sm" asChild leftIcon={<ArrowLeft weight="bold" />}>
-            <Link href="/settings">Back to settings</Link>
-          </Button>
+          <ButtonLink variant="ghost" size="sm" href="/settings" leftIcon={<ArrowLeft weight="bold" />}>
+            Back to settings
+          </ButtonLink>
         </div>
       </div>
 
