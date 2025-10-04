@@ -78,7 +78,7 @@
     --alert-fg: var(--color-brand-strong);
     --alert-accent: var(--color-brand);
     --brand-gradient: var(--gradient-brand);
-    --cta-button-gradient: var(--cta-gradient);
+    --cta-button-gradient: var(--cta-chip-gradient, var(--cta-gradient));
     --cta-chip-gradient: var(--cta-gradient);
     --cta-chip-text: var(--cta-button-text, #0e1024);
     --cta-chip-border: color-mix(in srgb, var(--color-brand) 38%, rgba(14, 23, 42, 0.18));

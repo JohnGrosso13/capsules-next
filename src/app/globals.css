@@ -137,7 +137,7 @@
     --alert-accent: var(--color-brand);
     /* CTA & gradients */
     --brand-gradient: var(--gradient-brand);
-    --cta-button-gradient: var(--cta-gradient);
+    --cta-button-gradient: var(--cta-chip-gradient, var(--cta-gradient));
     --cta-radius: var(--radius-pill, 999px);
     /* Card surfaces */
     --card-radius: var(--radius-lg, 1rem);
