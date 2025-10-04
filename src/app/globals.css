@@ -241,6 +241,73 @@
     --style-requests-badge-color: var(--tile-badge-color-base);
     --style-requests-border-hover: var(--tile-border-hover-base);
 
+    /* Home surface tokens */
+    --home-prompterdropoverlay-background: radial-gradient(120% 120% at 50% 50%, rgba(99, 102, 241, 0.22), transparent 70%),
+      linear-gradient(180deg, rgba(8, 12, 34, 0.86), rgba(8, 10, 26, 0.62));
+    --home-prompterdropoverlay-box-shadow: 0 28px 60px rgba(5, 10, 30, 0.42);
+    --home-prompterdropcard-border: 1px solid rgba(255, 255, 255, 0.28);
+    --home-prompterdropcard-box-shadow: 0 18px 38px rgba(5, 10, 30, 0.45);
+    --home-promptbar-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.4),
+      0 8px 18px rgba(5, 10, 30, 0.28);
+    --home-promptbar--before-background: radial-gradient(120% 160% at 10% 50%, rgba(99, 102, 241, 0.3), transparent 65%),
+      radial-gradient(120% 160% at 90% 50%, rgba(124, 58, 237, 0.26), transparent 65%),
+      radial-gradient(160% 160% at 50% 50%, rgba(56, 189, 248, 0.2), transparent 70%);
+    --home-promptbar-focus-within-border-color: rgba(147, 197, 253, 0.5);
+    --home-promptbar-focus-within-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.48),
+      0 14px 28px rgba(5, 10, 30, 0.38);
+    --home-gensplitcaret-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 -1px 0 rgba(5, 8, 28, 0.45),
+      0 10px 22px rgba(5, 10, 30, 0.28);
+    --home-attachbutton-hover-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26),
+      12px 18px 30px rgba(6, 10, 32, 0.38);
+    --home-attachmentchip-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      6px 10px 18px rgba(5, 10, 30, 0.24);
+    --home-intentchip-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 -1px 0 rgba(5, 8, 28, 0.52),
+      10px 14px 24px rgba(5, 10, 30, 0.34);
+    --home-intentchipactive-background: linear-gradient(155deg, rgba(99, 102, 241, 0.46), rgba(37, 99, 235, 0.38));
+    --home-intentchipactive-color: #ffffff;
+    --home-intentchipactive-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -1px 0 rgba(9, 12, 34, 0.55),
+      14px 22px 36px rgba(53, 96, 255, 0.32);
+    --home-intentchipactive-box-shadow-2: inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(5, 8, 28, 0.48),
+      0 16px 30px rgba(99, 102, 241, 0.28);
+    --home-skeletonbackdrop-background: radial-gradient(120% 120% at 50% 0%, rgba(99, 102, 241, 0.18), transparent 70%),
+      linear-gradient(180deg, rgba(12, 16, 38, 0.82), rgba(10, 14, 34, 0.62));
+    --home-skeletoniconbtn-background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02));
+    --home-skeletoniconbtn--after-background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    --home-cardrefreshing--after-background: linear-gradient(180deg, rgba(12, 16, 38, 0.58), rgba(9, 12, 32, 0.54));
+    --home-card--before-background: radial-gradient(120% 90% at 50% -10%, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 68%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
+    --home-cardhead-background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.04));
+    --home-cardhead-border-bottom-color: rgba(255, 255, 255, 0.12);
+    --home-lightboxoverlay-background: radial-gradient(circle at 50% 20%, rgba(76, 81, 165, 0.35), transparent 70%), rgba(7, 9, 26, 0.92);
+    --home-lightboxclose-background: color-mix(in srgb, rgba(15, 19, 42, 0.3) 65%, rgba(255, 255, 255, 0.12));
+    --home-lightboxclose-color: #ffffff;
+    --home-lightboxclose-focus-visible-background: color-mix(in srgb, rgba(99, 102, 241, 0.5) 70%, rgba(255, 255, 255, 0.2));
+    --home-lightboxnav-background: color-mix(in srgb, rgba(15, 19, 42, 0.45) 65%, rgba(255, 255, 255, 0.14));
+    --home-lightboxnav-color: #ffffff;
+    --home-lightboxnav-focus-visible-background: color-mix(in srgb, rgba(99, 102, 241, 0.55) 70%, rgba(255, 255, 255, 0.2));
+    --home-lightboxvideo-background: #000;
+    --home-lightboxcaption-color: rgba(255, 255, 255, 0.85);
+    --home-pill-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.4),
+      0 6px 12px rgba(5, 10, 30, 0.22);
+    --home-pill-hover-border-color: rgba(255, 255, 255, 0.26);
+    --home-connectiontile-tile-border-hover-base: rgba(255, 255, 255, 0.26);
+    --home-connectiontile-tile-shadow-hover-base: 0 24px 46px rgba(5, 10, 30, 0.32);
+    --home-railbackbtn-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.45),
+      0 6px 12px rgba(5, 10, 30, 0.24);
+    --home-railtabs-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.42);
+    --home-railtab-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.35),
+      0 2px 8px rgba(5, 10, 30, 0.16); /* reduce glow */;
+
     /* Friends surface tokens */
     --friends-tabs-scrim: color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 85%, rgba(6, 8, 24, 0.85));
     --friends-tab-background: linear-gradient(
@@ -405,6 +472,65 @@
       linear-gradient(180deg, rgba(183, 156, 255, 0.98), rgba(162, 136, 252, 0.98)),
       radial-gradient(130% 180% at 12% 50%, rgba(76, 29, 149, 0.92), rgba(76, 29, 149, 0) 62%),
       radial-gradient(130% 180% at 88% 50%, rgba(34, 211, 238, 0.90), rgba(34, 211, 238, 0) 62%);
+    --cta-button-shadow: 0 16px 32px rgba(79, 70, 229, 0.32);
+
+    /* Create page tokens */
+    --create-tile-background: radial-gradient(1200px 50% at -10% -10%, rgba(255, 255, 255, 0.06), transparent 50%),
+      linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    --create-tile-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.4),
+      0 20px 48px rgba(5, 10, 30, 0.38),
+      0 2px 0 rgba(255, 255, 255, 0.04);
+    --create-tile-hover-background: radial-gradient(1200px 50% at -10% -10%, rgba(255, 255, 255, 0.08), transparent 50%),
+      linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
+    --create-tile-hover-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.48),
+      0 24px 54px rgba(5, 10, 30, 0.45);
+    --create-tile-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -2px 0 rgba(2, 6, 23, 0.55),
+      var(--card-shadow);
+    --create-tile-expanded-background: radial-gradient(1400px 60% at -10% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
+      linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
+    --create-tile-expanded-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.48),
+      0 24px 54px rgba(5, 10, 30, 0.42);
+    --create-back-button-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.45),
+      0 8px 18px rgba(5, 10, 26, 0.35);
+    --create-header-bottom-fade: linear-gradient(180deg, rgba(20, 24, 48, 0.28), rgba(0, 0, 0, 0));
+    --create-brand-mark-shadow: 0 12px 26px rgba(79, 70, 229, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+    --create-brand-mark-border: rgba(255, 255, 255, 0.24);
+    --create-brand-name-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.78));
+    --create-nav-link-border: var(--pill-border);
+    --create-nav-link-background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+    --create-nav-link-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.45),
+      0 8px 18px rgba(5, 10, 26, 0.35);
+    --create-nav-link-hover-background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    --create-nav-link-hover-border: rgba(255, 255, 255, 0.22);
+    --create-nav-link-hover-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.55),
+      0 10px 22px rgba(5, 10, 26, 0.42);
+    --create-nav-link-active-background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08));
+    --create-nav-link-active-border: rgba(255, 255, 255, 0.3);
+    --create-nav-link-active-shadow: 0 8px 18px rgba(5, 10, 26, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.45);
+    --create-icon-button-border: var(--pill-border);
+    --create-icon-button-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 rgba(2, 6, 23, 0.45),
+      0 8px 18px rgba(5, 10, 26, 0.35);
+    --create-icon-button-hover-border: rgba(255, 255, 255, 0.24);
+
+    /* Settings tokens */
+    --settings-nav-item-border: rgba(255, 255, 255, 0.16);
+    --settings-nav-item-background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+    --settings-nav-item-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(2, 6, 23, 0.45);
+    --settings-nav-item-active-shadow: 0 0 18px var(--accent-glow, rgba(99, 102, 241, 0.34)),
+      0 6px 12px rgba(2, 6, 23, 0.38),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
 
     /* Surface layering */
     --surface-1: rgba(21, 26, 48, 0.82);
@@ -685,6 +811,7 @@
     animation: marquee 60s linear infinite;
   }
 }
+
 
 
 

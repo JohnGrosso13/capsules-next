@@ -194,15 +194,7 @@
 
 
 
-  background:
-
-
-
-    radial-gradient(120% 120% at 50% 50%, rgba(99, 102, 241, 0.22), transparent 70%),
-
-
-
-    linear-gradient(180deg, rgba(8, 12, 34, 0.86), rgba(8, 10, 26, 0.62));
+  background: var(--home-prompterdropoverlay-background);
 
 
 
@@ -218,7 +210,7 @@
 
 
 
-  box-shadow: 0 28px 60px rgba(5, 10, 30, 0.42);
+  box-shadow: var(--home-prompterdropoverlay-box-shadow);
 
 
 
@@ -270,11 +262,11 @@
 
 
 
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: var(--home-prompterdropcard-border);
 
 
 
-  box-shadow: 0 18px 38px rgba(5, 10, 30, 0.45);
+  box-shadow: var(--home-prompterdropcard-box-shadow);
 
 
 
@@ -422,19 +414,7 @@
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-
-
-
-    inset 0 -1px 0 rgba(2, 6, 23, 0.4),
-
-
-
-    0 8px 18px rgba(5, 10, 30, 0.28);
+  box-shadow: var(--home-promptbar-box-shadow);
 
 
 
@@ -486,19 +466,7 @@
 
 
 
-  background:
-
-
-
-    radial-gradient(120% 160% at 10% 50%, rgba(99, 102, 241, 0.3), transparent 65%),
-
-
-
-    radial-gradient(120% 160% at 90% 50%, rgba(124, 58, 237, 0.26), transparent 65%),
-
-
-
-    radial-gradient(160% 160% at 50% 50%, rgba(56, 189, 248, 0.2), transparent 70%);
+  background: var(--home-promptbar--before-background);
 
 
 
@@ -546,23 +514,11 @@
 
 
 
-  border-color: rgba(147, 197, 253, 0.5);
+  border-color: var(--home-promptbar-focus-within-border-color);
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-
-
-
-    inset 0 -1px 0 rgba(2, 6, 23, 0.48),
-
-
-
-    0 14px 28px rgba(5, 10, 30, 0.38);
+  box-shadow: var(--home-promptbar-focus-within-box-shadow);
 
 
 
@@ -1152,19 +1108,7 @@
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-
-
-
-    inset 0 -1px 0 rgba(5, 8, 28, 0.45),
-
-
-
-    0 10px 22px rgba(5, 10, 30, 0.28);
+  box-shadow: var(--home-gensplitcaret-box-shadow);
 
 
 
@@ -1828,15 +1772,7 @@
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.26),
-
-
-
-    12px 18px 30px rgba(6, 10, 32, 0.38);
+  box-shadow: var(--home-attachbutton-hover-box-shadow);
 
 
 
@@ -1952,15 +1888,7 @@
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-
-
-
-    6px 10px 18px rgba(5, 10, 30, 0.24);
+  box-shadow: var(--home-attachmentchip-box-shadow);
 
 
 
@@ -2208,19 +2136,7 @@
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-
-
-
-    inset 0 -1px 0 rgba(5, 8, 28, 0.52),
-
-
-
-    10px 14px 24px rgba(5, 10, 30, 0.34);
+  box-shadow: var(--home-intentchip-box-shadow);
 
 
 
@@ -2356,27 +2272,15 @@
 
 
 
-  background: linear-gradient(155deg, rgba(99, 102, 241, 0.46), rgba(37, 99, 235, 0.38));
+  background: var(--home-intentchipactive-background);
 
 
 
-  color: #ffffff;
+  color: var(--home-intentchipactive-color);
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-
-
-
-    inset 0 -1px 0 rgba(9, 12, 34, 0.55),
-
-
-
-    14px 22px 36px rgba(53, 96, 255, 0.32);
+  box-shadow: var(--home-intentchipactive-box-shadow);
 
 
 
@@ -2512,19 +2416,7 @@
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-
-
-
-    inset 0 -1px 0 rgba(5, 8, 28, 0.48),
-
-
-
-    0 16px 30px rgba(99, 102, 241, 0.28);
+  box-shadow: var(--home-intentchipactive-box-shadow-2);
 
 
 
@@ -2972,15 +2864,7 @@
 
 
 
-  background:
-
-
-
-    radial-gradient(120% 120% at 50% 0%, rgba(99, 102, 241, 0.18), transparent 70%),
-
-
-
-    linear-gradient(180deg, rgba(12, 16, 38, 0.82), rgba(10, 14, 34, 0.62));
+  background: var(--home-skeletonbackdrop-background);
 
 
 
@@ -3232,7 +3116,7 @@
 
 
 
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02));
+  background: var(--home-skeletoniconbtn-background);
 
 
 
@@ -3276,7 +3160,7 @@
 
 
 
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  background: var(--home-skeletoniconbtn--after-background);
 
 
 
@@ -3532,11 +3416,7 @@
 
 
 
-  background:
-
-
-
-    linear-gradient(180deg, rgba(12, 16, 38, 0.58), rgba(9, 12, 32, 0.54));
+  background: var(--home-cardrefreshing--after-background);
 
 
 
@@ -3780,15 +3660,7 @@
 
 
 
-  background:
-
-
-
-    radial-gradient(120% 90% at 50% -10%, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 68%),
-
-
-
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
+  background: var(--home-card--before-background);
 
 
 
@@ -4147,11 +4019,11 @@
 
 
 
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.04));
+  background: var(--home-cardhead-background);
 
 
 
-  border-bottom-color: rgba(255, 255, 255, 0.12);
+  border-bottom-color: var(--home-cardhead-border-bottom-color);
 
 
 
@@ -4635,7 +4507,7 @@
 
 
 
-  background: radial-gradient(circle at 50% 20%, rgba(76, 81, 165, 0.35), transparent 70%), rgba(7, 9, 26, 0.92);
+  background: var(--home-lightboxoverlay-background);
 
 
 
@@ -4743,11 +4615,11 @@
 
 
 
-  background: color-mix(in srgb, rgba(15, 19, 42, 0.3) 65%, rgba(255, 255, 255, 0.12));
+  background: var(--home-lightboxclose-background);
 
 
 
-  color: #ffffff;
+  color: var(--home-lightboxclose-color);
 
 
 
@@ -4807,7 +4679,7 @@
 
 
 
-  background: color-mix(in srgb, rgba(99, 102, 241, 0.5) 70%, rgba(255, 255, 255, 0.2));
+  background: var(--home-lightboxclose-focus-visible-background);
 
 
 
@@ -4855,11 +4727,11 @@
 
 
 
-  background: color-mix(in srgb, rgba(15, 19, 42, 0.45) 65%, rgba(255, 255, 255, 0.14));
+  background: var(--home-lightboxnav-background);
 
 
 
-  color: #ffffff;
+  color: var(--home-lightboxnav-color);
 
 
 
@@ -4911,7 +4783,7 @@
 
 
 
-  background: color-mix(in srgb, rgba(99, 102, 241, 0.55) 70%, rgba(255, 255, 255, 0.2));
+  background: var(--home-lightboxnav-focus-visible-background);
 
 
 
@@ -5111,7 +4983,7 @@
 
 
 
-  background: #000;
+  background: var(--home-lightboxvideo-background);
 
 
 
@@ -5131,7 +5003,7 @@
 
 
 
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--home-lightboxcaption-color);
 
 
 
@@ -5403,19 +5275,7 @@
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-
-
-
-    inset 0 -1px 0 rgba(2, 6, 23, 0.4),
-
-
-
-    0 6px 12px rgba(5, 10, 30, 0.22);
+  box-shadow: var(--home-pill-box-shadow);
 
 
 
@@ -5447,7 +5307,7 @@
 
 
 
-  border-color: rgba(255, 255, 255, 0.26);
+  border-color: var(--home-pill-hover-border-color);
 
 
 
@@ -6599,11 +6459,11 @@
 
 
 
-  --tile-border-hover-base: rgba(255, 255, 255, 0.26);
+  --tile-border-hover-base: var(--home-connectiontile-tile-border-hover-base);
 
 
 
-  --tile-shadow-hover-base: 0 24px 46px rgba(5, 10, 30, 0.32);
+  --tile-shadow-hover-base: var(--home-connectiontile-tile-shadow-hover-base);
 
 
 
@@ -7559,19 +7419,7 @@
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-
-
-
-    inset 0 -1px 0 rgba(2, 6, 23, 0.45),
-
-
-
-    0 6px 12px rgba(5, 10, 30, 0.24);
+  box-shadow: var(--home-railbackbtn-box-shadow);
 
 
 
@@ -7667,15 +7515,7 @@
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-
-
-
-    inset 0 -1px 0 rgba(2, 6, 23, 0.42);
+  box-shadow: var(--home-railtabs-box-shadow);
 
 
 
@@ -7771,19 +7611,7 @@
 
 
 
-  box-shadow:
-
-
-
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-
-
-
-    inset 0 -1px 0 rgba(2, 6, 23, 0.35),
-
-
-
-    0 2px 8px rgba(5, 10, 30, 0.16); /* reduce glow */
+  box-shadow: var(--home-railtab-box-shadow);
 
 
 
@@ -8040,7 +7868,6 @@ ers */
 
 
 }
-
 
 
 
