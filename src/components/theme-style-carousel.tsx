@@ -1,10 +1,13 @@
 "use client";
 
 import * as React from "react";
+
+import Link from "next/link";
 import styles from "./theme-style-carousel.module.css";
 import promo from "./promo-row.module.css";
 import { Button } from "@/components/ui/button";
-import cm from "@/components/ui/context-menu.module.css";
+import { ArrowLeft, ArrowRight, Trash } from "@phosphor-icons/react/dist/ssr";
+import { cn } from "@/lib/cn";
 
 import {
   applyThemeVars,
@@ -525,7 +528,7 @@ function getEntryId(entry: ThemeEntry): string {
   return entry.kind === "preset" ? `preset:${entry.preset.id}` : `saved:${entry.saved.id}`;
 }
 
-export function ThemeStyleCarousel() {
+function useThemeStyles() {
   const { user, isLoaded } = useCurrentUser();
   const envelope = React.useMemo(() => (user ? buildMemoryEnvelope(user) : null), [user]);
 
@@ -538,14 +541,10 @@ export function ThemeStyleCarousel() {
   }, [envelope]);
 
   const [savedStyles, setSavedStyles] = React.useState<SavedStyle[]>([]);
-  const [headerMenuOpen, setHeaderMenuOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [previewingId, setPreviewingId] = React.useState<string | null>(null);
   const [activeMode, setActiveMode] = React.useState<"light" | "dark">(getTheme());
   const [activeId, setActiveId] = React.useState<string | null>(null);
-  const [canLeft, setCanLeft] = React.useState(false);
-  const [canRight, setCanRight] = React.useState(false);
-  const [hasOverflow, setHasOverflow] = React.useState(false);
 
   const displayedSavedStyles = React.useMemo(
     () => (savedStyles.length ? savedStyles : placeholderThemes),
@@ -574,147 +573,41 @@ export function ThemeStyleCarousel() {
     });
     if (matchingPreset) {
       setActiveId(`preset:${matchingPreset.id}`);
-    }
-  }, [basePresets]);
-
-  const listRef = React.useRef<HTMLDivElement | null>(null);
-  const itemWidthRef = React.useRef(0);
-  const dragRef = React.useRef({ active: false, startX: 0, startLeft: 0, moved: false });
-
-
-  const itemsCount = items.length;
-
-  const measureItems = React.useCallback(() => {
-    const el = listRef.current;
-    if (!el || !itemsCount) return;
-    const firstSlide = el.querySelector<HTMLElement>(`.${styles.slide}`);
-    if (!firstSlide) return;
-    const gap = parseFloat(getComputedStyle(el).columnGap || "0");
-    const width = firstSlide.getBoundingClientRect().width + gap;
-    itemWidthRef.current = width > 0 ? width : el.clientWidth;
-  }, [itemsCount]);
-
-  const updateScrollState = React.useCallback(() => {
-    const el = listRef.current;
-    if (!el) {
-      setCanLeft(false);
-      setCanRight(false);
-      setHasOverflow(false);
+      if (matchingPreset.theme) setActiveMode(matchingPreset.theme);
       return;
     }
-    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-    const fallbackSpan = itemWidthRef.current || 240;
-    const overflow = maxScroll > 1 || (itemsCount * fallbackSpan) > (el.clientWidth + 1);
-    setHasOverflow(overflow);
-    if (!overflow) {
-      setCanLeft(false);
-      setCanRight(false);
-      return;
-    }
-    const left = el.scrollLeft;
-    setCanLeft(left > 4);
-    setCanRight(left < maxScroll - 4);
-  }, []);
-
-  const scrollByPage = React.useCallback(
-    (dir: 1 | -1) => {
-      const el = listRef.current;
-      if (!el) return;
-      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-      if (maxScroll <= 0) return;
-
-      const span = itemWidthRef.current || el.clientWidth;
-      if (!span) return;
-
-      const atStart = el.scrollLeft <= 4;
-      const atEnd = el.scrollLeft >= maxScroll - 4;
-      let target: number;
-
-      if (dir > 0 && atEnd) {
-        target = 0;
-      } else if (dir < 0 && atStart) {
-        target = maxScroll;
-      } else {
-        target = Math.max(0, Math.min(maxScroll, el.scrollLeft + dir * span));
-      }
-
-      el.scrollTo({ left: target, behavior: "smooth" });
-      window.setTimeout(updateScrollState, 320);
-    }, [updateScrollState]);
-
-  React.useEffect(() => {
-    if (!itemsCount) {
-      setHasOverflow(false);
-      setCanLeft(false);
-      setCanRight(false);
-      return;
-    }
-    const raf = requestAnimationFrame(() => {
-      measureItems();
-      updateScrollState();
+    const matchingSaved = savedStyles.find((style) => {
+      const entries = Object.entries(style.vars);
+      if (entries.length !== Object.keys(stored).length) return false;
+      return entries.every(([key, value]) => stored[key] === value);
     });
-    return () => cancelAnimationFrame(raf);
-  }, [itemsCount, measureItems, updateScrollState]);
-
-  const handlePointerDown = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const el = listRef.current;
-    if (!el) return;
-    try { (e.target as Element).setPointerCapture?.(e.pointerId); } catch {}
-    dragRef.current.active = true;
-    dragRef.current.moved = false;
-    dragRef.current.startX = e.clientX;
-    dragRef.current.startLeft = el.scrollLeft;
-    // Disable snapping while dragging for smoother feel
-    el.style.scrollSnapType = 'none';
-  }, []);
-
-  const handlePointerMove = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current.active) return;
-    const el = listRef.current;
-    if (!el) return;
-    const dx = e.clientX - dragRef.current.startX;
-    if (Math.abs(dx) > 2) dragRef.current.moved = true;
-    el.scrollLeft = dragRef.current.startLeft - dx;
-    updateScrollState();
-  }, [updateScrollState]);
-
-  const endDrag = React.useCallback(() => {
-    if (!dragRef.current.active) return;
-    const el = listRef.current;
-    dragRef.current.active = false;
-    if (el) {
-      // Re-enable snapping
-      el.style.scrollSnapType = '';
+    if (matchingSaved) {
+      setActiveId(`saved:${matchingSaved.id}`);
     }
-  }, []);
+  }, [basePresets, savedStyles]);
 
-  const handleScroll = React.useCallback(() => {
-    updateScrollState();
-  }, [updateScrollState]);
-
-  React.useEffect(() => {
-    const resizeHandler = () => {
-      measureItems();
-      updateScrollState();
-    };
-    window.addEventListener("resize", resizeHandler);
-    return () => window.removeEventListener("resize", resizeHandler);
-  }, [measureItems, updateScrollState]);
-
-  const startPreview = React.useCallback((entry: ThemeEntry) => {
-    const id = getEntryId(entry);
-    if (previewingId === id) return;
-    setPreviewingId(id);
-    const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
-    if (Object.keys(vars).length) startPreviewThemeVars(vars);
-  }, [previewingId]);
+  const startPreview = React.useCallback(
+    (entry: ThemeEntry) => {
+      const id = getEntryId(entry);
+      if (previewingId === id) return;
+      setPreviewingId(id);
+      const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
+      if (Object.keys(vars).length) startPreviewThemeVars(vars);
+    },
+    [previewingId],
+  );
 
   const stopPreview = React.useCallback(() => {
     endPreviewThemeVars();
     setPreviewingId(null);
   }, []);
 
-  React.useEffect(() => () => endPreviewThemeVars(), []);
+  React.useEffect(
+    () => () => {
+      endPreviewThemeVars();
+    },
+    [],
+  );
 
   const handleApply = React.useCallback(
     (entry: ThemeEntry) => {
@@ -769,7 +662,6 @@ export function ThemeStyleCarousel() {
       const normalized: SavedStyle[] = Array.isArray(json.items)
         ? json.items.map(mapThemeRecord).filter((style): style is SavedStyle => Boolean(style))
         : [];
-
       updateFromSaved(normalized);
     } finally {
       setLoading(false);
@@ -795,7 +687,9 @@ export function ThemeStyleCarousel() {
       });
       if (res.ok) {
         setSavedStyles((prev) =>
-          prev.map((style) => (style.id === entry.saved.id ? { ...style, title: next, summary: next, description: next } : style)),
+          prev.map((style) =>
+            style.id === entry.saved.id ? { ...style, title: next, summary: next, description: next } : style,
+          ),
         );
       }
     },
@@ -831,7 +725,6 @@ export function ThemeStyleCarousel() {
       });
     }
     setSavedStyles([]);
-    setHeaderMenuOpen(false);
   }, [savedStyles, stopPreview]);
 
   const handleSaveCurrent = React.useCallback(async () => {
@@ -854,41 +747,177 @@ export function ThemeStyleCarousel() {
     }
   }, [fetchSaved, stopPreview]);
 
-  const hasRealSaved = savedStyles.length > 0;
+  const activeEntry = React.useMemo(() => {
+    if (!items.length) return null;
+    if (activeId) {
+      const match = items.find((entry) => getEntryId(entry) === activeId);
+      if (match) return match;
+    }
+    return items[0] ?? null;
+  }, [items, activeId]);
+
+  const hasRealSaved = React.useMemo(
+    () => savedStyles.some((style) => !style.id.startsWith("placeholder-")),
+    [savedStyles],
+  );
+
+  return {
+    items,
+    activeEntry,
+    activeId,
+    activeMode,
+    previewingId,
+    loading,
+    hasRealSaved,
+    handleApply,
+    handleSetMode,
+    handleSaveCurrent,
+    handleDeleteAll,
+    handleRename,
+    handleDelete,
+    startPreview,
+    stopPreview,
+  } as const;
+}
+
+type ThemeEntryCardProps = {
+  entry: ThemeEntry;
+  isActive: boolean;
+  variant: "summary" | "gallery";
+  onApply?: (entry: ThemeEntry) => void;
+  onRename?: (entry: ThemeEntry) => void;
+  onDelete?: (entry: ThemeEntry) => void;
+  onPreview?: (entry: ThemeEntry) => void;
+  onPreviewEnd?: () => void;
+  isPreviewing?: boolean;
+};
+
+function ThemeEntryCard({
+  entry,
+  isActive,
+  variant,
+  onApply,
+  onRename,
+  onDelete,
+  onPreview,
+  onPreviewEnd,
+  isPreviewing = false,
+}: ThemeEntryCardProps): JSX.Element {
+  const entryId = getEntryId(entry);
+  const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
+  const preview = React.useMemo(() => buildThemePreview(vars), [vars]);
+  const groupBadges = preview.usages.slice(0, 3);
+  const palette = preview.palette.slice(0, 4);
+  const descriptionRaw = entry.kind === "preset" ? entry.preset.desc : entry.saved.description;
+  const savedDetails = entry.kind === "saved" ? entry.saved.details : undefined;
+  const fallbackDetails = summarizeGroupLabels(preview.usages);
+  let description = descriptionRaw && descriptionRaw.trim().length ? descriptionRaw.trim() : "";
+  if (!description && savedDetails && savedDetails.trim().length) {
+    description = savedDetails.trim();
+  }
+  if (!description && fallbackDetails && fallbackDetails.length) {
+    description = fallbackDetails;
+  }
+  if (!description) {
+    description = "Capsules custom theme";
+  }
+  const name = entry.kind === "preset" ? entry.preset.title : entry.saved.title;
+  const kindLabel = entry.kind === "saved" ? "Saved" : "Preset";
+  const isEditable = entry.kind === "saved" && !entry.saved.id.startsWith("placeholder-");
+  const showActions = variant === "gallery" && typeof onApply === "function";
 
   return (
-    <div className={styles.wrap}>
-      <div className={styles.headerRow}>
-        <div className={styles.lead}>Preview before you apply. Your saved looks live here.</div>
+    <article
+      className={cn(
+        styles.card,
+        variant === "summary" ? styles.cardSummary : styles.cardGallery,
+        isActive && styles.cardActive,
+        isPreviewing && styles.cardPreviewing,
+      )}
+      data-theme-kind={entry.kind}
+    >
+      <div
+        className={cn(promo.tile, styles.cardSurface)}
+        tabIndex={variant === "gallery" ? 0 : -1}
+        onMouseEnter={onPreview ? () => onPreview(entry) : undefined}
+        onMouseLeave={onPreviewEnd}
+        onFocus={onPreview ? () => onPreview(entry) : undefined}
+        onBlur={onPreviewEnd}
+        aria-pressed={isActive ? "true" : undefined}
+      >
+        <header className={styles.cardHeader}>
+          <div className={styles.cardTitleBlock}>
+            <span className={styles.cardSubtitle}>
+              {variant === "summary" ? "Current theme" : kindLabel}
+            </span>
+            <span className={styles.cardTitle}>{name}</span>
+          </div>
+          {isActive ? <span className={styles.activeBadge}>Active</span> : null}
+        </header>
+
+        <div className={styles.previewShell} style={buildPreviewStyle(vars)} aria-hidden>
+          <div className={styles.swatchBg} />
+          <div className={styles.swatchCard} />
+        </div>
+
+        <p className={styles.description}>{description}</p>
+
+        {groupBadges.length || palette.length ? (
+          <div className={styles.previewMeta}>
+            {groupBadges.length ? (
+              <div className={styles.previewTags}>
+                {groupBadges.map(({ group }) => (
+                  <span key={`${entryId}-group-${group.id}`} className={styles.previewTag}>
+                    {group.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {palette.length ? (
+              <div className={styles.previewPalette} aria-hidden>
+                {palette.map((value, index) => (
+                  <span key={`${entryId}-swatch-${index}`} className={styles.previewColor} style={{ background: value }} />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showActions ? (
+          <div className={styles.buttonRow}>
+            <Button variant="primary" size="sm" onClick={() => onApply?.(entry)}>
+              {isActive ? "Applied" : "Apply"}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => onRename?.(entry)} disabled={!isEditable}>
+              Rename
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => onDelete?.(entry)} disabled={!isEditable}>
+              Delete
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+export function ThemeStyleCarousel(): JSX.Element {
+  const { activeEntry, activeMode, loading, handleSetMode, handleSaveCurrent } = useThemeStyles();
+
+  return (
+    <div className={styles.root}>
+      <div className={styles.header}>
+        <div className={styles.headerCopy}>
+          <h3 className={styles.title}>Choose your Capsules look</h3>
+          <p className={styles.subtitle}>Preview a theme, then apply when you are ready.</p>
+        </div>
         <div className={styles.headerActions}>
           <Button variant="secondary" size="sm" onClick={handleSaveCurrent}>
             Save current
           </Button>
-          <div className={styles.headerMenu}>
-            <button
-              type="button"
-              className={styles.ellipsisBtn}
-              aria-label="More theme actions"
-              aria-expanded={headerMenuOpen}
-              onClick={() => setHeaderMenuOpen((value) => !value)}
-            >
-              ...
-            </button>
-            {headerMenuOpen ? (
-              <div className={cm.menu} role="menu" style={{ right: 0, top: 40 }} onMouseLeave={() => setHeaderMenuOpen(false)}>
-                <button
-                  type="button"
-                  className={`${cm.item} ${cm.danger}`.trim()}
-                  role="menuitem"
-                  onClick={handleDeleteAll}
-                  disabled={!hasRealSaved}
-                  aria-disabled={!hasRealSaved}
-                >
-                  Delete all saved
-                </button>
-              </div>
-            ) : null}
-          </div>
+          <Button variant="ghost" size="sm" asChild rightIcon={<ArrowRight weight="bold" />}>
+            <Link href="/settings/themes">View more</Link>
+          </Button>
         </div>
       </div>
 
@@ -909,135 +938,103 @@ export function ThemeStyleCarousel() {
         </Button>
       </div>
 
-      <div className={styles.carousel}>
-        {hasOverflow ? (
-          <div className={`${styles.navOverlay} ${styles.navLeft}`.trim()}>
-            <button
-              type="button"
-              className={styles.navArrow}
-              aria-label="Scroll left"
-              onClick={() => scrollByPage(-1)}
-            >
-              {"<"}
-            </button>
-          </div>
-        ) : null}
-        <div
-          className={styles.track}
-          ref={listRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={endDrag} onPointerLeave={endDrag}
-          onScroll={handleScroll}
-          data-can-left={canLeft ? 'true' : 'false'}
-          data-can-right={canRight ? 'true' : 'false'}
-        >
-          {items.map((entry, index) => {
-            const baseId = getEntryId(entry);
-            const key = `${baseId}::${index}`;
-            const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
-            const preview = buildThemePreview(vars);
-            const groupBadges = preview.usages.slice(0, 3);
-            const palette = preview.palette.slice(0, 4);
-            const descriptionRaw = entry.kind === "preset" ? entry.preset.desc : entry.saved.description;
-            const savedDetails = entry.kind === "saved" ? entry.saved.details : undefined;
-            const fallbackDetails = summarizeGroupLabels(preview.usages);
-            let description = descriptionRaw && descriptionRaw.trim().length ? descriptionRaw.trim() : "";
-            if (!description && savedDetails && savedDetails.trim().length) {
-              description = savedDetails.trim();
-            }
-            if (!description && fallbackDetails && fallbackDetails.length) {
-              description = fallbackDetails;
-            }
-            if (!description) {
-              description = "Capsule AI custom theme";
-            }
-            const isActive = activeId === baseId;
-            const isEditable = entry.kind === "saved" && !entry.saved.id.startsWith("placeholder-");
-            const showPreviewMeta = groupBadges.length > 0 || palette.length > 0;
-            return (
-              <div key={key} className={styles.slide}>
-                <div
-                  className={`${promo.tile} ${isActive ? styles.activeTile : ""}`.trim()}
-                  tabIndex={0}
-                  onMouseEnter={() => startPreview(entry)}
-                  onMouseLeave={stopPreview}
-                  onFocus={() => startPreview(entry)}
-                  onBlur={stopPreview}
-                >
-                  <div className={styles.tileHeader}>
-                    <div className={styles.tileTitle}>{entry.kind === "preset" ? entry.preset.title : entry.saved.title}</div>
-                    <div className={styles.tileBadge}>{entry.kind === "saved" ? "Saved" : "Preset"}</div>
-                  </div>
-                  <div className={`${promo.short} ${styles.previewHalf}`.trim()} style={buildPreviewStyle(vars)} aria-hidden>
-                    <div className={styles.swatchBg} />
-                    <div className={styles.swatchCard} />
-                    {isActive ? <span className={styles.activeBadge}>Active</span> : null}
-                  </div>
-                  <div className={styles.descArea}>{description}</div>
-                  {showPreviewMeta ? (
-                    <div className={styles.previewMeta}>
-                      {groupBadges.length ? (
-                        <div className={styles.previewTags}>
-                          {groupBadges.map(({ group }) => (
-                            <span key={`${baseId}-group-${group.id}`} className={styles.previewTag}>
-                              {group.label}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                      {palette.length ? (
-                        <div className={styles.previewPalette} aria-hidden>
-                          {palette.map((value, swatchIndex) => (
-                            <span
-                              key={`${baseId}-swatch-${swatchIndex}`}
-                              className={styles.previewColor}
-                              style={{ background: value }}
-                            />
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <div className={styles.buttonRow}>
-                    <Button variant="primary" size="sm" onClick={() => handleApply(entry)}>
-                      Apply
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={() => isEditable && handleRename(entry)} disabled={!isEditable}>
-                      Rename
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={() => isEditable && handleDelete(entry)} disabled={!isEditable}>
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {hasOverflow ? (
-          <div className={`${styles.navOverlay} ${styles.navRight}`.trim()}>
-            <button
-              type="button"
-              className={styles.navArrow}
-              aria-label="Scroll right"
-              onClick={() => scrollByPage(1)}
-            >
-              {">"}
-            </button>
-          </div>
-        ) : null}
+      <div className={styles.summaryGrid}>
+        {activeEntry ? (
+          <ThemeEntryCard entry={activeEntry} isActive variant="summary" />
+        ) : (
+          <p className={styles.emptyState}>Choose a theme to begin customizing Capsules.</p>
+        )}
       </div>
-      {loading ? <div className={styles.meta}>Loading...</div> : null}
+
+      {loading ? <div className={styles.meta}>Loading saved themes...</div> : null}
     </div>
   );
 }
 
+export function ThemeStylesGallery(): JSX.Element {
+  const {
+    items,
+    activeId,
+    activeMode,
+    previewingId,
+    loading,
+    hasRealSaved,
+    handleApply,
+    handleSetMode,
+    handleSaveCurrent,
+    handleDeleteAll,
+    handleRename,
+    handleDelete,
+    startPreview,
+    stopPreview,
+  } = useThemeStyles();
 
+  return (
+    <section className={styles.fullRoot}>
+      <div className={styles.fullHeader}>
+        <div className={styles.headerCopy}>
+          <h1 className={styles.title}>All themes</h1>
+          <p className={styles.fullSubtitle}>
+            Browse built-in presets and your saved looks. Hover to preview, then apply to commit the change.
+          </p>
+        </div>
+        <div className={styles.fullHeaderActions}>
+          <Button variant="secondary" size="sm" onClick={handleSaveCurrent}>
+            Save current
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => { void handleDeleteAll(); }}
+            disabled={!hasRealSaved}
+            leftIcon={<Trash weight="bold" />}
+          >
+            Delete all saved
+          </Button>
+          <Button variant="ghost" size="sm" asChild leftIcon={<ArrowLeft weight="bold" />}>
+            <Link href="/settings">Back to settings</Link>
+          </Button>
+        </div>
+      </div>
 
+      <div className={styles.modeButtons}>
+        <Button
+          variant={activeMode === "light" ? "primary" : "secondary"}
+          size="sm"
+          onClick={() => handleSetMode("light")}
+        >
+          Light mode
+        </Button>
+        <Button
+          variant={activeMode === "dark" ? "primary" : "secondary"}
+          size="sm"
+          onClick={() => handleSetMode("dark")}
+        >
+          Dark mode
+        </Button>
+      </div>
 
+      {loading ? <div className={styles.meta}>Loading saved themes...</div> : null}
 
-
-
-
-
-
-
-
+      <div className={styles.grid}>
+        {items.map((entry) => {
+          const entryId = getEntryId(entry);
+          return (
+            <ThemeEntryCard
+              key={entryId}
+              entry={entry}
+              isActive={entryId === activeId}
+              variant="gallery"
+              onApply={handleApply}
+              onRename={handleRename}
+              onDelete={handleDelete}
+              onPreview={startPreview}
+              onPreviewEnd={stopPreview}
+              isPreviewing={entryId === previewingId}
+            />
+          );
+        })}
+      </div>
+    </section>
+  );
+}
