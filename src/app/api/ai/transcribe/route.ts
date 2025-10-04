@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
 
 import { AIConfigError, transcribeAudioFromBase64 } from "@/lib/ai/prompter";
+import { ensureUserFromRequest } from "@/lib/auth/payload";
+import { returnError } from "@/server/validation/http";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    // Require authentication to guard a cost-incurring endpoint
+    const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
+    if (!ownerId) {
+      return returnError(401, "auth_required", "Authentication required");
+    }
+
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const audioBase64Raw =
       typeof body?.audio_base64 === "string" && body.audio_base64.trim().length

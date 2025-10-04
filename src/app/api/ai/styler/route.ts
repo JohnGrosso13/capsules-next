@@ -2,6 +2,7 @@ import { z } from "zod";
 import { groupUsageFromVars, summarizeGroupLabels } from "@/lib/theme/token-groups";
 import { resolveStylerPlan } from "@/server/ai/styler";
 import { returnError, validatedJson } from "@/server/validation/http";
+import { ensureUserFromRequest } from "@/lib/auth/payload";
 
 const responseSchema = z.object({
   status: z.literal("ok"),
@@ -35,6 +36,12 @@ async function tryIndexStylerMemory(payload: {
 
 export async function POST(req: Request) {
   try {
+    // Require authentication to prevent unauthenticated style generation calls
+    const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
+    if (!ownerId) {
+      return returnError(401, "auth_required", "Authentication required");
+    }
+
     let body: unknown;
     try {
       body = await req.json();
@@ -77,14 +84,6 @@ export async function POST(req: Request) {
     const usage = groupUsageFromVars(sanitizedVars);
     const inferredDetails = plan.details ?? summarizeGroupLabels(usage);
     const groupIds = usage.map((entry) => entry.group.id);
-
-    let ownerId: string | null = null;
-    try {
-      const { ensureUserFromRequest } = await import("@/lib/auth/payload");
-      ownerId = await ensureUserFromRequest(req, user ?? {}, { allowGuests: true });
-    } catch (error) {
-      console.warn("styler ensure user error", error);
-    }
 
     if (ownerId) {
       await tryIndexStylerMemory({

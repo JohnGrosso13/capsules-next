@@ -1,6 +1,7 @@
-import { parseJsonBody, validatedJson } from "@/server/validation/http";
+import { parseJsonBody, validatedJson, returnError } from "@/server/validation/http";
 import { z } from "zod";
 import { generateImageFromPrompt } from "@/lib/ai/prompter";
+import { ensureUserFromRequest } from "@/lib/auth/payload";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
@@ -15,6 +16,12 @@ const requestSchema = z.object({
 const responseSchema = z.object({ url: z.string() });
 
 export async function POST(req: Request) {
+  // Require authentication to prevent abuse and unexpected costs
+  const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
+  if (!ownerId) {
+    return returnError(401, "auth_required", "Authentication required");
+  }
+
   const parsed = await parseJsonBody(req, requestSchema);
   if (!parsed.success) return parsed.response;
   const { prompt, options } = parsed.data;

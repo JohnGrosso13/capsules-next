@@ -33,13 +33,23 @@
   position: relative;
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 280px;
-  gap: 14px;
+  grid-auto-columns: 240px;
+  gap: 12px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  padding: 12px 16px;
+  padding: 10px 14px;
   scrollbar-width: thin;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
 }
+
+@media (max-width: 768px) {
+  .track {
+    grid-auto-columns: 220px;
+    padding: 8px 12px;
+  }
+}
+
 .track::-webkit-scrollbar {
   height: 6px;
 }
@@ -126,15 +136,18 @@
 
 .modeButtons {
   display: flex;
+  justify-content: center;
+  align-items: center;
   gap: 12px;
-  margin: 4px 0 8px;
+  margin: 4px 0 12px;
+  flex-wrap: wrap;
 }
 
 .buttonRow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .headerActions { display: flex; gap: 8px; align-items: center; }
@@ -179,14 +192,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  z-index: 4;
+  width: 40px;
+  height: 40px;
+  z-index: 8;
 }
 .navLeft { left: 6px; }
 .navRight { right: 6px; }
 .navArrow {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 999px;
   border: 1px solid var(--pill-border);
   background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
@@ -208,17 +221,19 @@
 }
 
 .previewHalf {
-  aspect-ratio: 5 / 4;
+  aspect-ratio: 4 / 3;
   border-radius: 14px;
   position: relative;
   overflow: hidden;
+  min-height: 150px;
+  max-height: 190px;
 }
 .descArea {
   font-size: 0.85rem;
   opacity: 0.9;
-  min-height: 2.6em;
+  min-height: 2.2em;
   text-align: center;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .activeBadge {
@@ -274,3 +289,5 @@
   border: 1px solid rgba(255, 255, 255, 0.28);
   box-shadow: 0 4px 10px rgba(5, 10, 30, 0.35);
 }
+
+.navArrow[disabled] { opacity: 0.5; cursor: default; }

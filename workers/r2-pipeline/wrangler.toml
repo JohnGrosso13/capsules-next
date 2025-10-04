@@ -31,17 +31,13 @@ bucket_name = "capsules-next"
 
 [vars]
 # Public base for objects in your R2 bucket. Works without a custom domain.
-PUBLIC_MEDIA_BASE_URL = "https://173291b59bbb656d3287ca191b6d2189.r2.cloudflarestorage.com/capsules-next"
+PUBLIC_MEDIA_BASE_URL = "https://example.r2.cloudflarestorage.com/capsules-next"
 # Cloudflare Image Resizing endpoint. If you don't have a zone yet, leave as-is and we will fall back.
 # For production, point this at a domain you control on Cloudflare with Image Resizing enabled, e.g. https://media.example.com/cdn-cgi/image
 IMAGE_RESIZE_BASE_URL = "https://media.local.example/cdn-cgi/image"
 
 # Supabase service creds (fill with your project values)
-SUPABASE_URL = "https://znuuipmrdecdawupumja.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpudXVpcG1yZGVjZGF3dXB1bWphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzU0ODMwMiwiZXhwIjoyMDczMTI0MzAyfQ.NW4LlokYwOnHFRRPGV8bI6mkreOnaiR2fc41gFa5hYg"
-
+SUPABASE_URL = "https://YOUR-PROJECT.supabase.co"
 # Account context for diagnostics
-CF_ACCOUNT_ID = "173291b59bbb656d3287ca191b6d2189"
-CF_STREAM_API_TOKEN = ""
-CF_AI_TOKEN = ""
+CF_ACCOUNT_ID = ""
 CF_WAF_RULE_ID = ""
