@@ -33,14 +33,18 @@
   border-radius: var(--card-radius);
   padding: 20px;
   border: 1px solid var(--card-border);
-  background:
+  background: var(
+    --create-tile-background,
     radial-gradient(1200px 50% at -10% -10%, rgba(255, 255, 255, 0.06), transparent 50%),
-    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
-  box-shadow:
+    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2))
+  );
+  box-shadow: var(
+    --create-tile-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     inset 0 -1px 0 rgba(2, 6, 23, 0.4),
     0 20px 48px rgba(5, 10, 30, 0.38),
-    0 2px 0 rgba(255, 255, 255, 0.04);
+    0 2px 0 rgba(255, 255, 255, 0.04)
+  );
   backdrop-filter: blur(14px) saturate(130%);
   -webkit-backdrop-filter: blur(14px) saturate(130%);
   transition:
@@ -55,14 +59,18 @@
 }
 .tile:hover {
   border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
-  background:
+  background: var(
+    --create-tile-hover-background,
     radial-gradient(1200px 50% at -10% -10%, rgba(255, 255, 255, 0.08), transparent 50%),
-    linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
+    linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2))
+  );
   transform: translateY(-2px);
-  box-shadow:
+  box-shadow: var(
+    --create-tile-hover-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     inset 0 -1px 0 rgba(2, 6, 23, 0.48),
-    0 24px 54px rgba(5, 10, 30, 0.45);
+    0 24px 54px rgba(5, 10, 30, 0.45)
+  );
 }
 .tile:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
@@ -70,10 +78,12 @@
 }
 .tile:active {
   transform: translateY(0);
-  box-shadow:
+  box-shadow: var(
+    --create-tile-active-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -2px 0 rgba(2, 6, 23, 0.55),
-    var(--card-shadow);
+    var(--card-shadow)
+  );
 }
 
 .tileHeader {
@@ -116,13 +126,17 @@
   border-radius: var(--card-radius);
   padding: 20px;
   border: 1px solid var(--card-border);
-  background:
+  background: var(
+    --create-tile-expanded-background,
     radial-gradient(1400px 60% at -10% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
-    linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
-  box-shadow:
+    linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2))
+  );
+  box-shadow: var(
+    --create-tile-expanded-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     inset 0 -1px 0 rgba(2, 6, 23, 0.48),
-    0 24px 54px rgba(5, 10, 30, 0.42);
+    0 24px 54px rgba(5, 10, 30, 0.42)
+  );
   backdrop-filter: blur(14px) saturate(130%);
   -webkit-backdrop-filter: blur(14px) saturate(130%);
   min-height: var(--create-rows-height);
@@ -150,10 +164,12 @@
   );
   color: var(--text);
   font-weight: 800;
-  box-shadow:
+  box-shadow: var(
+    --create-back-button-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -1px 0 rgba(2, 6, 23, 0.45),
-    0 8px 18px rgba(5, 10, 26, 0.35);
+    0 8px 18px rgba(5, 10, 26, 0.35)
+  );
 }
 .backBtn:hover {
   border-color: var(--card-hover-border);

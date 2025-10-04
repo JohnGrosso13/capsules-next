@@ -60,7 +60,10 @@
   bottom: -14px;
   height: 14px;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(20, 24, 48, 0.28), rgba(0, 0, 0, 0));
+  background: var(
+    --create-header-bottom-fade,
+    linear-gradient(180deg, rgba(20, 24, 48, 0.28), rgba(0, 0, 0, 0))
+  );
   filter: blur(1.5px);
 }
 .headerInner {
@@ -84,15 +87,20 @@
   height: 34px;
   border-radius: 12px;
   background: linear-gradient(135deg, var(--color-brand-strong), color-mix(in srgb, var(--color-brand) 85%, var(--color-accent)));
-  box-shadow:
+  box-shadow: var(
+    --create-brand-mark-shadow,
     0 12px 26px rgba(79, 70, 229, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.24);
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35)
+  );
+  border: 1px solid var(--create-brand-mark-border, rgba(255, 255, 255, 0.24));
 }
 .brandName {
   font-size: 1.15rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.78));
+  background: var(
+    --create-brand-name-gradient,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.78))
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -108,14 +116,19 @@
   justify-content: center;
   padding: 0.5rem 1rem;
   border-radius: 12px;
-  border: 1px solid var(--pill-border);
+  border: 1px solid var(--create-nav-link-border, var(--pill-border));
   color: var(--text);
   font-weight: 700;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
-  box-shadow:
+  background: var(
+    --create-nav-link-background,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03))
+  );
+  box-shadow: var(
+    --create-nav-link-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -1px 0 rgba(2, 6, 23, 0.45),
-    0 8px 18px rgba(5, 10, 26, 0.35);
+    0 8px 18px rgba(5, 10, 26, 0.35)
+  );
   transition:
     background 0.16s ease,
     border-color 0.16s ease,
@@ -124,23 +137,33 @@
     box-shadow 0.16s ease;
 }
 .navLink:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-  border-color: rgba(255, 255, 255, 0.22);
+  background: var(
+    --create-nav-link-hover-background,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))
+  );
+  border-color: var(--create-nav-link-hover-border, rgba(255, 255, 255, 0.22));
   color: var(--text);
   transform: translateY(-1px);
-  box-shadow:
+  box-shadow: var(
+    --create-nav-link-hover-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
     inset 0 -1px 0 rgba(2, 6, 23, 0.55),
-    0 10px 22px rgba(5, 10, 26, 0.42);
+    0 10px 22px rgba(5, 10, 26, 0.42)
+  );
 }
 .navLinkActive {
   color: var(--text);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08));
-  border-color: rgba(255, 255, 255, 0.3);
-  box-shadow:
+  background: var(
+    --create-nav-link-active-background,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08))
+  );
+  border-color: var(--create-nav-link-active-border, rgba(255, 255, 255, 0.3));
+  box-shadow: var(
+    --create-nav-link-active-shadow,
     0 8px 18px rgba(5, 10, 26, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -1px 0 rgba(2, 6, 23, 0.45);
+    inset 0 -1px 0 rgba(2, 6, 23, 0.45)
+  );
 }
 .headerActions {
   display: flex;
@@ -154,22 +177,24 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid var(--pill-border);
+  border: 1px solid var(--create-icon-button-border, var(--pill-border));
   background: linear-gradient(
     180deg,
     var(--pill-bg-1),
     var(--pill-bg-2)
   );
   color: var(--text);
-  box-shadow:
+  box-shadow: var(
+    --create-icon-button-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -1px 0 rgba(2, 6, 23, 0.45),
-    0 8px 18px rgba(5, 10, 26, 0.35);
+    0 8px 18px rgba(5, 10, 26, 0.35)
+  );
   line-height: 0;
   vertical-align: middle;
 }
 .iconButton:hover {
-  border-color: rgba(255, 255, 255, 0.24);
+  border-color: var(--create-icon-button-hover-border, rgba(255, 255, 255, 0.24));
   transform: translateY(-1px);
 }
 .iconGlyph {
@@ -188,7 +213,7 @@
   color: var(--cta-button-text, var(--text));
   background: var(--cta-button-gradient, var(--cta-gradient));
   border: none;
-  box-shadow: 0 16px 32px rgba(79, 70, 229, 0.32);
+  box-shadow: var(--cta-button-shadow, 0 16px 32px rgba(79, 70, 229, 0.32));
   transition:
     transform 0.16s ease,
     box-shadow 0.16s ease;

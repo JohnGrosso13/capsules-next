@@ -58,12 +58,18 @@
   border-radius: 12px;
   font-weight: 700;
   color: var(--text-2);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
-  box-shadow:
+  border: 1px solid var(--settings-nav-item-border, rgba(255, 255, 255, 0.16));
+  background: var(
+    --settings-nav-item-background,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04))
+  );
+  box-shadow: var(
+    --settings-nav-item-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(2, 6, 23, 0.45);
+    inset 0 -1px 0 rgba(2, 6, 23, 0.45)
+  );
 }
+
 .sideItem[aria-disabled="true"],
 .sideItem:disabled {
   opacity: 0.55;
@@ -74,11 +80,14 @@
   /* Use app brand gradient with fallback */
   background: var(--brand-gradient, var(--gradient-brand));
   border-color: transparent;
-  box-shadow:
+  box-shadow: var(
+    --settings-nav-item-active-shadow,
     0 0 18px var(--accent-glow, rgba(99, 102, 241, 0.34)),
     0 6px 12px rgba(2, 6, 23, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    inset 0 1px 0 rgba(255, 255, 255, 0.45)
+  );
 }
+
 
 /* Content */
 .content {

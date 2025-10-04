@@ -8,6 +8,7 @@ import { AiComposerDrawer } from "@/components/ai-composer";
 import type { ComposerChoice } from "@/components/composer/ComposerForm";
 import type { PrompterAction, PrompterAttachment } from "@/components/ai-prompter-stage";
 import { applyThemeVars } from "@/lib/theme";
+import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
 import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerMode } from "@/lib/ai/nav";
@@ -318,8 +319,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         }
         return;
       }
-
       if (action.kind === "style") {
+        const heuristicPlan = resolveStylerHeuristicPlan(action.prompt);
+        if (heuristicPlan) {
+          applyThemeVars(heuristicPlan.vars);
+          return;
+        }
         try {
           const response = await callStyler(action.prompt, envelopePayload);
           applyThemeVars(response.vars);
@@ -329,7 +334,6 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Tool: Poll (route to AI prompt with poll preference)
       if (action.kind === "tool_poll") {
         const prompt = action.prompt;
         setState((prev) => ({ ...prev, open: true, loading: true, prompt, message: null, choices: null }));
@@ -342,7 +346,6 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         }
         return;
       }
-
       // Tool: Logo (generate an image from prompt then open composer)
       if (action.kind === "tool_logo") {
         const prompt = action.prompt;
@@ -379,7 +382,6 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         }
         return;
       }
-
       // Tool: Image edit/vibe (requires attachment image)
       if (action.kind === "tool_image_edit") {
         const prompt = action.prompt;
@@ -418,11 +420,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         }
         return;
       }
-
       const prompt = action.kind === "post_ai" ? action.prompt : action.text;
       const composeOptions: Record<string, unknown> | undefined =
         action.kind === "post_ai" ? { compose: action.mode as ComposerMode } : undefined;
-
       setState((prev) => ({
         ...prev,
         open: true,
@@ -431,7 +431,6 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         message: null,
         choices: null,
       }));
-
       try {
         const payload = await callAiPrompt(prompt, composeOptions, undefined, action.attachments);
         handleAiResponse(prompt, payload);
