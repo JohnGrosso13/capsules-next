@@ -802,7 +802,7 @@ function ThemeEntryCard({
   onPreview,
   onPreviewEnd,
   isPreviewing = false,
-}: ThemeEntryCardProps): JSX.Element {
+}: ThemeEntryCardProps) {
   const entryId = getEntryId(entry);
   const vars = entry.kind === "preset" ? entry.preset.vars : entry.saved.vars;
   const preview = React.useMemo(() => buildThemePreview(vars), [vars]);
@@ -901,7 +901,7 @@ function ThemeEntryCard({
   );
 }
 
-export function ThemeStyleCarousel(): JSX.Element {
+export function ThemeStyleCarousel() {
   const { activeEntry, activeMode, loading, handleSetMode, handleSaveCurrent } = useThemeStyles();
 
   return (
@@ -951,7 +951,7 @@ export function ThemeStyleCarousel(): JSX.Element {
   );
 }
 
-export function ThemeStylesGallery(): JSX.Element {
+export function ThemeStylesGallery() {
   const {
     items,
     activeId,
@@ -1038,3 +1038,5 @@ export function ThemeStylesGallery(): JSX.Element {
     </section>
   );
 }
+
+

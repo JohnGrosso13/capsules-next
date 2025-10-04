@@ -356,9 +356,11 @@ export function useFriendsRealtime(
       if (unsubscribePresence) unsubscribePresence();
       manager.leavePresence();
       if (clientInstance) {
-        clientInstance.close().catch(() => {});
+        Promise.resolve(factory.release(clientInstance)).catch((error) => {
+          console.error("Realtime release error", error);
+        });
+        clientInstance = null;
       }
-      factory.reset();
     };
   }, [eventsChannelName, presenceChannelName, tokenProvider, onEvent, setPresence]);
 

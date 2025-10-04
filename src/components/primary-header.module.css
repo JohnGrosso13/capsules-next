@@ -1,11 +1,11 @@
-﻿/* High-contrast glass header with bold nav tokens and CTA */
+/* High-contrast glass header with bold nav tokens and CTA */
 
 .header {
   /* Balanced gradient header that blends with app background */
   --header-height: var(--space-8xl);
-  --header-brand: var(--color-brand, #6366f1);
-  --header-brand-strong: var(--color-brand-strong, #4f46e5);
-  --header-accent: var(--color-accent, #22d3ee);
+  --header-brand: var(--color-brand);
+  --header-brand-strong: var(--color-brand-strong);
+  --header-accent: var(--color-accent);
   --header-foreground-strong: var(--color-brand-foreground, #f8fafc);
   --header-button-bg: linear-gradient(
     180deg,
@@ -279,6 +279,13 @@
   transform: translateY(0) scale(0.98);
   box-shadow: var(--header-launch-shadow-active) !important;
 }
+
+
+
+
+
+
+
 
 
 

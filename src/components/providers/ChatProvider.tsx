@@ -477,6 +477,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const cleanup = unsubscribeRef.current;
       unsubscribeRef.current = null;
       if (cleanup) cleanup();
+      const client = clientRef.current;
+      clientRef.current = null;
+      if (client) {
+        Promise.resolve(factory.release(client)).catch((error) => {
+          console.error("Chat realtime release error", error);
+        });
+      }
       clientChannelNameRef.current = null;
       resolvedSelfIdRef.current = null;
     };

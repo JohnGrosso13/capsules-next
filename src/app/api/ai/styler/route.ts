@@ -60,11 +60,6 @@ export async function POST(req: Request) {
       return returnError(400, "invalid_request", "Prompt is required");
     }
 
-    const userRaw = payload.user;
-    const user =
-      userRaw && typeof userRaw === "object" && !Array.isArray(userRaw)
-        ? (userRaw as Record<string, unknown>)
-        : undefined;
 
     const plan = await resolveStylerPlan(prompt);
     if (!plan) {
@@ -125,3 +120,4 @@ export async function POST(req: Request) {
 // via server utilities that rely on Node built-ins (e.g. crypto). Running this
 // route on the Edge runtime triggers module resolution errors for those deps.
 export const runtime = "nodejs";
+

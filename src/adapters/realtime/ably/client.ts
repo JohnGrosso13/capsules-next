@@ -160,44 +160,91 @@ class AblyRealtimeConnection implements RealtimeClient {
 
 class AblyRealtimeClientFactory implements RealtimeClientFactory {
   private clientPromise: Promise<AblyRealtimeConnection> | null = null;
+  private activeConnection: AblyRealtimeConnection | null = null;
+  private refCount = 0;
+  private fetchAuth: (() => Promise<RealtimeAuthPayload>) | null = null;
+
+  private async createClient(): Promise<AblyRealtimeConnection> {
+    if (!this.fetchAuth) {
+      throw new Error("Ably auth provider is not configured");
+    }
+    const initial = assertAblyAuth(await this.fetchAuth());
+    const options: Ably.Types.ClientOptions = {
+      authCallback: async (_, callback) => {
+        try {
+          const fetchAuth = this.fetchAuth;
+          if (!fetchAuth) {
+            throw new Error("Ably auth provider is not configured");
+          }
+          const next = assertAblyAuth(await fetchAuth());
+          callback(null, next.tokenRequest);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          callback(message, null);
+        }
+      },
+    };
+    if (initial.environment) {
+      options.environment = initial.environment;
+    }
+    const createRealtime =
+      Ably.Realtime as unknown as (options: Ably.Types.ClientOptions) => AblyTypes.RealtimePromise;
+    const client = createRealtime(options);
+    await client.connection.once("connected");
+    const connection = new AblyRealtimeConnection(client);
+    this.activeConnection = connection;
+    return connection;
+  }
 
   async getClient(fetchAuth: () => Promise<RealtimeAuthPayload>): Promise<RealtimeClient> {
+    this.fetchAuth = fetchAuth;
     if (!this.clientPromise) {
-      this.clientPromise = (async () => {
-        const initial = assertAblyAuth(await fetchAuth());
-        const options: Ably.Types.ClientOptions = {
-          authCallback: async (_, callback) => {
-            try {
-              const next = assertAblyAuth(await fetchAuth());
-              callback(null, next.tokenRequest);
-            } catch (error) {
-              const message = error instanceof Error ? error.message : String(error);
-              callback(message, null);
-            }
-          },
-        };
-        if (initial.environment) {
-          options.environment = initial.environment;
-        }
-        const createRealtime =
-          Ably.Realtime as unknown as (options: Ably.Types.ClientOptions) => AblyTypes.RealtimePromise;
-        const client = createRealtime(options);
-        await client.connection.once("connected");
-        return new AblyRealtimeConnection(client);
-      })();
+      this.clientPromise = this.createClient().catch((error) => {
+        this.activeConnection = null;
+        this.clientPromise = null;
+        throw error;
+      });
     }
-    return this.clientPromise;
+    const connection = await this.clientPromise.catch((error) => {
+      this.activeConnection = null;
+      this.clientPromise = null;
+      throw error;
+    });
+    this.refCount += 1;
+    return connection;
+  }
+
+  async release(_client: RealtimeClient): Promise<void> {
+    if (!this.clientPromise) return;
+    this.refCount = Math.max(0, this.refCount - 1);
+    if (this.refCount > 0) {
+      return;
+    }
+    const connection = this.activeConnection;
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (error) {
+        console.error("Ably release close error", error);
+      }
+    }
+    this.clientPromise = null;
+    this.activeConnection = null;
+    this.fetchAuth = null;
+    this.refCount = 0;
   }
 
   reset(): void {
-    if (this.clientPromise) {
-      this.clientPromise
-        .then((connection) => connection.close())
-        .catch((error) => {
-          console.error("Ably reset close error", error);
-        });
+    const connection = this.activeConnection;
+    if (connection) {
+      connection.close().catch((error) => {
+        console.error("Ably reset close error", error);
+      });
     }
     this.clientPromise = null;
+    this.activeConnection = null;
+    this.fetchAuth = null;
+    this.refCount = 0;
   }
 }
 

@@ -77,7 +77,7 @@
     ),
     radial-gradient(
       400px 280px at 70% 80%,
-      color-mix(in srgb, var(--color-accent, var(--color-brand)) 24%, transparent),
+      color-mix(in srgb, var(--color-accent) 24%, transparent),
       transparent 62%
     ),
     var(--surface-overlay);
@@ -152,5 +152,10 @@
 .overlayLabel {
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
 }
+
+
+
+
+

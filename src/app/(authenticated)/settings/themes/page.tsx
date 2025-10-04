@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Explore the full collection of Capsules themes and update your look.",
 };
 
-export default function SettingsThemesPage(): JSX.Element {
+export default function SettingsThemesPage() {
   return (
     <AppPage showPrompter={true}>
       <div className={styles.root}>

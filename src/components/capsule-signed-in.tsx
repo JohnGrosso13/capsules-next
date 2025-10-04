@@ -14,9 +14,10 @@ export function CapsuleSignedIn() {
       }}
     >
       <h2 style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: "8px" }}>Capsule space</h2>
-      <p style={{ color: "var(--text-2, rgba(255,255,255,0.78))" }}>
+      <p style={{ color: "var(--text-2)" }}>
         This area will soon host your Capsule timeline, media, and automations.
       </p>
     </div>
   );
 }
+

@@ -58,6 +58,79 @@
     --rail-bg-2: rgba(255, 255, 255, 0.86);
     --rail-border: rgba(14, 23, 42, 0.12);
 
+    --text-3: var(--color-fg-subtle, rgba(14, 16, 36, 0.6));
+    --accent-glow: rgba(79, 70, 229, 0.22);
+    --alert-bg: color-mix(in srgb, var(--color-brand) 8%, rgba(255, 255, 255, 0.94));
+    --alert-border: color-mix(in srgb, var(--color-brand) 22%, rgba(14, 23, 42, 0.16));
+    --alert-fg: var(--color-brand-strong);
+    --alert-accent: var(--color-brand);
+    --brand-gradient: var(--gradient-brand);
+    --cta-button-gradient: var(--cta-gradient);
+    --cta-radius: var(--radius-pill, 999px);
+    --card-radius: var(--radius-lg, 1rem);
+    --prompt-glow-blur: 18px;
+    --prompt-glow-opacity: 0.3;
+    --tile-bg-base: linear-gradient(160deg, rgba(255, 255, 255, 1), rgba(247, 249, 255, 0.92));
+    --tile-bg-final: var(--tile-bg-base);
+    --tile-border-base: rgba(14, 23, 42, 0.12);
+    --tile-border-final: var(--tile-border-base);
+    --tile-border-hover-base: rgba(14, 23, 42, 0.24);
+    --tile-border-hover: var(--tile-border-hover-base);
+    --tile-shadow-base: 0 20px 44px rgba(15, 23, 42, 0.16);
+    --tile-shadow-final: var(--tile-shadow-base);
+    --tile-shadow-hover-base: 0 26px 54px rgba(15, 23, 42, 0.2);
+    --tile-shadow-hover: var(--tile-shadow-hover-base);
+    --tile-text-base: var(--text);
+    --tile-text-final: var(--tile-text-base);
+    --tile-desc-base: var(--text-2);
+    --tile-desc-final: var(--tile-desc-base);
+    --tile-icon-bg-base: color-mix(in srgb, var(--color-brand) 22%, rgba(255, 255, 255, 0.92));
+    --tile-icon-bg-final: var(--tile-icon-bg-base);
+    --tile-icon-color-base: var(--color-brand-strong);
+    --tile-icon-color-final: var(--tile-icon-color-base);
+    --tile-badge-bg-base: color-mix(in srgb, var(--color-brand) 40%, rgba(255, 255, 255, 0.85));
+    --tile-badge-bg-final: var(--tile-badge-bg-base);
+    --tile-badge-color-base: var(--text-on-brand, #0e1024);
+    --tile-badge-color-final: var(--tile-badge-color-base);
+    --tile-accent-a: color-mix(in srgb, var(--color-brand) 42%, rgba(59, 130, 246, 0.28));
+    --style-friends-bg: var(--tile-bg-base);
+    --style-friends-border: var(--tile-border-base);
+    --style-friends-text: var(--tile-text-base);
+    --style-friends-desc: var(--tile-desc-base);
+    --style-friends-shadow: var(--tile-shadow-base);
+    --style-friends-shadow-hover: var(--tile-shadow-hover-base);
+    --style-friends-icon-bg: var(--tile-icon-bg-base);
+    --style-friends-icon-color: var(--tile-icon-color-base);
+    --style-friends-badge-bg: var(--tile-badge-bg-base);
+    --style-friends-badge-color: var(--tile-badge-color-base);
+    --style-friends-border-hover: var(--tile-border-hover-base);
+    --style-chats-bg: var(--tile-bg-base);
+    --style-chats-border: var(--tile-border-base);
+    --style-chats-text: var(--tile-text-base);
+    --style-chats-desc: var(--tile-desc-base);
+    --style-chats-shadow: var(--tile-shadow-base);
+    --style-chats-shadow-hover: var(--tile-shadow-hover-base);
+    --style-chats-icon-bg: var(--tile-icon-bg-base);
+    --style-chats-icon-color: var(--tile-icon-color-base);
+    --style-chats-badge-bg: var(--tile-badge-bg-base);
+    --style-chats-badge-color: var(--tile-badge-color-base);
+    --style-chats-border-hover: var(--tile-border-hover-base);
+    --style-requests-bg: var(--tile-bg-base);
+    --style-requests-border: var(--tile-border-base);
+    --style-requests-text: var(--tile-text-base);
+    --style-requests-desc: var(--tile-desc-base);
+    --style-requests-shadow: var(--tile-shadow-base);
+    --style-requests-shadow-hover: var(--tile-shadow-hover-base);
+    --style-requests-icon-bg: var(--tile-icon-bg-base);
+    --style-requests-icon-color: var(--tile-icon-color-base);
+    --style-requests-badge-bg: var(--tile-badge-bg-base);
+    --style-requests-badge-color: var(--tile-badge-color-base);
+    --style-requests-border-hover: var(--tile-border-hover-base);
+    --surface-1: rgba(255, 255, 255, 0.98);
+    --surface-3: rgba(245, 247, 255, 0.94);
+    --surface-outline: rgba(14, 23, 42, 0.12);
+    --link-color: color-mix(in srgb, var(--color-brand) 60%, rgba(14, 23, 42, 0.8));
+    --create-rows-height: clamp(520px, calc(100dvh - 260px), 920px);
     /* Header acrylic tokens to blend with page background gently */
     /* Make header fully readable: nearly-opaque acrylic with soft brand tint */
        --header-glass-top: rgba(26, 44, 92, 0.9);
@@ -69,4 +142,7 @@
        --header-scrim: linear-gradient(180deg, rgba(17, 42, 96, 0.18), rgba(17, 42, 96, 0));
   }
 }
+
+
+
 

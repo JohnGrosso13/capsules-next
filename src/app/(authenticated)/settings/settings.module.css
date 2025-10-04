@@ -70,7 +70,7 @@
   cursor: not-allowed;
 }
 .sideItemActive {
-  color: var(--text-on-brand, #0e1024);
+  color: var(--text-on-brand);
   /* Use app brand gradient with fallback */
   background: var(--brand-gradient, var(--gradient-brand));
   border-color: transparent;
@@ -128,3 +128,7 @@
     position: static;
   }
 }
+
+
+
+

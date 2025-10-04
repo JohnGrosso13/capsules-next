@@ -1,8 +1,8 @@
 /* Capsule page theming tokens only (content/layout provided by shared components). */
 .theme {
-  --brand-from: var(--color-brand, #6366f1);
-  --brand-mid: var(--color-brand-strong, #4f46e5);
-  --brand-to: var(--color-accent, #22d3ee);
+  --brand-from: var(--color-brand);
+  --brand-mid: var(--color-brand-strong);
+  --brand-to: var(--color-accent);
   --glass-bg-1: rgba(255, 255, 255, 0.1);
   --glass-bg-2: rgba(255, 255, 255, 0.05);
   --pill-radius: 999px;
@@ -10,3 +10,4 @@
   --prompt-glow-blur: 18px;
   --card-radius: 16px;
 }
+

@@ -1,4 +1,4 @@
-﻿.outer {
+.outer {
   /* Align page offset to compact header height */
   padding: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset)) 0 var(--layout-desktop-bottom-padding);
 }
@@ -46,7 +46,7 @@
   gap: var(--space-sm-plus);
   font-weight: 900;
   letter-spacing: 0.02em;
-  color: var(--text, rgba(255, 255, 255, 0.92));
+  color: var(--text);
 }
 .brandMark {
   width: 26px;
@@ -65,10 +65,10 @@
   font-weight: 700;
 }
 .navLink {
-  color: var(--text-2, rgba(255, 255, 255, 0.76));
+  color: var(--text-2);
 }
 .navLink:hover {
-  color: var(--text, rgba(255, 255, 255, 0.92));
+  color: var(--text);
 }
 
 .headerActions {
@@ -83,11 +83,11 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+  border: 1px solid var(--pill-border);
   background: linear-gradient(
     180deg,
-    var(--pill-bg-1, rgba(255, 255, 255, 0.08)),
-    var(--pill-bg-2, rgba(255, 255, 255, 0.04))
+    var(--pill-bg-1),
+    var(--pill-bg-2)
   );
 }
 .iconGlyph {
@@ -153,7 +153,7 @@
 }
 
 .navLinkActive {
-  color: var(--text, rgba(255, 255, 255, 0.95));
+  color: var(--text);
 }
 .promoRowSpace {
   width: 100%;
@@ -178,5 +178,6 @@
     gap: var(--layout-mobile-section-gap);
   }
 }
+
 
 

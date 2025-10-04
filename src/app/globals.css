@@ -118,6 +118,117 @@
     --shadow-glow: 0 0 42px rgba(99, 102, 241, 0.4);
     --ring-primary: 0 0 0 1px rgba(99, 102, 241, 0.6);
     --ring-offset: 0 0 0 4px rgba(99, 102, 241, 0.16);
+    /* Shared typography tokens */
+    --text: var(--color-fg, rgba(255, 255, 255, 0.94));
+    --text-2: var(--color-fg-muted, rgba(255, 255, 255, 0.72));
+    --text-3: var(--color-fg-subtle, rgba(255, 255, 255, 0.56));
+    --text-on-brand: var(--color-brand-foreground, #f8fafc);
+    /* Accent glows & alerts */
+    --accent-glow: rgba(99, 102, 241, 0.34);
+    --alert-bg: color-mix(in srgb, var(--color-brand) 12%, var(--surface-muted));
+    --alert-border: color-mix(in srgb, var(--color-brand) 30%, transparent);
+    --alert-fg: var(--color-brand);
+    --alert-accent: var(--color-brand);
+    /* CTA & gradients */
+    --brand-gradient: var(--gradient-brand);
+    --cta-button-gradient: var(--cta-gradient);
+    --cta-radius: var(--radius-pill, 999px);
+    /* Card surfaces */
+    --card-radius: var(--radius-lg, 1rem);
+    --card-shadow: 0 18px 40px rgba(5, 10, 30, 0.35);
+    --card-hover-bg-1: rgba(14, 18, 42, 0.94);
+    --card-hover-bg-2: rgba(9, 12, 30, 0.82);
+    --card-hover-border: color-mix(in srgb, var(--color-border) 70%, transparent);
+    --card-hover-shadow: 0 18px 40px rgba(5, 10, 30, 0.4);
+    /* Rail surfaces */
+    --rail-bg-1: rgba(17, 22, 45, 0.82);
+    --rail-bg-2: rgba(14, 18, 38, 0.72);
+    --rail-border: rgba(255, 255, 255, 0.16);
+    /* Pill shells */
+    --pill-bg-1: rgba(255, 255, 255, 0.12);
+    --pill-bg-2: rgba(255, 255, 255, 0.06);
+    --pill-border: rgba(255, 255, 255, 0.18);
+    --pill-radius: var(--radius-pill, 999px);
+    /* Feed action buttons */
+    --feed-action-bg-1: rgba(255, 255, 255, 0.06);
+    --feed-action-bg-2: rgba(255, 255, 255, 0.02);
+    --feed-action-border: rgba(255, 255, 255, 0.08);
+    --feed-action-border-hover: rgba(255, 255, 255, 0.2);
+    --feed-action-shadow-hover: 0 12px 28px rgba(5, 10, 30, 0.28);
+    /* Prompt halo */
+    --prompt-glow-blur: 18px;
+    --prompt-glow-opacity: 0.54;
+    /* Icon plates */
+    --icon-plate-bg-1: rgba(255, 255, 255, 0.10);
+    --icon-plate-bg-2: rgba(255, 255, 255, 0.04);
+    --icon-plate-border: rgba(255, 255, 255, 0.16);
+    --icon-plate-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    /* Tile surfaces */
+    --tile-bg-base: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    --tile-bg-final: var(--tile-bg-base);
+    --tile-border-base: rgba(255, 255, 255, 0.16);
+    --tile-border-final: var(--tile-border-base);
+    --tile-border-hover-base: rgba(255, 255, 255, 0.24);
+    --tile-border-hover: var(--tile-border-hover-base);
+    --tile-shadow-base: 0 18px 32px rgba(5, 10, 30, 0.24);
+    --tile-shadow-final: var(--tile-shadow-base);
+    --tile-shadow-hover-base: 0 24px 46px rgba(5, 10, 30, 0.32);
+    --tile-shadow-hover: var(--tile-shadow-hover-base);
+    --tile-text-base: var(--text);
+    --tile-text-final: var(--tile-text-base);
+    --tile-desc-base: var(--text-2);
+    --tile-desc-final: var(--tile-desc-base);
+    --tile-icon-bg-base: rgba(255, 255, 255, 0.18);
+    --tile-icon-bg-final: var(--tile-icon-bg-base);
+    --tile-icon-color-base: var(--tile-text-base);
+    --tile-icon-color-final: var(--tile-icon-color-base);
+    --tile-badge-bg-base: rgba(255, 255, 255, 0.9);
+    --tile-badge-bg-final: var(--tile-badge-bg-base);
+    --tile-badge-color-base: var(--text-on-brand);
+    --tile-badge-color-final: var(--tile-badge-color-base);
+    --tile-accent-a: color-mix(in srgb, var(--color-brand) 48%, rgba(99, 102, 241, 0.32));
+    /* Tile style presets */
+    --style-friends-bg: var(--tile-bg-base);
+    --style-friends-border: var(--tile-border-base);
+    --style-friends-text: var(--tile-text-base);
+    --style-friends-desc: var(--tile-desc-base);
+    --style-friends-shadow: var(--tile-shadow-base);
+    --style-friends-shadow-hover: var(--tile-shadow-hover-base);
+    --style-friends-icon-bg: var(--tile-icon-bg-base);
+    --style-friends-icon-color: var(--tile-icon-color-base);
+    --style-friends-badge-bg: var(--tile-badge-bg-base);
+    --style-friends-badge-color: var(--tile-badge-color-base);
+    --style-friends-border-hover: var(--tile-border-hover-base);
+    --style-chats-bg: var(--tile-bg-base);
+    --style-chats-border: var(--tile-border-base);
+    --style-chats-text: var(--tile-text-base);
+    --style-chats-desc: var(--tile-desc-base);
+    --style-chats-shadow: var(--tile-shadow-base);
+    --style-chats-shadow-hover: var(--tile-shadow-hover-base);
+    --style-chats-icon-bg: var(--tile-icon-bg-base);
+    --style-chats-icon-color: var(--tile-icon-color-base);
+    --style-chats-badge-bg: var(--tile-badge-bg-base);
+    --style-chats-badge-color: var(--tile-badge-color-base);
+    --style-chats-border-hover: var(--tile-border-hover-base);
+    --style-requests-bg: var(--tile-bg-base);
+    --style-requests-border: var(--tile-border-base);
+    --style-requests-text: var(--tile-text-base);
+    --style-requests-desc: var(--tile-desc-base);
+    --style-requests-shadow: var(--tile-shadow-base);
+    --style-requests-shadow-hover: var(--tile-shadow-hover-base);
+    --style-requests-icon-bg: var(--tile-icon-bg-base);
+    --style-requests-icon-color: var(--tile-icon-color-base);
+    --style-requests-badge-bg: var(--tile-badge-bg-base);
+    --style-requests-badge-color: var(--tile-badge-color-base);
+    --style-requests-border-hover: var(--tile-border-hover-base);
+    /* Surface layering */
+    --surface-1: rgba(21, 26, 48, 0.82);
+    --surface-3: rgba(12, 16, 34, 0.68);
+    --surface-outline: rgba(255, 255, 255, 0.12);
+    /* Links */
+    --link-color: color-mix(in srgb, var(--color-brand) 65%, var(--color-fg));
+    /* Layout helpers */
+    --create-rows-height: clamp(520px, calc(100dvh - 260px), 920px);
     /* Removed legacy Material icon tokens (using Phosphor components now) */
     /* Default glass fallbacks for dark theme (overridden by light theme or AI styler) */
     --glass-bg-1: rgba(255, 255, 255, 0.06);
@@ -331,8 +442,8 @@
   }
   /* Neumorphic tiles for simple feature chips */
   .tile-neu {
-    background: linear-gradient(180deg, var(--card-bg-1, rgba(255,255,255,0.06)), var(--card-bg-2, rgba(255,255,255,0.035)));
-    border: 1px solid var(--card-border, var(--color-border, rgba(255,255,255,0.14)));
+    background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    border: 1px solid var(--card-border);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.1),
       inset 0 -1px 0 rgba(2, 6, 23, 0.4),
@@ -383,5 +494,13 @@
     animation: marquee 60s linear infinite;
   }
 }
+
+
+
+
+
+
+
+
 
 

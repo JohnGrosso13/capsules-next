@@ -48,5 +48,6 @@ export interface RealtimeClient {
 
 export interface RealtimeClientFactory {
   getClient(fetchAuth: () => Promise<RealtimeAuthPayload>): Promise<RealtimeClient>;
+  release(client: RealtimeClient): Promise<void> | void;
   reset(): void;
 }

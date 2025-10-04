@@ -14,7 +14,7 @@
   min-width: 220px;
   padding: 10px;
   border-radius: 16px;
-  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.16));
+  border: 1px solid var(--card-border);
   background:
     linear-gradient(180deg, rgba(15, 18, 42, 0.86), rgba(11, 14, 34, 0.78)),
     linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.08)), var(--glass-bg-2, rgba(255,255,255,0.04)));
@@ -71,3 +71,6 @@
   background: rgba(255,255,255,0.12);
   border-radius: 1px;
 }
+
+
+

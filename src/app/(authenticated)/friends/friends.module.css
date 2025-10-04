@@ -9,11 +9,11 @@
   position: sticky;
   top: 0;
   z-index: 12;
-  background: color-mix(in srgb, var(--app-bg, #060818) 85%, rgba(6, 8, 24, 0.85));
+  background: color-mix(in srgb, var(--app-bg) 85%, rgba(6, 8, 24, 0.85));
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   padding: 12px 4px 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.08)) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
 }
 
 .tabs {
@@ -29,26 +29,26 @@
   gap: 8px;
   padding: 10px 12px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.12)) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pill-border) 90%, transparent);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, rgba(255, 255, 255, 0.11) 70%, transparent),
     color-mix(in srgb, rgba(10, 12, 32, 0.65) 70%, transparent)
   );
-  color: var(--text, rgba(255, 255, 255, 0.92));
+  color: var(--text);
   font-weight: 700;
   letter-spacing: 0.01em;
   transition: transform 160ms ease, border-color 160ms ease;
 }
 
 .tab:hover {
-  border-color: color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.18)) 90%, transparent);
+  border-color: color-mix(in srgb, var(--pill-border) 90%, transparent);
   transform: translateY(-1px);
 }
 
 .tabActive {
-  border-color: color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.6)) 80%, transparent);
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.5)) 25%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand) 80%, transparent);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--color-brand) 25%, transparent);
 }
 
 .tabLabel {
@@ -63,7 +63,7 @@
   min-width: 28px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.95)) 72%, rgba(10, 12, 32, 0.85));
+  background: color-mix(in srgb, var(--color-brand) 72%, rgba(10, 12, 32, 0.85));
   color: white;
   font-size: 0.75rem;
   font-weight: 700;
@@ -94,9 +94,9 @@
 .notice {
   padding: 12px 16px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.6)) 45%, transparent);
-  background: color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.18)) 40%, transparent);
-  color: color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.95)) 92%, white 8%);
+  border: 1px solid color-mix(in srgb, var(--color-brand) 45%, transparent);
+  background: color-mix(in srgb, var(--color-brand) 40%, transparent);
+  color: color-mix(in srgb, var(--text) 92%, white 8%);
   font-weight: 600;
 }
 
@@ -106,8 +106,8 @@
   text-align: center;
   padding: 28px;
   border-radius: 18px;
-  border: 1px dashed color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.14)) 80%, transparent);
-  color: var(--text-2, rgba(255, 255, 255, 0.65));
+  border: 1px dashed color-mix(in srgb, var(--card-border) 80%, transparent);
+  color: var(--text);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, rgba(12, 16, 46, 0.6) 70%, transparent),
@@ -120,13 +120,13 @@
 }
 
 .retryButton {
-  border: 1px solid color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.8)) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, transparent);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.32)) 70%, transparent),
+    color-mix(in srgb, var(--color-brand) 70%, transparent),
     color-mix(in srgb, rgba(8, 10, 32, 0.75) 70%, transparent)
   );
-  color: var(--text, rgba(255, 255, 255, 0.95));
+  color: var(--text);
   border-radius: 14px;
   padding: 8px 18px;
   font-weight: 600;
@@ -138,7 +138,7 @@
   justify-content: space-between;
   gap: 18px;
   border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.12)) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border) 85%, transparent);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, rgba(255, 255, 255, 0.08) 80%, transparent),
@@ -184,7 +184,7 @@
   height: 100%;
   font-weight: 700;
   font-size: 1.2rem;
-  color: color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 90%, white 10%);
+  color: color-mix(in srgb, var(--text) 90%, white 10%);
 }
 
 .friendMeta {
@@ -204,7 +204,7 @@
 .friendName {
   font-weight: 700;
   font-size: 1.02rem;
-  color: var(--text, rgba(255, 255, 255, 0.95));
+  color: var(--text);
 }
 
 .friendNameButton {
@@ -223,7 +223,7 @@
 .friendSince {
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--text-2, rgba(255, 255, 255, 0.65));
+  color: var(--text);
 }
 
 .presence {
@@ -242,15 +242,15 @@
 }
 
 .presenceLabel {
-  color: var(--text-2, rgba(255, 255, 255, 0.68));
+  color: var(--text);
 }
 
 .presenceOnline .presenceDot {
-  background: #4ade80;
+  background: var(--color-success);
 }
 
 .presenceAway .presenceDot {
-  background: #f97316;
+  background: var(--color-warning);
 }
 
 .presenceOffline .presenceDot {
@@ -268,13 +268,13 @@
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.16)) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pill-border) 85%, transparent);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, rgba(255, 255, 255, 0.11) 80%, transparent),
     color-mix(in srgb, rgba(8, 10, 36, 0.75) 80%, transparent)
   );
-  color: var(--text, rgba(255, 255, 255, 0.9));
+  color: var(--text);
 }
 
 .friendMenuTrigger:disabled {
@@ -301,8 +301,8 @@
   right: 0;
   min-width: 160px;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.16)) 85%, transparent);
-  background: color-mix(in srgb, var(--app-bg, #060818) 90%, rgba(10, 12, 36, 0.92));
+  border: 1px solid color-mix(in srgb, var(--card-border) 85%, transparent);
+  background: color-mix(in srgb, var(--app-bg) 90%, rgba(10, 12, 36, 0.92));
   box-shadow: 0 18px 32px rgba(6, 8, 24, 0.38);
   padding: 6px;
   display: grid;
@@ -316,13 +316,13 @@
   border: none;
   border-radius: 10px;
   background: none;
-  color: var(--text, rgba(255, 255, 255, 0.92));
+  color: var(--text);
   font-size: 0.9rem;
   padding: 8px 10px;
 }
 
 .friendMenuItem:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.4)) 40%, transparent);
+  background: color-mix(in srgb, var(--color-brand) 40%, transparent);
 }
 
 .friendMenuItem:disabled {
@@ -331,12 +331,12 @@
 }
 
 .friendMenuDanger {
-  color: #f87171;
+  color: var(--color-danger);
 }
 
 .friendMenuSeparator {
   height: 1px;
-  background: color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.12)) 85%, transparent);
+  background: color-mix(in srgb, var(--card-border) 85%, transparent);
   margin: 4px 0;
 }
 
@@ -352,7 +352,7 @@
   gap: 16px;
   padding: 16px 18px;
   border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.14)) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border) 85%, transparent);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, rgba(255, 255, 255, 0.09) 70%, transparent),
@@ -371,7 +371,7 @@
   font-size: 0.76rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-2, rgba(255, 255, 255, 0.62));
+  color: var(--text);
 }
 
 .requestActions {
@@ -381,24 +381,24 @@
 
 .requestActions button {
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.16)) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
   padding: 8px 14px;
   background: linear-gradient(
     180deg,
     color-mix(in srgb, rgba(255, 255, 255, 0.09) 70%, transparent),
     color-mix(in srgb, rgba(8, 10, 30, 0.75) 80%, transparent)
   );
-  color: var(--text, rgba(255, 255, 255, 0.9));
+  color: var(--text);
   font-weight: 600;
 }
 
 .primaryAction {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.95)) 60%, rgba(10, 12, 32, 0.75)),
-    color-mix(in srgb, var(--color-brand, rgba(79, 70, 229, 0.9)) 70%, rgba(6, 8, 24, 0.85))
+    color-mix(in srgb, var(--color-brand) 60%, rgba(10, 12, 32, 0.75)),
+    color-mix(in srgb, var(--color-brand) 70%, rgba(6, 8, 24, 0.85))
   );
-  border-color: color-mix(in srgb, var(--color-brand, rgba(99, 102, 241, 0.9)) 70%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
 }
 
 .primaryAction:hover {
@@ -447,3 +447,9 @@
     justify-content: flex-end;
   }
 }
+
+
+
+
+
+

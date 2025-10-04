@@ -39,7 +39,7 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  color: var(--text, rgba(255, 255, 255, 0.92));
+  color: var(--text);
   margin-left: auto;
   align-self: stretch;
   pointer-events: auto;
@@ -65,28 +65,28 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--text-2, rgba(255, 255, 255, 0.72));
+  color: var(--text);
 }
 
 .promptText {
   margin: 6px 0 0;
   font-size: 0.95rem;
-  color: var(--text-2, rgba(255, 255, 255, 0.78));
+  color: var(--text);
   white-space: pre-wrap;
 }
 
 .closeButton {
   appearance: none;
-  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.22));
+  border: 1px solid var(--pill-border);
   border-radius: 999px;
   width: 32px;
   height: 32px;
   background: linear-gradient(
     180deg,
-    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
-    var(--pill-bg-2, rgba(255, 255, 255, 0.06))
+    var(--pill-bg-1),
+    var(--pill-bg-2)
   );
-  color: var(--text, rgba(255, 255, 255, 0.92));
+  color: var(--text);
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
@@ -99,7 +99,7 @@
   background: var(--cta-gradient);
   border: 1px solid color-mix(in srgb, var(--color-brand) 28%, transparent);
   font-weight: 600;
-  color: var(--text-on-brand, #0e1024);
+  color: var(--text);
   white-space: pre-wrap;
 }
 
@@ -111,7 +111,7 @@
 .choiceLabel {
   font-weight: 700;
   font-size: 0.85rem;
-  color: var(--text-2, rgba(255, 255, 255, 0.72));
+  color: var(--text);
 }
 
 .choiceButtons {
@@ -123,11 +123,11 @@
 .choiceButton {
   padding: 8px 14px;
   border-radius: 999px;
-  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
+  border: 1px solid var(--pill-border);
   background: linear-gradient(
     180deg,
-    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
-    var(--pill-bg-2, rgba(255, 255, 255, 0.04))
+    var(--pill-bg-1),
+    var(--pill-bg-2)
   );
   font-weight: 700;
   color: var(--text);
@@ -149,18 +149,18 @@
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--text-2, rgba(255, 255, 255, 0.72));
+  color: var(--text);
 }
 
 .input,
 .select {
   width: 100%;
   border-radius: 12px;
-  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.18));
+  border: 1px solid var(--card-border);
   background: linear-gradient(
     180deg,
-    var(--glass-bg-1, rgba(15, 18, 42, 0.82)),
-    var(--glass-bg-2, rgba(11, 14, 34, 0.74))
+    var(--glass-bg-1),
+    var(--glass-bg-2)
   );
   color: var(--text);
   padding: 10px 12px;
@@ -170,11 +170,11 @@
 .textArea {
   width: 100%;
   border-radius: 14px;
-  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.18));
+  border: 1px solid var(--card-border);
   background: linear-gradient(
     180deg,
-    var(--glass-bg-1, rgba(15, 18, 42, 0.82)),
-    var(--glass-bg-2, rgba(11, 14, 34, 0.74))
+    var(--glass-bg-1),
+    var(--glass-bg-2)
   );
   color: var(--text);
   padding: 12px;
@@ -215,11 +215,11 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.25));
+  border: 1px solid var(--pill-border);
   background: linear-gradient(
     180deg,
-    var(--pill-bg-1, rgba(255, 255, 255, 0.1)),
-    var(--pill-bg-2, rgba(255, 255, 255, 0.05))
+    var(--pill-bg-1),
+    var(--pill-bg-2)
   );
   color: var(--text);
   cursor: pointer;
@@ -250,11 +250,11 @@
 .suggestionChip {
   padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
+  border: 1px solid var(--pill-border);
   background: linear-gradient(
     180deg,
-    var(--pill-bg-1, rgba(255, 255, 255, 0.1)),
-    var(--pill-bg-2, rgba(255, 255, 255, 0.05))
+    var(--pill-bg-1),
+    var(--pill-bg-2)
   );
   color: var(--text);
   font-weight: 600;
@@ -266,7 +266,7 @@
   border-radius: 16px;
   border: 1px dashed var(--card-border);
   text-align: center;
-  color: var(--text-2, rgba(255, 255, 255, 0.72));
+  color: var(--text);
 }
 
 .footer {
@@ -280,7 +280,7 @@
   border-radius: 999px;
   border: none;
   background: var(--cta-gradient);
-  color: var(--text-on-brand, #0e1024);
+  color: var(--text);
   font-weight: 700;
   cursor: pointer;
 }
@@ -323,3 +323,8 @@
     border-radius: 18px 18px 0 0;
   }
 }
+
+
+
+
+
