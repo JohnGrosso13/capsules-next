@@ -224,6 +224,10 @@ function ensureBrandIdentity(vars: Record<string, string>): Record<string, strin
     "--text-on-brand",
     "--header-foreground-strong",
     "--color-brand-foreground",
+    "--tile-text-base",
+    "--style-friends-text",
+    "--style-chats-text",
+    "--style-requests-text",
   ];
   textKeys.forEach((key) => {
     const current = working[key];
@@ -499,5 +503,6 @@ const DARK_TEXT_HEX = '#0f172a';
 const LIGHT_TEXT_COLOR = parseHexColor(LIGHT_TEXT_HEX) ?? WHITE;
 const DARK_TEXT_COLOR = parseHexColor(DARK_TEXT_HEX) ?? BLACK;
 const DEFAULT_ACCENT = parseHexColor('#6366f1') ?? { r: 99, g: 102, b: 241, a: 1 };
+
 
 

@@ -7107,7 +7107,7 @@
 
 
 
-  /* Distinct emerald/amber tint fallback if style tokens are absent */
+  /* Distinct amber/emerald tint fallback if style tokens are absent */
 
 
 
@@ -7127,11 +7127,11 @@
 
 
 
-        color-mix(in srgb, var(--color-success) 24%, transparent),
+        color-mix(in srgb, var(--color-warning) 42%, rgba(255, 255, 255, 0.18)),
 
 
 
-        color-mix(in srgb, var(--color-warning) 10%, transparent)
+        color-mix(in srgb, var(--color-success) 22%, rgba(255, 255, 255, 0.12))
 
 
 
@@ -7155,7 +7155,7 @@
 
 
 
-    color-mix(in srgb, var(--color-success) 30%, var(--tile-border-base))\r\n  );
+    color-mix(in srgb, var(--color-warning) 38%, var(--tile-border-base))\r\n  );
 
 
 
@@ -7175,7 +7175,7 @@
 
 
 
-    color-mix(in srgb, var(--color-success) 24%, rgba(255, 255, 255, 0.12))
+    color-mix(in srgb, var(--color-warning) 52%, rgba(255, 255, 255, 0.14))
 
 
 
@@ -7207,15 +7207,15 @@
 
 
 
-  --tile-accent-a: color-mix(in srgb, var(--color-success) 60%, #10b981);
+  --tile-accent-a: color-mix(in srgb, var(--color-warning) 68%, #f59e0b);
 
 
 
-  --tile-accent-b: color-mix(in srgb, var(--color-warning) 45%, #f59e0b);
+  --tile-accent-b: color-mix(in srgb, var(--color-success) 42%, #34d399);
 
 
 
-  --tile-accent-c: color-mix(in srgb, var(--color-brand) 30%, transparent);
+  --tile-accent-c: color-mix(in srgb, var(--color-warning) 36%, transparent);
 
 
 
@@ -7868,6 +7868,14 @@ ers */
 
 
 }
+
+
+
+
+
+
+
+
 
 
 
