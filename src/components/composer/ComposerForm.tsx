@@ -162,6 +162,15 @@ export function ComposerForm({
                   onChange={(e) => updateDraft({ content: e.target.value })}
                   disabled={loading}
                 />
+                <button
+                  type="button"
+                  className={styles.promptSendBtn}
+                  aria-label="Send message"
+                  title="Send"
+                  disabled={loading || !workingDraft.content.trim()}
+                >
+                  <PaperPlaneRight size={18} weight="fill" />
+                </button>
                 <button type="button" className={styles.promptIconBtn} aria-label="Voice input">
                   <Microphone size={18} weight="duotone" />
                 </button>
@@ -173,8 +182,9 @@ export function ComposerForm({
                 </div>
                 <div className={styles.intentRight}>
                   <label className={styles.privacyGroup}>
-                    <span className={styles.privacyLabel}>Privacy</span>
+                    {/* word intentionally removed; keep only dropdown */}
                     <select
+                      aria-label="Visibility"
                       className={styles.privacySelect}
                       value={privacy}
                       onChange={(e) => setPrivacy((e.target.value as "public" | "private") ?? "public")}
@@ -184,14 +194,32 @@ export function ComposerForm({
                       <option value="private">Private</option>
                     </select>
                   </label>
-                  <button
-                    type="button"
-                    className={styles.postButton}
-                    onClick={onPost}
-                    disabled={loading || !canPost}
-                  >
-                    Post
-                  </button>
+                  <div className={styles.composeActions}>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={onPost}
+                      disabled={loading}
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={onPost}
+                      disabled={loading}
+                    >
+                      Draft
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.postButton}
+                      onClick={onPost}
+                      disabled={loading || !canPost}
+                    >
+                      Post
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
