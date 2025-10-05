@@ -585,7 +585,7 @@
     );
   }
   .attachmentSurface {
-    min-height: clamp(200px, 48vh, 320px);
+    height: clamp(220px, 52vh, 360px);
   }
   .brainProgressWrapLarge {
     width: 72px;
@@ -686,35 +686,48 @@
 
 .attachmentCanvas {
   width: 100%;
-  max-width: 960px;
+  max-width: 720px;
   margin: 0 auto;
 }
 
 .attachmentSurface {
   position: relative;
   width: 100%;
-  border-radius: 22px;
+  height: clamp(280px, 60vh, 440px);
+  border-radius: 16px;
   overflow: hidden;
   background: color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 86%, transparent);
   border: 1px solid var(--composer-rail-border, rgba(255, 255, 255, 0.12));
   box-shadow: 0 28px 60px rgba(5, 10, 30, 0.35);
-  min-height: clamp(260px, 38vh, 420px);
+}
+
+.attachmentCanvas[data-kind="video"] .attachmentSurface {
+  height: clamp(240px, 56vh, 400px);
 }
 
 .attachmentCanvas[data-status="ready"] .attachmentSurface {
   background: rgba(6, 10, 26, 0.55);
 }
 
-.attachmentLoading {
-  position: relative;
-  width: 100%;
-  min-height: inherit;
+.attachmentLoading,
+.attachmentMedia,
+.attachmentError {
+  position: absolute;
+  inset: 0;
+}
+
+.attachmentLoading,
+.attachmentError {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
   align-items: center;
   justify-content: center;
   padding: 48px;
+  pointer-events: none;
+}
+
+.attachmentLoading {
   background: var(
     --home-skeletonbackdrop-background,
     radial-gradient(120% 120% at 50% 0%, rgba(99, 102, 241, 0.18), transparent 70%)
@@ -743,8 +756,8 @@
 
 .brainProgressWrapLarge {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 88px;
+  height: 88px;
   z-index: 1;
 }
 
@@ -796,9 +809,12 @@
 }
 
 .attachmentMedia {
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: zoom-in;
   background: radial-gradient(circle at 50% 50%, rgba(12, 18, 36, 0.5), rgba(4, 6, 16, 0.92));
+  z-index: 0;
 }
 
 .attachmentMedia:focus-visible {
@@ -810,13 +826,15 @@
 .attachmentMediaVideo {
   display: block;
   width: 100%;
-  height: auto;
-  object-fit: contain;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: inherit;
   background: rgba(4, 6, 16, 0.82);
 }
 
-.attachmentMediaVideo {
-  max-height: calc(100vh - 220px);
+.attachmentCanvas[data-kind="video"] .attachmentMediaVideo {
+  object-fit: contain;
 }
 
 .attachmentRemoveLarge {
@@ -836,6 +854,7 @@
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   cursor: pointer;
   transition: transform 140ms ease, border-color 140ms ease;
+  z-index: 3;
 }
 
 .attachmentRemoveLarge:hover:not(:disabled),
@@ -861,6 +880,7 @@
   padding: 14px 20px;
   background: linear-gradient(180deg, rgba(4, 6, 16, 0) 0%, rgba(4, 6, 16, 0.82) 90%);
   color: rgba(255, 255, 255, 0.94);
+  z-index: 2;
 }
 
 .attachmentMetaName {
@@ -881,16 +901,9 @@
 }
 
 .attachmentError {
-  position: relative;
-  width: 100%;
-  min-height: inherit;
-  display: grid;
-  place-items: center;
-  padding: 56px 24px;
-  text-align: center;
-  gap: 18px;
-  background: color-mix(in srgb, var(--composer-status-error, rgba(248, 113, 113, 0.2)) 40%, rgba(5, 8, 24, 0.85));
+  background: color-mix(in srgb, var(--composer-status-error, rgba(248, 113, 113, 0.22)) 50%, rgba(5, 8, 24, 0.85));
   color: rgba(255, 255, 255, 0.9);
+  z-index: 1;
 }
 
 .attachmentErrorIcon {

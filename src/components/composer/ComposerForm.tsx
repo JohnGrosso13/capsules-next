@@ -16,6 +16,43 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
 import { isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
+import {
+  buildImageVariants,
+  pickBestDisplayVariant,
+  pickBestFullVariant,
+  type CloudflareImageVariantSet,
+} from "@/lib/cloudflare/images";
+import { isLocalLikeHostname, resolveToAbsoluteUrl } from "@/lib/url";
+
+function shouldBypassCloudflareImages(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname?.toLowerCase() ?? "";
+  if (!host.length) return false;
+  if (isLocalLikeHostname(host)) return true;
+  if (/ngrok/.test(host)) return true;
+  return false;
+}
+
+function containsCloudflareResize(url: string | null | undefined): boolean {
+  return typeof url === "string" && url.includes("/cdn-cgi/image/");
+}
+
+function buildLocalVariants(originalUrl: string, thumbUrl?: string | null, origin?: string | null): CloudflareImageVariantSet {
+  const absoluteOriginal = resolveToAbsoluteUrl(originalUrl, origin) ?? originalUrl;
+  const absoluteThumbCandidate = resolveToAbsoluteUrl(thumbUrl ?? null, origin);
+  const safeThumb =
+    absoluteThumbCandidate && !containsCloudflareResize(absoluteThumbCandidate)
+      ? absoluteThumbCandidate
+      : absoluteOriginal;
+  return {
+    original: absoluteOriginal,
+    feed: safeThumb,
+    thumb: safeThumb,
+    full: absoluteOriginal,
+    feedSrcset: null,
+    fullSrcset: null,
+  };
+}
 
 export type ComposerChoice = { key: string; label: string };
 
@@ -80,6 +117,7 @@ export function ComposerForm({
   const [viewerOpen, setViewerOpen] = React.useState(false);
   const openViewer = React.useCallback(() => setViewerOpen(true), []);
   const closeViewer = React.useCallback(() => setViewerOpen(false), []);
+  const cloudflareBypass = React.useMemo(shouldBypassCloudflareImages, []);
 
   React.useEffect(() => {
     if (!viewerOpen) return;
@@ -138,6 +176,7 @@ export function ComposerForm({
   const hasAttachment = Boolean(displayAttachment);
   const attachmentMime = displayAttachment?.mimeType ?? "";
   const attachmentUrl = displayAttachment?.url ?? null;
+  const attachmentThumb = displayAttachment?.thumbUrl ?? attachmentPreviewUrl ?? null;
   const attachmentProgress = displayAttachment?.progress ?? 0;
   const attachmentKind = React.useMemo(
     () => (attachmentMime.startsWith("video/") ? "video" : attachmentMime ? "image" : null),
@@ -147,13 +186,35 @@ export function ComposerForm({
     () => Math.round((attachmentProgress ?? 0) * 100),
     [attachmentProgress],
   );
-  const attachmentMediaUrl = React.useMemo(() => {
+  const attachmentVariants = React.useMemo<CloudflareImageVariantSet | null>(() => {
+    if (!hasAttachment || attachmentKind !== "image" || !attachmentUrl) return null;
+    const origin = typeof window !== "undefined" ? window.location.origin : undefined;
+    if (cloudflareBypass) {
+      return buildLocalVariants(attachmentUrl, attachmentThumb, origin);
+    }
+    return buildImageVariants(attachmentUrl, {
+      thumbnailUrl: attachmentThumb ?? undefined,
+      origin,
+    });
+  }, [attachmentKind, attachmentThumb, attachmentUrl, cloudflareBypass, hasAttachment]);
+
+  const attachmentDisplayUrl = React.useMemo(() => {
     if (!hasAttachment) return null;
     if (attachmentKind === "video") {
       return attachmentUrl;
     }
-    return attachmentUrl ?? attachmentPreviewUrl;
-  }, [hasAttachment, attachmentKind, attachmentPreviewUrl, attachmentUrl]);
+    const variantUrl = pickBestDisplayVariant(attachmentVariants);
+    return variantUrl ?? attachmentPreviewUrl ?? attachmentUrl;
+  }, [attachmentKind, attachmentPreviewUrl, attachmentUrl, attachmentVariants, hasAttachment]);
+
+  const attachmentFullUrl = React.useMemo(() => {
+    if (!hasAttachment) return null;
+    if (attachmentKind === "video") {
+      return attachmentUrl;
+    }
+    const variantUrl = pickBestFullVariant(attachmentVariants);
+    return variantUrl ?? attachmentUrl;
+  }, [attachmentKind, attachmentUrl, attachmentVariants, hasAttachment]);
 
   const vibeSuggestions = React.useMemo(() => {
     if (!displayAttachment || displayAttachment.status !== "ready" || !displayAttachment.url) {
@@ -348,7 +409,7 @@ export function ComposerForm({
                             </span>
                           </div>
                         ) : null}
-                        {displayAttachment.status === "ready" && attachmentMediaUrl ? (
+                        {displayAttachment.status === "ready" && attachmentDisplayUrl ? (
                           <div
                             className={styles.attachmentMedia}
                             role="button"
@@ -369,7 +430,7 @@ export function ComposerForm({
                             {attachmentKind === "video" ? (
                               <video
                                 className={styles.attachmentMediaVideo}
-                                src={attachmentMediaUrl}
+                                src={attachmentDisplayUrl}
                                 controls
                                 preload="metadata"
                               />
@@ -377,7 +438,7 @@ export function ComposerForm({
                               /* eslint-disable-next-line @next/next/no-img-element -- need intrinsic sizing */
                               <img
                                 className={styles.attachmentMediaImage}
-                                src={attachmentMediaUrl}
+                                src={attachmentDisplayUrl}
                                 alt={displayAttachment.name}
                               />
                             )}
@@ -559,7 +620,7 @@ export function ComposerForm({
                     {attachmentKind === "video" ? (
                       <video
                         className={homeStyles.lightboxVideo}
-                        src={attachmentMediaUrl ?? undefined}
+                        src={attachmentFullUrl ?? undefined}
                         controls
                         autoPlay
                       />
@@ -567,7 +628,7 @@ export function ComposerForm({
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         className={homeStyles.lightboxImage}
-                        src={attachmentMediaUrl ?? attachmentPreviewUrl ?? undefined}
+                        src={attachmentFullUrl ?? attachmentDisplayUrl ?? attachmentPreviewUrl ?? undefined}
                         alt={displayAttachment.name}
                       />
                     )}
