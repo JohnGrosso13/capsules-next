@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import styles from "../ai-composer.module.css";
+import homeStyles from "@/components/home.module.css";
 import contextMenuStyles from "@/components/ui/context-menu.module.css";
 import {
   X,
@@ -76,6 +77,18 @@ export function ComposerForm({
   } = useAttachmentUpload();
 
   const promptInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [viewerOpen, setViewerOpen] = React.useState(false);
+  const openViewer = React.useCallback(() => setViewerOpen(true), []);
+  const closeViewer = React.useCallback(() => setViewerOpen(false), []);
+
+  React.useEffect(() => {
+    if (!viewerOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeViewer();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [viewerOpen, closeViewer]);
 
   const displayAttachment = React.useMemo<LocalAttachment | null>(() => {
     if (attachment) return attachment;
@@ -121,6 +134,26 @@ export function ComposerForm({
     }
     return null;
   }, [displayAttachment]);
+
+  const hasAttachment = Boolean(displayAttachment);
+  const attachmentMime = displayAttachment?.mimeType ?? "";
+  const attachmentUrl = displayAttachment?.url ?? null;
+  const attachmentProgress = displayAttachment?.progress ?? 0;
+  const attachmentKind = React.useMemo(
+    () => (attachmentMime.startsWith("video/") ? "video" : attachmentMime ? "image" : null),
+    [attachmentMime],
+  );
+  const attachmentProgressPct = React.useMemo(
+    () => Math.round((attachmentProgress ?? 0) * 100),
+    [attachmentProgress],
+  );
+  const attachmentMediaUrl = React.useMemo(() => {
+    if (!hasAttachment) return null;
+    if (attachmentKind === "video") {
+      return attachmentUrl;
+    }
+    return attachmentUrl ?? attachmentPreviewUrl;
+  }, [hasAttachment, attachmentKind, attachmentPreviewUrl, attachmentUrl]);
 
   const vibeSuggestions = React.useMemo(() => {
     if (!displayAttachment || displayAttachment.status !== "ready" || !displayAttachment.url) {
@@ -286,44 +319,97 @@ export function ComposerForm({
                 ) : null}
                 {displayAttachment ? (
                   <li className={`${styles.msgRow} ${styles.attachmentMessageRow}`} data-role="attachment">
-                    <div className={styles.attachmentRow}>
-                      <div className={styles.attachmentChip} data-status={displayAttachment.status}>
-                        <div className={styles.attachmentPreview} data-kind={(displayAttachment.mimeType || "").startsWith("video/") ? "video" : "image"}>
-                          {attachmentPreviewUrl ? (
-                            <img src={attachmentPreviewUrl} alt="Attachment preview" />
-                          ) : (
-                            <Paperclip size={18} weight="bold" />
-                          )}
-                          {displayAttachment.status === "uploading" ? (
-                            <div className={styles.attachmentProgress}>
-                              <span
-                                style={{ width: `${Math.round((displayAttachment.progress ?? 0) * 100)}%` }}
-                              />
+                    <div
+                      className={styles.attachmentCanvas}
+                      data-status={displayAttachment.status}
+                      data-kind={attachmentKind ?? undefined}
+                    >
+                      <div className={styles.attachmentSurface}>
+                        {displayAttachment.status === "uploading" ? (
+                          <div
+                            className={styles.attachmentLoading}
+                            role="progressbar"
+                            aria-label={`Uploading ${attachmentProgressPct}%`}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={attachmentProgressPct}
+                          >
+                            <div className={styles.brainProgressWrapLarge}>
+                              <Brain className={styles.brainBaseLarge} size={56} weight="duotone" />
+                              <div
+                                className={styles.brainFillClipLarge}
+                                style={{ height: `${attachmentProgressPct}%` }}
+                              >
+                                <Brain className={styles.brainFillLarge} size={56} weight="fill" />
+                              </div>
                             </div>
-                          ) : null}
-                        </div>
-                        <div className={styles.attachmentMeta}>
-                          <span className={styles.attachmentName} title={displayAttachment.name}>
+                            <span className={styles.attachmentLoadingLabel}>
+                              {attachmentStatusLabel ?? "Uploading..."}
+                            </span>
+                          </div>
+                        ) : null}
+                        {displayAttachment.status === "ready" && attachmentMediaUrl ? (
+                          <div
+                            className={styles.attachmentMedia}
+                            role="button"
+                            tabIndex={0}
+                            onClick={openViewer}
+                            onKeyDown={(event) => {
+                              if (
+                                event.key === "Enter" ||
+                                event.key === " " ||
+                                event.key === "Spacebar"
+                              ) {
+                                event.preventDefault();
+                                openViewer();
+                              }
+                            }}
+                            aria-label="Open attachment preview"
+                          >
+                            {attachmentKind === "video" ? (
+                              <video
+                                className={styles.attachmentMediaVideo}
+                                src={attachmentMediaUrl}
+                                controls
+                                preload="metadata"
+                              />
+                            ) : (
+                              /* eslint-disable-next-line @next/next/no-img-element -- need intrinsic sizing */
+                              <img
+                                className={styles.attachmentMediaImage}
+                                src={attachmentMediaUrl}
+                                alt={displayAttachment.name}
+                              />
+                            )}
+                          </div>
+                        ) : null}
+                        {displayAttachment.status === "error" ? (
+                          <div className={styles.attachmentError}>
+                            <Brain className={styles.attachmentErrorIcon} size={44} weight="duotone" />
+                            <span>{attachmentStatusLabel ?? "Upload failed"}</span>
+                          </div>
+                        ) : null}
+                        <button
+                          type="button"
+                          className={styles.attachmentRemoveLarge}
+                          onClick={handleRemoveAttachment}
+                          disabled={loading || attachmentUploading}
+                          aria-label="Remove attachment"
+                        >
+                          <X size={16} weight="bold" />
+                        </button>
+                        <div className={styles.attachmentMetaBar}>
+                          <span className={styles.attachmentMetaName} title={displayAttachment.name}>
                             {displayAttachment.name}
                           </span>
                           {attachmentStatusLabel ? (
                             <span
-                              className={styles.attachmentStatus}
+                              className={styles.attachmentMetaStatus}
                               data-state={displayAttachment.status === "error" ? "error" : undefined}
                             >
                               {attachmentStatusLabel}
                             </span>
                           ) : null}
-                        </div>
-                        <div className={styles.attachmentActions}>
-                          <button
-                            type="button"
-                            className={styles.attachmentRemove}
-                            onClick={handleRemoveAttachment}
-                            disabled={loading || attachmentUploading}
-                          >
-                            Remove
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -452,6 +538,70 @@ export function ComposerForm({
               </div>
             </div>
           </section>
+          {viewerOpen && displayAttachment && displayAttachment.status === "ready" ? (
+            <div
+              className={homeStyles.lightboxOverlay}
+              role="dialog"
+              aria-modal="true"
+              onClick={closeViewer}
+            >
+              <div className={homeStyles.lightboxContent} onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className={homeStyles.lightboxClose}
+                  aria-label="Close preview"
+                  onClick={closeViewer}
+                >
+                  ×
+                </button>
+                <div className={homeStyles.lightboxBody}>
+                  <div className={homeStyles.lightboxMedia}>
+                    {attachmentKind === "video" ? (
+                      <video
+                        className={homeStyles.lightboxVideo}
+                        src={attachmentMediaUrl ?? undefined}
+                        controls
+                        autoPlay
+                      />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        className={homeStyles.lightboxImage}
+                        src={attachmentMediaUrl ?? attachmentPreviewUrl ?? undefined}
+                        alt={displayAttachment.name}
+                      />
+                    )}
+                  </div>
+                  <div className={homeStyles.lightboxCaption}>{displayAttachment.name}</div>
+                </div>
+                <div className={styles.viewerActions}>
+                  {vibeSuggestions.map((suggestion) => (
+                    <button
+                      key={`viewer-${suggestion.prompt}`}
+                      type="button"
+                      className={styles.viewerActionBtn}
+                      onClick={() => {
+                        handleSuggestionSelect(suggestion.prompt);
+                        closeViewer();
+                      }}
+                    >
+                      {suggestion.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className={styles.viewerRemoveBtn}
+                    onClick={() => {
+                      handleRemoveAttachment();
+                      closeViewer();
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {mobileRailOpen ? (

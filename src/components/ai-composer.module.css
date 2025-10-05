@@ -354,23 +354,6 @@
   width: 100%;
 }
 
-.attachmentPreview {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  background: color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.65)) 28%, transparent);
-  flex-shrink: 0;
-}
-
-.attachmentPreview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .attachmentMeta {
   min-width: 0;
   display: flex;
@@ -565,6 +548,16 @@
     );
     border-top: 1px solid var(--composer-footer-border, rgba(255, 255, 255, 0.12));
   }
+  .attachmentCanvas {
+    max-width: 100%;
+  }
+  .attachmentSurface {
+    border-radius: 18px;
+  }
+  .attachmentRemoveLarge {
+    top: 12px;
+    right: 12px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -591,6 +584,13 @@
       color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 82%, transparent)
     );
   }
+  .attachmentSurface {
+    min-height: clamp(200px, 48vh, 320px);
+  }
+  .brainProgressWrapLarge {
+    width: 72px;
+    height: 72px;
+  }
 }
 
 
@@ -607,36 +607,6 @@
 .attachmentChip[data-status="uploading"] {
   border-color: color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.4)) 42%, transparent);
   background: color-mix(in srgb, var(--composer-footer-background, rgba(10, 14, 30, 0.72)) 80%, transparent);
-}
-
-.attachmentChip[data-status="error"] {
-  border-color: color-mix(in srgb, var(--composer-status-error, #f87171) 60%, transparent);
-}
-
-.attachmentPreview {
-  position: relative;
-}
-
-.attachmentPreview[data-kind="video"] {
-  background: color-mix(in srgb, var(--composer-accent-soft, rgba(99, 102, 241, 0.18)) 65%, rgba(15, 18, 32, 0.65));
-}
-
-.attachmentProgress {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 4px;
-  border-radius: 0 0 12px 12px;
-  overflow: hidden;
-  background: rgba(15, 18, 32, 0.32);
-}
-
-.attachmentProgress span {
-  display: block;
-  height: 100%;
-  background: var(--composer-accent, var(--color-brand, #6366f1));
-  transition: width 160ms ease;
 }
 
 .attachmentPromptBubble {
@@ -681,4 +651,248 @@
 .vibeAction:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Viewer actions in composer lightbox */
+.viewerActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.viewerActionBtn {
+  border: 1px solid color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 45%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.35)) 35%, transparent), color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.2)) 20%, transparent));
+  color: var(--text, rgba(255, 255, 255, 0.94));
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.viewerRemoveBtn {
+  border: 1px solid var(--composer-rail-border, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--text-2, rgba(255, 255, 255, 0.72));
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.attachmentChip[data-status="error"] {
+  border-color: color-mix(in srgb, var(--composer-status-error, #f87171) 60%, transparent);
+}
+
+.attachmentCanvas {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.attachmentSurface {
+  position: relative;
+  width: 100%;
+  border-radius: 22px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 86%, transparent);
+  border: 1px solid var(--composer-rail-border, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 28px 60px rgba(5, 10, 30, 0.35);
+  min-height: clamp(260px, 38vh, 420px);
+}
+
+.attachmentCanvas[data-status="ready"] .attachmentSurface {
+  background: rgba(6, 10, 26, 0.55);
+}
+
+.attachmentLoading {
+  position: relative;
+  width: 100%;
+  min-height: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  background: var(
+    --home-skeletonbackdrop-background,
+    radial-gradient(120% 120% at 50% 0%, rgba(99, 102, 241, 0.18), transparent 70%)
+  );
+  overflow: hidden;
+}
+
+.attachmentLoading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(
+    --home-skeletoniconbtn--after-background,
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent)
+  );
+  animation: composerSkeletonShimmer 1.6s ease-in-out infinite;
+}
+
+.attachmentLoadingLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.78);
+  text-shadow: 0 4px 16px rgba(5, 10, 30, 0.4);
+}
+
+.brainProgressWrapLarge {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  z-index: 1;
+}
+
+.brainBaseLarge {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  color: color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.94)) 46%, transparent);
+  opacity: 0.85;
+  animation: brainPulse 1.4s ease-in-out infinite;
+}
+
+.brainFillClipLarge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.brainFillLarge {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  color: var(--composer-accent, var(--color-brand, #6366f1));
+  filter: drop-shadow(0 18px 28px color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.45)) 70%, transparent));
+}
+
+@keyframes brainPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes composerSkeletonShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.attachmentMedia {
+  position: relative;
+  cursor: zoom-in;
+  background: radial-gradient(circle at 50% 50%, rgba(12, 18, 36, 0.5), rgba(4, 6, 16, 0.92));
+}
+
+.attachmentMedia:focus-visible {
+  outline: 2px solid var(--composer-accent, var(--color-brand, #6366f1));
+  outline-offset: -4px;
+}
+
+.attachmentMediaImage,
+.attachmentMediaVideo {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  background: rgba(4, 6, 16, 0.82);
+}
+
+.attachmentMediaVideo {
+  max-height: calc(100vh - 220px);
+}
+
+.attachmentRemoveLarge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(4, 6, 16, 0.64);
+  color: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+
+.attachmentRemoveLarge:hover:not(:disabled),
+.attachmentRemoveLarge:focus-visible:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--composer-accent, var(--color-brand, #6366f1));
+}
+
+.attachmentRemoveLarge:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.attachmentMetaBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: linear-gradient(180deg, rgba(4, 6, 16, 0) 0%, rgba(4, 6, 16, 0.82) 90%);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.attachmentMetaName {
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachmentMetaStatus {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.attachmentMetaStatus[data-state="error"] {
+  color: color-mix(in srgb, var(--composer-status-error, #f87171) 80%, transparent);
+}
+
+.attachmentError {
+  position: relative;
+  width: 100%;
+  min-height: inherit;
+  display: grid;
+  place-items: center;
+  padding: 56px 24px;
+  text-align: center;
+  gap: 18px;
+  background: color-mix(in srgb, var(--composer-status-error, rgba(248, 113, 113, 0.2)) 40%, rgba(5, 8, 24, 0.85));
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.attachmentErrorIcon {
+  color: color-mix(in srgb, var(--composer-status-error, #f87171) 80%, rgba(255, 255, 255, 0.4));
 }
