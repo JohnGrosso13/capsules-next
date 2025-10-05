@@ -13,6 +13,7 @@ import {
   List,
   PaperPlaneRight,
 } from "@phosphor-icons/react/dist/ssr";
+import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
 import { isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
 
 export type ComposerChoice = { key: string; label: string };
@@ -53,9 +54,113 @@ export function ComposerForm({
     [draft],
   );
 
+  const updateDraft = React.useCallback(
+    (partial: Partial<ComposerDraft>) => {
+      onChange({ ...workingDraft, ...partial });
+    },
+    [onChange, workingDraft],
+  );
+
   const [privacy, setPrivacy] = React.useState<"public" | "private">("public");
   const [projectsOpen, setProjectsOpen] = React.useState(true);
   const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
+
+  const {
+    fileInputRef,
+    attachment,
+    readyAttachment,
+    uploading: attachmentUploading,
+    clearAttachment,
+    handleAttachClick,
+    handleAttachmentSelect,
+  } = useAttachmentUpload();
+
+  const displayAttachment = React.useMemo<LocalAttachment | null>(() => {
+    if (attachment) return attachment;
+    if (workingDraft.mediaUrl) {
+      const inferredKind = (workingDraft.kind ?? "").toLowerCase();
+      const inferredMime = inferredKind.startsWith("video") ? "video/*" : "image/*";
+      const derivedName =
+        workingDraft.mediaPrompt?.trim() ||
+        workingDraft.title?.trim() ||
+        workingDraft.mediaUrl.split("/").pop() ||
+        "Attached media";
+      return {
+        id: "draft-media",
+        name: derivedName,
+        size: 0,
+        mimeType: inferredMime,
+        status: "ready",
+        url: workingDraft.mediaUrl,
+        progress: 1,
+        thumbUrl: null,
+      };
+    }
+    return null;
+  }, [attachment, workingDraft.kind, workingDraft.mediaPrompt, workingDraft.mediaUrl, workingDraft.title]);
+
+  const attachmentStatusLabel = React.useMemo(() => {
+    if (!displayAttachment) return null;
+    if (displayAttachment.status === "uploading") {
+      const pct = Math.round((displayAttachment.progress ?? 0) * 100);
+      return pct > 0 ? `Uploading ${pct}%` : "Uploading...";
+    }
+    if (displayAttachment.status === "error") {
+      return displayAttachment.error ?? "Upload failed";
+    }
+    return "Attachment ready";
+  }, [displayAttachment]);
+
+  const attachmentPreviewUrl = React.useMemo(() => {
+    if (!displayAttachment) return null;
+    if (displayAttachment.thumbUrl) return displayAttachment.thumbUrl;
+    if (displayAttachment.url && displayAttachment.mimeType.startsWith("image/")) {
+      return displayAttachment.url;
+    }
+    return null;
+  }, [displayAttachment]);
+
+  React.useEffect(() => {
+    if (!readyAttachment?.url) return;
+    if (readyAttachment.url === workingDraft.mediaUrl) return;
+    const nextKind = readyAttachment.mimeType.startsWith("video/") ? "video" : "image";
+    const currentKind = (workingDraft.kind ?? "text").toLowerCase();
+    const partial: Partial<ComposerDraft> = {
+      mediaUrl: readyAttachment.url,
+      mediaPrompt: null,
+    };
+    if (currentKind === "text" || currentKind === "image" || currentKind === "video" || !currentKind) {
+      partial.kind = nextKind;
+    }
+    updateDraft(partial);
+  }, [readyAttachment, updateDraft, workingDraft.kind, workingDraft.mediaUrl]);
+
+  React.useEffect(() => {
+    if (attachment && attachment.status === "uploading" && workingDraft.mediaUrl) {
+      const currentKind = (workingDraft.kind ?? "text").toLowerCase();
+      const partial: Partial<ComposerDraft> = {
+        mediaUrl: null,
+        mediaPrompt: null,
+      };
+      if (currentKind === "image" || currentKind === "video") {
+        partial.kind = "text";
+      }
+      updateDraft(partial);
+    }
+  }, [attachment, updateDraft, workingDraft.kind, workingDraft.mediaUrl]);
+
+  const handleRemoveAttachment = React.useCallback(() => {
+    const currentKind = (workingDraft.kind ?? "text").toLowerCase();
+    const partial: Partial<ComposerDraft> = {
+      mediaUrl: null,
+      mediaPrompt: null,
+    };
+    if (currentKind === "image" || currentKind === "video") {
+      partial.kind = "text";
+    }
+    updateDraft(partial);
+    clearAttachment();
+  }, [clearAttachment, updateDraft, workingDraft.kind]);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -67,14 +172,8 @@ export function ComposerForm({
     return () => window.removeEventListener("resize", handleResize);
   }, [mobileRailOpen]);
 
-  const canPost = isComposerDraftReady(workingDraft);
-
-  const updateDraft = React.useCallback(
-    (partial: Partial<ComposerDraft>) => {
-      onChange({ ...workingDraft, ...partial });
-    },
-    [onChange, workingDraft],
-  );
+  const draftReady = isComposerDraftReady(workingDraft);
+  const canPost = draftReady && !attachmentUploading && !loading;
 
   return (
     <div className={styles.overlay}>
@@ -161,9 +260,23 @@ export function ComposerForm({
 
             <div className={styles.composerBottom}>
               <div className={styles.promptBar}>
-                <button type="button" className={styles.promptIconBtn} aria-label="Attach file">
+                <button
+                  type="button"
+                  className={styles.promptIconBtn}
+                  aria-label="Attach file"
+                  onClick={handleAttachClick}
+                  disabled={loading || attachmentUploading}
+                >
                   <Paperclip size={18} weight="duotone" />
                 </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  className={styles.hiddenFileInput}
+                  onChange={handleAttachmentSelect}
+                  disabled={loading || attachmentUploading}
+                />
                 <input
                   className={styles.promptInput}
                   placeholder="Ask Capsule AI to create..."
@@ -176,7 +289,7 @@ export function ComposerForm({
                   className={styles.promptSendBtn}
                   aria-label="Send message"
                   title="Send"
-                  disabled={loading || !workingDraft.content.trim()}
+                  disabled={loading || attachmentUploading || !workingDraft.content.trim()}
                 >
                   <PaperPlaneRight size={18} weight="fill" />
                 </button>
@@ -184,6 +297,43 @@ export function ComposerForm({
                   <Microphone size={18} weight="duotone" />
                 </button>
               </div>
+
+              {displayAttachment ? (
+                <div className={styles.attachmentRow}>
+                  <div className={styles.attachmentChip}>
+                    <div className={styles.attachmentPreview}>
+                      {attachmentPreviewUrl ? (
+                        <img src={attachmentPreviewUrl} alt="Attachment preview" />
+                      ) : (
+                        <Paperclip size={16} weight="bold" />
+                      )}
+                    </div>
+                    <div className={styles.attachmentMeta}>
+                      <span className={styles.attachmentName} title={displayAttachment.name}>
+                        {displayAttachment.name}
+                      </span>
+                      {attachmentStatusLabel ? (
+                        <span
+                          className={styles.attachmentStatus}
+                          data-state={displayAttachment.status === "error" ? "error" : undefined}
+                        >
+                          {attachmentStatusLabel}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className={styles.attachmentActions}>
+                      <button
+                        type="button"
+                        className={styles.attachmentRemove}
+                        onClick={handleRemoveAttachment}
+                        disabled={loading || attachmentUploading}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <div className={styles.intentControlsAlt}>
                 <div className={styles.intentLeft}>
@@ -222,7 +372,7 @@ export function ComposerForm({
                       type="button"
                       className={styles.postButton}
                       onClick={onPost}
-                      disabled={loading || !canPost}
+                      disabled={!canPost}
                     >
                       Post
                     </button>
