@@ -206,16 +206,14 @@ export function ComposerForm({
                   <div className={styles.composeActions}>
                     <button
                       type="button"
-                      className={styles.secondaryButton}
-                      onClick={onPost}
+                      className={styles.secondaryAction}
                       disabled={loading}
                     >
                       Save
                     </button>
                     <button
                       type="button"
-                      className={styles.secondaryButton}
-                      onClick={onPost}
+                      className={styles.secondaryAction}
                       disabled={loading}
                     >
                       Draft
