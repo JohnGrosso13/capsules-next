@@ -191,10 +191,10 @@ export function ChatControlPanel({
             style={{
               background:
                 statusTone === "error"
-                  ? "#ff7676"
+                  ? "var(--composer-status-error, var(--color-danger, #f87171))"
                   : statusTone === "pending"
-                    ? "#ffd86b"
-                    : "var(--accent-400, #74b9ff)",
+                    ? "var(--composer-status-warning, var(--color-warning, #fbbf24))"
+                    : "var(--composer-status-success, var(--composer-accent, var(--color-brand, #6366f1)))",
             }}
           />
           <span>{lastStatus.message ?? `${lastStatus.scope} ${lastStatus.status}`}</span>

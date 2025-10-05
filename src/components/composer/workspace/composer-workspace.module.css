@@ -1,8 +1,12 @@
 .workspace {
-  --composer-bg: var(--surface-elevated, #0f1115);
-  --composer-rail-bg: var(--surface-muted, rgba(255, 255, 255, 0.04));
-  --composer-outline: color-mix(in srgb, var(--accent-500, #8c9eff) 32%, transparent);
-  --composer-ghost: rgba(255, 255, 255, 0.08);
+  --composer-bg: var(--composer-panel-background, var(--surface-elevated, #0f1115));
+  --composer-rail-bg: var(--composer-rail-background, var(--surface-muted, rgba(255, 255, 255, 0.04)));
+  --composer-outline: color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 32%, transparent);
+  --composer-ghost: color-mix(
+    in srgb,
+    var(--composer-accent-soft, color-mix(in srgb, var(--composer-accent, #6366f1) 35%, transparent)) 60%,
+    rgba(255, 255, 255, 0.08)
+  );
   --context-rail-width: 280px;
   --context-rail-collapsed-width: 72px;
   --chat-width: 360px;
@@ -200,7 +204,7 @@
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 600;
-  background: var(--accent-500, #8c9eff);
+  background: var(--composer-accent, var(--color-brand, #6366f1));
   color: #05070a;
   border: none;
   cursor: pointer;
@@ -326,7 +330,7 @@
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--accent-400, #74b9ff);
+  background: var(--composer-status-success, var(--composer-accent, var(--color-brand, #6366f1)));
 }
 
 .ghostMessage {
