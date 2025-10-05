@@ -7,10 +7,15 @@ import styles from "./home.module.css";
 import { Brain, Heart, ChatCircle, ShareNetwork, DotsThreeCircleVertical, Trash, HourglassHigh } from "@phosphor-icons/react/dist/ssr";
 import { PostMenu } from "@/components/posts/PostMenu";
 import { normalizeMediaUrl } from "@/lib/media";
-import { isLocalLikeHostname, resolveToAbsoluteUrl } from "@/lib/url";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
+import { resolveToAbsoluteUrl } from "@/lib/url";
 import { buildImageVariants, pickBestDisplayVariant, pickBestFullVariant } from "@/lib/cloudflare/images";
 import type { CloudflareImageVariantSet } from "@/lib/cloudflare/images";
+import {
+  buildLocalImageVariants,
+  containsCloudflareResize,
+  shouldBypassCloudflareImages,
+} from "@/lib/cloudflare/runtime";
 
 type LazyImageProps = React.ComponentProps<typeof Image>;
 
@@ -21,39 +26,6 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(({ loading,
 LazyImage.displayName = "LazyImage";
 
 type ActionKey = "like" | "comment" | "share";
-
-function shouldBypassCloudflareImages(): boolean {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname?.toLowerCase() ?? "";
-  if (!host.length) return false;
-  if (isLocalLikeHostname(host)) return true;
-  if (/ngrok/.test(host)) return true;
-  return false;
-}
-
-function containsCloudflareResize(url: string | null | undefined): boolean {
-  return typeof url === "string" && url.includes("/cdn-cgi/image/");
-}
-
-function buildLocalImageVariants(
-  originalUrl: string,
-  thumbnailUrl?: string | null,
-): CloudflareImageVariantSet {
-  const absoluteOriginal = resolveToAbsoluteUrl(originalUrl) ?? originalUrl;
-  const absoluteThumbCandidate = resolveToAbsoluteUrl(thumbnailUrl ?? null);
-  const safeThumb =
-    absoluteThumbCandidate && !containsCloudflareResize(absoluteThumbCandidate)
-      ? absoluteThumbCandidate
-      : absoluteOriginal;
-  return {
-    original: absoluteOriginal,
-    feed: safeThumb,
-    thumb: safeThumb,
-    full: absoluteOriginal,
-    feedSrcset: null,
-    fullSrcset: null,
-  };
-}
 
 function shouldRebuildVariantsForEnvironment(
   variants: CloudflareImageVariantSet | null | undefined,

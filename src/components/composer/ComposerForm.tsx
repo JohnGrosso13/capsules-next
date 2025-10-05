@@ -22,37 +22,10 @@ import {
   pickBestFullVariant,
   type CloudflareImageVariantSet,
 } from "@/lib/cloudflare/images";
-import { isLocalLikeHostname, resolveToAbsoluteUrl } from "@/lib/url";
-
-function shouldBypassCloudflareImages(): boolean {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname?.toLowerCase() ?? "";
-  if (!host.length) return false;
-  if (isLocalLikeHostname(host)) return true;
-  if (/ngrok/.test(host)) return true;
-  return false;
-}
-
-function containsCloudflareResize(url: string | null | undefined): boolean {
-  return typeof url === "string" && url.includes("/cdn-cgi/image/");
-}
-
-function buildLocalVariants(originalUrl: string, thumbUrl?: string | null, origin?: string | null): CloudflareImageVariantSet {
-  const absoluteOriginal = resolveToAbsoluteUrl(originalUrl, origin) ?? originalUrl;
-  const absoluteThumbCandidate = resolveToAbsoluteUrl(thumbUrl ?? null, origin);
-  const safeThumb =
-    absoluteThumbCandidate && !containsCloudflareResize(absoluteThumbCandidate)
-      ? absoluteThumbCandidate
-      : absoluteOriginal;
-  return {
-    original: absoluteOriginal,
-    feed: safeThumb,
-    thumb: safeThumb,
-    full: absoluteOriginal,
-    feedSrcset: null,
-    fullSrcset: null,
-  };
-}
+import {
+  buildLocalImageVariants,
+  shouldBypassCloudflareImages,
+} from "@/lib/cloudflare/runtime";
 
 export type ComposerChoice = { key: string; label: string };
 
@@ -190,7 +163,7 @@ export function ComposerForm({
     if (!hasAttachment || attachmentKind !== "image" || !attachmentUrl) return null;
     const origin = typeof window !== "undefined" ? window.location.origin : undefined;
     if (cloudflareBypass) {
-      return buildLocalVariants(attachmentUrl, attachmentThumb, origin);
+      return buildLocalImageVariants(attachmentUrl, attachmentThumb, origin);
     }
     return buildImageVariants(attachmentUrl, {
       thumbnailUrl: attachmentThumb ?? undefined,
