@@ -224,6 +224,7 @@
   border-top: 1px solid rgba(15, 23, 42, 0.08);
   display: grid;
   gap: 18px;
+  justify-items: center;
 }
 
 .promptBar {
@@ -234,6 +235,8 @@
   border-radius: 999px;
   border: 1px solid rgba(15, 23, 42, 0.12);
   background: #f7f8fb;
+  width: 100%;
+  max-width: 720px;
 }
 
 .promptIconBtn {
@@ -263,6 +266,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 .intentLeft {
@@ -344,8 +350,14 @@
     padding: 0 32px 16px;
   }
   .composerBottom {
-    padding: 16px 32px 28px;
-  }
+  margin-top: auto;
+  padding: 16px 64px 32px;
+  background: #ffffff;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+}
 }
 
 @media (max-width: 900px) {
@@ -362,8 +374,14 @@
     padding: 0 24px 16px;
   }
   .composerBottom {
-    padding: 16px 24px 24px;
-  }
+  margin-top: auto;
+  padding: 16px 64px 32px;
+  background: #ffffff;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+}
 }
 
 @media (max-width: 640px) {
@@ -376,10 +394,30 @@
     padding: 0 16px 12px;
   }
   .composerBottom {
-    padding: 16px;
-  }
-  .promptBar {
-    padding: 10px 14px;
-    border-radius: 16px;
-  }
+  margin-top: auto;
+  padding: 16px 64px 32px;
+  background: #ffffff;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 18px;
+  justify-items: center;
 }
+  .promptBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #f7f8fb;
+  width: 100%;
+  max-width: 720px;
+}
+}
+
+
+
+
+
+
+

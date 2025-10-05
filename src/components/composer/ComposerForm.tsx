@@ -130,17 +130,17 @@ export function ComposerForm({
               <ol className={styles.chatList}>
                 {prompt ? (
                   <li className={styles.msgRow} data-role="user">
-                    <div className={${styles.msgBubble} .trim()}>{prompt}</div>
+                    <div className={`${styles.msgBubble} ${styles.userBubble}`}>{prompt}</div>
                   </li>
                 ) : null}
                 {message ? (
                   <li className={styles.msgRow} data-role="ai">
-                    <div className={${styles.msgBubble} .trim()}>{message}</div>
+                    <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{message}</div>
                   </li>
                 ) : null}
                 {loading ? (
                   <li className={styles.msgRow} data-role="ai">
-                    <div className={${styles.msgBubble}  .trim()} aria-live="polite">
+                    <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.streaming}`} aria-live="polite">
                       <span className={styles.streamDot} />
                       <span className={styles.streamDot} />
                       <span className={styles.streamDot} />
@@ -199,7 +199,7 @@ export function ComposerForm({
         </div>
 
         {mobileRailOpen ? (
-          <div className={${contextMenuStyles.menu} .trim()} role="menu">
+          <div className={`${contextMenuStyles.menu} ${styles.mobileRailMenu}`} role="menu">
             <button type="button" className={contextMenuStyles.item}>
               New Chat
             </button>
