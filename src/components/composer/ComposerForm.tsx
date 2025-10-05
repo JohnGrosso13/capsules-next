@@ -3,7 +3,16 @@
 import * as React from "react";
 import styles from "../ai-composer.module.css";
 import contextMenuStyles from "@/components/ui/context-menu.module.css";
-import { X, Paperclip, Microphone, Brain, CaretDown, CaretRight, List } from "@phosphor-icons/react/dist/ssr";
+import {
+  X,
+  Paperclip,
+  Microphone,
+  Brain,
+  CaretDown,
+  CaretRight,
+  List,
+  PaperPlaneRight,
+} from "@phosphor-icons/react/dist/ssr";
 import { isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
 
 export type ComposerChoice = { key: string; label: string };
