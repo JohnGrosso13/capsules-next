@@ -1,14 +1,11 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
-
 import styles from "../ai-composer.module.css";
-import {
-  ensurePollStructure,
-  isComposerDraftReady,
-  type ComposerDraft,
-} from "@/lib/composer/draft";
+import homeStyles from "@/components/home.module.css";
+import contextMenuStyles from "@/components/ui/context-menu.module.css";
+import { X, Paperclip, Microphone, Brain, CaretDown, CaretRight, List } from "@phosphor-icons/react/dist/ssr";
+import { isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
 
 export type ComposerChoice = { key: string; label: string };
 
@@ -29,11 +26,10 @@ export function ComposerForm({
   draft,
   prompt,
   message,
-  choices,
+  choices: _choices,
   onChange,
   onClose,
   onPost,
-  onForceChoice,
 }: ComposerFormProps) {
   const workingDraft = React.useMemo<ComposerDraft>(
     () =>
@@ -49,6 +45,22 @@ export function ComposerForm({
     [draft],
   );
 
+  const [privacy, setPrivacy] = React.useState<"public" | "private">("public");
+  const [projectsOpen, setProjectsOpen] = React.useState(true);
+  const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 900 && mobileRailOpen) {
+        setMobileRailOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [mobileRailOpen]);
+
+  const canPost = isComposerDraftReady(workingDraft);
+
   const updateDraft = React.useCallback(
     (partial: Partial<ComposerDraft>) => {
       onChange({ ...workingDraft, ...partial });
@@ -56,264 +68,153 @@ export function ComposerForm({
     [onChange, workingDraft],
   );
 
-  const pollDraft =
-    workingDraft.kind?.toLowerCase() === "poll" ? ensurePollStructure(workingDraft) : null;
-  const canPost = isComposerDraftReady(workingDraft);
-
-  const handleKindChange = (nextKind: string) => {
-    const normalized = nextKind.trim().toLowerCase();
-    const nextDraft: ComposerDraft = {
-      ...workingDraft,
-      kind: normalized,
-    };
-    if (normalized === "image" || normalized === "video") {
-      nextDraft.mediaUrl = workingDraft.mediaUrl ?? "";
-      nextDraft.mediaPrompt = workingDraft.mediaPrompt ?? "";
-    } else {
-      nextDraft.mediaUrl = null;
-      nextDraft.mediaPrompt = null;
-    }
-    if (normalized !== "poll") {
-      nextDraft.poll = null;
-    }
-    onChange(nextDraft);
-  };
-
-  const handlePollQuestionChange = (value: string) => {
-    if (!pollDraft) return;
-    updateDraft({ poll: { question: value, options: pollDraft.options } });
-  };
-
-  const handlePollOptionChange = (index: number, value: string) => {
-    if (!pollDraft) return;
-    const next = [...pollDraft.options];
-    next[index] = value;
-    updateDraft({ poll: { question: pollDraft.question, options: next } });
-  };
-
-  const handleAddPollOption = () => {
-    if (!pollDraft) return;
-    updateDraft({ poll: { question: pollDraft.question, options: [...pollDraft.options, ""] } });
-  };
-
-  const handleRemovePollOption = (index: number) => {
-    if (!pollDraft) return;
-    const next = pollDraft.options.filter((_, i) => i !== index);
-    updateDraft({ poll: { question: pollDraft.question, options: next.length ? next : ["", ""] } });
-  };
-
   return (
     <div className={styles.overlay}>
       <div className={styles.backdrop} />
       <aside className={styles.panel} role="dialog" aria-label="AI Composer">
-        <header className={styles.header}>
-          <div>
-            <div className={styles.headerLabel}>Capsule AI Draft</div>
-            <div className={styles.promptLabel}>Prompt</div>
-            <p className={styles.promptText}>{prompt}</p>
-          </div>
-          <button type="button" className={styles.closeButton} onClick={onClose} disabled={loading}>
-            ×
-          </button>
-        </header>
-        {choices && choices.length ? (
-          <div className={styles.choiceGroup}>
-            <div className={styles.choiceLabel}>Choose a direction</div>
-            <div className={styles.choiceButtons}>
-              {choices.map((choice) => (
-                <button
-                  key={choice.key}
-                  type="button"
-                  className={styles.choiceButton}
-                  onClick={() => onForceChoice?.(choice.key)}
-                  disabled={loading}
-                >
-                  {choice.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {message ? <div className={styles.aiMessage}>{message}</div> : null}
+        <button
+          type="button"
+          className={styles.closeIcon}
+          onClick={onClose}
+          disabled={loading}
+          aria-label="Close composer"
+        >
+          <X size={18} weight="bold" />
+        </button>
 
-        <div className={styles.body}>
-          {workingDraft ? (
-            <>
-              <label className={styles.fieldBlock}>
-                <span className={styles.fieldLabel}>Draft type</span>
-                <select
-                  className={styles.select}
-                  value={workingDraft.kind}
-                  onChange={(event) => handleKindChange(event.target.value)}
-                  disabled={loading}
-                >
-                  <option value="text">Post</option>
-                  <option value="image">Image</option>
-                  <option value="video">Video</option>
-                  <option value="poll">Poll</option>
-                </select>
-              </label>
+        <button
+          type="button"
+          className={styles.mobileRailTrigger}
+          aria-label="Open composer menu"
+          aria-haspopup="menu"
+          aria-expanded={mobileRailOpen}
+          onClick={() => setMobileRailOpen((v) => !v)}
+        >
+          <List size={18} weight="bold" />
+        </button>
 
-              <label className={styles.fieldBlock}>
-                <span className={styles.fieldLabel}>Title</span>
-                <input
-                  className={styles.input}
-                  value={workingDraft.title ?? ""}
-                  onChange={(event) => updateDraft({ title: event.target.value })}
-                  disabled={loading}
-                  placeholder="Optional headline"
-                />
-              </label>
-
-              <label className={styles.fieldBlock}>
-                <span className={styles.fieldLabel}>Content</span>
-                <textarea
-                  className={styles.textArea}
-                  value={workingDraft.content}
-                  onChange={(event) => updateDraft({ content: event.target.value })}
-                  disabled={loading}
-                  rows={6}
-                />
-              </label>
-
-              {workingDraft.kind === "image" || workingDraft.kind === "video" ? (
-                <>
-                  <label className={styles.fieldBlock}>
-                    <span className={styles.fieldLabel}>
-                      {workingDraft.kind === "video" ? "Video URL" : "Image URL"}
-                    </span>
-                    <input
-                      className={styles.input}
-                      value={workingDraft.mediaUrl ?? ""}
-                      onChange={(event) => updateDraft({ mediaUrl: event.target.value })}
-                      disabled={loading}
-                      placeholder="https://..."
-                    />
-                  </label>
-                  <label className={styles.fieldBlock}>
-                    <span className={styles.fieldLabel}>AI Prompt / Alt Text</span>
-                    <textarea
-                      className={styles.textArea}
-                      value={workingDraft.mediaPrompt ?? ""}
-                      onChange={(event) => updateDraft({ mediaPrompt: event.target.value })}
-                      disabled={loading}
-                      rows={4}
-                      placeholder="Describe the visual or how it should change."
-                    />
-                  </label>
-                  {workingDraft.mediaUrl ? (
-                    <div className={styles.previewBlock}>
-                      {workingDraft.kind === "image" ? (
-                        <Image
-                          src={workingDraft.mediaUrl}
-                          alt="Draft preview"
-                          className={styles.previewImage}
-                          width={1200}
-                          height={800}
-                          sizes="(max-width: 640px) 100vw, 480px"
-                          unoptimized
-                        />
-                      ) : (
-                        <video
-                          className={styles.previewVideo}
-                          src={workingDraft.mediaUrl}
-                          controls
-                        />
-                      )}
-                    </div>
-                  ) : null}
-                </>
+        <div className={styles.columns}>
+          <section className={styles.mainColumn} aria-label="Chat">
+            <div className={styles.chatScroll}>
+              {prompt ? (
+                <div className={`${styles.chatBubble} ${styles.userBubble}`.trim()}>
+                  <div className={styles.chatLabel}>You</div>
+                  <div className={styles.chatText}>{prompt}</div>
+                </div>
               ) : null}
+              {message ? (
+                <div className={`${styles.chatBubble} ${styles.aiBubble}`.trim()}>
+                  <div className={styles.chatLabel}>AI</div>
+                  <div className={styles.chatText}>{message}</div>
+                </div>
+              ) : null}
+            </div>
 
-              {pollDraft ? (
-                <div className={styles.pollBlock}>
-                  <label className={styles.fieldBlock}>
-                    <span className={styles.fieldLabel}>Poll Question</span>
-                    <input
-                      className={styles.input}
-                      value={pollDraft.question}
-                      onChange={(event) => handlePollQuestionChange(event.target.value)}
+            <div className={styles.composerBottom}>
+              <div className={homeStyles.promptBar}>
+                <button
+                  type="button"
+                  className={homeStyles.promptAttachBtn}
+                  aria-label="Attach"
+                >
+                  <Paperclip size={20} weight="duotone" className={homeStyles.promptAttachIcon} />
+                </button>
+                <input
+                  className={homeStyles.input}
+                  placeholder="Ask Capsule AI to create…"
+                  value={workingDraft.content}
+                  onChange={(e) => updateDraft({ content: e.target.value })}
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  className={`${homeStyles.promptAttachBtn} ${homeStyles.voiceBtn}`.trim()}
+                  aria-label="Voice input"
+                  title="Voice input"
+                >
+                  <span className={homeStyles.voicePulse} aria-hidden />
+                  <Microphone size={18} weight="duotone" className={homeStyles.voiceIcon} />
+                </button>
+              </div>
+
+              <div className={styles.intentControlsAlt}>
+                <div className={styles.intentLeft}>
+                  <Brain size={18} weight="duotone" />
+                </div>
+                <div className={styles.intentRight}>
+                  <label className={styles.privacyGroup}>
+                    <span className={styles.privacyLabel}>Privacy</span>
+                    <select
+                      className={styles.privacySelect}
+                      value={privacy}
+                      onChange={(e) => setPrivacy((e.target.value as "public" | "private") ?? "public")}
                       disabled={loading}
-                      placeholder="Ask your community..."
-                    />
+                    >
+                      <option value="public">Public</option>
+                      <option value="private">Private</option>
+                    </select>
                   </label>
-                  <div className={styles.optionList}>
-                    {pollDraft.options.map((option, index) => (
-                      <div key={index} className={styles.optionRow}>
-                        <input
-                          className={styles.input}
-                          value={option}
-                          onChange={(event) => handlePollOptionChange(index, event.target.value)}
-                          disabled={loading}
-                          placeholder={`Option ${index + 1}`}
-                        />
-                        {pollDraft.options.length > 2 ? (
-                          <button
-                            type="button"
-                            className={styles.optionRemove}
-                            onClick={() => handleRemovePollOption(index)}
-                            disabled={loading}
-                            aria-label={`Remove option ${index + 1}`}
-                          >
-                            Remove
-                          </button>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
                   <button
                     type="button"
-                    className={styles.addOption}
-                    onClick={handleAddPollOption}
-                    disabled={loading}
+                    className={styles.postButton}
+                    onClick={onPost}
+                    disabled={loading || !canPost}
                   >
-                    Add option
+                    Post
                   </button>
                 </div>
-              ) : null}
+              </div>
+            </div>
+          </section>
 
-              {workingDraft.suggestions && workingDraft.suggestions.length ? (
-                <div className={styles.suggestionBlock}>
-                  <div className={styles.fieldLabel}>Suggestions</div>
-                  <div className={styles.suggestionChips}>
-                    {workingDraft.suggestions.map((suggestion, index) => (
-                      <button
-                        key={`${suggestion}-${index}`}
-                        type="button"
-                        className={styles.suggestionChip}
-                        onClick={() => updateDraft({ content: suggestion })}
-                        disabled={loading}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
+          <aside className={styles.rail} aria-label="Right rail">
+            <div className={styles.railHeader}>
+              <button type="button" className={styles.railPrimary}>New Chat</button>
+            </div>
+            <div className={styles.railSection}>
+              <div className={styles.railTitle}>Active Drafts</div>
+              <div className={styles.railList}>
+                <div className={styles.railEmpty}>No active drafts</div>
+              </div>
+            </div>
+            <div className={styles.railSection}>
+              <button
+                type="button"
+                className={styles.railTitleBtn}
+                onClick={() => setProjectsOpen((v) => !v)}
+                aria-expanded={projectsOpen}
+              >
+                {projectsOpen ? (
+                  <CaretDown size={16} weight="bold" />
+                ) : (
+                  <CaretRight size={16} weight="bold" />
+                )}
+                <span className={styles.railTitle}>Projects</span>
+              </button>
+              {projectsOpen ? (
+                <div className={styles.railList}>
+                  <div className={styles.railEmpty}>No projects yet</div>
                 </div>
               ) : null}
-            </>
-          ) : (
-            <div className={styles.placeholder}>Capsule AI is preparing a draft…</div>
-          )}
+            </div>
+          </aside>
         </div>
 
-        <footer className={styles.footer}>
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={onClose}
-            disabled={loading}
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={onPost}
-            disabled={loading || !canPost}
-          >
-            {loading ? "Saving…" : "Post"}
-          </button>
-        </footer>
+        {/* Mobile right-rail popout */}
+        {mobileRailOpen ? (
+          <div className={`${contextMenuStyles.menu} ${styles.mobileRailMenu}`.trim()} role="menu">
+            <button type="button" className={contextMenuStyles.item}>
+              New Chat
+            </button>
+            <div className={contextMenuStyles.separator} />
+            <div className={contextMenuStyles.sectionLabel}>Active Drafts</div>
+            <div className={styles.menuEmpty}>No active drafts</div>
+            <div className={contextMenuStyles.separator} />
+            <div className={contextMenuStyles.sectionLabel}>Projects</div>
+            <div className={styles.menuEmpty}>No projects yet</div>
+          </div>
+        ) : null}
+
         {loading ? <div className={styles.loadingOverlay}>Thinking…</div> : null}
       </aside>
     </div>

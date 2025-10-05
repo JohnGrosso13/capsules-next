@@ -393,4 +393,3 @@ export function ComposerWorkspace({ artifact, eventBus, ...rest }: ComposerWorks
     </ComposerArtifactProvider>
   );
 }
-

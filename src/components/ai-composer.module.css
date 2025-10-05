@@ -8,7 +8,7 @@
   position: fixed;
   inset: 0;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   align-items: stretch;
   padding: 24px;
   background: var(--surface-overlay);
@@ -27,24 +27,24 @@
 
 .panel {
   position: relative;
-  width: min(480px, 100%);
+  width: min(1100px, 100%);
   /* Fallback first, then dynamic viewport for modern mobile browsers */
   height: calc(100vh - 48px);
   height: calc(100dvh - 48px);
-  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
-  border-left: 1px solid var(--card-border);
-  box-shadow: -24px 0 48px var(--shadow-lg, rgba(5, 10, 30, 0.45));
+  /* Opaque finish inspired by context menus */
+  background: linear-gradient(180deg, rgba(18, 22, 52, 0.98), rgba(12, 16, 38, 0.99));
+  border: 1px solid var(--card-border);
+  box-shadow: 0 24px 48px var(--shadow-lg, rgba(5, 10, 30, 0.45));
   padding: 24px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 18px;
   color: var(--text);
-  margin-left: auto;
-  align-self: stretch;
+  align-self: center;
   pointer-events: auto;
   box-sizing: border-box;
-  border-radius: 24px 0 0 24px;
+  border-radius: 24px;
 }
 
 .header {
@@ -317,10 +317,247 @@
     /* Prefer dynamic viewport height where supported */
     max-height: 100vh;
     max-height: 100dvh;
-    margin-left: 0;
-    border-left: none;
+    border: none;
     border-top: 1px solid var(--card-border);
     border-radius: 18px 18px 0 0;
+  }
+}
+
+/* New floating two-column layout */
+
+.closeIcon {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border);
+  background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
+  color: var(--text);
+  z-index: 2;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 18px;
+  align-items: stretch;
+  height: 100%;
+}
+
+.mainColumn {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chatScroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: grid;
+  gap: 12px;
+  padding-right: 4px;
+}
+
+.chatBubble {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+}
+
+.userBubble {
+  border-color: color-mix(in srgb, var(--color-accent) 28%, var(--card-border));
+}
+
+.aiBubble {
+  border-color: color-mix(in srgb, var(--color-brand) 28%, var(--card-border));
+}
+
+.chatLabel {
+  font-weight: 800;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.chatText {
+  white-space: pre-wrap;
+  font-size: 0.96rem;
+}
+
+.composerBottom {
+  margin-top: auto;
+  padding-top: 16px;
+  padding-bottom: 8px;
+  display: grid;
+  gap: 10px;
+  position: sticky;
+  bottom: 0;
+  background:
+    linear-gradient(
+      180deg,
+      transparent,
+      color-mix(in srgb, rgba(10, 12, 30, 0.98) 92%, transparent)
+    );
+  z-index: 1;
+}
+
+.intentControlsAlt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 8px;
+}
+
+.intentLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.intentRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.privacyGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.privacyLabel {
+  font-size: 0.82rem;
+  opacity: 0.9;
+}
+
+.privacySelect {
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+  color: var(--text);
+  padding: 6px 10px;
+}
+
+.postButton {
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: none;
+  background: var(--prompter-primary-button-background, var(--cta-gradient));
+  color: var(--prompter-primary-button-text, var(--cta-button-text, var(--text)));
+  font-weight: 700;
+}
+
+.rail {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  border-left: 1px dashed var(--card-border);
+  padding-left: 14px;
+}
+
+.railHeader {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.railPrimary {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border);
+  background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
+  color: var(--text);
+  font-weight: 700;
+}
+
+.railSection {
+  display: grid;
+  gap: 8px;
+}
+
+.railTitle {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.railTitleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 0;
+}
+
+.railList {
+  display: grid;
+  gap: 8px;
+}
+
+.railEmpty {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+@media (max-width: 900px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  .rail { display: none; }
+}
+
+/* Mobile menu trigger and popout for right rail */
+.mobileRailTrigger {
+  position: absolute;
+  top: 16px;
+  right: 64px; /* offset from close button */
+  width: 34px;
+  height: 34px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border);
+  background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
+  color: var(--text);
+  z-index: 2;
+}
+
+@media (max-width: 900px) {
+  .mobileRailTrigger { display: inline-flex; }
+}
+
+.mobileRailMenu {
+  top: 62px;
+  right: 16px;
+  width: min(86vw, 320px);
+  max-width: 320px;
+  z-index: 12;
+}
+
+.menuEmpty {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+@media (min-width: 901px) {
+  .mobileRailMenu {
+    display: none;
   }
 }
 
