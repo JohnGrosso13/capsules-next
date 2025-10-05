@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import styles from "../ai-composer.module.css";
@@ -75,6 +75,8 @@ export function ComposerForm({
     handleAttachmentSelect,
   } = useAttachmentUpload();
 
+  const promptInputRef = React.useRef<HTMLInputElement | null>(null);
+
   const displayAttachment = React.useMemo<LocalAttachment | null>(() => {
     if (attachment) return attachment;
     if (workingDraft.mediaUrl) {
@@ -119,6 +121,47 @@ export function ComposerForm({
     }
     return null;
   }, [displayAttachment]);
+
+  const vibeSuggestions = React.useMemo(() => {
+    if (!displayAttachment || displayAttachment.status !== "ready" || !displayAttachment.url) {
+      return [] as Array<{ label: string; prompt: string }>;
+    }
+    const isVideo = displayAttachment.mimeType.startsWith("video/");
+    if (isVideo) {
+      return [
+        { label: "Summarize this clip", prompt: "Summarize this video and call out the key beats." },
+        { label: "Suggest edits", prompt: "Suggest ways we could edit or enhance this video." },
+        { label: "Prep a post", prompt: "Draft a social post that spotlights this video." },
+      ];
+    }
+    return [
+      { label: "Describe this image", prompt: "Describe this image in vivid detail." },
+      { label: "Create a post", prompt: "Draft a social post that uses this image as the hero visual." },
+      { label: "Edit ideas", prompt: "Suggest edits or variations for this image." },
+    ];
+  }, [displayAttachment]);
+
+  const handleSuggestionSelect = React.useCallback(
+    (promptValue: string) => {
+      updateDraft({ content: promptValue });
+      window.requestAnimationFrame(() => {
+        promptInputRef.current?.focus();
+      });
+    },
+    [updateDraft],
+  );
+
+  const showVibePrompt = React.useMemo(
+    () =>
+      Boolean(
+        displayAttachment &&
+          displayAttachment.status === "ready" &&
+          !attachmentUploading &&
+          !loading &&
+          !message,
+      ),
+    [displayAttachment, attachmentUploading, loading, message],
+  );
 
   React.useEffect(() => {
     if (!readyAttachment?.url) return;
@@ -241,6 +284,70 @@ export function ComposerForm({
                     <div className={`${styles.msgBubble} ${styles.userBubble}`}>{prompt}</div>
                   </li>
                 ) : null}
+                {displayAttachment ? (
+                  <li className={`${styles.msgRow} ${styles.attachmentMessageRow}`} data-role="attachment">
+                    <div className={styles.attachmentRow}>
+                      <div className={styles.attachmentChip} data-status={displayAttachment.status}>
+                        <div className={styles.attachmentPreview} data-kind={(displayAttachment.mimeType || "").startsWith("video/") ? "video" : "image"}>
+                          {attachmentPreviewUrl ? (
+                            <img src={attachmentPreviewUrl} alt="Attachment preview" />
+                          ) : (
+                            <Paperclip size={18} weight="bold" />
+                          )}
+                          {displayAttachment.status === "uploading" ? (
+                            <div className={styles.attachmentProgress}>
+                              <span
+                                style={{ width: `${Math.round((displayAttachment.progress ?? 0) * 100)}%` }}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className={styles.attachmentMeta}>
+                          <span className={styles.attachmentName} title={displayAttachment.name}>
+                            {displayAttachment.name}
+                          </span>
+                          {attachmentStatusLabel ? (
+                            <span
+                              className={styles.attachmentStatus}
+                              data-state={displayAttachment.status === "error" ? "error" : undefined}
+                            >
+                              {attachmentStatusLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className={styles.attachmentActions}>
+                          <button
+                            type="button"
+                            className={styles.attachmentRemove}
+                            onClick={handleRemoveAttachment}
+                            disabled={loading || attachmentUploading}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ) : null}
+                {showVibePrompt ? (
+                  <li className={styles.msgRow} data-role="ai">
+                    <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.attachmentPromptBubble}`}>
+                      <p className={styles.attachmentPromptIntro}>I'm ready to help with this {displayAttachment?.mimeType.startsWith("video/") ? "video" : "image"}. What should we do next?</p>
+                      <div className={styles.vibeActions}>
+                        {vibeSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion.prompt}
+                            type="button"
+                            className={styles.vibeAction}
+                            onClick={() => handleSuggestionSelect(suggestion.prompt)}
+                          >
+                            {suggestion.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </li>
+                ) : null}
                 {message ? (
                   <li className={styles.msgRow} data-role="ai">
                     <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{message}</div>
@@ -278,6 +385,7 @@ export function ComposerForm({
                   disabled={loading || attachmentUploading}
                 />
                 <input
+                  ref={promptInputRef}
                   className={styles.promptInput}
                   placeholder="Ask Capsule AI to create..."
                   value={workingDraft.content}
@@ -297,43 +405,6 @@ export function ComposerForm({
                   <Microphone size={18} weight="duotone" />
                 </button>
               </div>
-
-              {displayAttachment ? (
-                <div className={styles.attachmentRow}>
-                  <div className={styles.attachmentChip}>
-                    <div className={styles.attachmentPreview}>
-                      {attachmentPreviewUrl ? (
-                        <img src={attachmentPreviewUrl} alt="Attachment preview" />
-                      ) : (
-                        <Paperclip size={16} weight="bold" />
-                      )}
-                    </div>
-                    <div className={styles.attachmentMeta}>
-                      <span className={styles.attachmentName} title={displayAttachment.name}>
-                        {displayAttachment.name}
-                      </span>
-                      {attachmentStatusLabel ? (
-                        <span
-                          className={styles.attachmentStatus}
-                          data-state={displayAttachment.status === "error" ? "error" : undefined}
-                        >
-                          {attachmentStatusLabel}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className={styles.attachmentActions}>
-                      <button
-                        type="button"
-                        className={styles.attachmentRemove}
-                        onClick={handleRemoveAttachment}
-                        disabled={loading || attachmentUploading}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
 
               <div className={styles.intentControlsAlt}>
                 <div className={styles.intentLeft}>

@@ -599,3 +599,86 @@
 
 
 
+
+.attachmentMessageRow {
+  justify-content: center;
+}
+
+.attachmentChip[data-status="uploading"] {
+  border-color: color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.4)) 42%, transparent);
+  background: color-mix(in srgb, var(--composer-footer-background, rgba(10, 14, 30, 0.72)) 80%, transparent);
+}
+
+.attachmentChip[data-status="error"] {
+  border-color: color-mix(in srgb, var(--composer-status-error, #f87171) 60%, transparent);
+}
+
+.attachmentPreview {
+  position: relative;
+}
+
+.attachmentPreview[data-kind="video"] {
+  background: color-mix(in srgb, var(--composer-accent-soft, rgba(99, 102, 241, 0.18)) 65%, rgba(15, 18, 32, 0.65));
+}
+
+.attachmentProgress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 4px;
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+  background: rgba(15, 18, 32, 0.32);
+}
+
+.attachmentProgress span {
+  display: block;
+  height: 100%;
+  background: var(--composer-accent, var(--color-brand, #6366f1));
+  transition: width 160ms ease;
+}
+
+.attachmentPromptBubble {
+  display: grid;
+  gap: 12px;
+}
+
+.attachmentPromptIntro {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.vibeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.vibeAction {
+  border: 1px solid color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 45%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.35)) 35%, transparent), color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.2)) 20%, transparent));
+  color: var(--text, rgba(255, 255, 255, 0.94));
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.vibeAction:hover,
+.vibeAction:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--composer-accent, var(--color-brand, #6366f1));
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.28)) 60%, rgba(0, 0, 0, 0.18));
+}
+
+.vibeAction:active {
+  transform: scale(0.97);
+}
+
+.vibeAction:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
