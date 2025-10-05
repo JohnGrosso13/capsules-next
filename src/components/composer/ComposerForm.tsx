@@ -1,8 +1,7 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import styles from "../ai-composer.module.css";
-import homeStyles from "@/components/home.module.css";
 import contextMenuStyles from "@/components/ui/context-menu.module.css";
 import { X, Paperclip, Microphone, Brain, CaretDown, CaretRight, List } from "@phosphor-icons/react/dist/ssr";
 import { isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
@@ -94,17 +93,16 @@ export function ComposerForm({
         </button>
 
         <div className={styles.columns}>
-          {/* Left rail on desktop */}
-          <aside className={styles.rail} aria-label="Left rail">
+          <aside className={styles.rail} aria-label="Conversation navigation">
             <div className={styles.railHeader}>
               <button type="button" className={styles.railPrimary}>New Chat</button>
             </div>
-            <div className={styles.railSection}>
+            <nav className={styles.railSection} aria-label="Active drafts">
               <div className={styles.railTitle}>Active Drafts</div>
               <div className={styles.railList}>
                 <div className={styles.railEmpty}>No active drafts</div>
               </div>
-            </div>
+            </nav>
             <div className={styles.railSection}>
               <button
                 type="button"
@@ -127,22 +125,22 @@ export function ComposerForm({
             </div>
           </aside>
 
-          <section className={styles.mainColumn} aria-label="Chat">
+          <section className={styles.mainColumn} aria-label="Chat thread">
             <div className={styles.chatScroll}>
               <ol className={styles.chatList}>
                 {prompt ? (
                   <li className={styles.msgRow} data-role="user">
-                    <div className={`${styles.msgBubble} ${styles.userBubble}`.trim()}>{prompt}</div>
+                    <div className={${styles.msgBubble} .trim()}>{prompt}</div>
                   </li>
                 ) : null}
                 {message ? (
                   <li className={styles.msgRow} data-role="ai">
-                    <div className={`${styles.msgBubble} ${styles.aiBubble}`.trim()}>{message}</div>
+                    <div className={${styles.msgBubble} .trim()}>{message}</div>
                   </li>
                 ) : null}
                 {loading ? (
                   <li className={styles.msgRow} data-role="ai">
-                    <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.streaming}`.trim()} aria-live="polite">
+                    <div className={${styles.msgBubble}  .trim()} aria-live="polite">
                       <span className={styles.streamDot} />
                       <span className={styles.streamDot} />
                       <span className={styles.streamDot} />
@@ -153,29 +151,19 @@ export function ComposerForm({
             </div>
 
             <div className={styles.composerBottom}>
-              <div className={homeStyles.promptBar}>
-                <button
-                  type="button"
-                  className={homeStyles.promptAttachBtn}
-                  aria-label="Attach"
-                >
-                  <Paperclip size={20} weight="duotone" className={homeStyles.promptAttachIcon} />
+              <div className={styles.promptBar}>
+                <button type="button" className={styles.promptIconBtn} aria-label="Attach file">
+                  <Paperclip size={18} weight="duotone" />
                 </button>
                 <input
-                  className={homeStyles.input}
-                  placeholder="Ask Capsule AI to create…"
+                  className={styles.promptInput}
+                  placeholder="Ask Capsule AI to create..."
                   value={workingDraft.content}
                   onChange={(e) => updateDraft({ content: e.target.value })}
                   disabled={loading}
                 />
-                <button
-                  type="button"
-                  className={`${homeStyles.promptAttachBtn} ${homeStyles.voiceBtn}`.trim()}
-                  aria-label="Voice input"
-                  title="Voice input"
-                >
-                  <span className={homeStyles.voicePulse} aria-hidden />
-                  <Microphone size={18} weight="duotone" className={homeStyles.voiceIcon} />
+                <button type="button" className={styles.promptIconBtn} aria-label="Voice input">
+                  <Microphone size={18} weight="duotone" />
                 </button>
               </div>
 
@@ -210,9 +198,8 @@ export function ComposerForm({
           </section>
         </div>
 
-        {/* Mobile right-rail popout */}
         {mobileRailOpen ? (
-          <div className={`${contextMenuStyles.menu} ${styles.mobileRailMenu}`.trim()} role="menu">
+          <div className={${contextMenuStyles.menu} .trim()} role="menu">
             <button type="button" className={contextMenuStyles.item}>
               New Chat
             </button>
@@ -224,8 +211,6 @@ export function ComposerForm({
             <div className={styles.menuEmpty}>No projects yet</div>
           </div>
         ) : null}
-
-        {/* Streaming handled inline with animated bubble; no global overlay */}
       </aside>
     </div>
   );
