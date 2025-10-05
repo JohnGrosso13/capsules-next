@@ -94,20 +94,62 @@ export function ComposerForm({
         </button>
 
         <div className={styles.columns}>
+          {/* Left rail on desktop */}
+          <aside className={styles.rail} aria-label="Left rail">
+            <div className={styles.railHeader}>
+              <button type="button" className={styles.railPrimary}>New Chat</button>
+            </div>
+            <div className={styles.railSection}>
+              <div className={styles.railTitle}>Active Drafts</div>
+              <div className={styles.railList}>
+                <div className={styles.railEmpty}>No active drafts</div>
+              </div>
+            </div>
+            <div className={styles.railSection}>
+              <button
+                type="button"
+                className={styles.railTitleBtn}
+                onClick={() => setProjectsOpen((v) => !v)}
+                aria-expanded={projectsOpen}
+              >
+                {projectsOpen ? (
+                  <CaretDown size={16} weight="bold" />
+                ) : (
+                  <CaretRight size={16} weight="bold" />
+                )}
+                <span className={styles.railTitle}>Projects</span>
+              </button>
+              {projectsOpen ? (
+                <div className={styles.railList}>
+                  <div className={styles.railEmpty}>No projects yet</div>
+                </div>
+              ) : null}
+            </div>
+          </aside>
+
           <section className={styles.mainColumn} aria-label="Chat">
             <div className={styles.chatScroll}>
-              {prompt ? (
-                <div className={`${styles.chatBubble} ${styles.userBubble}`.trim()}>
-                  <div className={styles.chatLabel}>You</div>
-                  <div className={styles.chatText}>{prompt}</div>
-                </div>
-              ) : null}
-              {message ? (
-                <div className={`${styles.chatBubble} ${styles.aiBubble}`.trim()}>
-                  <div className={styles.chatLabel}>AI</div>
-                  <div className={styles.chatText}>{message}</div>
-                </div>
-              ) : null}
+              <ol className={styles.chatList}>
+                {prompt ? (
+                  <li className={styles.msgRow} data-role="user">
+                    <div className={`${styles.msgBubble} ${styles.userBubble}`.trim()}>{prompt}</div>
+                  </li>
+                ) : null}
+                {message ? (
+                  <li className={styles.msgRow} data-role="ai">
+                    <div className={`${styles.msgBubble} ${styles.aiBubble}`.trim()}>{message}</div>
+                  </li>
+                ) : null}
+                {loading ? (
+                  <li className={styles.msgRow} data-role="ai">
+                    <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.streaming}`.trim()} aria-live="polite">
+                      <span className={styles.streamDot} />
+                      <span className={styles.streamDot} />
+                      <span className={styles.streamDot} />
+                    </div>
+                  </li>
+                ) : null}
+              </ol>
             </div>
 
             <div className={styles.composerBottom}>
@@ -166,38 +208,6 @@ export function ComposerForm({
               </div>
             </div>
           </section>
-
-          <aside className={styles.rail} aria-label="Right rail">
-            <div className={styles.railHeader}>
-              <button type="button" className={styles.railPrimary}>New Chat</button>
-            </div>
-            <div className={styles.railSection}>
-              <div className={styles.railTitle}>Active Drafts</div>
-              <div className={styles.railList}>
-                <div className={styles.railEmpty}>No active drafts</div>
-              </div>
-            </div>
-            <div className={styles.railSection}>
-              <button
-                type="button"
-                className={styles.railTitleBtn}
-                onClick={() => setProjectsOpen((v) => !v)}
-                aria-expanded={projectsOpen}
-              >
-                {projectsOpen ? (
-                  <CaretDown size={16} weight="bold" />
-                ) : (
-                  <CaretRight size={16} weight="bold" />
-                )}
-                <span className={styles.railTitle}>Projects</span>
-              </button>
-              {projectsOpen ? (
-                <div className={styles.railList}>
-                  <div className={styles.railEmpty}>No projects yet</div>
-                </div>
-              ) : null}
-            </div>
-          </aside>
         </div>
 
         {/* Mobile right-rail popout */}
@@ -215,7 +225,7 @@ export function ComposerForm({
           </div>
         ) : null}
 
-        {loading ? <div className={styles.loadingOverlay}>Thinking…</div> : null}
+        {/* Streaming handled inline with animated bubble; no global overlay */}
       </aside>
     </div>
   );
