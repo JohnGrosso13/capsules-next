@@ -150,7 +150,9 @@ export function isPreviewingTheme(): boolean {
 
 
 function stabilizeThemeVars(vars: Record<string, string>): Record<string, string> {
-  return ensureBrandIdentity(ensureAppBackground(vars));
+  const withBackground = ensureAppBackground(vars);
+  const withBrand = ensureBrandIdentity(withBackground);
+  return ensureComposerPalette(withBrand);
 }
 
 type RGBA = { r: number; g: number; b: number; a: number };
@@ -205,15 +207,14 @@ function ensureBrandIdentity(vars: Record<string, string>): Record<string, strin
     }
   });
 
-  (
-    [
-      ["--brand-from", palette.fromHex],
-      ["--brand-mid", palette.midHex],
-      ["--brand-to", palette.toHex],
-    ]
-  ).forEach(([key, value]: [string, string]) => {
+  const brandStops: Array<[string, string]> = [
+    ["--brand-from", palette.fromHex],
+    ["--brand-mid", palette.midHex],
+    ["--brand-to", palette.toHex],
+  ];
+  for (const [key, value] of brandStops) {
     if (!working[key]) ensure(key, value);
-  });
+  }
 
   if (!working["--color-brand"]) ensure("--color-brand", palette.midHex);
   if (!working["--color-brand-strong"]) ensure("--color-brand-strong", palette.toHex);
@@ -237,6 +238,146 @@ function ensureBrandIdentity(vars: Record<string, string>): Record<string, strin
   });
 
   return working === vars ? vars : working;
+}
+
+function ensureComposerPalette(vars: Record<string, string>): Record<string, string> {
+  let working = vars;
+  const update = (key: string, value: string) => {
+    if (working[key] === value) return;
+    if (working === vars) working = { ...vars };
+    working[key] = value;
+  };
+  const ensureMissing = (key: string, value: string) => {
+    if (working[key]) return;
+    update(key, value);
+  };
+
+  const accent =
+    pickColor(working, ["--composer-accent", "--color-brand", "--brand-mid", "--color-brand-strong", "--accent-glow"]) ??
+    DEFAULT_ACCENT;
+  const base =
+    pickColor(working, ["--surface-app", "--app-bg", "--surface-muted", "--surface-elevated"]) ?? DARK_ANCHOR;
+  const elevated =
+    pickColor(working, ["--surface-elevated", "--card-bg-1", "--card-bg-2", "--surface-overlay"]) ?? lighten(base, 0.18);
+  const overlay =
+    pickColor(working, ["--surface-overlay", "--modal-overlay", "--overlay", "--overlay-scrim"]) ??
+    mixColors(base, BLACK, 0.2);
+  const railBase = pickColor(working, ["--surface-rail", "--rail-background"]) ?? mixColors(elevated, base, 0.45);
+  const text =
+    pickColor(working, ["--composer-text", "--text", "--text-primary", "--foreground", "--text-base"]) ??
+    LIGHT_TEXT_COLOR;
+
+  const accentSolid = solidColor(accent);
+  const baseSolid = solidColor(base);
+  const elevatedSolid = solidColor(elevated);
+  const overlaySolid = solidColor(overlay);
+  const railSolid = solidColor(railBase);
+  const textSolid = solidColor(text);
+
+  const ensureReadableBackground = (
+    key: string,
+    candidates: RGBA[],
+    options?: { lighten?: number; darken?: number; alpha?: number },
+  ) => {
+    const existingValue = working[key];
+    if (existingValue) {
+      const parsed = extractFirstColor(existingValue);
+      if (parsed && contrastRatio(solidColor(parsed), textSolid) >= 4.5) {
+        return;
+      }
+    }
+    const palette = candidates.map(solidColor);
+    const baseColor = pickReadableCandidate(palette, textSolid);
+    const gradient = buildSoftGradient(baseColor, textSolid, options);
+    update(key, gradient);
+  };
+
+  const overlayValue = toRgbaString(mixColors(overlaySolid, baseSolid, 0.32), 0.88);
+  ensureMissing("--composer-overlay", overlayValue);
+
+  ensureMissing("--composer-panel-background", buildAmbientGradient(baseSolid, accentSolid));
+  ensureMissing("--composer-panel-border", toRgbaString(mixColors(baseSolid, WHITE, 0.52), 0.28));
+
+  const mainCandidates = [
+    mixColors(elevatedSolid, baseSolid, 0.6),
+    mixColors(elevatedSolid, accentSolid, 0.2),
+    mixColors(baseSolid, WHITE, 0.1),
+  ];
+  ensureReadableBackground("--composer-main-background", mainCandidates, { lighten: 0.08, darken: 0.16, alpha: 0.97 });
+
+  const railCandidates = [
+    railSolid,
+    mixColors(railSolid, accentSolid, 0.2),
+    mixColors(baseSolid, accentSolid, 0.18),
+    mixColors(baseSolid, WHITE, 0.08),
+  ];
+  ensureReadableBackground("--composer-rail-background", railCandidates, { lighten: 0.06, darken: 0.18, alpha: 0.96 });
+  ensureMissing("--composer-rail-border", toRgbaString(mixColors(railSolid, WHITE, 0.36), 0.28));
+
+  const footerCandidates = [
+    mixColors(baseSolid, BLACK, 0.24),
+    mixColors(elevatedSolid, BLACK, 0.18),
+    mixColors(baseSolid, accentSolid, 0.15),
+  ];
+  ensureReadableBackground("--composer-footer-background", footerCandidates, { lighten: 0.05, darken: 0.2, alpha: 0.98 });
+  ensureMissing("--composer-footer-border", toRgbaString(mixColors(baseSolid, WHITE, 0.32), 0.24));
+
+  const closeTop = mixColors(accentSolid, WHITE, 0.55);
+  const closeBottom = mixColors(accentSolid, baseSolid, 0.28);
+  ensureMissing(
+    "--composer-close-background",
+    `linear-gradient(180deg, ${toRgbaString(closeTop, 0.94)} 0%, ${toRgbaString(closeBottom, 0.88)} 100%)`,
+  );
+  ensureMissing("--composer-close-border", toRgbaString(mixColors(accentSolid, WHITE, 0.48), 0.4));
+
+  ensureMissing("--composer-accent", toHex(accentSolid));
+  ensureMissing("--composer-accent-soft", toRgbaString(mixColors(accentSolid, WHITE, 0.1), 0.22));
+
+  const ensureStatus = (key: string, fallback: RGBA, sources: string[]) => {
+    if (working[key]) return;
+    const picked = pickColor(working, sources) ?? fallback;
+    update(key, toHex(solidColor(picked)));
+  };
+  ensureStatus("--composer-status-error", FALLBACK_ERROR_COLOR, [
+    "--feedback-error",
+    "--status-error",
+    "--color-danger",
+    "--status-critical",
+  ]);
+  ensureStatus("--composer-status-warning", FALLBACK_WARNING_COLOR, [
+    "--feedback-warning",
+    "--status-warning",
+    "--color-warning",
+  ]);
+  ensureStatus("--composer-status-success", FALLBACK_SUCCESS_COLOR, [
+    "--feedback-success",
+    "--status-success",
+    "--color-positive",
+  ]);
+
+  const userBubbleCandidates = [
+    mixColors(accentSolid, baseSolid, 0.28),
+    mixColors(accentSolid, baseSolid, 0.35),
+    mixColors(accentSolid, WHITE, 0.12),
+  ];
+  ensureReadableBackground("--composer-chat-user-background", userBubbleCandidates, {
+    lighten: 0.08,
+    darken: 0.14,
+    alpha: 0.96,
+  });
+
+  const aiBubbleCandidates = [
+    mixColors(baseSolid, accentSolid, 0.12),
+    mixColors(baseSolid, WHITE, 0.08),
+    mixColors(elevatedSolid, baseSolid, 0.52),
+  ];
+  ensureReadableBackground("--composer-chat-ai-background", aiBubbleCandidates, {
+    lighten: 0.06,
+    darken: 0.12,
+    alpha: 0.96,
+  });
+
+  return working;
 }
 
 function deriveAppBackground(vars: Record<string, string>): string | null {
@@ -281,33 +422,54 @@ function parseHexColor(raw: string): RGBA | null {
   const value = raw.trim();
   const match = value.match(/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
   if (!match) return null;
-  const hex = match[1]!;
+  const hex = match[1];
+  if (!hex) return null;
+
   if (hex.length === 3 || hex.length === 4) {
-    const r = parseInt(hex[0] + hex[0], 16);
-    const g = parseInt(hex[1] + hex[1], 16);
-    const b = parseInt(hex[2] + hex[2], 16);
-    const a = hex.length === 4 ? parseInt(hex[3] + hex[3], 16) / 255 : 1;
-    return { r, g, b, a };
+    const [rChar, gChar, bChar, aChar] = hex.split("");
+    if (!rChar || !gChar || !bChar) return null;
+    const r = parseInt(rChar + rChar, 16);
+    const g = parseInt(gChar + gChar, 16);
+    const b = parseInt(bChar + bChar, 16);
+    const aChunk = (aChar ?? "f") + (aChar ?? "f");
+    const alphaValue = parseInt(aChunk, 16);
+    if ([r, g, b, alphaValue].some((component) => Number.isNaN(component))) return null;
+    return { r, g, b, a: alphaValue / 255 };
   }
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  const a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
-  return { r, g, b, a };
+
+  if (hex.length === 6 || hex.length === 8) {
+    const rChunk = hex.slice(0, 2);
+    const gChunk = hex.slice(2, 4);
+    const bChunk = hex.slice(4, 6);
+    const aChunk = hex.length === 8 ? hex.slice(6, 8) : "ff";
+    if (rChunk.length !== 2 || gChunk.length !== 2 || bChunk.length !== 2 || aChunk.length !== 2) return null;
+    const r = parseInt(rChunk, 16);
+    const g = parseInt(gChunk, 16);
+    const b = parseInt(bChunk, 16);
+    const alphaValue = parseInt(aChunk, 16);
+    if ([r, g, b, alphaValue].some((component) => Number.isNaN(component))) return null;
+    return { r, g, b, a: alphaValue / 255 };
+  }
+
+  return null;
 }
 
 function parseRgbColor(raw: string): RGBA | null {
   const match = raw.trim().match(/^rgba?\(([^)]+)\)$/i);
   if (!match) return null;
-  const parts = match[1].split(',').map((part) => part.trim());
+  const inner = match[1];
+  if (!inner) return null;
+  const parts = inner.split(',').map((part) => part.trim());
   if (parts.length < 3) return null;
-  const r = parseRgbComponent(parts[0]);
-  const g = parseRgbComponent(parts[1]);
-  const b = parseRgbComponent(parts[2]);
+  const [rPart, gPart, bPart, aPart] = parts;
+  if (!rPart || !gPart || !bPart) return null;
+  const r = parseRgbComponent(rPart);
+  const g = parseRgbComponent(gPart);
+  const b = parseRgbComponent(bPart);
   if (r == null || g == null || b == null) return null;
-  const a = parts[3] != null ? parseAlphaComponent(parts[3]) : 1;
-  if (a == null) return null;
-  return { r, g, b, a };
+  const alphaPart = aPart && aPart.length ? parseAlphaComponent(aPart) : 1;
+  if (alphaPart == null) return null;
+  return { r, g, b, a: alphaPart };
 }
 
 function parseRgbComponent(part: string): number | null {
@@ -335,17 +497,21 @@ function parseAlphaComponent(part: string): number | null {
 function parseHslColor(raw: string): RGBA | null {
   const match = raw.trim().match(/^hsla?\(([^)]+)\)$/i);
   if (!match) return null;
-  const parts = match[1].split(',').map((part) => part.trim());
+  const inner = match[1];
+  if (!inner) return null;
+  const parts = inner.split(',').map((part) => part.trim());
   if (parts.length < 3) return null;
-  const h = parseFloat(parts[0]);
+  const [hPart, sPart, lPart, aPart] = parts;
+  if (!hPart || !sPart || !lPart) return null;
+  const h = parseFloat(hPart);
   if (Number.isNaN(h)) return null;
-  const s = parsePercent(parts[1]);
-  const l = parsePercent(parts[2]);
+  const s = parsePercent(sPart);
+  const l = parsePercent(lPart);
   if (s == null || l == null) return null;
-  const a = parts[3] != null ? parseAlphaComponent(parts[3]) : 1;
-  if (a == null) return null;
+  const alphaPart = aPart && aPart.length ? parseAlphaComponent(aPart) : 1;
+  if (alphaPart == null) return null;
   const rgb = hslToRgb(((h % 360) + 360) % 360 / 360, s, l);
-  return { ...rgb, a };
+  return { ...rgb, a: alphaPart };
 }
 
 function parsePercent(part: string): number | null {
@@ -413,6 +579,63 @@ function lighten(color: RGBA, ratio: number): RGBA {
 
 function darken(color: RGBA, ratio: number): RGBA {
   return mixColors(color, BLACK, ratio);
+}
+
+type GradientOptions = { lighten?: number; darken?: number; alpha?: number };
+
+function pickReadableCandidate(candidates: RGBA[], text: RGBA): RGBA {
+  let best: RGBA | null = null;
+  let bestScore = -Infinity;
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const solid = solidColor(candidate);
+    const score = contrastRatio(solid, text);
+    if (score >= 4.5) return solid;
+    if (best === null || score > bestScore) {
+      best = solid;
+      bestScore = score;
+    }
+  }
+  return best ?? solidColor(text);
+}
+
+function buildSoftGradient(base: RGBA, text: RGBA, options?: GradientOptions): string {
+  const lightenAmount = clamp(options?.lighten ?? 0.08, 0, 0.6);
+  const darkenAmount = clamp(options?.darken ?? 0.12, 0, 0.8);
+  const alpha = clamp(options?.alpha ?? 0.98, 0, 1);
+
+  const baseSolid = solidColor(base);
+  let top = solidColor(lighten(baseSolid, lightenAmount));
+  let bottom = solidColor(darken(baseSolid, darkenAmount));
+
+  let topContrast = contrastRatio(top, text);
+  let bottomContrast = contrastRatio(bottom, text);
+
+  if (topContrast < 3.8 || bottomContrast < 3.8) {
+    const adjusted = pickReadableCandidate(
+      [
+        baseSolid,
+        top,
+        bottom,
+        solidColor(lighten(baseSolid, Math.min(lightenAmount * 1.2, 0.2))),
+        solidColor(darken(baseSolid, Math.min(darkenAmount * 1.4, 0.4))),
+      ],
+      text,
+    );
+    top = solidColor(lighten(adjusted, Math.min(lightenAmount, 0.12)));
+    bottom = solidColor(darken(adjusted, Math.min(darkenAmount * 1.1, 0.5)));
+    topContrast = contrastRatio(top, text);
+    bottomContrast = contrastRatio(bottom, text);
+    if (topContrast < 3.5 || bottomContrast < 3.5) {
+      return toRgbaString(adjusted, alpha);
+    }
+  }
+
+  return `linear-gradient(180deg, ${toRgbaString(top, alpha)} 0%, ${toRgbaString(bottom, alpha)} 100%)`;
+}
+
+function solidColor(color: RGBA): RGBA {
+  return { r: color.r, g: color.g, b: color.b, a: 1 };
 }
 
 function toHex(color: RGBA): string {
@@ -503,6 +726,10 @@ const DARK_TEXT_HEX = '#0f172a';
 const LIGHT_TEXT_COLOR = parseHexColor(LIGHT_TEXT_HEX) ?? WHITE;
 const DARK_TEXT_COLOR = parseHexColor(DARK_TEXT_HEX) ?? BLACK;
 const DEFAULT_ACCENT = parseHexColor('#6366f1') ?? { r: 99, g: 102, b: 241, a: 1 };
+const FALLBACK_ERROR_COLOR = parseHexColor('#ef4444') ?? { r: 239, g: 68, b: 68, a: 1 } as RGBA;
+const FALLBACK_WARNING_COLOR = parseHexColor('#f59e0b') ?? { r: 245, g: 158, b: 11, a: 1 } as RGBA;
+const FALLBACK_SUCCESS_COLOR = parseHexColor('#22c55e') ?? { r: 34, g: 197, b: 94, a: 1 } as RGBA;
+
 
 
 

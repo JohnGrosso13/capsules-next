@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import styles from "../ai-composer.module.css";
@@ -8,6 +8,7 @@ import {
   X,
   Paperclip,
   Microphone,
+  MicrophoneSlash,
   Brain,
   CaretDown,
   CaretRight,
@@ -15,6 +16,7 @@ import {
   PaperPlaneRight,
 } from "@phosphor-icons/react/dist/ssr";
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
 import {
   buildImageVariants,
@@ -26,6 +28,42 @@ import {
   buildLocalImageVariants,
   shouldBypassCloudflareImages,
 } from "@/lib/cloudflare/runtime";
+
+function describeVoiceError(code: string | null): string | null {
+  if (!code) return null;
+  const normalized = code.toLowerCase();
+  if (normalized.includes("not-allowed")) {
+    return "Microphone access is blocked. Update your browser settings to allow it.";
+  }
+  if (normalized === "service-not-allowed") {
+    return "Microphone access is blocked by your browser.";
+  }
+  if (normalized === "no-speech") {
+    return "Didn't catch that. Try speaking again.";
+  }
+  if (normalized === "aborted") {
+    return null;
+  }
+  if (normalized === "audio-capture") {
+    return "No microphone was detected.";
+  }
+  if (normalized === "unsupported") {
+    return "Voice input isn't supported in this browser.";
+  }
+  if (normalized === "network") {
+    return "Voice input is unavailable right now.";
+  }
+  if (normalized === "speech-start-error" || normalized === "speech-stop-error") {
+    return "Voice input could not be started. Check your microphone and try again.";
+  }
+  return "Voice input is unavailable right now.";
+}
+
+function truncateVoiceText(text: string, max = 120): string {
+  if (text.length <= max) return text;
+  if (max <= 3) return "...";
+  return `${text.slice(0, max - 3)}...`;
+}
 
 export type ComposerChoice = { key: string; label: string };
 
@@ -91,6 +129,108 @@ export function ComposerForm({
   const openViewer = React.useCallback(() => setViewerOpen(true), []);
   const closeViewer = React.useCallback(() => setViewerOpen(false), []);
   const cloudflareBypass = React.useMemo(shouldBypassCloudflareImages, []);
+
+  const voiceSessionCounterRef = React.useRef(1);
+  const activeVoiceSessionRef = React.useRef<number | null>(null);
+  const processedVoiceSessionRef = React.useRef<number | null>(null);
+  const [voiceDraft, setVoiceDraft] = React.useState<{ session: number; text: string } | null>(null);
+  const [voiceInterim, setVoiceInterim] = React.useState<string | null>(null);
+  const [voiceLastResult, setVoiceLastResult] = React.useState<string | null>(null);
+  const [voiceError, setVoiceError] = React.useState<string | null>(null);
+
+  const { supported: voiceSupported, status: voiceStatus, start: startVoice, stop: stopVoice } =
+    useSpeechRecognition({
+      onFinalResult: (fullTranscript) => {
+        const sessionId = activeVoiceSessionRef.current;
+        if (!sessionId) return;
+        const normalized = fullTranscript.trim();
+        if (!normalized) return;
+        setVoiceDraft({ session: sessionId, text: normalized });
+      },
+      onInterimResult: (text) => {
+        const normalized = text.trim();
+        setVoiceInterim(normalized.length ? normalized : null);
+      },
+      onError: (message) => {
+        setVoiceError(message);
+      },
+    });
+
+  const handleVoiceToggle = React.useCallback(() => {
+    if (!voiceSupported) {
+      setVoiceError("unsupported");
+      return;
+    }
+    if (voiceStatus === "stopping") return;
+    if (voiceStatus === "listening") {
+      stopVoice();
+      return;
+    }
+    setVoiceError(null);
+    setVoiceLastResult(null);
+    setVoiceInterim(null);
+    const started = startVoice();
+    if (started) {
+      const sessionId = voiceSessionCounterRef.current;
+      voiceSessionCounterRef.current += 1;
+      activeVoiceSessionRef.current = sessionId;
+      processedVoiceSessionRef.current = null;
+      setVoiceDraft(null);
+    }
+  }, [voiceSupported, voiceStatus, startVoice, stopVoice]);
+
+  const stopVoiceRef = React.useRef(stopVoice);
+
+  React.useEffect(() => {
+    stopVoiceRef.current = stopVoice;
+  }, [stopVoice]);
+
+  React.useEffect(
+    () => () => {
+      stopVoiceRef.current?.();
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    if (!voiceDraft) return;
+    if (voiceStatus !== "idle" && voiceStatus !== "error" && voiceStatus !== "unsupported") return;
+    const { session, text } = voiceDraft;
+    if (processedVoiceSessionRef.current === session) return;
+    processedVoiceSessionRef.current = session;
+    activeVoiceSessionRef.current = null;
+    const normalized = text.trim();
+    if (!normalized) {
+      setVoiceDraft(null);
+      return;
+    }
+    const existing = workingDraft.content ?? "";
+    const needsSpace = existing.length > 0 && !/\s$/.test(existing);
+    const nextContent = `${existing}${needsSpace ? " " : ""}${normalized}`;
+    updateDraft({ content: nextContent });
+    setVoiceLastResult(normalized);
+    setVoiceDraft(null);
+    setVoiceInterim(null);
+    setVoiceError(null);
+    window.requestAnimationFrame(() => {
+      promptInputRef.current?.focus();
+    });
+  }, [voiceDraft, voiceStatus, updateDraft, workingDraft.content]);
+
+  React.useEffect(() => {
+    if (voiceStatus === "listening") return;
+    setVoiceInterim(null);
+  }, [voiceStatus]);
+
+  React.useEffect(() => {
+    if (!voiceLastResult) return;
+    const timeout = window.setTimeout(() => {
+      setVoiceLastResult(null);
+    }, 4000);
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [voiceLastResult]);
 
   React.useEffect(() => {
     if (!viewerOpen) return;
@@ -161,12 +301,12 @@ export function ComposerForm({
   );
   const attachmentVariants = React.useMemo<CloudflareImageVariantSet | null>(() => {
     if (!hasAttachment || attachmentKind !== "image" || !attachmentUrl) return null;
-    const origin = typeof window !== "undefined" ? window.location.origin : undefined;
+    const origin = typeof window !== "undefined" ? window.location.origin : null;
     if (cloudflareBypass) {
       return buildLocalImageVariants(attachmentUrl, attachmentThumb, origin);
     }
     return buildImageVariants(attachmentUrl, {
-      thumbnailUrl: attachmentThumb ?? undefined,
+      thumbnailUrl: attachmentThumb,
       origin,
     });
   }, [attachmentKind, attachmentThumb, attachmentUrl, cloudflareBypass, hasAttachment]);
@@ -284,6 +424,35 @@ export function ComposerForm({
 
   const draftReady = isComposerDraftReady(workingDraft);
   const canPost = draftReady && !attachmentUploading && !loading;
+
+  const isVoiceActive = voiceStatus === "listening" || voiceStatus === "stopping";
+  const voiceButtonLabel = voiceSupported
+    ? isVoiceActive
+      ? "Stop voice capture"
+      : "Start voice capture"
+    : "Voice input isn't supported in this browser.";
+  const voiceButtonDisabled =
+    loading || attachmentUploading || voiceStatus === "stopping" || !voiceSupported;
+  const truncatedVoiceInterim = voiceInterim ? truncateVoiceText(voiceInterim) : null;
+  const truncatedVoiceResult = voiceLastResult ? truncateVoiceText(voiceLastResult) : null;
+  const voiceErrorMessage = React.useMemo(() => describeVoiceError(voiceError), [voiceError]);
+  const voiceHint = React.useMemo(() => {
+    if (voiceErrorMessage) return voiceErrorMessage;
+    if (isVoiceActive) {
+      return truncatedVoiceInterim ? `Listening: "${truncatedVoiceInterim}"` : "Listening for voice input...";
+    }
+    if (voiceStatus === "idle" && truncatedVoiceResult) {
+      return `Captured: "${truncatedVoiceResult}"`;
+    }
+    return null;
+  }, [voiceErrorMessage, isVoiceActive, truncatedVoiceInterim, voiceStatus, truncatedVoiceResult]);
+  const voiceHintState = voiceErrorMessage
+    ? "error"
+    : isVoiceActive
+      ? "active"
+      : truncatedVoiceResult
+        ? "result"
+        : null;
 
   return (
     <div className={styles.overlay}>
@@ -452,7 +621,7 @@ export function ComposerForm({
                 {showVibePrompt ? (
                   <li className={styles.msgRow} data-role="ai">
                     <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.attachmentPromptBubble}`}>
-                      <p className={styles.attachmentPromptIntro}>I'm ready to help with this {displayAttachment?.mimeType.startsWith("video/") ? "video" : "image"}. What should we do next?</p>
+                      <p className={styles.attachmentPromptIntro}>I&rsquo;m ready to help with this {displayAttachment?.mimeType.startsWith("video/") ? "video" : "image"}. What should we do next?</p>
                       <div className={styles.vibeActions}>
                         {vibeSuggestions.map((suggestion) => (
                           <button
@@ -521,10 +690,36 @@ export function ComposerForm({
                 >
                   <PaperPlaneRight size={18} weight="fill" />
                 </button>
-                <button type="button" className={styles.promptIconBtn} aria-label="Voice input">
-                  <Microphone size={18} weight="duotone" />
+                <button
+                  type="button"
+                  className={`${styles.promptIconBtn} ${homeStyles.voiceBtn}`}
+                  aria-label={voiceButtonLabel}
+                  title={voiceButtonLabel}
+                  aria-pressed={isVoiceActive}
+                  data-active={isVoiceActive ? "true" : undefined}
+                  data-status={voiceErrorMessage ? "error" : voiceStatus}
+                  onClick={handleVoiceToggle}
+                  disabled={voiceButtonDisabled}
+                >
+                  <span className={homeStyles.voicePulse} aria-hidden />
+                  {isVoiceActive ? (
+                    <MicrophoneSlash size={18} weight="fill" />
+                  ) : (
+                    <Microphone size={18} weight="duotone" />
+                  )}
                 </button>
               </div>
+
+              {voiceHint ? (
+                <div
+                  className={styles.voiceStatus}
+                  data-state={voiceHintState ?? undefined}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {voiceHint}
+                </div>
+              ) : null}
 
               <div className={styles.intentControlsAlt}>
                 <div className={styles.intentLeft}>
@@ -586,7 +781,7 @@ export function ComposerForm({
                   aria-label="Close preview"
                   onClick={closeViewer}
                 >
-                  ×
+                  Ã—
                 </button>
                 <div className={homeStyles.lightboxBody}>
                   <div className={homeStyles.lightboxMedia}>
@@ -655,3 +850,4 @@ export function ComposerForm({
     </div>
   );
 }
+

@@ -108,7 +108,10 @@
 }
 
 .canvasSurface {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+  background: var(
+    --composer-main-background,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0))
+  );
   border-radius: 24px;
   border: 1px solid color-mix(in srgb, var(--composer-outline) 30%, transparent);
   padding: clamp(20px, 3vw, 40px);
@@ -119,7 +122,11 @@
 }
 
 .canvasBlock {
-  background: rgba(14, 18, 23, 0.6);
+  background: color-mix(
+    in srgb,
+    var(--composer-ghost, rgba(255, 255, 255, 0.1)) 60%,
+    rgba(14, 18, 23, 0.68)
+  );
   border-radius: 18px;
   border: 1px solid transparent;
   padding: 18px;
@@ -131,7 +138,11 @@
 
 .canvasBlock[data-state="focus"] {
   border-color: var(--composer-outline);
-  background: color-mix(in srgb, var(--composer-ghost) 40%, rgba(14, 18, 23, 0.6));
+  background: color-mix(
+    in srgb,
+    var(--composer-accent-soft, rgba(99, 102, 241, 0.2)) 60%,
+    rgba(14, 18, 23, 0.55)
+  );
 }
 
 .canvasBlockHeader {
@@ -147,7 +158,7 @@
 }
 
 .canvasSlotCard {
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid color-mix(in srgb, var(--composer-outline) 30%, transparent);
   border-radius: 12px;
   padding: 12px;
   font-size: 14px;
@@ -156,12 +167,17 @@
   flex-direction: column;
   gap: 6px;
   cursor: pointer;
+  background: color-mix(in srgb, var(--composer-ghost, rgba(255, 255, 255, 0.08)) 55%, transparent);
   transition: border 140ms ease, background 140ms ease;
 }
 
 .canvasSlotCard[data-state="focus"] {
   border-color: var(--composer-outline);
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(
+    in srgb,
+    var(--composer-accent-soft, rgba(99, 102, 241, 0.24)) 60%,
+    rgba(255, 255, 255, 0.08)
+  );
 }
 
 .canvasSlotStatus {
@@ -177,7 +193,7 @@
   padding: 12px;
   border: 1px dashed color-mix(in srgb, var(--composer-outline) 45%, transparent);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--composer-ghost, rgba(255, 255, 255, 0.08)) 50%, transparent);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -205,7 +221,7 @@
   font-size: 13px;
   font-weight: 600;
   background: var(--composer-accent, var(--color-brand, #6366f1));
-  color: #05070a;
+  color: var(--text-on-brand, #05070a);
   border: none;
   cursor: pointer;
   transition: transform 140ms ease, box-shadow 140ms ease;
@@ -214,7 +230,7 @@
 .primaryButton:hover,
 .primaryButton:focus-visible {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(140, 158, 255, 0.25);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 35%, transparent);
 }
 
 .secondaryButton {
@@ -225,17 +241,17 @@
   border-radius: 999px;
   padding: 8px 14px;
   font-size: 13px;
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--composer-ghost, rgba(255, 255, 255, 0.1)) 55%, transparent);
   color: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid color-mix(in srgb, var(--composer-outline) 26%, transparent);
   cursor: pointer;
   transition: background 140ms ease, border 140ms ease;
 }
 
 .secondaryButton:hover,
 .secondaryButton:focus-visible {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.26);
+  background: color-mix(in srgb, var(--composer-accent-soft, rgba(99, 102, 241, 0.22)) 60%, transparent);
+  border-color: color-mix(in srgb, var(--composer-outline) 36%, transparent);
 }
 
 .chatActionRow {
@@ -246,12 +262,13 @@
 }
 
 .proposalCard {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid color-mix(in srgb, var(--composer-outline) 28%, transparent);
   border-radius: 12px;
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  background: color-mix(in srgb, var(--composer-ghost, rgba(255, 255, 255, 0.08)) 50%, transparent);
 }
 
 .proposalActions {
@@ -261,7 +278,7 @@
 }
 
 .chatColumn {
-  background: rgba(14, 18, 23, 0.72);
+  background: color-mix(in srgb, var(--composer-footer-background, rgba(14, 18, 23, 0.72)) 90%, transparent);
   border-radius: 24px;
   border: 1px solid color-mix(in srgb, var(--composer-outline) 32%, transparent);
   display: flex;
@@ -316,7 +333,7 @@
   bottom: 16px;
   left: 50%;
   transform: translate(-50%, 0);
-  background: rgba(13, 19, 27, 0.9);
+  background: color-mix(in srgb, var(--composer-footer-background, rgba(13, 19, 27, 0.9)) 88%, transparent);
   border: 1px solid color-mix(in srgb, var(--composer-outline) 36%, transparent);
   border-radius: 12px;
   padding: 8px 14px;
@@ -339,8 +356,8 @@
 }
 
 .suggestionChip {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--composer-ghost, rgba(255, 255, 255, 0.08)) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--composer-outline) 28%, transparent);
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 12px;
@@ -350,8 +367,8 @@
 
 .suggestionChip:hover,
 .suggestionChip:focus-visible {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.24);
+  background: color-mix(in srgb, var(--composer-accent-soft, rgba(99, 102, 241, 0.24)) 62%, transparent);
+  border-color: color-mix(in srgb, var(--composer-outline) 38%, transparent);
 }
 
 @media (max-width: 1439px) {
