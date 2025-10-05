@@ -504,7 +504,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function AiComposerRoot() {
-  const { state, close, handlePrompterAction } = useComposer();
+  const { state, close, handlePrompterAction, updateDraft, post, forceChoice } = useComposer();
 
   const handleSend = React.useCallback(
     async (value: string) => {
@@ -520,13 +520,26 @@ export function AiComposerRoot() {
     [handlePrompterAction],
   );
 
+  const forceHandlers = forceChoice
+    ? {
+        onForceChoice: (key: string) => {
+          void forceChoice(key);
+        },
+      }
+    : {};
+
   return (
     <AiComposerDrawer
       open={state.open}
+      loading={state.loading}
       draft={state.draft}
       prompt={state.prompt}
+      message={state.message}
+      choices={state.choices}
+      onChange={updateDraft}
       onClose={close}
-      onSendMessage={handleSend}
+      onPost={post}
+      {...forceHandlers}
     />
   );
 }
