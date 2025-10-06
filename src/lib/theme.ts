@@ -727,18 +727,20 @@ function hueToRgb(p: number, q: number, t: number): number {
 function buildAmbientGradient(base: RGBA, accent: RGBA): string {
   const baseOpaque = { ...base, a: 1 };
   const accentOpaque = { ...accent, a: 1 };
+  // Build a symmetric cool glow using accent mixed into the base
   const glow = mixColors(accentOpaque, baseOpaque, 0.35);
-  const highlight = mixColors(accentOpaque, baseOpaque, 0.2);
-  const top = lighten(baseOpaque, 0.26);
-  const mid = mixColors(accentOpaque, lighten(baseOpaque, 0.12), 0.35);
+  const edge = lighten(baseOpaque, 0.22);
   const bottom = darken(baseOpaque, 0.38);
   const deep = darken(baseOpaque, 0.55);
 
   return [
-    'radial-gradient(1200px 720px at 0% 0%, ' + toRgbaString(glow, 0.22) + ', transparent 60%)',
-    'radial-gradient(1020px 680px at 100% 0%, ' + toRgbaString(highlight, 0.18) + ', transparent 62%)',
-    'linear-gradient(120deg, ' + toRgbaString(top, 0.95) + ' 0%, ' + toRgbaString(mid, 0.88) + ' 45%, ' + toHex(bottom) + ' 100%)',
-    'radial-gradient(880px 560px at 50% 108%, ' + toRgbaString(highlight, 0.16) + ', transparent 74%)',
+    // Equal glows in both top corners
+    'radial-gradient(1200px 720px at 0% 0%, ' + toRgbaString(glow, 0.18) + ', transparent 60%)',
+    'radial-gradient(1200px 720px at 100% 0%, ' + toRgbaString(glow, 0.18) + ', transparent 60%)',
+    // Symmetric edge tint left/right, clear through center
+    'linear-gradient(90deg, ' + toRgbaString(edge, 0.08) + ' 0%, ' + toRgbaString(edge, 0.04) + ' 18%, rgba(5, 10, 27, 0) 42%, rgba(5, 10, 27, 0) 58%, ' + toRgbaString(edge, 0.04) + ' 82%, ' + toRgbaString(edge, 0.08) + ' 100%)',
+    // Gentle bottom-center lift
+    'radial-gradient(880px 560px at 50% 108%, ' + toRgbaString(glow, 0.12) + ', transparent 74%)',
     toHex(deep),
   ].join(', ');
 }

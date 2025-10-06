@@ -60,18 +60,21 @@
     --layout-dock-sheet-padding: var(--space-sm);
     --surface-app: var(
       --app-bg,
-      radial-gradient(1200px 720px at 0% 0%, rgba(59, 130, 246, 0.16), transparent 60%),
-      radial-gradient(1020px 680px at 100% 0%, rgba(14, 165, 233, 0.14), transparent 62%),
+      /* Symmetric cool glows on both top corners */
+      radial-gradient(1200px 720px at 0% 0%, rgba(72, 118, 246, 0.14), transparent 60%),
+      radial-gradient(1200px 720px at 100% 0%, rgba(72, 118, 246, 0.14), transparent 60%),
+      /* Subtle symmetric edge tint, clear through the center */
       linear-gradient(
         90deg,
-        rgba(59, 130, 246, 0.10) 0%,
-        rgba(59, 130, 246, 0.05) 20%,
+        rgba(72, 118, 246, 0.08) 0%,
+        rgba(72, 118, 246, 0.04) 18%,
         rgba(5, 10, 27, 0) 42%,
         rgba(5, 10, 27, 0) 58%,
-        rgba(14, 165, 233, 0.05) 80%,
-        rgba(14, 165, 233, 0.10) 100%
+        rgba(72, 118, 246, 0.04) 82%,
+        rgba(72, 118, 246, 0.08) 100%
       ),
-      radial-gradient(880px 560px at 50% 108%, rgba(56, 189, 248, 0.10), transparent 74%),
+      /* Gentle bottom-center lift */
+      radial-gradient(880px 560px at 50% 108%, rgba(72, 118, 246, 0.08), transparent 74%),
       #050a1b
     );
     --surface-muted: rgba(17, 22, 45, 0.8);
