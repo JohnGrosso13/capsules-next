@@ -31,6 +31,15 @@
   gap: var(--layout-page-gap);
 }
 
+.pageCapsule {
+  /* Capsule page should be full-width for an immersive stream layout */
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .header {
   margin-bottom: var(--space-sm);
 }
@@ -163,11 +172,63 @@
   grid-column: 3;
 }
 
+.layoutCapsule {
+  /* Full-width three-column layout: rails at edges, center fills remaining space */
+  --capsule-rail-width: clamp(260px, 22vw, 360px);
+  --capsule-gap: clamp(20px, 2.5vw, 40px);
+  grid-template-columns: minmax(260px, var(--capsule-rail-width)) minmax(0, 1fr) minmax(260px, var(--capsule-rail-width));
+  column-gap: var(--capsule-gap);
+  justify-content: stretch;
+}
+
+.contentCapsule {
+  max-width: none;
+  width: 100%;
+  justify-self: stretch;
+  grid-column: 2;
+}
+
+.leftRailCapsule {
+  max-width: var(--capsule-rail-width, 340px);
+  width: min(100%, var(--capsule-rail-width, 340px));
+  grid-column: 1;
+}
+
+.rightRailCapsule {
+  max-width: var(--capsule-rail-width, 340px);
+  width: min(100%, var(--capsule-rail-width, 340px));
+  grid-column: 3;
+}
+
+.capsuleBanner {
+  /* Big banner embedded in center column beneath header */
+  width: 100%;
+  margin: 0 0 var(--layout-page-gap);
+  border: 1px solid var(--card-border);
+  background:
+    radial-gradient(1200px 300px at 20% -30%, rgba(255,255,255,0.08), transparent 60%),
+    radial-gradient(1200px 300px at 80% -30%, rgba(255,255,255,0.08), transparent 60%),
+    linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.06)), var(--glass-bg-2, rgba(255,255,255,0.03)));
+  border-radius: var(--radius-2xl, 20px);
+  padding: clamp(16px, 2.4vw, 28px);
+  min-height: clamp(160px, 24vh, 280px);
+  box-shadow: var(--card-shadow);
+}
+
 @media (max-width: 1000px) {
   .layout {
     grid-template-columns: 1fr;
   }
   .layoutHome {
+    justify-content: stretch;
+    column-gap: var(--layout-column-gap);
+    grid-template-columns: 1fr;
+  }
+  .pageCapsule {
+    padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
+    padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
+  }
+  .layoutCapsule {
     justify-content: stretch;
     column-gap: var(--layout-column-gap);
     grid-template-columns: 1fr;
@@ -178,9 +239,20 @@
     /* Reset explicit placement when single-column */
     grid-column: auto;
   }
+  .contentCapsule,
+  .leftRailCapsule,
+  .rightRailCapsule {
+    grid-column: auto;
+  }
   .contentHome,
   .leftRailHome,
   .rightRailHome {
+    max-width: none;
+    width: 100%;
+  }
+  .contentCapsule,
+  .leftRailCapsule,
+  .rightRailCapsule {
     max-width: none;
     width: 100%;
   }

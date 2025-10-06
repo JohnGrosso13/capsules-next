@@ -9,13 +9,15 @@ export type AppPageProps = {
   activeNav?: "home" | "create" | "capsule" | "memory";
   showPrompter?: boolean;
   promoSlot?: React.ReactNode;
+  capsuleBanner?: React.ReactNode;
 };
 
-export function AppPage({ children, activeNav, showPrompter = true, promoSlot }: AppPageProps) {
+export function AppPage({ children, activeNav, showPrompter = true, promoSlot, capsuleBanner }: AppPageProps) {
   return (
     <AppShell
       showPrompter={showPrompter}
       promoSlot={promoSlot}
+      capsuleBanner={capsuleBanner}
       {...(activeNav ? { activeNav } : {})}
     >
       {children}

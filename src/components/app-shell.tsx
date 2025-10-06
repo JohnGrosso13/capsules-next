@@ -8,6 +8,7 @@ import { useComposer } from "@/components/composer/ComposerProvider";
 import { PrimaryHeader } from "@/components/primary-header";
 import { ConnectionsRail } from "@/components/rail/ConnectionsRail";
 import { DiscoveryRail } from "@/components/rail/DiscoveryRail";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 
 import styles from "./app-shell.module.css";
 
@@ -18,9 +19,10 @@ type AppShellProps = {
   activeNav?: NavKey;
   showPrompter?: boolean;
   promoSlot?: React.ReactNode;
+  capsuleBanner?: React.ReactNode;
 };
 
-export function AppShell({ children, activeNav, showPrompter = true, promoSlot }: AppShellProps) {
+export function AppShell({ children, activeNav, showPrompter = true, promoSlot, capsuleBanner }: AppShellProps) {
   const pathname = usePathname();
   const composer = useComposer();
 
@@ -34,6 +36,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
   }, [activeNav, pathname]);
 
   const isHome = derivedActive === "home";
+  const isCapsule = derivedActive === "capsule";
   const layoutClassName = isHome ? `${styles.layout} ${styles.layoutHome}` : styles.layout;
   const contentClassName = isHome ? `${styles.content} ${styles.contentHome}` : styles.content;
   const leftRailClassName = isHome ? `${styles.rail} ${styles.leftRail} ${styles.leftRailHome}` : `${styles.rail} ${styles.leftRail}`;
@@ -49,7 +52,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
   return (
     <div className={styles.outer}>
       <PrimaryHeader activeKey={derivedActive} />
-      <div className={styles.page}>
+      <div className={isCapsule ? `${styles.page} ${styles.pageCapsule}` : styles.page}>
         <main className={styles.main}>
           {showPrompter ? (
             <div className={styles.prompterStage}>
@@ -60,8 +63,24 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
             </div>
           ) : null}
 
-          <div className={layoutClassName}>
-            {isHome ? (
+          {isCapsule ? (
+            <>
+              <div className={`${styles.layout} ${styles.layoutCapsule}`}>
+                <aside className={`${styles.rail} ${styles.leftRail} ${styles.leftRailCapsule}`}>
+                  <ConnectionsRail />
+                </aside>
+                <section className={`${styles.content} ${styles.contentCapsule}`}>
+                  {capsuleBanner ? <div className={styles.capsuleBanner}>{capsuleBanner}</div> : null}
+                  {children}
+                </section>
+                <aside className={`${styles.rail} ${styles.rightRail} ${styles.rightRailCapsule}`}>
+                  <ChatPanel variant="rail" emptyNotice={<p>Live chat will appear here.</p>} />
+                </aside>
+              </div>
+            </>
+          ) : (
+            <div className={layoutClassName}>
+              {isHome ? (
               <>
                 {/* Left rail: move connections (friends/chats/requests) here */}
                 <aside className={leftRailClassName}>
@@ -87,7 +106,8 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
                 </aside>
               </>
             )}
-          </div>
+            </div>
+          )}
         </main>
       </div>
       {/* Composer is mounted globally via AiComposerRoot */}

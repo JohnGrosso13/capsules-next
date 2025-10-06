@@ -11,3 +11,67 @@
   --card-radius: 16px;
 }
 
+/* Banner + Tiles (hosting tabs inside a large customizable banner) */
+.banner {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto;
+}
+.tabList {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(12px, 2vw, 20px);
+}
+.tab {
+  appearance: none;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-2xl, 20px);
+  padding: clamp(16px, 2.2vw, 24px);
+  background:
+    radial-gradient(600px 200px at 20% -10%, rgba(255,255,255,0.06), transparent 60%),
+    radial-gradient(600px 200px at 80% -10%, rgba(255,255,255,0.06), transparent 60%),
+    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  color: var(--text-2);
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--card-shadow);
+}
+.tab:hover { color: var(--text); }
+.tabActive {
+  color: var(--text);
+  outline: 0;
+  box-shadow: 0 0 0 2px var(--pill-border) inset, var(--card-shadow);
+}
+
+/* Center content */
+.liveWrap {
+  display: grid;
+  gap: var(--layout-page-gap);
+}
+.liveCanvas {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-2xl, 20px);
+  border: 1px solid var(--card-border);
+  background:
+    radial-gradient(1200px 400px at 20% -10%, rgba(255,255,255,0.06), transparent 60%),
+    radial-gradient(1200px 400px at 80% -10%, rgba(255,255,255,0.06), transparent 60%),
+    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow);
+}
+.prompterBelow { width: 100%; }
+
+.placeholderCard {
+  padding: 24px;
+  border-radius: var(--radius-2xl, 20px);
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow);
+}
+.placeholderTitle {
+  font-size: 1.25rem;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+.placeholderText { color: var(--text-2); }
