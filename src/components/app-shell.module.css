@@ -210,8 +210,8 @@
     radial-gradient(1200px 300px at 80% -30%, rgba(255,255,255,0.08), transparent 60%),
     linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.06)), var(--glass-bg-2, rgba(255,255,255,0.03)));
   border-radius: var(--radius-2xl, 20px);
-  padding: clamp(16px, 2.4vw, 28px);
-  min-height: clamp(160px, 24vh, 280px);
+  padding: clamp(12px, 1.6vw, 20px);
+  min-height: clamp(80px, 12vh, 160px);
   box-shadow: var(--card-shadow);
 }
 

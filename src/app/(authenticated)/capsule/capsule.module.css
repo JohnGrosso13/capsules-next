@@ -26,7 +26,7 @@
   appearance: none;
   border: 1px solid var(--card-border);
   border-radius: var(--radius-2xl, 20px);
-  padding: clamp(16px, 2.2vw, 24px);
+  padding: clamp(10px, 1.2vw, 16px);
   background:
     radial-gradient(600px 200px at 20% -10%, rgba(255,255,255,0.06), transparent 60%),
     radial-gradient(600px 200px at 80% -10%, rgba(255,255,255,0.06), transparent 60%),
@@ -61,6 +61,11 @@
   box-shadow: var(--card-shadow);
 }
 .prompterBelow { width: 100%; }
+
+/* Hide intent/tool chips under the prompter on Capsule live page only */
+.prompterBelow :global(.chips) {
+  display: none !important;
+}
 
 .placeholderCard {
   padding: 24px;

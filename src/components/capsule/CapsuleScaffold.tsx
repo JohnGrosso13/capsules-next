@@ -65,7 +65,7 @@ function LivePlaceholder() {
     <div className={capTheme.liveWrap}>
       <div className={capTheme.liveCanvas} aria-label="Live stream area" />
       <div className={capTheme.prompterBelow}>
-        <AiPrompterStage />
+        <AiPrompterStage chips={[]} />
       </div>
     </div>
   );
@@ -88,4 +88,3 @@ function StorePlaceholder() {
     </div>
   );
 }
-
