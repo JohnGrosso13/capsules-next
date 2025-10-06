@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
@@ -7,6 +7,7 @@ import { AiPrompterStage } from "@/components/ai-prompter-stage";
 import { useComposer } from "@/components/composer/ComposerProvider";
 import { PrimaryHeader } from "@/components/primary-header";
 import { ConnectionsRail } from "@/components/rail/ConnectionsRail";
+import { DiscoveryRail } from "@/components/rail/DiscoveryRail";
 
 import styles from "./app-shell.module.css";
 
@@ -32,6 +33,12 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
     return "home";
   }, [activeNav, pathname]);
 
+  const isHome = derivedActive === "home";
+  const layoutClassName = isHome ? `${styles.layout} ${styles.layoutHome}` : styles.layout;
+  const contentClassName = isHome ? `${styles.content} ${styles.contentHome}` : styles.content;
+  const leftRailClassName = isHome ? `${styles.rail} ${styles.leftRail} ${styles.leftRailHome}` : `${styles.rail} ${styles.leftRail}`;
+  const rightRailClassName = isHome ? `${styles.rail} ${styles.rightRail} ${styles.rightRailHome}` : `${styles.rail} ${styles.rightRail}`;
+
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
   React.useEffect(() => {
     if (!statusMessage) return;
@@ -53,14 +60,33 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot }
             </div>
           ) : null}
 
-          <div className={styles.layout}>
-            <section className={styles.content}>
-              {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
-              {children}
-            </section>
-            <aside className={styles.rail}>
-              <ConnectionsRail />
-            </aside>
+          <div className={layoutClassName}>
+            {isHome ? (
+              <>
+                {/* Left rail: move connections (friends/chats/requests) here */}
+                <aside className={leftRailClassName}>
+                  <ConnectionsRail />
+                </aside>
+                <section className={contentClassName}>
+                  {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
+                  {children}
+                </section>
+                {/* Right rail: placeholder recommendations + live-feed-like UI */}
+                <aside className={rightRailClassName}>
+                  <DiscoveryRail />
+                </aside>
+              </>
+            ) : (
+              <>
+                <section className={contentClassName}>
+                  {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
+                  {children}
+                </section>
+                <aside className={styles.rail}>
+                  <ConnectionsRail />
+                </aside>
+              </>
+            )}
           </div>
         </main>
       </div>

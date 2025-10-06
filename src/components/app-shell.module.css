@@ -23,8 +23,8 @@
 }
 
 .page {
-  /* Match Home page container width */
-  width: min(1200px, calc(100% - var(--layout-page-width-offset)));
+  /* Expanded container to allow a left balancing spacer so the FEED centers perfectly */
+  width: min(1600px, calc(100% - var(--layout-page-width-offset)));
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -123,9 +123,66 @@
   gap: var(--layout-column-gap);
   align-items: start;
 }
+
+.layoutHome {
+  /* Slightly wider feed for a more immersive feel */
+  --home-feed-width: clamp(640px, 52vw, 760px);
+  --home-rail-width: clamp(260px, 22vw, 320px);
+  /* Tighter gap between feed and rail, similar to X/Facebook */
+  --home-gap: clamp(20px, 2.5vw, 40px);
+  /* Three tracks: left spacer (rail-sized), centered feed, right rail */
+  grid-template-columns: minmax(0, var(--home-rail-width)) minmax(0, var(--home-feed-width)) minmax(0, var(--home-rail-width));
+  column-gap: var(--home-gap);
+  justify-content: center;
+}
+
+.contentHome {
+  max-width: var(--home-feed-width, 680px);
+  width: min(100%, var(--home-feed-width, 680px));
+  justify-self: center;
+  /* Place feed in the center column */
+  grid-column: 2;
+}
+
+.leftRail {
+  position: sticky;
+  top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
+}
+.rightRail {
+  position: sticky;
+  top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
+}
+.leftRailHome {
+  max-width: var(--home-rail-width, 320px);
+  width: min(100%, var(--home-rail-width, 320px));
+  grid-column: 1;
+}
+.rightRailHome {
+  max-width: var(--home-rail-width, 320px);
+  width: min(100%, var(--home-rail-width, 320px));
+  grid-column: 3;
+}
+
 @media (max-width: 1000px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+  .layoutHome {
+    justify-content: stretch;
+    column-gap: var(--layout-column-gap);
+    grid-template-columns: 1fr;
+  }
+  .contentHome,
+  .leftRailHome,
+  .rightRailHome {
+    /* Reset explicit placement when single-column */
+    grid-column: auto;
+  }
+  .contentHome,
+  .leftRailHome,
+  .rightRailHome {
+    max-width: none;
+    width: 100%;
   }
 }
 
