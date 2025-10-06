@@ -52,6 +52,8 @@
 .liveCanvas {
   width: 100%;
   aspect-ratio: 16 / 9;
+  /* Cap the canvas height so the prompter remains visible */
+  height: clamp(260px, 42vh, 520px);
   border-radius: var(--radius-2xl, 20px);
   border: 1px solid var(--card-border);
   background:
