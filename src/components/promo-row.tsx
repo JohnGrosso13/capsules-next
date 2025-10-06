@@ -3,12 +3,13 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ImageSquare, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight, ImageSquare, Sparkle } from "@phosphor-icons/react/dist/ssr";
 
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { normalizePosts, resolvePostMediaUrl } from "@/hooks/useHomeFeed/utils";
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
+import homeStyles from "./home.module.css";
 import styles from "./promo-row.module.css";
 
 type Post = { id: string; mediaUrl?: string | null; content?: string | null };
@@ -46,10 +47,57 @@ type TileContext = {
   capsules: Capsule[];
 };
 
+type PromoLightboxMediaItem = {
+  id: string;
+  mediaSrc: string | null;
+  caption: string | null;
+  fallbackIndex: number;
+};
+
+const MEDIA_FALLBACK_ICONS = [ImageSquare, Sparkle];
+
+function truncateText(value: string, maxLength = 96): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
+}
+
+function getTileLabel(tile: TileConfig, context: TileContext): string {
+  switch (tile.kind) {
+    case "media": {
+      const post = context.media[tile.postIndex] ?? null;
+      const content = typeof post?.content === "string" ? post.content.trim() : "";
+      if (content) {
+        return `Open promo media: ${truncateText(content, 80)}`;
+      }
+      return `Open promo media ${tile.postIndex + 1}`;
+    }
+    case "friend": {
+      const names = context.friends
+        .slice(0, 3)
+        .map((friend) => friend.name)
+        .filter(Boolean);
+      if (names.length) {
+        return `View featured friends: ${truncateText(names.join(", "), 80)}`;
+      }
+      return "View featured friends";
+    }
+    case "capsule": {
+      const capsule = context.capsules[tile.capsuleIndex] ?? null;
+      if (capsule?.name) {
+        return `Explore capsule ${truncateText(capsule.name, 60)}`;
+      }
+      return "Explore featured capsule";
+    }
+    default:
+      return "Open promo tile";
+  }
+}
+
 export function PromoRow() {
   const [mediaPosts, setMediaPosts] = React.useState<Post[]>([]);
   const [friends, setFriends] = React.useState<Friend[]>([]);
   const [capsules] = React.useState<Capsule[]>(fallbackCapsules);
+  const [activeLightboxIndex, setActiveLightboxIndex] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -122,27 +170,213 @@ export function PromoRow() {
     return next;
   }, [mediaPosts]);
 
-  const tileLayout: TileConfig[] = [
-    { id: "promo-1", kind: "media", postIndex: 0 },
-    { id: "promo-2", kind: "media", postIndex: 1 },
-    { id: "promo-3", kind: "media", postIndex: 2 },
-    { id: "promo-4", kind: "media", postIndex: 3 },
-  ];
+  const tileLayout = React.useMemo<TileConfig[]>(
+    () => [
+      { id: "promo-1", kind: "media", postIndex: 0 },
+      { id: "promo-2", kind: "media", postIndex: 1 },
+      { id: "promo-3", kind: "media", postIndex: 2 },
+      { id: "promo-4", kind: "media", postIndex: 3 },
+    ],
+    [],
+  );
 
-  const context: TileContext = {
-    media: resolvedMedia,
-    friends: friends.length ? friends : fallbackFriends,
-    capsules: capsules.length ? capsules : fallbackCapsules,
-  };
+  const context = React.useMemo<TileContext>(
+    () => ({
+      media: resolvedMedia,
+      friends: friends.length ? friends : fallbackFriends,
+      capsules: capsules.length ? capsules : fallbackCapsules,
+    }),
+    [resolvedMedia, friends, capsules],
+  );
+
+  const tileRecords = React.useMemo(
+    () =>
+      tileLayout.map((tile) => ({
+        tile,
+        label: getTileLabel(tile, context),
+      })),
+    [tileLayout, context],
+  );
+
+  const lightboxItems = React.useMemo<PromoLightboxMediaItem[]>(
+    () =>
+      tileLayout
+        .map((tile) => {
+          if (tile.kind !== "media") return null;
+          const post = context.media[tile.postIndex] ?? null;
+          const rawMediaSrc = normalizeMediaUrl(post?.mediaUrl);
+          const mediaSrc = resolveToAbsoluteUrl(rawMediaSrc);
+          const content = typeof post?.content === "string" ? post.content.trim() : "";
+          return {
+            id: tile.id,
+            mediaSrc,
+            caption: content ? truncateText(content, 140) : null,
+            fallbackIndex: tile.postIndex,
+          };
+        })
+        .filter((item): item is PromoLightboxMediaItem => item !== null),
+    [context.media, tileLayout],
+  );
+
+  const openLightbox = React.useCallback(
+    (tileId: string) => {
+      const index = lightboxItems.findIndex((item) => item.id === tileId);
+      if (index >= 0) {
+        setActiveLightboxIndex(index);
+      }
+    },
+    [lightboxItems],
+  );
+
+  const closeLightbox = React.useCallback(() => {
+    setActiveLightboxIndex(null);
+  }, []);
+
+  const tileCount = lightboxItems.length;
+
+  const navigateLightbox = React.useCallback(
+    (direction: number) => {
+      if (tileCount === 0) return;
+      setActiveLightboxIndex((previous) => {
+        if (previous === null) return previous;
+        const nextIndex = (previous + direction + tileCount) % tileCount;
+        return nextIndex;
+      });
+    },
+    [tileCount],
+  );
+
+  React.useEffect(() => {
+    if (activeLightboxIndex === null) return;
+    if (activeLightboxIndex >= tileCount) {
+      setActiveLightboxIndex(tileCount ? Math.min(tileCount - 1, activeLightboxIndex) : null);
+    }
+  }, [activeLightboxIndex, tileCount]);
+
+  React.useEffect(() => {
+    if (activeLightboxIndex === null) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeLightbox();
+      } else if ((event.key === "ArrowRight" || event.key === "ArrowDown") && tileCount > 1) {
+        event.preventDefault();
+        navigateLightbox(1);
+      } else if ((event.key === "ArrowLeft" || event.key === "ArrowUp") && tileCount > 1) {
+        event.preventDefault();
+        navigateLightbox(-1);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeLightboxIndex, closeLightbox, navigateLightbox, tileCount]);
+
+  const currentItem =
+    activeLightboxIndex === null ? null : lightboxItems[activeLightboxIndex] ?? null;
+  const fallbackIconIndex = currentItem
+    ? currentItem.fallbackIndex % MEDIA_FALLBACK_ICONS.length
+    : 0;
+  const FallbackIcon = MEDIA_FALLBACK_ICONS[fallbackIconIndex] ?? ImageSquare;
 
   return (
-    <div className={styles.row}>
-      {tileLayout.map((tile) => (
-        <div key={tile.id} className={styles.tile} data-kind={tile.kind}>
-          {renderTile(tile, context)}
+    <>
+      <div className={styles.row}>
+        {tileRecords.map(({ tile, label }) => {
+          const isMedia = tile.kind === "media";
+          const interactiveProps: React.HTMLAttributes<HTMLDivElement> = isMedia
+            ? {
+                role: "button",
+                tabIndex: 0,
+                onClick: () => openLightbox(tile.id),
+                onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openLightbox(tile.id);
+                  }
+                },
+                "aria-label": label,
+              }
+            : {};
+          return (
+            <div
+              key={tile.id}
+              className={styles.tile}
+              data-kind={tile.kind}
+              data-interactive={isMedia ? "true" : undefined}
+              {...interactiveProps}
+            >
+              {renderTile(tile, context)}
+            </div>
+          );
+        })}
+      </div>
+      {currentItem ? (
+        <div
+          className={homeStyles.lightboxOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label={currentItem.caption ?? "Promo media viewer"}
+          onClick={closeLightbox}
+        >
+          <div className={homeStyles.lightboxContent} onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className={homeStyles.lightboxClose}
+              onClick={closeLightbox}
+              aria-label="Close promo media viewer"
+            >
+              {"\u00d7"}
+            </button>
+            {tileCount > 1 ? (
+              <>
+                <button
+                  type="button"
+                  className={`${homeStyles.lightboxNav} ${homeStyles.lightboxNavPrev}`.trim()}
+                  onClick={() => navigateLightbox(-1)}
+                  aria-label="Previous promo media"
+                >
+                  <CaretLeft size={28} weight="bold" />
+                </button>
+                <button
+                  type="button"
+                  className={`${homeStyles.lightboxNav} ${homeStyles.lightboxNavNext}`.trim()}
+                  onClick={() => navigateLightbox(1)}
+                  aria-label="Next promo media"
+                >
+                  <CaretRight size={28} weight="bold" />
+                </button>
+              </>
+            ) : null}
+            <div className={homeStyles.lightboxBody}>
+              <div className={homeStyles.lightboxMedia}>
+                {currentItem.mediaSrc ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- preserve lightbox loading behaviour */}
+                    <img
+                      className={homeStyles.lightboxImage}
+                      src={currentItem.mediaSrc}
+                      alt={currentItem.caption ?? "Promo media"}
+                      loading="eager"
+                      draggable={false}
+                    />
+                  </>
+                ) : (
+                  <div className={styles.lightboxFallback} aria-hidden="true">
+                    <FallbackIcon
+                      className={`${styles.fallbackIcon} ${styles.lightboxFallbackIcon}`}
+                      weight="duotone"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            {currentItem.caption ? (
+              <div className={homeStyles.lightboxCaption}>{currentItem.caption}</div>
+            ) : null}
+          </div>
         </div>
-      ))}
-    </div>
+      ) : null}
+    </>
   );
 }
 
@@ -160,8 +394,8 @@ function renderTile(tile: TileConfig, context: TileContext) {
 }
 
 function MediaTile({ post, index }: { post: Post | null; index: number }) {
-  const icons = [ImageSquare, Sparkle];
-  const Icon = icons[index % icons.length] ?? ImageSquare;
+  const Icon =
+    MEDIA_FALLBACK_ICONS[index % MEDIA_FALLBACK_ICONS.length] ?? ImageSquare;
   const rawMediaSrc = normalizeMediaUrl(post?.mediaUrl);
   const mediaSrc = resolveToAbsoluteUrl(rawMediaSrc);
   return (
