@@ -19,6 +19,28 @@
   box-shadow: none;
 }
 
+.placeholderHeader {
+  padding: 14px 18px;
+  font-weight: 800;
+  color: var(--text);
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+}
+
+.placeholderScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 22px;
+}
+
+.placeholderEmpty {
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  height: 100%;
+  text-align: center;
+}
+
 .chatEmpty {
   display: grid;
   place-items: center;

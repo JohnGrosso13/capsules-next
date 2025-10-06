@@ -198,20 +198,24 @@
   max-width: var(--capsule-rail-width, 340px);
   width: min(100%, var(--capsule-rail-width, 340px));
   grid-column: 3;
+  /* Stretch chat to viewport height under the header for immersive stream chat */
+  height: calc(100vh - (var(--header-height, var(--space-8xl)) + var(--layout-header-offset)));
+  display: flex;
 }
 
 .capsuleBanner {
   /* Big banner embedded in center column beneath header */
   width: 100%;
-  margin: 0 0 var(--layout-page-gap);
+  /* Dock into the header by tucking slightly upward */
+  margin: -8px 0 var(--layout-page-gap);
   border: 1px solid var(--card-border);
   background:
     radial-gradient(1200px 300px at 20% -30%, rgba(255,255,255,0.08), transparent 60%),
     radial-gradient(1200px 300px at 80% -30%, rgba(255,255,255,0.08), transparent 60%),
     linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.06)), var(--glass-bg-2, rgba(255,255,255,0.03)));
-  border-radius: var(--radius-2xl, 20px);
-  padding: clamp(12px, 1.6vw, 20px);
-  min-height: clamp(80px, 12vh, 160px);
+  border-radius: 0 0 var(--radius-2xl, 20px) var(--radius-2xl, 20px);
+  padding: clamp(10px, 1.2vw, 16px);
+  min-height: clamp(60px, 9vh, 120px);
   box-shadow: var(--card-shadow);
 }
 
