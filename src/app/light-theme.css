@@ -37,10 +37,11 @@
     --chip-hover-bg-2: var(--pill-bg-2, rgba(255, 255, 255, 0.86));
     --chip-hover-border: var(--card-hover-border, rgba(14, 23, 42, 0.2));
     --chip-hover-shadow: var(--card-hover-shadow, 0 18px 36px rgba(15, 23, 42, 0.18));
-    --chip-active-bg-1: color-mix(in srgb, var(--color-brand) 16%, rgba(255, 255, 255, 0.96));
-    --chip-active-bg-2: color-mix(in srgb, var(--color-accent) 12%, rgba(255, 255, 255, 0.94));
-    --chip-active-border: color-mix(in srgb, var(--color-brand) 46%, transparent);
-    --chip-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 14px 28px color-mix(in srgb, var(--color-brand) 18%, rgba(15, 23, 42, 0.18));
+    /* Neutral active state for light chips */
+    --chip-active-bg-1: rgba(255, 255, 255, 0.98);
+    --chip-active-bg-2: rgba(245, 247, 255, 0.94);
+    --chip-active-border: rgba(14, 23, 42, 0.22);
+    --chip-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 12px 24px rgba(15, 23, 42, 0.16);
 
     /* Cards (posts, tiles) - soft, low-contrast layers */
     --card-bg-1: rgba(255, 255, 255, 0.96);
@@ -73,19 +74,19 @@
     --rail-border: rgba(14, 23, 42, 0.12);
 
     --text-3: var(--color-fg-subtle, rgba(14, 16, 36, 0.6));
-    --accent-glow: rgba(79, 70, 229, 0.22);
-    --alert-bg: color-mix(in srgb, var(--color-brand) 8%, rgba(255, 255, 255, 0.94));
-    --alert-border: color-mix(in srgb, var(--color-brand) 22%, rgba(14, 23, 42, 0.16));
-    --alert-fg: var(--color-brand-strong);
-    --alert-accent: var(--color-brand);
+    --accent-glow: rgba(15, 23, 42, 0.14);
+    --alert-bg: rgba(14, 23, 42, 0.04);
+    --alert-border: rgba(14, 23, 42, 0.18);
+    --alert-fg: rgba(14, 16, 36, 0.96);
+    --alert-accent: rgba(14, 16, 36, 0.96);
     --brand-gradient: var(--gradient-brand);
     --cta-button-gradient: var(--cta-chip-gradient, var(--cta-gradient));
     --cta-chip-gradient: var(--cta-gradient);
     --cta-chip-text: var(--cta-button-text, #0e1024);
-    --cta-chip-border: color-mix(in srgb, var(--color-brand) 38%, rgba(14, 23, 42, 0.18));
-    --cta-chip-shadow: 0 18px 32px rgba(37, 99, 235, 0.22);
-    --cta-chip-border-hover: color-mix(in srgb, var(--color-brand) 48%, rgba(14, 23, 42, 0.2));
-    --cta-chip-shadow-hover: 0 24px 44px rgba(37, 99, 235, 0.28);
+    --cta-chip-border: rgba(14, 23, 42, 0.16);
+    --cta-chip-shadow: 0 12px 22px rgba(15, 23, 42, 0.12);
+    --cta-chip-border-hover: rgba(14, 23, 42, 0.22);
+    --cta-chip-shadow-hover: 0 18px 28px rgba(15, 23, 42, 0.16);
     --cta-radius: var(--radius-pill, 999px);
     --card-radius: var(--radius-lg, 1rem);
     --prompt-glow-blur: 18px;
@@ -104,15 +105,15 @@
     --tile-text-final: var(--tile-text-base);
     --tile-desc-base: var(--text-2);
     --tile-desc-final: var(--tile-desc-base);
-    --tile-icon-bg-base: color-mix(in srgb, var(--color-brand) 22%, rgba(255, 255, 255, 0.92));
+    --tile-icon-bg-base: rgba(14, 23, 42, 0.06);
     --tile-icon-bg-final: var(--tile-icon-bg-base);
-    --tile-icon-color-base: var(--color-brand-strong);
+    --tile-icon-color-base: rgba(14, 16, 36, 0.82);
     --tile-icon-color-final: var(--tile-icon-color-base);
-    --tile-badge-bg-base: color-mix(in srgb, var(--color-brand) 40%, rgba(255, 255, 255, 0.85));
+    --tile-badge-bg-base: rgba(14, 16, 36, 0.9);
     --tile-badge-bg-final: var(--tile-badge-bg-base);
     --tile-badge-color-base: var(--text-on-brand, #0e1024);
     --tile-badge-color-final: var(--tile-badge-color-base);
-    --tile-accent-a: color-mix(in srgb, var(--color-brand) 42%, rgba(59, 130, 246, 0.28));
+    --tile-accent-a: rgba(14, 23, 42, 0.16);
     --style-friends-bg: var(--tile-bg-base);
     --style-friends-border: var(--tile-border-base);
     --style-friends-text: var(--tile-text-base);
@@ -148,7 +149,7 @@
     --style-requests-border-hover: var(--tile-border-hover-base);
 
     /* Home surface tokens */
-    --home-prompterdropoverlay-background: radial-gradient(120% 120% at 50% 50%, color-mix(in srgb, var(--color-brand) 18%, rgba(255, 255, 255, 0.82)), transparent 70%),
+    --home-prompterdropoverlay-background: radial-gradient(120% 120% at 50% 50%, rgba(0, 0, 0, 0.06), transparent 70%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 255, 0.9));
     --home-prompterdropoverlay-box-shadow: 0 24px 52px rgba(15, 23, 42, 0.18);
     --home-prompterdropcard-border: 1px solid color-mix(in srgb, var(--color-brand) 28%, rgba(14, 23, 42, 0.16));
@@ -173,30 +174,30 @@
     --home-intentchip-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86),
       inset 0 -1px 0 rgba(14, 23, 42, 0.12),
       10px 14px 24px rgba(15, 23, 42, 0.14);
-    --home-intentchipactive-background: linear-gradient(155deg, color-mix(in srgb, var(--color-brand) 48%, rgba(255, 255, 255, 0.85)), color-mix(in srgb, var(--color-info) 42%, rgba(255, 255, 255, 0.85)));
-    --home-intentchipactive-color: var(--text-on-brand, #0e1024);
+    --home-intentchipactive-background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 247, 255, 0.92));
+    --home-intentchipactive-color: rgba(14, 16, 36, 0.96);
     --home-intentchipactive-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9),
       inset 0 -1px 0 rgba(148, 163, 184, 0.28),
-      14px 22px 36px color-mix(in srgb, var(--color-brand) 22%, rgba(15, 23, 42, 0.18));
+      14px 22px 36px rgba(15, 23, 42, 0.16);
     --home-intentchipactive-box-shadow-2: inset 0 1px 0 rgba(255, 255, 255, 0.88),
       inset 0 -1px 0 rgba(148, 163, 184, 0.24),
-      0 16px 30px color-mix(in srgb, var(--color-brand) 18%, rgba(15, 23, 42, 0.18));
-    --home-skeletonbackdrop-background: radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--color-brand) 20%, rgba(255, 255, 255, 0.85)), transparent 70%),
+      0 16px 30px rgba(15, 23, 42, 0.16);
+    --home-skeletonbackdrop-background: radial-gradient(120% 120% at 50% 0%, rgba(0, 0, 0, 0.04), transparent 70%),
       linear-gradient(180deg, rgba(247, 249, 255, 0.96), rgba(229, 237, 255, 0.82));
     --home-skeletoniconbtn-background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(226, 232, 255, 0.68));
     --home-skeletoniconbtn--after-background: linear-gradient(90deg, transparent, rgba(148, 197, 255, 0.45), transparent);
     --home-cardrefreshing--after-background: linear-gradient(180deg, rgba(241, 244, 255, 0.94), rgba(223, 232, 255, 0.82));
     --home-card--before-background: radial-gradient(120% 90% at 50% -10%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 68%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
-    --home-cardhead-background: linear-gradient(180deg, rgba(247, 249, 255, 0.9), rgba(229, 237, 255, 0.78));
+    --home-cardhead-background: linear-gradient(180deg, rgba(247, 249, 255, 0.96), rgba(230, 235, 245, 0.84));
     --home-cardhead-border-bottom-color: rgba(148, 163, 184, 0.26);
-    --home-lightboxoverlay-background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--color-brand) 18%, rgba(255, 255, 255, 0.9)), transparent 70%), rgba(15, 23, 42, 0.68);
+    --home-lightboxoverlay-background: radial-gradient(circle at 50% 20%, rgba(0, 0, 0, 0.06), transparent 70%), rgba(15, 23, 42, 0.68);
     --home-lightboxclose-background: color-mix(in srgb, rgba(255, 255, 255, 0.96) 80%, rgba(148, 197, 255, 0.3));
     --home-lightboxclose-color: var(--text-on-brand, #0e1024);
-    --home-lightboxclose-focus-visible-background: color-mix(in srgb, var(--color-brand) 50%, rgba(255, 255, 255, 0.45));
+    --home-lightboxclose-focus-visible-background: rgba(14, 23, 42, 0.12);
     --home-lightboxnav-background: color-mix(in srgb, rgba(15, 23, 42, 0.65) 40%, rgba(255, 255, 255, 0.75));
     --home-lightboxnav-color: var(--text-on-brand, #0e1024);
-    --home-lightboxnav-focus-visible-background: color-mix(in srgb, var(--color-brand) 42%, rgba(255, 255, 255, 0.5));
+    --home-lightboxnav-focus-visible-background: rgba(14, 23, 42, 0.12);
     --home-lightboxvideo-background: rgba(15, 23, 42, 0.92);
     --home-lightboxcaption-color: rgba(14, 23, 42, 0.82);
     --home-pill-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9),
@@ -445,13 +446,13 @@
     --create-rows-height: clamp(520px, calc(100dvh - 260px), 920px);
     /* Header acrylic tokens to blend with page background gently */
     /* Make header fully readable: nearly-opaque acrylic with soft brand tint */
-       --header-glass-top: rgba(26, 44, 92, 0.9);
-       --header-glass-bottom: rgba(40, 72, 140, 0.82);
-       --header-tint-from: rgba(56, 189, 248, 0.14);
-       --header-tint-to: rgba(37, 99, 235, 0.1);
-       --header-border-color: rgba(148, 197, 255, 0.32);
-       --header-shadow: 0 18px 42px rgba(15, 36, 86, 0.28);
-       --header-scrim: linear-gradient(180deg, rgba(17, 42, 96, 0.18), rgba(17, 42, 96, 0));
+       --header-glass-top: rgba(255, 255, 255, 0.96);
+       --header-glass-bottom: rgba(255, 255, 255, 0.9);
+       --header-tint-from: rgba(255, 255, 255, 0);
+       --header-tint-to: rgba(255, 255, 255, 0);
+       --header-border-color: rgba(14, 23, 42, 0.08);
+       --header-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+       --header-scrim: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0));
   }
 }
 
