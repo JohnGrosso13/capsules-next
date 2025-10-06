@@ -14,10 +14,12 @@
 /* Banner + Tiles (hosting tabs inside a large customizable banner) */
 .banner {
   position: relative;
-  display: grid;
-  grid-template-rows: auto;
+  display: block;
+  /* Visual styling comes from the outer capsuleBanner wrapper */
+  width: 100%;
+  height: 100%;
 }
-.tabList {
+.tabStrip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(12px, 2vw, 20px);
@@ -47,17 +49,21 @@
 /* Center content */
 .liveWrap {
   display: grid;
-  grid-template-rows: 1fr auto; /* Stream area grows, prompter sticks to bottom */
+  /* Row 1: tabs (top). Row 2: canvas grows. Row 3: prompter */
+  grid-template-rows: auto 1fr auto;
   height: 100%;
   gap: var(--layout-page-gap);
 }
 .liveCanvas {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  /* Cap the canvas height so the prompter remains visible */
-  height: clamp(260px, 42vh, 520px);
+  /* Fill the available space between tabs and prompter */
+  height: 100%;
+  min-height: max(260px, 54vh);
+  /* Allow grid area to shrink properly on smaller viewports */
+  min-block-size: 0;
   border-radius: var(--radius-2xl, 20px);
   border: 1px solid var(--card-border);
+  overflow: hidden;
   background:
     radial-gradient(1200px 400px at 20% -10%, rgba(255,255,255,0.06), transparent 60%),
     radial-gradient(1200px 400px at 80% -10%, rgba(255,255,255,0.06), transparent 60%),
@@ -84,3 +90,81 @@
   margin-bottom: 6px;
 }
 .placeholderText { color: var(--text-2); }
+
+/* Bottom banner (moved below the prompter) */
+.bannerBottom {
+  width: 100%;
+  border: 1px solid var(--card-border);
+  background:
+    radial-gradient(1200px 300px at 20% -30%, rgba(255,255,255,0.08), transparent 60%),
+    radial-gradient(1200px 300px at 80% -30%, rgba(255,255,255,0.08), transparent 60%),
+    linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.06)), var(--glass-bg-2, rgba(255,255,255,0.03)));
+  border-radius: var(--radius-2xl, 20px);
+  padding: clamp(10px, 1.2vw, 16px);
+  min-height: clamp(50px, 7vh, 100px);
+  box-shadow: var(--card-shadow);
+}
+
+/* Editable sections grid */
+.sectionsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 1100px) {
+  .sectionsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .sectionsGrid { grid-template-columns: 1fr; }
+}
+.sectionTile,
+.sectionAdd {
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-border);
+  background:
+    radial-gradient(600px 200px at 20% -10%, rgba(255,255,255,0.06), transparent 60%),
+    radial-gradient(600px 200px at 80% -10%, rgba(255,255,255,0.06), transparent 60%),
+    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow);
+}
+.sectionTile { padding: 16px; }
+.sectionAdd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 800;
+}
+.sectionAdd:hover { filter: brightness(1.05); }
+.sectionTileHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.sectionTileTitle { font-weight: 900; }
+.sectionTitleInput {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--pill-border);
+  background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
+  color: var(--text);
+  font-weight: 800;
+}
+.sectionTileActions { display: inline-flex; gap: 8px; }
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border);
+  background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
+  color: var(--text);
+}
+.iconBtn:hover { filter: brightness(1.06); }
+.sectionTileBody { color: var(--text-2); }

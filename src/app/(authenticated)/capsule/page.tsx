@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { AppPage } from "@/components/app-page";
-import { CapsuleBanner, CapsuleContent } from "@/components/capsule/CapsuleScaffold";
+import { CapsuleContent } from "@/components/capsule/CapsuleScaffold";
 
 import capTheme from "./capsule.module.css";
 
@@ -12,11 +12,7 @@ export const metadata: Metadata = {
 
 export default function CapsulePage() {
   return (
-    <AppPage
-      activeNav="capsule"
-      showPrompter={false}
-      capsuleBanner={<CapsuleBanner />}
-    >
+    <AppPage activeNav="capsule" showPrompter={false}>
       <div className={capTheme.theme}>
         <CapsuleContent />
       </div>

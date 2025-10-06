@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
+import { CreateTiles } from "@/components/create-tiles";
 
 export function CreateSignedIn() {
-  // Placeholder: create page relies on the global Composer overlay triggered elsewhere.
-  return <div />;
+  // Render the tile-based Create experience beneath the global prompter.
+  return <CreateTiles />;
 }
 

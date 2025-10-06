@@ -81,31 +81,32 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot, 
           ) : (
             <div className={layoutClassName}>
               {isHome ? (
-              <>
-                {/* Left rail: move connections (friends/chats/requests) here */}
-                <aside className={leftRailClassName}>
-                  <ConnectionsRail />
-                </aside>
-                <section className={contentClassName}>
-                  {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
-                  {children}
-                </section>
-                {/* Right rail: placeholder recommendations + live-feed-like UI */}
-                <aside className={rightRailClassName}>
-                  <DiscoveryRail />
-                </aside>
-              </>
-            ) : (
-              <>
-                <section className={contentClassName}>
-                  {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
-                  {children}
-                </section>
-                <aside className={styles.rail}>
-                  <ConnectionsRail />
-                </aside>
-              </>
-            )}
+                <>
+                  {/* Left rail: move connections (friends/chats/requests) here */}
+                  <aside className={leftRailClassName}>
+                    <ConnectionsRail />
+                  </aside>
+                  <section className={contentClassName}>
+                    {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
+                    {children}
+                  </section>
+                  {/* Right rail: placeholder recommendations + live-feed-like UI */}
+                  <aside className={rightRailClassName}>
+                    <DiscoveryRail />
+                  </aside>
+                </>
+              ) : (
+                <>
+                  {/* Non-home pages: place connections rail on the left to match app */}
+                  <aside className={`${styles.rail} ${styles.leftRail}`}>
+                    <ConnectionsRail />
+                  </aside>
+                  <section className={contentClassName}>
+                    {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
+                    {children}
+                  </section>
+                </>
+              )}
             </div>
           )}
         </main>
