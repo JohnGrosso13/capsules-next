@@ -3,10 +3,12 @@
 .header {
   /* Balanced gradient header that blends with app background */
   --header-height: var(--space-8xl);
-  --header-brand: var(--color-brand);
-  --header-brand-strong: var(--color-brand-strong);
+  /* Allow root/theme to override header hues without changing global brand */
+  --header-brand: var(--header-brand-color, var(--color-brand));
+  --header-brand-strong: var(--header-brand-strong-color, var(--color-brand-strong));
   --header-accent: var(--color-accent);
   --header-foreground-strong: var(--color-brand-foreground, #f8fafc);
+  --brand-gradient: var(--header-brand-gradient, var(--gradient-brand));
   --header-button-bg: linear-gradient(
     180deg,
     color-mix(in srgb, var(--surface-elevated) 92%, var(--header-brand) 8%),
