@@ -375,11 +375,8 @@
       radial-gradient(50% 45% at 70% 60%, rgba(210, 224, 255, 0.18), transparent 70%),
       radial-gradient(45% 55% at 50% 80%, rgba(210, 224, 255, 0.12), transparent 70%);
 
-    /* CTA override tokens */
-    --cta-gradient-launch-light:
-      linear-gradient(180deg, rgba(198, 180, 255, 0.98), rgba(182, 164, 252, 0.98)),
-      radial-gradient(130% 180% at 12% 50%, rgba(79, 70, 229, 0.85), rgba(79, 70, 229, 0) 62%),
-      radial-gradient(130% 180% at 88% 50%, rgba(34, 211, 238, 0.82), rgba(34, 211, 238, 0) 62%);
+    /* CTA override tokens: exact purple→cyan gradient for light mode */
+    --cta-gradient-launch-light: linear-gradient(120deg, #8b5cf6 0%, #22d3ee 100%);
     --cta-button-shadow: 0 16px 32px rgba(37, 99, 235, 0.24);
 
     /* Create page tokens */
@@ -460,7 +457,6 @@
         --header-brand-gradient: linear-gradient(120deg, #38bdf8 0%, #0ea5e9 55%, #22d3ee 100%);
   }
 }
-
 
 
 
