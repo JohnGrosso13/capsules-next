@@ -1,6 +1,7 @@
-import { ensureUserFromRequest } from "@/lib/auth/payload";
+﻿import { ensureUserFromRequest } from "@/lib/auth/payload";
 import type { IncomingUserPayload } from "@/lib/auth/payload";
 import { applyArtifactPatch, getArtifactWithAssets } from "@/server/artifacts/service";
+import type { NextRequest } from "next/server";
 import { ArtifactVersionConflictError } from "@/server/artifacts/service";
 import {
   artifactIdParamSchema,
@@ -13,21 +14,22 @@ import { parseJsonBody, returnError, validatedJson } from "@/server/validation/h
 export const runtime = "nodejs";
 
 type RouteContext = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-function parseParams(context: RouteContext): { id: string } | null {
-  const result = artifactIdParamSchema.safeParse(context.params);
+async function parseParams(context: RouteContext): Promise<{ id: string } | null> {
+  const params = await context.params;
+  const result = artifactIdParamSchema.safeParse(params);
   if (!result.success) {
     return null;
   }
   return result.data;
 }
 
-export async function GET(req: Request, context: RouteContext) {
-  const params = parseParams(context);
+export async function GET(req: NextRequest, context: RouteContext) {
+  const params = await parseParams(context);
   if (!params) {
     return returnError(400, "invalid_params", "Invalid artifact identifier");
   }
@@ -46,8 +48,8 @@ export async function GET(req: Request, context: RouteContext) {
   });
 }
 
-export async function PATCH(req: Request, context: RouteContext) {
-  const params = parseParams(context);
+export async function PATCH(req: NextRequest, context: RouteContext) {
+  const params = await parseParams(context);
   if (!params) {
     return returnError(400, "invalid_params", "Invalid artifact identifier");
   }
@@ -66,19 +68,20 @@ export async function PATCH(req: Request, context: RouteContext) {
     return returnError(404, "artifact_not_found", "Artifact not found");
   }
   try {
+    const assetInputs = parsed.data.assets?.map((asset) => ({
+      artifactId: params.id,
+      blockId: asset.blockId,
+      slotId: asset.slotId,
+      r2Bucket: asset.r2Bucket,
+      r2Key: asset.r2Key,
+      contentType: asset.contentType ?? null,
+      descriptor: asset.descriptor ?? null,
+    })) ?? null;
     const patched = await applyArtifactPatch(
       params.id,
       parsed.data.patch,
       {
-        assets: parsed.data.assets?.map((asset) => ({
-          artifactId: params.id,
-          blockId: asset.blockId,
-          slotId: asset.slotId,
-          r2Bucket: asset.r2Bucket,
-          r2Key: asset.r2Key,
-          contentType: asset.contentType ?? null,
-          descriptor: asset.descriptor ?? null,
-        })),
+        ...(assetInputs && assetInputs.length ? { assets: assetInputs } : {}),
         queueEmbedding: parsed.data.queueEmbedding ?? false,
         event: {
           eventType: "artifact.patch",
@@ -116,6 +119,9 @@ export async function PATCH(req: Request, context: RouteContext) {
     return returnError(500, "artifact_patch_failed", "Failed to update artifact");
   }
 }
+
+
+
 
 
 

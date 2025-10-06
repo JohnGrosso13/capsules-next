@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import { MagicWand, UploadSimple } from "@phosphor-icons/react/dist/ssr";
 
 import type {
@@ -181,10 +181,10 @@ export function ArtifactCanvas({
             renderBlock(block, {
               depth: 0,
               focus,
-              onSelectBlock,
-              onFocusSlot,
-              onRequestMediaUpload,
-              onRequestMediaGenerate,
+              ...(onSelectBlock ? { onSelectBlock } : {}),
+              ...(onFocusSlot ? { onFocusSlot } : {}),
+              ...(onRequestMediaUpload ? { onRequestMediaUpload } : {}),
+              ...(onRequestMediaGenerate ? { onRequestMediaGenerate } : {}),
             }),
           )
         ) : (
@@ -194,3 +194,4 @@ export function ArtifactCanvas({
     </section>
   );
 }
+

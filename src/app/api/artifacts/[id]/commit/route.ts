@@ -1,6 +1,7 @@
-import { ensureUserFromRequest } from "@/lib/auth/payload";
+﻿import { ensureUserFromRequest } from "@/lib/auth/payload";
 import type { IncomingUserPayload } from "@/lib/auth/payload";
 import { commitArtifact, getArtifactWithAssets } from "@/server/artifacts/service";
+import type { NextRequest } from "next/server";
 import { ArtifactVersionConflictError } from "@/server/artifacts/service";
 import {
   artifactIdParamSchema,
@@ -12,13 +13,14 @@ import { parseJsonBody, returnError, validatedJson } from "@/server/validation/h
 export const runtime = "nodejs";
 
 type RouteContext = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-export async function POST(req: Request, context: RouteContext) {
-  const paramsResult = artifactIdParamSchema.safeParse(context.params);
+export async function POST(req: NextRequest, context: RouteContext) {
+  const rawParams = await context.params;
+  const paramsResult = artifactIdParamSchema.safeParse(rawParams);
   if (!paramsResult.success) {
     return returnError(400, "invalid_params", "Invalid artifact identifier");
   }
@@ -66,4 +68,5 @@ export async function POST(req: Request, context: RouteContext) {
     return returnError(500, "artifact_commit_failed", "Failed to commit artifact");
   }
 }
+
 

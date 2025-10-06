@@ -141,6 +141,7 @@ function builtInPresets(): Preset[] {
     variants: buildPresetThemeVariants(config),
   }));
   return [
+    { id: "default", title: "Default", desc: "Capsules baseline palette.", variants: { light: {}, dark: {} } },
     { id: "dark", title: "Default (Dark)", desc: "Capsules dark baseline palette.", variants: { dark: {} }, theme: "dark" },
     { id: "light", title: "Default (Light)", desc: "Capsules light baseline palette.", variants: { light: {} }, theme: "light" },
     ...presetEntries,
@@ -150,17 +151,12 @@ function builtInPresets(): Preset[] {
 
 const PLACEHOLDER_THEMES: SavedStyle[] = [];
 
-function buildPreviewStyle(vars: ThemeVariants, mode: "light" | "dark"): React.CSSProperties {
-  const style: React.CSSProperties = {};
-  const variant = variantForMode(vars, mode);
-  Object.entries(variant).forEach(([key, value]) => {
-    (style as unknown as Record<string, string>)[key] = value;
-  });
-  return style;
-}
-
 function getEntryId(entry: ThemeEntry): string {
   return entry.kind === "preset" ? `preset:${entry.preset.id}` : `saved:${entry.saved.id}`;
+}
+
+function getEntryVariants(entry: ThemeEntry): ThemeVariants {
+  return entry.kind === "preset" ? entry.preset.variants : entry.saved.variants;
 }
 
 function useThemeStyles() {
@@ -221,7 +217,7 @@ function useThemeStyles() {
   React.useEffect(() => {
     const stored = getStoredThemeVars();
     if (isVariantEmpty(stored)) {
-      setActiveId(null);
+      setActiveId("preset:default");
       return;
     }
     const presetMatch = basePresets.find((preset) => variantsEqual(stored, preset.variants));
@@ -242,7 +238,7 @@ function useThemeStyles() {
       const id = getEntryId(entry);
       if (previewingId === id) return;
       setPreviewingId(id);
-      const variants = entry.kind === "preset" ? entry.preset.variants : entry.saved.variants;
+      const variants = getEntryVariants(entry);
       if (!isVariantEmpty(variants)) startPreviewThemeVars(variants);
     },
     [previewingId],
@@ -265,19 +261,16 @@ function useThemeStyles() {
       stopPreview();
       const id = getEntryId(entry);
       setActiveId(id);
-      if (entry.kind === "preset") {
-        if (entry.preset.theme) {
-          setTheme(entry.preset.theme);
-          setThemePreferenceState(entry.preset.theme);
-          setActiveMode(entry.preset.theme);
-        }
-        if (isVariantEmpty(entry.preset.variants)) {
-          clearThemeVars();
-        } else {
-          applyThemeVars(entry.preset.variants);
-        }
+      if (entry.kind === "preset" && entry.preset.theme) {
+        setTheme(entry.preset.theme);
+        setThemePreferenceState(entry.preset.theme);
+        setActiveMode(entry.preset.theme);
+      }
+      const variants = getEntryVariants(entry);
+      if (isVariantEmpty(variants)) {
+        clearThemeVars();
       } else {
-        applyThemeVars(entry.saved.variants);
+        applyThemeVars(variants);
       }
     },
     [stopPreview],
@@ -461,8 +454,9 @@ function ThemeEntryCard({
   isPreviewing = false,
 }: ThemeEntryCardProps) {
   const entryId = getEntryId(entry);
-  const variants = entry.kind === "preset" ? entry.preset.variants : entry.saved.variants;
-  const preview = React.useMemo(() => buildThemePreview(variantForMode(variants, activeMode)), [variants, activeMode]);
+  const variants = getEntryVariants(entry);
+  const variantStyle = React.useMemo(() => variantForMode(variants, activeMode), [variants, activeMode]);
+  const preview = React.useMemo(() => buildThemePreview(variantStyle), [variantStyle]);
   const groupBadges = preview.usages.slice(0, 3);
   const palette = preview.palette.slice(0, 4);
   const descriptionRaw = entry.kind === "preset" ? entry.preset.desc : entry.saved.description;
@@ -512,7 +506,7 @@ function ThemeEntryCard({
           {isActive ? <span className={styles.activeBadge}>Active</span> : null}
         </header>
 
-        <div className={styles.previewShell} style={buildPreviewStyle(variants, activeMode)} aria-hidden>
+        <div className={styles.previewShell} style={(variantStyle as React.CSSProperties)} aria-hidden>
           <div className={styles.swatchBg} />
           <div className={styles.swatchCard} />
         </div>
@@ -619,6 +613,7 @@ export function ThemeStylesGallery() {
   const {
     items,
     activeId,
+    activeMode,
     themePreference,
     previewingId,
     loading,

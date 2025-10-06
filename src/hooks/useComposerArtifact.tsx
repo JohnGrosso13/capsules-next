@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 
@@ -126,12 +126,13 @@ function composerReducer(state: ComposerArtifactState, action: ComposerReducerAc
 
       switch (event.type) {
         case "insert_block": {
-          if (state.artifact && state.artifact.id === event.payload.artifactId) {
+          const payload = event.payload as ComposerEventMap["insert_block"];
+          if (state.artifact && state.artifact.id === payload.artifactId) {
             const { blocks, inserted } = insertBlock(
               state.artifact.blocks,
-              event.payload.block,
-              event.payload.parentId ?? null,
-              event.payload.index,
+              payload.block,
+              payload.parentId ?? null,
+              payload.index,
             );
             if (inserted) {
               nextArtifact = {
@@ -139,19 +140,20 @@ function composerReducer(state: ComposerArtifactState, action: ComposerReducerAc
                 blocks,
                 updatedAt: new Date().toISOString(),
               };
-              nextSelectedBlock = event.payload.block.id;
+              nextSelectedBlock = payload.block.id;
               nextViewState = event.origin === "remote" ? "reviewing-action" : "drafting";
             }
           }
           break;
         }
         case "update_slot": {
-          if (state.artifact && state.artifact.id === event.payload.artifactId) {
+          const payload = event.payload as ComposerEventMap["update_slot"];
+          if (state.artifact && state.artifact.id === payload.artifactId) {
             const { blocks, updated } = updateSlot(
               state.artifact.blocks,
-              event.payload.blockId,
-              event.payload.slotId,
-              (slot) => applySlotPatch(event.payload, slot),
+              payload.blockId,
+              payload.slotId,
+              (slot) => applySlotPatch(payload, slot),
             );
             if (updated) {
               nextArtifact = {
@@ -159,8 +161,8 @@ function composerReducer(state: ComposerArtifactState, action: ComposerReducerAc
                 blocks,
                 updatedAt: new Date().toISOString(),
               };
-              nextFocusedSlot = { blockId: event.payload.blockId, slotId: event.payload.slotId };
-              if (event.payload.patch.status === "pending") {
+              nextFocusedSlot = { blockId: payload.blockId, slotId: payload.slotId };
+              if (payload.patch.status === "pending") {
                 nextViewState = "focusing-slot";
               } else if (event.origin === "remote") {
                 nextViewState = "reviewing-action";
@@ -170,11 +172,12 @@ function composerReducer(state: ComposerArtifactState, action: ComposerReducerAc
           break;
         }
         case "remove_block": {
-          if (state.artifact && state.artifact.id === event.payload.artifactId) {
+          const payload = event.payload as ComposerEventMap["remove_block"];
+          if (state.artifact && state.artifact.id === payload.artifactId) {
             const { blocks, removed } = removeBlock(
               state.artifact.blocks,
-              event.payload.blockId,
-              Boolean(event.payload.soft),
+              payload.blockId,
+              Boolean(payload.soft),
             );
             if (removed) {
               nextArtifact = {
@@ -182,13 +185,10 @@ function composerReducer(state: ComposerArtifactState, action: ComposerReducerAc
                 blocks,
                 updatedAt: new Date().toISOString(),
               };
-              if (nextSelectedBlock === event.payload.blockId) {
+              if (nextSelectedBlock === payload.blockId) {
                 nextSelectedBlock = null;
               }
-              if (
-                nextFocusedSlot &&
-                nextFocusedSlot.blockId === event.payload.blockId
-              ) {
+              if (nextFocusedSlot && nextFocusedSlot.blockId === payload.blockId) {
                 nextFocusedSlot = null;
               }
               nextViewState = "reviewing-action";
@@ -197,14 +197,15 @@ function composerReducer(state: ComposerArtifactState, action: ComposerReducerAc
           break;
         }
         case "preview_media": {
-          if (state.artifact && state.artifact.id === event.payload.artifactId) {
+          const payload = event.payload as ComposerEventMap["preview_media"];
+          if (state.artifact && state.artifact.id === payload.artifactId) {
             const { blocks, updated } = updateSlot(
               state.artifact.blocks,
-              event.payload.blockId,
-              event.payload.slotId,
+              payload.blockId,
+              payload.slotId,
               (slot) => {
                 const base = slot ?? {
-                  id: event.payload.slotId,
+                  id: payload.slotId,
                   kind: "media",
                   status: SLOT_STATUSES[0],
                 };
@@ -213,8 +214,8 @@ function composerReducer(state: ComposerArtifactState, action: ComposerReducerAc
                   status: "pending",
                   value: {
                     kind: "media",
-                    url: event.payload.previewUrl,
-                    descriptors: event.payload.descriptors ?? null,
+                    url: payload.previewUrl,
+                    descriptors: payload.descriptors ?? null,
                   },
                 };
               },
@@ -225,40 +226,42 @@ function composerReducer(state: ComposerArtifactState, action: ComposerReducerAc
                 blocks,
                 updatedAt: new Date().toISOString(),
               };
-              nextFocusedSlot = { blockId: event.payload.blockId, slotId: event.payload.slotId };
+              nextFocusedSlot = { blockId: payload.blockId, slotId: payload.slotId };
               nextViewState = "focusing-slot";
             }
           }
           break;
         }
         case "commit_artifact": {
-          if (state.artifact && state.artifact.id === event.payload.artifactId) {
+          const payload = event.payload as ComposerEventMap["commit_artifact"];
+          if (state.artifact && state.artifact.id === payload.artifactId) {
             nextArtifact = {
               ...state.artifact,
-              version: event.payload.version,
+              version: payload.version,
               committedAt: new Date().toISOString(),
             };
             nextViewState = "idle";
             nextFocusedSlot = null;
-            nextSelectedBlock = nextSelectedBlock;
           }
           break;
         }
         case "branch_artifact": {
-          if (state.artifact && state.artifact.id === event.payload.sourceArtifactId) {
+          const payload = event.payload as ComposerEventMap["branch_artifact"];
+          if (state.artifact && state.artifact.id === payload.sourceArtifactId) {
             nextViewState = "idle";
           }
           break;
         }
         case "status_update": {
+          const payload = event.payload as ComposerEventMap["status_update"];
           nextStatus = {
-            scope: event.payload.scope,
-            status: event.payload.status,
-            message: event.payload.message,
-            costCents: event.payload.costCents ?? null,
+            scope: payload.scope,
+            status: payload.status,
+            message: payload.message ?? null,
+            costCents: payload.costCents ?? null,
             timestamp: event.timestamp,
           };
-          if (event.payload.scope === "autosave" && event.payload.status === "success") {
+          if (payload.scope === "autosave" && payload.status === "success") {
             nextViewState = "idle";
           }
           break;
@@ -562,11 +565,17 @@ export function useComposerArtifact(options: UseComposerArtifactOptions): UseCom
   }, []);
 
   const markPendingPersisted = React.useCallback((timestamps?: number[]) => {
-    dispatch({ type: "mark_pending_persisted", timestamps });
+    dispatch({
+      type: "mark_pending_persisted",
+      ...(timestamps ? { timestamps } : {}),
+    });
   }, []);
 
   const clearPending = React.useCallback((timestamps?: number[]) => {
-    dispatch({ type: "clear_pending", timestamps });
+    dispatch({
+      type: "clear_pending",
+      ...(timestamps ? { timestamps } : {}),
+    });
   }, []);
 
   const hydrate = React.useCallback((artifact: Artifact) => {
@@ -597,3 +606,6 @@ export function ComposerArtifactProvider(
   const bus = React.useMemo(() => props.eventBus ?? createComposerEventBus(), [props.eventBus]);
   return <ComposerEventBusProvider bus={bus}>{props.children}</ComposerEventBusProvider>;
 }
+
+
+

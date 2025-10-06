@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import NextLink from "next/link";
 import {
@@ -46,7 +46,7 @@ const spinnerCircle = "h-4 w-4 animate-spin rounded-full border-2 border-border/
 type ButtonStyleOptions = {
   variant: ButtonVariant;
   size: ButtonSize;
-  className?: string;
+  className?: string | undefined;
 };
 
 function buttonClassName({ variant, size, className }: ButtonStyleOptions) {
@@ -121,7 +121,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       return (
         <Component
           ref={ref as Ref<HTMLButtonElement>}
-          className={buttonClassName({ variant, size, className })}
+          className={buttonClassName({ variant, size, ...(className ? { className } : {}) })}
           data-loading={showSpinner ? "true" : undefined}
           {...props}
         >
@@ -133,7 +133,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Component
         ref={ref}
-        className={buttonClassName({ variant, size, className })}
+        className={buttonClassName({ variant, size, ...(className ? { className } : {}) })}
         data-loading={showSpinner ? "true" : undefined}
         aria-busy={showSpinner || undefined}
         disabled={isDisabled || showSpinner}
@@ -157,7 +157,7 @@ export interface ButtonLinkProps extends Omit<NextLinkProps, "href"> {
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   loading?: boolean;
-  className?: string;
+  className?: string | undefined;
   children?: ReactNode;
 }
 
@@ -182,7 +182,7 @@ export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(
       <NextLink
         ref={ref}
         href={href}
-        className={buttonClassName({ variant, size, className })}
+        className={buttonClassName({ variant, size, ...(className ? { className } : {}) })}
         data-loading={showSpinner ? "true" : undefined}
         aria-busy={showSpinner || undefined}
         aria-disabled={showSpinner ? true : undefined}
@@ -199,3 +199,6 @@ export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(
 ButtonLink.displayName = "ButtonLink";
 
 export type { ButtonVariant, ButtonSize };
+
+
+

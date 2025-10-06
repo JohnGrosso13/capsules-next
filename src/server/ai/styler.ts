@@ -153,7 +153,7 @@ const STYLER_SYSTEM_PROMPT = [
   "You are Capsules AI Styler, responsible for translating natural language into theme updates.",
   "You will receive a JSON contract describing the user's prompt, current theme snapshot, surface guide,",
   "allowed CSS variables, and output schema. Read the contract carefully.",
-  "Respond with a JSON object that strictly follows the schema: { "summary": string, "description"?: string, "variants": { "light"?: Record<string,string>, "dark"?: Record<string,string> } }.",
+  'Respond with a JSON object that strictly follows the schema: { "summary": string, "description"?: string, "variants": { "light"?: Record<string,string>, "dark"?: Record<string,string> } }.',
   "Always include both light and dark variants unless the prompt restricts to one mode.",
   "Only include CSS custom properties from the provided allowlist.",
   "Values must be valid CSS colors, gradients, or shadows (no url(), no external references).",

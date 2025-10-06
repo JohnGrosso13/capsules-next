@@ -147,8 +147,8 @@ function buildModePlan(mode: "dark" | "light", prompt: string): StylerPlan {
     throw new Error(`Missing built-in ${mode} preset`);
   }
   const base = buildThemeVarsFromSeed(preset.seedHex, {
-    accentHex: preset.accentHex,
-    accentGlow: preset.glowAlpha,
+    ...(preset.accentHex ? { accentHex: preset.accentHex } : {}),
+    ...(preset.glowAlpha !== undefined ? { accentGlow: preset.glowAlpha } : {}),
     label: preset.label,
   });
   const variants = normalizeThemeVariantsInput({ light: base, dark: base });
@@ -346,17 +346,20 @@ export function buildThemeVarsFromSeed(
 
 function buildThemePresetVars(preset: ThemePreset): Record<string, string> {
   return buildThemeVarsFromSeed(preset.seedHex, {
-    accentHex: preset.accentHex,
-    accentGlow: preset.glowAlpha,
+    ...(preset.accentHex ? { accentHex: preset.accentHex } : {}),
+    ...(preset.glowAlpha !== undefined ? { accentGlow: preset.glowAlpha } : {}),
     label: preset.label,
   });
 }
 
 export function getDefaultStylerThemeVars(): Record<string, string> {
   const defaultPreset = THEME_PRESETS.find((preset) => preset.id === "dark") ?? THEME_PRESETS[0];
+  if (!defaultPreset) {
+    throw new Error("No theme presets configured");
+  }
   return buildThemeVarsFromSeed(defaultPreset.seedHex, {
-    accentHex: defaultPreset.accentHex,
-    accentGlow: defaultPreset.glowAlpha,
+    ...(defaultPreset.accentHex ? { accentHex: defaultPreset.accentHex } : {}),
+    ...(defaultPreset.glowAlpha !== undefined ? { accentGlow: defaultPreset.glowAlpha } : {}),
     label: defaultPreset.label,
   });
 }

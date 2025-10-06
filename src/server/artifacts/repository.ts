@@ -1,4 +1,4 @@
-import { getDatabaseAdminClient } from "@/config/database";
+﻿import { getDatabaseAdminClient } from "@/config/database";
 import { expectResult, maybeResult } from "@/lib/database/utils";
 import type {
   ArtifactAssetInput,
@@ -128,7 +128,7 @@ export async function insertArtifactRow(input: CreateArtifactInput): Promise<Art
   const result = await db
     .from("artifact_artifacts")
     .insert(payload, { returning: "representation" })
-    .select("*")
+    .select<ArtifactRow>("*")
     .single();
   const row = expectResult<ArtifactRow>(result, "insert artifact");
   return mapArtifactRow(row);
@@ -150,10 +150,10 @@ export async function updateArtifactRow(
 
   const result = await db
     .from("artifact_artifacts")
-    .update(updatePayload, { returning: "representation" })
+    .update(updatePayload)
     .eq("id", artifactId)
     .eq("version", patch.expectedVersion)
-    .select("*")
+    .select<ArtifactRow>("*")
     .maybeSingle();
 
   const row = maybeResult<ArtifactRow | null>(result, "update artifact");
@@ -169,10 +169,10 @@ export async function markArtifactCommitted(
   };
   const result = await db
     .from("artifact_artifacts")
-    .update(payload, { returning: "representation" })
+    .update(payload)
     .eq("id", artifactId)
     .eq("version", expectedVersion)
-    .select("*")
+    .select<ArtifactRow>("*")
     .maybeSingle();
   const row = maybeResult<ArtifactRow | null>(result, "mark artifact committed");
   return row ? mapArtifactRow(row) : null;
@@ -182,7 +182,7 @@ export async function markArtifactCommitted(
 export async function selectArtifactById(artifactId: string): Promise<ArtifactRecord | null> {
   const result = await db
     .from("artifact_artifacts")
-    .select("*")
+    .select<ArtifactRow>("*")
     .eq("id", artifactId)
     .maybeSingle();
   const row = maybeResult<ArtifactRow | null>(result, "select artifact by id");
@@ -192,10 +192,11 @@ export async function selectArtifactById(artifactId: string): Promise<ArtifactRe
 export async function selectArtifactsByOwner(ownerUserId: string): Promise<ArtifactRecord[]> {
   const result = await db
     .from("artifact_artifacts")
-    .select("*")
+    .select<ArtifactRow>("*")
     .eq("owner_user_id", ownerUserId)
     .order("updated_at", { ascending: false })
-    .limit(200);
+    .limit(200)
+    .fetch();
   const rows = expectResult<ArtifactRow[]>(result, "select artifacts by owner");
   return rows.map(mapArtifactRow);
 }
@@ -214,7 +215,8 @@ export async function upsertArtifactAssets(assets: ArtifactAssetInput[]): Promis
   const result = await db
     .from("artifact_assets")
     .upsert(payload, { onConflict: "artifact_id,block_id,slot_id", returning: "representation" })
-    .select("*");
+    .select<ArtifactAssetRow>("*")
+    .fetch();
   const rows = expectResult<ArtifactAssetRow[]>(result, "upsert artifact assets");
   return rows.map(mapArtifactAssetRow);
 }
@@ -222,9 +224,10 @@ export async function upsertArtifactAssets(assets: ArtifactAssetInput[]): Promis
 export async function selectArtifactAssets(artifactId: string): Promise<ArtifactAssetRecord[]> {
   const result = await db
     .from("artifact_assets")
-    .select("*")
+    .select<ArtifactAssetRow>("*")
     .eq("artifact_id", artifactId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .fetch();
   const rows = expectResult<ArtifactAssetRow[]>(result, "select artifact assets");
   return rows.map(mapArtifactAssetRow);
 }
@@ -241,7 +244,7 @@ export async function insertArtifactEvent(
   const result = await db
     .from("artifact_events")
     .insert(payload, { returning: "representation" })
-    .select("*")
+    .select<ArtifactEventRow>("*")
     .single();
   const row = expectResult<ArtifactEventRow>(result, "insert artifact event");
   return mapArtifactEventRow(row);
@@ -253,4 +256,7 @@ export async function selectArtifactWithAssets(artifactId: string): Promise<Arti
   const assets = await selectArtifactAssets(artifactId);
   return { ...artifact, assets };
 }
+
+
+
 

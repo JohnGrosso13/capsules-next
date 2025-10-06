@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 import {
   ARTIFACT_STATUSES,
@@ -40,7 +40,7 @@ export const mediaSlotValueSchema: z.ZodType<MediaSlotValue> = z.object({
   thumbUrl: z.string().nullable().optional(),
   posterUrl: z.string().nullable().optional(),
   altText: z.string().nullable().optional(),
-  descriptors: z.record(z.unknown()).nullable().optional(),
+  descriptors: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 export const pollSlotValueSchema: z.ZodType<PollSlotValue> = z.object({
@@ -53,20 +53,20 @@ export const pollSlotValueSchema: z.ZodType<PollSlotValue> = z.object({
       value: z.string().nullable().optional(),
     }),
   ),
-  settings: z.record(z.unknown()).nullable().optional(),
+  settings: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 export const dataSlotValueSchema: z.ZodType<DataSlotValue> = z.object({
   kind: z.literal("data"),
-  schema: z.record(z.unknown()),
-  values: z.record(z.unknown()).nullable().optional(),
+  schema: z.record(z.string(), z.unknown()),
+  values: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 export const actionSlotValueSchema: z.ZodType<ActionSlotValue> = z.object({
   kind: z.literal("action"),
   label: z.string(),
   url: z.string().nullable().optional(),
-  meta: z.record(z.unknown()).nullable().optional(),
+  meta: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 export const collectionSlotValueSchema: z.ZodType<CollectionSlotValue> = z.lazy(() =>
@@ -128,7 +128,7 @@ export const blockStateSchema: z.ZodType<BlockState> = z.object({
 export const blockAnnotationSchema: z.ZodType<BlockAnnotation> = z.object({
   label: z.string(),
   kind: z.enum(["diff", "comment", "branch", "rollback"]),
-  payload: z.record(z.unknown()).optional(),
+  payload: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const artifactBlockSchema: z.ZodType<ArtifactBlock> = z.lazy(() =>
@@ -137,7 +137,7 @@ export const artifactBlockSchema: z.ZodType<ArtifactBlock> = z.lazy(() =>
     type: blockTypeSchema,
     label: z.string().optional(),
     state: blockStateSchema,
-    slots: z.record(artifactSlotSchema),
+    slots: z.record(z.string(), artifactSlotSchema),
     children: z.array(artifactBlockSchema).optional(),
     annotations: z.array(blockAnnotationSchema).optional(),
   }),
@@ -159,7 +159,7 @@ export const artifactSchema: z.ZodType<Artifact> = z.object({
   title: z.string(),
   description: z.string().nullable().optional(),
   version: z.number().int().nonnegative(),
-  metadata: z.record(z.unknown()),
+  metadata: z.record(z.string(), z.unknown()),
   blocks: z.array(artifactBlockSchema),
   context: artifactContextSchema.optional(),
   createdAt: z.string(),
@@ -168,3 +168,4 @@ export const artifactSchema: z.ZodType<Artifact> = z.object({
 });
 
 export type ArtifactSchemaType = z.infer<typeof artifactSchema>;
+

@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   Artifact,
   ArtifactBlock,
   ArtifactStatus,
@@ -9,21 +9,21 @@ export type CreateArtifactInput = {
   ownerUserId: string;
   artifactType: ArtifactType;
   title: string;
-  description?: string | null;
-  metadata?: Record<string, unknown> | null;
-  context?: Artifact["context"];
-  blocks?: ArtifactBlock[];
-  templateId?: string | null;
+  description?: string | null | undefined;
+  metadata?: Record<string, unknown> | null | undefined;
+  context?: Artifact["context"] | undefined;
+  blocks?: ArtifactBlock[] | undefined;
+  templateId?: string | null | undefined;
 };
 
 export type ArtifactPatchInput = {
   expectedVersion: number;
-  title?: string;
-  description?: string | null;
-  status?: ArtifactStatus;
-  metadata?: Record<string, unknown> | null;
-  blocks?: ArtifactBlock[];
-  context?: Artifact["context"];
+  title?: string | undefined;
+  description?: string | null | undefined;
+  status?: ArtifactStatus | undefined;
+  metadata?: Record<string, unknown> | null | undefined;
+  blocks?: ArtifactBlock[] | undefined;
+  context?: Artifact["context"] | undefined;
 };
 
 export type ArtifactRecord = Artifact;
@@ -34,8 +34,8 @@ export type ArtifactAssetInput = {
   slotId: string;
   r2Bucket: string;
   r2Key: string;
-  contentType?: string | null;
-  descriptor?: Record<string, unknown> | null;
+  contentType?: string | null | undefined;
+  descriptor?: Record<string, unknown> | null | undefined;
 };
 
 export type ArtifactAssetRecord = ArtifactAssetInput & {
@@ -58,3 +58,4 @@ export type ArtifactEventRecord = ArtifactEventInput & {
 export type ArtifactWithAssets = ArtifactRecord & {
   assets: ArtifactAssetRecord[];
 };
+

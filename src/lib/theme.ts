@@ -1,141 +1,316 @@
 "use client";
 
-import { normalizeThemeVars } from "./theme/shared";
+import {
+  ThemeVariants,
+  ThemeMode,
+  THEME_MODES,
+  normalizeThemeVariantsInput,
+  canonicalizeThemeVariantsInput,
+  dropEmptyVariants,
+  expandThemeVariants,
+  collectVariantKeys,
+} from "./theme/variants";
+import type { ThemeVariantsInput } from "./theme/variants";
 
-export type Theme = "light" | "dark";
+export type ThemePreference = "light" | "dark" | "system";
 
-function readStoredThemeVars(): Record<string, string> {
+export type Theme = ThemeMode;
+
+type ThemeVarsInput = ThemeVariantsInput;
+
+const THEME_PREF_STORAGE_KEY = "theme";
+const THEME_VARS_STORAGE_KEY = "themeVars";
+const MODE_CHANGE_EVENT = "capsules:theme-mode-change";
+
+let systemMediaQuery: MediaQueryList | null = null;
+let clockTimeout: number | null = null;
+
+function emitModeChange(mode: ThemeMode) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(MODE_CHANGE_EVENT, { detail: { mode } }));
+}
+
+function readStoredThemePreference(): ThemePreference {
   try {
-    const raw = localStorage.getItem("themeVars");
+    const raw = localStorage.getItem(THEME_PREF_STORAGE_KEY);
+    if (raw === "light" || raw === "dark" || raw === "system") return raw;
+  } catch {}
+  return "system";
+}
+
+function writeThemePreference(pref: ThemePreference) {
+  try {
+    localStorage.setItem(THEME_PREF_STORAGE_KEY, pref);
+  } catch {}
+}
+
+function readStoredThemeVariants(): ThemeVariants {
+  try {
+    const raw = localStorage.getItem(THEME_VARS_STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    const normalized = normalizeThemeVars(parsed);
-    return stabilizeThemeVars(normalized);
+    return normalizeThemeVariantsInput(parsed);
   } catch {
     return {};
   }
 }
 
-export function getTheme(): Theme {
+function writeThemeVariants(variants: ThemeVariants) {
   try {
-    const saved = localStorage.getItem("theme");
-    if (saved === "light" || saved === "dark") return saved;
-  } catch {}
-  return typeof window !== "undefined" &&
-    window.matchMedia &&
-    window.matchMedia("(prefers-color-scheme: light)").matches
-    ? "light"
-    : "dark";
-}
-
-export function setTheme(theme: Theme) {
-  try {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem("theme", theme);
-  } catch {}
-}
-
-export function getStoredThemeVars(): Record<string, string> {
-  return { ...readStoredThemeVars() };
-}
-
-/** Apply a set of CSS custom properties and persist them for future visits. */
-export function applyThemeVars(vars: Record<string, string>) {
-  try {
-    const sanitized = normalizeThemeVars(vars);
-    const prepared = stabilizeThemeVars(sanitized);
-    if (!Object.keys(prepared).length) return;
-    const root = document.documentElement;
-    Object.entries(prepared).forEach(([key, value]: [string, string]) => root.style.setProperty(key, value));
-    const stored = { ...readStoredThemeVars(), ...prepared };
-    if (Object.keys(stored).length) {
-      localStorage.setItem("themeVars", JSON.stringify(stored));
+    const compact = dropEmptyVariants(expandThemeVariants(variants));
+    if (Object.keys(compact).length) {
+      localStorage.setItem(THEME_VARS_STORAGE_KEY, JSON.stringify(compact));
     } else {
-      localStorage.removeItem("themeVars");
+      localStorage.removeItem(THEME_VARS_STORAGE_KEY);
     }
   } catch {}
 }
 
-/** Remove previously applied CSS custom properties. */
-export function clearThemeVars(keys?: string[]) {
+function cloneThemeVariants(variants: ThemeVariants): ThemeVariants {
+  const clone: ThemeVariants = {};
+  for (const mode of THEME_MODES) {
+    const map = variants[mode];
+    if (map) clone[mode] = { ...map };
+  }
+  return clone;
+}
+
+function resolveSystemMode(): ThemeMode {
+  if (typeof window === "undefined") return "dark";
   try {
-    const root = document.documentElement;
-    if (Array.isArray(keys) && keys.length) {
-      const stored = readStoredThemeVars();
-      keys.forEach((rawKey) => {
-        if (typeof rawKey !== "string") return;
-        const key = rawKey.trim();
-        if (!key.startsWith("--")) return;
-        root.style.removeProperty(key);
-        delete stored[key];
-      });
-      if (Object.keys(stored).length) {
-        localStorage.setItem("themeVars", JSON.stringify(stored));
-      } else {
-        localStorage.removeItem("themeVars");
-      }
-      return;
+    if (window.matchMedia) {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
+      if (prefersDark.matches) return "dark";
+      const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
+      if (prefersLight.matches) return "light";
     }
-    const stored = readStoredThemeVars();
-    Object.keys(stored).forEach((key) => root.style.removeProperty(key));
-    localStorage.removeItem("themeVars");
   } catch {}
+  const hours = new Date().getHours();
+  return hours >= 6 && hours < 18 ? "light" : "dark";
 }
 
-// -- Preview support -------------------------------------------------------
+function applyVariantToDocument(
+  mode: ThemeMode,
+  variants: Record<ThemeMode, Record<string, string>>,
+  keysToClear?: Iterable<string>,
+) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  const keys = keysToClear ? Array.from(new Set(keysToClear)) : collectVariantKeys(variants);
+  keys.forEach((key) => {
+    root.style.removeProperty(key);
+  });
+  const current = variants[mode] ?? {};
+  Object.entries(current).forEach(([key, value]) => {
+    root.style.setProperty(key, value);
+  });
+  root.dataset.theme = mode;
+  emitModeChange(mode);
+}
+
+
+function applyStoredTheme() {
+  if (typeof document === "undefined") return;
+  const variants = expandThemeVariants(readStoredThemeVariants());
+  const preference = readStoredThemePreference();
+  const mode = preference === "system" ? resolveSystemMode() : preference;
+  const root = document.documentElement;
+  root.dataset.themePreference = preference;
+  applyVariantToDocument(mode, variants);
+}
+
+function cleanupSystemListeners() {
+  if (systemMediaQuery) {
+    try {
+      systemMediaQuery.removeEventListener("change", handleSystemModeChange);
+    } catch {}
+    systemMediaQuery = null;
+  }
+  if (clockTimeout !== null && typeof window !== "undefined") {
+    window.clearTimeout(clockTimeout);
+    clockTimeout = null;
+  }
+}
+
+function handleSystemModeChange() {
+  if (readStoredThemePreference() === "system") {
+    applyStoredTheme();
+  }
+}
+
+function ensureSystemListeners() {
+  if (typeof window === "undefined") return;
+  if (!systemMediaQuery && window.matchMedia) {
+    try {
+      systemMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      systemMediaQuery.addEventListener("change", handleSystemModeChange);
+    } catch {
+      systemMediaQuery = null;
+    }
+  }
+  scheduleClockTick();
+}
+
+function scheduleClockTick() {
+  if (typeof window === "undefined") return;
+  if (clockTimeout !== null) {
+    window.clearTimeout(clockTimeout);
+    clockTimeout = null;
+  }
+  clockTimeout = window.setTimeout(() => {
+    if (readStoredThemePreference() === "system") {
+      applyStoredTheme();
+      scheduleClockTick();
+    }
+  }, 30 * 60 * 1000);
+}
+
+function canonicalizeInput(vars: ThemeVarsInput): Record<ThemeMode, Record<string, string>> {
+  const canonical = canonicalizeThemeVariantsInput(vars);
+  const stabilized: Record<ThemeMode, Record<string, string>> = { light: {}, dark: {} };
+  for (const mode of THEME_MODES) {
+    const variant = canonical[mode];
+    stabilized[mode] = variant ? stabilizeThemeVars(variant) : {};
+  }
+  return stabilized;
+}
+
+function getActiveMode(): ThemeMode {
+  const preference = readStoredThemePreference();
+  return preference === "system" ? resolveSystemMode() : preference;
+}
 
 type PreviewState = {
-  applied: Record<string, string>;
+  keys: string[];
   previous: Record<string, string | null>;
 };
 
 let currentPreview: PreviewState | null = null;
 
-/**
- * Temporarily apply theme variables to the document root without persisting them.
- * Call endPreviewThemeVars() to restore previous inline values.
- */
-export function startPreviewThemeVars(vars: Record<string, string>) {
-  try {
-    const sanitized = normalizeThemeVars(vars);
-    const prepared = stabilizeThemeVars(sanitized);
-    if (!Object.keys(prepared).length) return;
-    // If a preview is already active, end it before starting a new one
-    if (currentPreview) endPreviewThemeVars();
+export function getThemePreference(): ThemePreference {
+  return readStoredThemePreference();
+}
 
+export function getTheme(): ThemeMode {
+  return getActiveMode();
+}
+
+export function setTheme(theme: ThemePreference) {
+  try {
+    writeThemePreference(theme);
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.themePreference = theme;
+    }
+    if (theme === "system") {
+      ensureSystemListeners();
+    } else {
+      cleanupSystemListeners();
+    }
+    applyStoredTheme();
+  } catch {}
+}
+
+export function getStoredThemeVars(): ThemeVariants {
+  return cloneThemeVariants(readStoredThemeVariants());
+}
+
+/** Apply a set of CSS custom properties and persist them for future visits. */
+export function applyThemeVars(vars: ThemeVarsInput) {
+  try {
+    const canonical = canonicalizeInput(vars);
+    const previous = expandThemeVariants(readStoredThemeVariants());
+    const preference = readStoredThemePreference();
+    const mode = preference === "system" ? resolveSystemMode() : preference;
+    const keysToClear = new Set<string>(
+      [...collectVariantKeys(previous), ...collectVariantKeys(canonical)],
+    );
+    applyVariantToDocument(mode, canonical, keysToClear);
+    writeThemeVariants(dropEmptyVariants(canonical));
+  } catch {}
+}
+
+
+/** Remove previously applied CSS custom properties. */
+export function clearThemeVars(keys?: string[]) {
+  try {
+    const stored = readStoredThemeVariants();
+    if (Array.isArray(keys) && keys.length) {
+      const normalizedKeys = keys
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter((value) => value.startsWith("--"));
+      if (!normalizedKeys.length) return;
+      const variants = expandThemeVariants(stored);
+      let mutated = false;
+      for (const mode of THEME_MODES) {
+        const map = variants[mode];
+        const next = { ...map };
+        normalizedKeys.forEach((key) => {
+          if (key in next) {
+            delete next[key];
+            mutated = true;
+          }
+        });
+        variants[mode] = next;
+      }
+      if (!mutated) return;
+      writeThemeVariants(dropEmptyVariants(variants));
+      if (typeof document !== "undefined") {
+        const root = document.documentElement;
+        normalizedKeys.forEach((key) => root.style.removeProperty(key));
+      }
+      applyStoredTheme();
+      return;
+    }
+    if (typeof document !== "undefined") {
+      const root = document.documentElement;
+      collectVariantKeys(stored).forEach((key) => root.style.removeProperty(key));
+    }
+    writeThemeVariants({});
+    applyStoredTheme();
+  } catch {}
+}
+
+// -- Preview support -------------------------------------------------------
+
+
+export function startPreviewThemeVars(vars: ThemeVarsInput) {
+  try {
+    const canonical = canonicalizeInput(vars);
+    const mode = getActiveMode();
+    const variant = canonical[mode];
+    if (!variant || !Object.keys(variant).length) return;
+    if (currentPreview) endPreviewThemeVars();
+    if (typeof document === "undefined") return;
     const root = document.documentElement;
     const previous: Record<string, string | null> = {};
-
-    Object.entries(prepared).forEach(([key, value]: [string, string]) => {
-      try {
-        previous[key] = root.style.getPropertyValue(key) || null;
+    const keys = Object.keys(variant);
+    keys.forEach((key) => {
+      previous[key] = root.style.getPropertyValue(key) || null;
+      const value = variant[key];
+      if (typeof value === "string") {
         root.style.setProperty(key, value);
-      } catch {}
+      }
     });
-
     (root.dataset as Record<string, string>).previewTheme = "1";
-    currentPreview = { applied: prepared, previous };
+    currentPreview = { keys, previous };
   } catch {}
 }
 
 /** Restore the inline CSS variables present before the preview began. */
 export function endPreviewThemeVars() {
   try {
-    if (!currentPreview) return;
-    const { applied, previous } = currentPreview;
+    if (!currentPreview || typeof document === "undefined") return;
+    const { keys, previous } = currentPreview;
     const root = document.documentElement;
-
-    Object.keys(applied).forEach((key) => {
-      try {
-        const prior = previous[key];
-        if (prior && prior.length) {
-          root.style.setProperty(key, prior);
-        } else {
-          root.style.removeProperty(key);
-        }
-      } catch {}
+    keys.forEach((key) => {
+      const prior = previous[key];
+      if (typeof prior === "string" && prior.length) {
+        root.style.setProperty(key, prior);
+      } else {
+        root.style.removeProperty(key);
+      }
     });
-
     delete (root.dataset as Record<string, string | undefined>).previewTheme;
   } finally {
     currentPreview = null;
@@ -147,8 +322,13 @@ export function isPreviewingTheme(): boolean {
   return currentPreview !== null;
 }
 
-
-
+if (typeof document !== "undefined") {
+  document.documentElement.dataset.themePreference = readStoredThemePreference();
+  if (readStoredThemePreference() === "system") {
+    ensureSystemListeners();
+  }
+  applyStoredTheme();
+}
 function stabilizeThemeVars(vars: Record<string, string>): Record<string, string> {
   const withBackground = ensureAppBackground(vars);
   const withBrand = ensureBrandIdentity(withBackground);
@@ -729,6 +909,10 @@ const DEFAULT_ACCENT = parseHexColor('#6366f1') ?? { r: 99, g: 102, b: 241, a: 1
 const FALLBACK_ERROR_COLOR = parseHexColor('#ef4444') ?? { r: 239, g: 68, b: 68, a: 1 } as RGBA;
 const FALLBACK_WARNING_COLOR = parseHexColor('#f59e0b') ?? { r: 245, g: 158, b: 11, a: 1 } as RGBA;
 const FALLBACK_SUCCESS_COLOR = parseHexColor('#22c55e') ?? { r: 34, g: 197, b: 94, a: 1 } as RGBA;
+
+
+
+
 
 
 

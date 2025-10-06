@@ -3,6 +3,7 @@ import { groupUsageFromVars, summarizeGroupLabels } from "@/lib/theme/token-grou
 import {
   normalizeThemeVariantsInput,
   isVariantEmpty,
+  THEME_MODES,
   type ThemeVariants,
 } from "@/lib/theme/variants";
 import { resolveStylerPlan } from "@/server/ai/styler";
@@ -25,11 +26,11 @@ const responseSchema = z.object({
 
 function limitThemeVariants(variants: ThemeVariants, limit: number): ThemeVariants {
   const output: ThemeVariants = {};
-  ["light", "dark"].forEach((mode) => {
+  for (const mode of THEME_MODES) {
     const map = variants[mode];
-    if (!map) return;
-    output[mode] = Object.fromEntries(Object.entries(map).slice(0, limit));
-  });
+    if (!map) continue;
+    output[mode] = Object.fromEntries(Object.entries(map).slice(0, limit)) as Record<string, string>;
+  }
   return output;
 }
 

@@ -1,10 +1,9 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { ChatsCircle, SidebarSimple } from "@phosphor-icons/react/dist/ssr";
 
 import { useComposerArtifact, ComposerArtifactProvider } from "@/hooks/useComposerArtifact";
-import type { FocusedSlotRef } from "@/hooks/useComposerArtifact";
 import { useWorkspaceShortcuts } from "@/hooks/useWorkspaceShortcuts";
 import { safeRandomUUID } from "@/lib/random";
 import type { ComposerEventBus } from "@/lib/composer/event-bus";
@@ -51,7 +50,9 @@ function useMediaQuery(query: string): boolean {
 function firstSlotId(block: ArtifactBlock | null | undefined): string | null {
   if (!block) return null;
   const entries = Object.keys(block.slots ?? {});
-  return entries.length ? entries[0] : null;
+  if (!entries.length) return null;
+  const [first] = entries;
+  return first ?? null;
 }
 
 function ComposerWorkspaceInner({
@@ -122,9 +123,9 @@ function ComposerWorkspaceInner({
     }
   }, [isChatOverlay]);
 
-  const focus: FocusedSlotRef = React.useMemo(
+  const focus = React.useMemo<{ blockId: string | null; slotId: string | null }>(
     () => ({
-      blockId: focusedSlot?.blockId ?? selectedBlockId,
+      blockId: focusedSlot?.blockId ?? selectedBlockId ?? null,
       slotId: focusedSlot?.slotId ?? null,
     }),
     [focusedSlot, selectedBlockId],
@@ -136,7 +137,7 @@ function ComposerWorkspaceInner({
     if (!currentArtifact) return null;
     if (blocks.length) {
       const focused = blocks.find((block) => block.id === focus.blockId);
-      return focused ?? blocks[0];
+      return focused ?? blocks[0] ?? null;
     }
     const seedBlock: ArtifactBlock = {
       id: safeRandomUUID(),
@@ -246,7 +247,7 @@ function ComposerWorkspaceInner({
     if (!blocks.length) return;
     const currentIndex = blocks.findIndex((block) => block.id === focus.blockId);
     const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % blocks.length : 0;
-    const nextBlock = blocks[nextIndex];
+    const nextBlock = blocks[nextIndex]!;
     selectBlock(nextBlock.id);
     const slotId = firstSlotId(nextBlock);
     if (slotId) {
@@ -261,7 +262,7 @@ function ComposerWorkspaceInner({
     if (!blocks.length) return;
     const currentIndex = blocks.findIndex((block) => block.id === focus.blockId);
     const prevIndex = currentIndex >= 0 ? (currentIndex - 1 + blocks.length) % blocks.length : blocks.length - 1;
-    const prevBlock = blocks[prevIndex];
+    const prevBlock = blocks[prevIndex]!;
     selectBlock(prevBlock.id);
     const slotId = firstSlotId(prevBlock);
     if (slotId) {
@@ -351,9 +352,9 @@ function ComposerWorkspaceInner({
           recents={resolvedRecents}
           references={resolvedReferences}
           suggestions={resolvedSuggestions}
-          onSelectRecent={onSelectRecent}
-          onSelectReference={onSelectReference}
-          onApplySuggestion={onApplySuggestion}
+          {...(onSelectRecent ? { onSelectRecent } : {})}
+          {...(onSelectReference ? { onSelectReference } : {})}
+          {...(onApplySuggestion ? { onApplySuggestion } : {})}
           onClose={() => setRailOverlayOpen(false)}
         />
         <div className={styles.canvasColumn}>
@@ -375,8 +376,8 @@ function ComposerWorkspaceInner({
           open={isChatOverlay ? chatOverlayOpen : true}
           collapsed={chatCollapsed}
           suggestions={resolvedSuggestions}
-          onToggle={isChatOverlay ? handleToggleChat : undefined}
-          onSendMessage={onSendMessage}
+          {...(isChatOverlay ? { onToggle: handleToggleChat } : {})}
+          {...(onSendMessage ? { onSendMessage } : {})}
           onAddMediaSlot={handleAddMediaSlot}
           onAcceptChange={handleAcceptChange}
           onDiscardChange={handleDiscardChange}
@@ -388,8 +389,14 @@ function ComposerWorkspaceInner({
 
 export function ComposerWorkspace({ artifact, eventBus, ...rest }: ComposerWorkspaceProps) {
   return (
-    <ComposerArtifactProvider eventBus={eventBus}>
+    <ComposerArtifactProvider {...(eventBus !== undefined ? { eventBus } : {})}>
       <ComposerWorkspaceInner artifact={artifact} {...rest} />
     </ComposerArtifactProvider>
   );
 }
+
+
+
+
+
+

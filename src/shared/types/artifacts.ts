@@ -1,4 +1,4 @@
-export const ARTIFACT_TYPES = [
+﻿export const ARTIFACT_TYPES = [
   "presentation",
   "proposal",
   "sop",
@@ -37,44 +37,44 @@ export type SlotStatus = (typeof SLOT_STATUSES)[number];
 export type TextSlotValue = {
   kind: "text";
   content: string;
-  format?: "plain" | "markdown" | "html";
-  summary?: string | null;
-  keywords?: string[] | null;
+  format?: "plain" | "markdown" | "html" | undefined;
+  summary?: string | null | undefined;
+  keywords?: string[] | null | undefined;
 };
 
 export type MediaSlotValue = {
   kind: "media";
   url: string;
-  thumbUrl?: string | null;
-  posterUrl?: string | null;
-  altText?: string | null;
-  descriptors?: Record<string, unknown> | null;
+  thumbUrl?: string | null | undefined;
+  posterUrl?: string | null | undefined;
+  altText?: string | null | undefined;
+  descriptors?: Record<string, unknown> | null | undefined;
 };
 
 export type PollSlotValue = {
   kind: "poll";
   prompt: string;
-  options: Array<{ id: string; label: string; value?: string | null }>;
-  settings?: Record<string, unknown> | null;
+  options: Array<{ id: string; label: string; value?: string | null | undefined }>;
+  settings?: Record<string, unknown> | null | undefined;
 };
 
 export type DataSlotValue = {
   kind: "data";
   schema: Record<string, unknown>;
-  values?: Record<string, unknown> | null;
+  values?: Record<string, unknown> | null | undefined;
 };
 
 export type ActionSlotValue = {
   kind: "action";
   label: string;
-  url?: string | null;
-  meta?: Record<string, unknown> | null;
+  url?: string | null | undefined;
+  meta?: Record<string, unknown> | null | undefined;
 };
 
 export type CollectionSlotValue = {
   kind: "collection";
   items: SlotValue[];
-  layout?: string | null;
+  layout?: string | null | undefined;
 };
 
 export type SlotValue =
@@ -86,64 +86,64 @@ export type SlotValue =
   | CollectionSlotValue;
 
 export type SlotConstraints = {
-  maxLength?: number;
-  minLength?: number;
-  allowedKinds?: SlotKind[];
-  disallowedKinds?: SlotKind[];
-  aspectRatio?: string | null;
-  contentTypes?: string[];
+  maxLength?: number | undefined;
+  minLength?: number | undefined;
+  allowedKinds?: SlotKind[] | undefined;
+  disallowedKinds?: SlotKind[] | undefined;
+  aspectRatio?: string | null | undefined;
+  contentTypes?: string[] | undefined;
 };
 
 export type SlotProvenance = {
   source: "ai" | "user" | "upload" | "template" | "external";
-  promptId?: string | null;
-  assetId?: string | null;
-  templateId?: string | null;
-  generator?: string | null;
-  costCents?: number | null;
-  createdAt?: string | null;
+  promptId?: string | null | undefined;
+  assetId?: string | null | undefined;
+  templateId?: string | null | undefined;
+  generator?: string | null | undefined;
+  costCents?: number | null | undefined;
+  createdAt?: string | null | undefined;
 };
 
 export type ArtifactSlot = {
   id: string;
   kind: SlotKind;
   status: SlotStatus;
-  value?: SlotValue;
-  provenance?: SlotProvenance;
-  constraints?: SlotConstraints;
-  draftId?: string | null;
+  value?: SlotValue | undefined;
+  provenance?: SlotProvenance | undefined;
+  constraints?: SlotConstraints | undefined;
+  draftId?: string | null | undefined;
 };
 
 export type BlockState = {
   mode: "active" | "suggested" | "archived" | "deleted";
-  locked?: boolean;
-  lastEditedBy?: string | null;
-  lastEditedAt?: string | null;
-  branchId?: string | null;
+  locked?: boolean | undefined;
+  lastEditedBy?: string | null | undefined;
+  lastEditedAt?: string | null | undefined;
+  branchId?: string | null | undefined;
 };
 
 export type BlockAnnotation = {
   label: string;
   kind: "diff" | "comment" | "branch" | "rollback";
-  payload?: Record<string, unknown>;
+  payload?: Record<string, unknown> | undefined;
 };
 
 export type ArtifactBlock = {
   id: string;
   type: BlockType;
-  label?: string;
+  label?: string | undefined;
   state: BlockState;
   slots: Record<string, ArtifactSlot>;
-  children?: ArtifactBlock[];
-  annotations?: BlockAnnotation[];
+  children?: ArtifactBlock[] | undefined;
+  annotations?: BlockAnnotation[] | undefined;
 };
 
 export type ArtifactContext = {
-  relatedArtifactIds?: string[];
-  relatedAssetIds?: string[];
-  tags?: string[];
-  summary?: string | null;
-  lastPromptId?: string | null;
+  relatedArtifactIds?: string[] | undefined;
+  relatedAssetIds?: string[] | undefined;
+  tags?: string[] | undefined;
+  summary?: string | null | undefined;
+  lastPromptId?: string | null | undefined;
 };
 
 export type Artifact = {
@@ -152,43 +152,43 @@ export type Artifact = {
   artifactType: ArtifactType;
   status: ArtifactStatus;
   title: string;
-  description?: string | null;
+  description?: string | null | undefined;
   version: number;
   metadata: Record<string, unknown>;
   blocks: ArtifactBlock[];
-  context?: ArtifactContext;
+  context?: ArtifactContext | undefined;
   createdAt: string;
   updatedAt: string;
-  committedAt?: string | null;
+  committedAt?: string | null | undefined;
 };
 
 export type ArtifactSummary = Pick<Artifact, "id" | "artifactType" | "status" | "title" | "version" | "updatedAt"> & {
-  preview?: Record<string, unknown> | null;
+  preview?: Record<string, unknown> | null | undefined;
 };
 
 export type ComposerViewState = "idle" | "drafting" | "focusing-slot" | "reviewing-action";
 
 export type InsertBlockEvent = {
   artifactId: string;
-  parentId?: string | null;
-  index?: number;
+  parentId?: string | null | undefined;
+  index?: number | undefined;
   block: ArtifactBlock;
-  source?: "ai" | "user" | "template";
+  source?: "ai" | "user" | "template" | undefined;
 };
 
 export type UpdateSlotEvent = {
   artifactId: string;
   blockId: string;
   slotId: string;
-  patch: Partial<ArtifactSlot> & { value?: SlotValue };
-  draftId?: string | null;
+  patch: Partial<ArtifactSlot> & { value?: SlotValue | undefined };
+  draftId?: string | null | undefined;
 };
 
 export type RemoveBlockEvent = {
   artifactId: string;
   blockId: string;
-  reason?: string | null;
-  soft?: boolean;
+  reason?: string | null | undefined;
+  soft?: boolean | undefined;
 };
 
 export type PreviewMediaEvent = {
@@ -196,28 +196,28 @@ export type PreviewMediaEvent = {
   blockId: string;
   slotId: string;
   previewUrl: string;
-  expiresAt?: string | null;
-  descriptors?: Record<string, unknown> | null;
+  expiresAt?: string | null | undefined;
+  descriptors?: Record<string, unknown> | null | undefined;
 };
 
 export type CommitArtifactEvent = {
   artifactId: string;
   version: number;
-  diffSummary?: Record<string, unknown> | null;
+  diffSummary?: Record<string, unknown> | null | undefined;
 };
 
 export type BranchArtifactEvent = {
   sourceArtifactId: string;
   newArtifact: Artifact;
-  summary?: string | null;
+  summary?: string | null | undefined;
 };
 
 export type StatusUpdateEvent = {
   artifactId: string;
   scope: "chat" | "media" | "autosave" | "embedding" | "system";
   status: "pending" | "success" | "error" | "cancelled";
-  message?: string | null;
-  costCents?: number | null;
+  message?: string | null | undefined;
+  costCents?: number | null | undefined;
 };
 
 export type ComposerEventMap = {
@@ -243,4 +243,5 @@ export type PendingComposerChange = {
   event: ComposerEvent;
   persisted: boolean;
 };
+
 

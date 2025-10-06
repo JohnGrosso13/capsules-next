@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 import {
   artifactBlockSchema,
@@ -9,7 +9,7 @@ import {
 } from "@/shared/schemas/artifacts";
 import { requestUserEnvelopeSchema } from "./auth";
 
-export const artifactMetadataSchema = z.record(z.unknown());
+export const artifactMetadataSchema = z.record(z.string(), z.unknown());
 
 export const artifactAssetSchema = z.object({
   blockId: z.string(),
@@ -17,7 +17,13 @@ export const artifactAssetSchema = z.object({
   r2Bucket: z.string().min(1),
   r2Key: z.string().min(1),
   contentType: z.string().nullable().optional(),
-  descriptor: z.record(z.unknown()).nullable().optional(),
+  descriptor: z.record(z.string(), z.unknown()).nullable().optional(),
+});
+
+export const artifactAssetRecordSchema = artifactAssetSchema.extend({
+  id: z.string(),
+  artifactId: z.string().uuid(),
+  createdAt: z.string(),
 });
 
 const createArtifactPayloadSchema = z.object({
@@ -36,6 +42,7 @@ export const createArtifactRequestSchema = requestUserEnvelopeSchema.extend({
 
 export const createArtifactResponseSchema = z.object({
   artifact: artifactSchema,
+  assets: z.array(artifactAssetRecordSchema),
 });
 
 const artifactPatchSchema = z.object({
@@ -56,6 +63,7 @@ export const updateArtifactRequestSchema = requestUserEnvelopeSchema.extend({
 
 export const updateArtifactResponseSchema = z.object({
   artifact: artifactSchema,
+  assets: z.array(artifactAssetRecordSchema),
   conflict: z.boolean().optional(),
 });
 
@@ -69,6 +77,7 @@ export const commitArtifactRequestSchema = requestUserEnvelopeSchema.extend({
 
 export const commitArtifactResponseSchema = z.object({
   artifact: artifactSchema,
+  assets: z.array(artifactAssetRecordSchema),
 });
 
 export const listArtifactsResponseSchema = z.object({
@@ -77,6 +86,9 @@ export const listArtifactsResponseSchema = z.object({
 
 export const getArtifactResponseSchema = z.object({
   artifact: artifactSchema,
+  assets: z.array(artifactAssetRecordSchema),
 });
+
+
 
 

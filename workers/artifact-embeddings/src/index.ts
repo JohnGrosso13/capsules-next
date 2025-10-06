@@ -1,4 +1,4 @@
-import type { MessageBatch } from "@cloudflare/workers-types";
+﻿import type { MessageBatch } from "@cloudflare/workers-types";
 
 type ArtifactEmbeddingJob = {
   artifactId: string;
@@ -50,11 +50,14 @@ const worker = {
         continue;
       }
       try {
-        await processJob({
+        const job: ArtifactEmbeddingJob = {
           artifactId: body.artifactId,
           version: body.version,
-          reason: body.reason,
-        }, env);
+        };
+        if (typeof body.reason === "string") {
+          job.reason = body.reason;
+        }
+        await processJob(job, env);
         message.ack();
       } catch (error) {
         console.error("artifact embedding job failed", error);
@@ -65,3 +68,4 @@ const worker = {
 };
 
 export default worker;
+

@@ -79,7 +79,7 @@ export function isVariantEmpty(variants: ThemeVariants): boolean {
 
 export function variantForMode(variants: ThemeVariants, mode: ThemeMode): Record<string, string> {
   const direct = variants[mode];
-  if (direct && Object.keys(direct).length) return direct;
+  if (direct && Object.keys(direct).length) return { ...direct };
   const fallback = variants[mode === "light" ? "dark" : "light"];
   return fallback ? { ...fallback } : {};
 }
