@@ -43,6 +43,10 @@
   cursor: pointer;
   box-shadow: var(--card-shadow);
 }
+.tabIcon {
+  margin-right: 8px;
+  color: var(--text);
+}
 .tab:hover { color: var(--text); }
 .tabActive {
   color: var(--text);

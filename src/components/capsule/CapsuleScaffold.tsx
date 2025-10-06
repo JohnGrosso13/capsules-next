@@ -2,7 +2,15 @@
 
 import * as React from "react";
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
-import { Plus, PencilSimple, Trash, Check } from "@phosphor-icons/react/dist/ssr";
+import {
+  Plus,
+  PencilSimple,
+  Trash,
+  Check,
+  Broadcast,
+  Newspaper,
+  Storefront,
+} from "@phosphor-icons/react/dist/ssr";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
 
 type CapsuleTab = "live" | "feed" | "store";
@@ -27,6 +35,7 @@ export function CapsuleContent() {
           aria-selected={tab === "live"}
           onClick={() => handleSelect("live")}
         >
+          <Broadcast size={18} weight="bold" className={capTheme.tabIcon} />
           Live
         </button>
         <button
@@ -35,6 +44,7 @@ export function CapsuleContent() {
           aria-selected={tab === "feed"}
           onClick={() => handleSelect("feed")}
         >
+          <Newspaper size={18} weight="bold" className={capTheme.tabIcon} />
           Feed
         </button>
         <button
@@ -43,6 +53,7 @@ export function CapsuleContent() {
           aria-selected={tab === "store"}
           onClick={() => handleSelect("store")}
         >
+          <Storefront size={18} weight="bold" className={capTheme.tabIcon} />
           Store
         </button>
       </div>

@@ -24,8 +24,13 @@
   font-weight: 800;
   color: var(--text);
   border-bottom: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   text-align: center;
 }
+.placeholderHeaderIcon { color: var(--text); }
 
 .placeholderScroll {
   flex: 1;

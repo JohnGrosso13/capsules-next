@@ -5,7 +5,7 @@ import * as React from "react";
 import { useChatContext } from "@/components/providers/ChatProvider";
 
 import styles from "./chat.module.css";
-import { PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
+import { PaperPlaneTilt, ChatsCircle } from "@phosphor-icons/react/dist/ssr";
 import { ChatConversation } from "./ChatConversation";
 import { ChatList } from "./ChatList";
 
@@ -72,7 +72,10 @@ export function ChatPanel({ variant = "page", emptyNotice }: ChatPanelProps) {
   if (variant === "rail") {
     return (
       <div className={styles.chatPanel} data-variant={variant}>
-        <div className={styles.placeholderHeader}>Live Chat</div>
+        <div className={styles.placeholderHeader}>
+          <ChatsCircle size={18} weight="bold" className={styles.placeholderHeaderIcon} />
+          Live Chat
+        </div>
         <div className={styles.placeholderScroll}>
           <div className={styles.placeholderEmpty}>Be the first to say hello 👋</div>
         </div>
