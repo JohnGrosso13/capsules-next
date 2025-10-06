@@ -223,7 +223,7 @@ export default async function HomePage() {
                   {superpowers.map((power) => (
                     <div
                       key={power}
-                      className="tile-neu text-fg-subtle rounded-2xl px-5 py-4 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-lg"
+                      className="tile-neu text-fg-subtle rounded-2xl px-5 py-4 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-md"
                     >
                       {power}
                     </div>

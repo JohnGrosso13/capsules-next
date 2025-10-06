@@ -198,11 +198,11 @@
 
 
 
-  backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur-overlay, 20px)) saturate(var(--glass-saturate, 120%));
 
 
 
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-overlay, 20px)) saturate(var(--glass-saturate, 120%));
 
 
 
@@ -418,11 +418,11 @@
 
 
 
-  backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(var(--glass-blur-strong, 16px)) saturate(var(--glass-saturate, 120%));
 
 
 
-  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong, 16px)) saturate(var(--glass-saturate, 120%));
 
 
 
@@ -3580,11 +3580,11 @@
 
 
 
-  backdrop-filter: blur(10px) saturate(120%);
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
 
 
 
-  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
 
 
 

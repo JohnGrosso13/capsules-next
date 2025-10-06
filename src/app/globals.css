@@ -141,7 +141,8 @@
     --cta-radius: var(--radius-pill, 999px);
     /* Card surfaces */
     --card-radius: var(--radius-lg, 1rem);
-    --card-shadow: 0 18px 40px rgba(5, 10, 30, 0.35);
+    /* Unify elevation across surfaces */
+    --card-shadow: var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34));
     --card-hover-bg-1: rgba(14, 18, 42, 0.94);
     --card-hover-bg-2: rgba(9, 12, 30, 0.82);
     --card-hover-border: color-mix(in srgb, var(--color-border) 70%, transparent);
@@ -189,9 +190,10 @@
     --tile-border-final: var(--tile-border-base);
     --tile-border-hover-base: rgba(255, 255, 255, 0.24);
     --tile-border-hover: var(--tile-border-hover-base);
-    --tile-shadow-base: 0 18px 32px rgba(5, 10, 30, 0.24);
+    /* Tiles share the same elevation scale as cards */
+    --tile-shadow-base: var(--shadow-sm, 0 4px 12px rgba(5, 10, 30, 0.32));
     --tile-shadow-final: var(--tile-shadow-base);
-    --tile-shadow-hover-base: 0 24px 46px rgba(5, 10, 30, 0.32);
+    --tile-shadow-hover-base: var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34));
     --tile-shadow-hover: var(--tile-shadow-hover-base);
     --tile-text-base: var(--text);
     --tile-text-final: var(--tile-text-base);
@@ -298,7 +300,7 @@
       0 6px 12px rgba(5, 10, 30, 0.22);
     --home-pill-hover-border-color: rgba(255, 255, 255, 0.26);
     --home-connectiontile-tile-border-hover-base: rgba(255, 255, 255, 0.26);
-    --home-connectiontile-tile-shadow-hover-base: 0 24px 46px rgba(5, 10, 30, 0.32);
+    --home-connectiontile-tile-shadow-hover-base: var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34));
     --home-railbackbtn-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
       inset 0 -1px 0 rgba(2, 6, 23, 0.45),
       0 6px 12px rgba(5, 10, 30, 0.24);
@@ -597,6 +599,11 @@
     /* Default glass fallbacks for dark theme (overridden by light theme or AI styler) */
     --glass-bg-1: rgba(255, 255, 255, 0.06);
     --glass-bg-2: rgba(255, 255, 255, 0.035);
+    /* Glass blur + saturation tokens (used by chips, sections, rails) */
+    --glass-blur: 12px;
+    --glass-blur-strong: 16px;
+    --glass-blur-overlay: 20px;
+    --glass-saturate: 120%;
     --dock-bg-1: rgba(10, 13, 28, 0.94);
     --dock-bg-2: rgba(6, 9, 22, 0.88);
     --dock-border: rgba(148, 163, 184, 0.16);
@@ -795,8 +802,8 @@
     );
     border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
     box-shadow: var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34));
-    backdrop-filter: blur(12px) saturate(1.15);
-    -webkit-backdrop-filter: blur(12px) saturate(1.15);
+    backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
   }
   .glass-chip {
     background: linear-gradient(
@@ -807,8 +814,8 @@
     border: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.12)) 75%, transparent);
     box-shadow: var(--shadow-xs, 0 1px 2px rgba(5, 10, 30, 0.36));
     border-radius: var(--radius-pill, 999px);
-    backdrop-filter: blur(10px) saturate(1.1);
-    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
   }
   /* Icon tile with subtle brand glow */
   .icon-tile {
@@ -846,8 +853,8 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.12),
       inset 0 -1px 0 rgba(2, 6, 23, 0.42),
       var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34));
-    backdrop-filter: blur(10px) saturate(120%);
-    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
   }
   .section-alt {
     background:
@@ -870,9 +877,9 @@
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.1),
       inset 0 -1px 0 rgba(2, 6, 23, 0.4),
-      0 10px 24px rgba(5, 10, 30, 0.26);
-    backdrop-filter: blur(8px) saturate(120%);
-    -webkit-backdrop-filter: blur(8px) saturate(120%);
+      var(--tile-shadow-final, var(--shadow-sm, 0 4px 12px rgba(5, 10, 30, 0.32)));
+    backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
   }
   .btn-gradient {
     background: var(--cta-button-gradient, var(--cta-chip-gradient, var(--gradient-brand)));
