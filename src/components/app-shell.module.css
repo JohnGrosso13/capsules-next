@@ -186,6 +186,12 @@
   width: 100%;
   justify-self: stretch;
   grid-column: 2;
+  /* Match right rail height so the prompter bottom aligns with chat bottom */
+  height: calc(
+    100vh - (var(--header-height, var(--space-8xl)) + var(--layout-header-offset))
+  );
+  display: grid;
+  grid-template-rows: auto 1fr; /* Row 1: banner, Row 2: live area */
 }
 
 .leftRailCapsule {
@@ -259,6 +265,13 @@
   .rightRailCapsule {
     max-width: none;
     width: 100%;
+  }
+  .contentCapsule {
+    height: auto;
+    grid-template-rows: initial;
+  }
+  .rightRailCapsule {
+    height: auto;
   }
 }
 

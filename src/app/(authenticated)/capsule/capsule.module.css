@@ -47,6 +47,8 @@
 /* Center content */
 .liveWrap {
   display: grid;
+  grid-template-rows: 1fr auto; /* Stream area grows, prompter sticks to bottom */
+  height: 100%;
   gap: var(--layout-page-gap);
 }
 .liveCanvas {
