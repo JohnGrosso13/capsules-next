@@ -35,7 +35,11 @@
     linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
   color: var(--text-2);
   font-weight: 900;
-  text-align: left;
+  /* Center text inside the pill */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   cursor: pointer;
   box-shadow: var(--card-shadow);
 }
@@ -145,6 +149,7 @@
   margin-bottom: 10px;
 }
 .sectionTileTitle { font-weight: 900; }
+.sectionTileTitle { text-align: center; }
 .sectionTitleInput {
   width: 100%;
   padding: 6px 10px;
@@ -167,4 +172,4 @@
   color: var(--text);
 }
 .iconBtn:hover { filter: brightness(1.06); }
-.sectionTileBody { color: var(--text-2); }
+.sectionTileBody { color: var(--text-2); text-align: center; }
