@@ -1,16 +1,38 @@
 import { z } from "zod";
 import { groupUsageFromVars, summarizeGroupLabels } from "@/lib/theme/token-groups";
+import {
+  normalizeThemeVariantsInput,
+  isVariantEmpty,
+  type ThemeVariants,
+} from "@/lib/theme/variants";
 import { resolveStylerPlan } from "@/server/ai/styler";
 import { returnError, validatedJson } from "@/server/validation/http";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
+
+const VARIANT_MAP_SCHEMA = z.record(z.string(), z.string());
+const VARIANTS_SCHEMA = z.object({
+  light: VARIANT_MAP_SCHEMA.optional(),
+  dark: VARIANT_MAP_SCHEMA.optional(),
+});
 
 const responseSchema = z.object({
   status: z.literal("ok"),
   source: z.union([z.literal("heuristic"), z.literal("ai")]),
   summary: z.string(),
-  vars: z.record(z.string(), z.string()),
+  variants: VARIANTS_SCHEMA,
   details: z.string().optional(),
 });
+
+function limitThemeVariants(variants: ThemeVariants, limit: number): ThemeVariants {
+  const output: ThemeVariants = {};
+  ["light", "dark"].forEach((mode) => {
+    const map = variants[mode];
+    if (!map) return;
+    output[mode] = Object.fromEntries(Object.entries(map).slice(0, limit));
+  });
+  return output;
+}
+
 
 async function tryIndexStylerMemory(payload: {
   ownerId: string;
@@ -66,9 +88,8 @@ export async function POST(req: Request) {
       return returnError(422, "styler_unavailable", "I couldn't figure out how to style that yet.");
     }
 
-    // Allow a largerÃ¢â‚¬â€but still boundedÃ¢â‚¬â€set of CSS variables from the styler
-    const sanitizedVars = Object.fromEntries(Object.entries(plan.vars).slice(0, 64));
-    if (!Object.keys(sanitizedVars).length) {
+    const limitedVariants = limitThemeVariants(normalizeThemeVariantsInput(plan.variants), 64);
+    if (isVariantEmpty(limitedVariants)) {
       return returnError(
         422,
         "styler_no_changes",
@@ -76,7 +97,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const usage = groupUsageFromVars(sanitizedVars);
+    const sampleVariant = limitedVariants.light ?? limitedVariants.dark ?? {};
+    const usage = groupUsageFromVars(sampleVariant);
     const inferredDetails = plan.details ?? summarizeGroupLabels(usage);
     const groupIds = usage.map((entry) => entry.group.id);
 
@@ -90,7 +112,7 @@ export async function POST(req: Request) {
         description: prompt,
         postId: null,
         metadata: {
-          vars: sanitizedVars,
+          variants: limitedVariants,
           source: plan.source,
           summary: plan.summary,
           prompt,
@@ -107,7 +129,7 @@ export async function POST(req: Request) {
       status: "ok",
       source: plan.source,
       summary: plan.summary,
-      vars: sanitizedVars,
+      variants: limitedVariants,
       details: inferredDetails ?? undefined,
     });
   } catch (error) {
@@ -120,4 +142,9 @@ export async function POST(req: Request) {
 // via server utilities that rely on Node built-ins (e.g. crypto). Running this
 // route on the Edge runtime triggers module resolution errors for those deps.
 export const runtime = "nodejs";
+
+
+
+
+
 

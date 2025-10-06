@@ -1,6 +1,6 @@
-﻿import { getDatabaseAdminClient } from "@/config/database";
+import { getDatabaseAdminClient } from "@/config/database";
 import { decorateDatabaseError } from "@/lib/database/utils";
-import { normalizeThemeVars } from "@/lib/theme/shared";
+import { normalizeThemeVariantsInput, isVariantEmpty, type ThemeVariants } from "@/lib/theme/variants";
 
 const db = getDatabaseAdminClient();
 const TABLE = "theme_styles";
@@ -16,7 +16,7 @@ export type ThemeStyle = {
   prompt: string | null;
   details: string | null;
   mode: ThemeMode;
-  vars: Record<string, string>;
+  variants: ThemeVariants;
   createdAt: string;
   updatedAt: string;
 };
@@ -30,7 +30,7 @@ type ThemeStyleRow = {
   prompt: string | null;
   details: string | null;
   theme_mode: string | null;
-  vars: Record<string, string> | null;
+  vars: Record<string, unknown> | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -43,7 +43,7 @@ type ThemeStyleInsert = {
   prompt: string | null;
   details: string | null;
   theme_mode: ThemeMode;
-  vars: Record<string, string>;
+  vars: ThemeVariants;
 };
 
 const TITLE_LIMIT = 120;
@@ -73,7 +73,7 @@ function mapRow(row: ThemeStyleRow | null): ThemeStyle | null {
   if (!row || typeof row.id !== "string" || typeof row.owner_user_id !== "string") {
     return null;
   }
-  const vars = normalizeThemeVars(row.vars ?? {});
+  const variants = normalizeThemeVariantsInput(row.vars ?? {});
   return {
     id: row.id,
     ownerId: row.owner_user_id,
@@ -83,7 +83,7 @@ function mapRow(row: ThemeStyleRow | null): ThemeStyle | null {
     prompt: clampText(row.prompt, PROMPT_LIMIT),
     details: clampText(row.details, DETAILS_LIMIT),
     mode: sanitizeMode(row.theme_mode),
-    vars,
+    variants,
     createdAt: row.created_at ?? new Date().toISOString(),
     updatedAt: row.updated_at ?? row.created_at ?? new Date().toISOString(),
   };
@@ -97,7 +97,7 @@ function buildInsert(params: {
   prompt?: string | null;
   details?: string | null;
   mode?: ThemeMode;
-  vars: Record<string, string>;
+  variants: ThemeVariants;
 }): ThemeStyleInsert {
   return {
     owner_user_id: params.ownerId,
@@ -107,7 +107,7 @@ function buildInsert(params: {
     prompt: clampText(params.prompt, PROMPT_LIMIT),
     details: clampText(params.details, DETAILS_LIMIT),
     theme_mode: sanitizeMode(params.mode),
-    vars: params.vars,
+    vars: params.variants,
   };
 }
 
@@ -119,14 +119,14 @@ export async function createThemeStyle(params: {
   prompt?: string | null;
   details?: string | null;
   mode?: ThemeMode;
-  vars: Record<string, unknown>;
+  variants: ThemeVariants;
 }): Promise<ThemeStyle> {
-  const sanitizedVars = normalizeThemeVars(params.vars);
-  if (!Object.keys(sanitizedVars).length) {
+  const sanitizedVariants = normalizeThemeVariantsInput(params.variants);
+  if (isVariantEmpty(sanitizedVariants)) {
     throw new Error("No theme variables to persist");
   }
 
-  const insert = buildInsert({ ...params, vars: sanitizedVars });
+  const insert = buildInsert({ ...params, variants: sanitizedVariants });
   const result = await db
     .from(TABLE)
     .insert<ThemeStyleInsert>(insert)
@@ -215,3 +215,4 @@ export async function deleteAllThemeStyles(ownerId: string): Promise<number> {
   }
   return (result.data ?? []).length;
 }
+

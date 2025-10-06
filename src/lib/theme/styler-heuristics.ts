@@ -5,9 +5,11 @@ import {
   summarizeGroupLabels,
   type ThemeTokenGroupUsage,
 } from "@/lib/theme/token-groups";
+import { PRESET_THEME_CONFIGS, type PresetThemeConfig } from "@/lib/theme/preset-config";
+import { ThemeVariants, normalizeThemeVariantsInput, expandThemeVariants, isVariantEmpty } from "@/lib/theme/variants";
 export type StylerPlan = {
   summary: string;
-  vars: Record<string, string>;
+  variants: ThemeVariants;
   source: "heuristic" | "ai";
   details?: string;
 };
@@ -104,6 +106,102 @@ const THEME_PRESETS: ThemePreset[] = [
     glowAlpha: 0.22,
   },
 ];
+
+const MODE_KEYWORDS = {
+  dark: ["dark mode", "dark theme", "night mode", "night theme", "midnight mode"],
+  light: ["light mode", "light theme", "day mode", "day theme", "bright mode"],
+} as const;
+
+const ACTION_KEYWORDS = ["apply", "use", "set", "switch", "change", "put", "turn", "activate", "run"];
+
+export function buildPresetThemeVariants(config: PresetThemeConfig): ThemeVariants {
+  const variantsInput: Record<string, Record<string, string>> = {};
+  (["light", "dark"] as const).forEach((mode) => {
+    const variantConfig = config.variants?.[mode];
+    if (!variantConfig) return;
+    const label = `${config.title} ${mode === "light" ? "(Light)" : "(Dark)"}`;
+    const base = buildThemeVarsFromSeed(variantConfig.seedHex, {
+      ...(variantConfig.accentHex ? { accentHex: variantConfig.accentHex } : {}),
+      ...(variantConfig.accentGlow !== undefined ? { accentGlow: variantConfig.accentGlow } : {}),
+      label,
+    });
+    variantsInput[mode] = Object.assign({}, base, variantConfig.overrides ?? {});
+  });
+  return normalizeThemeVariantsInput(variantsInput);
+}
+
+function matchesModeCommand(prompt: string, mode: "dark" | "light"): boolean {
+  const trimmed = prompt.trim();
+  if (!trimmed) return false;
+  if (trimmed === mode || trimmed === `${mode} please` || trimmed === `go ${mode}`) return true;
+  if (!prompt.includes(mode)) return false;
+  if (MODE_KEYWORDS[mode].some((keyword) => prompt.includes(keyword))) return true;
+  if (/(mode|theme|preset|style)/.test(prompt) && new RegExp(`\b${mode}\b`).test(prompt)) return true;
+  if (new RegExp(`(switch|change|set|turn|put)([^a-z]|$).*\b${mode}\b`).test(prompt)) return true;
+  return false;
+}
+
+function buildModePlan(mode: "dark" | "light", prompt: string): StylerPlan {
+  const preset = THEME_PRESETS.find((item) => item.id === mode);
+  if (!preset) {
+    throw new Error(`Missing built-in ${mode} preset`);
+  }
+  const base = buildThemeVarsFromSeed(preset.seedHex, {
+    accentHex: preset.accentHex,
+    accentGlow: preset.glowAlpha,
+    label: preset.label,
+  });
+  const variants = normalizeThemeVariantsInput({ light: base, dark: base });
+  const summary = mode === "dark" ? "Switched to the dark theme." : "Switched to the light theme.";
+  const plan: StylerPlan = { summary, variants, source: "heuristic" };
+  const details = buildPlanDetails(prompt, variants);
+  if (details) plan.details = details;
+  return plan;
+}
+
+const PRESET_CACHE = new Map<string, ThemeVariants>();
+
+function buildPresetVariants(config: PresetThemeConfig): ThemeVariants {
+  const cached = PRESET_CACHE.get(config.id);
+  if (cached) return cached;
+  const variants = buildPresetThemeVariants(config);
+  PRESET_CACHE.set(config.id, variants);
+  return variants;
+}
+
+function matchesPresetCommand(prompt: string, config: PresetThemeConfig): boolean {
+  if (!config.keywords.some((keyword) => prompt.includes(keyword))) return false;
+  if (config.keywords.some((keyword) => keyword.includes("theme") && prompt.includes(keyword))) return true;
+  if (/(theme|preset|mode|style)/.test(prompt)) return true;
+  if (ACTION_KEYWORDS.some((keyword) => prompt.includes(keyword))) return true;
+  return false;
+}
+
+function buildPresetPlan(config: PresetThemeConfig, prompt: string): StylerPlan {
+  const variants = buildPresetVariants(config);
+  const summary = `Applied the ${config.title} theme.`;
+  const plan: StylerPlan = { summary, variants, source: "heuristic" };
+  const details = buildPlanDetails(prompt, variants);
+  if (details) plan.details = details;
+  return plan;
+}
+
+function resolvePresetHeuristicPlan(prompt: string): StylerPlan | null {
+  const normalized = prompt.toLowerCase();
+  if (!normalized.trim()) return null;
+  if (matchesModeCommand(normalized, "dark")) {
+    return buildModePlan("dark", prompt);
+  }
+  if (matchesModeCommand(normalized, "light")) {
+    return buildModePlan("light", prompt);
+  }
+  for (const config of PRESET_THEME_CONFIGS) {
+    if (matchesPresetCommand(normalized, config)) {
+      return buildPresetPlan(config, prompt);
+    }
+  }
+  return null;
+}
 
 const COLOR_MODIFIERS = ["light", "dark", "deep", "bright", "soft", "pale", "neon"] as const;
 const COLOR_MODIFIER_SET = new Set<(typeof COLOR_MODIFIERS)[number]>(COLOR_MODIFIERS);
@@ -313,6 +411,8 @@ function isSimpleColorPrompt(prompt: string, color: ColorSpec): boolean {
 }
 
 export function resolveStylerHeuristicPlan(prompt: string): StylerPlan | null {
+  const presetPlan = resolvePresetHeuristicPlan(prompt);
+  if (presetPlan) return presetPlan;
   return buildHeuristicPlan(prompt);
 }
 
@@ -339,6 +439,9 @@ function buildHeuristicPlan(prompt: string): StylerPlan | null {
     if (!target) continue;
     const color = extractColor(segment);
     if (!color) continue;
+    if (hasAdditionalColorReference(segment, color)) {
+      return null;
+    }
 
     if (target.type === "tile") {
       Object.assign(vars, buildTileVars(target.id as "friends" | "chats" | "requests", color));
@@ -360,22 +463,21 @@ function buildHeuristicPlan(prompt: string): StylerPlan | null {
     descriptions.push(descriptor);
   }
 
-  let sanitized = normalizeThemeVars(vars);
+  let variants = normalizeThemeVariantsInput(vars);
 
-  if (!Object.keys(sanitized).length) {
+  if (isVariantEmpty(variants)) {
     if (!matchedPreset) {
       matchedPreset = detectThemePreset(prompt);
     }
     if (matchedPreset) {
-      const presetVars = buildThemePresetVars(matchedPreset);
-      sanitized = normalizeThemeVars(presetVars);
+      variants = normalizeThemeVariantsInput(buildThemePresetVars(matchedPreset));
       if (!descriptions.includes(matchedPreset.label)) {
         descriptions.push(matchedPreset.label);
       }
     } else {
       const fallbackColor = extractColor(prompt);
       if (fallbackColor && isSimpleColorPrompt(prompt, fallbackColor)) {
-        sanitized = normalizeThemeVars(buildSiteThemeVars(fallbackColor));
+        variants = normalizeThemeVariantsInput(buildSiteThemeVars(fallbackColor));
         const fallbackDescription = `Site theme (${fallbackColor.label})`;
         if (!descriptions.includes(fallbackDescription)) {
           descriptions.push(fallbackDescription);
@@ -384,14 +486,14 @@ function buildHeuristicPlan(prompt: string): StylerPlan | null {
     }
   }
 
-  if (!Object.keys(sanitized).length) return null;
+  if (isVariantEmpty(variants)) return null;
 
   const summary =
     matchedPreset && descriptions.length === 1 && descriptions[0] === matchedPreset.label
       ? matchedPreset.summary
       : buildSummary(descriptions);
-  const details = buildPlanDetails(prompt, sanitized);
-  const plan: StylerPlan = { summary, vars: sanitized, source: "heuristic" };
+  const details = buildPlanDetails(prompt, variants);
+  const plan: StylerPlan = { summary, variants, source: "heuristic" };
   if (details) {
     plan.details = details;
   }
@@ -437,6 +539,30 @@ function extractColor(segment: string): ColorSpec | null {
   }
 
   return null;
+}
+
+
+function hasAdditionalColorReference(segment: string, primary: ColorSpec): boolean {
+  const lower = segment.toLowerCase();
+  let colorMatches = 0;
+  for (const name of COLOR_NAME_MAP.keys()) {
+    if (!lower.includes(name)) continue;
+    colorMatches += 1;
+    if (colorMatches > 1) return true;
+  }
+  const hexMatches = lower.match(/#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})\b/gi);
+  if (hexMatches && hexMatches.length) {
+    const normalizedPrimary = (normalizeHex(primary.hex) ?? primary.hex).toLowerCase();
+    let primaryCount = 0;
+    for (const match of hexMatches) {
+      const normalized = normalizeHex(match);
+      if (!normalized) continue;
+      if (normalized.toLowerCase() !== normalizedPrimary) return true;
+      primaryCount += 1;
+    }
+    if (primaryCount > 1) return true;
+  }
+  return false;
 }
 
 function findModifier(text: string, name: string): (typeof COLOR_MODIFIERS)[number] | null {
@@ -1028,8 +1154,10 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
 }
 
 
-export function buildPlanDetails(prompt: string, vars: Record<string, string>): string | undefined {
-  const usage = groupUsageFromVars(vars);
+export function buildPlanDetails(prompt: string, variants: ThemeVariants): string | undefined {
+  const expanded = expandThemeVariants(variants);
+  const merged = { ...expanded.light, ...expanded.dark };
+  const usage = groupUsageFromVars(merged);
   const detailsFromVars = summarizeGroupLabels(usage);
   if (detailsFromVars) return detailsFromVars;
   const promptGroups = detectIntentGroupsFromPrompt(prompt);

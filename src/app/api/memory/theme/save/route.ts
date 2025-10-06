@@ -25,11 +25,11 @@ export async function POST(req: Request) {
   const details = detailsRaw.trim() || null;
   const modeRaw = typeof body.mode === "string" ? body.mode.trim().toLowerCase() : null;
   const mode: ThemeMode = modeRaw === "light" || modeRaw === "dark" ? (modeRaw as ThemeMode) : null;
-  const varsRaw = body.vars;
-  const vars = varsRaw && typeof varsRaw === "object" ? (varsRaw as Record<string, unknown>) : null;
+  const variantsRaw = body.variants;
+  const variants = variantsRaw && typeof variantsRaw === "object" ? (variantsRaw as Record<string, unknown>) : null;
 
-  if (!vars || !Object.keys(vars).length) {
-    return NextResponse.json({ error: "vars required" }, { status: 400 });
+  if (!variants || !Object.keys(variants).length) {
+    return NextResponse.json({ error: "variants required" }, { status: 400 });
   }
 
   try {
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       prompt,
       details,
       mode,
-      vars,
+      variants,
     });
 
     return NextResponse.json({ success: true, id: style.id });

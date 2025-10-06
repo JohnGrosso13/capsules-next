@@ -1,12 +1,13 @@
 
 import { z } from "zod";
-import { ALLOWED_THEME_VAR_KEYS, normalizeThemeVars } from "@/lib/theme/shared";
+import { ALLOWED_THEME_VAR_KEYS } from "@/lib/theme/shared";
 import {
   buildPlanDetails,
   getDefaultStylerThemeVars,
   resolveStylerHeuristicPlan,
   type StylerPlan,
 } from "@/lib/theme/styler-heuristics";
+import { normalizeThemeVariantsInput, isVariantEmpty, type ThemeVariants } from "@/lib/theme/variants";
 
 const OPENAI_API_KEY =
   process.env.OPENAI_API_KEY ?? process.env.OPENAI_KEY ?? process.env.OPENAI_SECRET_KEY ?? null;
@@ -152,24 +153,52 @@ const STYLER_SYSTEM_PROMPT = [
   "You are Capsules AI Styler, responsible for translating natural language into theme updates.",
   "You will receive a JSON contract describing the user's prompt, current theme snapshot, surface guide,",
   "allowed CSS variables, and output schema. Read the contract carefully.",
-  'Respond with a JSON object that strictly follows the schema: { "summary": string, "description"?: string, "vars": Record<string,string> }.',
+  "Respond with a JSON object that strictly follows the schema: { "summary": string, "description"?: string, "variants": { "light"?: Record<string,string>, "dark"?: Record<string,string> } }.",
+  "Always include both light and dark variants unless the prompt restricts to one mode.",
   "Only include CSS custom properties from the provided allowlist.",
   "Values must be valid CSS colors, gradients, or shadows (no url(), no external references).",
   "Prefer cohesive, site-wide updates. Cover app shell, cards, header, rail, CTA, and feed surfaces.",
   "Maintain legible contrast and keep text on brand surfaces readable.",
 ].join(" ");
 
-const STYLER_RESPONSE_SCHEMA = z.object({
-  summary: z.string().optional(),
-  description: z.string().optional(),
-  vars: z.record(z.string(), z.string()),
+const VARIANT_MAP_SCHEMA = z.record(z.string(), z.string());
+const VARIANTS_OBJECT_SCHEMA = z.object({
+  light: VARIANT_MAP_SCHEMA.optional(),
+  dark: VARIANT_MAP_SCHEMA.optional(),
 });
+
+const STYLER_RESPONSE_SCHEMA = z
+  .object({
+    summary: z.string().optional(),
+    description: z.string().optional(),
+    variants: VARIANTS_OBJECT_SCHEMA.optional(),
+    vars: VARIANT_MAP_SCHEMA.optional(),
+  })
+  .refine((value) => {
+    const variantMaps = value.variants ? Object.values(value.variants) : [];
+    const hasVariantEntries = variantMaps.some((map) => map && Object.keys(map).length > 0);
+    const hasFlatEntries = value.vars ? Object.keys(value.vars).length > 0 : false;
+    return hasVariantEntries || hasFlatEntries;
+  }, { message: "variants or vars must include at least one entry" });
 
 const MAX_SUMMARY_LENGTH = 160;
 const MAX_DESCRIPTION_LENGTH = 320;
 const MAX_RETURNED_VARS = 64;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function limitThemeVariants(variants: ThemeVariants, limit: number): ThemeVariants {
+  if (limit <= 0) return {};
+  const limited: ThemeVariants = {};
+  (["light", "dark"] as const).forEach((mode) => {
+    const map = variants[mode];
+    if (!map) return;
+    const entries = Object.entries(map);
+    if (!entries.length) return;
+    limited[mode] = Object.fromEntries(entries.slice(0, limit));
+  });
+  return limited;
+}
 
 function sanitizeLine(text: string, max: number, fallback: string): string {
   if (!text) return fallback;
@@ -212,7 +241,7 @@ function buildContractPayload(prompt: string) {
       schema: {
         summary: `string (<= ${MAX_SUMMARY_LENGTH} chars) describing the visual direction`,
         description: `optional string (<= ${MAX_DESCRIPTION_LENGTH} chars) with extra guidance`,
-        vars: "dictionary of allowed CSS variable updates",
+        variants: "object with optional light/dark dictionaries of allowed CSS variable updates",
       },
     },
   };
@@ -325,18 +354,17 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
         "",
       );
 
-      const sanitized = normalizeThemeVars(validation.data.vars);
-      const limitedVars = Object.fromEntries(
-        Object.entries(sanitized).slice(0, MAX_RETURNED_VARS),
-      );
+      const rawVariants = validation.data.variants ?? validation.data.vars ?? {};
+      const normalizedVariants = normalizeThemeVariantsInput(rawVariants);
+      const limitedVariants = limitThemeVariants(normalizedVariants, MAX_RETURNED_VARS);
 
-      if (!Object.keys(limitedVars).length) {
-        console.warn("styler ai produced no vars", { attempt: attempt + 1 });
+      if (isVariantEmpty(limitedVariants)) {
+        console.warn("styler ai produced no variants", { attempt: attempt + 1 });
         if (attempt < RETRY_DELAYS_MS.length - 1) continue;
         return null;
       }
 
-      const detailsFromUsage = buildPlanDetails(prompt, limitedVars);
+      const detailsFromUsage = buildPlanDetails(prompt, limitedVariants);
       const combinedDetails = [description, detailsFromUsage]
         .map((value) => value?.trim())
         .filter(Boolean)
@@ -344,7 +372,7 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
 
       const plan: StylerPlan = {
         summary,
-        vars: limitedVars,
+        variants: limitedVariants,
         source: "ai",
       };
       if (combinedDetails.length) {
@@ -354,7 +382,7 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
       console.info("styler_ai_telemetry", {
         prompt: prompt.length > 240 ? `${prompt.slice(0, 239)}...` : prompt,
         summary,
-        varCount: Object.keys(limitedVars).length,
+        varCount: (limitedVariants.light ? Object.keys(limitedVariants.light).length : 0) + (limitedVariants.dark ? Object.keys(limitedVariants.dark).length : 0),
         attempt: attempt + 1,
         durationMs: Date.now() - start,
       });
@@ -372,4 +400,8 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
   console.error("styler ai request failed", lastError);
   return null;
 }
+
+
+
+
 

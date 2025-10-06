@@ -18,11 +18,17 @@ export const draftPostResponseSchema = z.object({
 });
 export type DraftPostResponse = z.infer<typeof draftPostResponseSchema>;
 
+const variantMapSchema = z.record(z.string(), z.string());
+const stylerVariantsSchema = z.object({
+  light: variantMapSchema.optional(),
+  dark: variantMapSchema.optional(),
+});
+
 export const stylerResponseSchema = z.object({
   status: z.literal("ok"),
   source: z.union([z.literal("heuristic"), z.literal("ai")]),
   summary: z.string(),
-  vars: z.record(z.string(), z.string()),
+  variants: stylerVariantsSchema,
   details: z.string().optional(),
 });
 export type StylerResponse = z.infer<typeof stylerResponseSchema>;

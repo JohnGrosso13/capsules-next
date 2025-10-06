@@ -25,7 +25,7 @@ export async function POST(req: Request) {
         description: style.description,
         prompt: style.prompt,
         details: style.details,
-        vars: style.vars,
+        variants: style.variants,
         mode: style.mode,
         created_at: style.createdAt,
         updated_at: style.updatedAt,

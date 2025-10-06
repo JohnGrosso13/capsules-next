@@ -322,12 +322,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       if (action.kind === "style") {
         const heuristicPlan = resolveStylerHeuristicPlan(action.prompt);
         if (heuristicPlan) {
-          applyThemeVars(heuristicPlan.vars);
+          applyThemeVars(heuristicPlan.variants);
           return;
         }
         try {
           const response = await callStyler(action.prompt, envelopePayload);
-          applyThemeVars(response.vars);
+          applyThemeVars(response.variants);
         } catch (error) {
           console.error("Styler action failed", error);
         }
