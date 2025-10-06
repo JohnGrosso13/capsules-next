@@ -628,6 +628,7 @@
   }
 :root[data-theme="light"] {
   color-scheme: light;
+  /* Symmetric, balanced light background to mirror dark */
   --surface-app: var(
     --app-bg,
     /* Symmetric soft greys on both top corners (no tint) */
@@ -930,7 +931,6 @@
     animation: marquee 60s linear infinite;
   }
 }
-
 
 
 
