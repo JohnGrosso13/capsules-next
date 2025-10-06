@@ -52,6 +52,7 @@ type SavedStyle = {
 
 type ThemeEntry = { kind: "preset"; preset: Preset } | { kind: "saved"; saved: SavedStyle };
 const TITLE_FALLBACK = "Saved theme";
+const MODE_HELP_COPY = "Themes carry light and dark variants together. System follows your OS preference and re-checks the local clock to stay in sync.";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -572,28 +573,31 @@ export function ThemeStyleCarousel() {
         </div>
       </div>
 
-      <div className={styles.modeButtons}>
-        <Button
-          variant={themePreference === "system" ? "primary" : "secondary"}
-          size="sm"
-          onClick={() => handleSetPreference("system")}
-        >
-          System
-        </Button>
-        <Button
-          variant={themePreference === "light" ? "primary" : "secondary"}
-          size="sm"
-          onClick={() => handleSetPreference("light")}
-        >
-          Light mode
-        </Button>
-        <Button
-          variant={themePreference === "dark" ? "primary" : "secondary"}
-          size="sm"
-          onClick={() => handleSetPreference("dark")}
-        >
-          Dark mode
-        </Button>
+      <div className={styles.modeSection}>
+        <div className={styles.modeButtons}>
+          <Button
+            variant={themePreference === "system" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => handleSetPreference("system")}
+          >
+            System
+          </Button>
+          <Button
+            variant={themePreference === "light" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => handleSetPreference("light")}
+          >
+            Light mode
+          </Button>
+          <Button
+            variant={themePreference === "dark" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => handleSetPreference("dark")}
+          >
+            Dark mode
+          </Button>
+        </div>
+        <p className={styles.modeHelp}>{MODE_HELP_COPY}</p>
       </div>
 
       <div className={styles.summaryGrid}>
@@ -656,28 +660,31 @@ export function ThemeStylesGallery() {
         </div>
       </div>
 
-      <div className={styles.modeButtons}>
-        <Button
-          variant={themePreference === "system" ? "primary" : "secondary"}
-          size="sm"
-          onClick={() => handleSetPreference("system")}
-        >
-          System
-        </Button>
-        <Button
-          variant={themePreference === "light" ? "primary" : "secondary"}
-          size="sm"
-          onClick={() => handleSetPreference("light")}
-        >
-          Light mode
-        </Button>
-        <Button
-          variant={themePreference === "dark" ? "primary" : "secondary"}
-          size="sm"
-          onClick={() => handleSetPreference("dark")}
-        >
-          Dark mode
-        </Button>
+      <div className={styles.modeSection}>
+        <div className={styles.modeButtons}>
+          <Button
+            variant={themePreference === "system" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => handleSetPreference("system")}
+          >
+            System
+          </Button>
+          <Button
+            variant={themePreference === "light" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => handleSetPreference("light")}
+          >
+            Light mode
+          </Button>
+          <Button
+            variant={themePreference === "dark" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => handleSetPreference("dark")}
+          >
+            Dark mode
+          </Button>
+        </div>
+        <p className={styles.modeHelp}>{MODE_HELP_COPY}</p>
       </div>
 
       {loading ? <div className={styles.meta}>Loading saved themes...</div> : null}

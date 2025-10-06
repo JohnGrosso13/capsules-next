@@ -40,6 +40,18 @@
   gap: 10px;
 }
 
+.modeSection {
+  display: grid;
+  gap: 6px;
+  max-width: 540px;
+}
+
+.modeHelp {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--color-fg-muted, rgba(255, 255, 255, 0.62));
+}
+
 .summaryGrid {
   display: grid;
   gap: 16px;
