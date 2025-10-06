@@ -70,6 +70,13 @@
   grid-template-columns: 260px minmax(0, 1fr);
   height: 100%;
   min-height: 0;
+  transition: grid-template-columns 140ms ease;
+  position: relative;
+}
+
+.columns[data-preview="open"] {
+  /* Default symmetrical rails (left/right 260px) */
+  grid-template-columns: 260px minmax(0, 1fr) 260px;
 }
 
 
@@ -91,6 +98,49 @@
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   box-shadow: 0 12px 28px rgba(5, 10, 30, 0.35);
+}
+
+/* Right-side preview rail (symmetrical container) */
+.previewRail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 20px;
+  border-left: 1px solid var(--composer-rail-border, var(--card-border, rgba(255, 255, 255, 0.12)));
+  background: var(
+    --composer-rail-background,
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 88%, transparent),
+      color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 82%, transparent)
+    )
+  );
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: 0 12px 28px rgba(5, 10, 30, 0.35);
+}
+
+.previewHeader {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text, rgba(255, 255, 255, 0.94));
+}
+
+.previewBody {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.previewPlaceholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 240px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.72);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
 }
 
 .railHeader {
@@ -150,8 +200,9 @@
 }
 
 .mainColumn {
-  display: flex;
-  flex-direction: column;
+  /* Two-row grid: chat history + resizable bottom composer */
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0;
   background: var(
     --composer-main-background,
@@ -161,11 +212,11 @@
       color-mix(in srgb, var(--surface-app, rgba(9, 12, 32, 0.78)) 88%, transparent)
     )
   );
-  padding: 32px 0 0;
+  padding-top: 32px;
+  position: relative;
 }
 
 .chatScroll {
-  flex: 1 1 auto;
   overflow-y: auto;
   padding: 0 64px 16px;
 }
@@ -267,7 +318,6 @@
 }
 
 .composerBottom {
-  margin-top: auto;
   padding: 16px 64px 32px;
   background: var(
     --composer-footer-background,
@@ -277,6 +327,62 @@
   display: grid;
   gap: 18px;
   justify-items: center;
+}
+
+/* Resizer handles ------------------------------------------------------- */
+.colResizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  margin-left: -3px; /* center on grid gap */
+  cursor: col-resize;
+  z-index: 5;
+  background: transparent;
+}
+
+.colResizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 1px;
+  right: 1px;
+  border-left: 1px dashed color-mix(in srgb, var(--composer-outline, rgba(99, 102, 241, 0.4)) 70%, transparent);
+  opacity: 0.0;
+  transition: opacity 120ms ease;
+}
+
+.colResizer:hover::after,
+.colResizer:focus-visible::after,
+.colResizer[data-active="true"]::after {
+  opacity: 1;
+}
+
+.rowResizer {
+  position: absolute;
+  left: 64px;
+  right: 64px;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 6;
+}
+
+.rowResizer::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 2px;
+  border-top: 1px dashed color-mix(in srgb, var(--composer-outline, rgba(99, 102, 241, 0.4)) 70%, transparent);
+  opacity: 0.0;
+  transition: opacity 120ms ease;
+}
+
+.rowResizer:hover::after,
+.rowResizer:focus-visible::after,
+.rowResizer[data-active="true"]::after {
+  opacity: 1;
 }
 
 .promptBar {
@@ -558,6 +664,13 @@
     grid-template-columns: 1fr;
   }
   .rail {
+    display: none;
+  }
+  .previewRail {
+    display: none;
+  }
+  .colResizer,
+  .rowResizer {
     display: none;
   }
   .mobileRailTrigger {

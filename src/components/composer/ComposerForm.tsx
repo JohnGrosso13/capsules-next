@@ -113,6 +113,15 @@ export function ComposerForm({
   const [privacy, setPrivacy] = React.useState<"public" | "private">("public");
   const [projectsOpen, setProjectsOpen] = React.useState(true);
   const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
+  // Enable right preview rail by default; user can resize or we can later add a toggle
+  const [previewOpen, setPreviewOpen] = React.useState(true);
+  // Resizable layout state
+  const [leftWidth, setLeftWidth] = React.useState(260);
+  const [rightWidth, setRightWidth] = React.useState(260);
+  const [bottomHeight, setBottomHeight] = React.useState(200);
+  const columnsRef = React.useRef<HTMLDivElement | null>(null);
+  const mainRef = React.useRef<HTMLDivElement | null>(null);
+  const [mainHeight, setMainHeight] = React.useState<number>(0);
 
   const {
     fileInputRef,
@@ -129,6 +138,55 @@ export function ComposerForm({
   const openViewer = React.useCallback(() => setViewerOpen(true), []);
   const closeViewer = React.useCallback(() => setViewerOpen(false), []);
   const cloudflareBypass = React.useMemo(shouldBypassCloudflareImages, []);
+
+  // Observe main column size for positioning the bottom resizer
+  React.useEffect(() => {
+    if (!mainRef.current || typeof ResizeObserver === "undefined") return;
+    const obs = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === mainRef.current) {
+          setMainHeight(Math.floor(entry.contentRect.height));
+        }
+      }
+    });
+    obs.observe(mainRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+  const [drag, setDrag] = React.useState<
+    | { kind: "left"; startX: number; start: number }
+    | { kind: "right"; startX: number; start: number }
+    | { kind: "bottom"; startY: number; start: number }
+    | null
+  >(null);
+
+  React.useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!drag) return;
+      if (drag.kind === "left") {
+        const delta = e.clientX - drag.startX;
+        setLeftWidth(clamp(drag.start + delta, 200, 520));
+      } else if (drag.kind === "right") {
+        const delta = drag.startX - e.clientX; // moving right increases width
+        setRightWidth(clamp(drag.start + delta, 200, 520));
+      } else if (drag.kind === "bottom") {
+        const delta = drag.startY - e.clientY; // moving up increases composer height
+        setBottomHeight(clamp(drag.start + delta, 120, 420));
+      }
+    }
+    function onUp() {
+      setDrag(null);
+    }
+    if (drag) {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp, { once: true });
+    }
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [drag]);
 
   const voiceSessionCounterRef = React.useRef(1);
   const activeVoiceSessionRef = React.useRef<number | null>(null);
@@ -479,7 +537,16 @@ export function ComposerForm({
           <List size={18} weight="bold" />
         </button>
 
-        <div className={styles.columns}>
+        <div
+          ref={columnsRef}
+          className={styles.columns}
+          data-preview={previewOpen ? "open" : "closed"}
+          style={{
+            gridTemplateColumns: previewOpen
+              ? `${leftWidth}px minmax(0, 1fr) ${rightWidth}px`
+              : `${leftWidth}px minmax(0, 1fr)`,
+          }}
+        >
           <aside className={styles.rail} aria-label="Conversation navigation">
             <div className={styles.railHeader}>
               <button type="button" className={styles.railPrimary}>New Chat</button>
@@ -512,7 +579,20 @@ export function ComposerForm({
             </div>
           </aside>
 
-          <section className={styles.mainColumn} aria-label="Chat thread">
+          <section
+            ref={mainRef}
+            className={styles.mainColumn}
+            aria-label="Chat thread"
+            style={{ gridTemplateRows: `minmax(0, 1fr) ${bottomHeight}px` }}
+          >
+            <div
+              className={styles.rowResizer}
+              role="separator"
+              aria-orientation="horizontal"
+              data-active={drag?.kind === "bottom" ? "true" : undefined}
+              style={{ top: Math.max(32, mainHeight - bottomHeight - 3) }}
+              onMouseDown={(e) => setDrag({ kind: "bottom", startY: e.clientY, start: bottomHeight })}
+            />
             <div className={styles.chatScroll}>
               <ol className={styles.chatList}>
                 {prompt ? (
@@ -767,6 +847,14 @@ export function ComposerForm({
               </div>
             </div>
           </section>
+          {previewOpen ? (
+            <aside className={styles.previewRail} aria-label="Post preview">
+              <div className={styles.previewHeader}>Preview</div>
+              <div className={styles.previewBody}>
+                <div className={styles.previewPlaceholder}>Post preview will appear here</div>
+              </div>
+            </aside>
+          ) : null}
           {viewerOpen && displayAttachment && displayAttachment.status === "ready" ? (
             <div
               className={homeStyles.lightboxOverlay}
@@ -830,6 +918,25 @@ export function ComposerForm({
                 </div>
               </div>
             </div>
+          ) : null}
+          {/* Column resizers */}
+          <div
+            className={styles.colResizer}
+            role="separator"
+            aria-orientation="vertical"
+            data-active={drag?.kind === "left" ? "true" : undefined}
+            style={{ left: leftWidth }}
+            onMouseDown={(e) => setDrag({ kind: "left", startX: e.clientX, start: leftWidth })}
+          />
+          {previewOpen ? (
+            <div
+              className={styles.colResizer}
+              role="separator"
+              aria-orientation="vertical"
+              data-active={drag?.kind === "right" ? "true" : undefined}
+              style={{ left: `calc(100% - ${rightWidth}px)` }}
+              onMouseDown={(e) => setDrag({ kind: "right", startX: e.clientX, start: rightWidth })}
+            />
           ) : null}
         </div>
 
