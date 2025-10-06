@@ -630,18 +630,21 @@
   color-scheme: light;
   --surface-app: var(
     --app-bg,
-    radial-gradient(1200px 720px at 0% 0%, rgba(147, 197, 253, 0.24), transparent 60%),
-    radial-gradient(1020px 680px at 100% 0%, rgba(125, 211, 252, 0.22), transparent 62%),
+    /* Symmetric soft glows on both top corners */
+    radial-gradient(1200px 720px at 0% 0%, rgba(147, 197, 253, 0.22), transparent 60%),
+    radial-gradient(1200px 720px at 100% 0%, rgba(147, 197, 253, 0.22), transparent 60%),
+    /* Symmetric edge tint left/right with clear center */
     linear-gradient(
       90deg,
-      rgba(147, 197, 253, 0.22) 0%,
-      rgba(147, 197, 253, 0.10) 20%,
+      rgba(147, 197, 253, 0.18) 0%,
+      rgba(147, 197, 253, 0.08) 18%,
       rgba(247, 249, 255, 0) 42%,
       rgba(247, 249, 255, 0) 58%,
-      rgba(125, 211, 252, 0.12) 80%,
-      rgba(125, 211, 252, 0.24) 100%
+      rgba(147, 197, 253, 0.08) 82%,
+      rgba(147, 197, 253, 0.18) 100%
     ),
-    radial-gradient(840px 560px at 50% 110%, rgba(147, 197, 253, 0.18), transparent 78%),
+    /* Gentle bottom-center lift */
+    radial-gradient(840px 560px at 50% 110%, rgba(147, 197, 253, 0.16), transparent 78%),
     #f7f9ff
   );
   --surface-muted: rgba(255, 255, 255, 0.86);
