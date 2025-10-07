@@ -197,7 +197,9 @@ export function CapsuleContent({
       ) : (
         <>
           {tab === "live" ? (
-            <div className={capTheme.liveCanvas} aria-label="Live stream area" />
+            <div className={capTheme.liveCanvas} aria-label="Live stream area">
+              <LiveStreamCanvas />
+            </div>
           ) : (
             <StorePlaceholder />
           )}
@@ -214,6 +216,25 @@ export function CapsuleContent({
       <div className={capTheme.bannerBottom} />
       <CapsuleSections />
     </>
+  );
+}
+
+function LiveStreamCanvas() {
+  // Placeholder canvas that fits a 16:9 stream inside the available area
+  // When wired to a real player, replace the inner element with the player.
+  return (
+    <div className={capTheme.streamStage}>
+      <div className={capTheme.streamSurface} role="img" aria-label="Live stream placeholder">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={capTheme.streamVideo} src="/images/stream-placeholder.jpg" alt="" />
+        <div className={capTheme.streamOverlay}>
+          <span className={capTheme.streamBadge} aria-hidden>
+            LIVE
+          </span>
+          <span className={capTheme.streamStatus}>Stream preview</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
