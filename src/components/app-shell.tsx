@@ -50,7 +50,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot, 
   }, [statusMessage]);
 
   return (
-    <div className={styles.outer}>
+    <div className={isCapsule ? `${styles.outer} ${styles.outerCapsule}` : styles.outer}>
       <PrimaryHeader activeKey={derivedActive} />
       <div className={isCapsule ? `${styles.page} ${styles.pageCapsule}` : styles.page}>
         <main className={styles.main}>
