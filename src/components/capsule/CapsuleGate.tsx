@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import useEmblaCarousel from "embla-carousel-react";
 
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CapsuleContent } from "@/components/capsule/CapsuleScaffold";
@@ -13,6 +14,112 @@ type CapsuleGateProps = {
   capsules: CapsuleSummary[];
   defaultCapsuleId?: string | null;
 };
+
+type PlaceholderCapsule = {
+  name: string;
+  desc: string;
+};
+
+const PLACEHOLDER_ROWS: PlaceholderCapsule[][] = [
+  [
+    { name: "Creator Studio", desc: "Design + prompts" },
+    { name: "AI Photography", desc: "SDXL tips" },
+    { name: "Music Makers", desc: "DAW workflows" },
+    { name: "Streaming 101", desc: "OBS scenes" },
+    { name: "Launch Lab", desc: "Product sprints" },
+  ],
+  [
+    { name: "Prompt Jam", desc: "Weekly challenge" },
+    { name: "Dev Playground", desc: "Tools + snippets" },
+    { name: "Study Hall", desc: "Focus sessions" },
+    { name: "Creator Circle", desc: "Collaboration hub" },
+    { name: "Daily Flow", desc: "Wellness routines" },
+  ],
+];
+
+function PromoCarouselRow({
+  items,
+  rowLabel,
+}: {
+  items: PlaceholderCapsule[];
+  rowLabel: string;
+}) {
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: "start",
+    dragFree: true,
+    containScroll: "trimSnaps",
+  });
+
+  const [canPrev, setCanPrev] = React.useState(false);
+  const [canNext, setCanNext] = React.useState(false);
+
+  const updateControls = React.useCallback(() => {
+    if (!emblaApi) return;
+    setCanPrev(emblaApi.canScrollPrev());
+    setCanNext(emblaApi.canScrollNext());
+  }, [emblaApi]);
+
+  React.useEffect(() => {
+    if (!emblaApi) return;
+    updateControls();
+    emblaApi.on("select", updateControls);
+    emblaApi.on("reInit", updateControls);
+    return () => {
+      emblaApi.off("select", updateControls);
+      emblaApi.off("reInit", updateControls);
+    };
+  }, [emblaApi, updateControls]);
+
+  const handlePrev = React.useCallback(() => {
+    emblaApi?.scrollPrev();
+  }, [emblaApi]);
+
+  const handleNext = React.useCallback(() => {
+    emblaApi?.scrollNext();
+  }, [emblaApi]);
+
+  return (
+    <div className={styles.carouselRow}>
+      <div className={styles.carouselViewport} ref={emblaRef}>
+        <div className={styles.carouselContainer}>
+          {items.map((item) => (
+            <div key={item.name} className={styles.carouselSlide}>
+              <div className={`tile-neu ${styles.promoTile}`} aria-label={item.name}>
+                <span className={styles.promoLogo} aria-hidden />
+                <div className={styles.promoMeta}>
+                  <span className={styles.promoName}>{item.name}</span>
+                  <span className={styles.promoDesc}>{item.desc}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={styles.carouselControls}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={handlePrev}
+          disabled={!canPrev}
+          aria-label={`Previous recommended capsule in ${rowLabel}`}
+        >
+          ‹
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={handleNext}
+          disabled={!canNext}
+          aria-label={`Next recommended capsule in ${rowLabel}`}
+        >
+          ›
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function getInitial(name: string): string {
   const trimmed = name.trim();
@@ -53,15 +160,6 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
   }, [activeCapsule?.id, activeCapsule?.name]);
 
   if (!capsules.length) {
-    const placeholders = [
-      { name: "Creator Studio", desc: "Design + prompts" },
-      { name: "AI Photography", desc: "SDXL tips" },
-      { name: "Music Makers", desc: "DAW workflows" },
-      { name: "Streaming 101", desc: "OBS scenes" },
-      { name: "Prompt Jam", desc: "Weekly challenge" },
-      { name: "Dev Playground", desc: "Tools + snippets" },
-    ];
-
     return (
       <div className={styles.gateWrap}>
         <div className={styles.gateCard}>
@@ -79,15 +177,9 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
           <header className={styles.recommendHeader}>
             <h3 className={styles.recommendTitle}>Recommended Capsules</h3>
           </header>
-          <div className={styles.promoGrid}>
-            {placeholders.map((item, index) => (
-              <div key={index} className={`tile-neu ${styles.promoTile}`} aria-label={item.name}>
-                <span className={styles.promoLogo} aria-hidden />
-                <div className={styles.promoMeta}>
-                  <span className={styles.promoName}>{item.name}</span>
-                  <span className={styles.promoDesc}>{item.desc}</span>
-                </div>
-              </div>
+          <div className={styles.carouselGroup}>
+            {PLACEHOLDER_ROWS.map((row, index) => (
+              <PromoCarouselRow key={index} items={row} rowLabel={`row ${index + 1}`} />
             ))}
           </div>
         </section>
@@ -163,4 +255,3 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
     </div>
   );
 }
-

@@ -286,11 +286,40 @@
   color: var(--text, rgba(255, 255, 255, 0.92));
 }
 
-.promoGrid {
-  width: 100%;
+.carouselGroup {
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  width: 100%;
+}
+
+.carouselRow {
+  position: relative;
+  padding: 4px 62px 4px 2px;
+}
+
+.carouselViewport {
+  overflow: hidden;
+  width: 100%;
+}
+
+.carouselContainer {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.carouselSlide {
+  flex: 0 0 clamp(220px, 24vw, 260px);
+  max-width: clamp(220px, 24vw, 260px);
+}
+
+.carouselControls {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: flex;
+  gap: 8px;
+  transform: translateY(-50%);
 }
 
 .promoTile {
@@ -332,6 +361,24 @@
 .promoDesc {
   font-size: 0.9rem;
   color: var(--text-2);
+}
+
+@media (max-width: 880px) {
+  .carouselRow {
+    padding-right: 0;
+  }
+
+  .carouselControls {
+    position: static;
+    justify-content: flex-end;
+    margin-top: 10px;
+    transform: none;
+  }
+
+  .carouselRow {
+    display: grid;
+    gap: 10px;
+  }
 }
 
 .selectorActiveBar {
