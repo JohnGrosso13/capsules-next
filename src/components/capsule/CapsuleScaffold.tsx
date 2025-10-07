@@ -4,7 +4,7 @@ import * as React from "react";
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
 import { useComposer } from "@/components/composer/ComposerProvider";
 import { HomeFeedList } from "@/components/home-feed-list";
-import { useHomeFeed } from "@/hooks/useHomeFeed";
+import { useCapsuleFeed } from "@/hooks/useHomeFeed";
 import homeStyles from "@/components/home.module.css";
 import {
   Plus,
@@ -191,7 +191,7 @@ export function CapsuleContent({
             aria-label="Capsule feed"
             data-capsule-id={capsuleId ?? undefined}
           >
-            <CapsuleFeed />
+            <CapsuleFeed capsuleId={capsuleId} capsuleName={normalizedCapsuleName} />
           </div>
         </>
       ) : (
@@ -217,7 +217,7 @@ export function CapsuleContent({
   );
 }
 
-function CapsuleFeed() {
+function CapsuleFeed({ capsuleId, capsuleName }: { capsuleId: string | null; capsuleName: string | null }) {
   const {
     posts,
     likePending,
@@ -237,7 +237,11 @@ function CapsuleFeed() {
     hasFetched,
     isRefreshing,
     friendMessage,
-  } = useHomeFeed();
+  } = useCapsuleFeed(capsuleId);
+
+  const emptyMessage = capsuleName
+    ? `No posts in ${capsuleName} yet. Be the first to share an update.`
+    : "No posts in this capsule yet. Be the first to share an update.";
 
   return (
     <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
@@ -260,6 +264,7 @@ function CapsuleFeed() {
         canRemember={canRemember}
         hasFetched={hasFetched}
         isRefreshing={isRefreshing}
+        emptyMessage={emptyMessage}
       />
     </section>
   );

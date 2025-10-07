@@ -3,10 +3,14 @@
 import * as React from "react";
 
 import { useCurrentUser } from "@/services/auth/client";
-import type { FeedFetchOptions } from "@/services/feed/client";
+import { fetchHomeFeed, type FeedFetchOptions } from "@/services/feed/client";
 
 import type { HomeFeedPost } from "./useHomeFeed/types";
-import { homeFeedStore } from "./useHomeFeed/homeFeedStore";
+import {
+  createHomeFeedStore,
+  homeFeedStore,
+  type HomeFeedStore,
+} from "./useHomeFeed/homeFeedStore";
 import { formatExactTime, formatTimeAgo } from "./useHomeFeed/time";
 import { formatFeedCount } from "./useHomeFeed/utils";
 
@@ -16,16 +20,15 @@ export type { HomeFeedAttachment, HomeFeedPost } from "./useHomeFeed/types";
 const FEED_LIMIT = 30;
 const MESSAGE_TIMEOUT_MS = 4_000;
 
-type HomeFeedSnapshot = ReturnType<typeof homeFeedStore.getState>;
+type FeedSnapshot = ReturnType<HomeFeedStore["getState"]>;
 
-
-function useHomeFeedData(): HomeFeedSnapshot {
-  const subscribe = React.useCallback((listener: () => void) => homeFeedStore.subscribe(listener), []);
-  const getState = React.useCallback(() => homeFeedStore.getState(), []);
+function useFeedData(store: HomeFeedStore): FeedSnapshot {
+  const subscribe = React.useCallback((listener: () => void) => store.subscribe(listener), [store]);
+  const getState = React.useCallback(() => store.getState(), [store]);
   return React.useSyncExternalStore(subscribe, getState, getState);
 }
 
-function useHomeFeedActions(canRemember: boolean) {
+function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
   const {
     refresh,
     toggleLike,
@@ -35,23 +38,19 @@ function useHomeFeedActions(canRemember: boolean) {
     deletePost,
     setActiveFriendTarget,
     clearFriendMessage,
-  } = homeFeedStore.actions;
-  const getState = homeFeedStore.getState;
+  } = store.actions;
+  const getState = store.getState;
 
   return React.useMemo(() => {
     const refreshPosts = (signal?: AbortSignal) => {
       const options: FeedFetchOptions = { limit: FEED_LIMIT };
-      if (signal) {
-        options.signal = signal;
-      }
+      if (signal) options.signal = signal;
       return refresh(options);
     };
     const handleToggleLike = (postId: string) => toggleLike(postId);
     const handleToggleMemory = (post: HomeFeedPost, desired?: boolean) => {
       const options: { canRemember: boolean; desired?: boolean } = { canRemember };
-      if (typeof desired === "boolean") {
-        options.desired = desired;
-      }
+      if (typeof desired === "boolean") options.desired = desired;
       return toggleMemory(post.id, options);
     };
     const handleFriendRequest = (post: HomeFeedPost, identifier: string) =>
@@ -61,7 +60,10 @@ function useHomeFeedActions(canRemember: boolean) {
     const handleDelete = (postId: string) => deletePost(postId);
     const setActiveFriendTargetSafe = (next: React.SetStateAction<string | null>) => {
       const current = getState().activeFriendTarget;
-      const value = typeof next === "function" ? (next as (prev: string | null) => string | null)(current) : next;
+      const value =
+        typeof next === "function"
+          ? (next as (prev: string | null) => string | null)(current)
+          : next;
       setActiveFriendTarget(value);
     };
 
@@ -84,23 +86,42 @@ function useHomeFeedActions(canRemember: boolean) {
       setActiveFriendTarget: (next: React.SetStateAction<string | null>) => void;
       clearFriendMessage: () => void;
     };
-  }, [canRemember, deletePost, getState, refresh, removeFriend, requestFriend, setActiveFriendTarget, toggleLike, toggleMemory, clearFriendMessage]);
+  }, [
+    canRemember,
+    deletePost,
+    getState,
+    refresh,
+    removeFriend,
+    requestFriend,
+    setActiveFriendTarget,
+    toggleLike,
+    toggleMemory,
+    clearFriendMessage,
+  ]);
 }
 
-export function useHomeFeed() {
+type UseFeedOptions = {
+  refreshKey?: unknown;
+  refreshEnabled?: boolean;
+};
+
+function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
+  const { refreshKey, refreshEnabled = true } = options;
   const { user } = useCurrentUser();
   const canRemember = Boolean(user);
 
-  const state = useHomeFeedData();
-  const actions = useHomeFeedActions(canRemember);
+  const state = useFeedData(store);
+  const actions = useFeedActions(store, canRemember);
 
   React.useEffect(() => {
+    if (!refreshEnabled) return undefined;
     const controller = new AbortController();
     void actions.refreshPosts(controller.signal);
     return () => controller.abort();
-  }, [actions]);
+  }, [actions, refreshEnabled, refreshKey]);
 
   React.useEffect(() => {
+    if (!refreshEnabled) return undefined;
     const handleRefresh = () => {
       void actions.refreshPosts();
     };
@@ -108,7 +129,7 @@ export function useHomeFeed() {
     return () => {
       window.removeEventListener("posts:refresh", handleRefresh);
     };
-  }, [actions]);
+  }, [actions, refreshEnabled]);
 
   React.useEffect(() => {
     if (!state.friendMessage) {
@@ -139,5 +160,38 @@ export function useHomeFeed() {
     hasFetched: state.hasFetched,
     isRefreshing: state.isRefreshing,
   };
+}
+
+export function useHomeFeed() {
+  return useFeed(homeFeedStore, { refreshEnabled: true });
+}
+
+export function useCapsuleFeed(capsuleId: string | null | undefined) {
+  const trimmedCapsuleId = React.useMemo(() => {
+    if (typeof capsuleId !== "string") return null;
+    const value = capsuleId.trim();
+    return value.length ? value : null;
+  }, [capsuleId]);
+
+  const capsuleStore = React.useMemo(
+    () =>
+      createHomeFeedStore({
+        fallbackPosts: [],
+        client: {
+          fetch: async (options) => {
+            if (!trimmedCapsuleId) {
+              return { posts: [], cursor: null };
+            }
+            return fetchHomeFeed({ ...options, capsuleId: trimmedCapsuleId });
+          },
+        },
+      }),
+    [trimmedCapsuleId],
+  );
+
+  return useFeed(capsuleStore, {
+    refreshKey: trimmedCapsuleId ?? "__no_capsule__",
+    refreshEnabled: Boolean(trimmedCapsuleId),
+  });
 }
 

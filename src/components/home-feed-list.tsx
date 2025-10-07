@@ -58,6 +58,7 @@ type HomeFeedListProps = {
   canRemember: boolean;
   hasFetched: boolean;
   isRefreshing: boolean;
+  emptyMessage?: string;
 };
 
 export function HomeFeedList({
@@ -78,6 +79,7 @@ export function HomeFeedList({
   canRemember,
   hasFetched,
   isRefreshing,
+  emptyMessage,
 }: HomeFeedListProps) {
   const [lightbox, setLightbox] = React.useState<
     | {
@@ -246,6 +248,14 @@ export function HomeFeedList({
       {showSkeletons ? (
         <div className={styles.feedSkeleton} aria-live="polite" aria-busy="true">
           {skeletons}
+        </div>
+      ) : null}
+      {!showSkeletons && posts.length === 0 ? (
+        <div className={styles.feedEmpty} role="status">
+          <p className={styles.feedEmptyTitle}>No posts yet</p>
+          <p className={styles.feedEmptySubtitle}>
+            {emptyMessage ?? "Be the first to share something in this space."}
+          </p>
         </div>
       ) : null}
       {displayedPosts.map((post) => {

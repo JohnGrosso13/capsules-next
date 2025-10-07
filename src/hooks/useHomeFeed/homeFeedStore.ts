@@ -178,6 +178,7 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
       const requestOptions: FeedFetchOptions = {
         ...(options.limit !== undefined ? { limit: options.limit } : {}),
         ...(options.cursor !== undefined ? { cursor: options.cursor } : {}),
+        ...(options.capsuleId !== undefined ? { capsuleId: options.capsuleId } : {}),
         ...(options.signal !== undefined ? { signal: options.signal } : {}),
       };
       const result = await client.fetch(requestOptions);
@@ -409,6 +410,8 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
 }
 
 export const homeFeedStore = createHomeFeedStore();
+
+export type HomeFeedStore = ReturnType<typeof createHomeFeedStore>;
 export const homeFeedFallbackPosts = clonePosts(defaultFallbackPosts);
 
 // Exposed only for tests that mock this module.
