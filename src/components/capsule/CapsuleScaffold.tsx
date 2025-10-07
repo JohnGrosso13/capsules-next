@@ -215,9 +215,13 @@ export function CapsuleContent({
     <>
       {LiveArea}
       {tab === "live" ? <div className={capTheme.prompterBelow}>{prompter}</div> : null}
-      {/* Below the live area: banner and customizable sections */}
-      <div className={capTheme.bannerBottom} />
-      <CapsuleSections />
+      {tab !== "feed" ? (
+        <>
+          {/* Keep the lower banner + sections off the feed tab */}
+          <div className={capTheme.bannerBottom} />
+          <CapsuleSections />
+        </>
+      ) : null}
     </>
   );
 }

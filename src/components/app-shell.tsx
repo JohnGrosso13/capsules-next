@@ -13,6 +13,7 @@ import { LiveChatRail, type LiveChatRailProps } from "@/components/live/LiveChat
 import styles from "./app-shell.module.css";
 
 type NavKey = "home" | "create" | "capsule" | "memory";
+type CapsuleTab = "live" | "feed" | "store";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -47,11 +48,14 @@ export function AppShell({
 
   const isHome = derivedActive === "home";
   const isCapsule = derivedActive === "capsule";
+  const [capsuleTab, setCapsuleTab] = React.useState<CapsuleTab>("feed");
   const layoutClassName = isHome ? `${styles.layout} ${styles.layoutHome}` : styles.layout;
   const contentClassName = isHome ? `${styles.content} ${styles.contentHome}` : styles.content;
   const leftRailClassName = isHome ? `${styles.rail} ${styles.leftRail} ${styles.leftRailHome}` : `${styles.rail} ${styles.leftRail}`;
   const rightRailClassName = isHome ? `${styles.rail} ${styles.rightRail} ${styles.rightRailHome}` : `${styles.rail} ${styles.rightRail}`;
-  const capsuleLayoutClassName = showLiveChatRightRail
+  const isCapsuleFeedView = isCapsule && capsuleTab === "feed";
+  const capsuleHasRightRail = isCapsuleFeedView || showLiveChatRightRail;
+  const capsuleLayoutClassName = capsuleHasRightRail
     ? `${styles.layout} ${styles.layoutCapsule}`
     : `${styles.layout} ${styles.layoutCapsule} ${styles.layoutCapsuleNoRight}`;
 
@@ -61,6 +65,33 @@ export function AppShell({
     const timer = window.setTimeout(() => setStatusMessage(null), 4000);
     return () => window.clearTimeout(timer);
   }, [statusMessage]);
+
+  React.useEffect(() => {
+    if (!isCapsule) {
+      setCapsuleTab("feed");
+      return;
+    }
+    const handleCapsuleTab = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab?: CapsuleTab }>).detail;
+      if (!detail?.tab) return;
+      setCapsuleTab(detail.tab);
+    };
+    window.addEventListener("capsule:tab", handleCapsuleTab);
+    return () => {
+      window.removeEventListener("capsule:tab", handleCapsuleTab);
+    };
+  }, [isCapsule]);
+
+  const capsuleRightRailContent = React.useMemo(() => {
+    if (isCapsuleFeedView) {
+      // Swap in discovery content when viewing the capsule feed.
+      return <DiscoveryRail />;
+    }
+    if (showLiveChatRightRail) {
+      return <LiveChatRail {...liveChatRailProps} />;
+    }
+    return null;
+  }, [isCapsuleFeedView, showLiveChatRightRail, liveChatRailProps]);
 
   return (
     <div className={isCapsule ? `${styles.outer} ${styles.outerCapsule}` : styles.outer}>
@@ -86,9 +117,9 @@ export function AppShell({
                   {capsuleBanner ? <div className={styles.capsuleBanner}>{capsuleBanner}</div> : null}
                   {children}
                 </section>
-                {showLiveChatRightRail ? (
+                {capsuleHasRightRail && capsuleRightRailContent ? (
                   <aside className={`${styles.rail} ${styles.rightRail} ${styles.rightRailCapsule}`}>
-                    <LiveChatRail {...liveChatRailProps} />
+                    {capsuleRightRailContent}
                   </aside>
                 ) : null}
               </div>
