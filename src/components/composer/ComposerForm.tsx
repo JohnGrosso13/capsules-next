@@ -20,6 +20,7 @@ import {
   PaperPlaneRight,
 } from "@phosphor-icons/react/dist/ssr";
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
+import type { PrompterAttachment } from "@/components/ai-prompter-stage";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
 import {
@@ -81,6 +82,7 @@ type ComposerFormProps = {
   onClose(): void;
   onPost(): void;
   onForceChoice?(key: string): void;
+  onPrompt?(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
 };
 
 export function ComposerForm({
@@ -92,6 +94,7 @@ export function ComposerForm({
   onChange,
   onClose,
   onPost,
+  onPrompt,
 }: ComposerFormProps) {
   const workingDraft = React.useMemo<ComposerDraft>(
     () =>
@@ -420,6 +423,31 @@ export function ComposerForm({
     },
     [updateDraft],
   );
+
+  const handlePromptSubmit = React.useCallback(() => {
+    if (!onPrompt) return;
+    if (loading || attachmentUploading) return;
+    const trimmed = (workingDraft.content ?? "").trim();
+    if (!trimmed) return;
+
+    let attachments: PrompterAttachment[] | null = null;
+    if (readyAttachment?.url) {
+      attachments = [
+        {
+          id: readyAttachment.id,
+          name: readyAttachment.name,
+          mimeType: readyAttachment.mimeType,
+          size: readyAttachment.size,
+          url: readyAttachment.url,
+          thumbnailUrl: readyAttachment.thumbUrl ?? undefined,
+          storageKey: readyAttachment.key ?? null,
+          sessionId: readyAttachment.sessionId ?? null,
+        },
+      ];
+    }
+
+    void onPrompt(trimmed, attachments);
+  }, [attachmentUploading, loading, onPrompt, readyAttachment, workingDraft.content]);
 
   const showVibePrompt = React.useMemo(
     () =>
@@ -772,6 +800,12 @@ export function ComposerForm({
                   value={workingDraft.content}
                   onChange={(e) => updateDraft({ content: e.target.value })}
                   disabled={loading}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      handlePromptSubmit();
+                    }
+                  }}
                 />
                 <button
                   type="button"
@@ -779,6 +813,7 @@ export function ComposerForm({
                   aria-label="Send message"
                   title="Send"
                   disabled={loading || attachmentUploading || !workingDraft.content.trim()}
+                  onClick={handlePromptSubmit}
                 >
                   <PaperPlaneRight size={18} weight="fill" />
                 </button>

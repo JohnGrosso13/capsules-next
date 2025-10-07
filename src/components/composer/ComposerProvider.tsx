@@ -211,6 +211,7 @@ type ComposerContextValue = {
   handlePrompterAction(action: PrompterAction): void;
   close(): void;
   post(): Promise<void>;
+  submitPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void>;
   forceChoice?(key: string): Promise<void>;
   updateDraft(draft: ComposerDraft): void;
 };
@@ -518,6 +519,33 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.draft, state.rawPost, author.name, author.avatar, activeCapsuleId, envelopePayload]);
 
+  const submitPrompt = React.useCallback(
+    async (promptText: string, attachments?: PrompterAttachment[] | null) => {
+      const trimmed = promptText.trim();
+      if (!trimmed) return;
+      setState((prev) => ({
+        ...prev,
+        loading: true,
+        prompt: trimmed,
+        message: null,
+        choices: null,
+      }));
+      try {
+        const payload = await callAiPrompt(
+          trimmed,
+          undefined,
+          state.rawPost ?? undefined,
+          attachments && attachments.length ? attachments : undefined,
+        );
+        handleAiResponse(trimmed, payload);
+      } catch (error) {
+        console.error("Composer prompt submit failed", error);
+        setState((prev) => ({ ...prev, loading: false }));
+      }
+    },
+    [handleAiResponse, state.rawPost],
+  );
+
   const forceChoiceInternal = React.useCallback(
     async (key: string) => {
       if (!state.prompt) return;
@@ -549,19 +577,20 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       handlePrompterAction,
       close,
       post,
+      submitPrompt,
       updateDraft,
     };
     if (forceChoice) {
       base.forceChoice = forceChoice;
     }
     return base;
-  }, [state, handlePrompterAction, close, post, forceChoice, updateDraft]);
+  }, [state, handlePrompterAction, close, post, submitPrompt, forceChoice, updateDraft]);
 
   return <ComposerContext.Provider value={contextValue}>{children}</ComposerContext.Provider>;
 }
 
 export function AiComposerRoot() {
-  const { state, close, updateDraft, post, forceChoice } = useComposer();
+  const { state, close, updateDraft, post, submitPrompt, forceChoice } = useComposer();
 
   const forceHandlers = forceChoice
     ? {
@@ -582,6 +611,7 @@ export function AiComposerRoot() {
       onChange={updateDraft}
       onClose={close}
       onPost={post}
+      onPrompt={submitPrompt}
       {...forceHandlers}
     />
   );

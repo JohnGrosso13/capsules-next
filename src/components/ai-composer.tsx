@@ -7,6 +7,7 @@ import styles from "./ai-composer.module.css";
 import { ComposerForm, type ComposerChoice } from "./composer/ComposerForm";
 import type { ComposerDraft } from "@/lib/composer/draft";
 import { usePortalHost } from "@/hooks/usePortalHost";
+import type { PrompterAttachment } from "@/components/ai-prompter-stage";
 
 export type { ComposerDraft } from "@/lib/composer/draft";
 
@@ -20,6 +21,7 @@ type AiComposerDrawerProps = {
   onChange(draft: ComposerDraft): void;
   onClose(): void;
   onPost(): void;
+  onPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
   onForceChoice?(key: string): void;
 };
 
@@ -31,11 +33,12 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     prompt,
     message,
     choices,
-    onChange,
-    onClose,
-    onPost,
-    onForceChoice,
-  } = props;
+  onChange,
+  onClose,
+  onPost,
+  onPrompt,
+  onForceChoice,
+} = props;
   const portalClassName = styles.portalHost ?? "ai-composer-portal-host";
   const { host, ready } = usePortalHost(portalClassName, open);
 
@@ -74,6 +77,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       onChange={onChange}
       onClose={onClose}
       onPost={onPost}
+      onPrompt={onPrompt}
       {...(onForceChoice ? { onForceChoice } : {})}
     />,
     host,
