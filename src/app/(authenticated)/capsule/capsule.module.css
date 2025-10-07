@@ -268,7 +268,13 @@
 /* Recommended Capsules (empty-state promos) */
 .recommendSection {
   margin-top: clamp(16px, 2vw, 24px);
-  width: min(100%, 980px);
+  /* Match Home feed width so promo tiles are identical */
+  --promo-row-width: clamp(640px, 52vw, 760px);
+  --promo-gap-desktop: 12px;
+  --promo-gap-mobile: 10px;
+  --promo-cols-desktop: 4;
+  --promo-cols-mobile: 2;
+  width: min(100%, var(--promo-row-width));
   display: grid;
   gap: 16px;
   justify-items: center;
@@ -304,13 +310,14 @@
 
 .carouselContainer {
   display: flex;
-  gap: 16px;
+  gap: var(--promo-gap-desktop);
   align-items: stretch;
 }
 
 .carouselSlide {
-  flex: 0 0 clamp(220px, 24vw, 260px);
-  max-width: clamp(220px, 24vw, 260px);
+  /* Exact column width of PromoRow: 4 columns with 12px gaps */
+  flex: 0 0 calc((100% - (var(--promo-gap-desktop) * (var(--promo-cols-desktop) - 1))) / var(--promo-cols-desktop));
+  max-width: calc((100% - (var(--promo-gap-desktop) * (var(--promo-cols-desktop) - 1))) / var(--promo-cols-desktop));
 }
 
 .carouselControls {
@@ -323,11 +330,13 @@
 }
 
 .promoTile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 18px;
+  position: relative;
+  display: block;
+  width: 100%;
+  /* Match PromoRow tile height with 9:16 ratio */
+  aspect-ratio: 9/16;
+  border-radius: 16px;
+  overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -337,15 +346,27 @@
 }
 
 .promoLogo {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   border: 1px solid var(--pill-border);
   background:
     radial-gradient(220px 120px at 20% -20%, rgba(255, 255, 255, 0.16), transparent 60%),
     linear-gradient(135deg, var(--color-brand-strong), color-mix(in srgb, var(--color-brand) 65%, var(--color-accent)));
   box-shadow: 0 12px 28px rgba(6, 10, 28, 0.35);
   flex-shrink: 0;
+}
+
+.promoOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px;
+  background: var(--promo-overlay-gradient, linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.6)));
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .promoMeta {
@@ -379,6 +400,19 @@
     display: grid;
     gap: 10px;
   }
+}
+
+/* Mirror PromoRow breakpoints for columns/gaps and tile ratio */
+@media (max-width: 900px) {
+  .carouselContainer { gap: var(--promo-gap-mobile); }
+  .carouselSlide {
+    flex: 0 0 calc((100% - (var(--promo-gap-mobile) * (var(--promo-cols-mobile) - 1))) / var(--promo-cols-mobile));
+    max-width: calc((100% - (var(--promo-gap-mobile) * (var(--promo-cols-mobile) - 1))) / var(--promo-cols-mobile));
+  }
+}
+
+@media (max-width: 640px) {
+  .promoTile { aspect-ratio: 4/3; }
 }
 
 .selectorActiveBar {

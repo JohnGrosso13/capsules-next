@@ -85,10 +85,12 @@ function PromoCarouselRow({
           {items.map((item) => (
             <div key={item.name} className={styles.carouselSlide}>
               <div className={`tile-neu ${styles.promoTile}`} aria-label={item.name}>
-                <span className={styles.promoLogo} aria-hidden />
-                <div className={styles.promoMeta}>
-                  <span className={styles.promoName}>{item.name}</span>
-                  <span className={styles.promoDesc}>{item.desc}</span>
+                <div className={styles.promoOverlay}>
+                  <span className={styles.promoLogo} aria-hidden />
+                  <div className={styles.promoMeta}>
+                    <span className={styles.promoName}>{item.name}</span>
+                    <span className={styles.promoDesc}>{item.desc}</span>
+                  </div>
                 </div>
               </div>
             </div>
