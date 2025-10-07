@@ -14,6 +14,8 @@ import {
   Broadcast,
   Newspaper,
   Storefront,
+  ShareFat,
+  UsersThree,
 } from "@phosphor-icons/react/dist/ssr";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
 
@@ -25,6 +27,8 @@ export type CapsuleContentProps = {
   capsuleId?: string | null;
   capsuleName?: string | null;
 };
+
+const HERO_LINKS = ["Featured", "Members", "Events", "Media", "Files"] as const;
 
 // The banner now provides only the visual header. Tabs were moved below it.
 export function CapsuleContent({
@@ -182,6 +186,8 @@ export function CapsuleContent({
         </button>
       </div>
 
+      <CapsuleHero capsuleName={normalizedCapsuleName} />
+
       {/* Middle: canvas that grows, then prompter */}
       {tab === "feed" ? (
         <>
@@ -223,6 +229,55 @@ export function CapsuleContent({
         </>
       ) : null}
     </>
+  );
+}
+
+type CapsuleHeroProps = {
+  capsuleName: string | null;
+};
+
+function CapsuleHero({ capsuleName }: CapsuleHeroProps) {
+  const displayName = capsuleName ?? "Customize this capsule";
+  return (
+    <div className={capTheme.heroWrap}>
+      <div className={capTheme.heroBanner} role="img" aria-label="Capsule banner preview">
+        <button
+          type="button"
+          className={capTheme.heroCustomizeBtn}
+          aria-label="Customize capsule banner"
+        >
+          <PencilSimple size={16} weight="bold" />
+          Customize banner
+        </button>
+      </div>
+      <div className={capTheme.heroBody}>
+        <div className={capTheme.heroDetails}>
+          <h2 className={capTheme.heroTitle}>{displayName}</h2>
+          <p className={capTheme.heroSubtitle}>Highlight what makes this capsule special.</p>
+        </div>
+        <div className={capTheme.heroActions}>
+          <button type="button" className={`${capTheme.heroAction} ${capTheme.heroActionPrimary}`}>
+            <UsersThree size={16} weight="bold" />
+            Request to Join
+          </button>
+          <button type="button" className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}>
+            <ShareFat size={16} weight="bold" />
+            Share
+          </button>
+        </div>
+      </div>
+      <nav className={capTheme.heroTabs} aria-label="Capsule quick links">
+        {HERO_LINKS.map((label, index) => (
+          <button
+            key={label}
+            type="button"
+            className={index === 0 ? `${capTheme.heroTab} ${capTheme.heroTabActive}` : capTheme.heroTab}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+    </div>
   );
 }
 
