@@ -1,0 +1,302 @@
+/* High-contrast glass header with bold nav tokens and CTA */
+
+.header {
+  /* Balanced gradient header that blends with app background */
+  --header-height: var(--space-8xl);
+  /* Allow root/theme to override header hues without changing global brand */
+  --header-brand: var(--header-brand-color, var(--color-brand));
+  --header-brand-strong: var(--header-brand-strong-color, var(--color-brand-strong));
+  --header-accent: var(--color-accent);
+  --header-foreground-strong: var(--color-brand-foreground, #f8fafc);
+  --brand-gradient: var(--header-brand-gradient, var(--gradient-brand));
+  --header-button-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-elevated) 92%, var(--header-brand) 8%),
+    color-mix(in srgb, var(--surface-muted) 90%, var(--header-brand-strong) 10%)
+  );
+  --header-button-hover-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-elevated) 86%, var(--header-brand) 14%),
+    color-mix(in srgb, var(--surface-muted) 84%, var(--header-brand-strong) 16%)
+  );
+  --header-button-active-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-elevated) 78%, var(--header-brand) 22%),
+    color-mix(in srgb, var(--surface-muted) 76%, var(--header-brand-strong) 24%)
+  );
+  --header-button-border: color-mix(in srgb, var(--header-brand) 35%, var(--color-border) 65%);
+  --header-button-hover-border: color-mix(in srgb, var(--header-brand) 48%, var(--color-border) 52%);
+  --header-button-active-border: color-mix(in srgb, var(--header-brand) 60%, var(--color-border-strong) 40%);
+  --header-button-text: color-mix(in srgb, var(--color-fg) 96%, transparent);
+  --header-button-hover-text: color-mix(in srgb, var(--color-fg) 98%, transparent);
+  --header-shadow-color: color-mix(in srgb, var(--header-brand-strong) 28%, transparent);
+  --header-shadow-lg: 0 18px 42px var(--header-shadow-color);
+  --header-shadow-md: 0 12px 28px var(--header-shadow-color);
+  --header-shadow-sm: 0 10px 22px var(--header-shadow-color);
+  --header-button-shadow: var(--header-shadow-sm);
+  --header-button-hover-shadow: 0 14px 28px var(--header-shadow-color);
+  --header-button-active-shadow: 0 12px 26px var(--header-shadow-color);
+  --header-launch-border: color-mix(in srgb, var(--header-foreground-strong) 68%, transparent);
+  --header-launch-shadow: 0 26px 52px color-mix(in srgb, var(--header-brand) 45%, transparent);
+  --header-launch-shadow-hover: 0 30px 62px color-mix(in srgb, var(--header-brand) 50%, transparent);
+  --header-launch-shadow-active: 0 20px 40px color-mix(in srgb, var(--header-brand) 45%, transparent);
+  --header-launch-text-shadow: 0 1px 1px color-mix(in srgb, var(--app-bg, #050a1b) 60%, transparent);
+  position: fixed;
+  inset: 0 auto auto 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 1100;
+  isolation: isolate;
+  display: block;
+  overflow: hidden;
+  --blur-amount: 14px;
+  --header-glass-top: color-mix(in srgb, var(--surface-elevated) 92%, var(--header-brand) 8%);
+  --header-glass-bottom: color-mix(in srgb, var(--surface-muted) 88%, var(--header-brand-strong) 12%);
+  background:
+    linear-gradient(180deg, var(--header-glass-top), var(--header-glass-bottom)),
+    linear-gradient(180deg, var(--header-tint-from, color-mix(in srgb, var(--header-accent) 18%, transparent)), var(--header-tint-to, color-mix(in srgb, var(--header-brand) 12%, transparent)));
+  background-color: var(--header-glass-top);
+  backdrop-filter: blur(var(--blur-amount)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-amount)) saturate(160%);
+  border-bottom: 1px solid var(--header-border-color, color-mix(in srgb, var(--header-brand) 24%, var(--color-border) 76%));
+  box-shadow: var(--header-shadow, var(--header-shadow-lg));
+  min-height: var(--header-height);
+  transition: none;
+}
+
+@media (max-width: 640px) {
+  .header {
+    display: none;
+  }
+}
+
+/* Disable decorative overlays to avoid any blend with page content */
+.header::before,
+.header::after {
+  content: none !important;
+}
+
+
+/* On scroll: apply frosted glass while remaining opaque */
+.headerScrolled { /* no-op */ }
+
+/* Transient while the user is actively scrolling */
+.headerScrolling { /* no-op */ }
+
+@media (prefers-reduced-motion: reduce) {
+  .header::before,
+  .header::after,
+  .header {
+    transition: none;
+  }
+}
+
+@supports not ((-webkit-backdrop-filter: blur(0)) or (backdrop-filter: blur(0))) {
+  .header {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+.inner {
+  position: relative;
+  width: min(1200px, calc(100% - var(--layout-page-width-offset)));
+  margin: 0 auto;
+  min-height: var(--header-height);
+  padding: var(--space-md-plus) 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xl);
+}
+
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  align-self: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  margin-right: var(--space-md);
+}
+.brandMark {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  background: var(--brand-gradient, var(--gradient-brand));
+  border: 1px solid color-mix(in srgb, var(--header-foreground-strong) 24%, transparent);
+  box-shadow:
+    0 12px 28px color-mix(in srgb, var(--header-brand) 32%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong) 25%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 35%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.brandGlyph {
+  width: 24px;
+  height: 24px;
+  color: var(--header-foreground-strong);
+}
+.brandGlyphAi {
+  opacity: 0.95;
+}
+.brandGlyphHuman {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 16px;
+  height: 16px;
+  opacity: 0.98;
+  filter: drop-shadow(0 1px 1px color-mix(in srgb, var(--app-bg, #050a1b) 45%, transparent));
+}
+.brandName {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--color-fg);
+}
+
+.nav {
+  display: none;
+}
+@media (min-width: 768px) {
+  .nav {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-left: var(--space-md);
+  }
+}
+
+.navItem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-xl);
+  border-radius: 999px;
+  border: 1px solid var(--header-button-border);
+  color: var(--header-button-text);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  background: var(--header-button-bg);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong) 18%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 55%, transparent),
+    var(--header-button-shadow);
+  transition: background var(--motion-duration-medium) var(--motion-ease-standard), border-color var(--motion-duration-medium) var(--motion-ease-standard), color var(--motion-duration-medium) var(--motion-ease-standard), box-shadow var(--motion-duration-medium) var(--motion-ease-standard);
+}
+.navItem:hover {
+  background: var(--header-button-hover-bg);
+  border-color: var(--header-button-hover-border);
+  color: var(--header-button-hover-text);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong) 24%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 60%, transparent),
+    var(--header-button-hover-shadow);
+}
+.navItemActive {
+  color: var(--header-button-hover-text);
+  background: var(--header-button-active-bg);
+  border-color: var(--header-button-active-border);
+  box-shadow:
+    var(--header-button-active-shadow),
+    inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong) 35%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 55%, transparent);
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-md-plus);
+  margin-left: auto;
+}
+
+.iconButton {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--header-button-border);
+  background: var(--header-button-bg);
+  color: var(--header-button-text);
+  box-shadow: var(--header-button-shadow);
+  transition: background var(--motion-duration-medium) var(--motion-ease-standard), border-color var(--motion-duration-medium) var(--motion-ease-standard), box-shadow var(--motion-duration-medium) var(--motion-ease-standard);
+}
+.iconButton:hover {
+  background: var(--header-button-hover-bg);
+  border-color: var(--header-button-hover-border);
+  color: var(--header-button-hover-text);
+  box-shadow: var(--header-button-hover-shadow);
+}
+.iconButton:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--header-foreground-strong) 80%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--header-brand) 55%, transparent);
+}
+.iconSvg {
+  width: 26px;
+  height: 26px;
+}
+
+/* Avatar button wrapper aligns Clerk UserButton avatar to match icon buttons */
+.avatarButton {
+  overflow: hidden;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--header-button-border);
+  background: var(--header-button-bg);
+  box-shadow: var(--header-button-shadow);
+}
+
+/* Exact CTA per screenshot: lavender core with subtle purple/cyan edges */
+.launchCta {
+  min-width: 176px;
+  padding-inline: var(--space-2xl);
+  height: 48px;
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--cta-button-text, #ffffff) !important;
+  border: 1px solid var(--header-launch-border) !important;
+  text-shadow: var(--header-launch-text-shadow);
+  box-shadow: var(--header-launch-shadow) !important;
+}
+.launchCta:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: var(--header-launch-shadow-hover) !important;
+}
+.launchCta:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: var(--header-launch-shadow-active) !important;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

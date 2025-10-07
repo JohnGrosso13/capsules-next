@@ -1,0 +1,3 @@
+-- Legacy schema snapshot retained for reference.
+-- The authoritative schema now lives in supabase/migrations.
+-- Apply migrations with `npm run db:migrate`.

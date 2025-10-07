@@ -1,0 +1,462 @@
+@layer base {
+  :root[data-theme="light"] {
+    /* Readable text tokens for components expecting --text/--text-2 */
+    --text: var(--color-fg, rgba(14, 16, 36, 0.96));
+    --text-2: var(--color-fg-muted, rgba(14, 16, 36, 0.76));
+    --text-on-brand: var(--color-brand-foreground, #0e1024);
+
+    --dock-bg-1: rgba(255, 255, 255, 0.96);
+    --dock-bg-2: rgba(246, 248, 255, 0.9);
+    --dock-border: rgba(14, 23, 42, 0.12);
+    --dock-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+    --dock-btn-bg-1: rgba(255, 255, 255, 0.96);
+    --dock-btn-bg-2: rgba(255, 255, 255, 0.88);
+    --dock-btn-border: rgba(14, 23, 42, 0.12);
+    --dock-btn-hover-border: rgba(14, 23, 42, 0.2);
+    --dock-active-shadow: 0 12px 22px rgba(37, 99, 235, 0.18);
+    /* Remove purple glow from header/dock active states */
+    --dock-active-glow: rgba(14, 165, 233, 0.24);
+    --dock-text-muted: var(--text-2);
+    --dock-sheet-bg-1: rgba(255, 255, 255, 0.98);
+    --dock-sheet-bg-2: rgba(247, 249, 255, 0.94);
+    --dock-sheet-border: rgba(14, 23, 42, 0.12);
+    --dock-sheet-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+
+
+
+    /* Acrylic glass base used throughout (pills, chips, prompts) */
+    --glass-bg-1: rgba(255, 255, 255, 0.9);
+    --glass-bg-2: rgba(255, 255, 255, 0.78);
+    --pill-bg-1: rgba(255, 255, 255, 0.9);
+    --pill-bg-2: rgba(255, 255, 255, 0.78);
+    --pill-border: rgba(14, 23, 42, 0.16);
+    --chip-bg-1: var(--glass-bg-1, rgba(255, 255, 255, 0.9));
+    --chip-bg-2: var(--glass-bg-2, rgba(255, 255, 255, 0.78));
+    --chip-border: var(--pill-border, rgba(14, 23, 42, 0.16));
+    --chip-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), inset 0 -1px 0 rgba(14, 23, 42, 0.12), 0 8px 18px rgba(15, 23, 42, 0.14);
+    --chip-hover-bg-1: var(--pill-bg-1, rgba(255, 255, 255, 0.94));
+    --chip-hover-bg-2: var(--pill-bg-2, rgba(255, 255, 255, 0.86));
+    --chip-hover-border: var(--card-hover-border, rgba(14, 23, 42, 0.2));
+    --chip-hover-shadow: var(--card-hover-shadow, 0 18px 36px rgba(15, 23, 42, 0.18));
+    /* Neutral active state for light chips */
+    --chip-active-bg-1: rgba(255, 255, 255, 0.98);
+    --chip-active-bg-2: rgba(245, 247, 255, 0.94);
+    --chip-active-border: rgba(14, 23, 42, 0.22);
+    --chip-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 12px 24px rgba(15, 23, 42, 0.16);
+
+    /* Cards (posts, tiles) - soft, low-contrast layers */
+    --card-bg-1: rgba(255, 255, 255, 0.96);
+    --card-bg-2: rgba(255, 255, 255, 0.9);
+    --card-border: rgba(14, 23, 42, 0.12);
+    /* Unify elevation for light surfaces */
+    --card-shadow: var(--shadow-md, 0 12px 32px rgba(15, 23, 42, 0.14));
+    --card-hover-bg-1: rgba(255, 255, 255, 0.98);
+    --card-hover-bg-2: rgba(255, 255, 255, 0.92);
+    --card-hover-border: rgba(14, 23, 42, 0.2);
+    --card-hover-shadow: var(--shadow-lg, 0 20px 48px rgba(15, 23, 42, 0.18));
+
+    /* Quiet action plates in posts */
+    --feed-action-bg-1: rgba(255, 255, 255, 0.86);
+    --feed-action-bg-2: rgba(255, 255, 255, 0.76);
+    --feed-action-border: rgba(14, 23, 42, 0.12);
+    --feed-action-border-hover: rgba(14, 23, 42, 0.2);
+    --feed-action-shadow-hover: 0 12px 28px rgba(15, 23, 42, 0.18);
+    --feed-icon-text: var(--text, var(--color-fg, rgba(14, 16, 36, 0.96)));
+
+    /* Icon plate tokens */
+    --icon-plate-bg-1: rgba(255, 255, 255, 0.9);
+    --icon-plate-bg-2: rgba(255, 255, 255, 0.8);
+    --icon-plate-border: rgba(14, 23, 42, 0.14);
+    --icon-plate-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+    /* Right-rail container tokens */
+    --rail-bg-1: rgba(255, 255, 255, 0.95);
+    --rail-bg-2: rgba(255, 255, 255, 0.86);
+    --rail-border: rgba(14, 23, 42, 0.12);
+
+    --text-3: var(--color-fg-subtle, rgba(14, 16, 36, 0.6));
+    --accent-glow: rgba(15, 23, 42, 0.14);
+    --alert-bg: rgba(14, 23, 42, 0.04);
+    --alert-border: rgba(14, 23, 42, 0.18);
+    --alert-fg: rgba(14, 16, 36, 0.96);
+    --alert-accent: rgba(14, 16, 36, 0.96);
+    --brand-gradient: var(--gradient-brand);
+    --cta-button-gradient: var(--cta-chip-gradient, var(--cta-gradient));
+    --cta-chip-gradient: var(--cta-gradient);
+    --cta-chip-text: var(--cta-button-text, #0e1024);
+    --cta-chip-border: rgba(14, 23, 42, 0.16);
+    --cta-chip-shadow: 0 12px 22px rgba(15, 23, 42, 0.12);
+    --cta-chip-border-hover: rgba(14, 23, 42, 0.22);
+    --cta-chip-shadow-hover: 0 18px 28px rgba(15, 23, 42, 0.16);
+    --cta-radius: var(--radius-pill, 999px);
+    --card-radius: var(--radius-lg, 1rem);
+    --prompt-glow-blur: 18px;
+    --prompt-glow-opacity: 0.3;
+    --tile-bg-base: linear-gradient(160deg, rgba(255, 255, 255, 1), rgba(247, 249, 255, 0.92));
+    --tile-bg-final: var(--tile-bg-base);
+    --tile-border-base: rgba(14, 23, 42, 0.12);
+    --tile-border-final: var(--tile-border-base);
+    --tile-border-hover-base: rgba(14, 23, 42, 0.24);
+    --tile-border-hover: var(--tile-border-hover-base);
+    --tile-shadow-base: var(--shadow-sm, 0 4px 12px rgba(15, 23, 42, 0.16));
+    --tile-shadow-final: var(--tile-shadow-base);
+    --tile-shadow-hover-base: var(--shadow-md, 0 12px 32px rgba(15, 23, 42, 0.2));
+    --tile-shadow-hover: var(--tile-shadow-hover-base);
+    --tile-text-base: var(--text);
+    --tile-text-final: var(--tile-text-base);
+    --tile-desc-base: var(--text-2);
+    --tile-desc-final: var(--tile-desc-base);
+    --tile-icon-bg-base: rgba(14, 23, 42, 0.06);
+    --tile-icon-bg-final: var(--tile-icon-bg-base);
+    --tile-icon-color-base: rgba(14, 16, 36, 0.82);
+    --tile-icon-color-final: var(--tile-icon-color-base);
+    --tile-badge-bg-base: rgba(14, 16, 36, 0.9);
+    --tile-badge-bg-final: var(--tile-badge-bg-base);
+    --tile-badge-color-base: var(--text-on-brand, #0e1024);
+    --tile-badge-color-final: var(--tile-badge-color-base);
+    --tile-accent-a: rgba(14, 23, 42, 0.16);
+    --style-friends-bg: var(--tile-bg-base);
+    --style-friends-border: var(--tile-border-base);
+    --style-friends-text: var(--tile-text-base);
+    --style-friends-desc: var(--tile-desc-base);
+    --style-friends-shadow: var(--tile-shadow-base);
+    --style-friends-shadow-hover: var(--tile-shadow-hover-base);
+    --style-friends-icon-bg: var(--tile-icon-bg-base);
+    --style-friends-icon-color: var(--tile-icon-color-base);
+    --style-friends-badge-bg: var(--tile-badge-bg-base);
+    --style-friends-badge-color: var(--tile-badge-color-base);
+    --style-friends-border-hover: var(--tile-border-hover-base);
+    --style-chats-bg: var(--tile-bg-base);
+    --style-chats-border: var(--tile-border-base);
+    --style-chats-text: var(--tile-text-base);
+    --style-chats-desc: var(--tile-desc-base);
+    --style-chats-shadow: var(--tile-shadow-base);
+    --style-chats-shadow-hover: var(--tile-shadow-hover-base);
+    --style-chats-icon-bg: var(--tile-icon-bg-base);
+    --style-chats-icon-color: var(--tile-icon-color-base);
+    --style-chats-badge-bg: var(--tile-badge-bg-base);
+    --style-chats-badge-color: var(--tile-badge-color-base);
+    --style-chats-border-hover: var(--tile-border-hover-base);
+    --style-requests-bg: var(--tile-bg-base);
+    --style-requests-border: var(--tile-border-base);
+    --style-requests-text: var(--tile-text-base);
+    --style-requests-desc: var(--tile-desc-base);
+    --style-requests-shadow: var(--tile-shadow-base);
+    --style-requests-shadow-hover: var(--tile-shadow-hover-base);
+    --style-requests-icon-bg: var(--tile-icon-bg-base);
+    --style-requests-icon-color: var(--tile-icon-color-base);
+    --style-requests-badge-bg: var(--tile-badge-bg-base);
+    --style-requests-badge-color: var(--tile-badge-color-base);
+    --style-requests-border-hover: var(--tile-border-hover-base);
+
+    /* Home surface tokens */
+    --home-prompterdropoverlay-background: radial-gradient(120% 120% at 50% 50%, rgba(0, 0, 0, 0.06), transparent 70%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 255, 0.9));
+    --home-prompterdropoverlay-box-shadow: 0 24px 52px rgba(15, 23, 42, 0.18);
+    --home-prompterdropcard-border: 1px solid color-mix(in srgb, var(--color-brand) 28%, rgba(14, 23, 42, 0.16));
+    --home-prompterdropcard-box-shadow: 0 18px 32px rgba(15, 23, 42, 0.14);
+    --home-promptbar-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba(14, 23, 42, 0.12),
+      0 12px 26px rgba(15, 23, 42, 0.12);
+    --home-promptbar--before-background: radial-gradient(120% 160% at 10% 50%, color-mix(in srgb, var(--color-brand) 35%, rgba(255, 255, 255, 0.75)), transparent 65%),
+      radial-gradient(120% 160% at 90% 50%, color-mix(in srgb, var(--color-accent) 28%, rgba(255, 255, 255, 0.75)), transparent 65%),
+      radial-gradient(160% 160% at 50% 50%, color-mix(in srgb, var(--color-info) 24%, rgba(255, 255, 255, 0.75)), transparent 70%);
+    --home-promptbar-focus-within-border-color: color-mix(in srgb, var(--color-brand) 45%, rgba(14, 23, 42, 0.15));
+    --home-promptbar-focus-within-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba(14, 23, 42, 0.16),
+      0 16px 32px rgba(15, 23, 42, 0.16);
+    --home-gensplitcaret-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      inset 0 -1px 0 rgba(14, 23, 42, 0.14),
+      0 10px 22px rgba(15, 23, 42, 0.14);
+    --home-attachbutton-hover-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88),
+      12px 18px 30px rgba(15, 23, 42, 0.18);
+    --home-attachmentchip-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      6px 10px 18px rgba(15, 23, 42, 0.12);
+    --home-intentchip-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86),
+      inset 0 -1px 0 rgba(14, 23, 42, 0.12),
+      10px 14px 24px rgba(15, 23, 42, 0.14);
+    --home-intentchipactive-background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 247, 255, 0.92));
+    --home-intentchipactive-color: rgba(14, 16, 36, 0.96);
+    --home-intentchipactive-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.28),
+      14px 22px 36px rgba(15, 23, 42, 0.16);
+    --home-intentchipactive-box-shadow-2: inset 0 1px 0 rgba(255, 255, 255, 0.88),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.24),
+      0 16px 30px rgba(15, 23, 42, 0.16);
+    --home-skeletonbackdrop-background: radial-gradient(120% 120% at 50% 0%, rgba(0, 0, 0, 0.04), transparent 70%),
+      linear-gradient(180deg, rgba(247, 249, 255, 0.96), rgba(229, 237, 255, 0.82));
+    --home-skeletoniconbtn-background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(226, 232, 255, 0.68));
+    --home-skeletoniconbtn--after-background: linear-gradient(90deg, transparent, rgba(148, 197, 255, 0.45), transparent);
+    --home-cardrefreshing--after-background: linear-gradient(180deg, rgba(241, 244, 255, 0.94), rgba(223, 232, 255, 0.82));
+    --home-card--before-background: radial-gradient(120% 90% at 50% -10%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 68%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
+    --home-cardhead-background: linear-gradient(180deg, rgba(247, 249, 255, 0.96), rgba(230, 235, 245, 0.84));
+    --home-cardhead-border-bottom-color: rgba(148, 163, 184, 0.26);
+    --home-lightboxoverlay-background: radial-gradient(circle at 50% 20%, rgba(0, 0, 0, 0.06), transparent 70%), rgba(15, 23, 42, 0.68);
+    --home-lightboxclose-background: color-mix(in srgb, rgba(255, 255, 255, 0.96) 80%, rgba(148, 197, 255, 0.3));
+    --home-lightboxclose-color: var(--text-on-brand, #0e1024);
+    --home-lightboxclose-focus-visible-background: rgba(14, 23, 42, 0.12);
+    --home-lightboxnav-background: color-mix(in srgb, rgba(15, 23, 42, 0.65) 40%, rgba(255, 255, 255, 0.75));
+    --home-lightboxnav-color: var(--text-on-brand, #0e1024);
+    --home-lightboxnav-focus-visible-background: rgba(14, 23, 42, 0.12);
+    --home-lightboxvideo-background: rgba(15, 23, 42, 0.92);
+    --home-lightboxcaption-color: rgba(14, 23, 42, 0.82);
+    --home-pill-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba(14, 23, 42, 0.12),
+      0 6px 12px rgba(15, 23, 42, 0.12);
+    --home-pill-hover-border-color: rgba(14, 23, 42, 0.16);
+    --home-connectiontile-tile-border-hover-base: rgba(14, 23, 42, 0.18);
+    --home-connectiontile-tile-shadow-hover-base: var(--shadow-md, 0 12px 32px rgba(15, 23, 42, 0.18));
+    --home-railbackbtn-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba(14, 23, 42, 0.14),
+      0 6px 12px rgba(15, 23, 42, 0.14);
+    --home-railtabs-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      inset 0 -1px 0 rgba(14, 23, 42, 0.14);
+    --home-railtab-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      inset 0 -1px 0 rgba(14, 23, 42, 0.12),
+      0 2px 8px rgba(15, 23, 42, 0.12);
+
+    /* Friends surface tokens */
+    --friends-tabs-scrim: color-mix(in srgb, var(--surface-overlay, rgba(255, 255, 255, 0.78)) 82%, rgba(148, 197, 255, 0.22));
+    --friends-tab-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.92) 75%, transparent),
+      color-mix(in srgb, rgba(148, 197, 255, 0.35) 70%, transparent)
+    );
+    --friends-badge-background: color-mix(in srgb, var(--color-brand) 62%, rgba(59, 130, 246, 0.28));
+    --friends-badge-text: var(--text-on-brand, #0e1024);
+    --friends-notice-text: color-mix(in srgb, var(--text) 90%, var(--text-on-brand, #0e1024) 10%);
+    --friends-empty-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(220, 230, 255, 0.6) 70%, transparent),
+      color-mix(in srgb, rgba(183, 200, 255, 0.45) 70%, transparent)
+    );
+    --friends-retry-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 55%, transparent),
+      color-mix(in srgb, rgba(59, 130, 246, 0.32) 70%, transparent)
+    );
+    --friends-row-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.96) 75%, transparent),
+      color-mix(in srgb, rgba(221, 229, 255, 0.6) 75%, transparent)
+    );
+    --friends-row-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+    --friends-avatar-background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(226, 232, 255, 0.74));
+    --friends-avatar-fallback-text: color-mix(in srgb, var(--text) 92%, var(--text-on-brand, #0e1024) 8%);
+    --friends-presence-neutral-dot: color-mix(in srgb, var(--presence-offline-dot, rgba(148, 163, 184, 0.4)) 90%, transparent);
+    --friends-presence-neutral-dot-muted: color-mix(
+      in srgb,
+      var(--friends-presence-neutral-dot) 55%,
+      transparent
+    );
+    --friends-menu-trigger-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.92) 80%, transparent),
+      color-mix(in srgb, rgba(182, 196, 255, 0.32) 70%, transparent)
+    );
+    --friends-menu-panel-background: color-mix(in srgb, var(--surface-elevated, rgba(255, 255, 255, 0.92)) 94%, rgba(226, 232, 255, 0.78));
+    --friends-menu-panel-shadow: 0 18px 32px rgba(15, 23, 42, 0.16);
+    --friends-request-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(233, 239, 255, 0.7) 70%, transparent),
+      color-mix(in srgb, rgba(198, 210, 255, 0.48) 70%, transparent)
+    );
+    --friends-request-action-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(233, 239, 255, 0.68) 70%, transparent),
+      color-mix(in srgb, rgba(198, 210, 255, 0.46) 70%, transparent)
+    );
+    --friends-request-primary-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 55%, rgba(59, 130, 246, 0.2)),
+      color-mix(in srgb, var(--color-brand) 65%, rgba(22, 163, 255, 0.18))
+    );
+
+    /* AI prompter tokens */
+    --prompter-ai-message-background: var(--cta-gradient);
+    --prompter-ai-message-text: var(--text);
+    --prompter-primary-button-background: var(--cta-gradient);
+    --prompter-primary-button-text: var(--cta-button-text, var(--text-on-brand, var(--text)));
+
+    /* Chats surface tokens */
+    --chats-panel-background: color-mix(in srgb, var(--surface-elevated, rgba(255, 255, 255, 0.92)) 96%, rgba(148, 197, 255, 0.2));
+    --chats-panel-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+    --chats-empty-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(226, 232, 255, 0.86) 70%, transparent),
+      color-mix(in srgb, rgba(203, 213, 255, 0.6) 70%, transparent)
+    );
+    --chats-thread-background: var(
+      --style-chats-bg,
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, rgba(221, 229, 255, 0.75) 70%, transparent),
+        color-mix(in srgb, rgba(195, 210, 255, 0.55) 70%, transparent)
+      )
+    );
+    --chats-thread-active-shadow: 0 16px 36px color-mix(in srgb, var(--color-brand) 24%, transparent);
+    --chats-avatar-background: var(
+      --style-chats-icon-bg,
+      color-mix(in srgb, var(--color-brand) 28%, rgba(255, 255, 255, 0.94))
+    );
+    --chats-thread-badge-background: var(
+      --style-chats-badge-bg,
+      color-mix(in srgb, var(--color-brand) 62%, rgba(59, 130, 246, 0.28))
+    );
+    --chats-thread-badge-text: var(--style-chats-badge-color, var(--text-on-brand, #0e1024));
+    --chats-conversation-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(224, 231, 255, 0.78) 70%, transparent),
+      color-mix(in srgb, rgba(210, 224, 255, 0.52) 70%, transparent)
+    );
+    --chats-control-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.96) 80%, transparent),
+      color-mix(in srgb, rgba(210, 224, 255, 0.34) 70%, transparent)
+    );
+    --chats-message-background: color-mix(in srgb, rgba(221, 229, 255, 0.82) 70%, rgba(199, 210, 255, 0.65));
+    --chats-message-shadow: 0 12px 22px rgba(15, 23, 42, 0.18);
+    --chats-message-self-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 65%, rgba(96, 165, 250, 0.32)),
+      color-mix(in srgb, rgba(96, 165, 250, 0.35) 70%, rgba(59, 130, 246, 0.3))
+    );
+    --chats-message-self-text: var(--text-on-brand, #0e1024);
+    --chats-error-border: color-mix(in srgb, var(--color-danger) 35%, rgba(14, 23, 42, 0.18));
+    --chats-error-background: color-mix(in srgb, var(--color-danger) 15%, rgba(255, 255, 255, 0.94));
+    --chats-error-text: color-mix(in srgb, var(--color-danger) 65%, rgba(14, 23, 42, 0.85));
+    --chats-composer-background: color-mix(in srgb, var(--surface-muted, rgba(255, 255, 255, 0.86)) 96%, rgba(203, 213, 255, 0.26));
+    --chats-input-border: color-mix(in srgb, rgba(148, 163, 184, 0.32) 70%, transparent);
+    --chats-input-background: color-mix(in srgb, rgba(255, 255, 255, 0.96) 80%, rgba(210, 224, 255, 0.32));
+    --chats-send-button-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
+    --chats-send-button-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 65%, rgba(37, 99, 235, 0.25)),
+      color-mix(in srgb, rgba(96, 165, 250, 0.35) 70%, rgba(59, 130, 246, 0.3))
+    );
+    --chats-send-button-text: var(--text-on-brand, #0e1024);
+    --chats-menu-panel-background: color-mix(in srgb, var(--surface-elevated, rgba(255, 255, 255, 0.92)) 95%, rgba(210, 224, 255, 0.32));
+    --chats-menu-panel-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+
+    /* Promo row tokens */
+    --promo-short-background: radial-gradient(
+      600px 300px at 30% 20%,
+      color-mix(in srgb, var(--color-brand) 20%, rgba(255, 255, 255, 0.92)),
+      transparent 60%
+    ),
+      radial-gradient(
+        400px 280px at 70% 80%,
+        color-mix(in srgb, var(--color-accent) 18%, rgba(255, 255, 255, 0.9)),
+        transparent 62%
+      ),
+      var(--surface-overlay, rgba(255, 255, 255, 0.78));
+    --promo-tile-hover-overlay: radial-gradient(120% 90% at 50% -10%, rgba(46, 72, 120, 0.12), rgba(46, 72, 120, 0) 68%),
+      linear-gradient(180deg, rgba(37, 59, 112, 0.08), rgba(37, 59, 112, 0));
+    --promo-overlay-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(14, 23, 42, 0.38));
+
+    /* Background FX tokens */
+    --background-fx-purple: radial-gradient(
+      closest-side at 50% 50%,
+      color-mix(in srgb, var(--color-brand) 24%, rgba(255, 255, 255, 0.9)),
+      transparent 70%
+    );
+    --background-fx-indigo: radial-gradient(
+      closest-side at 50% 50%,
+      color-mix(in srgb, rgba(96, 165, 250, 0.32), rgba(255, 255, 255, 0.9)),
+      transparent 70%
+    );
+    --background-fx-pink: radial-gradient(
+      closest-side at 50% 50%,
+      color-mix(in srgb, rgba(236, 72, 153, 0.24), rgba(255, 255, 255, 0.92)),
+      transparent 70%
+    );
+    --background-fx-mist: radial-gradient(60% 40% at 30% 30%, rgba(255, 255, 255, 0.24), transparent 70%),
+      radial-gradient(50% 45% at 70% 60%, rgba(210, 224, 255, 0.18), transparent 70%),
+      radial-gradient(45% 55% at 50% 80%, rgba(210, 224, 255, 0.12), transparent 70%);
+
+    /* CTA override tokens: exact purple→cyan gradient for light mode */
+    --cta-gradient-launch-light: linear-gradient(120deg, #8b5cf6 0%, #22d3ee 100%);
+    --cta-button-shadow: 0 16px 32px rgba(37, 99, 235, 0.24);
+
+    /* Create page tokens */
+    --create-tile-background: radial-gradient(1200px 50% at -10% -10%, rgba(255, 255, 255, 0.24), transparent 50%),
+      linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    --create-tile-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.22),
+      0 20px 48px rgba(15, 23, 42, 0.16),
+      0 2px 0 rgba(255, 255, 255, 0.32);
+    --create-tile-hover-background: radial-gradient(1200px 50% at -10% -10%, rgba(255, 255, 255, 0.32), transparent 50%),
+      linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
+    --create-tile-hover-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.28),
+      0 24px 54px rgba(15, 23, 42, 0.18);
+    --create-tile-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      inset 0 -2px 0 rgba(148, 163, 184, 0.32),
+      var(--card-shadow);
+    --create-tile-expanded-background: radial-gradient(1400px 60% at -10% -10%, rgba(255, 255, 255, 0.34), transparent 60%),
+      linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
+    --create-tile-expanded-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.3),
+      0 24px 54px rgba(15, 23, 42, 0.2);
+    --create-back-button-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.28),
+      0 8px 18px rgba(15, 23, 42, 0.14);
+    --create-header-bottom-fade: linear-gradient(180deg, rgba(82, 103, 177, 0.18), rgba(255, 255, 255, 0));
+    --create-brand-mark-shadow: 0 12px 26px rgba(37, 99, 235, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      inset 0 -1px 0 rgba(59, 72, 130, 0.18);
+    --create-brand-mark-border: rgba(148, 163, 184, 0.28);
+    --create-brand-name-gradient: linear-gradient(180deg, rgba(23, 37, 84, 0.95), rgba(37, 59, 112, 0.75));
+    --create-nav-link-border: var(--pill-border);
+    --create-nav-link-background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.88));
+    --create-nav-link-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.2),
+      0 8px 18px rgba(15, 23, 42, 0.18);
+    --create-nav-link-hover-background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(237, 242, 255, 0.92));
+    --create-nav-link-hover-border: rgba(148, 163, 184, 0.32);
+    --create-nav-link-hover-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.28),
+      0 10px 22px rgba(15, 23, 42, 0.2);
+    --create-nav-link-active-background: linear-gradient(180deg, rgba(237, 242, 255, 0.98), rgba(214, 226, 255, 0.9));
+    --create-nav-link-active-border: rgba(148, 163, 184, 0.42);
+    --create-nav-link-active-shadow: 0 8px 18px rgba(15, 23, 42, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.28);
+    --create-icon-button-border: var(--pill-border);
+    --create-icon-button-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.2),
+      0 8px 18px rgba(15, 23, 42, 0.16);
+    --create-icon-button-hover-border: rgba(148, 163, 184, 0.32);
+
+    /* Settings tokens */
+    --settings-nav-item-border: rgba(148, 163, 184, 0.24);
+    --settings-nav-item-background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 255, 0.88));
+    --settings-nav-item-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 0 rgba(148, 163, 184, 0.2);
+    --settings-nav-item-active-shadow: 0 0 18px var(--accent-glow, rgba(79, 70, 229, 0.24)),
+      0 6px 12px rgba(37, 47, 88, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.82);
+
+    --surface-1: rgba(255, 255, 255, 0.98);
+    --surface-3: rgba(245, 247, 255, 0.94);
+    --surface-outline: rgba(14, 23, 42, 0.12);
+    --link-color: color-mix(in srgb, var(--color-brand) 60%, rgba(14, 23, 42, 0.8));
+    --create-rows-height: clamp(520px, calc(100dvh - 260px), 920px);
+    /* Header acrylic tokens to blend with page background gently */
+    /* Make header fully readable and free of purple tint */
+        --header-glass-top: rgba(255, 255, 255, 0.96);
+        --header-glass-bottom: rgba(255, 255, 255, 0.9);
+        --header-tint-from: rgba(255, 255, 255, 0);
+        --header-tint-to: rgba(255, 255, 255, 0);
+        --header-border-color: rgba(14, 23, 42, 0.08);
+        --header-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        --header-scrim: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0));
+        /* Override header brand hues for buttons/CTA without touching global brand */
+        --header-brand-color: #0ea5e9; /* cyan/azure */
+        --header-brand-strong-color: #2563eb; /* deep blue */
+        --header-brand-gradient: linear-gradient(120deg, #38bdf8 0%, #0ea5e9 55%, #22d3ee 100%);
+  }
+}
+
+
+

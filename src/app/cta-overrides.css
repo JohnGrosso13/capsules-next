@@ -1,0 +1,11 @@
+/* CTA gradient overrides to fine-tune Launch Capsule look */
+:root {
+  --cta-gradient: var(--cta-gradient-launch-dark);
+}
+
+:root[data-theme="light"] {
+  --cta-gradient: var(--cta-gradient-launch-light);
+}
+
+
+

@@ -1,0 +1,19 @@
+.page {
+  min-height: calc(100vh - 4rem);
+  background: radial-gradient(
+      120% 120% at 20% 0%,
+      rgba(86, 105, 255, 0.25),
+      rgba(18, 22, 42, 0.05) 55%,
+      transparent 85%
+    ),
+    radial-gradient(
+      140% 140% at 110% 10%,
+      rgba(42, 199, 255, 0.2),
+      rgba(10, 12, 24, 0.05) 60%,
+      transparent 85%
+    ),
+    var(--background, #05070f);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
