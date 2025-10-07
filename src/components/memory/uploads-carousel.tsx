@@ -131,6 +131,10 @@ export function UploadsCarousel() {
     attachment && attachment.progress > 0
       ? Math.min(100, Math.max(0, Math.round(attachment.progress)))
       : 0;
+  const progressStyle = React.useMemo<React.CSSProperties>(
+    () => ({ "--progress": `${progressPct}%` }),
+    [progressPct],
+  );
 
   const renderCard = (item: DisplayMemoryUpload) => {
     const url = item.displayUrl || item.media_url || "";
@@ -223,7 +227,7 @@ export function UploadsCarousel() {
             aria-valuenow={progressPct}
             role="progressbar"
           >
-            <div className={styles.progressInner} style={{ ["--progress" as any]: `${progressPct}%` }} />
+            <div className={styles.progressInner} style={progressStyle} />
           </div>
         ) : null}
       </div>
