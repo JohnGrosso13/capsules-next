@@ -78,6 +78,28 @@
     linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
   box-shadow: var(--card-shadow);
 }
+.feedCanvas {
+  overflow: auto;
+  padding: clamp(16px, 2vw, 24px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-lg, 20px);
+  scrollbar-gutter: stable both-edges;
+}
+.feedWrap {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-lg, 20px);
+}
+.prompterTop {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.prompterTop > * { width: 100%; }
 .prompterBelow { width: 100%; }
 
 /* Hide intent/tool chips under the prompter on Capsule live page only */

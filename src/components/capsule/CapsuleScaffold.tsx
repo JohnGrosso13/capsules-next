@@ -2,6 +2,10 @@
 
 import * as React from "react";
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
+import { useComposer } from "@/components/composer/ComposerProvider";
+import { HomeFeedList } from "@/components/home-feed-list";
+import { useHomeFeed } from "@/hooks/useHomeFeed";
+import homeStyles from "@/components/home.module.css";
 import {
   Plus,
   PencilSimple,
@@ -14,16 +18,63 @@ import {
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
 
 type CapsuleTab = "live" | "feed" | "store";
+type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
+const FEED_TARGET_EVENT = "composer:feed-target";
 
 // The banner now provides only the visual header. Tabs were moved below it.
 export function CapsuleContent() {
-  const [tab, setTab] = React.useState<CapsuleTab>("live");
+  const composer = useComposer();
+  const [tab, setTab] = React.useState<CapsuleTab>("feed");
+  const [capsuleId, setCapsuleId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const initialEvent = new CustomEvent("capsule:tab", { detail: { tab: "feed" as CapsuleTab } });
+    window.dispatchEvent(initialEvent);
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const queryId =
+      params.get("capsuleId") ??
+      params.get("capsule_id") ??
+      params.get("capsule") ??
+      params.get("id");
+    let resolved = queryId ?? null;
+    if (!resolved && typeof document !== "undefined") {
+      const fromBody = document.body?.dataset?.capsuleId;
+      if (fromBody && fromBody.trim().length) {
+        resolved = fromBody;
+      } else {
+        const metaSource = document.querySelector<HTMLElement>("[data-capsule-id]");
+        const attr = metaSource?.getAttribute("data-capsule-id");
+        if (attr && attr.trim().length) {
+          resolved = attr;
+        }
+      }
+    }
+    setCapsuleId(resolved && resolved.trim().length ? resolved.trim() : null);
+  }, []);
 
   const handleSelect = (next: CapsuleTab) => {
     setTab(next);
     const ev = new CustomEvent("capsule:tab", { detail: { tab: next } });
     window.dispatchEvent(ev);
   };
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const detail: FeedTargetDetail =
+      tab === "feed" ? { scope: "capsule", capsuleId } : { scope: "home" };
+    window.dispatchEvent(new CustomEvent(FEED_TARGET_EVENT, { detail }));
+    return () => {
+      window.dispatchEvent(new CustomEvent(FEED_TARGET_EVENT, { detail: { scope: "home" } }));
+    };
+  }, [tab, capsuleId]);
+
+  const prompter = (
+    <AiPrompterStage chips={[]} onAction={composer.handlePrompterAction} />
+  );
 
   const LiveArea = (
     <div className={capTheme.liveWrap}>
@@ -59,17 +110,27 @@ export function CapsuleContent() {
       </div>
 
       {/* Middle: canvas that grows, then prompter */}
-      {tab === "live" ? (
-        <div className={capTheme.liveCanvas} aria-label="Live stream area" />
-      ) : tab === "feed" ? (
-        <FeedPlaceholder />
+      {tab === "feed" ? (
+        <>
+          <div className={capTheme.prompterTop}>{prompter}</div>
+          <div
+            className={`${capTheme.liveCanvas} ${capTheme.feedCanvas}`}
+            aria-label="Capsule feed"
+            data-capsule-id={capsuleId ?? undefined}
+          >
+            <CapsuleFeed />
+          </div>
+        </>
       ) : (
-        <StorePlaceholder />
+        <>
+          {tab === "live" ? (
+            <div className={capTheme.liveCanvas} aria-label="Live stream area" />
+          ) : (
+            <StorePlaceholder />
+          )}
+          <div className={capTheme.prompterBelow}>{prompter}</div>
+        </>
       )}
-
-      <div className={capTheme.prompterBelow}>
-        <AiPrompterStage chips={[]} />
-      </div>
     </div>
   );
 
@@ -83,12 +144,51 @@ export function CapsuleContent() {
   );
 }
 
-function FeedPlaceholder() {
+function CapsuleFeed() {
+  const {
+    posts,
+    likePending,
+    memoryPending,
+    activeFriendTarget,
+    friendActionPending,
+    handleToggleLike,
+    handleToggleMemory,
+    handleFriendRequest,
+    handleDelete,
+    handleFriendRemove,
+    setActiveFriendTarget,
+    formatCount,
+    timeAgo,
+    exactTime,
+    canRemember,
+    hasFetched,
+    isRefreshing,
+    friendMessage,
+  } = useHomeFeed();
+
   return (
-    <div className={capTheme.placeholderCard}>
-      <h3 className={capTheme.placeholderTitle}>Capsule Feed</h3>
-      <p className={capTheme.placeholderText}>Your posts and activity will appear here.</p>
-    </div>
+    <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
+      {friendMessage && hasFetched ? <div className={homeStyles.postFriendNotice}>{friendMessage}</div> : null}
+      <HomeFeedList
+        posts={posts}
+        likePending={likePending}
+        memoryPending={memoryPending}
+        activeFriendTarget={activeFriendTarget}
+        friendActionPending={friendActionPending}
+        onToggleLike={handleToggleLike}
+        onToggleMemory={handleToggleMemory}
+        onFriendRequest={handleFriendRequest}
+        onDelete={handleDelete}
+        onRemoveFriend={handleFriendRemove}
+        onToggleFriendTarget={setActiveFriendTarget}
+        formatCount={formatCount}
+        timeAgo={timeAgo}
+        exactTime={exactTime}
+        canRemember={canRemember}
+        hasFetched={hasFetched}
+        isRefreshing={isRefreshing}
+      />
+    </section>
   );
 }
 

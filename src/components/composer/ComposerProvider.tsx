@@ -225,6 +225,35 @@ const initialState: ComposerState = {
   choices: null,
 };
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizeCapsuleId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return UUID_PATTERN.test(trimmed) ? trimmed : null;
+}
+
+function appendCapsuleContext(
+  post: Record<string, unknown>,
+  capsuleId: string | null,
+): Record<string, unknown> {
+  if (!capsuleId) return post;
+  const hasCapsule =
+    (typeof (post as { capsuleId?: unknown }).capsuleId === "string" &&
+      ((post as { capsuleId?: string }).capsuleId ?? "").trim().length > 0) ||
+    (typeof (post as { capsule_id?: unknown }).capsule_id === "string" &&
+      ((post as { capsule_id?: string }).capsule_id ?? "").trim().length > 0);
+  if (hasCapsule) return post;
+  return {
+    ...post,
+    capsuleId,
+    capsule_id: capsuleId,
+  };
+}
+
+type FeedTarget = { scope: "home" } | { scope: "capsule"; capsuleId: string | null };
+type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
+
 const ComposerContext = React.createContext<ComposerContextValue | null>(null);
 
 export function useComposer() {
@@ -255,6 +284,7 @@ function formatAuthor(user: AuthClientUser | null, name: string | null, avatar: 
 export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const { user } = useCurrentUser();
   const [state, setState] = React.useState<ComposerState>(initialState);
+  const [feedTarget, setFeedTarget] = React.useState<FeedTarget>({ scope: "home" });
 
   const currentUserName = React.useMemo(() => {
     if (!user) return null;
@@ -267,19 +297,38 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     [user, currentUserName, currentUserAvatar],
   );
   const envelopePayload = React.useMemo(() => author.toEnvelope(), [author]);
+  const activeCapsuleId = React.useMemo(
+    () => normalizeCapsuleId(feedTarget.scope === "capsule" ? feedTarget.capsuleId : null),
+    [feedTarget],
+  );
+
+  React.useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<FeedTargetDetail>).detail ?? {};
+      if ((detail.scope ?? "").toLowerCase() === "capsule") {
+        setFeedTarget({ scope: "capsule", capsuleId: detail.capsuleId ?? null });
+      } else {
+        setFeedTarget({ scope: "home" });
+      }
+    };
+    window.addEventListener("composer:feed-target", handler as EventListener);
+    return () => window.removeEventListener("composer:feed-target", handler as EventListener);
+  }, []);
 
   const handleAiResponse = React.useCallback((prompt: string, payload: DraftPostResponse) => {
-    const draft = normalizeDraftFromPost(payload.post);
+    const rawSource = (payload.post ?? {}) as Record<string, unknown>;
+    const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
+    const draft = normalizeDraftFromPost(rawPost);
     setState(() => ({
       open: true,
       loading: false,
       prompt,
       draft,
-      rawPost: payload.post,
+      rawPost,
       message: payload.message ?? null,
       choices: payload.choices ?? null,
     }));
-  }, []);
+  }, [activeCapsuleId]);
 
   const handlePrompterAction = React.useCallback(
     async (action: PrompterAction) => {
@@ -310,7 +359,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }
           }
         }
-          await persistPost(postPayload, envelopePayload);
+          const manualPayload = appendCapsuleContext(postPayload, activeCapsuleId);
+          await persistPost(manualPayload, envelopePayload);
           setState(initialState);
           window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "manual" } }));
         } catch (error) {
@@ -372,7 +422,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             loading: false,
             prompt,
             draft,
-            rawPost: { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
+            rawPost: appendCapsuleContext(
+              { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
+              activeCapsuleId,
+            ),
             message: "Generated a logo concept from your prompt.",
             choices: null,
           }));
@@ -410,7 +463,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             loading: false,
             prompt,
             draft,
-            rawPost: { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
+            rawPost: appendCapsuleContext(
+              { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
+              activeCapsuleId,
+            ),
             message: "Updated your image with those vibes.",
             choices: null,
           }));
@@ -439,7 +495,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         setState(initialState);
       }
     },
-    [envelopePayload, handleAiResponse],
+    [activeCapsuleId, envelopePayload, handleAiResponse],
   );
 
   const close = React.useCallback(() => setState(initialState), []);
@@ -452,14 +508,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         name: author.name,
         avatar: author.avatar,
       });
-      await persistPost(postPayload, envelopePayload);
+      const payloadWithContext = appendCapsuleContext(postPayload, activeCapsuleId);
+      await persistPost(payloadWithContext, envelopePayload);
       setState(initialState);
       window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "composer" } }));
     } catch (error) {
       console.error("Composer post failed", error);
       setState((prev) => ({ ...prev, loading: false }));
     }
-  }, [state.draft, state.rawPost, author.name, author.avatar, envelopePayload]);
+  }, [state.draft, state.rawPost, author.name, author.avatar, activeCapsuleId, envelopePayload]);
 
   const forceChoiceInternal = React.useCallback(
     async (key: string) => {
