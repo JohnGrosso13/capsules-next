@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { CapsuleContent } from "@/components/capsule/CapsuleScaffold";
 import type { CapsuleSummary } from "@/server/capsules/service";
 
@@ -58,9 +58,7 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
         <div className={styles.gateCard}>
           <h2 className={styles.gateTitle}>Create a New Capsule!</h2>
           <p className={styles.gateSubtitle}>Your Capsule is your space for live sessions, posts, and community. Create one to get started.</p>
-          <Button variant="gradient" size="lg" className={styles.gateCta} asChild>
-            <Link href="/capsule/onboarding">Create a Capsule</Link>
-          </Button>
+          <ButtonLink href="/capsule/onboarding" variant="gradient" size="lg" className={styles.gateCta}>Create a Capsule</ButtonLink>
         </div>
       </div>
     );
