@@ -32,6 +32,8 @@
     "algoliasearch": "^5.39.0",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
+    "embla-carousel": "^8.6.0",
+    "embla-carousel-react": "^8.6.0",
     "jimp": "^0.22.10",
     "next": "15.5.3",
     "react": "19.1.0",
