@@ -1,24 +1,27 @@
+
 .root {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
 .title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
 }
 
 .controls {
   display: inline-flex;
-  gap: 8px;
+  gap: 6px;
+  align-items: center;
 }
 
 .viewport {
@@ -27,40 +30,44 @@
 
 .container {
   display: flex;
-  gap: 12px;
+  gap: 10px;
+  padding: 2px;
 }
 
 .slide {
   position: relative;
-  flex: 0 0 80%;
-  max-width: 80%;
+  flex: 0 0 128px;
+  max-width: 128px;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .slide {
-    flex-basis: 42%;
-    max-width: 42%;
+    flex-basis: 144px;
+    max-width: 144px;
   }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 960px) {
   .slide {
-    flex-basis: 32%;
-    max-width: 32%;
+    flex-basis: 160px;
+    max-width: 160px;
   }
 }
 
 .card {
   border: 1px solid var(--card-border);
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
   background: var(--surface-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .media {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 1 / 1;
   background: var(--surface-muted);
 }
 
@@ -73,35 +80,44 @@
 }
 
 .meta {
-  padding: 10px 12px 12px;
+  padding: 6px 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .metaTitle {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metaDesc {
   margin: 0;
-  color: var(--text-2, rgba(255,255,255,0.72));
-  font-size: 0.9rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.54));
+  font-size: 0.75rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .statusRow {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 24px;
-  color: var(--text-2, rgba(255,255,255,0.72));
+  min-height: 20px;
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  font-size: 0.8rem;
 }
 
 .progressBar {
   position: relative;
-  height: 6px;
+  height: 4px;
   flex: 1 1 auto;
   background: var(--surface-muted);
   border-radius: 999px;
@@ -119,8 +135,8 @@
 
 .empty {
   border: 1px dashed var(--card-border);
-  border-radius: 12px;
-  padding: 18px;
-  color: var(--text-2, rgba(255,255,255,0.72));
+  border-radius: 10px;
+  padding: 16px;
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  font-size: 0.85rem;
 }
-
