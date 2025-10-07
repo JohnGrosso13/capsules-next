@@ -53,13 +53,44 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
   }, [activeCapsule?.id, activeCapsule?.name]);
 
   if (!capsules.length) {
+    const placeholders = [
+      { name: "Creator Studio", desc: "Design + prompts" },
+      { name: "AI Photography", desc: "SDXL tips" },
+      { name: "Music Makers", desc: "DAW workflows" },
+      { name: "Streaming 101", desc: "OBS scenes" },
+      { name: "Prompt Jam", desc: "Weekly challenge" },
+      { name: "Dev Playground", desc: "Tools + snippets" },
+    ];
+
     return (
       <div className={styles.gateWrap}>
         <div className={styles.gateCard}>
           <h2 className={styles.gateTitle}>Create a New Capsule!</h2>
-          <p className={styles.gateSubtitle}>Your Capsule is your space for live sessions, posts, and community. Create one to get started.</p>
-          <ButtonLink href="/capsule/onboarding" variant="gradient" size="lg" className={styles.gateCta}>Create a Capsule</ButtonLink>
+          <p className={styles.gateSubtitle}>
+            Your Capsule is your space for live sessions, posts, and community. Create one to get
+            started.
+          </p>
+          <ButtonLink href="/capsule/onboarding" variant="gradient" size="lg" className={styles.gateCta}>
+            Create a Capsule
+          </ButtonLink>
         </div>
+
+        <section className={styles.recommendSection} aria-label="Recommended Capsules">
+          <header className={styles.recommendHeader}>
+            <h3 className={styles.recommendTitle}>Recommended Capsules</h3>
+          </header>
+          <div className={styles.promoGrid}>
+            {placeholders.map((item, index) => (
+              <div key={index} className={`tile-neu ${styles.promoTile}`} aria-label={item.name}>
+                <span className={styles.promoLogo} aria-hidden />
+                <div className={styles.promoMeta}>
+                  <span className={styles.promoName}>{item.name}</span>
+                  <span className={styles.promoDesc}>{item.desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     );
   }
@@ -132,3 +163,4 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
     </div>
   );
 }
+

@@ -216,6 +216,7 @@
   min-height: clamp(260px, 60vh, 540px);
   display: grid;
   place-items: center;
+  gap: clamp(20px, 4vw, 32px);
   padding: clamp(24px, 5vw, 48px);
 }
 
@@ -262,6 +263,75 @@
 .gateActive {
   display: grid;
   gap: var(--layout-page-gap);
+}
+
+/* Recommended Capsules (empty-state promos) */
+.recommendSection {
+  margin-top: clamp(16px, 2vw, 24px);
+  width: min(100%, 980px);
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+}
+
+.recommendHeader {
+  text-align: center;
+}
+
+.recommendTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+
+.promoGrid {
+  width: 100%;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.promoTile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.promoTile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 36px rgba(5, 10, 30, 0.35);
+}
+
+.promoLogo {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--pill-border);
+  background:
+    radial-gradient(220px 120px at 20% -20%, rgba(255, 255, 255, 0.16), transparent 60%),
+    linear-gradient(135deg, var(--color-brand-strong), color-mix(in srgb, var(--color-brand) 65%, var(--color-accent)));
+  box-shadow: 0 12px 28px rgba(6, 10, 28, 0.35);
+  flex-shrink: 0;
+}
+
+.promoMeta {
+  display: grid;
+  gap: 2px;
+}
+
+.promoName {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.promoDesc {
+  font-size: 0.9rem;
+  color: var(--text-2);
 }
 
 .selectorActiveBar {

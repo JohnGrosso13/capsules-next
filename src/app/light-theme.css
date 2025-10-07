@@ -149,6 +149,59 @@
     --style-requests-badge-color: var(--tile-badge-color-base);
     --style-requests-border-hover: var(--tile-border-hover-base);
 
+    /* Live chat rail (light) */
+    --live-chat-bg: linear-gradient(
+        180deg,
+        color-mix(in srgb, rgba(255, 255, 255, 0.98) 92%, transparent),
+        color-mix(in srgb, rgba(230, 238, 255, 0.88) 88%, transparent)
+      ),
+      rgba(255, 255, 255, 0.92);
+    --live-chat-border: rgba(148, 163, 184, 0.22);
+    --live-chat-divider: rgba(148, 163, 184, 0.26);
+    --live-chat-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+    --live-chat-header-icon-bg: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(99, 102, 241, 0.2) 70%, rgba(255, 255, 255, 0.96)),
+      color-mix(in srgb, rgba(37, 99, 235, 0.18) 65%, rgba(255, 255, 255, 0.9))
+    );
+    --live-chat-status-bg: color-mix(in srgb, rgba(99, 102, 241, 0.08) 70%, rgba(255, 255, 255, 0.95));
+    --live-chat-status-border: color-mix(in srgb, rgba(99, 102, 241, 0.24) 70%, rgba(148, 163, 184, 0.26));
+    --live-chat-status-live-bg: color-mix(in srgb, rgba(34, 197, 94, 0.18) 70%, rgba(255, 255, 255, 0.96));
+    --live-chat-status-live-border: color-mix(in srgb, rgba(34, 197, 94, 0.32) 70%, rgba(148, 163, 184, 0.24));
+    --live-chat-status-ended-bg: color-mix(in srgb, rgba(248, 113, 113, 0.22) 70%, rgba(255, 255, 255, 0.96));
+    --live-chat-status-ended-border: color-mix(in srgb, rgba(248, 113, 113, 0.3) 70%, rgba(148, 163, 184, 0.24));
+    --live-chat-participant-row-bg: rgba(255, 255, 255, 0.9);
+    --live-chat-participant-bg: color-mix(in srgb, rgba(99, 102, 241, 0.14) 70%, rgba(255, 255, 255, 0.94));
+    --live-chat-participant-fg: color-mix(in srgb, rgba(14, 16, 36, 0.76) 90%, transparent);
+    --live-chat-message-bg: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(229, 237, 255, 0.9)
+    );
+    --live-chat-message-border: rgba(148, 163, 184, 0.26);
+    --live-chat-placeholder-fg: rgba(14, 16, 36, 0.58);
+    --live-chat-composer-bg: rgba(255, 255, 255, 0.94);
+    --live-chat-composer-border: rgba(148, 163, 184, 0.24);
+    --live-chat-input-bg: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(232, 238, 255, 0.9)
+    );
+    --live-chat-input-border: rgba(148, 163, 184, 0.28);
+    --live-chat-send-bg: linear-gradient(
+      135deg,
+      rgba(99, 102, 241, 0.92),
+      rgba(56, 189, 248, 0.88)
+    );
+    --live-chat-send-bg-disabled: linear-gradient(
+      135deg,
+      rgba(99, 102, 241, 0.4),
+      rgba(56, 189, 248, 0.32)
+    );
+    --live-chat-send-fg: var(--text-on-brand, #0e1024);
+    --live-chat-send-disabled-opacity: 0.6;
+
+
     /* Home surface tokens */
     --home-prompterdropoverlay-background: radial-gradient(120% 120% at 50% 50%, rgba(0, 0, 0, 0.06), transparent 70%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 255, 0.9));
@@ -457,6 +510,5 @@
         --header-brand-gradient: linear-gradient(120deg, #38bdf8 0%, #0ea5e9 55%, #22d3ee 100%);
   }
 }
-
 
 
