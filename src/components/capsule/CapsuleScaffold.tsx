@@ -201,9 +201,11 @@ export function CapsuleContent({
               <LiveStreamCanvas />
             </div>
           ) : (
-            <StorePlaceholder />
+            <>
+              <StorePlaceholder />
+              <div className={capTheme.prompterBelow}>{prompter}</div>
+            </>
           )}
-          <div className={capTheme.prompterBelow}>{prompter}</div>
         </>
       )}
     </div>
@@ -212,6 +214,7 @@ export function CapsuleContent({
   return (
     <>
       {LiveArea}
+      {tab === "live" ? <div className={capTheme.prompterBelow}>{prompter}</div> : null}
       {/* Below the live area: banner and customizable sections */}
       <div className={capTheme.bannerBottom} />
       <CapsuleSections />
@@ -225,13 +228,17 @@ function LiveStreamCanvas() {
   return (
     <div className={capTheme.streamStage}>
       <div className={capTheme.streamSurface} role="img" aria-label="Live stream placeholder">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className={capTheme.streamVideo} src="/images/stream-placeholder.jpg" alt="" />
         <div className={capTheme.streamOverlay}>
           <span className={capTheme.streamBadge} aria-hidden>
             LIVE
           </span>
           <span className={capTheme.streamStatus}>Stream preview</span>
+        </div>
+        <div className={capTheme.streamMessage}>
+          <p className={capTheme.streamMessageTitle}>Waiting for your broadcast</p>
+          <p className={capTheme.streamMessageSubtitle}>
+            Start streaming from your encoder or studio. Once the signal arrives, your show will appear here.
+          </p>
         </div>
       </div>
     </div>
