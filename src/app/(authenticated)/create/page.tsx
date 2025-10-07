@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 
 import { AppPage } from "@/components/app-page";
+import { Button } from "@/components/ui/button";
 import { CreateSignedIn } from "@/components/create-signed-in";
 import { HeaderAuth } from "@/components/header-auth";
 import { LaunchCta } from "@/components/launch-cta";
@@ -18,7 +19,16 @@ export default function CreatePage() {
   return (
     <>
       <SignedIn>
-        <AppPage activeNav="create" showPrompter>
+        <AppPage
+          activeNav="create"
+          showPrompter
+          promoSlot={
+            // UI-only: centered gradient button below the prompter
+            <Button variant="gradient" size="lg" className={styles.heroCta}>
+              Create a Capsule
+            </Button>
+          }
+        >
           <CreateSignedIn />
         </AppPage>
       </SignedIn>

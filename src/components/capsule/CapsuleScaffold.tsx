@@ -21,11 +21,15 @@ type CapsuleTab = "live" | "feed" | "store";
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
 const FEED_TARGET_EVENT = "composer:feed-target";
 
+export type CapsuleContentProps = {
+  capsuleId?: string | null;
+};
+
 // The banner now provides only the visual header. Tabs were moved below it.
-export function CapsuleContent() {
+export function CapsuleContent({ capsuleId: capsuleIdProp }: CapsuleContentProps = {}) {
   const composer = useComposer();
   const [tab, setTab] = React.useState<CapsuleTab>("feed");
-  const [capsuleId, setCapsuleId] = React.useState<string | null>(null);
+  const [capsuleId, setCapsuleId] = React.useState<string | null>(() => capsuleIdProp ?? null);
 
   React.useEffect(() => {
     const initialEvent = new CustomEvent("capsule:tab", { detail: { tab: "feed" as CapsuleTab } });
@@ -33,6 +37,11 @@ export function CapsuleContent() {
   }, []);
 
   React.useEffect(() => {
+    if (typeof capsuleIdProp !== "undefined") {
+      setCapsuleId(capsuleIdProp ?? null);
+      return;
+    }
+
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const queryId =
@@ -54,7 +63,7 @@ export function CapsuleContent() {
       }
     }
     setCapsuleId(resolved && resolved.trim().length ? resolved.trim() : null);
-  }, []);
+  }, [capsuleIdProp]);
 
   const handleSelect = (next: CapsuleTab) => {
     setTab(next);
