@@ -182,6 +182,10 @@
   justify-content: stretch;
 }
 
+.layoutCapsuleNoRight {
+  grid-template-columns: minmax(260px, var(--capsule-rail-width)) minmax(0, 1fr);
+}
+
 .contentCapsule {
   max-width: none;
   width: 100%;

@@ -48,8 +48,30 @@ export default async function CapsulePage() {
 
   const { capsules, defaultCapsuleId } = await resolveCapsuleGate(supabaseUserId);
 
+  const hasAnyCapsule = capsules.length > 0;
+  const initialLiveChatCapsuleId = hasAnyCapsule
+    ? defaultCapsuleId ?? (capsules.length === 1 ? capsules[0]?.id ?? null : null)
+    : null;
+  const initialLiveChatCapsule =
+    initialLiveChatCapsuleId && hasAnyCapsule
+      ? capsules.find((capsule) => capsule.id === initialLiveChatCapsuleId) ?? null
+      : null;
+
   return (
-    <AppPage activeNav="capsule" showPrompter={false}>
+    <AppPage
+      activeNav="capsule"
+      showPrompter={false}
+      showLiveChatRightRail={hasAnyCapsule}
+      liveChatRailProps={
+        hasAnyCapsule
+          ? {
+              capsuleId: initialLiveChatCapsuleId,
+              capsuleName: initialLiveChatCapsule?.name ?? null,
+              status: "waiting",
+            }
+          : undefined
+      }
+    >
       <div className={capTheme.theme}>
         <CapsuleGate capsules={capsules} defaultCapsuleId={defaultCapsuleId} />
       </div>

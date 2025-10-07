@@ -38,6 +38,20 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
     setActiveId(resolvedDefaultId);
   }, [resolvedDefaultId]);
 
+  const activeCapsule = React.useMemo(() => {
+    if (!activeId) return null;
+    return capsules.find((capsule) => capsule.id === activeId) ?? null;
+  }, [activeId, capsules]);
+
+  React.useEffect(() => {
+    const detail = {
+      capsuleId: activeCapsule?.id ?? null,
+      capsuleName: activeCapsule?.name ?? null,
+      status: "waiting" as const,
+    };
+    window.dispatchEvent(new CustomEvent("capsule:live-chat", { detail }));
+  }, [activeCapsule?.id, activeCapsule?.name]);
+
   if (!capsules.length) {
     return (
       <div className={styles.gateWrap}>
@@ -54,8 +68,6 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
       </div>
     );
   }
-
-  const activeCapsule = activeId ? capsules.find((capsule) => capsule.id === activeId) ?? null : null;
 
   if (activeCapsule) {
     return (

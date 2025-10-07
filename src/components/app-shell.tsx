@@ -8,7 +8,7 @@ import { useComposer } from "@/components/composer/ComposerProvider";
 import { PrimaryHeader } from "@/components/primary-header";
 import { ConnectionsRail } from "@/components/rail/ConnectionsRail";
 import { DiscoveryRail } from "@/components/rail/DiscoveryRail";
-import { ChatPanel } from "@/components/chat/ChatPanel";
+import { LiveChatRail, type LiveChatRailProps } from "@/components/live/LiveChatRail";
 
 import styles from "./app-shell.module.css";
 
@@ -20,9 +20,19 @@ type AppShellProps = {
   showPrompter?: boolean;
   promoSlot?: React.ReactNode;
   capsuleBanner?: React.ReactNode;
+  showLiveChatRightRail?: boolean;
+  liveChatRailProps?: LiveChatRailProps;
 };
 
-export function AppShell({ children, activeNav, showPrompter = true, promoSlot, capsuleBanner }: AppShellProps) {
+export function AppShell({
+  children,
+  activeNav,
+  showPrompter = true,
+  promoSlot,
+  capsuleBanner,
+  showLiveChatRightRail = true,
+  liveChatRailProps,
+}: AppShellProps) {
   const pathname = usePathname();
   const composer = useComposer();
 
@@ -41,6 +51,9 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot, 
   const contentClassName = isHome ? `${styles.content} ${styles.contentHome}` : styles.content;
   const leftRailClassName = isHome ? `${styles.rail} ${styles.leftRail} ${styles.leftRailHome}` : `${styles.rail} ${styles.leftRail}`;
   const rightRailClassName = isHome ? `${styles.rail} ${styles.rightRail} ${styles.rightRailHome}` : `${styles.rail} ${styles.rightRail}`;
+  const capsuleLayoutClassName = showLiveChatRightRail
+    ? `${styles.layout} ${styles.layoutCapsule}`
+    : `${styles.layout} ${styles.layoutCapsule} ${styles.layoutCapsuleNoRight}`;
 
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
   React.useEffect(() => {
@@ -65,7 +78,7 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot, 
 
           {isCapsule ? (
             <>
-              <div className={`${styles.layout} ${styles.layoutCapsule}`}>
+              <div className={capsuleLayoutClassName}>
                 <aside className={`${styles.rail} ${styles.leftRail} ${styles.leftRailCapsule}`}>
                   <ConnectionsRail />
                 </aside>
@@ -73,9 +86,11 @@ export function AppShell({ children, activeNav, showPrompter = true, promoSlot, 
                   {capsuleBanner ? <div className={styles.capsuleBanner}>{capsuleBanner}</div> : null}
                   {children}
                 </section>
-                <aside className={`${styles.rail} ${styles.rightRail} ${styles.rightRailCapsule}`}>
-                  <ChatPanel variant="rail" emptyNotice={<p>Live chat will appear here.</p>} />
-                </aside>
+                {showLiveChatRightRail ? (
+                  <aside className={`${styles.rail} ${styles.rightRail} ${styles.rightRailCapsule}`}>
+                    <LiveChatRail {...liveChatRailProps} />
+                  </aside>
+                ) : null}
               </div>
             </>
           ) : (
