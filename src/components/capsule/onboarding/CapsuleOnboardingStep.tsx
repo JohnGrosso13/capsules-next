@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import styles from "./CapsuleOnboardingStep.module.css";
+import { Paperclip, PaperPlaneTilt, Microphone } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -177,13 +178,8 @@ export function CapsuleOnboardingStep(): JSX.Element {
         </aside>
 
         <section className={styles.content}>
-          <header>
-            <p className={styles.eyebrow}>Welcome to Capsules</p>
-            <h1 className={styles.title}>Tell us what you&apos;re building</h1>
-            <p className={styles.subtitle}>
-              Start with a capsule name that reflects your community or project. Capsule AI can
-              brainstorm ideas with you below.
-            </p>
+          <header className={styles.header}>
+            <h1 className={styles.title}>Choose a Capsule Name</h1>
           </header>
 
           <div className={styles.form}>
@@ -195,36 +191,29 @@ export function CapsuleOnboardingStep(): JSX.Element {
                 onChange={handleNameChange}
                 className={styles.nameInput}
                 placeholder="Give your Capsule a memorable name"
-                aria-describedby="capsule-name-hint"
               />
             </label>
-            <p id="capsule-name-hint" className={styles.nameHint}>
-              Keep it short and clear - 80 characters max.
-            </p>
 
             <div className={styles.chatStack}>
-              <p className={styles.chatHint}>Need a spark? Invite Capsule AI to brainstorm names.</p>
               <div ref={chatLogRef} className={styles.chatLog} aria-live="polite">
-                {messages.length === 0 ? (
-                  <p className={styles.chatPlaceholder}>
-                    Share what you&apos;re creating, and Capsule AI will suggest names that match the vibe.
-                  </p>
-                ) : (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={styles.chatMessage}
-                      data-role={message.role}
-                    >
-                      <span className={styles.chatAvatar} aria-hidden>
-                        {message.role === "assistant" ? "AI" : "You"}
-                      </span>
-                      <div className={styles.chatBubble}>{message.content}</div>
-                    </div>
-                  ))
-                )}
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={styles.chatMessage}
+                    data-role={message.role}
+                  >
+                    <span className={styles.chatAvatar} aria-hidden>
+                      {message.role === "assistant" ? "AI" : "You"}
+                    </span>
+                    <div className={styles.chatBubble}>{message.content}</div>
+                  </div>
+                ))}
               </div>
-              <div className={styles.chatFooter}>
+
+              <div className={styles.prompterShell}>
+                <span className={styles.prompterIcon} aria-hidden="true">
+                  <Paperclip weight="duotone" size={18} />
+                </span>
                 <textarea
                   value={messageDraft}
                   onChange={handleMessageChange}
@@ -233,23 +222,33 @@ export function CapsuleOnboardingStep(): JSX.Element {
                   placeholder="Tell Capsule AI about your idea or the vibe you want..."
                   maxLength={MESSAGE_LIMIT}
                 />
-                <div className={styles.chatActions}>
-                  <span className={styles.chatStatus}>
-                    {chatBusy ? "Capsule AI is riffing..." : "Tip: Press Enter to send. Shift + Enter for a new line."}
-                  </span>
-                  <Button
+                <div className={styles.prompterActions}>
+                  <button
                     type="button"
-                    variant="gradient"
-                    size="sm"
+                    className={styles.prompterSend}
                     onClick={() => void sendChat()}
-                    loading={chatBusy}
                     disabled={chatBusy || !messageDraft.trim()}
+                    aria-label="Ask Capsule AI"
                   >
-                    Ask Capsule AI
-                  </Button>
+                    <PaperPlaneTilt weight="fill" size={20} />
+                  </button>
+                  <span className={styles.prompterIcon} aria-hidden="true">
+                    <Microphone weight="duotone" size={18} />
+                  </span>
                 </div>
+              </div>
+
+              <div className={styles.prompterMeta}>
+                <span className={styles.chatStatus}>
+                  {chatBusy ? "Capsule AI is riffing..." : "Tip: Press Enter to send. Shift + Enter for a new line."}
+                </span>
                 {chatError ? <span className={styles.chatError}>{chatError}</span> : null}
               </div>
+
+              <p className={styles.prompterHint}>
+                Start with a capsule name that reflects your community or project. Capsule AI can
+                brainstorm ideas with you below.
+              </p>
             </div>
           </div>
 
