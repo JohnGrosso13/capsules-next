@@ -234,6 +234,19 @@
   box-shadow: var(--card-shadow);
 }
 
+/* Emphasized CTA to match product gradient style */
+.gateCta {
+  justify-self: center;
+  /* Force the desired gradient + text color while still using Button variant=gradient */
+  --cta-button-gradient: linear-gradient(120deg, #a855f7 0%, #7c3aed 55%, #06b6d4 100%);
+  --cta-button-text: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  /* Slightly larger pill look */
+  padding-left: 1.25rem; /* in addition to size padding */
+  padding-right: 1.25rem;
+}
+
 .gateTitle {
   font-size: clamp(1.6rem, 2vw, 1.9rem);
   font-weight: 900;
