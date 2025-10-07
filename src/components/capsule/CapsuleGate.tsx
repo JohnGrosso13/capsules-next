@@ -47,8 +47,8 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
             You don&apos;t have a Capsule yet. Spin one up to host live sessions, manage your feed,
             and start building with AI.
           </p>
-          <Button variant="gradient" size="lg" className={styles.gateCta} asChild>
-            <Link href="/create">Create a Capsule</Link>
+          <Button variant="gradient" size="lg" className={styles.gateCta}>
+            Create a Capsule
           </Button>
         </div>
       </div>
