@@ -263,6 +263,63 @@
   gap: 0.6rem;
 }
 
+.voiceButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--icon-plate-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(
+    180deg,
+    var(--icon-plate-bg-1, rgba(255, 255, 255, 0.24)),
+    var(--icon-plate-bg-2, rgba(255, 255, 255, 0.12))
+  );
+  color: var(--text-2, rgba(248, 249, 255, 0.75));
+  box-shadow: var(--icon-plate-highlight, inset 0 1px 0 rgba(255, 255, 255, 0.4));
+  cursor: pointer;
+  padding: 0;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.voiceButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.voiceButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px color-mix(in srgb, var(--color-brand, #6366f1) 26%, rgba(10, 12, 30, 0.55));
+}
+
+.voiceButton:active {
+  transform: scale(0.96);
+}
+
+.voiceButton:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+  box-shadow: var(--icon-plate-highlight, inset 0 1px 0 rgba(255, 255, 255, 0.4));
+}
+
+.voiceButton[data-active="true"] {
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 28%, transparent);
+  color: var(--text-on-brand, rgba(248, 249, 255, 0.92));
+  box-shadow: 0 20px 36px color-mix(in srgb, var(--color-brand, #6366f1) 32%, rgba(10, 12, 30, 0.6));
+}
+
+.voiceButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 50%, transparent);
+  outline-offset: 2px;
+}
+
 .prompterIcon {
   display: inline-flex;
   align-items: center;

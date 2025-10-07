@@ -4,9 +4,10 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import styles from "./CapsuleOnboardingStep.module.css";
-import { Paperclip, PaperPlaneTilt, Microphone } from "@phosphor-icons/react/dist/ssr";
+import { PaperPlaneTilt, Microphone, MicrophoneSlash } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 type ChatRole = "user" | "assistant";
 
@@ -18,6 +19,42 @@ type ChatMessage = {
 
 const NAME_LIMIT = 80;
 const MESSAGE_LIMIT = 2000;
+
+function describeVoiceError(code: string | null): string | null {
+  if (!code) return null;
+  const normalized = code.toLowerCase();
+  if (normalized.includes("not-allowed")) {
+    return "Microphone access is blocked. Update your browser settings to allow it.";
+  }
+  if (normalized === "service-not-allowed") {
+    return "Microphone access is blocked by your browser.";
+  }
+  if (normalized === "no-speech") {
+    return "Didn't catch that. Try speaking again.";
+  }
+  if (normalized === "aborted") {
+    return null;
+  }
+  if (normalized === "audio-capture") {
+    return "No microphone was detected.";
+  }
+  if (normalized === "unsupported") {
+    return "Voice input isn't supported in this browser.";
+  }
+  if (normalized === "network") {
+    return "Voice input is unavailable right now.";
+  }
+  if (normalized === "speech-start-error" || normalized === "speech-stop-error") {
+    return "Voice input could not be started. Check your microphone and try again.";
+  }
+  return "Voice input is unavailable right now.";
+}
+
+function truncateVoiceText(text: string, max = 72): string {
+  if (text.length <= max) return text;
+  if (max <= 3) return "...";
+  return `${text.slice(0, max - 3)}...`;
+}
 
 function randomId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -36,17 +73,131 @@ export function CapsuleOnboardingStep(): JSX.Element {
   const [chatError, setChatError] = React.useState<string | null>(null);
   const [finishBusy, setFinishBusy] = React.useState(false);
   const [finishError, setFinishError] = React.useState<string | null>(null);
+  const voiceSessionCounterRef = React.useRef(1);
+  const activeVoiceSessionRef = React.useRef<number | null>(null);
+  const processedVoiceSessionRef = React.useRef<number | null>(null);
+  const [voiceDraft, setVoiceDraft] = React.useState<{ session: number; text: string } | null>(null);
+  const [voiceInterim, setVoiceInterim] = React.useState<string | null>(null);
+  const [voiceErrorCode, setVoiceErrorCode] = React.useState<string | null>(null);
 
   const chatLogRef = React.useRef<HTMLDivElement | null>(null);
+  const {
+    supported: voiceSupported,
+    status: voiceStatus,
+    start: startVoice,
+    stop: stopVoice,
+  } = useSpeechRecognition({
+    onFinalResult: (fullTranscript) => {
+      const sessionId = activeVoiceSessionRef.current;
+      if (!sessionId) return;
+      const normalized = fullTranscript.trim();
+      if (!normalized) return;
+      setVoiceDraft({ session: sessionId, text: normalized });
+    },
+    onInterimResult: (text) => {
+      const normalized = text.trim();
+      setVoiceInterim(normalized.length ? normalized : null);
+    },
+    onError: (message) => {
+      setVoiceErrorCode(message ?? "speech-error");
+    },
+  });
+
+  const stopVoiceRef = React.useRef(stopVoice);
+
+  React.useEffect(() => {
+    stopVoiceRef.current = stopVoice;
+  }, [stopVoice]);
+
+  React.useEffect(
+    () => () => {
+      stopVoiceRef.current?.();
+    },
+    [],
+  );
 
   const trimmedName = name.trim();
   const disableFinish = !trimmedName.length || finishBusy;
+  const voiceButtonLabel = !voiceSupported
+    ? "Voice input not supported in this browser."
+    : voiceStatus === "listening"
+      ? "Stop voice capture"
+      : voiceStatus === "stopping"
+        ? "Processing voice input"
+        : "Start voice capture";
+  const voiceStatusText =
+    voiceStatus === "listening"
+      ? voiceInterim
+        ? `Listening… ${truncateVoiceText(voiceInterim)}`
+        : "Listening... Speak now, then click the mic to finish."
+      : voiceStatus === "stopping"
+        ? "Processing your speech..."
+        : null;
+  const voiceErrorMessage = describeVoiceError(voiceErrorCode);
+  const statusMessage =
+    voiceStatusText ??
+    (chatBusy
+      ? "Capsule AI is riffing..."
+      : "Tip: Press Enter to send. Shift + Enter for a new line.");
 
   React.useEffect(() => {
     const node = chatLogRef.current;
     if (!node) return;
     node.scrollTop = node.scrollHeight;
   }, [messages, chatBusy]);
+
+  React.useEffect(() => {
+    if (!voiceDraft) return;
+    if (
+      voiceStatus !== "idle" &&
+      voiceStatus !== "error" &&
+      voiceStatus !== "unsupported"
+    )
+      return;
+    const { session, text } = voiceDraft;
+    if (processedVoiceSessionRef.current === session) return;
+    processedVoiceSessionRef.current = session;
+    activeVoiceSessionRef.current = null;
+    const normalized = text.trim();
+    if (!normalized) {
+      setVoiceDraft(null);
+      return;
+    }
+    setMessageDraft((prev) => {
+      const needsSpace = prev.length > 0 && !/\s$/.test(prev);
+      return `${prev}${needsSpace ? " " : ""}${normalized}`.slice(0, MESSAGE_LIMIT);
+    });
+    setVoiceDraft(null);
+    setVoiceInterim(null);
+    setVoiceErrorCode(null);
+  }, [voiceDraft, voiceStatus]);
+
+  React.useEffect(() => {
+    if (voiceStatus === "listening") return;
+    setVoiceInterim(null);
+  }, [voiceStatus]);
+
+  const handleVoiceToggle = React.useCallback(() => {
+    if (!voiceSupported) {
+      setVoiceErrorCode("unsupported");
+      return;
+    }
+    if (voiceStatus === "stopping") return;
+    if (voiceStatus === "listening") {
+      stopVoice();
+      return;
+    }
+    setVoiceErrorCode(null);
+    setVoiceDraft(null);
+    setVoiceInterim(null);
+    const started = startVoice();
+    if (started) {
+      const sessionId = voiceSessionCounterRef.current;
+      voiceSessionCounterRef.current += 1;
+      activeVoiceSessionRef.current = sessionId;
+      processedVoiceSessionRef.current = null;
+    }
+  }, [voiceSupported, voiceStatus, startVoice, stopVoice]);
 
   const handleNameChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,9 +362,6 @@ export function CapsuleOnboardingStep(): JSX.Element {
               </div>
 
               <div className={styles.prompterShell}>
-                <span className={styles.prompterIcon} aria-hidden="true">
-                  <Paperclip weight="duotone" size={18} />
-                </span>
                 <textarea
                   value={messageDraft}
                   onChange={handleMessageChange}
@@ -232,17 +380,29 @@ export function CapsuleOnboardingStep(): JSX.Element {
                   >
                     <PaperPlaneTilt weight="fill" size={20} />
                   </button>
-                  <span className={styles.prompterIcon} aria-hidden="true">
-                    <Microphone weight="duotone" size={18} />
-                  </span>
+                  <button
+                    type="button"
+                    className={styles.voiceButton}
+                    onClick={handleVoiceToggle}
+                    aria-label={voiceButtonLabel}
+                    title={voiceButtonLabel}
+                    aria-pressed={voiceStatus === "listening"}
+                    data-active={voiceStatus === "listening" || voiceStatus === "stopping" ? "true" : undefined}
+                    disabled={voiceStatus === "stopping"}
+                  >
+                    {voiceStatus === "listening" || voiceStatus === "stopping" ? (
+                      <MicrophoneSlash weight="fill" size={18} />
+                    ) : (
+                      <Microphone weight="duotone" size={18} />
+                    )}
+                  </button>
                 </div>
               </div>
 
               <div className={styles.prompterMeta}>
-                <span className={styles.chatStatus}>
-                  {chatBusy ? "Capsule AI is riffing..." : "Tip: Press Enter to send. Shift + Enter for a new line."}
-                </span>
+                <span className={styles.chatStatus}>{statusMessage}</span>
                 {chatError ? <span className={styles.chatError}>{chatError}</span> : null}
+                {voiceErrorMessage ? <span className={styles.chatError}>{voiceErrorMessage}</span> : null}
               </div>
 
               <p className={styles.prompterHint}>
