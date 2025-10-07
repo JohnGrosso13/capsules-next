@@ -32,21 +32,35 @@
   position: relative;
   border-radius: var(--card-radius);
   padding: 20px;
-  border: 1px solid var(--card-border);
+  /* Use surface outline for dark theme and fall back to card border */
+  border: 1px solid var(--card-border, var(--surface-outline));
   /* Fluent + Glassmorphic + soft-neu layers */
   background:
-    radial-gradient(1200px 60% at 0% -20%, rgba(255, 255, 255, 0.08), transparent 55%),
-    radial-gradient(800px 40% at 100% 0%, rgba(72, 83, 255, 0.10), transparent 60%),
-    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    /* soft top-left sheen */
+    radial-gradient(1200px 60% at 0% -20%, rgba(255, 255, 255, 0.10), transparent 55%),
+    /* faint brand tint on the right */
+    radial-gradient(800px 40% at 100% 0%, rgba(72, 83, 255, 0.14), transparent 60%),
+    /* elevated base (fallbacks ensure stronger contrast in dark mode) */
+    linear-gradient(
+      180deg,
+      var(
+        --card-bg-1,
+        color-mix(in srgb, var(--surface-elevated) 96%, transparent)
+      ),
+      var(
+        --card-bg-2,
+        color-mix(in srgb, var(--surface-app) 74%, transparent)
+      )
+    );
   box-shadow:
     /* outer depth */
-    0 24px 64px rgba(5, 10, 30, 0.46),
-    0 4px 14px rgba(5, 10, 30, 0.35),
+    0 24px 64px rgba(5, 10, 30, 0.52),
+    0 6px 18px rgba(5, 10, 30, 0.40),
     /* glass ridge */
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     inset 0 -1px 0 rgba(2, 6, 23, 0.50);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(155%);
+  -webkit-backdrop-filter: blur(16px) saturate(155%);
   transition:
     transform 0.22s ease,
     border-color 0.22s ease,
@@ -64,22 +78,42 @@
   inset: -1px;
   border-radius: inherit;
   background:
-    radial-gradient(600px 160px at 10% 0%, rgba(255,255,255,0.20), transparent 60%),
-    radial-gradient(800px 200px at 90% -20%, rgba(99, 102, 241, 0.18), transparent 70%);
+    radial-gradient(600px 160px at 10% 0%, rgba(255,255,255,0.24), transparent 60%),
+    radial-gradient(800px 200px at 90% -20%, rgba(99, 102, 241, 0.20), transparent 70%);
   mix-blend-mode: screen;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.58;
+}
+/* subtle outer ring to help tiles separate from backdrop */
+.tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-border) 75%, rgba(147, 197, 253, 0.12));
+  opacity: 0.85;
 }
 .tile:hover {
-  border-color: color-mix(in srgb, var(--color-brand) 45%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand) 50%, var(--surface-outline) 50%);
   background:
-    radial-gradient(1200px 60% at 0% -20%, rgba(255, 255, 255, 0.10), transparent 55%),
-    radial-gradient(800px 40% at 100% 0%, rgba(99, 102, 241, 0.16), transparent 60%),
-    linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
+    radial-gradient(1200px 60% at 0% -20%, rgba(255, 255, 255, 0.12), transparent 55%),
+    radial-gradient(800px 40% at 100% 0%, rgba(99, 102, 241, 0.18), transparent 60%),
+    linear-gradient(
+      180deg,
+      var(
+        --card-hover-bg-1,
+        color-mix(in srgb, var(--surface-elevated) 98%, transparent)
+      ),
+      var(
+        --card-hover-bg-2,
+        color-mix(in srgb, var(--surface-app) 80%, transparent)
+      )
+    );
   transform: translateY(-2px);
   box-shadow:
-    0 28px 76px rgba(5, 10, 30, 0.56),
-    0 6px 18px rgba(5, 10, 30, 0.40),
+    0 30px 80px rgba(5, 10, 30, 0.58),
+    0 8px 22px rgba(5, 10, 30, 0.42),
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     inset 0 -1px 0 rgba(2, 6, 23, 0.55);
 }
@@ -125,11 +159,14 @@
 .tileList {
   margin: 6px 0 8px;
   padding-left: 18px;
-  color: var(--text-2);
+  /* Slightly brighter for dark backgrounds; keep light via override below */
+  color: color-mix(in srgb, var(--text) 78%, var(--text-2) 22%);
   display: grid;
   gap: 6px;
   flex: 1;
 }
+/* Preserve lighter weight in light theme */
+:global(:root[data-theme="light"]) .tileList { color: var(--text-2); }
 .tileLearn {
   color: var(--text);
   opacity: 0.82;
@@ -142,13 +179,23 @@
 .expanded {
   border-radius: var(--card-radius);
   padding: 20px;
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--card-border, var(--surface-outline));
   background:
-    radial-gradient(1400px 70% at -10% -10%, rgba(255, 255, 255, 0.08), transparent 60%),
-    radial-gradient(1200px 60% at 110% -10%, rgba(99, 102, 241, 0.16), transparent 70%),
-    linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
+    radial-gradient(1400px 70% at -10% -10%, rgba(255, 255, 255, 0.10), transparent 60%),
+    radial-gradient(1200px 60% at 110% -10%, rgba(99, 102, 241, 0.18), transparent 70%),
+    linear-gradient(
+      180deg,
+      var(
+        --card-hover-bg-1,
+        color-mix(in srgb, var(--surface-elevated) 98%, transparent)
+      ),
+      var(
+        --card-hover-bg-2,
+        color-mix(in srgb, var(--surface-app) 82%, transparent)
+      )
+    );
   box-shadow:
-    0 28px 72px rgba(5, 10, 30, 0.50),
+    0 30px 80px rgba(5, 10, 30, 0.54),
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     inset 0 -1px 0 rgba(2, 6, 23, 0.50);
   backdrop-filter: blur(16px) saturate(140%);
