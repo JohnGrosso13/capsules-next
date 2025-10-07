@@ -192,12 +192,8 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
   if (activeCapsule) {
     return (
       <div className={styles.gateActive}>
-        <div className={styles.selectorActiveBar}>
-          <div>
-            <span className={styles.selectorActiveLabel}>Viewing capsule</span>
-            <h2 className={styles.selectorActiveName}>{activeCapsule.name}</h2>
-          </div>
-          {capsules.length > 1 ? (
+        {capsules.length > 1 ? (
+          <div className={styles.selectorActiveActions}>
             <Button
               variant="ghost"
               size="sm"
@@ -206,9 +202,9 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
             >
               Switch capsule
             </Button>
-          ) : null}
-        </div>
-        <CapsuleContent capsuleId={activeCapsule.id} />
+          </div>
+        ) : null}
+        <CapsuleContent capsuleId={activeCapsule.id} capsuleName={activeCapsule.name} />
       </div>
     );
   }

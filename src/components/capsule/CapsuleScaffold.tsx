@@ -23,13 +23,18 @@ const FEED_TARGET_EVENT = "composer:feed-target";
 
 export type CapsuleContentProps = {
   capsuleId?: string | null;
+  capsuleName?: string | null;
 };
 
 // The banner now provides only the visual header. Tabs were moved below it.
-export function CapsuleContent({ capsuleId: capsuleIdProp }: CapsuleContentProps = {}) {
+export function CapsuleContent({
+  capsuleId: capsuleIdProp,
+  capsuleName: capsuleNameProp,
+}: CapsuleContentProps = {}) {
   const composer = useComposer();
   const [tab, setTab] = React.useState<CapsuleTab>("feed");
   const [capsuleId, setCapsuleId] = React.useState<string | null>(() => capsuleIdProp ?? null);
+  const [capsuleName, setCapsuleName] = React.useState<string | null>(() => capsuleNameProp ?? null);
 
   React.useEffect(() => {
     const initialEvent = new CustomEvent("capsule:tab", { detail: { tab: "feed" as CapsuleTab } });
@@ -65,6 +70,50 @@ export function CapsuleContent({ capsuleId: capsuleIdProp }: CapsuleContentProps
     setCapsuleId(resolved && resolved.trim().length ? resolved.trim() : null);
   }, [capsuleIdProp]);
 
+  React.useEffect(() => {
+    if (typeof capsuleNameProp !== "undefined") {
+      const trimmed =
+        typeof capsuleNameProp === "string" ? capsuleNameProp.trim() : null;
+      setCapsuleName(trimmed && trimmed.length ? trimmed : null);
+      return;
+    }
+
+    const resolveNameFromDom = () => {
+      if (typeof document === "undefined") return null;
+      const fromBody = document.body?.dataset?.capsuleName;
+      if (fromBody && fromBody.trim().length) {
+        return fromBody.trim();
+      }
+      const metaSource = document.querySelector<HTMLElement>("[data-capsule-name]");
+      const attr = metaSource?.getAttribute("data-capsule-name");
+      if (attr && attr.trim().length) {
+        return attr.trim();
+      }
+      return null;
+    };
+
+    if (!capsuleName) {
+      const inferred = resolveNameFromDom();
+      if (inferred) {
+        setCapsuleName(inferred);
+      }
+    }
+
+    if (typeof window === "undefined") return;
+    const handleLiveChat = (event: Event) => {
+      const detail = (event as CustomEvent<{ capsuleName?: string | null }>).detail ?? {};
+      const nextName =
+        typeof detail.capsuleName === "string" ? detail.capsuleName.trim() : null;
+      if (nextName) {
+        setCapsuleName(nextName);
+      }
+    };
+    window.addEventListener("capsule:live-chat", handleLiveChat);
+    return () => {
+      window.removeEventListener("capsule:live-chat", handleLiveChat);
+    };
+  }, [capsuleNameProp, capsuleName]);
+
   const handleSelect = (next: CapsuleTab) => {
     setTab(next);
     const ev = new CustomEvent("capsule:tab", { detail: { tab: next } });
@@ -89,6 +138,15 @@ export function CapsuleContent({ capsuleId: capsuleIdProp }: CapsuleContentProps
     />
   );
 
+  const normalizedCapsuleName = React.useMemo(() => {
+    if (typeof capsuleName !== "string") return null;
+    const trimmed = capsuleName.trim();
+    return trimmed.length ? trimmed : null;
+  }, [capsuleName]);
+
+  const feedTabLabel = normalizedCapsuleName ?? "Feed";
+  const feedTabAriaLabel = normalizedCapsuleName ? `${normalizedCapsuleName} feed` : "Capsule feed";
+
   const LiveArea = (
     <div className={capTheme.liveWrap} data-view={tab}>
       {/* Top: primary tabs */}
@@ -106,10 +164,12 @@ export function CapsuleContent({ capsuleId: capsuleIdProp }: CapsuleContentProps
           className={tab === "feed" ? `${capTheme.tab} ${capTheme.tabActive}` : capTheme.tab}
           role="tab"
           aria-selected={tab === "feed"}
+          aria-label={feedTabAriaLabel}
+          title={normalizedCapsuleName ?? undefined}
           onClick={() => handleSelect("feed")}
         >
           <Newspaper size={18} weight="bold" className={capTheme.tabIcon} />
-          Feed
+          {feedTabLabel}
         </button>
         <button
           className={tab === "store" ? `${capTheme.tab} ${capTheme.tabActive}` : capTheme.tab}
