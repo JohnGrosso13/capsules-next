@@ -12,6 +12,10 @@ import {
   Brain,
   CaretDown,
   CaretRight,
+  ChatsCircle,
+  NotePencil,
+  Folders,
+  Eye,
   List,
   PaperPlaneRight,
 } from "@phosphor-icons/react/dist/ssr";
@@ -116,8 +120,9 @@ export function ComposerForm({
   // Enable right preview rail by default; user can resize or we can later add a toggle
   const [previewOpen, setPreviewOpen] = React.useState(true);
   // Resizable layout state
-  const [leftWidth, setLeftWidth] = React.useState(260);
-  const [rightWidth, setRightWidth] = React.useState(260);
+  // Wider rails to allow a substantive preview area
+  const [leftWidth, setLeftWidth] = React.useState(320);
+  const [rightWidth, setRightWidth] = React.useState(420);
   const [bottomHeight, setBottomHeight] = React.useState(200);
   const columnsRef = React.useRef<HTMLDivElement | null>(null);
   const mainRef = React.useRef<HTMLDivElement | null>(null);
@@ -549,10 +554,16 @@ export function ComposerForm({
         >
           <aside className={styles.rail} aria-label="Conversation navigation">
             <div className={styles.railHeader}>
-              <button type="button" className={styles.railPrimary}>New Chat</button>
+              <button type="button" className={styles.railPrimary}>
+                <ChatsCircle size={16} weight="bold" />
+                <span>New Chat</span>
+              </button>
             </div>
             <nav className={styles.railSection} aria-label="Active drafts">
-              <div className={styles.railTitle}>Active Drafts</div>
+              <div className={`${styles.railTitle} ${styles.railTitleRow}`}>
+                <NotePencil size={16} weight="bold" />
+                <span>Active Drafts</span>
+              </div>
               <div className={styles.railList}>
                 <div className={styles.railEmpty}>No active drafts</div>
               </div>
@@ -569,6 +580,7 @@ export function ComposerForm({
                 ) : (
                   <CaretRight size={16} weight="bold" />
                 )}
+                <Folders size={16} weight="bold" />
                 <span className={styles.railTitle}>Projects</span>
               </button>
               {projectsOpen ? (
@@ -849,10 +861,11 @@ export function ComposerForm({
           </section>
           {previewOpen ? (
             <aside className={styles.previewRail} aria-label="Post preview">
-              <div className={styles.previewHeader}>Preview</div>
-              <div className={styles.previewBody}>
-                <div className={styles.previewPlaceholder}>Post preview will appear here</div>
+              <div className={styles.previewHeader}>
+                <Eye size={16} weight="bold" />
+                <span>Preview</span>
               </div>
+              <div className={styles.previewBody}>{/* intentionally empty until there is content */}</div>
             </aside>
           ) : null}
           {viewerOpen && displayAttachment && displayAttachment.status === "ready" ? (

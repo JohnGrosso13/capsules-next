@@ -67,7 +67,8 @@
 
 .columns {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  /* Wider default left rail for initial paint */
+  grid-template-columns: 320px minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   transition: grid-template-columns 140ms ease;
@@ -75,8 +76,8 @@
 }
 
 .columns[data-preview="open"] {
-  /* Default symmetrical rails (left/right 260px) */
-  grid-template-columns: 260px minmax(0, 1fr) 260px;
+  /* Default rails (left 320px, right 420px) */
+  grid-template-columns: 320px minmax(0, 1fr) 420px;
 }
 
 
@@ -121,9 +122,14 @@
 }
 
 .previewHeader {
-  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--text, rgba(255, 255, 255, 0.94));
+  letter-spacing: 0.02em;
 }
 
 .previewBody {
@@ -132,15 +138,16 @@
   min-height: 0;
 }
 
+/* Retain placeholder style for potential future use, but remove outline */
 .previewPlaceholder {
   display: grid;
   place-items: center;
   width: 100%;
   min-height: 240px;
   border-radius: 14px;
-  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border: none;
   color: rgba(255, 255, 255, 0.72);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  background: transparent;
 }
 
 .railHeader {
@@ -152,6 +159,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   padding: 10px 16px;
   border-radius: 999px;
   border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.22));
@@ -163,6 +171,12 @@
   font-weight: 700;
   color: var(--text);
   box-shadow: var(--chip-shadow, 0 6px 14px rgba(5, 10, 30, 0.18));
+}
+
+.railTitleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .railSection {
