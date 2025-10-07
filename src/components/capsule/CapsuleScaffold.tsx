@@ -72,12 +72,16 @@ export function CapsuleContent() {
     };
   }, [tab, capsuleId]);
 
+  // Render chips only on the Feed tab. Hide on Live/Store.
   const prompter = (
-    <AiPrompterStage chips={[]} onAction={composer.handlePrompterAction} />
+    <AiPrompterStage
+      {...(tab === "feed" ? {} : { chips: [] })}
+      onAction={composer.handlePrompterAction}
+    />
   );
 
   const LiveArea = (
-    <div className={capTheme.liveWrap}>
+    <div className={capTheme.liveWrap} data-view={tab}>
       {/* Top: primary tabs */}
       <div className={capTheme.tabStrip} role="tablist" aria-label="Capsule sections">
         <button

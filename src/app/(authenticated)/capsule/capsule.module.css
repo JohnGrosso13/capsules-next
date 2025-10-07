@@ -62,6 +62,10 @@
   height: 100%;
   gap: var(--layout-page-gap);
 }
+.liveWrap[data-view="feed"] {
+  /* Slightly tighter spacing between prompter (with chips) and the feed */
+  gap: var(--space-xl);
+}
 .liveCanvas {
   width: 100%;
   /* Fill the available space between tabs and prompter */
