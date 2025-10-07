@@ -1,11 +1,24 @@
+import { NextResponse } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Public routes should exclude app pages that require authentication
-const isPublicRoute = createRouteMatcher(["/", "/api/(.*)", "/_next/(.*)", "/api/webhooks/(.*)"]);
+const publicRoutes = [
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/_next/(.*)",
+  "/cdn-cgi/(.*)",
+  "/api/health(.*)",
+  "/api/config(.*)",
+  "/api/oauth/callback(.*)",
+  "/api/webhooks/(.*)",
+  "/api/uploads/r2/object/(.*)",
+];
+
+const isPublicRoute = createRouteMatcher(publicRoutes);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) {
-    return;
+    return NextResponse.next();
   }
   const result = await auth();
   if (!result.userId) {
@@ -14,5 +27,5 @@ export default clerkMiddleware(async (auth, req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next|_vercel|.*\\..*).*)"],
+  matcher: ["/((?!.+\\.[\\w]+$|_next|_vercel).*)", "/(api|trpc)(.*)"],
 };
