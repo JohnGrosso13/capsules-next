@@ -82,16 +82,8 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
     <AppPage
       activeNav="capsule"
       showPrompter={false}
-      showLiveChatRightRail={hasAnyCapsule}
-      liveChatRailProps={
-        hasAnyCapsule
-          ? {
-              capsuleId: initialLiveChatCapsuleId,
-              capsuleName: initialLiveChatCapsule?.name ?? null,
-              status: "waiting",
-            }
-          : undefined
-      }
+      showLiveChatRightRail={true}
+      liveChatRailProps={ hasAnyCapsule ? { capsuleId: initialLiveChatCapsuleId, capsuleName: initialLiveChatCapsule?.name ?? null, status: "waiting" } : { status: "waiting" } }
     >
       <div className={capTheme.theme}>
         <CapsuleGate capsules={capsules} defaultCapsuleId={selectedCapsuleId} />

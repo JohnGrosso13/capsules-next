@@ -57,6 +57,7 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
       <div className={styles.gateWrap}>
         <div className={styles.gateCard}>
           <h2 className={styles.gateTitle}>Create a New Capsule!</h2>
+          <p className={styles.gateSubtitle}>Your Capsule is your space for live sessions, posts, and community. Create one to get started.</p>
           <Button variant="gradient" size="lg" className={styles.gateCta} asChild>
             <Link href="/capsule/onboarding">Create a Capsule</Link>
           </Button>
