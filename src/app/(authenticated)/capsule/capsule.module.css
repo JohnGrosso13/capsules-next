@@ -63,6 +63,12 @@
   gap: var(--layout-page-gap);
 }
 .liveWrap[data-view="feed"] {
+  /* Feed view renders: tabs (auto), prompter (auto), feed canvas (1fr) */
+  grid-template-rows: auto auto 1fr;
+  /* Slightly tighter spacing between chips and the feed */
+  gap: var(--space-xl);
+}
+.liveWrap[data-view="feed"] {
   /* Slightly tighter spacing between prompter (with chips) and the feed */
   gap: var(--space-xl);
 }
