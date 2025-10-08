@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import type { EmblaCarouselType } from "embla-carousel";
 import useEmblaCarousel from "embla-carousel-react";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./uploads-carousel.module.css";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -16,13 +18,20 @@ function isVideo(mime: string | null | undefined) {
   return typeof mime === "string" && mime.startsWith("video/");
 }
 
-const VISIBLE_LIMIT = 6;
 const VIEW_ALL_ROUTE = "/memory/uploads";
 
 export function UploadsCarousel() {
   const { user, envelope, items, loading, error, setError, refresh } = useMemoryUploads();
 
-  const [emblaRef, emblaApi] = useEmblaCarousel({ align: "start", dragFree: true, loop: false });
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: "start",
+    dragFree: true,
+    containScroll: "trimSnaps",
+    loop: false,
+  });
+
+  const [canScrollPrev, setCanScrollPrev] = React.useState(false);
+  const [canScrollNext, setCanScrollNext] = React.useState(false);
 
   const {
     fileInputRef,
@@ -46,48 +55,38 @@ export function UploadsCarousel() {
   );
 
   const totalItems = processedItems.length;
-  const [offset, setOffset] = React.useState(0);
+
+  const refreshScrollButtons = React.useCallback(
+    (api: EmblaCarouselType) => {
+      setCanScrollPrev(api.canScrollPrev());
+      setCanScrollNext(api.canScrollNext());
+    },
+    [],
+  );
 
   React.useEffect(() => {
-    if (totalItems === 0) {
-      setOffset(0);
-      return;
-    }
-    if (totalItems <= VISIBLE_LIMIT) {
-      setOffset(0);
-      return;
-    }
-    setOffset((previous) => previous % totalItems);
-  }, [totalItems]);
-
-  const visibleItems = React.useMemo(() => {
-    if (totalItems <= VISIBLE_LIMIT) return processedItems;
-    const result: DisplayMemoryUpload[] = [];
-    for (let index = 0; index < Math.min(VISIBLE_LIMIT, totalItems); index += 1) {
-      const item = processedItems[(offset + index) % totalItems];
-      if (item) result.push(item);
-    }
-    return result;
-  }, [offset, processedItems, totalItems]);
+    if (!emblaApi) return;
+    refreshScrollButtons(emblaApi);
+    emblaApi.on("select", refreshScrollButtons);
+    emblaApi.on("reInit", refreshScrollButtons);
+    return () => {
+      emblaApi.off("select", refreshScrollButtons);
+      emblaApi.off("reInit", refreshScrollButtons);
+    };
+  }, [emblaApi, refreshScrollButtons]);
 
   React.useEffect(() => {
-    queueMicrotask(() => emblaApi?.reInit());
-  }, [emblaApi, visibleItems]);
-
-  const hasRotation = totalItems > VISIBLE_LIMIT;
+    if (!emblaApi) return;
+    emblaApi.reInit();
+  }, [emblaApi, totalItems]);
 
   const handleShowPrev = React.useCallback(() => {
-    if (!hasRotation || totalItems === 0) return;
-    setOffset((previous) => {
-      const next = (previous - VISIBLE_LIMIT) % totalItems;
-      return next < 0 ? next + totalItems : next;
-    });
-  }, [hasRotation, totalItems]);
+    emblaApi?.scrollPrev();
+  }, [emblaApi]);
 
   const handleShowNext = React.useCallback(() => {
-    if (!hasRotation || totalItems === 0) return;
-    setOffset((previous) => (previous + VISIBLE_LIMIT) % totalItems);
-  }, [hasRotation, totalItems]);
+    emblaApi?.scrollNext();
+  }, [emblaApi]);
 
   const indexUploaded = React.useCallback(async () => {
     if (!envelope || !readyAttachment || !readyAttachment.url) return;
@@ -178,24 +177,6 @@ export function UploadsCarousel() {
       <div className={styles.header}>
         <h3 className={styles.title}>Uploads</h3>
         <div className={styles.controls}>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleShowPrev}
-            aria-label="Previous uploads"
-            disabled={!hasRotation}
-          >
-            {"<"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleShowNext}
-            aria-label="Next uploads"
-            disabled={!hasRotation}
-          >
-            {">"}
-          </Button>
           <input
             ref={fileInputRef}
             type="file"
@@ -230,17 +211,43 @@ export function UploadsCarousel() {
 
       {loading ? (
         <div className={styles.empty}>Loading your uploads...</div>
-      ) : visibleItems.length === 0 ? (
+      ) : processedItems.length === 0 ? (
         <div className={styles.empty}>No uploads yet. Add your first image or video.</div>
       ) : (
-        <div className={styles.viewport} ref={emblaRef}>
-          <div className={styles.container}>
-            {visibleItems.map((item) => (
-              <div className={styles.slide} key={item.id}>
-                {renderCard(item)}
-              </div>
-            ))}
+        <div className={styles.carousel}>
+          <Button
+            variant="secondary"
+            size="icon"
+            className={`${styles.arrow} ${styles.arrowPrev}`}
+            onClick={handleShowPrev}
+            aria-label="Previous uploads"
+            disabled={!canScrollPrev}
+            type="button"
+          >
+            <CaretLeft size={18} aria-hidden="true" />
+          </Button>
+
+          <div className={styles.viewport} ref={emblaRef}>
+            <div className={styles.container}>
+              {processedItems.map((item) => (
+                <div className={styles.slide} key={item.id}>
+                  {renderCard(item)}
+                </div>
+              ))}
+            </div>
           </div>
+
+          <Button
+            variant="secondary"
+            size="icon"
+            className={`${styles.arrow} ${styles.arrowNext}`}
+            onClick={handleShowNext}
+            aria-label="Next uploads"
+            disabled={!canScrollNext}
+            type="button"
+          >
+            <CaretRight size={18} aria-hidden="true" />
+          </Button>
         </div>
       )}
     </div>
