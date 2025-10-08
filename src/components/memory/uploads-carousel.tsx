@@ -155,12 +155,13 @@ export function UploadsCarousel() {
       ? Math.min(100, Math.max(0, Math.round(attachment.progress)))
       : 0;
   const progressStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--progress": `${progressPct}%` }),
+    () => ({ "--progress": `${progressPct}%` } as React.CSSProperties),
     [progressPct],
   );
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--carousel-visible-count": Math.max(1, pageSize) }),
+    () =>
+      ({ "--carousel-visible-count": Math.max(1, pageSize) } as React.CSSProperties),
     [pageSize],
   );
 

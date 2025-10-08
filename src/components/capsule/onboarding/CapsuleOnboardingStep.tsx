@@ -63,7 +63,7 @@ function randomId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function CapsuleOnboardingStep(): JSX.Element {
+export function CapsuleOnboardingStep(): React.JSX.Element {
   const router = useRouter();
 
   const [name, setName] = React.useState("");

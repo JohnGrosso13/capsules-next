@@ -22,19 +22,23 @@ export function AppPage({
   showPrompter = true,
   promoSlot,
   capsuleBanner,
-  showLiveChatRightRail,
+  showLiveChatRightRail = false,
   liveChatRailProps,
   showDiscoveryRightRail,
 }: AppPageProps) {
+  const optionalShellProps = {
+    ...(activeNav ? { activeNav } : {}),
+    ...(typeof liveChatRailProps !== "undefined" ? { liveChatRailProps } : {}),
+    ...(typeof showDiscoveryRightRail === "boolean" ? { showDiscoveryRightRail } : {}),
+  };
+
   return (
     <AppShell
       showPrompter={showPrompter}
       promoSlot={promoSlot}
       capsuleBanner={capsuleBanner}
       showLiveChatRightRail={showLiveChatRightRail}
-      liveChatRailProps={liveChatRailProps}
-      showDiscoveryRightRail={showDiscoveryRightRail}
-      {...(activeNav ? { activeNav } : {})}
+      {...optionalShellProps}
     >
       {children}
     </AppShell>

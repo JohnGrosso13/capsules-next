@@ -26,8 +26,13 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const limitParam = searchParams.get("limit");
-    const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
-    const capsules = await getRecentCapsules({ viewerId, limit });
+    const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
+    const limit =
+      typeof parsedLimit === "number" && !Number.isNaN(parsedLimit) ? parsedLimit : undefined;
+    const capsules = await getRecentCapsules({
+      viewerId,
+      ...(limit !== undefined ? { limit } : {}),
+    });
     return validatedJson(listResponseSchema, { capsules });
   } catch (error) {
     console.error("explore.recent-capsules error", error);

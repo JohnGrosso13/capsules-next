@@ -93,24 +93,31 @@ export function LaunchCta({
   React.useEffect(() => {
     if (!menuOpen) return;
 
-    function handlePointer(event: MouseEvent) {
+    const maybeCloseFromTarget = (target: EventTarget | null) => {
       if (!containerRef.current) return;
-      const target = event.target as Node | null;
-      if (target && containerRef.current.contains(target)) return;
+      if (target && containerRef.current.contains(target as Node)) return;
       closeMenu();
-    }
+    };
 
-    function handleKey(event: KeyboardEvent) {
+    const handleMouseDown = (event: MouseEvent) => {
+      maybeCloseFromTarget(event.target);
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      maybeCloseFromTarget(event.target);
+    };
+
+    const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeMenu();
-    }
+    };
 
-    document.addEventListener("mousedown", handlePointer);
-    document.addEventListener("touchstart", handlePointer);
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("touchstart", handleTouchStart);
     document.addEventListener("keydown", handleKey);
 
     return () => {
-      document.removeEventListener("mousedown", handlePointer);
-      document.removeEventListener("touchstart", handlePointer);
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("touchstart", handleTouchStart);
       document.removeEventListener("keydown", handleKey);
     };
   }, [menuOpen, closeMenu]);

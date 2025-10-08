@@ -6,7 +6,7 @@ import { parseJsonBody, returnError, validatedJson } from "@/server/validation/h
 
 const createRequestSchema = z.object({
   name: z
-    .string({ required_error: "name is required" })
+    .string({ message: "name is required" })
     .trim()
     .min(1, "name is required")
     .max(80, "name must be 80 characters or fewer"),

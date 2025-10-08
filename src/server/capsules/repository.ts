@@ -1,5 +1,6 @@
 import { getDatabaseAdminClient } from "@/config/database";
 import { decorateDatabaseError } from "@/lib/database/utils";
+import type { DatabaseError } from "@/ports/database";
 import type {
   CapsuleMemberProfile,
   CapsuleMemberRequestSummary,
@@ -357,7 +358,7 @@ export async function createCapsuleForUser(
 ): Promise<CapsuleSummary> {
   const name = normalizeName(params.name);
   const attempts = SLUG_MAX_ATTEMPTS + 1;
-  let lastError: unknown = null;
+  let lastError: DatabaseError | null = null;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const candidateSlug = buildSlugCandidate(name, attempt);
@@ -402,7 +403,10 @@ export async function createCapsuleForUser(
     return makeSummary(row, "owner");
   }
 
-  throw decorateDatabaseError("capsules.create", lastError);
+  if (lastError) {
+    throw decorateDatabaseError("capsules.create", lastError);
+  }
+  throw new Error("capsules.create: failed to create capsule");
 }
 
 export async function deleteCapsuleOwnedByUser(
@@ -591,7 +595,11 @@ export async function upsertCapsuleMemberRequest(
     throw decorateDatabaseError("capsules.memberRequests.upsert", result.error);
   }
 
-  const mapped = mapRequestRow(result.data);
+  const record = result.data;
+  if (!record) {
+    throw new Error("capsules.memberRequests.upsert: missing request data");
+  }
+  const mapped = mapRequestRow(record);
   if (!mapped) {
     throw new Error("capsules.memberRequests.upsert: failed to normalize request");
   }
@@ -710,7 +718,7 @@ export async function updateCapsuleMemberRole(params: {
     .update({ role: normalizedRole })
     .eq("capsule_id", normalizedCapsuleId)
     .eq("user_id", normalizedMemberId)
-    .select("user_id")
+    .select<CapsuleMemberRecord>("user_id")
     .maybeSingle();
 
   if (result.error) {

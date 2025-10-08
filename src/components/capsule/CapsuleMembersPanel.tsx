@@ -5,6 +5,7 @@ import {
   Check,
   Trash,
   WarningCircle,
+  X,
 } from "@phosphor-icons/react/dist/ssr";
 
 import type {

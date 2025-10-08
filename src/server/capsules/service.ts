@@ -108,7 +108,7 @@ export async function resolveCapsuleGate(
   }
 
   const capsules = await listCapsulesForUser(supabaseUserId);
-  const defaultCapsuleId = capsules.length === 1 ? capsules[0].id : null;
+  const defaultCapsuleId = capsules.length === 1 ? capsules[0]?.id ?? null : null;
 
   return { capsules, defaultCapsuleId };
 }
@@ -125,10 +125,16 @@ export async function getRecentCapsules(options: {
   limit?: number;
 } = {}): Promise<DiscoverCapsuleSummary[]> {
   const normalizedViewer = normalizeId(options.viewerId ?? null);
-  return listRecentPublicCapsules({
-    excludeCreatorId: normalizedViewer,
-    limit: options.limit,
-  });
+  const queryOptions: {
+    excludeCreatorId?: string | null;
+    limit?: number;
+  } = {
+    ...(normalizedViewer ? { excludeCreatorId: normalizedViewer } : {}),
+  };
+  if (typeof options.limit === "number") {
+    queryOptions.limit = options.limit;
+  }
+  return listRecentPublicCapsules(queryOptions);
 }
 
 export async function getCapsuleSummaryForViewer(
