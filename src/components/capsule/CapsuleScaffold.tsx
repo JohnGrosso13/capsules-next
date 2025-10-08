@@ -3,14 +3,17 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
-  Plus,
-  PencilSimple,
-  Trash,
-  Check,
   Broadcast,
+  MagnifyingGlass,
+  MagicWand,
   Newspaper,
+  PencilSimple,
+  PlusCircle,
+  ShoppingCartSimple,
+  SquaresFour,
   Storefront,
   ShareFat,
+  TShirt,
   UsersThree,
   WarningCircle,
 } from "@phosphor-icons/react/dist/ssr";
@@ -352,19 +355,12 @@ export function CapsuleContent({
             <CapsuleFeed capsuleId={capsuleId} capsuleName={normalizedCapsuleName} />
           </div>
         </>
+      ) : tab === "live" ? (
+        <div className={capTheme.liveCanvas} aria-label="Live stream area">
+          <LiveStreamCanvas />
+        </div>
       ) : (
-        <>
-          {tab === "live" ? (
-            <div className={capTheme.liveCanvas} aria-label="Live stream area">
-              <LiveStreamCanvas />
-            </div>
-          ) : (
-            <>
-              <StorePlaceholder />
-              <div className={capTheme.prompterBelow}>{prompter}</div>
-            </>
-          )}
-        </>
+        <CapsuleStorePlaceholder capsuleName={normalizedCapsuleName} prompter={prompter} />
       )}
     </div>
   );
@@ -373,13 +369,6 @@ export function CapsuleContent({
     <>
       {LiveArea}
       {tab === "live" ? <div className={capTheme.prompterBelow}>{prompter}</div> : null}
-      {tab !== "feed" ? (
-        <>
-          {/* Keep the lower banner + sections off the feed tab */}
-          <div className={capTheme.bannerBottom} />
-          <CapsuleSections />
-        </>
-      ) : null}
       {bannerCustomizerOpen ? (
         <CapsuleBannerCustomizer
           open
@@ -509,6 +498,224 @@ function LiveStreamCanvas() {
   );
 }
 
+type CapsuleStorePlaceholderProps = {
+  capsuleName: string | null;
+  prompter: React.ReactNode;
+};
+
+function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlaceholderProps) {
+  const displayName = capsuleName ?? "your capsule";
+  const productSpots = [
+    {
+      id: "feature",
+      label: "Hero drop",
+      title: "Signature Hoodie",
+      description: "Tell Capsule AI what artwork to mock up and the margin you want.",
+      price: "$45.00",
+      accent: capTheme.storeMediaBlue,
+      icon: <TShirt size={36} weight="duotone" />,
+      action: "Ask AI to design it",
+    },
+    {
+      id: "collectible",
+      label: "Sticker pack",
+      title: "Die-cut Sticker Set",
+      description: "Upload a logo or ask Capsule to remix one for your community.",
+      price: "$5.00",
+      accent: capTheme.storeMediaPurple,
+      icon: <SquaresFour size={36} weight="duotone" />,
+      action: "Reserve this slot",
+    },
+    {
+      id: "bundle",
+      label: "Bundle idea",
+      title: "Creator Essentials Kit",
+      description: "Bundle tees, hoodies, or digital perks. ChatGPT will stitch the story.",
+      price: "$75.00",
+      accent: capTheme.storeMediaAmber,
+      icon: <PlusCircle size={36} weight="duotone" />,
+      action: "Draft bundle with AI",
+    },
+    {
+      id: "digital",
+      label: "Digital add-on",
+      title: "Exclusive Stream Overlay",
+      description: "Describe the vibe and let Capsule generate assets for your fans.",
+      price: "$18.00",
+      accent: capTheme.storeMediaTeal,
+      icon: <MagicWand size={36} weight="duotone" />,
+      action: "Generate overlay concept",
+    },
+  ];
+
+  const assistantPrompts = [
+    `"Design a premium ${displayName} hoodie with night-sky gradients for $45."`,
+    `"Write product copy for a supporter-only enamel pin at a 25% margin."`,
+    `"Create a bundle that pairs merch with a digital collectible unlock."`,
+  ];
+
+  const cartDraft = [
+    { id: "cart-hoodie", name: "Signature Hoodie", price: "$45.00", note: "Awaiting artwork" },
+    { id: "cart-tee", name: "Launch Jersey Tee", price: "$28.00", note: "Sizing chart needed" },
+    { id: "cart-sticker", name: "Die-cut Sticker", price: "$5.00", note: "Set of 3" },
+  ];
+
+  const setupSteps = [
+    { id: "step-assets", label: "Upload assets or describe them for AI mockups" },
+    { id: "step-pricing", label: "Lock in pricing & margins for each listing" },
+    { id: "step-launch", label: "Preview the storefront & schedule your launch" },
+  ];
+
+  return (
+    <div className={`${capTheme.liveCanvas} ${capTheme.storeCanvas}`} aria-label="Capsule store planning">
+      <div className={capTheme.storeContent}>
+        <header className={capTheme.storeHeader}>
+          <div className={capTheme.storeHeading}>
+            <span className={capTheme.storeBadge}>Store draft</span>
+            <h2 className={capTheme.storeTitle}>{displayName} storefront</h2>
+            <p className={capTheme.storeSubtitle}>
+              Curate your capsule shop with AI-assisted listings. Reserve spaces for merch, drops, and digital perks—then
+              ask Capsule to fill in the details when you&apos;re ready.
+            </p>
+          </div>
+          <div className={capTheme.storeActions}>
+            <button type="button" className={capTheme.storeGhostButton}>
+              <ShareFat size={16} weight="bold" />
+              Share preview
+            </button>
+            <button type="button" className={capTheme.storeGhostButton}>
+              <UsersThree size={16} weight="bold" />
+              Invite collaborators
+            </button>
+          </div>
+        </header>
+
+        <section className={capTheme.storePrompter}>
+          <div className={capTheme.storePrompterHeader}>
+            <MagicWand size={18} weight="bold" />
+            <div>
+              <h3>Ask Capsule AI to craft your next listing</h3>
+              <p>Use natural language to brief pricing, designs, bundles, or launch timing.</p>
+            </div>
+          </div>
+          <div className={capTheme.storePrompterStage}>{prompter}</div>
+        </section>
+
+        <div className={capTheme.storeBody}>
+          <div className={capTheme.storeMain}>
+            <div className={capTheme.storeControls}>
+              <form className={capTheme.storeSearch} role="search" aria-label="Search storefront">
+                <MagnifyingGlass size={18} weight="bold" />
+                <input
+                  type="search"
+                  placeholder="Search products, prompts, or saved concepts…"
+                  disabled
+                  aria-disabled="true"
+                />
+              </form>
+              <div className={capTheme.storeControlButtons}>
+                <button type="button" className={capTheme.storeGhostButton}>
+                  <SquaresFour size={16} weight="bold" />
+                  Layout presets
+                </button>
+                <button type="button" className={capTheme.storeGhostButton}>
+                  <PlusCircle size={16} weight="bold" />
+                  New slot
+                </button>
+                <button type="button" className={capTheme.storeGhostButton}>
+                  <WarningCircle size={16} weight="bold" />
+                  Launch checklist
+                </button>
+              </div>
+            </div>
+
+            <div className={capTheme.storeProducts}>
+              {productSpots.map((product) => (
+                <article key={product.id} className={capTheme.storeProductCard}>
+                  <div className={`${capTheme.storeProductMedia} ${product.accent}`}>{product.icon}</div>
+                  <div className={capTheme.storeProductMeta}>
+                    <span className={capTheme.storeProductLabel}>{product.label}</span>
+                    <h4 className={capTheme.storeProductTitle}>{product.title}</h4>
+                    <p className={capTheme.storeProductDescription}>{product.description}</p>
+                  </div>
+                  <div className={capTheme.storeProductFooter}>
+                    <span className={capTheme.storeProductPrice}>{product.price}</span>
+                    <button type="button" className={capTheme.storeActionButton}>
+                      {product.action}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <aside className={capTheme.storeSidebar}>
+            <section className={`${capTheme.storePanel} ${capTheme.storePanelHighlight}`}>
+              <header className={capTheme.storePanelHeader}>
+                <MagicWand size={18} weight="bold" />
+                <div>
+                  <h3>Try these prompts</h3>
+                  <p>Drop them into the assistant or tweak for your voice.</p>
+                </div>
+              </header>
+              <ul className={capTheme.storeAssistantList}>
+                {assistantPrompts.map((prompt) => (
+                  <li key={prompt}>
+                    <span aria-hidden="true">•</span>
+                    {prompt}
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section className={capTheme.storePanel}>
+              <header className={capTheme.storePanelHeader}>
+                <ShoppingCartSimple size={18} weight="bold" />
+                <div>
+                  <h3>Cart preview</h3>
+                  <p>Items populate as you confirm listings.</p>
+                </div>
+              </header>
+              <ul className={capTheme.storeCartList}>
+                {cartDraft.map((item) => (
+                  <li key={item.id}>
+                    <div>
+                      <span>{item.name}</span>
+                      <p>{item.note}</p>
+                    </div>
+                    <strong>{item.price}</strong>
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className={capTheme.storePrimaryButton}>
+                Preview checkout
+              </button>
+            </section>
+
+            <section className={capTheme.storePanel}>
+              <header className={capTheme.storePanelHeader}>
+                <ShareFat size={18} weight="bold" />
+                <div>
+                  <h3>Launch roadmap</h3>
+                  <p>Follow these steps before you open the doors.</p>
+                </div>
+              </header>
+              <ol className={capTheme.storeSteps}>
+                {setupSteps.map((step, index) => (
+                  <li key={step.id}>
+                    <span className={capTheme.storeStepIndex}>{index + 1}</span>
+                    <span>{step.label}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CapsuleFeed({ capsuleId, capsuleName }: { capsuleId: string | null; capsuleName: string | null }) {
   const {
     posts,
@@ -559,92 +766,5 @@ function CapsuleFeed({ capsuleId, capsuleName }: { capsuleId: string | null; cap
         emptyMessage={emptyMessage}
       />
     </section>
-  );
-}
-
-function StorePlaceholder() {
-  return (
-    <div className={capTheme.placeholderCard}>
-      <h3 className={capTheme.placeholderTitle}>Capsule Store</h3>
-      <p className={capTheme.placeholderText}>Products and offers will appear here.</p>
-    </div>
-  );
-}
-
-type Section = { id: string; title: string };
-
-function CapsuleSections() {
-  const [sections, setSections] = React.useState<Section[]>([
-    { id: "about", title: "About" },
-    { id: "schedule", title: "Schedule" },
-    { id: "sponsors", title: "Sponsors" },
-  ]);
-  const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [draftTitle, setDraftTitle] = React.useState<string>("");
-
-  const startEdit = (id: string, current: string) => {
-    setEditingId(id);
-    setDraftTitle(current);
-  };
-  const confirmEdit = () => {
-    if (!editingId) return;
-    setSections((prev) => prev.map((s) => (s.id === editingId ? { ...s, title: draftTitle.trim() || s.title } : s)));
-    setEditingId(null);
-    setDraftTitle("");
-  };
-  const remove = (id: string) => setSections((prev) => prev.filter((s) => s.id !== id));
-  const add = () => {
-    const id = `section_${Math.random().toString(36).slice(2, 8)}`;
-    const title = "New Section";
-    setSections((prev) => [...prev, { id, title }]);
-    setEditingId(id);
-    setDraftTitle(title);
-  };
-
-  return (
-    <div className={capTheme.sectionsGrid}>
-      {sections.map((s) => (
-        <div key={s.id} className={capTheme.sectionTile}>
-          <div className={capTheme.sectionTileHeader}>
-            {editingId === s.id ? (
-              <input
-                className={capTheme.sectionTitleInput}
-                value={draftTitle}
-                onChange={(e) => setDraftTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") confirmEdit();
-                }}
-                autoFocus
-              />
-            ) : (
-              <h4 className={capTheme.sectionTileTitle}>{s.title}</h4>
-            )}
-            <div className={capTheme.sectionTileActions}>
-              {editingId === s.id ? (
-                <button className={capTheme.iconBtn} onClick={confirmEdit} aria-label="Save section title">
-                  <Check size={16} weight="bold" />
-                </button>
-              ) : (
-                <button
-                  className={capTheme.iconBtn}
-                  onClick={() => startEdit(s.id, s.title)}
-                  aria-label="Rename section"
-                >
-                  <PencilSimple size={16} weight="bold" />
-                </button>
-              )}
-              <button className={capTheme.iconBtn} onClick={() => remove(s.id)} aria-label="Delete section">
-                <Trash size={16} weight="bold" />
-              </button>
-            </div>
-          </div>
-          <div className={capTheme.sectionTileBody}>Customize this area…</div>
-        </div>
-      ))}
-      <button className={capTheme.sectionAdd} type="button" onClick={add} aria-label="Add section">
-        <Plus size={18} weight="bold" />
-        Add section
-      </button>
-    </div>
   );
 }

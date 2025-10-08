@@ -519,6 +519,409 @@
 }
 .placeholderText { color: var(--text-2); }
 
+/* Store placeholder */
+.storeCanvas {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2vw, 28px);
+  overflow: auto;
+}
+.storeContent {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2vw, 26px);
+  width: 100%;
+  max-width: 1240px;
+}
+.storeHeader {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: clamp(16px, 2vw, 24px);
+}
+.storeHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 560px;
+}
+.storeBadge {
+  align-self: flex-start;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #6366f1) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #6366f1) 32%, transparent);
+  color: color-mix(in srgb, var(--accent, #6366f1) 82%, #ffffff);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.storeTitle {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.5vw, 1.9rem);
+  font-weight: 900;
+  color: var(--text, rgba(255,255,255,0.95));
+}
+.storeSubtitle {
+  margin: 0;
+  color: var(--text-2, rgba(203,213,225,0.82));
+  font-size: clamp(0.95rem, 1.8vw, 1.05rem);
+  line-height: 1.55;
+}
+.storeActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+.storeGhostButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--text-3, rgba(148,163,184,0.55)) 40%, transparent);
+  background: color-mix(in srgb, rgba(59,130,246,0.18) 16%, transparent);
+  color: var(--text-2, rgba(203,213,225,0.85));
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+}
+.storeGhostButton:hover {
+  color: var(--text, rgba(255,255,255,0.92));
+  border-color: color-mix(in srgb, rgba(59,130,246,0.45) 68%, transparent);
+  background: color-mix(in srgb, rgba(59,130,246,0.32) 32%, transparent);
+}
+.storeGhostButton svg {
+  flex-shrink: 0;
+}
+.storePrompter {
+  display: grid;
+  gap: 14px;
+  padding: clamp(14px, 2vw, 20px);
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, rgba(59,130,246,0.35) 35%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, rgba(59,130,246,0.55) 18%, transparent), transparent),
+    color-mix(in srgb, rgba(15,23,42,0.74) 72%, rgba(15,23,42,0.45));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.storePrompterHeader {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  color: var(--text, rgba(255,255,255,0.95));
+}
+.storePrompterHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.storePrompterHeader p {
+  margin: 4px 0 0;
+  color: var(--text-2, rgba(203,213,225,0.85));
+  font-size: 0.9rem;
+}
+.storePrompterStage {
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+}
+.storeBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(18px, 2vw, 26px);
+  min-height: 0;
+}
+@media (min-width: 1100px) {
+  .storeBody {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  }
+}
+.storeMain {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2vw, 24px);
+  min-height: 0;
+}
+.storeControls {
+  display: grid;
+  gap: 12px;
+}
+.storeSearch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(148,163,184,0.32)) 85%, transparent);
+  background: color-mix(in srgb, rgba(15,23,42,0.72) 72%, rgba(15,23,42,0.45));
+  color: var(--text-2, rgba(203,213,225,0.85));
+}
+.storeSearch input {
+  flex: 1;
+  background: none;
+  border: 0;
+  outline: none;
+  color: inherit;
+  font: inherit;
+}
+.storeSearch input::placeholder {
+  color: color-mix(in srgb, var(--text-2, rgba(203,213,225,0.85)) 70%, transparent);
+}
+.storeControlButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.storeProducts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: clamp(14px, 2vw, 18px);
+}
+.storeProductCard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: clamp(16px, 1.8vw, 20px);
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, rgba(148,163,184,0.45) 65%, transparent);
+  background:
+    radial-gradient(200% 160% at 100% 0%, rgba(255,255,255,0.06), transparent 56%),
+    color-mix(in srgb, rgba(15,23,42,0.7) 78%, rgba(15,23,42,0.45));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.storeProductMedia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(99, 102, 241, 0.45);
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.25);
+}
+.storeMediaBlue {
+  background: linear-gradient(135deg, rgba(59,130,246,0.75), rgba(59,130,246,0.35));
+  box-shadow: 0 12px 28px rgba(59,130,246,0.35);
+}
+.storeMediaPurple {
+  background: linear-gradient(135deg, rgba(129,140,248,0.75), rgba(119,92,246,0.35));
+  box-shadow: 0 12px 28px rgba(129,140,248,0.35);
+}
+.storeMediaAmber {
+  background: linear-gradient(135deg, rgba(251,191,36,0.8), rgba(251,146,60,0.45));
+  box-shadow: 0 12px 28px rgba(251,191,36,0.32);
+  color: rgba(49,38,5,0.92);
+}
+.storeMediaTeal {
+  background: linear-gradient(135deg, rgba(45,212,191,0.8), rgba(16,185,129,0.45));
+  box-shadow: 0 12px 28px rgba(45,212,191,0.32);
+  color: rgba(4,47,46,0.92);
+}
+.storeProductMeta {
+  display: grid;
+  gap: 8px;
+}
+.storeProductLabel {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-2, rgba(203,213,225,0.8)) 70%, transparent);
+}
+.storeProductTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text, rgba(255,255,255,0.95));
+}
+.storeProductDescription {
+  margin: 0;
+  color: var(--text-2, rgba(203,213,225,0.8));
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.storeProductFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.storeProductPrice {
+  font-weight: 700;
+  color: var(--text, rgba(255,255,255,0.95));
+}
+.storeActionButton {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, rgba(59,130,246,0.65) 75%, transparent);
+  background: color-mix(in srgb, rgba(59,130,246,0.35) 35%, transparent);
+  color: var(--text, rgba(255,255,255,0.95));
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.storeActionButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(59,130,246,0.35);
+}
+.storeSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 1.8vw, 22px);
+}
+.storePanel {
+  display: grid;
+  gap: 14px;
+  padding: clamp(16px, 2vw, 20px);
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, rgba(148,163,184,0.45) 60%, transparent);
+  background: color-mix(in srgb, rgba(15,23,42,0.68) 75%, rgba(15,23,42,0.45));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.storePanelHighlight {
+  border: 1px solid color-mix(in srgb, rgba(99,102,241,0.55) 65%, transparent);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, rgba(129,140,248,0.45) 42%, transparent), transparent),
+    color-mix(in srgb, rgba(30,41,59,0.82) 78%, rgba(15,23,42,0.45));
+}
+.storePanelHeader {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  color: var(--text, rgba(255,255,255,0.95));
+}
+.storePanelHeader h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.storePanelHeader p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-2, rgba(203,213,225,0.8));
+}
+.storeAssistantList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  color: var(--text-2, rgba(203,213,225,0.85));
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+.storeAssistantList li {
+  display: flex;
+  gap: 8px;
+}
+.storeAssistantList li span[aria-hidden="true"] {
+  color: color-mix(in srgb, rgba(129,140,248,0.75) 75%, transparent);
+}
+.storeCartList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  color: var(--text-2, rgba(203,213,225,0.85));
+  font-size: 0.9rem;
+}
+.storeCartList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.storeCartList li div span {
+  font-weight: 700;
+  color: var(--text, rgba(255,255,255,0.95));
+}
+.storeCartList li div p {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-2, rgba(203,213,225,0.7));
+}
+.storeCartList li strong {
+  font-weight: 700;
+  color: var(--text, rgba(255,255,255,0.95));
+}
+.storePrimaryButton {
+  justify-self: stretch;
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, rgba(99,102,241,0.95), rgba(59,130,246,0.85));
+  color: #fff;
+  box-shadow: 0 16px 32px rgba(99,102,241,0.35);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.storePrimaryButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 20px 38px rgba(99,102,241,0.42);
+}
+.storeSteps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--text-2, rgba(203,213,225,0.8));
+}
+.storeSteps li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.storeStepIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: color-mix(in srgb, rgba(59,130,246,0.65) 60%, transparent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .storeHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .storeActions {
+    width: 100%;
+  }
+  .storeActions .storeGhostButton {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .storeContent {
+    max-width: none;
+  }
+  .storeProducts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .storePrompterHeader {
+    flex-direction: column;
+  }
+  .storePrompter {
+    padding: 16px;
+  }
+}
+
 /* Bottom banner (moved below the prompter) */
 .bannerBottom {
   width: 100%;
