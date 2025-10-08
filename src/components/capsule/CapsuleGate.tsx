@@ -140,7 +140,12 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
     () => capsules.filter((capsule) => capsule.ownership === "owner"),
     [capsules],
   );
+  const memberCapsules = React.useMemo(
+    () => capsules.filter((capsule) => capsule.ownership !== "owner"),
+    [capsules],
+  );
   const hasOwnedCapsule = ownedCapsules.length > 0;
+  const hasMemberCapsules = memberCapsules.length > 0;
   const knownCapsuleIds = React.useMemo(() => new Set(capsules.map((capsule) => capsule.id)), [capsules]);
   const startInSelector = forceSelector || !hasOwnedCapsule;
   const resolvedDefaultId = React.useMemo(() => {
@@ -280,34 +285,85 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
         <h2 className={styles.selectorTitle}>Choose a Capsule</h2>
         <p className={styles.selectorSubtitle}>Pick a space to open and jump back into the action.</p>
       </div>
-      <div className={styles.selectorGrid}>
-        {capsules.map((capsule) => (
-          <button
-            key={capsule.id}
-            type="button"
-            className={styles.selectorCard}
-            onClick={() => setActiveId(capsule.id)}
-          >
-            <div className={styles.selectorCardHeader}>
-              <div className={styles.selectorLogo} aria-hidden>
-                {capsule.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={capsule.logoUrl} alt="" />
-                ) : (
-                  <span>{getInitial(capsule.name)}</span>
-                )}
-              </div>
-              <div className={styles.selectorCardMeta}>
-                <span className={styles.selectorName}>{capsule.name}</span>
-                <span className={styles.selectorRole}>{formatRole(capsule)}</span>
-              </div>
+      <div className={styles.selectorSections}>
+        <section className={styles.selectorSection} aria-label="User Created Capsules">
+          <header className={styles.selectorSectionHeader}>
+            <h3 className={styles.selectorSectionTitle}>Your Capsules</h3>
+            <span className={styles.selectorSectionBadge}>{ownedCapsules.length}</span>
+          </header>
+          {hasOwnedCapsule ? (
+            <div className={styles.selectorGrid}>
+              {ownedCapsules.map((capsule) => (
+                <button
+                  key={capsule.id}
+                  type="button"
+                  className={styles.selectorCard}
+                  onClick={() => setActiveId(capsule.id)}
+                >
+                  <div className={styles.selectorCardHeader}>
+                    <div className={styles.selectorLogo} aria-hidden>
+                      {capsule.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={capsule.logoUrl} alt="" />
+                      ) : (
+                        <span>{getInitial(capsule.name)}</span>
+                      )}
+                    </div>
+                    <div className={styles.selectorCardMeta}>
+                      <span className={styles.selectorName}>{capsule.name}</span>
+                      <span className={styles.selectorRole}>{formatRole(capsule)}</span>
+                    </div>
+                  </div>
+                  {capsule.slug ? <span className={styles.selectorSlug}>@{capsule.slug}</span> : null}
+                  <span className={styles.selectorAction}>Open Capsule</span>
+                </button>
+              ))}
             </div>
-            {capsule.slug ? (
-              <span className={styles.selectorSlug}>@{capsule.slug}</span>
-            ) : null}
-            <span className={styles.selectorAction}>Open Capsule</span>
-          </button>
-        ))}
+          ) : (
+            <p className={styles.selectorSectionEmpty}>
+              You haven&apos;t created a capsule yet. Spin one up to unlock full customization.
+            </p>
+          )}
+        </section>
+        <section className={styles.selectorSection} aria-label="Memberships">
+          <header className={styles.selectorSectionHeader}>
+            <h3 className={styles.selectorSectionTitle}>Memberships</h3>
+            <span className={styles.selectorSectionBadge}>{memberCapsules.length}</span>
+          </header>
+          {hasMemberCapsules ? (
+            <div className={styles.selectorGrid}>
+              {memberCapsules.map((capsule) => (
+                <button
+                  key={capsule.id}
+                  type="button"
+                  className={styles.selectorCard}
+                  onClick={() => setActiveId(capsule.id)}
+                >
+                  <div className={styles.selectorCardHeader}>
+                    <div className={styles.selectorLogo} aria-hidden>
+                      {capsule.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={capsule.logoUrl} alt="" />
+                      ) : (
+                        <span>{getInitial(capsule.name)}</span>
+                      )}
+                    </div>
+                    <div className={styles.selectorCardMeta}>
+                      <span className={styles.selectorName}>{capsule.name}</span>
+                      <span className={styles.selectorRole}>{formatRole(capsule)}</span>
+                    </div>
+                  </div>
+                  {capsule.slug ? <span className={styles.selectorSlug}>@{capsule.slug}</span> : null}
+                  <span className={styles.selectorAction}>Open Capsule</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.selectorSectionEmpty}>
+              You&apos;re not a member of any capsules yet. Accept an invite or request to join to see them here.
+            </p>
+          )}
+        </section>
       </div>
       <div className={styles.selectorFooter}>
         <span className={styles.selectorFooterText}>Need another space?</span>

@@ -392,7 +392,8 @@ export async function createCapsuleForUser(
       .upsert(
         { capsule_id: row.id, user_id: userId, role: "owner" },
         { onConflict: "capsule_id,user_id" },
-      );
+      )
+      .fetch();
 
     if (membership.error) {
       throw decorateDatabaseError("capsules.createMembership", membership.error);
@@ -683,7 +684,8 @@ export async function upsertCapsuleMember(params: {
         role: params.role ?? "member",
       },
       { onConflict: "capsule_id,user_id" },
-    );
+    )
+    .fetch();
 
   if (result.error) {
     throw decorateDatabaseError("capsules.members.upsert", result.error);

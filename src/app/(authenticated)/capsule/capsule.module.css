@@ -1277,6 +1277,51 @@
   font-size: 1rem;
 }
 
+.selectorSections {
+  display: grid;
+  gap: clamp(24px, 4vw, 32px);
+}
+
+.selectorSection {
+  display: grid;
+  gap: clamp(16px, 3vw, 24px);
+}
+
+.selectorSectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.selectorSectionTitle {
+  margin: 0;
+  font-size: clamp(1.1rem, 2.2vw, 1.35rem);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.selectorSectionBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border, rgba(255,255,255,0.24));
+  background: linear-gradient(180deg, var(--pill-bg-1, rgba(255,255,255,0.12)), var(--pill-bg-2, rgba(255,255,255,0.08)));
+  color: var(--text, #ffffff);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.selectorSectionEmpty {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 .selectorGrid {
   display: grid;
   gap: 16px;
