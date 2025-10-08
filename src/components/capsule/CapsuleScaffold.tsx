@@ -61,7 +61,7 @@ export function CapsuleContent({
     approveRequest,
     declineRequest,
     removeMember,
-    refresh: refreshMembership,
+    setMemberRole,
     setError: setMembershipError,
   } = useCapsuleMembership(capsuleId);
 
@@ -119,19 +119,15 @@ export function CapsuleContent({
     const redirectUrl = `${window.location.pathname}${window.location.search}` || "/capsule";
     router.push(`/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`);
   }, [router]);
-  const openMembers = React.useCallback(() => {
+  const showMembers = React.useCallback(() => {
     setMembersOpen(true);
   }, []);
-  const toggleMembers = React.useCallback(() => {
-    setMembersOpen((prev) => !prev);
+  const showFeatured = React.useCallback(() => {
+    setMembersOpen(false);
   }, []);
   const sendMembershipRequest = React.useCallback(() => {
     void requestJoin().catch(() => {});
   }, [requestJoin]);
-  const handleRefreshMembership = React.useCallback(
-    () => refreshMembership().catch(() => {}),
-    [refreshMembership],
-  );
   const handleApproveRequest = React.useCallback(
     (requestId: string) => approveRequest(requestId).catch(() => {}),
     [approveRequest],
@@ -143,6 +139,10 @@ export function CapsuleContent({
   const handleRemoveMember = React.useCallback(
     (memberId: string) => removeMember(memberId).catch(() => {}),
     [removeMember],
+  );
+  const handleChangeMemberRole = React.useCallback(
+    (memberId: string, role: string) => setMemberRole(memberId, role).catch(() => {}),
+    [setMemberRole],
   );
   const heroPrimary = React.useMemo<{
     label: string;
@@ -168,14 +168,14 @@ export function CapsuleContent({
       return {
         label: "Manage Members",
         disabled: membershipLoading,
-        onClick: openMembers,
+        onClick: showMembers,
       };
     }
     if (viewer.isMember) {
       return {
         label: "View Members",
         disabled: false,
-        onClick: openMembers,
+        onClick: showMembers,
       };
     }
     if (!viewer.userId) {
@@ -199,7 +199,7 @@ export function CapsuleContent({
     membershipMutatingAction,
     isAuthenticated,
     handleSignIn,
-    openMembers,
+    showMembers,
     sendMembershipRequest,
   ]);
   const showMembersBadge = Boolean(viewer?.isOwner && pendingCount > 0);
@@ -328,40 +328,39 @@ export function CapsuleContent({
           <CapsuleHero
             capsuleName={normalizedCapsuleName}
             canCustomize={canCustomize}
-            onCustomize={canCustomize ? () => setBannerCustomizerOpen(true) : undefined}
+            {...(canCustomize ? { onCustomize: () => setBannerCustomizerOpen(true) } : {})}
             primaryAction={heroPrimary}
             membersOpen={membersOpen}
             showMembersBadge={showMembersBadge}
             pendingCount={pendingCount}
-            onToggleMembers={toggleMembers}
+            onSelectMembers={showMembers}
+            onSelectFeatured={showFeatured}
             errorMessage={membershipErrorVisible}
           />
-          <CapsuleMembersPanel
-            open={membersOpen}
-            membership={membership ?? null}
-            loading={membershipLoading}
-            error={membershipError ?? null}
-            mutatingAction={membershipMutatingAction}
-            onClose={() => setMembersOpen(false)}
-            onRefresh={handleRefreshMembership}
-            onApprove={handleApproveRequest}
-            onDecline={handleDeclineRequest}
-            onRemove={handleRemoveMember}
-          />
-        </>
-      ) : null}
-
-      {/* Middle: canvas that grows, then prompter */}
-      {tab === "feed" ? (
-        <>
-          <div className={capTheme.prompterTop}>{prompter}</div>
-          <div
-            className={`${capTheme.liveCanvas} ${capTheme.feedCanvas}`}
-            aria-label="Capsule feed"
-            data-capsule-id={capsuleId ?? undefined}
-          >
-            <CapsuleFeed capsuleId={capsuleId} capsuleName={normalizedCapsuleName} />
-          </div>
+          {membersOpen ? (
+            <CapsuleMembersPanel
+              open
+              membership={membership ?? null}
+              loading={membershipLoading}
+              error={membershipError ?? null}
+              mutatingAction={membershipMutatingAction}
+              onApprove={handleApproveRequest}
+              onDecline={handleDeclineRequest}
+              onRemove={handleRemoveMember}
+              onChangeRole={handleChangeMemberRole}
+            />
+          ) : (
+            <>
+              <div className={capTheme.prompterTop}>{prompter}</div>
+              <div
+                className={`${capTheme.liveCanvas} ${capTheme.feedCanvas}`}
+                aria-label="Capsule feed"
+                data-capsule-id={capsuleId ?? undefined}
+              >
+                <CapsuleFeed capsuleId={capsuleId} capsuleName={normalizedCapsuleName} />
+              </div>
+            </>
+          )}
         </>
       ) : tab === "live" ? (
         <div className={capTheme.liveCanvas} aria-label="Live stream area">
@@ -401,7 +400,8 @@ type CapsuleHeroProps = {
   membersOpen: boolean;
   showMembersBadge: boolean;
   pendingCount: number;
-  onToggleMembers: () => void;
+  onSelectMembers: () => void;
+  onSelectFeatured: () => void;
   errorMessage?: string | null;
 };
 
@@ -413,7 +413,8 @@ function CapsuleHero({
   membersOpen,
   showMembersBadge,
   pendingCount,
-  onToggleMembers,
+  onSelectMembers,
+  onSelectFeatured,
   errorMessage,
 }: CapsuleHeroProps) {
   const displayName = capsuleName ?? "Customize this capsule";
@@ -464,16 +465,24 @@ function CapsuleHero({
         <nav className={capTheme.heroTabs} aria-label="Capsule quick links">
           {HERO_LINKS.map((label, index) => {
             const isMembersLink = label === "Members";
+            const isFeaturedLink = label === "Featured";
             const isActive = isMembersLink ? membersOpen : !membersOpen && index === 0;
             const className = isActive
               ? `${capTheme.heroTab} ${capTheme.heroTabActive}`
               : capTheme.heroTab;
+            const handleClick = () => {
+              if (isMembersLink) {
+                onSelectMembers();
+              } else if (isFeaturedLink) {
+                onSelectFeatured();
+              }
+            };
             return (
               <button
                 key={label}
                 type="button"
                 className={className}
-                onClick={isMembersLink ? onToggleMembers : undefined}
+                onClick={isMembersLink || isFeaturedLink ? handleClick : undefined}
               >
                 {label}
                 {isMembersLink && showMembersBadge ? (

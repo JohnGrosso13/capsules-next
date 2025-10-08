@@ -11,7 +11,8 @@ type PerformActionPayload =
   | { action: "request_join"; message?: string }
   | { action: "approve_request"; requestId: string }
   | { action: "decline_request"; requestId: string }
-  | { action: "remove_member"; memberId: string };
+  | { action: "remove_member"; memberId: string }
+  | { action: "set_role"; memberId: string; role: string };
 
 type UseCapsuleMembershipResult = {
   membership: CapsuleMembershipState | null;
@@ -24,6 +25,7 @@ type UseCapsuleMembershipResult = {
   approveRequest: (requestId: string) => Promise<CapsuleMembershipState | null>;
   declineRequest: (requestId: string) => Promise<CapsuleMembershipState | null>;
   removeMember: (memberId: string) => Promise<CapsuleMembershipState | null>;
+  setMemberRole: (memberId: string, role: string) => Promise<CapsuleMembershipState | null>;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
@@ -185,6 +187,11 @@ export function useCapsuleMembership(capsuleId: string | null | undefined): UseC
     [performAction],
   );
 
+  const setMemberRole = React.useCallback(
+    (memberId: string, role: string) => performAction({ action: "set_role", memberId, role }),
+    [performAction],
+  );
+
   return {
     membership,
     loading,
@@ -196,6 +203,7 @@ export function useCapsuleMembership(capsuleId: string | null | undefined): UseC
     approveRequest,
     declineRequest,
     removeMember,
+    setMemberRole,
     setError,
   };
 }

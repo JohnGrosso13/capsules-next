@@ -73,14 +73,35 @@ export const capsuleMembershipStateSchema = z.object({
   viewerRequest: capsuleMemberRequestSchema.nullable(),
 });
 
-export const capsuleMembershipActionSchema = z.object({
-  action: z.enum(["request_join", "approve_request", "decline_request", "remove_member"]),
-  message: z.string().trim().max(500).optional(),
-  requestId: z.string().uuid("requestId must be a valid UUID").optional(),
-  memberId: z.string().uuid("memberId must be a valid UUID").optional(),
-});
+const capsuleMemberRoleSchema = z.enum(["member", "leader", "admin", "founder"]);
+
+export const capsuleMembershipActionSchema = z
+  .object({
+    action: z.enum(["request_join", "approve_request", "decline_request", "remove_member", "set_role"]),
+    message: z.string().trim().max(500).optional(),
+    requestId: z.string().uuid("requestId must be a valid UUID").optional(),
+    memberId: z.string().uuid("memberId must be a valid UUID").optional(),
+    role: capsuleMemberRoleSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.action === "set_role") {
+      if (!value.memberId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "memberId is required to set a role.",
+          path: ["memberId"],
+        });
+      }
+      if (!value.role) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "role is required when setting a role.",
+          path: ["role"],
+        });
+      }
+    }
+  });
 
 export const capsuleMembershipResponseSchema = z.object({
   membership: capsuleMembershipStateSchema,
 });
-

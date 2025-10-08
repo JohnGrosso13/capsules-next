@@ -20,6 +20,7 @@ import {
   getCapsuleSummaryForViewer as repoGetCapsuleSummaryForViewer,
   type CapsuleSummary,
   type DiscoverCapsuleSummary,
+  updateCapsuleMemberRole,
 } from "./repository";
 
 export type { CapsuleSummary, DiscoverCapsuleSummary } from "./repository";
@@ -31,6 +32,7 @@ export type {
 } from "@/types/capsules";
 
 const REQUEST_MESSAGE_MAX_LENGTH = 500;
+const CAPSULE_MEMBER_ROLES = new Set(["member", "leader", "admin", "founder"]);
 
 function normalizeId(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
@@ -42,6 +44,14 @@ function normalizeOptionalString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+function normalizeMemberRole(value: unknown): string {
+  const normalized = normalizeOptionalString(value)?.toLowerCase() ?? null;
+  if (!normalized || !CAPSULE_MEMBER_ROLES.has(normalized)) {
+    throw new CapsuleMembershipError("invalid", "Invalid capsule role.", 400);
+  }
+  return normalized;
 }
 
 function normalizeRequestMessage(value: unknown): string | null {
@@ -337,6 +347,46 @@ export async function removeCapsuleMember(
 
   const removed = await deleteCapsuleMemberRecord(capsuleIdValue, normalizedMemberId);
   if (!removed) {
+    throw new CapsuleMembershipError("not_found", "Member not found in this capsule.", 404);
+  }
+
+  return getCapsuleMembership(capsuleIdValue, capsuleOwnerId);
+}
+
+export async function setCapsuleMemberRole(
+  ownerId: string,
+  capsuleId: string,
+  memberId: string,
+  role: string,
+): Promise<CapsuleMembershipState> {
+  const normalizedMemberId = normalizeId(memberId);
+  if (!normalizedMemberId) {
+    throw new CapsuleMembershipError("invalid", "A valid member id is required.", 400);
+  }
+
+  const normalizedRole = normalizeMemberRole(role);
+
+  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
+  const capsuleIdValue = normalizeId(capsule.id);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.membership.role: capsule has invalid identifier");
+  }
+
+  if (normalizedMemberId === capsuleOwnerId && normalizedRole !== "founder") {
+    throw new CapsuleMembershipError(
+      "conflict",
+      "The capsule owner must remain a founder.",
+      409,
+    );
+  }
+
+  const updated = await updateCapsuleMemberRole({
+    capsuleId: capsuleIdValue,
+    memberId: normalizedMemberId,
+    role: normalizedRole,
+  });
+
+  if (!updated) {
     throw new CapsuleMembershipError("not_found", "Member not found in this capsule.", 404);
   }
 

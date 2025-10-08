@@ -117,11 +117,14 @@ export function AppShell({
 
           {isCapsule ? (
             <>
-              <div className={capsuleLayoutClassName}>
+              <div className={capsuleLayoutClassName} data-capsule-tab={capsuleTab}>
                 <aside className={`${styles.rail} ${styles.leftRail} ${styles.leftRailCapsule}`}>
                   <ConnectionsRail />
                 </aside>
-                <section className={`${styles.content} ${styles.contentCapsule}`}>
+                <section
+                  className={`${styles.content} ${styles.contentCapsule}`}
+                  data-capsule-tab={capsuleTab}
+                >
                   {capsuleBanner ? <div className={styles.capsuleBanner}>{capsuleBanner}</div> : null}
                   {children}
                 </section>

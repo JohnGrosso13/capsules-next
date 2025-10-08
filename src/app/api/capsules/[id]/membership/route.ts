@@ -8,6 +8,7 @@ import {
   getCapsuleMembership,
   removeCapsuleMember,
   requestCapsuleMembership,
+  setCapsuleMemberRole,
 } from "@/server/capsules/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
@@ -73,7 +74,7 @@ export async function POST(
     return parsedBody.response;
   }
 
-  const { action, message, requestId, memberId } = parsedBody.data;
+  const { action, message, requestId, memberId, role } = parsedBody.data;
 
   try {
     let membership;
@@ -102,6 +103,16 @@ export async function POST(
           return returnError(400, "invalid_request", "memberId is required to remove a member.");
         }
         membership = await removeCapsuleMember(actorId, parsedParams.data.id, memberId);
+        break;
+      }
+      case "set_role": {
+        if (!memberId) {
+          return returnError(400, "invalid_request", "memberId is required to set a role.");
+        }
+        if (!role) {
+          return returnError(400, "invalid_request", "role is required to set a member role.");
+        }
+        membership = await setCapsuleMemberRole(actorId, parsedParams.data.id, memberId, role);
         break;
       }
       default:

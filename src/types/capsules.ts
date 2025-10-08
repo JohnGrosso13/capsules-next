@@ -66,5 +66,5 @@ export type CapsuleMembershipAction =
   | "request_join"
   | "approve_request"
   | "decline_request"
-  | "remove_member";
-
+  | "remove_member"
+  | "set_role";

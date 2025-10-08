@@ -691,3 +691,31 @@ export async function upsertCapsuleMember(params: {
     throw decorateDatabaseError("capsules.members.upsert", result.error);
   }
 }
+
+export async function updateCapsuleMemberRole(params: {
+  capsuleId: string;
+  memberId: string;
+  role: string;
+}): Promise<boolean> {
+  const normalizedCapsuleId = normalizeString(params.capsuleId);
+  const normalizedMemberId = normalizeString(params.memberId);
+  const normalizedRoleSource = normalizeString(params.role);
+  const normalizedRole = normalizedRoleSource ? normalizedRoleSource.toLowerCase() : null;
+  if (!normalizedCapsuleId || !normalizedMemberId || !normalizedRole) {
+    return false;
+  }
+
+  const result = await db
+    .from("capsule_members")
+    .update({ role: normalizedRole })
+    .eq("capsule_id", normalizedCapsuleId)
+    .eq("user_id", normalizedMemberId)
+    .select("user_id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.members.updateRole", result.error);
+  }
+
+  return Boolean(result.data?.user_id);
+}
