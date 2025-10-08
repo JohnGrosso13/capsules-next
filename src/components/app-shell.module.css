@@ -38,6 +38,12 @@
   margin: 0;
   padding-left: 0;
   padding-right: 0;
+  scrollbar-width: none; /* Hide scrollbar while keeping scroll functionality */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+.pageCapsule::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .header {
@@ -128,7 +134,7 @@
 
 .layout {
   --app-feed-width: clamp(640px, 52vw, 760px);
-  --app-rail-width: clamp(260px, 22vw, 320px);
+  --app-rail-width: clamp(320px, 24vw, 380px);
   --app-column-gap: clamp(20px, 2.5vw, 40px);
   display: grid;
   /* Left rail first, main content second to match app pages */
@@ -175,8 +181,8 @@
 .leftRail {
   position: sticky;
   top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
-  max-width: var(--app-rail-width, clamp(260px, 22vw, 320px));
-  width: min(100%, var(--app-rail-width, clamp(260px, 22vw, 320px)));
+  max-width: var(--app-rail-width, clamp(320px, 24vw, 380px));
+  width: min(100%, var(--app-rail-width, clamp(320px, 24vw, 380px)));
   --connections-rail-offset: -60px;
   --connections-rail-offset-md: -50px;
   --connections-rail-offset-sm: -40px;
@@ -185,27 +191,32 @@
 .rightRail {
   position: sticky;
   top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
-  max-width: var(--app-rail-width, clamp(260px, 22vw, 320px));
-  width: min(100%, var(--app-rail-width, clamp(260px, 22vw, 320px)));
+  max-width: var(--app-rail-width, clamp(320px, 24vw, 380px));
+  width: min(100%, var(--app-rail-width, clamp(320px, 24vw, 380px)));
 }
 .leftRailHome {
-  max-width: var(--app-rail-width, 320px);
-  width: min(100%, var(--app-rail-width, 320px));
+  max-width: var(--app-rail-width, 380px);
+  width: min(100%, var(--app-rail-width, 380px));
   grid-column: 1;
 }
 .rightRailHome {
-  max-width: var(--app-rail-width, 320px);
-  width: min(100%, var(--app-rail-width, 320px));
+  max-width: var(--app-rail-width, 380px);
+  width: min(100%, var(--app-rail-width, 380px));
   grid-column: 3;
 }
 
 .layoutCapsule {
   /* Full-width three-column layout: rails at edges, center fills remaining space */
-  --capsule-rail-width: clamp(240px, 20vw, 320px);
+  /* Match Home rail sizing so tile and panel widths align */
+  --capsule-rail-width: var(--app-rail-width, clamp(320px, 24vw, 380px));
   --capsule-gap: clamp(20px, 2.5vw, 40px);
   grid-template-columns: minmax(260px, var(--capsule-rail-width)) minmax(0, 1fr) minmax(260px, var(--capsule-rail-width));
   column-gap: var(--capsule-gap);
   justify-content: stretch;
+}
+
+.layoutCapsule[data-capsule-tab="live"] {
+  --capsule-gap: clamp(14px, 1.8vw, 28px);
 }
 
 .layoutCapsuleNoRight {
@@ -224,15 +235,27 @@
   display: grid;
   grid-template-rows: 1fr; /* Fill available height with live area; banner moved below */
   overflow: auto;
+  scrollbar-width: none; /* Hide scrollbar visuals while keeping scroll */
+  -ms-overflow-style: none;
+}
+.contentCapsule::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.contentCapsule[data-capsule-tab="live"] {
+  padding-left: clamp(20px, 2.2vw, 34px);
+  padding-right: clamp(10px, 1.2vw, 20px);
 }
 
 .leftRailCapsule {
-  max-width: var(--capsule-rail-width, 340px);
-  width: min(100%, var(--capsule-rail-width, 340px));
+  max-width: var(--app-rail-width, 380px); /* Match Home left rail width */
+  width: min(100%, var(--app-rail-width, 380px));
   grid-column: 1;
-  --connections-rail-offset: 12px;
-  --connections-rail-offset-md: 8px;
-  --connections-rail-offset-sm: 4px;
+  /* Keep capsule rail fully visible on wide layouts */
+  --connections-rail-offset: 0px;
+  --connections-rail-offset-md: 0px;
+  --connections-rail-offset-sm: 0px;
   --connections-rail-offset-xs: 0px;
 }
 
