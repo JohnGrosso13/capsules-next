@@ -135,6 +135,55 @@ function formatRole(summary: CapsuleSummary): string {
   return "Member";
 }
 
+function CapsuleSelectorTile({
+  capsule,
+  onSelect,
+}: {
+  capsule: CapsuleSummary;
+  onSelect: (capsuleId: string) => void;
+}) {
+  const bannerStyle = capsule.bannerUrl
+    ? { backgroundImage: `url(${capsule.bannerUrl})` }
+    : undefined;
+  return (
+    <button
+      type="button"
+      className={styles.selectorTileButton}
+      onClick={() => onSelect(capsule.id)}
+      aria-label={`Open ${capsule.name}`}
+    >
+      <div
+        className={`tile-neu ${styles.selectorTile}`}
+        data-has-banner={capsule.bannerUrl ? "true" : undefined}
+      >
+        <div
+          className={styles.selectorTileBackdrop}
+          style={bannerStyle}
+          aria-hidden="true"
+        />
+        <div className={styles.selectorTileOverlay}>
+          <div className={styles.selectorCardHeader}>
+            <div className={styles.selectorLogo} aria-hidden>
+              {capsule.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={capsule.logoUrl} alt="" />
+              ) : (
+                <span>{getInitial(capsule.name)}</span>
+              )}
+            </div>
+            <div className={styles.selectorCardMeta}>
+              <span className={styles.selectorName}>{capsule.name}</span>
+              <span className={styles.selectorRole}>{formatRole(capsule)}</span>
+            </div>
+          </div>
+          {capsule.slug ? <span className={styles.selectorSlug}>@{capsule.slug}</span> : null}
+          <span className={styles.selectorTileAction}>Open Capsule</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector = false }: CapsuleGateProps) {
   const ownedCapsules = React.useMemo(
     () => capsules.filter((capsule) => capsule.ownership === "owner"),
@@ -294,29 +343,7 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
           {hasOwnedCapsule ? (
             <div className={styles.selectorGrid}>
               {ownedCapsules.map((capsule) => (
-                <button
-                  key={capsule.id}
-                  type="button"
-                  className={styles.selectorCard}
-                  onClick={() => setActiveId(capsule.id)}
-                >
-                  <div className={styles.selectorCardHeader}>
-                    <div className={styles.selectorLogo} aria-hidden>
-                      {capsule.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={capsule.logoUrl} alt="" />
-                      ) : (
-                        <span>{getInitial(capsule.name)}</span>
-                      )}
-                    </div>
-                    <div className={styles.selectorCardMeta}>
-                      <span className={styles.selectorName}>{capsule.name}</span>
-                      <span className={styles.selectorRole}>{formatRole(capsule)}</span>
-                    </div>
-                  </div>
-                  {capsule.slug ? <span className={styles.selectorSlug}>@{capsule.slug}</span> : null}
-                  <span className={styles.selectorAction}>Open Capsule</span>
-                </button>
+                <CapsuleSelectorTile key={capsule.id} capsule={capsule} onSelect={setActiveId} />
               ))}
             </div>
           ) : (
@@ -333,29 +360,7 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
           {hasMemberCapsules ? (
             <div className={styles.selectorGrid}>
               {memberCapsules.map((capsule) => (
-                <button
-                  key={capsule.id}
-                  type="button"
-                  className={styles.selectorCard}
-                  onClick={() => setActiveId(capsule.id)}
-                >
-                  <div className={styles.selectorCardHeader}>
-                    <div className={styles.selectorLogo} aria-hidden>
-                      {capsule.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={capsule.logoUrl} alt="" />
-                      ) : (
-                        <span>{getInitial(capsule.name)}</span>
-                      )}
-                    </div>
-                    <div className={styles.selectorCardMeta}>
-                      <span className={styles.selectorName}>{capsule.name}</span>
-                      <span className={styles.selectorRole}>{formatRole(capsule)}</span>
-                    </div>
-                  </div>
-                  {capsule.slug ? <span className={styles.selectorSlug}>@{capsule.slug}</span> : null}
-                  <span className={styles.selectorAction}>Open Capsule</span>
-                </button>
+                <CapsuleSelectorTile key={capsule.id} capsule={capsule} onSelect={setActiveId} />
               ))}
             </div>
           ) : (

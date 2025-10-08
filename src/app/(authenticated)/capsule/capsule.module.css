@@ -1323,37 +1323,107 @@
 }
 
 .selectorGrid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  --selector-tile-width: 182px;
+  --selector-gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--selector-gap);
+  justify-content: center;
+  max-width: calc(var(--selector-tile-width) * 4 + var(--selector-gap) * 3);
+  margin: 0 auto;
+  padding-inline: 4px;
 }
 
-.selectorCard {
-  display: grid;
-  gap: 12px;
-  align-content: start;
-  padding: clamp(18px, 3vw, 24px);
-  border-radius: var(--radius-2xl, 20px);
-  border: 1px solid var(--card-border);
-  background:
-    radial-gradient(600px 200px at 20% -10%, rgba(255,255,255,0.06), transparent 60%),
-    radial-gradient(600px 200px at 80% -10%, rgba(255,255,255,0.06), transparent 60%),
-    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
-  box-shadow: var(--card-shadow);
+.selectorTileButton {
+  width: var(--selector-tile-width);
+  flex: 0 0 var(--selector-tile-width);
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: block;
   text-align: left;
-  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
-.selectorCard:hover,
-.selectorCard:focus-visible {
+.selectorTileButton:focus-visible {
+  outline: none;
+}
+
+.selectorTile {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9/16;
+  border-radius: 16px;
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.4),
+    var(--card-shadow);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+}
+
+.selectorTile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% -10%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0) 68%);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.selectorTileButton:hover .selectorTile,
+.selectorTileButton:focus-visible .selectorTile {
   transform: translateY(-2px);
-  border-color: var(--pill-border);
-  box-shadow: 0 16px 40px rgba(5, 10, 26, 0.28);
+  border-color: var(--card-hover-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.5),
+    var(--card-hover-shadow);
+  background: linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
 }
 
-.selectorCard:focus-visible {
+.selectorTileButton:hover .selectorTile::before,
+.selectorTileButton:focus-visible .selectorTile::before {
+  opacity: 1;
+}
+
+.selectorTileButton:focus-visible .selectorTile {
   outline: 2px solid color-mix(in srgb, var(--color-brand) 70%, transparent);
-  outline-offset: 3px;
+  outline-offset: 2px;
+}
+
+.selectorTileBackdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(600px 320px at 30% 10%, color-mix(in srgb, var(--color-brand) 22%, transparent), transparent 62%),
+    radial-gradient(500px 300px at 70% 80%, color-mix(in srgb, var(--color-accent) 18%, transparent), transparent 70%),
+    color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.82)) 86%, rgba(16, 16, 32, 0.82) 14%);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: scale(1.02);
+  transition: transform 0.3s ease, filter 0.3s ease, opacity 0.3s ease;
+}
+
+.selectorTile[data-has-banner="true"] .selectorTileBackdrop {
+  filter: brightness(0.92);
+}
+
+.selectorTileButton:hover .selectorTileBackdrop,
+.selectorTileButton:focus-visible .selectorTileBackdrop {
+  transform: scale(1.04);
+  filter: brightness(1);
 }
 
 .selectorCardHeader {
@@ -1406,10 +1476,34 @@
   color: var(--text-3, var(--text-2));
 }
 
-.selectorAction {
+.selectorTileAction {
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text);
+}
+
+.selectorTileOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  gap: 10px;
+  padding: clamp(16px, 3vw, 20px);
+  background: linear-gradient(180deg, rgba(5, 10, 26, 0), rgba(5, 10, 26, 0.82));
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .selectorTile {
+    border-radius: 14px;
+    aspect-ratio: 4/3;
+  }
+
+  .selectorGrid {
+    --selector-tile-width: 160px;
+    --selector-gap: 10px;
+  }
 }
 
 .selectorFooter {
