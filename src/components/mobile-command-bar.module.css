@@ -1,0 +1,197 @@
+.bar {
+  position: fixed;
+  z-index: 120;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: none;
+  pointer-events: none;
+}
+
+/* Mobile only */
+@media (max-width: 640px) {
+  .bar {
+    display: block;
+  }
+}
+
+.inner {
+  width: 100%;
+  margin: 0;
+  padding: var(--space-2xs) 0 0;
+  pointer-events: none;
+}
+
+.dock {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--layout-dock-gap);
+  border-radius: 16px 16px 0 0;
+  border: 1px solid var(--dock-border, var(--rail-border));
+  border-bottom-width: 0;
+  background: linear-gradient(
+    180deg,
+    var(--dock-bg-1, var(--rail-bg-1, var(--card-bg-1))),
+    var(--dock-bg-2, var(--rail-bg-2, var(--card-bg-2)))
+  );
+  box-shadow: var(--dock-shadow, var(--card-shadow, var(--shadow-lg)));
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--layout-dock-padding);
+  padding-left: max(var(--mobile-page-gutter, 0px), env(safe-area-inset-left));
+  padding-right: max(var(--mobile-page-gutter, 0px), env(safe-area-inset-right));
+  padding-bottom: max(var(--layout-dock-bottom-padding), env(safe-area-inset-bottom));
+  align-items: stretch;
+  pointer-events: auto;
+  color: var(--dock-text-muted, var(--text));
+  backdrop-filter: blur(22px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+}
+
+.btn {
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: 13px;
+  border: 1px solid var(--dock-btn-border, var(--pill-border));
+  background:
+    linear-gradient(
+      180deg,
+      var(--dock-btn-bg-1, var(--chip-bg-1, var(--pill-bg-1))),
+      var(--dock-btn-bg-2, var(--chip-bg-2, var(--pill-bg-2)))
+    ),
+    linear-gradient(
+      180deg,
+      var(--dock-bg-1, var(--rail-bg-1, var(--card-bg-1))),
+      var(--dock-bg-2, var(--rail-bg-2, var(--card-bg-2)))
+    );
+  background-blend-mode: screen, normal;
+  color: var(--dock-text-muted, var(--text));
+  font-weight: 700;
+  font-size: 10.5px;
+  line-height: 1;
+  text-align: center;
+  transition:
+    transform var(--motion-duration-medium) var(--motion-ease-standard),
+    border-color var(--motion-duration-medium) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-medium) var(--motion-ease-standard),
+    color var(--motion-duration-medium) var(--motion-ease-standard),
+    background-color var(--motion-duration-medium) var(--motion-ease-standard);
+  min-height: 48px;
+  width: 100%;
+  height: 100%;
+  -webkit-tap-highlight-color: transparent;
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+}
+.btn svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  color: inherit;
+}
+.btn span {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.btn:hover {
+  border-color: var(--dock-btn-hover-border, var(--card-hover-border));
+  transform: translateY(-2px);
+  box-shadow: var(--card-hover-shadow, var(--shadow-sm));
+  color: var(--text);
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-brand) 60%, transparent),
+    0 0 0 6px color-mix(in srgb, var(--color-brand) 18%, transparent);
+}
+.btn:active {
+  transform: translateY(0);
+}
+
+/* Exact hues to match Launch Capsule CTA */
+.active {
+  color: var(--text);
+  border-color: transparent;
+  background: var(--brand-gradient, linear-gradient(120deg, #8b5cf6, #6366f1, #22d3ee));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-brand) 50%, transparent),
+    var(--dock-active-shadow, var(--shadow-sm)),
+    0 0 22px var(--dock-active-glow, var(--accent-glow, transparent));
+}
+
+.command {
+  display: none;
+}
+.commandBtn {
+  display: none;
+}
+.commandGlow {
+  display: none;
+}
+.commandStatus {
+  display: none;
+}
+
+.moreWrap {
+  position: relative;
+  display: block;
+  height: 100%;
+}
+.sheet {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--layout-dock-sheet-offset));
+  width: 260px;
+  border-radius: 16px;
+  border: 1px solid var(--dock-sheet-border, var(--card-border));
+  background: linear-gradient(180deg, var(--dock-sheet-bg-1, var(--card-bg-1)), var(--dock-sheet-bg-2, var(--card-bg-2)));
+  box-shadow: var(--dock-sheet-shadow, var(--card-shadow));
+  padding: var(--layout-dock-sheet-padding);
+  display: grid;
+  gap: var(--layout-dock-gap);
+}
+.sheet::before {
+  content: "";
+  position: absolute;
+  right: 20px;
+  bottom: -12px;
+  width: 24px;
+  height: 24px;
+  transform: rotate(45deg);
+  border-radius: 4px;
+  background: inherit;
+  border: inherit;
+  border-top: none;
+  border-left: none;
+}
+.sheetItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm-plus);
+  padding: var(--space-sm-plus) var(--space-md);
+  border-radius: 12px;
+  font-weight: 700;
+  color: var(--text);
+  border: 1px solid var(--dock-sheet-border, var(--card-border));
+  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+  transition: border-color var(--motion-duration-slow) var(--motion-ease-standard), transform var(--motion-duration-slow) var(--motion-ease-standard);
+}
+.sheetItem:hover {
+  border-color: var(--card-hover-border);
+  transform: translateY(-1px);
+}
+.sheetItem svg {
+  width: 18px;
+  height: 18px;
+}
+
+
+
+
+
+
+

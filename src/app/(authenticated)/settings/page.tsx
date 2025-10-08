@@ -1,0 +1,56 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { auth, currentUser } from "@clerk/nextjs/server";
+
+import { AppPage } from "@/components/app-page";
+import { ensureSupabaseUser } from "@/lib/auth/payload";
+import { getUserCapsules } from "@/server/capsules/service";
+
+import { SettingsShell } from "./settings-shell";
+
+export const metadata: Metadata = {
+  title: "Capsules Preferences",
+  description: "Manage your account and profile.",
+};
+
+export default async function SettingsPage() {
+  const { userId } = await auth();
+  if (!userId) {
+    redirect("/sign-in?redirect_url=/settings");
+  }
+
+  const user = await currentUser();
+  if (!user) {
+    redirect("/sign-in?redirect_url=/settings");
+  }
+
+  const primaryEmailId = user.primaryEmailAddressId;
+  const primaryEmail = primaryEmailId
+    ? user.emailAddresses.find((entry) => entry.id === primaryEmailId)?.emailAddress ?? null
+    : user.emailAddresses[0]?.emailAddress ?? null;
+
+  const fallbackFullName = [user.firstName, user.lastName]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .trim();
+  const resolvedFullName = (user.fullName ?? fallbackFullName).trim();
+  const normalizedFullName = resolvedFullName.length ? resolvedFullName : null;
+
+  const supabaseUserId = await ensureSupabaseUser({
+    key: `clerk:${user.id}`,
+    provider: "clerk",
+    clerk_id: user.id,
+    email: primaryEmail ?? null,
+    full_name: normalizedFullName,
+    avatar_url: user.imageUrl ?? null,
+  });
+
+  const allCapsules = await getUserCapsules(supabaseUserId);
+  const ownedCapsules = allCapsules.filter((capsule) => capsule.ownership === "owner");
+
+  return (
+    <AppPage showPrompter={true}>
+      <SettingsShell initialCapsules={ownedCapsules} />
+    </AppPage>
+  );
+}
