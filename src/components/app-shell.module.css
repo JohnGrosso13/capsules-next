@@ -141,11 +141,20 @@
 
 .layoutWithRight {
   grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width)) minmax(0, var(--app-rail-width));
+  column-gap: var(--app-column-gap);
+  justify-content: center;
 }
 .layoutWithRight .leftRail,
 .layoutWithRight .rightRail {
   max-width: var(--app-rail-width);
   width: min(100%, var(--app-rail-width));
+}
+/* Ensure non-home three-column pages center content identically to Home */
+.layoutWithRight .content {
+  max-width: var(--app-feed-width, 680px);
+  width: min(100%, var(--app-feed-width, 680px));
+  justify-self: center;
+  grid-column: 2;
 }
 
 .layoutHome {
