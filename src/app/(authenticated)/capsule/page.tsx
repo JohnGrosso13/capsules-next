@@ -69,6 +69,17 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
       ? requestedCapsuleId
       : defaultCapsuleId;
 
+  const switchParam = resolvedSearchParams.switch;
+  const shouldForceSelector = Array.isArray(switchParam)
+    ? switchParam.some((value) => {
+        if (!value) return false;
+        const normalized = String(value).toLowerCase();
+        return normalized === "1" || normalized === "true" || normalized === "select" || normalized === "switch";
+      })
+    : typeof switchParam === "string"
+      ? ["1", "true", "select", "switch"].includes(switchParam.toLowerCase())
+      : false;
+
   const hasAnyCapsule = capsules.length > 0;
   const initialLiveChatCapsuleId = hasAnyCapsule
     ? selectedCapsuleId ?? (capsules.length === 1 ? capsules[0]?.id ?? null : null)
@@ -86,7 +97,11 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
       liveChatRailProps={ hasAnyCapsule ? { capsuleId: initialLiveChatCapsuleId, capsuleName: initialLiveChatCapsule?.name ?? null, status: "waiting" } : { status: "waiting" } }
     >
       <div className={capTheme.theme}>
-        <CapsuleGate capsules={capsules} defaultCapsuleId={selectedCapsuleId} />
+        <CapsuleGate
+          capsules={capsules}
+          defaultCapsuleId={selectedCapsuleId}
+          forceSelector={shouldForceSelector}
+        />
       </div>
     </AppPage>
   );

@@ -49,13 +49,37 @@ create table if not exists public.artifact_events (
 create index if not exists idx_artifact_events_artifact
   on public.artifact_events(artifact_id, emitted_at desc);
 
-create trigger trg_artifact_artifacts_updated_at
-  before update on public.artifact_artifacts
-  for each row execute function public.set_updated_at();
+do $$ begin
+  if not exists (
+    select 1
+    from pg_trigger t
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where t.tgname = 'trg_artifact_artifacts_updated_at'
+      and n.nspname = 'public'
+      and c.relname = 'artifact_artifacts'
+  ) then
+    create trigger trg_artifact_artifacts_updated_at
+      before update on public.artifact_artifacts
+      for each row execute function public.set_updated_at();
+  end if;
+exception when others then null; end $$;
 
-create trigger trg_artifact_assets_updated_at
-  before update on public.artifact_assets
-  for each row execute function public.set_updated_at();
+do $$ begin
+  if not exists (
+    select 1
+    from pg_trigger t
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where t.tgname = 'trg_artifact_assets_updated_at'
+      and n.nspname = 'public'
+      and c.relname = 'artifact_assets'
+  ) then
+    create trigger trg_artifact_assets_updated_at
+      before update on public.artifact_assets
+      for each row execute function public.set_updated_at();
+  end if;
+exception when others then null; end $$;
 
 alter table public.artifact_artifacts enable row level security;
 alter table public.artifact_assets enable row level security;

@@ -1,11 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AiPrompterStage } from "@/components/ai-prompter-stage";
-import { useComposer } from "@/components/composer/ComposerProvider";
-import { HomeFeedList } from "@/components/home-feed-list";
-import { useCapsuleFeed } from "@/hooks/useHomeFeed";
-import homeStyles from "@/components/home.module.css";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   PencilSimple,
@@ -16,8 +12,18 @@ import {
   Storefront,
   ShareFat,
   UsersThree,
+  WarningCircle,
 } from "@phosphor-icons/react/dist/ssr";
+import { AiPrompterStage } from "@/components/ai-prompter-stage";
+import { CapsuleMembersPanel } from "@/components/capsule/CapsuleMembersPanel";
+import { useComposer } from "@/components/composer/ComposerProvider";
+import { HomeFeedList } from "@/components/home-feed-list";
+import homeStyles from "@/components/home.module.css";
+import { useCapsuleFeed } from "@/hooks/useHomeFeed";
+import { useCapsuleMembership } from "@/hooks/useCapsuleMembership";
+import { useCurrentUser } from "@/services/auth/client";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
+import { CapsuleBannerCustomizer } from "./CapsuleBannerCustomizer";
 
 type CapsuleTab = "live" | "feed" | "store";
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
@@ -39,6 +45,22 @@ export function CapsuleContent({
   const [tab, setTab] = React.useState<CapsuleTab>("feed");
   const [capsuleId, setCapsuleId] = React.useState<string | null>(() => capsuleIdProp ?? null);
   const [capsuleName, setCapsuleName] = React.useState<string | null>(() => capsuleNameProp ?? null);
+  const [bannerCustomizerOpen, setBannerCustomizerOpen] = React.useState(false);
+  const router = useRouter();
+  const { user } = useCurrentUser();
+  const [membersOpen, setMembersOpen] = React.useState(false);
+  const {
+    membership,
+    loading: membershipLoading,
+    error: membershipError,
+    mutatingAction: membershipMutatingAction,
+    requestJoin,
+    approveRequest,
+    declineRequest,
+    removeMember,
+    refresh: refreshMembership,
+    setError: setMembershipError,
+  } = useCapsuleMembership(capsuleId);
 
   React.useEffect(() => {
     const initialEvent = new CustomEvent("capsule:tab", { detail: { tab: "feed" as CapsuleTab } });
@@ -73,6 +95,111 @@ export function CapsuleContent({
     }
     setCapsuleId(resolved && resolved.trim().length ? resolved.trim() : null);
   }, [capsuleIdProp]);
+
+  React.useEffect(() => {
+    setMembersOpen(false);
+    setMembershipError(null);
+  }, [capsuleId, setMembershipError]);
+
+  React.useEffect(() => {
+    if (membersOpen) {
+      setMembershipError(null);
+    }
+  }, [membersOpen, setMembershipError]);
+
+  const viewer = membership?.viewer ?? null;
+  const isAuthenticated = Boolean(user);
+  const pendingCount = viewer?.isOwner ? membership?.counts.pendingRequests ?? 0 : 0;
+  const handleSignIn = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    const redirectUrl = `${window.location.pathname}${window.location.search}` || "/capsule";
+    router.push(`/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`);
+  }, [router]);
+  const openMembers = React.useCallback(() => {
+    setMembersOpen(true);
+  }, []);
+  const toggleMembers = React.useCallback(() => {
+    setMembersOpen((prev) => !prev);
+  }, []);
+  const sendMembershipRequest = React.useCallback(() => {
+    void requestJoin().catch(() => {});
+  }, [requestJoin]);
+  const handleRefreshMembership = React.useCallback(
+    () => refreshMembership().catch(() => {}),
+    [refreshMembership],
+  );
+  const handleApproveRequest = React.useCallback(
+    (requestId: string) => approveRequest(requestId).catch(() => {}),
+    [approveRequest],
+  );
+  const handleDeclineRequest = React.useCallback(
+    (requestId: string) => declineRequest(requestId).catch(() => {}),
+    [declineRequest],
+  );
+  const handleRemoveMember = React.useCallback(
+    (memberId: string) => removeMember(memberId).catch(() => {}),
+    [removeMember],
+  );
+  const heroPrimary = React.useMemo<{
+    label: string;
+    disabled: boolean;
+    onClick: (() => void) | null;
+  }>(() => {
+    if (!capsuleId) {
+      return { label: "Request to Join", disabled: true, onClick: null };
+    }
+    if (!viewer) {
+      if (membershipLoading) {
+        return { label: "Loading…", disabled: true, onClick: null };
+      }
+      if (!isAuthenticated) {
+        return { label: "Sign in to Join", disabled: false, onClick: handleSignIn };
+      }
+      if (membershipMutatingAction === "request_join") {
+        return { label: "Sending Request…", disabled: true, onClick: null };
+      }
+      return { label: "Request to Join", disabled: false, onClick: sendMembershipRequest };
+    }
+    if (viewer.isOwner) {
+      return {
+        label: "Manage Members",
+        disabled: membershipLoading,
+        onClick: openMembers,
+      };
+    }
+    if (viewer.isMember) {
+      return {
+        label: "View Members",
+        disabled: false,
+        onClick: openMembers,
+      };
+    }
+    if (!viewer.userId) {
+      return { label: "Sign in to Join", disabled: false, onClick: handleSignIn };
+    }
+    if (viewer.requestStatus === "pending") {
+      return { label: "Request Pending", disabled: true, onClick: null };
+    }
+    if (membershipMutatingAction === "request_join") {
+      return { label: "Sending Request…", disabled: true, onClick: null };
+    }
+    const label = viewer.requestStatus === "declined" ? "Request Again" : "Request to Join";
+    if (!viewer.canRequest) {
+      return { label, disabled: true, onClick: null };
+    }
+    return { label, disabled: false, onClick: sendMembershipRequest };
+  }, [
+    capsuleId,
+    viewer,
+    membershipLoading,
+    membershipMutatingAction,
+    isAuthenticated,
+    handleSignIn,
+    openMembers,
+    sendMembershipRequest,
+  ]);
+  const showMembersBadge = Boolean(viewer?.isOwner && pendingCount > 0);
+  const membershipErrorVisible = membershipError && !membersOpen ? membershipError : null;
 
   React.useEffect(() => {
     if (typeof capsuleNameProp !== "undefined") {
@@ -186,7 +313,32 @@ export function CapsuleContent({
         </button>
       </div>
 
-      <CapsuleHero capsuleName={normalizedCapsuleName} />
+      {tab === "feed" ? (
+        <>
+          <CapsuleHero
+            capsuleName={normalizedCapsuleName}
+            onCustomize={() => setBannerCustomizerOpen(true)}
+            primaryAction={heroPrimary}
+            membersOpen={membersOpen}
+            showMembersBadge={showMembersBadge}
+            pendingCount={pendingCount}
+            onToggleMembers={toggleMembers}
+            errorMessage={membershipErrorVisible}
+          />
+          <CapsuleMembersPanel
+            open={membersOpen}
+            membership={membership ?? null}
+            loading={membershipLoading}
+            error={membershipError ?? null}
+            mutatingAction={membershipMutatingAction}
+            onClose={() => setMembersOpen(false)}
+            onRefresh={handleRefreshMembership}
+            onApprove={handleApproveRequest}
+            onDecline={handleDeclineRequest}
+            onRemove={handleRemoveMember}
+          />
+        </>
+      ) : null}
 
       {/* Middle: canvas that grows, then prompter */}
       {tab === "feed" ? (
@@ -228,15 +380,43 @@ export function CapsuleContent({
           <CapsuleSections />
         </>
       ) : null}
+      {bannerCustomizerOpen ? (
+        <CapsuleBannerCustomizer
+          open
+          capsuleId={capsuleId}
+          capsuleName={normalizedCapsuleName}
+          onClose={() => setBannerCustomizerOpen(false)}
+        />
+      ) : null}
     </>
   );
 }
 
 type CapsuleHeroProps = {
   capsuleName: string | null;
+  onCustomize?: () => void;
+  primaryAction: {
+    label: string;
+    disabled: boolean;
+    onClick: (() => void) | null;
+  };
+  membersOpen: boolean;
+  showMembersBadge: boolean;
+  pendingCount: number;
+  onToggleMembers: () => void;
+  errorMessage?: string | null;
 };
 
-function CapsuleHero({ capsuleName }: CapsuleHeroProps) {
+function CapsuleHero({
+  capsuleName,
+  onCustomize,
+  primaryAction,
+  membersOpen,
+  showMembersBadge,
+  pendingCount,
+  onToggleMembers,
+  errorMessage,
+}: CapsuleHeroProps) {
   const displayName = capsuleName ?? "Customize this capsule";
   return (
     <div className={capTheme.heroWrap}>
@@ -245,38 +425,63 @@ function CapsuleHero({ capsuleName }: CapsuleHeroProps) {
           type="button"
           className={capTheme.heroCustomizeBtn}
           aria-label="Customize capsule banner"
+          onClick={() => {
+            onCustomize?.();
+          }}
         >
           <PencilSimple size={16} weight="bold" />
           Customize banner
         </button>
       </div>
-      <div className={capTheme.heroBody}>
-        <div className={capTheme.heroDetails}>
-          <h2 className={capTheme.heroTitle}>{displayName}</h2>
-          <p className={capTheme.heroSubtitle}>Highlight what makes this capsule special.</p>
+        <div className={capTheme.heroBody}>
+          <div className={capTheme.heroDetails}>
+            <h2 className={capTheme.heroTitle}>{displayName}</h2>
+            <p className={capTheme.heroSubtitle}>Highlight what makes this capsule special.</p>
+          </div>
+          <div className={capTheme.heroActions}>
+            <button
+              type="button"
+              className={`${capTheme.heroAction} ${capTheme.heroActionPrimary}`}
+              onClick={primaryAction.onClick ?? undefined}
+              disabled={primaryAction.disabled}
+            >
+              <UsersThree size={16} weight="bold" />
+              {primaryAction.label}
+            </button>
+            <button type="button" className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}>
+              <ShareFat size={16} weight="bold" />
+              Share
+            </button>
+          </div>
+          {errorMessage ? (
+            <div className={capTheme.membersNotice}>
+              <WarningCircle size={16} weight="bold" />
+              <span>{errorMessage}</span>
+            </div>
+          ) : null}
         </div>
-        <div className={capTheme.heroActions}>
-          <button type="button" className={`${capTheme.heroAction} ${capTheme.heroActionPrimary}`}>
-            <UsersThree size={16} weight="bold" />
-            Request to Join
-          </button>
-          <button type="button" className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}>
-            <ShareFat size={16} weight="bold" />
-            Share
-          </button>
-        </div>
-      </div>
-      <nav className={capTheme.heroTabs} aria-label="Capsule quick links">
-        {HERO_LINKS.map((label, index) => (
-          <button
-            key={label}
-            type="button"
-            className={index === 0 ? `${capTheme.heroTab} ${capTheme.heroTabActive}` : capTheme.heroTab}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+        <nav className={capTheme.heroTabs} aria-label="Capsule quick links">
+          {HERO_LINKS.map((label, index) => {
+            const isMembersLink = label === "Members";
+            const isActive = isMembersLink ? membersOpen : !membersOpen && index === 0;
+            const className = isActive
+              ? `${capTheme.heroTab} ${capTheme.heroTabActive}`
+              : capTheme.heroTab;
+            return (
+              <button
+                key={label}
+                type="button"
+                className={className}
+                onClick={isMembersLink ? onToggleMembers : undefined}
+              >
+                {label}
+                {isMembersLink && showMembersBadge ? (
+                  <span className={capTheme.heroTabBadge}>{pendingCount}</span>
+                ) : null}
+              </button>
+            );
+          })}
+        </nav>
     </div>
   );
 }

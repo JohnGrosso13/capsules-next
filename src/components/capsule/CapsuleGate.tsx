@@ -13,6 +13,7 @@ import styles from "@/app/(authenticated)/capsule/capsule.module.css";
 type CapsuleGateProps = {
   capsules: CapsuleSummary[];
   defaultCapsuleId?: string | null;
+  forceSelector?: boolean;
 };
 
 type PlaceholderCapsule = {
@@ -134,18 +135,69 @@ function formatRole(summary: CapsuleSummary): string {
   return "Member";
 }
 
-export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGateProps) {
+export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector = false }: CapsuleGateProps) {
+  const canSwitchCapsules = capsules.length > 1;
+  const startInSelector = forceSelector && canSwitchCapsules;
+
   const resolvedDefaultId = React.useMemo(() => {
+    if (startInSelector) return null;
     if (defaultCapsuleId) return defaultCapsuleId;
     if (capsules.length === 1) return capsules[0]?.id ?? null;
     return null;
-  }, [capsules, defaultCapsuleId]);
+  }, [capsules, defaultCapsuleId, startInSelector]);
 
-  const [activeId, setActiveId] = React.useState<string | null>(resolvedDefaultId);
+  const [activeId, setActiveId] = React.useState<string | null>(startInSelector ? null : resolvedDefaultId);
 
   React.useEffect(() => {
+    if (startInSelector) return;
     setActiveId(resolvedDefaultId);
-  }, [resolvedDefaultId]);
+  }, [resolvedDefaultId, startInSelector]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!canSwitchCapsules) return;
+    const handleSwitch = (event: Event) => {
+      const detail = (event as CustomEvent<{ focus?: boolean }>).detail;
+      setActiveId(null);
+      if (detail?.focus) {
+        const selectorRoot = document.querySelector<HTMLElement>(`.${styles.selectorWrap}`);
+        selectorRoot?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+    window.addEventListener("capsule:switch", handleSwitch);
+    return () => {
+      window.removeEventListener("capsule:switch", handleSwitch);
+    };
+  }, [canSwitchCapsules]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    let changed = false;
+    if (activeId) {
+      if (url.searchParams.get("capsuleId") !== activeId) {
+        url.searchParams.set("capsuleId", activeId);
+        changed = true;
+      }
+      if (url.searchParams.has("switch")) {
+        url.searchParams.delete("switch");
+        changed = true;
+      }
+    } else if (canSwitchCapsules) {
+      if (url.searchParams.get("switch") !== "1") {
+        url.searchParams.set("switch", "1");
+        changed = true;
+      }
+      if (url.searchParams.has("capsuleId")) {
+        url.searchParams.delete("capsuleId");
+        changed = true;
+      }
+    }
+    if (changed) {
+      const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+      window.history.replaceState(null, document.title, nextUrl);
+    }
+  }, [activeId, canSwitchCapsules]);
 
   const activeCapsule = React.useMemo(() => {
     if (!activeId) return null;
@@ -192,18 +244,6 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null }: CapsuleGatePr
   if (activeCapsule) {
     return (
       <div className={styles.gateActive}>
-        {capsules.length > 1 ? (
-          <div className={styles.selectorActiveActions}>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={styles.selectorSwitchBtn}
-              onClick={() => setActiveId(null)}
-            >
-              Switch capsule
-            </Button>
-          </div>
-        ) : null}
         <CapsuleContent capsuleId={activeCapsule.id} capsuleName={activeCapsule.name} />
       </div>
     );

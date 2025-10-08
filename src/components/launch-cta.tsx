@@ -26,6 +26,7 @@ type Props = {
   hrefWhenSignedIn?: string;
   label?: string;
   signedOutMode?: "signup" | "signin";
+  onLaunch?: () => boolean | void;
 };
 
 function getInitial(name: string): string {
@@ -47,6 +48,7 @@ export function LaunchCta({
   hrefWhenSignedIn = "/capsule",
   label = "Launch Capsule",
   signedOutMode = "signup",
+  onLaunch,
 }: Props) {
   const router = useRouter();
   const launchStyles: CSSProperties = {
@@ -113,9 +115,20 @@ export function LaunchCta({
     };
   }, [menuOpen, closeMenu]);
 
-  const handleToggle = React.useCallback(() => {
+  const handleToggleMenu = React.useCallback(() => {
     setMenuOpen((prev) => !prev);
   }, []);
+
+  const handlePrimaryClick = React.useCallback(() => {
+    if (onLaunch) {
+      const handled = onLaunch();
+      if (handled !== false) {
+        closeMenu();
+        return;
+      }
+    }
+    handleToggleMenu();
+  }, [onLaunch, closeMenu, handleToggleMenu]);
 
   const handleLaunch = React.useCallback(
     (capsule: CapsuleSummary) => {
@@ -274,7 +287,7 @@ export function LaunchCta({
               size={size}
               className={className}
               style={launchStyles}
-              onClick={handleToggle}
+              onClick={handlePrimaryClick}
               aria-haspopup="dialog"
               aria-expanded={menuOpen}
             >

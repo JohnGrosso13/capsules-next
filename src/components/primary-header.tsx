@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 
 import { HeaderAuth } from "@/components/header-auth";
 import { Gear, Brain, User } from "@phosphor-icons/react/dist/ssr";
@@ -35,6 +36,9 @@ export function PrimaryHeader({
   showSettingsLink = true,
   launchLabel = "Launch Capsule",
 }: PrimaryHeaderProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const launchDestination = "/capsule?switch=1";
   const [scrolled, setScrolled] = React.useState(false);
   const [scrolling, setScrolling] = React.useState(false);
   const scrollTimerRef = React.useRef<number | null>(null);
@@ -52,6 +56,18 @@ export function PrimaryHeader({
       if (scrollTimerRef.current) window.clearTimeout(scrollTimerRef.current);
     };
   }, []);
+  const handleLaunch = React.useCallback(() => {
+    if (pathname?.startsWith("/capsule")) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("capsule:switch", { detail: { source: "header-launch" } }),
+        );
+      }
+    } else {
+      router.push(launchDestination);
+    }
+    return true;
+  }, [pathname, router, launchDestination]);
   return (
     <header
       className={cn(
@@ -100,11 +116,11 @@ export function PrimaryHeader({
             size="lg"
             label={launchLabel}
             className={cn("hidden sm:inline-flex font-extrabold", styles.launchCta)}
-            hrefWhenSignedIn="/capsule"
+            hrefWhenSignedIn={launchDestination}
+            onLaunch={handleLaunch}
           />
         </div>
       </div>
     </header>
   );
 }
-

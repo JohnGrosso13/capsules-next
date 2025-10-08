@@ -1,0 +1,473 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background:
+    radial-gradient(1200px 600px at 50% 20%, rgba(58, 72, 160, 0.24), transparent),
+    linear-gradient(180deg, rgba(6, 10, 24, 0.84), rgba(6, 10, 24, 0.94));
+  backdrop-filter: blur(14px);
+  z-index: 1200;
+}
+
+.panel {
+  width: min(1040px, 100%);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(1.5rem, 3vw, 2.25rem);
+  padding: clamp(1.75rem, 3vw, 2.5rem);
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.1)) 80%, transparent);
+  background:
+    linear-gradient(195deg, color-mix(in srgb, var(--surface-overlay, rgba(12, 18, 40, 0.92)) 92%, transparent), rgba(16, 22, 46, 0.86)),
+    radial-gradient(800px 320px at 0% 0%, rgba(102, 126, 255, 0.22), transparent 70%);
+  box-shadow: 0 22px 70px rgba(6, 10, 26, 0.55);
+  color: var(--text, #f7f8ff);
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(580px 240px at 85% 15%, rgba(92, 180, 255, 0.12), transparent 70%);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+.titleGroup {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.titleGroup h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 800;
+}
+
+.titleGroup p {
+  margin: 0;
+  color: color-mix(in srgb, var(--text, #f7f8ff) 70%, transparent);
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.closeButton {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.3) 70%, transparent);
+  background: color-mix(in srgb, rgba(14, 18, 36, 0.65) 90%, transparent);
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.closeButton:hover,
+.closeButton:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.6);
+  background: color-mix(in srgb, rgba(20, 24, 44, 0.78) 92%, transparent);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid rgba(160, 180, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.content {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: clamp(1.5rem, 3vw, 2.75rem);
+  position: relative;
+  z-index: 1;
+}
+
+.previewColumn {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.previewStage {
+  position: relative;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 80%, transparent);
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(89, 109, 255, 0.6), rgba(100, 220, 255, 0.4)),
+    radial-gradient(500px 240px at 20% -20%, rgba(255, 255, 255, 0.2), transparent 60%);
+  min-height: clamp(200px, 28vh, 260px);
+  display: grid;
+  place-items: center;
+}
+
+.previewPlaceholder {
+  display: grid;
+  gap: 0.75rem;
+  place-items: center;
+  padding: 1.5rem;
+  text-align: center;
+  color: rgba(245, 247, 255, 0.86);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.previewAi {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  gap: 0.75rem;
+  align-content: center;
+  justify-items: center;
+  padding: clamp(1.5rem, 3vw, 2rem);
+  text-align: center;
+  background:
+    radial-gradient(520px 240px at 50% 0%, rgba(255, 255, 255, 0.18), transparent 70%),
+    linear-gradient(160deg, rgba(68, 78, 200, 0.65), rgba(36, 42, 92, 0.78));
+}
+
+.previewAiLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: rgba(235, 240, 255, 0.8);
+}
+
+.previewAi p {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.previewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.previewActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+  overflow: hidden;
+}
+
+.previewMeta {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 85%, transparent);
+  background: color-mix(in srgb, rgba(12, 18, 36, 0.78) 92%, transparent);
+  font-size: 0.92rem;
+}
+
+.previewMetaLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(220, 229, 255, 0.72);
+}
+
+.previewMetaValue {
+  margin: 0;
+  color: rgba(245, 248, 255, 0.86);
+  line-height: 1.5;
+}
+
+.memorySection {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 80%, transparent);
+  background: color-mix(in srgb, rgba(10, 14, 30, 0.78) 92%, transparent);
+}
+
+.memoryHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.memoryTitleGroup {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.memoryTitleGroup h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.memoryTitleGroup span {
+  font-size: 0.85rem;
+  color: rgba(220, 229, 255, 0.68);
+}
+
+.memoryStatus {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(225, 232, 255, 0.72);
+}
+
+.memoryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.memoryCard {
+  position: relative;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 72%, transparent);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.memoryCard img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.memoryCard:hover,
+.memoryCard:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 12px 24px rgba(12, 18, 34, 0.45);
+}
+
+.memoryCard:focus-visible {
+  outline: 2px solid rgba(150, 170, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.memoryCard[data-selected="true"] {
+  border-color: rgba(136, 178, 255, 0.9);
+  box-shadow: 0 12px 28px rgba(56, 104, 255, 0.46);
+}
+
+.chatColumn {
+  display: grid;
+  gap: 1.25rem;
+  min-height: 100%;
+}
+
+.chatLog {
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 80%, transparent);
+  background:
+    linear-gradient(180deg, rgba(15, 20, 44, 0.88), rgba(12, 16, 34, 0.78)),
+    radial-gradient(600px 220px at 20% 0%, rgba(96, 128, 255, 0.18), transparent 70%);
+  padding: clamp(1rem, 2.6vw, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: clamp(260px, 36vh, 320px);
+  max-height: clamp(320px, 42vh, 380px);
+  overflow-y: auto;
+}
+
+.chatMessage {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+.chatAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-brand, #5868ff) 22%, transparent);
+  color: rgba(229, 235, 255, 0.92);
+  flex-shrink: 0;
+}
+
+.chatMessage[data-role="user"] .chatAvatar {
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.92) 24%, transparent);
+  color: rgba(12, 15, 30, 0.9);
+}
+
+.chatBubble {
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  background: color-mix(in srgb, rgba(80, 95, 220, 0.24) 80%, transparent);
+  border: 1px solid color-mix(in srgb, rgba(105, 140, 255, 0.28) 80%, transparent);
+  color: rgba(239, 242, 255, 0.92);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chatMessage[data-role="user"] .chatBubble {
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 88%, transparent);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(230, 234, 255, 0.92);
+}
+
+.chatTyping {
+  font-size: 0.9rem;
+  color: rgba(211, 220, 255, 0.8);
+}
+
+.promptShelf {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.promptChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.promptChip {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.22) 82%, transparent);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  background: color-mix(in srgb, rgba(16, 20, 40, 0.78) 94%, transparent);
+  color: rgba(229, 235, 255, 0.9);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.promptChip:hover,
+.promptChip:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(156, 178, 255, 0.9);
+  background: color-mix(in srgb, rgba(30, 38, 80, 0.88) 96%, transparent);
+}
+
+.promptChip:focus-visible {
+  outline: 2px solid rgba(150, 170, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.chatComposer {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.chatTextarea {
+  min-height: 120px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 80%, transparent);
+  background: color-mix(in srgb, rgba(18, 24, 46, 0.82) 95%, transparent);
+  color: inherit;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  padding: 0.85rem 1rem;
+  resize: vertical;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.chatTextarea::placeholder {
+  color: rgba(199, 210, 255, 0.6);
+}
+
+.chatTextarea:focus-visible {
+  border-color: rgba(156, 178, 255, 0.9);
+  box-shadow: 0 0 0 3px rgba(90, 120, 255, 0.35);
+  outline: none;
+}
+
+.chatHint {
+  font-size: 0.85rem;
+  color: rgba(204, 214, 255, 0.72);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 80%, transparent);
+  position: relative;
+  z-index: 1;
+}
+
+.footerStatus {
+  font-size: 0.9rem;
+  color: rgba(230, 236, 255, 0.78);
+}
+
+.footerActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+@media (max-width: 960px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+
+  .previewColumn {
+    order: 2;
+  }
+
+  .chatColumn {
+    order: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    padding: 1.5rem;
+  }
+
+  .content {
+    gap: 1.5rem;
+  }
+
+  .memoryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+

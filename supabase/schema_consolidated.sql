@@ -37,6 +37,13 @@ begin
   end if;
 end $$;
 
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'capsule_member_request_status') then
+    create type public.capsule_member_request_status as enum ('pending','approved','declined','cancelled');
+  end if;
+end $$;
+
 -- Core identity tables
 create table if not exists public.users (
   id uuid primary key default gen_random_uuid(),
@@ -75,6 +82,33 @@ create table if not exists public.capsule_members (
 
 create index if not exists idx_capsule_members_user on public.capsule_members(user_id);
 create index if not exists idx_capsule_members_capsule on public.capsule_members(capsule_id);
+
+create table if not exists public.capsule_member_requests (
+  id uuid primary key default gen_random_uuid(),
+  capsule_id uuid not null references public.capsules(id) on delete cascade,
+  requester_id uuid not null references public.users(id) on delete cascade,
+  status public.capsule_member_request_status not null default 'pending',
+  role public.member_role not null default 'member',
+  message text,
+  responded_by uuid references public.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  responded_at timestamptz,
+  approved_at timestamptz,
+  declined_at timestamptz,
+  cancelled_at timestamptz,
+  updated_at timestamptz not null default now(),
+  constraint capsule_member_requests_unique_requester unique (capsule_id, requester_id)
+);
+
+create index if not exists idx_capsule_member_requests_capsule
+  on public.capsule_member_requests(capsule_id);
+
+create index if not exists idx_capsule_member_requests_requester
+  on public.capsule_member_requests(requester_id);
+
+create index if not exists idx_capsule_member_requests_status_pending
+  on public.capsule_member_requests(status)
+  where status = 'pending';
 
 -- Content tables
 create table if not exists public.posts (
@@ -294,12 +328,23 @@ create index if not exists idx_publish_jobs_user on public.publish_jobs(owner_us
 create index if not exists idx_publish_jobs_status on public.publish_jobs(status);
 
 -- Row level security policies for service role automation
+alter table public.capsule_member_requests enable row level security;
 alter table public.friend_requests enable row level security;
 alter table public.friendships enable row level security;
 alter table public.user_follows enable row level security;
 alter table public.user_blocks enable row level security;
 alter table public.social_links enable row level security;
 alter table public.publish_jobs enable row level security;
+
+do $$ begin
+  begin
+    create policy "Service role full access capsule_member_requests"
+      on public.capsule_member_requests
+      to service_role
+      using (true)
+      with check (true);
+  exception when others then null; end;
+end $$;
 
 do $$ begin
   begin
@@ -431,6 +476,16 @@ begin
   begin
     create trigger trg_subscribers_updated_at
       before update on public.subscribers
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;
+
+do $$
+begin
+  begin
+    create trigger trg_capsule_member_requests_updated_at
+      before update on public.capsule_member_requests
       for each row execute function public.set_updated_at();
   exception when duplicate_object then null;
   end;
