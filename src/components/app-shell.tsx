@@ -97,10 +97,17 @@ export function AppShell({
     return null;
   }, [isCapsuleFeedView, showLiveChatRightRail, liveChatRailProps]);
 
+  const needsNudgeRight = derivedActive === "home" || derivedActive === "create";
   return (
     <div className={isCapsule ? `${styles.outer} ${styles.outerCapsule}` : styles.outer}>
       <PrimaryHeader activeKey={derivedActive} />
-      <div className={isCapsule ? `${styles.page} ${styles.pageCapsule}` : styles.page}>
+      <div className={
+        isCapsule
+          ? `${styles.page} ${styles.pageCapsule}`
+          : needsNudgeRight
+            ? `${styles.page} ${styles.pageNudgeRight}`
+            : styles.page
+      }>
         <main className={styles.main}>
           {showPrompter ? (
             <div className={styles.prompterStage}>

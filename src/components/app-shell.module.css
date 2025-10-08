@@ -40,6 +40,16 @@
   padding-right: 0;
 }
 
+/* Tiny alignment nudge for specific routes */
+.pageNudgeRight {
+  transform: translateX(1px);
+}
+@media (max-width: 640px) {
+  .pageNudgeRight {
+    transform: none;
+  }
+}
+
 .header {
   margin-bottom: var(--space-sm);
 }
