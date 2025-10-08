@@ -5,7 +5,6 @@ import {
   Check,
   Trash,
   WarningCircle,
-  X,
 } from "@phosphor-icons/react/dist/ssr";
 
 import type {
@@ -27,6 +26,8 @@ type CapsuleMembersPanelProps = {
   onRemove: (memberId: string) => Promise<unknown> | unknown;
   onChangeRole: (memberId: string, role: string) => Promise<unknown> | unknown;
 };
+
+type MemberPanelTab = "members" | "pending";
 
 const MEMBER_ROLE_OPTIONS = [
   { value: "founder", label: "Founder" },
@@ -165,10 +166,30 @@ export function CapsuleMembersPanel({
 
   const viewer = membership?.viewer ?? null;
   const isOwner = Boolean(viewer?.isOwner);
-  const hasMembers = Boolean(membership?.members?.length);
-  const pendingRequests = membership?.requests ?? [];
-  const hasPending = pendingRequests.length > 0;
   const requestStatus = viewer?.requestStatus ?? "none";
+  const members = membership?.members ?? [];
+  const pendingRequests = membership?.requests ?? [];
+  const pendingCount = membership?.counts.pendingRequests ?? 0;
+  const membersCount = membership?.counts.members ?? 0;
+  const canViewPending = isOwner;
+  const [activeTab, setActiveTab] = React.useState<MemberPanelTab>(() =>
+    canViewPending && pendingCount > 0 ? "pending" : "members",
+  );
+
+  React.useEffect(() => {
+    if (!canViewPending && activeTab === "pending") {
+      setActiveTab("members");
+    }
+  }, [canViewPending, activeTab]);
+
+  React.useEffect(() => {
+    if (canViewPending && pendingCount === 0 && activeTab === "pending") {
+      setActiveTab("members");
+    }
+  }, [canViewPending, pendingCount, activeTab]);
+
+  const hasMembers = members.length > 0;
+  const hasPending = pendingRequests.length > 0;
 
   return (
     <aside className={capTheme.membersPanel} aria-live="polite">
@@ -202,13 +223,118 @@ export function CapsuleMembersPanel({
         </div>
       ) : null}
 
-      {isOwner ? (
+      {canViewPending ? (
+        <div className={capTheme.membersTabs} role="tablist" aria-label="Member management views">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "members"}
+            className={
+              activeTab === "members"
+                ? `${capTheme.membersTab} ${capTheme.membersTabActive}`
+                : capTheme.membersTab
+            }
+            onClick={() => setActiveTab("members")}
+          >
+            Members
+            <span className={capTheme.membersTabBadge}>{membersCount}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "pending"}
+            className={
+              activeTab === "pending"
+                ? `${capTheme.membersTab} ${capTheme.membersTabActive}`
+                : capTheme.membersTab
+            }
+            onClick={() => setActiveTab("pending")}
+          >
+            Pending
+            <span className={capTheme.membersTabBadge}>{pendingCount}</span>
+          </button>
+        </div>
+      ) : null}
+
+      {(!canViewPending || activeTab === "members") ? (
+        <section className={capTheme.membersSection} aria-label="Capsule members">
+          <header className={capTheme.membersSectionHeader}>
+            <h4 className={capTheme.membersSectionTitle}>Members</h4>
+            <span className={capTheme.membersSectionBadge}>{membersCount}</span>
+          </header>
+          {hasMembers ? (
+            <ul className={capTheme.membersList}>
+              {members.map((member) => {
+                const roleValue = resolveMemberRole(member);
+                const roleLabel = MEMBER_ROLE_LABELS[roleValue];
+                const canEditRole = isOwner && !member.isOwner;
+                const canRemove = isOwner && !member.isOwner;
+                const hasActions = canEditRole || canRemove;
+                const isMutating = mutatingAction !== null;
+                const showRoleInMeta = !canEditRole;
+
+                const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+                  const nextRole = event.target.value as MemberRoleValue;
+                  handleRoleChange(member.userId, nextRole, roleValue);
+                };
+
+                return (
+                  <li key={member.userId} className={capTheme.memberRow}>
+                    <div className={capTheme.memberAvatar}>
+                      <MemberAvatar name={member.name} avatarUrl={member.avatarUrl} />
+                    </div>
+                    <div className={capTheme.memberInfo}>
+                      <div className={capTheme.memberName}>{member.name ?? "Member"}</div>
+                      <div className={capTheme.memberMeta}>
+                        {showRoleInMeta ? <span>{roleLabel}</span> : null}
+                        {member.joinedAt ? <span>Joined {formatTimestamp(member.joinedAt)}</span> : null}
+                      </div>
+                    </div>
+                    {hasActions ? (
+                      <div className={capTheme.memberActions}>
+                        {canEditRole ? (
+                          <select
+                            className={capTheme.memberRoleSelect}
+                            value={roleValue}
+                            onChange={handleSelectChange}
+                            disabled={isMutating}
+                            aria-label={`Change role for ${member.name ?? "member"}`}
+                          >
+                            {MEMBER_ROLE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                        {canRemove ? (
+                          <button
+                            type="button"
+                            className={capTheme.memberRemove}
+                            onClick={() => handleRemove(member.userId)}
+                            disabled={isMutating}
+                          >
+                            <Trash size={16} weight="bold" />
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className={capTheme.membersEmpty}>No members have joined yet.</p>
+          )}
+        </section>
+      ) : null}
+
+      {canViewPending && activeTab === "pending" ? (
         <section className={capTheme.membersSection} aria-label="Pending member requests">
           <header className={capTheme.membersSectionHeader}>
             <h4 className={capTheme.membersSectionTitle}>Pending Requests</h4>
-            {hasPending ? (
-              <span className={capTheme.membersSectionBadge}>{pendingRequests.length}</span>
-            ) : null}
+            <span className={capTheme.membersSectionBadge}>{pendingCount}</span>
           </header>
           {hasPending ? (
             <ul className={capTheme.pendingList}>
@@ -227,80 +353,6 @@ export function CapsuleMembersPanel({
           )}
         </section>
       ) : null}
-
-      <section className={capTheme.membersSection} aria-label="Capsule members">
-        <header className={capTheme.membersSectionHeader}>
-          <h4 className={capTheme.membersSectionTitle}>Members</h4>
-          <span className={capTheme.membersSectionBadge}>
-            {membership?.counts.members ?? 0}
-          </span>
-        </header>
-        {hasMembers ? (
-          <ul className={capTheme.membersList}>
-            {membership!.members.map((member) => {
-              const roleValue = resolveMemberRole(member);
-              const roleLabel = MEMBER_ROLE_LABELS[roleValue];
-              const canEditRole = isOwner && !member.isOwner;
-              const canRemove = isOwner && !member.isOwner;
-              const hasActions = canEditRole || canRemove;
-              const isMutating = mutatingAction !== null;
-              const showRoleInMeta = !canEditRole;
-
-              const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-                const nextRole = event.target.value as MemberRoleValue;
-                handleRoleChange(member.userId, nextRole, roleValue);
-              };
-
-              return (
-                <li key={member.userId} className={capTheme.memberRow}>
-                  <div className={capTheme.memberAvatar}>
-                    <MemberAvatar name={member.name} avatarUrl={member.avatarUrl} />
-                  </div>
-                  <div className={capTheme.memberInfo}>
-                    <div className={capTheme.memberName}>{member.name ?? "Member"}</div>
-                    <div className={capTheme.memberMeta}>
-                      {showRoleInMeta ? <span>{roleLabel}</span> : null}
-                      {member.joinedAt ? <span>Joined {formatTimestamp(member.joinedAt)}</span> : null}
-                    </div>
-                  </div>
-                  {hasActions ? (
-                    <div className={capTheme.memberActions}>
-                      {canEditRole ? (
-                        <select
-                          className={capTheme.memberRoleSelect}
-                          value={roleValue}
-                          onChange={handleSelectChange}
-                          disabled={isMutating}
-                          aria-label={`Change role for ${member.name ?? "member"}`}
-                        >
-                          {MEMBER_ROLE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      ) : null}
-                      {canRemove ? (
-                        <button
-                          type="button"
-                          className={capTheme.memberRemove}
-                          onClick={() => handleRemove(member.userId)}
-                          disabled={isMutating}
-                        >
-                          <Trash size={16} weight="bold" />
-                          Remove
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className={capTheme.membersEmpty}>No members have joined yet.</p>
-        )}
-      </section>
     </aside>
   );
 }
