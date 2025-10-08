@@ -7381,6 +7381,78 @@
 
 
 
+.railConnectionsOuter {
+
+
+
+  margin-left: -48px;
+
+
+
+}
+
+
+
+@media (max-width: 1024px) {
+
+
+
+  .railConnectionsOuter {
+
+
+
+    margin-left: -38px;
+
+
+
+  }
+
+
+
+}
+
+
+
+@media (max-width: 900px) {
+
+
+
+  .railConnectionsOuter {
+
+
+
+    margin-left: -28px;
+
+
+
+  }
+
+
+
+}
+
+
+
+@media (max-width: 768px) {
+
+
+
+  .railConnectionsOuter {
+
+
+
+    margin-left: 0;
+
+
+
+  }
+
+
+
+}
+
+
+
 .railHeaderRow {
 
 

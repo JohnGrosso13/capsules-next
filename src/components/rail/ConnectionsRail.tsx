@@ -383,7 +383,7 @@ export function ConnectionsRail() {
   }, [pathname]);
 
   return (
-    <div className={homeStyles.railConnections}>
+    <div className={`${homeStyles.railConnections} ${homeStyles.railConnectionsOuter}`.trim()}>
       {railMode === "tiles" ? (
         <div className={homeStyles.connectionTiles}>
           {connectionTiles.map((tile) => (
