@@ -53,14 +53,10 @@ export function AppShell({
   const isHome = derivedActive === "home";
   const isCapsule = derivedActive === "capsule";
   const [capsuleTab, setCapsuleTab] = React.useState<CapsuleTab>("feed");
-  const layoutClassName = isHome ? `${styles.layout} ${styles.layoutHome}` : styles.layout;
-  const contentClassName = isHome ? `${styles.content} ${styles.contentHome}` : styles.content;
-  const leftRailClassName = isHome
-    ? `${styles.rail} ${styles.leftRail} ${styles.leftRailHome}`
-    : `${styles.rail} ${styles.leftRail}`;
-  const rightRailClassName = isHome
-    ? `${styles.rail} ${styles.rightRail} ${styles.rightRailHome}`
-    : `${styles.rail} ${styles.rightRail}`;
+  const layoutClassName = styles.layout;
+  const contentClassName = styles.content;
+  const leftRailClassName = `${styles.rail} ${styles.leftRail}`;
+  const rightRailClassName = `${styles.rail} ${styles.rightRail}`;
   const isCapsuleFeedView = isCapsule && capsuleTab === "feed";
   const capsuleHasRightRail = isCapsuleFeedView || showLiveChatRightRail;
   const capsuleLayoutClassName = capsuleHasRightRail
@@ -135,43 +131,24 @@ export function AppShell({
           ) : (
             <div
               className={
-                !isHome && showDiscoveryRightRail
+                isHome || showDiscoveryRightRail
                   ? `${styles.layout} ${styles.layoutWithRight}`
                   : layoutClassName
               }
             >
-              {isHome ? (
-                <>
-                  {/* Left rail: move connections (friends/chats/requests) here */}
-                  <aside className={leftRailClassName}>
-                    <ConnectionsRail />
-                  </aside>
-                  <section className={contentClassName}>
-                    {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
-                    {children}
-                  </section>
-                  {/* Right rail: placeholder recommendations + live-feed-like UI */}
-                  <aside className={rightRailClassName}>
-                    <DiscoveryRail />
-                  </aside>
-                </>
-              ) : (
-                <>
-                  {/* Non-home pages: place connections rail on the left to match app */}
-                  <aside className={leftRailClassName}>
-                    <ConnectionsRail />
-                  </aside>
-                  <section className={contentClassName}>
-                    {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
-                    {children}
-                  </section>
-                  {!isHome && showDiscoveryRightRail ? (
-                    <aside className={rightRailClassName}>
-                      <DiscoveryRail />
-                    </aside>
-                  ) : null}
-                </>
-              )}
+              {/* Left connections rail */}
+              <aside className={leftRailClassName}>
+                <ConnectionsRail />
+              </aside>
+              <section className={contentClassName}>
+                {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
+                {children}
+              </section>
+              {(isHome || showDiscoveryRightRail) ? (
+                <aside className={rightRailClassName}>
+                  <DiscoveryRail />
+                </aside>
+              ) : null}
             </div>
           )}
         </main>
