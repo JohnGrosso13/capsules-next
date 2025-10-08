@@ -134,6 +134,16 @@
   align-items: start;
 }
 
+.layoutWithRight {
+  --default-rail-width: clamp(260px, 24vw, 320px);
+  grid-template-columns: minmax(260px, var(--default-rail-width)) minmax(0, 1fr) minmax(260px, var(--default-rail-width));
+}
+.layoutWithRight .leftRail,
+.layoutWithRight .rightRail {
+  max-width: var(--default-rail-width);
+  width: min(100%, var(--default-rail-width));
+}
+
 .layoutHome {
   /* Slightly wider feed for a more immersive feel */
   --home-feed-width: clamp(640px, 52vw, 760px);
@@ -246,6 +256,9 @@
   .layout {
     grid-template-columns: 1fr;
   }
+  .layoutWithRight {
+    grid-template-columns: 1fr;
+  }
   .layoutHome {
     justify-content: stretch;
     column-gap: var(--layout-column-gap);
@@ -289,6 +302,11 @@
   }
   .rightRailCapsule {
     height: auto;
+  }
+  .layoutWithRight .leftRail,
+  .layoutWithRight .rightRail {
+    max-width: none;
+    width: 100%;
   }
 }
 

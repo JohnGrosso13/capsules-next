@@ -25,8 +25,10 @@ type PrimaryHeaderProps = {
 
 const DEFAULT_NAV_ITEMS: NavItem[] = [
   { key: "home", label: "Home", href: "/" },
+  { key: "explore", label: "Explore", href: "/explore" },
   { key: "create", label: "Create", href: "/create" },
   { key: "capsule", label: "Capsule", href: "/capsule" },
+  { key: "market", label: "Market", href: "/market" },
   { key: "memory", label: "Memory", href: "/memory" },
 ];
 

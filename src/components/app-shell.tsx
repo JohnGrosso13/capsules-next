@@ -12,7 +12,7 @@ import { LiveChatRail, type LiveChatRailProps } from "@/components/live/LiveChat
 
 import styles from "./app-shell.module.css";
 
-type NavKey = "home" | "create" | "capsule" | "memory";
+type NavKey = "home" | "explore" | "create" | "capsule" | "market" | "memory";
 type CapsuleTab = "live" | "feed" | "store";
 
 type AppShellProps = {
@@ -23,6 +23,7 @@ type AppShellProps = {
   capsuleBanner?: React.ReactNode;
   showLiveChatRightRail?: boolean;
   liveChatRailProps?: LiveChatRailProps;
+  showDiscoveryRightRail?: boolean;
 };
 
 export function AppShell({
@@ -33,6 +34,7 @@ export function AppShell({
   capsuleBanner,
   showLiveChatRightRail = true,
   liveChatRailProps,
+  showDiscoveryRightRail = false,
 }: AppShellProps) {
   const pathname = usePathname();
   const composer = useComposer();
@@ -40,8 +42,10 @@ export function AppShell({
   const derivedActive: NavKey = React.useMemo(() => {
     if (activeNav) return activeNav;
     if (!pathname) return "home";
+    if (pathname.startsWith("/explore")) return "explore";
     if (pathname.startsWith("/create")) return "create";
     if (pathname.startsWith("/capsule")) return "capsule";
+    if (pathname.startsWith("/market")) return "market";
     if (pathname.startsWith("/memory")) return "memory";
     return "home";
   }, [activeNav, pathname]);
@@ -125,7 +129,13 @@ export function AppShell({
               </div>
             </>
           ) : (
-            <div className={layoutClassName}>
+            <div
+              className={
+                !isHome && showDiscoveryRightRail
+                  ? `${styles.layout} ${styles.layoutWithRight}`
+                  : layoutClassName
+              }
+            >
               {isHome ? (
                 <>
                   {/* Left rail: move connections (friends/chats/requests) here */}
@@ -151,6 +161,11 @@ export function AppShell({
                     {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
                     {children}
                   </section>
+                  {!isHome && showDiscoveryRightRail ? (
+                    <aside className={`${styles.rail} ${styles.rightRail}`}>
+                      <DiscoveryRail />
+                    </aside>
+                  ) : null}
                 </>
               )}
             </div>

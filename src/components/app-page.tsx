@@ -7,12 +7,13 @@ import type { LiveChatRailProps } from "@/components/live/LiveChatRail";
 
 export type AppPageProps = {
   children: React.ReactNode;
-  activeNav?: "home" | "create" | "capsule" | "memory";
+  activeNav?: "home" | "explore" | "create" | "capsule" | "market" | "memory";
   showPrompter?: boolean;
   promoSlot?: React.ReactNode;
   capsuleBanner?: React.ReactNode;
   showLiveChatRightRail?: boolean;
   liveChatRailProps?: LiveChatRailProps;
+  showDiscoveryRightRail?: boolean;
 };
 
 export function AppPage({
@@ -23,6 +24,7 @@ export function AppPage({
   capsuleBanner,
   showLiveChatRightRail,
   liveChatRailProps,
+  showDiscoveryRightRail,
 }: AppPageProps) {
   return (
     <AppShell
@@ -31,6 +33,7 @@ export function AppPage({
       capsuleBanner={capsuleBanner}
       showLiveChatRightRail={showLiveChatRightRail}
       liveChatRailProps={liveChatRailProps}
+      showDiscoveryRightRail={showDiscoveryRightRail}
       {...(activeNav ? { activeNav } : {})}
     >
       {children}
