@@ -209,14 +209,14 @@
   /* Full-width three-column layout: rails at edges, center fills remaining space */
   /* Match Home rail sizing so tile and panel widths align */
   --capsule-rail-width: var(--app-rail-width, clamp(320px, 24vw, 380px));
-  --capsule-gap: clamp(20px, 2.5vw, 40px);
+  --capsule-gap: clamp(6px, 1vw, 16px);
   grid-template-columns: minmax(260px, var(--capsule-rail-width)) minmax(0, 1fr) minmax(260px, var(--capsule-rail-width));
   column-gap: var(--capsule-gap);
   justify-content: stretch;
 }
 
 .layoutCapsule[data-capsule-tab="live"] {
-  --capsule-gap: clamp(14px, 1.8vw, 28px);
+  --capsule-gap: clamp(4px, 0.8vw, 12px);
 }
 
 .layoutCapsuleNoRight {
@@ -228,7 +228,7 @@
   width: 100%;
   justify-self: stretch;
   grid-column: 2;
-  padding: 0 clamp(18px, 2vw, 36px);
+  padding: 0 clamp(8px, 1.2vw, 18px);
   height: calc(
     100vh - (var(--header-height, var(--space-8xl)) + var(--layout-header-offset))
   );
@@ -244,8 +244,8 @@
 }
 
 .contentCapsule[data-capsule-tab="live"] {
-  padding-left: clamp(20px, 2.2vw, 34px);
-  padding-right: clamp(10px, 1.2vw, 20px);
+  padding-left: clamp(10px, 1.1vw, 18px);
+  padding-right: clamp(6px, 0.7vw, 12px);
 }
 
 .leftRailCapsule {
