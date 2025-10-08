@@ -1,6 +1,9 @@
 .row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  width: 100%;
+  max-width: var(--app-feed-width, clamp(640px, 52vw, 760px));
+  margin: 0 auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   align-items: stretch;
 }
@@ -185,7 +188,6 @@
   width: 112px;
   height: 112px;
 }
-
 
 
 

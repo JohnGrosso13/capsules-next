@@ -32,12 +32,107 @@ const DEFAULT_NAV_ITEMS: NavItem[] = [
   { key: "memory", label: "Memory", href: "/memory" },
 ];
 
+function hasSwitchParam(href: string): boolean {
+  const searchStart = href.indexOf("?");
+  if (searchStart === -1) return false;
+  const hashStart = href.indexOf("#", searchStart);
+  const search = href.slice(searchStart + 1, hashStart === -1 ? undefined : hashStart);
+  const params = new URLSearchParams(search);
+  return params.has("switch");
+}
+
+function withSwitchParam(href: string): string {
+  const hashStart = href.indexOf("#");
+  const base = hashStart === -1 ? href : href.slice(0, hashStart);
+  const hash = hashStart === -1 ? "" : href.slice(hashStart);
+  const searchStart = base.indexOf("?");
+  const path = searchStart === -1 ? base : base.slice(0, searchStart);
+  const search = searchStart === -1 ? "" : base.slice(searchStart + 1);
+  const params = new URLSearchParams(search);
+  params.delete("capsuleId");
+  params.set("switch", "1");
+  const nextSearch = params.toString();
+  return `${path}${nextSearch ? `?${nextSearch}` : ""}${hash}`;
+}
+
 export function PrimaryHeader({
   activeKey = null,
   navItems = DEFAULT_NAV_ITEMS,
   showSettingsLink = true,
   launchLabel = "Launch Capsule",
 }: PrimaryHeaderProps) {
+  const [capsuleNavHref, setCapsuleNavHref] = React.useState<string>(() => {
+    const capsuleItem = navItems.find((item) => item.key === "capsule");
+    return capsuleItem?.href ?? "/capsule";
+  });
+  const hasCapsuleNavItem = React.useMemo(
+    () => navItems.some((item) => item.key === "capsule"),
+    [navItems],
+  );
+  const baseCapsuleHref = React.useMemo(() => {
+    const capsuleItem = navItems.find((item) => item.key === "capsule");
+    return capsuleItem?.href ?? "/capsule";
+  }, [navItems]);
+  const baseCapsuleHasSwitch = React.useMemo(
+    () => hasSwitchParam(baseCapsuleHref),
+    [baseCapsuleHref],
+  );
+
+  React.useEffect(() => {
+    if (!hasCapsuleNavItem) return;
+    setCapsuleNavHref((current) => {
+      const withSwitch = withSwitchParam(baseCapsuleHref);
+      if (current === baseCapsuleHref || current === withSwitch) {
+        return current;
+      }
+      return baseCapsuleHref;
+    });
+  }, [baseCapsuleHref, hasCapsuleNavItem]);
+
+  React.useEffect(() => {
+    if (!hasCapsuleNavItem) return;
+    if (baseCapsuleHasSwitch) return;
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    const determineDestination = async () => {
+      try {
+        const response = await fetch("/api/capsules", {
+          credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) return;
+          throw new Error(`capsule nav fetch failed (${response.status})`);
+        }
+
+        const payload = (await response.json().catch(() => null)) as { capsules?: unknown } | null;
+        const capsules = Array.isArray(payload?.capsules) ? payload?.capsules : null;
+        if (!capsules || capsules.length <= 1) return;
+
+        if (!cancelled) {
+          const nextHref = withSwitchParam(baseCapsuleHref);
+          setCapsuleNavHref((current) => (current === nextHref ? current : nextHref));
+        }
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        if (process.env.NODE_ENV === "development") {
+          console.warn("primary-header: unable to resolve capsule nav destination", error);
+        }
+      }
+    };
+
+    void determineDestination();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [baseCapsuleHref, baseCapsuleHasSwitch, hasCapsuleNavItem]);
+
   const router = useRouter();
   const pathname = usePathname();
   const launchDestination = "/capsule?switch=1";
@@ -97,7 +192,7 @@ export function PrimaryHeader({
             return (
               <Link
                 key={item.key}
-                href={item.href}
+                href={item.key === "capsule" ? capsuleNavHref : item.href}
                 className={cn(styles.navItem, isActive && styles.navItemActive)}
               >
                 {item.label}
