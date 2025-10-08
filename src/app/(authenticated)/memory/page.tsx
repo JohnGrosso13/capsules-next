@@ -15,14 +15,15 @@ export const runtime = "nodejs";
 
 export default function MemoryPage() {
   return (
-    <AppPage activeNav="memory" showPrompter={false}>
+    <AppPage activeNav="memory" showDiscoveryRightRail>
       <section className={styles.wrapper}>
         <header className={styles.hero}>
           <h1>Memory</h1>
-          <p>Upload images and videos — instantly recalled with natural language.</p>
+          <p>Upload images and videos - instantly recalled with natural language.</p>
         </header>
         <UploadsCarousel />
       </section>
     </AppPage>
   );
 }
+

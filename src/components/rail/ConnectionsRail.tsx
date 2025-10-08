@@ -9,6 +9,7 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useChatContext } from "@/components/providers/ChatProvider";
 import { type FriendItem } from "@/hooks/useFriendsData";
 import { UsersThree, ChatsCircle, Handshake } from "@phosphor-icons/react/dist/ssr";
+import { usePathname } from "next/navigation";
 
 type RailTab = "friends" | "chats" | "requests";
 
@@ -129,6 +130,7 @@ export function ConnectionsRail() {
   const [friendActionPendingId, setFriendActionPendingId] = React.useState<string | null>(null);
   const { startChat: startChatSession, unreadCount: chatUnreadCount, sessions: chatSessions } = useChatContext();
   const [chatTicker, setChatTicker] = React.useState(() => Date.now());
+  const pathname = usePathname();
   const [connectionOverrides, setConnectionOverrides] = React.useState<ConnectionOverrideMap>({});
 
   const lastChatTimestamp = React.useMemo(() => {
@@ -372,6 +374,13 @@ export function ConnectionsRail() {
     },
     [cancelRequest],
   );
+
+  React.useEffect(() => {
+    setRailMode("tiles");
+    setActiveRailTab("friends");
+    setActiveFriendTarget(null);
+    setFriendActionPendingId(null);
+  }, [pathname]);
 
   return (
     <div className={homeStyles.railConnections}>

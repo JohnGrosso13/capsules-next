@@ -55,8 +55,12 @@ export function AppShell({
   const [capsuleTab, setCapsuleTab] = React.useState<CapsuleTab>("feed");
   const layoutClassName = isHome ? `${styles.layout} ${styles.layoutHome}` : styles.layout;
   const contentClassName = isHome ? `${styles.content} ${styles.contentHome}` : styles.content;
-  const leftRailClassName = isHome ? `${styles.rail} ${styles.leftRail} ${styles.leftRailHome}` : `${styles.rail} ${styles.leftRail}`;
-  const rightRailClassName = isHome ? `${styles.rail} ${styles.rightRail} ${styles.rightRailHome}` : `${styles.rail} ${styles.rightRail}`;
+  const leftRailClassName = isHome
+    ? `${styles.rail} ${styles.leftRail} ${styles.leftRailHome}`
+    : `${styles.rail} ${styles.leftRail}`;
+  const rightRailClassName = isHome
+    ? `${styles.rail} ${styles.rightRail} ${styles.rightRailHome}`
+    : `${styles.rail} ${styles.rightRail}`;
   const isCapsuleFeedView = isCapsule && capsuleTab === "feed";
   const capsuleHasRightRail = isCapsuleFeedView || showLiveChatRightRail;
   const capsuleLayoutClassName = capsuleHasRightRail
@@ -154,7 +158,7 @@ export function AppShell({
               ) : (
                 <>
                   {/* Non-home pages: place connections rail on the left to match app */}
-                  <aside className={`${styles.rail} ${styles.leftRail}`}>
+                  <aside className={leftRailClassName}>
                     <ConnectionsRail />
                   </aside>
                   <section className={contentClassName}>
@@ -162,7 +166,7 @@ export function AppShell({
                     {children}
                   </section>
                   {!isHome && showDiscoveryRightRail ? (
-                    <aside className={`${styles.rail} ${styles.rightRail}`}>
+                    <aside className={rightRailClassName}>
                       <DiscoveryRail />
                     </aside>
                   ) : null}

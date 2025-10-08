@@ -22,6 +22,7 @@ export default function CreatePage() {
         <AppPage
           activeNav="create"
           showPrompter
+          showDiscoveryRightRail
           promoSlot={
             // UI-only: centered gradient button below the prompter
             <ButtonLink href="/capsule/onboarding" variant="gradient" size="lg" className={styles.heroCta}>

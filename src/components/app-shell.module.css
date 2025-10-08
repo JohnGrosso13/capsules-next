@@ -127,38 +127,37 @@
 }
 
 .layout {
+  --app-feed-width: clamp(640px, 52vw, 760px);
+  --app-rail-width: clamp(260px, 22vw, 320px);
+  --app-column-gap: clamp(20px, 2.5vw, 40px);
   display: grid;
   /* Left rail first, main content second to match app pages */
-  grid-template-columns: clamp(260px, 24vw, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width));
   gap: var(--layout-column-gap);
+  column-gap: var(--app-column-gap);
   align-items: start;
+  justify-content: center;
 }
 
 .layoutWithRight {
-  --default-rail-width: clamp(260px, 24vw, 320px);
-  grid-template-columns: minmax(260px, var(--default-rail-width)) minmax(0, 1fr) minmax(260px, var(--default-rail-width));
+  grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width)) minmax(0, var(--app-rail-width));
 }
 .layoutWithRight .leftRail,
 .layoutWithRight .rightRail {
-  max-width: var(--default-rail-width);
-  width: min(100%, var(--default-rail-width));
+  max-width: var(--app-rail-width);
+  width: min(100%, var(--app-rail-width));
 }
 
 .layoutHome {
-  /* Slightly wider feed for a more immersive feel */
-  --home-feed-width: clamp(640px, 52vw, 760px);
-  --home-rail-width: clamp(260px, 22vw, 320px);
-  /* Tighter gap between feed and rail, similar to X/Facebook */
-  --home-gap: clamp(20px, 2.5vw, 40px);
   /* Three tracks: left spacer (rail-sized), centered feed, right rail */
-  grid-template-columns: minmax(0, var(--home-rail-width)) minmax(0, var(--home-feed-width)) minmax(0, var(--home-rail-width));
-  column-gap: var(--home-gap);
+  grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width)) minmax(0, var(--app-rail-width));
+  column-gap: var(--app-column-gap);
   justify-content: center;
 }
 
 .contentHome {
-  max-width: var(--home-feed-width, 680px);
-  width: min(100%, var(--home-feed-width, 680px));
+  max-width: var(--app-feed-width, 680px);
+  width: min(100%, var(--app-feed-width, 680px));
   justify-self: center;
   /* Place feed in the center column */
   grid-column: 2;
@@ -167,19 +166,23 @@
 .leftRail {
   position: sticky;
   top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
+  max-width: var(--app-rail-width, clamp(260px, 22vw, 320px));
+  width: min(100%, var(--app-rail-width, clamp(260px, 22vw, 320px)));
 }
 .rightRail {
   position: sticky;
   top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
+  max-width: var(--app-rail-width, clamp(260px, 22vw, 320px));
+  width: min(100%, var(--app-rail-width, clamp(260px, 22vw, 320px)));
 }
 .leftRailHome {
-  max-width: var(--home-rail-width, 320px);
-  width: min(100%, var(--home-rail-width, 320px));
+  max-width: var(--app-rail-width, 320px);
+  width: min(100%, var(--app-rail-width, 320px));
   grid-column: 1;
 }
 .rightRailHome {
-  max-width: var(--home-rail-width, 320px);
-  width: min(100%, var(--home-rail-width, 320px));
+  max-width: var(--app-rail-width, 320px);
+  width: min(100%, var(--app-rail-width, 320px));
   grid-column: 3;
 }
 
@@ -339,6 +342,8 @@
 .promoRowSpace {
   width: 100%;
   margin: 0;
+  display: grid;
+  justify-items: center;
 }
 @media (max-width: 640px) {
   .outer {
