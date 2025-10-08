@@ -201,7 +201,7 @@
 
 .layoutCapsule {
   /* Full-width three-column layout: rails at edges, center fills remaining space */
-  --capsule-rail-width: clamp(260px, 22vw, 360px);
+  --capsule-rail-width: clamp(240px, 20vw, 320px);
   --capsule-gap: clamp(20px, 2.5vw, 40px);
   grid-template-columns: minmax(260px, var(--capsule-rail-width)) minmax(0, 1fr) minmax(260px, var(--capsule-rail-width));
   column-gap: var(--capsule-gap);
@@ -217,6 +217,7 @@
   width: 100%;
   justify-self: stretch;
   grid-column: 2;
+  padding: 0 clamp(18px, 2vw, 36px);
   height: calc(
     100vh - (var(--header-height, var(--space-8xl)) + var(--layout-header-offset))
   );
@@ -229,9 +230,10 @@
   max-width: var(--capsule-rail-width, 340px);
   width: min(100%, var(--capsule-rail-width, 340px));
   grid-column: 1;
-  --connections-rail-offset: -16px;
-  --connections-rail-offset-md: -8px;
-  --connections-rail-offset-sm: -4px;
+  --connections-rail-offset: 12px;
+  --connections-rail-offset-md: 8px;
+  --connections-rail-offset-sm: 4px;
+  --connections-rail-offset-xs: 0px;
 }
 
 .rightRailCapsule {
@@ -318,6 +320,7 @@
   .contentCapsule {
     height: auto;
     grid-template-rows: initial;
+    padding: 0;
   }
   .rightRailCapsule {
     height: auto;
