@@ -3,13 +3,14 @@
 import * as React from "react";
 import {
   ChartLineUp,
-  Trophy,
+  Broadcast,
   MagicWand,
   ShieldCheck,
   GameController,
   Robot,
   ArrowLeft,
 } from "@phosphor-icons/react/dist/ssr";
+import { useRouter } from "next/navigation";
 import styles from "./create-tiles.module.css";
 
 export type CreateTileKey =
@@ -22,7 +23,7 @@ export type CreateTileKey =
 
 // Intent chips removed: shown beneath the AI prompter
 
-const TILE_META: Record<CreateTileKey, { title: string; icon: React.ReactNode; bullets: string[] }> = {
+const TILE_META: Record<CreateTileKey, { title: string; icon: React.ReactNode; bullets: string[]; ctaLabel?: string }> = {
   growth: {
     icon: <ChartLineUp weight="fill" />,
     title: "Community Growth",
@@ -34,14 +35,15 @@ const TILE_META: Record<CreateTileKey, { title: string; icon: React.ReactNode; b
     ],
   },
   events: {
-    icon: <Trophy weight="fill" />,
-    title: "Events & Tournaments",
+    icon: <Broadcast weight="fill" />,
+    title: "AI Stream Studio",
     bullets: [
-      "Create tournament",
-      "Adaptive scheduling",
-      "Bracket optimization",
-      "Assist with disputes",
+      "OBS sync + destination health",
+      "Scene + overlay recommendations",
+      "ChatGPT moderates & co-hosts",
+      "Clip + auto post while live",
     ],
+    ctaLabel: "Open dashboard",
   },
   content: {
     icon: <MagicWand weight="fill" />,
@@ -87,6 +89,18 @@ const TILE_META: Record<CreateTileKey, { title: string; icon: React.ReactNode; b
 
 export function CreateTiles() {
   const [active, setActive] = React.useState<CreateTileKey | null>(null);
+  const router = useRouter();
+
+  const handleTileClick = React.useCallback(
+    (key: CreateTileKey) => {
+      if (key === "events") {
+        router.push("/create/ai-stream");
+        return;
+      }
+      setActive(key);
+    },
+    [router],
+  );
 
   if (active) {
     const meta = TILE_META[active];
@@ -114,7 +128,7 @@ export function CreateTiles() {
               <li key={i}>{b}</li>
             ))}
           </ul>
-          <div className={styles.tileLearn}>Learn more</div>
+          <div className={styles.tileLearn}>{meta.ctaLabel ?? "Learn more"}</div>
         </div>
       </div>
     );
@@ -127,7 +141,7 @@ export function CreateTiles() {
         {(Object.keys(TILE_META) as CreateTileKey[]).map((key) => {
           const t = TILE_META[key];
           return (
-            <button key={key} type="button" className={styles.tile} onClick={() => setActive(key)}>
+            <button key={key} type="button" className={styles.tile} onClick={() => handleTileClick(key)}>
               <div className={styles.tileHeader}>
                 <span className={styles.tileIcon} aria-hidden>
                   {t.icon}
@@ -139,7 +153,7 @@ export function CreateTiles() {
                   <li key={i}>{b}</li>
                 ))}
               </ul>
-              <div className={styles.tileLearn}>Learn more</div>
+              <div className={styles.tileLearn}>{t.ctaLabel ?? "Learn more"}</div>
             </button>
           );
         })}
