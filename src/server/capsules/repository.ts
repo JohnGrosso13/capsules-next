@@ -73,6 +73,15 @@ export type CapsuleSummary = {
   ownership: "owner" | "member";
 };
 
+export type DiscoverCapsuleSummary = {
+  id: string;
+  name: string;
+  slug: string | null;
+  bannerUrl: string | null;
+  logoUrl: string | null;
+  createdAt: string | null;
+};
+
 function normalizeString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -246,6 +255,54 @@ export async function listCapsulesForUser(userId: string): Promise<CapsuleSummar
   return order
     .map((id) => summaries.get(id) ?? null)
     .filter((entry): entry is CapsuleSummary => entry !== null);
+}
+
+export async function listRecentPublicCapsules(options: {
+  excludeCreatorId?: string | null;
+  limit?: number;
+} = {}): Promise<DiscoverCapsuleSummary[]> {
+  const normalizedExclude = normalizeString(options.excludeCreatorId ?? null);
+  const requestedLimit = typeof options.limit === "number" ? Math.floor(options.limit) : 16;
+  const normalizedLimit = Math.min(Math.max(requestedLimit, 1), 48);
+  const queryLimit = normalizedExclude ? Math.min(normalizedLimit * 2, 64) : normalizedLimit;
+
+  let query = db
+    .from("capsules")
+    .select<CapsuleRow>("id, name, slug, banner_url, logo_url, created_by_id, created_at")
+    .order("created_at", { ascending: false })
+    .limit(queryLimit);
+
+  if (normalizedExclude) {
+    query = query.neq("created_by_id", normalizedExclude);
+  }
+
+  const result = await query.fetch();
+  if (result.error) throw decorateDatabaseError("capsules.recent", result.error);
+
+  const rows = result.data ?? [];
+  const seen = new Set<string>();
+  const discovered: DiscoverCapsuleSummary[] = [];
+
+  for (const row of rows) {
+    const id = normalizeString(row?.id);
+    if (!id || seen.has(id)) continue;
+    const creatorId = normalizeString(row?.created_by_id);
+    if (normalizedExclude && creatorId === normalizedExclude) continue;
+    seen.add(id);
+
+    discovered.push({
+      id,
+      name: normalizeName(row?.name ?? null),
+      slug: normalizeString(row?.slug ?? null),
+      bannerUrl: normalizeString(row?.banner_url ?? null),
+      logoUrl: normalizeString(row?.logo_url ?? null),
+      createdAt: normalizeString(row?.created_at ?? null),
+    });
+
+    if (discovered.length >= normalizedLimit) break;
+  }
+
+  return discovered;
 }
 
 type CapsuleInsert = {

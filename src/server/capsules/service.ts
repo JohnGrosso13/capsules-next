@@ -16,10 +16,12 @@ import {
   upsertCapsuleMember,
   upsertCapsuleMemberRequest,
   listCapsulesForUser,
+  listRecentPublicCapsules,
   type CapsuleSummary,
+  type DiscoverCapsuleSummary,
 } from "./repository";
 
-export type { CapsuleSummary } from "./repository";
+export type { CapsuleSummary, DiscoverCapsuleSummary } from "./repository";
 export type {
   CapsuleMemberSummary,
   CapsuleMemberRequestSummary,
@@ -105,6 +107,17 @@ export async function getUserCapsules(
 ): Promise<CapsuleSummary[]> {
   if (!supabaseUserId) return [];
   return listCapsulesForUser(supabaseUserId);
+}
+
+export async function getRecentCapsules(options: {
+  viewerId?: string | null | undefined;
+  limit?: number;
+} = {}): Promise<DiscoverCapsuleSummary[]> {
+  const normalizedViewer = normalizeId(options.viewerId ?? null);
+  return listRecentPublicCapsules({
+    excludeCreatorId: normalizedViewer,
+    limit: options.limit,
+  });
 }
 
 export async function createCapsule(

@@ -1,0 +1,135 @@
+.section {
+  display: grid;
+  gap: clamp(20px, 3vw, 32px);
+}
+
+.header {
+  display: grid;
+  gap: 6px;
+  max-width: 640px;
+}
+
+.title {
+  font-size: clamp(1.5rem, 2.8vw, 1.85rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text, #0f172a);
+}
+
+.subtitle {
+  font-size: clamp(0.95rem, 1.4vw, 1rem);
+  line-height: 1.5;
+  color: var(--text-muted, color-mix(in srgb, var(--text, #0f172a) 60%, transparent));
+}
+
+.rows {
+  display: grid;
+  gap: clamp(18px, 2.2vw, 26px);
+}
+
+.row {
+  width: 100%;
+}
+
+.tile {
+  display: block;
+  height: 100%;
+  aspect-ratio: 9 / 16;
+  color: inherit;
+  text-decoration: none;
+  position: relative;
+  isolation: isolate;
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--focus-ring, rgba(99, 102, 241, 0.66));
+  outline-offset: 4px;
+}
+
+.mediaWrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: clamp(1.4rem, 2.8vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.86);
+  background:
+    radial-gradient(120% 140% at 20% 10%, color-mix(in srgb, var(--color-brand, #6366f1) 30%, transparent), transparent),
+    radial-gradient(120% 120% at 80% 90%, color-mix(in srgb, var(--color-accent, #8b5cf6) 24%, transparent), transparent),
+    var(--promo-short-background, linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(14, 23, 42, 0.48)));
+}
+
+.overlayCopy {
+  display: grid;
+  gap: 4px;
+}
+
+.name {
+  font-size: 0.96rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text, #f8fafc);
+}
+
+.meta {
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--text, #f8fafc) 70%, transparent);
+}
+
+.empty {
+  padding: clamp(48px, 6vw, 64px);
+  border-radius: 20px;
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.32));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(226, 232, 240, 0.66));
+  text-align: center;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.emptyTitle {
+  font-size: clamp(1.1rem, 2vw, 1.25rem);
+  font-weight: 600;
+  color: var(--text, #0f172a);
+}
+
+.emptySubtitle {
+  font-size: clamp(0.92rem, 1.3vw, 1rem);
+  color: var(--text-muted, color-mix(in srgb, var(--text, #0f172a) 65%, transparent));
+  max-width: 420px;
+}
+
+@media (max-width: 900px) {
+  .tile {
+    aspect-ratio: 4 / 5.6;
+  }
+}
+
+@media (max-width: 640px) {
+  .section {
+    gap: 20px;
+  }
+  .rows {
+    gap: 18px;
+  }
+}
