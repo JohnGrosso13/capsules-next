@@ -82,6 +82,16 @@ export type DiscoverCapsuleSummary = {
   createdAt: string | null;
 };
 
+function resolveOwnership(
+  capsule: CapsuleRow,
+  viewerId?: string | null,
+): "owner" | "member" {
+  const ownerId = normalizeString(capsule?.created_by_id ?? null);
+  const normalizedViewer = normalizeString(viewerId ?? null);
+  if (ownerId && normalizedViewer && ownerId === normalizedViewer) return "owner";
+  return "member";
+}
+
 function normalizeString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -303,6 +313,24 @@ export async function listRecentPublicCapsules(options: {
   }
 
   return discovered;
+}
+
+export async function getCapsuleSummaryForViewer(
+  capsuleId: string,
+  viewerId?: string | null,
+): Promise<CapsuleSummary | null> {
+  const capsule = await findCapsuleById(capsuleId);
+  if (!capsule?.id) return null;
+
+  return {
+    id: String(capsule.id),
+    name: normalizeName(capsule.name),
+    slug: normalizeString(capsule.slug),
+    bannerUrl: normalizeString(capsule.banner_url),
+    logoUrl: normalizeString(capsule.logo_url),
+    role: null,
+    ownership: resolveOwnership(capsule, viewerId),
+  };
 }
 
 type CapsuleInsert = {

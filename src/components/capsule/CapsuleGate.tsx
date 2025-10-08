@@ -140,17 +140,15 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
     () => capsules.filter((capsule) => capsule.ownership === "owner"),
     [capsules],
   );
-  const ownedCapsuleIds = React.useMemo(
-    () => new Set(ownedCapsules.map((capsule) => capsule.id)),
-    [ownedCapsules],
-  );
   const hasOwnedCapsule = ownedCapsules.length > 0;
+  const knownCapsuleIds = React.useMemo(() => new Set(capsules.map((capsule) => capsule.id)), [capsules]);
   const startInSelector = forceSelector || !hasOwnedCapsule;
   const resolvedDefaultId = React.useMemo(() => {
-    if (!hasOwnedCapsule) return null;
-    if (defaultCapsuleId && ownedCapsuleIds.has(defaultCapsuleId)) return defaultCapsuleId;
-    return ownedCapsules[0]?.id ?? null;
-  }, [defaultCapsuleId, hasOwnedCapsule, ownedCapsuleIds, ownedCapsules]);
+    if (!capsules.length) return null;
+    if (defaultCapsuleId && knownCapsuleIds.has(defaultCapsuleId)) return defaultCapsuleId;
+    if (hasOwnedCapsule) return ownedCapsules[0]?.id ?? null;
+    return capsules[0]?.id ?? null;
+  }, [capsules, defaultCapsuleId, hasOwnedCapsule, knownCapsuleIds, ownedCapsules]);
   const [activeId, setActiveId] = React.useState<string | null>(() => (startInSelector ? null : resolvedDefaultId));
   const canSwitchCapsules = startInSelector || capsules.length > 1;
 

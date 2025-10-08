@@ -17,6 +17,7 @@ import {
   upsertCapsuleMemberRequest,
   listCapsulesForUser,
   listRecentPublicCapsules,
+  getCapsuleSummaryForViewer as repoGetCapsuleSummaryForViewer,
   type CapsuleSummary,
   type DiscoverCapsuleSummary,
 } from "./repository";
@@ -118,6 +119,13 @@ export async function getRecentCapsules(options: {
     excludeCreatorId: normalizedViewer,
     limit: options.limit,
   });
+}
+
+export async function getCapsuleSummaryForViewer(
+  capsuleId: string,
+  viewerId?: string | null | undefined,
+): Promise<CapsuleSummary | null> {
+  return repoGetCapsuleSummaryForViewer(capsuleId, viewerId ?? null);
 }
 
 export async function createCapsule(
