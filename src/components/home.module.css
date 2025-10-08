@@ -7385,7 +7385,7 @@
 
 
 
-  margin-left: -60px;
+  margin-left: var(--connections-rail-offset, -60px);
 
 
 
@@ -7401,7 +7401,7 @@
 
 
 
-    margin-left: -50px;
+    margin-left: var(--connections-rail-offset-md, -50px);
 
 
 
@@ -7421,7 +7421,7 @@
 
 
 
-    margin-left: -40px;
+    margin-left: var(--connections-rail-offset-sm, -40px);
 
 
 
@@ -7441,7 +7441,7 @@
 
 
 
-    margin-left: 0;
+    margin-left: var(--connections-rail-offset-xs, 0px);
 
 
 

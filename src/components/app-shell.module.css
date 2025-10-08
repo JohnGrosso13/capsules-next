@@ -177,6 +177,10 @@
   top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
   max-width: var(--app-rail-width, clamp(260px, 22vw, 320px));
   width: min(100%, var(--app-rail-width, clamp(260px, 22vw, 320px)));
+  --connections-rail-offset: -60px;
+  --connections-rail-offset-md: -50px;
+  --connections-rail-offset-sm: -40px;
+  --connections-rail-offset-xs: 0px;
 }
 .rightRail {
   position: sticky;
@@ -225,6 +229,9 @@
   max-width: var(--capsule-rail-width, 340px);
   width: min(100%, var(--capsule-rail-width, 340px));
   grid-column: 1;
+  --connections-rail-offset: -16px;
+  --connections-rail-offset-md: -8px;
+  --connections-rail-offset-sm: -4px;
 }
 
 .rightRailCapsule {
@@ -314,6 +321,11 @@
   }
   .rightRailCapsule {
     height: auto;
+  }
+  .leftRail {
+    --connections-rail-offset: 0px;
+    --connections-rail-offset-md: 0px;
+    --connections-rail-offset-sm: 0px;
   }
   .layoutWithRight .leftRail,
   .layoutWithRight .rightRail {
