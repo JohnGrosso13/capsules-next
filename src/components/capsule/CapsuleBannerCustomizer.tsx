@@ -86,6 +86,24 @@ function describeSource(source: SelectedBanner | null): string {
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
 
+function base64ToFile(base64: string, mimeType: string, filename: string): File | null {
+  if (typeof atob !== "function") {
+    console.warn("capsule banner: base64 decoding not supported in this environment");
+    return null;
+  }
+  try {
+    const binary = atob(base64);
+    const buffer = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      buffer[index] = binary.charCodeAt(index);
+    }
+    return new File([buffer], filename, { type: mimeType });
+  } catch (error) {
+    console.warn("capsule banner: failed to decode base64 image", error);
+    return null;
+  }
+}
+
 function buildAssistantResponse({
   prompt,
   capsuleName,
@@ -681,7 +699,7 @@ export function CapsuleBannerCustomizer({
           });
 
           const payload = (await response.json().catch(() => null)) as
-            | { url?: string; message?: string | null }
+            | { url?: string; message?: string | null; imageData?: string | null; mimeType?: string | null }
             | null;
 
           if (!response.ok || !payload?.url) {
@@ -691,11 +709,39 @@ export function CapsuleBannerCustomizer({
             throw new Error(message);
           }
 
+          const mimeType =
+            payload?.mimeType && typeof payload.mimeType === "string" && payload.mimeType.trim().length
+              ? payload.mimeType.trim()
+              : "image/jpeg";
+          const imageData =
+            payload?.imageData && typeof payload.imageData === "string" && payload.imageData.length
+              ? payload.imageData
+              : null;
+
+          let fileUrl = payload.url;
+          let bannerFile: File | null = null;
+
+          if (imageData) {
+            const extension = mimeType.split("/")[1] ?? "jpg";
+            const filename = `capsule-ai-banner-${Date.now()}.${extension.replace(/[^a-z0-9]+/gi, "") || "jpg"}`;
+            bannerFile = base64ToFile(imageData, mimeType, filename);
+
+            if (bannerFile) {
+              if (uploadObjectUrlRef.current) {
+                URL.revokeObjectURL(uploadObjectUrlRef.current);
+                uploadObjectUrlRef.current = null;
+              }
+              const objectUrl = URL.createObjectURL(bannerFile);
+              uploadObjectUrlRef.current = objectUrl;
+              fileUrl = objectUrl;
+            }
+          }
+
           updateSelectedBanner({
             kind: "upload",
             name: "AI generated banner",
-            url: payload.url,
-            file: null,
+            url: fileUrl,
+            file: bannerFile,
             crop: { offsetX: 0, offsetY: 0 },
           });
 

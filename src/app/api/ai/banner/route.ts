@@ -4,6 +4,7 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import { Buffer } from "node:buffer";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
@@ -16,7 +17,56 @@ const requestSchema = z.object({
 const responseSchema = z.object({
   url: z.string(),
   message: z.string().optional(),
+  imageData: z.string().optional(),
+  mimeType: z.string().optional(),
 });
+
+async function persistAndDescribeImage(
+  source: string,
+  filenameHint: string,
+): Promise<{ url: string; imageData: string | null; mimeType: string | null }> {
+  let normalizedSource = source;
+  let base64Data: string | null = null;
+  let mimeType: string | null = null;
+
+  if (/^data:/i.test(source)) {
+    const match = source.match(/^data:([^;]+);base64,(.*)$/i);
+    if (match) {
+      mimeType = match[1] || "image/png";
+      base64Data = match[2] || "";
+    }
+  } else {
+    try {
+      const response = await fetch(source);
+      if (response.ok) {
+        const contentType = response.headers.get("content-type") || "image/png";
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        base64Data = buffer.toString("base64");
+        mimeType = contentType;
+        normalizedSource = `data:${contentType};base64,${base64Data}`;
+      }
+    } catch (error) {
+      console.warn("ai.banner: failed to normalize remote image", error);
+    }
+  }
+
+  let storedUrl = source;
+  try {
+    const stored = await storeImageSrcToSupabase(normalizedSource, filenameHint);
+    if (stored?.url) {
+      storedUrl = stored.url;
+    }
+  } catch (error) {
+    console.warn("ai.banner: failed to store image to supabase", error);
+  }
+
+  return {
+    url: storedUrl,
+    imageData: base64Data,
+    mimeType,
+  };
+}
 
 function buildGenerationPrompt(prompt: string, capsuleName: string): string {
   const safeName = capsuleName.trim().length ? capsuleName.trim() : "your capsule";
@@ -59,11 +109,13 @@ export async function POST(req: Request) {
         quality: "high",
         size: "1024x1024",
       });
-      const stored = await storeImageSrcToSupabase(generated, "capsule-banner-generate");
+      const stored = await persistAndDescribeImage(generated, "capsule-banner-generate");
       return validatedJson(responseSchema, {
-        url: stored?.url ?? generated,
+        url: stored.url,
         message:
           "Thanks for sharing that direction! I generated a new hero banner in that spirit - check out the preview on the right.",
+        imageData: stored.imageData ?? undefined,
+        mimeType: stored.mimeType ?? undefined,
       });
     }
 
@@ -92,12 +144,14 @@ export async function POST(req: Request) {
       quality: "high",
       size: "1024x1024",
     });
-    const stored = await storeImageSrcToSupabase(edited, "capsule-banner-edit");
+    const stored = await persistAndDescribeImage(edited, "capsule-banner-edit");
 
     return validatedJson(responseSchema, {
-      url: stored?.url ?? edited,
+      url: stored.url,
       message:
         "Thanks for the update! I remixed the current banner with those notes so you can preview the refresh.",
+      imageData: stored.imageData ?? undefined,
+      mimeType: stored.mimeType ?? undefined,
     });
   } catch (error) {
     console.error("ai.banner error", error);
