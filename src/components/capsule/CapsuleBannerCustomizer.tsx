@@ -86,17 +86,46 @@ function describeSource(source: SelectedBanner | null): string {
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
 
-function assistantReply(prompt: string, capsuleName: string): string {
-  const ideas = [
-    `Great direction! I'll mock up a banner for ${capsuleName} with ${prompt.toLowerCase()}.`,
-    `Love it. Let me explore visuals that capture ${prompt.toLowerCase()} for your capsule.`,
-    `Sounds good. I'm sketching a banner concept inspired by ${prompt.toLowerCase()}.`,
-    `Perfect. I'll design a banner vibe built around ${prompt.toLowerCase()}.`,
-  ];
-  const index = Math.floor(Math.random() * ideas.length);
-  const reply = ideas[index];
-  const fallback = ideas[0] ?? "I'll sketch a few banner ideas to share shortly.";
-  return reply ?? fallback;
+function buildAssistantResponse({
+  prompt,
+  capsuleName,
+  mode,
+  serverMessage,
+}: {
+  prompt: string;
+  capsuleName: string;
+  mode: "generate" | "edit";
+  serverMessage?: string | null;
+}): string {
+  const cleanPrompt = prompt.trim();
+  const displayPrompt = cleanPrompt.length ? cleanPrompt : "that idea";
+  const cleanName = capsuleName.trim().length ? capsuleName.trim() : "your capsule";
+
+  const acknowledgement =
+    mode === "generate"
+      ? `Thanks for telling me you're picturing "${displayPrompt}".`
+      : `Thanks for the "${displayPrompt}" direction.`;
+
+  const explanation =
+    mode === "generate"
+      ? `I generated a fresh hero banner for ${cleanName} that leans into that vibe and dropped it into the preview.`
+      : `I remixed the current banner with those notes so you can preview the update on the right.`;
+
+  const invitation =
+    "Want something different? Describe another mood, upload an image, or pull in a memory.";
+
+  const pieces: string[] = [];
+  const trimmedServerMessage = serverMessage?.trim();
+
+  if (trimmedServerMessage && trimmedServerMessage.length) {
+    pieces.push(trimmedServerMessage);
+  } else {
+    pieces.push(acknowledgement, explanation);
+  }
+
+  pieces.push(invitation);
+
+  return pieces.join(" ");
 }
 
 export function CapsuleBannerCustomizer({
@@ -126,11 +155,12 @@ export function CapsuleBannerCustomizer({
     {
       id: randomId(),
       role: "assistant",
-      content: `Hi! I'm Capsule AI. Let's craft a banner for ${normalizedName}. Describe the mood you're aiming for or pick an image to start.`,
+      content: `Hey there! I'm Capsule AI, your creative co-pilot. I can turn your words into hero images or remix memories you upload. Tell me the vibe you're going for and let's make it happen for ${normalizedName}.`,
     },
   ]);
   const [chatBusy, setChatBusy] = React.useState(false);
   const [selectedBanner, setSelectedBanner] = React.useState<SelectedBanner | null>(null);
+  const selectedBannerRef = React.useRef<SelectedBanner | null>(null);
   const previewOffsetRef = React.useRef({ x: 0, y: 0 });
   const [previewOffset, setPreviewOffset] = React.useState(previewOffsetRef.current);
   const [isDraggingPreview, setIsDraggingPreview] = React.useState(false);
@@ -141,7 +171,6 @@ export function CapsuleBannerCustomizer({
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const memoryButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const uploadObjectUrlRef = React.useRef<string | null>(null);
-  const aiReplyTimerRef = React.useRef<number | null>(null);
   const previewStageRef = React.useRef<HTMLDivElement | null>(null);
   const previewImageRef = React.useRef<HTMLImageElement | null>(null);
   const previewMetricsRef = React.useRef<PreviewMetrics>({
@@ -157,6 +186,49 @@ export function CapsuleBannerCustomizer({
     selectedBanner?.kind === "upload" || selectedBanner?.kind === "memory";
   const previewPannable = previewDraggable && previewCanPan;
   const activeImageUrl = previewDraggable ? selectedBanner?.url ?? null : null;
+
+  React.useEffect(() => {
+    selectedBannerRef.current = selectedBanner;
+  }, [selectedBanner]);
+
+  const readFileAsDataUrl = React.useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Failed to read file as data URL."));
+        }
+      };
+      reader.onerror = () => {
+        reject(new Error("Failed to read file as data URL."));
+      };
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const convertUrlToDataUrl = React.useCallback(async (url: string): Promise<string> => {
+    const init: RequestInit = url.startsWith("blob:") ? {} : { credentials: "include" };
+    const response = await fetch(url, init);
+    if (!response.ok) {
+      throw new Error("Failed to fetch banner image for editing.");
+    }
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Failed to read banner image."));
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read banner image."));
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
 
   const applyPreviewOffset = React.useCallback(
     (nextX: number, nextY: number, metricsOverride?: PreviewMetrics) => {
@@ -271,7 +343,7 @@ export function CapsuleBannerCustomizer({
       {
         id: randomId(),
         role: "assistant",
-        content: `Hi! I'm Capsule AI. Let's craft a banner for ${normalizedName}. Describe the mood you're aiming for or pick an image to start.`,
+        content: `Hey there! I'm Capsule AI, your creative co-pilot. I can turn your words into hero images or remix memories you upload. Tell me the vibe you're going for and let's make it happen for ${normalizedName}.`,
       },
     ]);
     setChatBusy(false);
@@ -382,10 +454,6 @@ export function CapsuleBannerCustomizer({
         URL.revokeObjectURL(uploadObjectUrlRef.current);
         uploadObjectUrlRef.current = null;
       }
-      if (aiReplyTimerRef.current) {
-        window.clearTimeout(aiReplyTimerRef.current);
-        aiReplyTimerRef.current = null;
-      }
     },
     [],
   );
@@ -471,6 +539,42 @@ export function CapsuleBannerCustomizer({
     [envelope],
   );
 
+  const resolveBannerSourceForEdit = React.useCallback(
+    async (banner: SelectedBanner | null): Promise<{ imageUrl?: string; imageData?: string } | null> => {
+      if (!banner) return null;
+      if (banner.kind === "memory") {
+        try {
+          const proxiedUrl = await fetchMemoryAssetUrl(banner.id);
+          const dataUri = await convertUrlToDataUrl(proxiedUrl);
+          URL.revokeObjectURL(proxiedUrl);
+          return { imageData: dataUri };
+        } catch (error) {
+          console.warn("memory proxy fetch failed", error);
+          const remote = banner.fullUrl ?? banner.url;
+          if (remote && /^https?:\/\//i.test(remote)) return { imageUrl: remote };
+          if (remote && remote.startsWith("data:")) return { imageData: remote };
+        }
+        return null;
+      }
+      if (banner.kind === "upload") {
+        if (banner.file instanceof File) {
+          const dataUri = await readFileAsDataUrl(banner.file);
+          return { imageData: dataUri };
+        }
+        if (banner.url) {
+          if (/^https?:\/\//i.test(banner.url)) return { imageUrl: banner.url };
+          if (banner.url.startsWith("data:")) return { imageData: banner.url };
+          if (banner.url.startsWith("blob:")) {
+            const dataUri = await convertUrlToDataUrl(banner.url);
+            return { imageData: dataUri };
+          }
+        }
+      }
+      return null;
+    },
+    [convertUrlToDataUrl, fetchMemoryAssetUrl, readFileAsDataUrl],
+  );
+
   const handleMemorySelect = React.useCallback((memory: DisplayMemoryUpload) => {
     const url = memory.fullUrl || memory.displayUrl;
     updateSelectedBanner({
@@ -502,48 +606,150 @@ export function CapsuleBannerCustomizer({
     (action: PrompterAction) => {
       if (chatBusy) return;
 
-      const firstAttachment = action.attachments?.[0];
+      const firstAttachment = action.attachments?.[0] ?? null;
+      let attachmentBanner: SelectedBanner | null = null;
       if (firstAttachment?.url) {
-        updateSelectedBanner({
+        attachmentBanner = {
           kind: "upload",
           name: firstAttachment.name ?? "Uploaded image",
           url: firstAttachment.url,
           file: null,
           crop: { offsetX: 0, offsetY: 0 },
-        });
+        };
       }
 
       const rawText =
         action.kind === "generate"
           ? action.text
-          : action.kind === "style" || action.kind === "post_ai" || action.kind === "tool_logo" || action.kind === "tool_poll" || action.kind === "tool_image_edit"
+          : action.kind === "style" ||
+              action.kind === "post_ai" ||
+              action.kind === "tool_logo" ||
+              action.kind === "tool_poll" ||
+              action.kind === "tool_image_edit"
             ? action.prompt
             : action.kind === "post_manual"
               ? action.content
               : "";
       const trimmed = rawText?.trim();
       if (!trimmed) {
+        if (attachmentBanner) {
+          updateSelectedBanner(attachmentBanner);
+        }
         return;
       }
 
-      const userMessage: ChatMessage = { id: randomId(), role: "user", content: trimmed };
-      setMessages((prev) => [...prev, userMessage]);
-      updateSelectedBanner({ kind: "ai", prompt: trimmed });
-      setChatBusy(true);
-
-      const replyText = assistantReply(trimmed, normalizedName);
-      if (aiReplyTimerRef.current) {
-        window.clearTimeout(aiReplyTimerRef.current);
+      const previousBanner = selectedBannerRef.current;
+      if (attachmentBanner) {
+        updateSelectedBanner(attachmentBanner);
+        selectedBannerRef.current = attachmentBanner;
       }
-      aiReplyTimerRef.current = window.setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          { id: randomId(), role: "assistant", content: replyText },
-        ]);
-        setChatBusy(false);
-      }, 720);
+
+      const userMessage: ChatMessage = { id: randomId(), role: "user", content: trimmed };
+      const assistantId = randomId();
+      setMessages((prev) => [
+        ...prev,
+        userMessage,
+        {
+          id: assistantId,
+          role: "assistant",
+          content: "Great idea! I'm crafting a banner preview based on that now...",
+        },
+      ]);
+      setChatBusy(true);
+      setSaveError(null);
+      updateSelectedBanner({ kind: "ai", prompt: trimmed });
+
+      const bannerForEdit = attachmentBanner ?? previousBanner ?? null;
+
+      const run = async () => {
+        try {
+          const source = await resolveBannerSourceForEdit(bannerForEdit);
+          const mode: "generate" | "edit" = source ? "edit" : "generate";
+          const body: Record<string, unknown> = {
+            prompt: trimmed,
+            capsuleName: normalizedName,
+            mode,
+          };
+          if (source?.imageUrl) body.imageUrl = source.imageUrl;
+          if (source?.imageData) body.imageData = source.imageData;
+
+          const response = await fetch("/api/ai/banner", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(body),
+          });
+
+          const payload = (await response.json().catch(() => null)) as
+            | { url?: string; message?: string | null }
+            | null;
+
+          if (!response.ok || !payload?.url) {
+            const message =
+              (payload?.message && typeof payload.message === "string" && payload.message) ||
+              "Failed to generate banner.";
+            throw new Error(message);
+          }
+
+          updateSelectedBanner({
+            kind: "upload",
+            name: "AI generated banner",
+            url: payload.url,
+            file: null,
+            crop: { offsetX: 0, offsetY: 0 },
+          });
+
+          const serverMessage =
+            payload?.message && typeof payload.message === "string"
+              ? payload.message
+              : null;
+          const responseCopy = buildAssistantResponse({
+            prompt: trimmed,
+            capsuleName: normalizedName,
+            mode,
+            serverMessage,
+          });
+
+          setMessages((prev) =>
+            prev.map((entry) =>
+              entry.id === assistantId
+                ? {
+                    ...entry,
+                    content: responseCopy,
+                  }
+                : entry,
+            ),
+          );
+        } catch (error) {
+          console.error("capsule banner ai error", error);
+          const message = error instanceof Error ? error.message : "Failed to generate banner.";
+          setSelectedBanner(bannerForEdit ?? null);
+          setMessages((prev) =>
+            prev.map((entry) =>
+              entry.id === assistantId
+                ? {
+                    ...entry,
+                    content: `I ran into an issue: ${message}`,
+                  }
+                : entry,
+            ),
+          );
+          setSaveError(message);
+        } finally {
+          setChatBusy(false);
+        }
+      };
+
+      void run();
     },
-    [chatBusy, normalizedName, updateSelectedBanner],
+    [
+      chatBusy,
+      normalizedName,
+      resolveBannerSourceForEdit,
+      setSaveError,
+      updateSelectedBanner,
+      setSelectedBanner,
+    ],
   );
 
   const loadImageElement = React.useCallback(
