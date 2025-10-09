@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { useMemoryUploads } from "@/components/memory/use-memory-uploads";
 import { computeDisplayUploads } from "@/components/memory/process-uploads";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
-import { uploadFileDirect } from "@/lib/uploads/direct-client";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 
 type ChatRole = "assistant" | "user";
@@ -499,18 +498,20 @@ export function CapsuleBannerCustomizer({
     [chatBusy, normalizedName, updateSelectedBanner],
   );
 
-  const loadImageElement = React.useCallback((src: string, allowCrossOrigin: boolean) => {
-    return new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      if (allowCrossOrigin) {
-        img.crossOrigin = "anonymous";
-      }
-      img.decoding = "async";
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Failed to load image for banner preview."));
-      img.src = src;
-    });
-  }, []);
+  const loadImageElement = React.useCallback(
+    (src: string, allowCrossOrigin: boolean): Promise<HTMLImageElement> =>
+      new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        if (allowCrossOrigin) {
+          img.crossOrigin = "anonymous";
+        }
+        img.decoding = "async";
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Failed to load image for banner preview."));
+        img.src = src;
+      }),
+    [],
+  );
 
   const composeBannerImage = React.useCallback(async () => {
     if (!selectedBanner || selectedBanner.kind === "ai") {
@@ -519,24 +520,65 @@ export function CapsuleBannerCustomizer({
 
     const crop = selectedBanner.crop ?? { offsetX: 0, offsetY: 0 };
 
-    let imageUrl: string;
-    let revokeUrl: string | null = null;
+    const candidateUrls: string[] = [];
+    const revokeUrls: string[] = [];
     let allowCrossOrigin = true;
 
     if (selectedBanner.kind === "upload" && selectedBanner.file instanceof File) {
-      imageUrl = URL.createObjectURL(selectedBanner.file);
-      revokeUrl = imageUrl;
+      const objectUrl = URL.createObjectURL(selectedBanner.file);
+      candidateUrls.push(objectUrl);
+      revokeUrls.push(objectUrl);
       allowCrossOrigin = false;
     } else if (selectedBanner.kind === "memory") {
-      imageUrl = selectedBanner.fullUrl ?? selectedBanner.url;
-    } else {
-      imageUrl = selectedBanner.url;
+      if (selectedBanner.fullUrl) candidateUrls.push(selectedBanner.fullUrl);
+      if (selectedBanner.url && selectedBanner.url !== selectedBanner.fullUrl) {
+        candidateUrls.push(selectedBanner.url);
+      }
+    } else if (selectedBanner.url) {
+      candidateUrls.push(selectedBanner.url);
     }
 
-    const isBlob = imageUrl.startsWith("blob:") || imageUrl.startsWith("data:") || imageUrl.startsWith("file:");
-    const img = await loadImageElement(imageUrl, allowCrossOrigin && !isBlob);
-    if (revokeUrl) {
-      URL.revokeObjectURL(revokeUrl);
+    if (!candidateUrls.length) {
+      throw new Error("No banner image available.");
+    }
+
+    let img: HTMLImageElement | null = null;
+    let lastError: unknown = null;
+
+    for (const candidate of candidateUrls) {
+      const isBlob = candidate.startsWith("blob:") || candidate.startsWith("data:") || candidate.startsWith("file:");
+      try {
+        img = await loadImageElement(candidate, allowCrossOrigin && !isBlob);
+        break;
+      } catch (error) {
+        lastError = error;
+        if (!isBlob) {
+          try {
+            const response = await fetch(candidate, { mode: "cors" });
+            if (!response.ok) {
+              throw new Error(`Image fetch failed with status ${response.status}`);
+            }
+            const fetchedBlob = await response.blob();
+            const fetchedUrl = URL.createObjectURL(fetchedBlob);
+            revokeUrls.push(fetchedUrl);
+            img = await loadImageElement(fetchedUrl, false);
+            break;
+          } catch (fetchError) {
+            lastError = fetchError;
+            continue;
+          }
+        }
+      }
+    }
+    if (!img) {
+      revokeUrls.forEach((url) => URL.revokeObjectURL(url));
+      throw lastError instanceof Error ? lastError : new Error("Failed to load image for banner preview.");
+    }
+
+    if (revokeUrls.length) {
+      queueMicrotask(() => {
+        revokeUrls.forEach((url) => URL.revokeObjectURL(url));
+      });
     }
 
     const naturalWidth = img.naturalWidth || img.width;
@@ -632,41 +674,22 @@ export function CapsuleBannerCustomizer({
       const fileName = `${safeSlug || "capsule"}-banner-${Date.now()}.jpg`;
       const bannerFile = new File([exportResult.blob], fileName, { type: exportResult.mimeType });
 
-      const uploadMetadata: Record<string, unknown> = {
-        capsule_id: capsuleId,
-        source: "capsule_banner",
-        source_kind: selectedBanner.kind,
-        crop: selectedBanner.crop ?? { offsetX: 0, offsetY: 0 },
-        memory_id: selectedBanner.kind === "memory" ? selectedBanner.id : undefined,
-        original_url:
-          selectedBanner.kind === "memory"
-            ? selectedBanner.fullUrl ?? selectedBanner.url
-            : undefined,
-        original_name:
-          selectedBanner.kind === "upload"
-            ? selectedBanner.name
-            : selectedBanner.kind === "memory"
-              ? selectedBanner.title ?? undefined
-              : undefined,
-      };
-
-      for (const key of Object.keys(uploadMetadata)) {
-        if (uploadMetadata[key] === undefined || uploadMetadata[key] === null) {
-          delete uploadMetadata[key];
-        }
+const arrayBuffer = await exportResult.blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      const chunkSize = 0x8000;
+      for (let index = 0; index < bytes.length; index += chunkSize) {
+        const chunk = bytes.subarray(index, index + chunkSize);
+        binary += String.fromCharCode(...chunk);
       }
-
-      const uploadResult = await uploadFileDirect(bannerFile, {
-        kind: "capsule_banner",
-        metadata: uploadMetadata,
-      });
+      const imageData = btoa(binary);
 
       const response = await fetch(`/api/capsules/${capsuleId}/banner`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          imageUrl: uploadResult.url,
-          storageKey: uploadResult.key,
+          imageData,
+          filename: bannerFile.name,
           mimeType: bannerFile.type,
           crop: selectedBanner.crop ?? { offsetX: 0, offsetY: 0 },
           source: selectedBanner.kind,
@@ -683,6 +706,7 @@ export function CapsuleBannerCustomizer({
                 ? selectedBanner.title ?? null
                 : null,
           prompt: selectedBanner.kind === "ai" ? selectedBanner.prompt : null,
+          memoryId: selectedBanner.kind === "memory" ? selectedBanner.id : null,
           width: exportResult.width,
           height: exportResult.height,
         }),

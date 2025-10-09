@@ -179,6 +179,7 @@ export async function updateCapsuleBannerImage(
     prompt?: string | null;
     width?: number | null;
     height?: number | null;
+    memoryId?: string | null;
   },
 ): Promise<{ bannerUrl: string | null }> {
   const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
@@ -214,24 +215,26 @@ export async function updateCapsuleBannerImage(
   const promptText = normalizeOptionalString(params.prompt ?? null);
   const description = promptText ? `${baseDescription} Prompt: ${promptText}` : baseDescription;
 
-  const metadata: Record<string, unknown> = {
+  const metadata: Record<string, string | number | boolean> = {
     capsule_id: capsuleIdValue,
-    storage_key: params.storageKey ?? undefined,
-    source_kind: params.source ?? undefined,
-    original_url: params.originalUrl ?? undefined,
-    prompt: promptText ?? undefined,
-    crop: params.crop ?? undefined,
-    width: typeof params.width === "number" ? params.width : undefined,
-    height: typeof params.height === "number" ? params.height : undefined,
   };
 
-  for (const key of Object.keys(metadata)) {
-    if (
-      metadata[key] === undefined ||
-      metadata[key] === null ||
-      (typeof metadata[key] === "number" && Number.isNaN(metadata[key]))
-    ) {
-      delete metadata[key];
+  if (params.storageKey) metadata.storage_key = params.storageKey;
+  if (params.source) metadata.source_kind = params.source;
+  if (params.originalUrl) metadata.original_url = params.originalUrl;
+  if (promptText) metadata.prompt = promptText;
+  if (params.width) metadata.width = params.width;
+  if (params.height) metadata.height = params.height;
+  if (params.originalName) metadata.original_name = params.originalName;
+  if (params.mimeType) metadata.mime_type = params.mimeType;
+  const normalizedMemoryId = normalizeOptionalString(params.memoryId ?? null);
+  if (normalizedMemoryId) metadata.memory_id = normalizedMemoryId;
+  if (params.crop) {
+    if (Number.isFinite(params.crop.offsetX)) {
+      metadata.crop_offset_x = Number(params.crop.offsetX.toFixed(4));
+    }
+    if (Number.isFinite(params.crop.offsetY)) {
+      metadata.crop_offset_y = Number(params.crop.offsetY.toFixed(4));
     }
   }
 

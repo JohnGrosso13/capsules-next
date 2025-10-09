@@ -414,6 +414,7 @@ type CapsuleHeroProps = {
 
 function CapsuleHero({
   capsuleName,
+  bannerUrl,
   canCustomize,
   onCustomize,
   primaryAction,
