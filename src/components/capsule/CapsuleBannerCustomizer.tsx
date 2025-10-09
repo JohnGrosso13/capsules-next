@@ -111,7 +111,7 @@ export function CapsuleBannerCustomizer({
     [capsuleName],
   );
 
-  const { user, items, loading, error, refresh } = useMemoryUploads("upload");
+  const { user, envelope, items, loading, error, refresh } = useMemoryUploads("upload");
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
   const origin = React.useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : null),
@@ -423,6 +423,58 @@ export function CapsuleBannerCustomizer({
     event.target.value = "";
   }, [updateSelectedBanner]);
 
+  const fetchMemoryAssetUrl = React.useCallback(
+    async (memoryIdRaw: string): Promise<string> => {
+      const trimmedId = memoryIdRaw.trim();
+      if (!trimmedId.length) {
+        throw new Error("Memory is missing its identifier.");
+      }
+
+      const payload: Record<string, unknown> = { memoryId: trimmedId };
+      if (envelope) {
+        payload.user = envelope;
+      }
+
+      const response = await fetch("/api/memory/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).catch((error: unknown) => {
+        throw error instanceof Error ? error : new Error("Failed to fetch memory image.");
+      });
+
+      const contentType = response.headers.get("content-type") ?? "";
+
+      if (!response.ok) {
+        let message = "";
+        if (contentType.includes("application/json")) {
+          const detail = (await response.json().catch(() => null)) as { error?: string } | null;
+          if (detail && typeof detail.error === "string" && detail.error.trim().length) {
+            message = detail.error.trim();
+          }
+        }
+        if (!message) {
+          message = response.status === 404 ? "Memory image not available." : "Failed to fetch memory image.";
+        }
+        throw new Error(message);
+      }
+
+      if (contentType.includes("application/json")) {
+        const detail = (await response.json().catch(() => null)) as { error?: string } | null;
+        const message =
+          detail && typeof detail.error === "string" && detail.error.trim().length
+            ? detail.error.trim()
+            : "Failed to fetch memory image.";
+        throw new Error(message);
+      }
+
+      const buffer = await response.arrayBuffer();
+      const blob = new Blob([buffer], { type: contentType || "image/jpeg" });
+      return URL.createObjectURL(blob);
+    },
+    [envelope],
+  );
+
   const handleMemorySelect = React.useCallback((memory: DisplayMemoryUpload) => {
     const url = memory.fullUrl || memory.displayUrl;
     updateSelectedBanner({
@@ -523,6 +575,18 @@ export function CapsuleBannerCustomizer({
     const candidateUrls: string[] = [];
     const revokeUrls: string[] = [];
     let allowCrossOrigin = true;
+
+    if (selectedBanner.kind === "memory" && selectedBanner.id) {
+      try {
+        const proxiedUrl = await fetchMemoryAssetUrl(selectedBanner.id);
+        if (proxiedUrl) {
+          candidateUrls.push(proxiedUrl);
+          revokeUrls.push(proxiedUrl);
+        }
+      } catch (proxyError) {
+        console.warn("memory proxy fetch failed", proxyError);
+      }
+    }
 
     if (selectedBanner.kind === "upload" && selectedBanner.file instanceof File) {
       const objectUrl = URL.createObjectURL(selectedBanner.file);
@@ -651,14 +715,20 @@ export function CapsuleBannerCustomizer({
       height: canvas.height,
       mimeType: "image/jpeg" as const,
     };
-  }, [loadImageElement, selectedBanner]);
+  }, [fetchMemoryAssetUrl, loadImageElement, selectedBanner]);
 
   const handleSaveBanner = React.useCallback(async () => {
     if (!capsuleId) {
       setSaveError("Capsule not ready. Please refresh and try again.");
       return;
     }
-    if (!selectedBanner || selectedBanner.kind === "ai") {
+    if (!selectedBanner) {
+      setSaveError("Choose an image before saving your banner.");
+      return;
+    }
+
+    const aiPrompt = selectedBanner.kind === "ai" ? selectedBanner.prompt : null;
+    if (selectedBanner.kind === "ai") {
       setSaveError("Choose an image before saving your banner.");
       return;
     }
@@ -706,7 +776,7 @@ export function CapsuleBannerCustomizer({
               : selectedBanner.kind === "memory"
                 ? selectedBanner.title ?? null
                 : null,
-          prompt: selectedBanner.kind === "ai" ? selectedBanner.prompt : null,
+          prompt: aiPrompt,
           memoryId: selectedBanner.kind === "memory" ? selectedBanner.id : null,
           width: exportResult.width,
           height: exportResult.height,

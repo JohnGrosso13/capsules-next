@@ -452,7 +452,7 @@ export async function updateCapsuleBanner(params: {
     .update({ banner_url: normalizedBannerUrl })
     .eq("id", normalizedCapsuleId)
     .eq("created_by_id", normalizedOwnerId)
-    .select("id")
+    .select<{ id: string | null }>("id")
     .maybeSingle();
 
   if (result.error) {

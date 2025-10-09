@@ -17,6 +17,8 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: clamp(1.5rem, 3vw, 2.25rem);
+  /* Tighter vertical spacing between content and footer */
+  row-gap: clamp(1rem, 2vw, 1.5rem);
   padding: clamp(1.75rem, 3vw, 2.5rem);
   border-radius: 28px;
   border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.1)) 80%, transparent);
@@ -408,7 +410,8 @@
 .prompterDock {
   margin-top: auto;
   display: grid;
-  gap: 0.55rem;
+  /* Tighten space between prompter and chips */
+  gap: 0.35rem;
   align-content: end;
   position: relative;
   padding-top: 0.25rem;
@@ -447,7 +450,9 @@
   display: flex;
   flex-wrap: nowrap; /* keep to a single row of three */
   gap: 0.6rem;
-  padding-top: 0.2rem;
+  /* Center the chips under the prompter and reduce vertical padding */
+  justify-content: center;
+  padding-top: 0.1rem;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -542,7 +547,8 @@
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding-top: 1.25rem;
+  /* Reduce top padding so the prompter/chips sit a bit lower */
+  padding-top: 0.6rem;
   border-top: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 80%, transparent);
   position: relative;
   z-index: 1;
