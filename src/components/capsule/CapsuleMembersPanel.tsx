@@ -163,8 +163,6 @@ export function CapsuleMembersPanel({
     [mutatingAction, onChangeRole],
   );
 
-  if (!open) return null;
-
   const viewer = membership?.viewer ?? null;
   const isOwner = Boolean(viewer?.isOwner);
   const requestStatus = viewer?.requestStatus ?? "none";
@@ -188,6 +186,8 @@ export function CapsuleMembersPanel({
       setActiveTab("members");
     }
   }, [canViewPending, pendingCount, activeTab]);
+
+  if (!open) return null;
 
   const hasMembers = members.length > 0;
   const hasPending = pendingRequests.length > 0;

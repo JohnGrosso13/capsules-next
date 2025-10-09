@@ -193,10 +193,6 @@ export function CapsuleBannerCustomizer({
     [setPreviewOffset, setSelectedBanner],
   );
 
-  const resetPreviewPosition = React.useCallback(() => {
-    applyPreviewOffset(0, 0);
-  }, [applyPreviewOffset]);
-
   const updateSelectedBanner = React.useCallback(
     (banner: SelectedBanner | null) => {
       if (dragStateRef.current) {

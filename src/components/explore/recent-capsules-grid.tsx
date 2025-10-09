@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import { cn } from "@/lib/cn";
 import { normalizeMediaUrl } from "@/lib/media";
@@ -79,7 +79,7 @@ export function RecentCapsulesGrid({ capsules }: RecentCapsulesGridProps) {
         <div className={styles.empty} role="status">
           <span className={styles.emptyTitle}>No new capsules yet</span>
           <p className={styles.emptySubtitle}>
-            Check back soon�?"we highlight the newest community capsules here as soon as they go live.
+            Check back soon&mdash;we highlight the newest community capsules here as soon as they go live.
           </p>
         </div>
       </section>
