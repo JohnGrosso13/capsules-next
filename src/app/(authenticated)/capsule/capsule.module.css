@@ -141,6 +141,22 @@
   pointer-events: none;
 }
 
+.heroBannerImage {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: scale(1.01);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.heroBanner[data-has-banner="true"] .heroBannerImage {
+  opacity: 1;
+}
+
 .heroCustomizeBtn {
   position: absolute;
   top: clamp(14px, 2vw, 22px);
@@ -157,6 +173,7 @@
   font-weight: 600;
   backdrop-filter: blur(6px);
   transition: transform 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
+  z-index: 2;
 }
 
 .heroCustomizeBtn:hover,

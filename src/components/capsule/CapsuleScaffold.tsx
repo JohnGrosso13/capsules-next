@@ -62,6 +62,7 @@ export function CapsuleContent({
     declineRequest,
     removeMember,
     setMemberRole,
+    refresh: refreshMembership,
     setError: setMembershipError,
   } = useCapsuleMembership(capsuleId);
 
@@ -204,6 +205,7 @@ export function CapsuleContent({
   ]);
   const showMembersBadge = Boolean(viewer?.isOwner && pendingCount > 0);
   const membershipErrorVisible = membershipError && !membersOpen ? membershipError : null;
+  const capsuleBannerUrl = membership?.capsule ? membership.capsule.bannerUrl : null;
 
   React.useEffect(() => {
     if (!canCustomize && bannerCustomizerOpen) {
@@ -327,6 +329,7 @@ export function CapsuleContent({
         <>
           <CapsuleHero
             capsuleName={normalizedCapsuleName}
+            bannerUrl={capsuleBannerUrl}
             canCustomize={canCustomize}
             {...(canCustomize ? { onCustomize: () => setBannerCustomizerOpen(true) } : {})}
             primaryAction={heroPrimary}
@@ -382,6 +385,9 @@ export function CapsuleContent({
           capsuleId={capsuleId}
           capsuleName={normalizedCapsuleName}
           onClose={() => setBannerCustomizerOpen(false)}
+          onSaved={() => {
+            void refreshMembership();
+          }}
         />
       ) : null}
     </>
@@ -390,6 +396,7 @@ export function CapsuleContent({
 
 type CapsuleHeroProps = {
   capsuleName: string | null;
+  bannerUrl: string | null;
   canCustomize: boolean;
   onCustomize?: () => void;
   primaryAction: {
@@ -418,9 +425,18 @@ function CapsuleHero({
   errorMessage,
 }: CapsuleHeroProps) {
   const displayName = capsuleName ?? "Customize this capsule";
+  const heroBannerStyle = bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined;
   return (
     <div className={capTheme.heroWrap}>
-      <div className={capTheme.heroBanner} role="img" aria-label="Capsule banner preview">
+      <div
+        className={capTheme.heroBanner}
+        role="img"
+        aria-label="Capsule banner preview"
+        data-has-banner={bannerUrl ? "true" : undefined}
+      >
+        {bannerUrl ? (
+          <div className={capTheme.heroBannerImage} style={heroBannerStyle} aria-hidden="true" />
+        ) : null}
         {canCustomize ? (
           <button
             type="button"

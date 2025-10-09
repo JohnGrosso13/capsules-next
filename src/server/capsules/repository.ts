@@ -434,6 +434,34 @@ export async function deleteCapsuleOwnedByUser(
   return deleted > 0;
 }
 
+export async function updateCapsuleBanner(params: {
+  capsuleId: string;
+  ownerId: string;
+  bannerUrl: string | null;
+}): Promise<boolean> {
+  const normalizedCapsuleId = normalizeString(params.capsuleId);
+  const normalizedOwnerId = normalizeString(params.ownerId);
+  if (!normalizedCapsuleId || !normalizedOwnerId) {
+    return false;
+  }
+
+  const normalizedBannerUrl = normalizeString(params.bannerUrl ?? null);
+
+  const result = await db
+    .from("capsules")
+    .update({ banner_url: normalizedBannerUrl })
+    .eq("id", normalizedCapsuleId)
+    .eq("created_by_id", normalizedOwnerId)
+    .select("id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.updateBanner", result.error);
+  }
+
+  return Boolean(result.data?.id);
+}
+
 export async function findCapsuleById(capsuleId: string): Promise<CapsuleRow | null> {
   const normalizedId = normalizeString(capsuleId);
   if (!normalizedId) return null;

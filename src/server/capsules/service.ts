@@ -21,7 +21,9 @@ import {
   type CapsuleSummary,
   type DiscoverCapsuleSummary,
   updateCapsuleMemberRole,
+  updateCapsuleBanner,
 } from "./repository";
+import { indexMemory } from "@/server/memories/service";
 
 export type { CapsuleSummary, DiscoverCapsuleSummary } from "./repository";
 export type {
@@ -158,6 +160,99 @@ export async function deleteCapsule(
   return deleteCapsuleOwnedByUser(ownerId, capsuleId);
 }
 
+type BannerCrop = {
+  offsetX: number;
+  offsetY: number;
+};
+
+export async function updateCapsuleBannerImage(
+  ownerId: string,
+  capsuleId: string,
+  params: {
+    bannerUrl: string;
+    storageKey?: string | null;
+    mimeType?: string | null;
+    crop?: BannerCrop | null;
+    source?: string | null;
+    originalUrl?: string | null;
+    originalName?: string | null;
+    prompt?: string | null;
+    width?: number | null;
+    height?: number | null;
+  },
+): Promise<{ bannerUrl: string | null }> {
+  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
+  const capsuleIdValue = normalizeId(capsule.id);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.banner.update: capsule has invalid identifier");
+  }
+
+  const normalizedUrl = normalizeOptionalString(params.bannerUrl ?? null);
+  if (!normalizedUrl) {
+    throw new CapsuleMembershipError("invalid", "A banner URL is required.", 400);
+  }
+
+  const updated = await updateCapsuleBanner({
+    capsuleId: capsuleIdValue,
+    ownerId: capsuleOwnerId,
+    bannerUrl: normalizedUrl,
+  });
+
+  if (!updated) {
+    throw new CapsuleMembershipError("invalid", "Failed to update capsule banner.", 400);
+  }
+
+  const capsuleName = normalizeOptionalString(capsule.name ?? null) ?? "your capsule";
+  const originalName = normalizeOptionalString(params.originalName ?? null);
+
+  const memoryTitle = originalName
+    ? `${originalName} banner`
+    : `Banner for ${capsuleName}`;
+
+  const savedAtIso = new Date().toISOString();
+  const baseDescription = `Custom banner saved for ${capsuleName} on ${savedAtIso}.`;
+  const promptText = normalizeOptionalString(params.prompt ?? null);
+  const description = promptText ? `${baseDescription} Prompt: ${promptText}` : baseDescription;
+
+  const metadata: Record<string, unknown> = {
+    capsule_id: capsuleIdValue,
+    storage_key: params.storageKey ?? undefined,
+    source_kind: params.source ?? undefined,
+    original_url: params.originalUrl ?? undefined,
+    prompt: promptText ?? undefined,
+    crop: params.crop ?? undefined,
+    width: typeof params.width === "number" ? params.width : undefined,
+    height: typeof params.height === "number" ? params.height : undefined,
+  };
+
+  for (const key of Object.keys(metadata)) {
+    if (
+      metadata[key] === undefined ||
+      metadata[key] === null ||
+      (typeof metadata[key] === "number" && Number.isNaN(metadata[key]))
+    ) {
+      delete metadata[key];
+    }
+  }
+
+  await indexMemory({
+    ownerId: capsuleOwnerId,
+    kind: "banner",
+    mediaUrl: normalizedUrl,
+    mediaType: normalizeOptionalString(params.mimeType ?? null) ?? "image/jpeg",
+    title: memoryTitle,
+    description,
+    postId: null,
+    metadata: Object.keys(metadata).length ? metadata : null,
+    rawText: description,
+    source: "capsule_banner",
+    tags: ["capsule", "banner", capsuleName],
+    eventAt: savedAtIso,
+  });
+
+  return { bannerUrl: normalizedUrl };
+}
+
 export async function getCapsuleMembership(
   capsuleId: string,
   viewerId: string | null | undefined,
@@ -214,6 +309,7 @@ export async function getCapsuleMembership(
       name: normalizeOptionalString(capsule.name ?? null),
       slug: normalizeOptionalString(capsule.slug ?? null),
       ownerId,
+      bannerUrl: normalizeOptionalString(capsule.banner_url ?? null),
     },
     viewer,
     counts: {

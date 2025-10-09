@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useMemoryUploads } from "@/components/memory/use-memory-uploads";
 import { computeDisplayUploads } from "@/components/memory/process-uploads";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
+import { uploadFileDirect } from "@/lib/uploads/direct-client";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 
 type ChatRole = "assistant" | "user";
@@ -36,8 +37,8 @@ type CroppableBanner = {
 };
 
 type SelectedBanner =
-  | ({ kind: "upload"; name: string; url: string } & CroppableBanner)
-  | ({ kind: "memory"; id: string; title: string | null; url: string } & CroppableBanner)
+  | ({ kind: "upload"; name: string; url: string; file: File | null } & CroppableBanner)
+  | ({ kind: "memory"; id: string; title: string | null; url: string; fullUrl: string | null } & CroppableBanner)
   | { kind: "ai"; prompt: string };
 
 type DragState = {
@@ -57,6 +58,7 @@ type CapsuleBannerCustomizerProps = {
   capsuleId?: string | null;
   capsuleName?: string | null;
   onClose: () => void;
+  onSaved?: (result: { bannerUrl: string | null }) => void;
 };
 
 // Keep exactly three to ensure a single row that feels intentional
@@ -100,8 +102,10 @@ function assistantReply(prompt: string, capsuleName: string): string {
 
 export function CapsuleBannerCustomizer({
   open = false,
+  capsuleId,
   capsuleName,
   onClose,
+  onSaved,
 }: CapsuleBannerCustomizerProps): React.JSX.Element | null {
   const normalizedName = React.useMemo(
     () => (capsuleName && capsuleName.trim().length ? capsuleName.trim() : "your capsule"),
@@ -148,6 +152,12 @@ export function CapsuleBannerCustomizer({
     maxOffsetY: 0,
   });
   const dragStateRef = React.useRef<DragState | null>(null);
+  const [savePending, setSavePending] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const previewDraggable =
+    selectedBanner?.kind === "upload" || selectedBanner?.kind === "memory";
+  const previewPannable = previewDraggable && previewCanPan;
+  const activeImageUrl = previewDraggable ? selectedBanner?.url ?? null : null;
 
   const applyPreviewOffset = React.useCallback(
     (nextX: number, nextY: number, metricsOverride?: PreviewMetrics) => {
@@ -195,6 +205,7 @@ export function CapsuleBannerCustomizer({
       }
       setIsDraggingPreview(false);
       setPreviewCanPan(false);
+      setSaveError(null);
       previewMetricsRef.current = {
         overflowX: 0,
         overflowY: 0,
@@ -407,8 +418,10 @@ export function CapsuleBannerCustomizer({
       kind: "upload",
       name: file.name,
       url: objectUrl,
+      file,
       crop: { offsetX: 0, offsetY: 0 },
     });
+    event.target.value = "";
   }, [updateSelectedBanner]);
 
   const handleMemorySelect = React.useCallback((memory: DisplayMemoryUpload) => {
@@ -418,6 +431,7 @@ export function CapsuleBannerCustomizer({
       id: memory.id,
       title: memory.title?.trim() || memory.description?.trim() || null,
       url,
+      fullUrl: memory.fullUrl || memory.displayUrl,
       crop: { offsetX: 0, offsetY: 0 },
     });
   }, [updateSelectedBanner]);
@@ -447,6 +461,7 @@ export function CapsuleBannerCustomizer({
           kind: "upload",
           name: firstAttachment.name ?? "Uploaded image",
           url: firstAttachment.url,
+          file: null,
           crop: { offsetX: 0, offsetY: 0 },
         });
       }
@@ -484,10 +499,210 @@ export function CapsuleBannerCustomizer({
     [chatBusy, normalizedName, updateSelectedBanner],
   );
 
-  const previewDraggable =
-    selectedBanner?.kind === "upload" || selectedBanner?.kind === "memory";
-  const previewPannable = previewDraggable && previewCanPan;
-  const activeImageUrl = previewDraggable ? selectedBanner?.url ?? null : null;
+  const loadImageElement = React.useCallback((src: string, allowCrossOrigin: boolean) => {
+    return new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      if (allowCrossOrigin) {
+        img.crossOrigin = "anonymous";
+      }
+      img.decoding = "async";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Failed to load image for banner preview."));
+      img.src = src;
+    });
+  }, []);
+
+  const composeBannerImage = React.useCallback(async () => {
+    if (!selectedBanner || selectedBanner.kind === "ai") {
+      throw new Error("Select an image to save as a banner.");
+    }
+
+    const crop = selectedBanner.crop ?? { offsetX: 0, offsetY: 0 };
+
+    let imageUrl: string;
+    let revokeUrl: string | null = null;
+    let allowCrossOrigin = true;
+
+    if (selectedBanner.kind === "upload" && selectedBanner.file instanceof File) {
+      imageUrl = URL.createObjectURL(selectedBanner.file);
+      revokeUrl = imageUrl;
+      allowCrossOrigin = false;
+    } else if (selectedBanner.kind === "memory") {
+      imageUrl = selectedBanner.fullUrl ?? selectedBanner.url;
+    } else {
+      imageUrl = selectedBanner.url;
+    }
+
+    const isBlob = imageUrl.startsWith("blob:") || imageUrl.startsWith("data:") || imageUrl.startsWith("file:");
+    const img = await loadImageElement(imageUrl, allowCrossOrigin && !isBlob);
+    if (revokeUrl) {
+      URL.revokeObjectURL(revokeUrl);
+    }
+
+    const naturalWidth = img.naturalWidth || img.width;
+    const naturalHeight = img.naturalHeight || img.height;
+    if (!naturalWidth || !naturalHeight) {
+      throw new Error("Unable to read image dimensions.");
+    }
+
+    let targetWidth = Math.min(1600, naturalWidth);
+    let targetHeight = Math.round(targetWidth * 9 / 16);
+    if (targetHeight > naturalHeight) {
+      targetHeight = Math.min(900, naturalHeight);
+      targetWidth = Math.round(targetHeight * 16 / 9);
+    }
+    if (!Number.isFinite(targetWidth) || targetWidth <= 0) {
+      targetWidth = 1600;
+    }
+    if (!Number.isFinite(targetHeight) || targetHeight <= 0) {
+      targetHeight = 900;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(targetWidth));
+    canvas.height = Math.max(1, Math.round(targetHeight));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to prepare drawing context.");
+    }
+
+    const scale = Math.max(canvas.width / naturalWidth, canvas.height / naturalHeight);
+    const scaledWidth = naturalWidth * scale;
+    const scaledHeight = naturalHeight * scale;
+    const overflowX = Math.max(0, scaledWidth - canvas.width);
+    const overflowY = Math.max(0, scaledHeight - canvas.height);
+    const baseOffsetX = overflowX / 2;
+    const baseOffsetY = overflowY / 2;
+    const shiftX = (overflowX / 2) * (crop.offsetX ?? 0);
+    const shiftY = (overflowY / 2) * (crop.offsetY ?? 0);
+    const offsetX = Math.min(Math.max(baseOffsetX + shiftX, 0), overflowX);
+    const offsetY = Math.min(Math.max(baseOffsetY + shiftY, 0), overflowY);
+
+    const sourceWidth = canvas.width / scale;
+    const sourceHeight = canvas.height / scale;
+    const maxSourceX = Math.max(0, naturalWidth - sourceWidth);
+    const maxSourceY = Math.max(0, naturalHeight - sourceHeight);
+    const sourceX = Math.min(Math.max(0, offsetX / scale), maxSourceX);
+    const sourceY = Math.min(Math.max(0, offsetY / scale), maxSourceY);
+
+    ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      const quality = 0.92;
+      canvas.toBlob(
+        (result) => {
+          if (result) {
+            resolve(result);
+          } else {
+            reject(new Error("Failed to export banner image."));
+          }
+        },
+        "image/jpeg",
+        quality,
+      );
+    });
+
+    return {
+      blob,
+      width: canvas.width,
+      height: canvas.height,
+      mimeType: "image/jpeg" as const,
+    };
+  }, [loadImageElement, selectedBanner]);
+
+  const handleSaveBanner = React.useCallback(async () => {
+    if (!capsuleId) {
+      setSaveError("Capsule not ready. Please refresh and try again.");
+      return;
+    }
+    if (!selectedBanner || selectedBanner.kind === "ai") {
+      setSaveError("Choose an image before saving your banner.");
+      return;
+    }
+
+    setSavePending(true);
+    setSaveError(null);
+    try {
+      const exportResult = await composeBannerImage();
+      const safeSlug = normalizedName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 32);
+      const fileName = `${safeSlug || "capsule"}-banner-${Date.now()}.jpg`;
+      const bannerFile = new File([exportResult.blob], fileName, { type: exportResult.mimeType });
+
+      const uploadMetadata: Record<string, unknown> = {
+        capsule_id: capsuleId,
+        source: "capsule_banner",
+        source_kind: selectedBanner.kind,
+        crop: selectedBanner.crop ?? { offsetX: 0, offsetY: 0 },
+        memory_id: selectedBanner.kind === "memory" ? selectedBanner.id : undefined,
+        original_url:
+          selectedBanner.kind === "memory"
+            ? selectedBanner.fullUrl ?? selectedBanner.url
+            : undefined,
+        original_name:
+          selectedBanner.kind === "upload"
+            ? selectedBanner.name
+            : selectedBanner.kind === "memory"
+              ? selectedBanner.title ?? undefined
+              : undefined,
+      };
+
+      for (const key of Object.keys(uploadMetadata)) {
+        if (uploadMetadata[key] === undefined || uploadMetadata[key] === null) {
+          delete uploadMetadata[key];
+        }
+      }
+
+      const uploadResult = await uploadFileDirect(bannerFile, {
+        kind: "capsule_banner",
+        metadata: uploadMetadata,
+      });
+
+      const response = await fetch(`/api/capsules/${capsuleId}/banner`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: uploadResult.url,
+          storageKey: uploadResult.key,
+          mimeType: bannerFile.type,
+          crop: selectedBanner.crop ?? { offsetX: 0, offsetY: 0 },
+          source: selectedBanner.kind,
+          originalUrl:
+            selectedBanner.kind === "memory"
+              ? selectedBanner.fullUrl ?? selectedBanner.url
+              : selectedBanner.kind === "upload"
+                ? null
+                : null,
+          originalName:
+            selectedBanner.kind === "upload"
+              ? selectedBanner.name
+              : selectedBanner.kind === "memory"
+                ? selectedBanner.title ?? null
+                : null,
+          prompt: selectedBanner.kind === "ai" ? selectedBanner.prompt : null,
+          width: exportResult.width,
+          height: exportResult.height,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text().catch(() => "");
+        throw new Error(message || "Failed to save banner.");
+      }
+
+      const payload = (await response.json()) as { bannerUrl: string | null };
+      onSaved?.(payload);
+      updateSelectedBanner(null);
+      onClose();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Failed to save banner.");
+    } finally {
+      setSavePending(false);
+    }
+  }, [capsuleId, composeBannerImage, normalizedName, onClose, onSaved, selectedBanner, updateSelectedBanner]);
 
   const handlePreviewPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -811,16 +1026,26 @@ export function CapsuleBannerCustomizer({
         </div>
 
         <footer className={styles.footer}>
-          <div className={styles.footerStatus}>
-            {selectedBanner
-              ? describeSource(selectedBanner)
-              : "Upload an image, pick a memory, or describe a new banner below."}
+          <div className={styles.footerStatus} role="status">
+            {saveError ? (
+              <span className={styles.footerError}>{saveError}</span>
+            ) : selectedBanner ? (
+              describeSource(selectedBanner)
+            ) : (
+              "Upload an image, pick a memory, or describe a new banner below."
+            )}
           </div>
           <div className={styles.footerActions}>
             <Button variant="ghost" size="sm" onClick={handleClose}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" disabled={!selectedBanner}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSaveBanner}
+              disabled={!selectedBanner || selectedBanner.kind === "ai" || savePending}
+              loading={savePending}
+            >
               Save banner
             </Button>
           </div>

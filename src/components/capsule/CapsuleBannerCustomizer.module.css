@@ -553,6 +553,11 @@
   color: rgba(230, 236, 255, 0.78);
 }
 
+.footerError {
+  color: rgba(255, 140, 140, 0.9);
+  font-weight: 600;
+}
+
 .footerActions {
   display: flex;
   gap: 0.75rem;

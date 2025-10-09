@@ -79,6 +79,10 @@
   background: var(--surface-muted);
 }
 
+.bannerMedia {
+  aspect-ratio: 16 / 9;
+}
+
 .img,
 .video {
   width: 100%;

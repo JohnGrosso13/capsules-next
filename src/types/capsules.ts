@@ -51,6 +51,7 @@ export type CapsuleMembershipState = {
     name: string | null;
     slug: string | null;
     ownerId: string;
+    bannerUrl: string | null;
   };
   viewer: CapsuleMembershipViewer;
   counts: {
