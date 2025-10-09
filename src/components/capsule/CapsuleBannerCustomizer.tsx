@@ -617,8 +617,9 @@ export function CapsuleBannerCustomizer({
     const baseOffsetY = overflowY / 2;
     const shiftX = (overflowX / 2) * (crop.offsetX ?? 0);
     const shiftY = (overflowY / 2) * (crop.offsetY ?? 0);
-    const offsetX = Math.min(Math.max(baseOffsetX + shiftX, 0), overflowX);
-    const offsetY = Math.min(Math.max(baseOffsetY + shiftY, 0), overflowY);
+    const offsetX = Math.min(Math.max(baseOffsetX - shiftX, 0), overflowX);
+    const offsetY = Math.min(Math.max(baseOffsetY - shiftY, 0), overflowY);
+
 
     const sourceWidth = canvas.width / scale;
     const sourceHeight = canvas.height / scale;
@@ -674,7 +675,7 @@ export function CapsuleBannerCustomizer({
       const fileName = `${safeSlug || "capsule"}-banner-${Date.now()}.jpg`;
       const bannerFile = new File([exportResult.blob], fileName, { type: exportResult.mimeType });
 
-const arrayBuffer = await exportResult.blob.arrayBuffer();
+      const arrayBuffer = await exportResult.blob.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       let binary = "";
       const chunkSize = 0x8000;

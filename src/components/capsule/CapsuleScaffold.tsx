@@ -49,6 +49,7 @@ export function CapsuleContent({
   const [capsuleId, setCapsuleId] = React.useState<string | null>(() => capsuleIdProp ?? null);
   const [capsuleName, setCapsuleName] = React.useState<string | null>(() => capsuleNameProp ?? null);
   const [bannerCustomizerOpen, setBannerCustomizerOpen] = React.useState(false);
+  const [bannerUrlOverride, setBannerUrlOverride] = React.useState<string | null>(null);
   const router = useRouter();
   const { user } = useCurrentUser();
   const [membersOpen, setMembersOpen] = React.useState(false);
@@ -205,13 +206,17 @@ export function CapsuleContent({
   ]);
   const showMembersBadge = Boolean(viewer?.isOwner && pendingCount > 0);
   const membershipErrorVisible = membershipError && !membersOpen ? membershipError : null;
-  const capsuleBannerUrl = membership?.capsule ? membership.capsule.bannerUrl : null;
+  const capsuleBannerUrl = bannerUrlOverride ?? (membership?.capsule ? membership.capsule.bannerUrl : null);
 
   React.useEffect(() => {
     if (!canCustomize && bannerCustomizerOpen) {
       setBannerCustomizerOpen(false);
     }
   }, [bannerCustomizerOpen, canCustomize]);
+
+  React.useEffect(() => {
+    setBannerUrlOverride(membership?.capsule?.bannerUrl ?? null);
+  }, [membership?.capsule?.bannerUrl]);
 
   React.useEffect(() => {
     if (typeof capsuleNameProp !== "undefined") {
@@ -385,7 +390,8 @@ export function CapsuleContent({
           capsuleId={capsuleId}
           capsuleName={normalizedCapsuleName}
           onClose={() => setBannerCustomizerOpen(false)}
-          onSaved={() => {
+          onSaved={(result) => {
+            setBannerUrlOverride(result.bannerUrl ?? null);
             void refreshMembership();
           }}
         />
