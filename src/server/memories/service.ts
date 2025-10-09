@@ -294,7 +294,21 @@ export async function indexMemory({
   }
 }
 
-async function fetchLegacyMemoryItems(ownerId: string, kind: string | null, limit = DEFAULT_LIST_LIMIT) {
+function normalizeKindFilters(kind: string | null | undefined): string[] | null {
+  if (typeof kind !== "string") return null;
+  const normalized = kind.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "banner") {
+    return ["banner", "capsule_banner"];
+  }
+  return [normalized];
+}
+
+async function fetchLegacyMemoryItems(
+  ownerId: string,
+  kinds: string[] | null,
+  limit = DEFAULT_LIST_LIMIT,
+) {
   const variants = [
     "id, kind, media_url, media_type, title, description, created_at",
     "id, kind, url, type, title, description, created_at",
@@ -310,7 +324,7 @@ async function fetchLegacyMemoryItems(ownerId: string, kind: string | null, limi
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (kind) builder = builder.eq("kind", kind);
+    if (kinds && kinds.length) builder = builder.in("kind", kinds);
 
     const result = await builder.fetch();
 
@@ -327,6 +341,8 @@ async function fetchLegacyMemoryItems(ownerId: string, kind: string | null, limi
 }
 
 export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: string | null }) {
+  const kindFilters = normalizeKindFilters(kind);
+
   let builder = db
     .from("memories")
     .select<Record<string, unknown>>(
@@ -336,13 +352,19 @@ export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: 
     .order("created_at", { ascending: false })
     .limit(DEFAULT_LIST_LIMIT);
 
-  if (kind) builder = builder.eq("kind", kind);
+  if (kindFilters && kindFilters.length) {
+    if (kindFilters.length === 1) {
+      builder = builder.eq("kind", kindFilters[0]);
+    } else {
+      builder = builder.in("kind", kindFilters);
+    }
+  }
 
   const result = await builder.fetch();
 
   if (result.error) {
     if (isMissingTable(result.error)) {
-      return fetchLegacyMemoryItems(ownerId, kind ?? null, DEFAULT_LIST_LIMIT);
+      return fetchLegacyMemoryItems(ownerId, kindFilters, DEFAULT_LIST_LIMIT);
     }
     throw result.error;
   }
