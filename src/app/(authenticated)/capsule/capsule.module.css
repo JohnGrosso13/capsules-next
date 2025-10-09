@@ -112,7 +112,7 @@
 
 .heroBanner {
   position: relative;
-  min-height: clamp(180px, 24vw, 260px);
+  min-height: clamp(220px, 30vw, 320px);
   width: min(100%, clamp(420px, 68vw, 820px));
   margin: 0 auto;
   border-radius: clamp(18px, 3vw, 24px);
@@ -167,9 +167,10 @@
 .heroBody {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: clamp(16px, 4vw, 32px);
   flex-wrap: wrap;
+  margin-top: calc(-1 * clamp(68px, 8vw, 118px));
 }
 
 .heroDetails {
@@ -189,6 +190,7 @@
   display: inline-flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-self: center;
 }
 
 .heroAction {
@@ -240,6 +242,7 @@
   gap: 10px;
   overflow-x: auto;
   padding: 2px;
+  margin-top: calc(-1 * clamp(18px, 2.6vw, 36px));
 }
 
 .heroTab {
@@ -296,6 +299,8 @@
   .heroBody {
     flex-direction: column;
     align-items: stretch;
+    margin-top: 0;
+    padding-top: 0;
   }
 
   .heroActions {
@@ -312,6 +317,7 @@
     flex-wrap: wrap;
     justify-content: flex-start;
     gap: 8px;
+    margin-top: 0;
   }
 }
 
