@@ -94,7 +94,7 @@
 
 .content {
   display: grid;
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 360px);
   gap: clamp(1.5rem, 3vw, 2.75rem);
   position: relative;
   z-index: 1;
@@ -102,8 +102,11 @@
 
 .previewColumn {
   display: grid;
-  gap: 1rem;
-  align-content: start;
+  grid-template-rows: auto 1fr;
+  gap: 1.5rem;
+  align-content: stretch;
+  border-left: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 80%, transparent);
+  padding-left: clamp(1.5rem, 2.5vw, 2.5rem);
 }
 
 .previewStage {
@@ -170,6 +173,12 @@
   gap: 0.5rem;
 }
 
+.previewPanel {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
 .fileInput {
   position: absolute;
   width: 1px;
@@ -218,6 +227,12 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
+  align-items: center;
+}
+
+.memoryActions {
+  display: flex;
+  gap: 0.4rem;
   align-items: center;
 }
 
@@ -286,23 +301,65 @@
 
 .chatColumn {
   display: grid;
+  grid-template-rows: minmax(220px, 1fr) auto auto;
   gap: 1.25rem;
   min-height: 100%;
 }
 
 .chatLog {
-  border-radius: 24px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 80%, transparent);
-  background:
-    linear-gradient(180deg, rgba(15, 20, 44, 0.88), rgba(12, 16, 34, 0.78)),
-    radial-gradient(600px 220px at 20% 0%, rgba(96, 128, 255, 0.18), transparent 70%);
-  padding: clamp(1rem, 2.6vw, 1.5rem);
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-height: clamp(260px, 36vh, 320px);
-  max-height: clamp(320px, 42vh, 380px);
+  min-height: clamp(220px, 35vh, 320px);
   overflow-y: auto;
+}
+
+.prompterWrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.prompterWrap :global(.prompterStage) {
+  max-width: none;
+  margin: 0;
+}
+
+.prompterWrap :global(.prompterStage .intentControls) {
+  display: none;
+}
+
+.intentChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding-top: 0.4rem;
+}
+
+.intentChip {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 80%, transparent);
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  background: color-mix(in srgb, rgba(16, 20, 40, 0.78) 94%, transparent);
+  color: rgba(229, 235, 255, 0.9);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.intentChip:hover,
+.intentChip:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(156, 178, 255, 0.9);
+  background: color-mix(in srgb, rgba(30, 38, 80, 0.88) 96%, transparent);
+}
+
+.intentChip:focus-visible {
+  outline: 2px solid rgba(150, 170, 255, 0.6);
+  outline-offset: 2px;
 }
 
 .chatMessage {
@@ -353,74 +410,6 @@
   color: rgba(211, 220, 255, 0.8);
 }
 
-.promptShelf {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.promptChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.promptChip {
-  appearance: none;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.22) 82%, transparent);
-  border-radius: 999px;
-  padding: 0.5rem 0.9rem;
-  background: color-mix(in srgb, rgba(16, 20, 40, 0.78) 94%, transparent);
-  color: rgba(229, 235, 255, 0.9);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
-}
-
-.promptChip:hover,
-.promptChip:focus-visible {
-  transform: translateY(-1px);
-  border-color: rgba(156, 178, 255, 0.9);
-  background: color-mix(in srgb, rgba(30, 38, 80, 0.88) 96%, transparent);
-}
-
-.promptChip:focus-visible {
-  outline: 2px solid rgba(150, 170, 255, 0.6);
-  outline-offset: 2px;
-}
-
-.chatComposer {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.chatTextarea {
-  min-height: 120px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 80%, transparent);
-  background: color-mix(in srgb, rgba(18, 24, 46, 0.82) 95%, transparent);
-  color: inherit;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  padding: 0.85rem 1rem;
-  resize: vertical;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-}
-
-.chatTextarea::placeholder {
-  color: rgba(199, 210, 255, 0.6);
-}
-
-.chatTextarea:focus-visible {
-  border-color: rgba(156, 178, 255, 0.9);
-  box-shadow: 0 0 0 3px rgba(90, 120, 255, 0.35);
-  outline: none;
-}
-
-.chatHint {
-  font-size: 0.85rem;
-  color: rgba(204, 214, 255, 0.72);
-}
-
 .footer {
   display: flex;
   flex-wrap: wrap;
@@ -450,6 +439,8 @@
 
   .previewColumn {
     order: 2;
+    border-left: none;
+    padding-left: 0;
   }
 
   .chatColumn {
@@ -470,4 +461,3 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-

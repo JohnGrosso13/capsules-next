@@ -1,16 +1,10 @@
 "use client";
 
 import * as React from "react";
-import {
-  PaperPlaneTilt,
-  UploadSimple,
-  ImagesSquare,
-  Sparkle,
-  X,
-  ArrowClockwise,
-} from "@phosphor-icons/react/dist/ssr";
+import { UploadSimple, ImagesSquare, Sparkle, X, ArrowClockwise } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./CapsuleBannerCustomizer.module.css";
+import { AiPrompterStage, type PrompterAction } from "@/components/ai-prompter-stage";
 import { Button } from "@/components/ui/button";
 import { useMemoryUploads } from "@/components/memory/use-memory-uploads";
 import { computeDisplayUploads } from "@/components/memory/process-uploads";
@@ -42,13 +36,9 @@ const PROMPT_CHIPS = [
   "Soft sunrise palette with abstract waves",
   "Minimal dark mode with crisp typography",
   "Futuristic city skyline with light bloom",
-  "Retro synthwave grid with glowing horizon",
-  "Nature inspired greens with floating shapes",
 ] as const;
 
 const MEMORY_SHOW_LIMIT = 6;
-const MESSAGE_LIMIT = 1200;
-
 function randomId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -110,9 +100,9 @@ export function CapsuleBannerCustomizer({
       content: `Hi! I'm Capsule AI. Let's craft a banner for ${normalizedName}. Describe the mood you're aiming for or pick an image to start.`,
     },
   ]);
-  const [draft, setDraft] = React.useState("");
   const [chatBusy, setChatBusy] = React.useState(false);
   const [selectedBanner, setSelectedBanner] = React.useState<SelectedBanner | null>(null);
+  const [prompterSession, setPrompterSession] = React.useState(0);
   const chatLogRef = React.useRef<HTMLDivElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const uploadObjectUrlRef = React.useRef<string | null>(null);
@@ -127,9 +117,9 @@ export function CapsuleBannerCustomizer({
         content: `Hi! I'm Capsule AI. Let's craft a banner for ${normalizedName}. Describe the mood you're aiming for or pick an image to start.`,
       },
     ]);
-    setDraft("");
     setChatBusy(false);
     setSelectedBanner(null);
+    setPrompterSession((value) => value + 1);
     if (uploadObjectUrlRef.current) {
       URL.revokeObjectURL(uploadObjectUrlRef.current);
       uploadObjectUrlRef.current = null;
@@ -213,42 +203,57 @@ export function CapsuleBannerCustomizer({
     });
   }, []);
 
-  const handleChipClick = React.useCallback((chip: string) => {
-    setDraft(chip);
-    setSelectedBanner({ kind: "ai", prompt: chip });
-  }, []);
-
-  const sendChat = React.useCallback(() => {
-    const trimmed = draft.trim();
-    if (!trimmed.length || chatBusy) return;
-
-    const userMessage: ChatMessage = { id: randomId(), role: "user", content: trimmed };
-    setMessages((prev) => [...prev, userMessage]);
-    setDraft("");
-    setChatBusy(true);
-    setSelectedBanner({ kind: "ai", prompt: trimmed });
-
-    const replyText = assistantReply(trimmed, normalizedName);
-    if (aiReplyTimerRef.current) {
-      window.clearTimeout(aiReplyTimerRef.current);
+  const handleQuickPick = React.useCallback(() => {
+    const firstMemory = limitedMemories[0];
+    if (firstMemory) {
+      handleMemorySelect(firstMemory);
     }
-    aiReplyTimerRef.current = window.setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { id: randomId(), role: "assistant", content: replyText },
-      ]);
-      setChatBusy(false);
-    }, 720);
-  }, [chatBusy, draft, normalizedName]);
+  }, [handleMemorySelect, limitedMemories]);
 
-  const handleComposerKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        sendChat();
+  const handlePrompterAction = React.useCallback(
+    (action: PrompterAction) => {
+      if (chatBusy) return;
+
+      const firstAttachment = action.attachments?.[0];
+      if (firstAttachment?.url) {
+        setSelectedBanner({
+          kind: "upload",
+          name: firstAttachment.name ?? "Uploaded image",
+          url: firstAttachment.url,
+        });
       }
+
+      const rawText =
+        action.kind === "generate"
+          ? action.text
+          : action.kind === "style" || action.kind === "post_ai" || action.kind === "tool_logo" || action.kind === "tool_poll" || action.kind === "tool_image_edit"
+            ? action.prompt
+            : action.kind === "post_manual"
+              ? action.content
+              : "";
+      const trimmed = rawText?.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      const userMessage: ChatMessage = { id: randomId(), role: "user", content: trimmed };
+      setMessages((prev) => [...prev, userMessage]);
+      setSelectedBanner({ kind: "ai", prompt: trimmed });
+      setChatBusy(true);
+
+      const replyText = assistantReply(trimmed, normalizedName);
+      if (aiReplyTimerRef.current) {
+        window.clearTimeout(aiReplyTimerRef.current);
+      }
+      aiReplyTimerRef.current = window.setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          { id: randomId(), role: "assistant", content: replyText },
+        ]);
+        setChatBusy(false);
+      }, 720);
     },
-    [sendChat],
+    [chatBusy, normalizedName],
   );
 
   const previewNode = React.useMemo(() => {
@@ -330,61 +335,75 @@ export function CapsuleBannerCustomizer({
         </header>
 
         <div className={styles.content}>
-          <section className={styles.previewColumn}>
-            <div className={styles.previewStage}>{previewNode}</div>
-            <div className={styles.previewActions}>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleUploadClick}
-                leftIcon={<UploadSimple size={16} weight="bold" />}
-              >
-                Upload image
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const firstMemory = limitedMemories[0];
-                  if (firstMemory) {
-                    handleMemorySelect(firstMemory);
+          <section className={styles.chatColumn}>
+            <div ref={chatLogRef} className={styles.chatLog} aria-live="polite">
+              {messages.map((message) => renderChatMessage(message))}
+              {chatBusy ? (
+                <div className={styles.chatTyping} aria-live="polite">
+                  Capsule AI is thinking...
+                </div>
+              ) : null}
+            </div>
+
+            <div className={styles.prompterWrap}>
+              <AiPrompterStage
+                key={prompterSession}
+                placeholder="Tell Capsule AI about the vibe, colors, or references you want..."
+                chips={[]}
+                statusMessage={null}
+                onAction={handlePrompterAction}
+              />
+            </div>
+
+            <div className={styles.intentChips}>
+              {PROMPT_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  className={styles.intentChip}
+                  onClick={() =>
+                    handlePrompterAction({
+                      kind: "generate",
+                      text: chip,
+                      raw: chip,
+                    })
                   }
-                }}
-                leftIcon={<ImagesSquare size={16} weight="bold" />}
-              >
-                Quick pick memory
-              </Button>
+                >
+                  {chip}
+                </button>
+              ))}
             </div>
-            <input
-              ref={fileInputRef}
-              className={styles.fileInput}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
+          </section>
 
-            <div className={styles.previewMeta}>
-              <span className={styles.previewMetaLabel}>Selected banner</span>
-              <p className={styles.previewMetaValue}>{describeSource(selectedBanner)}</p>
-            </div>
-
+          <section className={styles.previewColumn}>
             <div className={styles.memorySection}>
               <div className={styles.memoryHeader}>
                 <div className={styles.memoryTitleGroup}>
                   <h3>Memories</h3>
                   <span>Use something you&apos;ve already saved</span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    void refresh();
-                  }}
-                  leftIcon={<ArrowClockwise size={16} weight="bold" />}
-                  disabled={loading}
-                >
-                  {loading ? "Refreshing..." : "Refresh"}
-                </Button>
+                <div className={styles.memoryActions}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleQuickPick}
+                    leftIcon={<ImagesSquare size={16} weight="bold" />}
+                    disabled={!limitedMemories.length}
+                  >
+                    Quick pick
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      void refresh();
+                    }}
+                    leftIcon={<ArrowClockwise size={16} weight="bold" />}
+                    disabled={loading}
+                  >
+                    {loading ? "Refreshing..." : "Refresh"}
+                  </Button>
+                </div>
               </div>
               {!user ? (
                 <p className={styles.memoryStatus}>Sign in to access your memories.</p>
@@ -420,56 +439,31 @@ export function CapsuleBannerCustomizer({
                 </div>
               )}
             </div>
-          </section>
 
-          <section className={styles.chatColumn}>
-            <div ref={chatLogRef} className={styles.chatLog} aria-live="polite">
-              {messages.map((message) => renderChatMessage(message))}
-              {chatBusy ? (
-                <div className={styles.chatTyping} aria-live="polite">
-                  Capsule AI is thinking...
-                </div>
-              ) : null}
-            </div>
-
-            <div className={styles.promptShelf}>
-              <div className={styles.promptChips}>
-                {PROMPT_CHIPS.map((chip) => (
-                  <button
-                    key={chip}
-                    type="button"
-                    className={styles.promptChip}
-                    onClick={() => handleChipClick(chip)}
-                  >
-                    {chip}
-                  </button>
-                ))}
-              </div>
-
-              <div className={styles.chatComposer}>
-                <textarea
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value.slice(0, MESSAGE_LIMIT))}
-                  onKeyDown={handleComposerKeyDown}
-                  className={styles.chatTextarea}
-                  placeholder="Tell Capsule AI about the vibe, colors, or references you want..."
-                  maxLength={MESSAGE_LIMIT}
-                />
+            <div className={styles.previewPanel}>
+              <div className={styles.previewStage}>{previewNode}</div>
+              <div className={styles.previewActions}>
                 <Button
-                  variant="gradient"
+                  variant="secondary"
                   size="sm"
-                  onClick={sendChat}
-                  disabled={!draft.trim().length || chatBusy}
-                  leftIcon={<PaperPlaneTilt size={16} weight="fill" />}
+                  onClick={handleUploadClick}
+                  leftIcon={<UploadSimple size={16} weight="bold" />}
                 >
-                  Ask Capsule AI
+                  Upload image
                 </Button>
               </div>
-              <span className={styles.chatHint}>
-                {chatBusy
-                  ? "Generating banner concepts..."
-                  : "Shift+Enter for a new line. Capsule AI can describe, plan, or generate imagery ideas."}
-              </span>
+              <input
+                ref={fileInputRef}
+                className={styles.fileInput}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+
+              <div className={styles.previewMeta}>
+                <span className={styles.previewMetaLabel}>Selected banner</span>
+                <p className={styles.previewMetaValue}>{describeSource(selectedBanner)}</p>
+              </div>
             </div>
           </section>
         </div>
