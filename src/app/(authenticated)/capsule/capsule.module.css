@@ -177,6 +177,7 @@
   display: grid;
   gap: 8px;
   min-width: 0;
+  align-self: center;
 }
 
 .heroTitle {
@@ -190,8 +191,7 @@
   display: inline-flex;
   gap: 12px;
   flex-wrap: wrap;
-  align-self: flex-start;
-  margin-top: clamp(0px, 0.5vw, 6px);
+  align-self: center;
 }
 
 .heroAction {
@@ -307,8 +307,6 @@
   .heroActions {
     width: 100%;
     justify-content: stretch;
-    align-self: stretch;
-    margin-top: 0;
   }
 
   .heroAction {
