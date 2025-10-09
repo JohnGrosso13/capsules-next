@@ -19,19 +19,37 @@ type ChatMessage = {
   content: string;
 };
 
+type BannerCrop = {
+  /**
+   * Normalized offset (-1 to 1) along the X axis where 0 means centered.
+   * Positive values shift the image down/right, negative up/left.
+   */
+  offsetX: number;
+  /**
+   * Normalized offset (-1 to 1) along the Y axis where 0 means centered.
+   */
+  offsetY: number;
+};
+
+type CroppableBanner = {
+  crop: BannerCrop;
+};
+
 type SelectedBanner =
-  | { kind: "upload"; name: string; url: string }
-  | { kind: "memory"; id: string; title: string | null; url: string }
+  | ({ kind: "upload"; name: string; url: string } & CroppableBanner)
+  | ({ kind: "memory"; id: string; title: string | null; url: string } & CroppableBanner)
   | { kind: "ai"; prompt: string };
 
 type DragState = {
   pointerId: number;
-  startX: number;
-  startY: number;
-  startPosX: number;
-  startPosY: number;
+  cleanup: () => void;
+};
+
+type PreviewMetrics = {
   overflowX: number;
   overflowY: number;
+  maxOffsetX: number;
+  maxOffsetY: number;
 };
 
 type CapsuleBannerCustomizerProps = {
@@ -110,8 +128,10 @@ export function CapsuleBannerCustomizer({
   ]);
   const [chatBusy, setChatBusy] = React.useState(false);
   const [selectedBanner, setSelectedBanner] = React.useState<SelectedBanner | null>(null);
-  const [previewPosition, setPreviewPosition] = React.useState({ x: 50, y: 50 });
+  const previewOffsetRef = React.useRef({ x: 0, y: 0 });
+  const [previewOffset, setPreviewOffset] = React.useState(previewOffsetRef.current);
   const [isDraggingPreview, setIsDraggingPreview] = React.useState(false);
+  const [previewCanPan, setPreviewCanPan] = React.useState(false);
   const [prompterSession, setPrompterSession] = React.useState(0);
   const [memoryPickerOpen, setMemoryPickerOpen] = React.useState(false);
   const chatLogRef = React.useRef<HTMLDivElement | null>(null);
@@ -121,21 +141,102 @@ export function CapsuleBannerCustomizer({
   const aiReplyTimerRef = React.useRef<number | null>(null);
   const previewStageRef = React.useRef<HTMLDivElement | null>(null);
   const previewImageRef = React.useRef<HTMLImageElement | null>(null);
+  const previewMetricsRef = React.useRef<PreviewMetrics>({
+    overflowX: 0,
+    overflowY: 0,
+    maxOffsetX: 0,
+    maxOffsetY: 0,
+  });
   const dragStateRef = React.useRef<DragState | null>(null);
 
+  const applyPreviewOffset = React.useCallback(
+    (nextX: number, nextY: number, metricsOverride?: PreviewMetrics) => {
+      const metrics = metricsOverride ?? previewMetricsRef.current;
+      const { maxOffsetX, maxOffsetY } = metrics;
+      const clampedX = maxOffsetX ? clamp(nextX, -maxOffsetX, maxOffsetX) : 0;
+      const clampedY = maxOffsetY ? clamp(nextY, -maxOffsetY, maxOffsetY) : 0;
+      const nextOffset = { x: clampedX, y: clampedY };
+
+      const hasOffsetChanged =
+        previewOffsetRef.current.x !== nextOffset.x || previewOffsetRef.current.y !== nextOffset.y;
+
+      previewOffsetRef.current = nextOffset;
+
+      setPreviewOffset((prev) => {
+        if (!hasOffsetChanged) {
+          return prev;
+        }
+        return nextOffset;
+      });
+
+      const normalizedX = maxOffsetX ? nextOffset.x / maxOffsetX : 0;
+      const normalizedY = maxOffsetY ? nextOffset.y / maxOffsetY : 0;
+
+      setSelectedBanner((prev) => {
+        if (!prev || prev.kind === "ai") return prev;
+        const existingCrop = prev.crop ?? { offsetX: 0, offsetY: 0 };
+        if (existingCrop.offsetX === normalizedX && existingCrop.offsetY === normalizedY) {
+          return prev;
+        }
+        return { ...prev, crop: { offsetX: normalizedX, offsetY: normalizedY } };
+      });
+    },
+    [setPreviewOffset, setSelectedBanner],
+  );
+
   const resetPreviewPosition = React.useCallback(() => {
-    setPreviewPosition({ x: 50, y: 50 });
-  }, []);
+    applyPreviewOffset(0, 0);
+  }, [applyPreviewOffset]);
 
   const updateSelectedBanner = React.useCallback(
     (banner: SelectedBanner | null) => {
-      dragStateRef.current = null;
+      if (dragStateRef.current) {
+        dragStateRef.current.cleanup();
+      }
       setIsDraggingPreview(false);
-      setSelectedBanner(banner);
-      resetPreviewPosition();
+      setPreviewCanPan(false);
+      previewMetricsRef.current = {
+        overflowX: 0,
+        overflowY: 0,
+        maxOffsetX: 0,
+        maxOffsetY: 0,
+      };
+
+      const normalizedBanner =
+        banner && banner.kind !== "ai"
+          ? { ...banner, crop: banner.crop ?? { offsetX: 0, offsetY: 0 } }
+          : banner;
+
+      setSelectedBanner(normalizedBanner);
+      applyPreviewOffset(0, 0, previewMetricsRef.current);
     },
-    [resetPreviewPosition],
+    [applyPreviewOffset],
   );
+
+  const measurePreview = React.useCallback(() => {
+    const container = previewStageRef.current;
+    const image = previewImageRef.current;
+    if (!container || !image) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const imageRect = image.getBoundingClientRect();
+    if (!containerRect.width || !containerRect.height || !imageRect.width || !imageRect.height) {
+      return;
+    }
+
+    const overflowX = Math.max(0, imageRect.width - containerRect.width);
+    const overflowY = Math.max(0, imageRect.height - containerRect.height);
+    const metrics: PreviewMetrics = {
+      overflowX,
+      overflowY,
+      maxOffsetX: overflowX / 2,
+      maxOffsetY: overflowY / 2,
+    };
+
+    previewMetricsRef.current = metrics;
+    setPreviewCanPan(metrics.maxOffsetX > 0 || metrics.maxOffsetY > 0);
+    applyPreviewOffset(previewOffsetRef.current.x, previewOffsetRef.current.y, metrics);
+  }, [applyPreviewOffset]);
 
   const closeMemoryPicker = React.useCallback(() => {
     setMemoryPickerOpen((previous) => {
@@ -196,6 +297,47 @@ export function CapsuleBannerCustomizer({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [memoryPickerOpen, onClose, open]);
+
+  React.useEffect(() => {
+    return () => {
+      dragStateRef.current?.cleanup();
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!open && dragStateRef.current) {
+      dragStateRef.current.cleanup();
+    }
+  }, [open]);
+
+  React.useLayoutEffect(() => {
+    if (!open) return;
+    measurePreview();
+  }, [measurePreview, open, activeImageUrl]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const stage = previewStageRef.current;
+    if (!stage || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      measurePreview();
+    });
+
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [measurePreview, open]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const handleResize = () => {
+      measurePreview();
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [measurePreview, open]);
 
   React.useEffect(() => {
     if (!memoryPickerOpen) return;
@@ -261,7 +403,12 @@ export function CapsuleBannerCustomizer({
 
     const objectUrl = URL.createObjectURL(file);
     uploadObjectUrlRef.current = objectUrl;
-    updateSelectedBanner({ kind: "upload", name: file.name, url: objectUrl });
+    updateSelectedBanner({
+      kind: "upload",
+      name: file.name,
+      url: objectUrl,
+      crop: { offsetX: 0, offsetY: 0 },
+    });
   }, [updateSelectedBanner]);
 
   const handleMemorySelect = React.useCallback((memory: DisplayMemoryUpload) => {
@@ -271,6 +418,7 @@ export function CapsuleBannerCustomizer({
       id: memory.id,
       title: memory.title?.trim() || memory.description?.trim() || null,
       url,
+      crop: { offsetX: 0, offsetY: 0 },
     });
   }, [updateSelectedBanner]);
 
@@ -299,6 +447,7 @@ export function CapsuleBannerCustomizer({
           kind: "upload",
           name: firstAttachment.name ?? "Uploaded image",
           url: firstAttachment.url,
+          crop: { offsetX: 0, offsetY: 0 },
         });
       }
 
@@ -335,125 +484,66 @@ export function CapsuleBannerCustomizer({
     [chatBusy, normalizedName, updateSelectedBanner],
   );
 
-  const handlePreviewPointerDown = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!selectedBanner || selectedBanner.kind === "ai") return;
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-
-      const container = previewStageRef.current;
-      const image = previewImageRef.current;
-      if (!container || !image) return;
-
-      const naturalWidth = image.naturalWidth;
-      const naturalHeight = image.naturalHeight;
-      if (!naturalWidth || !naturalHeight) return;
-
-      const rect = container.getBoundingClientRect();
-      const containerRatio = rect.width / rect.height;
-      const imageRatio = naturalWidth / naturalHeight;
-
-      let displayWidth = rect.width;
-      let displayHeight = rect.height;
-      if (imageRatio > containerRatio) {
-        displayHeight = rect.height;
-        const scale = displayHeight / naturalHeight;
-        displayWidth = naturalWidth * scale;
-      } else {
-        displayWidth = rect.width;
-        const scale = displayWidth / naturalWidth;
-        displayHeight = naturalHeight * scale;
-      }
-
-      const overflowX = Math.max(0, displayWidth - rect.width);
-      const overflowY = Math.max(0, displayHeight - rect.height);
-
-      dragStateRef.current = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        startPosX: previewPosition.x,
-        startPosY: previewPosition.y,
-        overflowX,
-        overflowY,
-      };
-
-      setIsDraggingPreview(true);
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        // Safari may throw if pointer capture isn't supported
-      }
-      event.preventDefault();
-    },
-    [previewPosition, selectedBanner],
-  );
-
-  const handlePreviewPointerMove = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const drag = dragStateRef.current;
-      if (!drag || drag.pointerId !== event.pointerId) return;
-
-      event.preventDefault();
-
-      const deltaX = event.clientX - drag.startX;
-      const deltaY = event.clientY - drag.startY;
-
-      setPreviewPosition((prev) => {
-        let nextX = prev.x;
-        let nextY = prev.y;
-
-        if (drag.overflowX > 0) {
-          nextX = clamp(drag.startPosX - (deltaX / drag.overflowX) * 100, 0, 100);
-        }
-        if (drag.overflowY > 0) {
-          nextY = clamp(drag.startPosY - (deltaY / drag.overflowY) * 100, 0, 100);
-        }
-
-        if (nextX === prev.x && nextY === prev.y) {
-          return prev;
-        }
-        return { x: nextX, y: nextY };
-      });
-    },
-    [],
-  );
-
-  const endPreviewDrag = React.useCallback(() => {
-    dragStateRef.current = null;
-    setIsDraggingPreview(false);
-  }, []);
-
-  const handlePreviewPointerUp = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const drag = dragStateRef.current;
-      if (!drag || drag.pointerId !== event.pointerId) return;
-
-      try {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      } catch {
-        // Ignore
-      }
-      endPreviewDrag();
-    },
-    [endPreviewDrag],
-  );
-
-  const handlePreviewPointerCancel = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const drag = dragStateRef.current;
-      if (!drag || drag.pointerId !== event.pointerId) return;
-      try {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      } catch {
-        // Ignore
-      }
-      endPreviewDrag();
-    },
-    [endPreviewDrag],
-  );
-
   const previewDraggable =
     selectedBanner?.kind === "upload" || selectedBanner?.kind === "memory";
+  const previewPannable = previewDraggable && previewCanPan;
+  const activeImageUrl = previewDraggable ? selectedBanner?.url ?? null : null;
+
+  const handlePreviewPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!previewDraggable) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+
+      measurePreview();
+      const metrics = previewMetricsRef.current;
+      if (!metrics || (metrics.maxOffsetX === 0 && metrics.maxOffsetY === 0)) {
+        return;
+      }
+
+      if (dragStateRef.current) {
+        dragStateRef.current.cleanup();
+      }
+
+      const pointerId = event.pointerId;
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startOffset = { ...previewOffsetRef.current };
+
+      const move = (nativeEvent: PointerEvent) => {
+        if (nativeEvent.pointerId !== pointerId) return;
+        nativeEvent.preventDefault();
+        const deltaX = nativeEvent.clientX - startX;
+        const deltaY = nativeEvent.clientY - startY;
+        applyPreviewOffset(startOffset.x + deltaX, startOffset.y + deltaY);
+      };
+
+      const finish = (nativeEvent: PointerEvent) => {
+        if (nativeEvent.pointerId !== pointerId) return;
+        cleanup();
+      };
+
+      function cleanup() {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", finish);
+        window.removeEventListener("pointercancel", finish);
+        dragStateRef.current = null;
+        setIsDraggingPreview(false);
+      }
+
+      dragStateRef.current = {
+        pointerId,
+        cleanup,
+      };
+
+      window.addEventListener("pointermove", move, { passive: false });
+      window.addEventListener("pointerup", finish);
+      window.addEventListener("pointercancel", finish);
+
+      setIsDraggingPreview(true);
+      event.preventDefault();
+    },
+    [applyPreviewOffset, measurePreview, previewDraggable],
+  );
 
   const previewNode = React.useMemo(() => {
     if (!selectedBanner) {
@@ -481,15 +571,18 @@ export function CapsuleBannerCustomizer({
         src={selectedBanner.url}
         alt="Banner preview"
         className={styles.previewImage}
-        style={{ objectPosition: `${previewPosition.x}% ${previewPosition.y}%` }}
+        style={{
+          transform: `translate3d(-50%, -50%, 0) translate3d(${previewOffset.x}px, ${previewOffset.y}px, 0)`,
+        }}
         draggable={false}
         onDragStart={(event) => event.preventDefault()}
+        onLoad={measurePreview}
         onError={(event) => {
           (event.currentTarget as HTMLImageElement).style.visibility = "hidden";
         }}
       />
     );
-  }, [previewPosition, selectedBanner]);
+  }, [measurePreview, previewOffset.x, previewOffset.y, selectedBanner]);
 
   const renderChatMessage = (message: ChatMessage) => (
     <div key={message.id} className={styles.chatMessage} data-role={message.role}>
@@ -586,13 +679,9 @@ export function CapsuleBannerCustomizer({
               <div
                 ref={previewStageRef}
                 className={styles.previewStage}
-                data-draggable={previewDraggable ? "true" : undefined}
+                data-draggable={previewPannable ? "true" : undefined}
                 data-dragging={isDraggingPreview ? "true" : undefined}
                 onPointerDown={handlePreviewPointerDown}
-                onPointerMove={handlePreviewPointerMove}
-                onPointerUp={handlePreviewPointerUp}
-                onPointerCancel={handlePreviewPointerCancel}
-                onPointerLeave={handlePreviewPointerCancel}
               >
                 {previewNode}
               </div>
