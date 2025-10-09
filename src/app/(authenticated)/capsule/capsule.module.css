@@ -113,6 +113,8 @@
 .heroBanner {
   position: relative;
   min-height: clamp(180px, 24vw, 260px);
+  width: min(100%, clamp(420px, 68vw, 820px));
+  margin: 0 auto;
   border-radius: clamp(18px, 3vw, 24px);
   overflow: hidden;
   background:
@@ -180,12 +182,6 @@
   font-size: clamp(1.4rem, 3.4vw, 2.25rem);
   font-weight: 900;
   color: var(--text, white);
-  margin: 0;
-}
-
-.heroSubtitle {
-  font-size: clamp(0.9rem, 2.4vw, 1rem);
-  color: color-mix(in srgb, var(--text, #f7f8ff) 72%, transparent);
   margin: 0;
 }
 

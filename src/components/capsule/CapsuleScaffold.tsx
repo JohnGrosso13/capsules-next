@@ -438,7 +438,6 @@ function CapsuleHero({
       <div className={capTheme.heroBody}>
           <div className={capTheme.heroDetails}>
             <h2 className={capTheme.heroTitle}>{displayName}</h2>
-            <p className={capTheme.heroSubtitle}>Highlight what makes this capsule special.</p>
           </div>
           <div className={capTheme.heroActions}>
             <button
