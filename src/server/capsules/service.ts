@@ -278,7 +278,7 @@ export async function updateCapsuleBannerImage(
 
   await indexMemory({
     ownerId: capsuleOwnerId,
-    kind: "banner",
+    kind: "upload",
     mediaUrl: resolvedBannerUrl,
     mediaType: normalizeOptionalString(params.mimeType ?? null) ?? "image/jpeg",
     title: memoryTitle,

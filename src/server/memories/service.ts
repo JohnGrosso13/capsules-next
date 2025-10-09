@@ -294,19 +294,63 @@ export async function indexMemory({
   }
 }
 
-function normalizeKindFilters(kind: string | null | undefined): string[] | null {
-  if (typeof kind !== "string") return null;
-  const normalized = kind.trim().toLowerCase();
-  if (!normalized) return null;
-  if (normalized === "banner") {
-    return ["banner", "capsule_banner"];
+type MemoryKindFilter = {
+  dbKinds: string[] | null;
+  sourceFilters: string[] | null;
+};
+
+function normalizeSourceValue(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.length ? trimmed : null;
+}
+
+function matchesSourceFilters(meta: unknown, sources: string[] | null): boolean {
+  if (!sources || sources.length === 0) return true;
+  if (!meta) return false;
+
+  let record: Record<string, unknown> | null = null;
+  if (typeof meta === "object") {
+    record = meta as Record<string, unknown>;
+  } else if (typeof meta === "string") {
+    try {
+      const parsed = JSON.parse(meta) as unknown;
+      if (parsed && typeof parsed === "object") {
+        record = parsed as Record<string, unknown>;
+      }
+    } catch {
+      record = null;
+    }
   }
-  return [normalized];
+
+  if (!record) return false;
+
+  const directSource = normalizeSourceValue(record.source);
+  if (directSource && sources.includes(directSource)) return true;
+
+  const sourceKind = normalizeSourceValue(record.source_kind);
+  if (sourceKind && sources.includes(sourceKind)) return true;
+
+  return false;
+}
+
+function resolveMemoryKindFilters(kind: string | null | undefined): MemoryKindFilter {
+  if (typeof kind !== "string") {
+    return { dbKinds: null, sourceFilters: null };
+  }
+  const normalized = kind.trim().toLowerCase();
+  if (!normalized) {
+    return { dbKinds: null, sourceFilters: null };
+  }
+  if (normalized === "banner" || normalized === "capsule_banner") {
+    return { dbKinds: ["upload"], sourceFilters: ["capsule_banner", "banner"] };
+  }
+  return { dbKinds: [normalized], sourceFilters: null };
 }
 
 async function fetchLegacyMemoryItems(
   ownerId: string,
-  kinds: string[] | null,
+  filters: MemoryKindFilter,
   limit = DEFAULT_LIST_LIMIT,
 ) {
   const variants = [
@@ -324,7 +368,9 @@ async function fetchLegacyMemoryItems(
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (kinds && kinds.length) builder = builder.in("kind", kinds);
+    if (filters.dbKinds && filters.dbKinds.length) {
+      builder = builder.in("kind", filters.dbKinds);
+    }
 
     const result = await builder.fetch();
 
@@ -334,14 +380,17 @@ async function fetchLegacyMemoryItems(
     }
 
     const rows = result.data ?? [];
-    return rows.map((row) => normalizeLegacyMemoryRow(row as Record<string, unknown>));
+    const normalized = rows.map((row) => normalizeLegacyMemoryRow(row as Record<string, unknown>));
+    return filters.sourceFilters && filters.sourceFilters.length
+      ? normalized.filter((item) => matchesSourceFilters(item.meta, filters.sourceFilters))
+      : normalized;
   }
 
   return [];
 }
 
 export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: string | null }) {
-  const kindFilters = normalizeKindFilters(kind);
+  const filters = resolveMemoryKindFilters(kind);
 
   let builder = db
     .from("memories")
@@ -352,11 +401,11 @@ export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: 
     .order("created_at", { ascending: false })
     .limit(DEFAULT_LIST_LIMIT);
 
-  if (kindFilters && kindFilters.length) {
-    if (kindFilters.length === 1) {
-      builder = builder.eq("kind", kindFilters[0]);
+  if (filters.dbKinds && filters.dbKinds.length) {
+    if (filters.dbKinds.length === 1) {
+      builder = builder.eq("kind", filters.dbKinds[0]);
     } else {
-      builder = builder.in("kind", kindFilters);
+      builder = builder.in("kind", filters.dbKinds);
     }
   }
 
@@ -364,12 +413,18 @@ export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: 
 
   if (result.error) {
     if (isMissingTable(result.error)) {
-      return fetchLegacyMemoryItems(ownerId, kindFilters, DEFAULT_LIST_LIMIT);
+      return fetchLegacyMemoryItems(ownerId, filters, DEFAULT_LIST_LIMIT);
     }
     throw result.error;
   }
 
-  return result.data ?? [];
+  const rows = result.data ?? [];
+  if (!filters.sourceFilters || filters.sourceFilters.length === 0) {
+    return rows;
+  }
+  return rows.filter((row) =>
+    matchesSourceFilters((row as Record<string, unknown>).meta, filters.sourceFilters),
+  );
 }
 
 export async function searchMemories({
