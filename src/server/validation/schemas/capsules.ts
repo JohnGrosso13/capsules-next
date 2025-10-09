@@ -62,6 +62,7 @@ export const capsuleMembershipStateSchema = z.object({
     name: z.string().nullable(),
     slug: z.string().nullable(),
     ownerId: z.string(),
+    bannerUrl: z.string().nullable(),
   }),
   viewer: capsuleMembershipViewerSchema,
   counts: z.object({
