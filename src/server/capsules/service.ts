@@ -24,6 +24,9 @@ import {
   updateCapsuleBanner,
 } from "./repository";
 import { indexMemory } from "@/server/memories/service";
+import { normalizeMediaUrl } from "@/lib/media";
+import { resolveToAbsoluteUrl } from "@/lib/url";
+import { serverEnv } from "@/lib/env/server";
 
 export type { CapsuleSummary, DiscoverCapsuleSummary } from "./repository";
 export type {
@@ -46,6 +49,12 @@ function normalizeOptionalString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+function resolveCapsuleMediaUrl(value: string | null): string | null {
+  const normalized = normalizeMediaUrl(value);
+  if (!normalized) return null;
+  return resolveToAbsoluteUrl(normalized, serverEnv.SITE_URL) ?? normalized;
 }
 
 function normalizeMemberRole(value: unknown): string {
@@ -110,16 +119,26 @@ export async function resolveCapsuleGate(
   }
 
   const capsules = await listCapsulesForUser(supabaseUserId);
-  const defaultCapsuleId = capsules.length === 1 ? capsules[0]?.id ?? null : null;
+  const hydratedCapsules = capsules.map((capsule) => ({
+    ...capsule,
+    bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl),
+    logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl),
+  }));
+  const defaultCapsuleId = hydratedCapsules.length === 1 ? hydratedCapsules[0]?.id ?? null : null;
 
-  return { capsules, defaultCapsuleId };
+  return { capsules: hydratedCapsules, defaultCapsuleId };
 }
 
 export async function getUserCapsules(
   supabaseUserId: string | null | undefined,
 ): Promise<CapsuleSummary[]> {
   if (!supabaseUserId) return [];
-  return listCapsulesForUser(supabaseUserId);
+  const capsules = await listCapsulesForUser(supabaseUserId);
+  return capsules.map((capsule) => ({
+    ...capsule,
+    bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl),
+    logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl),
+  }));
 }
 
 export async function getRecentCapsules(options: {
@@ -136,14 +155,25 @@ export async function getRecentCapsules(options: {
   if (typeof options.limit === "number") {
     queryOptions.limit = options.limit;
   }
-  return listRecentPublicCapsules(queryOptions);
+  const capsules = await listRecentPublicCapsules(queryOptions);
+  return capsules.map((capsule) => ({
+    ...capsule,
+    bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl),
+    logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl),
+  }));
 }
 
 export async function getCapsuleSummaryForViewer(
   capsuleId: string,
   viewerId?: string | null | undefined,
 ): Promise<CapsuleSummary | null> {
-  return repoGetCapsuleSummaryForViewer(capsuleId, viewerId ?? null);
+  const summary = await repoGetCapsuleSummaryForViewer(capsuleId, viewerId ?? null);
+  if (!summary) return null;
+  return {
+    ...summary,
+    bannerUrl: resolveCapsuleMediaUrl(summary.bannerUrl),
+    logoUrl: resolveCapsuleMediaUrl(summary.logoUrl),
+  };
 }
 
 export async function createCapsule(
@@ -193,10 +223,15 @@ export async function updateCapsuleBannerImage(
     throw new CapsuleMembershipError("invalid", "A banner URL is required.", 400);
   }
 
+  const resolvedBannerUrl = resolveCapsuleMediaUrl(normalizedUrl);
+  if (!resolvedBannerUrl) {
+    throw new CapsuleMembershipError("invalid", "A banner URL is required.", 400);
+  }
+
   const updated = await updateCapsuleBanner({
     capsuleId: capsuleIdValue,
     ownerId: capsuleOwnerId,
-    bannerUrl: normalizedUrl,
+    bannerUrl: resolvedBannerUrl,
   });
 
   if (!updated) {
@@ -221,7 +256,10 @@ export async function updateCapsuleBannerImage(
 
   if (params.storageKey) metadata.storage_key = params.storageKey;
   if (params.source) metadata.source_kind = params.source;
-  if (params.originalUrl) metadata.original_url = params.originalUrl;
+  const resolvedOriginalUrl = resolveCapsuleMediaUrl(
+    normalizeOptionalString(params.originalUrl ?? null),
+  );
+  if (resolvedOriginalUrl) metadata.original_url = resolvedOriginalUrl;
   if (promptText) metadata.prompt = promptText;
   if (params.width) metadata.width = params.width;
   if (params.height) metadata.height = params.height;
@@ -241,7 +279,7 @@ export async function updateCapsuleBannerImage(
   await indexMemory({
     ownerId: capsuleOwnerId,
     kind: "banner",
-    mediaUrl: normalizedUrl,
+    mediaUrl: resolvedBannerUrl,
     mediaType: normalizeOptionalString(params.mimeType ?? null) ?? "image/jpeg",
     title: memoryTitle,
     description,
@@ -253,7 +291,7 @@ export async function updateCapsuleBannerImage(
     eventAt: savedAtIso,
   });
 
-  return { bannerUrl: normalizedUrl };
+  return { bannerUrl: resolvedBannerUrl };
 }
 
 export async function getCapsuleMembership(
@@ -312,7 +350,7 @@ export async function getCapsuleMembership(
       name: normalizeOptionalString(capsule.name ?? null),
       slug: normalizeOptionalString(capsule.slug ?? null),
       ownerId,
-      bannerUrl: normalizeOptionalString(capsule.banner_url ?? null),
+      bannerUrl: resolveCapsuleMediaUrl(capsule.banner_url ?? null),
     },
     viewer,
     counts: {
