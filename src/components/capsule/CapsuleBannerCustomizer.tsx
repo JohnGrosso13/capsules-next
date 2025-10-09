@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { UploadSimple, ImagesSquare, Sparkle, X, ArrowClockwise } from "@phosphor-icons/react/dist/ssr";
+import { UploadSimple, ImagesSquare, Sparkle, X, ArrowClockwise, Brain } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./CapsuleBannerCustomizer.module.css";
 import { AiPrompterStage, type PrompterAction } from "@/components/ai-prompter-stage";
@@ -24,6 +24,16 @@ type SelectedBanner =
   | { kind: "memory"; id: string; title: string | null; url: string }
   | { kind: "ai"; prompt: string };
 
+type DragState = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startPosX: number;
+  startPosY: number;
+  overflowX: number;
+  overflowY: number;
+};
+
 type CapsuleBannerCustomizerProps = {
   open?: boolean;
   capsuleId?: string | null;
@@ -31,14 +41,13 @@ type CapsuleBannerCustomizerProps = {
   onClose: () => void;
 };
 
+// Keep exactly three to ensure a single row that feels intentional
 const PROMPT_CHIPS = [
-  "Bold neon gradients with light trails",
-  "Soft sunrise palette with abstract waves",
-  "Minimal dark mode with crisp typography",
-  "Futuristic city skyline with light bloom",
+  "Bold neon gradients",
+  "Soft sunrise palette",
+  "Minimal dark mode",
 ] as const;
 
-const MEMORY_SHOW_LIMIT = 6;
 function randomId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -54,6 +63,9 @@ function describeSource(source: SelectedBanner | null): string {
   if (source.kind === "memory") return `Memory - ${source.title?.trim() || "Untitled memory"}`;
   return `AI prompt - "${source.prompt}"`;
 }
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
 
 function assistantReply(prompt: string, capsuleName: string): string {
   const ideas = [
@@ -88,10 +100,6 @@ export function CapsuleBannerCustomizer({
     () => computeDisplayUploads(items, { origin, cloudflareEnabled }),
     [cloudflareEnabled, items, origin],
   );
-  const limitedMemories = React.useMemo(
-    () => processedMemories.slice(0, MEMORY_SHOW_LIMIT),
-    [processedMemories],
-  );
 
   const [messages, setMessages] = React.useState<ChatMessage[]>(() => [
     {
@@ -102,11 +110,53 @@ export function CapsuleBannerCustomizer({
   ]);
   const [chatBusy, setChatBusy] = React.useState(false);
   const [selectedBanner, setSelectedBanner] = React.useState<SelectedBanner | null>(null);
+  const [previewPosition, setPreviewPosition] = React.useState({ x: 50, y: 50 });
+  const [isDraggingPreview, setIsDraggingPreview] = React.useState(false);
   const [prompterSession, setPrompterSession] = React.useState(0);
+  const [memoryPickerOpen, setMemoryPickerOpen] = React.useState(false);
   const chatLogRef = React.useRef<HTMLDivElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const memoryButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const uploadObjectUrlRef = React.useRef<string | null>(null);
   const aiReplyTimerRef = React.useRef<number | null>(null);
+  const previewStageRef = React.useRef<HTMLDivElement | null>(null);
+  const previewImageRef = React.useRef<HTMLImageElement | null>(null);
+  const dragStateRef = React.useRef<DragState | null>(null);
+
+  const resetPreviewPosition = React.useCallback(() => {
+    setPreviewPosition({ x: 50, y: 50 });
+  }, []);
+
+  const updateSelectedBanner = React.useCallback(
+    (banner: SelectedBanner | null) => {
+      dragStateRef.current = null;
+      setIsDraggingPreview(false);
+      setSelectedBanner(banner);
+      resetPreviewPosition();
+    },
+    [resetPreviewPosition],
+  );
+
+  const closeMemoryPicker = React.useCallback(() => {
+    setMemoryPickerOpen((previous) => {
+      if (!previous) return previous;
+      if (typeof window !== "undefined") {
+        window.setTimeout(() => {
+          memoryButtonRef.current?.focus();
+        }, 0);
+      } else {
+        memoryButtonRef.current?.focus();
+      }
+      return false;
+    });
+  }, []);
+
+  const openMemoryPicker = React.useCallback(() => {
+    if (!memoryPickerOpen && !loading && items.length === 0) {
+      void refresh();
+    }
+    setMemoryPickerOpen(true);
+  }, [items.length, loading, memoryPickerOpen, refresh]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -118,18 +168,25 @@ export function CapsuleBannerCustomizer({
       },
     ]);
     setChatBusy(false);
-    setSelectedBanner(null);
+    updateSelectedBanner(null);
     setPrompterSession((value) => value + 1);
     if (uploadObjectUrlRef.current) {
       URL.revokeObjectURL(uploadObjectUrlRef.current);
       uploadObjectUrlRef.current = null;
     }
-  }, [normalizedName, open]);
+  }, [normalizedName, open, updateSelectedBanner]);
+
+  React.useEffect(() => {
+    if (!open) {
+      setMemoryPickerOpen(false);
+    }
+  }, [open]);
 
   React.useEffect(() => {
     if (!open) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (memoryPickerOpen) return;
         event.preventDefault();
         onClose();
       }
@@ -138,7 +195,21 @@ export function CapsuleBannerCustomizer({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, open]);
+  }, [memoryPickerOpen, onClose, open]);
+
+  React.useEffect(() => {
+    if (!memoryPickerOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMemoryPicker();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeMemoryPicker, memoryPickerOpen]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -190,25 +261,33 @@ export function CapsuleBannerCustomizer({
 
     const objectUrl = URL.createObjectURL(file);
     uploadObjectUrlRef.current = objectUrl;
-    setSelectedBanner({ kind: "upload", name: file.name, url: objectUrl });
-  }, []);
+    updateSelectedBanner({ kind: "upload", name: file.name, url: objectUrl });
+  }, [updateSelectedBanner]);
 
   const handleMemorySelect = React.useCallback((memory: DisplayMemoryUpload) => {
     const url = memory.fullUrl || memory.displayUrl;
-    setSelectedBanner({
+    updateSelectedBanner({
       kind: "memory",
       id: memory.id,
       title: memory.title?.trim() || memory.description?.trim() || null,
       url,
     });
-  }, []);
+  }, [updateSelectedBanner]);
+
+  const handleMemoryPick = React.useCallback(
+    (memory: DisplayMemoryUpload) => {
+      handleMemorySelect(memory);
+      closeMemoryPicker();
+    },
+    [closeMemoryPicker, handleMemorySelect],
+  );
 
   const handleQuickPick = React.useCallback(() => {
-    const firstMemory = limitedMemories[0];
+    const firstMemory = processedMemories[0];
     if (firstMemory) {
-      handleMemorySelect(firstMemory);
+      handleMemoryPick(firstMemory);
     }
-  }, [handleMemorySelect, limitedMemories]);
+  }, [handleMemoryPick, processedMemories]);
 
   const handlePrompterAction = React.useCallback(
     (action: PrompterAction) => {
@@ -216,7 +295,7 @@ export function CapsuleBannerCustomizer({
 
       const firstAttachment = action.attachments?.[0];
       if (firstAttachment?.url) {
-        setSelectedBanner({
+        updateSelectedBanner({
           kind: "upload",
           name: firstAttachment.name ?? "Uploaded image",
           url: firstAttachment.url,
@@ -238,7 +317,7 @@ export function CapsuleBannerCustomizer({
 
       const userMessage: ChatMessage = { id: randomId(), role: "user", content: trimmed };
       setMessages((prev) => [...prev, userMessage]);
-      setSelectedBanner({ kind: "ai", prompt: trimmed });
+      updateSelectedBanner({ kind: "ai", prompt: trimmed });
       setChatBusy(true);
 
       const replyText = assistantReply(trimmed, normalizedName);
@@ -253,8 +332,128 @@ export function CapsuleBannerCustomizer({
         setChatBusy(false);
       }, 720);
     },
-    [chatBusy, normalizedName],
+    [chatBusy, normalizedName, updateSelectedBanner],
   );
+
+  const handlePreviewPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!selectedBanner || selectedBanner.kind === "ai") return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+
+      const container = previewStageRef.current;
+      const image = previewImageRef.current;
+      if (!container || !image) return;
+
+      const naturalWidth = image.naturalWidth;
+      const naturalHeight = image.naturalHeight;
+      if (!naturalWidth || !naturalHeight) return;
+
+      const rect = container.getBoundingClientRect();
+      const containerRatio = rect.width / rect.height;
+      const imageRatio = naturalWidth / naturalHeight;
+
+      let displayWidth = rect.width;
+      let displayHeight = rect.height;
+      if (imageRatio > containerRatio) {
+        displayHeight = rect.height;
+        const scale = displayHeight / naturalHeight;
+        displayWidth = naturalWidth * scale;
+      } else {
+        displayWidth = rect.width;
+        const scale = displayWidth / naturalWidth;
+        displayHeight = naturalHeight * scale;
+      }
+
+      const overflowX = Math.max(0, displayWidth - rect.width);
+      const overflowY = Math.max(0, displayHeight - rect.height);
+
+      dragStateRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startPosX: previewPosition.x,
+        startPosY: previewPosition.y,
+        overflowX,
+        overflowY,
+      };
+
+      setIsDraggingPreview(true);
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Safari may throw if pointer capture isn't supported
+      }
+      event.preventDefault();
+    },
+    [previewPosition, selectedBanner],
+  );
+
+  const handlePreviewPointerMove = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const drag = dragStateRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+
+      event.preventDefault();
+
+      const deltaX = event.clientX - drag.startX;
+      const deltaY = event.clientY - drag.startY;
+
+      setPreviewPosition((prev) => {
+        let nextX = prev.x;
+        let nextY = prev.y;
+
+        if (drag.overflowX > 0) {
+          nextX = clamp(drag.startPosX - (deltaX / drag.overflowX) * 100, 0, 100);
+        }
+        if (drag.overflowY > 0) {
+          nextY = clamp(drag.startPosY - (deltaY / drag.overflowY) * 100, 0, 100);
+        }
+
+        if (nextX === prev.x && nextY === prev.y) {
+          return prev;
+        }
+        return { x: nextX, y: nextY };
+      });
+    },
+    [],
+  );
+
+  const endPreviewDrag = React.useCallback(() => {
+    dragStateRef.current = null;
+    setIsDraggingPreview(false);
+  }, []);
+
+  const handlePreviewPointerUp = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const drag = dragStateRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Ignore
+      }
+      endPreviewDrag();
+    },
+    [endPreviewDrag],
+  );
+
+  const handlePreviewPointerCancel = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const drag = dragStateRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Ignore
+      }
+      endPreviewDrag();
+    },
+    [endPreviewDrag],
+  );
+
+  const previewDraggable =
+    selectedBanner?.kind === "upload" || selectedBanner?.kind === "memory";
 
   const previewNode = React.useMemo(() => {
     if (!selectedBanner) {
@@ -278,15 +477,19 @@ export function CapsuleBannerCustomizer({
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
+        ref={previewImageRef}
         src={selectedBanner.url}
         alt="Banner preview"
         className={styles.previewImage}
+        style={{ objectPosition: `${previewPosition.x}% ${previewPosition.y}%` }}
+        draggable={false}
+        onDragStart={(event) => event.preventDefault()}
         onError={(event) => {
           (event.currentTarget as HTMLImageElement).style.visibility = "hidden";
         }}
       />
     );
-  }, [selectedBanner]);
+  }, [previewPosition, selectedBanner]);
 
   const renderChatMessage = (message: ChatMessage) => (
     <div key={message.id} className={styles.chatMessage} data-role={message.role}>
@@ -345,103 +548,54 @@ export function CapsuleBannerCustomizer({
               ) : null}
             </div>
 
-            <div className={styles.prompterWrap}>
-              <AiPrompterStage
-                key={prompterSession}
-                placeholder="Tell Capsule AI about the vibe, colors, or references you want..."
-                chips={[]}
-                statusMessage={null}
-                onAction={handlePrompterAction}
-              />
-            </div>
+            {/* Dock: prompter + chips live together and sit at the bottom */}
+            <div className={styles.prompterDock}>
+              <div className={styles.prompterWrap}>
+                <AiPrompterStage
+                  key={prompterSession}
+                  placeholder="Tell Capsule AI about the vibe, colors, or references you want..."
+                  chips={[]}
+                  statusMessage={null}
+                  onAction={handlePrompterAction}
+                />
+              </div>
 
-            <div className={styles.intentChips}>
-              {PROMPT_CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={styles.intentChip}
-                  onClick={() =>
-                    handlePrompterAction({
-                      kind: "generate",
-                      text: chip,
-                      raw: chip,
-                    })
-                  }
-                >
-                  {chip}
-                </button>
-              ))}
+              <div className={styles.intentChips}>
+                {PROMPT_CHIPS.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    className={styles.intentChip}
+                    onClick={() =>
+                      handlePrompterAction({
+                        kind: "generate",
+                        text: chip,
+                        raw: chip,
+                      })
+                    }
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
 
           <section className={styles.previewColumn}>
-            <div className={styles.memorySection}>
-              <div className={styles.memoryHeader}>
-                <div className={styles.memoryTitleGroup}>
-                  <h3>Memories</h3>
-                  <span>Use something you&apos;ve already saved</span>
-                </div>
-                <div className={styles.memoryActions}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleQuickPick}
-                    leftIcon={<ImagesSquare size={16} weight="bold" />}
-                    disabled={!limitedMemories.length}
-                  >
-                    Quick pick
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      void refresh();
-                    }}
-                    leftIcon={<ArrowClockwise size={16} weight="bold" />}
-                    disabled={loading}
-                  >
-                    {loading ? "Refreshing..." : "Refresh"}
-                  </Button>
-                </div>
-              </div>
-              {!user ? (
-                <p className={styles.memoryStatus}>Sign in to access your memories.</p>
-              ) : error ? (
-                <p className={styles.memoryStatus}>{error}</p>
-              ) : !limitedMemories.length ? (
-                <p className={styles.memoryStatus}>
-                  {loading ? "Loading your recent memories..." : "No memories found yet."}
-                </p>
-              ) : (
-                <div className={styles.memoryGrid}>
-                  {limitedMemories.map((memory) => {
-                    const selected =
-                      selectedBanner?.kind === "memory" && selectedBanner.id === memory.id;
-                    const alt =
-                      memory.title?.trim() ||
-                      memory.description?.trim() ||
-                      "Capsule memory preview";
-                    return (
-                      <button
-                        key={memory.id}
-                        type="button"
-                        className={styles.memoryCard}
-                        data-selected={selected ? "true" : undefined}
-                        onClick={() => handleMemorySelect(memory)}
-                        aria-label={`Use memory ${alt}`}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={memory.displayUrl} alt={alt} loading="lazy" />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
             <div className={styles.previewPanel}>
-              <div className={styles.previewStage}>{previewNode}</div>
+              <div
+                ref={previewStageRef}
+                className={styles.previewStage}
+                data-draggable={previewDraggable ? "true" : undefined}
+                data-dragging={isDraggingPreview ? "true" : undefined}
+                onPointerDown={handlePreviewPointerDown}
+                onPointerMove={handlePreviewPointerMove}
+                onPointerUp={handlePreviewPointerUp}
+                onPointerCancel={handlePreviewPointerCancel}
+                onPointerLeave={handlePreviewPointerCancel}
+              >
+                {previewNode}
+              </div>
               <div className={styles.previewActions}>
                 <Button
                   variant="secondary"
@@ -450,6 +604,18 @@ export function CapsuleBannerCustomizer({
                   leftIcon={<UploadSimple size={16} weight="bold" />}
                 >
                   Upload image
+                </Button>
+                <Button
+                  ref={memoryButtonRef}
+                  variant="secondary"
+                  size="sm"
+                  onClick={openMemoryPicker}
+                  leftIcon={<Brain size={16} weight="bold" />}
+                  aria-haspopup="dialog"
+                  aria-expanded={memoryPickerOpen}
+                  aria-controls="memory-picker-dialog"
+                >
+                  Memory
                 </Button>
               </div>
               <input
@@ -460,16 +626,107 @@ export function CapsuleBannerCustomizer({
                 onChange={handleFileChange}
               />
 
-              <div className={styles.previewMeta}>
-                <span className={styles.previewMetaLabel}>Selected banner</span>
-                <p className={styles.previewMetaValue}>{describeSource(selectedBanner)}</p>
-              </div>
             </div>
           </section>
+
+          {memoryPickerOpen ? (
+            <div
+              className={styles.memoryPickerOverlay}
+              role="presentation"
+              onClick={closeMemoryPicker}
+            >
+              <div
+                id="memory-picker-dialog"
+                className={styles.memoryPickerPanel}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="memory-picker-heading"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className={`${styles.closeButton} ${styles.memoryPickerClose}`}
+                  onClick={closeMemoryPicker}
+                  aria-label="Close memory picker"
+                >
+                  <X size={18} weight="bold" />
+                </button>
+                <div className={styles.memorySection}>
+                  <div className={styles.memoryHeader}>
+                    <div className={styles.memoryTitleGroup}>
+                      <h3 id="memory-picker-heading">Memories</h3>
+                      <span>Use something you&apos;ve already saved</span>
+                    </div>
+                    <div className={styles.memoryActions}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleQuickPick}
+                        leftIcon={<ImagesSquare size={16} weight="bold" />}
+                        disabled={!processedMemories.length}
+                      >
+                        Quick pick
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          void refresh();
+                        }}
+                        leftIcon={<ArrowClockwise size={16} weight="bold" />}
+                        disabled={loading}
+                      >
+                        {loading ? "Refreshing..." : "Refresh"}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className={styles.memoryPickerContent}>
+                    {!user ? (
+                      <p className={styles.memoryStatus}>Sign in to access your memories.</p>
+                    ) : error ? (
+                      <p className={styles.memoryStatus}>{error}</p>
+                    ) : !processedMemories.length ? (
+                      <p className={styles.memoryStatus}>
+                        {loading ? "Loading your memories..." : "No memories found yet."}
+                      </p>
+                    ) : (
+                      <div className={styles.memoryGrid}>
+                        {processedMemories.map((memory) => {
+                          const selected =
+                            selectedBanner?.kind === "memory" && selectedBanner.id === memory.id;
+                          const alt =
+                            memory.title?.trim() ||
+                            memory.description?.trim() ||
+                            "Capsule memory preview";
+                          return (
+                            <button
+                              key={memory.id}
+                              type="button"
+                              className={styles.memoryCard}
+                              data-selected={selected ? "true" : undefined}
+                              onClick={() => handleMemoryPick(memory)}
+                              aria-label={`Use memory ${alt}`}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={memory.displayUrl} alt={alt} loading="lazy" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <footer className={styles.footer}>
-          <div className={styles.footerStatus}>{describeSource(selectedBanner)}</div>
+          <div className={styles.footerStatus}>
+            {selectedBanner
+              ? describeSource(selectedBanner)
+              : "Upload an image, pick a memory, or describe a new banner below."}
+          </div>
           <div className={styles.footerActions}>
             <Button variant="ghost" size="sm" onClick={handleClose}>
               Cancel

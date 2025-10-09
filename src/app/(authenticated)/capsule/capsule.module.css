@@ -112,8 +112,9 @@
 
 .heroBanner {
   position: relative;
-  min-height: clamp(220px, 30vw, 320px);
   width: min(100%, clamp(420px, 68vw, 820px));
+  aspect-ratio: 16 / 9;
+  height: auto;
   margin: 0 auto;
   border-radius: clamp(18px, 3vw, 24px);
   overflow: hidden;
@@ -124,6 +125,12 @@
       color-mix(in srgb, var(--color-accent) 68%, var(--color-brand)) 54%,
       color-mix(in srgb, var(--color-brand-strong, #6366f1) 88%, transparent) 100%
     );
+}
+
+@supports not (aspect-ratio: 1 / 1) {
+  .heroBanner {
+    min-height: clamp(220px, 30vw, 320px);
+  }
 }
 
 .heroBanner::after {
