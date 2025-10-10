@@ -1,8 +1,24 @@
-﻿const CHAT_DIRECT_PREFIX = "chat:direct";
+const CHAT_DIRECT_PREFIX = "chat:direct";
 const CHAT_CONVERSATION_PREFIX = "chat:pair";
+const CHAT_GROUP_PREFIX = "chat:group";
 
 function sanitize(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function randomSuffix(): string {
+  const cryptoRef = typeof globalThis !== "undefined" ? (globalThis.crypto ?? null) : null;
+  if (cryptoRef && typeof cryptoRef.randomUUID === "function") {
+    return cryptoRef.randomUUID();
+  }
+  if (cryptoRef && typeof cryptoRef.getRandomValues === "function") {
+    const buffer = new Uint32Array(4);
+    cryptoRef.getRandomValues(buffer);
+    return Array.from(buffer)
+      .map((value) => value.toString(16).padStart(8, "0"))
+      .join("");
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function getChatConversationId(a: string, b: string): string {
@@ -21,6 +37,14 @@ export function getChatDirectChannel(userId: string): string {
     throw new Error("Chat direct channel requires a user id");
   }
   return `${CHAT_DIRECT_PREFIX}:${normalized}`;
+}
+
+export function createGroupConversationId(): string {
+  return `${CHAT_GROUP_PREFIX}:${randomSuffix()}`;
+}
+
+export function isGroupConversationId(conversationId: string): boolean {
+  return conversationId.startsWith(`${CHAT_GROUP_PREFIX}:`);
 }
 
 export function parseConversationId(conversationId: string): { left: string; right: string } {
@@ -49,4 +73,5 @@ export function isParticipantInConversation(conversationId: string, userId: stri
 export const CHAT_CONSTANTS = {
   DIRECT_PREFIX: CHAT_DIRECT_PREFIX,
   CONVERSATION_PREFIX: CHAT_CONVERSATION_PREFIX,
+  GROUP_PREFIX: CHAT_GROUP_PREFIX,
 };

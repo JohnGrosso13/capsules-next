@@ -1,3 +1,4 @@
+import { hasOpenAIApiKey, postOpenAIJson } from "@/adapters/ai/openai/server";
 import { serverEnv } from "../env/server";
 
 const DEFAULT_EMBED_MODEL = "text-embedding-3-large";
@@ -34,7 +35,7 @@ export function getEmbeddingModelConfig() {
 }
 
 export async function embedText(input: string) {
-  if (!serverEnv.OPENAI_API_KEY) return null;
+  if (!hasOpenAIApiKey()) return null;
   const text = input.slice(0, 8000);
   if (!text) return null;
   const { model, dimensions } = EMBEDDING_CONFIG;
@@ -46,22 +47,12 @@ export async function embedText(input: string) {
   if (dimensions && Number.isFinite(dimensions)) {
     body.dimensions = dimensions;
   }
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify(body),
-  });
-  const json = (await response.json().catch(() => null)) as {
-    data?: Array<{ embedding: number[] }>;
-  } | null;
-  if (!response.ok) {
-    console.error("OpenAI embedding error", json);
+  const result = await postOpenAIJson<{ data?: Array<{ embedding: number[] }> }>("/embeddings", body);
+  if (!result.ok) {
+    console.error("OpenAI embedding error", result.parsedBody);
     return null;
   }
-  const embedding = json?.data?.[0]?.embedding;
+  const embedding = result.data?.data?.[0]?.embedding;
   if (!Array.isArray(embedding)) return null;
   if (dimensions && embedding.length !== dimensions) {
     console.warn(
@@ -113,7 +104,7 @@ function sanitizeStringArray(value: unknown, limit: number): string[] {
 }
 
 export async function summarizeMemory(input: MemorySummaryInput): Promise<MemorySummaryResult | null> {
-  if (!serverEnv.OPENAI_API_KEY) return null;
+  if (!hasOpenAIApiKey()) return null;
   const text = input.text?.trim();
   if (!text) return null;
 
@@ -127,54 +118,46 @@ export async function summarizeMemory(input: MemorySummaryInput): Promise<Memory
 
   try {
     const model = serverEnv.OPENAI_MODEL || "gpt-4o-mini";
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.35,
-        max_tokens: 220,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content: [
-              "You summarize user memories for fast recall.",
-              "Return JSON with summary, title, tags, entities, time_hints.",
-              "summary: 1-2 vivid sentences (<= 220 chars).",
-              "title: optional catchy label (<= 60 chars).",
-              "tags: 4-8 short search cues (lowercase).",
-              "entities: object of string arrays (people, places, objects, colors, topics, animals, events).",
-              "time_hints: include iso_date (YYYY-MM-DD if known), year, month, holiday, relative (e.g. 'last week').",
-              "Never invent facts beyond the provided text.",
-            ].join(" "),
-          },
-          {
-            role: "user",
-            content: [
-              input.title ? `title: ${input.title}` : null,
-              contextParts.length ? `context: ${contextParts.join(" | ")}` : null,
-              "content:",
-              text,
-            ]
-              .filter(Boolean)
-              .join("\n"),
-          },
-        ],
-      }),
+    const result = await postOpenAIJson<{
+      choices?: Array<{ message?: { content?: string } }>;
+    }>("/chat/completions", {
+      model,
+      temperature: 0.35,
+      max_tokens: 220,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You summarize user memories for fast recall.",
+            "Return JSON with summary, title, tags, entities, time_hints.",
+            "summary: 1-2 vivid sentences (<= 220 chars).",
+            "title: optional catchy label (<= 60 chars).",
+            "tags: 4-8 short search cues (lowercase).",
+            "entities: object of string arrays (people, places, objects, colors, topics, animals, events).",
+            "time_hints: include iso_date (YYYY-MM-DD if known), year, month, holiday, relative (e.g. 'last week').",
+            "Never invent facts beyond the provided text.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: [
+            input.title ? `title: ${input.title}` : null,
+            contextParts.length ? `context: ${contextParts.join(" | ")}` : null,
+            "content:",
+            text,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        },
+      ],
     });
 
-    const raw = (await response.json().catch(() => null)) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    } | null;
-    if (!response.ok || !raw) {
-      console.warn("summarizeMemory error", raw);
+    if (!result.ok || !result.data) {
+      console.warn("summarizeMemory error", result.parsedBody);
       return null;
     }
-    const payload = raw.choices?.[0]?.message?.content;
+    const payload = result.data.choices?.[0]?.message?.content;
     if (!payload) return null;
     let parsed: Record<string, unknown>;
     try {
@@ -257,7 +240,7 @@ function resolveCaptionUrl(raw: string): string | null {
 }
 
 export async function captionImage(url: string): Promise<string | null> {
-  if (!serverEnv.OPENAI_API_KEY) return null;
+  if (!hasOpenAIApiKey()) return null;
   const resolvedUrl = resolveCaptionUrl(url);
   if (!resolvedUrl) return null;
   try {
@@ -274,40 +257,32 @@ export async function captionImage(url: string): Promise<string | null> {
   }
   try {
     const model = serverEnv.OPENAI_MODEL || "gpt-4o-mini";
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        max_tokens: 180,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You write short search-friendly photo captions. Output one sentence followed by 6-10 comma-separated tags in [brackets]. Mention clothing, colors, objects, places, season/holiday cues if present.",
-          },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Describe this image for later semantic search:" },
-              { type: "image_url", image_url: { url: resolvedUrl } },
-            ],
-          },
-        ],
-      }),
-    });
-    const json = (await response.json().catch(() => null)) as {
+    const result = await postOpenAIJson<{
       choices?: Array<{ message?: { content?: string } }>;
-    } | null;
-    if (!response.ok) {
-      console.error("OpenAI caption error", json);
+    }>("/chat/completions", {
+      model,
+      temperature: 0.2,
+      max_tokens: 180,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You write short search-friendly photo captions. Output one sentence followed by 6-10 comma-separated tags in [brackets]. Mention clothing, colors, objects, places, season/holiday cues if present.",
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Describe this image for later semantic search:" },
+            { type: "image_url", image_url: { url: resolvedUrl } },
+          ],
+        },
+      ],
+    });
+    if (!result.ok || !result.data) {
+      console.error("OpenAI caption error", result.parsedBody);
       return null;
     }
-    const text = json?.choices?.[0]?.message?.content?.trim() ?? null;
+    const text = result.data.choices?.[0]?.message?.content?.trim() ?? null;
     return text && text.length ? text : null;
   } catch (error) {
     console.error("captionImage error", error);

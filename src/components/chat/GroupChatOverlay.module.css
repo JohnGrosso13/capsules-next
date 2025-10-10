@@ -1,0 +1,304 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface-overlay, rgba(10, 12, 24, 0.72)) 82%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.panel {
+  position: relative;
+  width: min(640px, 100%);
+  max-height: min(600px, calc(100vh - 120px));
+  background: var(--surface-overlay, rgba(12, 15, 28, 0.92));
+  border: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
+  border-radius: 28px;
+  box-shadow: 0 24px 48px color-mix(in srgb, var(--surface-overlay, rgba(12, 15, 28, 0.9)) 62%, transparent);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: color-mix(in srgb, var(--text) 85%, transparent);
+}
+
+.closeButton {
+  border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay, rgba(16, 18, 32, 0.84)) 70%, transparent);
+  color: var(--text);
+  border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.closeButton:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 65%, transparent);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 78%, transparent);
+}
+
+.textInput {
+  border: 1px solid color-mix(in srgb, var(--pill-border) 75%, transparent);
+  border-radius: 14px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--surface-overlay, rgba(14, 16, 30, 0.86)) 82%, transparent);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.friendList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.friendItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay, rgba(14, 17, 33, 0.65)) 75%, transparent);
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.friendItemSelectable:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+}
+
+.friendAvatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(
+    --chats-avatar-background,
+    var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
+  );
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.friendAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.friendMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.friendName {
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friendStatus {
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.statusOnline {
+  color: color-mix(in srgb, var(--color-success) 75%, transparent);
+}
+
+.statusAway {
+  color: color-mix(in srgb, var(--color-warning) 75%, transparent);
+}
+
+.statusOffline {
+  color: color-mix(in srgb, var(--text) 60%, transparent);
+}
+
+.friendAction {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggleButton {
+  border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
+  border-radius: 999px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--surface-overlay, rgba(14, 16, 30, 0.86)) 75%, transparent);
+  color: var(--text);
+  font-weight: 600;
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.toggleButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 60%, transparent);
+}
+
+.toggleButton:disabled {
+  opacity: 0.6;
+}
+
+.toggleActive {
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+  background: color-mix(in srgb, var(--color-brand) 25%, transparent);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary {
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--text) 82%, transparent);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.secondaryButton {
+  border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay, rgba(14, 16, 30, 0.86)) 72%, transparent);
+  color: var(--text);
+  padding: 10px 18px;
+  border-radius: 14px;
+  font-weight: 600;
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.secondaryButton:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+}
+
+.primaryButton {
+  border: 1px solid color-mix(in srgb, var(--color-brand) 70%, transparent);
+  background: color-mix(in srgb, var(--color-brand) 28%, transparent);
+  color: var(--text);
+  padding: 10px 22px;
+  border-radius: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.primaryButton:not(:disabled):hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.error {
+  color: color-mix(in srgb, var(--color-danger) 75%, transparent);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .panel {
+    padding: 20px;
+    border-radius: 22px;
+    width: 100%;
+    max-height: 100vh;
+  }
+
+  .friendItem {
+    padding: 10px 12px;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+    justify-content: center;
+  }
+}

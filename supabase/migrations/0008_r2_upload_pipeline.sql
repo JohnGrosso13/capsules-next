@@ -55,6 +55,12 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 -- Keep updated_at current
-create trigger trg_media_upload_sessions_updated_at
-  before update on public.media_upload_sessions
-  for each row execute function public.set_updated_at();
+do $$
+begin
+  begin
+    create trigger trg_media_upload_sessions_updated_at
+      before update on public.media_upload_sessions
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
+end $$;

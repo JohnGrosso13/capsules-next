@@ -211,6 +211,57 @@
     --tile-badge-color-base: var(--text-on-brand);
     --tile-badge-color-final: var(--tile-badge-color-base);
     --tile-accent-a: color-mix(in srgb, var(--color-brand) 48%, rgba(99, 102, 241, 0.32));
+    /* Live chat rail */
+    --live-chat-bg: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--surface-overlay) 92%, transparent),
+        color-mix(in srgb, rgba(9, 12, 30, 0.92) 85%, transparent)
+      ),
+      color-mix(in srgb, rgba(10, 12, 34, 0.84) 85%, rgba(6, 8, 24, 0.96));
+    --live-chat-border: color-mix(in srgb, var(--card-border) 80%, transparent);
+    --live-chat-divider: color-mix(in srgb, var(--card-border) 78%, transparent);
+    --live-chat-shadow: var(--capsule-live-chat-shadow, 0 18px 40px rgba(0, 0, 0, 0.32));
+    --live-chat-header-icon-bg: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 26%, transparent),
+      color-mix(in srgb, var(--surface-overlay) 70%, transparent)
+    );
+    --live-chat-status-bg: color-mix(in srgb, var(--surface-overlay) 86%, transparent);
+    --live-chat-status-border: color-mix(in srgb, var(--card-border) 85%, transparent);
+    --live-chat-status-live-bg: color-mix(in srgb, var(--color-success) 35%, transparent);
+    --live-chat-status-live-border: color-mix(in srgb, var(--color-success) 55%, transparent);
+    --live-chat-status-ended-bg: color-mix(in srgb, var(--color-danger) 32%, transparent);
+    --live-chat-status-ended-border: color-mix(in srgb, var(--color-danger) 50%, transparent);
+    --live-chat-participant-row-bg: color-mix(in srgb, var(--surface-overlay) 82%, transparent);
+    --live-chat-participant-bg: color-mix(in srgb, var(--color-brand) 24%, transparent);
+    --live-chat-participant-fg: var(--text-2);
+    --live-chat-message-bg: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-overlay) 94%, transparent),
+      color-mix(in srgb, var(--surface-muted) 88%, transparent)
+    );
+    --live-chat-message-border: color-mix(in srgb, var(--card-border) 82%, transparent);
+    --live-chat-placeholder-fg: var(--text-2);
+    --live-chat-composer-bg: color-mix(in srgb, var(--surface-overlay) 88%, transparent);
+    --live-chat-composer-border: color-mix(in srgb, var(--card-border) 72%, transparent);
+    --live-chat-input-bg: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-muted) 84%, transparent),
+      color-mix(in srgb, var(--surface-overlay) 86%, transparent)
+    );
+    --live-chat-input-border: color-mix(in srgb, var(--card-border) 82%, transparent);
+    --live-chat-send-bg: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 85%, transparent),
+      color-mix(in srgb, var(--color-accent) 72%, transparent)
+    );
+    --live-chat-send-bg-disabled: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 38%, transparent),
+      color-mix(in srgb, var(--color-accent) 30%, transparent)
+    );
+    --live-chat-send-fg: var(--text);
+    --live-chat-send-disabled-opacity: 0.45;
     /* Tile style presets */
     --style-friends-bg: var(--tile-bg-base);
     --style-friends-border: var(--tile-border-base);
@@ -931,7 +982,6 @@
     animation: marquee 60s linear infinite;
   }
 }
-
 
 
 

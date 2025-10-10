@@ -2,15 +2,20 @@
 
 import * as React from "react";
 import homeStyles from "@/components/home.module.css";
+import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import { FriendsRail } from "@/components/rail/FriendsRail";
 import { RequestsList } from "@/components/friends/RequestsList";
+import { PartyPanel } from "@/components/party/PartyPanel";
 import { useFriendsDataContext } from "@/components/providers/FriendsDataProvider";
+import { usePartyContext } from "@/components/providers/PartyProvider";
 import { ChatPanel } from "@/components/chat/ChatPanel";
-import { useChatContext } from "@/components/providers/ChatProvider";
+import { GroupChatOverlay, type GroupChatOverlaySubmitPayload } from "@/components/chat/GroupChatOverlay";
+import { useChatContext, type ChatFriendTarget, type ChatSession } from "@/components/providers/ChatProvider";
 import { type FriendItem } from "@/hooks/useFriendsData";
-import { UsersThree, ChatsCircle, Handshake } from "@phosphor-icons/react/dist/ssr";
+import { UsersThree, ChatsCircle, Handshake, MicrophoneStage } from "@phosphor-icons/react/dist/ssr";
+import { usePathname } from "next/navigation";
 
-type RailTab = "friends" | "chats" | "requests";
+type RailTab = "friends" | "party" | "chats" | "requests";
 
 type ConnectionOverride = {
   description?: string;
@@ -38,6 +43,11 @@ const CONNECTION_TILE_DEFS: Array<{ key: RailTab; title: string; icon: React.Rea
     icon: <UsersThree size={28} weight="duotone" className="duo" />,
   },
   {
+    key: "party",
+    title: "Party",
+    icon: <MicrophoneStage size={28} weight="duotone" className="duo" />,
+  },
+  {
     key: "chats",
     title: "Chats",
     icon: <ChatsCircle size={28} weight="duotone" className="duo" />,
@@ -50,7 +60,7 @@ const CONNECTION_TILE_DEFS: Array<{ key: RailTab; title: string; icon: React.Rea
 ];
 
 function isRailTab(value: unknown): value is RailTab {
-  return value === "friends" || value === "chats" || value === "requests";
+  return value === "friends" || value === "party" || value === "chats" || value === "requests";
 }
 
 function pluralize(word: string, count: number): string {
@@ -125,10 +135,146 @@ export function ConnectionsRail() {
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
+
+  // Chat / group chat integration
+  const {
+    startChat: startChatSession,
+    unreadCount: chatUnreadCount,
+    startGroupChat,
+    addParticipantsToGroup,
+    sessions: chatSessions,
+  } = useChatContext();
+  const {
+    session: partySession,
+    status: partyStatus,
+    action: partyAction,
+    error: partyError,
+  } = usePartyContext();
+  type GroupFlowState = { mode: "create" } | { mode: "invite"; sessionId: string };
+  const [groupFlow, setGroupFlow] = React.useState<GroupFlowState | null>(null);
+  const [groupBusy, setGroupBusy] = React.useState(false);
+  const [groupError, setGroupError] = React.useState<string | null>(null);
+
+  const friendTargetMap = React.useMemo(() => {
+    const map = new Map<string, ChatFriendTarget>();
+    friends.forEach((friend) => {
+      if (!friend.userId) return;
+      map.set(friend.userId, {
+        userId: friend.userId,
+        name: friend.name || friend.userId,
+        avatar: friend.avatar ?? null,
+      });
+    });
+    return map;
+  }, [friends]);
+
+  const hasEligibleFriends = React.useMemo(() => friends.some((f) => Boolean(f.userId)), [friends]);
+  const partySummary = React.useMemo(() => {
+    if (partyStatus === "loading") {
+      if (partyAction === "create") return "Starting your party…";
+      if (partyAction === "join") return "Joining the party…";
+      if (partyAction === "close") return "Ending the party…";
+      if (partyAction === "leave") return "Leaving the party…";
+      return "Syncing party status…";
+    }
+    if (partySession) {
+      const topic = partySession.metadata.topic?.trim();
+      if (topic) return `Live now: ${topic}`;
+      const ownerName = partySession.metadata.ownerDisplayName?.trim();
+      if (ownerName) {
+        return partySession.isOwner ? "You're hosting a party right now." : `${ownerName} is hosting a party.`;
+      }
+      return "A party is live right now.";
+    }
+    if (partyError) return "Party unavailable. Try again.";
+    return "Start a drop-in voice party with friends.";
+  }, [partyAction, partyError, partySession, partyStatus]);
+
+  const closeGroupFlow = React.useCallback(() => {
+    setGroupFlow(null);
+    setGroupError(null);
+    setGroupBusy(false);
+  }, []);
+
+  const handleOpenGroupCreator = React.useCallback(() => {
+    setGroupFlow({ mode: "create" });
+    setGroupError(null);
+  }, []);
+
+  const handleInviteToGroup = React.useCallback((session: ChatSession) => {
+    setGroupFlow({ mode: "invite", sessionId: session.id });
+    setGroupError(null);
+  }, []);
+  const handlePartyButtonClick = React.useCallback(() => {
+    setActiveRailTab("party");
+    setRailMode("connections");
+  }, []);
+  const handlePartyShowFriends = React.useCallback(() => {
+    setActiveRailTab("friends");
+    setRailMode("connections");
+  }, []);
+
+  const handleGroupSubmit = React.useCallback(
+    async ({ name, participantIds }: GroupChatOverlaySubmitPayload) => {
+      if (!groupFlow) return;
+      if (!participantIds.length) {
+        setGroupError("Select at least one friend.");
+        return;
+      }
+      setGroupBusy(true);
+      setGroupError(null);
+      try {
+        if (groupFlow.mode === "create") {
+          const targets = participantIds
+            .map((id) => friendTargetMap.get(id))
+            .filter((t): t is ChatFriendTarget => Boolean(t));
+          if (!targets.length) throw new Error("Those friends are unavailable right now.");
+          await startGroupChat({ name, participants: targets, activate: true });
+          closeGroupFlow();
+          setActiveRailTab("chats");
+          setRailMode("connections");
+        } else {
+          const session = chatSessions.find((entry) => entry.id === groupFlow.sessionId);
+          if (!session) throw new Error("That chat is no longer available.");
+          const existingIds = new Set(session.participants.map((p) => p.id));
+          const targets = participantIds
+            .filter((id) => !existingIds.has(id))
+            .map((id) => friendTargetMap.get(id))
+            .filter((t): t is ChatFriendTarget => Boolean(t));
+          if (!targets.length) throw new Error("Select at least one new friend to add.");
+          await addParticipantsToGroup(session.id, targets);
+          closeGroupFlow();
+          setActiveRailTab("chats");
+          setRailMode("connections");
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unable to update that group chat.";
+        setGroupError(message);
+      } finally {
+        setGroupBusy(false);
+      }
+    },
+    [addParticipantsToGroup, chatSessions, closeGroupFlow, friendTargetMap, groupFlow, setActiveRailTab, setRailMode, startGroupChat],
+  );
+  const inviteSession = React.useMemo(() => {
+    if (groupFlow?.mode !== "invite") return null;
+    return chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null;
+  }, [chatSessions, groupFlow]);
+
+  const overlayDisabledIds = React.useMemo(() => {
+    if (!inviteSession) return [] as string[];
+    return inviteSession.participants.map((participant) => participant.id);
+  }, [inviteSession]);
+
+  const overlayHeading = React.useMemo(() => {
+    if (!inviteSession) return undefined;
+    return `Add people to ${inviteSession.title}`;
+  }, [inviteSession]);
+
   const [activeFriendTarget, setActiveFriendTarget] = React.useState<string | null>(null);
   const [friendActionPendingId, setFriendActionPendingId] = React.useState<string | null>(null);
-  const { startChat: startChatSession, unreadCount: chatUnreadCount, sessions: chatSessions } = useChatContext();
   const [chatTicker, setChatTicker] = React.useState(() => Date.now());
+  const pathname = usePathname();
   const [connectionOverrides, setConnectionOverrides] = React.useState<ConnectionOverrideMap>({});
 
   const lastChatTimestamp = React.useMemo(() => {
@@ -263,6 +409,10 @@ export function ConnectionsRail() {
         description: formatFriendsSummary(connectedFriends, totalFriendsForSummary),
         badge: connectedFriends > 0 ? connectedFriends : null,
       },
+      party: {
+        description: partySummary,
+        badge: null,
+      },
       chats: {
         description: formatChatSummary(chatUnreadCount, lastChatTimestamp, now),
         badge: chatUnreadCount > 0 ? chatUnreadCount : null,
@@ -297,6 +447,7 @@ export function ConnectionsRail() {
     lastChatTimestamp,
     connectionOverrides,
     chatTicker,
+    partySummary,
   ]);
 
   const handleFriendNameClick = React.useCallback(
@@ -373,8 +524,25 @@ export function ConnectionsRail() {
     [cancelRequest],
   );
 
+  React.useEffect(() => {
+    setRailMode("tiles");
+    setActiveRailTab("friends");
+    setActiveFriendTarget(null);
+    setFriendActionPendingId(null);
+  }, [pathname]);
+
+  const partyButtonLabel =
+    partyStatus === "loading"
+      ? "Connecting..."
+      : partySession
+        ? "Party Live"
+        : "Party Voice";
+  const partyButtonDisabled = partyStatus === "loading";
+  const isPartyActive = activeRailTab === "party";
+  const showPartyLivePill = Boolean(partySession);
+
   return (
-    <div className={homeStyles.railConnections}>
+    <div className={`${homeStyles.railConnections} ${homeStyles.railConnectionsOuter}`.trim()}>
       {railMode === "tiles" ? (
         <div className={homeStyles.connectionTiles}>
           {connectionTiles.map((tile) => (
@@ -414,6 +582,32 @@ export function ConnectionsRail() {
             >
               &lt;
             </button>
+            {/* Quick actions on the right when viewing connections */}
+            <div className={homeStyles.railHeaderAction}>
+              <button
+                type="button"
+                className={friendsStyles.chatActionButton}
+                onClick={handleOpenGroupCreator}
+                disabled={!hasEligibleFriends}
+                aria-label="Start a group chat"
+              >
+                <UsersThree size={18} weight="duotone" />
+                <span>Group Chat</span>
+              </button>
+              <button
+                type="button"
+                className={`${friendsStyles.chatActionButton} ${
+                  isPartyActive ? friendsStyles.chatActionButtonActive : ""
+                }`.trim()}
+                onClick={handlePartyButtonClick}
+                disabled={partyButtonDisabled}
+                aria-label="Open party voice panel"
+              >
+                <MicrophoneStage size={18} weight="duotone" />
+                <span>{partyButtonLabel}</span>
+                {showPartyLivePill ? <span className={friendsStyles.livePill}>LIVE</span> : null}
+              </button>
+            </div>
           </div>
           <div className={homeStyles.railTabs} role="tablist" aria-label="Connections">
             {CONNECTION_TILE_DEFS.map((tab) => (
@@ -446,10 +640,19 @@ export function ConnectionsRail() {
               }}
             />
           </div>
+          <div className={homeStyles.railPanel} hidden={activeRailTab !== "party"}>
+            <PartyPanel
+              friends={friends}
+              friendTargets={friendTargetMap}
+              onShowFriends={handlePartyShowFriends}
+              variant="compact"
+            />
+          </div>
           <div className={homeStyles.railPanel} hidden={activeRailTab !== "chats"}>
             <ChatPanel
               variant="rail"
               emptyNotice={<p>No chats yet. Start a conversation from your friends list.</p>}
+              onInviteToGroup={handleInviteToGroup}
             />
           </div>
           <div className={homeStyles.railPanel} hidden={activeRailTab !== "requests"}>
@@ -461,6 +664,18 @@ export function ConnectionsRail() {
               onCancel={handleCancel}
             />
           </div>
+          {/* Overlay for group chat create/invite */}
+          <GroupChatOverlay
+            open={groupFlow !== null}
+            mode={groupFlow?.mode ?? "create"}
+            friends={friends}
+            disabledIds={overlayDisabledIds}
+            busy={groupBusy}
+            error={groupError}
+            onClose={closeGroupFlow}
+            onSubmit={handleGroupSubmit}
+            {...(overlayHeading ? { heading: overlayHeading } : {})}
+          />
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-﻿-- 0004_memories_allow_theme.sql: allow theme entries in memories
+-- 0004_memories_allow_theme.sql: allow theme entries in memories
 DO $$
 BEGIN
   IF EXISTS (

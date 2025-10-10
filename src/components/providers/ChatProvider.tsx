@@ -1,38 +1,33 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 
 import { getRealtimeClientFactory } from "@/config/realtime-client";
 import { useFriendsDataContext } from "@/components/providers/FriendsDataProvider";
-import { getChatConversationId, getChatDirectChannel } from "@/lib/chat/channels";
+import {
+  createGroupConversationId,
+  getChatConversationId,
+  getChatDirectChannel,
+} from "@/lib/chat/channels";
 import { buildRealtimeEnvelope } from "@/lib/realtime/envelope";
 import { requestRealtimeToken } from "@/lib/realtime/token";
 import type { FriendItem } from "@/hooks/useFriendsData";
 import { useCurrentUser } from "@/services/auth/client";
 import type { RealtimeClient, RealtimeEvent } from "@/ports/realtime";
 
-const STORAGE_KEY = "capsule:chat:sessions";
-const MESSAGE_LIMIT = 100;
+import {
+  ChatStore,
+  mergeParticipants,
+  normalizeParticipant,
+  type ChatSession,
+  type ChatSessionType,
+  type ChatParticipant,
+  type ChatSessionEventPayload,
+  type ChatMessageEventPayload,
+} from "./chat-store";
 
-type StoredMessage = {
-  id: string;
-  authorId: string;
-  body: string;
-  sentAt: string;
-};
-
-type StoredSession = {
-  id: string;
-  friendUserId: string;
-  friendName: string;
-  friendAvatar: string | null;
-  messages: StoredMessage[];
-};
-
-type StoredState = {
-  activeSessionId: string | null;
-  sessions: StoredSession[];
-};
+export type { ChatSession, ChatSessionType, ChatParticipant, ChatMessage } from "./chat-store";
+export { chatStoreTestUtils as __chatTestUtils } from "./chat-store";
 
 export type ChatFriendTarget = {
   userId: string;
@@ -40,55 +35,15 @@ export type ChatFriendTarget = {
   avatar: string | null;
 };
 
-export type ChatMessage = {
-  id: string;
-  authorId: string;
-  body: string;
-  sentAt: string;
-  status: "pending" | "sent" | "failed";
-};
-
-export type ChatSession = {
-  id: string;
-  friendUserId: string;
-  friendName: string;
-  friendAvatar: string | null;
-  messages: ChatMessage[];
-  unreadCount: number;
-  lastMessageAt: string | null;
-  lastMessagePreview: string | null;
-};
-
-type ChatSessionInternal = {
-  id: string;
-  friendUserId: string;
-  friendName: string;
-  friendAvatar: string | null;
-  messages: ChatMessage[];
-  messageIndex: Map<string, number>;
-  lastMessageTimestamp: number;
-  unreadCount: number;
-};
-
-type ChatMessageEventPayload = {
-  type: "chat.message";
-  conversationId: string;
-  senderId: string;
-  participants: Array<{
-    id: string;
-    name?: string | null;
-    avatar?: string | null;
-  }>;
-  message: {
-    id: string;
-    body: string;
-    sentAt: string;
-  };
-};
-
 type StartChatResult = {
   id: string;
   created: boolean;
+};
+
+export type CreateGroupChatInput = {
+  name?: string;
+  participants: ChatFriendTarget[];
+  activate?: boolean;
 };
 
 export type ChatContextValue = {
@@ -100,6 +55,9 @@ export type ChatContextValue = {
   selfClientId: string | null;
   isReady: boolean;
   startChat: (target: ChatFriendTarget, options?: { activate?: boolean }) => StartChatResult | null;
+  startGroupChat: (input: CreateGroupChatInput) => Promise<StartChatResult | null>;
+  addParticipantsToGroup: (conversationId: string, targets: ChatFriendTarget[]) => Promise<void>;
+  renameGroupChat: (conversationId: string, name: string) => Promise<void>;
   openSession: (sessionId: string) => void;
   closeSession: () => void;
   deleteSession: (sessionId: string) => void;
@@ -125,308 +83,87 @@ function coerceFriendTarget(friend: FriendItem): ChatFriendTarget | null {
   };
 }
 
-function createMessageId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function isValidStoredSession(value: unknown): value is StoredSession {
-  if (!value || typeof value !== "object") return false;
-  const session = value as StoredSession;
-  return (
-    typeof session.id === "string" &&
-    typeof session.friendUserId === "string" &&
-    typeof session.friendName === "string" &&
-    Array.isArray(session.messages)
-  );
-}
-
-function sanitizeMessageBody(body: string): string {
-  return body.replace(/\s+/g, " ").trim();
+function friendTargetToParticipant(target: ChatFriendTarget): ChatParticipant {
+  return {
+    id: target.userId,
+    name: target.name || target.userId,
+    avatar: target.avatar ?? null,
+  };
 }
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
+  const store = React.useMemo(() => new ChatStore(), []);
+  const [snapshot, setSnapshot] = React.useState(() => store.getSnapshot());
+  const [isReady, setIsReady] = React.useState(false);
+
+  React.useEffect(() => {
+    const unsubscribe = store.subscribe(setSnapshot);
+    return unsubscribe;
+  }, [store]);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      store.setStorage(window.localStorage);
+    } else {
+      store.setStorage(null);
+    }
+    store.hydrateFromStorage();
+    setIsReady(true);
+  }, [store]);
+
   const { user } = useCurrentUser();
+  const currentUserId = user?.id ?? null;
+  React.useEffect(() => {
+    store.setCurrentUserId(currentUserId);
+  }, [currentUserId, store]);
+
   const friendsContext = useFriendsDataContext();
   const friends = friendsContext.friends;
+  React.useEffect(() => {
+    if (!friends.length) return;
+    store.updateFromFriends(friends);
+  }, [friends, store]);
 
-  const currentUserId = user?.id ?? null;
   const envelope = React.useMemo(() => buildRealtimeEnvelope(user), [user]);
-
-  const sessionsRef = React.useRef<Map<string, ChatSessionInternal>>(new Map());
-  const [sessions, setSessions] = React.useState<ChatSession[]>([]);
-  const activeSessionIdRef = React.useRef<string | null>(null);
-  const [activeSessionId, setActiveSessionId] = React.useState<string | null>(null);
-  const hydratedRef = React.useRef(false);
   const clientRef = React.useRef<RealtimeClient | null>(null);
   const unsubscribeRef = React.useRef<(() => void) | null>(null);
   const clientChannelNameRef = React.useRef<string | null>(null);
   const resolvedSelfIdRef = React.useRef<string | null>(null);
-  const [isReady, setIsReady] = React.useState(false);
-
-  const buildSnapshot = React.useCallback((): ChatSession[] => {
-    const list: ChatSession[] = [];
-    sessionsRef.current.forEach((session) => {
-      const messages = session.messages.map((message) => ({ ...message }));
-      const lastMessage = messages[messages.length - 1] ?? null;
-      list.push({
-        id: session.id,
-        friendUserId: session.friendUserId,
-        friendName: session.friendName,
-        friendAvatar: session.friendAvatar,
-        messages,
-        unreadCount: session.unreadCount,
-        lastMessageAt: lastMessage?.sentAt ?? null,
-        lastMessagePreview: lastMessage?.body ?? null,
-      });
-    });
-    list.sort((a, b) => {
-      const aTime = a.lastMessageAt ? Date.parse(a.lastMessageAt) : 0;
-      const bTime = b.lastMessageAt ? Date.parse(b.lastMessageAt) : 0;
-      return bTime - aTime;
-    });
-    return list;
-  }, []);
-
-  const persistSnapshot = React.useCallback((snapshot: ChatSession[]) => {
-    if (typeof window === "undefined") return;
-    const payload: StoredState = {
-      activeSessionId: activeSessionIdRef.current,
-      sessions: snapshot.map((session) => ({
-        id: session.id,
-        friendUserId: session.friendUserId,
-        friendName: session.friendName,
-        friendAvatar: session.friendAvatar,
-        messages: session.messages.slice(-MESSAGE_LIMIT).map((message) => ({
-          id: message.id,
-          authorId: message.authorId,
-          body: message.body,
-          sentAt: message.sentAt,
-        })),
-      })),
-    };
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    } catch (error) {
-      console.error("Chat storage persist error", error);
-    }
-  }, []);
-
-  const syncState = React.useCallback(() => {
-    const snapshot = buildSnapshot();
-    setSessions(snapshot);
-    if (hydratedRef.current) {
-      persistSnapshot(snapshot);
-    }
-  }, [buildSnapshot, persistSnapshot]);
-
-  const ensureSession = React.useCallback(
-    (conversationId: string, friendUserId: string, name: string, avatar: string | null) => {
-      const map = sessionsRef.current;
-      let session = map.get(conversationId);
-      if (!session) {
-        session = {
-          id: conversationId,
-          friendUserId,
-          friendName: name,
-          friendAvatar: avatar,
-          messages: [],
-          messageIndex: new Map(),
-          lastMessageTimestamp: 0,
-          unreadCount: 0,
-        };
-        map.set(conversationId, session);
-      } else {
-        if (name && session.friendName !== name) {
-          session.friendName = name;
-        }
-        if (session.friendAvatar !== avatar) {
-          session.friendAvatar = avatar;
-        }
-      }
-      return session;
-    },
-    [],
-  );
-
-  const addMessageToSession = React.useCallback(
-    (session: ChatSessionInternal, message: ChatMessage, isLocal: boolean) => {
-      const existingIndex = session.messageIndex.get(message.id);
-      if (typeof existingIndex === "number") {
-        const existing = session.messages[existingIndex];
-        session.messages[existingIndex] = { ...existing, ...message };
-      } else {
-        session.messages.push(message);
-        session.messageIndex.set(message.id, session.messages.length - 1);
-        if (!isLocal && activeSessionIdRef.current !== session.id) {
-          session.unreadCount += 1;
-        }
-        if (session.messages.length > MESSAGE_LIMIT) {
-          const excess = session.messages.length - MESSAGE_LIMIT;
-          const removed = session.messages.splice(0, excess);
-          removed.forEach((removedMessage) => {
-            session.messageIndex.delete(removedMessage.id);
-          });
-          session.messages.forEach((msg, index) => {
-            session.messageIndex.set(msg.id, index);
-          });
-        }
-      }
-      const timestamp = Date.parse(message.sentAt);
-      session.lastMessageTimestamp = Number.isFinite(timestamp) ? timestamp : Date.now();
-      if (isLocal && activeSessionIdRef.current === session.id) {
-        session.unreadCount = 0;
-      }
-    },
-    [],
-  );
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") {
-      hydratedRef.current = true;
-      setIsReady(true);
-      return;
-    }
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as StoredState;
-        if (parsed && Array.isArray(parsed.sessions)) {
-          const map = sessionsRef.current;
-          map.clear();
-          parsed.sessions.forEach((stored) => {
-            if (!isValidStoredSession(stored)) return;
-            const session: ChatSessionInternal = {
-              id: stored.id,
-              friendUserId: stored.friendUserId,
-              friendName: stored.friendName,
-              friendAvatar: stored.friendAvatar ?? null,
-              messages: [],
-              messageIndex: new Map(),
-              lastMessageTimestamp: 0,
-              unreadCount: 0,
-            };
-            stored.messages.slice(-MESSAGE_LIMIT).forEach((storedMessage) => {
-              if (
-                storedMessage &&
-                typeof storedMessage.id === "string" &&
-                typeof storedMessage.authorId === "string" &&
-                typeof storedMessage.body === "string" &&
-                typeof storedMessage.sentAt === "string"
-              ) {
-                const restored: ChatMessage = {
-                  id: storedMessage.id,
-                  authorId: storedMessage.authorId,
-                  body: storedMessage.body,
-                  sentAt: storedMessage.sentAt,
-                  status: "sent",
-                };
-                session.messages.push(restored);
-                session.messageIndex.set(restored.id, session.messages.length - 1);
-                const ts = Date.parse(restored.sentAt);
-                if (Number.isFinite(ts)) {
-                  session.lastMessageTimestamp = ts;
-                }
-              }
-            });
-            map.set(session.id, session);
-          });
-          if (typeof parsed.activeSessionId === "string") {
-            activeSessionIdRef.current = parsed.activeSessionId;
-            setActiveSessionId(parsed.activeSessionId);
-          }
-          setSessions(buildSnapshot());
-        }
-      }
-    } catch (error) {
-      console.error("Chat storage hydrate error", error);
-    } finally {
-      hydratedRef.current = true;
-      setIsReady(true);
-    }
-  }, [buildSnapshot]);
-
-  React.useEffect(() => {
-    if (!friends.length) return;
-    const friendMap = new Map<string, FriendItem>();
-    friends.forEach((friend) => {
-      if (friend.userId) {
-        friendMap.set(friend.userId, friend);
-      }
-    });
-    let changed = false;
-    sessionsRef.current.forEach((session) => {
-      const friend = friendMap.get(session.friendUserId);
-      if (!friend) return;
-      if (friend.name && session.friendName !== friend.name) {
-        session.friendName = friend.name;
-        changed = true;
-      }
-      const avatar = friend.avatar ?? null;
-      if (session.friendAvatar !== avatar) {
-        session.friendAvatar = avatar;
-        changed = true;
-      }
-    });
-    if (changed) {
-      syncState();
-    }
-  }, [friends, syncState]);
 
   const handleRealtimeEvent = React.useCallback(
     (event: RealtimeEvent) => {
-      const selfIds = new Set<string>();
-      if (currentUserId) selfIds.add(currentUserId);
-      if (resolvedSelfIdRef.current) selfIds.add(resolvedSelfIdRef.current);
-      if (selfIds.size === 0) return;
-      if (!event || event.name !== "chat.message") return;
-      const payload = event.data as ChatMessageEventPayload;
-      if (!payload || payload.type !== "chat.message") return;
-      if (!Array.isArray(payload.participants)) return;
-      const participantMap = new Map<string, { id: string; name?: string | null; avatar?: string | null }>();
-      for (const entry of payload.participants) {
-        if (!entry || typeof entry.id !== "string") continue;
-        participantMap.set(entry.id, entry);
-      }
-      const hasSelf = Array.from(selfIds).some((id) => participantMap.has(id));
-      if (!hasSelf) return;
-      if (typeof payload.conversationId !== "string") return;
-      if (!payload.message || typeof payload.message.id !== "string" || typeof payload.message.body !== "string") {
+      if (!event) return;
+
+      if (event.name === "chat.session") {
+        const payload = event.data as ChatSessionEventPayload;
+        if (!payload || payload.type !== "chat.session") return;
+        if (typeof payload.conversationId !== "string" || !payload.session) return;
+        const participants = Array.isArray(payload.session.participants)
+          ? payload.session.participants
+          : [];
+        const normalizedParticipants = participants
+          .map((participant) => normalizeParticipant(participant))
+          .filter((participant): participant is ChatParticipant => Boolean(participant));
+        if (!normalizedParticipants.length) return;
+        const descriptor = {
+          id: payload.conversationId,
+          type:
+            payload.session.type ??
+            (normalizedParticipants.length > 2 ? "group" : "direct"),
+          title: payload.session.title ?? "",
+          avatar: payload.session.avatar ?? null,
+          createdBy: payload.session.createdBy ?? null,
+          participants: normalizedParticipants,
+        };
+        store.applySessionEvent(descriptor);
         return;
       }
-      const senderId = typeof payload.senderId === "string" ? payload.senderId : "";
-      if (!senderId) return;
-      const isLocal = selfIds.has(senderId);
-      const messageBody = sanitizeMessageBody(payload.message.body);
-      if (!messageBody) return;
-      const otherParticipant = (() => {
-        for (const [id, entry] of participantMap.entries()) {
-          if (!selfIds.has(id)) return entry;
-        }
-        return null;
-      })();
-      const friendUserId = otherParticipant?.id ?? (isLocal ? undefined : senderId);
-      if (!friendUserId) return;
-      const friendName = (otherParticipant?.name ?? friendUserId) || friendUserId;
-      const friendAvatar = otherParticipant?.avatar ?? null;
-      const session = ensureSession(payload.conversationId, friendUserId, friendName, friendAvatar);
-      const authorIdForStorage = isLocal ? currentUserId ?? senderId : senderId;
-      const chatMessage: ChatMessage = {
-        id: payload.message.id,
-        authorId: authorIdForStorage,
-        body: messageBody,
-        sentAt: payload.message.sentAt ?? new Date().toISOString(),
-        status: "sent",
-      };
-      addMessageToSession(session, chatMessage, isLocal);
-      if (!isLocal && activeSessionIdRef.current === session.id) {
-        session.unreadCount = 0;
-      }
-      syncState();
+
+      if (event.name !== "chat.message") return;
+      const payload = event.data as ChatMessageEventPayload;
+      store.applyMessageEvent(payload);
     },
-    [addMessageToSession, currentUserId, ensureSession, syncState],
+    [store],
   );
 
   React.useEffect(() => {
@@ -451,10 +188,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         if (!resolvedClientId) {
           console.warn("Chat realtime connect missing client identity");
           resolvedSelfIdRef.current = null;
+          store.setSelfClientId(null);
           clientChannelNameRef.current = null;
           return;
         }
         resolvedSelfIdRef.current = resolvedClientId;
+        store.setSelfClientId(resolvedClientId);
         const channelName = getChatDirectChannel(resolvedClientId);
         clientChannelNameRef.current = channelName;
         const cleanup = await client.subscribe(channelName, (event) => {
@@ -486,8 +225,51 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
       clientChannelNameRef.current = null;
       resolvedSelfIdRef.current = null;
+      store.setSelfClientId(null);
     };
-  }, [currentUserId, envelope, handleRealtimeEvent]);
+  }, [currentUserId, envelope, handleRealtimeEvent, store]);
+
+  const publishSessionUpdate = React.useCallback(
+    async (conversationId: string) => {
+      const client = clientRef.current;
+      if (!client) {
+        console.warn("Chat connection is not ready yet.");
+        return;
+      }
+      const session = store
+        .getSnapshot()
+        .sessions.find((item) => item.id === conversationId);
+      if (!session) return;
+      const descriptor = {
+        id: session.id,
+        type: session.type,
+        title: session.title,
+        avatar: session.avatar,
+        createdBy: session.createdBy ?? null,
+        participants: session.participants.map((participant) => ({ ...participant })),
+      };
+      const payload: ChatSessionEventPayload = {
+        type: "chat.session",
+        conversationId: session.id,
+        session: descriptor,
+      };
+      const channels = new Set<string>();
+      descriptor.participants.forEach((participant) => {
+        try {
+          channels.add(getChatDirectChannel(participant.id));
+        } catch {
+          // ignore invalid participant id for publishing
+        }
+      });
+      if (clientChannelNameRef.current) {
+        channels.add(clientChannelNameRef.current);
+      }
+      await Promise.all(
+        Array.from(channels).map((channel) => client.publish(channel, "chat.session", payload)),
+      );
+    },
+    [store],
+  );
 
   const startChat = React.useCallback(
     (target: ChatFriendTarget, options?: { activate?: boolean }): StartChatResult | null => {
@@ -500,56 +282,160 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
       const conversationId = getChatConversationId(selfIdentity, target.userId);
-      const displayName = target.name || target.userId;
-      const existed = sessionsRef.current.has(conversationId);
-      const session = ensureSession(conversationId, target.userId, displayName, target.avatar ?? null);
+      const descriptor = {
+        id: conversationId,
+        type: "direct" as ChatSessionType,
+        title: target.name || target.userId,
+        avatar: target.avatar ?? null,
+        createdBy: null,
+        participants: [friendTargetToParticipant(target)],
+      };
+      const { created } = store.startSession(descriptor, { activate });
       if (activate) {
-        activeSessionIdRef.current = conversationId;
-        setActiveSessionId(conversationId);
-        session.unreadCount = 0;
+        store.resetUnread(conversationId);
       }
-      syncState();
-      return { id: conversationId, created: !existed };
+      return { id: conversationId, created };
     },
-    [currentUserId, ensureSession, syncState],
+    [currentUserId, store],
+  );
+
+  const startGroupChat = React.useCallback(
+    async (input: CreateGroupChatInput): Promise<StartChatResult | null> => {
+      if (!currentUserId) return null;
+      const targets = Array.isArray(input.participants) ? input.participants : [];
+      const uniqueTargets = new Map<string, ChatFriendTarget>();
+      targets.forEach((target) => {
+        if (target && typeof target.userId === "string" && target.userId) {
+          uniqueTargets.set(target.userId, target);
+        }
+      });
+      if (uniqueTargets.size === 0) {
+        console.warn("startGroupChat requires at least one participant.");
+        return null;
+      }
+      const selfIdentity = resolvedSelfIdRef.current ?? currentUserId;
+      if (!selfIdentity) {
+        console.warn("Chat startGroupChat missing self identity");
+        return null;
+      }
+      const conversationId = createGroupConversationId();
+      const participantList = Array.from(uniqueTargets.values()).map((target) =>
+        friendTargetToParticipant(target),
+      );
+      const selfParticipant: ChatParticipant = {
+        id: currentUserId ?? selfIdentity,
+        name: user?.name ?? user?.email ?? selfIdentity,
+        avatar: user?.avatarUrl ?? null,
+      };
+      const descriptor = {
+        id: conversationId,
+        type: "group" as ChatSessionType,
+        title: input.name?.trim() ?? "",
+        avatar: null,
+        createdBy: currentUserId ?? selfIdentity,
+        participants: [...participantList, selfParticipant],
+      };
+      store.startSession(descriptor, { activate: input.activate ?? true });
+      try {
+        await publishSessionUpdate(conversationId);
+      } catch (error) {
+        console.error("Chat startGroupChat publish error", error);
+      }
+      return { id: conversationId, created: true };
+    },
+    [currentUserId, publishSessionUpdate, store, user],
+  );
+
+  const addParticipantsToGroup = React.useCallback(
+    async (conversationId: string, targets: ChatFriendTarget[]) => {
+      if (!targets?.length) return;
+      const session = store
+        .getSnapshot()
+        .sessions.find((item) => item.id === conversationId);
+      if (!session) {
+        throw new Error("Chat session not found.");
+      }
+      if (session.type !== "group") {
+        throw new Error("Only group chats can accept additional participants.");
+      }
+      const existingIds = new Set(session.participants.map((participant) => participant.id));
+      const incoming = targets
+        .filter(
+          (target) =>
+            target &&
+            typeof target.userId === "string" &&
+            target.userId &&
+            !existingIds.has(target.userId),
+        )
+        .map((target) => friendTargetToParticipant(target));
+      if (!incoming.length) return;
+      const descriptor = {
+        id: session.id,
+        type: session.type,
+        title: session.title,
+        avatar: session.avatar,
+        createdBy: session.createdBy ?? null,
+        participants: mergeParticipants(session.participants, incoming),
+      };
+      store.startSession(descriptor);
+      try {
+        await publishSessionUpdate(conversationId);
+      } catch (error) {
+        console.error("Chat addParticipants publish error", error);
+      }
+    },
+    [publishSessionUpdate, store],
+  );
+
+  const renameGroupChat = React.useCallback(
+    async (conversationId: string, name: string) => {
+      const session = store
+        .getSnapshot()
+        .sessions.find((item) => item.id === conversationId);
+      if (!session) {
+        throw new Error("Chat session not found.");
+      }
+      const trimmed = name.trim();
+      const descriptor = {
+        id: session.id,
+        type: session.type,
+        title: trimmed,
+        avatar: session.avatar,
+        createdBy: session.createdBy ?? null,
+        participants: session.participants,
+      };
+      store.startSession(descriptor);
+      try {
+        await publishSessionUpdate(conversationId);
+      } catch (error) {
+        console.error("Chat rename publish error", error);
+      }
+    },
+    [publishSessionUpdate, store],
   );
 
   const openSession = React.useCallback(
     (sessionId: string) => {
-      activeSessionIdRef.current = sessionId;
-      setActiveSessionId(sessionId);
-      const session = sessionsRef.current.get(sessionId);
-      if (session) {
-        session.unreadCount = 0;
-        syncState();
-      }
+      store.setActiveSession(sessionId);
+      store.resetUnread(sessionId);
     },
-    [syncState],
+    [store],
   );
 
   const closeSession = React.useCallback(() => {
-    activeSessionIdRef.current = null;
-    setActiveSessionId(null);
-    syncState();
-  }, [syncState]);
+    store.setActiveSession(null);
+  }, [store]);
 
   const deleteSession = React.useCallback(
     (sessionId: string) => {
-      const map = sessionsRef.current;
-      if (!map.has(sessionId)) return;
-      map.delete(sessionId);
-      if (activeSessionIdRef.current === sessionId) {
-        activeSessionIdRef.current = null;
-        setActiveSessionId(null);
-      }
-      syncState();
+      store.deleteSession(sessionId);
     },
-    [syncState],
+    [store],
   );
 
   const sendMessage = React.useCallback(
     async (conversationId: string, body: string) => {
-      const trimmed = sanitizeMessageBody(body);
+      const trimmed = body.replace(/\s+/g, " ").trim();
       if (!trimmed) return;
       const selfIdentity = resolvedSelfIdRef.current;
       if (!selfIdentity) {
@@ -559,82 +445,63 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (!client) {
         throw new Error("Chat connection is not ready yet.");
       }
-      const session = sessionsRef.current.get(conversationId);
-      if (!session) {
-        throw new Error("Chat session not found.");
-      }
-      const messageId = createMessageId();
-      const sentAt = new Date().toISOString();
-      const localMessage: ChatMessage = {
-        id: messageId,
-        authorId: currentUserId ?? selfIdentity,
-        body: trimmed,
-        sentAt,
-        status: "pending",
-      };
-      addMessageToSession(session, localMessage, true);
-      syncState();
-
-      const selfParticipant = {
-        id: selfIdentity,
-        name: user?.name ?? user?.email ?? currentUserId ?? selfIdentity,
+      const selfParticipant: ChatParticipant = {
+        id: currentUserId ?? selfIdentity,
+        name: user?.name ?? user?.email ?? (currentUserId ?? selfIdentity),
         avatar: user?.avatarUrl ?? null,
       };
-      const friendParticipant = {
-        id: session.friendUserId,
-        name: session.friendName,
-        avatar: session.friendAvatar,
-      };
+      const prepared = store.prepareLocalMessage(conversationId, trimmed, {
+        selfParticipant,
+      });
+      if (!prepared) return;
+      const { message, session } = prepared;
       const payload: ChatMessageEventPayload = {
         type: "chat.message",
         conversationId,
         senderId: selfIdentity,
-        participants: [selfParticipant, friendParticipant],
+        participants: session.participants.map((participant) => ({
+          id: participant.id,
+          name: participant.name,
+          avatar: participant.avatar,
+        })),
+        session: {
+          type: session.type,
+          title: session.title,
+          avatar: session.avatar,
+          createdBy: session.createdBy ?? null,
+        },
         message: {
-          id: messageId,
-          body: trimmed,
-          sentAt,
+          id: message.id,
+          body: message.body,
+          sentAt: message.sentAt,
         },
       };
 
       try {
-        const friendChannel = getChatDirectChannel(session.friendUserId);
-        const selfChannel = clientChannelNameRef.current ?? getChatDirectChannel(selfIdentity);
-        await Promise.all([
-          client.publish(friendChannel, "chat.message", payload),
-          client.publish(selfChannel, "chat.message", payload),
-        ]);
-        const index = session.messageIndex.get(messageId);
-        if (typeof index === "number") {
-          const existing = session.messages[index];
-          if (existing) {
-            session.messages[index] = { ...existing, status: "sent" };
+        const channels = new Set<string>();
+        payload.participants.forEach((participant) => {
+          try {
+            channels.add(getChatDirectChannel(participant.id));
+          } catch {
+            // ignore invalid id
           }
+        });
+        if (clientChannelNameRef.current) {
+          channels.add(clientChannelNameRef.current);
         }
-        syncState();
+        await Promise.all(
+          Array.from(channels).map((channel) => client.publish(channel, "chat.message", payload)),
+        );
+        store.markMessageStatus(conversationId, message.id, "sent");
       } catch (error) {
-        const index = session.messageIndex.get(messageId);
-        if (typeof index === "number") {
-          const existing = session.messages[index];
-          if (existing) {
-            session.messages[index] = { ...existing, status: "failed" };
-          }
-        }
-        syncState();
+        store.markMessageStatus(conversationId, message.id, "failed");
         throw error;
       }
     },
-    [addMessageToSession, currentUserId, syncState, user],
+    [currentUserId, store, user],
   );
 
-  const unreadCount = React.useMemo(() => {
-    return sessions.reduce((total, session) => total + session.unreadCount, 0);
-  }, [sessions]);
-
-  const activeSession = React.useMemo(() => {
-    if (!activeSessionId) return null;
-    return sessions.find((session) => session.id === activeSessionId) ?? null;
-  }, [activeSessionId, sessions]);
+  const { sessions, activeSessionId, activeSession, unreadCount } = snapshot;
 
   const contextValue = React.useMemo<ChatContextValue>(
     () => ({
@@ -646,12 +513,30 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       selfClientId: resolvedSelfIdRef.current,
       isReady,
       startChat,
+      startGroupChat,
+      addParticipantsToGroup,
+      renameGroupChat,
       openSession,
       closeSession,
       deleteSession,
       sendMessage,
     }),
-    [activeSession, activeSessionId, closeSession, currentUserId, deleteSession, isReady, openSession, sendMessage, sessions, startChat, unreadCount],
+    [
+      activeSession,
+      activeSessionId,
+      addParticipantsToGroup,
+      closeSession,
+      currentUserId,
+      deleteSession,
+      isReady,
+      openSession,
+      renameGroupChat,
+      sendMessage,
+      sessions,
+      startChat,
+      startGroupChat,
+      unreadCount,
+    ],
   );
 
   return <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>;
@@ -660,4 +545,3 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 export function useChatFriendlyTarget(friend: FriendItem): ChatFriendTarget | null {
   return React.useMemo(() => coerceFriendTarget(friend), [friend]);
 }
-

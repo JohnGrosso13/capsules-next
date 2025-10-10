@@ -16,13 +16,22 @@ function isVideo(mime: string | null | undefined) {
   return typeof mime === "string" && mime.startsWith("video/");
 }
 
-const VISIBLE_LIMIT = 6;
+const MAX_VISIBLE = 6;
 const VIEW_ALL_ROUTE = "/memory/uploads";
+
+function getSlidesPerView() {
+  if (typeof window === "undefined") return 2;
+  const width = window.innerWidth;
+  if (width >= 960) return 4;
+  if (width >= 640) return 3;
+  return 2;
+}
 
 export function UploadsCarousel() {
   const { user, envelope, items, loading, error, setError, refresh } = useMemoryUploads();
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: "start", dragFree: true, loop: false });
+  const [slidesPerView, setSlidesPerView] = React.useState<number>(() => getSlidesPerView());
 
   const {
     fileInputRef,
@@ -46,48 +55,62 @@ export function UploadsCarousel() {
   );
 
   const totalItems = processedItems.length;
+  const pageSize = React.useMemo(() => {
+    if (totalItems === 0) return 0;
+    return Math.max(1, Math.min(MAX_VISIBLE, slidesPerView, totalItems));
+  }, [slidesPerView, totalItems]);
   const [offset, setOffset] = React.useState(0);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateSlidesPerView = () => setSlidesPerView(getSlidesPerView());
+    updateSlidesPerView();
+    window.addEventListener("resize", updateSlidesPerView);
+    return () => {
+      window.removeEventListener("resize", updateSlidesPerView);
+    };
+  }, []);
 
   React.useEffect(() => {
     if (totalItems === 0) {
       setOffset(0);
       return;
     }
-    if (totalItems <= VISIBLE_LIMIT) {
+    if (pageSize === 0 || totalItems <= pageSize) {
       setOffset(0);
       return;
     }
     setOffset((previous) => previous % totalItems);
-  }, [totalItems]);
+  }, [pageSize, totalItems]);
 
   const visibleItems = React.useMemo(() => {
-    if (totalItems <= VISIBLE_LIMIT) return processedItems;
+    if (pageSize === 0) return [];
     const result: DisplayMemoryUpload[] = [];
-    for (let index = 0; index < Math.min(VISIBLE_LIMIT, totalItems); index += 1) {
+    for (let index = 0; index < pageSize; index += 1) {
       const item = processedItems[(offset + index) % totalItems];
       if (item) result.push(item);
     }
     return result;
-  }, [offset, processedItems, totalItems]);
+  }, [offset, pageSize, processedItems, totalItems]);
 
   React.useEffect(() => {
     queueMicrotask(() => emblaApi?.reInit());
   }, [emblaApi, visibleItems]);
 
-  const hasRotation = totalItems > VISIBLE_LIMIT;
+  const hasRotation = pageSize > 0 && totalItems > pageSize;
 
   const handleShowPrev = React.useCallback(() => {
-    if (!hasRotation || totalItems === 0) return;
+    if (!hasRotation || totalItems === 0 || pageSize === 0) return;
     setOffset((previous) => {
-      const next = (previous - VISIBLE_LIMIT) % totalItems;
+      const next = (previous - pageSize) % totalItems;
       return next < 0 ? next + totalItems : next;
     });
-  }, [hasRotation, totalItems]);
+  }, [hasRotation, pageSize, totalItems]);
 
   const handleShowNext = React.useCallback(() => {
-    if (!hasRotation || totalItems === 0) return;
-    setOffset((previous) => (previous + VISIBLE_LIMIT) % totalItems);
-  }, [hasRotation, totalItems]);
+    if (!hasRotation || totalItems === 0 || pageSize === 0) return;
+    setOffset((previous) => (previous + pageSize) % totalItems);
+  }, [hasRotation, pageSize, totalItems]);
 
   const indexUploaded = React.useCallback(async () => {
     if (!envelope || !readyAttachment || !readyAttachment.url) return;
@@ -131,6 +154,16 @@ export function UploadsCarousel() {
     attachment && attachment.progress > 0
       ? Math.min(100, Math.max(0, Math.round(attachment.progress)))
       : 0;
+  const progressStyle = React.useMemo<React.CSSProperties>(
+    () => ({ "--progress": `${progressPct}%` } as React.CSSProperties),
+    [progressPct],
+  );
+
+  const containerStyle = React.useMemo<React.CSSProperties>(
+    () =>
+      ({ "--carousel-visible-count": Math.max(1, pageSize) } as React.CSSProperties),
+    [pageSize],
+  );
 
   const renderCard = (item: DisplayMemoryUpload) => {
     const url = item.displayUrl || item.media_url || "";
@@ -223,7 +256,7 @@ export function UploadsCarousel() {
             aria-valuenow={progressPct}
             role="progressbar"
           >
-            <div className={styles.progressInner} style={{ ["--progress" as any]: `${progressPct}%` }} />
+            <div className={styles.progressInner} style={progressStyle} />
           </div>
         ) : null}
       </div>
@@ -234,7 +267,7 @@ export function UploadsCarousel() {
         <div className={styles.empty}>No uploads yet. Add your first image or video.</div>
       ) : (
         <div className={styles.viewport} ref={emblaRef}>
-          <div className={styles.container}>
+          <div className={styles.container} style={containerStyle}>
             {visibleItems.map((item) => (
               <div className={styles.slide} key={item.id}>
                 {renderCard(item)}

@@ -730,7 +730,6 @@ function buildAmbientGradient(base: RGBA, accent: RGBA): string {
   // Build a symmetric cool glow using accent mixed into the base
   const glow = mixColors(accentOpaque, baseOpaque, 0.35);
   const edge = lighten(baseOpaque, 0.22);
-  const bottom = darken(baseOpaque, 0.38);
   const deep = darken(baseOpaque, 0.55);
 
   return [
@@ -911,7 +910,6 @@ const DEFAULT_ACCENT = parseHexColor('#6366f1') ?? { r: 99, g: 102, b: 241, a: 1
 const FALLBACK_ERROR_COLOR = parseHexColor('#ef4444') ?? { r: 239, g: 68, b: 68, a: 1 } as RGBA;
 const FALLBACK_WARNING_COLOR = parseHexColor('#f59e0b') ?? { r: 245, g: 158, b: 11, a: 1 } as RGBA;
 const FALLBACK_SUCCESS_COLOR = parseHexColor('#22c55e') ?? { r: 34, g: 197, b: 94, a: 1 } as RGBA;
-
 
 
 

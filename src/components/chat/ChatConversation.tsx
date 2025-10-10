@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { ArrowLeft, PaperPlaneTilt, Trash } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, PaperPlaneTilt, Trash, UserPlus } from "@phosphor-icons/react/dist/ssr";
 
-import type { ChatMessage, ChatSession } from "@/components/providers/ChatProvider";
+import type { ChatMessage, ChatParticipant, ChatSession } from "@/components/providers/ChatProvider";
 import { useCurrentUser } from "@/services/auth/client";
 
 import styles from "./chat.module.css";
@@ -33,7 +33,12 @@ function formatPresence(value: string | null): string | null {
 
 function initialsFrom(name: string): string {
   const trimmed = name.trim();
-  return trimmed ? (trimmed[0]?.toUpperCase() ?? "?") : "?";
+  if (!trimmed) return "?";
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) {
+    return parts[0]!.slice(0, 2).toUpperCase();
+  }
+  return `${parts[0]![0] ?? ""}${parts[parts.length - 1]![0] ?? ""}`.toUpperCase();
 }
 
 type ChatConversationProps = {
@@ -43,7 +48,66 @@ type ChatConversationProps = {
   onSend: (body: string) => Promise<void>;
   onBack?: () => void;
   onDelete?: () => void;
+  onInviteParticipants?: () => void;
 };
+
+function renderConversationAvatar(session: ChatSession, remoteParticipants: ChatParticipant[], title: string) {
+  if (session.avatar) {
+    return (
+      <Image
+        src={session.avatar}
+        alt=""
+        width={44}
+        height={44}
+        className={styles.conversationAvatarImage}
+        sizes="44px"
+      />
+    );
+  }
+  if (session.type === "group") {
+    const visible = (remoteParticipants.length ? remoteParticipants : session.participants).slice(0, 3);
+    return (
+      <span className={styles.conversationAvatarGroup} aria-hidden>
+        {visible.map((participant, index) =>
+          participant.avatar ? (
+            <Image
+              key={`${participant.id}-${index}`}
+              src={participant.avatar}
+              alt=""
+              width={44}
+              height={44}
+              className={styles.conversationAvatarImage}
+              sizes="44px"
+            />
+          ) : (
+            <span key={`${participant.id}-${index}`} className={styles.conversationAvatarFallback}>
+              {initialsFrom(participant.name)}
+            </span>
+          ),
+        )}
+        {session.participants.length > visible.length ? (
+          <span className={`${styles.conversationAvatarFallback} ${styles.conversationAvatarOverflow}`.trim()}>
+            +{session.participants.length - visible.length}
+          </span>
+        ) : null}
+      </span>
+    );
+  }
+  const primary = remoteParticipants[0] ?? session.participants[0];
+  if (primary?.avatar) {
+    return (
+      <Image
+        src={primary.avatar}
+        alt=""
+        width={44}
+        height={44}
+        className={styles.conversationAvatarImage}
+        sizes="44px"
+      />
+    );
+  }
+  return <span className={styles.conversationAvatarFallback}>{initialsFrom(primary?.name ?? title)}</span>;
+}
 
 function renderStatus(message: ChatMessage): React.ReactNode {
   if (message.status === "failed") {
@@ -55,7 +119,15 @@ function renderStatus(message: ChatMessage): React.ReactNode {
   return null;
 }
 
-export function ChatConversation({ session, currentUserId, selfClientId, onSend, onBack, onDelete }: ChatConversationProps) {
+export function ChatConversation({
+  session,
+  currentUserId,
+  selfClientId,
+  onSend,
+  onBack,
+  onDelete,
+  onInviteParticipants,
+}: ChatConversationProps) {
   const { user } = useCurrentUser();
   const [draft, setDraft] = React.useState("");
   const [sending, setSending] = React.useState(false);
@@ -68,6 +140,14 @@ export function ChatConversation({ session, currentUserId, selfClientId, onSend,
     if (selfClientId) ids.add(selfClientId);
     return ids;
   }, [currentUserId, selfClientId]);
+
+  const participantMap = React.useMemo(() => {
+    const map = new Map<string, ChatParticipant>();
+    session.participants.forEach((participant) => {
+      map.set(participant.id, participant);
+    });
+    return map;
+  }, [session.participants]);
 
   React.useEffect(() => {
     const container = messagesRef.current;
@@ -96,8 +176,16 @@ export function ChatConversation({ session, currentUserId, selfClientId, onSend,
 
   const selfName = user?.name || user?.email || "You";
   const selfAvatar = user?.avatarUrl || null;
+  const remoteParticipants = React.useMemo(() => {
+    return session.participants.filter((participant) => !selfIdentifiers.has(participant.id));
+  }, [selfIdentifiers, session.participants]);
+
   const lastPresenceSource = session.lastMessageAt ?? session.messages.at(-1)?.sentAt ?? null;
-  const presence = formatPresence(lastPresenceSource);
+  const presence =
+    session.type === "group"
+      ? `${session.participants.length} member${session.participants.length === 1 ? "" : "s"}`
+      : formatPresence(lastPresenceSource);
+  const title = session.title?.trim() || (remoteParticipants[0]?.name ?? "Chat");
 
   return (
     <div className={styles.conversation}>
@@ -109,25 +197,24 @@ export function ChatConversation({ session, currentUserId, selfClientId, onSend,
             </button>
           ) : null}
           <span className={styles.conversationAvatar} aria-hidden>
-            {session.friendAvatar ? (
-              <Image
-                src={session.friendAvatar}
-                alt=""
-                width={44}
-                height={44}
-                className={styles.conversationAvatarImage}
-                sizes="44px"
-              />
-            ) : (
-              <span className={styles.conversationAvatarFallback}>{initialsFrom(session.friendName)}</span>
-            )}
+            {renderConversationAvatar(session, remoteParticipants, title)}
           </span>
           <div className={styles.conversationTitleBlock}>
-            <span className={styles.conversationTitle}>{session.friendName}</span>
+            <span className={styles.conversationTitle}>{title}</span>
             {presence ? <span className={styles.conversationSubtitle}>{presence}</span> : null}
           </div>
         </div>
         <div className={styles.conversationHeaderActions}>
+          {session.type === "group" && onInviteParticipants ? (
+            <button
+              type="button"
+              className={styles.conversationAction}
+              onClick={onInviteParticipants}
+              aria-label="Add participants"
+            >
+              <UserPlus size={18} weight="bold" />
+            </button>
+          ) : null}
           {onDelete ? (
             <button
               type="button"
@@ -140,11 +227,34 @@ export function ChatConversation({ session, currentUserId, selfClientId, onSend,
           ) : null}
         </div>
       </div>
+
+      {session.type === "group" ? (
+        <div className={styles.conversationParticipants}>
+          {session.participants.map((participant) => (
+            <span key={participant.id} className={styles.conversationParticipant} title={participant.name}>
+              {participant.avatar ? (
+                <Image
+                  src={participant.avatar}
+                  alt=""
+                  width={28}
+                  height={28}
+                  className={styles.conversationParticipantAvatar}
+                  sizes="28px"
+                />
+              ) : (
+                <span className={styles.conversationParticipantInitials}>{initialsFrom(participant.name)}</span>
+              )}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       <div ref={messagesRef} className={styles.messageList}>
         {session.messages.map((message) => {
           const isSelf = message.authorId ? selfIdentifiers.has(message.authorId) : false;
-          const avatar = isSelf ? selfAvatar : session.friendAvatar;
-          const displayName = isSelf ? selfName : session.friendName;
+          const author = message.authorId ? participantMap.get(message.authorId) : null;
+          const avatar = isSelf ? selfAvatar : author?.avatar ?? null;
+          const displayName = isSelf ? selfName : author?.name ?? "Member";
           const statusNode = renderStatus(message);
           return (
             <div key={message.id} className={`${styles.messageItem} ${isSelf ? styles.messageItemSelf : styles.messageItemOther}`.trim()}>
@@ -182,7 +292,7 @@ export function ChatConversation({ session, currentUserId, selfClientId, onSend,
           className={styles.messageInput}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="Type a message"
+          placeholder={session.type === "group" ? "Message the group" : "Type a message"}
           disabled={sending}
           aria-label="Message"
         />
@@ -194,5 +304,3 @@ export function ChatConversation({ session, currentUserId, selfClientId, onSend,
     </div>
   );
 }
-
-

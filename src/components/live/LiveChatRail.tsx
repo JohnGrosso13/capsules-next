@@ -37,12 +37,14 @@ function formatTimestamp(value: string): string {
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
+const EMPTY_MESSAGES: LiveChatMessage[] = [];
+
 export function LiveChatRail({
   capsuleId: capsuleIdProp = null,
   capsuleName: capsuleNameProp = null,
   status: statusProp = "waiting",
   participantCount: participantCountProp = null,
-  initialMessages = [],
+  initialMessages = EMPTY_MESSAGES,
 }: LiveChatRailProps = {}) {
   const [capsuleId, setCapsuleId] = React.useState<string | null>(capsuleIdProp ?? null);
   const [capsuleName, setCapsuleName] = React.useState<string | null>(capsuleNameProp ?? null);
@@ -69,7 +71,7 @@ export function LiveChatRail({
   }, [participantCountProp]);
 
   React.useEffect(() => {
-    setMessages(initialMessages);
+    setMessages((prev) => (prev === initialMessages ? prev : initialMessages));
   }, [initialMessages]);
 
   React.useEffect(() => {
@@ -189,4 +191,3 @@ export function LiveChatRail({
     </div>
   );
 }
-

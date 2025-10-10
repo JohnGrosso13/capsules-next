@@ -1,4 +1,5 @@
 
+import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { z } from "zod";
 import { ALLOWED_THEME_VAR_KEYS } from "@/lib/theme/shared";
 import {
@@ -8,9 +9,6 @@ import {
   type StylerPlan,
 } from "@/lib/theme/styler-heuristics";
 import { normalizeThemeVariantsInput, isVariantEmpty, type ThemeVariants } from "@/lib/theme/variants";
-
-const OPENAI_API_KEY =
-  process.env.OPENAI_API_KEY ?? process.env.OPENAI_KEY ?? process.env.OPENAI_SECRET_KEY ?? null;
 
 const OPENAI_MODEL =
   process.env.OPENAI_MODEL ?? process.env.AI_MODEL ?? process.env.GPT_MODEL ?? "gpt-4o-mini";
@@ -264,7 +262,7 @@ export async function resolveStylerPlan(prompt: string): Promise<StylerPlan | nu
 }
 
 async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
-  if (!OPENAI_API_KEY) return null;
+  if (!hasOpenAIApiKey()) return null;
 
   const messages = buildChatMessages(prompt);
   const payload = {
@@ -282,11 +280,10 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
     if (delay > 0) await wait(delay);
 
     try {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      const response = await fetchOpenAI("/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
         },
         body: JSON.stringify(payload),
       });

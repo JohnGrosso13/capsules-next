@@ -18,6 +18,48 @@
 
 
 
+.feedEmpty {
+  margin: 0;
+  padding: clamp(36px, 6vw, 56px) clamp(20px, 4vw, 48px);
+  border-radius: var(--radius-2xl, 20px);
+  border: 1px dashed color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.16)) 70%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 12%, transparent),
+      color-mix(in srgb, var(--color-brand) 4%, transparent)
+    ),
+    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.4),
+    0 18px 36px rgba(5, 10, 30, 0.26);
+  text-align: center;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+
+
+.feedEmptyTitle {
+  font-size: clamp(1.2rem, 2.6vw, 1.6rem);
+  font-weight: 900;
+  margin: 0;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+
+
+
+.feedEmptySubtitle {
+  margin: 0;
+  max-width: 420px;
+  color: var(--text-2);
+  font-size: 1rem;
+}
+
+
+
 @media (max-width: 640px) {
 
 
@@ -6376,77 +6418,26 @@
 
 
 .connectionTiles {
-
-
-
   display: grid;
-
-
-
   gap: 18px;
-
-
-
+  grid-template-columns: 1fr;
+  width: 100%;
+  align-items: stretch;
   /* Provide the outer glass shell only for the tile view */
-
-
-
   padding: 10px;
-
-
-
   border-radius: 16px;
-
-
-
   border: 1px solid var(--rail-border);
-
-
-
   background: linear-gradient(
-
-
-
     180deg,
-
-
-
     var(--rail-bg-1),
-
-
-
     var(--rail-bg-2)
-
-
-
   );
-
-
-
   box-shadow:
-
-
-
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
-
-
-
     inset 0 -1px 0 rgba(2, 6, 23, 0.4),
-
-
-
     var(--card-shadow, 0 18px 40px rgba(5, 10, 30, 0.35));
-
-
-
   backdrop-filter: blur(10px) saturate(120%);
-
-
-
   -webkit-backdrop-filter: blur(10px) saturate(120%);
-
-
-
 }
 
 
@@ -6504,13 +6495,8 @@
 
 
   flex-direction: column;
-
-
-
   gap: 12px;
-
-
-
+  width: 100%;
   padding: 20px 22px;
 
 
@@ -6979,6 +6965,38 @@
 
 
 
+.connectionTile[data-tile="party"] {
+  --tile-bg-final: var(
+    --style-party-bg,
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--color-brand) 26%, transparent),
+      color-mix(in srgb, var(--color-info) 18%, transparent)
+    ),
+    var(--tile-bg-base)
+  );
+  --tile-border-final: var(
+    --style-party-border,
+    color-mix(in srgb, var(--color-brand) 34%, var(--tile-border-base))
+  );
+  --tile-text-final: var(--style-party-text, var(--tile-text-base));
+  --tile-shadow-final: var(--style-party-shadow, var(--tile-shadow-base));
+  --tile-icon-bg-final: var(
+    --style-party-icon-bg,
+    color-mix(in srgb, var(--color-brand) 26%, rgba(255, 255, 255, 0.12))
+  );
+  --tile-icon-color-final: var(--style-party-icon-color, var(--tile-icon-color-base));
+  --tile-desc-final: var(--style-party-desc, var(--tile-desc-base));
+  --tile-badge-bg-final: var(--style-party-badge-bg, var(--tile-badge-bg-base));
+  --tile-badge-color-final: var(--style-party-badge-color, var(--tile-badge-color-base));
+  --tile-border-hover: var(--style-party-border-hover, var(--tile-border-hover-base));
+  --tile-shadow-hover: var(--style-party-shadow-hover, var(--tile-shadow-hover-base));
+  --tile-accent-a: color-mix(in srgb, var(--color-brand) 48%, #6366f1);
+  --tile-accent-b: color-mix(in srgb, var(--color-info) 36%, #3b82f6);
+  --tile-accent-c: color-mix(in srgb, var(--color-brand) 26%, rgba(15, 23, 42, 0.72));
+  --tile-glow-opacity: 0.28;
+}
+
 .connectionTile[data-tile="chats"] {
 
 
@@ -7339,6 +7357,78 @@
 
 
 
+.railConnectionsOuter {
+
+
+
+  margin-left: var(--connections-rail-offset, -60px);
+
+
+
+}
+
+
+
+@media (max-width: 1024px) {
+
+
+
+  .railConnectionsOuter {
+
+
+
+    margin-left: var(--connections-rail-offset-md, -50px);
+
+
+
+  }
+
+
+
+}
+
+
+
+@media (max-width: 900px) {
+
+
+
+  .railConnectionsOuter {
+
+
+
+    margin-left: var(--connections-rail-offset-sm, -40px);
+
+
+
+  }
+
+
+
+}
+
+
+
+@media (max-width: 768px) {
+
+
+
+  .railConnectionsOuter {
+
+
+
+    margin-left: var(--connections-rail-offset-xs, 0px);
+
+
+
+  }
+
+
+
+}
+
+
+
 .railHeaderRow {
 
 
@@ -7352,6 +7442,26 @@
 
 
   justify-content: flex-start;
+
+
+
+}
+
+
+
+.railHeaderAction {
+
+
+
+  margin-left: auto;
+
+
+
+  display: flex;
+
+
+
+  align-items: center;
 
 
 
@@ -7467,7 +7577,7 @@
 
 
 
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 
 
 
@@ -7868,6 +7978,8 @@ ers */
 
 
 }
+
+
 
 
 

@@ -1,0 +1,706 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.panelCompact {
+  gap: 20px;
+}
+
+.panelCompact .heroCard {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding: 22px 20px;
+  border-radius: 24px;
+}
+
+.panelCompact .heroCopy {
+  gap: 8px;
+}
+
+.panelCompact .heroTitle {
+  font-size: 1.35rem;
+}
+
+.panelCompact .heroSubtitle {
+  display: none;
+}
+
+.panelCompact .heroActions {
+  padding: 16px 18px;
+  border-radius: 16px;
+}
+
+.panelCompact .primaryButton {
+  width: 100%;
+}
+
+.panelCompact .sessionCard,
+.panelCompact .stageCard,
+.panelCompact .inviteCard,
+.panelCompact .joinCard {
+  padding: 18px 16px;
+}
+
+.panelCompact .participantsGrid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.panelCompact .sessionHeader {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.panelCompact .sessionMeta {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.panelCompact .joinRow {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.panelCompact .joinRow .secondaryButton {
+  width: 100%;
+}
+
+.panelCompact .inviteRow {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 60%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 20%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.errorBanner > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dismissButton {
+  border: 1px solid color-mix(in srgb, var(--color-danger) 60%, transparent);
+  background: transparent;
+  color: inherit;
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-weight: 600;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.noticeSuccess {
+  background: color-mix(in srgb, var(--color-success, #3dd178) 22%, transparent);
+  border-color: color-mix(in srgb, var(--color-success, #3dd178) 60%, transparent);
+}
+
+.noticeWarning {
+  background: color-mix(in srgb, var(--color-warning, #f7c14b) 20%, transparent);
+  border-color: color-mix(in srgb, var(--color-warning, #f7c14b) 55%, transparent);
+}
+
+.noticeInfo {
+  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+}
+
+.heroCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+  gap: 32px;
+  padding: 28px 32px;
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 35%, transparent) 0%,
+    color-mix(in srgb, var(--color-brand) 10%, transparent) 100%
+  );
+  position: relative;
+  overflow: hidden;
+}
+
+.heroCard::after {
+  content: "";
+  position: absolute;
+  inset: 30% -60% -30% 40%;
+  background: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--color-brand) 55%, transparent) 0%,
+    transparent 70%
+  );
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.heroCopy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.heroKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 75%, transparent);
+}
+
+.heroTitle {
+  font-size: clamp(1.6rem, 2.6vw, 2.15rem);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text);
+}
+
+.heroSubtitle {
+  max-width: 540px;
+  color: color-mix(in srgb, var(--text) 80%, transparent);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.heroActions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--card-background, #111827) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+.input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: color-mix(in srgb, var(--card-background, #111827) 92%, transparent);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 0.95rem;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-brand) 75%, transparent);
+  background: color-mix(in srbg, var(--card-background, #111827) 88%, transparent);
+}
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 150ms ease, filter 150ms ease, border-color 150ms ease;
+}
+
+.primaryButton {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 75%, transparent),
+    color-mix(in srgb, var(--color-brand) 45%, transparent)
+  );
+  border: 1px solid color-mix(in srgb, var(--color-brand) 85%, transparent);
+  color: var(--text-on-brand, #0b0b0b);
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  background: color-mix(in srgb, var(--card-background, #111827) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border) 65%, transparent);
+  color: var(--text);
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-brand) 65%, transparent);
+  transform: translateY(-1px);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sessionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 26px;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: color-mix(in srgb, var(--card-background, #0f172a) 92%, transparent);
+}
+
+.sessionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sessionStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand) 25%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, transparent);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sessionMeta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 18px;
+}
+
+.metaBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metaLabel {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+.metaValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.metaCode {
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+  font-size: 1rem;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card-background, #0f172a) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border) 65%, transparent);
+  letter-spacing: 0.1em;
+}
+
+.hostBadge {
+  background: color-mix(in srgb, var(--color-brand) 60%, transparent);
+  color: var(--text-on-brand, #080808);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.stageCard {
+  padding: 22px 24px;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: color-mix(in srgb, var(--card-background, #0b1323) 90%, transparent);
+}
+
+.startAudio {
+  margin-bottom: 12px;
+  align-self: flex-start;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 65%, transparent);
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.stageInner {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.stageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stageTitle {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 85%, transparent);
+}
+
+.stageMeta {
+  font-size: 0.88rem;
+  color: color-mix(in srgb, var(--text) 65%, transparent);
+}
+
+.participantsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.participantCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: color-mix(in srgb, var(--card-background, #101a33) 88%, transparent);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.participantSpeaking {
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-brand) 20%, transparent);
+  transform: translateY(-2px);
+}
+
+.participantAvatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 80%, transparent),
+    color-mix(in srgb, var(--color-brand) 40%, transparent)
+  );
+  color: var(--text-on-brand, #080808);
+}
+
+.participantDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.participantNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.participantName {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.participantBadge {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-border) 80%, transparent);
+  color: color-mix(in srgb, var(--text) 80%, transparent);
+}
+
+.participantState {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+.participantEmpty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px dashed color-mix(in srgb, var(--card-border) 60%, transparent);
+  color: color-mix(in srgb, var(--text) 65%, transparent);
+  font-size: 0.95rem;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.controlButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: color-mix(in srgb, var(--card-background, #101a33) 90%, transparent);
+  color: var(--text);
+  padding: 10px 16px;
+  font-weight: 600;
+  transition: transform 150ms ease, border-color 150ms ease, filter 150ms ease;
+}
+
+.controlButton:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-brand) 60%, transparent);
+  transform: translateY(-1px);
+}
+
+.controlButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.controlDanger {
+  border-color: color-mix(in srgb, var(--color-danger) 60%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--text);
+}
+
+.statusHint {
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--text) 60%, transparent);
+}
+
+.joinCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: color-mix(in srgb, var(--card-background, #101a33) 90%, transparent);
+}
+
+.joinHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.joinRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.joinRow .input {
+  flex: 1 1 220px;
+}
+
+.inviteCard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 24px;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: color-mix(in srgb, var(--card-background, #101a33) 92%, transparent);
+}
+
+.inviteHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.inviteTitle {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.inviteSubtitle {
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  border-radius: 18px;
+  border: 1px dashed color-mix(in srgb, var(--card-border) 60%, transparent);
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+.inviteList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.inviteRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 65%, transparent);
+  background: color-mix(in srgb, var(--card-background, #101a33) 94%, transparent);
+}
+
+.inviteMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: color-mix(in srgb, var(--color-brand) 45%, transparent);
+  color: var(--text);
+}
+
+.inviteInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.inviteName {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.inviteStatus {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.statusOnline {
+  color: color-mix(in srgb, var(--color-success, #3dd178) 80%, transparent);
+}
+
+.statusIdle {
+  color: color-mix(in srgb, var(--text) 55%, transparent);
+}
+
+@media (max-width: 960px) {
+  .heroCard {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .heroActions {
+    padding: 16px 18px;
+  }
+
+  .participantsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .joinRow {
+    flex-direction: column;
+  }
+
+  .joinRow .input,
+  .joinRow .secondaryButton {
+    width: 100%;
+  }
+
+  .inviteRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    gap: 22px;
+  }
+
+  .heroCard {
+    padding: 22px 20px;
+  }
+
+  .sessionCard,
+  .stageCard,
+  .inviteCard,
+  .joinCard {
+    padding: 18px 16px;
+  }
+}

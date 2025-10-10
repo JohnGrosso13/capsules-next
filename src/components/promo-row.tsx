@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CaretLeft, CaretRight, ImageSquare, Sparkle } from "@phosphor-icons/react/dist/ssr";
 
+import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { normalizePosts, resolvePostMediaUrl } from "@/hooks/useHomeFeed/utils";
 import { normalizeMediaUrl } from "@/lib/media";
@@ -451,48 +452,45 @@ function FriendAvatar({ friend }: { friend: Friend }) {
 }
 
 function CapsuleTile({ capsule }: { capsule: Capsule | null }) {
+  const tileClass = styles.capsuleTileCard ?? "";
   if (!capsule) {
     return (
-      <div className={styles.short}>
-        <div className={styles.fallback}>
-          <Sparkle className={styles.fallbackIcon} weight="duotone" />
-        </div>
+      <div className={styles.capsuleTile}>
+        <CapsulePromoTile
+          name="Featured Capsule"
+          badgeLabel="Promo Spotlight"
+          headline="Customize this Promo"
+          subheadline="Add your artwork and message in Capsule settings."
+          actionLabel="Open Capsule"
+          className={tileClass}
+          showSlug={false}
+        />
       </div>
     );
   }
 
   const coverUrl = resolveToAbsoluteUrl(normalizeMediaUrl(capsule.cover));
+  const bannerUrl = coverUrl ?? null;
+  const slug = capsule.slug ?? null;
 
-  const body = (
-    <>
-      {coverUrl ? (
-        <Image
-          src={coverUrl}
-          alt={capsule.name}
-          fill
-          sizes="(max-width: 900px) 50vw, 25vw"
-          className={styles.media}
-          loading="lazy"
-          unoptimized
-        />
-      ) : (
-        <div className={styles.fallback}>
-          <Sparkle className={styles.fallbackIcon} weight="duotone" />
-        </div>
-      )}
-      <div className={styles.overlay}>
-        <span className={styles.overlayLabel}>{capsule.name}</span>
-      </div>
-    </>
+  const tile = (
+    <CapsulePromoTile
+      name={capsule.name}
+      slug={slug}
+      bannerUrl={bannerUrl}
+      badgeLabel="Promo Spotlight"
+      actionLabel="Open Capsule"
+      className={tileClass}
+    />
   );
 
   if (capsule.slug) {
     return (
-      <Link href={capsule.slug} className={styles.short} prefetch={false}>
-        {body}
+      <Link href={capsule.slug} className={styles.capsuleTile} prefetch={false}>
+        {tile}
       </Link>
     );
   }
 
-  return <div className={styles.short}>{body}</div>;
+  return <div className={styles.capsuleTile}>{tile}</div>;
 }

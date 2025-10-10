@@ -12,7 +12,8 @@ import { LiveChatRail, type LiveChatRailProps } from "@/components/live/LiveChat
 
 import styles from "./app-shell.module.css";
 
-type NavKey = "home" | "create" | "capsule" | "memory";
+type NavKey = "home" | "explore" | "create" | "capsule" | "market" | "memory";
+type CapsuleTab = "live" | "feed" | "store";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ type AppShellProps = {
   capsuleBanner?: React.ReactNode;
   showLiveChatRightRail?: boolean;
   liveChatRailProps?: LiveChatRailProps;
+  showDiscoveryRightRail?: boolean;
 };
 
 export function AppShell({
@@ -32,6 +34,7 @@ export function AppShell({
   capsuleBanner,
   showLiveChatRightRail = true,
   liveChatRailProps,
+  showDiscoveryRightRail = false,
 }: AppShellProps) {
   const pathname = usePathname();
   const composer = useComposer();
@@ -39,19 +42,29 @@ export function AppShell({
   const derivedActive: NavKey = React.useMemo(() => {
     if (activeNav) return activeNav;
     if (!pathname) return "home";
+    if (pathname.startsWith("/explore")) return "explore";
     if (pathname.startsWith("/create")) return "create";
     if (pathname.startsWith("/capsule")) return "capsule";
+    if (pathname.startsWith("/market")) return "market";
     if (pathname.startsWith("/memory")) return "memory";
     return "home";
   }, [activeNav, pathname]);
 
   const isHome = derivedActive === "home";
   const isCapsule = derivedActive === "capsule";
+  const [capsuleTab, setCapsuleTab] = React.useState<CapsuleTab>("feed");
   const layoutClassName = isHome ? `${styles.layout} ${styles.layoutHome}` : styles.layout;
   const contentClassName = isHome ? `${styles.content} ${styles.contentHome}` : styles.content;
-  const leftRailClassName = isHome ? `${styles.rail} ${styles.leftRail} ${styles.leftRailHome}` : `${styles.rail} ${styles.leftRail}`;
-  const rightRailClassName = isHome ? `${styles.rail} ${styles.rightRail} ${styles.rightRailHome}` : `${styles.rail} ${styles.rightRail}`;
-  const capsuleLayoutClassName = showLiveChatRightRail
+  const leftRailClassName = isHome
+    ? `${styles.rail} ${styles.leftRail} ${styles.leftRailHome}`
+    : `${styles.rail} ${styles.leftRail}`;
+  const rightRailClassName = isHome
+    ? `${styles.rail} ${styles.rightRail} ${styles.rightRailHome}`
+    : `${styles.rail} ${styles.rightRail}`;
+  const isCapsuleFeedView = isCapsule && capsuleTab === "feed";
+  const isCapsuleStoreView = isCapsule && capsuleTab === "store";
+  const capsuleHasRightRail = isCapsuleFeedView || isCapsuleStoreView || showLiveChatRightRail;
+  const capsuleLayoutClassName = capsuleHasRightRail
     ? `${styles.layout} ${styles.layoutCapsule}`
     : `${styles.layout} ${styles.layoutCapsule} ${styles.layoutCapsuleNoRight}`;
 
@@ -61,6 +74,33 @@ export function AppShell({
     const timer = window.setTimeout(() => setStatusMessage(null), 4000);
     return () => window.clearTimeout(timer);
   }, [statusMessage]);
+
+  React.useEffect(() => {
+    if (!isCapsule) {
+      setCapsuleTab("feed");
+      return;
+    }
+    const handleCapsuleTab = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab?: CapsuleTab }>).detail;
+      if (!detail?.tab) return;
+      setCapsuleTab(detail.tab);
+    };
+    window.addEventListener("capsule:tab", handleCapsuleTab);
+    return () => {
+      window.removeEventListener("capsule:tab", handleCapsuleTab);
+    };
+  }, [isCapsule]);
+
+  const capsuleRightRailContent = React.useMemo(() => {
+    if (isCapsuleFeedView || isCapsuleStoreView) {
+      // Show discovery rail for feed and store capsule views.
+      return <DiscoveryRail />;
+    }
+    if (showLiveChatRightRail) {
+      return <LiveChatRail {...liveChatRailProps} />;
+    }
+    return null;
+  }, [isCapsuleFeedView, isCapsuleStoreView, showLiveChatRightRail, liveChatRailProps]);
 
   return (
     <div className={isCapsule ? `${styles.outer} ${styles.outerCapsule}` : styles.outer}>
@@ -78,23 +118,32 @@ export function AppShell({
 
           {isCapsule ? (
             <>
-              <div className={capsuleLayoutClassName}>
+              <div className={capsuleLayoutClassName} data-capsule-tab={capsuleTab}>
                 <aside className={`${styles.rail} ${styles.leftRail} ${styles.leftRailCapsule}`}>
                   <ConnectionsRail />
                 </aside>
-                <section className={`${styles.content} ${styles.contentCapsule}`}>
+                <section
+                  className={`${styles.content} ${styles.contentCapsule}`}
+                  data-capsule-tab={capsuleTab}
+                >
                   {capsuleBanner ? <div className={styles.capsuleBanner}>{capsuleBanner}</div> : null}
                   {children}
                 </section>
-                {showLiveChatRightRail ? (
+                {capsuleHasRightRail && capsuleRightRailContent ? (
                   <aside className={`${styles.rail} ${styles.rightRail} ${styles.rightRailCapsule}`}>
-                    <LiveChatRail {...liveChatRailProps} />
+                    {capsuleRightRailContent}
                   </aside>
                 ) : null}
               </div>
             </>
           ) : (
-            <div className={layoutClassName}>
+            <div
+              className={
+                !isHome && showDiscoveryRightRail
+                  ? `${styles.layout} ${styles.layoutWithRight}`
+                  : layoutClassName
+              }
+            >
               {isHome ? (
                 <>
                   {/* Left rail: move connections (friends/chats/requests) here */}
@@ -113,13 +162,18 @@ export function AppShell({
               ) : (
                 <>
                   {/* Non-home pages: place connections rail on the left to match app */}
-                  <aside className={`${styles.rail} ${styles.leftRail}`}>
+                  <aside className={leftRailClassName}>
                     <ConnectionsRail />
                   </aside>
                   <section className={contentClassName}>
                     {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
                     {children}
                   </section>
+                  {!isHome && showDiscoveryRightRail ? (
+                    <aside className={rightRailClassName}>
+                      <DiscoveryRail />
+                    </aside>
+                  ) : null}
                 </>
               )}
             </div>

@@ -4,7 +4,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 
 import { AppPage } from "@/components/app-page";
 import { CapsuleGate } from "@/components/capsule/CapsuleGate";
-import { resolveCapsuleGate } from "@/server/capsules/service";
+import { resolveCapsuleGate, getCapsuleSummaryForViewer } from "@/server/capsules/service";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
 
 import capTheme from "./capsule.module.css";
@@ -14,7 +14,13 @@ export const metadata: Metadata = {
   description: "Your capsule feed built with Next.js + Clerk.",
 };
 
-export default async function CapsulePage() {
+type CapsuleSearchParams = Record<string, string | string[] | undefined>;
+
+type CapsulePageProps = {
+  searchParams?: CapsuleSearchParams | Promise<CapsuleSearchParams>;
+};
+
+export default async function CapsulePage({ searchParams }: CapsulePageProps) {
   const { userId } = await auth();
   if (!userId) {
     redirect("/sign-in?redirect_url=/capsule");
@@ -48,32 +54,71 @@ export default async function CapsulePage() {
 
   const { capsules, defaultCapsuleId } = await resolveCapsuleGate(supabaseUserId);
 
-  const hasAnyCapsule = capsules.length > 0;
+  const resolvedSearchParams = (await Promise.resolve(
+    searchParams ?? {},
+  )) as CapsuleSearchParams;
+  const requestedCapsuleParam = resolvedSearchParams.capsuleId;
+  const requestedCapsuleId = Array.isArray(requestedCapsuleParam)
+    ? requestedCapsuleParam[0] ?? null
+    : typeof requestedCapsuleParam === "string"
+      ? requestedCapsuleParam
+      : null;
+
+  const capsulesWithPreview = [...capsules];
+  let selectedCapsuleId: string | null = null;
+
+  if (requestedCapsuleId) {
+    if (capsulesWithPreview.some((capsule) => capsule.id === requestedCapsuleId)) {
+      selectedCapsuleId = requestedCapsuleId;
+    } else {
+      const previewCapsule = await getCapsuleSummaryForViewer(requestedCapsuleId, supabaseUserId);
+      if (previewCapsule) {
+        const exists = capsulesWithPreview.some((capsule) => capsule.id === previewCapsule.id);
+        if (!exists) {
+          capsulesWithPreview.unshift(previewCapsule);
+        }
+        selectedCapsuleId = previewCapsule.id;
+      }
+    }
+  }
+  const switchParam = resolvedSearchParams.switch;
+  const shouldForceSelector = Array.isArray(switchParam)
+    ? switchParam.some((value) => {
+        if (!value) return false;
+        const normalized = String(value).toLowerCase();
+        return normalized === "1" || normalized === "true" || normalized === "select" || normalized === "switch";
+      })
+    : typeof switchParam === "string"
+      ? ["1", "true", "select", "switch"].includes(switchParam.toLowerCase())
+      : false;
+
+  const dedupedCapsules = capsulesWithPreview.filter((capsule, index, list) => {
+    return list.findIndex((entry) => entry.id === capsule.id) === index;
+  });
+
+  if (!selectedCapsuleId) {
+    selectedCapsuleId =
+      defaultCapsuleId ?? (dedupedCapsules.length === 1 ? dedupedCapsules[0]?.id ?? null : null);
+  }
+
+  const hasAnyCapsule = dedupedCapsules.length > 0;
   const initialLiveChatCapsuleId = hasAnyCapsule
-    ? defaultCapsuleId ?? (capsules.length === 1 ? capsules[0]?.id ?? null : null)
+    ? selectedCapsuleId ?? (dedupedCapsules.length === 1 ? dedupedCapsules[0]?.id ?? null : null)
     : null;
   const initialLiveChatCapsule =
     initialLiveChatCapsuleId && hasAnyCapsule
-      ? capsules.find((capsule) => capsule.id === initialLiveChatCapsuleId) ?? null
+      ? dedupedCapsules.find((capsule) => capsule.id === initialLiveChatCapsuleId) ?? null
       : null;
 
   return (
     <AppPage
       activeNav="capsule"
       showPrompter={false}
-      showLiveChatRightRail={hasAnyCapsule}
-      liveChatRailProps={
-        hasAnyCapsule
-          ? {
-              capsuleId: initialLiveChatCapsuleId,
-              capsuleName: initialLiveChatCapsule?.name ?? null,
-              status: "waiting",
-            }
-          : undefined
-      }
+      showLiveChatRightRail={true}
+      liveChatRailProps={ hasAnyCapsule ? { capsuleId: initialLiveChatCapsuleId, capsuleName: initialLiveChatCapsule?.name ?? null, status: "waiting" } : { status: "waiting" } }
     >
       <div className={capTheme.theme}>
-        <CapsuleGate capsules={capsules} defaultCapsuleId={defaultCapsuleId} />
+        <CapsuleGate capsules={dedupedCapsules} defaultCapsuleId={selectedCapsuleId} forceSelector={shouldForceSelector} />
       </div>
     </AppPage>
   );

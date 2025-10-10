@@ -1,4 +1,4 @@
-﻿-- 0009_theme_styles.sql: dedicated table for user theme styles
+-- 0009_theme_styles.sql: dedicated table for user theme styles
 create table if not exists public.theme_styles (
   id uuid default gen_random_uuid() primary key,
   owner_user_id uuid references public.users(id) on delete cascade,

@@ -33,6 +33,7 @@ async function ensureOk(response: Response, fallback: string): Promise<JsonRecor
 export type FeedFetchOptions = {
   limit?: number;
   cursor?: string | null;
+  capsuleId?: string | null;
   signal?: AbortSignal;
 };
 
@@ -49,6 +50,9 @@ function buildFeedUrl(options: FeedFetchOptions): string {
   }
   if (typeof options.cursor === "string" && options.cursor.trim().length > 0) {
     params.set("cursor", options.cursor);
+  }
+  if (typeof options.capsuleId === "string" && options.capsuleId.trim().length > 0) {
+    params.set("capsuleId", options.capsuleId.trim());
   }
   const query = params.toString();
   return query ? `/api/posts?${query}` : "/api/posts";

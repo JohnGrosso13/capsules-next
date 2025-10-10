@@ -121,7 +121,7 @@ export function ComposerForm({
   const [projectsOpen, setProjectsOpen] = React.useState(true);
   const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
   // Enable right preview rail by default; user can resize or we can later add a toggle
-  const [previewOpen, setPreviewOpen] = React.useState(true);
+  const [previewOpen] = React.useState(true);
   // Resizable layout state
   // Wider rails to allow a substantive preview area
   const [leftWidth, setLeftWidth] = React.useState(320);

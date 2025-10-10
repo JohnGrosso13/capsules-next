@@ -3,7 +3,7 @@
 import * as React from "react";
 import styles from "@/app/(authenticated)/friends/friends.module.css";
 
-type Tab = "Friends" | "Chats" | "Requests";
+type Tab = "Friends" | "Party" | "Chats" | "Requests";
 
 type FriendsTabsProps = {
   active: Tab;
@@ -12,7 +12,7 @@ type FriendsTabsProps = {
 };
 
 export function FriendsTabs({ active, counters, onSelect }: FriendsTabsProps) {
-  const order = React.useMemo(() => ["Friends", "Chats", "Requests"] as const, []);
+  const order = React.useMemo(() => ["Friends", "Party", "Chats", "Requests"] as const, []);
 
   const handleKey = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {

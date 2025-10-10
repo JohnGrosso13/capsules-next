@@ -2,6 +2,7 @@ type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
 import { Buffer } from "node:buffer";
 
+import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { serverEnv } from "../env/server";
 
 import { getDatabaseAdminClient } from "@/config/database";
@@ -178,7 +179,7 @@ const feedSummarySchema: JsonSchema = {
 };
 
 function requireOpenAIKey() {
-  if (!serverEnv.OPENAI_API_KEY) {
+  if (!hasOpenAIApiKey()) {
     throw new AIConfigError(
       "OpenAI API key is not configured. Set OPENAI_API_KEY in the environment.",
     );
@@ -246,13 +247,11 @@ export async function callOpenAIChat(
     payload.response_format = { type: "json_object" };
   }
 
-  let response = await fetch("https://api.openai.com/v1/chat/completions", {
+  let response = await fetchOpenAI("/chat/completions", {
     method: "POST",
 
     headers: {
       "Content-Type": "application/json",
-
-      Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}`,
     },
 
     body: JSON.stringify(payload),
@@ -263,13 +262,11 @@ export async function callOpenAIChat(
   if (!response.ok) {
     const fallbackBody = { model: serverEnv.OPENAI_MODEL, messages, temperature };
 
-    response = await fetch("https://api.openai.com/v1/chat/completions", {
+    response = await fetchOpenAI("/chat/completions", {
       method: "POST",
 
       headers: {
         "Content-Type": "application/json",
-
-        Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}`,
       },
 
       body: JSON.stringify(fallbackBody),
@@ -337,13 +334,11 @@ export async function generateImageFromPrompt(
 
     const body = { model: modelName, prompt, n: 1, size: params.size, quality: params.quality };
 
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
+    const response = await fetchOpenAI("/images/generations", {
       method: "POST",
 
       headers: {
         "Content-Type": "application/json",
-
-        Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}`,
       },
 
       body: JSON.stringify(body),
@@ -441,10 +436,8 @@ export async function editImageWithInstruction(
 
   if (params.quality) fd.append("quality", params.quality);
 
-  const response = await fetch("https://api.openai.com/v1/images/edits", {
+  const response = await fetchOpenAI("/images/edits", {
     method: "POST",
-
-    headers: { Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}` },
 
     body: fd,
   });
@@ -1062,10 +1055,8 @@ export async function transcribeAudioFromBase64({
 
       fd.append("model", model);
 
-      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      const response = await fetchOpenAI("/audio/transcriptions", {
         method: "POST",
-
-        headers: { Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}` },
 
         body: fd,
       });

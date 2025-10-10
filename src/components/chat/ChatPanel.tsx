@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 
 import { useChatContext } from "@/components/providers/ChatProvider";
+import type { ChatSession } from "@/components/providers/ChatProvider";
 
 import styles from "./chat.module.css";
-import { PaperPlaneTilt, ChatsCircle } from "@phosphor-icons/react/dist/ssr";
 import { ChatConversation } from "./ChatConversation";
 import { ChatList } from "./ChatList";
 
@@ -14,9 +14,10 @@ type ChatPanelVariant = "page" | "rail";
 type ChatPanelProps = {
   variant?: ChatPanelVariant;
   emptyNotice?: React.ReactNode;
+  onInviteToGroup?: (session: ChatSession) => void;
 };
 
-export function ChatPanel({ variant = "page", emptyNotice }: ChatPanelProps) {
+export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: ChatPanelProps) {
   const {
     sessions,
     activeSession,
@@ -29,6 +30,13 @@ export function ChatPanel({ variant = "page", emptyNotice }: ChatPanelProps) {
     deleteSession,
     isReady,
   } = useChatContext();
+
+  const selfIdentifiers = React.useMemo(() => {
+    const identifiers: string[] = [];
+    if (currentUserId) identifiers.push(currentUserId);
+    if (selfClientId && selfClientId !== currentUserId) identifiers.push(selfClientId);
+    return identifiers;
+  }, [currentUserId, selfClientId]);
 
   const handleSelect = React.useCallback(
     (sessionId: string) => {
@@ -64,28 +72,8 @@ export function ChatPanel({ variant = "page", emptyNotice }: ChatPanelProps) {
           onSend={(body) => sendMessage(activeSession.id, body)}
           onBack={closeSession}
           onDelete={() => handleDelete(activeSession.id)}
+          {...(onInviteToGroup ? { onInviteParticipants: () => onInviteToGroup(activeSession) } : {})}
         />
-      </div>
-    );
-  }
-
-  if (variant === "rail") {
-    return (
-      <div className={styles.chatPanel} data-variant={variant}>
-        <div className={styles.placeholderHeader}>
-          <ChatsCircle size={18} weight="bold" className={styles.placeholderHeaderIcon} />
-          Live Chat
-        </div>
-        <div className={styles.placeholderScroll}>
-          <div className={styles.placeholderEmpty}>Be the first to say hello 👋</div>
-        </div>
-        <form className={styles.composer} onSubmit={(e) => e.preventDefault()}>
-          <input className={styles.messageInput} placeholder="Type your message…" disabled />
-          <button className={styles.sendButton} type="button" disabled>
-            <PaperPlaneTilt size={18} weight="bold" className={styles.sendButtonIcon} />
-            Send
-          </button>
-        </form>
       </div>
     );
   }
@@ -98,6 +86,7 @@ export function ChatPanel({ variant = "page", emptyNotice }: ChatPanelProps) {
         onSelect={handleSelect}
         onDelete={handleDelete}
         emptyNotice={emptyNotice}
+        selfIdentifiers={selfIdentifiers}
       />
     </div>
   );

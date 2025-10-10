@@ -1,22 +1,45 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Image from "next/image";
 
-import type { ChatSession } from "@/components/providers/ChatProvider";
+import type { ChatParticipant, ChatSession } from "@/components/providers/ChatProvider";
 
 import styles from "./chat.module.css";
 import { ChatMenu } from "./ChatMenu";
 
-function initialsFrom(name: string): string {
-  const trimmed = name.trim();
-  return trimmed ? (trimmed[0]?.toUpperCase() ?? "?") : "?";
+type ChatListProps = {
+  sessions: ChatSession[];
+  activeSessionId: string | null;
+  onSelect: (sessionId: string) => void;
+  onDelete: (sessionId: string) => void;
+  emptyNotice?: React.ReactNode;
+  selfIdentifiers: string[];
+};
+
+function buildSelfSet(selfIdentifiers: string[]): Set<string> {
+  return selfIdentifiers.reduce((set, id) => {
+    if (typeof id === "string" && id.trim()) {
+      set.add(id.trim());
+    }
+    return set;
+  }, new Set<string>());
 }
 
-function preview(text: string | null): string {
+function initialsFrom(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "?";
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) {
+    return parts[0]!.slice(0, 2).toUpperCase();
+  }
+  return `${parts[0]![0] ?? ""}${parts[parts.length - 1]![0] ?? ""}`.toUpperCase();
+}
+
+function formatPreview(text: string | null): string {
   const t = (text ?? "").trim();
   if (!t) return "No messages yet";
-  return t.length > 120 ? `${t.slice(0, 119)}...` : t;
+  return t.length > 120 ? `${t.slice(0, 119)}…` : t;
 }
 
 function formatRelativeTime(value: string | null): string | null {
@@ -35,15 +58,117 @@ function formatRelativeTime(value: string | null): string | null {
   return new Date(parsed).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-type ChatListProps = {
-  sessions: ChatSession[];
-  activeSessionId: string | null;
-  onSelect: (sessionId: string) => void;
-  onDelete: (sessionId: string) => void;
-  emptyNotice?: React.ReactNode;
-};
+function selectRemoteParticipants(session: ChatSession, selfSet: Set<string>): ChatParticipant[] {
+  return session.participants.filter((participant) => !selfSet.has(participant.id));
+}
 
-export function ChatList({ sessions, activeSessionId, onSelect, onDelete, emptyNotice }: ChatListProps) {
+function resolveSessionTitle(session: ChatSession, selfSet: Set<string>): string {
+  const trimmed = session.title?.trim();
+  if (trimmed) return trimmed;
+  const others = selectRemoteParticipants(session, selfSet);
+  if (session.type === "group") {
+    if (!others.length) return "Group chat";
+    if (others.length === 1) return `${others[0]!.name} & you`;
+    if (others.length === 2) return `${others[0]!.name} & ${others[1]!.name}`;
+    return `${others[0]!.name}, ${others[1]!.name} +${others.length - 2}`;
+  }
+  return others[0]?.name ?? session.participants[0]?.name ?? "Chat";
+}
+
+function resolvePreview(session: ChatSession, selfSet: Set<string>): string {
+  const lastMessage = session.messages.at(-1);
+  if (!lastMessage) return "No messages yet";
+  const summary = formatPreview(lastMessage.body);
+  if (!lastMessage.authorId) return summary;
+  if (selfSet.has(lastMessage.authorId)) {
+    return `You: ${summary}`;
+  }
+  const author = session.participants.find((participant) => participant.id === lastMessage.authorId);
+  if (author) {
+    return `${author.name}: ${summary}`;
+  }
+  return summary;
+}
+
+function renderAvatarStack(participants: ChatParticipant[], limit = 3): React.ReactNode {
+  if (!participants.length) {
+    return <span className={styles.chatThreadAvatarFallback}>?</span>;
+  }
+  const visible = participants.slice(0, limit);
+  const overflow = participants.length - visible.length;
+  return (
+    <span className={styles.chatThreadAvatarStack}>
+      {visible.map((participant, index) => (
+        <span key={`${participant.id}-${index}`} className={styles.chatThreadAvatarStackItem}>
+          {participant.avatar ? (
+            <Image
+              src={participant.avatar}
+              alt=""
+              width={48}
+              height={48}
+              className={styles.chatThreadAvatarImage}
+              sizes="48px"
+            />
+          ) : (
+            <span className={styles.chatThreadAvatarFallback}>{initialsFrom(participant.name)}</span>
+          )}
+        </span>
+      ))}
+      {overflow > 0 ? (
+        <span className={`${styles.chatThreadAvatarStackItem} ${styles.chatThreadAvatarOverflow}`.trim()}>
+          +{overflow}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function renderAvatar(
+  session: ChatSession,
+  remoteParticipants: ChatParticipant[],
+  title: string,
+): React.ReactNode {
+  if (session.avatar) {
+    return (
+      <Image
+        src={session.avatar}
+        alt=""
+        width={48}
+        height={48}
+        className={styles.chatThreadAvatarImage}
+        sizes="48px"
+      />
+    );
+  }
+  if (session.type === "group") {
+    return renderAvatarStack(remoteParticipants.length ? remoteParticipants : session.participants);
+  }
+  const primary = remoteParticipants[0] ?? session.participants[0];
+  if (primary?.avatar) {
+    return (
+      <Image
+        src={primary.avatar}
+        alt=""
+        width={48}
+        height={48}
+        className={styles.chatThreadAvatarImage}
+        sizes="48px"
+      />
+    );
+  }
+  return <span className={styles.chatThreadAvatarFallback}>{initialsFrom(primary?.name ?? title)}</span>;
+}
+
+export function ChatList({
+  sessions,
+  activeSessionId,
+  onSelect,
+  onDelete,
+  emptyNotice,
+  selfIdentifiers,
+}: ChatListProps) {
+  const selfSet = React.useMemo(() => buildSelfSet(selfIdentifiers), [selfIdentifiers]);
+
   if (!sessions.length) {
     return (
       <div className={styles.chatEmpty}>
@@ -56,10 +181,12 @@ export function ChatList({ sessions, activeSessionId, onSelect, onDelete, emptyN
     <div className={styles.chatThreads}>
       {sessions.map((session, index) => {
         const isActive = session.id === activeSessionId;
-        const avatar = session.friendAvatar ?? null;
-        const name = session.friendName;
-        const sub = preview(session.lastMessagePreview);
+        const remoteParticipants = selectRemoteParticipants(session, selfSet);
+        const title = resolveSessionTitle(session, selfSet);
+        const preview = resolvePreview(session, selfSet);
         const relativeTime = formatRelativeTime(session.lastMessageAt);
+        const participantCount = session.participants.length;
+
         return (
           <article
             key={`${session.id}-${index}`}
@@ -72,29 +199,23 @@ export function ChatList({ sessions, activeSessionId, onSelect, onDelete, emptyN
               aria-expanded={isActive}
             >
               <span className={styles.chatThreadAvatar} aria-hidden>
-                {avatar ? (
-                  <Image
-                    src={avatar}
-                    alt=""
-                    width={48}
-                    height={48}
-                    className={styles.chatThreadAvatarImage}
-                    sizes="48px"
-                  />
-                ) : (
-                  <span className={styles.chatThreadAvatarFallback}>{initialsFrom(name)}</span>
-                )}
+                {renderAvatar(session, remoteParticipants, title)}
               </span>
               <span className={styles.chatThreadContent}>
                 <span className={styles.chatThreadTopRow}>
-                  <span className={styles.chatThreadName}>{name}</span>
+                  <span className={styles.chatThreadTitleBlock}>
+                    <span className={styles.chatThreadName}>{title}</span>
+                    {session.type === "group" ? (
+                      <span className={styles.chatThreadTag}>Group · {participantCount}</span>
+                    ) : null}
+                  </span>
                   {relativeTime ? (
                     <time className={styles.chatThreadTimestamp} dateTime={session.lastMessageAt ?? undefined}>
                       {relativeTime}
                     </time>
                   ) : null}
                 </span>
-                <span className={styles.chatThreadPreview}>{sub}</span>
+                <span className={styles.chatThreadPreview}>{preview}</span>
               </span>
             </button>
             <div className={styles.chatThreadAside}>
@@ -111,4 +232,3 @@ export function ChatList({ sessions, activeSessionId, onSelect, onDelete, emptyN
     </div>
   );
 }
-

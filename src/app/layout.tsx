@@ -9,8 +9,9 @@ import { MobileCommandBar } from "@/components/mobile-command-bar";
 import { GlobalSearchOverlay } from "@/components/global-search-overlay";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme/script";
 import { ComposerProvider, AiComposerRoot } from "@/components/composer/ComposerProvider";
-import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
 import { ChatProvider } from "@/components/providers/ChatProvider";
+import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
+import { PartyProvider } from "@/components/providers/PartyProvider";
 
 export const runtime = 'nodejs';
 
@@ -40,14 +41,16 @@ export default function RootLayout({
           {/* BackgroundFX removed: no animated/static glow overlay */}
           <SignedIn>
             <FriendsDataProvider>
-              <ChatProvider>
-                <ComposerProvider>
-                  {children}
-                  <AiComposerRoot />
-                </ComposerProvider>
-                <GlobalSearchOverlay />
-                <MobileCommandBar />
-              </ChatProvider>
+              <PartyProvider>
+                <ChatProvider>
+                  <ComposerProvider>
+                    {children}
+                    <AiComposerRoot />
+                  </ComposerProvider>
+                  <GlobalSearchOverlay />
+                  <MobileCommandBar />
+                </ChatProvider>
+              </PartyProvider>
             </FriendsDataProvider>
           </SignedIn>
           <SignedOut>{children}</SignedOut>
