@@ -17,7 +17,7 @@ describe("fetchHomeFeed", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: vi.fn().mockResolvedValue({ posts: [1, 2, 3], cursor: "next" }),
+      json: vi.fn().mockResolvedValue({ posts: [1, 2, 3], cursor: "next", deleted: ["  a  ", 42] }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -26,6 +26,7 @@ describe("fetchHomeFeed", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/posts?limit=5&cursor=abc", { signal: undefined });
     expect(result.posts).toEqual([1, 2, 3]);
     expect(result.cursor).toBe("next");
+    expect(result.deleted).toEqual(["a", "42"]);
   });
 
   it("throws with message from payload when response not ok", async () => {

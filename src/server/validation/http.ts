@@ -11,7 +11,7 @@ type ParseFailure = {
   response: NextResponse;
 };
 
-const errorResponseSchema = z.object({
+export const errorResponseSchema = z.object({
   error: z.string(),
   message: z.string(),
   details: z.unknown().optional(),

@@ -34,6 +34,7 @@ describe("homeFeedStore", () => {
         },
       ],
       cursor: "cursor-1",
+      deleted: [],
     });
 
     const store = createHomeFeedStore({
@@ -51,9 +52,37 @@ describe("homeFeedStore", () => {
     expect(state.posts[0]?.id).toBe("abc");
   });
 
+  it("refresh filters out deleted identifiers", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      posts: [
+        {
+          id: "keep",
+          user_name: "Keeper",
+        },
+        {
+          id: "remove-me",
+          user_name: "Remove",
+        },
+      ],
+      cursor: null,
+      deleted: ["remove-me"],
+    });
+
+    const store = createHomeFeedStore({
+      client: { fetch: fetchMock },
+      events: { broadcastFriendsGraphRefresh: vi.fn() },
+    });
+
+    await store.actions.refresh();
+
+    const state = store.getState();
+    expect(state.posts).toHaveLength(1);
+    expect(state.posts[0]?.id).toBe("keep");
+  });
+
   it("refresh falls back to default posts when empty", async () => {
     const fallback = [makePost({ id: "fallback" })];
-    const fetchMock = vi.fn().mockResolvedValue({ posts: [], cursor: null });
+    const fetchMock = vi.fn().mockResolvedValue({ posts: [], cursor: null, deleted: [] });
 
     const store = createHomeFeedStore({
       client: { fetch: fetchMock },

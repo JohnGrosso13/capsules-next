@@ -40,6 +40,7 @@ export type FeedFetchOptions = {
 export type FeedFetchResult = {
   posts: unknown[];
   cursor: string | null;
+  deleted: string[];
 };
 
 function buildFeedUrl(options: FeedFetchOptions): string {
@@ -68,7 +69,20 @@ export async function fetchHomeFeed(options: FeedFetchOptions = {}): Promise<Fee
   const payload = await ensureOk(response, `Feed request failed (${response.status})`);
   const postsRaw = Array.isArray(payload?.posts) ? (payload!.posts as unknown[]) : [];
   const cursorRaw = payload && typeof payload.cursor === "string" ? payload.cursor : null;
-  return { posts: postsRaw, cursor: cursorRaw };
+  const deletedRaw = Array.isArray(payload?.deleted) ? (payload!.deleted as unknown[]) : [];
+  const deleted = deletedRaw
+    .map((value) => {
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        return trimmed.length ? trimmed : null;
+      }
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return String(value);
+      }
+      return null;
+    })
+    .filter((value): value is string => Boolean(value));
+  return { posts: postsRaw, cursor: cursorRaw, deleted };
 }
 
 export type ToggleLikeParams = {

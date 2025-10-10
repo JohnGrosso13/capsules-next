@@ -187,8 +187,19 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
       }
       const normalized = normalizePosts(result.posts);
       const nextPosts = normalized.length ? normalized : clonePosts(fallbackPosts);
+      const deletedSet =
+        Array.isArray(result.deleted) && result.deleted.length ? new Set(result.deleted) : null;
+      const filteredPosts = deletedSet
+        ? nextPosts.filter((post) => {
+            const postId = typeof post.id === "string" ? post.id : String(post.id ?? "");
+            const dbId = typeof post.dbId === "string" ? post.dbId : null;
+            const matchesPostId = postId && deletedSet.has(postId);
+            const matchesDbId = dbId && deletedSet.has(dbId);
+            return !matchesPostId && !matchesDbId;
+          })
+        : nextPosts;
       setState({
-        posts: nextPosts,
+        posts: filteredPosts,
         cursor: result.cursor ?? null,
         hasFetched: true,
         isRefreshing: false,
