@@ -1,4 +1,10 @@
 import type { FriendItem } from "@/hooks/useFriendsData";
+import { isGroupConversationId } from "@/lib/chat/channels";
+import {
+  DEFAULT_CHAT_STORAGE_KEY,
+  loadChatState,
+  saveChatState,
+} from "@/lib/chat/chat-storage";
 
 export type ChatSessionType = "direct" | "group";
 
@@ -111,7 +117,7 @@ type ChatSessionInternal = {
   unreadCount: number;
 };
 
-export type StorageAdapter = Pick<Storage, "getItem" | "setItem">;
+export type StorageAdapter = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export type ChatStoreSnapshot = {
   sessions: ChatSession[];
@@ -127,7 +133,6 @@ export type ChatStoreConfig = {
   now?: () => number;
 };
 
-const DEFAULT_STORAGE_KEY = "capsule:chat:sessions";
 const DEFAULT_MESSAGE_LIMIT = 100;
 
 const USER_ID_PATTERN = /user[:_-][0-9a-z-]+/i;
@@ -314,7 +319,7 @@ export class ChatStore {
 
   constructor(config?: ChatStoreConfig) {
     this.storage = config?.storage ?? null;
-    this.storageKey = config?.storageKey ?? DEFAULT_STORAGE_KEY;
+    this.storageKey = config?.storageKey ?? DEFAULT_CHAT_STORAGE_KEY;
     this.messageLimit = config?.messageLimit ?? DEFAULT_MESSAGE_LIMIT;
     this.now = config?.now ?? Date.now;
   }
@@ -361,90 +366,79 @@ export class ChatStore {
       this.emit();
       return;
     }
-    try {
-      const raw = this.storage.getItem(this.storageKey);
-      if (!raw) {
-        this.hydrated = true;
-        this.emit();
-        return;
-      }
-      const parsed = JSON.parse(raw) as StoredState;
-      if (!parsed || !Array.isArray(parsed.sessions)) {
-        this.hydrated = true;
-        this.emit();
-        return;
-      }
-      this.sessions.clear();
-      parsed.sessions.forEach((stored) => {
-        let descriptor: ChatSessionDescriptor | null = null;
-        if (isValidStoredSession(stored)) {
-          const participants = stored.participants
-            .map((participant) => normalizeParticipant(participant))
-            .filter((participant): participant is ChatParticipant => Boolean(participant));
-          descriptor = {
-            id: stored.id,
-            type: stored.type,
-            title: stored.title,
-            avatar: stored.avatar ?? null,
-            createdBy: stored.createdBy ?? null,
-            participants,
-          };
-        } else if (isLegacyStoredSession(stored)) {
-          const participant = normalizeParticipant({
-            id: stored.friendUserId,
-            name: stored.friendName,
-            avatar: stored.friendAvatar ?? null,
-          });
-          if (participant) {
-            descriptor = {
-              id: stored.id,
-              type: "direct",
-              title: stored.friendName,
-              avatar: stored.friendAvatar ?? null,
-              createdBy: null,
-              participants: [participant],
-            };
-          }
-        }
-        if (!descriptor) return;
-        const { session } = this.ensureSessionInternal(descriptor);
-        session.messages = [];
-        session.messageIndex = new Map();
-        session.lastMessageTimestamp = 0;
-        session.unreadCount = 0;
-        stored.messages.slice(-this.messageLimit).forEach((storedMessage) => {
-          if (
-            storedMessage &&
-            typeof storedMessage.id === "string" &&
-            typeof storedMessage.authorId === "string" &&
-            typeof storedMessage.body === "string" &&
-            typeof storedMessage.sentAt === "string"
-          ) {
-            const restored: ChatMessage = {
-              id: storedMessage.id,
-              authorId: storedMessage.authorId,
-              body: storedMessage.body,
-              sentAt: storedMessage.sentAt,
-              status: "sent",
-            };
-            session.messages.push(restored);
-            session.messageIndex.set(restored.id, session.messages.length - 1);
-            const ts = Date.parse(restored.sentAt);
-            if (Number.isFinite(ts)) {
-              session.lastMessageTimestamp = ts;
-            }
-          }
-        });
-      });
-      if (typeof parsed.activeSessionId === "string") {
-        this.activeSessionId = parsed.activeSessionId;
-      }
-    } catch (error) {
-      console.error("ChatStore hydrate error", error);
-    } finally {
+    const restored = loadChatState(this.storage, this.storageKey);
+    if (!restored) {
       this.hydrated = true;
       this.emit();
+      return;
     }
+    this.sessions.clear();
+    restored.sessions.forEach((stored) => {
+      let descriptor: ChatSessionDescriptor | null = null;
+      if (isValidStoredSession(stored)) {
+        const participants = stored.participants
+          .map((participant) => normalizeParticipant(participant))
+          .filter((participant): participant is ChatParticipant => Boolean(participant));
+        descriptor = {
+          id: stored.id,
+          type: stored.type,
+          title: stored.title,
+          avatar: stored.avatar ?? null,
+          createdBy: stored.createdBy ?? null,
+          participants,
+        };
+      } else if (isLegacyStoredSession(stored)) {
+        const participant = normalizeParticipant({
+          id: stored.friendUserId,
+          name: stored.friendName,
+          avatar: stored.friendAvatar ?? null,
+        });
+        if (participant) {
+          descriptor = {
+            id: stored.id,
+            type: "direct",
+            title: stored.friendName,
+            avatar: stored.friendAvatar ?? null,
+            createdBy: null,
+            participants: [participant],
+          };
+        }
+      }
+      if (!descriptor) return;
+      const { session } = this.ensureSessionInternal(descriptor);
+      session.messages = [];
+      session.messageIndex = new Map();
+      session.lastMessageTimestamp = 0;
+      session.unreadCount = 0;
+      stored.messages.slice(-this.messageLimit).forEach((storedMessage) => {
+        if (
+          storedMessage &&
+          typeof storedMessage.id === "string" &&
+          typeof storedMessage.authorId === "string" &&
+          typeof storedMessage.body === "string" &&
+          typeof storedMessage.sentAt === "string"
+        ) {
+          const restoredMessage: ChatMessage = {
+            id: storedMessage.id,
+            authorId: storedMessage.authorId,
+            body: storedMessage.body,
+            sentAt: storedMessage.sentAt,
+            status: "sent",
+          };
+          session.messages.push(restoredMessage);
+          session.messageIndex.set(restoredMessage.id, session.messages.length - 1);
+          const ts = Date.parse(restoredMessage.sentAt);
+          if (Number.isFinite(ts)) {
+            session.lastMessageTimestamp = ts;
+          }
+        }
+      });
+    });
+    if (typeof restored.activeSessionId === "string") {
+      this.activeSessionId = restored.activeSessionId;
+    }
+    this.hydrated = true;
+    this.emit();
   }
 
   toStoredState(): StoredState {
@@ -783,18 +777,37 @@ export class ChatStore {
       ]);
     }
     const selfIds = this.getSelfIds();
+    const groupConversation = isGroupConversationId(descriptor.id);
+    let normalizedParticipants = ensuredParticipants;
     const type: ChatSessionType =
-      descriptor.type === "group" || ensuredParticipants.length > 2 ? "group" : "direct";
+      descriptor.type === "group" || groupConversation
+        ? "group"
+        : descriptor.type === "direct" || !groupConversation
+          ? "direct"
+          : ensuredParticipants.length > 2
+            ? "group"
+            : "direct";
+    if (type === "direct" && normalizedParticipants.length > 2) {
+      const selfKeySet = new Set(Array.from(selfIds, (id) => canonicalParticipantKey(id)));
+      const self = normalizedParticipants.find((participant) => selfKeySet.has(canonicalParticipantKey(participant.id)));
+      const others = normalizedParticipants.filter(
+        (participant) => !selfKeySet.has(canonicalParticipantKey(participant.id)),
+      );
+      const trimmed: ChatParticipant[] = [];
+      if (self) trimmed.push(self);
+      if (others.length) trimmed.push(others[0]!);
+      normalizedParticipants = trimmed.length ? trimmed : normalizedParticipants.slice(0, 2);
+    }
     const titleCandidate = typeof descriptor.title === "string" ? descriptor.title.trim() : "";
     const title =
-      titleCandidate || computeDefaultTitle(ensuredParticipants, selfIds, type);
+      titleCandidate || computeDefaultTitle(normalizedParticipants, selfIds, type);
     return {
       id: descriptor.id,
       type,
       title,
       avatar: descriptor.avatar ?? null,
       createdBy: descriptor.createdBy ?? null,
-      participants: ensuredParticipants,
+      participants: normalizedParticipants,
     };
   }
 
@@ -875,11 +888,7 @@ export class ChatStore {
 
   private persist() {
     if (!this.hydrated || !this.storage) return;
-    try {
-      this.storage.setItem(this.storageKey, JSON.stringify(this.toStoredState()));
-    } catch (error) {
-      console.error("ChatStore persist error", error);
-    }
+    saveChatState(this.storage, this.toStoredState(), this.storageKey);
   }
 
   private buildSnapshot(): ChatStoreSnapshot {

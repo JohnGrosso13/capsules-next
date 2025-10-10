@@ -10,7 +10,9 @@ import type { PrompterAction, PrompterAttachment } from "@/components/ai-prompte
 import { applyThemeVars } from "@/lib/theme";
 import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
-import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
+import type { ComposerDraft } from "@/lib/composer/draft";
+import { normalizeDraftFromPost } from "@/lib/composer/normalizers";
+import { buildPostPayload } from "@/lib/composer/payload";
 import type { ComposerMode } from "@/lib/ai/nav";
 import {
   draftPostResponseSchema,
@@ -18,108 +20,6 @@ import {
   type DraftPostResponse,
   type StylerResponse,
 } from "@/shared/schemas/ai";
-
-function sanitizePollFromDraft(
-  draft: ComposerDraft,
-): { question: string; options: string[] } | null {
-  if (!draft.poll) return null;
-  const structured = ensurePollStructure(draft);
-  const question = structured.question.trim();
-  const options = structured.options
-    .map((option) => option.trim())
-    .filter((option) => option.length > 0);
-  if (!question && !options.length) return null;
-  return {
-    question,
-    options: options.length ? options : ["Yes", "No"],
-  };
-}
-
-function normalizeDraftFromPost(post: Record<string, unknown>): ComposerDraft {
-  const kind = typeof post.kind === "string" ? post.kind.toLowerCase() : "text";
-  const content = typeof post.content === "string" ? post.content : "";
-  const mediaUrl =
-    typeof post.mediaUrl === "string"
-      ? post.mediaUrl
-      : typeof post.media_url === "string"
-        ? String(post.media_url)
-        : null;
-  const mediaPrompt =
-    typeof post.mediaPrompt === "string"
-      ? post.mediaPrompt
-      : typeof post.media_prompt === "string"
-        ? String(post.media_prompt)
-        : null;
-  let poll: { question: string; options: string[] } | null = null;
-  const pollValue = post.poll;
-  if (pollValue && typeof pollValue === "object") {
-    const pollRecord = pollValue as Record<string, unknown>;
-    const question = typeof pollRecord.question === "string" ? pollRecord.question : "";
-    const optionsRaw = Array.isArray(pollRecord.options) ? pollRecord.options : [];
-    const options = optionsRaw.map((option: unknown) => String(option ?? ""));
-    poll = { question, options: options.length ? options : ["", ""] };
-  }
-  const suggestionsValue = post.suggestions;
-  const suggestions = Array.isArray(suggestionsValue)
-    ? suggestionsValue
-        .map((suggestion: unknown) => {
-          if (typeof suggestion === "string") return suggestion.trim();
-          if (suggestion == null) return "";
-          return String(suggestion).trim();
-        })
-        .filter((value) => value.length > 0)
-    : undefined;
-  const draft: ComposerDraft = {
-    kind,
-    title: typeof post.title === "string" ? post.title : null,
-    content,
-    mediaUrl,
-    mediaPrompt,
-    poll,
-  };
-  if (suggestions && suggestions.length) {
-    draft.suggestions = suggestions;
-  }
-  return draft;
-}
-
-function buildPostPayload(
-  draft: ComposerDraft,
-  rawPost: Record<string, unknown> | null,
-  author?: { name: string | null; avatar: string | null },
-): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
-    client_id: typeof rawPost?.client_id === "string" ? rawPost.client_id : safeRandomUUID(),
-    kind: (draft.kind ?? "text").toLowerCase(),
-    content: draft.content ?? "",
-    source: rawPost?.source ?? "ai-prompter",
-  };
-  if (author?.name) {
-    payload.userName = author.name;
-    payload.user_name = author.name;
-  }
-  if (author?.avatar) {
-    payload.userAvatar = author.avatar;
-    payload.user_avatar = author.avatar;
-  }
-  if (draft.title && draft.title.trim()) payload.title = draft.title.trim();
-  if (draft.mediaUrl && draft.mediaUrl.trim()) {
-    const media = draft.mediaUrl.trim();
-    payload.mediaUrl = media;
-  }
-  if (draft.mediaPrompt && draft.mediaPrompt.trim()) {
-    const prompt = draft.mediaPrompt.trim();
-    payload.mediaPrompt = prompt;
-    payload.media_prompt = prompt;
-  }
-  if (draft.kind?.toLowerCase() === "poll") {
-    const sanitized = sanitizePollFromDraft(draft);
-    if (sanitized) payload.poll = sanitized;
-  }
-  if (rawPost?.capsule_id) payload.capsule_id = rawPost.capsule_id;
-  if (rawPost?.capsuleId) payload.capsuleId = rawPost.capsuleId;
-  return payload;
-}
 
 async function callAiPrompt(
   message: string,
