@@ -4,17 +4,7 @@ import * as React from "react";
 import styles from "../ai-composer.module.css";
 import homeStyles from "@/components/home.module.css";
 import contextMenuStyles from "@/components/ui/context-menu.module.css";
-import {
-  X,
-  Paperclip,
-  Brain,
-  CaretDown,
-  CaretRight,
-  ChatsCircle,
-  NotePencil,
-  Folders,
-  PaperPlaneRight,
-} from "@phosphor-icons/react/dist/ssr";
+import { X, Paperclip, CaretDown, CaretRight, Sparkle } from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
 import { AttachmentPanel } from "./components/AttachmentPanel";
@@ -42,6 +32,57 @@ import {
   shouldBypassCloudflareImages,
 } from "@/lib/cloudflare/runtime";
 
+const PANEL_WELCOME =
+  "Hi! I'm here to help you design a capsule banner for Memory Lane. Describe the mood, colors, or imagery you'd like and I'll generate options.";
+
+const QUICK_PROMPT_PRESETS: Array<{ label: string; prompt: string }> = [
+  { label: "Bold neon gradients", prompt: "Design a bold neon gradient banner with futuristic energy." },
+  { label: "Soft sunrise palette", prompt: "Create a capsule banner inspired by a soft sunrise palette." },
+  { label: "Minimal dark mode", prompt: "Draft a minimal dark mode banner with crisp typography." },
+];
+
+type MemoryPreset = {
+  key: string;
+  label: string;
+  description: string;
+  prompt: string;
+};
+
+const DEFAULT_MEMORY_PRESETS: MemoryPreset[] = [
+  {
+    key: "ai-promo",
+    label: "AI Generated Promo Tile",
+    description: "Memory",
+    prompt: "Generate a promo banner that feels energetic and futuristic.",
+  },
+  {
+    key: "ai-memory-lane",
+    label: "AI Generated Banner for Memory Lane",
+    description: "Memory",
+    prompt: "Create a nostalgic banner for Memory Lane with warm highlights.",
+  },
+  {
+    key: "signup-flow",
+    label: "Sign Up Process",
+    description: "Memory",
+    prompt: "Draft visuals for a signup process announcement banner.",
+  },
+  {
+    key: "successful-upload",
+    label: "Successful Upload",
+    description: "Memory",
+    prompt: "Celebrate a successful upload with a celebratory banner concept.",
+  },
+];
+
+type MemoryItem = {
+  key: string;
+  label: string;
+  description: string;
+  prompt: string | null;
+  kind: "choice" | "preset";
+};
+
 export type ComposerChoice = { key: string; label: string };
 
 type ComposerFormProps = {
@@ -67,6 +108,7 @@ export function ComposerForm({
   onClose,
   onPost,
   onPrompt,
+  onForceChoice,
 }: ComposerFormProps) {
   const workingDraft = React.useMemo<ComposerDraft>(
     () =>
@@ -90,7 +132,7 @@ export function ComposerForm({
   );
 
   const { state, actions } = useComposerFormReducer();
-  const { privacy, projectsOpen, mobileRailOpen, previewOpen, layout, viewerOpen, voice: voiceState } = state;
+  const { privacy, mobileRailOpen, previewOpen, layout, viewerOpen, voice: voiceState } = state;
 
   const columnsRef = React.useRef<HTMLDivElement | null>(null);
   const mainRef = React.useRef<HTMLDivElement | null>(null);
@@ -245,6 +287,53 @@ export function ComposerForm({
     [updateDraft],
   );
 
+  const quickPromptOptions = React.useMemo(() => {
+    if (vibeSuggestions.length) {
+      return vibeSuggestions;
+    }
+    return QUICK_PROMPT_PRESETS;
+  }, [vibeSuggestions]);
+
+  const memoryItems = React.useMemo<MemoryItem[]>(() => {
+    if (_choices?.length) {
+      return _choices.map((choice) => ({
+        key: choice.key,
+        label: choice.label,
+        description: "Memory",
+        prompt: null,
+        kind: "choice" as const,
+      }));
+    }
+    return DEFAULT_MEMORY_PRESETS.map((preset) => ({
+      key: preset.key,
+      label: preset.label,
+      description: preset.description,
+      prompt: preset.prompt,
+      kind: "preset" as const,
+    }));
+  }, [_choices]);
+
+  const accentClasses = [styles.memoryAccent1, styles.memoryAccent2, styles.memoryAccent3, styles.memoryAccent4];
+
+  const handleMemorySelect = React.useCallback(
+    (item: MemoryItem) => {
+      if (item.kind === "choice") {
+        if (onForceChoice) {
+          onForceChoice(item.key);
+        }
+      } else if (item.prompt) {
+        handleSuggestionSelect(item.prompt);
+      }
+      closeMobileRail();
+    },
+    [closeMobileRail, handleSuggestionSelect, onForceChoice],
+  );
+
+  const handleMemoryShortcut = React.useCallback(() => {
+    if (!memoryItems.length) return;
+    handleMemorySelect(memoryItems[0]);
+  }, [handleMemorySelect, memoryItems]);
+
   const handlePromptSubmit = React.useCallback(() => {
     if (!onPrompt) return;
     if (loading || attachmentUploading) return;
@@ -327,47 +416,67 @@ export function ComposerForm({
   const draftReady = isComposerDraftReady(workingDraft);
   const canPost = draftReady && !attachmentUploading && !loading;
 
+  const showWelcomeMessage = !message;
+  const promptPlaceholder = "Describe your banner or a vibe...";
+  const footerHint = "Upload an image, pick a memory, or describe a new banner below.";
+
   const leftRail = (
-    <>
-      <div className={styles.railHeader}>
-        <button type="button" className={styles.railPrimary}>
-          <ChatsCircle size={16} weight="bold" />
-          <span>New Chat</span>
-        </button>
-      </div>
-      <nav className={styles.railSection} aria-label="Active drafts">
-        <div className={`${styles.railTitle} ${styles.railTitleRow}`}>
-          <NotePencil size={16} weight="bold" />
-          <span>Active Drafts</span>
+    <div className={styles.memoryRail}>
+      <header className={styles.memoryHeader}>
+        <div className={styles.memoryHeaderTop}>
+          <span className={styles.memoryTitle}>Recent</span>
+          <button type="button" className={styles.memoryLinkBtn}>
+            View all memories
+            <CaretRight size={14} weight="bold" />
+          </button>
         </div>
-        <div className={styles.railList}>
-          <div className={styles.railEmpty}>No active drafts</div>
-        </div>
-      </nav>
-      <div className={styles.railSection}>
-        <button
-          type="button"
-          className={styles.railTitleBtn}
-          onClick={() => actions.toggleProjects()}
-          aria-expanded={projectsOpen}
-        >
-          {projectsOpen ? <CaretDown size={16} weight="bold" /> : <CaretRight size={16} weight="bold" />}
-          <Folders size={16} weight="bold" />
-          <span className={styles.railTitle}>Projects</span>
-        </button>
-        {projectsOpen ? (
-          <div className={styles.railList}>
-            <div className={styles.railEmpty}>No projects yet</div>
-          </div>
-        ) : null}
-      </div>
-    </>
+        <p className={styles.memorySubtitle}>Quickly reuse what you or Capsule AI picked last.</p>
+      </header>
+      {memoryItems.length ? (
+        <ol className={styles.memoryList}>
+          {memoryItems.map((item, index) => {
+            const accent = accentClasses[index % accentClasses.length];
+            const disabled = item.kind === "choice" && !onForceChoice;
+            return (
+              <li key={item.key}>
+                <button
+                  type="button"
+                  className={styles.memoryCard}
+                  onClick={() => handleMemorySelect(item)}
+                  disabled={disabled}
+                >
+                  <span className={`${styles.memoryThumb} ${accent}`} aria-hidden="true">
+                    <Sparkle size={18} weight="fill" />
+                  </span>
+                  <span className={styles.memoryMeta}>
+                    <span className={styles.memoryName}>{item.label}</span>
+                    <span className={styles.memoryType}>{item.description}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <div className={styles.memoryEmpty}>No memories yet</div>
+      )}
+    </div>
   );
 
   const mainContent = (
     <>
-      <div className={styles.chatScroll}>
-        <ol className={styles.chatList}>
+      <div className={styles.chatArea}>
+        <div className={styles.chatIntro}>
+          <span className={styles.chatBadge}>AI</span>
+        </div>
+        <div className={styles.chatScroll}>
+          <ol className={styles.chatList}>
+            {showWelcomeMessage ? (
+              <li className={styles.msgRow} data-role="ai">
+                <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{PANEL_WELCOME}</div>
+              </li>
+            ) : null}
+
           {prompt ? (
             <li className={styles.msgRow} data-role="user">
               <div className={`${styles.msgBubble} ${styles.userBubble}`}>{prompt}</div>
@@ -426,11 +535,12 @@ export function ComposerForm({
               </div>
             </li>
           ) : null}
-        </ol>
+          </ol>
+        </div>
       </div>
 
       <div className={styles.composerBottom}>
-        <div className={styles.promptBar}>
+        <div className={styles.promptSurface}>
           <button
             type="button"
             className={styles.promptIconBtn}
@@ -451,7 +561,7 @@ export function ComposerForm({
           <input
             ref={promptInputRef}
             className={styles.promptInput}
-            placeholder="Ask Capsule AI to create..."
+            placeholder={promptPlaceholder}
             value={workingDraft.content}
             onChange={(e) => updateDraft({ content: e.target.value })}
             disabled={loading}
@@ -462,16 +572,6 @@ export function ComposerForm({
               }
             }}
           />
-          <button
-            type="button"
-            className={styles.promptSendBtn}
-            aria-label="Send message"
-            title="Send"
-            disabled={loading || attachmentUploading || !workingDraft.content.trim()}
-            onClick={handlePromptSubmit}
-          >
-            <PaperPlaneRight size={18} weight="fill" />
-          </button>
           <VoiceRecorder
             isActive={voiceControls.isActive}
             status={voiceControls.status}
@@ -480,6 +580,18 @@ export function ComposerForm({
             onToggle={voiceControls.toggle}
             errorMessage={voiceControls.errorMessage}
           />
+          <button
+            type="button"
+            className={styles.promptGenerateBtn}
+            onClick={handlePromptSubmit}
+            disabled={loading || attachmentUploading || !workingDraft.content.trim()}
+          >
+            <span className={styles.generateIcon}>
+              <Sparkle size={16} weight="fill" />
+            </span>
+            <span className={styles.generateLabel}>Generate</span>
+            <CaretDown size={14} weight="bold" />
+          </button>
         </div>
 
         {voiceControls.hint ? (
@@ -493,41 +605,48 @@ export function ComposerForm({
           </div>
         ) : null}
 
-        <div className={styles.intentControlsAlt}>
-          <div className={styles.intentLeft}>
-            <Brain size={18} weight="duotone" />
-          </div>
-          <div className={styles.intentRight}>
-            <label className={styles.privacyGroup}>
-              <select
-                aria-label="Visibility"
-                className={styles.privacySelect}
-                value={privacy}
-                onChange={(e) => actions.setPrivacy((e.target.value as ComposerFormState["privacy"]) ?? "public")}
-                disabled={loading}
-              >
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-              </select>
-            </label>
-            <div className={styles.composeActions}>
-              <button type="button" className={styles.secondaryAction} disabled={loading}>
-                Save
-              </button>
-              <button type="button" className={styles.secondaryAction} disabled={loading}>
-                Draft
-              </button>
-              <button type="button" className={styles.postButton} onClick={onPost} disabled={!canPost}>
-                Post
-              </button>
-            </div>
-          </div>
+        <div className={styles.promptPresets}>
+          {quickPromptOptions.map((option) => (
+            <button
+              key={option.prompt}
+              type="button"
+              className={styles.promptPresetBtn}
+              onClick={() => handleSuggestionSelect(option.prompt)}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
+
       </div>
     </>
   );
 
-  const previewContent = <PreviewColumn />;
+  const previewContent = (
+    <PreviewColumn title="Preview">
+      <div className={styles.previewCanvas}>
+        <div className={styles.previewCard}>
+          <span className={styles.previewGlyph}>
+            <Sparkle size={28} weight="fill" />
+          </span>
+          <p className={styles.previewCopy}>Start by chatting with Capsule AI or choosing an image.</p>
+        </div>
+        <div className={styles.previewActions}>
+          <button
+            type="button"
+            className={styles.previewActionPrimary}
+            onClick={handleAttachClick}
+            disabled={loading || attachmentUploading}
+          >
+            Upload image
+          </button>
+          <button type="button" className={styles.previewActionSecondary} onClick={handleMemoryShortcut}>
+            Memory
+          </button>
+        </div>
+      </div>
+    </PreviewColumn>
+  );
 
   const mobileMenu = (
     <div className={`${contextMenuStyles.menu} ${styles.mobileRailMenu}`} role="menu">
@@ -578,21 +697,64 @@ export function ComposerForm({
           <X size={18} weight="bold" />
         </button>
 
-        <ComposerLayout
-          columnsRef={columnsRef}
-          mainRef={mainRef}
-          layout={layout}
-          previewOpen={previewOpen}
-          leftRail={leftRail}
-          mainContent={mainContent}
-          previewContent={previewContent}
-          mobileRailOpen={mobileRailOpen}
-          onToggleMobileRail={() => actions.setMobileRailOpen(!mobileRailOpen)}
-          mobileMenu={mobileMenu}
-          onLeftResizeStart={startLeftResize}
-          onRightResizeStart={startRightResize}
-          onBottomResizeStart={startBottomResize}
-        />
+        <header className={styles.panelHeader}>
+          <div className={styles.panelTitleGroup}>
+            <h2 className={styles.panelTitle}>Design your Capsule banner</h2>
+            <p className={styles.panelSubtitle}>
+              Chat with Capsule AI, pick from memories, or upload brand visuals to set your capsule banner.
+            </p>
+          </div>
+        </header>
+
+        <div className={styles.panelBody}>
+          <ComposerLayout
+            columnsRef={columnsRef}
+            mainRef={mainRef}
+            layout={layout}
+            previewOpen={previewOpen}
+            leftRail={leftRail}
+            mainContent={mainContent}
+            previewContent={previewContent}
+            mobileRailOpen={mobileRailOpen}
+            onToggleMobileRail={() => actions.setMobileRailOpen(!mobileRailOpen)}
+            mobileMenu={mobileMenu}
+            onLeftResizeStart={startLeftResize}
+            onRightResizeStart={startRightResize}
+            onBottomResizeStart={startBottomResize}
+          />
+        </div>
+
+        <footer className={styles.panelFooter}>
+          <div className={styles.footerLeft}>
+            <p className={styles.footerHint}>{footerHint}</p>
+            <label className={styles.privacyGroup}>
+              <span className={styles.privacyLabel}>Visibility</span>
+              <select
+                aria-label="Visibility"
+                className={styles.privacySelect}
+                value={privacy}
+                onChange={(e) => actions.setPrivacy((e.target.value as ComposerFormState["privacy"]) ?? "public")}
+                disabled={loading}
+              >
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+            </label>
+          </div>
+          <div className={styles.footerActions}>
+            <button
+              type="button"
+              className={styles.cancelAction}
+              onClick={onClose}
+              disabled={loading || attachmentUploading}
+            >
+              Cancel
+            </button>
+            <button type="button" className={styles.primaryAction} onClick={onPost} disabled={!canPost}>
+              Save banner
+            </button>
+          </div>
+        </footer>
 
         {viewerOpen && displayAttachment && displayAttachment.status === "ready" ? (
           <div className={homeStyles.lightboxOverlay} role="dialog" aria-modal="true" onClick={closeViewer}>
