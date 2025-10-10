@@ -8,6 +8,7 @@ import { CaretLeft, CaretRight, ImageSquare, Sparkle } from "@phosphor-icons/rea
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { normalizePosts, resolvePostMediaUrl } from "@/hooks/useHomeFeed/utils";
+import { resolveCapsuleHandle, resolveCapsuleHref } from "@/lib/capsules/promo-tile";
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import homeStyles from "./home.module.css";
@@ -15,7 +16,17 @@ import styles from "./promo-row.module.css";
 
 type Post = { id: string; mediaUrl?: string | null; content?: string | null };
 type Friend = { name: string; avatar?: string | null };
-type Capsule = { name: string; slug?: string | null; cover?: string | null };
+type Capsule = {
+  id?: string | null;
+  name: string;
+  slug?: string | null;
+  href?: string | null;
+  bannerUrl?: string | null;
+  cover?: string | null;
+  promoTileUrl?: string | null;
+  logoUrl?: string | null;
+  createdAt?: string | null;
+};
 
 const fallbackMedia: Post[] = [
   { id: "media-1", mediaUrl: null },
@@ -32,9 +43,27 @@ const fallbackFriends: Friend[] = [
 ];
 
 const fallbackCapsules: Capsule[] = [
-  { name: "Creators Guild", slug: "/capsule/creators-guild", cover: null },
-  { name: "Indie Devs", slug: "/capsule/indie-devs", cover: null },
-  { name: "Design Brush", slug: "/capsule/design-brush", cover: null },
+  {
+    id: "capsule-creators",
+    name: "Creators Guild",
+    slug: "creators-guild",
+    href: "/capsule/creators-guild",
+    cover: null,
+  },
+  {
+    id: "capsule-indie",
+    name: "Indie Devs",
+    slug: "indie-devs",
+    href: "/capsule/indie-devs",
+    cover: null,
+  },
+  {
+    id: "capsule-design",
+    name: "Design Brush",
+    slug: "design-brush",
+    href: "/capsule/design-brush",
+    cover: null,
+  },
 ];
 
 type TileConfig =
@@ -85,7 +114,9 @@ function getTileLabel(tile: TileConfig, context: TileContext): string {
     case "capsule": {
       const capsule = context.capsules[tile.capsuleIndex] ?? null;
       if (capsule?.name) {
-        return `Explore capsule ${truncateText(capsule.name, 60)}`;
+        const handleValue = resolveCapsuleHandle(capsule.slug);
+        const handle = handleValue ? ` (@${handleValue})` : "";
+        return `Explore capsule ${truncateText(capsule.name, 60)}${handle}`;
       }
       return "Explore featured capsule";
     }
@@ -485,10 +516,6 @@ function CapsuleTile({ capsule }: { capsule: Capsule | null }) {
       <div className={styles.capsuleTile}>
         <CapsulePromoTile
           name="Featured Capsule"
-          badgeLabel="Promo Spotlight"
-          headline="Customize this Promo"
-          subheadline="Add your artwork and message in Capsule settings."
-          actionLabel="Open Capsule"
           className={tileClass}
           showSlug={false}
         />
@@ -496,24 +523,34 @@ function CapsuleTile({ capsule }: { capsule: Capsule | null }) {
     );
   }
 
-  const coverUrl = resolveToAbsoluteUrl(normalizeMediaUrl(capsule.cover));
-  const bannerUrl = coverUrl ?? null;
-  const slug = capsule.slug ?? null;
+  const bannerSource = capsule.promoTileUrl ?? capsule.bannerUrl ?? capsule.cover ?? null;
+  const bannerUrl = resolveToAbsoluteUrl(normalizeMediaUrl(bannerSource));
+  const logoUrl = resolveToAbsoluteUrl(normalizeMediaUrl(capsule.logoUrl));
+  const rawSlug = capsule.slug ?? null;
+  const slugHandle = resolveCapsuleHandle(rawSlug);
 
   const tile = (
     <CapsulePromoTile
       name={capsule.name}
-      slug={slug}
+      slug={slugHandle}
       bannerUrl={bannerUrl}
-      badgeLabel="Promo Spotlight"
-      actionLabel="Open Capsule"
+      logoUrl={logoUrl}
       className={tileClass}
+      showSlug={false}
     />
   );
 
-  if (capsule.slug) {
+  const href =
+    resolveCapsuleHref(rawSlug, capsule.href ?? null);
+
+  if (href) {
     return (
-      <Link href={capsule.slug} className={styles.capsuleTile} prefetch={false}>
+      <Link
+        href={href}
+        className={styles.capsuleTile}
+        prefetch={false}
+        aria-label={`Open capsule ${capsule.name}`}
+      >
         {tile}
       </Link>
     );

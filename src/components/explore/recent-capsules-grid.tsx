@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
+import { resolveCapsuleHandle } from "@/lib/capsules/promo-tile";
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import type { DiscoverCapsuleSummary } from "@/server/capsules/service";
@@ -10,32 +11,6 @@ import styles from "./recent-capsules-grid.module.css";
 type RecentCapsulesGridProps = {
   capsules: DiscoverCapsuleSummary[];
 };
-
-const RELATIVE_DIVISIONS: Array<{ amount: number; unit: Intl.RelativeTimeFormatUnit }> = [
-  { amount: 60, unit: "second" },
-  { amount: 60, unit: "minute" },
-  { amount: 24, unit: "hour" },
-  { amount: 7, unit: "day" },
-  { amount: 4.34524, unit: "week" },
-  { amount: 12, unit: "month" },
-  { amount: Infinity, unit: "year" },
-];
-
-const relativeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-
-function formatRelativeDate(iso: string | null): string | null {
-  if (!iso) return null;
-  const timestamp = Date.parse(iso);
-  if (Number.isNaN(timestamp)) return null;
-  let duration = (timestamp - Date.now()) / 1000;
-  for (const division of RELATIVE_DIVISIONS) {
-    if (Math.abs(duration) < division.amount) {
-      return relativeFormatter.format(Math.round(duration), division.unit);
-    }
-    duration /= division.amount;
-  }
-  return null;
-}
 
 function chunkIntoRows<T>(items: T[], size: number, maxRows: number): T[][] {
   const rows: T[][] = [];
@@ -100,11 +75,10 @@ export function RecentCapsulesGrid({ capsules }: RecentCapsulesGridProps) {
             {row.map((capsule) => {
               const bannerSrc = resolveToAbsoluteUrl(normalizeMediaUrl(capsule.bannerUrl));
               const logoSrc = resolveToAbsoluteUrl(normalizeMediaUrl(capsule.logoUrl));
-              const relativeCreated = formatRelativeDate(capsule.createdAt);
-              const subheadline = relativeCreated ? `Launched ${relativeCreated}` : null;
               const bannerUrl = capsule.promoTileUrl ?? bannerSrc ?? null;
               const logoUrl = logoSrc ?? null;
               const tileCardClass = styles.tileCard ?? "";
+              const slugHandle = resolveCapsuleHandle(capsule.slug);
               return (
                 <Link
                   key={capsule.id}
@@ -115,13 +89,11 @@ export function RecentCapsulesGrid({ capsules }: RecentCapsulesGridProps) {
                 >
                   <CapsulePromoTile
                     name={capsule.name}
-                    slug={capsule.slug}
+                    slug={slugHandle}
                     bannerUrl={bannerUrl}
                     logoUrl={logoUrl}
-                    badgeLabel="New Capsule"
-                    subheadline={subheadline}
-                    actionLabel="Open Capsule"
                     className={tileCardClass}
+                    showSlug={false}
                   />
                 </Link>
               );
@@ -132,4 +104,3 @@ export function RecentCapsulesGrid({ capsules }: RecentCapsulesGridProps) {
     </section>
   );
 }
-
