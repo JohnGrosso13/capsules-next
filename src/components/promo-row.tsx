@@ -8,9 +8,14 @@ import { CaretLeft, CaretRight, ImageSquare, Sparkle } from "@phosphor-icons/rea
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { normalizePosts, resolvePostMediaUrl } from "@/hooks/useHomeFeed/utils";
-import { resolveCapsuleHandle, resolveCapsuleHref } from "@/lib/capsules/promo-tile";
+import {
+  resolveCapsuleHandle,
+  resolveCapsuleHref,
+  resolveCapsuleTileMedia,
+} from "@/lib/capsules/promo-tile";
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
+import capsuleTileHostStyles from "@/components/capsule/capsule-tile-host.module.css";
 import homeStyles from "./home.module.css";
 import styles from "./promo-row.module.css";
 
@@ -510,7 +515,7 @@ function FriendAvatar({ friend }: { friend: Friend }) {
 }
 
 function CapsuleTile({ capsule }: { capsule: Capsule | null }) {
-  const tileClass = styles.capsuleTileCard ?? "";
+  const tileClass = capsuleTileHostStyles.tileHost;
   if (!capsule) {
     return (
       <div className={styles.capsuleTile}>
@@ -523,9 +528,12 @@ function CapsuleTile({ capsule }: { capsule: Capsule | null }) {
     );
   }
 
-  const bannerSource = capsule.promoTileUrl ?? capsule.bannerUrl ?? capsule.cover ?? null;
-  const bannerUrl = resolveToAbsoluteUrl(normalizeMediaUrl(bannerSource));
-  const logoUrl = resolveToAbsoluteUrl(normalizeMediaUrl(capsule.logoUrl));
+  const { bannerUrl, logoUrl } = resolveCapsuleTileMedia({
+    promoTileUrl: capsule.promoTileUrl,
+    bannerUrl: capsule.bannerUrl,
+    coverUrl: capsule.cover,
+    logoUrl: capsule.logoUrl,
+  });
   const rawSlug = capsule.slug ?? null;
   const slugHandle = resolveCapsuleHandle(rawSlug);
 

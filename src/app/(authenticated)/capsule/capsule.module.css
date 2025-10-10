@@ -1388,7 +1388,7 @@
   background: none;
   cursor: pointer;
   display: block;
-  text-align: left;
+  text-align: center;
 }
 
 .selectorTileButton:focus-visible {
@@ -1396,10 +1396,6 @@
 }
 
 .selectorTile {
-  --capsule-tile-aspect: 9 / 16;
-  --capsule-tile-aspect-sm: 4 / 3;
-  --capsule-tile-border: color-mix(in srgb, var(--card-border, rgba(255,255,255,0.2)) 86%, transparent);
-  --capsule-tile-border-hover: color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent);
   width: 100%;
   height: 100%;
 }
@@ -1407,6 +1403,34 @@
 .selectorTileButton:focus-visible .selectorTile {
   outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 65%, transparent);
   outline-offset: 3px;
+}
+
+.selectorTileMeta {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  text-align: center;
+}
+
+.selectorTileBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--card-border, rgba(255,255,255,0.18)) 78%, transparent);
+  color: var(--text);
+}
+
+.selectorTileRole {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-2);
 }
 
 @media (max-width: 640px) {

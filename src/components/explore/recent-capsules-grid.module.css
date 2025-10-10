@@ -38,19 +38,6 @@
   position: relative;
 }
 
-.tileCard {
-  --capsule-tile-aspect: 9 / 16;
-  --capsule-tile-aspect-sm: 4 / 3;
-  --capsule-tile-border: color-mix(in srgb, var(--card-border, rgba(148, 163, 184, 0.36)) 88%, transparent);
-  --capsule-tile-border-hover: color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent);
-  --capsule-tile-overlay: linear-gradient(
-    180deg,
-    rgba(5, 9, 20, 0.08),
-    rgba(5, 9, 20, 0.76) 78%,
-    rgba(5, 9, 20, 0.9)
-  );
-}
-
 .tile:focus-visible {
   outline: 2px solid var(--focus-ring, rgba(99, 102, 241, 0.66));
   outline-offset: 4px;
@@ -77,12 +64,6 @@
   font-size: clamp(0.92rem, 1.3vw, 1rem);
   color: var(--text-muted, color-mix(in srgb, var(--text, #0f172a) 65%, transparent));
   max-width: 420px;
-}
-
-@media (max-width: 900px) {
-  .tileCard {
-    --capsule-tile-aspect: 4 / 5.6;
-  }
 }
 
 @media (max-width: 640px) {

@@ -7,6 +7,8 @@ import useEmblaCarousel from "embla-carousel-react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CapsuleContent } from "@/components/capsule/CapsuleScaffold";
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
+import capsuleTileHostStyles from "@/components/capsule/capsule-tile-host.module.css";
+import { resolveCapsuleTileMedia } from "@/lib/capsules/promo-tile";
 import type { CapsuleSummary } from "@/server/capsules/service";
 
 import styles from "@/app/(authenticated)/capsule/capsule.module.css";
@@ -139,10 +141,13 @@ function CapsuleSelectorTile({
   onSelect: (capsuleId: string) => void;
 }) {
   const badgeLabel = capsule.ownership === "owner" ? "Owner" : "Member";
-  const description = formatRole(capsule);
-  const bannerUrl = capsule.promoTileUrl ?? capsule.bannerUrl ?? null;
-  const logoUrl = capsule.logoUrl ?? null;
-  const tileClass = styles.selectorTile ?? "";
+  const roleDescription = formatRole(capsule);
+  const { bannerUrl, logoUrl } = resolveCapsuleTileMedia({
+    promoTileUrl: capsule.promoTileUrl,
+    bannerUrl: capsule.bannerUrl,
+    logoUrl: capsule.logoUrl,
+  });
+  const tileClass = `${capsuleTileHostStyles.tileHost} ${styles.selectorTile ?? ""}`.trim();
   return (
     <button
       type="button"
@@ -152,14 +157,15 @@ function CapsuleSelectorTile({
     >
       <CapsulePromoTile
         name={capsule.name}
-        slug={capsule.slug}
         bannerUrl={bannerUrl}
         logoUrl={logoUrl}
-        badgeLabel={badgeLabel}
-        description={description}
-        actionLabel="Open Capsule"
         className={tileClass}
+        showSlug={false}
       />
+      <div className={styles.selectorTileMeta}>
+        <span className={styles.selectorTileBadge}>{badgeLabel}</span>
+        <span className={styles.selectorTileRole}>{roleDescription}</span>
+      </div>
     </button>
   );
 }
@@ -359,4 +365,3 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
     </div>
   );
 }
-

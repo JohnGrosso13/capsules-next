@@ -1,9 +1,8 @@
 import Link from "next/link";
 
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
-import { resolveCapsuleHandle } from "@/lib/capsules/promo-tile";
-import { normalizeMediaUrl } from "@/lib/media";
-import { resolveToAbsoluteUrl } from "@/lib/url";
+import capsuleTileHostStyles from "@/components/capsule/capsule-tile-host.module.css";
+import { resolveCapsuleHandle, resolveCapsuleTileMedia } from "@/lib/capsules/promo-tile";
 import type { DiscoverCapsuleSummary } from "@/server/capsules/service";
 import promoStyles from "@/components/promo-row.module.css";
 import styles from "./recent-capsules-grid.module.css";
@@ -73,11 +72,12 @@ export function RecentCapsulesGrid({ capsules }: RecentCapsulesGridProps) {
             className={`${promoStyles.row} ${styles.row}`}
           >
             {row.map((capsule) => {
-              const bannerSrc = resolveToAbsoluteUrl(normalizeMediaUrl(capsule.bannerUrl));
-              const logoSrc = resolveToAbsoluteUrl(normalizeMediaUrl(capsule.logoUrl));
-              const bannerUrl = capsule.promoTileUrl ?? bannerSrc ?? null;
-              const logoUrl = logoSrc ?? null;
-              const tileCardClass = styles.tileCard ?? "";
+              const { bannerUrl, logoUrl } = resolveCapsuleTileMedia({
+                promoTileUrl: capsule.promoTileUrl,
+                bannerUrl: capsule.bannerUrl,
+                logoUrl: capsule.logoUrl,
+              });
+              const tileCardClass = capsuleTileHostStyles.tileHost;
               const slugHandle = resolveCapsuleHandle(capsule.slug);
               return (
                 <Link

@@ -1,8 +1,48 @@
+import { normalizeMediaUrl } from "@/lib/media";
+import { resolveToAbsoluteUrl } from "@/lib/url";
+
 export function resolveCapsuleHandle(slug: string | null | undefined): string | null {
   if (!slug) return null;
   const trimmed = slug.trim();
   if (!trimmed.length) return null;
   return trimmed.replace(/^@/, "").replace(/^\/+capsule\//, "");
+}
+
+export type CapsuleTileMediaSources = {
+  promoTileUrl?: string | null;
+  bannerUrl?: string | null;
+  coverUrl?: string | null;
+  logoUrl?: string | null;
+};
+
+export type CapsuleTileMedia = {
+  bannerUrl: string | null;
+  logoUrl: string | null;
+};
+
+function toAbsolute(url: string | null): string | null {
+  if (!url) return null;
+  return resolveToAbsoluteUrl(url) ?? url;
+}
+
+export function resolveCapsuleTileMedia(
+  sources: CapsuleTileMediaSources,
+  options: { absolute?: boolean } = {},
+): CapsuleTileMedia {
+  const { absolute = true } = options;
+  const prioritizedBanner = sources.promoTileUrl ?? sources.bannerUrl ?? sources.coverUrl ?? null;
+  const normalizedBanner = normalizeMediaUrl(prioritizedBanner);
+  const normalizedLogo = normalizeMediaUrl(sources.logoUrl ?? null);
+  if (absolute) {
+    return {
+      bannerUrl: toAbsolute(normalizedBanner),
+      logoUrl: toAbsolute(normalizedLogo),
+    };
+  }
+  return {
+    bannerUrl: normalizedBanner,
+    logoUrl: normalizedLogo,
+  };
 }
 
 export function resolveCapsuleHref(
