@@ -24,6 +24,16 @@ export type FriendRealtimeEvent = {
   payload: Record<string, unknown>;
 };
 
+type FriendIdCacheEntry = {
+  value: string[];
+  expiresAt: number;
+};
+
+const FRIEND_ID_CACHE_TTL_MS = 60 * 1000;
+const FRIEND_ID_CACHE_ERROR_TTL_MS = 10 * 1000;
+const friendIdCache = new Map<string, FriendIdCacheEntry>();
+const friendIdFetches = new Map<string, Promise<string[]>>();
+
 export function friendEventsChannel(userId: string): string {
   const trimmed = userId.trim();
   return `${FRIEND_CHANNEL_PREFIX}:${trimmed}:${FRIEND_EVENTS_NAMESPACE}`;
@@ -43,6 +53,48 @@ export async function publishFriendEvents(
       }
     }),
   );
+}
+
+async function getCachedFriendIds(userId: string): Promise<string[]> {
+  const now = Date.now();
+  const cached = friendIdCache.get(userId);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  const pending = friendIdFetches.get(userId);
+  if (pending) {
+    if (cached) {
+      return cached.value;
+    }
+    return pending;
+  }
+
+  const fetchPromise = listFriendUserIds(userId)
+    .then((ids) => {
+      friendIdFetches.delete(userId);
+      friendIdCache.set(userId, { value: ids, expiresAt: Date.now() + FRIEND_ID_CACHE_TTL_MS });
+      return ids;
+    })
+    .catch((error) => {
+      friendIdFetches.delete(userId);
+      if (cached) {
+        friendIdCache.set(userId, {
+          value: cached.value,
+          expiresAt: Date.now() + FRIEND_ID_CACHE_ERROR_TTL_MS,
+        });
+        return cached.value;
+      }
+      throw error;
+    });
+
+  friendIdFetches.set(userId, fetchPromise);
+
+  if (cached) {
+    return cached.value;
+  }
+
+  return fetchPromise;
 }
 
 export async function createFriendRealtimeAuth(userId: string): Promise<RealtimeAuthPayload | null> {
@@ -65,7 +117,7 @@ export async function createFriendRealtimeAuth(userId: string): Promise<Realtime
   }
 
   try {
-    const friendIds = await listFriendUserIds(userId);
+    const friendIds = await getCachedFriendIds(userId);
     console.log("Realtime chat capabilities", { userId, friendIds, capabilitiesBeforeFriends: { ...capabilities } });
     friendIds.forEach((friendId) => {
       try {
