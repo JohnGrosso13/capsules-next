@@ -15,7 +15,10 @@ import { detectComposerMode, resolveNavigationTarget, navHint } from "@/lib/ai/n
 import type { ComposerMode } from "@/lib/ai/nav";
 
 import styles from "./home.module.css";
-import { PrompterInputBar } from "@/components/prompter/PrompterInputBar";
+import { PrompterSuggestedActions } from "@/components/prompter/PrompterSuggestedActions";
+import { PrompterToolbar } from "@/components/prompter/PrompterToolbar";
+import { usePrompterDragAndDrop } from "@/components/prompter/usePrompterDragAndDrop";
+import { usePrompterVoice } from "@/components/prompter/usePrompterVoice";
 import { detectSuggestedTools, type PrompterToolKey } from "@/components/prompter/tools";
 import { Paperclip } from "@phosphor-icons/react/dist/ssr";
 
@@ -39,7 +42,6 @@ const COMPACT_PLACEHOLDER = "Ask Capsule AI for ideas...";
 const COMPACT_VIEWPORT_QUERY = "(max-width: 480px)";
 
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
-import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useCurrentUser } from "@/services/auth/client";
 import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { intentResponseSchema } from "@/shared/schemas/ai";
@@ -120,40 +122,6 @@ function truncate(text: string, length = 80): string {
   return `${text.slice(0, length - 1)}...`;
 }
 
-function dragEventHasFiles(event: React.DragEvent<HTMLElement>): boolean {
-  const dataTransfer = event.dataTransfer;
-  if (!dataTransfer) return false;
-  if (dataTransfer.items && dataTransfer.items.length > 0) {
-    return Array.from(dataTransfer.items).some((item) => item.kind === "file");
-  }
-  if (dataTransfer.files && dataTransfer.files.length > 0) return true;
-  return Array.from(dataTransfer.types).includes("Files");
-}
-
-function describeVoiceError(code: string | null): string | null {
-  if (!code) return null;
-  const normalized = code.toLowerCase();
-  if (normalized.includes("not-allowed")) {
-    return "Microphone access is blocked. Enable it in your browser settings.";
-  }
-  if (normalized === "service-not-allowed") {
-    return "Microphone access is blocked by your browser.";
-  }
-  if (normalized === "no-speech") {
-    return "Didn't catch that. Try speaking again.";
-  }
-  if (normalized === "aborted") {
-    return null;
-  }
-  if (normalized === "audio-capture") {
-    return "No microphone was detected.";
-  }
-  if (normalized === "unsupported") {
-    return "Voice input isn't supported in this browser.";
-  }
-  return "Voice input is unavailable right now.";
-}
-
 export function AiPrompterStage({
   placeholder = DEFAULT_PLACEHOLDER,
   chips = defaultChips,
@@ -177,13 +145,8 @@ export function AiPrompterStage({
   const requestRef = React.useRef(0);
   const textRef = React.useRef<HTMLInputElement | null>(null);
   const [manualTool, setManualTool] = React.useState<PrompterToolKey | null>(null);
-  const [voiceError, setVoiceError] = React.useState<string | null>(null);
-  const [voiceDraft, setVoiceDraft] = React.useState<{ session: number; text: string } | null>(null);
-  const [pendingVoiceSubmission, setPendingVoiceSubmission] = React.useState<string | null>(null);
+  const closeMenu = React.useCallback(() => setMenuOpen(false), []);
   const [isCompactViewport, setIsCompactViewport] = React.useState(false);
-  const sessionCounterRef = React.useRef(1);
-  const activeVoiceSessionRef = React.useRef<number | null>(null);
-  const processedVoiceSessionRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -219,127 +182,8 @@ export function AiPrompterStage({
     handleAttachmentFile,
   } = useAttachmentUpload();
 
-  const [isDraggingFile, setIsDraggingFile] = React.useState(false);
-  const dragCounterRef = React.useRef(0);
-
-  const resetDragState = React.useCallback(() => {
-    dragCounterRef.current = 0;
-    setIsDraggingFile(false);
-  }, []);
-
-  const handleDragEnter = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    if (!dragEventHasFiles(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const related = event.relatedTarget as Node | null;
-    if (related && (event.currentTarget as Node).contains(related)) {
-      return;
-    }
-    dragCounterRef.current += 1;
-    if (dragCounterRef.current === 1) {
-      setIsDraggingFile(true);
-    }
-  }, []);
-
-  const handleDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    if (!dragEventHasFiles(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = "copy";
-    }
-  }, []);
-
-  const handleDragLeave = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    if (!dragEventHasFiles(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const related = event.relatedTarget as Node | null;
-    if (related && (event.currentTarget as Node).contains(related)) {
-      return;
-    }
-    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
-    if (dragCounterRef.current === 0) {
-      setIsDraggingFile(false);
-    }
-  }, []);
-
-  const handleDrop = React.useCallback(
-    async (event: React.DragEvent<HTMLElement>) => {
-      if (!dragEventHasFiles(event)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      resetDragState();
-      const dataTransfer = event.dataTransfer;
-      if (!dataTransfer) return;
-
-      let droppedFile: File | null = null;
-      if (dataTransfer.items && dataTransfer.items.length > 0) {
-        for (const item of Array.from(dataTransfer.items)) {
-          if (item.kind === "file") {
-            droppedFile = item.getAsFile();
-            if (droppedFile) break;
-          }
-        }
-      }
-
-      if (!droppedFile && dataTransfer.files && dataTransfer.files.length > 0) {
-        const file = dataTransfer.files.item(0);
-        if (file) droppedFile = file;
-      }
-
-      if (droppedFile) {
-        await handleAttachmentFile(droppedFile);
-      }
-    },
-    [handleAttachmentFile, resetDragState],
-  );
-
-  React.useEffect(() => {
-    if (!isDraggingFile) return;
-    if (typeof window === "undefined") return;
-
-    const handleWindowDragEnd = () => {
-      resetDragState();
-    };
-
-    window.addEventListener("dragend", handleWindowDragEnd);
-    window.addEventListener("drop", handleWindowDragEnd);
-
-    return () => {
-      window.removeEventListener("dragend", handleWindowDragEnd);
-      window.removeEventListener("drop", handleWindowDragEnd);
-    };
-  }, [isDraggingFile, resetDragState]);
-
-  const {
-    supported: voiceSupported,
-    status: voiceStatus,
-    start: startVoice,
-    stop: stopVoice,
-  } = useSpeechRecognition({
-    onFinalResult: (fullTranscript) => {
-      const sessionId = activeVoiceSessionRef.current;
-      if (!sessionId) return;
-      const normalized = fullTranscript.trim();
-      if (!normalized) return;
-      setText(normalized);
-      setVoiceDraft({ session: sessionId, text: normalized });
-    },
-    onError: (message) => {
-      setVoiceError(message);
-    },
-  });
-
-  const stopVoiceRef = React.useRef(stopVoice);
-
-  React.useEffect(() => {
-    stopVoiceRef.current = stopVoice;
-  }, [stopVoice]);
-
-  React.useEffect(() => () => {
-    stopVoiceRef.current?.();
-  }, []);
+  const { isDraggingFile, handleDragEnter, handleDragOver, handleDragLeave, handleDrop } =
+    usePrompterDragAndDrop({ onFile: handleAttachmentFile });
 
   const saveVoiceTranscript = React.useCallback(
     async (textValue: string) => {
@@ -365,29 +209,6 @@ export function AiPrompterStage({
     },
     [userEnvelope],
   );
-
-  const handleVoiceToggle = React.useCallback(() => {
-    if (!voiceSupported) {
-      setVoiceError("unsupported");
-      return;
-    }
-    if (voiceStatus === "stopping") return;
-    if (voiceStatus === "listening") {
-      stopVoice();
-      return;
-    }
-    setVoiceError(null);
-    setPendingVoiceSubmission(null);
-    const started = startVoice();
-    if (started) {
-      const sessionId = sessionCounterRef.current;
-      sessionCounterRef.current += 1;
-      activeVoiceSessionRef.current = sessionId;
-      processedVoiceSessionRef.current = null;
-      setVoiceDraft(null);
-      setMenuOpen(false);
-    }
-  }, [voiceSupported, voiceStatus, startVoice, stopVoice, setMenuOpen]);
 
   const resolvedPlaceholder =
     placeholder === DEFAULT_PLACEHOLDER && isCompactViewport
@@ -459,22 +280,6 @@ export function AiPrompterStage({
       document.removeEventListener("mousedown", handleClick);
     };
   }, [menuOpen]);
-
-  React.useEffect(() => {
-    if (!voiceDraft) return;
-    if (voiceStatus !== "idle" && voiceStatus !== "error" && voiceStatus !== "unsupported") return;
-    const { session, text: draftText } = voiceDraft;
-    if (processedVoiceSessionRef.current === session) return;
-    processedVoiceSessionRef.current = session;
-    activeVoiceSessionRef.current = null;
-    const normalized = draftText.trim();
-    if (!normalized) {
-      setVoiceDraft(null);
-      return;
-    }
-    setPendingVoiceSubmission(normalized);
-    setVoiceDraft(null);
-  }, [voiceDraft, voiceStatus]);
 
   React.useEffect(() => {
     const currentText = trimmed;
@@ -583,7 +388,7 @@ export function AiPrompterStage({
     const resetAfterSubmit = () => {
       setText("");
       setManualIntent(null);
-      setMenuOpen(false);
+      closeMenu();
       clearAttachment();
       textRef.current?.focus();
     };
@@ -656,21 +461,26 @@ export function AiPrompterStage({
 
     emitAction({ kind: "generate", text: value, raw: value });
     resetAfterSubmit();
-  }, [attachmentUploading, readyAttachment, onAction, trimmed, textRef, setText, setManualIntent, setMenuOpen, clearAttachment, effectiveIntent, navTarget, postPlan, router, manualTool, suggestedTools]);
+  }, [attachmentUploading, readyAttachment, onAction, trimmed, textRef, setText, setManualIntent, closeMenu, clearAttachment, effectiveIntent, navTarget, postPlan, router, manualTool, suggestedTools]);
 
-  React.useEffect(() => {
-    if (!pendingVoiceSubmission) return;
-    if (voiceStatus === "listening" || voiceStatus === "stopping") return;
-    if (buttonBusy) return;
-    if (trimmed !== pendingVoiceSubmission) return;
-    handleGenerate();
-    void saveVoiceTranscript(pendingVoiceSubmission);
-    setPendingVoiceSubmission(null);
-  }, [pendingVoiceSubmission, voiceStatus, buttonBusy, trimmed, handleGenerate, saveVoiceTranscript]);
+  const {
+    voiceSupported,
+    voiceStatus,
+    voiceStatusMessage,
+    voiceButtonLabel,
+    handleVoiceToggle,
+  } = usePrompterVoice({
+    currentText: trimmed,
+    buttonBusy,
+    onTranscript: setText,
+    onSubmit: handleGenerate,
+    onSaveTranscript: saveVoiceTranscript,
+    closeMenu,
+  });
 
   function applyManualIntent(intent: PromptIntent | null) {
     setManualIntent(intent);
-    setMenuOpen(false);
+    closeMenu();
   }
 
   const manualNote = manualIntent
@@ -693,19 +503,6 @@ export function AiPrompterStage({
         ? "AI will draft this for you."
         : null;
   const styleHint = effectiveIntent === "style" ? "AI Styler is ready." : null;
-
-  const voiceStatusMessage =
-    voiceStatus === "listening"
-      ? "Listening for voice command..."
-      : voiceStatus === "stopping"
-        ? "Processing your voice command..."
-        : describeVoiceError(voiceError);
-
-  const voiceButtonLabel = voiceSupported
-    ? voiceStatus === "listening"
-      ? "Stop voice capture"
-      : "Start voice capture"
-    : "Voice input not supported in this browser";
 
   const hint =
     statusMessage ??
@@ -736,11 +533,11 @@ export function AiPrompterStage({
             </div>
           </div>
         ) : null}
-        <PrompterInputBar
+        <PrompterToolbar
           inputRef={textRef}
-          value={text}
+          text={text}
           placeholder={resolvedPlaceholder}
-          onChange={setText}
+          onTextChange={setText}
           buttonLabel={buttonLabel}
           buttonClassName={buttonClassName}
           buttonDisabled={buttonDisabled}
@@ -753,76 +550,23 @@ export function AiPrompterStage({
           manualIntent={manualIntent}
           menuOpen={menuOpen}
           onToggleMenu={() => setMenuOpen((o) => !o)}
-          onSelect={applyManualIntent}
+          onSelectIntent={applyManualIntent}
           anchorRef={anchorRef}
           menuRef={menuRef}
           voiceSupported={voiceSupported}
           voiceStatus={voiceStatus}
           onVoiceToggle={handleVoiceToggle}
           voiceLabel={voiceButtonLabel}
+          hint={hint}
+          attachment={attachment}
+          onClearAttachment={clearAttachment}
+          suggestedTools={suggestedTools}
+          activeTool={manualTool}
+          onSelectTool={setManualTool}
+          onClearTool={() => setManualTool(null)}
         />
 
-        <div className={styles.intentControls}>
-          {hint ? <span className={styles.intentHint}>{hint}</span> : null}
-          {attachment ? (
-            <span className={styles.attachmentChip} data-status={attachment.status}>
-              <span className={styles.attachmentName}>{attachment.name}</span>
-              {attachment.status === "uploading" ? (
-                <span className={styles.attachmentStatus}>Uploading...</span>
-              ) : attachment.status === "error" ? (
-                <span className={styles.attachmentStatusError}>
-                  {attachment.error ?? "Upload failed"}
-                </span>
-              ) : (
-                <span className={styles.attachmentStatus}>Attached</span>
-              )}
-              <button
-                type="button"
-                className={styles.attachmentRemove}
-                onClick={clearAttachment}
-                aria-label="Remove attachment"
-              >
-                x
-              </button>
-            </span>
-          ) : null}
-        </div>
-
-        {suggestedTools.length ? (
-          <div className={styles.chips}>
-            {suggestedTools.map((t) => (
-              <button
-                key={t.key}
-                className={styles.chip}
-                type="button"
-                onClick={() => setManualTool(t.key)}
-                data-active={manualTool === t.key || undefined}
-                aria-pressed={manualTool === t.key}
-                title={t.label}
-              >
-                {t.label}
-              </button>
-            ))}
-            {manualTool ? (
-              <button
-                type="button"
-                className={styles.chip}
-                onClick={() => setManualTool(null)}
-                aria-label="Clear tool override"
-              >
-                Clear tool
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className={styles.chips}>
-          {chips.map((c) => (
-            <button key={c} className={styles.chip} type="button" onClick={() => setText(c)}>
-              {c}
-            </button>
-          ))}
-        </div>
+        <PrompterSuggestedActions actions={chips} onSelect={setText} />
       </div>
     </section>
   );
