@@ -34,13 +34,20 @@ type ConnectionTile = {
   icon: React.ReactNode;
   description: string;
   badge: number | null;
+  badgeIcon: React.ReactElement | null;
 };
 
-const CONNECTION_TILE_DEFS: Array<{ key: RailTab; title: string; icon: React.ReactNode }> = [
+const CONNECTION_TILE_DEFS: Array<{
+  key: RailTab;
+  title: string;
+  icon: React.ReactNode;
+  badgeIcon?: React.ReactElement;
+}> = [
   {
     key: "friends",
     title: "Friends",
     icon: <UsersThree size={28} weight="duotone" className="duo" />,
+    badgeIcon: <UsersThree weight="fill" />,
   },
   {
     key: "party",
@@ -436,6 +443,7 @@ export function ConnectionsRail() {
         icon: def.icon,
         description,
         badge,
+        badgeIcon: def.badgeIcon ?? null,
       } satisfies ConnectionTile;
     });
   }, [
@@ -563,13 +571,32 @@ export function ConnectionsRail() {
                   </span>
                   <span className={homeStyles.connectionTileTitle}>{tile.title}</span>
                 </div>
-                {tile.badge !== null ? (
-                  <span className={homeStyles.connectionTileBadge}>{tile.badge}</span>
-                ) : null}
-              </div>
-              <p className={homeStyles.connectionTileDescription}>{tile.description}</p>
-            </button>
-          ))}
+              {tile.badge !== null ? (
+                <span
+                  className={`${homeStyles.connectionTileBadge} ${
+                    tile.badgeIcon ? homeStyles.connectionTileBadgeToken : ""
+                  }`.trim()}
+                >
+                  {tile.badgeIcon
+                    ? (
+                      <span className={homeStyles.connectionTileBadgeIcon} aria-hidden>
+                        {React.cloneElement(tile.badgeIcon, {
+                          className: `${homeStyles.connectionTileBadgeGlyph} ${
+                            tile.badgeIcon.props.className ?? ""
+                          }`.trim(),
+                          focusable: "false",
+                          "aria-hidden": true,
+                        })}
+                      </span>
+                    )
+                    : null}
+                  <span className={homeStyles.connectionTileBadgeCount}>{tile.badge}</span>
+                </span>
+              ) : null}
+            </div>
+            <p className={homeStyles.connectionTileDescription}>{tile.description}</p>
+          </button>
+        ))}
         </div>
       ) : (
         <div className={homeStyles.railConnections}>

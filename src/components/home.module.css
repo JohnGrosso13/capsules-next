@@ -6791,6 +6791,144 @@
 
 }
 
+.connectionTileBadgeToken {
+
+
+
+  gap: 6px;
+
+
+
+  padding: 5px 12px;
+
+
+
+  min-width: 0;
+
+
+
+  border: 1px solid color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.26)) 92%, transparent);
+
+
+
+  background:
+
+
+
+    linear-gradient(
+
+
+
+      180deg,
+
+
+
+      var(--pill-bg-1, color-mix(in srgb, var(--tile-badge-bg-final, var(--tile-badge-bg-base)) 92%, transparent)),
+
+
+
+      var(--pill-bg-2, var(--tile-badge-bg-final, var(--tile-badge-bg-base)))
+
+
+
+    );
+
+
+
+  box-shadow: var(--home-pill-box-shadow, 0 6px 12px rgba(5, 10, 30, 0.24));
+
+
+
+  color: var(--tile-badge-color-final, var(--tile-badge-color-base));
+
+
+
+  font-variant-numeric: tabular-nums;
+
+
+
+}
+
+.connectionTileBadgeIcon {
+
+
+
+  display: inline-flex;
+
+
+
+  align-items: center;
+
+
+
+  justify-content: center;
+
+
+
+  width: 18px;
+
+
+
+  height: 18px;
+
+
+
+  border-radius: 999px;
+
+
+
+  background: color-mix(in srgb, var(--pill-bg-2, rgba(255, 255, 255, 0.3)) 65%, transparent);
+
+
+
+  color: inherit;
+
+
+
+}
+
+.connectionTileBadgeGlyph {
+
+
+
+  display: inline-flex;
+
+
+
+  width: 14px;
+
+
+
+  height: 14px;
+
+
+
+}
+
+.connectionTileBadgeGlyph svg {
+
+
+
+  width: 100%;
+
+
+
+  height: 100%;
+
+
+
+}
+
+.connectionTileBadgeCount {
+
+
+
+  line-height: 1;
+
+
+
+}
+
 
 
 .connectionTileDescription {
@@ -7978,7 +8116,6 @@ ers */
 
 
 }
-
 
 
 
