@@ -125,7 +125,7 @@ export function isLikelyImage(mimeType: string | null | undefined, url: string |
   return /(\.png|\.jpe?g|\.webp|\.gif|\.avif|\.heic|\.heif)$/i.test(lower);
 }
 
-function normalizeContentType(value: unknown): string | null {
+export function normalizeContentType(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;

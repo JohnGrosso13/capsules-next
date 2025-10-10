@@ -119,13 +119,22 @@ export function getLivekitErrorCode(error: unknown): string | null {
 export async function ensureLivekitRoom(options: LivekitRoomOptions): Promise<void> {
   const client = getRoomServiceClient();
   const metadata = serializeMetadata(options.metadata);
-  await client.createRoom({
+  const roomConfig: Parameters<RoomServiceClient["createRoom"]>[0] = {
     name: options.name,
-    metadata,
-    maxParticipants: options.maxParticipants,
-    emptyTimeout: options.emptyTimeout,
-    departureTimeout: options.departureTimeout,
-  });
+  };
+  if (metadata !== undefined) {
+    roomConfig.metadata = metadata;
+  }
+  if (typeof options.maxParticipants === "number") {
+    roomConfig.maxParticipants = options.maxParticipants;
+  }
+  if (typeof options.emptyTimeout === "number") {
+    roomConfig.emptyTimeout = options.emptyTimeout;
+  }
+  if (typeof options.departureTimeout === "number") {
+    roomConfig.departureTimeout = options.departureTimeout;
+  }
+  await client.createRoom(roomConfig);
 }
 
 export async function fetchLivekitRoom(name: string): Promise<LivekitRoomSnapshot | null> {

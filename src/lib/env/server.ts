@@ -8,6 +8,7 @@ export type ServerEnv = {
   CLERK_SECRET_KEY: string | null;
   CLERK_PUBLISHABLE_KEY: string | null;
   OPENAI_API_KEY: string | null;
+  OPENAI_BASE_URL: string | null;
   OPENAI_MODEL: string;
   OPENAI_EMBED_MODEL: string | null;
   OPENAI_EMBED_DIM: number | null;
@@ -56,6 +57,7 @@ function getEnv(name: string, fallbacks: string[] = [], options: { required?: bo
 
 const siteUrl = getEnv("SITE_URL", ["NEXT_PUBLIC_SITE_URL"]) || "http://localhost:3000";
 const openAiModel = getEnv("OPENAI_MODEL", ["AI_MODEL", "GPT_MODEL"]) || "gpt-4o-mini";
+const openAiBaseUrlRaw = getEnv("OPENAI_BASE_URL", ["AI_BASE_URL"]);
 const openAiImageModel =
   getEnv("OPENAI_IMAGE_MODEL", ["AI_IMAGE_MODEL", "IMAGE_MODEL"]) || "gpt-image-1";
 const openAiTranscribeModel =
@@ -96,6 +98,7 @@ export const serverEnv: ServerEnv = {
   CLERK_SECRET_KEY: getEnv("CLERK_SECRET_KEY", ["CLERK_API_KEY"]),
   CLERK_PUBLISHABLE_KEY: getEnv("CLERK_PUBLISHABLE_KEY", ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"]),
   OPENAI_API_KEY: getEnv("OPENAI_API_KEY", ["OPENAI_KEY", "OPENAI_SECRET_KEY"]),
+  OPENAI_BASE_URL: openAiBaseUrlRaw ? openAiBaseUrlRaw.trim() : null,
   OPENAI_MODEL: openAiModel,
   OPENAI_EMBED_MODEL: getEnv(
     "OPENAI_EMBED_MODEL",

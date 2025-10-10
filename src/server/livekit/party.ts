@@ -130,7 +130,7 @@ export async function issuePartyToken(options: IssueTokenOptions) {
     identity: options.identity,
     roomName,
     ttlSeconds,
-    displayName: options.displayName,
+    displayName: options.displayName ?? null,
     metadata: {
       partyId: options.partyId,
       isOwner: options.isOwner,

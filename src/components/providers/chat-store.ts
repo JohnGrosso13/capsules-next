@@ -111,11 +111,6 @@ type ChatSessionInternal = {
   unreadCount: number;
 };
 
-type SelfIdentity = {
-  userId: string | null;
-  clientId: string | null;
-};
-
 export type StorageAdapter = Pick<Storage, "getItem" | "setItem">;
 
 export type ChatStoreSnapshot = {
@@ -412,7 +407,7 @@ export class ChatStore {
           }
         }
         if (!descriptor) return;
-        const session = this.ensureSessionInternal(descriptor);
+        const { session } = this.ensureSessionInternal(descriptor);
         session.messages = [];
         session.messageIndex = new Map();
         session.lastMessageTimestamp = 0;
@@ -828,23 +823,24 @@ export class ChatStore {
       created = true;
       changed = true;
     } else {
+      const current = session as ChatSessionInternal;
       if (
-        session.type !== sanitized.type ||
-        session.title !== sanitized.title ||
-        session.avatar !== sanitized.avatar ||
-        session.createdBy !== sanitized.createdBy
+        current.type !== sanitized.type ||
+        current.title !== sanitized.title ||
+        current.avatar !== sanitized.avatar ||
+        current.createdBy !== sanitized.createdBy
       ) {
-        session.type = sanitized.type;
-        session.title = sanitized.title;
-        session.avatar = sanitized.avatar;
-        session.createdBy = sanitized.createdBy;
+        current.type = sanitized.type;
+        current.title = sanitized.title;
+        current.avatar = sanitized.avatar;
+        current.createdBy = sanitized.createdBy;
         changed = true;
       }
-      const mergedParticipants = mergeParticipants(session.participants, sanitized.participants);
+      const mergedParticipants = mergeParticipants(current.participants, sanitized.participants);
       if (
-        mergedParticipants.length !== session.participants.length ||
+        mergedParticipants.length !== current.participants.length ||
         mergedParticipants.some((participant, index) => {
-          const existing = session.participants[index];
+          const existing = current.participants[index];
           if (!existing) return true;
           return (
             existing.id !== participant.id ||
@@ -853,7 +849,7 @@ export class ChatStore {
           );
         })
       ) {
-        session.participants = mergedParticipants;
+        current.participants = mergedParticipants;
         changed = true;
       }
     }

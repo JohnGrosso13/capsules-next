@@ -13,6 +13,7 @@ import {
   extractUploadSessionId,
   guessMimeFromUrl,
   isLikelyImage,
+  normalizeContentType,
   readContentType,
   type NormalizedAttachment,
 } from "@/server/posts/media";
