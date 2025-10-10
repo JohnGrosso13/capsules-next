@@ -534,7 +534,15 @@ type PartyStageSceneProps = {
   onDisconnected(): void;
 };
 
-function PartyStageScene({ session, canClose, status, onLeave, onClose, onReady, onDisconnected }: PartyStageSceneProps) {
+function PartyStageScene({
+  session: _session,
+  canClose,
+  status,
+  onLeave,
+  onClose,
+  onReady,
+  onDisconnected,
+}: PartyStageSceneProps) {
   const room = useRoomContext();
   const participants = useParticipants();
   const [micEnabled, setMicEnabled] = React.useState<boolean>(true);

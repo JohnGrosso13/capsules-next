@@ -313,6 +313,15 @@ export function FriendsClient() {
     [cancelRequest],
   );
 
+  const inviteSession =
+    groupFlow?.mode === "invite" ? chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null : null;
+
+  React.useEffect(() => {
+    if (groupFlow?.mode === "invite" && !inviteSession) {
+      closeGroupFlow();
+    }
+  }, [closeGroupFlow, groupFlow, inviteSession]);
+
   const partyBadgeCount = React.useMemo(() => (party.session ? 1 : 0), [party.session]);
 
   const tabCounters = React.useMemo(
@@ -349,19 +358,11 @@ export function FriendsClient() {
   const partyButtonDisabled = false;
   const isPartyActive = activeTab === "Party";
   const partyButtonLabel = party.session ? "Party Live" : "Party Voice";
-  const inviteSession =
-    groupFlow?.mode === "invite" ? chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null : null;
   const overlayDisabledIds = inviteSession ? inviteSession.participants.map((participant) => participant.id) : [];
   const overlayHeading = inviteSession ? `Add people to ${inviteSession.title}` : undefined;
   const overlayDescription = inviteSession
     ? "Choose friends to drop into this thread. They'll catch up from the latest message."
     : undefined;
-
-  React.useEffect(() => {
-    if (groupFlow?.mode === "invite" && !inviteSession) {
-      closeGroupFlow();
-    }
-  }, [closeGroupFlow, groupFlow, inviteSession]);
 
   return (
     <>

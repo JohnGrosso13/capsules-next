@@ -106,10 +106,37 @@ export function PromoRow() {
     const loadMedia = async () => {
       try {
         const response = await fetch("/api/posts?limit=24");
-        const data = (await response.json().catch(() => null)) as { posts?: unknown[] } | null;
+        const data = (await response.json().catch(() => null)) as {
+          posts?: unknown[];
+          deleted?: unknown[];
+        } | null;
         const raw = Array.isArray(data?.posts) ? data.posts : [];
         const normalized = normalizePosts(raw);
-        const posts: Post[] = normalized.map((record: HomeFeedPost) => ({
+        const deletedSet =
+          Array.isArray(data?.deleted) && data.deleted.length
+            ? new Set(
+                data.deleted
+                  .map((entry) => {
+                    if (typeof entry === "string") {
+                      const trimmed = entry.trim();
+                      return trimmed.length ? trimmed : null;
+                    }
+                    if (typeof entry === "number" && Number.isFinite(entry)) {
+                      return String(entry);
+                    }
+                    return null;
+                  })
+                  .filter((value): value is string => Boolean(value)),
+              )
+            : null;
+        const filtered = deletedSet
+          ? normalized.filter((record: HomeFeedPost) => {
+              const id = typeof record.id === "string" ? record.id : String(record.id ?? "");
+              const dbId = typeof record.dbId === "string" ? record.dbId : null;
+              return !(id && deletedSet.has(id)) && !(dbId && deletedSet.has(dbId));
+            })
+          : normalized;
+        const posts: Post[] = filtered.map((record: HomeFeedPost) => ({
           id: record.id,
           mediaUrl: resolvePostMediaUrl(record),
           content: typeof record.content === "string" ? record.content : null,

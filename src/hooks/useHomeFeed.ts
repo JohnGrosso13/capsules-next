@@ -180,7 +180,7 @@ export function useCapsuleFeed(capsuleId: string | null | undefined) {
         client: {
           fetch: async (options) => {
             if (!trimmedCapsuleId) {
-              return { posts: [], cursor: null };
+              return { posts: [], cursor: null, deleted: [] };
             }
             return fetchHomeFeed({ ...options, capsuleId: trimmedCapsuleId });
           },
