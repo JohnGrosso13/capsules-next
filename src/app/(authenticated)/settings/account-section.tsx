@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   ProfileAvatarCustomizer,
   type CapsuleCustomizerSaveResult,
-} from "@/components/capsule/CapsuleBannerCustomizer";
+} from "@/components/capsule/CapsuleCustomizer";
 import cards from "@/components/home.module.css";
 
 import layout from "./settings.module.css";
@@ -41,8 +41,12 @@ type AccountSettingsSectionProps = {
   profile: AccountProfile;
 };
 
-export function AccountSettingsSection({ profile }: AccountSettingsSectionProps): React.JSX.Element {
-  const [customAvatarUrl, setCustomAvatarUrl] = React.useState<string | null>(profile.avatarUrl ?? null);
+export function AccountSettingsSection({
+  profile,
+}: AccountSettingsSectionProps): React.JSX.Element {
+  const [customAvatarUrl, setCustomAvatarUrl] = React.useState<string | null>(
+    profile.avatarUrl ?? null,
+  );
   const [customizerOpen, setCustomizerOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -104,7 +108,9 @@ export function AccountSettingsSection({ profile }: AccountSettingsSectionProps)
               <span className={styles.profileName}>{displayName}</span>
               {profile.email ? <span className={styles.profileEmail}>{profile.email}</span> : null}
               <span className={styles.profileStatus}>
-                {hasCustomAvatar ? "Using a custom avatar stored in Capsules." : "Using your Clerk profile image."}
+                {hasCustomAvatar
+                  ? "Using a custom avatar stored in Capsules."
+                  : "Using your Clerk profile image."}
               </span>
             </div>
           </div>
@@ -135,8 +141,9 @@ export function AccountSettingsSection({ profile }: AccountSettingsSectionProps)
             </Button>
           </div>
           <p className={styles.helper}>
-            Your avatar appears anywhere your profile is shown�?"like chats, posts, or member lists. Use the customizer to
-            upload art, reuse memories, or ask Capsule AI to generate a circular portrait.
+            Your avatar appears anywhere your profile is shown - like chats, posts, or member lists.
+            Use the customizer to upload art, reuse memories, or ask Capsule AI to generate a
+            circular portrait.
           </p>
         </div>
       </article>

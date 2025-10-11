@@ -19,6 +19,8 @@ const listResponseSchema = z.object({
       name: z.string(),
       slug: z.string().nullable(),
       bannerUrl: z.string().nullable(),
+      storeBannerUrl: z.string().nullable(),
+      promoTileUrl: z.string().nullable(),
       logoUrl: z.string().nullable(),
       role: z.string().nullable(),
       ownership: z.union([z.literal("owner"), z.literal("member")]),

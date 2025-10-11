@@ -52,6 +52,7 @@ export type CapsuleMembershipState = {
     slug: string | null;
     ownerId: string;
     bannerUrl: string | null;
+    storeBannerUrl: string | null;
     promoTileUrl: string | null;
     logoUrl: string | null;
   };

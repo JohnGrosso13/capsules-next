@@ -22,6 +22,7 @@ import {
   type DiscoverCapsuleSummary,
   updateCapsuleMemberRole,
   updateCapsuleBanner,
+  updateCapsuleStoreBanner,
   updateCapsulePromoTile,
   updateCapsuleLogo,
 } from "./repository";
@@ -124,6 +125,8 @@ export async function resolveCapsuleGate(
   const hydratedCapsules = capsules.map((capsule) => ({
     ...capsule,
     bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl),
+    storeBannerUrl: resolveCapsuleMediaUrl(capsule.storeBannerUrl),
+    promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl),
     logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl),
   }));
   const defaultCapsuleId = hydratedCapsules.length === 1 ? hydratedCapsules[0]?.id ?? null : null;
@@ -139,6 +142,8 @@ export async function getUserCapsules(
   return capsules.map((capsule) => ({
     ...capsule,
     bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl),
+    storeBannerUrl: resolveCapsuleMediaUrl(capsule.storeBannerUrl),
+    promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl),
     logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl),
   }));
 }
@@ -161,6 +166,8 @@ export async function getRecentCapsules(options: {
   return capsules.map((capsule) => ({
     ...capsule,
     bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl),
+    storeBannerUrl: resolveCapsuleMediaUrl(capsule.storeBannerUrl),
+    promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl),
     logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl),
   }));
 }
@@ -174,6 +181,8 @@ export async function getCapsuleSummaryForViewer(
   return {
     ...summary,
     bannerUrl: resolveCapsuleMediaUrl(summary.bannerUrl),
+    storeBannerUrl: resolveCapsuleMediaUrl(summary.storeBannerUrl),
+    promoTileUrl: resolveCapsuleMediaUrl(summary.promoTileUrl),
     logoUrl: resolveCapsuleMediaUrl(summary.logoUrl),
   };
 }
@@ -296,6 +305,107 @@ export async function updateCapsuleBannerImage(
   });
 
   return { bannerUrl: resolvedBannerUrl };
+}
+
+export async function updateCapsuleStoreBannerImage(
+  ownerId: string,
+  capsuleId: string,
+  params: {
+    storeBannerUrl: string;
+    storageKey?: string | null;
+    mimeType?: string | null;
+    crop?: BannerCrop | null;
+    source?: string | null;
+    originalUrl?: string | null;
+    originalName?: string | null;
+    prompt?: string | null;
+    width?: number | null;
+    height?: number | null;
+    memoryId?: string | null;
+  },
+): Promise<{ storeBannerUrl: string | null }> {
+  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
+  const capsuleIdValue = normalizeId(capsule.id);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.storeBanner.update: capsule has invalid identifier");
+  }
+
+  const normalizedUrl = normalizeOptionalString(params.storeBannerUrl ?? null);
+  if (!normalizedUrl) {
+    throw new CapsuleMembershipError("invalid", "A store banner URL is required.", 400);
+  }
+
+  const resolvedStoreBannerUrl = resolveCapsuleMediaUrl(normalizedUrl);
+  if (!resolvedStoreBannerUrl) {
+    throw new CapsuleMembershipError("invalid", "A store banner URL is required.", 400);
+  }
+
+  const updated = await updateCapsuleStoreBanner({
+    capsuleId: capsuleIdValue,
+    ownerId: capsuleOwnerId,
+    storeBannerUrl: resolvedStoreBannerUrl,
+  });
+
+  if (!updated) {
+    throw new CapsuleMembershipError("invalid", "Failed to update capsule store banner.", 400);
+  }
+
+  const capsuleName = normalizeOptionalString(capsule.name ?? null) ?? "your capsule";
+  const originalName = normalizeOptionalString(params.originalName ?? null);
+
+  const memoryTitle = originalName
+    ? `${originalName} store banner`
+    : `Store banner for ${capsuleName}`;
+
+  const savedAtIso = new Date().toISOString();
+  const baseDescription = `Custom store banner saved for ${capsuleName} on ${savedAtIso}.`;
+  const promptText = normalizeOptionalString(params.prompt ?? null);
+  const description = promptText ? `${baseDescription} Prompt: ${promptText}` : baseDescription;
+
+  const metadata: Record<string, string | number | boolean> = {
+    capsule_id: capsuleIdValue,
+    asset_variant: "store_banner",
+    asset_ratio: "5:2",
+  };
+
+  if (params.storageKey) metadata.storage_key = params.storageKey;
+  if (params.source) metadata.source_kind = params.source;
+  const resolvedOriginalUrl = resolveCapsuleMediaUrl(
+    normalizeOptionalString(params.originalUrl ?? null),
+  );
+  if (resolvedOriginalUrl) metadata.original_url = resolvedOriginalUrl;
+  if (promptText) metadata.prompt = promptText;
+  if (params.width) metadata.width = params.width;
+  if (params.height) metadata.height = params.height;
+  if (params.originalName) metadata.original_name = params.originalName;
+  if (params.mimeType) metadata.mime_type = params.mimeType;
+  const normalizedMemoryId = normalizeOptionalString(params.memoryId ?? null);
+  if (normalizedMemoryId) metadata.memory_id = normalizedMemoryId;
+  if (params.crop) {
+    if (Number.isFinite(params.crop.offsetX)) {
+      metadata.crop_offset_x = Number(params.crop.offsetX.toFixed(4));
+    }
+    if (Number.isFinite(params.crop.offsetY)) {
+      metadata.crop_offset_y = Number(params.crop.offsetY.toFixed(4));
+    }
+  }
+
+  await indexMemory({
+    ownerId: capsuleOwnerId,
+    kind: "upload",
+    mediaUrl: resolvedStoreBannerUrl,
+    mediaType: normalizeOptionalString(params.mimeType ?? null) ?? "image/jpeg",
+    title: memoryTitle,
+    description,
+    postId: null,
+    metadata: Object.keys(metadata).length ? metadata : null,
+    rawText: description,
+    source: "capsule_store_banner",
+    tags: ["capsule", "store_banner", capsuleName],
+    eventAt: savedAtIso,
+  });
+
+  return { storeBannerUrl: resolvedStoreBannerUrl };
 }
 
 export async function updateCapsulePromoTileImage(
@@ -555,6 +665,7 @@ export async function getCapsuleMembership(
       slug: normalizeOptionalString(capsule.slug ?? null),
       ownerId,
       bannerUrl: resolveCapsuleMediaUrl(capsule.banner_url ?? null),
+      storeBannerUrl: resolveCapsuleMediaUrl(capsule.store_banner_url ?? null),
       promoTileUrl: resolveCapsuleMediaUrl(capsule.promo_tile_url ?? null),
       logoUrl: resolveCapsuleMediaUrl(capsule.logo_url ?? null),
     },

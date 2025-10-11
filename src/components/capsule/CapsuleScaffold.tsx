@@ -27,7 +27,12 @@ import { useCapsuleFeed } from "@/hooks/useHomeFeed";
 import { useCapsuleMembership } from "@/hooks/useCapsuleMembership";
 import { useCurrentUser } from "@/services/auth/client";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
-import { CapsuleBannerCustomizer, CapsuleLogoCustomizer, CapsuleTileCustomizer } from "./CapsuleBannerCustomizer";
+import {
+  CapsuleBannerCustomizer,
+  CapsuleLogoCustomizer,
+  CapsuleStoreBannerCustomizer,
+  CapsuleTileCustomizer,
+} from "./CapsuleCustomizer";
 
 type CapsuleTab = "live" | "feed" | "store";
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
@@ -48,11 +53,15 @@ export function CapsuleContent({
   const composer = useComposer();
   const [tab, setTab] = React.useState<CapsuleTab>("feed");
   const [capsuleId, setCapsuleId] = React.useState<string | null>(() => capsuleIdProp ?? null);
-  const [capsuleName, setCapsuleName] = React.useState<string | null>(() => capsuleNameProp ?? null);
+  const [capsuleName, setCapsuleName] = React.useState<string | null>(
+    () => capsuleNameProp ?? null,
+  );
   const [bannerCustomizerOpen, setBannerCustomizerOpen] = React.useState(false);
   const [tileCustomizerOpen, setTileCustomizerOpen] = React.useState(false);
   const [logoCustomizerOpen, setLogoCustomizerOpen] = React.useState(false);
+  const [storeCustomizerOpen, setStoreCustomizerOpen] = React.useState(false);
   const [bannerUrlOverride, setBannerUrlOverride] = React.useState<string | null>(null);
+  const [storeBannerUrlOverride, setStoreBannerUrlOverride] = React.useState<string | null>(null);
   const router = useRouter();
   const { user } = useCurrentUser();
   const [membersOpen, setMembersOpen] = React.useState(false);
@@ -118,7 +127,7 @@ export function CapsuleContent({
   const viewer = membership?.viewer ?? null;
   const canCustomize = Boolean(viewer?.isOwner);
   const isAuthenticated = Boolean(user);
-  const pendingCount = viewer?.isOwner ? membership?.counts.pendingRequests ?? 0 : 0;
+  const pendingCount = viewer?.isOwner ? (membership?.counts.pendingRequests ?? 0) : 0;
   const handleSignIn = React.useCallback(() => {
     if (typeof window === "undefined") return;
     const redirectUrl = `${window.location.pathname}${window.location.search}` || "/capsule";
@@ -209,24 +218,37 @@ export function CapsuleContent({
   ]);
   const showMembersBadge = Boolean(viewer?.isOwner && pendingCount > 0);
   const membershipErrorVisible = membershipError && !membersOpen ? membershipError : null;
-  const capsuleBannerUrl = bannerUrlOverride ?? (membership?.capsule ? membership.capsule.bannerUrl : null);
+  const capsuleBannerUrl =
+    bannerUrlOverride ?? (membership?.capsule ? membership.capsule.bannerUrl : null);
+  const capsuleStoreBannerUrl =
+    storeBannerUrlOverride ?? (membership?.capsule ? membership.capsule.storeBannerUrl : null);
 
   React.useEffect(() => {
     if (!canCustomize) {
       if (bannerCustomizerOpen) setBannerCustomizerOpen(false);
       if (tileCustomizerOpen) setTileCustomizerOpen(false);
       if (logoCustomizerOpen) setLogoCustomizerOpen(false);
+      if (storeCustomizerOpen) setStoreCustomizerOpen(false);
     }
-  }, [bannerCustomizerOpen, canCustomize, logoCustomizerOpen, tileCustomizerOpen]);
+  }, [
+    bannerCustomizerOpen,
+    canCustomize,
+    logoCustomizerOpen,
+    storeCustomizerOpen,
+    tileCustomizerOpen,
+  ]);
 
   React.useEffect(() => {
     setBannerUrlOverride(membership?.capsule?.bannerUrl ?? null);
   }, [membership?.capsule?.bannerUrl]);
 
   React.useEffect(() => {
+    setStoreBannerUrlOverride(membership?.capsule?.storeBannerUrl ?? null);
+  }, [membership?.capsule?.storeBannerUrl]);
+
+  React.useEffect(() => {
     if (typeof capsuleNameProp !== "undefined") {
-      const trimmed =
-        typeof capsuleNameProp === "string" ? capsuleNameProp.trim() : null;
+      const trimmed = typeof capsuleNameProp === "string" ? capsuleNameProp.trim() : null;
       setCapsuleName(trimmed && trimmed.length ? trimmed : null);
       return;
     }
@@ -255,8 +277,7 @@ export function CapsuleContent({
     if (typeof window === "undefined") return;
     const handleLiveChat = (event: Event) => {
       const detail = (event as CustomEvent<{ capsuleName?: string | null }>).detail ?? {};
-      const nextName =
-        typeof detail.capsuleName === "string" ? detail.capsuleName.trim() : null;
+      const nextName = typeof detail.capsuleName === "string" ? detail.capsuleName.trim() : null;
       if (nextName) {
         setCapsuleName(nextName);
       }
@@ -387,7 +408,9 @@ export function CapsuleContent({
         </div>
       ) : (
         <CapsuleStorePlaceholder
-          capsuleName={normalizedCapsuleName}
+          storeBannerUrl={capsuleStoreBannerUrl}
+          canCustomize={canCustomize}
+          onCustomizeStoreBanner={() => setStoreCustomizerOpen(true)}
           onPrompterAction={composer.handlePrompterAction}
         />
       )}
@@ -437,6 +460,20 @@ export function CapsuleContent({
               setLogoCustomizerOpen(false);
               void refreshMembership();
             }
+          }}
+        />
+      ) : null}
+      {canCustomize && storeCustomizerOpen ? (
+        <CapsuleStoreBannerCustomizer
+          open
+          capsuleId={capsuleId}
+          capsuleName={normalizedCapsuleName}
+          onClose={() => setStoreCustomizerOpen(false)}
+          onSaved={(result) => {
+            if (result.type === "storeBanner") {
+              setStoreBannerUrlOverride(result.storeBannerUrl ?? null);
+            }
+            void refreshMembership();
           }}
         />
       ) : null}
@@ -535,61 +572,64 @@ function CapsuleHero({
         ) : null}
       </div>
       <div className={capTheme.heroBody}>
-          <div className={capTheme.heroDetails}>
-            <h2 className={capTheme.heroTitle}>{displayName}</h2>
+        <div className={capTheme.heroDetails}>
+          <h2 className={capTheme.heroTitle}>{displayName}</h2>
+        </div>
+        <div className={capTheme.heroActions}>
+          <button
+            type="button"
+            className={`${capTheme.heroAction} ${capTheme.heroActionPrimary}`}
+            onClick={primaryAction.onClick ?? undefined}
+            disabled={primaryAction.disabled}
+          >
+            <UsersThree size={16} weight="bold" />
+            {primaryAction.label}
+          </button>
+          <button
+            type="button"
+            className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
+          >
+            <ShareFat size={16} weight="bold" />
+            Share
+          </button>
+        </div>
+        {errorMessage ? (
+          <div className={capTheme.membersNotice}>
+            <WarningCircle size={16} weight="bold" />
+            <span>{errorMessage}</span>
           </div>
-          <div className={capTheme.heroActions}>
+        ) : null}
+      </div>
+      <nav className={capTheme.heroTabs} aria-label="Capsule quick links">
+        {HERO_LINKS.map((label, index) => {
+          const isMembersLink = label === "Members";
+          const isFeaturedLink = label === "Featured";
+          const isActive = isMembersLink ? membersOpen : !membersOpen && index === 0;
+          const className = isActive
+            ? `${capTheme.heroTab} ${capTheme.heroTabActive}`
+            : capTheme.heroTab;
+          const handleClick = () => {
+            if (isMembersLink) {
+              onSelectMembers();
+            } else if (isFeaturedLink) {
+              onSelectFeatured();
+            }
+          };
+          return (
             <button
+              key={label}
               type="button"
-              className={`${capTheme.heroAction} ${capTheme.heroActionPrimary}`}
-              onClick={primaryAction.onClick ?? undefined}
-              disabled={primaryAction.disabled}
+              className={className}
+              onClick={isMembersLink || isFeaturedLink ? handleClick : undefined}
             >
-              <UsersThree size={16} weight="bold" />
-              {primaryAction.label}
+              {label}
+              {isMembersLink && showMembersBadge ? (
+                <span className={capTheme.heroTabBadge}>{pendingCount}</span>
+              ) : null}
             </button>
-            <button type="button" className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}>
-              <ShareFat size={16} weight="bold" />
-              Share
-            </button>
-          </div>
-          {errorMessage ? (
-            <div className={capTheme.membersNotice}>
-              <WarningCircle size={16} weight="bold" />
-              <span>{errorMessage}</span>
-            </div>
-                      ) : null}
-          </div>
-        <nav className={capTheme.heroTabs} aria-label="Capsule quick links">
-          {HERO_LINKS.map((label, index) => {
-            const isMembersLink = label === "Members";
-            const isFeaturedLink = label === "Featured";
-            const isActive = isMembersLink ? membersOpen : !membersOpen && index === 0;
-            const className = isActive
-              ? `${capTheme.heroTab} ${capTheme.heroTabActive}`
-              : capTheme.heroTab;
-            const handleClick = () => {
-              if (isMembersLink) {
-                onSelectMembers();
-              } else if (isFeaturedLink) {
-                onSelectFeatured();
-              }
-            };
-            return (
-              <button
-                key={label}
-                type="button"
-                className={className}
-                onClick={isMembersLink || isFeaturedLink ? handleClick : undefined}
-              >
-                {label}
-                {isMembersLink && showMembersBadge ? (
-                  <span className={capTheme.heroTabBadge}>{pendingCount}</span>
-                ) : null}
-              </button>
-            );
-          })}
-        </nav>
+          );
+        })}
+      </nav>
     </div>
   );
 }
@@ -609,7 +649,8 @@ function LiveStreamCanvas() {
         <div className={capTheme.streamMessage}>
           <p className={capTheme.streamMessageTitle}>Waiting for your broadcast</p>
           <p className={capTheme.streamMessageSubtitle}>
-            Start streaming from your encoder or studio. Once the signal arrives, your show will appear here.
+            Start streaming from your encoder or studio. Once the signal arrives, your show will
+            appear here.
           </p>
         </div>
       </div>
@@ -618,12 +659,23 @@ function LiveStreamCanvas() {
 }
 
 type CapsuleStorePlaceholderProps = {
-  capsuleName: string | null;
+  storeBannerUrl: string | null;
+  canCustomize: boolean;
+  onCustomizeStoreBanner: () => void;
   onPrompterAction: (action: PrompterAction) => void;
 };
 
-function CapsuleStorePlaceholder({ capsuleName, onPrompterAction }: CapsuleStorePlaceholderProps) {
-  const displayName = capsuleName ?? "your capsule";
+function CapsuleStorePlaceholder({
+  storeBannerUrl,
+  canCustomize,
+  onCustomizeStoreBanner,
+  onPrompterAction,
+}: CapsuleStorePlaceholderProps) {
+  const storeBannerStyle = storeBannerUrl
+    ? ({
+        ["--store-banner-image" as string]: `url("${storeBannerUrl}")`,
+      } as React.CSSProperties)
+    : undefined;
   const productSpots = [
     {
       id: "feature",
@@ -723,12 +775,30 @@ function CapsuleStorePlaceholder({ capsuleName, onPrompterAction }: CapsuleStore
     { id: "step-launch", label: "Preview the storefront & schedule your launch" },
   ];
   return (
-    <div className={`${capTheme.liveCanvas} ${capTheme.storeCanvas}`} aria-label="Capsule store planning">
+    <div
+      className={`${capTheme.liveCanvas} ${capTheme.storeCanvas}`}
+      aria-label="Capsule store planning"
+    >
       <div className={capTheme.storeContent}>
         <section className={capTheme.storeHero}>
           <div className={capTheme.storeBannerFrame}>
-            <div className={capTheme.storeBannerSurface} role="presentation" />
+            <div
+              className={capTheme.storeBannerSurface}
+              role="presentation"
+              data-has-banner={storeBannerUrl ? "true" : undefined}
+              style={storeBannerStyle}
+            />
             <div className={capTheme.storeBannerActions}>
+              {canCustomize ? (
+                <button
+                  type="button"
+                  className={capTheme.storeGhostButton}
+                  onClick={onCustomizeStoreBanner}
+                >
+                  <MagicWand size={16} weight="bold" />
+                  Customize store banner
+                </button>
+              ) : null}
               <button type="button" className={capTheme.storeGhostButton}>
                 <ShareFat size={16} weight="bold" />
                 Share preview
@@ -783,7 +853,12 @@ function CapsuleStorePlaceholder({ capsuleName, onPrompterAction }: CapsuleStore
             <div className={capTheme.storeFilterToggles}>
               {filterToggles.map((toggle) => (
                 <label key={toggle.id} className={capTheme.storeToggle}>
-                  <input type="checkbox" defaultChecked={toggle.active} disabled aria-disabled="true" />
+                  <input
+                    type="checkbox"
+                    defaultChecked={toggle.active}
+                    disabled
+                    aria-disabled="true"
+                  />
                   <span>{toggle.label}</span>
                 </label>
               ))}
@@ -799,7 +874,12 @@ function CapsuleStorePlaceholder({ capsuleName, onPrompterAction }: CapsuleStore
                 </p>
               </div>
               <div className={capTheme.storeControlButtons}>
-                <button type="button" className={capTheme.storeControlButton} disabled aria-disabled="true">
+                <button
+                  type="button"
+                  className={capTheme.storeControlButton}
+                  disabled
+                  aria-disabled="true"
+                >
                   <span>Sort by</span>
                   <strong>Latest edits</strong>
                 </button>
@@ -818,7 +898,9 @@ function CapsuleStorePlaceholder({ capsuleName, onPrompterAction }: CapsuleStore
             <div className={capTheme.storeProducts}>
               {productSpots.map((product) => (
                 <article key={product.id} className={capTheme.storeProductCard}>
-                  <div className={`${capTheme.storeProductMedia} ${product.accent}`}>{product.icon}</div>
+                  <div className={`${capTheme.storeProductMedia} ${product.accent}`}>
+                    {product.icon}
+                  </div>
                   <div className={capTheme.storeProductMeta}>
                     <span className={capTheme.storeProductLabel}>{product.label}</span>
                     <h4 className={capTheme.storeProductTitle}>{product.title}</h4>
@@ -879,13 +961,18 @@ function CapsuleStorePlaceholder({ capsuleName, onPrompterAction }: CapsuleStore
             </section>
           </aside>
         </div>
-
       </div>
     </div>
   );
 }
 
-function CapsuleFeed({ capsuleId, capsuleName }: { capsuleId: string | null; capsuleName: string | null }) {
+function CapsuleFeed({
+  capsuleId,
+  capsuleName,
+}: {
+  capsuleId: string | null;
+  capsuleName: string | null;
+}) {
   const {
     posts,
     likePending,
@@ -913,7 +1000,9 @@ function CapsuleFeed({ capsuleId, capsuleName }: { capsuleId: string | null; cap
 
   return (
     <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
-      {friendMessage && hasFetched ? <div className={homeStyles.postFriendNotice}>{friendMessage}</div> : null}
+      {friendMessage && hasFetched ? (
+        <div className={homeStyles.postFriendNotice}>{friendMessage}</div>
+      ) : null}
       <HomeFeedList
         posts={posts}
         likePending={likePending}
@@ -937,11 +1026,3 @@ function CapsuleFeed({ capsuleId, capsuleName }: { capsuleId: string | null; cap
     </section>
   );
 }
-
-
-
-
-
-
-
-

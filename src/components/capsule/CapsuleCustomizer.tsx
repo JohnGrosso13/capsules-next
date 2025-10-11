@@ -3,7 +3,7 @@
 import * as React from "react";
 import { X } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "./CapsuleBannerCustomizer.module.css";
+import styles from "./CapsuleCustomizer.module.css";
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,7 @@ import { CapsuleBannerPreview } from "./CapsuleBannerPreview";
 import { CapsuleAssetActions } from "./CapsuleAssetActions";
 import { CapsuleMemoryPicker } from "./CapsuleMemoryPicker";
 
-type CapsuleBannerCustomizerProps = {
+type CapsuleCustomizerProps = {
   open?: boolean;
   capsuleId?: string | null;
   capsuleName?: string | null;
@@ -36,7 +36,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
   );
 }
 
-export function CapsuleBannerCustomizer(props: CapsuleBannerCustomizerProps) {
+function CapsuleCustomizer(props: CapsuleCustomizerProps) {
   const state = useCapsuleCustomizerState(props);
   const {
     open,
@@ -65,7 +65,15 @@ export function CapsuleBannerCustomizer(props: CapsuleBannerCustomizerProps) {
 
   const { messages, busy, prompterSession, onPrompterAction, logRef } = chat;
   const saveLabel =
-    mode === "tile" ? "Save tile" : mode === "logo" ? "Save logo" : mode === "avatar" ? "Save avatar" : "Save banner";
+    mode === "tile"
+      ? "Save tile"
+      : mode === "logo"
+        ? "Save logo"
+        : mode === "avatar"
+          ? "Save avatar"
+          : mode === "storeBanner"
+            ? "Save store banner"
+            : "Save banner";
 
   return (
     <div className={styles.overlay} role="presentation" onClick={overlayClick}>
@@ -267,16 +275,25 @@ export function CapsuleBannerCustomizer(props: CapsuleBannerCustomizerProps) {
   );
 }
 
-export function CapsuleTileCustomizer(props: Omit<CapsuleBannerCustomizerProps, "mode">) {
-  return <CapsuleBannerCustomizer {...props} mode="tile" />;
+export function CapsuleBannerCustomizer(props: CapsuleCustomizerProps) {
+  return <CapsuleCustomizer {...props} mode={props.mode ?? "banner"} />;
 }
 
-export function CapsuleLogoCustomizer(props: Omit<CapsuleBannerCustomizerProps, "mode">) {
-  return <CapsuleBannerCustomizer {...props} mode="logo" />;
+export function CapsuleStoreBannerCustomizer(props: Omit<CapsuleCustomizerProps, "mode">) {
+  return <CapsuleCustomizer {...props} mode="storeBanner" />;
 }
 
-export function ProfileAvatarCustomizer(props: Omit<CapsuleBannerCustomizerProps, "mode">) {
-  return <CapsuleBannerCustomizer {...props} mode="avatar" />;
+export function CapsuleTileCustomizer(props: Omit<CapsuleCustomizerProps, "mode">) {
+  return <CapsuleCustomizer {...props} mode="tile" />;
 }
 
-export type { CapsuleCustomizerSaveResult, CapsuleCustomizerMode };
+export function CapsuleLogoCustomizer(props: Omit<CapsuleCustomizerProps, "mode">) {
+  return <CapsuleCustomizer {...props} mode="logo" />;
+}
+
+export function ProfileAvatarCustomizer(props: Omit<CapsuleCustomizerProps, "mode">) {
+  return <CapsuleCustomizer {...props} mode="avatar" />;
+}
+
+export { CapsuleCustomizer };
+export type { CapsuleCustomizerSaveResult, CapsuleCustomizerMode, CapsuleCustomizerProps };

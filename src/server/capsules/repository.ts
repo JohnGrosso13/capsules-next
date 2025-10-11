@@ -14,6 +14,7 @@ type CapsuleRow = {
   name: string | null;
   slug: string | null;
   banner_url: string | null;
+  store_banner_url: string | null;
   promo_tile_url: string | null;
   logo_url: string | null;
   created_by_id: string | null;
@@ -70,6 +71,7 @@ export type CapsuleSummary = {
   name: string;
   slug: string | null;
   bannerUrl: string | null;
+  storeBannerUrl: string | null;
   promoTileUrl: string | null;
   logoUrl: string | null;
   role: string | null;
@@ -81,6 +83,7 @@ export type DiscoverCapsuleSummary = {
   name: string;
   slug: string | null;
   bannerUrl: string | null;
+  storeBannerUrl: string | null;
   promoTileUrl: string | null;
   logoUrl: string | null;
   createdAt: string | null;
@@ -210,6 +213,7 @@ function upsertSummary(
     name: normalizeName(capsule?.name ?? null),
     slug: normalizeString(capsule?.slug ?? null),
     bannerUrl: normalizeString(capsule?.banner_url ?? null),
+    storeBannerUrl: normalizeString(capsule?.store_banner_url ?? null),
     promoTileUrl: normalizeString(capsule?.promo_tile_url ?? null),
     logoUrl: normalizeString(capsule?.logo_url ?? null),
     role: normalizeString(meta.role ?? existing?.role ?? null),
@@ -238,7 +242,7 @@ export async function listCapsulesForUser(userId: string): Promise<CapsuleSummar
   const membershipResult = await db
     .from("capsule_members")
     .select<CapsuleMemberRow>(
-      "capsule_id, role, joined_at, capsule:capsule_id!inner(id,name,slug,banner_url,promo_tile_url,logo_url,created_by_id)",
+      "capsule_id, role, joined_at, capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url,created_by_id)",
     )
     .eq("user_id", userId)
     .order("joined_at", { ascending: true })
@@ -255,7 +259,7 @@ export async function listCapsulesForUser(userId: string): Promise<CapsuleSummar
 
   const ownedResult = await db
     .from("capsules")
-    .select<CapsuleRow>("id, name, slug, banner_url, promo_tile_url, logo_url, created_by_id, created_at")
+    .select<CapsuleRow>("id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at")
     .eq("created_by_id", userId)
     .order("created_at", { ascending: true })
     .fetch();
@@ -283,7 +287,7 @@ export async function listRecentPublicCapsules(options: {
 
   let query = db
     .from("capsules")
-    .select<CapsuleRow>("id, name, slug, banner_url, promo_tile_url, logo_url, created_by_id, created_at")
+    .select<CapsuleRow>("id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at")
     .order("created_at", { ascending: false })
     .limit(queryLimit);
 
@@ -305,15 +309,16 @@ export async function listRecentPublicCapsules(options: {
     if (normalizedExclude && creatorId === normalizedExclude) continue;
     seen.add(id);
 
-      discovered.push({
-        id,
-        name: normalizeName(row?.name ?? null),
-        slug: normalizeString(row?.slug ?? null),
-        bannerUrl: normalizeString(row?.banner_url ?? null),
-        promoTileUrl: normalizeString(row?.promo_tile_url ?? null),
-        logoUrl: normalizeString(row?.logo_url ?? null),
-        createdAt: normalizeString(row?.created_at ?? null),
-      });
+    discovered.push({
+      id,
+      name: normalizeName(row?.name ?? null),
+      slug: normalizeString(row?.slug ?? null),
+      bannerUrl: normalizeString(row?.banner_url ?? null),
+      storeBannerUrl: normalizeString(row?.store_banner_url ?? null),
+      promoTileUrl: normalizeString(row?.promo_tile_url ?? null),
+      logoUrl: normalizeString(row?.logo_url ?? null),
+      createdAt: normalizeString(row?.created_at ?? null),
+    });
 
     if (discovered.length >= normalizedLimit) break;
   }
@@ -333,6 +338,7 @@ export async function getCapsuleSummaryForViewer(
     name: normalizeName(capsule.name),
     slug: normalizeString(capsule.slug),
     bannerUrl: normalizeString(capsule.banner_url),
+    storeBannerUrl: normalizeString(capsule.store_banner_url),
     promoTileUrl: normalizeString(capsule.promo_tile_url),
     logoUrl: normalizeString(capsule.logo_url),
     role: null,
@@ -352,6 +358,7 @@ function makeSummary(row: CapsuleRow, role: "owner" | string | null): CapsuleSum
     name: normalizeName(row.name),
     slug: normalizeString(row.slug),
     bannerUrl: normalizeString(row.banner_url),
+    storeBannerUrl: normalizeString(row.store_banner_url),
     promoTileUrl: normalizeString(row.promo_tile_url),
     logoUrl: normalizeString(row.logo_url),
     role: role ?? null,
@@ -378,7 +385,7 @@ export async function createCapsuleForUser(
     const inserted = await db
       .from("capsules")
       .insert<CapsuleInsert>(payload)
-      .select<CapsuleRow>("id, name, slug, banner_url, promo_tile_url, logo_url, created_by_id")
+      .select<CapsuleRow>("id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id")
       .single();
 
     if (inserted.error) {
@@ -469,6 +476,34 @@ export async function updateCapsuleBanner(params: {
   return Boolean(result.data?.id);
 }
 
+export async function updateCapsuleStoreBanner(params: {
+  capsuleId: string;
+  ownerId: string;
+  storeBannerUrl: string | null;
+}): Promise<boolean> {
+  const normalizedCapsuleId = normalizeString(params.capsuleId);
+  const normalizedOwnerId = normalizeString(params.ownerId);
+  if (!normalizedCapsuleId || !normalizedOwnerId) {
+    return false;
+  }
+
+  const normalizedStoreBannerUrl = normalizeString(params.storeBannerUrl ?? null);
+
+  const result = await db
+    .from("capsules")
+    .update({ store_banner_url: normalizedStoreBannerUrl })
+    .eq("id", normalizedCapsuleId)
+    .eq("created_by_id", normalizedOwnerId)
+    .select<{ id: string | null }>("id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.updateStoreBanner", result.error);
+  }
+
+  return Boolean(result.data?.id);
+}
+
 export async function updateCapsulePromoTile(params: {
   capsuleId: string;
   ownerId: string;
@@ -531,7 +566,7 @@ export async function findCapsuleById(capsuleId: string): Promise<CapsuleRow | n
 
   const result = await db
     .from("capsules")
-    .select<CapsuleRow>("id, name, slug, banner_url, promo_tile_url, logo_url, created_by_id, created_at")
+    .select<CapsuleRow>("id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at")
     .eq("id", normalizedId)
     .maybeSingle();
 

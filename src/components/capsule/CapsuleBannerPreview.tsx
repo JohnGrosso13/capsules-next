@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { ShareFat, Sparkle, UsersThree } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "./CapsuleBannerCustomizer.module.css";
+import styles from "./CapsuleCustomizer.module.css";
 import type {
   CapsuleCustomizerMode,
   SelectedBanner,
@@ -90,6 +90,20 @@ export function CapsuleBannerPreview({
             (event.currentTarget as HTMLImageElement).style.visibility = "hidden";
           }}
         />
+        {mode === "storeBanner" ? (
+          <div className={styles.storeOverlay} aria-hidden="true">
+            <div className={styles.storeOverlayButtonGroup}>
+              <div className={styles.storeOverlayButton}>
+                <ShareFat size={16} weight="bold" />
+                Share preview
+              </div>
+              <div className={styles.storeOverlayButton}>
+                <UsersThree size={16} weight="bold" />
+                Invite collaborators
+              </div>
+            </div>
+          </div>
+        ) : null}
         {mode === "tile" ? (
           <div className={styles.tileOverlay} aria-hidden="true">
             <div className={styles.tileOverlayInner}>

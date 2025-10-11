@@ -14,6 +14,7 @@ type CapsuleSummary = {
   name: string;
   slug: string | null;
   bannerUrl: string | null;
+  storeBannerUrl: string | null;
   promoTileUrl: string | null;
   logoUrl: string | null;
   role: string | null;
@@ -335,4 +336,3 @@ export function LaunchCta({
     </>
   );
 }
-

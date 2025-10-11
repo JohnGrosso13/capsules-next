@@ -616,14 +616,16 @@
 }
 .storeBannerSurface {
   width: 100%;
-  aspect-ratio: 2.39 / 1;
-  background:
+  aspect-ratio: 2.5 / 1;
+  background-image:
+    var(--store-banner-image, none),
     radial-gradient(120% 120% at 100% 0%, rgba(59,130,246,0.45), transparent 62%),
     radial-gradient(120% 120% at 0% 100%, rgba(147,51,234,0.38), transparent 68%),
     linear-gradient(135deg, rgba(17,24,39,0.92), rgba(30,41,59,0.72));
-  background-blend-mode: screen, screen, normal;
+  background-blend-mode: normal, screen, screen, normal;
   background-position: center;
   background-size: cover;
+  background-repeat: no-repeat;
   filter: saturate(1.1);
 }
 .storeBannerActions {

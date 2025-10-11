@@ -3,7 +3,7 @@
 import * as React from "react";
 import { UploadSimple, Brain } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "./CapsuleBannerCustomizer.module.css";
+import styles from "./CapsuleCustomizer.module.css";
 import { Button } from "@/components/ui/button";
 
 type CapsuleAssetActionsProps = {

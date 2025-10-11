@@ -9,10 +9,11 @@ import { computeDisplayUploads } from "@/components/memory/process-uploads";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 
-export type CapsuleCustomizerMode = "banner" | "tile" | "logo" | "avatar";
+export type CapsuleCustomizerMode = "banner" | "storeBanner" | "tile" | "logo" | "avatar";
 
 export type CapsuleCustomizerSaveResult =
   | { type: "banner"; bannerUrl: string | null }
+  | { type: "storeBanner"; storeBannerUrl: string | null }
   | { type: "tile"; tileUrl: string | null }
   | { type: "logo"; logoUrl: string | null }
   | { type: "avatar"; avatarUrl: string | null };
@@ -55,6 +56,11 @@ type PreviewMetrics = {
 
 const PROMPT_CHIP_MAP: Record<CapsuleCustomizerMode, readonly string[]> = {
   banner: ["Bold neon gradients", "Soft sunrise palette", "Minimal dark mode"] as const,
+  storeBanner: [
+    "Product spotlight hero",
+    "Gradient storefront header",
+    "Minimal launch announcement",
+  ] as const,
   tile: ["Hero launch tile", "Vibrant gradient tile", "Cyberpunk feature art"] as const,
   logo: ["Minimal monogram logo", "Gradient orb icon", "Playful mascot badge"] as const,
   avatar: ["Bold portrait lighting", "Soft pastel avatar", "Futuristic neon portrait"] as const,
@@ -104,7 +110,15 @@ function buildAssistantResponse({
   const displayPrompt = cleanPrompt.length ? cleanPrompt : "that idea";
 
   const assetLabel =
-    asset === "tile" ? "promo tile" : asset === "logo" ? "logo" : asset === "avatar" ? "avatar" : "banner";
+    asset === "tile"
+      ? "promo tile"
+      : asset === "logo"
+        ? "logo"
+        : asset === "avatar"
+          ? "avatar"
+          : asset === "storeBanner"
+            ? "store banner"
+            : "banner";
   const action =
     mode === "generate" ? `I generated a ${assetLabel}` : `I updated your existing ${assetLabel}`;
   const capsuleSegment = capsuleName.length ? ` for ${capsuleName}` : "";
@@ -230,6 +244,22 @@ export function useCapsuleCustomizerState(
     promptChips,
   } = React.useMemo(() => {
     const safeName = normalizedName;
+    if (customizerMode === "storeBanner") {
+      return {
+        assetLabel: "store banner" as const,
+        previewAlt: "Preview of your Capsule store banner",
+        headerTitle: "Design your Capsule store banner",
+        headerSubtitle:
+          "Chat with Capsule AI, pick from memories, or upload visuals to set your storefront hero image.",
+        prompterPlaceholder: "Describe your store hero or a vibe to try...",
+        aiWorkingMessage: "Let me work on a store banner that matches that vibe...",
+        assistantIntro: `Hi! I'm here to help you design a capsule store banner for ${safeName}. Describe products, mood, or layout ideas and I'll generate options.`,
+        footerDefaultHint: "Upload an image, pick a memory, or describe a new store banner below.",
+        stageAriaLabel: "Capsule store banner preview",
+        recentDescription: "Reuse the hero art you or Capsule AI used in your storefront recently.",
+        promptChips: PROMPT_CHIP_MAP.storeBanner,
+      };
+    }
     if (customizerMode === "tile") {
       return {
         assetLabel: "tile" as const,
@@ -1057,6 +1087,8 @@ export function useCapsuleCustomizerState(
         ? { maxWidth: 1080, maxHeight: 1920, aspectRatio: 9 / 16 }
         : customizerMode === "logo" || customizerMode === "avatar"
           ? { maxWidth: 1024, maxHeight: 1024, aspectRatio: 1 }
+          : customizerMode === "storeBanner"
+            ? { maxWidth: 1600, maxHeight: 640, aspectRatio: 5 / 2 }
           : { maxWidth: 1600, maxHeight: 900, aspectRatio: 16 / 9 };
 
     let targetWidth = Math.min(maxWidth, naturalWidth);
@@ -1150,7 +1182,13 @@ export function useCapsuleCustomizerState(
         .replace(/^-+|-+$/g, "")
         .slice(0, 32);
       const fileNamePrefix =
-        customizerMode === "avatar" ? "profile" : customizerMode === "logo" ? "capsule-logo" : safeSlug || "capsule";
+        customizerMode === "avatar"
+          ? "profile"
+          : customizerMode === "logo"
+            ? "capsule-logo"
+            : customizerMode === "storeBanner"
+              ? "capsule-store"
+              : safeSlug || "capsule";
       const fileName = `${fileNamePrefix}-${customizerMode}-${Date.now()}.jpg`;
       const bannerFile = new File([exportResult.blob], fileName, { type: exportResult.mimeType });
 
@@ -1171,7 +1209,9 @@ export function useCapsuleCustomizerState(
             ? `/api/capsules/${capsuleId}/logo`
             : customizerMode === "avatar"
               ? "/api/account/avatar"
-              : `/api/capsules/${capsuleId}/banner`;
+              : customizerMode === "storeBanner"
+                ? `/api/capsules/${capsuleId}/store-banner`
+                : `/api/capsules/${capsuleId}/banner`;
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1207,6 +1247,7 @@ export function useCapsuleCustomizerState(
 
       const payload = (await response.json()) as {
         bannerUrl?: string | null;
+        storeBannerUrl?: string | null;
         tileUrl?: string | null;
         logoUrl?: string | null;
         avatarUrl?: string | null;
@@ -1217,6 +1258,8 @@ export function useCapsuleCustomizerState(
         onSaved?.({ type: "logo", logoUrl: payload.logoUrl ?? null });
       } else if (customizerMode === "avatar") {
         onSaved?.({ type: "avatar", avatarUrl: payload.avatarUrl ?? null });
+      } else if (customizerMode === "storeBanner") {
+        onSaved?.({ type: "storeBanner", storeBannerUrl: payload.storeBannerUrl ?? null });
       } else {
         onSaved?.({ type: "banner", bannerUrl: payload.bannerUrl ?? null });
       }
