@@ -19,6 +19,10 @@ import carouselStyles from "./uploads-carousel.module.css";
 import styles from "./capsule-assets-gallery.module.css";
 import { MemoryUploadDetailDialog } from "./upload-detail-dialog";
 
+function joinClassNames(...values: Array<string | undefined>): string {
+  return values.filter(Boolean).join(" ");
+}
+
 type GalleryTab = {
   value: string;
   label: string;
@@ -85,13 +89,17 @@ function groupAssetsByTab(
     const variant = detectAssetVariant(item);
     for (const tab of GALLERY_TABS) {
       if (tab.variants.includes(variant)) {
-        record[tab.value].push(item);
+        const bucket = record[tab.value];
+        if (!bucket) continue;
+        bucket.push(item);
       }
     }
   }
 
   for (const key of Object.keys(record)) {
-    record[key].sort((a, b) => {
+    const bucket = record[key];
+    if (!bucket) continue;
+    bucket.sort((a, b) => {
       const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
       return bTime - aTime;
@@ -137,14 +145,16 @@ export function CapsuleAssetsGallery({ initialTab }: CapsuleAssetsGalleryProps) 
     const title = item.title?.trim() || item.description?.trim() || "Asset";
     const desc = item.description?.trim() || null;
 
-    const mediaClassName =
-      variant === "banner" || variant === "store_banner"
-        ? `${carouselStyles.media} ${carouselStyles.bannerMedia}`
-        : variant === "logo" || variant === "avatar"
-          ? `${carouselStyles.media} ${carouselStyles.squareMedia}`
-          : variant === "promo_tile"
-            ? `${carouselStyles.media} ${carouselStyles.tileMedia}`
-            : carouselStyles.media;
+    let mediaClassName = carouselStyles.media ?? "";
+    if (variant === "banner" || variant === "store_banner") {
+      mediaClassName = joinClassNames(carouselStyles.media, carouselStyles.bannerMedia);
+    } else if (variant === "promo_tile") {
+      mediaClassName = joinClassNames(carouselStyles.media, carouselStyles.tileMedia);
+    } else if (variant === "logo") {
+      mediaClassName = joinClassNames(carouselStyles.media, carouselStyles.squareMedia);
+    } else if (variant === "avatar") {
+      mediaClassName = joinClassNames(carouselStyles.media, carouselStyles.avatarMedia);
+    }
 
     return (
       <button

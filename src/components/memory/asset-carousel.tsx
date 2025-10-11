@@ -14,6 +14,10 @@ import type { DisplayMemoryUpload } from "./uploads-types";
 import styles from "./uploads-carousel.module.css";
 import { MemoryUploadDetailDialog } from "./upload-detail-dialog";
 
+function joinClassNames(...values: Array<string | undefined>): string {
+  return values.filter(Boolean).join(" ");
+}
+
 const MAX_VISIBLE = 6;
 
 export type MemoryAssetVariant = "banner" | "store_banner" | "promo_tile" | "logo" | "avatar" | "unknown";
@@ -132,15 +136,15 @@ export function formatAssetTimestamp(iso: string | null | undefined): string | n
 
 function getMediaClassName(variant: MemoryAssetVariant): string {
   if (variant === "banner" || variant === "store_banner") {
-    return `${styles.media} ${styles.bannerMedia}`;
+    return joinClassNames(styles.media, styles.bannerMedia);
   }
   if (variant === "logo" || variant === "avatar") {
-    return `${styles.media} ${styles.squareMedia}`;
+    return joinClassNames(styles.media, styles.squareMedia);
   }
   if (variant === "promo_tile") {
-    return `${styles.media} ${styles.tileMedia}`;
+    return joinClassNames(styles.media, styles.tileMedia);
   }
-  return styles.media;
+  return styles.media ?? "";
 }
 
 type MemoryAssetCardProps = {
