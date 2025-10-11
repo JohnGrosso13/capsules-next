@@ -119,6 +119,22 @@
     --radius-xl: 1.5rem;
     --radius-2xl: 2rem;
     --radius-pill: 999px;
+    /* Capsule logo sizing */
+    --capsule-logo-size-xs: 28px;
+    --capsule-logo-size-sm: 36px;
+    --capsule-logo-size-md: 40px;
+    --capsule-logo-size-lg: clamp(56px, 6vw, 68px);
+    --capsule-logo-radius-xs: 8px;
+    --capsule-logo-radius-sm: 10px;
+    --capsule-logo-radius-md: 12px;
+    --capsule-logo-radius-lg: 18px;
+    --capsule-logo-size: var(--capsule-logo-size-md);
+    --capsule-logo-radius: var(--capsule-logo-radius-md);
+    --capsule-logo-initial-scale: 0.42;
+    --capsule-logo-initial-min: 0.9rem;
+    --capsule-logo-initial-max: 1.4rem;
+    --capsule-logo-border: color-mix(in srgb, currentColor 20%, transparent);
+    --capsule-logo-shadow: 0 14px 32px rgba(5, 10, 30, 0.42);
     --shadow-xs: 0 1px 2px rgba(5, 10, 30, 0.36);
     --shadow-sm: 0 4px 12px rgba(5, 10, 30, 0.32);
     --shadow-md: 0 12px 32px rgba(5, 10, 30, 0.34);
@@ -1070,6 +1086,3 @@
     animation: marquee 60s linear infinite;
   }
 }
-
-
-

@@ -4,6 +4,11 @@
   width: 100%;
   height: 100%;
   aspect-ratio: var(--capsule-tile-aspect, 9 / 16);
+  --capsule-logo-size: var(--capsule-logo-size-lg);
+  --capsule-logo-radius: var(--capsule-logo-radius-lg);
+  --capsule-logo-initial-scale: 0.4;
+  --capsule-logo-initial-min: 1.1rem;
+  --capsule-logo-initial-max: 1.4rem;
   border-radius: clamp(18px, 3vw, 22px);
   border: 1px solid var(
     --capsule-tile-border,
@@ -138,10 +143,10 @@
 }
 
 .logo {
-  width: clamp(56px, 6vw, 68px);
-  height: clamp(56px, 6vw, 68px);
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  width: var(--capsule-logo-size);
+  height: var(--capsule-logo-size);
+  border-radius: var(--capsule-logo-radius);
+  border: 1px solid var(--capsule-logo-border, color-mix(in srgb, currentColor 20%, transparent));
   background:
     radial-gradient(220px 140px at 20% -20%, rgba(255, 255, 255, 0.2), transparent 60%),
     linear-gradient(
@@ -153,10 +158,14 @@
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: clamp(1.1rem, 2.4vw, 1.4rem);
+  font-size: clamp(
+    var(--capsule-logo-initial-min, 1rem),
+    calc(var(--capsule-logo-size) * var(--capsule-logo-initial-scale, 0.42)),
+    var(--capsule-logo-initial-max, 1.4rem)
+  );
   color: inherit;
   overflow: hidden;
-  box-shadow: 0 14px 32px rgba(5, 10, 30, 0.42);
+  box-shadow: var(--capsule-logo-shadow, 0 14px 32px rgba(5, 10, 30, 0.42));
 }
 
 .logo img {

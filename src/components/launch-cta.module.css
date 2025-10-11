@@ -61,15 +61,24 @@
 }
 
 .capsuleLogo {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  --capsule-logo-size: var(--capsule-logo-size-md);
+  --capsule-logo-radius: var(--capsule-logo-radius-md);
+  --capsule-logo-initial-scale: 0.4;
+  --capsule-logo-initial-min: 0.95rem;
+  --capsule-logo-initial-max: 1.1rem;
+  width: var(--capsule-logo-size);
+  height: var(--capsule-logo-size);
+  border-radius: var(--capsule-logo-radius);
   background: rgba(96, 106, 255, 0.18);
   color: rgba(229, 232, 255, 0.95);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: clamp(
+    var(--capsule-logo-initial-min, 0.95rem),
+    calc(var(--capsule-logo-size) * var(--capsule-logo-initial-scale, 0.4)),
+    var(--capsule-logo-initial-max, 1.1rem)
+  );
   font-weight: 700;
   flex-shrink: 0;
   overflow: hidden;

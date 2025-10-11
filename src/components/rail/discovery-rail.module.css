@@ -89,9 +89,14 @@
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  --capsule-logo-size: var(--capsule-logo-size-sm);
+  --capsule-logo-radius: var(--capsule-logo-radius-sm);
+  --capsule-logo-initial-scale: 0.42;
+  --capsule-logo-initial-min: 0.82rem;
+  --capsule-logo-initial-max: 1rem;
+  width: var(--capsule-logo-size);
+  height: var(--capsule-logo-size);
+  border-radius: var(--capsule-logo-radius);
   background: var(--gradient-brand, linear-gradient(135deg, #8b5cf6, #06b6d4));
   overflow: hidden;
   display: flex;
@@ -99,7 +104,11 @@
   justify-content: center;
   font-weight: 700;
   color: color-mix(in srgb, #ffffff 92%, transparent);
-  font-size: 0.95rem;
+  font-size: clamp(
+    var(--capsule-logo-initial-min, 0.82rem),
+    calc(var(--capsule-logo-size) * var(--capsule-logo-initial-scale, 0.42)),
+    var(--capsule-logo-initial-max, 1rem)
+  );
   letter-spacing: -0.01em;
 }
 

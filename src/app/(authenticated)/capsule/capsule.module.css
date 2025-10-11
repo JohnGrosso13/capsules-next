@@ -1263,14 +1263,17 @@
 }
 
 .promoLogo {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid var(--pill-border);
+  --capsule-logo-size: var(--capsule-logo-size-xs);
+  --capsule-logo-radius: var(--capsule-logo-radius-xs);
+  --capsule-logo-shadow: 0 12px 28px rgba(6, 10, 28, 0.35);
+  width: var(--capsule-logo-size);
+  height: var(--capsule-logo-size);
+  border-radius: var(--capsule-logo-radius);
+  border: 1px solid var(--capsule-logo-border, var(--pill-border));
   background:
     radial-gradient(220px 120px at 20% -20%, rgba(255, 255, 255, 0.16), transparent 60%),
     linear-gradient(135deg, var(--color-brand-strong), color-mix(in srgb, var(--color-brand) 65%, var(--color-accent)));
-  box-shadow: 0 12px 28px rgba(6, 10, 28, 0.35);
+  box-shadow: var(--capsule-logo-shadow);
   flex-shrink: 0;
 }
 
