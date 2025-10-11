@@ -717,45 +717,13 @@ function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlacehol
     { id: "step-pricing", label: "Lock in pricing & margins for each listing" },
     { id: "step-launch", label: "Preview the storefront & schedule your launch" },
   ];
-  const storeHighlights = [
-    { id: "status", label: "Store status", value: "Drafting lineup" },
-    { id: "slots", label: "Slots staged", value: "4 active drops" },
-    { id: "margin", label: "Avg. margin", value: "24%" },
-  ];
-
   return (
     <div className={`${capTheme.liveCanvas} ${capTheme.storeCanvas}`} aria-label="Capsule store planning">
       <div className={capTheme.storeContent}>
         <section className={capTheme.storeHero}>
           <div className={capTheme.storeBannerFrame}>
             <div className={capTheme.storeBannerSurface} role="presentation" />
-            <div className={capTheme.storeBannerLabel}>
-              <span>Store banner preview</span>
-              <p>
-                Upload or generate a dedicated storefront banner. This preview uses a 16:9 canvas so product art looks
-                great on any screen.
-              </p>
-            </div>
-          </div>
-
-          <div className={capTheme.storeHeroCopy}>
-            <div className={capTheme.storeHeading}>
-              <span className={capTheme.storeBadge}>Store draft</span>
-              <h2 className={capTheme.storeTitle}>{displayName} storefront</h2>
-              <p className={capTheme.storeSubtitle}>
-                Curate your capsule shop with AI-assisted listings. Reserve spaces for merch, drops, and digital perks,
-                then ask Capsule to fill in the details when you&apos;re ready.
-              </p>
-            </div>
-            <div className={capTheme.storeHeroMeta}>
-              {storeHighlights.map((highlight) => (
-                <div key={highlight.id} className={capTheme.storeHeroStat}>
-                  <span className={capTheme.storeHeroLabel}>{highlight.label}</span>
-                  <strong className={capTheme.storeHeroValue}>{highlight.value}</strong>
-                </div>
-              ))}
-            </div>
-            <div className={capTheme.storeActions}>
+            <div className={capTheme.storeBannerActions}>
               <button type="button" className={capTheme.storeGhostButton}>
                 <ShareFat size={16} weight="bold" />
                 Share preview
