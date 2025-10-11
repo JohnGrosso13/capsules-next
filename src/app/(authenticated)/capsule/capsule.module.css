@@ -579,6 +579,78 @@
   width: 100%;
   max-width: none;
 }
+.storeHero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+  gap: clamp(18px, 2.6vw, 32px);
+  padding: clamp(20px, 3vw, 32px);
+  border-radius: clamp(22px, 3.2vw, 30px);
+  border: 1px solid color-mix(in srgb, rgba(99,102,241,0.45) 68%, transparent);
+  background:
+    radial-gradient(1400px 60% at -10% 0%, rgba(59,130,246,0.22), transparent 70%),
+    radial-gradient(900px 60% at 110% 10%, rgba(129,140,248,0.18), transparent 72%),
+    linear-gradient(135deg, color-mix(in srgb, rgba(15,23,42,0.86) 80%, rgba(17,24,39,0.72)), rgba(15,23,42,0.78));
+  box-shadow: 0 32px 60px rgba(9, 13, 28, 0.45);
+  overflow: hidden;
+}
+.storeHero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 25% -10%, rgba(255, 255, 255, 0.16), transparent 62%);
+  mix-blend-mode: screen;
+  opacity: 0.55;
+}
+.storeHeroCopy,
+.storeHeroPrompter {
+  position: relative;
+  z-index: 1;
+}
+.storeHeroCopy {
+  display: grid;
+  gap: clamp(16px, 2.4vw, 26px);
+  color: var(--text, rgba(255,255,255,0.95));
+}
+.storeHeroMeta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: clamp(12px, 2vw, 18px);
+}
+.storeHeroStat {
+  display: grid;
+  gap: 6px;
+  padding: clamp(12px, 1.8vw, 18px);
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, rgba(148,163,184,0.55) 58%, transparent);
+  background:
+    linear-gradient(140deg, color-mix(in srgb, rgba(59,130,246,0.32) 28%, transparent), transparent),
+    color-mix(in srgb, rgba(15,23,42,0.82) 80%, rgba(15,23,42,0.58));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.storeHeroLabel {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-2, rgba(203,213,225,0.78)) 85%, transparent);
+}
+.storeHeroValue {
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  font-weight: 800;
+  color: var(--text, rgba(255,255,255,0.95));
+}
+.storeHeroPrompter {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+@media (max-width: 1200px) {
+  .storeHero {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  }
+}
 .storeHeader {
   display: flex;
   flex-wrap: wrap;
@@ -652,6 +724,8 @@
     linear-gradient(135deg, color-mix(in srgb, rgba(59,130,246,0.55) 18%, transparent), transparent),
     color-mix(in srgb, rgba(15,23,42,0.74) 72%, rgba(15,23,42,0.45));
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  align-content: space-between;
+  height: 100%;
 }
 .storePrompterHeader {
   display: flex;
@@ -673,6 +747,7 @@
   border-radius: 14px;
   overflow: hidden;
   position: relative;
+  min-height: clamp(210px, 26vh, 260px);
 }
 .storeBody {
   display: grid;
@@ -682,7 +757,7 @@
 }
 @media (min-width: 1100px) {
   .storeBody {
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+    grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr);
   }
 }
 .storeMain {
@@ -940,9 +1015,8 @@
 }
 
 @media (max-width: 900px) {
-  .storeHeader {
-    flex-direction: column;
-    align-items: flex-start;
+  .storeHero {
+    grid-template-columns: minmax(0, 1fr);
   }
   .storeActions {
     width: 100%;
@@ -956,6 +1030,12 @@
 @media (max-width: 640px) {
   .storeContent {
     max-width: none;
+  }
+  .storeHero {
+    padding: clamp(16px, 4vw, 24px);
+  }
+  .storeHeroMeta {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
   .storeProducts {
     grid-template-columns: minmax(0, 1fr);

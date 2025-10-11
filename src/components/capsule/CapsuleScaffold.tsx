@@ -647,40 +647,56 @@ function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlacehol
     { id: "step-pricing", label: "Lock in pricing & margins for each listing" },
     { id: "step-launch", label: "Preview the storefront & schedule your launch" },
   ];
+  const storeHighlights = [
+    { id: "status", label: "Store status", value: "Drafting lineup" },
+    { id: "slots", label: "Slots staged", value: "4 active drops" },
+    { id: "margin", label: "Avg. margin", value: "24%" },
+  ];
 
   return (
     <div className={`${capTheme.liveCanvas} ${capTheme.storeCanvas}`} aria-label="Capsule store planning">
       <div className={capTheme.storeContent}>
-        <header className={capTheme.storeHeader}>
-          <div className={capTheme.storeHeading}>
-            <span className={capTheme.storeBadge}>Store draft</span>
-            <h2 className={capTheme.storeTitle}>{displayName} storefront</h2>
-            <p className={capTheme.storeSubtitle}>
-              Curate your capsule shop with AI-assisted listings. Reserve spaces for merch, drops, and digital perks—then
-              ask Capsule to fill in the details when you&apos;re ready.
-            </p>
-          </div>
-          <div className={capTheme.storeActions}>
-            <button type="button" className={capTheme.storeGhostButton}>
-              <ShareFat size={16} weight="bold" />
-              Share preview
-            </button>
-            <button type="button" className={capTheme.storeGhostButton}>
-              <UsersThree size={16} weight="bold" />
-              Invite collaborators
-            </button>
-          </div>
-        </header>
-
-        <section className={capTheme.storePrompter}>
-          <div className={capTheme.storePrompterHeader}>
-            <MagicWand size={18} weight="bold" />
-            <div>
-              <h3>Ask Capsule AI to craft your next listing</h3>
-              <p>Use natural language to brief pricing, designs, bundles, or launch timing.</p>
+        <section className={capTheme.storeHero}>
+          <div className={capTheme.storeHeroCopy}>
+            <div className={capTheme.storeHeading}>
+              <span className={capTheme.storeBadge}>Store draft</span>
+              <h2 className={capTheme.storeTitle}>{displayName} storefront</h2>
+              <p className={capTheme.storeSubtitle}>
+                Curate your capsule shop with AI-assisted listings. Reserve spaces for merch, drops, and digital perks,
+                then ask Capsule to fill in the details when you&apos;re ready.
+              </p>
+            </div>
+            <div className={capTheme.storeHeroMeta}>
+              {storeHighlights.map((highlight) => (
+                <div key={highlight.id} className={capTheme.storeHeroStat}>
+                  <span className={capTheme.storeHeroLabel}>{highlight.label}</span>
+                  <strong className={capTheme.storeHeroValue}>{highlight.value}</strong>
+                </div>
+              ))}
+            </div>
+            <div className={capTheme.storeActions}>
+              <button type="button" className={capTheme.storeGhostButton}>
+                <ShareFat size={16} weight="bold" />
+                Share preview
+              </button>
+              <button type="button" className={capTheme.storeGhostButton}>
+                <UsersThree size={16} weight="bold" />
+                Invite collaborators
+              </button>
             </div>
           </div>
-          <div className={capTheme.storePrompterStage}>{prompter}</div>
+          <div className={capTheme.storeHeroPrompter}>
+            <div className={capTheme.storePrompter}>
+              <div className={capTheme.storePrompterHeader}>
+                <MagicWand size={18} weight="bold" />
+                <div>
+                  <h3>Ask Capsule AI to craft your next listing</h3>
+                  <p>Use natural language to brief pricing, designs, bundles, or launch timing.</p>
+                </div>
+              </div>
+              <div className={capTheme.storePrompterStage}>{prompter}</div>
+            </div>
+          </div>
         </section>
 
         <div className={capTheme.storeBody}>

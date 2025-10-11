@@ -66,9 +66,9 @@ export function AppShell({
     : `${styles.rail} ${styles.rightRail}`;
   const isCapsuleFeedView = isCapsule && capsuleTab === "feed";
   const isCapsuleStoreView = isCapsule && capsuleTab === "store";
-  const shouldShowDiscoveryRail =
-    showDiscoveryRightRail || isCapsuleFeedView || isCapsuleStoreView;
-  const capsuleHasRightRail = shouldShowDiscoveryRail || showLiveChatRightRail;
+  const shouldShowDiscoveryRail = showDiscoveryRightRail || isCapsuleFeedView;
+  const allowLiveChatRail = showLiveChatRightRail && !isCapsuleStoreView;
+  const capsuleHasRightRail = shouldShowDiscoveryRail || allowLiveChatRail;
   const capsuleLayoutClassName = capsuleHasRightRail
     ? `${styles.layout} ${styles.layoutCapsule}`
     : `${styles.layout} ${styles.layoutCapsule} ${styles.layoutCapsuleNoRight}`;
@@ -98,14 +98,14 @@ export function AppShell({
 
   const capsuleRightRailContent = React.useMemo(() => {
     if (shouldShowDiscoveryRail) {
-      // Show discovery rail for feed, store, or explicitly requested views.
+      // Show discovery rail for feed views or when explicitly requested.
       return <DiscoveryRail />;
     }
-    if (showLiveChatRightRail) {
+    if (allowLiveChatRail) {
       return <LiveChatRail {...liveChatRailProps} />;
     }
     return null;
-  }, [shouldShowDiscoveryRail, showLiveChatRightRail, liveChatRailProps]);
+  }, [shouldShowDiscoveryRail, allowLiveChatRail, liveChatRailProps]);
 
   return (
     <div className={usesCapsuleLayout ? `${styles.outer} ${styles.outerCapsule}` : styles.outer}>
