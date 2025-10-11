@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useEmblaCarousel from "embla-carousel-react";
 
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -191,6 +192,56 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
   }, [capsules, defaultCapsuleId, hasOwnedCapsule, knownCapsuleIds, ownedCapsules]);
   const [activeId, setActiveId] = React.useState<string | null>(() => (startInSelector ? null : resolvedDefaultId));
   const canSwitchCapsules = startInSelector || capsules.length > 1;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamsString = searchParams?.toString() ?? "";
+
+  const syncUrl = React.useCallback(
+    (nextActiveId: string | null, allowSwitch: boolean) => {
+      if (!pathname) return;
+
+      const params = new URLSearchParams(searchParamsString);
+      let mutated = false;
+
+      if (nextActiveId) {
+        if (params.get("capsuleId") !== nextActiveId) {
+          params.set("capsuleId", nextActiveId);
+          mutated = true;
+        }
+        if (params.has("switch")) {
+          params.delete("switch");
+          mutated = true;
+        }
+      } else if (allowSwitch) {
+        if (params.get("switch") !== "1") {
+          params.set("switch", "1");
+          mutated = true;
+        }
+        if (params.has("capsuleId")) {
+          params.delete("capsuleId");
+          mutated = true;
+        }
+      } else {
+        if (params.has("switch")) {
+          params.delete("switch");
+          mutated = true;
+        }
+        if (params.has("capsuleId")) {
+          params.delete("capsuleId");
+          mutated = true;
+        }
+      }
+
+      if (!mutated) return;
+
+      const query = params.toString();
+      const nextHref = query.length ? `${pathname}?${query}` : pathname;
+
+      router.replace(nextHref, { scroll: false });
+    },
+    [pathname, router, searchParamsString],
+  );
 
   React.useEffect(() => {
     if (startInSelector) {
@@ -224,32 +275,8 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    let changed = false;
-    if (activeId) {
-      if (url.searchParams.get("capsuleId") !== activeId) {
-        url.searchParams.set("capsuleId", activeId);
-        changed = true;
-      }
-      if (url.searchParams.has("switch")) {
-        url.searchParams.delete("switch");
-        changed = true;
-      }
-    } else if (canSwitchCapsules) {
-      if (url.searchParams.get("switch") !== "1") {
-        url.searchParams.set("switch", "1");
-        changed = true;
-      }
-      if (url.searchParams.has("capsuleId")) {
-        url.searchParams.delete("capsuleId");
-        changed = true;
-      }
-    }
-    if (changed) {
-      const nextUrl = `${url.pathname}${url.search}${url.hash}`;
-      window.history.replaceState(null, document.title, nextUrl);
-    }
-  }, [activeId, canSwitchCapsules]);
+    syncUrl(activeId, canSwitchCapsules);
+  }, [activeId, canSwitchCapsules, syncUrl]);
 
   const activeCapsule = React.useMemo(() => {
     if (!activeId) return null;
