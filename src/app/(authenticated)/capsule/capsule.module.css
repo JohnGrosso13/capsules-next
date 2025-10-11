@@ -9,7 +9,11 @@
   --prompt-glow-opacity: 0.54;
   --prompt-glow-blur: 18px;
   --card-radius: 16px;
-  --live-stage-border: color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.16)) 82%, transparent);
+  --live-stage-border: color-mix(
+    in srgb,
+    var(--card-border, rgba(255, 255, 255, 0.16)) 82%,
+    transparent
+  );
   --live-stage-shadow: var(--shadow-lg, 0 16px 40px rgba(5, 10, 30, 0.38));
   --live-stage-bg-top: color-mix(
     in srgb,
@@ -42,11 +46,8 @@
     var(--card-border, rgba(255, 255, 255, 0.16)) 60%,
     transparent
   );
-  --live-stage-message-shadow: 0 18px 36px color-mix(
-    in srgb,
-    var(--color-brand, #6366f1) 14%,
-    rgba(5, 10, 30, 0.32)
-  );
+  --live-stage-message-shadow: 0 18px 36px
+    color-mix(in srgb, var(--color-brand, #6366f1) 14%, rgba(5, 10, 30, 0.32));
   --live-stage-message-highlight: color-mix(
     in srgb,
     var(--text, rgba(255, 255, 255, 0.92)) 18%,
@@ -112,11 +113,7 @@
     var(--color-brand, #6366f1) 68%,
     transparent
   );
-  --store-filter-pill-bg-active: color-mix(
-    in srgb,
-    var(--color-brand, #6366f1) 45%,
-    transparent
-  );
+  --store-filter-pill-bg-active: color-mix(in srgb, var(--color-brand, #6366f1) 45%, transparent);
   --store-search-border: color-mix(
     in srgb,
     var(--card-border, rgba(255, 255, 255, 0.16)) 85%,
@@ -148,11 +145,8 @@
     var(--surface-elevated, rgba(17, 22, 45, 0.86)) 84%,
     var(--surface-muted, rgba(17, 22, 45, 0.8)) 48%
   );
-  --store-product-shadow: inset 0 1px 0 color-mix(
-    in srgb,
-    var(--text, rgba(255, 255, 255, 0.92)) 6%,
-    transparent
-  );
+  --store-product-shadow: inset 0 1px 0
+    color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 6%, transparent);
   --store-panel-border: color-mix(
     in srgb,
     var(--card-border, rgba(255, 255, 255, 0.16)) 72%,
@@ -163,13 +157,13 @@
     var(--surface-elevated, rgba(17, 22, 45, 0.86)) 82%,
     var(--surface-muted, rgba(17, 22, 45, 0.8)) 52%
   );
-  --store-panel-highlight-border: color-mix(
-    in srgb,
-    var(--color-brand, #6366f1) 58%,
-    transparent
-  );
+  --store-panel-highlight-border: color-mix(in srgb, var(--color-brand, #6366f1) 58%, transparent);
   --store-panel-highlight-bg:
-    linear-gradient(160deg, color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent), transparent),
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent),
+      transparent
+    ),
     color-mix(
       in srgb,
       var(--surface-elevated, rgba(17, 22, 45, 0.86)) 85%,
@@ -177,15 +171,17 @@
     );
   --store-action-border: color-mix(in srgb, var(--color-brand, #6366f1) 75%, transparent);
   --store-action-bg: color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
-  --store-action-shadow-hover: 0 10px 28px color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
-  --store-primary-bg:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand, #6366f1) 95%, transparent),
-      color-mix(in srgb, var(--color-accent, #22d3ee) 85%, transparent)
-    );
-  --store-primary-shadow: 0 16px 32px color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
-  --store-primary-shadow-hover: 0 20px 38px color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent);
+  --store-action-shadow-hover: 0 10px 28px
+    color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
+  --store-primary-bg: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 95%, transparent),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 85%, transparent)
+  );
+  --store-primary-shadow: 0 16px 32px
+    color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
+  --store-primary-shadow-hover: 0 20px 38px
+    color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent);
   --store-step-badge-bg: color-mix(in srgb, var(--color-brand, #6366f1) 60%, transparent);
 }
 
@@ -208,8 +204,8 @@
   border-radius: var(--radius-2xl, 20px);
   padding: clamp(10px, 1.2vw, 16px);
   background:
-    radial-gradient(600px 200px at 20% -10%, rgba(255,255,255,0.06), transparent 60%),
-    radial-gradient(600px 200px at 80% -10%, rgba(255,255,255,0.06), transparent 60%),
+    radial-gradient(600px 200px at 20% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(600px 200px at 80% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
     linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
   color: var(--text-2);
   font-weight: 900;
@@ -225,11 +221,15 @@
   margin-right: 8px;
   color: var(--text);
 }
-.tab:hover { color: var(--text); }
+.tab:hover {
+  color: var(--text);
+}
 .tabActive {
   color: var(--text);
   outline: 0;
-  box-shadow: 0 0 0 2px var(--pill-border) inset, var(--card-shadow);
+  box-shadow:
+    0 0 0 2px var(--pill-border) inset,
+    var(--card-shadow);
 }
 
 .heroWrap {
@@ -239,9 +239,13 @@
   border-radius: var(--radius-3xl, 26px);
   border: 1px solid var(--card-border);
   background:
-    radial-gradient(600px 220px at 20% -20%, rgba(255,255,255,0.09), transparent 60%),
-    radial-gradient(620px 260px at 80% -24%, rgba(255,255,255,0.06), transparent 65%),
-    linear-gradient(180deg, var(--card-bg-1, rgba(22,30,58,0.62)), var(--card-bg-2, rgba(18,24,48,0.78)));
+    radial-gradient(600px 220px at 20% -20%, rgba(255, 255, 255, 0.09), transparent 60%),
+    radial-gradient(620px 260px at 80% -24%, rgba(255, 255, 255, 0.06), transparent 65%),
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(22, 30, 58, 0.62)),
+      var(--card-bg-2, rgba(18, 24, 48, 0.78))
+    );
   box-shadow: var(--card-shadow);
 }
 
@@ -253,13 +257,12 @@
   margin: 0 auto;
   border-radius: clamp(18px, 3vw, 24px);
   overflow: hidden;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand) 82%, transparent) 0%,
-      color-mix(in srgb, var(--color-accent) 68%, var(--color-brand)) 54%,
-      color-mix(in srgb, var(--color-brand-strong, #6366f1) 88%, transparent) 100%
-    );
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 82%, transparent) 0%,
+    color-mix(in srgb, var(--color-accent) 68%, var(--color-brand)) 54%,
+    color-mix(in srgb, var(--color-brand-strong, #6366f1) 88%, transparent) 100%
+  );
 }
 
 @supports not (aspect-ratio: 1 / 1) {
@@ -272,7 +275,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(12,16,34,0.12) 0%, rgba(6,10,26,0.36) 80%);
+  background: linear-gradient(180deg, rgba(12, 16, 34, 0.12) 0%, rgba(6, 10, 26, 0.36) 80%);
   pointer-events: none;
 }
 
@@ -309,19 +312,22 @@
   padding: 10px 16px;
   border-radius: var(--pill-radius);
   border: 1px solid color-mix(in srgb, white 24%, transparent);
-  background: color-mix(in srgb, rgba(15,18,40,0.38) 82%, transparent);
+  background: color-mix(in srgb, rgba(15, 18, 40, 0.38) 82%, transparent);
   color: white;
   font-size: 0.9rem;
   font-weight: 600;
   backdrop-filter: blur(6px);
-  transition: transform 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    background-color 0.16s ease,
+    border-color 0.16s ease;
 }
 
 .heroCustomizeBtn:hover,
 .heroCustomizeBtn:focus-visible {
   transform: translateY(-1px);
-  border-color: rgba(255,255,255,0.62);
-  background: color-mix(in srgb, rgba(14,16,36,0.48) 90%, transparent);
+  border-color: rgba(255, 255, 255, 0.62);
+  background: color-mix(in srgb, rgba(14, 16, 36, 0.48) 90%, transparent);
 }
 
 .heroCustomizeBtn:focus-visible {
@@ -331,13 +337,13 @@
 
 .heroCustomizeBtnSecondary {
   border-color: color-mix(in srgb, white 18%, transparent);
-  background: color-mix(in srgb, rgba(20,22,46,0.32) 88%, transparent);
+  background: color-mix(in srgb, rgba(20, 22, 46, 0.32) 88%, transparent);
 }
 
 .heroCustomizeBtnSecondary:hover,
 .heroCustomizeBtnSecondary:focus-visible {
-  border-color: rgba(255,255,255,0.42);
-  background: color-mix(in srgb, rgba(24,28,56,0.46) 90%, transparent);
+  border-color: rgba(255, 255, 255, 0.42);
+  background: color-mix(in srgb, rgba(24, 28, 56, 0.46) 90%, transparent);
 }
 
 .heroBody {
@@ -381,31 +387,39 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
 }
 
 .heroActionPrimary {
-  background: linear-gradient(135deg, var(--color-brand-strong), color-mix(in srgb, var(--color-brand) 60%, var(--color-accent)));
+  background: linear-gradient(
+    135deg,
+    var(--color-brand-strong),
+    color-mix(in srgb, var(--color-brand) 60%, var(--color-accent))
+  );
   color: white;
-  box-shadow: 0 10px 30px rgba(14,18,46,0.45);
+  box-shadow: 0 10px 30px rgba(14, 18, 46, 0.45);
 }
 
 .heroActionSecondary {
   border-color: color-mix(in srgb, white 18%, transparent);
-  background: color-mix(in srgb, rgba(18,22,44,0.56) 80%, transparent);
+  background: color-mix(in srgb, rgba(18, 22, 44, 0.56) 80%, transparent);
   color: var(--text, white);
 }
 
 .heroAction:hover,
 .heroAction:focus-visible {
   transform: translateY(-1px);
-  box-shadow: 0 16px 36px rgba(10,14,32,0.36);
+  box-shadow: 0 16px 36px rgba(10, 14, 32, 0.36);
 }
 
 .heroActionSecondary:hover,
 .heroActionSecondary:focus-visible {
-  border-color: rgba(255,255,255,0.42);
-  background: color-mix(in srgb, rgba(18,22,44,0.7) 86%, transparent);
+  border-color: rgba(255, 255, 255, 0.42);
+  background: color-mix(in srgb, rgba(18, 22, 44, 0.7) 86%, transparent);
 }
 
 .heroAction:focus-visible {
@@ -426,13 +440,16 @@
   appearance: none;
   border: 1px solid color-mix(in srgb, white 16%, transparent);
   border-radius: var(--pill-radius);
-  background: color-mix(in srgb, rgba(18,22,44,0.54) 80%, transparent);
+  background: color-mix(in srgb, rgba(18, 22, 44, 0.54) 80%, transparent);
   color: var(--text, white);
   font-weight: 600;
   font-size: 0.95rem;
   padding: 9px 18px;
   cursor: pointer;
-  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
   white-space: nowrap;
 }
 
@@ -440,7 +457,7 @@
 .heroTab:focus-visible {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, white 40%, transparent);
-  background: color-mix(in srgb, rgba(18,22,44,0.7) 86%, transparent);
+  background: color-mix(in srgb, rgba(18, 22, 44, 0.7) 86%, transparent);
 }
 
 .heroTabActive {
@@ -451,7 +468,7 @@
   );
   border-color: transparent;
   color: white;
-  box-shadow: 0 10px 24px rgba(8,14,36,0.32);
+  box-shadow: 0 10px 24px rgba(8, 14, 36, 0.32);
 }
 
 .heroTab:focus-visible {
@@ -528,8 +545,8 @@
   border: 1px solid var(--card-border);
   overflow: hidden;
   background:
-    radial-gradient(1200px 400px at 20% -10%, rgba(255,255,255,0.06), transparent 60%),
-    radial-gradient(1200px 400px at 80% -10%, rgba(255,255,255,0.06), transparent 60%),
+    radial-gradient(1200px 400px at 20% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(1200px 400px at 80% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
     linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
   box-shadow: var(--card-shadow);
   display: flex;
@@ -574,7 +591,8 @@
   background: var(--live-stage-bg);
   box-shadow:
     inset 0 1px 0 var(--live-stage-message-highlight),
-    inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 45%, transparent),
+    inset 0 -1px 0
+      color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 45%, transparent),
     var(--live-stage-shadow);
   display: flex;
   align-items: center;
@@ -624,7 +642,7 @@
 }
 
 .streamStatus {
-  color: var(--text, rgba(255,255,255,0.92));
+  color: var(--text, rgba(255, 255, 255, 0.92));
   font-weight: 800;
 }
 
@@ -647,12 +665,12 @@
   font-size: clamp(1.2rem, 2.4vw, 1.7rem);
   font-weight: 900;
   margin: 0;
-  color: var(--text, rgba(255,255,255,0.92));
+  color: var(--text, rgba(255, 255, 255, 0.92));
 }
 
 .streamMessageSubtitle {
   margin: 0;
-  color: var(--text-2, rgba(203,213,225,0.85));
+  color: var(--text-2, rgba(203, 213, 225, 0.85));
   font-size: clamp(0.95rem, 1.8vw, 1.05rem);
 }
 .feedCanvas {
@@ -676,8 +694,12 @@
   display: flex;
   justify-content: center;
 }
-.prompterTop > * { width: 100%; }
-.prompterBelow { width: 100%; }
+.prompterTop > * {
+  width: 100%;
+}
+.prompterBelow {
+  width: 100%;
+}
 
 /* Hide intent/tool chips under the prompter on Capsule live page only */
 .prompterBelow :global(.chips) {
@@ -696,7 +718,9 @@
   font-weight: 900;
   margin-bottom: 6px;
 }
-.placeholderText { color: var(--text-2); }
+.placeholderText {
+  color: var(--text-2);
+}
 
 /* Store placeholder */
 .storeCanvas {
@@ -801,13 +825,16 @@
   border-radius: 12px;
   border: 1px dashed var(--store-ghost-border);
   background: var(--store-ghost-bg);
-  color: var(--text-2, rgba(203,213,225,0.85));
+  color: var(--text-2, rgba(203, 213, 225, 0.85));
   font-weight: 600;
   font-size: 0.85rem;
-  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background-color 160ms ease;
 }
 .storeGhostButton:hover {
-  color: var(--text, rgba(255,255,255,0.92));
+  color: var(--text, rgba(255, 255, 255, 0.92));
   border-color: var(--store-ghost-border-hover);
   background: var(--store-ghost-bg-hover);
 }
@@ -828,9 +855,9 @@
   border-radius: 20px;
   border: 1px solid var(--store-filter-border);
   background:
-    linear-gradient(160deg, var(--store-filter-highlight), transparent),
-    var(--store-filter-bg);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255,255,255,0.92)) 6%, transparent);
+    linear-gradient(160deg, var(--store-filter-highlight), transparent), var(--store-filter-bg);
+  box-shadow: inset 0 1px 0
+    color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 6%, transparent);
 }
 .storeFilterSections {
   display: grid;
@@ -846,7 +873,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text, rgba(255,255,255,0.9));
+  color: var(--text, rgba(255, 255, 255, 0.9));
 }
 .storeFilterList {
   margin: 0;
@@ -864,33 +891,45 @@
   border-radius: 999px;
   border: 1px solid var(--store-filter-pill-border);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-brand, #6366f1) 24%, transparent), transparent),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand, #6366f1) 24%, transparent),
+      transparent
+    ),
     var(--store-filter-pill-bg);
-  color: var(--text-2, rgba(203,213,225,0.85));
+  color: var(--text-2, rgba(203, 213, 225, 0.85));
   font-size: 0.82rem;
   font-weight: 600;
   pointer-events: none;
-  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
 }
 .storeFilterOption[data-active="true"] {
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
   border-color: var(--store-filter-pill-border-active);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-brand, #6366f1) 40%, transparent), transparent),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand, #6366f1) 40%, transparent),
+      transparent
+    ),
     var(--store-filter-pill-bg-active);
 }
 .storeFilterToggles {
   display: grid;
   gap: 10px;
   padding-top: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--card-border, rgba(255,255,255,0.16)) 80%, transparent);
+  border-top: 1px solid
+    color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.16)) 80%, transparent);
 }
 .storeToggle {
   display: flex;
   align-items: center;
   gap: 10px;
   font-size: 0.85rem;
-  color: var(--text-2, rgba(203,213,225,0.78));
+  color: var(--text-2, rgba(203, 213, 225, 0.78));
 }
 .storeToggle input {
   width: 16px;
@@ -915,12 +954,12 @@
   margin: 0;
   font-size: clamp(1.08rem, 2vw, 1.25rem);
   font-weight: 800;
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storeColumnSubtitle {
   margin: 6px 0 0;
   font-size: 0.9rem;
-  color: var(--text-2, rgba(203,213,225,0.82));
+  color: var(--text-2, rgba(203, 213, 225, 0.82));
   max-width: 520px;
 }
 .storeSearch {
@@ -932,7 +971,7 @@
   border-radius: 16px;
   border: 1px solid var(--store-search-border);
   background: var(--store-search-bg);
-  color: var(--text-2, rgba(203,213,225,0.85));
+  color: var(--text-2, rgba(203, 213, 225, 0.85));
 }
 .storeSearch input {
   flex: 1;
@@ -943,7 +982,7 @@
   font: inherit;
 }
 .storeSearch input::placeholder {
-  color: color-mix(in srgb, var(--text-2, rgba(203,213,225,0.85)) 70%, transparent);
+  color: color-mix(in srgb, var(--text-2, rgba(203, 213, 225, 0.85)) 70%, transparent);
 }
 .storeControlButtons {
   display: flex;
@@ -960,20 +999,20 @@
   border-radius: 16px;
   border: 1px solid var(--store-control-border);
   background:
-    linear-gradient(140deg, var(--store-control-highlight), transparent),
-    var(--store-control-bg);
-  color: var(--text, rgba(255,255,255,0.92));
+    linear-gradient(140deg, var(--store-control-highlight), transparent), var(--store-control-bg);
+  color: var(--text, rgba(255, 255, 255, 0.92));
   font-size: 0.82rem;
   font-weight: 600;
   cursor: not-allowed;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255,255,255,0.92)) 6%, transparent);
+  box-shadow: inset 0 1px 0
+    color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 6%, transparent);
 }
 .storeControlButton span {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
-  color: var(--text-2, rgba(203,213,225,0.7));
+  color: var(--text-2, rgba(203, 213, 225, 0.7));
 }
 .storeControlButton strong {
   font-size: 0.95rem;
@@ -993,7 +1032,7 @@
 .storeControlIcon svg {
   width: 18px;
   height: 18px;
-  color: var(--text, rgba(255,255,255,0.92));
+  color: var(--text, rgba(255, 255, 255, 0.92));
 }
 .storeProducts {
   display: grid;
@@ -1015,7 +1054,7 @@
   background:
     radial-gradient(
       200% 160% at 100% 0%,
-      color-mix(in srgb, var(--text, rgba(255,255,255,0.92)) 6%, transparent),
+      color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 6%, transparent),
       transparent 56%
     ),
     var(--store-product-card-bg);
@@ -1028,47 +1067,52 @@
   width: 54px;
   height: 54px;
   border-radius: 16px;
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
   background: color-mix(in srgb, var(--color-brand, #6366f1) 45%, transparent);
   box-shadow: 0 12px 28px color-mix(in srgb, var(--color-brand, #6366f1) 30%, transparent);
 }
 .storeMediaBlue {
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-info, var(--color-brand, #6366f1)) 75%, transparent),
-      color-mix(in srgb, var(--color-info, var(--color-brand, #6366f1)) 35%, transparent)
-    );
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-info, var(--color-brand, #6366f1)) 30%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-info, var(--color-brand, #6366f1)) 75%, transparent),
+    color-mix(in srgb, var(--color-info, var(--color-brand, #6366f1)) 35%, transparent)
+  );
+  box-shadow: 0 12px 28px
+    color-mix(in srgb, var(--color-info, var(--color-brand, #6366f1)) 30%, transparent);
 }
 .storeMediaPurple {
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand, #6366f1) 72%, transparent),
-      color-mix(in srgb, var(--color-accent, #22d3ee) 35%, transparent)
-    );
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 72%, transparent),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 35%, transparent)
+  );
   box-shadow: 0 12px 28px color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent);
 }
 .storeMediaAmber {
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-warning, #fbbf24) 66%, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 34%),
-      color-mix(in srgb, var(--color-warning, #fbbf24) 32%, var(--surface-muted, rgba(17, 22, 45, 0.8)) 68%)
-    );
+  background: linear-gradient(
+    135deg,
+    color-mix(
+      in srgb,
+      var(--color-warning, #fbbf24) 66%,
+      var(--surface-overlay, rgba(10, 14, 30, 0.72)) 34%
+    ),
+    color-mix(
+      in srgb,
+      var(--color-warning, #fbbf24) 32%,
+      var(--surface-muted, rgba(17, 22, 45, 0.8)) 68%
+    )
+  );
   box-shadow: 0 12px 28px color-mix(in srgb, var(--color-warning, #fbbf24) 32%, transparent);
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storeMediaTeal {
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-success, #34d399) 72%, transparent),
-      color-mix(in srgb, var(--color-accent, #22d3ee) 40%, transparent)
-    );
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-success, #34d399) 72%, transparent),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 40%, transparent)
+  );
   box-shadow: 0 12px 28px color-mix(in srgb, var(--color-success, #34d399) 32%, transparent);
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storeProductMeta {
   display: grid;
@@ -1078,17 +1122,17 @@
   font-size: 0.75rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--text-2, rgba(203,213,225,0.8)) 70%, transparent);
+  color: color-mix(in srgb, var(--text-2, rgba(203, 213, 225, 0.8)) 70%, transparent);
 }
 .storeProductTitle {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 800;
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storeProductDescription {
   margin: 0;
-  color: var(--text-2, rgba(203,213,225,0.8));
+  color: var(--text-2, rgba(203, 213, 225, 0.8));
   font-size: 0.9rem;
   line-height: 1.5;
 }
@@ -1101,17 +1145,19 @@
 }
 .storeProductPrice {
   font-weight: 700;
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storeActionButton {
   padding: 10px 14px;
   border-radius: 12px;
   border: 1px solid var(--store-action-border);
   background: var(--store-action-bg);
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
   font-weight: 700;
   font-size: 0.85rem;
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
 .storeActionButton:hover {
   transform: translateY(-1px);
@@ -1129,7 +1175,8 @@
   border-radius: 18px;
   border: 1px solid var(--store-panel-border);
   background: var(--store-panel-bg);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255,255,255,0.92)) 5%, transparent);
+  box-shadow: inset 0 1px 0
+    color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 5%, transparent);
 }
 .storePanelHighlight {
   border: 1px solid var(--store-panel-highlight-border);
@@ -1139,7 +1186,7 @@
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storePanelHeader h3 {
   margin: 0;
@@ -1149,7 +1196,7 @@
 .storePanelHeader p {
   margin: 4px 0 0;
   font-size: 0.85rem;
-  color: var(--text-2, rgba(203,213,225,0.8));
+  color: var(--text-2, rgba(203, 213, 225, 0.8));
 }
 .storeAssistantList {
   list-style: none;
@@ -1157,7 +1204,7 @@
   padding: 0;
   display: grid;
   gap: 10px;
-  color: var(--text-2, rgba(203,213,225,0.85));
+  color: var(--text-2, rgba(203, 213, 225, 0.85));
   font-size: 0.86rem;
   line-height: 1.45;
 }
@@ -1174,7 +1221,7 @@
   list-style: none;
   display: grid;
   gap: 12px;
-  color: var(--text-2, rgba(203,213,225,0.85));
+  color: var(--text-2, rgba(203, 213, 225, 0.85));
   font-size: 0.9rem;
 }
 .storeCartList li {
@@ -1185,16 +1232,16 @@
 }
 .storeCartList li div span {
   font-weight: 700;
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storeCartList li div p {
   margin: 4px 0 0;
   font-size: 0.8rem;
-  color: var(--text-2, rgba(203,213,225,0.7));
+  color: var(--text-2, rgba(203, 213, 225, 0.7));
 }
 .storeCartList li strong {
   font-weight: 700;
-  color: var(--text, rgba(255,255,255,0.95));
+  color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storePrimaryButton {
   justify-self: stretch;
@@ -1206,7 +1253,9 @@
   background: var(--store-primary-bg);
   color: var(--text-on-brand, #f8fafc);
   box-shadow: var(--store-primary-shadow);
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
 .storePrimaryButton:hover {
   transform: translateY(-1px);
@@ -1219,7 +1268,7 @@
   display: grid;
   gap: 10px;
   font-size: 0.88rem;
-  color: var(--text-2, rgba(203,213,225,0.8));
+  color: var(--text-2, rgba(203, 213, 225, 0.8));
 }
 .storeSteps li {
   display: flex;
@@ -1316,9 +1365,13 @@
   width: 100%;
   border: 1px solid var(--card-border);
   background:
-    radial-gradient(1200px 300px at 20% -30%, rgba(255,255,255,0.08), transparent 60%),
-    radial-gradient(1200px 300px at 80% -30%, rgba(255,255,255,0.08), transparent 60%),
-    linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.06)), var(--glass-bg-2, rgba(255,255,255,0.03)));
+    radial-gradient(1200px 300px at 20% -30%, rgba(255, 255, 255, 0.08), transparent 60%),
+    radial-gradient(1200px 300px at 80% -30%, rgba(255, 255, 255, 0.08), transparent 60%),
+    linear-gradient(
+      180deg,
+      var(--glass-bg-1, rgba(255, 255, 255, 0.06)),
+      var(--glass-bg-2, rgba(255, 255, 255, 0.03))
+    );
   border-radius: var(--radius-2xl, 20px);
   padding: clamp(10px, 1.2vw, 16px);
   min-height: clamp(50px, 7vh, 100px);
@@ -1332,22 +1385,28 @@
   gap: 16px;
 }
 @media (max-width: 1100px) {
-  .sectionsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sectionsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 640px) {
-  .sectionsGrid { grid-template-columns: 1fr; }
+  .sectionsGrid {
+    grid-template-columns: 1fr;
+  }
 }
 .sectionTile,
 .sectionAdd {
   border-radius: var(--card-radius);
   border: 1px solid var(--card-border);
   background:
-    radial-gradient(600px 200px at 20% -10%, rgba(255,255,255,0.06), transparent 60%),
-    radial-gradient(600px 200px at 80% -10%, rgba(255,255,255,0.06), transparent 60%),
+    radial-gradient(600px 200px at 20% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(600px 200px at 80% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
     linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
   box-shadow: var(--card-shadow);
 }
-.sectionTile { padding: 16px; }
+.sectionTile {
+  padding: 16px;
+}
 .sectionAdd {
   display: inline-flex;
   align-items: center;
@@ -1357,15 +1416,21 @@
   color: var(--text);
   font-weight: 800;
 }
-.sectionAdd:hover { filter: brightness(1.05); }
+.sectionAdd:hover {
+  filter: brightness(1.05);
+}
 .sectionTileHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
 }
-.sectionTileTitle { font-weight: 900; }
-.sectionTileTitle { text-align: center; }
+.sectionTileTitle {
+  font-weight: 900;
+}
+.sectionTileTitle {
+  text-align: center;
+}
 .sectionTitleInput {
   width: 100%;
   padding: 6px 10px;
@@ -1375,7 +1440,10 @@
   color: var(--text);
   font-weight: 800;
 }
-.sectionTileActions { display: inline-flex; gap: 8px; }
+.sectionTileActions {
+  display: inline-flex;
+  gap: 8px;
+}
 .iconBtn {
   width: 32px;
   height: 32px;
@@ -1387,8 +1455,13 @@
   background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
   color: var(--text);
 }
-.iconBtn:hover { filter: brightness(1.06); }
-.sectionTileBody { color: var(--text-2); text-align: center; }
+.iconBtn:hover {
+  filter: brightness(1.06);
+}
+.sectionTileBody {
+  color: var(--text-2);
+  text-align: center;
+}
 
 /* Capsule gate states */
 .gateWrap {
@@ -1409,8 +1482,8 @@
   border-radius: var(--radius-2xl, 20px);
   border: 1px solid var(--card-border);
   background:
-    radial-gradient(600px 200px at 20% -10%, rgba(255,255,255,0.08), transparent 60%),
-    radial-gradient(600px 200px at 80% -10%, rgba(255,255,255,0.08), transparent 60%),
+    radial-gradient(600px 200px at 20% -10%, rgba(255, 255, 255, 0.08), transparent 60%),
+    radial-gradient(600px 200px at 80% -10%, rgba(255, 255, 255, 0.08), transparent 60%),
     linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
   box-shadow: var(--card-shadow);
 }
@@ -1496,8 +1569,15 @@
 
 .carouselSlide {
   /* Exact column width of PromoRow: 4 columns with 12px gaps */
-  flex: 0 0 calc((100% - (var(--promo-gap-desktop) * (var(--promo-cols-desktop) - 1))) / var(--promo-cols-desktop));
-  max-width: calc((100% - (var(--promo-gap-desktop) * (var(--promo-cols-desktop) - 1))) / var(--promo-cols-desktop));
+  flex: 0 0
+    calc(
+      (100% - (var(--promo-gap-desktop) * (var(--promo-cols-desktop) - 1))) /
+        var(--promo-cols-desktop)
+    );
+  max-width: calc(
+    (100% - (var(--promo-gap-desktop) * (var(--promo-cols-desktop) - 1))) /
+      var(--promo-cols-desktop)
+  );
 }
 
 .carouselControls {
@@ -1517,7 +1597,9 @@
   aspect-ratio: 9/16;
   border-radius: 16px;
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .promoTile:hover {
@@ -1535,7 +1617,11 @@
   border: 1px solid var(--capsule-logo-border, var(--pill-border));
   background:
     radial-gradient(220px 120px at 20% -20%, rgba(255, 255, 255, 0.16), transparent 60%),
-    linear-gradient(135deg, var(--color-brand-strong), color-mix(in srgb, var(--color-brand) 65%, var(--color-accent)));
+    linear-gradient(
+      135deg,
+      var(--color-brand-strong),
+      color-mix(in srgb, var(--color-brand) 65%, var(--color-accent))
+    );
   box-shadow: var(--capsule-logo-shadow);
   flex-shrink: 0;
 }
@@ -1546,7 +1632,10 @@
   right: 0;
   bottom: 0;
   padding: 12px;
-  background: var(--promo-overlay-gradient, linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.6)));
+  background: var(
+    --promo-overlay-gradient,
+    linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6))
+  );
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1587,15 +1676,25 @@
 
 /* Mirror PromoRow breakpoints for columns/gaps and tile ratio */
 @media (max-width: 900px) {
-  .carouselContainer { gap: var(--promo-gap-mobile); }
+  .carouselContainer {
+    gap: var(--promo-gap-mobile);
+  }
   .carouselSlide {
-    flex: 0 0 calc((100% - (var(--promo-gap-mobile) * (var(--promo-cols-mobile) - 1))) / var(--promo-cols-mobile));
-    max-width: calc((100% - (var(--promo-gap-mobile) * (var(--promo-cols-mobile) - 1))) / var(--promo-cols-mobile));
+    flex: 0 0
+      calc(
+        (100% - (var(--promo-gap-mobile) * (var(--promo-cols-mobile) - 1))) /
+          var(--promo-cols-mobile)
+      );
+    max-width: calc(
+      (100% - (var(--promo-gap-mobile) * (var(--promo-cols-mobile) - 1))) / var(--promo-cols-mobile)
+    );
   }
 }
 
 @media (max-width: 640px) {
-  .promoTile { aspect-ratio: 4/3; }
+  .promoTile {
+    aspect-ratio: 4/3;
+  }
 }
 
 .selectorActiveActions {
@@ -1624,9 +1723,13 @@
   border-radius: var(--radius-2xl, 20px);
   border: 1px solid var(--card-border);
   background:
-    radial-gradient(600px 220px at 20% -20%, rgba(255,255,255,0.06), transparent 65%),
-    radial-gradient(620px 260px at 80% -24%, rgba(255,255,255,0.04), transparent 70%),
-    linear-gradient(180deg, var(--card-bg-1, rgba(22,30,58,0.62)), var(--card-bg-2, rgba(18,24,48,0.78)));
+    radial-gradient(600px 220px at 20% -20%, rgba(255, 255, 255, 0.06), transparent 65%),
+    radial-gradient(620px 260px at 80% -24%, rgba(255, 255, 255, 0.04), transparent 70%),
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(22, 30, 58, 0.62)),
+      var(--card-bg-2, rgba(18, 24, 48, 0.78))
+    );
   box-shadow: var(--card-shadow);
 }
 
@@ -1700,8 +1803,12 @@
   min-width: 32px;
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid var(--pill-border, rgba(255,255,255,0.24));
-  background: linear-gradient(180deg, var(--pill-bg-1, rgba(255,255,255,0.12)), var(--pill-bg-2, rgba(255,255,255,0.08)));
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.24));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.08))
+  );
   color: var(--text, #ffffff);
   font-size: 0.82rem;
   font-weight: 700;
@@ -1769,7 +1876,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  background: color-mix(in srgb, var(--card-border, rgba(255,255,255,0.18)) 78%, transparent);
+  background: color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.18)) 78%, transparent);
   color: var(--text);
 }
 
@@ -1817,9 +1924,13 @@
   border-radius: var(--radius-3xl, 26px);
   border: 1px solid var(--card-border);
   background:
-    radial-gradient(600px 220px at 20% -20%, rgba(255,255,255,0.09), transparent 60%),
-    radial-gradient(620px 260px at 80% -24%, rgba(255,255,255,0.06), transparent 65%),
-    linear-gradient(180deg, var(--card-bg-1, rgba(22,30,58,0.62)), var(--card-bg-2, rgba(18,24,48,0.78)));
+    radial-gradient(600px 220px at 20% -20%, rgba(255, 255, 255, 0.09), transparent 60%),
+    radial-gradient(620px 260px at 80% -24%, rgba(255, 255, 255, 0.06), transparent 65%),
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(22, 30, 58, 0.62)),
+      var(--card-bg-2, rgba(18, 24, 48, 0.78))
+    );
   box-shadow: var(--card-shadow);
   display: grid;
   gap: clamp(14px, 2vw, 20px);
@@ -1857,12 +1968,18 @@
   padding: 8px 14px;
   border-radius: var(--radius-xl, 16px);
   border: 1px solid var(--pill-border);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-brand) 65%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 65%, transparent),
+    transparent
+  );
   color: var(--text);
   font-weight: 600;
   font-size: 0.9rem;
-  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
 }
 
 .membersRefresh:disabled {
@@ -1938,7 +2055,11 @@
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 700;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand) 75%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 75%, transparent),
+    transparent
+  );
   color: var(--text);
 }
 
@@ -2013,20 +2134,35 @@
   border: 1px solid transparent;
   font-weight: 600;
   font-size: 0.9rem;
-  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
   color: var(--text);
 }
 
 .pendingApprove {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand) 70%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 70%, transparent),
+    transparent
+  );
 }
 
 .pendingDecline {
-  background: linear-gradient(135deg, color-mix(in srgb, rgba(255, 85, 112, 0.65) 70%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, rgba(255, 85, 112, 0.65) 70%, transparent),
+    transparent
+  );
 }
 
 .memberRemove {
-  background: linear-gradient(135deg, color-mix(in srgb, rgba(255, 112, 112, 0.7) 60%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, rgba(255, 112, 112, 0.7) 60%, transparent),
+    transparent
+  );
 }
 
 .pendingApprove:disabled,
@@ -2066,7 +2202,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand) 65%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 65%, transparent),
+    transparent
+  );
   color: var(--text);
   font-weight: 700;
 }
@@ -2115,15 +2255,21 @@
   border: 1px solid transparent;
   border-radius: var(--radius-2xl, 24px);
   padding: 10px 18px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--surface-overlay) 65%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--surface-overlay) 65%, transparent),
+    transparent
+  );
   color: var(--text-2);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
 }
 
 .membersTab:hover,
@@ -2146,7 +2292,11 @@
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand) 70%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 70%, transparent),
+    transparent
+  );
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2166,8 +2316,11 @@
   border-radius: var(--radius-lg, 14px);
   border: 1px solid var(--card-border);
   appearance: none;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--surface-overlay) 58%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--surface-overlay) 58%, transparent),
+    transparent
+  );
   background-color: color-mix(
     in srgb,
     var(--surface-overlay, rgba(10, 14, 30, 0.72)) 78%,
@@ -2176,7 +2329,9 @@
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.16s ease, background 0.16s ease;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease;
   color-scheme: dark;
 }
 
@@ -2215,7 +2370,11 @@
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 700;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand) 75%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 75%, transparent),
+    transparent
+  );
   color: var(--text);
 }
 
