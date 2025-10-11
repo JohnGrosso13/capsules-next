@@ -19,12 +19,13 @@ type UseMemoryUploadsResult = {
   refresh: () => Promise<void>;
 };
 
-export function useMemoryUploads(kind = "upload"): UseMemoryUploadsResult {
+export function useMemoryUploads(kind?: string | null): UseMemoryUploadsResult {
   const { user } = useCurrentUser();
   const envelope = React.useMemo(() => (user ? buildMemoryEnvelope(user) : null), [user]);
   const [items, setItems] = React.useState<MemoryUploadItem[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const resolvedKind = kind === undefined ? "upload" : kind;
 
   const refresh = React.useCallback(async () => {
     if (!envelope) return;
@@ -34,7 +35,7 @@ export function useMemoryUploads(kind = "upload"): UseMemoryUploadsResult {
       const res = await fetch("/api/memory/list", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: envelope, kind }),
+        body: JSON.stringify({ user: envelope, kind: resolvedKind }),
       });
       if (!res.ok) throw new Error("Failed to fetch uploads");
       const json = (await res.json()) as { items?: MemoryUploadItem[] };
@@ -44,7 +45,7 @@ export function useMemoryUploads(kind = "upload"): UseMemoryUploadsResult {
     } finally {
       setLoading(false);
     }
-  }, [envelope, kind]);
+  }, [envelope, resolvedKind]);
 
   React.useEffect(() => {
     void refresh();

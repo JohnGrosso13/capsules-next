@@ -109,7 +109,7 @@ type CapsuleAssetsGalleryProps = {
 export function CapsuleAssetsGallery({ initialTab }: CapsuleAssetsGalleryProps) {
   const [activeItem, setActiveItem] = React.useState<DisplayMemoryUpload | null>(null);
   const [activeTab, setActiveTab] = React.useState(() => buildInitialTab(initialTab));
-  const { user, items, loading, error, refresh } = useMemoryUploads();
+  const { user, items, loading, error, refresh } = useMemoryUploads(null);
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
   const currentOrigin = React.useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : null),

@@ -33,6 +33,24 @@ function normalizeString(value: unknown): string | null {
   return trimmed.length ? trimmed.toLowerCase() : null;
 }
 
+function toMetaObject(meta: unknown): Record<string, unknown> | null {
+  if (!meta || typeof meta === "undefined") return null;
+  if (typeof meta === "string") {
+    try {
+      const parsed = JSON.parse(meta);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  if (typeof meta === "object" && !Array.isArray(meta)) {
+    return meta as Record<string, unknown>;
+  }
+  return null;
+}
+
 function extractMetaValue(meta: Record<string, unknown> | null | undefined, keys: string[]): string | null {
   if (!meta || typeof meta !== "object") return null;
   for (const key of keys) {
@@ -43,19 +61,37 @@ function extractMetaValue(meta: Record<string, unknown> | null | undefined, keys
 }
 
 export function detectAssetVariant(item: DisplayMemoryUpload): MemoryAssetVariant {
-  const meta = (item.meta ?? null) as Record<string, unknown> | null;
+  const meta = toMetaObject(item.meta ?? null);
 
   const candidates: Array<string | null> = [
     extractMetaValue(meta, ["asset_variant", "assetVariant"]),
     extractMetaValue(meta, ["source", "source_kind", "sourceKind"]),
     extractMetaValue(meta, ["variant"]),
     normalizeString(item.kind),
+    normalizeString(item.title),
+    normalizeString(item.description),
   ];
 
-  const summaryTags = Array.isArray(meta?.summary_tags)
-    ? (meta?.summary_tags as unknown[]).map((value) => normalizeString(value))
-    : [];
-  candidates.push(...summaryTags);
+  const summaryTagsValue = meta?.summary_tags ?? null;
+  if (Array.isArray(summaryTagsValue)) {
+    candidates.push(...summaryTagsValue.map((value) => normalizeString(value)));
+  } else if (typeof summaryTagsValue === "string") {
+    candidates.push(...summaryTagsValue.split(",").map((value) => normalizeString(value)));
+  }
+
+  if (meta) {
+    for (const value of Object.values(meta)) {
+      if (typeof value === "string") {
+        candidates.push(normalizeString(value));
+      } else if (Array.isArray(value)) {
+        for (const entry of value) {
+          if (typeof entry === "string") {
+            candidates.push(normalizeString(entry));
+          }
+        }
+      }
+    }
+  }
 
   for (const candidate of candidates) {
     if (!candidate) continue;
@@ -172,7 +208,7 @@ export function MemoryAssetCarousel({
   emptyLoading,
   emptyNone,
 }: MemoryAssetCarouselProps) {
-  const { user, items, loading, error, refresh } = useMemoryUploads();
+  const { user, items, loading, error, refresh } = useMemoryUploads(null);
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
   const currentOrigin = React.useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : null),
@@ -330,37 +366,11 @@ export function CapsuleAssetsCarousel() {
   return (
     <MemoryAssetCarousel
       title="Capsule Assets"
-      variants={["banner", "store_banner", "promo_tile"]}
+      variants={["banner", "store_banner", "promo_tile", "logo", "avatar"]}
       viewAllHref="/memory/assets?tab=banners"
-      emptySignedOut="Sign in to save and recall capsule assets."
+      emptySignedOut="Sign in to access your capsule assets."
       emptyLoading="Loading your capsule assets..."
-      emptyNone="No capsule assets saved yet. Customize a capsule to add one."
-    />
-  );
-}
-
-export function CapsuleLogosCarousel() {
-  return (
-    <MemoryAssetCarousel
-      title="Capsule Logos"
-      variants={["logo"]}
-      viewAllHref="/memory/assets?tab=logos"
-      emptySignedOut="Sign in to access your capsule logos."
-      emptyLoading="Loading your capsule logos..."
-      emptyNone="No capsule logos saved yet. Customize a capsule to add one."
-    />
-  );
-}
-
-export function UserLogosCarousel() {
-  return (
-    <MemoryAssetCarousel
-      title="User Logos"
-      variants={["avatar"]}
-      viewAllHref="/memory/assets?tab=user-logos"
-      emptySignedOut="Sign in to access your user logos."
-      emptyLoading="Loading your user logos..."
-      emptyNone="No user logos saved yet. Personalize your profile to add one."
+      emptyNone="No capsule assets saved yet. Customize a capsule or profile to add one."
     />
   );
 }
