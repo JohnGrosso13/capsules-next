@@ -676,6 +676,42 @@ function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlacehol
     { id: "cart-sticker", name: "Die-cut Sticker", price: "$5.00", note: "Set of 3" },
   ];
 
+  const filterSections = [
+    {
+      id: "type",
+      label: "Type",
+      options: [
+        { id: "type-hero", label: "Hero drops", active: true },
+        { id: "type-apparel", label: "Apparel", active: false },
+        { id: "type-digital", label: "Digital add-ons", active: false },
+        { id: "type-collectibles", label: "Collectibles", active: false },
+      ],
+    },
+    {
+      id: "status",
+      label: "Status",
+      options: [
+        { id: "status-draft", label: "Draft", active: true },
+        { id: "status-review", label: "Needs review", active: false },
+        { id: "status-scheduled", label: "Scheduled", active: false },
+      ],
+    },
+    {
+      id: "access",
+      label: "Access",
+      options: [
+        { id: "access-public", label: "Public launch", active: true },
+        { id: "access-members", label: "Members-only", active: false },
+        { id: "access-backstage", label: "Backstage pass", active: false },
+      ],
+    },
+  ];
+
+  const filterToggles = [
+    { id: "toggle-members", label: "Priority for members-only releases", active: true },
+    { id: "toggle-drafts", label: "Include unpublished tiles", active: true },
+  ];
+
   const setupSteps = [
     { id: "step-assets", label: "Upload assets or describe them for AI mockups" },
     { id: "step-pricing", label: "Lock in pricing & margins for each listing" },
@@ -691,6 +727,17 @@ function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlacehol
     <div className={`${capTheme.liveCanvas} ${capTheme.storeCanvas}`} aria-label="Capsule store planning">
       <div className={capTheme.storeContent}>
         <section className={capTheme.storeHero}>
+          <div className={capTheme.storeBannerFrame}>
+            <div className={capTheme.storeBannerSurface} role="presentation" />
+            <div className={capTheme.storeBannerLabel}>
+              <span>Store banner preview</span>
+              <p>
+                Upload or generate a dedicated storefront banner. This preview uses a 16:9 canvas so product art looks
+                great on any screen.
+              </p>
+            </div>
+          </div>
+
           <div className={capTheme.storeHeroCopy}>
             <div className={capTheme.storeHeading}>
               <span className={capTheme.storeBadge}>Store draft</span>
@@ -719,47 +766,102 @@ function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlacehol
               </button>
             </div>
           </div>
-          <div className={capTheme.storeHeroPrompter}>
-            <div className={capTheme.storePrompter}>
-              <div className={capTheme.storePrompterHeader}>
-                <MagicWand size={18} weight="bold" />
-                <div>
-                  <h3>Ask Capsule AI to craft your next listing</h3>
-                  <p>Use natural language to brief pricing, designs, bundles, or launch timing.</p>
-                </div>
-              </div>
-              <div className={capTheme.storePrompterStage}>{prompter}</div>
-            </div>
-          </div>
         </section>
 
-        <div className={capTheme.storeBody}>
-          <div className={capTheme.storeMain}>
-            <div className={capTheme.storeControls}>
-              <form className={capTheme.storeSearch} role="search" aria-label="Search storefront">
-                <MagnifyingGlass size={18} weight="bold" />
-                <input
-                  type="search"
-                  placeholder="Search products, prompts, or saved concepts…"
-                  disabled
-                  aria-disabled="true"
-                />
-              </form>
-              <div className={capTheme.storeControlButtons}>
-                <button type="button" className={capTheme.storeGhostButton}>
-                  <SquaresFour size={16} weight="bold" />
-                  Layout presets
-                </button>
-                <button type="button" className={capTheme.storeGhostButton}>
-                  <PlusCircle size={16} weight="bold" />
-                  New slot
-                </button>
-                <button type="button" className={capTheme.storeGhostButton}>
-                  <WarningCircle size={16} weight="bold" />
-                  Launch checklist
-                </button>
+        <div className={capTheme.storePrompterDock}>
+          <div className={capTheme.storePrompter}>
+            <div className={capTheme.storePrompterHeader}>
+              <MagicWand size={18} weight="bold" />
+              <div>
+                <h3>Ask Capsule AI to craft your next listing</h3>
+                <p>Share the merch vibe, packaging ideas, or pricing guardrails and let it draft the tile.</p>
               </div>
             </div>
+            <div className={capTheme.storePrompterStage}>{prompter}</div>
+          </div>
+          <div className={capTheme.storePromptLibrary}>
+            <span className={capTheme.storePromptLabel}>Prompt ideas</span>
+            <ul className={capTheme.storePromptList}>
+              {assistantPrompts.map((prompt) => (
+                <li key={prompt}>
+                  <button type="button" className={capTheme.storePromptChip} disabled aria-disabled="true">
+                    {prompt}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className={capTheme.storeGrid}>
+          <aside className={capTheme.storeFilters}>
+            <form className={capTheme.storeSearch} role="search" aria-label="Search storefront">
+              <MagnifyingGlass size={18} weight="bold" />
+              <input
+                type="search"
+                placeholder="Search products, prompts, or saved concepts…"
+                disabled
+                aria-disabled="true"
+              />
+            </form>
+
+            <div className={capTheme.storeFilterSections}>
+              {filterSections.map((section) => (
+                <section key={section.id} className={capTheme.storeFilterSection}>
+                  <h3>{section.label}</h3>
+                  <ul className={capTheme.storeFilterList}>
+                    {section.options.map((option) => (
+                      <li key={option.id}>
+                        <button
+                          type="button"
+                          className={capTheme.storeFilterOption}
+                          data-active={option.active ? "true" : undefined}
+                          disabled
+                          aria-disabled="true"
+                        >
+                          {option.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+
+            <div className={capTheme.storeFilterToggles}>
+              {filterToggles.map((toggle) => (
+                <label key={toggle.id} className={capTheme.storeToggle}>
+                  <input type="checkbox" defaultChecked={toggle.active} disabled aria-disabled="true" />
+                  <span>{toggle.label}</span>
+                </label>
+              ))}
+            </div>
+          </aside>
+
+          <section className={capTheme.storeMainColumn}>
+            <header className={capTheme.storeControlsBar}>
+              <div>
+                <h3 className={capTheme.storeColumnTitle}>Draft listings</h3>
+                <p className={capTheme.storeColumnSubtitle}>
+                  Arrange tiles, then ask Capsule or ChatGPT to finalise copy, imagery, and pricing.
+                </p>
+              </div>
+              <div className={capTheme.storeControlButtons}>
+                <button type="button" className={capTheme.storeControlButton} disabled aria-disabled="true">
+                  <span>Sort by</span>
+                  <strong>Latest edits</strong>
+                </button>
+                <button
+                  type="button"
+                  className={`${capTheme.storeControlButton} ${capTheme.storeControlIcon}`}
+                  aria-label="Change layout density"
+                  disabled
+                  aria-disabled="true"
+                >
+                  <SquaresFour size={16} weight="bold" />
+                </button>
+              </div>
+            </header>
 
             <div className={capTheme.storeProducts}>
               {productSpots.map((product) => (
@@ -779,33 +881,15 @@ function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlacehol
                 </article>
               ))}
             </div>
-          </div>
+          </section>
 
-          <aside className={capTheme.storeSidebar}>
+          <aside className={capTheme.storeCartColumn}>
             <section className={`${capTheme.storePanel} ${capTheme.storePanelHighlight}`}>
-              <header className={capTheme.storePanelHeader}>
-                <MagicWand size={18} weight="bold" />
-                <div>
-                  <h3>Try these prompts</h3>
-                  <p>Drop them into the assistant or tweak for your voice.</p>
-                </div>
-              </header>
-              <ul className={capTheme.storeAssistantList}>
-                {assistantPrompts.map((prompt) => (
-                  <li key={prompt}>
-                    <span aria-hidden="true">•</span>
-                    {prompt}
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section className={capTheme.storePanel}>
               <header className={capTheme.storePanelHeader}>
                 <ShoppingCartSimple size={18} weight="bold" />
                 <div>
-                  <h3>Cart preview</h3>
-                  <p>Items populate as you confirm listings.</p>
+                  <h3>Cart</h3>
+                  <p>Listings move here once you approve them for launch.</p>
                 </div>
               </header>
               <ul className={capTheme.storeCartList}>
@@ -820,7 +904,7 @@ function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlacehol
                 ))}
               </ul>
               <button type="button" className={capTheme.storePrimaryButton}>
-                Preview checkout
+                Review checkout
               </button>
             </section>
 
@@ -843,6 +927,7 @@ function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlacehol
             </section>
           </aside>
         </div>
+
       </div>
     </div>
   );

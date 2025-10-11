@@ -236,7 +236,8 @@
   max-width: clamp(280px, 32vw, 360px);
 }
 
-.previewStage[data-mode="logo"] {
+.previewStage[data-mode="logo"],
+.previewStage[data-mode="avatar"] {
   aspect-ratio: 1 / 1;
   max-width: clamp(260px, 28vw, 320px);
 }
@@ -250,7 +251,8 @@
     min-height: clamp(380px, 56vw, 640px);
   }
 
-  .previewStage[data-mode="logo"] {
+  .previewStage[data-mode="logo"],
+  .previewStage[data-mode="avatar"] {
     min-height: clamp(260px, 40vw, 360px);
   }
 }
@@ -412,6 +414,73 @@
 }
 
 .logoOverlayMeta {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(220, 230, 255, 0.68);
+}
+
+.avatarOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(18px, 4vw, 28px);
+  pointer-events: none;
+}
+
+.avatarOverlayCard {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+
+.avatarOverlayPlate {
+  position: relative;
+  width: clamp(96px, 14vw, 128px);
+  height: clamp(96px, 14vw, 128px);
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, rgba(255, 255, 255, 0.38) 70%, transparent);
+  background:
+    radial-gradient(220px 160px at 50% 0%, rgba(255, 255, 255, 0.28), transparent 60%),
+    linear-gradient(160deg, rgba(86, 108, 255, 0.35), rgba(20, 114, 218, 0.26));
+  box-shadow: 0 20px 44px rgba(6, 12, 32, 0.5);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.avatarOverlayPlate::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.4) 60%, transparent);
+}
+
+.avatarOverlayInitial {
+  position: relative;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  font-weight: 800;
+  color: rgba(248, 250, 255, 0.96);
+  text-shadow: 0 14px 24px rgba(6, 12, 32, 0.55);
+}
+
+.avatarOverlayText {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+}
+
+.avatarOverlayName {
+  font-size: clamp(0.95rem, 2vw, 1.15rem);
+  font-weight: 700;
+  color: rgba(248, 250, 255, 0.96);
+}
+
+.avatarOverlayMeta {
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;

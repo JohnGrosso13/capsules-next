@@ -7,14 +7,17 @@ import { ThemeStyleCarousel } from "@/components/theme-style-carousel";
 
 import layout from "./settings.module.css";
 import { CapsuleSettingsSection } from "./capsules-section";
+import { AccountSettingsSection } from "./account-section";
 
 type CapsuleSettingsProps = React.ComponentProps<typeof CapsuleSettingsSection>;
+type AccountProfileProps = React.ComponentProps<typeof AccountSettingsSection>["profile"];
 
 type SettingsShellProps = {
   initialCapsules: CapsuleSettingsProps["initialCapsules"];
+  accountProfile: AccountProfileProps;
 };
 
-type SettingsSectionKey = "capsules" | "appearance";
+type SettingsSectionKey = "capsules" | "account" | "appearance";
 
 const NAVIGATION_ITEMS: Array<
   | {
@@ -29,7 +32,7 @@ const NAVIGATION_ITEMS: Array<
     }
 > = [
   { key: "capsules", label: "Capsules", enabled: true },
-  { key: "account", label: "Account", enabled: false },
+  { key: "account", label: "Account", enabled: true },
   { key: "appearance", label: "Appearance", enabled: true },
   { key: "notifications", label: "Notifications", enabled: false },
   { key: "voice", label: "Voice", enabled: false },
@@ -39,7 +42,10 @@ const NAVIGATION_ITEMS: Array<
   { key: "advanced", label: "Advanced", enabled: false },
 ];
 
-export function SettingsShell({ initialCapsules }: SettingsShellProps): React.JSX.Element {
+export function SettingsShell({
+  initialCapsules,
+  accountProfile,
+}: SettingsShellProps): React.JSX.Element {
   const [activeSection, setActiveSection] = React.useState<SettingsSectionKey>("capsules");
 
   return (
@@ -83,6 +89,12 @@ export function SettingsShell({ initialCapsules }: SettingsShellProps): React.JS
           {activeSection === "capsules" ? (
             <section aria-label="Capsule management" className={layout.section}>
               <CapsuleSettingsSection initialCapsules={initialCapsules} />
+            </section>
+          ) : null}
+
+          {activeSection === "account" ? (
+            <section aria-label="Account settings" className={layout.section}>
+              <AccountSettingsSection profile={accountProfile} />
             </section>
           ) : null}
 

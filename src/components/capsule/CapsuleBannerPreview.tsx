@@ -24,6 +24,21 @@ type CapsuleBannerPreviewProps = {
   onImageLoad: () => void;
 };
 
+function buildInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "U";
+  if (words.length === 1) {
+    const letter = words[0]?.charAt(0) ?? name.charAt(0);
+    return letter ? letter.toUpperCase() : "U";
+  }
+  const first = words[0]?.charAt(0) ?? "";
+  const last = words[words.length - 1]?.charAt(0) ?? "";
+  const combined = `${first}${last}`.trim();
+  if (combined.length) return combined.toUpperCase();
+  const fallback = name.charAt(0);
+  return fallback ? fallback.toUpperCase() : "U";
+}
+
 export function CapsuleBannerPreview({
   mode,
   stageRef,
@@ -39,6 +54,7 @@ export function CapsuleBannerPreview({
   onImageLoad,
 }: CapsuleBannerPreviewProps) {
   const logoInitial = normalizedName.trim().charAt(0).toUpperCase() || "C";
+  const avatarInitial = buildInitials(normalizedName);
   let content: React.ReactNode;
 
   if (!selectedBanner) {
@@ -92,6 +108,19 @@ export function CapsuleBannerPreview({
               <div className={styles.logoOverlayText}>
                 <span className={styles.logoOverlayName}>{normalizedName}</span>
                 <span className={styles.logoOverlayMeta}>Right rail example</span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {mode === "avatar" ? (
+          <div className={styles.avatarOverlay} aria-hidden="true">
+            <div className={styles.avatarOverlayCard}>
+              <div className={styles.avatarOverlayPlate}>
+                <span className={styles.avatarOverlayInitial}>{avatarInitial}</span>
+              </div>
+              <div className={styles.avatarOverlayText}>
+                <span className={styles.avatarOverlayName}>{normalizedName}</span>
+                <span className={styles.avatarOverlayMeta}>Circular avatar preview</span>
               </div>
             </div>
           </div>

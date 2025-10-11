@@ -5,6 +5,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { AppPage } from "@/components/app-page";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
 import { getUserCapsules } from "@/server/capsules/service";
+import { getUserProfileSummary } from "@/server/users/service";
 
 import { SettingsShell } from "./settings-shell";
 
@@ -47,10 +48,19 @@ export default async function SettingsPage() {
 
   const allCapsules = await getUserCapsules(supabaseUserId);
   const ownedCapsules = allCapsules.filter((capsule) => capsule.ownership === "owner");
+  const profileSummary = await getUserProfileSummary(supabaseUserId);
+
+  const accountProfile = {
+    id: supabaseUserId,
+    name: profileSummary.name ?? normalizedFullName,
+    email: primaryEmail ?? null,
+    clerkAvatarUrl: user.imageUrl ?? null,
+    avatarUrl: profileSummary.avatarUrl ?? null,
+  };
 
   return (
     <AppPage showPrompter={true}>
-      <SettingsShell initialCapsules={ownedCapsules} />
+      <SettingsShell initialCapsules={ownedCapsules} accountProfile={accountProfile} />
     </AppPage>
   );
 }

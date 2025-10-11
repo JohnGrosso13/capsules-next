@@ -9,12 +9,13 @@ import { computeDisplayUploads } from "@/components/memory/process-uploads";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 
-export type CapsuleCustomizerMode = "banner" | "tile" | "logo";
+export type CapsuleCustomizerMode = "banner" | "tile" | "logo" | "avatar";
 
 export type CapsuleCustomizerSaveResult =
   | { type: "banner"; bannerUrl: string | null }
   | { type: "tile"; tileUrl: string | null }
-  | { type: "logo"; logoUrl: string | null };
+  | { type: "logo"; logoUrl: string | null }
+  | { type: "avatar"; avatarUrl: string | null };
 
 type ChatRole = "assistant" | "user";
 
@@ -56,6 +57,7 @@ const PROMPT_CHIP_MAP: Record<CapsuleCustomizerMode, readonly string[]> = {
   banner: ["Bold neon gradients", "Soft sunrise palette", "Minimal dark mode"] as const,
   tile: ["Hero launch tile", "Vibrant gradient tile", "Cyberpunk feature art"] as const,
   logo: ["Minimal monogram logo", "Gradient orb icon", "Playful mascot badge"] as const,
+  avatar: ["Bold portrait lighting", "Soft pastel avatar", "Futuristic neon portrait"] as const,
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -101,7 +103,8 @@ function buildAssistantResponse({
   const cleanPrompt = prompt.trim();
   const displayPrompt = cleanPrompt.length ? cleanPrompt : "that idea";
 
-  const assetLabel = asset === "tile" ? "promo tile" : asset === "logo" ? "logo" : "banner";
+  const assetLabel =
+    asset === "tile" ? "promo tile" : asset === "logo" ? "logo" : asset === "avatar" ? "avatar" : "banner";
   const action =
     mode === "generate" ? `I generated a ${assetLabel}` : `I updated your existing ${assetLabel}`;
   const capsuleSegment = capsuleName.length ? ` for ${capsuleName}` : "";
@@ -257,6 +260,22 @@ export function useCapsuleCustomizerState(
         stageAriaLabel: "Capsule logo preview",
         recentDescription: "Reuse logo artwork you or Capsule AI created recently.",
         promptChips: PROMPT_CHIP_MAP.logo,
+      };
+    }
+    if (customizerMode === "avatar") {
+      return {
+        assetLabel: "avatar" as const,
+        previewAlt: "Preview of your profile avatar",
+        headerTitle: "Design your profile avatar",
+        headerSubtitle:
+          "Upload a portrait, pick from memories, or ask Capsule AI for a circular avatar that looks great across the app.",
+        prompterPlaceholder: "Describe your avatar idea or vibe...",
+        aiWorkingMessage: "Let me create an avatar that fits that direction...",
+        assistantIntro: `Hi! I'm here to help you craft a personal avatar for ${safeName}. Describe lighting, colors, or mood and I'll generate options.`,
+        footerDefaultHint: "Upload a portrait, pick a memory, or describe a new avatar below.",
+        stageAriaLabel: "Profile avatar preview",
+        recentDescription: "Reuse avatar imagery you or Capsule AI created recently.",
+        promptChips: PROMPT_CHIP_MAP.avatar,
       };
     }
     return {
@@ -1036,7 +1055,7 @@ export function useCapsuleCustomizerState(
     const { maxWidth, maxHeight, aspectRatio } =
       customizerMode === "tile"
         ? { maxWidth: 1080, maxHeight: 1920, aspectRatio: 9 / 16 }
-        : customizerMode === "logo"
+        : customizerMode === "logo" || customizerMode === "avatar"
           ? { maxWidth: 1024, maxHeight: 1024, aspectRatio: 1 }
           : { maxWidth: 1600, maxHeight: 900, aspectRatio: 16 / 9 };
 
@@ -1106,7 +1125,7 @@ export function useCapsuleCustomizerState(
   }, [assetLabel, customizerMode, fetchMemoryAssetUrl, loadImageElement, selectedBanner]);
 
   const handleSaveAsset = React.useCallback(async () => {
-    if (!capsuleId) {
+    if (customizerMode !== "avatar" && !capsuleId) {
       setSaveError("Capsule not ready. Please refresh and try again.");
       return;
     }
@@ -1130,7 +1149,9 @@ export function useCapsuleCustomizerState(
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "")
         .slice(0, 32);
-      const fileName = `${safeSlug || "capsule"}-${customizerMode}-${Date.now()}.jpg`;
+      const fileNamePrefix =
+        customizerMode === "avatar" ? "profile" : customizerMode === "logo" ? "capsule-logo" : safeSlug || "capsule";
+      const fileName = `${fileNamePrefix}-${customizerMode}-${Date.now()}.jpg`;
       const bannerFile = new File([exportResult.blob], fileName, { type: exportResult.mimeType });
 
       const arrayBuffer = await exportResult.blob.arrayBuffer();
@@ -1144,8 +1165,14 @@ export function useCapsuleCustomizerState(
       const imageData = btoa(binary);
 
       const endpoint =
-        customizerMode === "tile" ? "tile" : customizerMode === "logo" ? "logo" : "banner";
-      const response = await fetch(`/api/capsules/${capsuleId}/${endpoint}`, {
+        customizerMode === "tile"
+          ? `/api/capsules/${capsuleId}/tile`
+          : customizerMode === "logo"
+            ? `/api/capsules/${capsuleId}/logo`
+            : customizerMode === "avatar"
+              ? "/api/account/avatar"
+              : `/api/capsules/${capsuleId}/banner`;
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1182,11 +1209,14 @@ export function useCapsuleCustomizerState(
         bannerUrl?: string | null;
         tileUrl?: string | null;
         logoUrl?: string | null;
+        avatarUrl?: string | null;
       };
       if (customizerMode === "tile") {
         onSaved?.({ type: "tile", tileUrl: payload.tileUrl ?? null });
       } else if (customizerMode === "logo") {
         onSaved?.({ type: "logo", logoUrl: payload.logoUrl ?? null });
+      } else if (customizerMode === "avatar") {
+        onSaved?.({ type: "avatar", avatarUrl: payload.avatarUrl ?? null });
       } else {
         onSaved?.({ type: "banner", bannerUrl: payload.bannerUrl ?? null });
       }

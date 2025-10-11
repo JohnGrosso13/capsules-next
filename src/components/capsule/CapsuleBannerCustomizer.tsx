@@ -64,7 +64,8 @@ export function CapsuleBannerCustomizer(props: CapsuleBannerCustomizerProps) {
   if (!open) return null;
 
   const { messages, busy, prompterSession, onPrompterAction, logRef } = chat;
-  const saveLabel = mode === "tile" ? "Save tile" : mode === "logo" ? "Save logo" : "Save banner";
+  const saveLabel =
+    mode === "tile" ? "Save tile" : mode === "logo" ? "Save logo" : mode === "avatar" ? "Save avatar" : "Save banner";
 
   return (
     <div className={styles.overlay} role="presentation" onClick={overlayClick}>
@@ -272,6 +273,10 @@ export function CapsuleTileCustomizer(props: Omit<CapsuleBannerCustomizerProps, 
 
 export function CapsuleLogoCustomizer(props: Omit<CapsuleBannerCustomizerProps, "mode">) {
   return <CapsuleBannerCustomizer {...props} mode="logo" />;
+}
+
+export function ProfileAvatarCustomizer(props: Omit<CapsuleBannerCustomizerProps, "mode">) {
+  return <CapsuleBannerCustomizer {...props} mode="avatar" />;
 }
 
 export type { CapsuleCustomizerSaveResult, CapsuleCustomizerMode };

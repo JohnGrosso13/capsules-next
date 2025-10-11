@@ -60,34 +60,42 @@ export function computeDisplayUploads(
   const effectiveOrigin = origin ?? (typeof window !== "undefined" ? window.location.origin : null);
   const allowCloudflare = cloudflareEnabled;
 
-  return items.map((item) => {
-    const rawUrl = typeof item.media_url === "string" ? item.media_url : "";
-    const absoluteFull = toAbsolute(rawUrl, effectiveOrigin) ?? rawUrl;
-    const metaThumb = selectMetaThumbnail(item.meta as Record<string, unknown> | null | undefined);
-    const absoluteThumb = toAbsolute(metaThumb, effectiveOrigin);
+  return items
+    .map((item) => {
+      const rawUrl = typeof item.media_url === "string" ? item.media_url.trim() : "";
+      const absoluteFull = toAbsolute(rawUrl, effectiveOrigin);
+      const normalizedFull = typeof absoluteFull === "string" ? absoluteFull.trim() : "";
 
-    let displayUrl = absoluteThumb ?? absoluteFull;
+      const metaThumb = selectMetaThumbnail(item.meta as Record<string, unknown> | null | undefined);
+      const absoluteThumb = toAbsolute(metaThumb, effectiveOrigin);
+      const normalizedThumb = typeof absoluteThumb === "string" ? absoluteThumb.trim() : "";
 
-    const thumbSource = absoluteThumb ?? absoluteFull;
-    if (allowCloudflare && canOptimizeWithCloudflare(thumbSource, effectiveOrigin)) {
-      const optimized = buildCloudflareImageUrl(thumbSource, {
-        width: FALLBACK_THUMB_SIZE,
-        height: FALLBACK_THUMB_SIZE,
-        fit: "cover",
-        gravity: "faces",
-        quality: 82,
-        format: "auto",
-        sharpen: 1,
-      });
-      if (optimized) {
-        displayUrl = optimized;
+      const baseDisplay = normalizedThumb.length ? normalizedThumb : normalizedFull;
+      if (!baseDisplay.length) {
+        return null;
       }
-    }
 
-    return {
-      ...item,
-      displayUrl,
-      fullUrl: absoluteFull,
-    };
-  });
+      let displayUrl = baseDisplay;
+      if (allowCloudflare && canOptimizeWithCloudflare(baseDisplay, effectiveOrigin)) {
+        const optimized = buildCloudflareImageUrl(baseDisplay, {
+          width: FALLBACK_THUMB_SIZE,
+          height: FALLBACK_THUMB_SIZE,
+          fit: "cover",
+          gravity: "faces",
+          quality: 82,
+          format: "auto",
+          sharpen: 1,
+        });
+        if (optimized) {
+          displayUrl = optimized;
+        }
+      }
+
+      return {
+        ...item,
+        displayUrl,
+        fullUrl: normalizedFull.length ? normalizedFull : baseDisplay,
+      };
+    })
+    .filter((upload): upload is DisplayMemoryUpload => upload !== null);
 }
