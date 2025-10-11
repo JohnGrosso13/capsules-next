@@ -454,6 +454,14 @@
     --party-startaudio-border: color-mix(in srgb, var(--color-brand) 65%, transparent);
     --party-startaudio-background: color-mix(in srgb, var(--color-brand) 20%, transparent);
     --party-control-hover-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
+    --party-hero-actions-background: color-mix(in srgb, var(--card-background, rgba(11, 17, 36, 0.94)) 75%, transparent);
+    --party-hero-actions-border: color-mix(in srgb, var(--card-border) 60%, transparent);
+    --party-input-border: color-mix(in srgb, var(--card-border) 70%, transparent);
+    --party-input-background: color-mix(
+      in srgb,
+      var(--surface-elevated, rgba(17, 22, 45, 0.86)) 88%,
+      var(--surface-muted, rgba(17, 22, 45, 0.8)) 12%
+    );
     --party-input-focus-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
 
     /* AI prompter tokens */
@@ -1017,8 +1025,6 @@
     animation: marquee 60s linear infinite;
   }
 }
-
-
 
 
 
