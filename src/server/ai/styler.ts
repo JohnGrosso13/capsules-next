@@ -1,4 +1,3 @@
-
 import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { z } from "zod";
 import { ALLOWED_THEME_VAR_KEYS } from "@/lib/theme/shared";
@@ -8,7 +7,11 @@ import {
   resolveStylerHeuristicPlan,
   type StylerPlan,
 } from "@/lib/theme/styler-heuristics";
-import { normalizeThemeVariantsInput, isVariantEmpty, type ThemeVariants } from "@/lib/theme/variants";
+import {
+  normalizeThemeVariantsInput,
+  isVariantEmpty,
+  type ThemeVariants,
+} from "@/lib/theme/variants";
 
 const OPENAI_MODEL =
   process.env.OPENAI_MODEL ?? process.env.AI_MODEL ?? process.env.GPT_MODEL ?? "gpt-4o-mini";
@@ -58,9 +61,9 @@ const THEME_SNAPSHOT_KEYS = [
 ];
 
 const DEFAULT_THEME_SNAPSHOT = Object.fromEntries(
-  THEME_SNAPSHOT_KEYS
-    .map((key) => [key, DEFAULT_THEME_VARS[key]])
-    .filter(([, value]) => typeof value === "string" && value.length > 0),
+  THEME_SNAPSHOT_KEYS.map((key) => [key, DEFAULT_THEME_VARS[key]]).filter(
+    ([, value]) => typeof value === "string" && value.length > 0,
+  ),
 );
 
 const SURFACE_GUIDE = [
@@ -172,12 +175,15 @@ const STYLER_RESPONSE_SCHEMA = z
     variants: VARIANTS_OBJECT_SCHEMA.optional(),
     vars: VARIANT_MAP_SCHEMA.optional(),
   })
-  .refine((value) => {
-    const variantMaps = value.variants ? Object.values(value.variants) : [];
-    const hasVariantEntries = variantMaps.some((map) => map && Object.keys(map).length > 0);
-    const hasFlatEntries = value.vars ? Object.keys(value.vars).length > 0 : false;
-    return hasVariantEntries || hasFlatEntries;
-  }, { message: "variants or vars must include at least one entry" });
+  .refine(
+    (value) => {
+      const variantMaps = value.variants ? Object.values(value.variants) : [];
+      const hasVariantEntries = variantMaps.some((map) => map && Object.keys(map).length > 0);
+      const hasFlatEntries = value.vars ? Object.keys(value.vars).length > 0 : false;
+      return hasVariantEntries || hasFlatEntries;
+    },
+    { message: "variants or vars must include at least one entry" },
+  );
 
 const MAX_SUMMARY_LENGTH = 160;
 const MAX_DESCRIPTION_LENGTH = 320;
@@ -214,7 +220,9 @@ function buildContractPayload(prompt: string) {
       brand: {
         primary: DEFAULT_THEME_VARS["--color-brand"] ?? "#6366f1",
         strong: DEFAULT_THEME_VARS["--color-brand-strong"] ?? "#4f46e5",
-        gradient: DEFAULT_THEME_VARS["--brand-gradient"] ?? "linear-gradient(120deg, #7b5cff, #6366f1, #22d3ee)",
+        gradient:
+          DEFAULT_THEME_VARS["--brand-gradient"] ??
+          "linear-gradient(120deg, #7b5cff, #6366f1, #22d3ee)",
         textOnBrand: DEFAULT_THEME_VARS["--text-on-brand"] ?? "#ffffff",
       },
     },
@@ -304,7 +312,9 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
         return null;
       }
 
-      type OpenAIChatResponse = { choices?: Array<{ message?: { content?: string | null } | null } | null> };
+      type OpenAIChatResponse = {
+        choices?: Array<{ message?: { content?: string | null } | null } | null>;
+      };
       let raw: OpenAIChatResponse | null = null;
       try {
         raw = JSON.parse(rawText) as OpenAIChatResponse;
@@ -379,7 +389,9 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
       console.info("styler_ai_telemetry", {
         prompt: prompt.length > 240 ? `${prompt.slice(0, 239)}...` : prompt,
         summary,
-        varCount: (limitedVariants.light ? Object.keys(limitedVariants.light).length : 0) + (limitedVariants.dark ? Object.keys(limitedVariants.dark).length : 0),
+        varCount:
+          (limitedVariants.light ? Object.keys(limitedVariants.light).length : 0) +
+          (limitedVariants.dark ? Object.keys(limitedVariants.dark).length : 0),
         attempt: attempt + 1,
         durationMs: Date.now() - start,
       });
@@ -397,8 +409,3 @@ async function runOpenAiStyler(prompt: string): Promise<StylerPlan | null> {
   console.error("styler ai request failed", lastError);
   return null;
 }
-
-
-
-
-

@@ -47,7 +47,10 @@ export async function embedText(input: string) {
   if (dimensions && Number.isFinite(dimensions)) {
     body.dimensions = dimensions;
   }
-  const result = await postOpenAIJson<{ data?: Array<{ embedding: number[] }> }>("/embeddings", body);
+  const result = await postOpenAIJson<{ data?: Array<{ embedding: number[] }> }>(
+    "/embeddings",
+    body,
+  );
   if (!result.ok) {
     console.error("OpenAI embedding error", result.parsedBody);
     return null;
@@ -103,7 +106,9 @@ function sanitizeStringArray(value: unknown, limit: number): string[] {
   return results;
 }
 
-export async function summarizeMemory(input: MemorySummaryInput): Promise<MemorySummaryResult | null> {
+export async function summarizeMemory(
+  input: MemorySummaryInput,
+): Promise<MemorySummaryResult | null> {
   if (!hasOpenAIApiKey()) return null;
   const text = input.text?.trim();
   if (!text) return null;
@@ -185,7 +190,8 @@ export async function summarizeMemory(input: MemorySummaryInput): Promise<Memory
           ? timeRaw.iso_date.trim()
           : null,
       year: typeof timeRaw.year === "number" && Number.isFinite(timeRaw.year) ? timeRaw.year : null,
-      month: typeof timeRaw.month === "number" && Number.isFinite(timeRaw.month) ? timeRaw.month : null,
+      month:
+        typeof timeRaw.month === "number" && Number.isFinite(timeRaw.month) ? timeRaw.month : null,
       holiday:
         typeof timeRaw.holiday === "string" && timeRaw.holiday.trim().length
           ? timeRaw.holiday.trim()

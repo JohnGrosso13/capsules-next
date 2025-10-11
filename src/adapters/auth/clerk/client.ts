@@ -45,10 +45,9 @@ function normalizeProfileResponse(payload: unknown): CapsulesProfile {
 
 function mergeProfile(base: CapsulesProfile, updates: Partial<CapsulesProfile>): CapsulesProfile {
   return {
-    id: updates.id === undefined ? base.id : updates.id ?? null,
-    name: updates.name === undefined ? base.name : updates.name ?? null,
-    avatarUrl:
-      updates.avatarUrl === undefined ? base.avatarUrl : updates.avatarUrl ?? null,
+    id: updates.id === undefined ? base.id : (updates.id ?? null),
+    name: updates.name === undefined ? base.name : (updates.name ?? null),
+    avatarUrl: updates.avatarUrl === undefined ? base.avatarUrl : (updates.avatarUrl ?? null),
   };
 }
 
@@ -88,7 +87,9 @@ function updateCachedProfile(updates: Partial<CapsulesProfile>) {
 }
 
 function useCapsulesProfile(enabled: boolean, clerkUserId: string | null): CapsulesProfile {
-  const [profile, setProfile] = React.useState<CapsulesProfile>(() => cachedProfile ?? DEFAULT_PROFILE);
+  const [profile, setProfile] = React.useState<CapsulesProfile>(
+    () => cachedProfile ?? DEFAULT_PROFILE,
+  );
 
   React.useEffect(() => {
     if (!enabled || !clerkUserId) {
@@ -122,16 +123,14 @@ function useCapsulesProfile(enabled: boolean, clerkUserId: string | null): Capsu
     }
 
     const handler = (event: Event) => {
-      const detail =
-        (event as CustomEvent<{ avatarUrl?: unknown; name?: unknown }>).detail ?? {};
+      const detail = (event as CustomEvent<{ avatarUrl?: unknown; name?: unknown }>).detail ?? {};
       const nextAvatar =
         "avatarUrl" in detail
           ? detail.avatarUrl === null
             ? null
             : normalizeString(detail.avatarUrl)
           : undefined;
-      const nextName =
-        "name" in detail ? normalizeString(detail.name) ?? null : undefined;
+      const nextName = "name" in detail ? (normalizeString(detail.name) ?? null) : undefined;
 
       if (nextAvatar === undefined && nextName === undefined) {
         return;

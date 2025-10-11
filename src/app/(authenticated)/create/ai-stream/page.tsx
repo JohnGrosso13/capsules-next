@@ -106,7 +106,8 @@ export default function AiStreamStudioPage() {
             <h1 className={styles.heroTitle}>AI Stream Studio</h1>
             <p className={styles.heroSubtitle}>
               Bring your OBS scene, overlays, and audience together while Capsules co-pilots the
-              workflow. Monitor health, engage chat, and ask the assistant to handle anything mid-stream.
+              workflow. Monitor health, engage chat, and ask the assistant to handle anything
+              mid-stream.
             </p>
             <div className={styles.heroMeta}>
               <div>
@@ -219,8 +220,8 @@ export default function AiStreamStudioPage() {
                       {item.status === "done"
                         ? "Complete"
                         : item.status === "progress"
-                        ? "Assistant in progress"
-                        : "Ready to assign"}
+                          ? "Assistant in progress"
+                          : "Ready to assign"}
                     </span>
                   </li>
                 ))}
@@ -334,8 +335,8 @@ export default function AiStreamStudioPage() {
                   <div className={styles.assistantText}>
                     <strong>Capsules AI</strong>
                     <p>
-                      I can auto-post a hype tweet when you go live, watch for toxic chat spikes, and
-                      surface key moments. Want me to brief mods now?
+                      I can auto-post a hype tweet when you go live, watch for toxic chat spikes,
+                      and surface key moments. Want me to brief mods now?
                     </p>
                   </div>
                 </div>
@@ -345,7 +346,10 @@ export default function AiStreamStudioPage() {
                   </div>
                   <div className={styles.assistantText}>
                     <strong>Recent request</strong>
-                    <p>&quot;Clip the ace from last stream and schedule for TikTok tomorrow at 9 AM.&quot;</p>
+                    <p>
+                      &quot;Clip the ace from last stream and schedule for TikTok tomorrow at 9
+                      AM.&quot;
+                    </p>
                   </div>
                 </div>
               </div>
@@ -420,10 +424,3 @@ export default function AiStreamStudioPage() {
     </AppPage>
   );
 }
-
-
-
-
-
-
-

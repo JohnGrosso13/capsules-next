@@ -36,19 +36,11 @@ async function resolveMembershipParams(
   return value;
 }
 
-export async function GET(
-  req: Request,
-  context: CapsuleMembershipRouteContext,
-) {
+export async function GET(req: Request, context: CapsuleMembershipRouteContext) {
   const params = await resolveMembershipParams(context);
   const parsedParams = paramsSchema.safeParse(params);
   if (!parsedParams.success) {
-    return returnError(
-      400,
-      "invalid_request",
-      "Invalid capsule id.",
-      parsedParams.error.flatten(),
-    );
+    return returnError(400, "invalid_request", "Invalid capsule id.", parsedParams.error.flatten());
   }
 
   const viewerId = await ensureUserFromRequest(req, {}, { allowGuests: true });
@@ -65,19 +57,11 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: Request,
-  context: CapsuleMembershipRouteContext,
-) {
+export async function POST(req: Request, context: CapsuleMembershipRouteContext) {
   const params = await resolveMembershipParams(context);
   const parsedParams = paramsSchema.safeParse(params);
   if (!parsedParams.success) {
-    return returnError(
-      400,
-      "invalid_request",
-      "Invalid capsule id.",
-      parsedParams.error.flatten(),
-    );
+    return returnError(400, "invalid_request", "Invalid capsule id.", parsedParams.error.flatten());
   }
 
   const actorId = await ensureUserFromRequest(req, {}, { allowGuests: false });

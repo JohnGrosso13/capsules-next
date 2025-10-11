@@ -36,14 +36,19 @@ const worker = {
   },
 };
 
-async function handleUploadEvents(batch: MessageBatch<UploadEventMessage>, env: Env): Promise<void> {
+async function handleUploadEvents(
+  batch: MessageBatch<UploadEventMessage>,
+  env: Env,
+): Promise<void> {
   for (const message of batch.messages) {
     try {
       const baseEvent = message.body;
       let mergedEvent: UploadEventMessage = baseEvent;
       if (baseEvent.sessionId) {
         try {
-          const kvRecord = await env.UPLOAD_SESSIONS_KV.get(`session:${baseEvent.sessionId}`, { type: "json" });
+          const kvRecord = await env.UPLOAD_SESSIONS_KV.get(`session:${baseEvent.sessionId}`, {
+            type: "json",
+          });
           if (kvRecord && typeof kvRecord === "object") {
             const record = kvRecord as Record<string, unknown>;
             mergedEvent = {
@@ -63,7 +68,12 @@ async function handleUploadEvents(batch: MessageBatch<UploadEventMessage>, env: 
         }
       }
 
-      const stub = getCoordinatorStub(env, mergedEvent.sessionId, mergedEvent.uploadId, mergedEvent.key);
+      const stub = getCoordinatorStub(
+        env,
+        mergedEvent.sessionId,
+        mergedEvent.uploadId,
+        mergedEvent.key,
+      );
       const response = await stub.fetch("https://do/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,9 +84,7 @@ async function handleUploadEvents(batch: MessageBatch<UploadEventMessage>, env: 
       }
       const data = (await response.json()) as { tasks: ProcessingTaskMessage[] };
       if (data.tasks?.length) {
-        await env.PROCESSING_QUEUE.sendBatch(
-          data.tasks.map((task) => ({ body: task })),
-        );
+        await env.PROCESSING_QUEUE.sendBatch(data.tasks.map((task) => ({ body: task })));
       }
       message.ack();
     } catch (error) {
@@ -92,7 +100,12 @@ async function handleProcessingTasks(
 ): Promise<void> {
   for (const message of batch.messages) {
     const taskMessage = message.body;
-    const stub = getCoordinatorStub(env, taskMessage.sessionId, taskMessage.uploadId, taskMessage.key);
+    const stub = getCoordinatorStub(
+      env,
+      taskMessage.sessionId,
+      taskMessage.uploadId,
+      taskMessage.key,
+    );
     try {
       const derived = await runTask(env, stub, taskMessage);
       await stub.fetch("https://do/task-complete", {
@@ -188,33 +201,36 @@ function resolveOriginalContentType(message: ProcessingTaskMessage): string | nu
   );
 }
 
-function buildFormatCandidates(originalContentType: string | null, key: string): Array<'jpeg' | 'webp'> {
+function buildFormatCandidates(
+  originalContentType: string | null,
+  key: string,
+): Array<"jpeg" | "webp"> {
   const preferJpeg = shouldPreferJpeg(originalContentType, key);
-  const formats: Array<'jpeg' | 'webp'> = preferJpeg ? ['jpeg', 'webp'] : ['webp', 'jpeg'];
+  const formats: Array<"jpeg" | "webp"> = preferJpeg ? ["jpeg", "webp"] : ["webp", "jpeg"];
   return Array.from(new Set(formats));
 }
 
 async function generateImageVariant(
   env: Env,
   message: ProcessingTaskMessage,
-  task: Extract<ProcessingTask, { kind: 'image.thumbnail' | 'image.preview' }>,
-  format: 'jpeg' | 'webp',
+  task: Extract<ProcessingTask, { kind: "image.thumbnail" | "image.preview" }>,
+  format: "jpeg" | "webp",
   originalContentType: string | null,
 ): Promise<DerivedAssetRecord> {
   const sourceUrl = buildPublicUrl(env, message.key);
   const ops = [`width=${task.width}`];
   if (task.height) ops.push(`height=${task.height}`);
-  const quality = format === 'jpeg' ? 88 : 85;
+  const quality = format === "jpeg" ? 88 : 85;
   ops.push(`quality=${quality}`, `format=${format}`);
-  const resizeUrl = `${env.IMAGE_RESIZE_BASE_URL.replace(/\/$/, '')}/${ops.join(',')}/${encodeURIComponent(sourceUrl)}`;
+  const resizeUrl = `${env.IMAGE_RESIZE_BASE_URL.replace(/\/$/, "")}/${ops.join(",")}/${encodeURIComponent(sourceUrl)}`;
   const response = await fetch(resizeUrl);
   if (!response.ok) {
     throw new Error(`Image resize failed (${response.status})`);
   }
   const buffer = await response.arrayBuffer();
-  const ext = format === 'jpeg' ? 'jpg' : format;
-  const derivedKey = `${stripExtension(message.key)}__${task.kind.replace('.', '_')}_${task.width}.${ext}`;
-  const contentType = format === 'jpeg' ? 'image/jpeg' : `image/${format}`;
+  const ext = format === "jpeg" ? "jpg" : format;
+  const derivedKey = `${stripExtension(message.key)}__${task.kind.replace(".", "_")}_${task.width}.${ext}`;
+  const contentType = format === "jpeg" ? "image/jpeg" : `image/${format}`;
   await env.R2_BUCKET.put(derivedKey, buffer, {
     httpMetadata: { contentType },
   });
@@ -228,32 +244,32 @@ async function generateImageVariant(
       format,
       content_type: contentType,
       source_content_type: originalContentType ?? null,
-      note: 'Generated via Cloudflare Image Resizing',
+      note: "Generated via Cloudflare Image Resizing",
     },
   };
 }
 
 const RAW_LIKE_MIME_TYPES = new Set([
-  'image/heic',
-  'image/heif',
-  'image/x-adobe-dng',
-  'image/x-dng',
-  'image/x-raw',
-  'image/x-canon-cr2',
-  'image/x-nikon-nef',
-  'image/x-sony-arw',
+  "image/heic",
+  "image/heif",
+  "image/x-adobe-dng",
+  "image/x-dng",
+  "image/x-raw",
+  "image/x-canon-cr2",
+  "image/x-nikon-nef",
+  "image/x-sony-arw",
 ]);
 
 const RAW_LIKE_EXTENSIONS = new Set([
-  'heic',
-  'heif',
-  'dng',
-  'nef',
-  'cr2',
-  'arw',
-  'raw',
-  'raf',
-  'rw2',
+  "heic",
+  "heif",
+  "dng",
+  "nef",
+  "cr2",
+  "arw",
+  "raw",
+  "raf",
+  "rw2",
 ]);
 
 function shouldPreferJpeg(contentType: string | null, key: string): boolean {
@@ -269,13 +285,15 @@ function shouldPreferJpeg(contentType: string | null, key: string): boolean {
 }
 
 function normalizeContentType(value: string | null | undefined): string | null {
-  if (typeof value !== 'string') return null;
+  if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed.toLowerCase() : null;
 }
 
-function readContentTypeFromRecord(record: Record<string, unknown> | null | undefined): string | null {
-  if (!record || typeof record !== 'object') return null;
+function readContentTypeFromRecord(
+  record: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!record || typeof record !== "object") return null;
   const candidates = [
     (record as { mime_type?: unknown }).mime_type,
     (record as { mimeType?: unknown }).mimeType,
@@ -290,31 +308,31 @@ function readContentTypeFromRecord(record: Record<string, unknown> | null | unde
 }
 
 const EXTENSION_MIME_MAP: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  jpe: 'image/jpeg',
-  png: 'image/png',
-  gif: 'image/gif',
-  webp: 'image/webp',
-  avif: 'image/avif',
-  heic: 'image/heic',
-  heif: 'image/heif',
-  bmp: 'image/bmp',
-  svg: 'image/svg+xml',
-  mp4: 'video/mp4',
-  m4v: 'video/mp4',
-  mov: 'video/quicktime',
-  webm: 'video/webm',
-  ogv: 'video/ogg',
-  ogg: 'video/ogg',
-  mkv: 'video/x-matroska',
-  dng: 'image/x-adobe-dng',
-  raw: 'image/x-raw',
-  arw: 'image/x-sony-arw',
-  cr2: 'image/x-canon-cr2',
-  nef: 'image/x-nikon-nef',
-  raf: 'image/x-fuji-raf',
-  rw2: 'image/x-panasonic-rw2',
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  jpe: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  avif: "image/avif",
+  heic: "image/heic",
+  heif: "image/heif",
+  bmp: "image/bmp",
+  svg: "image/svg+xml",
+  mp4: "video/mp4",
+  m4v: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+  ogv: "video/ogg",
+  ogg: "video/ogg",
+  mkv: "video/x-matroska",
+  dng: "image/x-adobe-dng",
+  raw: "image/x-raw",
+  arw: "image/x-sony-arw",
+  cr2: "image/x-canon-cr2",
+  nef: "image/x-nikon-nef",
+  raf: "image/x-fuji-raf",
+  rw2: "image/x-panasonic-rw2",
 };
 
 function guessMimeFromKey(key: string): string | null {
@@ -324,14 +342,17 @@ function guessMimeFromKey(key: string): string | null {
 }
 
 function extractExtension(key: string): string | null {
-  const withoutQuery = key.split(/[?#]/)[0] ?? '';
-  const lastDot = withoutQuery.lastIndexOf('.');
+  const withoutQuery = key.split(/[?#]/)[0] ?? "";
+  const lastDot = withoutQuery.lastIndexOf(".");
   if (lastDot === -1) return null;
   const ext = withoutQuery.slice(lastDot + 1).toLowerCase();
   return ext || null;
 }
 
-async function processVideoTranscode(env: Env, message: ProcessingTaskMessage): Promise<DerivedAssetRecord> {
+async function processVideoTranscode(
+  env: Env,
+  message: ProcessingTaskMessage,
+): Promise<DerivedAssetRecord> {
   const object = await env.R2_BUCKET.get(message.key);
   if (!object) {
     throw new Error("Source video not found in R2");
@@ -353,7 +374,10 @@ async function processVideoTranscode(env: Env, message: ProcessingTaskMessage): 
   };
 }
 
-async function processVideoThumbnail(env: Env, message: ProcessingTaskMessage): Promise<DerivedAssetRecord> {
+async function processVideoThumbnail(
+  env: Env,
+  message: ProcessingTaskMessage,
+): Promise<DerivedAssetRecord> {
   const derivedKey = `${stripExtension(message.key)}__poster.jpg`;
   const bytes = decodeBase64(PLACEHOLDER_POSTER_BASE64);
   await env.R2_BUCKET.put(derivedKey, bytes, {
@@ -371,7 +395,10 @@ async function processVideoThumbnail(env: Env, message: ProcessingTaskMessage): 
   };
 }
 
-async function processAudioExtract(env: Env, message: ProcessingTaskMessage): Promise<DerivedAssetRecord> {
+async function processAudioExtract(
+  env: Env,
+  message: ProcessingTaskMessage,
+): Promise<DerivedAssetRecord> {
   const object = await env.R2_BUCKET.get(message.key);
   if (!object) throw new Error("Source media missing");
   const buffer = await object.arrayBuffer();
@@ -410,7 +437,10 @@ async function processTranscript(
   };
 }
 
-async function processSafetyScan(env: Env, message: ProcessingTaskMessage): Promise<DerivedAssetRecord> {
+async function processSafetyScan(
+  env: Env,
+  message: ProcessingTaskMessage,
+): Promise<DerivedAssetRecord> {
   const derivedKey = `${stripExtension(message.key)}__safety.json`;
   const payload = {
     status: "pending",
@@ -447,7 +477,5 @@ function decodeBase64(value: string): ArrayBuffer {
   }
   return bytes.buffer;
 }
-
-
 
 export default worker;

@@ -1,10 +1,6 @@
 import type { FriendItem } from "@/hooks/useFriendsData";
 import { isGroupConversationId } from "@/lib/chat/channels";
-import {
-  DEFAULT_CHAT_STORAGE_KEY,
-  loadChatState,
-  saveChatState,
-} from "@/lib/chat/chat-storage";
+import { DEFAULT_CHAT_STORAGE_KEY, loadChatState, saveChatState } from "@/lib/chat/chat-storage";
 
 export type ChatSessionType = "direct" | "group";
 
@@ -143,7 +139,10 @@ function standardizeUserId(value: string): string | null {
   if (!trimmed) return null;
   const directMatch = /^user[_-][0-9a-z-]+$/i.exec(trimmed);
   if (directMatch) {
-    return `user_${directMatch[0]!.slice("user".length + 1).replace(/[^0-9a-z-]/gi, "").toLowerCase()}`;
+    return `user_${directMatch[0]!
+      .slice("user".length + 1)
+      .replace(/[^0-9a-z-]/gi, "")
+      .toLowerCase()}`;
   }
   const embeddedMatch = USER_ID_PATTERN.exec(trimmed);
   if (!embeddedMatch) {
@@ -205,7 +204,9 @@ function canonicalParticipantKey(id: string): string {
   return withoutClient;
 }
 
-export function normalizeParticipant(entry: Partial<ChatParticipant> | ChatParticipant | null | undefined): ChatParticipant | null {
+export function normalizeParticipant(
+  entry: Partial<ChatParticipant> | ChatParticipant | null | undefined,
+): ChatParticipant | null {
   if (!entry || typeof entry !== "object") return null;
   const data = entry as Record<string, unknown>;
   const idCandidate = resolveParticipantId(data);
@@ -428,7 +429,9 @@ export class ChatStore {
         const canonicalCreator = canonicalParticipantKey(creator);
         if (
           (creator && aliasSet.has(creator) && session.createdBy !== normalizedSelf.id) ||
-          (canonicalCreator && aliasSet.has(canonicalCreator) && session.createdBy !== normalizedSelf.id)
+          (canonicalCreator &&
+            aliasSet.has(canonicalCreator) &&
+            session.createdBy !== normalizedSelf.id)
         ) {
           session.createdBy = normalizedSelf.id;
           mutated = true;
@@ -597,7 +600,8 @@ export class ChatStore {
     const session = this.sessions.get(sessionId);
     if (!session) return;
     const merged = mergeParticipants(session.participants, participants);
-    const changed = merged.length !== session.participants.length ||
+    const changed =
+      merged.length !== session.participants.length ||
       merged.some((participant, index) => {
         const existing = session.participants[index];
         if (!existing) return true;
@@ -696,11 +700,16 @@ export class ChatStore {
           : "direct"),
       title: payload.session?.title ?? "",
       avatar: payload.session?.avatar ?? null,
-      createdBy: payload.session?.createdBy ?? (payload.session?.type === "group" ? payload.senderId : null),
+      createdBy:
+        payload.session?.createdBy ?? (payload.session?.type === "group" ? payload.senderId : null),
       participants: normalizedParticipants,
     };
     const session = this.ensureSessionInternal(descriptor).session;
-    if (!payload.message || typeof payload.message.id !== "string" || typeof payload.message.body !== "string") {
+    if (
+      !payload.message ||
+      typeof payload.message.id !== "string" ||
+      typeof payload.message.body !== "string"
+    ) {
       return;
     }
     const messageBody = sanitizeMessageBody(payload.message.body);
@@ -767,7 +776,11 @@ export class ChatStore {
         const nextId = lookupFriend.userId?.trim() || participant.id;
         const nextName = lookupFriend.name || participant.name;
         const nextAvatar = lookupFriend.avatar ?? participant.avatar ?? null;
-        if (nextId !== participant.id || nextName !== participant.name || nextAvatar !== participant.avatar) {
+        if (
+          nextId !== participant.id ||
+          nextName !== participant.name ||
+          nextAvatar !== participant.avatar
+        ) {
           return {
             id: nextId,
             name: nextName || nextId,
@@ -853,7 +866,10 @@ export class ChatStore {
     };
   }
 
-  startSession(descriptor: ChatSessionDescriptor, options?: { activate?: boolean }): { created: boolean } {
+  startSession(
+    descriptor: ChatSessionDescriptor,
+    options?: { activate?: boolean },
+  ): { created: boolean } {
     const { session, created, changed } = this.ensureSessionInternal(descriptor);
     if (options?.activate) {
       this.activeSessionId = session.id;
@@ -917,7 +933,9 @@ export class ChatStore {
             : "direct";
     if (type === "direct" && normalizedParticipants.length > 2) {
       const selfKeySet = new Set(Array.from(selfIds, (id) => canonicalParticipantKey(id)));
-      const self = normalizedParticipants.find((participant) => selfKeySet.has(canonicalParticipantKey(participant.id)));
+      const self = normalizedParticipants.find((participant) =>
+        selfKeySet.has(canonicalParticipantKey(participant.id)),
+      );
       const others = normalizedParticipants.filter(
         (participant) => !selfKeySet.has(canonicalParticipantKey(participant.id)),
       );
@@ -927,8 +945,7 @@ export class ChatStore {
       normalizedParticipants = trimmed.length ? trimmed : normalizedParticipants.slice(0, 2);
     }
     const titleCandidate = typeof descriptor.title === "string" ? descriptor.title.trim() : "";
-    const title =
-      titleCandidate || computeDefaultTitle(normalizedParticipants, selfIds, type);
+    const title = titleCandidate || computeDefaultTitle(normalizedParticipants, selfIds, type);
     return {
       id: descriptor.id,
       type,
@@ -939,9 +956,11 @@ export class ChatStore {
     };
   }
 
-  private ensureSessionInternal(
-    descriptor: ChatSessionDescriptor,
-  ): { session: ChatSessionInternal; created: boolean; changed: boolean } {
+  private ensureSessionInternal(descriptor: ChatSessionDescriptor): {
+    session: ChatSessionInternal;
+    created: boolean;
+    changed: boolean;
+  } {
     const sanitized = this.sanitizeDescriptor(descriptor);
     const map = this.sessions;
     let session = map.get(sanitized.id);
@@ -1025,7 +1044,8 @@ export class ChatStore {
       const messages = session.messages.map((message) => ({ ...message }));
       const lastMessage = messages[messages.length - 1] ?? null;
       entries.push({
-        order: session.lastMessageTimestamp || (lastMessage ? Date.parse(lastMessage.sentAt) : 0) || 0,
+        order:
+          session.lastMessageTimestamp || (lastMessage ? Date.parse(lastMessage.sentAt) : 0) || 0,
         session: {
           id: session.id,
           type: session.type,
@@ -1043,7 +1063,7 @@ export class ChatStore {
     entries.sort((a, b) => b.order - a.order);
     const sessions = entries.map((entry) => entry.session);
     const activeSession = this.activeSessionId
-      ? sessions.find((session) => session.id === this.activeSessionId) ?? null
+      ? (sessions.find((session) => session.id === this.activeSessionId) ?? null)
       : null;
     const unreadCount = sessions.reduce((total, session) => total + session.unreadCount, 0);
     return {

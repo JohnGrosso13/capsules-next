@@ -70,8 +70,14 @@ const openAiQualityRaw =
     "TEST_IMAGE_QUALITY",
   ]) || null;
 const normalizedQuality = openAiQualityRaw ? openAiQualityRaw.trim().toLowerCase() : null;
-const pineconeEnvironment = getEnv("PINECONE_ENVIRONMENT", ["PINECONE_REGION", "PINECONE_PROJECT_ENV"]);
-const pineconeControllerHost = getEnv("PINECONE_CONTROLLER_HOST", ["PINECONE_HOST", "PINECONE_API_HOST"]);
+const pineconeEnvironment = getEnv("PINECONE_ENVIRONMENT", [
+  "PINECONE_REGION",
+  "PINECONE_PROJECT_ENV",
+]);
+const pineconeControllerHost = getEnv("PINECONE_CONTROLLER_HOST", [
+  "PINECONE_HOST",
+  "PINECONE_API_HOST",
+]);
 const pineconeIndex = getEnv("PINECONE_INDEX", ["PINECONE_PROJECT_INDEX"]);
 const pineconeNamespace = getEnv("PINECONE_NAMESPACE", ["PINECONE_PROJECT_NAMESPACE"]);
 const r2PublicBaseUrlRaw = getEnv("R2_PUBLIC_BASE_URL", ["NEXT_PUBLIC_R2_PUBLIC_BASE_URL"]);
@@ -100,10 +106,7 @@ export const serverEnv: ServerEnv = {
   OPENAI_API_KEY: getEnv("OPENAI_API_KEY", ["OPENAI_KEY", "OPENAI_SECRET_KEY"]),
   OPENAI_BASE_URL: openAiBaseUrlRaw ? openAiBaseUrlRaw.trim() : null,
   OPENAI_MODEL: openAiModel,
-  OPENAI_EMBED_MODEL: getEnv(
-    "OPENAI_EMBED_MODEL",
-    ["OPENAI_EMBEDDING_MODEL"],
-  ),
+  OPENAI_EMBED_MODEL: getEnv("OPENAI_EMBED_MODEL", ["OPENAI_EMBEDDING_MODEL"]),
   OPENAI_EMBED_DIM: (function () {
     const raw = getEnv("OPENAI_EMBED_DIM", ["OPENAI_EMBED_DIMENSIONS"]);
     if (!raw) return null;
@@ -145,10 +148,10 @@ export const serverEnv: ServerEnv = {
   R2_PUBLIC_BASE_URL: r2PublicBaseUrl,
   CLOUDFLARE_API_TOKEN: getEnv("CLOUDFLARE_API_TOKEN", ["CF_API_TOKEN", "CLOUDFLARE_TOKEN"]),
   R2_KV_NAMESPACE_ID: getEnv("R2_KV_NAMESPACE_ID", ["CLOUDFLARE_R2_KV_NAMESPACE_ID"]),
-  R2_UPLOAD_COMPLETIONS_QUEUE: getEnv(
-    "R2_UPLOAD_COMPLETIONS_QUEUE",
-    ["CLOUDFLARE_R2_UPLOAD_QUEUE", "CLOUDFLARE_UPLOAD_QUEUE"],
-  ),
+  R2_UPLOAD_COMPLETIONS_QUEUE: getEnv("R2_UPLOAD_COMPLETIONS_QUEUE", [
+    "CLOUDFLARE_R2_UPLOAD_QUEUE",
+    "CLOUDFLARE_UPLOAD_QUEUE",
+  ]),
   CLOUDFLARE_IMAGE_RESIZE_BASE_URL: imageResizeBaseUrl,
   TURNSTILE_SECRET_KEY: getEnv("TURNSTILE_SECRET_KEY", ["CLOUDFLARE_TURNSTILE_SECRET"]),
   ALGOLIA_APP_ID: algoliaAppId,
@@ -157,4 +160,3 @@ export const serverEnv: ServerEnv = {
   ARTIFACT_EMBEDDING_QUEUE: artifactEmbeddingQueue,
   ARTIFACT_EMBED_GATEWAY: artifactEmbedGateway,
 };
-

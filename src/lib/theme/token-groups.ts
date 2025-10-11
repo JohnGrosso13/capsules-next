@@ -248,7 +248,10 @@ export function groupUsageFromVars(vars: Record<string, string>): ThemeTokenGrou
     .sort((a, b) => b.count - a.count || a.group.label.localeCompare(b.group.label));
 }
 
-export function summarizeGroupLabels(usages: ReadonlyArray<ThemeTokenGroupUsage>, limit = 3): string {
+export function summarizeGroupLabels(
+  usages: ReadonlyArray<ThemeTokenGroupUsage>,
+  limit = 3,
+): string {
   if (!usages.length) return "";
   const labels = usages.slice(0, limit).map((usage) => usage.group.label);
   if (labels.length === 1) return labels[0]!;
@@ -314,8 +317,3 @@ export function buildThemePreview(vars: Record<string, string>): ThemePreviewIns
 export function getIntentGroupById(id: ThemeTokenIntentGroupId): ThemeTokenIntentGroup | undefined {
   return GROUP_BY_ID.get(id);
 }
-
-
-
-
-

@@ -32,17 +32,15 @@ function resultOrNull<T>(result: DatabaseResult<T | null>, context: string): T |
   return result.data ?? null;
 }
 
-export async function upsertPendingInvite(
-  payload: {
-    partyId: string;
-    senderId: string;
-    recipientId: string;
-    topic: string | null;
-    message: string | null;
-    metadata: Record<string, unknown> | null;
-    expiresAt: string | null;
-  },
-): Promise<RawInviteRow> {
+export async function upsertPendingInvite(payload: {
+  partyId: string;
+  senderId: string;
+  recipientId: string;
+  topic: string | null;
+  message: string | null;
+  metadata: Record<string, unknown> | null;
+  expiresAt: string | null;
+}): Promise<RawInviteRow> {
   const db = getDatabaseAdminClient();
 
   const existing = await db
@@ -128,10 +126,7 @@ export async function fetchSentPendingInvites(
   return assertSuccess(result, "party.invites.fetchSentPending");
 }
 
-export async function expirePendingInvites(
-  userId: string,
-  nowIso: string,
-): Promise<number> {
+export async function expirePendingInvites(userId: string, nowIso: string): Promise<number> {
   const db = getDatabaseAdminClient();
   const result = await db
     .from("party_invites")

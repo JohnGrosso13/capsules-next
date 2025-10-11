@@ -25,8 +25,8 @@ export default async function ExplorePage() {
 
   const primaryEmailId = user.primaryEmailAddressId;
   const primaryEmail = primaryEmailId
-    ? user.emailAddresses.find((entry) => entry.id === primaryEmailId)?.emailAddress ?? null
-    : user.emailAddresses[0]?.emailAddress ?? null;
+    ? (user.emailAddresses.find((entry) => entry.id === primaryEmailId)?.emailAddress ?? null)
+    : (user.emailAddresses[0]?.emailAddress ?? null);
 
   const fallbackFullName = [user.firstName, user.lastName]
     .filter((value): value is string => Boolean(value))

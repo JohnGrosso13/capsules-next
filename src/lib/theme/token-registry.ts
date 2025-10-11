@@ -34,7 +34,15 @@ export type ThemeTokenValueKind =
   | "timingFunction"
   | "other";
 
-type TailwindGroup = "colors" | "borderRadius" | "fontFamily" | "boxShadow" | "backgroundImage" | "spacing" | "transitionDuration" | "transitionTimingFunction";
+type TailwindGroup =
+  | "colors"
+  | "borderRadius"
+  | "fontFamily"
+  | "boxShadow"
+  | "backgroundImage"
+  | "spacing"
+  | "transitionDuration"
+  | "transitionTimingFunction";
 
 export interface ThemeTokenDefinition {
   readonly id: string;
@@ -3544,7 +3552,6 @@ export const themeTokenRegistry = [
     valueKind: "color",
     tags: ["style", "party", "accent"],
   },
-
 ] as const satisfies readonly ThemeTokenDefinition[];
 
 export type ThemeTokenId = (typeof themeTokenRegistry)[number]["id"];
@@ -3559,17 +3566,20 @@ export type ThemeTokenMeta = {
   readonly tags: readonly string[];
 };
 
-const THEME_TOKEN_META_ENTRIES = themeTokenRegistry.map((token) => [
-  token.cssVar,
-  {
-    id: token.id as ThemeTokenId,
-    cssVar: token.cssVar as ThemeTokenCssVar,
-    category: token.category,
-    valueKind: token.valueKind,
-    label: token.label,
-    tags: token.tags ?? [],
-  },
-] as const);
+const THEME_TOKEN_META_ENTRIES = themeTokenRegistry.map(
+  (token) =>
+    [
+      token.cssVar,
+      {
+        id: token.id as ThemeTokenId,
+        cssVar: token.cssVar as ThemeTokenCssVar,
+        category: token.category,
+        valueKind: token.valueKind,
+        label: token.label,
+        tags: token.tags ?? [],
+      },
+    ] as const,
+);
 
 export const themeTokenMetaByCssVar = Object.freeze(
   Object.fromEntries(THEME_TOKEN_META_ENTRIES),
@@ -3625,5 +3635,3 @@ export function asCssVar(value: ThemeTokenCssVar): string {
 }
 
 export const tailwindThemeExtension = buildTailwindThemeExtension();
-
-

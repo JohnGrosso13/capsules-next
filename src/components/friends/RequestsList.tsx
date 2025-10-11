@@ -61,11 +61,16 @@ export function RequestsList({
                 <MicrophoneStage size={16} weight="duotone" /> {invite.hostName}
               </span>
               <span className={styles.requestLabel}>
-                Party invite{invite.topic ? ` · ${invite.topic}` : ""} {expiry ? ` · ${expiry}` : ""}
+                Party invite{invite.topic ? ` · ${invite.topic}` : ""}{" "}
+                {expiry ? ` · ${expiry}` : ""}
               </span>
             </div>
             <div className={styles.requestActions}>
-              <button type="button" className={styles.primaryAction} onClick={() => onAcceptInvite(invite.id)}>
+              <button
+                type="button"
+                className={styles.primaryAction}
+                onClick={() => onAcceptInvite(invite.id)}
+              >
                 Join
               </button>
               <button type="button" onClick={() => onDeclineInvite(invite.id)}>
@@ -82,7 +87,11 @@ export function RequestsList({
             <span className={styles.requestLabel}>Incoming request</span>
           </div>
           <div className={styles.requestActions}>
-            <button type="button" className={styles.primaryAction} onClick={() => onAccept(item.id)}>
+            <button
+              type="button"
+              className={styles.primaryAction}
+              onClick={() => onAccept(item.id)}
+            >
               Accept
             </button>
             <button type="button" onClick={() => onDecline(item.id)}>

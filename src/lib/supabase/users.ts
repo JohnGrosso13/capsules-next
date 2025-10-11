@@ -56,11 +56,7 @@ export async function ensureAliasUserFromName(name: string, avatarUrl: string | 
     full_name: normalized,
     avatar_url: avatarUrl ?? null,
   };
-  const result = await db
-    .from("users")
-    .insert([insert])
-    .select<{ id: string }>("id")
-    .single();
+  const result = await db.from("users").insert([insert]).select<{ id: string }>("id").single();
   const created = handleResult(result, "users.ensureAlias.insert");
   if (!created?.id) {
     throw new Error("users.ensureAlias.insert: missing id in response");

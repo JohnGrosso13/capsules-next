@@ -9,10 +9,22 @@ import { PartyPanel } from "@/components/party/PartyPanel";
 import { useFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import { usePartyContext } from "@/components/providers/PartyProvider";
 import { ChatPanel } from "@/components/chat/ChatPanel";
-import { GroupChatOverlay, type GroupChatOverlaySubmitPayload } from "@/components/chat/GroupChatOverlay";
-import { useChatContext, type ChatFriendTarget, type ChatSession } from "@/components/providers/ChatProvider";
+import {
+  GroupChatOverlay,
+  type GroupChatOverlaySubmitPayload,
+} from "@/components/chat/GroupChatOverlay";
+import {
+  useChatContext,
+  type ChatFriendTarget,
+  type ChatSession,
+} from "@/components/providers/ChatProvider";
 import { type FriendItem } from "@/hooks/useFriendsData";
-import { UsersThree, ChatsCircle, Handshake, MicrophoneStage } from "@phosphor-icons/react/dist/ssr";
+import {
+  UsersThree,
+  ChatsCircle,
+  Handshake,
+  MicrophoneStage,
+} from "@phosphor-icons/react/dist/ssr";
 import { usePathname } from "next/navigation";
 
 type RailTab = "friends" | "party" | "chats" | "requests";
@@ -212,7 +224,9 @@ export function ConnectionsRail() {
       if (topic) return `Live now: ${topic}`;
       const ownerName = partySession.metadata.ownerDisplayName?.trim();
       if (ownerName) {
-        return partySession.isOwner ? "You're hosting a party right now." : `${ownerName} is hosting a party.`;
+        return partySession.isOwner
+          ? "You're hosting a party right now."
+          : `${ownerName} is hosting a party.`;
       }
       return "A party is live right now.";
     }
@@ -284,7 +298,16 @@ export function ConnectionsRail() {
         setGroupBusy(false);
       }
     },
-    [addParticipantsToGroup, chatSessions, closeGroupFlow, friendTargetMap, groupFlow, setActiveRailTab, setRailMode, startGroupChat],
+    [
+      addParticipantsToGroup,
+      chatSessions,
+      closeGroupFlow,
+      friendTargetMap,
+      groupFlow,
+      setActiveRailTab,
+      setRailMode,
+      startGroupChat,
+    ],
   );
   const inviteSession = React.useMemo(() => {
     if (groupFlow?.mode !== "invite") return null;
@@ -361,12 +384,6 @@ export function ConnectionsRail() {
       window.removeEventListener("capsule:chat:status", handleChatStatus as EventListener);
   }, []);
 
-
-
-
-
-
-
   React.useEffect(() => {
     function handleConnectionUpdate(event: Event) {
       const detail = (event as CustomEvent<ConnectionSummaryDetail>).detail;
@@ -423,7 +440,10 @@ export function ConnectionsRail() {
     }
     window.addEventListener("capsule:connections:update", handleConnectionUpdate as EventListener);
     return () =>
-      window.removeEventListener("capsule:connections:update", handleConnectionUpdate as EventListener);
+      window.removeEventListener(
+        "capsule:connections:update",
+        handleConnectionUpdate as EventListener,
+      );
   }, []);
 
   const connectedFriends = React.useMemo(() => countConnectedFriends(friends), [friends]);
@@ -449,7 +469,11 @@ export function ConnectionsRail() {
         badge: chatUnreadCount > 0 ? chatUnreadCount : null,
       },
       requests: {
-        description: formatRequestsSummary(incomingRequests.length, outgoingRequests.length, partyInvites.length),
+        description: formatRequestsSummary(
+          incomingRequests.length,
+          outgoingRequests.length,
+          partyInvites.length,
+        ),
         badge: totalPendingRequests > 0 ? totalPendingRequests : null,
       },
     } as const;
@@ -458,9 +482,9 @@ export function ConnectionsRail() {
       const override = connectionOverrides[def.key];
       const fallback = defaults[def.key];
       const description = override?.description ?? fallback.description;
-      const candidateBadge =
-        typeof override?.badge === "number" ? override.badge : fallback.badge;
-      const badge = typeof candidateBadge === "number" && candidateBadge > 0 ? candidateBadge : null;
+      const candidateBadge = typeof override?.badge === "number" ? override.badge : fallback.badge;
+      const badge =
+        typeof candidateBadge === "number" && candidateBadge > 0 ? candidateBadge : null;
       return {
         key: def.key,
         title: def.title,
@@ -591,11 +615,7 @@ export function ConnectionsRail() {
   }, [pathname]);
 
   const partyButtonLabel =
-    partyStatus === "loading"
-      ? "Connecting..."
-      : partySession
-        ? "Party Live"
-        : "Party Voice";
+    partyStatus === "loading" ? "Connecting..." : partySession ? "Party Live" : "Party Voice";
   const partyButtonDisabled = partyStatus === "loading";
   const isPartyActive = activeRailTab === "party";
   const showPartyLivePill = Boolean(partySession);
@@ -622,14 +642,13 @@ export function ConnectionsRail() {
                   </span>
                   <span className={homeStyles.connectionTileTitle}>{tile.title}</span>
                 </div>
-              {tile.badge !== null ? (
-                <span
-                  className={`${homeStyles.connectionTileBadge} ${
-                    tile.badgeIcon ? homeStyles.connectionTileBadgeToken : ""
-                  }`.trim()}
-                >
-                  {tile.badgeIcon
-                    ? (
+                {tile.badge !== null ? (
+                  <span
+                    className={`${homeStyles.connectionTileBadge} ${
+                      tile.badgeIcon ? homeStyles.connectionTileBadgeToken : ""
+                    }`.trim()}
+                  >
+                    {tile.badgeIcon ? (
                       <span className={homeStyles.connectionTileBadgeIcon} aria-hidden>
                         {React.cloneElement(tile.badgeIcon, {
                           className: `${homeStyles.connectionTileBadgeGlyph} ${
@@ -639,15 +658,14 @@ export function ConnectionsRail() {
                           "aria-hidden": true,
                         })}
                       </span>
-                    )
-                    : null}
-                  <span className={homeStyles.connectionTileBadgeCount}>{tile.badge}</span>
-                </span>
-              ) : null}
-            </div>
-            <p className={homeStyles.connectionTileDescription}>{tile.description}</p>
-          </button>
-        ))}
+                    ) : null}
+                    <span className={homeStyles.connectionTileBadgeCount}>{tile.badge}</span>
+                  </span>
+                ) : null}
+              </div>
+              <p className={homeStyles.connectionTileDescription}>{tile.description}</p>
+            </button>
+          ))}
         </div>
       ) : (
         <div className={homeStyles.railConnections}>
@@ -764,6 +782,3 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
-
-
-

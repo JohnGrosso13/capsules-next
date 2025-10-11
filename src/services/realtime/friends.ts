@@ -9,7 +9,11 @@ export const FRIEND_CHANNEL_PREFIX = "user";
 export const FRIEND_EVENTS_NAMESPACE = "friends";
 export const FRIEND_PRESENCE_CHANNEL = "presence:friends";
 
-function grantCapability(capabilities: RealtimeCapabilities, channel: string, operations: string[]): void {
+function grantCapability(
+  capabilities: RealtimeCapabilities,
+  channel: string,
+  operations: string[],
+): void {
   const trimmed = channel.trim();
   if (!trimmed) return;
   const next = new Set(capabilities[trimmed] ?? []);
@@ -97,7 +101,9 @@ async function getCachedFriendIds(userId: string): Promise<string[]> {
   return fetchPromise;
 }
 
-export async function createFriendRealtimeAuth(userId: string): Promise<RealtimeAuthPayload | null> {
+export async function createFriendRealtimeAuth(
+  userId: string,
+): Promise<RealtimeAuthPayload | null> {
   const authProvider = getRealtimeAuthProvider();
   if (!authProvider) return null;
   const capabilities: RealtimeCapabilities = {
@@ -118,7 +124,11 @@ export async function createFriendRealtimeAuth(userId: string): Promise<Realtime
 
   try {
     const friendIds = await getCachedFriendIds(userId);
-    console.log("Realtime chat capabilities", { userId, friendIds, capabilitiesBeforeFriends: { ...capabilities } });
+    console.log("Realtime chat capabilities", {
+      userId,
+      friendIds,
+      capabilitiesBeforeFriends: { ...capabilities },
+    });
     friendIds.forEach((friendId) => {
       try {
         grantCapability(capabilities, getChatDirectChannel(friendId), ["publish"]);
@@ -138,4 +148,3 @@ export async function createFriendRealtimeAuth(userId: string): Promise<Realtime
     throw error;
   }
 }
-

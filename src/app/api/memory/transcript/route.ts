@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { indexMemory } from "@/lib/supabase/memories";
 
@@ -47,7 +46,8 @@ export async function POST(req: Request) {
       postId: null,
       metadata,
       rawText: text,
-      source: typeof metadata.source === "string" ? (metadata.source as string) : "voice_transcription",
+      source:
+        typeof metadata.source === "string" ? (metadata.source as string) : "voice_transcription",
       eventAt: typeof metadata.captured_at === "string" ? (metadata.captured_at as string) : null,
     });
     return NextResponse.json({ success: true });

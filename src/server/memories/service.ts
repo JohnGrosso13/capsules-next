@@ -1,7 +1,11 @@
 import { embedText, getEmbeddingModelConfig, summarizeMemory } from "@/lib/ai/openai";
 import { getDatabaseAdminClient } from "@/config/database";
 import type { DatabaseError, DatabaseQueryBuilder } from "@/ports/database";
-import { deleteMemoryVectors, queryMemoryVectors, upsertMemoryVector } from "@/services/memories/vector-store";
+import {
+  deleteMemoryVectors,
+  queryMemoryVectors,
+  upsertMemoryVector,
+} from "@/services/memories/vector-store";
 import { normalizeLegacyMemoryRow } from "@/lib/supabase/posts";
 import { getSearchIndex } from "@/config/search-index";
 import type { SearchIndexRecord } from "@/ports/search-index";
@@ -75,10 +79,12 @@ export async function indexMemory({
   tags?: string[] | null;
   eventAt?: string | Date | null;
 }) {
-  const meta: Record<string, unknown> = metadata && typeof metadata === "object" ? { ...metadata } : {};
+  const meta: Record<string, unknown> =
+    metadata && typeof metadata === "object" ? { ...metadata } : {};
 
   const originalTitle = typeof title === "string" && title.trim().length ? title.trim() : null;
-  const originalDescription = typeof description === "string" && description.trim().length ? description.trim() : null;
+  const originalDescription =
+    typeof description === "string" && description.trim().length ? description.trim() : null;
 
   if (originalTitle && typeof meta.original_title !== "string") {
     meta.original_title = originalTitle;
@@ -132,7 +138,9 @@ export async function indexMemory({
   maybeAdd(meta.raw_text);
   maybeAdd(meta.original_text);
 
-  const summaryInputText = summaryPieces.length ? summaryPieces.join("\n") : originalDescription ?? originalTitle ?? "";
+  const summaryInputText = summaryPieces.length
+    ? summaryPieces.join("\n")
+    : (originalDescription ?? originalTitle ?? "");
 
   let finalTitle = originalTitle;
   let finalDescription = originalDescription ?? summaryInputText;
@@ -168,7 +176,11 @@ export async function indexMemory({
     console.warn("memory summarization failed", error);
   }
 
-  if (originalDescription && finalDescription !== originalDescription && typeof meta.original_text !== "string") {
+  if (
+    originalDescription &&
+    finalDescription !== originalDescription &&
+    typeof meta.original_text !== "string"
+  ) {
     meta.original_text = originalDescription;
   }
 
@@ -183,10 +195,17 @@ export async function indexMemory({
     meta,
   };
 
-  const embeddingSource = [finalTitle, finalDescription, mediaType, ...(Array.isArray(meta.summary_tags) ? (meta.summary_tags as string[]) : [])]
+  const embeddingSource = [
+    finalTitle,
+    finalDescription,
+    mediaType,
+    ...(Array.isArray(meta.summary_tags) ? (meta.summary_tags as string[]) : []),
+  ]
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
     .join(" ");
-  const text = embeddingSource.length ? embeddingSource : [title, description, mediaType].filter(Boolean).join(" ");
+  const text = embeddingSource.length
+    ? embeddingSource
+    : [title, description, mediaType].filter(Boolean).join(" ");
   const { dimensions: expectedEmbeddingDim } = getEmbeddingModelConfig();
   let embedding: number[] | null = null;
 
@@ -227,7 +246,9 @@ export async function indexMemory({
     const memoryId = toStringId(inserted?.id);
     if (!memoryId) return;
 
-    const persistedEmbedding = Array.isArray(inserted?.embedding) ? (inserted?.embedding as number[]) : null;
+    const persistedEmbedding = Array.isArray(inserted?.embedding)
+      ? (inserted?.embedding as number[])
+      : null;
     const vectorCandidate =
       embedding && embedding.length
         ? embedding
@@ -272,13 +293,16 @@ export async function indexMemory({
           createdAt: typeof inserted?.created_at === "string" ? inserted?.created_at : null,
           tags: Array.isArray(meta.summary_tags)
             ? (meta.summary_tags as unknown[])
-                .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+                .filter(
+                  (value): value is string => typeof value === "string" && value.trim().length > 0,
+                )
                 .map((value) => value.trim())
             : null,
           facets: {
             source: effectiveSource ?? undefined,
             holiday:
-              meta.summary_time && typeof (meta.summary_time as Record<string, unknown>).holiday === "string"
+              meta.summary_time &&
+              typeof (meta.summary_time as Record<string, unknown>).holiday === "string"
                 ? ((meta.summary_time as Record<string, unknown>).holiday as string)
                 : undefined,
           },
@@ -300,13 +324,7 @@ type MemoryKindFilter = {
   sourceExcludes: string[] | null;
 };
 
-const BANNER_SOURCE_TOKENS = [
-  "capsule_banner",
-  "banner",
-  "capsule_tile",
-  "tile",
-  "promo_tile",
-];
+const BANNER_SOURCE_TOKENS = ["capsule_banner", "banner", "capsule_tile", "tile", "promo_tile"];
 
 function normalizeSourceValue(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -437,9 +455,9 @@ export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: 
 
   let builder = db
     .from("memories")
-    .select<Record<string, unknown>>(
-      "id, kind, media_url, media_type, title, description, created_at, meta",
-    )
+    .select<
+      Record<string, unknown>
+    >("id, kind, media_url, media_type, title, description, created_at, meta")
     .eq("owner_user_id", ownerId)
     .order("created_at", { ascending: false })
     .limit(DEFAULT_LIST_LIMIT);
@@ -526,7 +544,11 @@ export async function searchMemories({
 
   if (searchIndex) {
     try {
-      const matches = await searchIndex.search({ ownerId, text: trimmed, limit: Math.max(limit * 3, limit) });
+      const matches = await searchIndex.search({
+        ownerId,
+        text: trimmed,
+        limit: Math.max(limit * 3, limit),
+      });
       matches.forEach((match, index) => {
         const score = (typeof match.score === "number" ? match.score : 0) - index * 0.001;
         addCandidate(match.id, score);
@@ -551,9 +573,9 @@ export async function searchMemories({
   try {
     const result = await db
       .from("memories")
-      .select<Record<string, unknown>>(
-        "id, kind, media_url, media_type, title, description, created_at, meta",
-      )
+      .select<
+        Record<string, unknown>
+      >("id, kind, media_url, media_type, title, description, created_at, meta")
       .in("id", ids)
       .fetch();
 
@@ -627,8 +649,7 @@ export async function deleteMemories({
 }) {
   const ids = Array.isArray(body.ids) ? body.ids.map(String).filter(Boolean) : [];
   const urls = Array.isArray(body.urls) ? body.urls.map(String).filter(Boolean) : [];
-  const kind =
-    typeof body.kind === "string" && body.kind.trim().length ? body.kind.trim() : null;
+  const kind = typeof body.kind === "string" && body.kind.trim().length ? body.kind.trim() : null;
   const deleteAll = Boolean(body.all);
 
   const applyMemoryFilters = <T>(builder: DatabaseQueryBuilder<T>): DatabaseQueryBuilder<T> => {
@@ -646,9 +667,7 @@ export async function deleteMemories({
   const pineconeIds = new Set<string>();
 
   try {
-    const preload = await applyMemoryFilters(
-      db.from("memories").select<MemoryIdRow>("id"),
-    ).fetch();
+    const preload = await applyMemoryFilters(db.from("memories").select<MemoryIdRow>("id")).fetch();
 
     if (!preload.error && Array.isArray(preload.data)) {
       for (const row of preload.data) {
@@ -713,21 +732,15 @@ export async function deleteMemories({
   };
 
   if (deleteAll) {
-    deletedLegacy += await deleteLegacyRecords(
-      (builder) => builder,
-      "legacy delete all error",
-    );
+    deletedLegacy += await deleteLegacyRecords((builder) => builder, "legacy delete all error");
   } else {
     if (ids.length) {
       for (const column of ["id", "uuid", "item_id", "memory_id"]) {
-        deletedLegacy += await deleteLegacyRecords(
-          (builder) => {
-            let scoped = builder;
-            if (kind) scoped = scoped.eq("kind", kind);
-            return scoped.in(column, ids);
-          },
-          "memory_items delete error",
-        );
+        deletedLegacy += await deleteLegacyRecords((builder) => {
+          let scoped = builder;
+          if (kind) scoped = scoped.eq("kind", kind);
+          return scoped.in(column, ids);
+        }, "memory_items delete error");
       }
     }
 
@@ -741,14 +754,11 @@ export async function deleteMemories({
         "public_url",
         "path",
       ]) {
-        deletedLegacy += await deleteLegacyRecords(
-          (builder) => {
-            let scoped = builder;
-            if (kind) scoped = scoped.eq("kind", kind);
-            return scoped.in(column, urls);
-          },
-          "memory_items delete error",
-        );
+        deletedLegacy += await deleteLegacyRecords((builder) => {
+          let scoped = builder;
+          if (kind) scoped = scoped.eq("kind", kind);
+          return scoped.in(column, urls);
+        }, "memory_items delete error");
       }
     }
 

@@ -67,10 +67,9 @@ function mapRow(row: Record<string, unknown>): UploadSessionRecord | null {
         metadataValue && typeof metadataValue === "object"
           ? (metadataValue as Record<string, unknown>)
           : null,
-      derived_assets:
-        Array.isArray(derivedValue)
-          ? (derivedValue as Array<Record<string, unknown>>)
-          : null,
+      derived_assets: Array.isArray(derivedValue)
+        ? (derivedValue as Array<Record<string, unknown>>)
+        : null,
       status: String(row.status) as UploadSessionStatus,
       client_ip: typeof row.client_ip === "string" ? row.client_ip : null,
       turnstile_action: typeof row.turnstile_action === "string" ? row.turnstile_action : null,
@@ -81,19 +80,18 @@ function mapRow(row: Record<string, unknown>): UploadSessionRecord | null {
       completed_at: row.completed_at ? String(row.completed_at) : null,
       error_reason: typeof row.error_reason === "string" ? row.error_reason : null,
       memory_id: row.memory_id ? String(row.memory_id) : null,
-      parts:
-        Array.isArray(partsValue)
-          ? (partsValue as Array<Record<string, unknown>>)
-              .map((entry) => {
-                const partNumber = toNumber(entry.partNumber ?? entry.part_number);
-                const etagRaw = entry.etag ?? entry.ETag ?? null;
-                if (!partNumber || typeof etagRaw !== "string") {
-                  return null;
-                }
-                return { partNumber, etag: etagRaw };
-              })
-              .filter((entry): entry is { partNumber: number; etag: string } => Boolean(entry))
-          : null,
+      parts: Array.isArray(partsValue)
+        ? (partsValue as Array<Record<string, unknown>>)
+            .map((entry) => {
+              const partNumber = toNumber(entry.partNumber ?? entry.part_number);
+              const etagRaw = entry.etag ?? entry.ETag ?? null;
+              if (!partNumber || typeof etagRaw !== "string") {
+                return null;
+              }
+              return { partNumber, etag: etagRaw };
+            })
+            .filter((entry): entry is { partNumber: number; etag: string } => Boolean(entry))
+        : null,
     };
   } catch (error) {
     console.warn("map upload session failed", error);
@@ -218,8 +216,9 @@ export async function getUploadSessionByUploadId(
   return row ? mapRow(row as Record<string, unknown>) : null;
 }
 
-
-export async function listUploadSessionsByIds(sessionIds: string[]): Promise<UploadSessionRecord[]> {
+export async function listUploadSessionsByIds(
+  sessionIds: string[],
+): Promise<UploadSessionRecord[]> {
   if (!sessionIds.length) return [];
   const result = await db
     .from("media_upload_sessions")
@@ -245,15 +244,9 @@ export async function updateUploadSessionStatus(
     completed_at: string | null;
   }>,
 ): Promise<void> {
-  const result = await db
-    .from("media_upload_sessions")
-    .update(patch)
-    .eq("id", sessionId)
-    .fetch();
+  const result = await db.from("media_upload_sessions").update(patch).eq("id", sessionId).fetch();
 
   if (result.error) {
     console.warn("update upload session status failed", result.error);
   }
 }
-
-

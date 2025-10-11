@@ -86,7 +86,11 @@
   width: 34px;
   height: 34px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--color-brand-strong), color-mix(in srgb, var(--color-brand) 85%, var(--color-accent)));
+  background: linear-gradient(
+    135deg,
+    var(--color-brand-strong),
+    color-mix(in srgb, var(--color-brand) 85%, var(--color-accent))
+  );
   box-shadow: var(
     --create-brand-mark-shadow,
     0 12px 26px rgba(79, 70, 229, 0.35),
@@ -178,11 +182,7 @@
   justify-content: center;
   border-radius: 999px;
   border: 1px solid var(--create-icon-button-border, var(--pill-border));
-  background: linear-gradient(
-    180deg,
-    var(--pill-bg-1),
-    var(--pill-bg-2)
-  );
+  background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
   color: var(--text);
   box-shadow: var(
     --create-icon-button-shadow,
@@ -256,9 +256,3 @@
 .heroCta {
   justify-self: center;
 }
-
-
-
-
-
-

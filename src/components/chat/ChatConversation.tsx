@@ -4,7 +4,11 @@ import * as React from "react";
 import Image from "next/image";
 import { ArrowLeft, PaperPlaneTilt, Trash, UserPlus } from "@phosphor-icons/react/dist/ssr";
 
-import type { ChatMessage, ChatParticipant, ChatSession } from "@/components/providers/ChatProvider";
+import type {
+  ChatMessage,
+  ChatParticipant,
+  ChatSession,
+} from "@/components/providers/ChatProvider";
 import { useCurrentUser } from "@/services/auth/client";
 
 import styles from "./chat.module.css";
@@ -51,7 +55,11 @@ type ChatConversationProps = {
   onInviteParticipants?: () => void;
 };
 
-function renderConversationAvatar(session: ChatSession, remoteParticipants: ChatParticipant[], title: string) {
+function renderConversationAvatar(
+  session: ChatSession,
+  remoteParticipants: ChatParticipant[],
+  title: string,
+) {
   if (session.avatar) {
     return (
       <Image
@@ -65,7 +73,10 @@ function renderConversationAvatar(session: ChatSession, remoteParticipants: Chat
     );
   }
   if (session.type === "group") {
-    const visible = (remoteParticipants.length ? remoteParticipants : session.participants).slice(0, 3);
+    const visible = (remoteParticipants.length ? remoteParticipants : session.participants).slice(
+      0,
+      3,
+    );
     return (
       <span className={styles.conversationAvatarGroup} aria-hidden>
         {visible.map((participant, index) =>
@@ -86,7 +97,9 @@ function renderConversationAvatar(session: ChatSession, remoteParticipants: Chat
           ),
         )}
         {session.participants.length > visible.length ? (
-          <span className={`${styles.conversationAvatarFallback} ${styles.conversationAvatarOverflow}`.trim()}>
+          <span
+            className={`${styles.conversationAvatarFallback} ${styles.conversationAvatarOverflow}`.trim()}
+          >
             +{session.participants.length - visible.length}
           </span>
         ) : null}
@@ -106,12 +119,20 @@ function renderConversationAvatar(session: ChatSession, remoteParticipants: Chat
       />
     );
   }
-  return <span className={styles.conversationAvatarFallback}>{initialsFrom(primary?.name ?? title)}</span>;
+  return (
+    <span className={styles.conversationAvatarFallback}>
+      {initialsFrom(primary?.name ?? title)}
+    </span>
+  );
 }
 
 function renderStatus(message: ChatMessage): React.ReactNode {
   if (message.status === "failed") {
-    return <span className={`${styles.messageStatus} ${styles.messageStatusFailed}`.trim()}>Failed to send</span>;
+    return (
+      <span className={`${styles.messageStatus} ${styles.messageStatusFailed}`.trim()}>
+        Failed to send
+      </span>
+    );
   }
   if (message.status === "pending") {
     return <span className={styles.messageStatus}>Sending...</span>;
@@ -192,7 +213,12 @@ export function ChatConversation({
       <div className={styles.conversationHeader}>
         <div className={styles.conversationHeaderLeft}>
           {onBack ? (
-            <button type="button" className={styles.conversationAction} onClick={onBack} aria-label="Back to chats">
+            <button
+              type="button"
+              className={styles.conversationAction}
+              onClick={onBack}
+              aria-label="Back to chats"
+            >
               <ArrowLeft size={18} weight="bold" />
             </button>
           ) : null}
@@ -231,7 +257,11 @@ export function ChatConversation({
       {session.type === "group" ? (
         <div className={styles.conversationParticipants}>
           {session.participants.map((participant) => (
-            <span key={participant.id} className={styles.conversationParticipant} title={participant.name}>
+            <span
+              key={participant.id}
+              className={styles.conversationParticipant}
+              title={participant.name}
+            >
               {participant.avatar ? (
                 <Image
                   src={participant.avatar}
@@ -242,7 +272,9 @@ export function ChatConversation({
                   sizes="28px"
                 />
               ) : (
-                <span className={styles.conversationParticipantInitials}>{initialsFrom(participant.name)}</span>
+                <span className={styles.conversationParticipantInitials}>
+                  {initialsFrom(participant.name)}
+                </span>
               )}
             </span>
           ))}
@@ -253,11 +285,14 @@ export function ChatConversation({
         {session.messages.map((message) => {
           const isSelf = message.authorId ? selfIdentifiers.has(message.authorId) : false;
           const author = message.authorId ? participantMap.get(message.authorId) : null;
-          const avatar = isSelf ? selfAvatar : author?.avatar ?? null;
-          const displayName = isSelf ? selfName : author?.name ?? "Member";
+          const avatar = isSelf ? selfAvatar : (author?.avatar ?? null);
+          const displayName = isSelf ? selfName : (author?.name ?? "Member");
           const statusNode = renderStatus(message);
           return (
-            <div key={message.id} className={`${styles.messageItem} ${isSelf ? styles.messageItemSelf : styles.messageItemOther}`.trim()}>
+            <div
+              key={message.id}
+              className={`${styles.messageItem} ${isSelf ? styles.messageItemSelf : styles.messageItemOther}`.trim()}
+            >
               {!isSelf ? (
                 <span className={styles.messageAvatar} aria-hidden>
                   {avatar ? (
@@ -270,16 +305,24 @@ export function ChatConversation({
                       sizes="36px"
                     />
                   ) : (
-                    <span className={styles.messageAvatarFallback}>{initialsFrom(displayName)}</span>
+                    <span className={styles.messageAvatarFallback}>
+                      {initialsFrom(displayName)}
+                    </span>
                   )}
                 </span>
               ) : null}
               <div className={styles.messageBubbleGroup}>
                 <div className={styles.messageHeader}>
                   {!isSelf ? <span className={styles.messageAuthor}>{displayName}</span> : null}
-                  <span className={styles.messageTimestamp}>{formatMessageTime(message.sentAt)}</span>
+                  <span className={styles.messageTimestamp}>
+                    {formatMessageTime(message.sentAt)}
+                  </span>
                 </div>
-                <div className={`${styles.messageBubble} ${isSelf ? styles.messageBubbleSelf : ""}`.trim()}>{message.body}</div>
+                <div
+                  className={`${styles.messageBubble} ${isSelf ? styles.messageBubbleSelf : ""}`.trim()}
+                >
+                  {message.body}
+                </div>
                 {statusNode ? <div className={styles.messageMeta}>{statusNode}</div> : null}
               </div>
             </div>

@@ -27,7 +27,8 @@ export function FriendsRail({
   return (
     <div className={`${friendsStyles.list}`.trim()}>
       {friends.map((friend, index) => {
-        const identifier = friend.userId ?? friend.key ?? (friend.id ? String(friend.id) : `friend-${index}`);
+        const identifier =
+          friend.userId ?? friend.key ?? (friend.id ? String(friend.id) : `friend-${index}`);
         const listKey = `${identifier}-${index}`;
         const canTarget = Boolean(friend.userId || friend.key || friend.id);
         const isOpen = activeTarget === identifier;

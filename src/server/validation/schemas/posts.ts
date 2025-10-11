@@ -68,4 +68,3 @@ export const createPostResponseSchema = z.object({
   success: z.literal(true),
   id: z.string(),
 });
-

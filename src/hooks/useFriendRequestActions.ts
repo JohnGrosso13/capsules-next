@@ -55,4 +55,3 @@ export function useFriendRequestActions(refresh?: () => Promise<void>): FriendRe
     [refresh],
   );
 }
-

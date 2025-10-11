@@ -127,9 +127,10 @@ export type ComposerFormActions = {
   };
 };
 
-export function useComposerFormReducer(
-  overrides?: Partial<ComposerFormState>,
-): { state: ComposerFormState; actions: ComposerFormActions } {
+export function useComposerFormReducer(overrides?: Partial<ComposerFormState>): {
+  state: ComposerFormState;
+  actions: ComposerFormActions;
+} {
   const [state, dispatch] = React.useReducer(reducer, { ...initialState, ...overrides });
 
   const actions = React.useMemo<ComposerFormActions>(() => {

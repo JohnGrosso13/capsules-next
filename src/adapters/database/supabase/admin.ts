@@ -47,10 +47,17 @@ type SupabaseFilterLike<T> = PromiseLike<SupabaseQueryResponse<T>> & {
   like(column: string, value: string): SupabaseFilterLike<T>;
   ilike(column: string, value: string): SupabaseFilterLike<T>;
   in(column: string, values: readonly unknown[]): SupabaseFilterLike<T>;
-  contains(column: string, value: unknown, options?: Record<string, unknown>): SupabaseFilterLike<T>;
+  contains(
+    column: string,
+    value: unknown,
+    options?: Record<string, unknown>,
+  ): SupabaseFilterLike<T>;
   filter(column: string, operator: string, value: unknown): SupabaseFilterLike<T>;
   or(filters: string, options?: { foreignTable?: string }): SupabaseFilterLike<T>;
-  order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }): SupabaseFilterLike<T>;
+  order(
+    column: string,
+    options?: { ascending?: boolean; nullsFirst?: boolean },
+  ): SupabaseFilterLike<T>;
   limit(count: number): SupabaseFilterLike<T>;
   range(from: number, to: number): SupabaseFilterLike<T>;
   maybeSingle(): Promise<SupabaseSingleQueryResponse<T>>;
@@ -108,7 +115,11 @@ class SupabaseQueryBuilder<T> implements DatabaseQueryBuilder<T> {
     return new SupabaseQueryBuilder<T>(this.builder.in(column, values));
   }
 
-  contains(column: string, value: unknown, options?: Record<string, unknown>): DatabaseQueryBuilder<T> {
+  contains(
+    column: string,
+    value: unknown,
+    options?: Record<string, unknown>,
+  ): DatabaseQueryBuilder<T> {
     return new SupabaseQueryBuilder<T>(this.builder.contains(column, value, options));
   }
 
@@ -161,7 +172,10 @@ class SupabaseQueryBuilder<T> implements DatabaseQueryBuilder<T> {
 }
 
 class SupabaseTableBuilder implements DatabaseTableBuilder {
-  constructor(private readonly client: SupabaseClient, private readonly table: string) {}
+  constructor(
+    private readonly client: SupabaseClient,
+    private readonly table: string,
+  ) {}
 
   select<T = unknown>(columns?: string): DatabaseQueryBuilder<T> {
     const query = this.client.from(this.table).select(columns);
@@ -249,5 +263,3 @@ export function getSupabaseDatabaseAdapter(): DatabaseAdapter {
   }
   return cachedAdapter;
 }
-
-

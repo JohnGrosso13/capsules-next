@@ -66,7 +66,9 @@ export function computeDisplayUploads(
       const absoluteFull = toAbsolute(rawUrl, effectiveOrigin);
       const normalizedFull = typeof absoluteFull === "string" ? absoluteFull.trim() : "";
 
-      const metaThumb = selectMetaThumbnail(item.meta as Record<string, unknown> | null | undefined);
+      const metaThumb = selectMetaThumbnail(
+        item.meta as Record<string, unknown> | null | undefined,
+      );
       const absoluteThumb = toAbsolute(metaThumb, effectiveOrigin);
       const normalizedThumb = typeof absoluteThumb === "string" ? absoluteThumb.trim() : "";
 

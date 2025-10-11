@@ -9,29 +9,16 @@ const displayNameSchema = z
 
 export const partyCreateRequestSchema = z.object({
   displayName: displayNameSchema,
-  topic: z
-    .string()
-    .trim()
-    .min(1, "Topic cannot be empty")
-    .max(120, "Topic is too long")
-    .optional(),
+  topic: z.string().trim().min(1, "Topic cannot be empty").max(120, "Topic is too long").optional(),
 });
 
 export const partyTokenRequestSchema = z.object({
-  partyId: z
-    .string()
-    .trim()
-    .min(6, "Party id is too short")
-    .max(80, "Party id is too long"),
+  partyId: z.string().trim().min(6, "Party id is too short").max(80, "Party id is too long"),
   displayName: displayNameSchema,
 });
 
 export const partyCloseParamsSchema = z.object({
-  partyId: z
-    .string()
-    .trim()
-    .min(6, "Party id is too short")
-    .max(80, "Party id is too long"),
+  partyId: z.string().trim().min(6, "Party id is too short").max(80, "Party id is too long"),
 });
 
 const partyMetadataSchema = z.object({
@@ -87,11 +74,7 @@ export const partyInviteSummarySchema = z.object({
 export type PartyInviteSummaryPayload = z.infer<typeof partyInviteSummarySchema>;
 
 export const partyInviteSendRequestSchema = z.object({
-  partyId: z
-    .string()
-    .trim()
-    .min(6, "Party id is too short")
-    .max(80, "Party id is too long"),
+  partyId: z.string().trim().min(6, "Party id is too short").max(80, "Party id is too long"),
   recipientId: z
     .string()
     .trim()

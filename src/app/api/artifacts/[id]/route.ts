@@ -57,9 +57,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   if (!parsed.success) {
     return parsed.response;
   }
-  const ownerId = await ensureUserFromRequest(req, (parsed.data.user ?? {}) as IncomingUserPayload, {
-    allowGuests: false,
-  });
+  const ownerId = await ensureUserFromRequest(
+    req,
+    (parsed.data.user ?? {}) as IncomingUserPayload,
+    {
+      allowGuests: false,
+    },
+  );
   if (!ownerId) {
     return returnError(401, "auth_required", "Authentication required");
   }
@@ -68,28 +72,25 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     return returnError(404, "artifact_not_found", "Artifact not found");
   }
   try {
-    const assetInputs = parsed.data.assets?.map((asset) => ({
-      artifactId: params.id,
-      blockId: asset.blockId,
-      slotId: asset.slotId,
-      r2Bucket: asset.r2Bucket,
-      r2Key: asset.r2Key,
-      contentType: asset.contentType ?? null,
-      descriptor: asset.descriptor ?? null,
-    })) ?? null;
-    const patched = await applyArtifactPatch(
-      params.id,
-      parsed.data.patch,
-      {
-        ...(assetInputs && assetInputs.length ? { assets: assetInputs } : {}),
-        queueEmbedding: parsed.data.queueEmbedding ?? false,
-        event: {
-          eventType: "artifact.patch",
-          origin: "system",
-          payload: { expectedVersion: parsed.data.patch.expectedVersion },
-        },
+    const assetInputs =
+      parsed.data.assets?.map((asset) => ({
+        artifactId: params.id,
+        blockId: asset.blockId,
+        slotId: asset.slotId,
+        r2Bucket: asset.r2Bucket,
+        r2Key: asset.r2Key,
+        contentType: asset.contentType ?? null,
+        descriptor: asset.descriptor ?? null,
+      })) ?? null;
+    const patched = await applyArtifactPatch(params.id, parsed.data.patch, {
+      ...(assetInputs && assetInputs.length ? { assets: assetInputs } : {}),
+      queueEmbedding: parsed.data.queueEmbedding ?? false,
+      event: {
+        eventType: "artifact.patch",
+        origin: "system",
+        payload: { expectedVersion: parsed.data.patch.expectedVersion },
       },
-    );
+    });
     if (!patched) {
       return returnError(404, "artifact_not_found", "Artifact not found");
     }
@@ -119,12 +120,3 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     return returnError(500, "artifact_patch_failed", "Failed to update artifact");
   }
 }
-
-
-
-
-
-
-
-
-

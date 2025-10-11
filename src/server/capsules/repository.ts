@@ -89,10 +89,7 @@ export type DiscoverCapsuleSummary = {
   createdAt: string | null;
 };
 
-function resolveOwnership(
-  capsule: CapsuleRow,
-  viewerId?: string | null,
-): "owner" | "member" {
+function resolveOwnership(capsule: CapsuleRow, viewerId?: string | null): "owner" | "member" {
   const ownerId = normalizeString(capsule?.created_by_id ?? null);
   const normalizedViewer = normalizeString(viewerId ?? null);
   if (ownerId && normalizedViewer && ownerId === normalizedViewer) return "owner";
@@ -150,7 +147,10 @@ function mapProfile(row: MemberProfileRow | null): CapsuleMemberProfile | null {
   };
 }
 
-function mapMemberRow(row: CapsuleMemberDetailsRow, ownerId: string | null): CapsuleMemberSummary | null {
+function mapMemberRow(
+  row: CapsuleMemberDetailsRow,
+  ownerId: string | null,
+): CapsuleMemberSummary | null {
   const userId = normalizeString(row.user_id);
   if (!userId) return null;
   const profile = mapProfile(row.user);
@@ -217,8 +217,7 @@ function upsertSummary(
     promoTileUrl: normalizeString(capsule?.promo_tile_url ?? null),
     logoUrl: normalizeString(capsule?.logo_url ?? null),
     role: normalizeString(meta.role ?? existing?.role ?? null),
-    ownership:
-      meta.ownership === "owner" || existing?.ownership === "owner" ? "owner" : "member",
+    ownership: meta.ownership === "owner" || existing?.ownership === "owner" ? "owner" : "member",
   };
 
   if (!existing) {
@@ -259,7 +258,9 @@ export async function listCapsulesForUser(userId: string): Promise<CapsuleSummar
 
   const ownedResult = await db
     .from("capsules")
-    .select<CapsuleRow>("id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at")
+    .select<CapsuleRow>(
+      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at",
+    )
     .eq("created_by_id", userId)
     .order("created_at", { ascending: true })
     .fetch();
@@ -276,10 +277,12 @@ export async function listCapsulesForUser(userId: string): Promise<CapsuleSummar
     .filter((entry): entry is CapsuleSummary => entry !== null);
 }
 
-export async function listRecentPublicCapsules(options: {
-  excludeCreatorId?: string | null;
-  limit?: number;
-} = {}): Promise<DiscoverCapsuleSummary[]> {
+export async function listRecentPublicCapsules(
+  options: {
+    excludeCreatorId?: string | null;
+    limit?: number;
+  } = {},
+): Promise<DiscoverCapsuleSummary[]> {
   const normalizedExclude = normalizeString(options.excludeCreatorId ?? null);
   const requestedLimit = typeof options.limit === "number" ? Math.floor(options.limit) : 16;
   const normalizedLimit = Math.min(Math.max(requestedLimit, 1), 48);
@@ -287,7 +290,9 @@ export async function listRecentPublicCapsules(options: {
 
   let query = db
     .from("capsules")
-    .select<CapsuleRow>("id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at")
+    .select<CapsuleRow>(
+      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at",
+    )
     .order("created_at", { ascending: false })
     .limit(queryLimit);
 
@@ -385,7 +390,9 @@ export async function createCapsuleForUser(
     const inserted = await db
       .from("capsules")
       .insert<CapsuleInsert>(payload)
-      .select<CapsuleRow>("id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id")
+      .select<CapsuleRow>(
+        "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id",
+      )
       .single();
 
     if (inserted.error) {
@@ -566,7 +573,9 @@ export async function findCapsuleById(capsuleId: string): Promise<CapsuleRow | n
 
   const result = await db
     .from("capsules")
-    .select<CapsuleRow>("id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at")
+    .select<CapsuleRow>(
+      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at",
+    )
     .eq("id", normalizedId)
     .maybeSingle();
 
@@ -732,14 +741,12 @@ export async function upsertCapsuleMemberRequest(
   return mapped;
 }
 
-export async function setCapsuleMemberRequestStatus(
-  params: {
-    capsuleId: string;
-    requestId: string;
-    status: CapsuleMemberRequestSummary["status"];
-    responderId?: string | null;
-  },
-): Promise<CapsuleMemberRequestSummary | null> {
+export async function setCapsuleMemberRequestStatus(params: {
+  capsuleId: string;
+  requestId: string;
+  status: CapsuleMemberRequestSummary["status"];
+  responderId?: string | null;
+}): Promise<CapsuleMemberRequestSummary | null> {
   const normalizedCapsuleId = normalizeString(params.capsuleId);
   const normalizedRequestId = normalizeString(params.requestId);
   if (!normalizedCapsuleId || !normalizedRequestId) return null;
@@ -775,10 +782,7 @@ export async function setCapsuleMemberRequestStatus(
   return mapped ?? null;
 }
 
-export async function deleteCapsuleMember(
-  capsuleId: string,
-  memberId: string,
-): Promise<boolean> {
+export async function deleteCapsuleMember(capsuleId: string, memberId: string): Promise<boolean> {
   const normalizedCapsuleId = normalizeString(capsuleId);
   const normalizedMemberId = normalizeString(memberId);
   if (!normalizedCapsuleId || !normalizedMemberId) return false;

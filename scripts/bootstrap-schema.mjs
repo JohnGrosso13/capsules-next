@@ -17,7 +17,8 @@ import process from "node:process";
 import { Client } from "pg";
 
 const args = new Set(process.argv.slice(2));
-const shouldReset = args.has("--reset") || process.env.RESET === "1" || process.env.DROP_SCHEMA === "1";
+const shouldReset =
+  args.has("--reset") || process.env.RESET === "1" || process.env.DROP_SCHEMA === "1";
 
 const defaultUrl = "postgres://postgres:postgres@127.0.0.1:54322/postgres";
 const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL || defaultUrl;
@@ -50,4 +51,3 @@ main().catch((err) => {
   console.error("[bootstrap] Failed:", err?.message || err);
   process.exitCode = 1;
 });
-

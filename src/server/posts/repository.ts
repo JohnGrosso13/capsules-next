@@ -207,7 +207,9 @@ export async function listAttachmentsForPosts(postIds: string[]): Promise<Attach
   return result.data ?? [];
 }
 
-export async function fetchPostRowByIdentifier(identifier: string): Promise<PostIdentifierRow | null> {
+export async function fetchPostRowByIdentifier(
+  identifier: string,
+): Promise<PostIdentifierRow | null> {
   const normalized = identifier.trim();
   if (!normalized) return null;
 
@@ -276,11 +278,7 @@ export async function upsertPostRow(
   row: Record<string, unknown>,
   options?: Record<string, unknown>,
 ): Promise<string> {
-  const result = await db
-    .from("posts")
-    .upsert([row], options)
-    .select<PostRow>("id")
-    .single();
+  const result = await db.from("posts").upsert([row], options).select<PostRow>("id").single();
   const data = expectResult(result, "posts.upsert");
   return data.id;
 }
@@ -314,11 +312,7 @@ export async function listMemoriesByOwnerAndColumn(
 }
 
 export async function updateMemoryById(id: string, payload: Record<string, unknown>) {
-  const result = await db
-    .from("memories")
-    .update(payload)
-    .eq("id", id)
-    .fetch();
+  const result = await db.from("memories").update(payload).eq("id", id).fetch();
   if (result.error) throw decorateDatabaseError("posts.memories.update", result.error);
 }
 
@@ -348,7 +342,9 @@ export async function updateLegacyMemoryItems(
 export async function listCommentsForPost(postId: string, limit = 200): Promise<CommentDbRow[]> {
   const result = await db
     .from("comments")
-    .select<CommentDbRow>("id, client_id, post_id, content, user_name, user_avatar, capsule_id, created_at")
+    .select<CommentDbRow>(
+      "id, client_id, post_id, content, user_name, user_avatar, capsule_id, created_at",
+    )
     .eq("post_id", postId)
     .order("created_at", { ascending: true })
     .limit(limit)
@@ -360,16 +356,24 @@ export async function listCommentsForPost(postId: string, limit = 200): Promise<
 export async function fetchPostCoreById(postId: string): Promise<PostCoreDbRow | null> {
   const result = await db
     .from("posts")
-    .select<PostCoreDbRow>("id, client_id, content, user_name, media_url, author_user_id, media_prompt, poll")
+    .select<PostCoreDbRow>(
+      "id, client_id, content, user_name, media_url, author_user_id, media_prompt, poll",
+    )
     .eq("id", postId)
     .maybeSingle();
   if (result.error) {
     const code = (result.error.code ?? "").toUpperCase();
     const message = result.error.message ?? "";
-    if (code === "42703" || message.includes("column posts.poll") || message.includes("column \"poll\"")) {
+    if (
+      code === "42703" ||
+      message.includes("column posts.poll") ||
+      message.includes('column "poll"')
+    ) {
       const fallback = await db
         .from("posts")
-        .select<PostCoreDbRow>("id, client_id, content, user_name, media_url, author_user_id, media_prompt")
+        .select<PostCoreDbRow>(
+          "id, client_id, content, user_name, media_url, author_user_id, media_prompt",
+        )
         .eq("id", postId)
         .maybeSingle();
       if (fallback.error) {
@@ -432,7 +436,9 @@ export async function listMemoryIdsForPostOwnerAndSource(
   const result = await query.fetch();
   if (result.error) throw decorateDatabaseError("posts.memories.listBySource", result.error);
   return (result.data ?? [])
-    .map((row) => (typeof row?.id === "string" || typeof row?.id === "number" ? String(row.id) : null))
+    .map((row) =>
+      typeof row?.id === "string" || typeof row?.id === "number" ? String(row.id) : null,
+    )
     .filter((value): value is string => Boolean(value));
 }
 
@@ -569,7 +575,11 @@ export async function updateMemoryTitleForOwner(options: {
   if (result.error) throw decorateDatabaseError("posts.memories.updateTitle", result.error);
 }
 
-export async function upsertPollVote(postId: string, userKey: string, optionIndex: number): Promise<void> {
+export async function upsertPollVote(
+  postId: string,
+  userKey: string,
+  optionIndex: number,
+): Promise<void> {
   const result = await db
     .from("poll_votes")
     .upsert(

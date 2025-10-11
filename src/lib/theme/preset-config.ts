@@ -14,7 +14,8 @@ export type PresetThemeConfig = {
 };
 
 const SUMMER_LIGHT_OVERRIDES: Record<string, string> = {
-  "--app-bg": "radial-gradient(1200px 720px at 0% -10%, rgba(255, 196, 140, 0.35), transparent 65%), radial-gradient(980px 640px at 100% 0%, rgba(14, 181, 200, 0.24), transparent 68%), linear-gradient(120deg, rgba(254, 238, 217, 0.98) 0%, rgba(255, 226, 194, 0.96) 45%, #fff3dc 100%)",
+  "--app-bg":
+    "radial-gradient(1200px 720px at 0% -10%, rgba(255, 196, 140, 0.35), transparent 65%), radial-gradient(980px 640px at 100% 0%, rgba(14, 181, 200, 0.24), transparent 68%), linear-gradient(120deg, rgba(254, 238, 217, 0.98) 0%, rgba(255, 226, 194, 0.96) 45%, #fff3dc 100%)",
   "--surface-app": "var(--app-bg)",
   "--surface-muted": "rgba(255, 243, 224, 0.94)",
   "--surface-elevated": "rgba(255, 236, 209, 0.96)",
@@ -76,7 +77,8 @@ const SUMMER_LIGHT_OVERRIDES: Record<string, string> = {
 };
 
 const FALL_DARK_OVERRIDES: Record<string, string> = {
-  "--app-bg": "radial-gradient(1200px 720px at 0% -10%, rgba(146, 70, 30, 0.4), transparent 65%), radial-gradient(960px 620px at 100% 0%, rgba(70, 32, 18, 0.46), transparent 68%), linear-gradient(135deg, rgba(26, 12, 6, 0.98) 0%, rgba(18, 10, 6, 0.98) 45%, #0d0503 100%)",
+  "--app-bg":
+    "radial-gradient(1200px 720px at 0% -10%, rgba(146, 70, 30, 0.4), transparent 65%), radial-gradient(960px 620px at 100% 0%, rgba(70, 32, 18, 0.46), transparent 68%), linear-gradient(135deg, rgba(26, 12, 6, 0.98) 0%, rgba(18, 10, 6, 0.98) 45%, #0d0503 100%)",
   "--surface-app": "var(--app-bg)",
   "--surface-muted": "rgba(38, 20, 10, 0.92)",
   "--surface-elevated": "rgba(44, 24, 12, 0.94)",
@@ -138,7 +140,8 @@ const FALL_DARK_OVERRIDES: Record<string, string> = {
 };
 
 const WINTER_DARK_OVERRIDES: Record<string, string> = {
-  "--app-bg": "radial-gradient(1200px 720px at 0% -10%, rgba(72, 148, 255, 0.32), transparent 65%), radial-gradient(980px 640px at 100% 0%, rgba(32, 76, 150, 0.38), transparent 70%), linear-gradient(125deg, rgba(8, 18, 42, 0.98) 0%, rgba(5, 14, 34, 0.97) 45%, #030818 100%)",
+  "--app-bg":
+    "radial-gradient(1200px 720px at 0% -10%, rgba(72, 148, 255, 0.32), transparent 65%), radial-gradient(980px 640px at 100% 0%, rgba(32, 76, 150, 0.38), transparent 70%), linear-gradient(125deg, rgba(8, 18, 42, 0.98) 0%, rgba(5, 14, 34, 0.97) 45%, #030818 100%)",
   "--surface-app": "var(--app-bg)",
   "--surface-muted": "rgba(18, 32, 58, 0.9)",
   "--surface-elevated": "rgba(20, 36, 66, 0.92)",
@@ -200,7 +203,8 @@ const WINTER_DARK_OVERRIDES: Record<string, string> = {
 };
 
 const SPRING_LIGHT_OVERRIDES: Record<string, string> = {
-  "--app-bg": "radial-gradient(1200px 720px at 0% -10%, rgba(156, 236, 205, 0.32), transparent 62%), radial-gradient(1000px 660px at 100% 0%, rgba(163, 230, 216, 0.3), transparent 66%), linear-gradient(120deg, rgba(240, 255, 248, 0.98) 0%, rgba(226, 255, 242, 0.96) 45%, #f1fff7 100%)",
+  "--app-bg":
+    "radial-gradient(1200px 720px at 0% -10%, rgba(156, 236, 205, 0.32), transparent 62%), radial-gradient(1000px 660px at 100% 0%, rgba(163, 230, 216, 0.3), transparent 66%), linear-gradient(120deg, rgba(240, 255, 248, 0.98) 0%, rgba(226, 255, 242, 0.96) 45%, #f1fff7 100%)",
   "--surface-app": "var(--app-bg)",
   "--surface-muted": "rgba(233, 255, 246, 0.94)",
   "--surface-elevated": "rgba(222, 252, 238, 0.96)",

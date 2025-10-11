@@ -25,7 +25,12 @@ export default function CreatePage() {
           showDiscoveryRightRail
           promoSlot={
             // UI-only: centered gradient button below the prompter
-            <ButtonLink href="/capsule/onboarding" variant="gradient" size="lg" className={styles.heroCta}>
+            <ButtonLink
+              href="/capsule/onboarding"
+              variant="gradient"
+              size="lg"
+              className={styles.heroCta}
+            >
               Create a Capsule
             </ButtonLink>
           }

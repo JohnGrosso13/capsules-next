@@ -5,7 +5,9 @@ type JsonRecord = Record<string, unknown> | null;
 function parseJsonSafe(response: Response): Promise<JsonRecord> {
   return response
     .json()
-    .then((value) => (value && typeof value === "object" ? (value as Record<string, unknown>) : null))
+    .then((value) =>
+      value && typeof value === "object" ? (value as Record<string, unknown>) : null,
+    )
     .catch(() => null);
 }
 
@@ -136,11 +138,7 @@ export async function togglePostMemory(params: ToggleMemoryParams): Promise<Togg
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(
-      action === "remember"
-        ? { action, payload: payload ?? {} }
-        : { action },
-    ),
+    body: JSON.stringify(action === "remember" ? { action, payload: payload ?? {} } : { action }),
   };
   if (signal) {
     init.signal = signal;
@@ -171,7 +169,9 @@ export type UpdateFriendResult = {
   data: Record<string, unknown> | null;
 };
 
-export async function updatePostFriendship(options: UpdateFriendOptions): Promise<UpdateFriendResult> {
+export async function updatePostFriendship(
+  options: UpdateFriendOptions,
+): Promise<UpdateFriendResult> {
   const { action, target, signal } = options;
   const init: RequestInit = {
     method: "POST",

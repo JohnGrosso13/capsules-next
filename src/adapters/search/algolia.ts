@@ -39,7 +39,10 @@ function isAlgoliaPermissionError(error: unknown): boolean {
   };
   const message = typeof candidate.message === "string" ? candidate.message : "";
   const normalizedMessage = message.toLowerCase();
-  if (normalizedMessage.includes("not enough rights") || normalizedMessage.includes("insufficient permissions")) {
+  if (
+    normalizedMessage.includes("not enough rights") ||
+    normalizedMessage.includes("insufficient permissions")
+  ) {
     return true;
   }
   const stack = typeof candidate.stack === "string" ? candidate.stack.toLowerCase() : "";
@@ -65,7 +68,12 @@ function getErrorSummary(error: unknown): string {
   if (error instanceof Error && typeof error.message === "string") {
     return error.message;
   }
-  if (error && typeof error === "object" && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
     return String((error as { message: string }).message);
   }
   if (error === null || error === undefined) {
@@ -73,10 +81,7 @@ function getErrorSummary(error: unknown): string {
   }
   return String(error);
 }
-export function createAlgoliaSearchIndex(
-  client: SearchClient,
-  indexName: string,
-): SearchIndex {
+export function createAlgoliaSearchIndex(client: SearchClient, indexName: string): SearchIndex {
   let writesDisabled = false;
   let permissionWarningLogged = false;
 
@@ -147,14 +152,17 @@ export function createAlgoliaSearchIndex(
       const matches: SearchIndexMatch[] = [];
       const total = response.hits?.length ?? 0;
       response.hits?.forEach((hit: Record<string, unknown>, index: number) => {
-        const objectID = typeof hit.objectID === "string" ? hit.objectID : String(hit.objectID ?? "");
+        const objectID =
+          typeof hit.objectID === "string" ? hit.objectID : String(hit.objectID ?? "");
         const match: SearchIndexMatch = {
           id: objectID,
           score: total ? total - index : 1,
         };
-        const highlightSource = (hit._highlightResult as Record<string, { value?: string }> | undefined) ?? null;
+        const highlightSource =
+          (hit._highlightResult as Record<string, { value?: string }> | undefined) ?? null;
         if (highlightSource) {
-          match.highlight = highlightSource.description?.value ?? highlightSource.title?.value ?? null;
+          match.highlight =
+            highlightSource.description?.value ?? highlightSource.title?.value ?? null;
         }
         const data = hit as Record<string, unknown>;
         const tags = Array.isArray(data.tags)

@@ -36,9 +36,14 @@
   gap: clamp(1rem, 2vw, 1.5rem);
   padding: clamp(1.75rem, 3vw, 2.5rem);
   border-radius: 28px;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.1)) 80%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.1)) 80%, transparent);
   background:
-    linear-gradient(195deg, color-mix(in srgb, var(--surface-overlay, rgba(12, 18, 40, 0.92)) 92%, transparent), rgba(16, 22, 46, 0.86)),
+    linear-gradient(
+      195deg,
+      color-mix(in srgb, var(--surface-overlay, rgba(12, 18, 40, 0.92)) 92%, transparent),
+      rgba(16, 22, 46, 0.86)
+    ),
     radial-gradient(800px 320px at 0% 0%, rgba(102, 126, 255, 0.22), transparent 70%);
   box-shadow: 0 22px 70px rgba(6, 10, 26, 0.55);
   color: var(--text, #f7f8ff);
@@ -68,7 +73,9 @@
   background: linear-gradient(180deg, rgba(44, 52, 112, 0.65), rgba(33, 37, 82, 0.55));
   color: rgba(248, 250, 255, 0.92);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.32);
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
   cursor: pointer;
   z-index: 5;
 }
@@ -267,7 +274,12 @@
   width: 100%;
   border-radius: 32px;
   border: 1px solid rgba(99, 102, 241, 0.35);
-  background: linear-gradient(135deg, rgba(67, 74, 196, 0.75), rgba(45, 122, 255, 0.66) 45%, rgba(68, 206, 246, 0.58));
+  background: linear-gradient(
+    135deg,
+    rgba(67, 74, 196, 0.75),
+    rgba(45, 122, 255, 0.66) 45%,
+    rgba(68, 206, 246, 0.58)
+  );
   display: grid;
   place-items: center;
   text-align: center;
@@ -327,7 +339,10 @@
   border-radius: 999px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease;
 }
 
 .previewActionPrimary {
@@ -404,7 +419,10 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: border-color 0.18s ease, transform 0.18s ease, color 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    color 0.18s ease;
 }
 
 .memoryLinkBtn:hover:not(:disabled),
@@ -441,7 +459,10 @@
   background: linear-gradient(180deg, rgba(28, 36, 88, 0.65), rgba(16, 20, 52, 0.78));
   color: rgba(236, 240, 255, 0.92);
   cursor: pointer;
-  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
   text-align: left;
 }
 
@@ -747,12 +768,10 @@
   border-radius: 999px;
   border: 1px solid var(--pill-border);
   background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
-  box-shadow: var(--home-promptbar-focus-within-box-shadow, 0 16px 28px rgba(5,10,30,0.22));
+  box-shadow: var(--home-promptbar-focus-within-box-shadow, 0 16px 28px rgba(5, 10, 30, 0.22));
   width: 100%;
   max-width: 720px;
 }
-
-
 
 .promptSurface {
   display: flex;
@@ -778,7 +797,10 @@
   border: 1px solid rgba(129, 140, 248, 0.3);
   background: linear-gradient(180deg, rgba(38, 45, 112, 0.85), rgba(22, 28, 68, 0.9));
   color: rgba(226, 232, 255, 0.9);
-  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .promptIconBtn:hover:not(:disabled),
@@ -821,7 +843,9 @@
   font-size: 0.95rem;
   letter-spacing: 0.02em;
   box-shadow: 0 18px 36px rgba(45, 93, 255, 0.4);
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .promptGenerateBtn:hover:not(:disabled),
@@ -873,7 +897,9 @@
   font-size: 0.86rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  transition: border-color 120ms ease, transform 120ms ease;
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease;
 }
 
 .promptPresetBtn:hover,
@@ -928,7 +954,8 @@
     color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 92%, transparent)
   );
   color: var(--text, rgba(255, 255, 255, 0.94));
-  box-shadow: 0 18px 32px color-mix(in srgb, var(--composer-accent-soft, rgba(99, 102, 241, 0.22)) 48%, transparent);
+  box-shadow: 0 18px 32px
+    color-mix(in srgb, var(--composer-accent-soft, rgba(99, 102, 241, 0.22)) 48%, transparent);
   width: 100%;
 }
 
@@ -970,7 +997,9 @@
   padding: 4px 14px;
   font-size: 0.75rem;
   font-weight: 600;
-  transition: border-color 140ms ease, color 140ms ease;
+  transition:
+    border-color 140ms ease,
+    color 140ms ease;
 }
 
 .attachmentRemove:hover:not(:disabled),
@@ -984,7 +1013,6 @@
   cursor: not-allowed;
 }
 
-
 .mobileRailTrigger {
   position: absolute;
   top: 18px;
@@ -996,9 +1024,13 @@
   justify-content: center;
   border-radius: 999px;
   border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
-  background: linear-gradient(180deg, var(--pill-bg-1, rgba(255,255,255,0.12)), var(--pill-bg-2, rgba(255,255,255,0.06)));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.06))
+  );
   color: var(--text, rgba(255, 255, 255, 0.94));
-  box-shadow: var(--chip-shadow, 0 6px 14px rgba(5,10,30,0.18));
+  box-shadow: var(--chip-shadow, 0 6px 14px rgba(5, 10, 30, 0.18));
   z-index: 4;
 }
 
@@ -1074,20 +1106,21 @@
   }
 }
 
-
-
-
-
-
-
-
 .attachmentMessageRow {
   justify-content: center;
 }
 
 .attachmentChip[data-status="uploading"] {
-  border-color: color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.4)) 42%, transparent);
-  background: color-mix(in srgb, var(--composer-footer-background, rgba(10, 14, 30, 0.72)) 80%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--composer-accent, rgba(99, 102, 241, 0.4)) 42%,
+    transparent
+  );
+  background: color-mix(
+    in srgb,
+    var(--composer-footer-background, rgba(10, 14, 30, 0.72)) 80%,
+    transparent
+  );
 }
 
 .attachmentPromptBubble {
@@ -1108,21 +1141,30 @@
 }
 
 .vibeAction {
-  border: 1px solid color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 45%, transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.35)) 35%, transparent), color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.2)) 20%, transparent));
+  border: 1px solid
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 45%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.35)) 35%, transparent),
+    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.2)) 20%, transparent)
+  );
   color: var(--text, rgba(255, 255, 255, 0.94));
   border-radius: 999px;
   padding: 6px 14px;
   font-size: 0.8rem;
   font-weight: 600;
-  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease;
 }
 
 .vibeAction:hover,
 .vibeAction:focus-visible {
   transform: translateY(-1px);
   border-color: var(--composer-accent, var(--color-brand, #6366f1));
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.28)) 60%, rgba(0, 0, 0, 0.18));
+  box-shadow: 0 10px 28px
+    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.28)) 60%, rgba(0, 0, 0, 0.18));
 }
 
 .vibeAction:active {
@@ -1143,8 +1185,13 @@
 }
 
 .viewerActionBtn {
-  border: 1px solid color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 45%, transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.35)) 35%, transparent), color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.2)) 20%, transparent));
+  border: 1px solid
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 45%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.35)) 35%, transparent),
+    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.2)) 20%, transparent)
+  );
   color: var(--text, rgba(255, 255, 255, 0.94));
   border-radius: 999px;
   padding: 6px 14px;
@@ -1265,7 +1312,10 @@
   inset: 0;
   margin: auto;
   color: var(--composer-accent, var(--color-brand, #6366f1));
-  filter: drop-shadow(0 18px 28px color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.45)) 70%, transparent));
+  filter: drop-shadow(
+    0 18px 28px
+      color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.45)) 70%, transparent)
+  );
 }
 
 @keyframes brainPulse {
@@ -1334,7 +1384,9 @@
   backdrop-filter: blur(14px) saturate(160%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   cursor: pointer;
-  transition: transform 140ms ease, border-color 140ms ease;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease;
   z-index: 3;
 }
 
@@ -1382,7 +1434,11 @@
 }
 
 .attachmentError {
-  background: color-mix(in srgb, var(--composer-status-error, rgba(248, 113, 113, 0.22)) 50%, rgba(5, 8, 24, 0.85));
+  background: color-mix(
+    in srgb,
+    var(--composer-status-error, rgba(248, 113, 113, 0.22)) 50%,
+    rgba(5, 8, 24, 0.85)
+  );
   color: rgba(255, 255, 255, 0.9);
   z-index: 1;
 }
@@ -1462,7 +1518,9 @@
   border-radius: 999px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  transition: border-color 120ms ease, transform 120ms ease;
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease;
   cursor: pointer;
 }
 
@@ -1486,7 +1544,9 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   box-shadow: 0 18px 38px rgba(45, 93, 255, 0.45);
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
   cursor: pointer;
 }
 

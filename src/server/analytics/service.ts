@@ -1,8 +1,4 @@
-import {
-  fetchDailyActiveRows,
-  fetchDailyPostRows,
-  fetchOverviewSnapshot,
-} from "./repository";
+import { fetchDailyActiveRows, fetchDailyPostRows, fetchOverviewSnapshot } from "./repository";
 
 export type AnalyticsOverview = {
   totalUsers: number;
@@ -50,5 +46,7 @@ export async function fetchDailyActiveUsers(days: number = 30): Promise<TimeSeri
 
 export async function fetchDailyPosts(days: number = 30): Promise<TimeSeriesPoint[]> {
   const rows = await fetchDailyPostRows(days);
-  return normalizeSeries(rows.map((row) => ({ date: row.date, value: Number(row.posts_count ?? 0) })));
+  return normalizeSeries(
+    rows.map((row) => ({ date: row.date, value: Number(row.posts_count ?? 0) })),
+  );
 }

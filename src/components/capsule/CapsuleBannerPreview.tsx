@@ -4,10 +4,7 @@ import * as React from "react";
 import { ShareFat, Sparkle, UsersThree } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./CapsuleCustomizer.module.css";
-import type {
-  CapsuleCustomizerMode,
-  SelectedBanner,
-} from "./hooks/useCapsuleCustomizerState";
+import type { CapsuleCustomizerMode, SelectedBanner } from "./hooks/useCapsuleCustomizerState";
 
 type CapsuleBannerPreviewProps = {
   mode: CapsuleCustomizerMode;

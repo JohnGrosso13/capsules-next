@@ -80,5 +80,3 @@ Remember that the worker currently stores placeholder derivatives. Swap in real 
 ## WAF / Bot Mitigation
 
 Uploads remain gated by Turnstile; in production also add a Cloudflare WAF rule that only allows multipart POSTs to `/api/uploads/r2/*` from authenticated sessions (e.g. check for Clerk session cookie + Turnstile token). The doc here only covers the application changes—the rule needs to be created in the Cloudflare dashboard.
-
-

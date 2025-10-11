@@ -126,12 +126,16 @@
 
 .nameInput {
   background: color-mix(in srgb, var(--surface-overlay, rgba(18, 22, 42, 0.65)) 90%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.12)) 80%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.12)) 80%, transparent);
   color: inherit;
   font-size: 1.05rem;
   padding: 0.9rem 1rem;
   border-radius: 16px;
-  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
 }
 
 .nameInput:focus-visible {
@@ -148,7 +152,8 @@
 
 .chatLog {
   background: color-mix(in srgb, var(--surface-overlay, rgba(12, 16, 30, 0.62)) 88%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.12)) 65%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.12)) 65%, transparent);
   border-radius: 24px;
   padding: clamp(1rem, 3vw, 1.5rem);
   min-height: clamp(240px, 38vh, 320px);
@@ -185,7 +190,8 @@
 
 .chatBubble {
   background: color-mix(in srgb, var(--color-brand, #6366f1) 20%, transparent);
-  border: 1px solid color-mix(
+  border: 1px solid
+    color-mix(
       in srgb,
       var(--color-brand, #6366f1) 28%,
       var(--color-border, rgba(255, 255, 255, 0.12))
@@ -201,7 +207,11 @@
 
 .chatMessage[data-role="user"] .chatBubble {
   background: color-mix(in srgb, var(--surface-elevated, #ffffff) 18%, transparent);
-  border-color: color-mix(in srgb, var(--color-border-strong, rgba(255, 255, 255, 0.24)) 80%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--color-border-strong, rgba(255, 255, 255, 0.24)) 80%,
+    transparent
+  );
   color: var(--text, #ffffff);
 }
 
@@ -220,7 +230,8 @@
   border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
   box-shadow: var(--home-promptbar-box-shadow, 0 20px 40px rgba(5, 10, 30, 0.35));
   backdrop-filter: blur(var(--glass-blur-strong, 16px)) saturate(var(--glass-saturate, 120%));
-  -webkit-backdrop-filter: blur(var(--glass-blur-strong, 16px)) saturate(var(--glass-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong, 16px))
+    saturate(var(--glass-saturate, 120%));
 }
 
 .prompterShell::before {
@@ -295,7 +306,8 @@
 
 .voiceButton:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 32px color-mix(in srgb, var(--color-brand, #6366f1) 26%, rgba(10, 12, 30, 0.55));
+  box-shadow: 0 16px 32px
+    color-mix(in srgb, var(--color-brand, #6366f1) 26%, rgba(10, 12, 30, 0.55));
 }
 
 .voiceButton:active {
@@ -328,7 +340,11 @@
   height: 36px;
   border-radius: 12px;
   border: 1px solid var(--icon-plate-border, rgba(255, 255, 255, 0.16));
-  background: linear-gradient(180deg, var(--icon-plate-bg-1, rgba(255, 255, 255, 0.24)), var(--icon-plate-bg-2, rgba(255, 255, 255, 0.12)));
+  background: linear-gradient(
+    180deg,
+    var(--icon-plate-bg-1, rgba(255, 255, 255, 0.24)),
+    var(--icon-plate-bg-2, rgba(255, 255, 255, 0.12))
+  );
   color: var(--text-2, rgba(248, 249, 255, 0.75));
   box-shadow: var(--icon-plate-highlight, inset 0 1px 0 rgba(255, 255, 255, 0.4));
 }
@@ -348,10 +364,16 @@
   border: none;
   background: var(
     --prompter-primary-button-background,
-    var(--cta-chip-gradient, var(--cta-gradient, linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%)))
+    var(
+      --cta-chip-gradient,
+      var(--cta-gradient, linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%))
+    )
   );
   color: var(--prompter-primary-button-text, var(--cta-button-text, #ffffff));
-  box-shadow: var(--cta-chip-shadow, 0 20px 40px color-mix(in srgb, var(--color-brand, #6366f1) 28%, rgba(10, 12, 30, 0.6)));
+  box-shadow: var(
+    --cta-chip-shadow,
+    0 20px 40px color-mix(in srgb, var(--color-brand, #6366f1) 28%, rgba(10, 12, 30, 0.6))
+  );
   transition:
     transform 160ms ease,
     box-shadow 160ms ease,
@@ -365,7 +387,8 @@
 
 .prompterSend:not(:disabled):active {
   transform: scale(0.96);
-  box-shadow: 0 16px 32px color-mix(in srgb, var(--color-brand, #6366f1) 28%, rgba(10, 12, 30, 0.65));
+  box-shadow: 0 16px 32px
+    color-mix(in srgb, var(--color-brand, #6366f1) 28%, rgba(10, 12, 30, 0.65));
 }
 
 .prompterSend:disabled {

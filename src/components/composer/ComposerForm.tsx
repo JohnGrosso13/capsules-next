@@ -10,10 +10,7 @@ import { ComposerLayout } from "./components/ComposerLayout";
 import { AttachmentPanel } from "./components/AttachmentPanel";
 import { PreviewColumn } from "./components/PreviewColumn";
 import { VoiceRecorder } from "./components/VoiceRecorder";
-import {
-  useComposerFormReducer,
-  type ComposerFormState,
-} from "./hooks/useComposerFormReducer";
+import { useComposerFormReducer, type ComposerFormState } from "./hooks/useComposerFormReducer";
 import { useComposerLayout } from "./hooks/useComposerLayout";
 import { useComposerVoice } from "./hooks/useComposerVoice";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
@@ -27,17 +24,20 @@ import {
   pickBestFullVariant,
   type CloudflareImageVariantSet,
 } from "@/lib/cloudflare/images";
-import {
-  buildLocalImageVariants,
-  shouldBypassCloudflareImages,
-} from "@/lib/cloudflare/runtime";
+import { buildLocalImageVariants, shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 
 const PANEL_WELCOME =
   "Hi! I'm here to help you design a capsule banner for Memory Lane. Describe the mood, colors, or imagery you'd like and I'll generate options.";
 
 const QUICK_PROMPT_PRESETS: Array<{ label: string; prompt: string }> = [
-  { label: "Bold neon gradients", prompt: "Design a bold neon gradient banner with futuristic energy." },
-  { label: "Soft sunrise palette", prompt: "Create a capsule banner inspired by a soft sunrise palette." },
+  {
+    label: "Bold neon gradients",
+    prompt: "Design a bold neon gradient banner with futuristic energy.",
+  },
+  {
+    label: "Soft sunrise palette",
+    prompt: "Create a capsule banner inspired by a soft sunrise palette.",
+  },
   { label: "Minimal dark mode", prompt: "Draft a minimal dark mode banner with crisp typography." },
 ];
 
@@ -191,7 +191,13 @@ export function ComposerForm({
       };
     }
     return null;
-  }, [attachment, workingDraft.kind, workingDraft.mediaPrompt, workingDraft.mediaUrl, workingDraft.title]);
+  }, [
+    attachment,
+    workingDraft.kind,
+    workingDraft.mediaPrompt,
+    workingDraft.mediaUrl,
+    workingDraft.title,
+  ]);
 
   const attachmentStatusLabel = React.useMemo(() => {
     if (!displayAttachment) return null;
@@ -265,14 +271,20 @@ export function ComposerForm({
     const isVideo = displayAttachment.mimeType.startsWith("video/");
     if (isVideo) {
       return [
-        { label: "Summarize this clip", prompt: "Summarize this video and call out the key beats." },
+        {
+          label: "Summarize this clip",
+          prompt: "Summarize this video and call out the key beats.",
+        },
         { label: "Suggest edits", prompt: "Suggest ways we could edit or enhance this video." },
         { label: "Prep a post", prompt: "Draft a social post that spotlights this video." },
       ];
     }
     return [
       { label: "Describe this image", prompt: "Describe this image in vivid detail." },
-      { label: "Create a post", prompt: "Draft a social post that uses this image as the hero visual." },
+      {
+        label: "Create a post",
+        prompt: "Draft a social post that uses this image as the hero visual.",
+      },
       { label: "Edit ideas", prompt: "Suggest edits or variations for this image." },
     ];
   }, [displayAttachment]);
@@ -313,7 +325,12 @@ export function ComposerForm({
     }));
   }, [_choices]);
 
-  const accentClasses = [styles.memoryAccent1, styles.memoryAccent2, styles.memoryAccent3, styles.memoryAccent4];
+  const accentClasses = [
+    styles.memoryAccent1,
+    styles.memoryAccent2,
+    styles.memoryAccent3,
+    styles.memoryAccent4,
+  ];
 
   const handleMemorySelect = React.useCallback(
     (item: MemoryItem) => {
@@ -382,7 +399,12 @@ export function ComposerForm({
       mediaUrl: readyAttachment.url,
       mediaPrompt: null,
     };
-    if (currentKind === "text" || currentKind === "image" || currentKind === "video" || !currentKind) {
+    if (
+      currentKind === "text" ||
+      currentKind === "image" ||
+      currentKind === "video" ||
+      !currentKind
+    ) {
       partial.kind = nextKind;
     }
     updateDraft(partial);
@@ -479,64 +501,70 @@ export function ComposerForm({
               </li>
             ) : null}
 
-          {prompt ? (
-            <li className={styles.msgRow} data-role="user">
-              <div className={`${styles.msgBubble} ${styles.userBubble}`}>{prompt}</div>
-            </li>
-          ) : null}
+            {prompt ? (
+              <li className={styles.msgRow} data-role="user">
+                <div className={`${styles.msgBubble} ${styles.userBubble}`}>{prompt}</div>
+              </li>
+            ) : null}
 
-          {displayAttachment ? (
-            <AttachmentPanel
-              attachment={displayAttachment}
-              kind={attachmentKind}
-              statusLabel={attachmentStatusLabel}
-              displayUrl={attachmentDisplayUrl}
-              progressPct={attachmentProgressPct}
-              loading={loading}
-              uploading={attachmentUploading}
-              onRemove={handleRemoveAttachment}
-              onOpenViewer={openViewer}
-            />
-          ) : null}
+            {displayAttachment ? (
+              <AttachmentPanel
+                attachment={displayAttachment}
+                kind={attachmentKind}
+                statusLabel={attachmentStatusLabel}
+                displayUrl={attachmentDisplayUrl}
+                progressPct={attachmentProgressPct}
+                loading={loading}
+                uploading={attachmentUploading}
+                onRemove={handleRemoveAttachment}
+                onOpenViewer={openViewer}
+              />
+            ) : null}
 
-          {showVibePrompt ? (
-            <li className={styles.msgRow} data-role="ai">
-              <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.attachmentPromptBubble}`}>
-                <p className={styles.attachmentPromptIntro}>
-                  I&rsquo;m ready to help with this{" "}
-                  {displayAttachment?.mimeType.startsWith("video/") ? "video" : "image"}. What should we do next?
-                </p>
-                <div className={styles.vibeActions}>
-                  {vibeSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.prompt}
-                      type="button"
-                      className={styles.vibeAction}
-                      onClick={() => handleSuggestionSelect(suggestion.prompt)}
-                    >
-                      {suggestion.label}
-                    </button>
-                  ))}
+            {showVibePrompt ? (
+              <li className={styles.msgRow} data-role="ai">
+                <div
+                  className={`${styles.msgBubble} ${styles.aiBubble} ${styles.attachmentPromptBubble}`}
+                >
+                  <p className={styles.attachmentPromptIntro}>
+                    I&rsquo;m ready to help with this{" "}
+                    {displayAttachment?.mimeType.startsWith("video/") ? "video" : "image"}. What
+                    should we do next?
+                  </p>
+                  <div className={styles.vibeActions}>
+                    {vibeSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.prompt}
+                        type="button"
+                        className={styles.vibeAction}
+                        onClick={() => handleSuggestionSelect(suggestion.prompt)}
+                      >
+                        {suggestion.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </li>
-          ) : null}
+              </li>
+            ) : null}
 
-          {message ? (
-            <li className={styles.msgRow} data-role="ai">
-              <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{message}</div>
-            </li>
-          ) : null}
+            {message ? (
+              <li className={styles.msgRow} data-role="ai">
+                <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{message}</div>
+              </li>
+            ) : null}
 
-          {loading ? (
-            <li className={styles.msgRow} data-role="ai">
-              <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.streaming}`} aria-live="polite">
-                <span className={styles.streamDot} />
-                <span className={styles.streamDot} />
-                <span className={styles.streamDot} />
-              </div>
-            </li>
-          ) : null}
+            {loading ? (
+              <li className={styles.msgRow} data-role="ai">
+                <div
+                  className={`${styles.msgBubble} ${styles.aiBubble} ${styles.streaming}`}
+                  aria-live="polite"
+                >
+                  <span className={styles.streamDot} />
+                  <span className={styles.streamDot} />
+                  <span className={styles.streamDot} />
+                </div>
+              </li>
+            ) : null}
           </ol>
         </div>
       </div>
@@ -619,7 +647,6 @@ export function ComposerForm({
             </button>
           ))}
         </div>
-
       </div>
     </>
   );
@@ -631,7 +658,9 @@ export function ComposerForm({
           <span className={styles.previewGlyph}>
             <Sparkle size={28} weight="fill" />
           </span>
-          <p className={styles.previewCopy}>Start by chatting with Capsule AI or choosing an image.</p>
+          <p className={styles.previewCopy}>
+            Start by chatting with Capsule AI or choosing an image.
+          </p>
         </div>
         <div className={styles.previewActions}>
           <button
@@ -642,7 +671,11 @@ export function ComposerForm({
           >
             Upload image
           </button>
-          <button type="button" className={styles.previewActionSecondary} onClick={handleMemoryShortcut}>
+          <button
+            type="button"
+            className={styles.previewActionSecondary}
+            onClick={handleMemoryShortcut}
+          >
             Memory
           </button>
         </div>
@@ -703,7 +736,8 @@ export function ComposerForm({
           <div className={styles.panelTitleGroup}>
             <h2 className={styles.panelTitle}>Design your Capsule banner</h2>
             <p className={styles.panelSubtitle}>
-              Chat with Capsule AI, pick from memories, or upload brand visuals to set your capsule banner.
+              Chat with Capsule AI, pick from memories, or upload brand visuals to set your capsule
+              banner.
             </p>
           </div>
         </header>
@@ -735,7 +769,9 @@ export function ComposerForm({
                 aria-label="Visibility"
                 className={styles.privacySelect}
                 value={privacy}
-                onChange={(e) => actions.setPrivacy((e.target.value as ComposerFormState["privacy"]) ?? "public")}
+                onChange={(e) =>
+                  actions.setPrivacy((e.target.value as ComposerFormState["privacy"]) ?? "public")
+                }
                 disabled={loading}
               >
                 <option value="public">Public</option>
@@ -752,15 +788,28 @@ export function ComposerForm({
             >
               Cancel
             </button>
-            <button type="button" className={styles.primaryAction} onClick={onPost} disabled={!canPost}>
+            <button
+              type="button"
+              className={styles.primaryAction}
+              onClick={onPost}
+              disabled={!canPost}
+            >
               Save banner
             </button>
           </div>
         </footer>
 
         {viewerOpen && displayAttachment && displayAttachment.status === "ready" ? (
-          <div className={homeStyles.lightboxOverlay} role="dialog" aria-modal="true" onClick={closeViewer}>
-            <div className={homeStyles.lightboxContent} onClick={(event) => event.stopPropagation()}>
+          <div
+            className={homeStyles.lightboxOverlay}
+            role="dialog"
+            aria-modal="true"
+            onClick={closeViewer}
+          >
+            <div
+              className={homeStyles.lightboxContent}
+              onClick={(event) => event.stopPropagation()}
+            >
               <button
                 type="button"
                 className={homeStyles.lightboxClose}
@@ -772,12 +821,22 @@ export function ComposerForm({
               <div className={homeStyles.lightboxBody}>
                 <div className={homeStyles.lightboxMedia}>
                   {attachmentKind === "video" ? (
-                    <video className={homeStyles.lightboxVideo} src={attachmentFullUrl ?? undefined} controls autoPlay />
+                    <video
+                      className={homeStyles.lightboxVideo}
+                      src={attachmentFullUrl ?? undefined}
+                      controls
+                      autoPlay
+                    />
                   ) : (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       className={homeStyles.lightboxImage}
-                      src={attachmentFullUrl ?? attachmentDisplayUrl ?? attachmentPreviewUrl ?? undefined}
+                      src={
+                        attachmentFullUrl ??
+                        attachmentDisplayUrl ??
+                        attachmentPreviewUrl ??
+                        undefined
+                      }
                       alt={displayAttachment.name}
                     />
                   )}

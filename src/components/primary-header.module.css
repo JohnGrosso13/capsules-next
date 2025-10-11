@@ -25,8 +25,16 @@
     color-mix(in srgb, var(--surface-muted) 76%, var(--header-brand-strong) 24%)
   );
   --header-button-border: color-mix(in srgb, var(--header-brand) 35%, var(--color-border) 65%);
-  --header-button-hover-border: color-mix(in srgb, var(--header-brand) 48%, var(--color-border) 52%);
-  --header-button-active-border: color-mix(in srgb, var(--header-brand) 60%, var(--color-border-strong) 40%);
+  --header-button-hover-border: color-mix(
+    in srgb,
+    var(--header-brand) 48%,
+    var(--color-border) 52%
+  );
+  --header-button-active-border: color-mix(
+    in srgb,
+    var(--header-brand) 60%,
+    var(--color-border-strong) 40%
+  );
   --header-button-text: color-mix(in srgb, var(--color-fg) 96%, transparent);
   --header-button-hover-text: color-mix(in srgb, var(--color-fg) 98%, transparent);
   --header-shadow-color: color-mix(in srgb, var(--header-brand-strong) 28%, transparent);
@@ -39,7 +47,8 @@
   --header-launch-border: color-mix(in srgb, var(--header-foreground-strong) 68%, transparent);
   --header-launch-shadow: 0 26px 52px color-mix(in srgb, var(--header-brand) 45%, transparent);
   --header-launch-shadow-hover: 0 30px 62px color-mix(in srgb, var(--header-brand) 50%, transparent);
-  --header-launch-shadow-active: 0 20px 40px color-mix(in srgb, var(--header-brand) 45%, transparent);
+  --header-launch-shadow-active: 0 20px 40px
+    color-mix(in srgb, var(--header-brand) 45%, transparent);
   --header-launch-text-shadow: 0 1px 1px color-mix(in srgb, var(--app-bg, #050a1b) 60%, transparent);
   position: fixed;
   inset: 0 auto auto 0;
@@ -52,14 +61,23 @@
   overflow: hidden;
   --blur-amount: 14px;
   --header-glass-top: color-mix(in srgb, var(--surface-elevated) 92%, var(--header-brand) 8%);
-  --header-glass-bottom: color-mix(in srgb, var(--surface-muted) 88%, var(--header-brand-strong) 12%);
+  --header-glass-bottom: color-mix(
+    in srgb,
+    var(--surface-muted) 88%,
+    var(--header-brand-strong) 12%
+  );
   background:
     linear-gradient(180deg, var(--header-glass-top), var(--header-glass-bottom)),
-    linear-gradient(180deg, var(--header-tint-from, color-mix(in srgb, var(--header-accent) 18%, transparent)), var(--header-tint-to, color-mix(in srgb, var(--header-brand) 12%, transparent)));
+    linear-gradient(
+      180deg,
+      var(--header-tint-from, color-mix(in srgb, var(--header-accent) 18%, transparent)),
+      var(--header-tint-to, color-mix(in srgb, var(--header-brand) 12%, transparent))
+    );
   background-color: var(--header-glass-top);
   backdrop-filter: blur(var(--blur-amount)) saturate(160%);
   -webkit-backdrop-filter: blur(var(--blur-amount)) saturate(160%);
-  border-bottom: 1px solid var(--header-border-color, color-mix(in srgb, var(--header-brand) 24%, var(--color-border) 76%));
+  border-bottom: 1px solid
+    var(--header-border-color, color-mix(in srgb, var(--header-brand) 24%, var(--color-border) 76%));
   box-shadow: var(--header-shadow, var(--header-shadow-lg));
   min-height: var(--header-height);
   transition: none;
@@ -77,12 +95,15 @@
   content: none !important;
 }
 
-
 /* On scroll: apply frosted glass while remaining opaque */
-.headerScrolled { /* no-op */ }
+.headerScrolled {
+  /* no-op */
+}
 
 /* Transient while the user is actively scrolling */
-.headerScrolling { /* no-op */ }
+.headerScrolling {
+  /* no-op */
+}
 
 @media (prefers-reduced-motion: reduce) {
   .header::before,
@@ -110,7 +131,6 @@
   justify-content: space-between;
   gap: var(--space-xl);
 }
-
 
 .brand {
   display: inline-flex;
@@ -192,7 +212,11 @@
     inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong) 18%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 55%, transparent),
     var(--header-button-shadow);
-  transition: background var(--motion-duration-medium) var(--motion-ease-standard), border-color var(--motion-duration-medium) var(--motion-ease-standard), color var(--motion-duration-medium) var(--motion-ease-standard), box-shadow var(--motion-duration-medium) var(--motion-ease-standard);
+  transition:
+    background var(--motion-duration-medium) var(--motion-ease-standard),
+    border-color var(--motion-duration-medium) var(--motion-ease-standard),
+    color var(--motion-duration-medium) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-medium) var(--motion-ease-standard);
 }
 .navItem:hover {
   background: var(--header-button-hover-bg);
@@ -231,7 +255,10 @@
   background: var(--header-button-bg);
   color: var(--header-button-text);
   box-shadow: var(--header-button-shadow);
-  transition: background var(--motion-duration-medium) var(--motion-ease-standard), border-color var(--motion-duration-medium) var(--motion-ease-standard), box-shadow var(--motion-duration-medium) var(--motion-ease-standard);
+  transition:
+    background var(--motion-duration-medium) var(--motion-ease-standard),
+    border-color var(--motion-duration-medium) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-medium) var(--motion-ease-standard);
 }
 .iconButton:hover {
   background: var(--header-button-hover-bg);
@@ -281,22 +308,3 @@
   transform: translateY(0) scale(0.98);
   box-shadow: var(--header-launch-shadow-active) !important;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

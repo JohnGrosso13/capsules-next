@@ -32,12 +32,7 @@ export async function GET(req: Request) {
   });
 
   if (!result.ok) {
-    return returnError(
-      result.status,
-      result.body.error,
-      result.body.message,
-      result.body.details,
-    );
+    return returnError(result.status, result.body.error, result.body.message, result.body.details);
   }
 
   return validatedJson(postsResponseSchema, result.body, { status: result.status });
@@ -61,12 +56,7 @@ export async function POST(req: Request) {
 
   const result = await createPostSlim({ post: post as CreatePostInput, ownerId });
   if (!result.ok) {
-    return returnError(
-      result.status,
-      result.body.error,
-      result.body.message,
-      result.body.details,
-    );
+    return returnError(result.status, result.body.error, result.body.message, result.body.details);
   }
 
   return validatedJson(createPostResponseSchema, result.body, { status: result.status });

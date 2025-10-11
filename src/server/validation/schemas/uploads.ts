@@ -71,11 +71,7 @@ export const uploadResponseSchema = z.object({
 
 export type UploadResponse = z.infer<typeof uploadResponseSchema>;
 
-const metadataValueSchema = z.union([
-  z.string().max(MAX_METADATA_VALUE),
-  z.number(),
-  z.boolean(),
-]);
+const metadataValueSchema = z.union([z.string().max(MAX_METADATA_VALUE), z.number(), z.boolean()]);
 
 export const directUploadRequestSchema = z
   .object({
@@ -127,12 +123,7 @@ export const directUploadRequestSchema = z
         .refine((val) => !val || val.length <= MAX_CONTENT_TYPE_LENGTH, {
           message: `contentType must be <= ${MAX_CONTENT_TYPE_LENGTH} characters`,
         }),
-      contentLength: z
-        .number()
-        .int()
-        .positive()
-        .max(MAX_FILE_SIZE_BYTES)
-        .nullable(),
+      contentLength: z.number().int().positive().max(MAX_FILE_SIZE_BYTES).nullable(),
       checksum: z
         .string()
         .nullable()
@@ -145,19 +136,9 @@ export const directUploadRequestSchema = z
         .refine((val) => !val || val.length <= MAX_KIND_LENGTH, {
           message: `kind must be <= ${MAX_KIND_LENGTH} characters`,
         }),
-      metadata: z
-        .record(z.string().min(1).max(MAX_METADATA_KEY), metadataValueSchema)
-        .nullable(),
-      turnstileToken: z
-        .string()
-        .min(10)
-        .max(MAX_TURNSTILE_TOKEN),
-      totalParts: z
-        .number()
-        .int()
-        .min(1)
-        .max(10000)
-        .nullable(),
+      metadata: z.record(z.string().min(1).max(MAX_METADATA_KEY), metadataValueSchema).nullable(),
+      turnstileToken: z.string().min(10).max(MAX_TURNSTILE_TOKEN),
+      totalParts: z.number().int().min(1).max(10000).nullable(),
     }),
   );
 
@@ -217,9 +198,7 @@ export const completeUploadSchema = z
           }),
         )
         .min(1),
-      metadata: z
-        .record(z.string().min(1).max(MAX_METADATA_KEY), metadataValueSchema)
-        .nullable(),
+      metadata: z.record(z.string().min(1).max(MAX_METADATA_KEY), metadataValueSchema).nullable(),
     }),
   )
   .superRefine((value, ctx) => {

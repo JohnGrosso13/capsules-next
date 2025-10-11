@@ -66,7 +66,7 @@ function Section({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={item.avatarUrl} alt="" className={styles.avatarImage} />
             ) : (
-              item.avatarInitial ?? null
+              (item.avatarInitial ?? null)
             );
 
             const body = (
@@ -235,11 +235,21 @@ export function DiscoveryRail() {
           items={recommendedCapsules}
           action={{ label: "See all", href: "/explore" }}
           emptyMessage={
-            loadingCapsules ? "Loading recommendations..." : "No new capsules yet. Check again soon!"
+            loadingCapsules
+              ? "Loading recommendations..."
+              : "No new capsules yet. Check again soon!"
           }
         />
-        <Section title="Upcoming Events" items={events} action={{ label: "Calendar", onClick: () => {} }} />
-        <Section title="What's Hot" items={trending} action={{ label: "More", onClick: () => {} }} />
+        <Section
+          title="Upcoming Events"
+          items={events}
+          action={{ label: "Calendar", onClick: () => {} }}
+        />
+        <Section
+          title="What's Hot"
+          items={trending}
+          action={{ label: "More", onClick: () => {} }}
+        />
       </div>
     </div>
   );

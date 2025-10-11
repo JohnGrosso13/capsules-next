@@ -88,7 +88,9 @@ export type OpenAIJsonResult<T> = {
   response: Response;
 };
 
-async function drainResponse(response: Response): Promise<{ rawBody: string; parsedBody: unknown }> {
+async function drainResponse(
+  response: Response,
+): Promise<{ rawBody: string; parsedBody: unknown }> {
   try {
     const raw = await response.text();
     if (!raw) {

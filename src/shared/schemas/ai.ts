@@ -32,4 +32,3 @@ export const stylerResponseSchema = z.object({
   details: z.string().optional(),
 });
 export type StylerResponse = z.infer<typeof stylerResponseSchema>;
-

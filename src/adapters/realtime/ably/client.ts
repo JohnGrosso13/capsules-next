@@ -26,7 +26,9 @@ const PRESENCE_ACTION_MAP: Record<number | string, PresenceAction> = {
   update: "update",
 };
 
-function mapPresenceAction(action: AblyTypes.PresenceAction | undefined): PresenceAction | undefined {
+function mapPresenceAction(
+  action: AblyTypes.PresenceAction | undefined,
+): PresenceAction | undefined {
   if (typeof action === "number") {
     return PRESENCE_ACTION_MAP[action];
   }
@@ -110,7 +112,10 @@ class AblyPresenceChannel implements RealtimePresenceChannel {
 class AblyRealtimeConnection implements RealtimeClient {
   constructor(private readonly client: AblyTypes.RealtimePromise) {}
 
-  async subscribe(channelName: string, handler: (event: RealtimeEvent) => void): Promise<() => void> {
+  async subscribe(
+    channelName: string,
+    handler: (event: RealtimeEvent) => void,
+  ): Promise<() => void> {
     const channel = this.client.channels.get(channelName);
     const listener = (message: AblyTypes.Message) => {
       handler({
@@ -136,8 +141,6 @@ class AblyRealtimeConnection implements RealtimeClient {
       throw error;
     }
   }
-
-
 
   presence(channelName: string): RealtimePresenceChannel {
     const channel = this.client.channels.get(channelName);
@@ -187,8 +190,9 @@ class AblyRealtimeClientFactory implements RealtimeClientFactory {
     if (initial.environment) {
       options.environment = initial.environment;
     }
-    const createRealtime =
-      Ably.Realtime as unknown as (options: Ably.Types.ClientOptions) => AblyTypes.RealtimePromise;
+    const createRealtime = Ably.Realtime as unknown as (
+      options: Ably.Types.ClientOptions,
+    ) => AblyTypes.RealtimePromise;
     const client = createRealtime(options);
     await client.connection.once("connected");
     const connection = new AblyRealtimeConnection(client);

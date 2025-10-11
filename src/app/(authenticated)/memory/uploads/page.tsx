@@ -19,11 +19,13 @@ export default function MemoryUploadsPage() {
       <section className={styles.wrapper}>
         <header className={styles.hero}>
           <h1>Uploads</h1>
-          <p>All of your uploaded images and videos in one place. Use the Memory page for quick access and uploads.</p>
+          <p>
+            All of your uploaded images and videos in one place. Use the Memory page for quick
+            access and uploads.
+          </p>
         </header>
         <UploadsGallery />
       </section>
     </AppPage>
   );
 }
-

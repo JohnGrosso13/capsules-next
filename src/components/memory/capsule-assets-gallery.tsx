@@ -74,12 +74,10 @@ function buildInitialTab(initialValue: string | null | undefined): string {
   const normalized = initialValue.toLowerCase();
   return GALLERY_TABS.some((tab) => tab.value === normalized)
     ? normalized
-    : GALLERY_TABS[0]?.value ?? "banners";
+    : (GALLERY_TABS[0]?.value ?? "banners");
 }
 
-function groupAssetsByTab(
-  items: DisplayMemoryUpload[],
-): Record<string, DisplayMemoryUpload[]> {
+function groupAssetsByTab(items: DisplayMemoryUpload[]): Record<string, DisplayMemoryUpload[]> {
   const record: Record<string, DisplayMemoryUpload[]> = {};
   for (const tab of GALLERY_TABS) {
     record[tab.value] = [];
@@ -128,10 +126,7 @@ export function CapsuleAssetsGallery({ initialTab }: CapsuleAssetsGalleryProps) 
     [cloudflareEnabled, currentOrigin, items],
   );
 
-  const groupedByTab = React.useMemo(
-    () => groupAssetsByTab(processedItems),
-    [processedItems],
-  );
+  const groupedByTab = React.useMemo(() => groupAssetsByTab(processedItems), [processedItems]);
 
   React.useEffect(() => {
     setActiveTab((previous) => buildInitialTab(previous));

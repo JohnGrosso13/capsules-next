@@ -194,4 +194,3 @@ export function useCapsuleFeed(capsuleId: string | null | undefined) {
     refreshEnabled: Boolean(trimmedCapsuleId),
   });
 }
-

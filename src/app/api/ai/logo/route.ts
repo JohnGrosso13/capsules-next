@@ -126,7 +126,11 @@ export async function POST(req: Request) {
     }
 
     if (!sourceUrl) {
-      return returnError(400, "invalid_request", "imageUrl or imageData is required to edit a logo.");
+      return returnError(
+        400,
+        "invalid_request",
+        "imageUrl or imageData is required to edit a logo.",
+      );
     }
 
     const normalizedSource = await (async () => {
@@ -147,7 +151,8 @@ export async function POST(req: Request) {
 
     return validatedJson(responseSchema, {
       url: stored.url,
-      message: "Appreciate the notes! I refreshed the logo with those changes so you can review it here.",
+      message:
+        "Appreciate the notes! I refreshed the logo with those changes so you can review it here.",
       imageData: stored.imageData ?? undefined,
       mimeType: stored.mimeType ?? undefined,
     });

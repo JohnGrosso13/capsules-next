@@ -43,7 +43,8 @@ export function CapsulePromoTile({
   style,
   showSlug = true,
 }: CapsulePromoTileProps): React.JSX.Element {
-  const normalizedBanner = typeof bannerUrl === "string" && bannerUrl.trim().length ? bannerUrl : null;
+  const normalizedBanner =
+    typeof bannerUrl === "string" && bannerUrl.trim().length ? bannerUrl : null;
   const normalizedSlug =
     showSlug && typeof slug === "string" && slug.trim().length
       ? slug.trim().replace(/^@/, "")
@@ -62,8 +63,7 @@ export function CapsulePromoTile({
     ));
 
   const actionContent =
-    actionSlot ??
-    (actionLabel ? <span className={styles.cta}>{actionLabel}</span> : null);
+    actionSlot ?? (actionLabel ? <span className={styles.cta}>{actionLabel}</span> : null);
 
   return (
     <div
@@ -98,4 +98,3 @@ export function CapsulePromoTile({
     </div>
   );
 }
-

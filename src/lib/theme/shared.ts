@@ -34,12 +34,15 @@ const normalizeThemeVarsImpl: NormalizeThemeVarsImpl = (
   const safeValueRegex = /^[A-Za-z0-9#(),.%\/_\-\s:+*'"!]+$/;
   const cssVarReferenceRegex = /^var\(--[a-z0-9\-_]+\)$/i;
   const hexColorRegex = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-  const rgbColorRegex = /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/i;
-  const hslColorRegex = /^hsla?\(\s*\d{1,3}(?:deg|rad|turn)?\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/i;
+  const rgbColorRegex =
+    /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/i;
+  const hslColorRegex =
+    /^hsla?\(\s*\d{1,3}(?:deg|rad|turn)?\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/i;
   const colorMixRegex = /^color-mix\(/i;
   const colorFunctionRegex = /^(?:color|lab|lch|oklab|oklch|hwb)\(/i;
   const gradientRegex = /\bgradient\(/i;
-  const shadowRegex = /(?:^|,)\s*(?:inset\s+)?-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%)\s+-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%)/i;
+  const shadowRegex =
+    /(?:^|,)\s*(?:inset\s+)?-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%)\s+-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%)/i;
   const dimensionRegex = /^-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%)$/i;
   const timeRegex = /^-?\d+(?:\.\d+)?(?:ms|s)$/i;
   const calcRegex = /^calc\([^)]*\)$/i;
@@ -65,19 +68,23 @@ const normalizeThemeVarsImpl: NormalizeThemeVarsImpl = (
     isCssVarReference(value) ||
     /^(transparent|currentcolor|inherit)$/i.test(value);
 
-  const isGradientValue = (value: string): boolean => gradientRegex.test(value) || isCssVarReference(value);
+  const isGradientValue = (value: string): boolean =>
+    gradientRegex.test(value) || isCssVarReference(value);
   const isShadowValue = (value: string): boolean =>
     shadowRegex.test(value) || value.includes("shadow") || isCssVarReference(value);
   const isDimensionValue = (value: string): boolean =>
     dimensionRegex.test(value) || calcRegex.test(value) || isCssVarReference(value);
-  const isRadiusValue = (value: string): boolean => isDimensionValue(value) || /^999px$/i.test(value);
-  const isTimeValue = (value: string): boolean => timeRegex.test(value) || calcRegex.test(value) || isCssVarReference(value);
+  const isRadiusValue = (value: string): boolean =>
+    isDimensionValue(value) || /^999px$/i.test(value);
+  const isTimeValue = (value: string): boolean =>
+    timeRegex.test(value) || calcRegex.test(value) || isCssVarReference(value);
   const isTimingFunctionValue = (value: string): boolean =>
     value.startsWith("cubic-bezier(") ||
     value.startsWith("steps(") ||
     timingFunctionKeywords.has(value.toLowerCase()) ||
     isCssVarReference(value);
-  const isFontFamilyValue = (value: string): boolean => /^[A-Za-z0-9\s,'"-]+$/.test(value) || isCssVarReference(value);
+  const isFontFamilyValue = (value: string): boolean =>
+    /^[A-Za-z0-9\s,'"-]+$/.test(value) || isCssVarReference(value);
 
   const isValueAllowedForKind = (kind: string, value: string): boolean => {
     switch (kind) {

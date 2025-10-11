@@ -158,13 +158,12 @@ export function UploadsCarousel() {
       ? Math.min(100, Math.max(0, Math.round(attachment.progress)))
       : 0;
   const progressStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--progress": `${progressPct}%` } as React.CSSProperties),
+    () => ({ "--progress": `${progressPct}%` }) as React.CSSProperties,
     [progressPct],
   );
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () =>
-      ({ "--carousel-visible-count": Math.max(1, pageSize) } as React.CSSProperties),
+    () => ({ "--carousel-visible-count": Math.max(1, pageSize) }) as React.CSSProperties,
     [pageSize],
   );
 
@@ -223,68 +222,68 @@ export function UploadsCarousel() {
           <h3 className={styles.title}>Uploads</h3>
           <div className={styles.controls}>
             <Button
-            variant="secondary"
-            size="icon"
-            leftIcon={<CaretLeft size={18} weight="bold" />}
-            onClick={handleShowPrev}
-            aria-label="Previous uploads"
-            disabled={!hasRotation}
-          />
-          <Button
-            variant="secondary"
-            size="icon"
-            leftIcon={<CaretRight size={18} weight="bold" />}
-            onClick={handleShowNext}
-            aria-label="Next uploads"
-            disabled={!hasRotation}
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*"
-            onChange={handleAttachmentSelect}
-            hidden
-          />
-          <Button variant="secondary" size="sm" onClick={handleAttachClick} loading={uploading}>
-            {uploading ? "Uploading..." : "Add Upload"}
-          </Button>
-          <ButtonLink variant="ghost" size="sm" href={VIEW_ALL_ROUTE}>
-            View All
-          </ButtonLink>
-        </div>
-      </div>
-
-      <div className={styles.statusRow}>
-        {error ? <span role="status">{error}</span> : null}
-        {uploading ? (
-          <div
-            className={styles.progressBar}
-            aria-label="Upload progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={progressPct}
-            role="progressbar"
-          >
-            <div className={styles.progressInner} style={progressStyle} />
-          </div>
-        ) : null}
-      </div>
-
-      {loading ? (
-        <div className={styles.empty}>Loading your uploads...</div>
-      ) : visibleItems.length === 0 ? (
-        <div className={styles.empty}>No uploads yet. Add your first image or video.</div>
-      ) : (
-        <div className={styles.viewport} ref={emblaRef}>
-          <div className={styles.container} style={containerStyle}>
-            {visibleItems.map((item) => (
-              <div className={styles.slide} key={item.id}>
-                {renderCard(item)}
-              </div>
-            ))}
+              variant="secondary"
+              size="icon"
+              leftIcon={<CaretLeft size={18} weight="bold" />}
+              onClick={handleShowPrev}
+              aria-label="Previous uploads"
+              disabled={!hasRotation}
+            />
+            <Button
+              variant="secondary"
+              size="icon"
+              leftIcon={<CaretRight size={18} weight="bold" />}
+              onClick={handleShowNext}
+              aria-label="Next uploads"
+              disabled={!hasRotation}
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              onChange={handleAttachmentSelect}
+              hidden
+            />
+            <Button variant="secondary" size="sm" onClick={handleAttachClick} loading={uploading}>
+              {uploading ? "Uploading..." : "Add Upload"}
+            </Button>
+            <ButtonLink variant="ghost" size="sm" href={VIEW_ALL_ROUTE}>
+              View All
+            </ButtonLink>
           </div>
         </div>
-      )}
+
+        <div className={styles.statusRow}>
+          {error ? <span role="status">{error}</span> : null}
+          {uploading ? (
+            <div
+              className={styles.progressBar}
+              aria-label="Upload progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progressPct}
+              role="progressbar"
+            >
+              <div className={styles.progressInner} style={progressStyle} />
+            </div>
+          ) : null}
+        </div>
+
+        {loading ? (
+          <div className={styles.empty}>Loading your uploads...</div>
+        ) : visibleItems.length === 0 ? (
+          <div className={styles.empty}>No uploads yet. Add your first image or video.</div>
+        ) : (
+          <div className={styles.viewport} ref={emblaRef}>
+            <div className={styles.container} style={containerStyle}>
+              {visibleItems.map((item) => (
+                <div className={styles.slide} key={item.id}>
+                  {renderCard(item)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <MemoryUploadDetailDialog item={activeItem} onClose={() => setActiveItem(null)} />
     </>

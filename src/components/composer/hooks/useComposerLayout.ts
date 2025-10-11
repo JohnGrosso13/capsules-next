@@ -2,10 +2,7 @@
 
 import * as React from "react";
 
-import type {
-  ComposerFormActions,
-  ComposerLayoutState,
-} from "./useComposerFormReducer";
+import type { ComposerFormActions, ComposerLayoutState } from "./useComposerFormReducer";
 
 type UseComposerLayoutParams = {
   layout: ComposerLayoutState;
@@ -38,16 +35,19 @@ export function useComposerLayout({ layout, layoutActions, mainRef }: UseCompose
     if (!dragValue) return;
     const currentDrag = dragValue as NonNullable<typeof dragValue>;
 
-    const clamp = (value: number, min: number, max: number) =>
-      Math.min(max, Math.max(min, value));
+    const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
     function handleMove(event: MouseEvent) {
       if (currentDrag.kind === "left") {
         const delta = event.clientX - currentDrag.startX;
-        layoutActions.setLeftWidth(clamp(currentDrag.start + delta, MIN_RAIL_WIDTH, MAX_RAIL_WIDTH));
+        layoutActions.setLeftWidth(
+          clamp(currentDrag.start + delta, MIN_RAIL_WIDTH, MAX_RAIL_WIDTH),
+        );
       } else if (currentDrag.kind === "right") {
         const delta = currentDrag.startX - event.clientX;
-        layoutActions.setRightWidth(clamp(currentDrag.start + delta, MIN_RAIL_WIDTH, MAX_RAIL_WIDTH));
+        layoutActions.setRightWidth(
+          clamp(currentDrag.start + delta, MIN_RAIL_WIDTH, MAX_RAIL_WIDTH),
+        );
       } else {
         const delta = currentDrag.startY - event.clientY;
         layoutActions.setBottomHeight(

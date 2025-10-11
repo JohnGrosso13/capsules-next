@@ -43,7 +43,9 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
       promoSlot={showPromoRow ? <PromoRow /> : null}
     >
       <section className={styles.feed}>
-        {friendMessage && hasFetched ? <div className={styles.postFriendNotice}>{friendMessage}</div> : null}
+        {friendMessage && hasFetched ? (
+          <div className={styles.postFriendNotice}>{friendMessage}</div>
+        ) : null}
         <HomeFeedList
           posts={posts}
           likePending={likePending}

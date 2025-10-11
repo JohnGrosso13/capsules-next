@@ -5,10 +5,7 @@ import { ImagesSquare, ArrowClockwise, X } from "@phosphor-icons/react/dist/ssr"
 
 import styles from "./CapsuleCustomizer.module.css";
 import { Button } from "@/components/ui/button";
-import type {
-  CapsuleMemoryState,
-  SelectedBanner,
-} from "./hooks/useCapsuleCustomizerState";
+import type { CapsuleMemoryState, SelectedBanner } from "./hooks/useCapsuleCustomizerState";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 
 type CapsuleMemoryPickerProps = {
@@ -98,9 +95,7 @@ export function CapsuleMemoryPicker({
                   const selected =
                     selectedBanner?.kind === "memory" && selectedBanner.id === memory.id;
                   const alt =
-                    memory.title?.trim() ||
-                    memory.description?.trim() ||
-                    "Capsule memory preview";
+                    memory.title?.trim() || memory.description?.trim() || "Capsule memory preview";
                   return (
                     <button
                       key={memory.id}

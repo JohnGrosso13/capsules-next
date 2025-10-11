@@ -211,9 +211,7 @@ export function AiPrompterStage({
   );
 
   const resolvedPlaceholder =
-    placeholder === DEFAULT_PLACEHOLDER && isCompactViewport
-      ? COMPACT_PLACEHOLDER
-      : placeholder;
+    placeholder === DEFAULT_PLACEHOLDER && isCompactViewport ? COMPACT_PLACEHOLDER : placeholder;
 
   const trimmed = text.trim();
   const hasAttachment = Boolean(readyAttachment);
@@ -405,7 +403,7 @@ export function AiPrompterStage({
     }
 
     // Tool routing
-    const selectedTool: PrompterToolKey | null = manualTool ?? (suggestedTools[0]?.key ?? null);
+    const selectedTool: PrompterToolKey | null = manualTool ?? suggestedTools[0]?.key ?? null;
 
     if (selectedTool === "poll") {
       emitAction({
@@ -461,22 +459,33 @@ export function AiPrompterStage({
 
     emitAction({ kind: "generate", text: value, raw: value });
     resetAfterSubmit();
-  }, [attachmentUploading, readyAttachment, onAction, trimmed, textRef, setText, setManualIntent, closeMenu, clearAttachment, effectiveIntent, navTarget, postPlan, router, manualTool, suggestedTools]);
-
-  const {
-    voiceSupported,
-    voiceStatus,
-    voiceStatusMessage,
-    voiceButtonLabel,
-    handleVoiceToggle,
-  } = usePrompterVoice({
-    currentText: trimmed,
-    buttonBusy,
-    onTranscript: setText,
-    onSubmit: handleGenerate,
-    onSaveTranscript: saveVoiceTranscript,
+  }, [
+    attachmentUploading,
+    readyAttachment,
+    onAction,
+    trimmed,
+    textRef,
+    setText,
+    setManualIntent,
     closeMenu,
-  });
+    clearAttachment,
+    effectiveIntent,
+    navTarget,
+    postPlan,
+    router,
+    manualTool,
+    suggestedTools,
+  ]);
+
+  const { voiceSupported, voiceStatus, voiceStatusMessage, voiceButtonLabel, handleVoiceToggle } =
+    usePrompterVoice({
+      currentText: trimmed,
+      buttonBusy,
+      onTranscript: setText,
+      onSubmit: handleGenerate,
+      onSaveTranscript: saveVoiceTranscript,
+      closeMenu,
+    });
 
   function applyManualIntent(intent: PromptIntent | null) {
     setManualIntent(intent);
@@ -571,4 +580,3 @@ export function AiPrompterStage({
     </section>
   );
 }
-

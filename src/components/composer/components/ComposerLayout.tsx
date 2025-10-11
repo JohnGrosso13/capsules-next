@@ -109,7 +109,7 @@ export function ComposerLayout({
         ) : null}
       </div>
 
-      {mobileRailOpen ? mobileMenu ?? null : null}
+      {mobileRailOpen ? (mobileMenu ?? null) : null}
     </>
   );
 }

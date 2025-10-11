@@ -61,7 +61,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
     let idsToPurge: string[] = [];
     try {
-      idsToPurge = await listMemoryIdsForPostOwnerAndSource(userId, memoryPostId, "post_like", "post");
+      idsToPurge = await listMemoryIdsForPostOwnerAndSource(
+        userId,
+        memoryPostId,
+        "post_like",
+        "post",
+      );
     } catch (preloadError) {
       console.warn("Like memory cleanup preload error", preloadError);
     }

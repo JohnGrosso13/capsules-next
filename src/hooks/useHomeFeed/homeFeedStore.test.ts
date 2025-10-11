@@ -185,9 +185,7 @@ describe("homeFeedStore", () => {
 
     await store.actions.requestFriend("p5", "friend");
 
-    expect(updateFriendMock).toHaveBeenCalledWith(
-      expect.objectContaining({ action: "request" }),
-    );
+    expect(updateFriendMock).toHaveBeenCalledWith(expect.objectContaining({ action: "request" }));
     const state = store.getState();
     expect(state.friendMessage).toBe("ok");
     expect(state.activeFriendTarget).toBeNull();

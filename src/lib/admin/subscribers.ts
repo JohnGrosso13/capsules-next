@@ -41,10 +41,13 @@ export async function loadSubscribers() {
 
   const rows = ensureRows(result, "admin.subscribers.list");
 
-  return rows.map((row) => ({
-    email: row.email ?? "",
-    source: row.source ?? null,
-    confirmed_at: row.confirmed_at ?? row.created_at ?? null,
-    created_at: row.created_at ?? null,
-  } satisfies AdminSubscriber));
+  return rows.map(
+    (row) =>
+      ({
+        email: row.email ?? "",
+        source: row.source ?? null,
+        confirmed_at: row.confirmed_at ?? row.created_at ?? null,
+        created_at: row.created_at ?? null,
+      }) satisfies AdminSubscriber,
+  );
 }

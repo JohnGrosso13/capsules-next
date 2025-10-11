@@ -28,9 +28,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
   if (!parsed.success) {
     return parsed.response;
   }
-  const ownerId = await ensureUserFromRequest(req, (parsed.data.user ?? {}) as IncomingUserPayload, {
-    allowGuests: false,
-  });
+  const ownerId = await ensureUserFromRequest(
+    req,
+    (parsed.data.user ?? {}) as IncomingUserPayload,
+    {
+      allowGuests: false,
+    },
+  );
   if (!ownerId) {
     return returnError(401, "auth_required", "Authentication required");
   }
@@ -68,5 +72,3 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return returnError(500, "artifact_commit_failed", "Failed to commit artifact");
   }
 }
-
-

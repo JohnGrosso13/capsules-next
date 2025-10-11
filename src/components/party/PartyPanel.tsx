@@ -80,7 +80,12 @@ function initialsFromName(name: string | null | undefined): string {
   return (parts[0]!.charAt(0) + parts[parts.length - 1]!.charAt(0)).toUpperCase();
 }
 
-export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "default" }: PartyPanelProps) {
+export function PartyPanel({
+  friends,
+  friendTargets,
+  onShowFriends,
+  variant = "default",
+}: PartyPanelProps) {
   const searchParams = useSearchParams();
   const {
     status,
@@ -146,7 +151,10 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
       });
   }, [friends, friendTargets]);
 
-  const busyInviteIds = React.useMemo(() => new Set([inviteBusyId].filter(Boolean) as string[]), [inviteBusyId]);
+  const busyInviteIds = React.useMemo(
+    () => new Set([inviteBusyId].filter(Boolean) as string[]),
+    [inviteBusyId],
+  );
 
   const handleCreateParty = React.useCallback(async () => {
     const trimmedName = displayName.trim();
@@ -220,7 +228,8 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
       } catch (err) {
         console.error("Party invite error", err);
         setInviteFeedback({
-          message: err instanceof Error ? err.message : "We couldn't deliver that invite. Try again soon.",
+          message:
+            err instanceof Error ? err.message : "We couldn't deliver that invite. Try again soon.",
           tone: "warning",
         });
       } finally {
@@ -289,8 +298,8 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
             inviteFeedback.tone === "success"
               ? styles.noticeSuccess
               : inviteFeedback.tone === "warning"
-              ? styles.noticeWarning
-              : styles.noticeInfo
+                ? styles.noticeWarning
+                : styles.noticeInfo
           }`}
         >
           {inviteFeedback.message}
@@ -306,7 +315,8 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
             </span>
             <h2 className={styles.heroTitle}>Drop-in party chat built for Capsules</h2>
             <p className={styles.heroSubtitle}>
-              Start a futuristic voice lobby, sync up instantly, and keep the convo flowing without leaving Capsules.
+              Start a futuristic voice lobby, sync up instantly, and keep the convo flowing without
+              leaving Capsules.
             </p>
           </div>
           <div className={styles.heroActions}>
@@ -348,8 +358,8 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
                 ? action === "create"
                   ? "Starting..."
                   : action === "resume"
-                  ? "Reconnecting..."
-                  : "Start a party"
+                    ? "Reconnecting..."
+                    : "Start a party"
                 : "Start a party"}
             </button>
           </div>
@@ -384,9 +394,7 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
               <span className={styles.metaLabel}>Host</span>
               <span className={styles.metaValue}>
                 {session.metadata.ownerDisplayName ?? "Unknown"}
-                {session.isOwner ? (
-                  <span className={styles.hostBadge}>you</span>
-                ) : null}
+                {session.isOwner ? <span className={styles.hostBadge}>you</span> : null}
               </span>
             </div>
             <div className={styles.metaBlock}>
@@ -434,8 +442,8 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
               ? action === "join"
                 ? "Connecting..."
                 : action === "resume"
-                ? "Reconnecting..."
-                : "Join"
+                  ? "Reconnecting..."
+                  : "Join"
               : "Join"}
           </button>
         </div>
@@ -501,7 +509,15 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
   );
 }
 
-function PartyStage({ session, canClose, status, onLeave, onClose, onReady, onDisconnected }: PartyStageProps) {
+function PartyStage({
+  session,
+  canClose,
+  status,
+  onLeave,
+  onClose,
+  onReady,
+  onDisconnected,
+}: PartyStageProps) {
   return (
     <div className={styles.stageCard}>
       <LiveKitRoom
@@ -623,7 +639,11 @@ function PartyStageScene({
           }}
           disabled={micBusy || !room}
         >
-          {micEnabled ? <Microphone size={16} weight="bold" /> : <MicrophoneSlash size={16} weight="bold" />}
+          {micEnabled ? (
+            <Microphone size={16} weight="bold" />
+          ) : (
+            <MicrophoneSlash size={16} weight="bold" />
+          )}
           {micEnabled ? "Mute" : "Unmute"}
         </button>
         <button
@@ -676,11 +696,14 @@ function ParticipantBadge({ participant, isLocal }: ParticipantBadgeProps) {
           {isLocal ? <span className={styles.participantBadge}>you</span> : null}
         </div>
         <div className={styles.participantState}>
-          {mic ? <Microphone size={14} weight="bold" /> : <MicrophoneSlash size={14} weight="bold" />}
+          {mic ? (
+            <Microphone size={14} weight="bold" />
+          ) : (
+            <MicrophoneSlash size={14} weight="bold" />
+          )}
           <span>{mic ? (speaking ? "Speaking" : "Live") : "Muted"}</span>
         </div>
       </div>
     </div>
   );
 }
-

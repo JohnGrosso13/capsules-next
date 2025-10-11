@@ -3,7 +3,6 @@ import type { FriendRealtimeEvent } from "@/services/realtime/friends";
 
 import {
   FriendGraphError,
-
   type FriendSummary,
   type FriendRequestSummary,
   type FollowSummary,
@@ -58,7 +57,8 @@ function assertPending(row: RawRow, context: string): void {
 }
 
 export async function listSocialGraph(userId: string): Promise<SocialGraphSnapshot> {
-  const { friends, incoming, outgoing, followers, following, blocked } = await fetchSocialGraphRows(userId);
+  const { friends, incoming, outgoing, followers, following, blocked } =
+    await fetchSocialGraphRows(userId);
 
   return {
     friends: friends.map((row) => mapFriendRow(row)),
@@ -187,8 +187,14 @@ export async function acceptFriendRequest(
   const outgoing = mapRequestRow(updatedRow, "outgoing");
 
   const events: Array<{ userId: string; event: FriendRealtimeEvent }> = [
-    { userId: requesterId, event: { type: "friend.request.updated", payload: { request: outgoing } } },
-    { userId: recipientId, event: { type: "friend.request.updated", payload: { request: incoming } } },
+    {
+      userId: requesterId,
+      event: { type: "friend.request.updated", payload: { request: outgoing } },
+    },
+    {
+      userId: recipientId,
+      event: { type: "friend.request.updated", payload: { request: incoming } },
+    },
   ];
 
   const createdFriends: FriendSummary[] = [];
@@ -332,7 +338,10 @@ export async function removeFriendship(
 
   await publishFriendEvents([
     { userId, event: { type: "friendship.removed", payload: { friendUserId } } },
-    { userId: friendUserId, event: { type: "friendship.removed", payload: { friendUserId: userId } } },
+    {
+      userId: friendUserId,
+      event: { type: "friendship.removed", payload: { friendUserId: userId } },
+    },
   ]);
 
   return mapFriendRow(existing);
@@ -393,8 +402,14 @@ export async function unfollowUser(followerId: string, followeeId: string): Prom
   await softDeleteFollowEdge(followerId, followeeId, removedAt);
 
   await publishFriendEvents([
-    { userId: followerId, event: { type: "follow.updated", payload: { state: "unfollow", userId: followeeId } } },
-    { userId: followeeId, event: { type: "follow.updated", payload: { state: "unfollow", userId: followerId } } },
+    {
+      userId: followerId,
+      event: { type: "follow.updated", payload: { state: "unfollow", userId: followeeId } },
+    },
+    {
+      userId: followeeId,
+      event: { type: "follow.updated", payload: { state: "unfollow", userId: followerId } },
+    },
   ]);
 }
 

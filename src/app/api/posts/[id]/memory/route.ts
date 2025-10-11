@@ -72,7 +72,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const truncatedContent = truncateContent(postContent);
   const payloadMediaUrl =
     payload && typeof payload.mediaUrl === "string"
-      ? normalizeMediaUrl(payload.mediaUrl) ?? payload.mediaUrl
+      ? (normalizeMediaUrl(payload.mediaUrl) ?? payload.mediaUrl)
       : null;
   const mediaUrl =
     (typeof postCore?.media_url === "string" ? postCore.media_url : null) ?? payloadMediaUrl;
@@ -82,7 +82,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
     let idsToPurge: string[] = [];
     try {
-      idsToPurge = await listMemoryIdsForPostOwnerAndSource(userId, memoryPostId, "post_memory", "post");
+      idsToPurge = await listMemoryIdsForPostOwnerAndSource(
+        userId,
+        memoryPostId,
+        "post_memory",
+        "post",
+      );
     } catch (preloadError) {
       console.warn("Memory cleanup preload error", preloadError);
     }

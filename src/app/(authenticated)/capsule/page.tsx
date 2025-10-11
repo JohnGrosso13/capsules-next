@@ -33,8 +33,8 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
 
   const primaryEmailId = user.primaryEmailAddressId;
   const primaryEmail = primaryEmailId
-    ? user.emailAddresses.find((entry) => entry.id === primaryEmailId)?.emailAddress ?? null
-    : user.emailAddresses[0]?.emailAddress ?? null;
+    ? (user.emailAddresses.find((entry) => entry.id === primaryEmailId)?.emailAddress ?? null)
+    : (user.emailAddresses[0]?.emailAddress ?? null);
 
   const fallbackFullName = [user.firstName, user.lastName]
     .filter((value): value is string => Boolean(value))
@@ -54,12 +54,10 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
 
   const { capsules, defaultCapsuleId } = await resolveCapsuleGate(supabaseUserId);
 
-  const resolvedSearchParams = (await Promise.resolve(
-    searchParams ?? {},
-  )) as CapsuleSearchParams;
+  const resolvedSearchParams = (await Promise.resolve(searchParams ?? {})) as CapsuleSearchParams;
   const requestedCapsuleParam = resolvedSearchParams.capsuleId;
   const requestedCapsuleId = Array.isArray(requestedCapsuleParam)
-    ? requestedCapsuleParam[0] ?? null
+    ? (requestedCapsuleParam[0] ?? null)
     : typeof requestedCapsuleParam === "string"
       ? requestedCapsuleParam
       : null;
@@ -86,7 +84,12 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
     ? switchParam.some((value) => {
         if (!value) return false;
         const normalized = String(value).toLowerCase();
-        return normalized === "1" || normalized === "true" || normalized === "select" || normalized === "switch";
+        return (
+          normalized === "1" ||
+          normalized === "true" ||
+          normalized === "select" ||
+          normalized === "switch"
+        );
       })
     : typeof switchParam === "string"
       ? ["1", "true", "select", "switch"].includes(switchParam.toLowerCase())
@@ -98,16 +101,17 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
 
   if (!selectedCapsuleId) {
     selectedCapsuleId =
-      defaultCapsuleId ?? (dedupedCapsules.length === 1 ? dedupedCapsules[0]?.id ?? null : null);
+      defaultCapsuleId ?? (dedupedCapsules.length === 1 ? (dedupedCapsules[0]?.id ?? null) : null);
   }
 
   const hasAnyCapsule = dedupedCapsules.length > 0;
   const initialLiveChatCapsuleId = hasAnyCapsule
-    ? selectedCapsuleId ?? (dedupedCapsules.length === 1 ? dedupedCapsules[0]?.id ?? null : null)
+    ? (selectedCapsuleId ??
+      (dedupedCapsules.length === 1 ? (dedupedCapsules[0]?.id ?? null) : null))
     : null;
   const initialLiveChatCapsule =
     initialLiveChatCapsuleId && hasAnyCapsule
-      ? dedupedCapsules.find((capsule) => capsule.id === initialLiveChatCapsuleId) ?? null
+      ? (dedupedCapsules.find((capsule) => capsule.id === initialLiveChatCapsuleId) ?? null)
       : null;
 
   return (
@@ -115,10 +119,22 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
       activeNav="capsule"
       showPrompter={false}
       showLiveChatRightRail={true}
-      liveChatRailProps={ hasAnyCapsule ? { capsuleId: initialLiveChatCapsuleId, capsuleName: initialLiveChatCapsule?.name ?? null, status: "waiting" } : { status: "waiting" } }
+      liveChatRailProps={
+        hasAnyCapsule
+          ? {
+              capsuleId: initialLiveChatCapsuleId,
+              capsuleName: initialLiveChatCapsule?.name ?? null,
+              status: "waiting",
+            }
+          : { status: "waiting" }
+      }
     >
       <div className={capTheme.theme}>
-        <CapsuleGate capsules={dedupedCapsules} defaultCapsuleId={selectedCapsuleId} forceSelector={shouldForceSelector} />
+        <CapsuleGate
+          capsules={dedupedCapsules}
+          defaultCapsuleId={selectedCapsuleId}
+          forceSelector={shouldForceSelector}
+        />
       </div>
     </AppPage>
   );

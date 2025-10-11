@@ -85,7 +85,11 @@ describe("togglePostMemory", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await togglePostMemory({ postId: "p1", action: "remember", payload: { foo: "bar" } });
+    const result = await togglePostMemory({
+      postId: "p1",
+      action: "remember",
+      payload: { foo: "bar" },
+    });
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/posts/p1/memory",
@@ -95,7 +99,10 @@ describe("togglePostMemory", () => {
       }),
     );
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(JSON.parse(String(options.body))).toEqual({ action: "remember", payload: { foo: "bar" } });
+    expect(JSON.parse(String(options.body))).toEqual({
+      action: "remember",
+      payload: { foo: "bar" },
+    });
     expect(result.remembered).toBe(true);
   });
 
@@ -107,7 +114,9 @@ describe("togglePostMemory", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(togglePostMemory({ postId: "p1", action: "forget" })).rejects.toThrowError("memory boom");
+    await expect(togglePostMemory({ postId: "p1", action: "forget" })).rejects.toThrowError(
+      "memory boom",
+    );
   });
 });
 
@@ -140,7 +149,9 @@ describe("updatePostFriendship", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(updatePostFriendship({ action: "remove", target: null })).rejects.toThrowError("no friend");
+    await expect(updatePostFriendship({ action: "remove", target: null })).rejects.toThrowError(
+      "no friend",
+    );
   });
 });
 

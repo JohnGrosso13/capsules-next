@@ -216,20 +216,23 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("composer:feed-target", handler as EventListener);
   }, []);
 
-  const handleAiResponse = React.useCallback((prompt: string, payload: DraftPostResponse) => {
-    const rawSource = (payload.post ?? {}) as Record<string, unknown>;
-    const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
-    const draft = normalizeDraftFromPost(rawPost);
-    setState(() => ({
-      open: true,
-      loading: false,
-      prompt,
-      draft,
-      rawPost,
-      message: payload.message ?? null,
-      choices: payload.choices ?? null,
-    }));
-  }, [activeCapsuleId]);
+  const handleAiResponse = React.useCallback(
+    (prompt: string, payload: DraftPostResponse) => {
+      const rawSource = (payload.post ?? {}) as Record<string, unknown>;
+      const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
+      const draft = normalizeDraftFromPost(rawPost);
+      setState(() => ({
+        open: true,
+        loading: false,
+        prompt,
+        draft,
+        rawPost,
+        message: payload.message ?? null,
+        choices: payload.choices ?? null,
+      }));
+    },
+    [activeCapsuleId],
+  );
 
   const handlePrompterAction = React.useCallback(
     async (action: PrompterAction) => {
@@ -239,27 +242,27 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         setState((prev) => ({ ...prev, loading: true }));
-      try {
-        const postPayload: Record<string, unknown> = {
-          client_id: safeRandomUUID(),
-          kind: "text",
-          content,
-          source: "ai-prompter",
-        };
-        if (action.attachments?.length) {
-          postPayload.attachments = action.attachments;
-          const primary = action.attachments[0];
-          if (primary?.url) {
-            postPayload.mediaUrl = primary.url;
-            const primaryMime = primary.mimeType ?? null;
-            if (primaryMime) {
-              const normalizedKind = primaryMime.startsWith("video/") ? "video" : "image";
-              postPayload.kind = normalizedKind;
-            } else if (postPayload.kind === "text") {
-              postPayload.kind = "image";
+        try {
+          const postPayload: Record<string, unknown> = {
+            client_id: safeRandomUUID(),
+            kind: "text",
+            content,
+            source: "ai-prompter",
+          };
+          if (action.attachments?.length) {
+            postPayload.attachments = action.attachments;
+            const primary = action.attachments[0];
+            if (primary?.url) {
+              postPayload.mediaUrl = primary.url;
+              const primaryMime = primary.mimeType ?? null;
+              if (primaryMime) {
+                const normalizedKind = primaryMime.startsWith("video/") ? "video" : "image";
+                postPayload.kind = normalizedKind;
+              } else if (postPayload.kind === "text") {
+                postPayload.kind = "image";
+              }
             }
           }
-        }
           const manualPayload = appendCapsuleContext(postPayload, activeCapsuleId);
           await persistPost(manualPayload, envelopePayload);
           setState(initialState);
@@ -287,7 +290,14 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
       if (action.kind === "tool_poll") {
         const prompt = action.prompt;
-        setState((prev) => ({ ...prev, open: true, loading: true, prompt, message: null, choices: null }));
+        setState((prev) => ({
+          ...prev,
+          open: true,
+          loading: true,
+          prompt,
+          message: null,
+          choices: null,
+        }));
         try {
           const payload = await callAiPrompt(prompt, { prefer: "poll" });
           handleAiResponse(prompt, payload);
@@ -300,7 +310,14 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       // Tool: Logo (generate an image from prompt then open composer)
       if (action.kind === "tool_logo") {
         const prompt = action.prompt;
-        setState((prev) => ({ ...prev, open: true, loading: true, prompt, message: null, choices: null }));
+        setState((prev) => ({
+          ...prev,
+          open: true,
+          loading: true,
+          prompt,
+          message: null,
+          choices: null,
+        }));
         try {
           const res = await fetch("/api/ai/image/generate", {
             method: "POST",
@@ -341,7 +358,14 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         const prompt = action.prompt;
         const attachment = action.attachments?.[0] ?? null;
         if (!attachment?.url) return;
-        setState((prev) => ({ ...prev, open: true, loading: true, prompt, message: null, choices: null }));
+        setState((prev) => ({
+          ...prev,
+          open: true,
+          loading: true,
+          prompt,
+          message: null,
+          choices: null,
+        }));
         try {
           const res = await fetch("/api/ai/image/edit", {
             method: "POST",

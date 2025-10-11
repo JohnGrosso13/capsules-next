@@ -20,7 +20,13 @@ function joinClassNames(...values: Array<string | undefined>): string {
 
 const MAX_VISIBLE = 6;
 
-export type MemoryAssetVariant = "banner" | "store_banner" | "promo_tile" | "logo" | "avatar" | "unknown";
+export type MemoryAssetVariant =
+  | "banner"
+  | "store_banner"
+  | "promo_tile"
+  | "logo"
+  | "avatar"
+  | "unknown";
 
 const VARIANT_LABELS: Record<MemoryAssetVariant, string> = {
   banner: "Capsule Banner",
@@ -55,7 +61,10 @@ function toMetaObject(meta: unknown): Record<string, unknown> | null {
   return null;
 }
 
-function extractMetaValue(meta: Record<string, unknown> | null | undefined, keys: string[]): string | null {
+function extractMetaValue(
+  meta: Record<string, unknown> | null | undefined,
+  keys: string[],
+): string | null {
   if (!meta || typeof meta !== "object") return null;
   for (const key of keys) {
     const value = normalizeString((meta as Record<string, unknown>)[key]);
@@ -128,7 +137,9 @@ export function formatAssetTimestamp(iso: string | null | undefined): string | n
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
   try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
+    return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
+      date,
+    );
   } catch {
     return date.toLocaleString();
   }
@@ -295,8 +306,7 @@ export function MemoryAssetCarousel({
   }, [hasRotation, pageSize, totalItems]);
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () =>
-      ({ "--carousel-visible-count": Math.max(1, pageSize) } as React.CSSProperties),
+    () => ({ "--carousel-visible-count": Math.max(1, pageSize) }) as React.CSSProperties,
     [pageSize],
   );
 
@@ -361,7 +371,9 @@ export function MemoryAssetCarousel({
           )
         ) : null}
       </div>
-      {user ? <MemoryUploadDetailDialog item={activeItem} onClose={() => setActiveItem(null)} /> : null}
+      {user ? (
+        <MemoryUploadDetailDialog item={activeItem} onClose={() => setActiveItem(null)} />
+      ) : null}
     </>
   );
 }

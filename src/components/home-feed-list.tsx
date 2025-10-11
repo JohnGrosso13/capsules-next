@@ -4,12 +4,24 @@ import * as React from "react";
 import Image from "next/image";
 
 import styles from "./home.module.css";
-import { Brain, Heart, ChatCircle, ShareNetwork, DotsThreeCircleVertical, Trash, HourglassHigh } from "@phosphor-icons/react/dist/ssr";
+import {
+  Brain,
+  Heart,
+  ChatCircle,
+  ShareNetwork,
+  DotsThreeCircleVertical,
+  Trash,
+  HourglassHigh,
+} from "@phosphor-icons/react/dist/ssr";
 import { PostMenu } from "@/components/posts/PostMenu";
 import { normalizeMediaUrl } from "@/lib/media";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { resolveToAbsoluteUrl } from "@/lib/url";
-import { buildImageVariants, pickBestDisplayVariant, pickBestFullVariant } from "@/lib/cloudflare/images";
+import {
+  buildImageVariants,
+  pickBestDisplayVariant,
+  pickBestFullVariant,
+} from "@/lib/cloudflare/images";
 import type { CloudflareImageVariantSet } from "@/lib/cloudflare/images";
 import {
   buildLocalImageVariants,
@@ -19,9 +31,11 @@ import {
 
 type LazyImageProps = React.ComponentProps<typeof Image>;
 
-const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(({ loading, alt, ...rest }, ref) => (
-  <Image ref={ref} loading={loading ?? "lazy"} alt={alt} {...rest} />
-));
+const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(
+  ({ loading, alt, ...rest }, ref) => (
+    <Image ref={ref} loading={loading ?? "lazy"} alt={alt} {...rest} />
+  ),
+);
 
 LazyImage.displayName = "LazyImage";
 
@@ -38,7 +52,6 @@ function shouldRebuildVariantsForEnvironment(
   if (containsCloudflareResize(variants.thumb)) return true;
   return false;
 }
-
 
 type HomeFeedListProps = {
   posts: HomeFeedPost[];
@@ -81,24 +94,21 @@ export function HomeFeedList({
   isRefreshing,
   emptyMessage,
 }: HomeFeedListProps) {
-  const [lightbox, setLightbox] = React.useState<
-    | {
-        postId: string;
-        index: number;
-        items: Array<{
-          id: string;
-          kind: "image" | "video";
-          fullUrl: string;
-          fullSrcSet?: string | null;
-          displayUrl: string;
-          displaySrcSet?: string | null;
-          name: string | null;
-          alt: string;
-          mimeType: string | null;
-        }>;
-      }
-    | null
-  >(null);
+  const [lightbox, setLightbox] = React.useState<{
+    postId: string;
+    index: number;
+    items: Array<{
+      id: string;
+      kind: "image" | "video";
+      fullUrl: string;
+      fullSrcSet?: string | null;
+      displayUrl: string;
+      displaySrcSet?: string | null;
+      name: string | null;
+      alt: string;
+      mimeType: string | null;
+    }>;
+  } | null>(null);
 
   const INITIAL_BATCH = 6;
   const BATCH_SIZE = 6;
@@ -139,7 +149,7 @@ export function HomeFeedList({
           return next;
         });
       },
-      { rootMargin: '600px 0px' },
+      { rootMargin: "600px 0px" },
     );
     observer.observe(node);
     return () => observer.disconnect();
@@ -208,7 +218,7 @@ export function HomeFeedList({
     setLightbox((prev) => {
       if (!prev || !prev.items.length) return prev;
       const total = prev.items.length;
-      const nextIndex = ((prev.index + step) % total + total) % total;
+      const nextIndex = (((prev.index + step) % total) + total) % total;
       return {
         ...prev,
         index: nextIndex,
@@ -316,12 +326,23 @@ export function HomeFeedList({
             pending: isLikePending,
             handler: () => onToggleLike(post.id),
           },
-          { key: "comment", label: "Comment", icon: <ChatCircle weight="duotone" />, count: commentCount },
-          { key: "share", label: "Share", icon: <ShareNetwork weight="duotone" />, count: shareCount },
+          {
+            key: "comment",
+            label: "Comment",
+            icon: <ChatCircle weight="duotone" />,
+            count: commentCount,
+          },
+          {
+            key: "share",
+            label: "Share",
+            icon: <ShareNetwork weight="duotone" />,
+            count: shareCount,
+          },
         ];
         const attachmentsList = Array.isArray(post.attachments)
-          ? post.attachments.filter((attachment): attachment is NonNullable<HomeFeedPost["attachments"]>[number] =>
-              Boolean(attachment && attachment.url),
+          ? post.attachments.filter(
+              (attachment): attachment is NonNullable<HomeFeedPost["attachments"]>[number] =>
+                Boolean(attachment && attachment.url),
             )
           : [];
         const inferAttachmentKind = (
@@ -334,11 +355,11 @@ export function HomeFeedList({
           if (loweredMime.startsWith("image/")) return "image";
           if (loweredMime.startsWith("video/")) return "video";
 
-          const mediaSources = [url, storageKey ?? null, thumbnailUrl ?? null]
-            .map((value) => (typeof value === "string" ? value.toLowerCase() : ""));
+          const mediaSources = [url, storageKey ?? null, thumbnailUrl ?? null].map((value) =>
+            typeof value === "string" ? value.toLowerCase() : "",
+          );
 
-          const hasMatch = (pattern: RegExp) =>
-            mediaSources.some((source) => pattern.test(source));
+          const hasMatch = (pattern: RegExp) => mediaSources.some((source) => pattern.test(source));
 
           if (hasMatch(/\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv)(\?|#|$)/)) return "video";
           if (hasMatch(/\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/)) return "image";
@@ -383,25 +404,26 @@ export function HomeFeedList({
         if (media) {
           const inferred = inferAttachmentKind(null, media) === "video" ? "video" : "image";
           const absoluteMedia = resolveToAbsoluteUrl(media) ?? media;
-          const variants = inferred === "image"
-            ? cloudflareEnabled
-              ? buildImageVariants(media, {
-                  thumbnailUrl: media,
-                  origin: currentOrigin ?? null,
-                })
-              : buildLocalImageVariants(media, media)
-            : null;
-          const displayUrl = inferred === "image"
-            ? pickBestDisplayVariant(variants) ?? absoluteMedia
-            : absoluteMedia;
-          const fullUrl = inferred === "image"
-            ? pickBestFullVariant(variants) ?? absoluteMedia
-            : absoluteMedia;
+          const variants =
+            inferred === "image"
+              ? cloudflareEnabled
+                ? buildImageVariants(media, {
+                    thumbnailUrl: media,
+                    origin: currentOrigin ?? null,
+                  })
+                : buildLocalImageVariants(media, media)
+              : null;
+          const displayUrl =
+            inferred === "image"
+              ? (pickBestDisplayVariant(variants) ?? absoluteMedia)
+              : absoluteMedia;
+          const fullUrl =
+            inferred === "image" ? (pickBestFullVariant(variants) ?? absoluteMedia) : absoluteMedia;
           const displaySrcSet =
-            cloudflareEnabled && inferred === "image" ? variants?.feedSrcset ?? null : null;
+            cloudflareEnabled && inferred === "image" ? (variants?.feedSrcset ?? null) : null;
           const fullSrcSet =
             cloudflareEnabled && inferred === "image"
-              ? variants?.fullSrcset ?? variants?.feedSrcset ?? null
+              ? (variants?.fullSrcset ?? variants?.feedSrcset ?? null)
               : null;
           pushMedia({
             id: `${post.id}-primary`,
@@ -412,21 +434,26 @@ export function HomeFeedList({
             fullSrcSet,
             kind: inferred,
             name: null,
-            thumbnailUrl:
-              inferred === "image"
-                ? variants?.thumb ?? absoluteMedia
-                : absoluteMedia,
+            thumbnailUrl: inferred === "image" ? (variants?.thumb ?? absoluteMedia) : absoluteMedia,
             mimeType: null,
           });
         }
 
         attachmentsList.forEach((attachment, index) => {
           if (!attachment || !attachment.url) return;
-          const kind = inferAttachmentKind(attachment.mimeType ?? null, attachment.url, attachment.storageKey ?? null, attachment.thumbnailUrl ?? null);
+          const kind = inferAttachmentKind(
+            attachment.mimeType ?? null,
+            attachment.url,
+            attachment.storageKey ?? null,
+            attachment.thumbnailUrl ?? null,
+          );
           const baseId = attachment.id || `${post.id}-att-${index}`;
           if (kind === "image" || kind === "video") {
             let variants = attachment.variants ?? null;
-            if (kind === "image" && shouldRebuildVariantsForEnvironment(variants, cloudflareEnabled)) {
+            if (
+              kind === "image" &&
+              shouldRebuildVariantsForEnvironment(variants, cloudflareEnabled)
+            ) {
               variants = cloudflareEnabled
                 ? buildImageVariants(attachment.url, {
                     thumbnailUrl: attachment.thumbnailUrl ?? null,
@@ -438,17 +465,17 @@ export function HomeFeedList({
             const absoluteThumb = resolveToAbsoluteUrl(attachment.thumbnailUrl ?? null);
             const displayCandidate =
               kind === "image"
-                ? pickBestDisplayVariant(variants) ?? absoluteThumb ?? absoluteOriginal
+                ? (pickBestDisplayVariant(variants) ?? absoluteThumb ?? absoluteOriginal)
                 : absoluteOriginal;
             const fullCandidate =
               kind === "image"
-                ? pickBestFullVariant(variants) ?? absoluteOriginal
+                ? (pickBestFullVariant(variants) ?? absoluteOriginal)
                 : absoluteOriginal;
             const displaySrcSet =
-              cloudflareEnabled && kind === "image" ? variants?.feedSrcset ?? null : null;
+              cloudflareEnabled && kind === "image" ? (variants?.feedSrcset ?? null) : null;
             const fullSrcSet =
               cloudflareEnabled && kind === "image"
-                ? variants?.fullSrcset ?? variants?.feedSrcset ?? null
+                ? (variants?.fullSrcset ?? variants?.feedSrcset ?? null)
                 : null;
             pushMedia({
               id: baseId,
@@ -461,8 +488,8 @@ export function HomeFeedList({
               name: attachment.name ?? null,
               thumbnailUrl:
                 kind === "image"
-                  ? variants?.thumb ?? absoluteThumb ?? absoluteOriginal
-                  : absoluteThumb ?? attachment.thumbnailUrl ?? null,
+                  ? (variants?.thumb ?? absoluteThumb ?? absoluteOriginal)
+                  : (absoluteThumb ?? attachment.thumbnailUrl ?? null),
               mimeType: attachment.mimeType ?? null,
             });
           } else {
@@ -563,11 +590,7 @@ export function HomeFeedList({
                         : "Save to Memory"
                   }
                   title={
-                    canRemember
-                      ? remembered
-                        ? "Remembered"
-                        : "Save to Memory"
-                      : "Sign in to save"
+                    canRemember ? (remembered ? "Remembered" : "Save to Memory") : "Sign in to save"
                   }
                 >
                   {isMemoryPending ? (
@@ -616,76 +639,76 @@ export function HomeFeedList({
               {post.content ? <div className={styles.postText}>{post.content}</div> : null}
             </div>
 
-        {galleryItems.length ? (
-          <div className={styles.mediaGallery} data-count={galleryItems.length}>
-            {(() => {
-              const imageItems = galleryItems.filter((entry) => entry.kind === "image");
-              const lightboxLookup = new Map<string, number>(
-                imageItems.map((entry, idx) => [entry.id, idx]),
-              );
-              const mappedLightboxItems = imageItems.map((entry) => ({
-                id: entry.id,
-                kind: entry.kind,
-                fullUrl: entry.fullUrl,
-                fullSrcSet: entry.fullSrcSet,
-                displayUrl: entry.displayUrl,
-                displaySrcSet: entry.displaySrcSet,
-                name: entry.name,
-                alt: entry.name ?? "Post attachment",
-                mimeType: entry.mimeType,
-              }));
-
-              return galleryItems.map((item) => {
-                if (item.kind === "video") {
-                  return (
-                    <div key={item.id} className={styles.mediaWrapper} data-kind="video">
-                      <video
-                        className={`${styles.media} ${styles.mediaVideo}`.trim()}
-                        controls
-                        playsInline
-                        preload="metadata"
-                        poster={item.thumbnailUrl ?? undefined}
-                      >
-                        <source src={item.fullUrl} type={item.mimeType ?? undefined} />
-                        Your browser does not support the video tag.
-                      </video>
-                    </div>
+            {galleryItems.length ? (
+              <div className={styles.mediaGallery} data-count={galleryItems.length}>
+                {(() => {
+                  const imageItems = galleryItems.filter((entry) => entry.kind === "image");
+                  const lightboxLookup = new Map<string, number>(
+                    imageItems.map((entry, idx) => [entry.id, idx]),
                   );
-                }
+                  const mappedLightboxItems = imageItems.map((entry) => ({
+                    id: entry.id,
+                    kind: entry.kind,
+                    fullUrl: entry.fullUrl,
+                    fullSrcSet: entry.fullSrcSet,
+                    displayUrl: entry.displayUrl,
+                    displaySrcSet: entry.displaySrcSet,
+                    name: entry.name,
+                    alt: entry.name ?? "Post attachment",
+                    mimeType: entry.mimeType,
+                  }));
 
-                const imageIndex = lightboxLookup.get(item.id) ?? 0;
+                  return galleryItems.map((item) => {
+                    if (item.kind === "video") {
+                      return (
+                        <div key={item.id} className={styles.mediaWrapper} data-kind="video">
+                          <video
+                            className={`${styles.media} ${styles.mediaVideo}`.trim()}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            poster={item.thumbnailUrl ?? undefined}
+                          >
+                            <source src={item.fullUrl} type={item.mimeType ?? undefined} />
+                            Your browser does not support the video tag.
+                          </video>
+                        </div>
+                      );
+                    }
 
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`${styles.mediaButton} ${styles.mediaImageButton}`.trim()}
-                    onClick={() => {
-                      if (!mappedLightboxItems.length) return;
-                      setLightbox({
-                        postId: post.id,
-                        index: imageIndex,
-                        items: mappedLightboxItems,
-                      });
-                    }}
-                    aria-label={item.name ? `View ${item.name}` : "View attachment"}
-                  >
-                    <LazyImage
-                      className={`${styles.media} ${styles.mediaImage}`.trim()}
-                      src={item.displayUrl}
-                      alt={item.name ?? "Post attachment"}
-                      width={1080}
-                      height={1080}
-                      sizes="(max-width: 640px) 100vw, 720px"
-                      loading="lazy"
-                      unoptimized
-                    />
-                  </button>
-                );
-              });
-            })()}
-          </div>
-        ) : null}
+                    const imageIndex = lightboxLookup.get(item.id) ?? 0;
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`${styles.mediaButton} ${styles.mediaImageButton}`.trim()}
+                        onClick={() => {
+                          if (!mappedLightboxItems.length) return;
+                          setLightbox({
+                            postId: post.id,
+                            index: imageIndex,
+                            items: mappedLightboxItems,
+                          });
+                        }}
+                        aria-label={item.name ? `View ${item.name}` : "View attachment"}
+                      >
+                        <LazyImage
+                          className={`${styles.media} ${styles.mediaImage}`.trim()}
+                          src={item.displayUrl}
+                          alt={item.name ?? "Post attachment"}
+                          width={1080}
+                          height={1080}
+                          sizes="(max-width: 640px) 100vw, 720px"
+                          loading="lazy"
+                          unoptimized
+                        />
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
+            ) : null}
 
             {fileAttachments.length ? (
               <ul className={styles.attachmentList}>
@@ -722,9 +745,11 @@ export function HomeFeedList({
                   >
                     <span className={styles.actionMeta}>
                       <span className={styles.actionIcon} aria-hidden>
-                        {action.key === "like"
-                          ? <Heart weight={action.active ? "fill" : "duotone"} />
-                          : action.icon}
+                        {action.key === "like" ? (
+                          <Heart weight={action.active ? "fill" : "duotone"} />
+                        ) : (
+                          action.icon
+                        )}
                       </span>
                       <span className={styles.actionLabel}>{action.label}</span>
                     </span>
@@ -789,12 +814,7 @@ export function HomeFeedList({
                   <div className={styles.lightboxBody}>
                     <div className={styles.lightboxMedia}>
                       {current.kind === "video" ? (
-                        <video
-                          className={styles.lightboxVideo}
-                          controls
-                          playsInline
-                          preload="auto"
-                        >
+                        <video className={styles.lightboxVideo} controls playsInline preload="auto">
                           <source src={current.fullUrl} type={current.mimeType ?? undefined} />
                           Your browser does not support embedded video.
                         </video>
@@ -823,4 +843,3 @@ export function HomeFeedList({
     </>
   );
 }
-

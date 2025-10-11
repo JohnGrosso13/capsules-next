@@ -112,7 +112,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const showSpinner = loading;
     const Component = asChild ? Slot : "button";
     const content = (
-      <ButtonContent size={size} showSpinner={showSpinner} leftIcon={leftIcon} rightIcon={rightIcon}>
+      <ButtonContent
+        size={size}
+        showSpinner={showSpinner}
+        leftIcon={leftIcon}
+        rightIcon={rightIcon}
+      >
         {children}
       </ButtonContent>
     );
@@ -188,7 +193,12 @@ export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(
         aria-disabled={showSpinner ? true : undefined}
         {...props}
       >
-        <ButtonContent size={size} showSpinner={showSpinner} leftIcon={leftIcon} rightIcon={rightIcon}>
+        <ButtonContent
+          size={size}
+          showSpinner={showSpinner}
+          leftIcon={leftIcon}
+          rightIcon={rightIcon}
+        >
           {children}
         </ButtonContent>
       </NextLink>
@@ -199,6 +209,3 @@ export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(
 ButtonLink.displayName = "ButtonLink";
 
 export type { ButtonVariant, ButtonSize };
-
-
-

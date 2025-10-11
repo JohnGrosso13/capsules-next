@@ -34,7 +34,8 @@ export function FriendsList({
     <div className={`${styles.list} ${styles.listLarge}`.trim()}>
       {notice ? <div className={styles.notice}>{notice}</div> : null}
       {items.map((friend, index) => {
-        const identifier = friend.userId ?? friend.key ?? (friend.id ? String(friend.id) : `friend-${index}`);
+        const identifier =
+          friend.userId ?? friend.key ?? (friend.id ? String(friend.id) : `friend-${index}`);
         const isPending = pendingId === identifier;
         const canTarget = Boolean(friend.userId || friend.key || friend.id);
 

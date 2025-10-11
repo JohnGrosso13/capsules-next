@@ -26,7 +26,10 @@ export async function POST(req: Request) {
   const modeRaw = typeof body.mode === "string" ? body.mode.trim().toLowerCase() : null;
   const mode: ThemeMode = modeRaw === "light" || modeRaw === "dark" ? (modeRaw as ThemeMode) : null;
   const variantsRaw = body.variants;
-  const variants = variantsRaw && typeof variantsRaw === "object" ? (variantsRaw as Record<string, unknown>) : null;
+  const variants =
+    variantsRaw && typeof variantsRaw === "object"
+      ? (variantsRaw as Record<string, unknown>)
+      : null;
 
   if (!variants || !Object.keys(variants).length) {
     return NextResponse.json({ error: "variants required" }, { status: 400 });

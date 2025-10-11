@@ -30,7 +30,9 @@
   gap: 8px;
   text-align: center;
 }
-.placeholderHeaderIcon { color: var(--text); }
+.placeholderHeaderIcon {
+  color: var(--text);
+}
 
 .placeholderScroll {
   flex: 1;
@@ -91,7 +93,10 @@
       )
     )
   );
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .chatThread:hover {
@@ -166,7 +171,8 @@
   overflow: hidden;
   display: grid;
   place-items: center;
-  border: 2px solid color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.85)) 80%, transparent);
+  border: 2px solid
+    color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.85)) 80%, transparent);
   background: var(
     --chats-avatar-background,
     var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
@@ -224,19 +230,29 @@
   border-radius: 999px;
   background: linear-gradient(
     120deg,
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 76%, transparent) 0%,
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 76%, transparent)
+      0%,
     color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 84%, transparent) 50%,
-    color-mix(in srgb, var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%, transparent) 100%
+    color-mix(
+        in srgb,
+        var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%,
+        transparent
+      )
+      100%
   );
   border: 1px solid
     color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 62%, transparent);
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 28%, transparent);
+  box-shadow: 0 10px 22px
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 28%, transparent);
   color: var(--text-on-brand, #041021);
   letter-spacing: 0.08em;
   white-space: nowrap;
   text-shadow: 0 1px 0 color-mix(in srgb, var(--text-on-brand, #041021) 22%, transparent);
-  transition: box-shadow var(--motion-duration-quick, 120ms) var(--motion-ease-standard, cubic-bezier(0.2, 0, 0.4, 1)),
-    transform var(--motion-duration-quick, 120ms) var(--motion-ease-standard, cubic-bezier(0.2, 0, 0.4, 1));
+  transition:
+    box-shadow var(--motion-duration-quick, 120ms)
+      var(--motion-ease-standard, cubic-bezier(0.2, 0, 0.4, 1)),
+    transform var(--motion-duration-quick, 120ms)
+      var(--motion-ease-standard, cubic-bezier(0.2, 0, 0.4, 1));
 }
 
 .chatThreadTag:hover {
@@ -342,7 +358,10 @@
     )
   );
   color: var(--text);
-  transition: transform 160ms ease, border-color 160ms ease, filter 160ms ease;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    filter 160ms ease;
 }
 
 .conversationAction:hover {
@@ -404,7 +423,8 @@
     --chats-avatar-background,
     var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
   );
-  border: 2px solid color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.9)) 80%, transparent);
+  border: 2px solid
+    color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.9)) 80%, transparent);
   margin-left: -18px;
   font-weight: 700;
   color: var(--text);
@@ -453,7 +473,8 @@
   height: 32px;
   border-radius: 999px;
   overflow: hidden;
-  border: 2px solid color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.9)) 75%, transparent);
+  border: 2px solid
+    color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.9)) 75%, transparent);
   background: var(
     --conversation-participant-background,
     var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
@@ -633,10 +654,8 @@
 .messageInput {
   flex: 1;
   min-width: 0;
-  border: 1px solid var(
-    --chats-input-border,
-    color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent)
-  );
+  border: 1px solid
+    var(--chats-input-border, color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent));
   background: var(
     --chats-input-background,
     color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75))
@@ -645,7 +664,9 @@
   padding: 12px 18px;
   color: var(--text);
   font-size: 0.95rem;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .messageInput::placeholder {
@@ -673,7 +694,8 @@
   gap: 8px;
   padding: 11px 18px;
   border-radius: 999px;
-  border: 1px solid var(--chats-send-button-border, color-mix(in srgb, var(--color-brand) 80%, transparent));
+  border: 1px solid
+    var(--chats-send-button-border, color-mix(in srgb, var(--color-brand) 80%, transparent));
   background: var(
     --chats-send-button-background,
     linear-gradient(
@@ -685,7 +707,9 @@
   color: var(--chats-send-button-text, var(--text-on-brand, #ffffff));
   font-weight: 600;
   font-size: 0.9rem;
-  transition: transform 160ms ease, filter 160ms ease;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease;
 }
 
 .sendButton:hover:not(:disabled) {
@@ -725,7 +749,9 @@
     )
   );
   color: var(--text);
-  transition: transform 160ms ease, border-color 160ms ease;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
 }
 
 .chatMenuTrigger:hover {
@@ -756,7 +782,10 @@
   padding: 6px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
-  background: var(--chats-menu-panel-background, color-mix(in srgb, rgba(8, 10, 30, 0.92) 85%, transparent));
+  background: var(
+    --chats-menu-panel-background,
+    color-mix(in srgb, rgba(8, 10, 30, 0.92) 85%, transparent)
+  );
   display: grid;
   gap: 4px;
   z-index: 1400;
@@ -829,10 +858,3 @@
     width: 100%;
   }
 }
-
-
-
-
-
-
-

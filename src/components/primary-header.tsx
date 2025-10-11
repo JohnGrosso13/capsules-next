@@ -204,7 +204,12 @@ export function PrimaryHeader({
           {/* Order: Profile â†’ Settings â†’ Launch Capsule */}
           <HeaderAuth />
           {showSettingsLink ? (
-            <Link href="/settings" aria-label="Settings" title="Settings" className={styles.iconButton}>
+            <Link
+              href="/settings"
+              aria-label="Settings"
+              title="Settings"
+              className={styles.iconButton}
+            >
               <Gear className={styles.iconSvg} weight="duotone" />
             </Link>
           ) : null}
@@ -212,7 +217,7 @@ export function PrimaryHeader({
             variant="gradient"
             size="lg"
             label={launchLabel}
-            className={cn("hidden sm:inline-flex font-extrabold", styles.launchCta)}
+            className={cn("hidden font-extrabold sm:inline-flex", styles.launchCta)}
             hrefWhenSignedIn={launchDestination}
             onLaunch={handleLaunch}
           />

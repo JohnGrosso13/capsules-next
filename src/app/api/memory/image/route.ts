@@ -102,7 +102,10 @@ async function fetchLegacyMemory(
   return null;
 }
 
-async function resolveMemoryMedia(ownerId: string, memoryId: string): Promise<MemoryMediaRow | null> {
+async function resolveMemoryMedia(
+  ownerId: string,
+  memoryId: string,
+): Promise<MemoryMediaRow | null> {
   const modern = await fetchModernMemory(ownerId, memoryId);
   if (modern !== undefined) {
     return modern;
@@ -117,9 +120,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid memory request." }, { status: 400 });
   }
 
-  const ownerId = await ensureUserFromRequest(req, (parsed.data.user as Record<string, unknown>) ?? {}, {
-    allowGuests: false,
-  });
+  const ownerId = await ensureUserFromRequest(
+    req,
+    (parsed.data.user as Record<string, unknown>) ?? {},
+    {
+      allowGuests: false,
+    },
+  );
   if (!ownerId) {
     return NextResponse.json({ error: "auth required" }, { status: 401 });
   }

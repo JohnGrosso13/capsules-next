@@ -7,11 +7,7 @@ import { parseJsonBody, returnError, validatedJson } from "@/server/validation/h
 
 const messageSchema = z.object({
   role: z.union([z.literal("user"), z.literal("assistant")]),
-  content: z
-    .string()
-    .trim()
-    .min(1, "message content is required")
-    .max(2000, "message is too long"),
+  content: z.string().trim().min(1, "message content is required").max(2000, "message is too long"),
 });
 
 const requestSchema = z.object({

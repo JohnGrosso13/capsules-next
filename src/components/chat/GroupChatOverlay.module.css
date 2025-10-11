@@ -23,7 +23,8 @@
   background: var(--surface-overlay, rgba(12, 15, 28, 0.92));
   border: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
   border-radius: 28px;
-  box-shadow: 0 24px 48px color-mix(in srgb, var(--surface-overlay, rgba(12, 15, 28, 0.9)) 62%, transparent);
+  box-shadow: 0 24px 48px
+    color-mix(in srgb, var(--surface-overlay, rgba(12, 15, 28, 0.9)) 62%, transparent);
   padding: 28px;
   display: flex;
   flex-direction: column;
@@ -64,7 +65,9 @@
   height: 34px;
   display: grid;
   place-items: center;
-  transition: transform 160ms ease, border-color 160ms ease;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
 }
 
 .closeButton:hover {
@@ -118,7 +121,9 @@
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
   background: color-mix(in srgb, var(--surface-overlay, rgba(14, 17, 33, 0.65)) 75%, transparent);
-  transition: transform 160ms ease, border-color 160ms ease;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
 }
 
 .friendItemSelectable:hover {
@@ -199,7 +204,9 @@
   background: color-mix(in srgb, var(--surface-overlay, rgba(14, 16, 30, 0.86)) 75%, transparent);
   color: var(--text);
   font-weight: 600;
-  transition: transform 160ms ease, border-color 160ms ease;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
 }
 
 .toggleButton:hover:not(:disabled) {
@@ -241,7 +248,9 @@
   padding: 10px 18px;
   border-radius: 14px;
   font-weight: 600;
-  transition: transform 160ms ease, border-color 160ms ease;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
 }
 
 .secondaryButton:hover {
@@ -259,7 +268,9 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: transform 160ms ease, filter 160ms ease;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease;
 }
 
 .primaryButton:disabled {

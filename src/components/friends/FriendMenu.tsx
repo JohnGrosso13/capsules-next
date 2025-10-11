@@ -14,7 +14,14 @@ type FriendMenuProps = {
   onStartChat?: (() => void) | null;
 };
 
-export function FriendMenu({ canTarget, pending, onDelete, onBlock, onView, onStartChat }: FriendMenuProps) {
+export function FriendMenu({
+  canTarget,
+  pending,
+  onDelete,
+  onBlock,
+  onView,
+  onStartChat,
+}: FriendMenuProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);

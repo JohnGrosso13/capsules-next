@@ -166,9 +166,7 @@ export async function resolveRequestProfile(
   return normalizeProfileFromPayload(payload);
 }
 
-export async function ensureSupabaseUser(
-  profile: NormalizedProfile,
-): Promise<string> {
+export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<string> {
   const db = getDatabaseAdminClient();
 
   const normalizeString = (value: unknown): string | null => {
@@ -324,11 +322,7 @@ export async function ensureSupabaseUser(
     avatar_url,
   };
 
-  const inserted = await db
-    .from("users")
-    .insert([insert])
-    .select<UserRecord>("id")
-    .single();
+  const inserted = await db.from("users").insert([insert]).select<UserRecord>("id").single();
 
   if (inserted.error) {
     if (inserted.error.code === "23505") {
@@ -353,7 +347,6 @@ export async function ensureSupabaseUser(
 
   return insertedId;
 }
-
 
 export async function ensureUserFromRequest(
   req: Request,

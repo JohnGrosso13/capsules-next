@@ -13,10 +13,7 @@ import {
 
 export const runtime = "nodejs";
 
-export async function POST(
-  req: Request,
-  context: { params: Promise<{ inviteId: string }> },
-) {
+export async function POST(req: Request, context: { params: Promise<{ inviteId: string }> }) {
   const { inviteId } = await context.params;
   const normalizedId = inviteId?.trim();
   if (!normalizedId) {

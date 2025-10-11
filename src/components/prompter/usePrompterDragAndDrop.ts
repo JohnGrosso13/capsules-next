@@ -23,22 +23,19 @@ export function usePrompterDragAndDrop({ onFile }: Options) {
     setIsDraggingFile(false);
   }, []);
 
-  const handleDragEnter = React.useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      if (!dragEventHasFiles(event)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const related = event.relatedTarget as Node | null;
-      if (related && (event.currentTarget as Node).contains(related)) {
-        return;
-      }
-      dragCounterRef.current += 1;
-      if (dragCounterRef.current === 1) {
-        setIsDraggingFile(true);
-      }
-    },
-    [],
-  );
+  const handleDragEnter = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (!dragEventHasFiles(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const related = event.relatedTarget as Node | null;
+    if (related && (event.currentTarget as Node).contains(related)) {
+      return;
+    }
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) {
+      setIsDraggingFile(true);
+    }
+  }, []);
 
   const handleDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
     if (!dragEventHasFiles(event)) return;
@@ -49,22 +46,19 @@ export function usePrompterDragAndDrop({ onFile }: Options) {
     }
   }, []);
 
-  const handleDragLeave = React.useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      if (!dragEventHasFiles(event)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const related = event.relatedTarget as Node | null;
-      if (related && (event.currentTarget as Node).contains(related)) {
-        return;
-      }
-      dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
-      if (dragCounterRef.current === 0) {
-        setIsDraggingFile(false);
-      }
-    },
-    [],
-  );
+  const handleDragLeave = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (!dragEventHasFiles(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const related = event.relatedTarget as Node | null;
+    if (related && (event.currentTarget as Node).contains(related)) {
+      return;
+    }
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) {
+      setIsDraggingFile(false);
+    }
+  }, []);
 
   const handleDrop = React.useCallback(
     async (event: React.DragEvent<HTMLElement>) => {

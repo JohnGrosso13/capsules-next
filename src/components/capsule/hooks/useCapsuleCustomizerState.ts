@@ -1,5 +1,4 @@
-﻿
-"use client";
+﻿"use client";
 
 import * as React from "react";
 
@@ -374,10 +373,9 @@ export function useCapsuleCustomizerState(
   const dragStateRef = React.useRef<DragState | null>(null);
   const [savePending, setSavePending] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
-  const previewDraggable =
-    selectedBanner?.kind === "upload" || selectedBanner?.kind === "memory";
+  const previewDraggable = selectedBanner?.kind === "upload" || selectedBanner?.kind === "memory";
   const previewPannable = previewDraggable && previewCanPan;
-  const activeImageUrl = previewDraggable ? selectedBanner?.url ?? null : null;
+  const activeImageUrl = previewDraggable ? (selectedBanner?.url ?? null) : null;
 
   React.useEffect(() => {
     selectedBannerRef.current = selectedBanner;
@@ -495,12 +493,7 @@ export function useCapsuleCustomizerState(
     const containerRect = container.getBoundingClientRect();
     const naturalWidth = image.naturalWidth || image.width;
     const naturalHeight = image.naturalHeight || image.height;
-    if (
-      !containerRect.width ||
-      !containerRect.height ||
-      !naturalWidth ||
-      !naturalHeight
-    ) {
+    if (!containerRect.width || !containerRect.height || !naturalWidth || !naturalHeight) {
       return;
     }
 
@@ -733,7 +726,9 @@ export function useCapsuleCustomizerState(
         }
         if (!message) {
           message =
-            response.status === 404 ? "Memory image not available." : "Failed to fetch memory image.";
+            response.status === 404
+              ? "Memory image not available."
+              : "Failed to fetch memory image.";
         }
         throw new Error(message);
       }
@@ -755,7 +750,9 @@ export function useCapsuleCustomizerState(
   );
 
   const resolveBannerSourceForEdit = React.useCallback(
-    async (banner: SelectedBanner | null): Promise<{ imageUrl?: string; imageData?: string } | null> => {
+    async (
+      banner: SelectedBanner | null,
+    ): Promise<{ imageUrl?: string; imageData?: string } | null> => {
       if (!banner) return null;
       if (banner.kind === "memory") {
         try {
@@ -899,9 +896,12 @@ export function useCapsuleCustomizerState(
             body: JSON.stringify(body),
           });
 
-          const payload = (await response.json().catch(() => null)) as
-            | { url?: string; message?: string | null; imageData?: string | null; mimeType?: string | null }
-            | null;
+          const payload = (await response.json().catch(() => null)) as {
+            url?: string;
+            message?: string | null;
+            imageData?: string | null;
+            mimeType?: string | null;
+          } | null;
 
           if (!response.ok || !payload?.url) {
             const message =
@@ -911,7 +911,9 @@ export function useCapsuleCustomizerState(
           }
 
           const mimeType =
-            payload?.mimeType && typeof payload.mimeType === "string" && payload.mimeType.trim().length
+            payload?.mimeType &&
+            typeof payload.mimeType === "string" &&
+            payload.mimeType.trim().length
               ? payload.mimeType.trim()
               : "image/jpeg";
           const imageData =
@@ -947,9 +949,7 @@ export function useCapsuleCustomizerState(
           });
 
           const serverMessage =
-            payload?.message && typeof payload.message === "string"
-              ? payload.message
-              : null;
+            payload?.message && typeof payload.message === "string" ? payload.message : null;
           const responseCopy = buildAssistantResponse({
             prompt: trimmed,
             capsuleName: normalizedName,
@@ -1061,7 +1061,10 @@ export function useCapsuleCustomizerState(
     let lastError: unknown = null;
 
     for (const candidate of candidateUrls) {
-      const isBlob = candidate.startsWith("blob:") || candidate.startsWith("data:") || candidate.startsWith("file:");
+      const isBlob =
+        candidate.startsWith("blob:") ||
+        candidate.startsWith("data:") ||
+        candidate.startsWith("file:");
       try {
         img = await loadImageElement(candidate, allowCrossOrigin && !isBlob);
         break;
@@ -1088,7 +1091,9 @@ export function useCapsuleCustomizerState(
 
     if (!img) {
       revokeUrls.forEach((url) => URL.revokeObjectURL(url));
-      throw lastError instanceof Error ? lastError : new Error(`Failed to load image for ${assetLabel} preview.`);
+      throw lastError instanceof Error
+        ? lastError
+        : new Error(`Failed to load image for ${assetLabel} preview.`);
     }
 
     if (revokeUrls.length) {
@@ -1110,7 +1115,7 @@ export function useCapsuleCustomizerState(
           ? { maxWidth: 1024, maxHeight: 1024, aspectRatio: 1 }
           : customizerMode === "storeBanner"
             ? { maxWidth: 1600, maxHeight: 640, aspectRatio: 5 / 2 }
-          : { maxWidth: 1600, maxHeight: 900, aspectRatio: 16 / 9 };
+            : { maxWidth: 1600, maxHeight: 900, aspectRatio: 16 / 9 };
 
     let targetWidth = Math.min(maxWidth, naturalWidth);
     let targetHeight = Math.round(targetWidth / aspectRatio);
@@ -1152,7 +1157,17 @@ export function useCapsuleCustomizerState(
     const sourceX = Math.min(Math.max(0, offsetX / scale), maxSourceX);
     const sourceY = Math.min(Math.max(0, offsetY / scale), maxSourceY);
 
-    ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(
+      img,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       const quality = 0.92;
@@ -1244,7 +1259,7 @@ export function useCapsuleCustomizerState(
           source: selectedBanner.kind,
           originalUrl:
             selectedBanner.kind === "memory"
-              ? selectedBanner.fullUrl ?? selectedBanner.url
+              ? (selectedBanner.fullUrl ?? selectedBanner.url)
               : selectedBanner.kind === "upload"
                 ? null
                 : null,
@@ -1252,7 +1267,7 @@ export function useCapsuleCustomizerState(
             selectedBanner.kind === "upload"
               ? selectedBanner.name
               : selectedBanner.kind === "memory"
-                ? selectedBanner.title ?? null
+                ? (selectedBanner.title ?? null)
                 : null,
           prompt: aiPrompt,
           memoryId: selectedBanner.kind === "memory" ? selectedBanner.id : null,

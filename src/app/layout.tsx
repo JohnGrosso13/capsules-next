@@ -13,7 +13,7 @@ import { ChatProvider } from "@/components/providers/ChatProvider";
 import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
 import { PartyProvider } from "@/components/providers/PartyProvider";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 
@@ -59,9 +59,6 @@ export default function RootLayout({
     </ClerkProvider>
   );
 }
-
-
-
 
 export const viewport: Viewport = {
   width: "device-width",

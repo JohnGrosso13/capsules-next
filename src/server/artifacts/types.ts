@@ -58,4 +58,3 @@ export type ArtifactEventRecord = ArtifactEventInput & {
 export type ArtifactWithAssets = ArtifactRecord & {
   assets: ArtifactAssetRecord[];
 };
-

@@ -13,4 +13,3 @@ export type DisplayMemoryUpload = MemoryUploadItem & {
   displayUrl: string;
   fullUrl: string;
 };
-

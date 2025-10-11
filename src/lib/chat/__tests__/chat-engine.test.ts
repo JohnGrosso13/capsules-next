@@ -81,7 +81,9 @@ describe("ChatEngine", () => {
       },
     });
 
-    const session = engine.getSnapshot().sessions.find((entry) => entry.id === "chat:pair:user_a:user_b");
+    const session = engine
+      .getSnapshot()
+      .sessions.find((entry) => entry.id === "chat:pair:user_a:user_b");
     expect(session).toBeTruthy();
     expect(session?.type).toBe("direct");
     expect(session?.participants.length).toBeLessThanOrEqual(2);

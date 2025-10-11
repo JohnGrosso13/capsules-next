@@ -29,7 +29,9 @@ function buildFriendsHeaders(envelope: RealtimeEnvelope | null): Record<string, 
   return headers;
 }
 
-export async function fetchFriendsSnapshot(envelope: RealtimeEnvelope | null): Promise<FriendsSnapshotResponse> {
+export async function fetchFriendsSnapshot(
+  envelope: RealtimeEnvelope | null,
+): Promise<FriendsSnapshotResponse> {
   const headers = buildFriendsHeaders(envelope);
 
   const res = await fetch("/api/friends/sync", {
@@ -52,7 +54,9 @@ export async function fetchFriendsSnapshot(envelope: RealtimeEnvelope | null): P
     payload && typeof payload.graph === "object" ? (payload.graph as SocialGraphSnapshot) : null;
 
   const channelsRecord =
-    payload && typeof payload.channels === "object" ? (payload.channels as Record<string, unknown>) : null;
+    payload && typeof payload.channels === "object"
+      ? (payload.channels as Record<string, unknown>)
+      : null;
 
   let channels: FriendsChannelInfo = null;
   if (channelsRecord) {

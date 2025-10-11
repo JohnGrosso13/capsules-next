@@ -5,7 +5,16 @@ import { usePathname } from "next/navigation";
 import { SignOutButton } from "@clerk/nextjs";
 import * as React from "react";
 import styles from "./mobile-command-bar.module.css";
-import { House, PencilSimple, Pill, List, UsersThree, Brain, UserCircle, Gear } from "@phosphor-icons/react/dist/ssr";
+import {
+  House,
+  PencilSimple,
+  Pill,
+  List,
+  UsersThree,
+  Brain,
+  UserCircle,
+  Gear,
+} from "@phosphor-icons/react/dist/ssr";
 
 export function MobileCommandBar() {
   const pathname = usePathname() || "/";
@@ -61,12 +70,19 @@ export function MobileCommandBar() {
       localStorage.setItem(recentKey, JSON.stringify(map));
       // Hook for future: notify AI/runtime of usage
       if (typeof window !== "undefined")
-        window.dispatchEvent(new CustomEvent("ai:menu_used", { detail: { key, source: "mobile-bar" } }));
+        window.dispatchEvent(
+          new CustomEvent("ai:menu_used", { detail: { key, source: "mobile-bar" } }),
+        );
     } catch {}
   }
 
   return (
-    <nav ref={barRef} className={styles.bar} aria-label="Capsules mobile command bar" data-fixedlayer="true">
+    <nav
+      ref={barRef}
+      className={styles.bar}
+      aria-label="Capsules mobile command bar"
+      data-fixedlayer="true"
+    >
       <div className={styles.inner}>
         <div className={styles.dock} data-surface="ai-dock">
           <Link
@@ -176,4 +192,3 @@ export function MobileCommandBar() {
     </nav>
   );
 }
-

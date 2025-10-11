@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-
 import {
   ensureUserFromRequest,
   mergeUserPayloadFromRequest,
@@ -10,11 +9,7 @@ import {
   type IncomingUserPayload,
 } from "@/lib/auth/payload";
 import { resolvePostId } from "@/lib/supabase/posts";
-import {
-  fetchPostCoreById,
-  listPollVotesForPost,
-  upsertPollVote,
-} from "@/server/posts/repository";
+import { fetchPostCoreById, listPollVotesForPost, upsertPollVote } from "@/server/posts/repository";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -77,17 +72,12 @@ export async function POST(req: Request) {
     try {
       const pollCore = await fetchPostCoreById(postId);
       poll = pollCore?.poll ?? null;
-      mediaPrompt =
-        typeof pollCore?.media_prompt === "string" ? pollCore.media_prompt : null;
+      mediaPrompt = typeof pollCore?.media_prompt === "string" ? pollCore.media_prompt : null;
     } catch (pollFetchError) {
       console.warn("Poll post fetch failed", pollFetchError);
     }
 
-    if (
-      !poll &&
-      typeof mediaPrompt === "string" &&
-      mediaPrompt.startsWith("__POLL__")
-    ) {
+    if (!poll && typeof mediaPrompt === "string" && mediaPrompt.startsWith("__POLL__")) {
       try {
         poll = JSON.parse(mediaPrompt.slice(8));
       } catch {
@@ -113,4 +103,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to record vote" }, { status: 500 });
   }
 }
-

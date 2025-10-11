@@ -6,12 +6,7 @@ import type {
 } from "@pinecone-database/pinecone";
 
 import { getPineconeIndex, isPineconeEnabled } from "@/lib/pinecone/client";
-import type {
-  VectorMatch,
-  VectorQuery,
-  VectorRecord,
-  VectorStore,
-} from "@/ports/vector-store";
+import type { VectorMatch, VectorQuery, VectorRecord, VectorStore } from "@/ports/vector-store";
 
 function toVectorMatches<T extends RecordMetadata>(
   matches: readonly ScoredPineconeRecord<T>[] | undefined,

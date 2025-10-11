@@ -20,13 +20,7 @@ export async function POST(req: Request) {
   const { filename, contentType, dataBase64 } = parsed.data;
 
   // Enforce content type and size limits
-  const allowed = new Set([
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/gif",
-    "image/svg+xml",
-  ]);
+  const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"]);
 
   const resolvedFilename =
     filename && filename.trim().length ? filename.trim() : `file-${Date.now()}`;

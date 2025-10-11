@@ -8,8 +8,18 @@ import {
   isGroupConversationId,
 } from "@/lib/chat/channels";
 import type { RealtimeEnvelope } from "@/lib/realtime/envelope";
-import type { RealtimeAuthPayload, RealtimeClient, RealtimeClientFactory, RealtimeEvent } from "@/ports/realtime";
-import type { ChatParticipant, ChatSession, ChatSessionEventPayload, ChatMessageEventPayload } from "@/components/providers/chat-store";
+import type {
+  RealtimeAuthPayload,
+  RealtimeClient,
+  RealtimeClientFactory,
+  RealtimeEvent,
+} from "@/ports/realtime";
+import type {
+  ChatParticipant,
+  ChatSession,
+  ChatSessionEventPayload,
+  ChatMessageEventPayload,
+} from "@/components/providers/chat-store";
 import { ChatStore } from "@/components/providers/chat-store";
 
 type StartChatResult = {
@@ -175,7 +185,10 @@ export class ChatEngine {
     this.store.setSelfClientId(null);
   }
 
-  startDirectChat(target: ChatParticipant, options?: { activate?: boolean }): StartChatResult | null {
+  startDirectChat(
+    target: ChatParticipant,
+    options?: { activate?: boolean },
+  ): StartChatResult | null {
     const selfId = this.resolveSelfId();
     if (!selfId) {
       console.warn("ChatEngine startDirectChat requires a user id");
@@ -192,7 +205,9 @@ export class ChatEngine {
       createdBy: null,
       participants: selfParticipant ? [target, selfParticipant] : [target],
     };
-    const { created } = this.store.startSession(descriptor, { activate: options?.activate ?? true });
+    const { created } = this.store.startSession(descriptor, {
+      activate: options?.activate ?? true,
+    });
     if (options?.activate ?? true) {
       this.store.resetUnread(conversationId);
     }
@@ -204,7 +219,8 @@ export class ChatEngine {
     name: string | undefined,
     options?: { activate?: boolean },
   ): Promise<StartChatResult | null> {
-    const selfId = this.supabaseUserId ?? this.resolvedSelfClientId ?? this.store.getCurrentUserId();
+    const selfId =
+      this.supabaseUserId ?? this.resolvedSelfClientId ?? this.store.getCurrentUserId();
     if (!selfId) {
       console.warn("ChatEngine startGroupChat requires a user id");
       return null;
@@ -249,7 +265,9 @@ export class ChatEngine {
       throw new Error("Only group chats can accept additional participants.");
     }
     const existingIds = new Set(session.participants.map((participant) => participant.id));
-    const incoming = targets.filter((participant) => participant?.id && !existingIds.has(participant.id));
+    const incoming = targets.filter(
+      (participant) => participant?.id && !existingIds.has(participant.id),
+    );
     if (!incoming.length) return;
     const descriptor = {
       id: session.id,
@@ -297,7 +315,8 @@ export class ChatEngine {
   async sendMessage(conversationId: string, body: string): Promise<void> {
     const trimmed = body.replace(/\s+/g, " ").trim();
     if (!trimmed) return;
-    const selfIdentity = this.resolvedSelfClientId ?? this.store.getSelfClientId() ?? this.store.getCurrentUserId();
+    const selfIdentity =
+      this.resolvedSelfClientId ?? this.store.getSelfClientId() ?? this.store.getCurrentUserId();
     if (!selfIdentity) {
       throw new Error("Chat identity is not ready yet.");
     }
@@ -349,7 +368,9 @@ export class ChatEngine {
       channels.add(this.clientChannelName);
     }
     try {
-      await Promise.all(Array.from(channels).map((channel) => client.publish(channel, "chat.message", payload)));
+      await Promise.all(
+        Array.from(channels).map((channel) => client.publish(channel, "chat.message", payload)),
+      );
       this.store.markMessageStatus(conversationId, message.id, "sent");
     } catch (error) {
       this.store.markMessageStatus(conversationId, message.id, "failed");
@@ -397,7 +418,9 @@ export class ChatEngine {
     if (this.clientChannelName) {
       channels.add(this.clientChannelName);
     }
-    await Promise.all(Array.from(channels).map((channel) => client.publish(channel, "chat.session", payload)));
+    await Promise.all(
+      Array.from(channels).map((channel) => client.publish(channel, "chat.session", payload)),
+    );
   }
 
   private handleRealtimeEvent(event: RealtimeEvent): void {
@@ -419,7 +442,9 @@ export class ChatEngine {
       if (!normalizedParticipants.length) return;
       const descriptor = {
         id: payload.conversationId,
-        type: payload.session.type ?? (isGroupConversationId(payload.conversationId) ? "group" : "direct"),
+        type:
+          payload.session.type ??
+          (isGroupConversationId(payload.conversationId) ? "group" : "direct"),
         title: payload.session.title ?? "",
         avatar: payload.session.avatar ?? null,
         createdBy: payload.session.createdBy ?? null,

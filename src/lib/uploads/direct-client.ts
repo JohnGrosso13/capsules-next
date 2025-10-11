@@ -91,7 +91,11 @@ async function finalizeUpload({
     throw new Error(message || "Failed to finalize upload");
   }
 
-  const payload = (await response.json()) as { sessionId?: string | null; key: string; url: string };
+  const payload = (await response.json()) as {
+    sessionId?: string | null;
+    key: string;
+    url: string;
+  };
   return {
     sessionId: payload.sessionId ?? sessionId,
     key: payload.key ?? key,

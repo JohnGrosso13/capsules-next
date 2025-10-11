@@ -27,9 +27,7 @@ export async function completeMultipartUpload(
   await getStorageProvider().completeMultipartUpload(params);
 }
 
-export async function abortMultipartUpload(
-  params: StorageMultipartAbortParams,
-): Promise<void> {
+export async function abortMultipartUpload(params: StorageMultipartAbortParams): Promise<void> {
   await getStorageProvider().abortMultipartUpload(params);
 }
 

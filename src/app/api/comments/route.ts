@@ -32,7 +32,9 @@ export async function GET(req: Request) {
             ? row.id
             : typeof row.id === "number"
               ? String(row.id)
-              : null) ?? rawPostId ?? resolved;
+              : null) ??
+      rawPostId ??
+      resolved;
 
     return {
       id: identifierCandidate,

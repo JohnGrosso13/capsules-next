@@ -72,33 +72,30 @@ export function CapsuleSettingsSection({
     }
   }, []);
 
-  const handleDelete = React.useCallback(
-    async (capsule: CapsuleSummary) => {
-      const confirmed = window.confirm(
-        `Deleting "${capsule.name}" will permanently remove it and all associated data. This cannot be undone. Do you want to continue?`,
-      );
-      if (!confirmed) return;
+  const handleDelete = React.useCallback(async (capsule: CapsuleSummary) => {
+    const confirmed = window.confirm(
+      `Deleting "${capsule.name}" will permanently remove it and all associated data. This cannot be undone. Do you want to continue?`,
+    );
+    if (!confirmed) return;
 
-      setDeletingId(capsule.id);
-      setError(null);
-      try {
-        const response = await fetch(`/api/capsules/${capsule.id}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-        if (!response.ok) {
-          throw new Error(`capsule delete failed with status ${response.status}`);
-        }
-        setCapsules((prev) => prev.filter((item) => item.id !== capsule.id));
-      } catch (err) {
-        console.error("settings capsules delete error", err);
-        setError("Failed to delete the capsule. Please try again.");
-      } finally {
-        setDeletingId(null);
+    setDeletingId(capsule.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/capsules/${capsule.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error(`capsule delete failed with status ${response.status}`);
       }
-    },
-    [],
-  );
+      setCapsules((prev) => prev.filter((item) => item.id !== capsule.id));
+    } catch (err) {
+      console.error("settings capsules delete error", err);
+      setError("Failed to delete the capsule. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }, []);
 
   const ownedCount = capsules.length;
   const hasCapsules = ownedCount > 0;
@@ -140,9 +137,7 @@ export function CapsuleSettingsSection({
           <p className={styles.helper}>Loading your capsules...</p>
         ) : hasCapsules ? (
           <>
-            {showRefreshState ? (
-              <p className={styles.helper}>Refreshing your capsules...</p>
-            ) : null}
+            {showRefreshState ? <p className={styles.helper}>Refreshing your capsules...</p> : null}
             <div className={styles.list}>
               {capsules.map((capsule) => {
                 const deleting = deletingId === capsule.id;

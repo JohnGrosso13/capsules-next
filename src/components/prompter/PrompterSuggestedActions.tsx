@@ -13,12 +13,7 @@ export function PrompterSuggestedActions({ actions, onSelect }: Props) {
   return (
     <div className={styles.chips}>
       {actions.map((action) => (
-        <button
-          key={action}
-          className={styles.chip}
-          type="button"
-          onClick={() => onSelect(action)}
-        >
+        <button key={action} className={styles.chip} type="button" onClick={() => onSelect(action)}>
           {action}
         </button>
       ))}

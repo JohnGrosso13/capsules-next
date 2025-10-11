@@ -139,7 +139,9 @@ export function PrompterInputBar({
           onClick={onToggleMenu}
           ref={anchorRef}
         >
-          <span className={styles.caretGlyph} aria-hidden>▾</span>
+          <span className={styles.caretGlyph} aria-hidden>
+            ▾
+          </span>
         </button>
         <IntentOverrideMenu
           manualIntent={manualIntent}
@@ -155,4 +157,3 @@ export function PrompterInputBar({
     </div>
   );
 }
-

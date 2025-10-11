@@ -22,7 +22,11 @@ export interface DatabaseQueryBuilder<T = unknown> {
   like(column: string, value: string): DatabaseQueryBuilder<T>;
   ilike(column: string, value: string): DatabaseQueryBuilder<T>;
   in(column: string, values: readonly unknown[]): DatabaseQueryBuilder<T>;
-  contains(column: string, value: unknown, options?: Record<string, unknown>): DatabaseQueryBuilder<T>;
+  contains(
+    column: string,
+    value: unknown,
+    options?: Record<string, unknown>,
+  ): DatabaseQueryBuilder<T>;
   in(column: string, values: readonly unknown[]): DatabaseQueryBuilder<T>;
   filter(column: string, operator: string, value: unknown): DatabaseQueryBuilder<T>;
   or(filters: string, options?: { foreignTable?: string }): DatabaseQueryBuilder<T>;
@@ -63,5 +67,3 @@ export interface DatabaseAdapter {
   getAdminClient(): DatabaseClient;
   getVendor(): string;
 }
-
-

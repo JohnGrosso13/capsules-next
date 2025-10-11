@@ -90,7 +90,8 @@ export default async function AdminOverviewPage() {
                 <div className={styles.seriesBody}>
                   <div className={styles.sparkline}>
                     {(() => {
-                      if (serie.points.length === 0) return <span className={styles.empty}>No data</span>;
+                      if (serie.points.length === 0)
+                        return <span className={styles.empty}>No data</span>;
                       const first = serie.points[0]?.value ?? 0;
                       const last = serie.points[serie.points.length - 1]?.value ?? first;
                       const Icon = last > first ? TrendUp : last < first ? TrendDown : ChartLine;

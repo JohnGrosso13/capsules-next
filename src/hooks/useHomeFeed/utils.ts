@@ -63,17 +63,9 @@ export function resolvePostMediaUrl(post: PostMediaSource): string | null {
 
 export function buildFriendTarget(post: HomeFeedPost): FriendTarget {
   const userId =
-    post.owner_user_id ??
-    post.ownerUserId ??
-    post.author_user_id ??
-    post.authorUserId ??
-    null;
+    post.owner_user_id ?? post.ownerUserId ?? post.author_user_id ?? post.authorUserId ?? null;
   const userKey =
-    post.owner_user_key ??
-    post.ownerKey ??
-    post.author_user_key ??
-    post.authorUserKey ??
-    null;
+    post.owner_user_key ?? post.ownerKey ?? post.author_user_key ?? post.authorUserKey ?? null;
   if (!userId && !userKey) return null;
   const target: Record<string, unknown> = {};
   if (userId) target.userId = userId;
@@ -98,7 +90,9 @@ export function normalizePosts(rawPosts: unknown[]): HomeFeedPost[] {
           : null;
 
     const authorIdRaw =
-      coerceIdentifier(record["authorUserId"]) ?? coerceIdentifier(record["author_user_id"]) ?? null;
+      coerceIdentifier(record["authorUserId"]) ??
+      coerceIdentifier(record["author_user_id"]) ??
+      null;
 
     const ownerId =
       coerceIdentifier(record["ownerUserId"]) ??
@@ -108,7 +102,9 @@ export function normalizePosts(rawPosts: unknown[]): HomeFeedPost[] {
     const authorId = authorIdRaw ?? ownerId;
 
     const authorKeyRaw =
-      coerceIdentifier(record["authorUserKey"]) ?? coerceIdentifier(record["author_user_key"]) ?? null;
+      coerceIdentifier(record["authorUserKey"]) ??
+      coerceIdentifier(record["author_user_key"]) ??
+      null;
 
     const ownerKey =
       coerceIdentifier(record["ownerKey"]) ??

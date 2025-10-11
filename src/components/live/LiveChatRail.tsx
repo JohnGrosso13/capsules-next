@@ -113,7 +113,9 @@ export function LiveChatRail({
   } else if (status === "scheduled") {
     subtitle = "You're scheduled—chat will open when you go live.";
   } else if (status === "live") {
-    subtitle = hasMessages ? "Chat with your community in real time." : "No messages yet. Say hello!";
+    subtitle = hasMessages
+      ? "Chat with your community in real time."
+      : "No messages yet. Say hello!";
   } else if (status === "ended") {
     subtitle = "Stream has ended. Recaps will be available in Memories.";
   }
@@ -173,15 +175,15 @@ export function LiveChatRail({
             ))}
           </ul>
         ) : (
-          <div className={styles.messagePlaceholder}>
-            Live chat messages will appear here.
-          </div>
+          <div className={styles.messagePlaceholder}>Live chat messages will appear here.</div>
         )}
       </div>
       <form className={styles.composer} onSubmit={(event) => event.preventDefault()}>
         <input
           className={styles.composerInput}
-          placeholder={canSend ? "Share something with the stream..." : "Chat is locked until you're live"}
+          placeholder={
+            canSend ? "Share something with the stream..." : "Chat is locked until you're live"
+          }
           disabled={!canSend}
         />
         <button className={styles.composerSend} type="submit" disabled={!canSend}>

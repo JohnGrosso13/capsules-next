@@ -77,7 +77,6 @@ function getRecognitionConstructor(): SpeechRecognitionConstructor | null {
   return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
 }
 
-
 function useLatestRef<T>(value: T): React.MutableRefObject<T> {
   const ref = React.useRef(value);
   React.useEffect(() => {
@@ -110,7 +109,6 @@ function useSpeechRecognitionSupport(): {
 
   return { supported, status, setStatus, recognitionCtorRef };
 }
-
 
 function useRecognitionManager(
   recognitionCtorRef: React.MutableRefObject<SpeechRecognitionConstructor | null>,
@@ -152,9 +150,7 @@ function useRecognitionManager(
   return { recognitionRef, ensureRecognition, cleanupRecognition };
 }
 
-function useTranscriptState(
-  optionsRef: React.MutableRefObject<UseSpeechRecognitionOptions>,
-): {
+function useTranscriptState(optionsRef: React.MutableRefObject<UseSpeechRecognitionOptions>): {
   transcript: string;
   interimTranscript: string;
   handleResult: (event: RecognitionEvent) => void;
@@ -209,10 +205,9 @@ function useTranscriptState(
   return { transcript, interimTranscript, handleResult, clearTranscripts };
 }
 
-
 function useSpeechError(
   optionsRef: React.MutableRefObject<UseSpeechRecognitionOptions>,
-  setStatus: React.Dispatch<React.SetStateAction<RecognitionStatus>>
+  setStatus: React.Dispatch<React.SetStateAction<RecognitionStatus>>,
 ): {
   error: string | null;
   reportError: (message: string) => void;
@@ -246,7 +241,7 @@ function useSpeechError(
 function useRecognitionBinding(
   handleResult: (event: RecognitionEvent) => void,
   handleEnd: () => void,
-  handleError: (event: RecognitionErrorEvent) => void
+  handleError: (event: RecognitionErrorEvent) => void,
 ): (recognition: SpeechRecognitionInstance) => void {
   return React.useCallback(
     (recognition: SpeechRecognitionInstance) => {
@@ -258,7 +253,6 @@ function useRecognitionBinding(
     [handleEnd, handleError, handleResult],
   );
 }
-
 
 export function useSpeechRecognition(
   options: UseSpeechRecognitionOptions = {},
@@ -357,14 +351,7 @@ export function useSpeechRecognition(
     } else {
       setStatus("unsupported");
     }
-  }, [
-    cleanupRecognition,
-    clearError,
-    clearTranscripts,
-    recognitionRef,
-    setStatus,
-    supported,
-  ]);
+  }, [cleanupRecognition, clearError, clearTranscripts, recognitionRef, setStatus, supported]);
 
   return {
     supported,
@@ -377,4 +364,3 @@ export function useSpeechRecognition(
     reset,
   };
 }
-

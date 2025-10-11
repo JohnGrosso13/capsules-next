@@ -126,4 +126,3 @@ export async function getTurnstileToken(action = "upload"): Promise<string> {
     }
   });
 }
-

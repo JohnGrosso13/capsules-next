@@ -44,7 +44,9 @@ function mapInviteRow(row: RawInviteRow): PartyInviteSummary {
   const status = asString(row.status) as PartyInviteStatus | null;
   const expiresAt = asString(row.expires_at);
   const computedStatus =
-    status === "pending" && expiresAt && Date.parse(expiresAt) <= Date.now() ? "expired" : status ?? "pending";
+    status === "pending" && expiresAt && Date.parse(expiresAt) <= Date.now()
+      ? "expired"
+      : (status ?? "pending");
   return {
     id,
     partyId,
@@ -172,7 +174,10 @@ function ensurePending(invite: PartyInviteSummary): void {
   }
 }
 
-export async function acceptPartyInvite(userId: string, inviteId: string): Promise<PartyInviteSummary> {
+export async function acceptPartyInvite(
+  userId: string,
+  inviteId: string,
+): Promise<PartyInviteSummary> {
   const normalizedUserId = userId.trim();
   if (!normalizedUserId) {
     throw new PartyInviteError("invalid", "Authentication required.", 401);
@@ -214,7 +219,10 @@ export async function acceptPartyInvite(userId: string, inviteId: string): Promi
   return summary;
 }
 
-export async function declinePartyInvite(userId: string, inviteId: string): Promise<PartyInviteSummary> {
+export async function declinePartyInvite(
+  userId: string,
+  inviteId: string,
+): Promise<PartyInviteSummary> {
   const normalizedUserId = userId.trim();
   if (!normalizedUserId) {
     throw new PartyInviteError("invalid", "Authentication required.", 401);
@@ -249,7 +257,10 @@ export async function declinePartyInvite(userId: string, inviteId: string): Prom
   return summary;
 }
 
-export async function cancelPartyInvite(userId: string, inviteId: string): Promise<PartyInviteSummary> {
+export async function cancelPartyInvite(
+  userId: string,
+  inviteId: string,
+): Promise<PartyInviteSummary> {
   const normalizedUserId = userId.trim();
   if (!normalizedUserId) {
     throw new PartyInviteError("invalid", "Authentication required.", 401);

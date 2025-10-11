@@ -83,7 +83,9 @@ function resolvePreview(session: ChatSession, selfSet: Set<string>): string {
   if (selfSet.has(lastMessage.authorId)) {
     return `You: ${summary}`;
   }
-  const author = session.participants.find((participant) => participant.id === lastMessage.authorId);
+  const author = session.participants.find(
+    (participant) => participant.id === lastMessage.authorId,
+  );
   if (author) {
     return `${author.name}: ${summary}`;
   }
@@ -110,12 +112,16 @@ function renderAvatarStack(participants: ChatParticipant[], limit = 3): React.Re
               sizes="48px"
             />
           ) : (
-            <span className={styles.chatThreadAvatarFallback}>{initialsFrom(participant.name)}</span>
+            <span className={styles.chatThreadAvatarFallback}>
+              {initialsFrom(participant.name)}
+            </span>
           )}
         </span>
       ))}
       {overflow > 0 ? (
-        <span className={`${styles.chatThreadAvatarStackItem} ${styles.chatThreadAvatarOverflow}`.trim()}>
+        <span
+          className={`${styles.chatThreadAvatarStackItem} ${styles.chatThreadAvatarOverflow}`.trim()}
+        >
           +{overflow}
         </span>
       ) : null}
@@ -156,7 +162,9 @@ function renderAvatar(
       />
     );
   }
-  return <span className={styles.chatThreadAvatarFallback}>{initialsFrom(primary?.name ?? title)}</span>;
+  return (
+    <span className={styles.chatThreadAvatarFallback}>{initialsFrom(primary?.name ?? title)}</span>
+  );
 }
 
 export function ChatList({
@@ -210,7 +218,10 @@ export function ChatList({
                     ) : null}
                   </span>
                   {relativeTime ? (
-                    <time className={styles.chatThreadTimestamp} dateTime={session.lastMessageAt ?? undefined}>
+                    <time
+                      className={styles.chatThreadTimestamp}
+                      dateTime={session.lastMessageAt ?? undefined}
+                    >
                       {relativeTime}
                     </time>
                   ) : null}
@@ -220,7 +231,10 @@ export function ChatList({
             </button>
             <div className={styles.chatThreadAside}>
               {session.unreadCount > 0 ? (
-                <span className={styles.chatThreadBadge} aria-label={`${session.unreadCount} unread messages`}>
+                <span
+                  className={styles.chatThreadBadge}
+                  aria-label={`${session.unreadCount} unread messages`}
+                >
                   {session.unreadCount}
                 </span>
               ) : null}

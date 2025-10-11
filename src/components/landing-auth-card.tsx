@@ -22,7 +22,7 @@ export function LandingAuthCard() {
       className="border-border/50 bg-surface-elevated/80 shadow-glow w-full max-w-md border backdrop-blur-xl"
     >
       <SignedOut>
-        <CardHeader className="gap-3 items-center text-center">
+        <CardHeader className="items-center gap-3 text-center">
           <CardTitle className="text-fg text-2xl font-semibold">Start Your Space</CardTitle>
           <CardDescription className="text-fg-subtle text-[15px] leading-6">
             Sign in to launch your Capsule and explore features with our AI prompter.

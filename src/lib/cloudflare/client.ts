@@ -39,13 +39,10 @@ async function callCloudflare(path: string, init: RequestInit & { method: string
 export async function putUploadSessionKv(key: string, value: unknown): Promise<void> {
   const namespaceId = getStorageKvNamespaceId();
   if (!namespaceId) return;
-  await callCloudflare(
-    `/storage/kv/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`,
-    {
-      method: "PUT",
-      body: JSON.stringify(value),
-    },
-  );
+  await callCloudflare(`/storage/kv/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    body: JSON.stringify(value),
+  });
 }
 
 export async function enqueueUploadEvent(body: unknown): Promise<void> {

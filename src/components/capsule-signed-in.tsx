@@ -20,4 +20,3 @@ export function CapsuleSignedIn() {
     </div>
   );
 }
-

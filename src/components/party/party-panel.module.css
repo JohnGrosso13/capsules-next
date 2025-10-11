@@ -124,7 +124,11 @@
 
 .noticeInfo {
   background: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 18%, transparent);
-  border-color: color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 55%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--header-brand-strong-color, var(--color-brand)) 55%,
+    transparent
+  );
 }
 
 .heroCard {
@@ -152,7 +156,11 @@
   inset: 30% -60% -30% 40%;
   background: radial-gradient(
     circle at center,
-    var(--party-hero-accent, color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 55%, transparent)) 0%,
+    var(
+        --party-hero-accent,
+        color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 55%, transparent)
+      )
+      0%,
     transparent 70%
   );
   opacity: 0.45;
@@ -199,8 +207,12 @@
   gap: 14px;
   padding: 18px 20px;
   border-radius: 20px;
-  background: var(--party-hero-actions-background, color-mix(in srgb, var(--card-background, #111827) 75%, transparent));
-  border: 1px solid var(--party-hero-actions-border, color-mix(in srgb, var(--card-border) 60%, transparent));
+  background: var(
+    --party-hero-actions-background,
+    color-mix(in srgb, var(--card-background, #111827) 75%, transparent)
+  );
+  border: 1px solid
+    var(--party-hero-actions-border, color-mix(in srgb, var(--card-border) 60%, transparent));
   backdrop-filter: blur(12px);
 }
 
@@ -209,8 +221,16 @@
   border-radius: 12px;
   font-size: 0.9rem;
   font-weight: 600;
-  border: 1px solid var(--party-status-border, color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 55%, transparent));
-  background: color-mix(in srgb, var(--party-status-background, rgba(37, 99, 235, 0.16)) 85%, transparent);
+  border: 1px solid
+    var(
+      --party-status-border,
+      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 55%, transparent)
+    );
+  background: color-mix(
+    in srgb,
+    var(--party-status-background, rgba(37, 99, 235, 0.16)) 85%,
+    transparent
+  );
   color: var(--text);
 }
 
@@ -225,17 +245,23 @@
 .input {
   width: 100%;
   border-radius: 14px;
-  border: 1px solid var(--party-input-border, color-mix(in srgb, var(--card-border) 70%, transparent));
+  border: 1px solid
+    var(--party-input-border, color-mix(in srgb, var(--card-border) 70%, transparent));
   background: var(--party-input-background, var(--surface-elevated));
   padding: 12px 14px;
   color: var(--text);
   font-size: 0.95rem;
-  transition: border-color 160ms ease, background 160ms ease;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--party-input-focus-border, color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 75%, transparent));
+  border-color: var(
+    --party-input-focus-border,
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 75%, transparent)
+  );
   background: color-mix(
     in srgb,
     var(--party-input-background, var(--surface-elevated)) 94%,
@@ -258,7 +284,10 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
-  transition: transform 150ms ease, filter 150ms ease, border-color 150ms ease;
+  transition:
+    transform 150ms ease,
+    filter 150ms ease,
+    border-color 150ms ease;
 }
 
 .primaryButton {
@@ -270,10 +299,11 @@
       color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 45%, transparent)
     )
   );
-  border: 1px solid var(
-    --party-primary-border,
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 85%, transparent)
-  );
+  border: 1px solid
+    var(
+      --party-primary-border,
+      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 85%, transparent)
+    );
   color: var(--text-on-brand, #0b0b0b);
 }
 
@@ -290,14 +320,22 @@
 .secondaryButton {
   background: var(
     --party-secondary-background,
-    linear-gradient(180deg, var(--card-bg-1, rgba(255,255,255,0.96)), var(--card-bg-2, rgba(241,245,255,0.9)))
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(255, 255, 255, 0.96)),
+      var(--card-bg-2, rgba(241, 245, 255, 0.9))
+    )
   );
-  border: 1px solid var(--party-secondary-border, color-mix(in srgb, var(--card-border) 65%, transparent));
+  border: 1px solid
+    var(--party-secondary-border, color-mix(in srgb, var(--card-border) 65%, transparent));
   color: var(--text);
 }
 
 .secondaryButton:hover:not(:disabled) {
-  border-color: var(--party-secondary-hover-border, color-mix(in srgb, var(--color-brand) 65%, transparent));
+  border-color: var(
+    --party-secondary-hover-border,
+    color-mix(in srgb, var(--color-brand) 65%, transparent)
+  );
   transform: translateY(-1px);
 }
 
@@ -312,10 +350,15 @@
   gap: 18px;
   padding: 22px 26px;
   border-radius: 24px;
-  border: 1px solid var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
+  border: 1px solid
+    var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
   background: var(
     --party-panel-background,
-    linear-gradient(180deg, var(--card-bg-1, rgba(255,255,255,0.96)), var(--card-bg-2, rgba(241,245,255,0.9)))
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(255, 255, 255, 0.96)),
+      var(--card-bg-2, rgba(241, 245, 255, 0.9))
+    )
   );
 }
 
@@ -333,8 +376,15 @@
   gap: 8px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: var(--party-status-background, color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 25%, transparent));
-  border: 1px solid var(--party-status-border, color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 60%, transparent));
+  background: var(
+    --party-status-background,
+    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 25%, transparent)
+  );
+  border: 1px solid
+    var(
+      --party-status-border,
+      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 60%, transparent)
+    );
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -367,27 +417,51 @@
 }
 
 .metaCode {
-  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+  font-family: var(
+    --font-mono,
+    "JetBrains Mono",
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace
+  );
   font-size: 1rem;
   padding: 6px 10px;
   border-radius: 12px;
   background: var(
     --party-code-background,
-    linear-gradient(180deg, var(--card-bg-1, rgba(255,255,255,0.98)), var(--card-bg-2, rgba(237,242,255,0.92)))
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(255, 255, 255, 0.98)),
+      var(--card-bg-2, rgba(237, 242, 255, 0.92))
+    )
   );
-  border: 1px solid var(--party-code-border, color-mix(in srgb, var(--card-border) 65%, transparent));
+  border: 1px solid
+    var(--party-code-border, color-mix(in srgb, var(--card-border) 65%, transparent));
   letter-spacing: 0.1em;
 }
 
 .hostBadge {
   background: linear-gradient(
     120deg,
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 74%, transparent) 0%,
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 74%, transparent)
+      0%,
     color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 82%, transparent) 50%,
-    color-mix(in srgb, var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%, transparent) 100%
+    color-mix(
+        in srgb,
+        var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%,
+        transparent
+      )
+      100%
   );
-  border: 1px solid color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 62%, transparent);
-  box-shadow: 0 10px 20px color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 28%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 62%, transparent);
+  box-shadow: 0 10px 20px
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 28%, transparent);
   color: var(--text-on-brand, #041021);
   font-size: 0.65rem;
   text-transform: uppercase;
@@ -400,10 +474,15 @@
 .stageCard {
   padding: 22px 24px;
   border-radius: 24px;
-  border: 1px solid var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
+  border: 1px solid
+    var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
   background: var(
     --party-panel-background,
-    linear-gradient(180deg, var(--card-bg-1, rgba(255,255,255,0.96)), var(--card-bg-2, rgba(241,245,255,0.9)))
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(255, 255, 255, 0.96)),
+      var(--card-bg-2, rgba(241, 245, 255, 0.9))
+    )
   );
 }
 
@@ -411,9 +490,16 @@
   margin-bottom: 12px;
   align-self: flex-start;
   border-radius: 999px;
-  border: 1px solid var(--party-startaudio-border, color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 65%, transparent));
+  border: 1px solid
+    var(
+      --party-startaudio-border,
+      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 65%, transparent)
+    );
   padding: 8px 14px;
-  background: var(--party-startaudio-background, color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 20%, transparent));
+  background: var(
+    --party-startaudio-background,
+    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 20%, transparent)
+  );
   color: var(--text);
   font-weight: 600;
 }
@@ -456,12 +542,16 @@
   gap: 14px;
   padding: 14px 16px;
   border-radius: 18px;
-  border: 1px solid var(--party-participant-border, color-mix(in srgb, var(--card-border) 70%, transparent));
+  border: 1px solid
+    var(--party-participant-border, color-mix(in srgb, var(--card-border) 70%, transparent));
   background: var(
     --party-participant-background,
     color-mix(in srgb, var(--card-background, #101a33) 88%, transparent)
   );
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .participantSpeaking {
@@ -527,7 +617,8 @@
   text-align: center;
   padding: 18px;
   border-radius: 16px;
-  border: 1px dashed var(--party-empty-border, color-mix(in srgb, var(--card-border) 60%, transparent));
+  border: 1px dashed
+    var(--party-empty-border, color-mix(in srgb, var(--card-border) 60%, transparent));
   color: color-mix(in srgb, var(--text) 65%, transparent);
   font-size: 0.95rem;
 }
@@ -543,19 +634,30 @@
   align-items: center;
   gap: 8px;
   border-radius: 999px;
-  border: 1px solid var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
+  border: 1px solid
+    var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
   background: var(
     --party-control-background,
-    linear-gradient(180deg, var(--card-bg-1, rgba(255,255,255,0.96)), var(--card-bg-2, rgba(241,245,255,0.9)))
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(255, 255, 255, 0.96)),
+      var(--card-bg-2, rgba(241, 245, 255, 0.9))
+    )
   );
   color: var(--text);
   padding: 10px 16px;
   font-weight: 600;
-  transition: transform 150ms ease, border-color 150ms ease, filter 150ms ease;
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    filter 150ms ease;
 }
 
 .controlButton:hover:not(:disabled) {
-  border-color: var(--party-control-hover-border, color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 60%, transparent));
+  border-color: var(
+    --party-control-hover-border,
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 60%, transparent)
+  );
   transform: translateY(-1px);
 }
 
@@ -581,10 +683,15 @@
   gap: 14px;
   padding: 20px 22px;
   border-radius: 20px;
-  border: 1px solid var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
+  border: 1px solid
+    var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
   background: var(
     --party-panel-background,
-    linear-gradient(180deg, var(--card-bg-1, rgba(255,255,255,0.96)), var(--card-bg-2, rgba(241,245,255,0.9)))
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(255, 255, 255, 0.96)),
+      var(--card-bg-2, rgba(241, 245, 255, 0.9))
+    )
   );
 }
 
@@ -612,7 +719,8 @@
   gap: 18px;
   padding: 22px 24px;
   border-radius: 22px;
-  border: 1px solid var(--party-invite-border, color-mix(in srgb, var(--card-border) 70%, transparent));
+  border: 1px solid
+    var(--party-invite-border, color-mix(in srgb, var(--card-border) 70%, transparent));
   background: var(
     --party-invite-background,
     color-mix(in srgb, var(--card-background, #101a33) 92%, transparent)
@@ -645,7 +753,8 @@
   justify-content: center;
   padding: 28px;
   border-radius: 18px;
-  border: 1px dashed var(--party-empty-border, color-mix(in srgb, var(--card-border) 60%, transparent));
+  border: 1px dashed
+    var(--party-empty-border, color-mix(in srgb, var(--card-border) 60%, transparent));
   color: color-mix(in srgb, var(--text) 70%, transparent);
 }
 
@@ -662,7 +771,8 @@
   gap: 16px;
   padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid var(--party-invite-row-border, color-mix(in srgb, var(--card-border) 65%, transparent));
+  border: 1px solid
+    var(--party-invite-row-border, color-mix(in srgb, var(--card-border) 65%, transparent));
   background: var(
     --party-invite-row-background,
     color-mix(in srgb, var(--card-background, #101a33) 94%, transparent)

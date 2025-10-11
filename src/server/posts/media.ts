@@ -114,7 +114,10 @@ export async function ensureAccessibleMediaUrl(candidate: string | null): Promis
   }
 }
 
-export function isLikelyImage(mimeType: string | null | undefined, url: string | null | undefined): boolean {
+export function isLikelyImage(
+  mimeType: string | null | undefined,
+  url: string | null | undefined,
+): boolean {
   if (typeof mimeType === "string" && mimeType.toLowerCase().startsWith("image/")) {
     return true;
   }
@@ -189,7 +192,9 @@ export function guessMimeFromUrl(candidate: string | null | undefined): string |
   return null;
 }
 
-export function extractUploadSessionId(meta: Record<string, unknown> | null | undefined): string | null {
+export function extractUploadSessionId(
+  meta: Record<string, unknown> | null | undefined,
+): string | null {
   if (!meta || typeof meta !== "object") return null;
   const candidates = [
     (meta as { upload_session_id?: unknown }).upload_session_id,

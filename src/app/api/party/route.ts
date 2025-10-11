@@ -1,5 +1,10 @@
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import { buildPartyMetadata, createPartyId, ensurePartyRoom, issuePartyToken } from "@/server/livekit/party";
+import {
+  buildPartyMetadata,
+  createPartyId,
+  ensurePartyRoom,
+  issuePartyToken,
+} from "@/server/livekit/party";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
   partyCreateRequestSchema,
@@ -52,10 +57,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Party creation error", error);
-    if (
-      error instanceof Error &&
-      error.message.includes("LiveKit is not fully configured")
-    ) {
+    if (error instanceof Error && error.message.includes("LiveKit is not fully configured")) {
       return returnError(500, "livekit_not_configured", error.message);
     }
     return returnError(500, "party_create_failed", "Unable to start a party. Please try again.");

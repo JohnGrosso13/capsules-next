@@ -246,7 +246,9 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
 
               const meta = (row?.meta ?? {}) as Record<string, unknown>;
               const uploadSessionId = extractUploadSessionId(meta);
-              const sessionRecord = uploadSessionId ? uploadSessionMap.get(uploadSessionId) ?? null : null;
+              const sessionRecord = uploadSessionId
+                ? (uploadSessionMap.get(uploadSessionId) ?? null)
+                : null;
               const sessionMetadata = sessionRecord?.metadata ?? null;
 
               const storageKey =
@@ -324,17 +326,18 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                 mimeType = "image/jpeg";
               }
 
-              let variants: CloudflareImageVariantSet | null =
-                isLikelyImage(mimeType, url)
-                  ? buildImageVariants(url, {
-                      base: serverEnv.CLOUDFLARE_IMAGE_RESIZE_BASE_URL,
-                      thumbnailUrl,
-                      origin: serverEnv.SITE_URL,
-                    })
-                  : null;
+              let variants: CloudflareImageVariantSet | null = isLikelyImage(mimeType, url)
+                ? buildImageVariants(url, {
+                    base: serverEnv.CLOUDFLARE_IMAGE_RESIZE_BASE_URL,
+                    thumbnailUrl,
+                    origin: serverEnv.SITE_URL,
+                  })
+                : null;
 
               if (derivedThumbUrl || derivedPreviewUrl) {
-                variants = variants ? { ...variants } : ({ original: url } as CloudflareImageVariantSet);
+                variants = variants
+                  ? { ...variants }
+                  : ({ original: url } as CloudflareImageVariantSet);
                 if (derivedThumbUrl) {
                   variants.thumb = derivedThumbUrl;
                 }

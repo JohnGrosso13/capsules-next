@@ -31,18 +31,29 @@ function presenceMapsEqual(a: PresenceMap, b: PresenceMap): boolean {
   return bKeys.every((key) => {
     const aValue = a[key];
     const bValue = b[key];
-    return !!aValue && !!bValue && aValue.status === bValue.status && aValue.updatedAt === bValue.updatedAt;
+    return (
+      !!aValue &&
+      !!bValue &&
+      aValue.status === bValue.status &&
+      aValue.updatedAt === bValue.updatedAt
+    );
   });
 }
 
 const AWAY_TIMEOUT_MS = 8 * 60 * 1000;
-const ACTIVITY_EVENTS: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart", "mousemove"];
+const ACTIVITY_EVENTS: Array<keyof WindowEventMap> = [
+  "pointerdown",
+  "keydown",
+  "touchstart",
+  "mousemove",
+];
 const ACTIVITY_THROTTLE_MS = 1000;
 
 type PresenceMessageHandler = Parameters<RealtimePresenceChannel["subscribe"]>[0];
-type PresenceMember = Awaited<ReturnType<RealtimePresenceChannel["getMembers"]>> extends Array<infer Member>
-  ? Member
-  : never;
+type PresenceMember =
+  Awaited<ReturnType<RealtimePresenceChannel["getMembers"]>> extends Array<infer Member>
+    ? Member
+    : never;
 
 function wrapCleanup(cleanup: () => unknown, label: string): () => void {
   return () => {
@@ -52,9 +63,7 @@ function wrapCleanup(cleanup: () => unknown, label: string): () => void {
   };
 }
 
-function createPresenceManager(
-  setPresence: React.Dispatch<React.SetStateAction<PresenceMap>>,
-) {
+function createPresenceManager(setPresence: React.Dispatch<React.SetStateAction<PresenceMap>>) {
   let presenceChannel: RealtimePresenceChannel | null = null;
   let selfClientId: string | null = null;
   let currentStatus: PresenceStatus = "online";
@@ -271,18 +280,23 @@ export function useFriendsRealtime(
     onEventRef.current = onEvent;
   }, [onEvent]);
 
-  const setPresence = React.useCallback<React.Dispatch<React.SetStateAction<PresenceMap>>>((update) => {
-    setPresenceState((prev) => {
-      const next =
-        typeof update === "function" ? (update as (value: PresenceMap) => PresenceMap)(prev) : update;
-      if (next === prev || presenceMapsEqual(prev, next)) {
-        presenceCache = prev;
-        return prev;
-      }
-      presenceCache = next;
-      return next;
-    });
-  }, []);
+  const setPresence = React.useCallback<React.Dispatch<React.SetStateAction<PresenceMap>>>(
+    (update) => {
+      setPresenceState((prev) => {
+        const next =
+          typeof update === "function"
+            ? (update as (value: PresenceMap) => PresenceMap)(prev)
+            : update;
+        if (next === prev || presenceMapsEqual(prev, next)) {
+          presenceCache = prev;
+          return prev;
+        }
+        presenceCache = next;
+        return next;
+      });
+    },
+    [],
+  );
 
   const eventsChannelName = channels?.events ?? "";
   const presenceChannelName = channels?.presence ?? "";

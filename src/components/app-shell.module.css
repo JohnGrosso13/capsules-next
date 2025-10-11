@@ -1,11 +1,13 @@
 .outer {
   /* Align page offset to compact header height */
-  padding: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset)) 0 var(--layout-desktop-bottom-padding);
+  padding: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset)) 0
+    var(--layout-desktop-bottom-padding);
 }
 @media (max-width: 640px) {
   .outer {
     --header-height: 0px;
-    padding: calc(env(safe-area-inset-top, 0px) + var(--layout-mobile-top-offset)) 0 calc(var(--mobile-dock-height, 0px) + var(--layout-mobile-bottom-offset));
+    padding: calc(env(safe-area-inset-top, 0px) + var(--layout-mobile-top-offset)) 0
+      calc(var(--mobile-dock-height, 0px) + var(--layout-mobile-bottom-offset));
   }
   .page {
     width: 100%;
@@ -99,11 +101,7 @@
   justify-content: center;
   border-radius: 50%;
   border: 1px solid var(--pill-border);
-  background: linear-gradient(
-    180deg,
-    var(--pill-bg-1),
-    var(--pill-bg-2)
-  );
+  background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
 }
 .iconGlyph {
   width: 20px;
@@ -146,7 +144,10 @@
 }
 
 .layoutWithRight {
-  grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width)) minmax(0, var(--app-rail-width));
+  grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width)) minmax(
+      0,
+      var(--app-rail-width)
+    );
   column-gap: var(--app-column-gap);
   justify-content: center;
 }
@@ -165,7 +166,10 @@
 
 .layoutHome {
   /* Three tracks: left spacer (rail-sized), centered feed, right rail */
-  grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width)) minmax(0, var(--app-rail-width));
+  grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width)) minmax(
+      0,
+      var(--app-rail-width)
+    );
   column-gap: var(--app-column-gap);
   justify-content: center;
 }
@@ -210,7 +214,10 @@
   /* Match Home rail sizing so tile and panel widths align */
   --capsule-rail-width: var(--app-rail-width, clamp(320px, 24vw, 380px));
   --capsule-gap: clamp(6px, 1vw, 16px);
-  grid-template-columns: minmax(260px, var(--capsule-rail-width)) minmax(0, 1fr) minmax(260px, var(--capsule-rail-width));
+  grid-template-columns: minmax(260px, var(--capsule-rail-width)) minmax(0, 1fr) minmax(
+      260px,
+      var(--capsule-rail-width)
+    );
   column-gap: var(--capsule-gap);
   justify-content: stretch;
 }
@@ -229,9 +236,7 @@
   justify-self: stretch;
   grid-column: 2;
   padding: 0 clamp(8px, 1.2vw, 18px);
-  height: calc(
-    100vh - (var(--header-height, var(--space-8xl)) + var(--layout-header-offset))
-  );
+  height: calc(100vh - (var(--header-height, var(--space-8xl)) + var(--layout-header-offset)));
   display: grid;
   grid-template-rows: 1fr; /* Fill available height with live area; banner moved below */
   overflow: auto;
@@ -265,11 +270,8 @@
   grid-column: 3;
   /* Stretch chat to viewport height under the header; subtract page gap + outer bottom padding to avoid page scroll */
   height: calc(
-    100vh
-      - (var(--header-height, var(--space-8xl)) + var(--layout-header-offset))
-      - var(--layout-page-gap, var(--space-2xl))
-      - var(--layout-desktop-bottom-padding, 0px)
-      - 1px
+    100vh - (var(--header-height, var(--space-8xl)) + var(--layout-header-offset)) -
+      var(--layout-page-gap, var(--space-2xl)) - var(--layout-desktop-bottom-padding, 0px) - 1px
   );
   display: flex;
   flex-direction: column;
@@ -287,9 +289,13 @@
   margin: -8px 0 var(--layout-page-gap);
   border: 1px solid var(--card-border);
   background:
-    radial-gradient(1200px 300px at 20% -30%, rgba(255,255,255,0.08), transparent 60%),
-    radial-gradient(1200px 300px at 80% -30%, rgba(255,255,255,0.08), transparent 60%),
-    linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.06)), var(--glass-bg-2, rgba(255,255,255,0.03)));
+    radial-gradient(1200px 300px at 20% -30%, rgba(255, 255, 255, 0.08), transparent 60%),
+    radial-gradient(1200px 300px at 80% -30%, rgba(255, 255, 255, 0.08), transparent 60%),
+    linear-gradient(
+      180deg,
+      var(--glass-bg-1, rgba(255, 255, 255, 0.06)),
+      var(--glass-bg-2, rgba(255, 255, 255, 0.03))
+    );
   border-radius: 0 0 var(--radius-2xl, 20px) var(--radius-2xl, 20px);
   padding: clamp(10px, 1.2vw, 16px);
   min-height: clamp(60px, 9vh, 120px);
@@ -391,23 +397,4 @@
   margin: 0;
   display: grid;
   justify-items: stretch;
-}
-@media (max-width: 640px) {
-  .outer {
-    --header-height: 0px;
-    padding: calc(env(safe-area-inset-top, 0px) + var(--layout-mobile-top-offset)) 0 calc(var(--mobile-dock-height, 0px) + var(--layout-mobile-bottom-offset));
-  }
-  .page {
-    width: 100%;
-    margin: 0;
-    padding: var(--layout-mobile-top-offset) 0 var(--layout-mobile-outer-padding-bottom);
-    padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
-    padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
-  }
-  .main {
-    gap: var(--layout-mobile-section-gap);
-  }
-  .layout {
-    gap: var(--layout-mobile-section-gap);
-  }
 }

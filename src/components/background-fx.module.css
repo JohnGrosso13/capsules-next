@@ -18,31 +18,19 @@
 .purple {
   background: var(
     --background-fx-purple,
-    radial-gradient(
-      closest-side at 50% 50%,
-      rgba(124, 58, 237, 0.38),
-      rgba(124, 58, 237, 0) 70%
-    )
+    radial-gradient(closest-side at 50% 50%, rgba(124, 58, 237, 0.38), rgba(124, 58, 237, 0) 70%)
   );
 }
 .indigo {
   background: var(
     --background-fx-indigo,
-    radial-gradient(
-      closest-side at 50% 50%,
-      rgba(99, 102, 241, 0.34),
-      rgba(99, 102, 241, 0) 70%
-    )
+    radial-gradient(closest-side at 50% 50%, rgba(99, 102, 241, 0.34), rgba(99, 102, 241, 0) 70%)
   );
 }
 .pink {
   background: var(
     --background-fx-pink,
-    radial-gradient(
-      closest-side at 50% 50%,
-      rgba(236, 72, 153, 0.28),
-      rgba(236, 72, 153, 0) 70%
-    )
+    radial-gradient(closest-side at 50% 50%, rgba(236, 72, 153, 0.28), rgba(236, 72, 153, 0) 70%)
   );
 }
 
@@ -103,4 +91,3 @@
     animation: none;
   }
 }
-

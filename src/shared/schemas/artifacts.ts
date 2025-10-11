@@ -168,4 +168,3 @@ export const artifactSchema: z.ZodType<Artifact> = z.object({
 });
 
 export type ArtifactSchemaType = z.infer<typeof artifactSchema>;
-

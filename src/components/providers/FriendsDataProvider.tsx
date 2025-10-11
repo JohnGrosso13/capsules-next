@@ -20,4 +20,3 @@ export function useFriendsDataContext(): FriendsDataValue {
   }
   return context;
 }
-

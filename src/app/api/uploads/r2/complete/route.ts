@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     const mergedMetadata =
       session.metadata && payload.metadata
         ? { ...session.metadata, ...payload.metadata }
-        : payload.metadata ?? session?.metadata ?? null;
+        : (payload.metadata ?? session?.metadata ?? null);
     updatedSession = await markUploadSessionUploaded({
       sessionId: session.id,
       uploadId,
@@ -96,7 +96,8 @@ export async function POST(req: Request) {
       bucket: session?.r2_bucket ?? updatedSession?.r2_bucket ?? "",
       contentType: session?.content_type ?? updatedSession?.content_type ?? null,
       metadata: payload.metadata ?? session?.metadata ?? updatedSession?.metadata ?? null,
-      absoluteUrl: (updatedSession?.absolute_url ?? session?.absolute_url ?? null) ?? publicUrl ?? null,
+      absoluteUrl:
+        updatedSession?.absolute_url ?? session?.absolute_url ?? publicUrl ?? null,
     });
   } catch (queueError) {
     console.warn("enqueue upload event failed", queueError);

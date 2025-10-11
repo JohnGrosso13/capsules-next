@@ -1,6 +1,10 @@
 import { getDatabaseAdminClient } from "@/config/database";
 import { decorateDatabaseError } from "@/lib/database/utils";
-import { normalizeThemeVariantsInput, isVariantEmpty, type ThemeVariants } from "@/lib/theme/variants";
+import {
+  normalizeThemeVariantsInput,
+  isVariantEmpty,
+  type ThemeVariants,
+} from "@/lib/theme/variants";
 
 const db = getDatabaseAdminClient();
 const TABLE = "theme_styles";
@@ -159,9 +163,7 @@ export async function listThemeStyles(ownerId: string): Promise<ThemeStyle[]> {
     throw decorateDatabaseError("themeStyles.list", result.error);
   }
 
-  return (result.data ?? [])
-    .map(mapRow)
-    .filter((row): row is ThemeStyle => row !== null);
+  return (result.data ?? []).map(mapRow).filter((row): row is ThemeStyle => row !== null);
 }
 
 export async function updateThemeStyleTitle(options: {
@@ -215,4 +217,3 @@ export async function deleteAllThemeStyles(ownerId: string): Promise<number> {
   }
   return (result.data ?? []).length;
 }
-

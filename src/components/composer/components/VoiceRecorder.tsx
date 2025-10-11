@@ -38,7 +38,11 @@ export function VoiceRecorder({
       disabled={buttonDisabled}
     >
       <span className={homeStyles.voicePulse} aria-hidden />
-      {isActive ? <MicrophoneSlash size={18} weight="fill" /> : <Microphone size={18} weight="duotone" />}
+      {isActive ? (
+        <MicrophoneSlash size={18} weight="fill" />
+      ) : (
+        <Microphone size={18} weight="duotone" />
+      )}
     </button>
   );
 }

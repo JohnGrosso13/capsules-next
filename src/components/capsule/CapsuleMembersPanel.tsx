@@ -1,12 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  Check,
-  Trash,
-  WarningCircle,
-  X,
-} from "@phosphor-icons/react/dist/ssr";
+import { Check, Trash, WarningCircle, X } from "@phosphor-icons/react/dist/ssr";
 
 import type {
   CapsuleMembershipAction,
@@ -47,7 +42,13 @@ const MEMBER_ROLE_LABELS: Record<MemberRoleValue, string> = MEMBER_ROLE_OPTIONS.
 function resolveMemberRole(member: { role: string | null; isOwner: boolean }): MemberRoleValue {
   if (member.isOwner) return "founder";
   const normalized = typeof member.role === "string" ? member.role.trim().toLowerCase() : null;
-  if (normalized && (normalized === "founder" || normalized === "admin" || normalized === "leader" || normalized === "member")) {
+  if (
+    normalized &&
+    (normalized === "founder" ||
+      normalized === "admin" ||
+      normalized === "leader" ||
+      normalized === "member")
+  ) {
     return normalized;
   }
   return "member";
@@ -257,7 +258,7 @@ export function CapsuleMembersPanel({
         </div>
       ) : null}
 
-      {(!canViewPending || activeTab === "members") ? (
+      {!canViewPending || activeTab === "members" ? (
         <section className={capTheme.membersSection} aria-label="Capsule members">
           <header className={capTheme.membersSectionHeader}>
             <h4 className={capTheme.membersSectionTitle}>Members</h4>
@@ -288,7 +289,9 @@ export function CapsuleMembersPanel({
                       <div className={capTheme.memberName}>{member.name ?? "Member"}</div>
                       <div className={capTheme.memberMeta}>
                         {showRoleInMeta ? <span>{roleLabel}</span> : null}
-                        {member.joinedAt ? <span>Joined {formatTimestamp(member.joinedAt)}</span> : null}
+                        {member.joinedAt ? (
+                          <span>Joined {formatTimestamp(member.joinedAt)}</span>
+                        ) : null}
                       </div>
                     </div>
                     {hasActions ? (

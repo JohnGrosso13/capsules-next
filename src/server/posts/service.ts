@@ -423,10 +423,18 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
     try {
       const ownerProfile = await fetchUserProfile(ownerId);
       if (ownerProfile) {
-        if (!row.user_name && typeof ownerProfile.full_name === "string" && ownerProfile.full_name.trim()) {
+        if (
+          !row.user_name &&
+          typeof ownerProfile.full_name === "string" &&
+          ownerProfile.full_name.trim()
+        ) {
           row.user_name = ownerProfile.full_name.trim();
         }
-        if (!row.user_avatar && typeof ownerProfile.avatar_url === "string" && ownerProfile.avatar_url.trim()) {
+        if (
+          !row.user_avatar &&
+          typeof ownerProfile.avatar_url === "string" &&
+          ownerProfile.avatar_url.trim()
+        ) {
           row.user_avatar = ownerProfile.avatar_url.trim();
         }
       }
@@ -481,7 +489,9 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
           post_id: payload.client_id ?? null,
           post_excerpt: typeof draft.content === "string" ? draft.content : null,
         },
-        rawText: [prompt, typeof draft.content === "string" ? draft.content : ""].filter(Boolean).join(" "),
+        rawText: [prompt, typeof draft.content === "string" ? draft.content : ""]
+          .filter(Boolean)
+          .join(" "),
         source: "post",
         tags: Array.isArray(draft.tags) ? (draft.tags as string[]) : null,
         eventAt: typeof row.created_at === "string" ? row.created_at : null,
@@ -611,6 +621,3 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
 
   return postId;
 }
-
-
-

@@ -76,7 +76,9 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
   const voiceSessionCounterRef = React.useRef(1);
   const activeVoiceSessionRef = React.useRef<number | null>(null);
   const processedVoiceSessionRef = React.useRef<number | null>(null);
-  const [voiceDraft, setVoiceDraft] = React.useState<{ session: number; text: string } | null>(null);
+  const [voiceDraft, setVoiceDraft] = React.useState<{ session: number; text: string } | null>(
+    null,
+  );
   const [voiceInterim, setVoiceInterim] = React.useState<string | null>(null);
   const [voiceErrorCode, setVoiceErrorCode] = React.useState<string | null>(null);
 
@@ -148,12 +150,7 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
 
   React.useEffect(() => {
     if (!voiceDraft) return;
-    if (
-      voiceStatus !== "idle" &&
-      voiceStatus !== "error" &&
-      voiceStatus !== "unsupported"
-    )
-      return;
+    if (voiceStatus !== "idle" && voiceStatus !== "error" && voiceStatus !== "unsupported") return;
     const { session, text } = voiceDraft;
     if (processedVoiceSessionRef.current === session) return;
     processedVoiceSessionRef.current = session;
@@ -199,20 +196,14 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
     }
   }, [voiceSupported, voiceStatus, startVoice, stopVoice]);
 
-  const handleNameChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const next = event.target.value.slice(0, NAME_LIMIT);
-      setName(next);
-    },
-    [],
-  );
+  const handleNameChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const next = event.target.value.slice(0, NAME_LIMIT);
+    setName(next);
+  }, []);
 
-  const handleMessageChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setMessageDraft(event.target.value.slice(0, MESSAGE_LIMIT));
-    },
-    [],
-  );
+  const handleMessageChange = React.useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessageDraft(event.target.value.slice(0, MESSAGE_LIMIT));
+  }, []);
 
   const sendChat = React.useCallback(async () => {
     const trimmed = messageDraft.trim();
@@ -348,11 +339,7 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
             <div className={styles.chatStack}>
               <div ref={chatLogRef} className={styles.chatLog} aria-live="polite">
                 {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={styles.chatMessage}
-                    data-role={message.role}
-                  >
+                  <div key={message.id} className={styles.chatMessage} data-role={message.role}>
                     <span className={styles.chatAvatar} aria-hidden>
                       {message.role === "assistant" ? "AI" : "You"}
                     </span>
@@ -387,7 +374,9 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
                     aria-label={voiceButtonLabel}
                     title={voiceButtonLabel}
                     aria-pressed={voiceStatus === "listening"}
-                    data-active={voiceStatus === "listening" || voiceStatus === "stopping" ? "true" : undefined}
+                    data-active={
+                      voiceStatus === "listening" || voiceStatus === "stopping" ? "true" : undefined
+                    }
                     disabled={voiceStatus === "stopping"}
                   >
                     {voiceStatus === "listening" || voiceStatus === "stopping" ? (
@@ -402,7 +391,9 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
               <div className={styles.prompterMeta}>
                 <span className={styles.chatStatus}>{statusMessage}</span>
                 {chatError ? <span className={styles.chatError}>{chatError}</span> : null}
-                {voiceErrorMessage ? <span className={styles.chatError}>{voiceErrorMessage}</span> : null}
+                {voiceErrorMessage ? (
+                  <span className={styles.chatError}>{voiceErrorMessage}</span>
+                ) : null}
               </div>
 
               <p className={styles.prompterHint}>
@@ -418,7 +409,13 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
             <Button type="button" size="lg" variant="secondary" disabled>
               Next
             </Button>
-            <Button type="submit" size="lg" variant="gradient" loading={finishBusy} disabled={disableFinish}>
+            <Button
+              type="submit"
+              size="lg"
+              variant="gradient"
+              loading={finishBusy}
+              disabled={disableFinish}
+            >
               Finish
             </Button>
           </div>

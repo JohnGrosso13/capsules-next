@@ -29,11 +29,13 @@ function limitThemeVariants(variants: ThemeVariants, limit: number): ThemeVarian
   for (const mode of THEME_MODES) {
     const map = variants[mode];
     if (!map) continue;
-    output[mode] = Object.fromEntries(Object.entries(map).slice(0, limit)) as Record<string, string>;
+    output[mode] = Object.fromEntries(Object.entries(map).slice(0, limit)) as Record<
+      string,
+      string
+    >;
   }
   return output;
 }
-
 
 async function tryIndexStylerMemory(payload: {
   ownerId: string;
@@ -82,7 +84,6 @@ export async function POST(req: Request) {
     if (!prompt) {
       return returnError(400, "invalid_request", "Prompt is required");
     }
-
 
     const plan = await resolveStylerPlan(prompt);
     if (!plan) {
@@ -143,9 +144,3 @@ export async function POST(req: Request) {
 // via server utilities that rely on Node built-ins (e.g. crypto). Running this
 // route on the Edge runtime triggers module resolution errors for those deps.
 export const runtime = "nodejs";
-
-
-
-
-
-

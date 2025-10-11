@@ -23,10 +23,7 @@ const deleteResponseSchema = z.object({
   deleted: z.boolean(),
 });
 
-export async function DELETE(
-  req: Request,
-  context: CapsuleRouteContext,
-) {
+export async function DELETE(req: Request, context: CapsuleRouteContext) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
     return returnError(401, "auth_required", "Sign in to delete a capsule.");
@@ -41,7 +38,11 @@ export async function DELETE(
   try {
     const deleted = await deleteCapsule(ownerId, parsedParams.data.id);
     if (!deleted) {
-      return returnError(404, "not_found", "Capsule not found or you do not have permission to delete it.");
+      return returnError(
+        404,
+        "not_found",
+        "Capsule not found or you do not have permission to delete it.",
+      );
     }
     return validatedJson(deleteResponseSchema, { deleted: true });
   } catch (error) {

@@ -37,28 +37,21 @@
   /* Fluent + Glassmorphic + soft-neu layers */
   background:
     /* soft top-left sheen */
-    radial-gradient(1200px 60% at 0% -20%, rgba(255, 255, 255, 0.10), transparent 55%),
+    radial-gradient(1200px 60% at 0% -20%, rgba(255, 255, 255, 0.1), transparent 55%),
     /* faint brand tint on the right */
-    radial-gradient(800px 40% at 100% 0%, rgba(72, 83, 255, 0.14), transparent 60%),
+      radial-gradient(800px 40% at 100% 0%, rgba(72, 83, 255, 0.14), transparent 60%),
     /* elevated base (fallbacks ensure stronger contrast in dark mode) */
-    linear-gradient(
-      180deg,
-      var(
-        --card-bg-1,
-        color-mix(in srgb, var(--surface-elevated) 96%, transparent)
-      ),
-      var(
-        --card-bg-2,
-        color-mix(in srgb, var(--surface-app) 74%, transparent)
-      )
-    );
+      linear-gradient(
+        180deg,
+        var(--card-bg-1, color-mix(in srgb, var(--surface-elevated) 96%, transparent)),
+        var(--card-bg-2, color-mix(in srgb, var(--surface-app) 74%, transparent))
+      );
   box-shadow:
     /* outer depth */
     0 24px 64px rgba(5, 10, 30, 0.52),
-    0 6px 18px rgba(5, 10, 30, 0.40),
-    /* glass ridge */
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -1px 0 rgba(2, 6, 23, 0.50);
+    0 6px 18px rgba(5, 10, 30, 0.4),
+    /* glass ridge */ inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.5);
   backdrop-filter: blur(16px) saturate(155%);
   -webkit-backdrop-filter: blur(16px) saturate(155%);
   transition:
@@ -78,8 +71,8 @@
   inset: -1px;
   border-radius: inherit;
   background:
-    radial-gradient(600px 160px at 10% 0%, rgba(255,255,255,0.24), transparent 60%),
-    radial-gradient(800px 200px at 90% -20%, rgba(99, 102, 241, 0.20), transparent 70%);
+    radial-gradient(600px 160px at 10% 0%, rgba(255, 255, 255, 0.24), transparent 60%),
+    radial-gradient(800px 200px at 90% -20%, rgba(99, 102, 241, 0.2), transparent 70%);
   mix-blend-mode: screen;
   pointer-events: none;
   opacity: 0.58;
@@ -101,14 +94,8 @@
     radial-gradient(800px 40% at 100% 0%, rgba(99, 102, 241, 0.18), transparent 60%),
     linear-gradient(
       180deg,
-      var(
-        --card-hover-bg-1,
-        color-mix(in srgb, var(--surface-elevated) 98%, transparent)
-      ),
-      var(
-        --card-hover-bg-2,
-        color-mix(in srgb, var(--surface-app) 80%, transparent)
-      )
+      var(--card-hover-bg-1, color-mix(in srgb, var(--surface-elevated) 98%, transparent)),
+      var(--card-hover-bg-2, color-mix(in srgb, var(--surface-app) 80%, transparent))
     );
   transform: translateY(-2px);
   box-shadow:
@@ -124,7 +111,7 @@
 .tile:active {
   transform: translateY(0);
   box-shadow:
-    0 18px 44px rgba(5, 10, 30, 0.40),
+    0 18px 44px rgba(5, 10, 30, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     inset 0 -2px 0 rgba(2, 6, 23, 0.55);
 }
@@ -142,7 +129,7 @@
   width: 34px;
   height: 34px;
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
     inset 0 -1px 0 rgba(2, 6, 23, 0.35),
@@ -166,7 +153,9 @@
   flex: 1;
 }
 /* Preserve lighter weight in light theme */
-:global(:root[data-theme="light"]) .tileList { color: var(--text-2); }
+:global(:root[data-theme="light"]) .tileList {
+  color: var(--text-2);
+}
 .tileLearn {
   color: var(--text);
   opacity: 0.82;
@@ -181,23 +170,17 @@
   padding: 20px;
   border: 1px solid var(--card-border, var(--surface-outline));
   background:
-    radial-gradient(1400px 70% at -10% -10%, rgba(255, 255, 255, 0.10), transparent 60%),
+    radial-gradient(1400px 70% at -10% -10%, rgba(255, 255, 255, 0.1), transparent 60%),
     radial-gradient(1200px 60% at 110% -10%, rgba(99, 102, 241, 0.18), transparent 70%),
     linear-gradient(
       180deg,
-      var(
-        --card-hover-bg-1,
-        color-mix(in srgb, var(--surface-elevated) 98%, transparent)
-      ),
-      var(
-        --card-hover-bg-2,
-        color-mix(in srgb, var(--surface-app) 82%, transparent)
-      )
+      var(--card-hover-bg-1, color-mix(in srgb, var(--surface-elevated) 98%, transparent)),
+      var(--card-hover-bg-2, color-mix(in srgb, var(--surface-app) 82%, transparent))
     );
   box-shadow:
     0 30px 80px rgba(5, 10, 30, 0.54),
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(2, 6, 23, 0.50);
+    inset 0 -1px 0 rgba(2, 6, 23, 0.5);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   min-height: var(--create-rows-height);
@@ -218,11 +201,7 @@
   justify-content: center;
   border-radius: 999px;
   border: 1px solid var(--pill-border);
-  background: linear-gradient(
-    180deg,
-    var(--pill-bg-1),
-    var(--pill-bg-2)
-  );
+  background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
   color: var(--text);
   font-weight: 800;
   box-shadow: var(
@@ -255,9 +234,3 @@
   }
 }
 /* Removed unused chip/header helpers now that Create page shows only tiles */
-
-
-
-
-
-

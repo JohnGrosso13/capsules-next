@@ -126,7 +126,11 @@ export async function POST(req: Request) {
     }
 
     if (!sourceUrl) {
-      return returnError(400, "invalid_request", "imageUrl or imageData is required to edit a banner.");
+      return returnError(
+        400,
+        "invalid_request",
+        "imageUrl or imageData is required to edit a banner.",
+      );
     }
 
     // Normalize the source into storage to ensure it is fetchable by the image edit API.

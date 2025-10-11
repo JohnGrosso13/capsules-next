@@ -135,13 +135,16 @@ export function useFriendsGraph(initial: Friend[]) {
         const friendItems = Array.isArray(data?.friends) ? data.friends : [];
         const mappedFriends = mapFriendList(friendItems);
         setFriends(mappedFriends.length ? mappedFriends : initial);
-        const graphRaw = data && typeof data === "object" ? (data as { graph?: unknown }).graph : null;
-        const graph = graphRaw && typeof graphRaw === "object" ? (graphRaw as Record<string, unknown>) : null;
+        const graphRaw =
+          data && typeof data === "object" ? (data as { graph?: unknown }).graph : null;
+        const graph =
+          graphRaw && typeof graphRaw === "object" ? (graphRaw as Record<string, unknown>) : null;
         const incomingRaw = graph ? (graph["incomingRequests"] as unknown[]) : null;
         const outgoingRaw = graph ? (graph["outgoingRequests"] as unknown[]) : null;
         setIncomingRequests(mapRequestList(incomingRaw));
         setOutgoingRequests(mapRequestList(outgoingRaw));
-        const channelsRaw = data && typeof data === "object" ? (data as { channels?: unknown }).channels : null;
+        const channelsRaw =
+          data && typeof data === "object" ? (data as { channels?: unknown }).channels : null;
         if (channelsRaw && typeof channelsRaw === "object") {
           const record = channelsRaw as Record<string, unknown>;
           const events = record["events"];
@@ -203,6 +206,3 @@ export function useFriendsGraph(initial: Friend[]) {
     refresh,
   } as const;
 }
-
-
-

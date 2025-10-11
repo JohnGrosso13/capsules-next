@@ -44,5 +44,13 @@ for (const dir of scanDirs) {
   walk(path.join(process.cwd(), dir));
 }
 
-const missing = Array.from(usedVars).filter((cssVar) => !registryVars.has(cssVar)).sort();
-console.log(JSON.stringify({ missing, totalUsed: usedVars.size, totalRegistered: registryVars.size }, null, 2));
+const missing = Array.from(usedVars)
+  .filter((cssVar) => !registryVars.has(cssVar))
+  .sort();
+console.log(
+  JSON.stringify(
+    { missing, totalUsed: usedVars.size, totalRegistered: registryVars.size },
+    null,
+    2,
+  ),
+);

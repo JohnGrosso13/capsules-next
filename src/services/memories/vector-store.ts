@@ -74,7 +74,8 @@ export async function upsertMemoryVector({
   if (normalizedMediaType) metadata.mediaType = normalizedMediaType;
 
   if (extra && typeof extra === "object") {
-    const source = typeof extra.source === "string" ? normalize(extra.source, MEDIA_TYPE_LIMIT) : null;
+    const source =
+      typeof extra.source === "string" ? normalize(extra.source, MEDIA_TYPE_LIMIT) : null;
     if (source) metadata.source = source;
 
     const author =
@@ -84,7 +85,9 @@ export async function upsertMemoryVector({
     if (author) metadata.postAuthorName = author;
 
     const excerpt =
-      typeof extra.post_excerpt === "string" ? normalize(extra.post_excerpt, DESCRIPTION_LIMIT) : null;
+      typeof extra.post_excerpt === "string"
+        ? normalize(extra.post_excerpt, DESCRIPTION_LIMIT)
+        : null;
     if (excerpt) metadata.postExcerpt = excerpt;
   }
 

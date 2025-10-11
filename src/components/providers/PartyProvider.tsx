@@ -94,7 +94,8 @@ function loadSessionSnapshot(): StoredSession | null {
       metadata: parsed.metadata as PartySession["metadata"],
       expiresAt: typeof parsed.expiresAt === "string" ? parsed.expiresAt : "",
       displayName: typeof parsed.displayName === "string" ? parsed.displayName : null,
-      lastSeenAt: typeof parsed.lastSeenAt === "string" ? parsed.lastSeenAt : new Date().toISOString(),
+      lastSeenAt:
+        typeof parsed.lastSeenAt === "string" ? parsed.lastSeenAt : new Date().toISOString(),
     };
   } catch {
     return null;
@@ -212,9 +213,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
       } catch (resumeError) {
         console.error("Party resume error", resumeError);
         const message =
-          resumeError instanceof Error
-            ? resumeError.message
-            : "Unable to reconnect to the party.";
+          resumeError instanceof Error ? resumeError.message : "Unable to reconnect to the party.";
         setError(message);
         setStatus("idle");
         setAction(null);
@@ -240,75 +239,69 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     setAction(null);
   }, []);
 
-  const createParty = React.useCallback(
-    async (options: CreatePartyOptions) => {
-      setAction("create");
-      setStatus("loading");
-      setError(null);
-      const displayName = options.displayName?.trim() || null;
-      const topic = options.topic?.trim() || null;
-      try {
-        const payload = await postJson<PartyTokenResponse>("/api/party", {
-          displayName: displayName ?? undefined,
-          topic: topic ?? undefined,
-        });
-        const nextSession: PartySession = {
-          partyId: payload.partyId,
-          token: payload.token,
-          livekitUrl: payload.livekitUrl,
-          metadata: payload.metadata,
-          expiresAt: payload.expiresAt,
-          isOwner: payload.isOwner,
-          displayName,
-        };
-        setSession(nextSession);
-        setStatus("connecting");
-      } catch (requestError) {
-        const message =
-          requestError instanceof Error ? requestError.message : "Unable to start a party.";
-        setError(message);
-        setStatus("idle");
-        setAction(null);
-        setSession(null);
-      }
-    },
-    [],
-  );
+  const createParty = React.useCallback(async (options: CreatePartyOptions) => {
+    setAction("create");
+    setStatus("loading");
+    setError(null);
+    const displayName = options.displayName?.trim() || null;
+    const topic = options.topic?.trim() || null;
+    try {
+      const payload = await postJson<PartyTokenResponse>("/api/party", {
+        displayName: displayName ?? undefined,
+        topic: topic ?? undefined,
+      });
+      const nextSession: PartySession = {
+        partyId: payload.partyId,
+        token: payload.token,
+        livekitUrl: payload.livekitUrl,
+        metadata: payload.metadata,
+        expiresAt: payload.expiresAt,
+        isOwner: payload.isOwner,
+        displayName,
+      };
+      setSession(nextSession);
+      setStatus("connecting");
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error ? requestError.message : "Unable to start a party.";
+      setError(message);
+      setStatus("idle");
+      setAction(null);
+      setSession(null);
+    }
+  }, []);
 
-  const joinParty = React.useCallback(
-    async (partyId: string, options: JoinPartyOptions) => {
-      const normalizedId = partyId.trim().toLowerCase();
-      const displayName = options.displayName?.trim() || null;
-      setAction("join");
-      setStatus("loading");
-      setError(null);
-      try {
-        const payload = await postJson<PartyTokenResponse>("/api/party/token", {
-          partyId: normalizedId,
-          displayName: displayName ?? undefined,
-        });
-        const nextSession: PartySession = {
-          partyId: payload.partyId,
-          token: payload.token,
-          livekitUrl: payload.livekitUrl,
-          metadata: payload.metadata,
-          expiresAt: payload.expiresAt,
-          isOwner: payload.isOwner,
-          displayName,
-        };
-        setSession(nextSession);
-        setStatus("connecting");
-      } catch (requestError) {
-        const message =
-          requestError instanceof Error ? requestError.message : "Unable to join the party.";
-        setError(message);
-        setStatus("idle");
-        setAction(null);
-        setSession(null);
-      }
-    },
-    [],
-  );
+  const joinParty = React.useCallback(async (partyId: string, options: JoinPartyOptions) => {
+    const normalizedId = partyId.trim().toLowerCase();
+    const displayName = options.displayName?.trim() || null;
+    setAction("join");
+    setStatus("loading");
+    setError(null);
+    try {
+      const payload = await postJson<PartyTokenResponse>("/api/party/token", {
+        partyId: normalizedId,
+        displayName: displayName ?? undefined,
+      });
+      const nextSession: PartySession = {
+        partyId: payload.partyId,
+        token: payload.token,
+        livekitUrl: payload.livekitUrl,
+        metadata: payload.metadata,
+        expiresAt: payload.expiresAt,
+        isOwner: payload.isOwner,
+        displayName,
+      };
+      setSession(nextSession);
+      setStatus("connecting");
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error ? requestError.message : "Unable to join the party.";
+      setError(message);
+      setStatus("idle");
+      setAction(null);
+      setSession(null);
+    }
+  }, []);
 
   const leaveParty = React.useCallback(async () => {
     setAction("leave");

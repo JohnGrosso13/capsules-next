@@ -178,7 +178,6 @@ export async function markArtifactCommitted(
   return row ? mapArtifactRow(row) : null;
 }
 
-
 export async function selectArtifactById(artifactId: string): Promise<ArtifactRecord | null> {
   const result = await db
     .from("artifact_artifacts")
@@ -201,7 +200,9 @@ export async function selectArtifactsByOwner(ownerUserId: string): Promise<Artif
   return rows.map(mapArtifactRow);
 }
 
-export async function upsertArtifactAssets(assets: ArtifactAssetInput[]): Promise<ArtifactAssetRecord[]> {
+export async function upsertArtifactAssets(
+  assets: ArtifactAssetInput[],
+): Promise<ArtifactAssetRecord[]> {
   if (!assets.length) return [];
   const payload = assets.map((asset) => ({
     artifact_id: asset.artifactId,
@@ -232,9 +233,7 @@ export async function selectArtifactAssets(artifactId: string): Promise<Artifact
   return rows.map(mapArtifactAssetRow);
 }
 
-export async function insertArtifactEvent(
-  event: ArtifactEventInput,
-): Promise<ArtifactEventRecord> {
+export async function insertArtifactEvent(event: ArtifactEventInput): Promise<ArtifactEventRecord> {
   const payload = {
     artifact_id: event.artifactId,
     event_type: event.eventType,
@@ -250,13 +249,11 @@ export async function insertArtifactEvent(
   return mapArtifactEventRow(row);
 }
 
-export async function selectArtifactWithAssets(artifactId: string): Promise<ArtifactWithAssets | null> {
+export async function selectArtifactWithAssets(
+  artifactId: string,
+): Promise<ArtifactWithAssets | null> {
   const artifact = await selectArtifactById(artifactId);
   if (!artifact) return null;
   const assets = await selectArtifactAssets(artifactId);
   return { ...artifact, assets };
 }
-
-
-
-

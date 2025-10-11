@@ -52,7 +52,8 @@ type SavedStyle = {
 
 type ThemeEntry = { kind: "preset"; preset: Preset } | { kind: "saved"; saved: SavedStyle };
 const TITLE_FALLBACK = "Saved theme";
-const MODE_HELP_COPY = "Themes carry light and dark variants together. System follows your OS preference and re-checks the local clock to stay in sync.";
+const MODE_HELP_COPY =
+  "Themes carry light and dark variants together. System follows your OS preference and re-checks the local clock to stay in sync.";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -75,7 +76,9 @@ function mapThemeRecord(raw: unknown): SavedStyle | null {
 
   const rawRecord = raw as Record<string, unknown>;
   const meta = isPlainObject(rawRecord.meta) ? rawRecord.meta : undefined;
-  const primaryVariantsSource = isPlainObject(rawRecord.variants) ? rawRecord.variants : rawRecord.vars;
+  const primaryVariantsSource = isPlainObject(rawRecord.variants)
+    ? rawRecord.variants
+    : rawRecord.vars;
   let variants = normalizeThemeVariantsInput(primaryVariantsSource);
   if (isVariantEmpty(variants) && meta) {
     const metaVariantsSource = isPlainObject(meta.variants) ? meta.variants : meta.vars;
@@ -94,15 +97,9 @@ function mapThemeRecord(raw: unknown): SavedStyle | null {
     coerceString(meta?.["prompt"]) ??
     TITLE_FALLBACK;
 
-  const summary =
-    coerceString(raw.summary) ??
-    coerceString(meta?.["summary"]) ??
-    null;
+  const summary = coerceString(raw.summary) ?? coerceString(meta?.["summary"]) ?? null;
 
-  const prompt =
-    coerceString(raw.prompt) ??
-    coerceString(meta?.["prompt"]) ??
-    null;
+  const prompt = coerceString(raw.prompt) ?? coerceString(meta?.["prompt"]) ?? null;
 
   const description =
     coerceString(raw.description) ??
@@ -111,10 +108,7 @@ function mapThemeRecord(raw: unknown): SavedStyle | null {
     prompt ??
     title;
 
-  const details =
-    coerceString(raw.details) ??
-    coerceString(meta?.["details"]) ??
-    null;
+  const details = coerceString(raw.details) ?? coerceString(meta?.["details"]) ?? null;
 
   const createdLabel =
     coerceString(raw.created_at) ??
@@ -133,7 +127,6 @@ function mapThemeRecord(raw: unknown): SavedStyle | null {
   };
 }
 
-
 function builtInPresets(): Preset[] {
   const presetEntries = PRESET_THEME_CONFIGS.map((config) => ({
     id: config.id,
@@ -142,13 +135,29 @@ function builtInPresets(): Preset[] {
     variants: buildPresetThemeVariants(config),
   }));
   return [
-    { id: "default", title: "Default", desc: "Capsules baseline palette.", variants: { light: {}, dark: {} } },
-    { id: "dark", title: "Default (Dark)", desc: "Capsules dark baseline palette.", variants: { dark: {} }, theme: "dark" },
-    { id: "light", title: "Default (Light)", desc: "Capsules light baseline palette.", variants: { light: {} }, theme: "light" },
+    {
+      id: "default",
+      title: "Default",
+      desc: "Capsules baseline palette.",
+      variants: { light: {}, dark: {} },
+    },
+    {
+      id: "dark",
+      title: "Default (Dark)",
+      desc: "Capsules dark baseline palette.",
+      variants: { dark: {} },
+      theme: "dark",
+    },
+    {
+      id: "light",
+      title: "Default (Light)",
+      desc: "Capsules light baseline palette.",
+      variants: { light: {} },
+      theme: "light",
+    },
     ...presetEntries,
   ];
 }
-
 
 const PLACEHOLDER_THEMES: SavedStyle[] = [];
 
@@ -176,7 +185,9 @@ function useThemeStyles() {
   const [loading, setLoading] = React.useState(false);
   const [previewingId, setPreviewingId] = React.useState<string | null>(null);
   const [activeMode, setActiveMode] = React.useState<"light" | "dark">(() => getTheme());
-  const [themePreference, setThemePreferenceState] = React.useState<ThemePreference>(() => getThemePreference());
+  const [themePreference, setThemePreferenceState] = React.useState<ThemePreference>(() =>
+    getThemePreference(),
+  );
   const [activeId, setActiveId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -210,8 +221,10 @@ function useThemeStyles() {
   const items = React.useMemo<ThemeEntry[]>(() => {
     const presetEntries = basePresets
       .filter((preset) => preset.id !== "light" && preset.id !== "dark")
-      .map((preset) => ({ kind: "preset", preset } as ThemeEntry));
-    const savedEntries = displayedSavedStyles.map((saved) => ({ kind: "saved", saved } as ThemeEntry));
+      .map((preset) => ({ kind: "preset", preset }) as ThemeEntry);
+    const savedEntries = displayedSavedStyles.map(
+      (saved) => ({ kind: "saved", saved }) as ThemeEntry,
+    );
     return [...presetEntries, ...savedEntries];
   }, [basePresets, displayedSavedStyles]);
 
@@ -321,28 +334,27 @@ function useThemeStyles() {
     void fetchSaved();
   }, [isLoaded, fetchSaved]);
 
-  const handleRename = React.useCallback(
-    async (entry: ThemeEntry) => {
-      if (entry.kind !== "saved" || entry.saved.id.startsWith("placeholder-")) return;
-      const currentTitle = entry.saved.title || "Saved theme";
-      const next = window.prompt("Rename theme", currentTitle)?.trim();
-      if (!next || next === currentTitle) return;
-      const res = await fetch("/api/memory/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ id: entry.saved.id, title: next, kind: "theme" }),
-      });
-      if (res.ok) {
-        setSavedStyles((prev) =>
-          prev.map((style) =>
-            style.id === entry.saved.id ? { ...style, title: next, summary: next, description: next } : style,
-          ),
-        );
-      }
-    },
-    [],
-  );
+  const handleRename = React.useCallback(async (entry: ThemeEntry) => {
+    if (entry.kind !== "saved" || entry.saved.id.startsWith("placeholder-")) return;
+    const currentTitle = entry.saved.title || "Saved theme";
+    const next = window.prompt("Rename theme", currentTitle)?.trim();
+    if (!next || next === currentTitle) return;
+    const res = await fetch("/api/memory/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ id: entry.saved.id, title: next, kind: "theme" }),
+    });
+    if (res.ok) {
+      setSavedStyles((prev) =>
+        prev.map((style) =>
+          style.id === entry.saved.id
+            ? { ...style, title: next, summary: next, description: next }
+            : style,
+        ),
+      );
+    }
+  }, []);
 
   const handleDelete = React.useCallback(
     async (entry: ThemeEntry) => {
@@ -352,7 +364,11 @@ function useThemeStyles() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ids: [entry.saved.id], kind: "theme", user: envelopeRef.current ?? {} }),
+        body: JSON.stringify({
+          ids: [entry.saved.id],
+          kind: "theme",
+          user: envelopeRef.current ?? {},
+        }),
       });
       if (res.ok) {
         setSavedStyles((prev) => prev.filter((style) => style.id !== entry.saved.id));
@@ -456,7 +472,10 @@ function ThemeEntryCard({
 }: ThemeEntryCardProps) {
   const entryId = getEntryId(entry);
   const variants = getEntryVariants(entry);
-  const variantStyle = React.useMemo(() => variantForMode(variants, activeMode), [variants, activeMode]);
+  const variantStyle = React.useMemo(
+    () => variantForMode(variants, activeMode),
+    [variants, activeMode],
+  );
   const preview = React.useMemo(() => buildThemePreview(variantStyle), [variantStyle]);
   const groupBadges = preview.usages.slice(0, 3);
   const palette = preview.palette.slice(0, 4);
@@ -507,7 +526,11 @@ function ThemeEntryCard({
           {isActive ? <span className={styles.activeBadge}>Active</span> : null}
         </header>
 
-        <div className={styles.previewShell} style={(variantStyle as React.CSSProperties)} aria-hidden>
+        <div
+          className={styles.previewShell}
+          style={variantStyle as React.CSSProperties}
+          aria-hidden
+        >
           <div className={styles.swatchBg} />
           <div className={styles.swatchCard} />
         </div>
@@ -528,7 +551,11 @@ function ThemeEntryCard({
             {palette.length ? (
               <div className={styles.previewPalette} aria-hidden>
                 {palette.map((value, index) => (
-                  <span key={`${entryId}-swatch-${index}`} className={styles.previewColor} style={{ background: value }} />
+                  <span
+                    key={`${entryId}-swatch-${index}`}
+                    className={styles.previewColor}
+                    style={{ background: value }}
+                  />
                 ))}
               </div>
             ) : null}
@@ -540,10 +567,20 @@ function ThemeEntryCard({
             <Button variant="primary" size="sm" onClick={() => onApply?.(entry)}>
               {isActive ? "Applied" : "Apply"}
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => onRename?.(entry)} disabled={!isEditable}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onRename?.(entry)}
+              disabled={!isEditable}
+            >
               Rename
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => onDelete?.(entry)} disabled={!isEditable}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onDelete?.(entry)}
+              disabled={!isEditable}
+            >
               Delete
             </Button>
           </div>
@@ -554,7 +591,14 @@ function ThemeEntryCard({
 }
 
 export function ThemeStyleCarousel() {
-  const { activeEntry, activeMode, themePreference, loading, handleSetPreference, handleSaveCurrent } = useThemeStyles();
+  const {
+    activeEntry,
+    activeMode,
+    themePreference,
+    loading,
+    handleSetPreference,
+    handleSaveCurrent,
+  } = useThemeStyles();
 
   return (
     <div className={styles.root}>
@@ -567,7 +611,12 @@ export function ThemeStyleCarousel() {
           <Button variant="secondary" size="sm" onClick={handleSaveCurrent}>
             Save current
           </Button>
-          <ButtonLink variant="ghost" size="sm" href="/settings/themes" rightIcon={<ArrowRight weight="bold" />}>
+          <ButtonLink
+            variant="ghost"
+            size="sm"
+            href="/settings/themes"
+            rightIcon={<ArrowRight weight="bold" />}
+          >
             View more
           </ButtonLink>
         </div>
@@ -650,7 +699,8 @@ export function ThemeStylesGallery() {
         <div className={styles.headerCopy}>
           <h1 className={styles.title}>All themes</h1>
           <p className={styles.fullSubtitle}>
-            Browse built-in presets and your saved looks. Hover to preview, then apply to commit the change.
+            Browse built-in presets and your saved looks. Hover to preview, then apply to commit the
+            change.
           </p>
         </div>
         <div className={styles.fullHeaderActions}>
@@ -660,13 +710,20 @@ export function ThemeStylesGallery() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => { void handleDeleteAll(); }}
+            onClick={() => {
+              void handleDeleteAll();
+            }}
             disabled={!hasRealSaved}
             leftIcon={<Trash weight="bold" />}
           >
             Delete all saved
           </Button>
-          <ButtonLink variant="ghost" size="sm" href="/settings" leftIcon={<ArrowLeft weight="bold" />}>
+          <ButtonLink
+            variant="ghost"
+            size="sm"
+            href="/settings"
+            leftIcon={<ArrowLeft weight="bold" />}
+          >
             Back to settings
           </ButtonLink>
         </div>
@@ -724,46 +781,3 @@ export function ThemeStylesGallery() {
     </section>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

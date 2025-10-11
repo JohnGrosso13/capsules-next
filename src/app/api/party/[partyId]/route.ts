@@ -4,10 +4,7 @@ import { returnError } from "@/server/validation/http";
 
 export const runtime = "nodejs";
 
-export async function DELETE(
-  req: Request,
-  context: { params: Promise<{ partyId: string }> },
-) {
+export async function DELETE(req: Request, context: { params: Promise<{ partyId: string }> }) {
   const { partyId } = await context.params;
   const partyIdParam = partyId?.trim().toLowerCase();
   if (!partyIdParam) {
@@ -40,10 +37,7 @@ export async function DELETE(
     });
   } catch (error) {
     console.error("Party close error", error);
-    if (
-      error instanceof Error &&
-      error.message.includes("LiveKit is not fully configured")
-    ) {
+    if (error instanceof Error && error.message.includes("LiveKit is not fully configured")) {
       return returnError(500, "livekit_not_configured", error.message);
     }
     return returnError(500, "party_close_failed", "Unable to close this party right now.");

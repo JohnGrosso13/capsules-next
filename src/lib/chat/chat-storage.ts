@@ -37,7 +37,10 @@ export function saveChatState(
   }
 }
 
-export function clearChatState(storage: ChatStorageAdapter | null, key: string = DEFAULT_CHAT_STORAGE_KEY): void {
+export function clearChatState(
+  storage: ChatStorageAdapter | null,
+  key: string = DEFAULT_CHAT_STORAGE_KEY,
+): void {
   if (!storage) return;
   try {
     storage.removeItem(key);

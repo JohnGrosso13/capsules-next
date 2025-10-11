@@ -88,7 +88,3 @@ export const getArtifactResponseSchema = z.object({
   artifact: artifactSchema,
   assets: z.array(artifactAssetRecordSchema),
 });
-
-
-
-

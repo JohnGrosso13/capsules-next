@@ -71,7 +71,12 @@ export async function POST(req: Request, context: BannerParamsContext) {
   const json = await req.json().catch(() => null);
   const parsedBody = bodySchema.safeParse(json);
   if (!parsedBody.success) {
-    return returnError(400, "invalid_request", "Invalid banner payload.", parsedBody.error.flatten());
+    return returnError(
+      400,
+      "invalid_request",
+      "Invalid banner payload.",
+      parsedBody.error.flatten(),
+    );
   }
 
   try {

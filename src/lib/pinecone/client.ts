@@ -49,4 +49,3 @@ export function getPineconeIndex<T extends RecordMetadata = RecordMetadata>() {
     return null;
   }
 }
-

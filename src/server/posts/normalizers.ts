@@ -32,9 +32,7 @@ export function normalizePost(row: Record<string, unknown>) {
     viewerLiked:
       typeof row["viewer_liked"] === "boolean" ? (row["viewer_liked"] as boolean) : false,
     viewerRemembered:
-      typeof row["viewer_remembered"] === "boolean"
-        ? (row["viewer_remembered"] as boolean)
-        : false,
+      typeof row["viewer_remembered"] === "boolean" ? (row["viewer_remembered"] as boolean) : false,
   };
 }
 

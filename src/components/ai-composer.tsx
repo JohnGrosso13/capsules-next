@@ -33,12 +33,12 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     prompt,
     message,
     choices,
-  onChange,
-  onClose,
-  onPost,
-  onPrompt,
-  onForceChoice,
-} = props;
+    onChange,
+    onClose,
+    onPost,
+    onPrompt,
+    onForceChoice,
+  } = props;
   const portalClassName = styles.portalHost ?? "ai-composer-portal-host";
   const { host, ready } = usePortalHost(portalClassName, open);
 

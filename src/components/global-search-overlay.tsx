@@ -148,27 +148,39 @@ export function GlobalSearchOverlay() {
     const meta = item.meta ?? {};
     const highlight = typeof meta?.search_highlight === "string" ? meta.search_highlight : null;
     if (!highlight) return null;
-    return (
-      <p
-        className={styles.resultHighlight}
-        dangerouslySetInnerHTML={{ __html: highlight }}
-      />
-    );
+    return <p className={styles.resultHighlight} dangerouslySetInnerHTML={{ __html: highlight }} />;
   };
 
   return (
-    <div className={styles.overlay} role="presentation" onClick={(event) => {
-      if (event.target === event.currentTarget) {
-        close();
-      }
-    }}>
-      <div className={styles.panel} role="dialog" aria-modal="true" aria-labelledby="global-search-heading">
+    <div
+      className={styles.overlay}
+      role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          close();
+        }
+      }}
+    >
+      <div
+        className={styles.panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="global-search-heading"
+      >
         <header className={styles.header}>
           <div className={styles.headingGroup}>
             <h2 id="global-search-heading">Search your memories</h2>
-            <p className={styles.subheading}>Algolia + vector search across posts, comments, friends, and more.</p>
+            <p className={styles.subheading}>
+              Algolia + vector search across posts, comments, friends, and more.
+            </p>
           </div>
-          <button type="button" className={styles.closeButton} onClick={close} aria-label="Close search">X
+          <button
+            type="button"
+            className={styles.closeButton}
+            onClick={close}
+            aria-label="Close search"
+          >
+            X
           </button>
         </header>
         <div className={styles.inputRow}>
@@ -189,7 +201,9 @@ export function GlobalSearchOverlay() {
             <span className={styles.statusText}>No matches yet. Try another phrase.</span>
           ) : null}
           {!loading && !error && query.trim().length < MIN_QUERY_LENGTH ? (
-            <span className={styles.statusText}>Enter at least {MIN_QUERY_LENGTH} characters to search.</span>
+            <span className={styles.statusText}>
+              Enter at least {MIN_QUERY_LENGTH} characters to search.
+            </span>
           ) : null}
         </div>
         <div className={styles.results}>
@@ -228,6 +242,3 @@ export function GlobalSearchOverlay() {
     </div>
   );
 }
-
-
-

@@ -62,4 +62,3 @@ export async function POST(req: Request) {
     return returnError(500, "artifact_create_failed", "Failed to create artifact");
   }
 }
-

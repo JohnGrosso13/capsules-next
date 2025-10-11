@@ -45,16 +45,11 @@ type VoiceHookResult = {
 };
 
 export function usePrompterVoice(options: Options): VoiceHookResult {
-  const {
-    currentText,
-    buttonBusy,
-    onTranscript,
-    onSubmit,
-    onSaveTranscript,
-    closeMenu,
-  } = options;
+  const { currentText, buttonBusy, onTranscript, onSubmit, onSaveTranscript, closeMenu } = options;
   const [voiceError, setVoiceError] = React.useState<string | null>(null);
-  const [voiceDraft, setVoiceDraft] = React.useState<{ session: number; text: string } | null>(null);
+  const [voiceDraft, setVoiceDraft] = React.useState<{ session: number; text: string } | null>(
+    null,
+  );
   const [pendingVoiceSubmission, setPendingVoiceSubmission] = React.useState<string | null>(null);
 
   const sessionCounterRef = React.useRef(1);

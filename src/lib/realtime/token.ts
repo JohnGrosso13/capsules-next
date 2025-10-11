@@ -1,7 +1,9 @@
 ﻿import type { RealtimeAuthPayload } from "@/ports/realtime";
 import type { RealtimeEnvelope } from "./envelope";
 
-export async function requestRealtimeToken(envelope: RealtimeEnvelope): Promise<RealtimeAuthPayload> {
+export async function requestRealtimeToken(
+  envelope: RealtimeEnvelope,
+): Promise<RealtimeAuthPayload> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (envelope) {
     try {

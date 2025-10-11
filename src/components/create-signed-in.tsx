@@ -7,4 +7,3 @@ export function CreateSignedIn() {
   // Render the tile-based Create experience beneath the global prompter.
   return <CreateTiles />;
 }
-

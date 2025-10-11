@@ -336,7 +336,7 @@ export function PromoRow() {
   }, [activeLightboxIndex, closeLightbox, navigateLightbox, tileCount]);
 
   const currentItem =
-    activeLightboxIndex === null ? null : lightboxItems[activeLightboxIndex] ?? null;
+    activeLightboxIndex === null ? null : (lightboxItems[activeLightboxIndex] ?? null);
   const fallbackIconIndex = currentItem
     ? currentItem.fallbackIndex % MEDIA_FALLBACK_ICONS.length
     : 0;
@@ -458,8 +458,7 @@ function renderTile(tile: TileConfig, context: TileContext) {
 }
 
 function MediaTile({ post, index }: { post: Post | null; index: number }) {
-  const Icon =
-    MEDIA_FALLBACK_ICONS[index % MEDIA_FALLBACK_ICONS.length] ?? ImageSquare;
+  const Icon = MEDIA_FALLBACK_ICONS[index % MEDIA_FALLBACK_ICONS.length] ?? ImageSquare;
   const rawMediaSrc = normalizeMediaUrl(post?.mediaUrl);
   const mediaSrc = resolveToAbsoluteUrl(rawMediaSrc);
   return (
@@ -519,11 +518,7 @@ function CapsuleTile({ capsule }: { capsule: Capsule | null }) {
   if (!capsule) {
     return (
       <div className={styles.capsuleTile}>
-        <CapsulePromoTile
-          name="Featured Capsule"
-          className={tileClass}
-          showSlug={false}
-        />
+        <CapsulePromoTile name="Featured Capsule" className={tileClass} showSlug={false} />
       </div>
     );
   }
@@ -548,8 +543,7 @@ function CapsuleTile({ capsule }: { capsule: Capsule | null }) {
     />
   );
 
-  const href =
-    resolveCapsuleHref(rawSlug, capsule.href ?? null);
+  const href = resolveCapsuleHref(rawSlug, capsule.href ?? null);
 
   if (href) {
     return (

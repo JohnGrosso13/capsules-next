@@ -90,10 +90,7 @@ const FALLBACK_DISPLAY_FRIENDS: FriendItem[] = [
   },
 ];
 
-function mapFriendSummaries(
-  summaries: FriendSummary[],
-  presence: PresenceMap,
-): FriendItem[] {
+function mapFriendSummaries(summaries: FriendSummary[], presence: PresenceMap): FriendItem[] {
   return summaries.map((summary, index) => {
     const presenceKey = summary.friendUserId || summary.user?.key || summary.user?.id || summary.id;
     const presenceEntry = presenceKey ? presence[presenceKey] : undefined;
@@ -150,7 +147,9 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
   const [friendSummaries, setFriendSummaries] = React.useState<FriendSummary[]>([]);
   const [incomingSummaries, setIncomingSummaries] = React.useState<FriendRequestSummary[]>([]);
   const [outgoingSummaries, setOutgoingSummaries] = React.useState<FriendRequestSummary[]>([]);
-  const [incomingPartySummaries, setIncomingPartySummaries] = React.useState<PartyInviteSummary[]>([]);
+  const [incomingPartySummaries, setIncomingPartySummaries] = React.useState<PartyInviteSummary[]>(
+    [],
+  );
   const [channels, setChannels] = React.useState<ChannelInfo>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -173,7 +172,11 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
   const refresh = React.useCallback(async () => {
     setLoading((prev) => prev && friendSummaries.length === 0);
     try {
-      const { graph, channels: channelData, viewerId: snapshotViewerId } = await fetchFriendsSnapshot(envelope);
+      const {
+        graph,
+        channels: channelData,
+        viewerId: snapshotViewerId,
+      } = await fetchFriendsSnapshot(envelope);
       setViewerId(snapshotViewerId ?? null);
       setChannels((prev) => {
         if (
@@ -241,7 +244,11 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
 
   const tokenProvider = React.useCallback(() => requestRealtimeToken(envelope), [envelope]);
 
-  const presenceState = useFriendsRealtime(subscribeRealtime ? channels : null, tokenProvider, scheduleRefresh);
+  const presenceState = useFriendsRealtime(
+    subscribeRealtime ? channels : null,
+    tokenProvider,
+    scheduleRefresh,
+  );
 
   const hasRealFriends = friendSummaries.length > 0;
 
@@ -330,17 +337,26 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     [mutate],
   );
 
-  const acceptRequest = React.useCallback(async (requestId: string) => {
-    await mutate({ action: "accept", requestId });
-  }, [mutate]);
+  const acceptRequest = React.useCallback(
+    async (requestId: string) => {
+      await mutate({ action: "accept", requestId });
+    },
+    [mutate],
+  );
 
-  const declineRequest = React.useCallback(async (requestId: string) => {
-    await mutate({ action: "decline", requestId });
-  }, [mutate]);
+  const declineRequest = React.useCallback(
+    async (requestId: string) => {
+      await mutate({ action: "decline", requestId });
+    },
+    [mutate],
+  );
 
-  const cancelRequest = React.useCallback(async (requestId: string) => {
-    await mutate({ action: "cancel", requestId });
-  }, [mutate]);
+  const cancelRequest = React.useCallback(
+    async (requestId: string) => {
+      await mutate({ action: "cancel", requestId });
+    },
+    [mutate],
+  );
 
   const acceptPartyInviteRequest = React.useCallback(async (inviteId: string) => {
     const invite = await respondToPartyInvite(inviteId, "accept");
@@ -375,5 +391,3 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     viewerId,
   } as const;
 }
-
-

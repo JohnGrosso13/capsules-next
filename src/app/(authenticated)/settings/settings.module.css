@@ -88,7 +88,6 @@
   );
 }
 
-
 /* Content */
 .content {
   display: grid;
@@ -137,7 +136,3 @@
     position: static;
   }
 }
-
-
-
-

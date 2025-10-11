@@ -153,12 +153,12 @@ export default async function HomePage() {
                   <h1 className="font-display text-fg text-4xl tracking-tight sm:text-5xl lg:text-6xl">
                     Create AI Powered Spaces That Remember
                   </h1>
-                  <p className="text-fg-subtle max-w-xl text-lg leading-8 mx-auto">
+                  <p className="text-fg-subtle mx-auto max-w-xl text-lg leading-8">
                     The first social platform that couples channel memory with AI building blocks so
                     your community stays connected, organized, and inspired.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2 justify-center">
+                <div className="flex flex-wrap justify-center gap-2">
                   {heroPrompts.map((prompt) => (
                     <span
                       key={prompt}
@@ -168,11 +168,11 @@ export default async function HomePage() {
                     </span>
                   ))}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 justify-center">
+                <div className="flex flex-wrap items-center justify-center gap-3">
                   <LaunchCta size="lg" />
                   <Link
                     href="#features"
-                    className="glass-chip inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium hover:translate-y-[-1px] transition"
+                    className="glass-chip inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium transition hover:translate-y-[-1px]"
                   >
                     Explore Features
                     <CaretDown aria-hidden="true" size={16} weight="bold" />
@@ -185,10 +185,10 @@ export default async function HomePage() {
             </section>
 
             <section className="space-y-6" id="how-it-works">
-              <div className="section-shell section-alt rounded-3xl px-6 py-10 md:py-12 text-center">
+              <div className="section-shell section-alt rounded-3xl px-6 py-10 text-center md:py-12">
                 <div className="mx-auto max-w-5xl space-y-6">
                   <h2 className="font-display text-fg text-3xl tracking-tight">How It Works</h2>
-                  <p className="text-fg-subtle max-w-2xl text-base mx-auto">
+                  <p className="text-fg-subtle mx-auto max-w-2xl text-base">
                     Guided workflows make it easy to launch, grow, and monetize a space with AI
                     copilots at every step.
                   </p>
@@ -202,7 +202,7 @@ export default async function HomePage() {
                 <h2 className="font-display text-fg text-3xl tracking-tight">
                   Any Group Can Benefit
                 </h2>
-                <p className="text-fg-subtle max-w-xl text-base mx-auto">
+                <p className="text-fg-subtle mx-auto max-w-xl text-base">
                   Purpose-built templates and memory models adapt to how your community
                   collaborates.
                 </p>
@@ -211,15 +211,15 @@ export default async function HomePage() {
             </section>
 
             <section className="space-y-6" id="superpowers">
-              <div className="space-y-3 section-shell section-alt rounded-3xl p-6 text-center">
+              <div className="section-shell section-alt space-y-3 rounded-3xl p-6 text-center">
                 <h2 className="font-display text-fg text-3xl tracking-tight">
                   Superpowers For Your Community
                 </h2>
-                <p className="text-fg-subtle max-w-xl text-base mx-auto">
+                <p className="text-fg-subtle mx-auto max-w-xl text-base">
                   Automations and copilots keep your space lively without requiring a full-time
                   team.
                 </p>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {superpowers.map((power) => (
                     <div
                       key={power}
@@ -233,17 +233,22 @@ export default async function HomePage() {
             </section>
 
             <section className="space-y-6" id="features">
-              <div className="space-y-3 section-shell rounded-3xl p-6 text-center">
+              <div className="section-shell space-y-3 rounded-3xl p-6 text-center">
                 <h2 className="font-display text-fg text-3xl tracking-tight">
                   What Makes Us Different
                 </h2>
-                <p className="text-fg-subtle max-w-xl text-base mx-auto">
+                <p className="text-fg-subtle mx-auto max-w-xl text-base">
                   Everything you need to power a modern community, backed by AI context that
                   remembers every moment.
                 </p>
-                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3 mt-4">
+                <div className="mt-4 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {differentiators.map((feature) => (
-                    <Card key={feature.title} variant="soft" interactive className="backdrop-blur-xl">
+                    <Card
+                      key={feature.title}
+                      variant="soft"
+                      interactive
+                      className="backdrop-blur-xl"
+                    >
                       <CardContent className="space-y-4 pt-6">
                         <CardTitle className="text-fg text-xl">{feature.title}</CardTitle>
                         <div className="text-fg-subtle space-y-3 text-sm leading-6">
@@ -310,13 +315,12 @@ export default async function HomePage() {
                 <Link key={link.label} href={link.href} className="hover:text-fg transition">
                   {link.label}
                 </Link>
-              )
+              ),
             )}
           </div>
           <span>&copy; {footerYear} Capsules</span>
         </div>
       </footer>
-
     </div>
   );
 }

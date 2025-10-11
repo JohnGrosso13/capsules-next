@@ -16,7 +16,10 @@ function resolveClientIp(req: Request): string | null {
   const headers = req.headers;
   const forwarded = headers.get("cf-connecting-ip") ?? headers.get("x-forwarded-for");
   if (forwarded) {
-    const first = forwarded.split(",").map((v) => v.trim()).find(Boolean);
+    const first = forwarded
+      .split(",")
+      .map((v) => v.trim())
+      .find(Boolean);
     if (first) return first;
   }
   return headers.get("x-real-ip");
@@ -141,4 +144,3 @@ export async function POST(req: Request) {
     absoluteUrl: upload.absoluteUrl ?? undefined,
   });
 }
-

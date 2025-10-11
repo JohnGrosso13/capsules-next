@@ -115,9 +115,10 @@ class R2StorageProvider implements StorageProvider {
 
     const uploadId = upload.UploadId;
     const partSize = resolvePartSize(params.fileSize);
-    const effectiveParts = params.totalParts && params.totalParts > 0
-      ? params.totalParts
-      : Math.ceil((params.fileSize ?? partSize) / partSize);
+    const effectiveParts =
+      params.totalParts && params.totalParts > 0
+        ? params.totalParts
+        : Math.ceil((params.fileSize ?? partSize) / partSize);
     const count = Math.max(1, Math.min(effectiveParts, MAX_PARTS));
     const expires = new Date(Date.now() + 1000 * 60 * 30);
 
@@ -150,9 +151,7 @@ class R2StorageProvider implements StorageProvider {
     };
   }
 
-  async completeMultipartUpload(
-    params: StorageMultipartCompleteParams,
-  ): Promise<void> {
+  async completeMultipartUpload(params: StorageMultipartCompleteParams): Promise<void> {
     if (!params.parts.length) {
       throw new Error("No parts provided for completion");
     }
@@ -255,10 +254,7 @@ export function getR2StorageProvider(): StorageProvider {
   return providerInstance;
 }
 
-export async function getR2SignedObjectUrl(
-  key: string,
-  expiresInSeconds = 3600,
-): Promise<string> {
+export async function getR2SignedObjectUrl(key: string, expiresInSeconds = 3600): Promise<string> {
   const provider = getR2StorageProvider() as R2StorageProvider;
   return provider.getSignedObjectUrl(key, expiresInSeconds);
 }

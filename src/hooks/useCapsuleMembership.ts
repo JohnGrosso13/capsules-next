@@ -2,10 +2,7 @@
 
 import * as React from "react";
 
-import type {
-  CapsuleMembershipAction,
-  CapsuleMembershipState,
-} from "@/types/capsules";
+import type { CapsuleMembershipAction, CapsuleMembershipState } from "@/types/capsules";
 
 type PerformActionPayload =
   | { action: "request_join"; message?: string }
@@ -43,7 +40,9 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-export function useCapsuleMembership(capsuleId: string | null | undefined): UseCapsuleMembershipResult {
+export function useCapsuleMembership(
+  capsuleId: string | null | undefined,
+): UseCapsuleMembershipResult {
   const normalizedId = React.useMemo(() => normalizeId(capsuleId), [capsuleId]);
   const [membership, setMembership] = React.useState<CapsuleMembershipState | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -55,16 +54,16 @@ export function useCapsuleMembership(capsuleId: string | null | undefined): UseC
     async (signal?: AbortSignal): Promise<CapsuleMembershipState | null> => {
       if (!normalizedId) return null;
 
-      const response = await fetch(
-        `/api/capsules/${normalizedId}/membership`,
-        {
-          method: "GET",
-          cache: "no-store",
-          ...(signal ? { signal } : {}),
-        },
-      );
+      const response = await fetch(`/api/capsules/${normalizedId}/membership`, {
+        method: "GET",
+        cache: "no-store",
+        ...(signal ? { signal } : {}),
+      });
 
-      const payload = (await readJson(response)) as { membership?: CapsuleMembershipState; message?: string } | null;
+      const payload = (await readJson(response)) as {
+        membership?: CapsuleMembershipState;
+        message?: string;
+      } | null;
 
       if (!response.ok) {
         const message =
@@ -140,7 +139,10 @@ export function useCapsuleMembership(capsuleId: string | null | undefined): UseC
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        const data = (await readJson(response)) as { membership?: CapsuleMembershipState; message?: string } | null;
+        const data = (await readJson(response)) as {
+          membership?: CapsuleMembershipState;
+          message?: string;
+        } | null;
         if (!response.ok) {
           const message =
             data && typeof data.message === "string"

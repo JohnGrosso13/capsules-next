@@ -81,7 +81,13 @@ const capsuleMemberRoleSchema = z.enum(["member", "leader", "admin", "founder"])
 
 export const capsuleMembershipActionSchema = z
   .object({
-    action: z.enum(["request_join", "approve_request", "decline_request", "remove_member", "set_role"]),
+    action: z.enum([
+      "request_join",
+      "approve_request",
+      "decline_request",
+      "remove_member",
+      "set_role",
+    ]),
     message: z.string().trim().max(500).optional(),
     requestId: z.string().uuid("requestId must be a valid UUID").optional(),
     memberId: z.string().uuid("memberId must be a valid UUID").optional(),

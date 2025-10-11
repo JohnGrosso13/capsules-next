@@ -79,4 +79,3 @@ export function detectSuggestedTools(
   // Cap count to 3 to keep UI tidy and focused
   return out.slice(0, 3);
 }
-

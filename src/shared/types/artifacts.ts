@@ -162,7 +162,10 @@ export type Artifact = {
   committedAt?: string | null | undefined;
 };
 
-export type ArtifactSummary = Pick<Artifact, "id" | "artifactType" | "status" | "title" | "version" | "updatedAt"> & {
+export type ArtifactSummary = Pick<
+  Artifact,
+  "id" | "artifactType" | "status" | "title" | "version" | "updatedAt"
+> & {
   preview?: Record<string, unknown> | null | undefined;
 };
 
@@ -243,5 +246,3 @@ export type PendingComposerChange = {
   event: ComposerEvent;
   persisted: boolean;
 };
-
-

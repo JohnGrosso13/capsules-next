@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { searchMemories } from "@/lib/supabase/memories";
 

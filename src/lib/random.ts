@@ -1,6 +1,9 @@
 ﻿// Safari < 15.4 lacks crypto.randomUUID; this helper keeps client code working.
 export function safeRandomUUID(): string {
-  if (typeof globalThis.crypto !== "undefined" && typeof globalThis.crypto.randomUUID === "function") {
+  if (
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.randomUUID === "function"
+  ) {
     return globalThis.crypto.randomUUID();
   }
 

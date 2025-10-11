@@ -42,13 +42,7 @@ const PLACEHOLDER_ROWS: PlaceholderCapsule[][] = [
   ],
 ];
 
-function PromoCarouselRow({
-  items,
-  rowLabel,
-}: {
-  items: PlaceholderCapsule[];
-  rowLabel: string;
-}) {
+function PromoCarouselRow({ items, rowLabel }: { items: PlaceholderCapsule[]; rowLabel: string }) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     dragFree: true,
@@ -171,7 +165,11 @@ function CapsuleSelectorTile({
   );
 }
 
-export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector = false }: CapsuleGateProps) {
+export function CapsuleGate({
+  capsules,
+  defaultCapsuleId = null,
+  forceSelector = false,
+}: CapsuleGateProps) {
   const ownedCapsules = React.useMemo(
     () => capsules.filter((capsule) => capsule.ownership === "owner"),
     [capsules],
@@ -182,7 +180,10 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
   );
   const hasOwnedCapsule = ownedCapsules.length > 0;
   const hasMemberCapsules = memberCapsules.length > 0;
-  const knownCapsuleIds = React.useMemo(() => new Set(capsules.map((capsule) => capsule.id)), [capsules]);
+  const knownCapsuleIds = React.useMemo(
+    () => new Set(capsules.map((capsule) => capsule.id)),
+    [capsules],
+  );
   const startInSelector = forceSelector || !hasOwnedCapsule;
   const resolvedDefaultId = React.useMemo(() => {
     if (!capsules.length) return null;
@@ -190,7 +191,9 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
     if (hasOwnedCapsule) return ownedCapsules[0]?.id ?? null;
     return capsules[0]?.id ?? null;
   }, [capsules, defaultCapsuleId, hasOwnedCapsule, knownCapsuleIds, ownedCapsules]);
-  const [activeId, setActiveId] = React.useState<string | null>(() => (startInSelector ? null : resolvedDefaultId));
+  const [activeId, setActiveId] = React.useState<string | null>(() =>
+    startInSelector ? null : resolvedDefaultId,
+  );
   const canSwitchCapsules = startInSelector || capsules.length > 1;
   const router = useRouter();
   const pathname = usePathname();
@@ -301,7 +304,12 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
             Your Capsule is your space for live sessions, posts, and community. Create one to get
             started.
           </p>
-          <ButtonLink href="/capsule/onboarding" variant="gradient" size="lg" className={styles.gateCta}>
+          <ButtonLink
+            href="/capsule/onboarding"
+            variant="gradient"
+            size="lg"
+            className={styles.gateCta}
+          >
             Create a Capsule
           </ButtonLink>
         </div>
@@ -335,17 +343,25 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
           <div className={styles.selectorCreateBody}>
             <h2 className={styles.selectorCreateTitle}>Launch your own Capsule</h2>
             <p className={styles.selectorCreateSubtitle}>
-              Explore spaces you&rsquo;re a member of below, or start your own to unlock full customization.
+              Explore spaces you&rsquo;re a member of below, or start your own to unlock full
+              customization.
             </p>
           </div>
-          <ButtonLink href="/capsule/onboarding" variant="gradient" size="sm" className={styles.selectorCreateAction}>
+          <ButtonLink
+            href="/capsule/onboarding"
+            variant="gradient"
+            size="sm"
+            className={styles.selectorCreateAction}
+          >
             Create a Capsule
           </ButtonLink>
         </div>
       ) : null}
       <div className={styles.selectorHeader}>
         <h2 className={styles.selectorTitle}>Choose a Capsule</h2>
-        <p className={styles.selectorSubtitle}>Pick a space to open and jump back into the action.</p>
+        <p className={styles.selectorSubtitle}>
+          Pick a space to open and jump back into the action.
+        </p>
       </div>
       <div className={styles.selectorSections}>
         <section className={styles.selectorSection} aria-label="User Created Capsules">
@@ -378,7 +394,8 @@ export function CapsuleGate({ capsules, defaultCapsuleId = null, forceSelector =
             </div>
           ) : (
             <p className={styles.selectorSectionEmpty}>
-              You&apos;re not a member of any capsules yet. Accept an invite or request to join to see them here.
+              You&apos;re not a member of any capsules yet. Accept an invite or request to join to
+              see them here.
             </p>
           )}
         </section>

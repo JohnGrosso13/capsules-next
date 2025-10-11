@@ -109,26 +109,26 @@ export function PostMenu({
     [closeMenu],
   );
 
-  const trigger = renderTrigger
-    ? renderTrigger({ ref: triggerRef, open, pending, toggle: handleToggle })
-    : (
-        <button
-          type="button"
-          className={styles.friendMenuTrigger}
-          aria-haspopup="menu"
-          aria-label="Open post menu"
-          aria-expanded={open}
-          onClick={handleToggle}
-          disabled={Boolean(pending)}
-          ref={triggerRef}
-        >
-          <span className={styles.friendMenuIcon} aria-hidden>
-            <span />
-            <span />
-            <span />
-          </span>
-        </button>
-      );
+  const trigger = renderTrigger ? (
+    renderTrigger({ ref: triggerRef, open, pending, toggle: handleToggle })
+  ) : (
+    <button
+      type="button"
+      className={styles.friendMenuTrigger}
+      aria-haspopup="menu"
+      aria-label="Open post menu"
+      aria-expanded={open}
+      onClick={handleToggle}
+      disabled={Boolean(pending)}
+      ref={triggerRef}
+    >
+      <span className={styles.friendMenuIcon} aria-hidden>
+        <span />
+        <span />
+        <span />
+      </span>
+    </button>
+  );
 
   return (
     <div className={styles.friendMenuContainer} ref={containerRef}>

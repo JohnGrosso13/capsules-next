@@ -1,6 +1,9 @@
 import "server-only";
 
-import { getAblyRealtimeAuthProvider, getAblyRealtimePublisher } from "@/adapters/realtime/ably/server";
+import {
+  getAblyRealtimeAuthProvider,
+  getAblyRealtimePublisher,
+} from "@/adapters/realtime/ably/server";
 import type { RealtimeAuthProvider, RealtimePublisher } from "@/ports/realtime";
 
 const realtimeVendor = process.env.REALTIME_VENDOR ?? "ably";

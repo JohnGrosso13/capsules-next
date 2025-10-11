@@ -87,8 +87,13 @@ export function GroupChatOverlay({
 }: GroupChatOverlayProps) {
   const [mounted, setMounted] = React.useState(false);
   const normalizedDisabledIds = React.useMemo(() => disabledIds ?? [], [disabledIds]);
-  const normalizedInitialSelectedIds = React.useMemo(() => initialSelectedIds ?? [], [initialSelectedIds]);
-  const [selection, setSelection] = React.useState<Set<string>>(() => new Set(normalizedInitialSelectedIds));
+  const normalizedInitialSelectedIds = React.useMemo(
+    () => initialSelectedIds ?? [],
+    [initialSelectedIds],
+  );
+  const [selection, setSelection] = React.useState<Set<string>>(
+    () => new Set(normalizedInitialSelectedIds),
+  );
   const [groupName, setGroupName] = React.useState(initialName);
   const disabledSet = React.useMemo(() => new Set(normalizedDisabledIds), [normalizedDisabledIds]);
   const candidates = React.useMemo(
@@ -141,10 +146,7 @@ export function GroupChatOverlay({
   }, [busy, groupName, onSubmit, selection]);
 
   const selectedCount = selection.size;
-  const submitDisabled =
-    busy ||
-    selectedCount === 0 ||
-    (mode === "create" && selectedCount < 1); // at least one friend; self is implicit
+  const submitDisabled = busy || selectedCount === 0 || (mode === "create" && selectedCount < 1); // at least one friend; self is implicit
 
   if (!mounted || !open) return null;
   if (typeof document === "undefined") return null;
@@ -157,7 +159,12 @@ export function GroupChatOverlay({
       : "Bring new people into this conversation. They'll see the full history once added.");
 
   return createPortal(
-    <div className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="group-chat-overlay-title">
+    <div
+      className={styles.overlay}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="group-chat-overlay-title"
+    >
       <div className={styles.backdrop} onClick={onClose} />
       <div className={styles.panel}>
         <div className={styles.header}>
@@ -167,7 +174,12 @@ export function GroupChatOverlay({
             </span>
             <span className={styles.subtitle}>{subtitle}</span>
           </div>
-          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Cancel group chat">
+          <button
+            type="button"
+            className={styles.closeButton}
+            onClick={onClose}
+            aria-label="Cancel group chat"
+          >
             <X size={18} weight="bold" />
           </button>
         </div>
@@ -192,7 +204,8 @@ export function GroupChatOverlay({
           <div className={styles.friendList}>
             {candidates.length === 0 ? (
               <div className={styles.subtitle}>
-                You don&apos;t have any friends with chat access yet. Add friends to start a group chat.
+                You don&apos;t have any friends with chat access yet. Add friends to start a group
+                chat.
               </div>
             ) : (
               candidates.map((friend) => {
@@ -212,8 +225,14 @@ export function GroupChatOverlay({
                     </span>
                     <div className={styles.friendMeta}>
                       <span className={styles.friendName}>{friend.name}</span>
-                      <span className={`${styles.friendStatus} ${statusClass(friend.status)}`.trim()}>
-                        {isDisabled ? "Already in chat" : friend.status === "online" ? "Online" : friend.status}
+                      <span
+                        className={`${styles.friendStatus} ${statusClass(friend.status)}`.trim()}
+                      >
+                        {isDisabled
+                          ? "Already in chat"
+                          : friend.status === "online"
+                            ? "Online"
+                            : friend.status}
                       </span>
                     </div>
                     <div className={styles.friendAction}>
@@ -223,7 +242,11 @@ export function GroupChatOverlay({
                         onClick={() => toggleSelection(friend.userId)}
                         disabled={isDisabled || busy}
                       >
-                        {isSelected ? <CheckCircle size={18} weight="fill" /> : <PlusCircle size={18} weight="bold" />}
+                        {isSelected ? (
+                          <CheckCircle size={18} weight="fill" />
+                        ) : (
+                          <PlusCircle size={18} weight="bold" />
+                        )}
                         <span>{isSelected ? "Selected" : "Add"}</span>
                       </button>
                     </div>
@@ -242,10 +265,20 @@ export function GroupChatOverlay({
           </div>
           {error ? <div className={styles.error}>{error}</div> : null}
           <div className={styles.actions}>
-            <button type="button" className={styles.secondaryButton} onClick={onClose} disabled={busy}>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={onClose}
+              disabled={busy}
+            >
               Cancel
             </button>
-            <button type="button" className={styles.primaryButton} onClick={() => void handleSubmit()} disabled={submitDisabled}>
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={() => void handleSubmit()}
+              disabled={submitDisabled}
+            >
               <UsersThree size={18} weight="fill" />
               <span>{mode === "create" ? "Create group chat" : "Add members"}</span>
             </button>

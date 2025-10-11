@@ -23,7 +23,10 @@ export type CreateTileKey =
 
 // Intent chips removed: shown beneath the AI prompter
 
-const TILE_META: Record<CreateTileKey, { title: string; icon: React.ReactNode; bullets: string[]; ctaLabel?: string }> = {
+const TILE_META: Record<
+  CreateTileKey,
+  { title: string; icon: React.ReactNode; bullets: string[]; ctaLabel?: string }
+> = {
   growth: {
     icon: <ChartLineUp weight="fill" />,
     title: "Community Growth",
@@ -141,7 +144,12 @@ export function CreateTiles() {
         {(Object.keys(TILE_META) as CreateTileKey[]).map((key) => {
           const t = TILE_META[key];
           return (
-            <button key={key} type="button" className={styles.tile} onClick={() => handleTileClick(key)}>
+            <button
+              key={key}
+              type="button"
+              className={styles.tile}
+              onClick={() => handleTileClick(key)}
+            >
               <div className={styles.tileHeader}>
                 <span className={styles.tileIcon} aria-hidden>
                   {t.icon}

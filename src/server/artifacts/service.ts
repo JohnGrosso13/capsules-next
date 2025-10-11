@@ -40,7 +40,9 @@ export async function createArtifact(input: CreateArtifactInput): Promise<Artifa
   return { ...artifact, assets: [] };
 }
 
-export async function getArtifactWithAssets(artifactId: string): Promise<ArtifactWithAssets | null> {
+export async function getArtifactWithAssets(
+  artifactId: string,
+): Promise<ArtifactWithAssets | null> {
   return selectArtifactWithAssets(artifactId);
 }
 
@@ -94,7 +96,9 @@ export async function recordArtifactEvent(event: ArtifactEventInput): Promise<vo
   await insertArtifactEvent(event);
 }
 
-export async function registerArtifactAssets(assets: ArtifactAssetInput[]): Promise<ArtifactAssetRecord[]> {
+export async function registerArtifactAssets(
+  assets: ArtifactAssetInput[],
+): Promise<ArtifactAssetRecord[]> {
   if (!assets.length) return [];
   return upsertArtifactAssets(assets);
 }
@@ -123,7 +127,6 @@ export async function commitArtifact(
   return { ...committed, assets };
 }
 
-
 type ArtifactEmbeddingJob = {
   artifactId: string;
   version: number;
@@ -138,14 +141,17 @@ async function queueArtifactEmbedding(job: ArtifactEmbeddingJob): Promise<void> 
     return;
   }
   try {
-    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${serverEnv.R2_ACCOUNT_ID}/queues/${queueName}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiToken}`,
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${serverEnv.R2_ACCOUNT_ID}/queues/${queueName}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiToken}`,
+        },
+        body: JSON.stringify({ messages: [{ body: job }] }),
       },
-      body: JSON.stringify({ messages: [{ body: job }] }),
-    });
+    );
     if (!response.ok) {
       const text = await response.text();
       console.warn("failed to enqueue artifact embedding job", response.status, text);
@@ -155,8 +161,9 @@ async function queueArtifactEmbedding(job: ArtifactEmbeddingJob): Promise<void> 
   }
 }
 
-export async function queueArtifactCommitEmbedding(artifactId: string, version: number): Promise<void> {
+export async function queueArtifactCommitEmbedding(
+  artifactId: string,
+  version: number,
+): Promise<void> {
   await queueArtifactEmbedding({ artifactId, version, reason: "commit" });
 }
-
-

@@ -1,6 +1,13 @@
 import type { DurableObjectState } from "@cloudflare/workers-types";
 
-import { DerivedAssetRecord, Env, ProcessingTask, ProcessingTaskMessage, UploadEventMessage, CoordinatorState } from "./types";
+import {
+  DerivedAssetRecord,
+  Env,
+  ProcessingTask,
+  ProcessingTaskMessage,
+  UploadEventMessage,
+  CoordinatorState,
+} from "./types";
 
 const STORAGE_KEY = "state";
 
@@ -17,9 +24,7 @@ function taskId(task: ProcessingTask): string {
 function buildTasks(event: UploadEventMessage): ProcessingTask[] {
   const { contentType } = event;
   if (!contentType) {
-    return [
-      { kind: "safety.scan" },
-    ];
+    return [{ kind: "safety.scan" }];
   }
   if (contentType.startsWith("image/")) {
     return [
@@ -38,11 +43,7 @@ function buildTasks(event: UploadEventMessage): ProcessingTask[] {
     ];
   }
   if (contentType.startsWith("audio/")) {
-    return [
-      { kind: "video.audio" },
-      { kind: "video.transcript" },
-      { kind: "safety.scan" },
-    ];
+    return [{ kind: "video.audio" }, { kind: "video.transcript" }, { kind: "safety.scan" }];
   }
   return [{ kind: "safety.scan" }];
 }
@@ -60,7 +61,9 @@ export class UploadCoordinator {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/state") {
       const state = await this.getState();
-      return new Response(JSON.stringify(state), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(state), {
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     if (request.method === "POST" && url.pathname === "/process") {
@@ -68,7 +71,9 @@ export class UploadCoordinator {
       const { event } = body;
       if (!event) return new Response("event required", { status: 400 });
       const result = await this.processEvent(event);
-      return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(result), {
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     if (request.method === "POST" && url.pathname === "/task-complete") {
@@ -80,7 +85,9 @@ export class UploadCoordinator {
       const { task, error, derived } = body;
       if (!task) return new Response("task required", { status: 400 });
       const state = await this.markTask(task, derived ?? null, error ?? null);
-      return new Response(JSON.stringify({ state }), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ state }), {
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     return new Response("Not found", { status: 404 });
@@ -213,21 +220,24 @@ export class UploadCoordinator {
   private async notifyCompletion(state: CoordinatorState) {
     if (!this.env.SUPABASE_URL || !this.env.SUPABASE_SERVICE_ROLE_KEY || !state.sessionId) return;
     try {
-      const res = await fetch(`${this.env.SUPABASE_URL}/rest/v1/media_upload_sessions?id=eq.${state.sessionId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-          apikey: this.env.SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${this.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      const res = await fetch(
+        `${this.env.SUPABASE_URL}/rest/v1/media_upload_sessions?id=eq.${state.sessionId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+            apikey: this.env.SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${this.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          },
+          body: JSON.stringify({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+            metadata: state.metadata,
+            derived_assets: state.derived,
+          }),
         },
-        body: JSON.stringify({
-          status: "completed",
-          completed_at: new Date().toISOString(),
-          metadata: state.metadata,
-          derived_assets: state.derived,
-        }),
-      });
+      );
       if (!res.ok) {
         console.warn("supabase status update failed", await res.text());
       }

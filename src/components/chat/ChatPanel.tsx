@@ -72,7 +72,9 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
           onSend={(body) => sendMessage(activeSession.id, body)}
           onBack={closeSession}
           onDelete={() => handleDelete(activeSession.id)}
-          {...(onInviteToGroup ? { onInviteParticipants: () => onInviteToGroup(activeSession) } : {})}
+          {...(onInviteToGroup
+            ? { onInviteParticipants: () => onInviteToGroup(activeSession) }
+            : {})}
         />
       </div>
     );

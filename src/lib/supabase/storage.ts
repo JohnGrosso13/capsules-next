@@ -24,9 +24,11 @@ function extFromContentType(contentType: string) {
 type ByteLike = Uint8Array | ArrayBuffer | NodeBuffer;
 
 function toUploadBuffer(input: ByteLike): NodeBuffer {
-  const ctor = (globalThis as unknown as {
-    Buffer?: { from: (src: ArrayBuffer | Uint8Array) => NodeBuffer };
-  }).Buffer;
+  const ctor = (
+    globalThis as unknown as {
+      Buffer?: { from: (src: ArrayBuffer | Uint8Array) => NodeBuffer };
+    }
+  ).Buffer;
   if (ctor) {
     if (input instanceof Uint8Array) return ctor.from(input);
     if (input instanceof ArrayBuffer) return ctor.from(input);
@@ -85,12 +87,18 @@ export async function storeImageSrcToSupabase(src: string, filenameHint = "image
     if (!match) throw new Error("Invalid data URI");
     const contentType = match[1] || "image/png";
     const base64 = match[2] || "";
-    const ctor = (globalThis as unknown as {
-      Buffer?: { from: (src: string, encoding: string) => NodeBuffer };
-    }).Buffer;
+    const ctor = (
+      globalThis as unknown as {
+        Buffer?: { from: (src: string, encoding: string) => NodeBuffer };
+      }
+    ).Buffer;
     const bytes: ByteLike = ctor
       ? ctor.from(base64, "base64")
-      : new Uint8Array(atob(base64).split("").map((c) => c.charCodeAt(0)));
+      : new Uint8Array(
+          atob(base64)
+            .split("")
+            .map((c) => c.charCodeAt(0)),
+        );
     return uploadBufferToStorage(bytes, contentType, filenameHint);
   }
 
@@ -130,7 +138,9 @@ export async function storeImageSrcToSupabase(src: string, filenameHint = "image
     const isBucketHost = r2BucketHost && host === r2BucketHost;
     const isCustomR2Host = r2BaseHost && host === r2BaseHost;
     const isAccountBucketPath =
-      isAccountHost && r2Bucket && parseUrl.pathname.replace(/^\/+/, "").toLowerCase().startsWith(`${r2Bucket}/`);
+      isAccountHost &&
+      r2Bucket &&
+      parseUrl.pathname.replace(/^\/+/, "").toLowerCase().startsWith(`${r2Bucket}/`);
     const isKnownR2Host = isBucketHost || isCustomR2Host || isAccountBucketPath;
 
     if (isLocalHost || isKnownR2Host) {
@@ -147,9 +157,11 @@ export async function storeImageSrcToSupabase(src: string, filenameHint = "image
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    const ctor = (globalThis as unknown as {
-      Buffer?: { from: (src: ArrayBuffer) => NodeBuffer };
-    }).Buffer;
+    const ctor = (
+      globalThis as unknown as {
+        Buffer?: { from: (src: ArrayBuffer) => NodeBuffer };
+      }
+    ).Buffer;
     const bytes: ByteLike = ctor ? ctor.from(arrayBuffer) : new Uint8Array(arrayBuffer);
     const contentType = response.headers.get("content-type") || "image/png";
 

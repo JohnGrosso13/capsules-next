@@ -74,7 +74,7 @@ vi.mock("./homeFeedStore", () => ({
   __setMockState: setMockState,
 }));
 
-;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { useHomeFeed } = await import("../useHomeFeed");
 const { __setMockState } = await import("./homeFeedStore");
@@ -146,7 +146,9 @@ describe("useHomeFeed", () => {
     });
 
     expect(refreshMock).toHaveBeenCalledTimes(1);
-    expect(refreshMock).toHaveBeenCalledWith(expect.objectContaining({ limit: 30, signal: expect.any(AbortSignal) }));
+    expect(refreshMock).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 30, signal: expect.any(AbortSignal) }),
+    );
     expect(latest.posts[0]?.id).toBe("alpha");
     expect(latest.likePending).toEqual({ alpha: true });
     expect(latest.canRemember).toBe(true);
@@ -174,7 +176,10 @@ describe("useHomeFeed", () => {
       memoryResult = await latest.handleToggleMemory(basePost);
     });
     expect(memoryResult).toBe(true);
-    expect(toggleMemoryMock).toHaveBeenCalledWith("alpha", { desired: undefined, canRemember: true });
+    expect(toggleMemoryMock).toHaveBeenCalledWith("alpha", {
+      desired: undefined,
+      canRemember: true,
+    });
 
     await act(async () => {
       await latest.handleFriendRequest(basePost, "menu-1");
@@ -201,5 +206,3 @@ describe("useHomeFeed", () => {
     expect(clearFriendMessageMock).toHaveBeenCalled();
   });
 });
-
-

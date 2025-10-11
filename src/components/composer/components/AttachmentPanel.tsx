@@ -72,10 +72,19 @@ export function AttachmentPanel({
               aria-label="Open attachment preview"
             >
               {kind === "video" ? (
-                <video className={styles.attachmentMediaVideo} src={displayUrl} controls preload="metadata" />
+                <video
+                  className={styles.attachmentMediaVideo}
+                  src={displayUrl}
+                  controls
+                  preload="metadata"
+                />
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element -- need intrinsic sizing */
-                <img className={styles.attachmentMediaImage} src={displayUrl} alt={attachment.name} />
+                <img
+                  className={styles.attachmentMediaImage}
+                  src={displayUrl}
+                  alt={attachment.name}
+                />
               )}
             </div>
           ) : null}

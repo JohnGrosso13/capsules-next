@@ -104,7 +104,11 @@ async function requireCapsuleOwnership(capsuleId: string, ownerId: string) {
   }
   const { capsule, ownerId: capsuleOwnerId } = await requireCapsule(capsuleId);
   if (capsuleOwnerId !== normalizedOwnerId) {
-    throw new CapsuleMembershipError("forbidden", "You do not have permission to manage this capsule.", 403);
+    throw new CapsuleMembershipError(
+      "forbidden",
+      "You do not have permission to manage this capsule.",
+      403,
+    );
   }
   return { capsule, ownerId: capsuleOwnerId };
 }
@@ -129,7 +133,7 @@ export async function resolveCapsuleGate(
     promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl),
     logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl),
   }));
-  const defaultCapsuleId = hydratedCapsules.length === 1 ? hydratedCapsules[0]?.id ?? null : null;
+  const defaultCapsuleId = hydratedCapsules.length === 1 ? (hydratedCapsules[0]?.id ?? null) : null;
 
   return { capsules: hydratedCapsules, defaultCapsuleId };
 }
@@ -148,10 +152,12 @@ export async function getUserCapsules(
   }));
 }
 
-export async function getRecentCapsules(options: {
-  viewerId?: string | null | undefined;
-  limit?: number;
-} = {}): Promise<DiscoverCapsuleSummary[]> {
+export async function getRecentCapsules(
+  options: {
+    viewerId?: string | null | undefined;
+    limit?: number;
+  } = {},
+): Promise<DiscoverCapsuleSummary[]> {
   const normalizedViewer = normalizeId(options.viewerId ?? null);
   const queryOptions: {
     excludeCreatorId?: string | null;
@@ -194,10 +200,7 @@ export async function createCapsule(
   return createCapsuleForUser(ownerId, params);
 }
 
-export async function deleteCapsule(
-  ownerId: string,
-  capsuleId: string,
-): Promise<boolean> {
+export async function deleteCapsule(ownerId: string, capsuleId: string): Promise<boolean> {
   return deleteCapsuleOwnedByUser(ownerId, capsuleId);
 }
 
@@ -252,9 +255,7 @@ export async function updateCapsuleBannerImage(
   const capsuleName = normalizeOptionalString(capsule.name ?? null) ?? "your capsule";
   const originalName = normalizeOptionalString(params.originalName ?? null);
 
-  const memoryTitle = originalName
-    ? `${originalName} banner`
-    : `Banner for ${capsuleName}`;
+  const memoryTitle = originalName ? `${originalName} banner` : `Banner for ${capsuleName}`;
 
   const savedAtIso = new Date().toISOString();
   const baseDescription = `Custom banner saved for ${capsuleName} on ${savedAtIso}.`;
@@ -454,9 +455,7 @@ export async function updateCapsulePromoTileImage(
   const capsuleName = normalizeOptionalString(capsule.name ?? null) ?? "your capsule";
   const originalName = normalizeOptionalString(params.originalName ?? null);
 
-  const memoryTitle = originalName
-    ? `${originalName} promo tile`
-    : `Promo tile for ${capsuleName}`;
+  const memoryTitle = originalName ? `${originalName} promo tile` : `Promo tile for ${capsuleName}`;
 
   const savedAtIso = new Date().toISOString();
   const baseDescription = `Custom promo tile saved for ${capsuleName} on ${savedAtIso}.`;
@@ -632,15 +631,9 @@ export async function getCapsuleMembership(
   }
 
   const members = await listCapsuleMembers(capsuleIdValue, ownerId);
-  const requests = isOwner
-    ? await listCapsuleMemberRequests(capsuleIdValue, "pending")
-    : [];
+  const requests = isOwner ? await listCapsuleMemberRequests(capsuleIdValue, "pending") : [];
 
-  const pendingCount = isOwner
-    ? requests.length
-    : viewerRequest?.status === "pending"
-      ? 1
-      : 0;
+  const pendingCount = isOwner ? requests.length : viewerRequest?.status === "pending" ? 1 : 0;
 
   const viewer: CapsuleMembershipViewer = {
     userId: normalizedViewerId,
@@ -833,11 +826,7 @@ export async function setCapsuleMemberRole(
   }
 
   if (normalizedMemberId === capsuleOwnerId && normalizedRole !== "founder") {
-    throw new CapsuleMembershipError(
-      "conflict",
-      "The capsule owner must remain a founder.",
-      409,
-    );
+    throw new CapsuleMembershipError("conflict", "The capsule owner must remain a founder.", 409);
   }
 
   const updated = await updateCapsuleMemberRole({

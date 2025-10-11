@@ -4,7 +4,6 @@ export type ThemeMode = "light" | "dark";
 export type ThemeVariants = Partial<Record<ThemeMode, Record<string, string>>>;
 export type ThemeVariantsInput = ThemeVariants | Record<string, unknown> | null | undefined;
 
-
 export const THEME_MODES: readonly ThemeMode[] = ["light", "dark"] as const;
 
 function prepareVariantMap(input: unknown): Record<string, string> {
@@ -46,11 +45,15 @@ function ensureVariantMaps(input: unknown): Record<ThemeMode, Record<string, str
   return canonical;
 }
 
-export function canonicalizeThemeVariantsInput(input: unknown): Record<ThemeMode, Record<string, string>> {
+export function canonicalizeThemeVariantsInput(
+  input: unknown,
+): Record<ThemeMode, Record<string, string>> {
   return ensureVariantMaps(input);
 }
 
-export function dropEmptyVariants(variants: Record<ThemeMode, Record<string, string>>): ThemeVariants {
+export function dropEmptyVariants(
+  variants: Record<ThemeMode, Record<string, string>>,
+): ThemeVariants {
   const result: ThemeVariants = {};
   for (const mode of THEME_MODES) {
     const map = variants[mode];
@@ -66,7 +69,9 @@ export function normalizeThemeVariantsInput(input: unknown): ThemeVariants {
   return dropEmptyVariants(canonical);
 }
 
-export function expandThemeVariants(variants: ThemeVariants): Record<ThemeMode, Record<string, string>> {
+export function expandThemeVariants(
+  variants: ThemeVariants,
+): Record<ThemeMode, Record<string, string>> {
   return ensureVariantMaps(variants);
 }
 
@@ -84,7 +89,9 @@ export function variantForMode(variants: ThemeVariants, mode: ThemeMode): Record
   return fallback ? { ...fallback } : {};
 }
 
-function canonicalizeForCompare(variants: ThemeVariants): Record<ThemeMode, Record<string, string>> {
+function canonicalizeForCompare(
+  variants: ThemeVariants,
+): Record<ThemeMode, Record<string, string>> {
   const expanded = expandThemeVariants(variants);
   const light = expanded.light;
   const dark = expanded.dark;
@@ -109,7 +116,9 @@ export function variantsEqual(a: ThemeVariants, b: ThemeVariants): boolean {
   });
 }
 
-export function collectVariantKeys(variants: ThemeVariants | Record<ThemeMode, Record<string, string>>): string[] {
+export function collectVariantKeys(
+  variants: ThemeVariants | Record<ThemeMode, Record<string, string>>,
+): string[] {
   const keys = new Set<string>();
   for (const mode of THEME_MODES) {
     const map = (variants as Record<string, Record<string, string> | undefined>)[mode];

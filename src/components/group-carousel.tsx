@@ -79,7 +79,7 @@ export function GroupCarousel({ items, animate = false, speed = "slower" }: Grou
         {doubled.map((entry, index) => (
           <span
             key={`${entry.label}-${index}`}
-            className="text-fg inline-flex items-center gap-3 px-4 md:px-5 py-2 md:py-2.5 text-base md:text-lg font-semibold"
+            className="text-fg inline-flex items-center gap-3 px-4 py-2 text-base font-semibold md:px-5 md:py-2.5 md:text-lg"
             role="listitem"
           >
             {entry.icon ? <span aria-hidden="true">{entry.icon}</span> : null}

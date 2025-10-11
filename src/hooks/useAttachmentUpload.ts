@@ -79,11 +79,7 @@ async function captureVideoThumbnail(file: File, atSeconds = 0.3): Promise<strin
   });
 }
 
-function validateAttachmentFile(
-  file: File,
-  mimeType: string,
-  maxSizeBytes: number,
-): string | null {
+function validateAttachmentFile(file: File, mimeType: string, maxSizeBytes: number): string | null {
   if (!mimeType.startsWith("image/") && !mimeType.startsWith("video/")) {
     return "Only image or video attachments are supported right now.";
   }
@@ -127,9 +123,7 @@ function useAttachmentInput(): {
   return { fileInputRef, handleAttachClick };
 }
 
-function useAttachmentState(
-  fileInputRef: React.MutableRefObject<HTMLInputElement | null>,
-): {
+function useAttachmentState(fileInputRef: React.MutableRefObject<HTMLInputElement | null>): {
   attachment: LocalAttachment | null;
   setAttachment: React.Dispatch<React.SetStateAction<LocalAttachment | null>>;
   readyAttachment: LocalAttachment | null;
@@ -295,10 +289,7 @@ async function uploadViaBase64(
   };
 }
 
-async function maybeCaptureAndUploadThumb(
-  file: File,
-  mimeType: string,
-): Promise<string | null> {
+async function maybeCaptureAndUploadThumb(file: File, mimeType: string): Promise<string | null> {
   if (!mimeType.startsWith("video/")) return null;
 
   try {

@@ -48,10 +48,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Party token error", error);
-    if (
-      error instanceof Error &&
-      error.message.includes("LiveKit is not fully configured")
-    ) {
+    if (error instanceof Error && error.message.includes("LiveKit is not fully configured")) {
       return returnError(500, "livekit_not_configured", error.message);
     }
     return returnError(500, "party_join_failed", "Unable to join this party right now.");

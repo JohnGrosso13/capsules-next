@@ -6,7 +6,12 @@ import {
   type ThemeTokenGroupUsage,
 } from "@/lib/theme/token-groups";
 import { PRESET_THEME_CONFIGS, type PresetThemeConfig } from "@/lib/theme/preset-config";
-import { ThemeVariants, normalizeThemeVariantsInput, expandThemeVariants, isVariantEmpty } from "@/lib/theme/variants";
+import {
+  ThemeVariants,
+  normalizeThemeVariantsInput,
+  expandThemeVariants,
+  isVariantEmpty,
+} from "@/lib/theme/variants";
 export type StylerPlan = {
   summary: string;
   variants: ThemeVariants;
@@ -112,7 +117,17 @@ const MODE_KEYWORDS = {
   light: ["light mode", "light theme", "day mode", "day theme", "bright mode"],
 } as const;
 
-const ACTION_KEYWORDS = ["apply", "use", "set", "switch", "change", "put", "turn", "activate", "run"];
+const ACTION_KEYWORDS = [
+  "apply",
+  "use",
+  "set",
+  "switch",
+  "change",
+  "put",
+  "turn",
+  "activate",
+  "run",
+];
 
 export function buildPresetThemeVariants(config: PresetThemeConfig): ThemeVariants {
   const variantsInput: Record<string, Record<string, string>> = {};
@@ -136,7 +151,8 @@ function matchesModeCommand(prompt: string, mode: "dark" | "light"): boolean {
   if (trimmed === mode || trimmed === `${mode} please` || trimmed === `go ${mode}`) return true;
   if (!prompt.includes(mode)) return false;
   if (MODE_KEYWORDS[mode].some((keyword) => prompt.includes(keyword))) return true;
-  if (/(mode|theme|preset|style)/.test(prompt) && new RegExp(`\b${mode}\b`).test(prompt)) return true;
+  if (/(mode|theme|preset|style)/.test(prompt) && new RegExp(`\b${mode}\b`).test(prompt))
+    return true;
   if (new RegExp(`(switch|change|set|turn|put)([^a-z]|$).*\b${mode}\b`).test(prompt)) return true;
   return false;
 }
@@ -171,7 +187,8 @@ function buildPresetVariants(config: PresetThemeConfig): ThemeVariants {
 
 function matchesPresetCommand(prompt: string, config: PresetThemeConfig): boolean {
   if (!config.keywords.some((keyword) => prompt.includes(keyword))) return false;
-  if (config.keywords.some((keyword) => keyword.includes("theme") && prompt.includes(keyword))) return true;
+  if (config.keywords.some((keyword) => keyword.includes("theme") && prompt.includes(keyword)))
+    return true;
   if (/(theme|preset|mode|style)/.test(prompt)) return true;
   if (ACTION_KEYWORDS.some((keyword) => prompt.includes(keyword))) return true;
   return false;
@@ -207,7 +224,16 @@ const COLOR_MODIFIERS = ["light", "dark", "deep", "bright", "soft", "pale", "neo
 const COLOR_MODIFIER_SET = new Set<(typeof COLOR_MODIFIERS)[number]>(COLOR_MODIFIERS);
 
 type Target = {
-  id: "friends" | "chats" | "requests" | "background" | "theme" | "header" | "rail" | "buttons" | "feed";
+  id:
+    | "friends"
+    | "chats"
+    | "requests"
+    | "background"
+    | "theme"
+    | "header"
+    | "rail"
+    | "buttons"
+    | "feed";
   label: string;
   type: "tile" | "background" | "site";
   keywords: string[];
@@ -232,14 +258,7 @@ const TARGETS: Target[] = [
     id: "feed",
     label: "Feed cards",
     type: "site",
-    keywords: [
-      "feed card",
-      "feed cards",
-      "feed tiles",
-      "feed tile",
-      "feed module",
-      "feed modules",
-    ],
+    keywords: ["feed card", "feed cards", "feed tiles", "feed tile", "feed module", "feed modules"],
   },
   // Site-wide or sectional styling
   {
@@ -272,7 +291,11 @@ function colorSpecFromHex(hex: string, label: string): ColorSpec {
   return { hex: normalized, rgb: hexToRgb(normalized), label };
 }
 
-function applyAccentPalette(vars: Record<string, string>, accentHex: string, glowAlpha = 0.3): void {
+function applyAccentPalette(
+  vars: Record<string, string>,
+  accentHex: string,
+  glowAlpha = 0.3,
+): void {
   const accent = colorSpecFromHex(accentHex, "Accent");
   const brandFrom = tint(accent.rgb, 0.35);
   const brandTo = shade(accent.rgb, 0.22);
@@ -398,13 +421,15 @@ function isSimpleColorPrompt(prompt: string, color: ColorSpec): boolean {
   const normalized = prompt.toLowerCase();
   if (normalized.length > 160) return false;
   if (/[.;]/.test(normalized)) return false;
-  if (/(?:with|and|each|every|represent|after|before|inside|button|buttons|header|footer|card|cards|feed|solar|planet|planets|different|scheme)/.test(normalized)) {
+  if (
+    /(?:with|and|each|every|represent|after|before|inside|button|buttons|header|footer|card|cards|feed|solar|planet|planets|different|scheme)/.test(
+      normalized,
+    )
+  ) {
     return false;
   }
   const colorLabel = color.label.toLowerCase();
-  const sanitized = normalized
-    .replace(colorLabel, " ")
-    .replace(/[^a-z0-9#\s]/g, " ");
+  const sanitized = normalized.replace(colorLabel, " ").replace(/[^a-z0-9#\s]/g, " ");
   const tokens = sanitized
     .split(/\s+/)
     .map((token) => token.trim())
@@ -543,7 +568,6 @@ function extractColor(segment: string): ColorSpec | null {
 
   return null;
 }
-
 
 function hasAdditionalColorReference(segment: string, primary: ColorSpec): boolean {
   const lower = segment.toLowerCase();
@@ -714,7 +738,8 @@ function buildFeedActionVars(color: ColorSpec): Record<string, string> {
   const hoverBorderRgb = mix(depthNeutral, rgb, isLight ? 0.36 : 0.52);
 
   const shadowBase = shade(bg1Rgb, isLight ? 0.55 : 0.35);
-  const iconContrast = luminance(bg1Rgb) > 0.5 ? { r: 14, g: 16, b: 36 } : { r: 246, g: 248, b: 255 };
+  const iconContrast =
+    luminance(bg1Rgb) > 0.5 ? { r: 14, g: 16, b: 36 } : { r: 246, g: 248, b: 255 };
 
   return {
     "--feed-action-bg-1": rgba(bg1Rgb, isLight ? 0.86 : 0.38),
@@ -848,7 +873,6 @@ function solveOverlayAlphaForContrast(bg: RGB, overlay: RGB, text: RGB, minRatio
   }
   return clamp01(best);
 }
-
 
 function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   const { rgb } = color;
@@ -1156,7 +1180,6 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
   return vars;
 }
 
-
 export function buildPlanDetails(prompt: string, variants: ThemeVariants): string | undefined {
   const expanded = expandThemeVariants(variants);
   const merged = { ...expanded.light, ...expanded.dark };
@@ -1165,7 +1188,10 @@ export function buildPlanDetails(prompt: string, variants: ThemeVariants): strin
   if (detailsFromVars) return detailsFromVars;
   const promptGroups = detectIntentGroupsFromPrompt(prompt);
   if (promptGroups.length) {
-    const syntheticUsage: ThemeTokenGroupUsage[] = promptGroups.map((group) => ({ group, count: 1 }));
+    const syntheticUsage: ThemeTokenGroupUsage[] = promptGroups.map((group) => ({
+      group,
+      count: 1,
+    }));
     return summarizeGroupLabels(syntheticUsage);
   }
   return undefined;

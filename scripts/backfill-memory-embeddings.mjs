@@ -101,7 +101,9 @@ async function main() {
   for (;;) {
     const { data, error } = await supabase
       .from("memories")
-      .select("id, owner_user_id, kind, post_id, title, description, media_type, media_url, meta, embedding")
+      .select(
+        "id, owner_user_id, kind, post_id, title, description, media_type, media_url, meta, embedding",
+      )
       .order("created_at", { ascending: true })
       .range(offset, offset + pageSize - 1);
 
@@ -151,8 +153,10 @@ async function main() {
         if (typeof row.description === "string" && row.description) {
           metadata.description = row.description.slice(0, 768);
         }
-        if (typeof row.media_url === "string" && row.media_url) metadata.mediaUrl = row.media_url.slice(0, 512);
-        if (typeof row.media_type === "string" && row.media_type) metadata.mediaType = row.media_type.slice(0, 120);
+        if (typeof row.media_url === "string" && row.media_url)
+          metadata.mediaUrl = row.media_url.slice(0, 512);
+        if (typeof row.media_type === "string" && row.media_type)
+          metadata.mediaType = row.media_type.slice(0, 120);
 
         try {
           await pineconeIndex.upsert([

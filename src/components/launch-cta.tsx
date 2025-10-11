@@ -73,7 +73,9 @@ export function LaunchCta({
     setError(null);
     try {
       const response = await fetch("/api/capsules", { credentials: "include" });
-      const data = (await response.json().catch(() => null)) as { capsules?: CapsuleSummary[] } | null;
+      const data = (await response.json().catch(() => null)) as {
+        capsules?: CapsuleSummary[];
+      } | null;
       if (!response.ok || !Array.isArray(data?.capsules)) {
         throw new Error("capsule list failed");
       }
@@ -150,36 +152,33 @@ export function LaunchCta({
     [closeMenu, hrefWhenSignedIn, router],
   );
 
-  const handleDelete = React.useCallback(
-    async (capsule: CapsuleSummary) => {
-      if (capsule.ownership !== "owner") return;
-      const confirmed =
-        typeof window !== "undefined"
-          ? window.confirm(`Delete "${capsule.name}"? This cannot be undone.`)
-          : false;
-      if (!confirmed) return;
+  const handleDelete = React.useCallback(async (capsule: CapsuleSummary) => {
+    if (capsule.ownership !== "owner") return;
+    const confirmed =
+      typeof window !== "undefined"
+        ? window.confirm(`Delete "${capsule.name}"? This cannot be undone.`)
+        : false;
+    if (!confirmed) return;
 
-      setDeletingId(capsule.id);
-      setError(null);
+    setDeletingId(capsule.id);
+    setError(null);
 
-      try {
-        const response = await fetch(`/api/capsules/${capsule.id}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-        if (!response.ok) {
-          throw new Error(`delete failed (${response.status})`);
-        }
-        setCapsules((prev) => prev.filter((entry) => entry.id !== capsule.id));
-      } catch (err) {
-        console.error("launch-cta delete error", err);
-        setError("Failed to delete that capsule. Please try again.");
-      } finally {
-        setDeletingId(null);
+    try {
+      const response = await fetch(`/api/capsules/${capsule.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error(`delete failed (${response.status})`);
       }
-    },
-    [],
-  );
+      setCapsules((prev) => prev.filter((entry) => entry.id !== capsule.id));
+    } catch (err) {
+      console.error("launch-cta delete error", err);
+      setError("Failed to delete that capsule. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }, []);
 
   const handleCreate = React.useCallback(() => {
     closeMenu();
@@ -232,12 +231,7 @@ export function LaunchCta({
             </div>
           </div>
           <div className={styles.capsuleActions}>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => handleLaunch(capsule)}
-            >
+            <Button type="button" variant="primary" size="sm" onClick={() => handleLaunch(capsule)}>
               Launch
             </Button>
             <Button
@@ -303,7 +297,12 @@ export function LaunchCta({
               {label}
             </Button>
             {menuOpen ? (
-              <div className={styles.menu} role="dialog" aria-modal="true" aria-label="Launch capsule menu">
+              <div
+                className={styles.menu}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Launch capsule menu"
+              >
                 <div className={styles.menuHeader}>
                   <span className={styles.menuTitle}>Launch a Capsule</span>
                   <p className={styles.menuSubtitle}>
@@ -319,12 +318,7 @@ export function LaunchCta({
                       Need another space? Spin up a fresh capsule.
                     </span>
                   )}
-                  <Button
-                    type="button"
-                    variant="gradient"
-                    size="sm"
-                    onClick={handleCreate}
-                  >
+                  <Button type="button" variant="gradient" size="sm" onClick={handleCreate}>
                     Create Capsule
                   </Button>
                 </div>

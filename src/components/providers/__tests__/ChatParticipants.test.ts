@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { __chatTestUtils } from "../ChatProvider";
 
-const { standardizeUserId, resolveParticipantId, canonicalParticipantKey, normalizeParticipant, mergeParticipants } =
-  __chatTestUtils;
+const {
+  standardizeUserId,
+  resolveParticipantId,
+  canonicalParticipantKey,
+  normalizeParticipant,
+  mergeParticipants,
+} = __chatTestUtils;
 
 describe("Chat participant normalization", () => {
   it("standardizes user identifiers from varied formats", () => {
@@ -52,4 +57,3 @@ describe("Chat participant normalization", () => {
     expect(normalized?.name).toBe("Alex");
   });
 });
-

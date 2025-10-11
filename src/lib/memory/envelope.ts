@@ -7,7 +7,8 @@ export function buildMemoryEnvelope(user: AuthClientUser | null): MemoryEnvelope
   const fullName = user.name ?? user.email ?? null;
   const provider = user.provider ?? "guest";
   const baseKey =
-    user.key ?? (provider === "clerk" && typeof user.id === "string" ? `clerk:${user.id}` : user.id);
+    user.key ??
+    (provider === "clerk" && typeof user.id === "string" ? `clerk:${user.id}` : user.id);
   return {
     clerk_id: provider === "clerk" ? user.id : null,
     email: user.email ?? null,

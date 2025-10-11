@@ -22,9 +22,14 @@
   row-gap: clamp(1rem, 2vw, 1.5rem);
   padding: clamp(1.75rem, 3vw, 2.5rem);
   border-radius: 28px;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.1)) 80%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.1)) 80%, transparent);
   background:
-    linear-gradient(195deg, color-mix(in srgb, var(--surface-overlay, rgba(12, 18, 40, 0.92)) 92%, transparent), rgba(16, 22, 46, 0.86)),
+    linear-gradient(
+      195deg,
+      color-mix(in srgb, var(--surface-overlay, rgba(12, 18, 40, 0.92)) 92%, transparent),
+      rgba(16, 22, 46, 0.86)
+    ),
     radial-gradient(800px 320px at 0% 0%, rgba(102, 126, 255, 0.22), transparent 70%);
   box-shadow: 0 22px 70px rgba(6, 10, 26, 0.55);
   color: var(--text, #f7f8ff);
@@ -80,7 +85,10 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
 }
 
 .closeButton:hover,
@@ -150,7 +158,10 @@
   border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 75%, transparent);
   background: color-mix(in srgb, rgba(18, 24, 44, 0.72) 90%, transparent);
   cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease;
 }
 
 .recentItem:hover,
@@ -216,13 +227,12 @@
   border-radius: 22px;
   border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 80%, transparent);
   overflow: hidden;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand) 82%, transparent) 0%,
-      color-mix(in srgb, var(--color-accent) 68%, var(--color-brand)) 54%,
-      color-mix(in srgb, var(--color-brand-strong, #6366f1) 88%, transparent) 100%
-    );
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 82%, transparent) 0%,
+    color-mix(in srgb, var(--color-accent) 68%, var(--color-brand)) 54%,
+    color-mix(in srgb, var(--color-brand-strong, #6366f1) 88%, transparent) 100%
+  );
   display: grid;
   place-items: center;
   width: 100%;
@@ -329,7 +339,12 @@
   align-items: flex-end;
   justify-content: center;
   padding: clamp(18px, 3vw, 26px);
-  background: linear-gradient(180deg, rgba(4, 8, 20, 0) 40%, rgba(4, 8, 20, 0.64) 78%, rgba(4, 8, 20, 0.86));
+  background: linear-gradient(
+    180deg,
+    rgba(4, 8, 20, 0) 40%,
+    rgba(4, 8, 20, 0.64) 78%,
+    rgba(4, 8, 20, 0.86)
+  );
   pointer-events: none;
 }
 
@@ -363,8 +378,11 @@
   padding: 10px 16px;
   border-radius: 14px;
   border: 1px dashed color-mix(in srgb, rgba(118, 140, 252, 0.55) 70%, transparent);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, rgba(37, 70, 150, 0.35) 60%, transparent), rgba(18, 26, 54, 0.88));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, rgba(37, 70, 150, 0.35) 60%, transparent),
+    rgba(18, 26, 54, 0.88)
+  );
   color: rgba(230, 236, 255, 0.9);
   font-size: 0.85rem;
   font-weight: 600;
@@ -628,7 +646,11 @@
   border-radius: 24px;
   border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.2) 75%, transparent);
   background:
-    linear-gradient(200deg, color-mix(in srgb, rgba(14, 18, 40, 0.94) 92%, transparent), rgba(10, 16, 38, 0.9)),
+    linear-gradient(
+      200deg,
+      color-mix(in srgb, rgba(14, 18, 40, 0.94) 92%, transparent),
+      rgba(10, 16, 38, 0.9)
+    ),
     radial-gradient(500px 260px at 15% 0%, rgba(110, 150, 255, 0.12), transparent 70%);
   box-shadow: 0 22px 70px rgba(6, 10, 26, 0.55);
   color: var(--text, #f7f8ff);
@@ -709,7 +731,10 @@
   cursor: pointer;
   padding: 0;
   background: transparent;
-  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .memoryCard img {
@@ -810,18 +835,22 @@
   border-radius: 999px;
   padding: 0.46rem 0.9rem;
   /* Fluent + Glassmorphic + Neumorphic: reuse chip variables for consistency */
-  border: 1px solid var(--chip-border, var(--pill-border, rgba(255,255,255,0.16)));
+  border: 1px solid var(--chip-border, var(--pill-border, rgba(255, 255, 255, 0.16)));
   background: linear-gradient(
     180deg,
-    var(--chip-bg-1, var(--glass-bg-1, rgba(255,255,255,0.08))),
-    var(--chip-bg-2, var(--glass-bg-2, rgba(255,255,255,0.04)))
+    var(--chip-bg-1, var(--glass-bg-1, rgba(255, 255, 255, 0.08))),
+    var(--chip-bg-2, var(--glass-bg-2, rgba(255, 255, 255, 0.04)))
   );
   color: var(--text, rgba(229, 235, 255, 0.92));
   font-size: 0.86rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: var(--chip-shadow, 0 8px 18px rgba(5,10,30,0.22));
-  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+  box-shadow: var(--chip-shadow, 0 8px 18px rgba(5, 10, 30, 0.22));
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .intentChip:hover,
@@ -833,7 +862,7 @@
     var(--chip-hover-bg-1, var(--chip-bg-1)),
     var(--chip-hover-bg-2, var(--chip-bg-2))
   );
-  box-shadow: var(--chip-hover-shadow, 0 14px 28px rgba(5,10,30,0.28));
+  box-shadow: var(--chip-hover-shadow, 0 14px 28px rgba(5, 10, 30, 0.28));
 }
 
 .intentChip:focus-visible {

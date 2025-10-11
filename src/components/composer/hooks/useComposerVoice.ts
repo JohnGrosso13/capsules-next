@@ -6,10 +6,7 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { describeVoiceError, truncateVoiceText } from "../voice-utils";
 import type { ComposerDraft } from "@/lib/composer/draft";
 
-import type {
-  ComposerFormActions,
-  ComposerVoiceState,
-} from "./useComposerFormReducer";
+import type { ComposerFormActions, ComposerVoiceState } from "./useComposerFormReducer";
 
 type UseComposerVoiceParams = {
   voiceState: ComposerVoiceState;
@@ -150,8 +147,7 @@ export function useComposerVoice({
       ? "Stop voice capture"
       : "Start voice capture"
     : "Voice input isn't supported in this browser.";
-  const buttonDisabled =
-    loading || attachmentUploading || status === "stopping" || !supported;
+  const buttonDisabled = loading || attachmentUploading || status === "stopping" || !supported;
 
   const truncatedInterim = voiceState.interim ? truncateVoiceText(voiceState.interim) : null;
   const truncatedResult = voiceState.lastResult ? truncateVoiceText(voiceState.lastResult) : null;

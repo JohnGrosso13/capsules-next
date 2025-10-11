@@ -36,7 +36,8 @@ export type CloudflareImageVariantSet = {
   fullSrcset?: string | null;
 };
 
-const DEFAULT_RESIZE_BASE = process.env.NEXT_PUBLIC_CLOUDFLARE_IMAGE_BASE?.trim() || "/cdn-cgi/image";
+const DEFAULT_RESIZE_BASE =
+  process.env.NEXT_PUBLIC_CLOUDFLARE_IMAGE_BASE?.trim() || "/cdn-cgi/image";
 const NAMED_VARIANTS = {
   feed:
     process.env.NEXT_PUBLIC_CLOUDFLARE_IMAGE_VARIANT_FEED?.trim() ||
@@ -74,7 +75,8 @@ function buildResizeOperations(options: CloudflareImageOptions): string[] {
   if (options.width && options.width > 0) ops.push(`width=${Math.round(options.width)}`);
   if (options.height && options.height > 0) ops.push(`height=${Math.round(options.height)}`);
   if (options.fit) ops.push(`fit=${options.fit}`);
-  if (options.quality && options.quality > 0) ops.push(`quality=${Math.min(Math.round(options.quality), 100)}`);
+  if (options.quality && options.quality > 0)
+    ops.push(`quality=${Math.min(Math.round(options.quality), 100)}`);
   if (options.dpr && options.dpr > 0 && options.dpr !== 1) ops.push(`dpr=${options.dpr}`);
   if (options.format) ops.push(`format=${options.format}`);
   if (typeof options.sharpen === "number" && Number.isFinite(options.sharpen)) {
@@ -111,7 +113,8 @@ function isLocalOrigin(origin: string | null): boolean {
     const host = parsed.hostname.toLowerCase();
     if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
     if (host === "0.0.0.0" || host === "[::]") return true;
-    if (host.endsWith(".local") || host.endsWith(".localdomain") || host.endsWith(".test")) return true;
+    if (host.endsWith(".local") || host.endsWith(".localdomain") || host.endsWith(".test"))
+      return true;
     if (/^10\./.test(host)) return true;
     if (/^192\.168\./.test(host)) return true;
     if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return true;
@@ -214,7 +217,7 @@ function buildSrcSetEntries(
 
 function serializeSrcSet(entries: CloudflareSrcSetEntry[]): string | null {
   if (!entries.length) return null;
-  return entries.map(({ url, width }) => `${url} ${width}w`).join(', ');
+  return entries.map(({ url, width }) => `${url} ${width}w`).join(", ");
 }
 
 function pickPreferredEntry(
@@ -261,7 +264,8 @@ export function buildImageVariants(
   const hasNamedFeed = isCloudflareImagesDelivery(originalUrl) && NAMED_VARIANTS.feed.length > 0;
   const hasNamedFull = isCloudflareImagesDelivery(originalUrl) && NAMED_VARIANTS.full.length > 0;
   const canUseNamedThumb =
-    ((thumbnailUrl && isCloudflareImagesDelivery(thumbnailUrl)) || isCloudflareImagesDelivery(originalUrl)) &&
+    ((thumbnailUrl && isCloudflareImagesDelivery(thumbnailUrl)) ||
+      isCloudflareImagesDelivery(originalUrl)) &&
     NAMED_VARIANTS.thumb.length > 0;
 
   if (isLocal) {
@@ -295,10 +299,10 @@ export function buildImageVariants(
         (width) => ({
           width,
           height: width,
-          fit: 'cover',
-          gravity: 'faces',
+          fit: "cover",
+          gravity: "faces",
           quality: 90,
-          format: 'auto',
+          format: "auto",
           sharpen: 1,
         }),
         resizeBase,
@@ -318,10 +322,10 @@ export function buildImageVariants(
             {
               width: FEED_DEFAULT_BASE_WIDTH,
               height: FEED_DEFAULT_BASE_WIDTH,
-              fit: 'cover',
-              gravity: 'faces',
+              fit: "cover",
+              gravity: "faces",
               quality: 90,
-              format: 'auto',
+              format: "auto",
               sharpen: 1,
             },
             resizeBase,
@@ -349,9 +353,9 @@ export function buildImageVariants(
         FULL_WIDTH_STEPS,
         (width) => ({
           width,
-          fit: 'contain',
+          fit: "contain",
           quality: 92,
-          format: 'auto',
+          format: "auto",
         }),
         resizeBase,
         origin,
@@ -369,9 +373,9 @@ export function buildImageVariants(
             originalUrl,
             {
               width: FULL_DEFAULT_BASE_WIDTH,
-              fit: 'contain',
+              fit: "contain",
               quality: 92,
-              format: 'auto',
+              format: "auto",
             },
             resizeBase,
             origin,
@@ -389,10 +393,10 @@ export function buildImageVariants(
         : {
             width: 512,
             height: 512,
-            fit: 'cover',
-            gravity: 'faces',
+            fit: "cover",
+            gravity: "faces",
             quality: 82,
-            format: 'auto',
+            format: "auto",
             sharpen: 1,
           },
       resizeBase,
@@ -406,10 +410,10 @@ export function buildImageVariants(
         : {
             width: 512,
             height: 512,
-            fit: 'cover',
-            gravity: 'faces',
+            fit: "cover",
+            gravity: "faces",
             quality: 80,
-            format: 'auto',
+            format: "auto",
             sharpen: 1,
           },
       resizeBase,
@@ -419,17 +423,20 @@ export function buildImageVariants(
 
   return variants;
 }
-export function pickBestDisplayVariant(variants: CloudflareImageVariantSet | null | undefined): string | null {
+export function pickBestDisplayVariant(
+  variants: CloudflareImageVariantSet | null | undefined,
+): string | null {
   if (!variants) return null;
   if (variants.feed) return variants.feed;
   if (variants.thumb) return variants.thumb;
   return variants.original ?? null;
 }
 
-export function pickBestFullVariant(variants: CloudflareImageVariantSet | null | undefined): string | null {
+export function pickBestFullVariant(
+  variants: CloudflareImageVariantSet | null | undefined,
+): string | null {
   if (!variants) return null;
   if (variants.full) return variants.full;
   if (variants.feed) return variants.feed;
   return variants.original ?? null;
 }
-

@@ -32,8 +32,7 @@ export function mapFriendRow(row: RawRow): FriendSummary {
   if (!friendUserId) {
     throw new Error("Friend row missing friend_user_id");
   }
-  const id =
-    asString(row.id) ?? `${asString(row.user_id) ?? "friend"}:${friendUserId}`;
+  const id = asString(row.id) ?? `${asString(row.user_id) ?? "friend"}:${friendUserId}`;
   return {
     id,
     friendUserId,
@@ -43,7 +42,10 @@ export function mapFriendRow(row: RawRow): FriendSummary {
   };
 }
 
-export function mapRequestRow(row: RawRow, direction: "incoming" | "outgoing"): FriendRequestSummary {
+export function mapRequestRow(
+  row: RawRow,
+  direction: "incoming" | "outgoing",
+): FriendRequestSummary {
   const id = asString(row.id);
   const requesterId = asString(row.requester_id);
   const recipientId = asString(row.recipient_id);

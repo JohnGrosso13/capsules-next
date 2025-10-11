@@ -48,9 +48,10 @@ export async function listFriendUserIds(userId: string): Promise<string[]> {
   const db = getDatabaseAdminClient();
   const result = await db
     .from("friendships")
-    .select<{ friend_user_id: string | null; users: { user_key?: string | null } | null }>(
-      "friend_user_id, users:friend_user_id(user_key)",
-    )
+    .select<{
+      friend_user_id: string | null;
+      users: { user_key?: string | null } | null;
+    }>("friend_user_id, users:friend_user_id(user_key)")
     .eq("user_id", userId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true })
@@ -60,7 +61,8 @@ export async function listFriendUserIds(userId: string): Promise<string[]> {
   rows.forEach((row) => {
     const id = typeof row.friend_user_id === "string" ? row.friend_user_id.trim() : "";
     if (id) unique.add(id);
-    const key = row.users && typeof row.users.user_key === "string" ? row.users.user_key.trim() : "";
+    const key =
+      row.users && typeof row.users.user_key === "string" ? row.users.user_key.trim() : "";
     if (key) unique.add(key);
   });
   return Array.from(unique);
@@ -185,10 +187,7 @@ export async function findLatestRequestBetween(
   return resultOrNull<RawRow>(result, "friends.findLatestRequestBetween");
 }
 
-export async function findFriendshipRow(
-  userId: string,
-  friendId: string,
-): Promise<RawRow | null> {
+export async function findFriendshipRow(userId: string, friendId: string): Promise<RawRow | null> {
   const db = getDatabaseAdminClient();
   const result = await db
     .from("friendships")
@@ -318,9 +317,7 @@ export async function closePendingRequest(
   ensureSuccess(result, "friends.closePendingRequest");
 }
 
-export async function insertFriendRequest(
-  payload: Record<string, unknown>,
-): Promise<RawRow> {
+export async function insertFriendRequest(payload: Record<string, unknown>): Promise<RawRow> {
   const db = getDatabaseAdminClient();
   const result = await db
     .from("friend_requests")
@@ -387,10 +384,7 @@ export async function restoreFollowEdge(
   return assertSuccess(updated, "friends.restoreFollowEdge.update") as RawRow;
 }
 
-export async function insertFollowEdge(
-  followerId: string,
-  followeeId: string,
-): Promise<RawRow> {
+export async function insertFollowEdge(followerId: string, followeeId: string): Promise<RawRow> {
   const db = getDatabaseAdminClient();
   const result = await db
     .from("user_follows")
@@ -471,4 +465,3 @@ export async function removeBlock(blockId: string, removedAt: string): Promise<R
     .single();
   return assertSuccess(result, "friends.removeBlock") as RawRow;
 }
-

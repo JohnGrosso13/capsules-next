@@ -90,7 +90,11 @@ function getRoomServiceClient(): RoomServiceClient {
   if (cachedRoomServiceClient) {
     return cachedRoomServiceClient;
   }
-  cachedRoomServiceClient = new RoomServiceClient(config.serviceUrl, config.apiKey, config.apiSecret);
+  cachedRoomServiceClient = new RoomServiceClient(
+    config.serviceUrl,
+    config.apiKey,
+    config.apiSecret,
+  );
   return cachedRoomServiceClient;
 }
 

@@ -126,7 +126,11 @@ export async function POST(req: Request) {
     }
 
     if (!sourceUrl) {
-      return returnError(400, "invalid_request", "imageUrl or imageData is required to edit an avatar.");
+      return returnError(
+        400,
+        "invalid_request",
+        "imageUrl or imageData is required to edit an avatar.",
+      );
     }
 
     const normalizedSource = await (async () => {

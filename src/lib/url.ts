@@ -1,8 +1,4 @@
-const LOCAL_HOSTNAME_SUFFIXES = [
-  ".local",
-  ".localdomain",
-  ".test",
-];
+const LOCAL_HOSTNAME_SUFFIXES = [".local", ".localdomain", ".test"];
 
 function normalizeHostnameValue(hostname: string): string {
   return hostname.trim().toLowerCase();
@@ -12,7 +8,8 @@ export function isLocalLikeHostname(hostname: string | null | undefined): boolea
   if (!hostname) return false;
   const value = normalizeHostnameValue(hostname);
   if (!value.length) return false;
-  if (value === "localhost" || value === "127.0.0.1" || value === "::1" || value === "[::]") return true;
+  if (value === "localhost" || value === "127.0.0.1" || value === "::1" || value === "[::]")
+    return true;
   if (value === "0.0.0.0") return true;
   for (const suffix of LOCAL_HOSTNAME_SUFFIXES) {
     if (value.endsWith(suffix)) return true;

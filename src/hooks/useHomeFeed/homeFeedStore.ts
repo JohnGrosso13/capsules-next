@@ -132,7 +132,9 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
     ...deps.events,
   };
 
-  const fallbackPosts = deps.fallbackPosts ? clonePosts(deps.fallbackPosts) : clonePosts(defaultFallbackPosts);
+  const fallbackPosts = deps.fallbackPosts
+    ? clonePosts(deps.fallbackPosts)
+    : clonePosts(defaultFallbackPosts);
 
   let state: HomeFeedStoreState = {
     posts: clonePosts(fallbackPosts),
@@ -153,7 +155,11 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
     listeners.forEach((listener) => listener());
   }
 
-  function setState(update: Partial<HomeFeedStoreState> | ((prev: HomeFeedStoreState) => Partial<HomeFeedStoreState>)) {
+  function setState(
+    update:
+      | Partial<HomeFeedStoreState>
+      | ((prev: HomeFeedStoreState) => Partial<HomeFeedStoreState>),
+  ) {
     const patch = typeof update === "function" ? update(state) : update;
     if (!patch || Object.keys(patch).length === 0) {
       return;
@@ -209,7 +215,8 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
       if (token !== refreshGeneration) {
         return;
       }
-      const aborted = options.signal?.aborted || (error instanceof DOMException && error.name === "AbortError");
+      const aborted =
+        options.signal?.aborted || (error instanceof DOMException && error.name === "AbortError");
       if (!aborted) {
         console.error("Posts refresh failed", error);
       }
@@ -239,7 +246,10 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
     }));
 
     try {
-      const response = await client.toggleLike({ postId: requestId, action: nextLiked ? "like" : "unlike" });
+      const response = await client.toggleLike({
+        postId: requestId,
+        action: nextLiked ? "like" : "unlike",
+      });
       const confirmedLikes = typeof response.likes === "number" ? response.likes : optimisticLikes;
       const liked = typeof response.viewerLiked === "boolean" ? response.viewerLiked : nextLiked;
       setState((prev) => ({
@@ -367,13 +377,18 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
         action === "request"
           ? `Friend request sent to ${current.user_name || "this member"}.`
           : `${current.user_name || "Friend"} removed.`;
-      const message = typeof result.message === "string" && result.message.trim().length > 0 ? result.message : fallbackMessage;
+      const message =
+        typeof result.message === "string" && result.message.trim().length > 0
+          ? result.message
+          : fallbackMessage;
       setState({ friendMessage: message, activeFriendTarget: null });
       events.broadcastFriendsGraphRefresh();
     } catch (error) {
       console.error("Post friend action error", error);
       const fallbackMessage =
-        action === "request" ? "Couldn't send that friend request." : "Couldn't remove that friend.";
+        action === "request"
+          ? "Couldn't send that friend request."
+          : "Couldn't remove that friend.";
       const message = error instanceof Error && error.message ? error.message : fallbackMessage;
       setState({ friendMessage: message });
     } finally {
@@ -429,4 +444,3 @@ export const homeFeedFallbackPosts = clonePosts(defaultFallbackPosts);
 export function __setMockState(_: Partial<HomeFeedStoreState>): void {
   throw new Error("__setMockState is only available in tests.");
 }
-

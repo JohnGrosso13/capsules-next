@@ -66,7 +66,14 @@ export function UploadsGallery() {
         >
           Back to Memory
         </ButtonLink>
-        <Button variant="secondary" size="sm" onClick={() => { void refresh(); }} disabled={loading}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            void refresh();
+          }}
+          disabled={loading}
+        >
           {loading ? "Refreshing..." : "Refresh"}
         </Button>
       </div>

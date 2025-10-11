@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { formatExactTime, formatTimeAgo } from "./time";
-import {
-  buildFriendTarget,
-  formatFeedCount,
-  normalizePosts,
-  resolvePostMediaUrl,
-} from "./utils";
+import { buildFriendTarget, formatFeedCount, normalizePosts, resolvePostMediaUrl } from "./utils";
 
 import type { HomeFeedAttachment, HomeFeedPost } from "./types";
 

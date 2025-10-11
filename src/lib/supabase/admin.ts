@@ -127,7 +127,11 @@ class SupabaseQueryShim<T = unknown> {
     return this.wrap(this.builder.in(column, values));
   }
 
-  contains(column: string, value: unknown, options?: Record<string, unknown>): SupabaseQueryShim<T> {
+  contains(
+    column: string,
+    value: unknown,
+    options?: Record<string, unknown>,
+  ): SupabaseQueryShim<T> {
     return this.wrap(this.builder.contains(column, value, options));
   }
 
@@ -135,7 +139,10 @@ class SupabaseQueryShim<T = unknown> {
     return this.wrap(this.builder.or(filter, options));
   }
 
-  order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }): SupabaseQueryShim<T> {
+  order(
+    column: string,
+    options?: { ascending?: boolean; nullsFirst?: boolean },
+  ): SupabaseQueryShim<T> {
     return this.wrap(this.builder.order(column, options));
   }
 
@@ -148,7 +155,10 @@ class SupabaseQueryShim<T = unknown> {
   }
 
   then<TResult1 = SupabaseArrayResult<T>, TResult2 = never>(
-    onfulfilled?: ((value: SupabaseArrayResult<T>) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+    onfulfilled?:
+      | ((value: SupabaseArrayResult<T>) => TResult1 | PromiseLike<TResult1>)
+      | undefined
+      | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | undefined | null,
   ) {
     return this.toArrayPromise().then(onfulfilled, onrejected);
@@ -231,16 +241,17 @@ let cachedClient: SupabaseClientShim | null = null;
 
 export function getSupabaseAdminClient() {
   if (!cachedClient) {
-    const storageClient = createClient(serverEnv.SUPABASE_URL, serverEnv.SUPABASE_SERVICE_ROLE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
+    const storageClient = createClient(
+      serverEnv.SUPABASE_URL,
+      serverEnv.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
       },
-    });
+    );
     cachedClient = new SupabaseClientShim(getDatabaseAdminClient(), storageClient);
   }
   return cachedClient;
 }
-
-
-

@@ -40,14 +40,15 @@ export function RecentCapsulesGrid({ capsules }: RecentCapsulesGridProps) {
             Recently Created Capsules
           </h1>
           <p className={styles.subtitle}>
-            Discover brand-new spaces as soon as they launch. Once new capsules are created, we&rsquo;ll
-            surface them here so you can be among the first to explore.
+            Discover brand-new spaces as soon as they launch. Once new capsules are created,
+            we&rsquo;ll surface them here so you can be among the first to explore.
           </p>
         </header>
         <div className={styles.empty} role="status">
           <span className={styles.emptyTitle}>No new capsules yet</span>
           <p className={styles.emptySubtitle}>
-            Check back soon&mdash;we highlight the newest community capsules here as soon as they go live.
+            Check back soon&mdash;we highlight the newest community capsules here as soon as they go
+            live.
           </p>
         </div>
       </section>
@@ -61,8 +62,8 @@ export function RecentCapsulesGrid({ capsules }: RecentCapsulesGridProps) {
           Recently Created Capsules
         </h1>
         <p className={styles.subtitle}>
-          Step into fresh communities right after launch. These capsules were created by fellow members in
-          the last few days&mdash;join early and help shape the vibe.
+          Step into fresh communities right after launch. These capsules were created by fellow
+          members in the last few days&mdash;join early and help shape the vibe.
         </p>
       </header>
       <div className={styles.rows}>

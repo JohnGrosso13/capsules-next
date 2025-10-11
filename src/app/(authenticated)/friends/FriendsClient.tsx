@@ -10,8 +10,15 @@ import { FriendsTabs } from "@/components/friends/FriendsTabs";
 import { RequestsList } from "@/components/friends/RequestsList";
 import { useFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import { ChatPanel } from "@/components/chat/ChatPanel";
-import { GroupChatOverlay, type GroupChatOverlaySubmitPayload } from "@/components/chat/GroupChatOverlay";
-import { useChatContext, type ChatFriendTarget, type ChatSession } from "@/components/providers/ChatProvider";
+import {
+  GroupChatOverlay,
+  type GroupChatOverlaySubmitPayload,
+} from "@/components/chat/GroupChatOverlay";
+import {
+  useChatContext,
+  type ChatFriendTarget,
+  type ChatSession,
+} from "@/components/providers/ChatProvider";
 import { PartyPanel } from "@/components/party/PartyPanel";
 import { usePartyContext } from "@/components/providers/PartyProvider";
 import { FriendsList } from "@/components/friends/FriendsList";
@@ -206,7 +213,16 @@ export function FriendsClient() {
         setGroupBusy(false);
       }
     },
-    [addParticipantsToGroup, chatSessions, closeGroupFlow, friendTargetMap, groupFlow, selectTab, setChatNotice, startGroupChat],
+    [
+      addParticipantsToGroup,
+      chatSessions,
+      closeGroupFlow,
+      friendTargetMap,
+      groupFlow,
+      selectTab,
+      setChatNotice,
+      startGroupChat,
+    ],
   );
 
   const withPendingAction = React.useCallback(
@@ -233,14 +249,24 @@ export function FriendsClient() {
 
   const handleRemove = React.useCallback(
     async (friend: FriendItem, identifier: string) => {
-      await withPendingAction(friend, identifier, () => removeFriend(friend), `${friend.name || "Friend"} removed.`);
+      await withPendingAction(
+        friend,
+        identifier,
+        () => removeFriend(friend),
+        `${friend.name || "Friend"} removed.`,
+      );
     },
     [removeFriend, withPendingAction],
   );
 
   const handleBlock = React.useCallback(
     async (friend: FriendItem, identifier: string) => {
-      await withPendingAction(friend, identifier, () => blockFriend(friend), `${friend.name || "Friend"} blocked.`);
+      await withPendingAction(
+        friend,
+        identifier,
+        () => blockFriend(friend),
+        `${friend.name || "Friend"} blocked.`,
+      );
     },
     [blockFriend, withPendingAction],
   );
@@ -346,7 +372,9 @@ export function FriendsClient() {
   );
 
   const inviteSession =
-    groupFlow?.mode === "invite" ? chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null : null;
+    groupFlow?.mode === "invite"
+      ? (chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null)
+      : null;
 
   React.useEffect(() => {
     if (groupFlow?.mode === "invite" && !inviteSession) {
@@ -390,7 +418,9 @@ export function FriendsClient() {
   const partyButtonDisabled = false;
   const isPartyActive = activeTab === "Party";
   const partyButtonLabel = party.session ? "Party Live" : "Party Voice";
-  const overlayDisabledIds = inviteSession ? inviteSession.participants.map((participant) => participant.id) : [];
+  const overlayDisabledIds = inviteSession
+    ? inviteSession.participants.map((participant) => participant.id)
+    : [];
   const overlayHeading = inviteSession ? `Add people to ${inviteSession.title}` : undefined;
   const overlayDescription = inviteSession
     ? "Choose friends to drop into this thread. They'll catch up from the latest message."

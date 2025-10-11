@@ -19,9 +19,7 @@ switch (vectorVendor) {
     vectorStoreInstance = null;
 }
 
-export function getVectorStore<T extends RecordMetadata = RecordMetadata>():
-  | VectorStore<T>
-  | null {
+export function getVectorStore<T extends RecordMetadata = RecordMetadata>(): VectorStore<T> | null {
   return vectorStoreInstance as VectorStore<T> | null;
 }
 

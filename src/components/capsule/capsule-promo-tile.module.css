@@ -10,13 +10,18 @@
   --capsule-logo-initial-min: 1.1rem;
   --capsule-logo-initial-max: 1.4rem;
   border-radius: clamp(18px, 3vw, 22px);
-  border: 1px solid var(
-    --capsule-tile-border,
-    color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.18)) 84%, transparent)
-  );
+  border: 1px solid
+    var(
+      --capsule-tile-border,
+      color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.18)) 84%, transparent)
+    );
   background: var(
     --capsule-tile-background,
-    linear-gradient(180deg, var(--card-bg-1, rgba(16, 22, 42, 0.82)), var(--card-bg-2, rgba(12, 17, 34, 0.92)))
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(16, 22, 42, 0.82)),
+      var(--card-bg-2, rgba(12, 17, 34, 0.92))
+    )
   );
   color: var(--capsule-tile-foreground, #f8fafc);
   overflow: hidden;
