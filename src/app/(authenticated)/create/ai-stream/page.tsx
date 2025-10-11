@@ -96,7 +96,7 @@ const statSummary = [
 
 export default function AiStreamStudioPage() {
   return (
-    <AppPage activeNav="create" showPrompter={false}>
+    <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
       <div className={styles.wrap}>
         <section className={styles.hero}>
           <div className={styles.heroCopy}>
@@ -420,7 +420,6 @@ export default function AiStreamStudioPage() {
     </AppPage>
   );
 }
-
 
 
 

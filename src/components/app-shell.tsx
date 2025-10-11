@@ -24,6 +24,7 @@ type AppShellProps = {
   showLiveChatRightRail?: boolean;
   liveChatRailProps?: LiveChatRailProps;
   showDiscoveryRightRail?: boolean;
+  layoutVariant?: "default" | "capsule";
 };
 
 export function AppShell({
@@ -35,6 +36,7 @@ export function AppShell({
   showLiveChatRightRail = true,
   liveChatRailProps,
   showDiscoveryRightRail = false,
+  layoutVariant = "default",
 }: AppShellProps) {
   const pathname = usePathname();
   const composer = useComposer();
@@ -52,6 +54,7 @@ export function AppShell({
 
   const isHome = derivedActive === "home";
   const isCapsule = derivedActive === "capsule";
+  const usesCapsuleLayout = isCapsule || layoutVariant === "capsule";
   const [capsuleTab, setCapsuleTab] = React.useState<CapsuleTab>("feed");
   const layoutClassName = isHome ? `${styles.layout} ${styles.layoutHome}` : styles.layout;
   const contentClassName = isHome ? `${styles.content} ${styles.contentHome}` : styles.content;
@@ -63,7 +66,9 @@ export function AppShell({
     : `${styles.rail} ${styles.rightRail}`;
   const isCapsuleFeedView = isCapsule && capsuleTab === "feed";
   const isCapsuleStoreView = isCapsule && capsuleTab === "store";
-  const capsuleHasRightRail = isCapsuleFeedView || isCapsuleStoreView || showLiveChatRightRail;
+  const shouldShowDiscoveryRail =
+    showDiscoveryRightRail || isCapsuleFeedView || isCapsuleStoreView;
+  const capsuleHasRightRail = shouldShowDiscoveryRail || showLiveChatRightRail;
   const capsuleLayoutClassName = capsuleHasRightRail
     ? `${styles.layout} ${styles.layoutCapsule}`
     : `${styles.layout} ${styles.layoutCapsule} ${styles.layoutCapsuleNoRight}`;
@@ -92,20 +97,20 @@ export function AppShell({
   }, [isCapsule]);
 
   const capsuleRightRailContent = React.useMemo(() => {
-    if (isCapsuleFeedView || isCapsuleStoreView) {
-      // Show discovery rail for feed and store capsule views.
+    if (shouldShowDiscoveryRail) {
+      // Show discovery rail for feed, store, or explicitly requested views.
       return <DiscoveryRail />;
     }
     if (showLiveChatRightRail) {
       return <LiveChatRail {...liveChatRailProps} />;
     }
     return null;
-  }, [isCapsuleFeedView, isCapsuleStoreView, showLiveChatRightRail, liveChatRailProps]);
+  }, [shouldShowDiscoveryRail, showLiveChatRightRail, liveChatRailProps]);
 
   return (
-    <div className={isCapsule ? `${styles.outer} ${styles.outerCapsule}` : styles.outer}>
+    <div className={usesCapsuleLayout ? `${styles.outer} ${styles.outerCapsule}` : styles.outer}>
       <PrimaryHeader activeKey={derivedActive} />
-      <div className={isCapsule ? `${styles.page} ${styles.pageCapsule}` : styles.page}>
+      <div className={usesCapsuleLayout ? `${styles.page} ${styles.pageCapsule}` : styles.page}>
         <main className={styles.main}>
           {showPrompter ? (
             <div className={styles.prompterStage}>
@@ -116,15 +121,18 @@ export function AppShell({
             </div>
           ) : null}
 
-          {isCapsule ? (
+          {usesCapsuleLayout ? (
             <>
-              <div className={capsuleLayoutClassName} data-capsule-tab={capsuleTab}>
+              <div
+                className={capsuleLayoutClassName}
+                data-capsule-tab={isCapsule ? capsuleTab : undefined}
+              >
                 <aside className={`${styles.rail} ${styles.leftRail} ${styles.leftRailCapsule}`}>
                   <ConnectionsRail />
                 </aside>
                 <section
                   className={`${styles.content} ${styles.contentCapsule}`}
-                  data-capsule-tab={capsuleTab}
+                  data-capsule-tab={isCapsule ? capsuleTab : undefined}
                 >
                   {capsuleBanner ? <div className={styles.capsuleBanner}>{capsuleBanner}</div> : null}
                   {children}

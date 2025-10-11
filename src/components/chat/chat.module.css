@@ -220,11 +220,29 @@
 .chatThreadTag {
   font-size: 0.72rem;
   font-weight: 600;
-  padding: 2px 10px;
+  padding: 3px 12px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-brand) 28%, transparent);
-  color: var(--text);
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 76%, transparent) 0%,
+    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 84%, transparent) 50%,
+    color-mix(in srgb, var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%, transparent) 100%
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 62%, transparent);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 28%, transparent);
+  color: var(--text-on-brand, #041021);
+  letter-spacing: 0.08em;
   white-space: nowrap;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--text-on-brand, #041021) 22%, transparent);
+  transition: box-shadow var(--motion-duration-quick, 120ms) var(--motion-ease-standard, cubic-bezier(0.2, 0, 0.4, 1)),
+    transform var(--motion-duration-quick, 120ms) var(--motion-ease-standard, cubic-bezier(0.2, 0, 0.4, 1));
+}
+
+.chatThreadTag:hover {
+  box-shadow: 0 14px 30px
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 36%, transparent);
+  transform: translateY(-1px);
 }
 
 .chatThreadTimestamp {
@@ -811,8 +829,6 @@
     width: 100%;
   }
 }
-
-
 
 
 

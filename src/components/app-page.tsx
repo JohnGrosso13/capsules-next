@@ -14,6 +14,7 @@ export type AppPageProps = {
   showLiveChatRightRail?: boolean;
   liveChatRailProps?: LiveChatRailProps;
   showDiscoveryRightRail?: boolean;
+  layoutVariant?: "default" | "capsule";
 };
 
 export function AppPage({
@@ -25,11 +26,13 @@ export function AppPage({
   showLiveChatRightRail = false,
   liveChatRailProps,
   showDiscoveryRightRail,
+  layoutVariant,
 }: AppPageProps) {
   const optionalShellProps = {
     ...(activeNav ? { activeNav } : {}),
     ...(typeof liveChatRailProps !== "undefined" ? { liveChatRailProps } : {}),
     ...(typeof showDiscoveryRightRail === "boolean" ? { showDiscoveryRightRail } : {}),
+    ...(typeof layoutVariant !== "undefined" ? { layoutVariant } : {}),
   };
 
   return (
