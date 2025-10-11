@@ -22,7 +22,7 @@ import {
   useParticipants,
   useRoomContext,
 } from "@livekit/components-react";
-import type { Room } from "livekit-client";
+import { RoomEvent, type Room } from "livekit-client";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
 import type { ChatFriendTarget } from "@/components/providers/ChatProvider";
@@ -550,10 +550,17 @@ function PartyStageScene({
 
   React.useEffect(() => {
     if (!room) return;
+
+    const handleRoomDisconnected = () => {
+      onDisconnected();
+    };
+
     onReady(room);
     setMicEnabled(room.localParticipant?.isMicrophoneEnabled ?? true);
+    room.on(RoomEvent.Disconnected, handleRoomDisconnected);
+
     return () => {
-      onDisconnected();
+      room.off(RoomEvent.Disconnected, handleRoomDisconnected);
     };
   }, [onDisconnected, onReady, room]);
 
