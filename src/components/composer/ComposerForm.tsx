@@ -331,7 +331,9 @@ export function ComposerForm({
 
   const handleMemoryShortcut = React.useCallback(() => {
     if (!memoryItems.length) return;
-    handleMemorySelect(memoryItems[0]);
+    const firstMemory = memoryItems[0];
+    if (!firstMemory) return;
+    handleMemorySelect(firstMemory);
   }, [handleMemorySelect, memoryItems]);
 
   const handlePromptSubmit = React.useCallback(() => {

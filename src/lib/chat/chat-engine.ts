@@ -176,7 +176,7 @@ export class ChatEngine {
   }
 
   startDirectChat(target: ChatParticipant, options?: { activate?: boolean }): StartChatResult | null {
-    const selfId = this.supabaseUserId ?? this.resolvedSelfClientId ?? this.store.getCurrentUserId();
+    const selfId = this.resolveSelfId();
     if (!selfId) {
       console.warn("ChatEngine startDirectChat requires a user id");
       return null;
@@ -433,12 +433,24 @@ export class ChatEngine {
     this.store.applyMessageEvent(payload);
   }
 
+  private resolveSelfId(preferred?: string | null): string | null {
+    const candidates = [
+      preferred,
+      this.supabaseUserId,
+      this.resolvedSelfClientId,
+      this.store.getCurrentUserId(),
+      this.userProfile.id,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate !== "string") continue;
+      const trimmed = candidate.trim();
+      if (trimmed) return trimmed;
+    }
+    return null;
+  }
+
   private buildSelfParticipant(preferredId?: string | null): ChatParticipant | null {
-    const primary =
-      (typeof preferredId === "string" && preferredId.trim()) ||
-      this.supabaseUserId ||
-      this.resolvedSelfClientId ||
-      this.store.getCurrentUserId();
+    const primary = this.resolveSelfId(preferredId);
     if (!primary) return null;
     return this.createSelfParticipant(primary);
   }

@@ -515,7 +515,7 @@ function FriendAvatar({ friend }: { friend: Friend }) {
 }
 
 function CapsuleTile({ capsule }: { capsule: Capsule | null }) {
-  const tileClass = capsuleTileHostStyles.tileHost;
+  const tileClass = capsuleTileHostStyles.tileHost ?? "";
   if (!capsule) {
     return (
       <div className={styles.capsuleTile}>
@@ -529,10 +529,10 @@ function CapsuleTile({ capsule }: { capsule: Capsule | null }) {
   }
 
   const { bannerUrl, logoUrl } = resolveCapsuleTileMedia({
-    promoTileUrl: capsule.promoTileUrl,
-    bannerUrl: capsule.bannerUrl,
-    coverUrl: capsule.cover,
-    logoUrl: capsule.logoUrl,
+    promoTileUrl: capsule.promoTileUrl ?? null,
+    bannerUrl: capsule.bannerUrl ?? null,
+    coverUrl: capsule.cover ?? null,
+    logoUrl: capsule.logoUrl ?? null,
   });
   const rawSlug = capsule.slug ?? null;
   const slugHandle = resolveCapsuleHandle(rawSlug);

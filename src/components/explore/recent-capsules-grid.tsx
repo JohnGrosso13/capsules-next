@@ -73,11 +73,11 @@ export function RecentCapsulesGrid({ capsules }: RecentCapsulesGridProps) {
           >
             {row.map((capsule) => {
               const { bannerUrl, logoUrl } = resolveCapsuleTileMedia({
-                promoTileUrl: capsule.promoTileUrl,
-                bannerUrl: capsule.bannerUrl,
-                logoUrl: capsule.logoUrl,
+                promoTileUrl: capsule.promoTileUrl ?? null,
+                bannerUrl: capsule.bannerUrl ?? null,
+                logoUrl: capsule.logoUrl ?? null,
               });
-              const tileCardClass = capsuleTileHostStyles.tileHost;
+              const tileCardClass = capsuleTileHostStyles.tileHost ?? "";
               const slugHandle = resolveCapsuleHandle(capsule.slug);
               return (
                 <Link

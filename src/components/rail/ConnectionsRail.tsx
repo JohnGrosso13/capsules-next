@@ -28,20 +28,28 @@ type ConnectionSummaryDetail = Partial<
   Record<RailTab, { description?: string | null; badge?: number | null }>
 >;
 
+type BadgeIconProps = {
+  className?: string;
+  focusable?: string;
+  "aria-hidden"?: boolean | "true" | "false";
+};
+
+type BadgeIconElement = React.ReactElement<BadgeIconProps>;
+
 type ConnectionTile = {
   key: RailTab;
   title: string;
   icon: React.ReactNode;
   description: string;
   badge: number | null;
-  badgeIcon: React.ReactElement | null;
+  badgeIcon: BadgeIconElement | null;
 };
 
 const CONNECTION_TILE_DEFS: Array<{
   key: RailTab;
   title: string;
   icon: React.ReactNode;
-  badgeIcon?: React.ReactElement;
+  badgeIcon?: BadgeIconElement;
 }> = [
   {
     key: "friends",
