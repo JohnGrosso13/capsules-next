@@ -370,13 +370,21 @@
 }
 
 .hostBadge {
-  background: color-mix(in srgb, var(--color-brand) 60%, transparent);
-  color: var(--text-on-brand, #080808);
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 74%, transparent) 0%,
+    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 82%, transparent) 50%,
+    color-mix(in srgb, var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%, transparent) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 62%, transparent);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 28%, transparent);
+  color: var(--text-on-brand, #041021);
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 999px;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--text-on-brand, #041021) 25%, transparent);
 }
 
 .stageCard {
@@ -438,8 +446,11 @@
   gap: 14px;
   padding: 14px 16px;
   border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
-  background: color-mix(in srgb, var(--card-background, #101a33) 88%, transparent);
+  border: 1px solid var(--party-participant-border, color-mix(in srgb, var(--card-border) 70%, transparent));
+  background: var(
+    --party-participant-background,
+    color-mix(in srgb, var(--card-background, #101a33) 88%, transparent)
+  );
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
@@ -506,7 +517,7 @@
   text-align: center;
   padding: 18px;
   border-radius: 16px;
-  border: 1px dashed color-mix(in srgb, var(--card-border) 60%, transparent);
+  border: 1px dashed var(--party-empty-border, color-mix(in srgb, var(--card-border) 60%, transparent));
   color: color-mix(in srgb, var(--text) 65%, transparent);
   font-size: 0.95rem;
 }
@@ -591,8 +602,11 @@
   gap: 18px;
   padding: 22px 24px;
   border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
-  background: color-mix(in srgb, var(--card-background, #101a33) 92%, transparent);
+  border: 1px solid var(--party-invite-border, color-mix(in srgb, var(--card-border) 70%, transparent));
+  background: var(
+    --party-invite-background,
+    color-mix(in srgb, var(--card-background, #101a33) 92%, transparent)
+  );
 }
 
 .inviteHeader {
@@ -621,7 +635,7 @@
   justify-content: center;
   padding: 28px;
   border-radius: 18px;
-  border: 1px dashed color-mix(in srgb, var(--card-border) 60%, transparent);
+  border: 1px dashed var(--party-empty-border, color-mix(in srgb, var(--card-border) 60%, transparent));
   color: color-mix(in srgb, var(--text) 70%, transparent);
 }
 
@@ -638,8 +652,11 @@
   gap: 16px;
   padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--card-border) 65%, transparent);
-  background: color-mix(in srgb, var(--card-background, #101a33) 94%, transparent);
+  border: 1px solid var(--party-invite-row-border, color-mix(in srgb, var(--card-border) 65%, transparent));
+  background: var(
+    --party-invite-row-background,
+    color-mix(in srgb, var(--card-background, #101a33) 94%, transparent)
+  );
 }
 
 .inviteMeta {

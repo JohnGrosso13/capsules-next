@@ -470,6 +470,13 @@
     --party-control-background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(237, 242, 255, 0.9));
     --party-code-background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(237, 242, 255, 0.92));
     --party-code-border: rgba(148, 163, 184, 0.32);
+    --party-invite-background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(237, 243, 255, 0.88));
+    --party-invite-border: rgba(14, 23, 42, 0.12);
+    --party-invite-row-background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(240, 244, 255, 0.9));
+    --party-invite-row-border: rgba(148, 163, 184, 0.28);
+    --party-participant-background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(240, 244, 255, 0.9));
+    --party-participant-border: rgba(148, 163, 184, 0.24);
+    --party-empty-border: rgba(148, 163, 184, 0.32);
 
     /* AI prompter tokens */
     --prompter-ai-message-background: var(--cta-gradient);

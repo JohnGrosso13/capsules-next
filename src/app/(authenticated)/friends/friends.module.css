@@ -135,12 +135,26 @@
   justify-content: center;
   padding: 3px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-brand) 80%, transparent);
-  color: var(--text-on-brand, #080808);
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 78%, transparent) 0%,
+    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 82%, transparent) 52%,
+    color-mix(in srgb, var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%, transparent) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 65%, transparent);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 32%, transparent);
+  color: var(--text-on-brand, #041021);
   font-size: 0.65rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 700;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--text-on-brand, #041021) 25%, transparent);
+  transition: box-shadow var(--motion-duration-quick, 120ms) ease, transform var(--motion-duration-quick, 120ms) ease;
+}
+
+.livePill:hover {
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 42%, transparent);
+  transform: translateY(-1px);
 }
 
 .tab {
@@ -547,7 +561,6 @@
     justify-content: flex-end;
   }
 }
-
 
 
 

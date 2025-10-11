@@ -578,6 +578,10 @@ export function ThemeStyleCarousel() {
           <Button
             variant={themePreference === "system" ? "primary" : "secondary"}
             size="sm"
+            className={cn(
+              styles.modeButton,
+              themePreference === "system" ? styles.modeButtonActive : styles.modeButtonInactive,
+            )}
             onClick={() => handleSetPreference("system")}
           >
             System
@@ -585,6 +589,10 @@ export function ThemeStyleCarousel() {
           <Button
             variant={themePreference === "light" ? "primary" : "secondary"}
             size="sm"
+            className={cn(
+              styles.modeButton,
+              themePreference === "light" ? styles.modeButtonActive : styles.modeButtonInactive,
+            )}
             onClick={() => handleSetPreference("light")}
           >
             Light mode
@@ -592,6 +600,10 @@ export function ThemeStyleCarousel() {
           <Button
             variant={themePreference === "dark" ? "primary" : "secondary"}
             size="sm"
+            className={cn(
+              styles.modeButton,
+              themePreference === "dark" ? styles.modeButtonActive : styles.modeButtonInactive,
+            )}
             onClick={() => handleSetPreference("dark")}
           >
             Dark mode
