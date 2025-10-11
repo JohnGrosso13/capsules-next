@@ -16,7 +16,7 @@
   );
   --capsule-tile-border: color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.16)) 88%, transparent);
   --capsule-tile-border-hover: color-mix(in srgb, var(--color-brand, #6366f1) 48%, transparent);
-  --capsule-tile-shadow: 0 24px 52px color-mix(in srgb, var(--color-brand, #6366f1) 26%, rgba(5, 10, 30, 0.5));
+  --capsule-tile-shadow: 0 26px 60px color-mix(in srgb, var(--color-brand, #6366f1) 32%, rgba(5, 10, 30, 0.48));
 }
 
 @media (max-width: 640px) {
@@ -24,4 +24,3 @@
     --capsule-tile-aspect: 4 / 3;
   }
 }
-

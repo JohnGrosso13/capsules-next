@@ -1549,7 +1549,7 @@
 }
 
 .selectorGrid {
-  --selector-tile-width: 182px;
+  --selector-tile-width: 166px;
   --selector-gap: 12px;
   display: flex;
   flex-wrap: wrap;
@@ -1586,9 +1586,9 @@
 }
 
 .selectorTileMeta {
-  margin-top: 10px;
+  margin-top: 6px;
   display: grid;
-  gap: 6px;
+  gap: 5px;
   justify-items: center;
   text-align: center;
 }
@@ -1615,7 +1615,7 @@
 
 @media (max-width: 640px) {
   .selectorGrid {
-    --selector-tile-width: 160px;
+    --selector-tile-width: 148px;
     --selector-gap: 10px;
   }
 }

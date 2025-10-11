@@ -4,7 +4,11 @@ import { AppPage } from "@/components/app-page";
 
 import styles from "./memory.module.css";
 import { UploadsCarousel } from "@/components/memory/uploads-carousel";
-import { BannersCarousel } from "@/components/memory/banners-carousel";
+import {
+  CapsuleAssetsCarousel,
+  CapsuleLogosCarousel,
+  UserLogosCarousel,
+} from "@/components/memory/asset-carousel";
 
 export const metadata: Metadata = {
   title: "Memory - Capsules",
@@ -23,9 +27,10 @@ export default function MemoryPage() {
           <p>Upload images and videos - instantly recalled with natural language.</p>
         </header>
         <UploadsCarousel />
-        <BannersCarousel />
+        <CapsuleAssetsCarousel />
+        <CapsuleLogosCarousel />
+        <UserLogosCarousel />
       </section>
     </AppPage>
   );
 }
-
