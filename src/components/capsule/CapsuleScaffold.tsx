@@ -18,7 +18,7 @@ import {
   UsersThree,
   WarningCircle,
 } from "@phosphor-icons/react/dist/ssr";
-import { AiPrompterStage } from "@/components/ai-prompter-stage";
+import { AiPrompterStage, type PrompterAction } from "@/components/ai-prompter-stage";
 import { CapsuleMembersPanel } from "@/components/capsule/CapsuleMembersPanel";
 import { useComposer } from "@/components/composer/ComposerProvider";
 import { HomeFeedList } from "@/components/home-feed-list";
@@ -386,7 +386,10 @@ export function CapsuleContent({
           <LiveStreamCanvas />
         </div>
       ) : (
-        <CapsuleStorePlaceholder capsuleName={normalizedCapsuleName} prompter={prompter} />
+        <CapsuleStorePlaceholder
+          capsuleName={normalizedCapsuleName}
+          onPrompterAction={composer.handlePrompterAction}
+        />
       )}
     </div>
   );
@@ -616,10 +619,10 @@ function LiveStreamCanvas() {
 
 type CapsuleStorePlaceholderProps = {
   capsuleName: string | null;
-  prompter: React.ReactNode;
+  onPrompterAction: (action: PrompterAction) => void;
 };
 
-function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlaceholderProps) {
+function CapsuleStorePlaceholder({ capsuleName, onPrompterAction }: CapsuleStorePlaceholderProps) {
   const displayName = capsuleName ?? "your capsule";
   const productSpots = [
     {
@@ -664,10 +667,12 @@ function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlacehol
     },
   ];
 
-  const assistantPrompts = [
-    `"Design a premium ${displayName} hoodie with night-sky gradients for $45."`,
-    `"Write product copy for a supporter-only enamel pin at a 25% margin."`,
-    `"Create a bundle that pairs merch with a digital collectible unlock."`,
+  const prompterChips = [
+    "Draft product copy",
+    "Generate pricing ideas",
+    "Plan bundle drop",
+    "Suggest store layout",
+    "Create launch checklist",
   ];
 
   const cartDraft = [
@@ -736,29 +741,8 @@ function CapsuleStorePlaceholder({ capsuleName, prompter }: CapsuleStorePlacehol
           </div>
         </section>
 
-        <div className={capTheme.storePrompterDock}>
-          <div className={capTheme.storePrompter}>
-            <div className={capTheme.storePrompterHeader}>
-              <MagicWand size={18} weight="bold" />
-              <div>
-                <h3>Ask Capsule AI to craft your next listing</h3>
-                <p>Share the merch vibe, packaging ideas, or pricing guardrails and let it draft the tile.</p>
-              </div>
-            </div>
-            <div className={capTheme.storePrompterStage}>{prompter}</div>
-          </div>
-          <div className={capTheme.storePromptLibrary}>
-            <span className={capTheme.storePromptLabel}>Prompt ideas</span>
-            <ul className={capTheme.storePromptList}>
-              {assistantPrompts.map((prompt) => (
-                <li key={prompt}>
-                  <button type="button" className={capTheme.storePromptChip} disabled aria-disabled="true">
-                    {prompt}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+        <div className={`${capTheme.storePrompterWrap} ${capTheme.prompterTop}`}>
+          <AiPrompterStage chips={prompterChips} onAction={onPrompterAction} />
         </div>
 
         <div className={capTheme.storeGrid}>

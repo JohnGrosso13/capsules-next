@@ -634,52 +634,12 @@
   gap: 12px;
   justify-content: flex-end;
 }
-.storePrompterDock {
-  display: grid;
-  gap: clamp(14px, 2vw, 22px);
-  justify-items: center;
-  align-items: start;
+.storePrompterWrap {
+  width: min(100%, 760px);
+  margin: clamp(18px, 2.4vw, 26px) auto;
 }
-.storePrompter {
-  width: min(100%, clamp(520px, 68vw, 760px));
-}
-.storePromptLibrary {
-  display: grid;
-  gap: 8px;
-  width: min(100%, clamp(520px, 68vw, 760px));
-  text-align: center;
-  justify-items: center;
-}
-.storePromptLabel {
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-2, rgba(203,213,225,0.75));
-  justify-self: center;
-}
-.storePromptList {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-}
-.storePromptChip {
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, rgba(99,102,241,0.5) 45%, transparent);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, rgba(59,130,246,0.3) 32%, transparent), transparent),
-    color-mix(in srgb, rgba(15,23,42,0.82) 80%, rgba(15,23,42,0.52));
-  color: var(--text, rgba(255,255,255,0.9));
-  font-size: 0.86rem;
-  font-weight: 600;
-  pointer-events: none;
-  white-space: nowrap;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+.storePrompterWrap > * {
+  width: 100%;
 }
 .storeHeader {
   display: flex;
@@ -707,41 +667,6 @@
 }
 .storeGhostButton svg {
   flex-shrink: 0;
-}
-.storePrompter {
-  display: grid;
-  gap: 14px;
-  padding: clamp(14px, 2vw, 20px);
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, rgba(59,130,246,0.35) 35%, transparent);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, rgba(59,130,246,0.55) 18%, transparent), transparent),
-    color-mix(in srgb, rgba(15,23,42,0.74) 72%, rgba(15,23,42,0.45));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
-  align-content: space-between;
-  height: 100%;
-}
-.storePrompterHeader {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  color: var(--text, rgba(255,255,255,0.95));
-}
-.storePrompterHeader h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-}
-.storePrompterHeader p {
-  margin: 4px 0 0;
-  color: var(--text-2, rgba(203,213,225,0.85));
-  font-size: 0.9rem;
-}
-.storePrompterStage {
-  border-radius: 14px;
-  overflow: hidden;
-  position: relative;
-  min-height: clamp(210px, 26vh, 260px);
 }
 .storeGrid {
   display: grid;
@@ -1166,10 +1091,7 @@
   .storeCartColumn {
     width: 100%;
   }
-  .storePrompter {
-    width: min(100%, clamp(520px, 82vw, 720px));
-  }
-  .storePromptLibrary {
+  .storePrompterWrap {
     width: min(100%, clamp(520px, 82vw, 720px));
   }
   .storeBannerFrame {
@@ -1198,26 +1120,8 @@
   .storeProducts {
     grid-template-columns: minmax(0, 1fr);
   }
-  .storePrompterHeader {
-    flex-direction: column;
-  }
-  .storePrompter {
-    padding: 16px;
-  }
   .storeGrid {
     gap: clamp(16px, 4vw, 22px);
-  }
-  .storePrompterDock {
-    justify-items: stretch;
-  }
-  .storePromptLibrary {
-    text-align: left;
-  }
-  .storePromptLabel {
-    justify-self: flex-start;
-  }
-  .storePromptList {
-    justify-content: flex-start;
   }
   .storeControlButtons {
     width: 100%;
