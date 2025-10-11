@@ -127,6 +127,7 @@ export const friendSyncResponseSchema = z.object({
     events: z.string(),
     presence: z.string(),
   }),
+  viewerId: z.string(),
 });
 
 const actionResultSchema = z.record(z.string(), z.unknown()).nullable();

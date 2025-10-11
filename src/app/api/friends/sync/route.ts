@@ -39,6 +39,7 @@ async function handle(req: Request) {
       friends,
       graph,
       channels: { events: eventsChannel, presence: FRIEND_PRESENCE_CHANNEL },
+      viewerId: ownerId,
     });
   } catch (error) {
     console.error("Friends sync error", error);
@@ -54,6 +55,5 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   return handle(req);
 }
-
 
 

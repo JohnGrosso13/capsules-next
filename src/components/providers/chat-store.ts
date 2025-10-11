@@ -247,6 +247,19 @@ export function mergeParticipants(...lists: Array<Iterable<ChatParticipant>>): C
   return Array.from(map.values());
 }
 
+function participantsEqual(a: ChatParticipant[], b: ChatParticipant[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    const left = a[index];
+    const right = b[index];
+    if (!left || !right) return false;
+    if (left.id !== right.id || left.name !== right.name || left.avatar !== right.avatar) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function computeDefaultTitle(
   participants: ChatParticipant[],
   selfIds: Set<string>,
@@ -316,6 +329,7 @@ export class ChatStore {
   private now: () => number;
   private currentUserId: string | null = null;
   private selfClientId: string | null = null;
+  private selfAliases = new Set<string>();
 
   constructor(config?: ChatStoreConfig) {
     this.storage = config?.storage ?? null;
@@ -328,16 +342,102 @@ export class ChatStore {
     this.storage = storage;
   }
 
+  private registerSelfAlias(value: string | null) {
+    if (!value) return;
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    this.selfAliases.add(trimmed);
+    const canonical = canonicalParticipantKey(trimmed);
+    if (canonical) {
+      this.selfAliases.add(canonical);
+    }
+  }
+
   setCurrentUserId(userId: string | null) {
-    if (this.currentUserId === userId) return;
-    this.currentUserId = userId ?? null;
+    const normalized = typeof userId === "string" ? userId.trim() : "";
+    const nextId = normalized.length > 0 ? normalized : null;
+    if (this.currentUserId === nextId) return;
+    this.currentUserId = nextId;
+    if (nextId) {
+      this.registerSelfAlias(nextId);
+    }
     this.refreshSessionTitles();
   }
 
   setSelfClientId(clientId: string | null) {
-    if (this.selfClientId === clientId) return;
-    this.selfClientId = clientId ?? null;
+    const normalized = typeof clientId === "string" ? clientId.trim() : "";
+    const nextId = normalized.length > 0 ? normalized : null;
+    if (this.selfClientId === nextId) return;
+    this.selfClientId = nextId;
+    if (nextId) {
+      this.registerSelfAlias(nextId);
+    }
     this.refreshSessionTitles();
+  }
+
+  applySelfParticipant(participant: ChatParticipant, aliases: string[] = []) {
+    const normalizedSelf = normalizeParticipant(participant);
+    if (!normalizedSelf) return;
+    const aliasSet = new Set<string>();
+    const addAlias = (value: string | null | undefined) => {
+      if (!value || typeof value !== "string") return;
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      aliasSet.add(trimmed);
+      const canonical = canonicalParticipantKey(trimmed);
+      if (canonical) aliasSet.add(canonical);
+    };
+    addAlias(normalizedSelf.id);
+    aliases.forEach((alias) => addAlias(alias));
+    aliasSet.forEach((alias) => this.registerSelfAlias(alias));
+    let mutated = false;
+    this.sessions.forEach((session) => {
+      const participants = session.participants.map((existing) => {
+        const existingKey = canonicalParticipantKey(existing.id);
+        if (aliasSet.has(existing.id) || (existingKey && aliasSet.has(existingKey))) {
+          return { ...normalizedSelf };
+        }
+        return existing;
+      });
+      if (!participants.some((entry) => entry.id === normalizedSelf.id)) {
+        participants.push({ ...normalizedSelf });
+      }
+      const merged = mergeParticipants(participants);
+      if (!participantsEqual(session.participants, merged)) {
+        session.participants = merged;
+        mutated = true;
+      }
+      let messageChanged = false;
+      session.messages.forEach((message, index) => {
+        const author = typeof message.authorId === "string" ? message.authorId.trim() : "";
+        if (!author) return;
+        const canonicalAuthor = canonicalParticipantKey(author);
+        if (aliasSet.has(author) || (canonicalAuthor && aliasSet.has(canonicalAuthor))) {
+          if (message.authorId !== normalizedSelf.id) {
+            session.messages[index] = { ...message, authorId: normalizedSelf.id };
+            messageChanged = true;
+          }
+        }
+      });
+      if (messageChanged) {
+        session.messageIndex = new Map(session.messages.map((msg, index) => [msg.id, index]));
+        mutated = true;
+      }
+      if (session.createdBy) {
+        const creator = session.createdBy.trim();
+        const canonicalCreator = canonicalParticipantKey(creator);
+        if (
+          (creator && aliasSet.has(creator) && session.createdBy !== normalizedSelf.id) ||
+          (canonicalCreator && aliasSet.has(canonicalCreator) && session.createdBy !== normalizedSelf.id)
+        ) {
+          session.createdBy = normalizedSelf.id;
+          mutated = true;
+        }
+      }
+    });
+    if (mutated) {
+      this.emit();
+    }
   }
 
   getCurrentUserId(): string | null {
@@ -627,33 +727,58 @@ export class ChatStore {
 
   updateFromFriends(friends: FriendItem[]) {
     if (!Array.isArray(friends) || !friends.length) return;
-    const friendMap = new Map<string, FriendItem>();
+    const friendIdMap = new Map<string, FriendItem>();
+    const friendKeyMap = new Map<string, FriendItem>();
     friends.forEach((friend) => {
       if (friend.userId) {
-        friendMap.set(friend.userId, friend);
+        const trimmed = friend.userId.trim();
+        if (trimmed) {
+          friendIdMap.set(trimmed, friend);
+          const canonical = canonicalParticipantKey(trimmed);
+          if (canonical) {
+            friendIdMap.set(canonical, friend);
+          }
+        }
+      }
+      if (friend.key) {
+        const normalizedKey = friend.key.trim();
+        if (normalizedKey) {
+          friendKeyMap.set(normalizedKey.toLowerCase(), friend);
+          const canonicalKey = canonicalParticipantKey(normalizedKey);
+          if (canonicalKey) {
+            friendKeyMap.set(canonicalKey.toLowerCase(), friend);
+          }
+        }
       }
     });
     const selfIds = this.getSelfIds();
     let changed = false;
     this.sessions.forEach((session) => {
-      let participantsChanged = false;
       const updatedParticipants = session.participants.map((participant) => {
-        const friend = friendMap.get(participant.id);
-        if (!friend) return participant;
-        const nextName = friend.name || participant.name;
-        const nextAvatar = friend.avatar ?? participant.avatar ?? null;
-        if (nextName !== participant.name || nextAvatar !== participant.avatar) {
-          participantsChanged = true;
+        const rawId = typeof participant.id === "string" ? participant.id.trim() : "";
+        if (!rawId) return participant;
+        const canonicalId = canonicalParticipantKey(rawId);
+        const lookupFriend =
+          friendIdMap.get(rawId) ??
+          (canonicalId ? friendIdMap.get(canonicalId) : undefined) ??
+          friendKeyMap.get(rawId.toLowerCase()) ??
+          (canonicalId ? friendKeyMap.get(canonicalId.toLowerCase()) : undefined);
+        if (!lookupFriend) return participant;
+        const nextId = lookupFriend.userId?.trim() || participant.id;
+        const nextName = lookupFriend.name || participant.name;
+        const nextAvatar = lookupFriend.avatar ?? participant.avatar ?? null;
+        if (nextId !== participant.id || nextName !== participant.name || nextAvatar !== participant.avatar) {
           return {
-            ...participant,
-            name: nextName,
+            id: nextId,
+            name: nextName || nextId,
             avatar: nextAvatar,
           };
         }
         return participant;
       });
-      if (participantsChanged) {
-        session.participants = updatedParticipants;
+      const mergedParticipants = mergeParticipants(updatedParticipants);
+      if (!participantsEqual(session.participants, mergedParticipants)) {
+        session.participants = mergedParticipants;
         changed = true;
       }
       if (session.type === "direct") {
@@ -741,7 +866,7 @@ export class ChatStore {
   }
 
   private getSelfIds(): Set<string> {
-    const selfIds = new Set<string>();
+    const selfIds = new Set<string>(this.selfAliases);
     if (this.currentUserId) selfIds.add(this.currentUserId);
     if (this.selfClientId) selfIds.add(this.selfClientId);
     return selfIds;
@@ -751,7 +876,10 @@ export class ChatStore {
     if (!id) return false;
     const normalized = id.trim();
     if (!normalized) return false;
-    return normalized === this.currentUserId || normalized === this.selfClientId;
+    if (normalized === this.currentUserId || normalized === this.selfClientId) return true;
+    if (this.selfAliases.has(normalized)) return true;
+    const canonical = canonicalParticipantKey(normalized);
+    return canonical ? this.selfAliases.has(canonical) : false;
   }
 
   private sanitizeDescriptor(descriptor: ChatSessionDescriptor): ChatSessionDescriptor {

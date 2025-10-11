@@ -111,10 +111,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const friendsContext = useFriendsDataContext();
   const friends = friendsContext.friends;
+  const viewerId = friendsContext.viewerId ?? null;
 
   React.useEffect(() => {
     engine.setFriends(friends);
   }, [engine, friends]);
+
+  React.useEffect(() => {
+    engine.setSupabaseUserId(viewerId);
+  }, [engine, viewerId]);
 
   React.useEffect(() => {
     const envelope = buildRealtimeEnvelope(user);

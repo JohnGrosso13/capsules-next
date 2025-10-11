@@ -38,6 +38,7 @@ export class ChatEngine {
   private unsubscribe: (() => void) | null = null;
   private clientChannelName: string | null = null;
   private resolvedSelfClientId: string | null = null;
+  private supabaseUserId: string | null = null;
   private userProfile: UserProfile = { id: null, name: null, email: null, avatarUrl: null };
 
   constructor(store?: ChatStore) {
@@ -63,12 +64,49 @@ export class ChatEngine {
 
   setUserProfile(profile: UserProfile): void {
     this.userProfile = profile;
-    this.store.setCurrentUserId(profile.id ?? null);
+    const activeSelfId = this.supabaseUserId ?? this.resolvedSelfClientId ?? profile.id ?? null;
+    if (activeSelfId) {
+      const participant = this.createSelfParticipant(activeSelfId);
+      const aliases: string[] = [];
+      if (profile.id && profile.id !== activeSelfId) {
+        aliases.push(profile.id);
+      }
+      if (this.resolvedSelfClientId && this.resolvedSelfClientId !== activeSelfId) {
+        aliases.push(this.resolvedSelfClientId);
+      }
+      this.store.applySelfParticipant(participant, aliases);
+    } else if (profile.id) {
+      const participant = this.createSelfParticipant(profile.id);
+      this.store.applySelfParticipant(participant, [profile.id]);
+    }
   }
 
   setFriends(friends: FriendItem[]): void {
     if (!Array.isArray(friends) || friends.length === 0) return;
     this.store.updateFromFriends(friends);
+  }
+
+  setSupabaseUserId(userId: string | null): void {
+    const trimmed = typeof userId === "string" ? userId.trim() : "";
+    const normalized = trimmed.length > 0 ? trimmed : null;
+    if (this.supabaseUserId === normalized) return;
+    const previousSupabaseId = this.supabaseUserId;
+    this.supabaseUserId = normalized;
+    if (normalized) {
+      this.store.setCurrentUserId(normalized);
+      const aliases: string[] = [];
+      if (previousSupabaseId && previousSupabaseId !== normalized) {
+        aliases.push(previousSupabaseId);
+      }
+      if (this.userProfile.id && this.userProfile.id !== normalized) {
+        aliases.push(this.userProfile.id);
+      }
+      if (this.resolvedSelfClientId && this.resolvedSelfClientId !== normalized) {
+        aliases.push(this.resolvedSelfClientId);
+      }
+      const participant = this.createSelfParticipant(normalized);
+      this.store.applySelfParticipant(participant, aliases);
+    }
   }
 
   getSelfClientId(): string | null {
@@ -95,6 +133,7 @@ export class ChatEngine {
       this.client = client;
       this.clientFactory = options.factory;
       this.resolvedSelfClientId = clientId;
+      this.setSupabaseUserId(clientId);
       this.store.setSelfClientId(clientId);
       const channelName = getChatDirectChannel(clientId);
       this.clientChannelName = channelName;
@@ -137,14 +176,14 @@ export class ChatEngine {
   }
 
   startDirectChat(target: ChatParticipant, options?: { activate?: boolean }): StartChatResult | null {
-    const currentUserId = this.store.getCurrentUserId();
-    if (!currentUserId) {
+    const selfId = this.supabaseUserId ?? this.resolvedSelfClientId ?? this.store.getCurrentUserId();
+    if (!selfId) {
       console.warn("ChatEngine startDirectChat requires a user id");
       return null;
     }
     if (!target?.id) return null;
-    const conversationId = getChatConversationId(currentUserId, target.id);
-    const selfParticipant = this.buildSelfParticipant();
+    const conversationId = getChatConversationId(selfId, target.id);
+    const selfParticipant = this.buildSelfParticipant(selfId);
     const descriptor = {
       id: conversationId,
       type: "direct" as const,
@@ -165,8 +204,8 @@ export class ChatEngine {
     name: string | undefined,
     options?: { activate?: boolean },
   ): Promise<StartChatResult | null> {
-    const currentUserId = this.store.getCurrentUserId();
-    if (!currentUserId) {
+    const selfId = this.supabaseUserId ?? this.resolvedSelfClientId ?? this.store.getCurrentUserId();
+    if (!selfId) {
       console.warn("ChatEngine startGroupChat requires a user id");
       return null;
     }
@@ -182,9 +221,9 @@ export class ChatEngine {
     }
     const conversationId = createGroupConversationId();
     const participantList = Array.from(unique.values());
-    const selfParticipant = this.buildSelfParticipant() ?? {
-      id: currentUserId,
-      name: this.userProfile.name ?? currentUserId,
+    const selfParticipant = this.buildSelfParticipant(selfId) ?? {
+      id: selfId,
+      name: this.userProfile.name ?? selfId,
       avatar: this.userProfile.avatarUrl ?? null,
     };
     const descriptor = {
@@ -192,7 +231,7 @@ export class ChatEngine {
       type: "group" as const,
       title: name?.trim() ?? "",
       avatar: null,
-      createdBy: currentUserId,
+      createdBy: selfId,
       participants: [...participantList, selfParticipant],
     };
     this.store.startSession(descriptor, { activate: options?.activate ?? true });
@@ -394,11 +433,20 @@ export class ChatEngine {
     this.store.applyMessageEvent(payload);
   }
 
-  private buildSelfParticipant(): ChatParticipant | null {
-    const userId = this.store.getCurrentUserId();
-    if (!userId) return null;
-    const name = this.userProfile.name ?? this.userProfile.email ?? userId;
+  private buildSelfParticipant(preferredId?: string | null): ChatParticipant | null {
+    const primary =
+      (typeof preferredId === "string" && preferredId.trim()) ||
+      this.supabaseUserId ||
+      this.resolvedSelfClientId ||
+      this.store.getCurrentUserId();
+    if (!primary) return null;
+    return this.createSelfParticipant(primary);
+  }
+
+  private createSelfParticipant(userId: string): ChatParticipant {
+    const trimmed = userId.trim();
+    const name = this.userProfile.name ?? this.userProfile.email ?? trimmed;
     const avatar = this.userProfile.avatarUrl ?? null;
-    return { id: userId, name, avatar };
+    return { id: trimmed, name, avatar };
   }
 }

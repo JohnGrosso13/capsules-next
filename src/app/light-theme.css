@@ -50,10 +50,11 @@
     --card-border: rgba(14, 23, 42, 0.12);
     /* Unify elevation for light surfaces */
     --card-shadow: var(--shadow-md, 0 12px 32px rgba(15, 23, 42, 0.14));
-    --card-hover-bg-1: rgba(255, 255, 255, 0.98);
-    --card-hover-bg-2: rgba(255, 255, 255, 0.92);
-    --card-hover-border: rgba(14, 23, 42, 0.2);
-    --card-hover-shadow: var(--shadow-lg, 0 20px 48px rgba(15, 23, 42, 0.18));
+    /* On light theme, keep hover background essentially the same to avoid washout */
+    --card-hover-bg-1: var(--card-bg-1);
+    --card-hover-bg-2: var(--card-bg-2);
+    --card-hover-border: rgba(99, 102, 241, 0.26);
+    --card-hover-shadow: 0 22px 48px rgba(99, 102, 241, 0.18);
 
     /* Quiet action plates in posts */
     --feed-action-bg-1: rgba(255, 255, 255, 0.86);
@@ -241,10 +242,10 @@
     --home-skeletoniconbtn-background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(226, 232, 255, 0.68));
     --home-skeletoniconbtn--after-background: linear-gradient(90deg, transparent, rgba(148, 197, 255, 0.45), transparent);
     --home-cardrefreshing--after-background: linear-gradient(180deg, rgba(241, 244, 255, 0.94), rgba(223, 232, 255, 0.82));
-    --home-card--before-background: radial-gradient(120% 90% at 50% -10%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 68%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
-    --home-cardhead-background: linear-gradient(180deg, rgba(247, 249, 255, 0.96), rgba(230, 235, 245, 0.84));
-    --home-cardhead-border-bottom-color: rgba(148, 163, 184, 0.26);
+    /* Disable bright hover overlay on cards in light mode to preserve contrast */
+    --home-card--before-background: none;
+    --home-cardhead-background: linear-gradient(180deg, rgba(250, 252, 255, 0.98), rgba(230, 238, 255, 0.9));
+    --home-cardhead-border-bottom-color: rgba(148, 163, 184, 0.22);
     --home-lightboxoverlay-background: radial-gradient(circle at 50% 20%, rgba(0, 0, 0, 0.06), transparent 70%), rgba(15, 23, 42, 0.68);
     --home-lightboxclose-background: color-mix(in srgb, rgba(255, 255, 255, 0.96) 80%, rgba(148, 197, 255, 0.3));
     --home-lightboxclose-color: var(--text-on-brand, #0e1024);
@@ -510,5 +511,3 @@
         --header-brand-gradient: linear-gradient(120deg, #38bdf8 0%, #0ea5e9 55%, #22d3ee 100%);
   }
 }
-
-

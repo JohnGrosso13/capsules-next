@@ -6,6 +6,7 @@ export type FriendsChannelInfo = { events: string; presence: string } | null;
 export type FriendsSnapshotResponse = {
   graph: SocialGraphSnapshot | null;
   channels: FriendsChannelInfo;
+  viewerId: string | null;
 };
 
 export type FriendsUpdateResult = {
@@ -62,7 +63,9 @@ export async function fetchFriendsSnapshot(envelope: RealtimeEnvelope | null): P
     }
   }
 
-  return { graph, channels };
+  const viewerId = typeof payload?.viewerId === "string" ? payload.viewerId : null;
+
+  return { graph, channels, viewerId };
 }
 
 export async function updateFriendsGraph(

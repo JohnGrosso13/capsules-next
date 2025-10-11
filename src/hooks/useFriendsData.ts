@@ -129,6 +129,7 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
   const [channels, setChannels] = React.useState<ChannelInfo>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [viewerId, setViewerId] = React.useState<string | null>(null);
 
   const refreshRef = React.useRef<number | null>(null);
 
@@ -147,7 +148,8 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
   const refresh = React.useCallback(async () => {
     setLoading((prev) => prev && friendSummaries.length === 0);
     try {
-      const { graph, channels: channelData } = await fetchFriendsSnapshot(envelope);
+      const { graph, channels: channelData, viewerId: snapshotViewerId } = await fetchFriendsSnapshot(envelope);
+      setViewerId(snapshotViewerId ?? null);
       setChannels((prev) => {
         if (
           prev &&
@@ -314,6 +316,7 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     acceptRequest,
     declineRequest,
     cancelRequest,
+    viewerId,
   } as const;
 }
 
