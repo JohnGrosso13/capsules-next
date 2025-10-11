@@ -6,6 +6,7 @@ import {
   Broadcast,
   MagnifyingGlass,
   MagicWand,
+  ImageSquare,
   Newspaper,
   PencilSimple,
   PlusCircle,
@@ -26,7 +27,7 @@ import { useCapsuleFeed } from "@/hooks/useHomeFeed";
 import { useCapsuleMembership } from "@/hooks/useCapsuleMembership";
 import { useCurrentUser } from "@/services/auth/client";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
-import { CapsuleBannerCustomizer, CapsuleTileCustomizer } from "./CapsuleBannerCustomizer";
+import { CapsuleBannerCustomizer, CapsuleLogoCustomizer, CapsuleTileCustomizer } from "./CapsuleBannerCustomizer";
 
 type CapsuleTab = "live" | "feed" | "store";
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
@@ -50,6 +51,7 @@ export function CapsuleContent({
   const [capsuleName, setCapsuleName] = React.useState<string | null>(() => capsuleNameProp ?? null);
   const [bannerCustomizerOpen, setBannerCustomizerOpen] = React.useState(false);
   const [tileCustomizerOpen, setTileCustomizerOpen] = React.useState(false);
+  const [logoCustomizerOpen, setLogoCustomizerOpen] = React.useState(false);
   const [bannerUrlOverride, setBannerUrlOverride] = React.useState<string | null>(null);
   const router = useRouter();
   const { user } = useCurrentUser();
@@ -210,10 +212,12 @@ export function CapsuleContent({
   const capsuleBannerUrl = bannerUrlOverride ?? (membership?.capsule ? membership.capsule.bannerUrl : null);
 
   React.useEffect(() => {
-    if (!canCustomize && bannerCustomizerOpen) {
-      setBannerCustomizerOpen(false);
+    if (!canCustomize) {
+      if (bannerCustomizerOpen) setBannerCustomizerOpen(false);
+      if (tileCustomizerOpen) setTileCustomizerOpen(false);
+      if (logoCustomizerOpen) setLogoCustomizerOpen(false);
     }
-  }, [bannerCustomizerOpen, canCustomize]);
+  }, [bannerCustomizerOpen, canCustomize, logoCustomizerOpen, tileCustomizerOpen]);
 
   React.useEffect(() => {
     setBannerUrlOverride(membership?.capsule?.bannerUrl ?? null);
@@ -341,6 +345,7 @@ export function CapsuleContent({
               ? {
                   onCustomize: () => setBannerCustomizerOpen(true),
                   onCustomizeTile: () => setTileCustomizerOpen(true),
+                  onCustomizeLogo: () => setLogoCustomizerOpen(true),
                 }
               : {})}
             primaryAction={heroPrimary}
@@ -418,6 +423,20 @@ export function CapsuleContent({
           }}
         />
       ) : null}
+      {canCustomize && logoCustomizerOpen ? (
+        <CapsuleLogoCustomizer
+          open
+          capsuleId={capsuleId}
+          capsuleName={normalizedCapsuleName}
+          onClose={() => setLogoCustomizerOpen(false)}
+          onSaved={(result) => {
+            if (result.type === "logo") {
+              setLogoCustomizerOpen(false);
+              void refreshMembership();
+            }
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -428,6 +447,7 @@ type CapsuleHeroProps = {
   canCustomize: boolean;
   onCustomize?: () => void;
   onCustomizeTile?: () => void;
+  onCustomizeLogo?: () => void;
   primaryAction: {
     label: string;
     disabled: boolean;
@@ -447,6 +467,7 @@ function CapsuleHero({
   canCustomize,
   onCustomize,
   onCustomizeTile,
+  onCustomizeLogo,
   primaryAction,
   membersOpen,
   showMembersBadge,
@@ -494,9 +515,22 @@ function CapsuleHero({
                 Customize promo tile
               </button>
             ) : null}
+            {onCustomizeLogo ? (
+              <button
+                type="button"
+                className={`${capTheme.heroCustomizeBtn} ${capTheme.heroCustomizeBtnSecondary}`}
+                aria-label="Customize capsule logo"
+                onClick={() => {
+                  onCustomizeLogo?.();
+                }}
+              >
+                <ImageSquare size={16} weight="bold" />
+                Customize logo
+              </button>
+            ) : null}
           </div>
-                    ) : null}
-          </div>
+        ) : null}
+      </div>
       <div className={capTheme.heroBody}>
           <div className={capTheme.heroDetails}>
             <h2 className={capTheme.heroTitle}>{displayName}</h2>

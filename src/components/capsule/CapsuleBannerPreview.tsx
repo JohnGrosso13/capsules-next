@@ -38,6 +38,7 @@ export function CapsuleBannerPreview({
   onPointerDown,
   onImageLoad,
 }: CapsuleBannerPreviewProps) {
+  const logoInitial = normalizedName.trim().charAt(0).toUpperCase() || "C";
   let content: React.ReactNode;
 
   if (!selectedBanner) {
@@ -78,6 +79,20 @@ export function CapsuleBannerPreview({
             <div className={styles.tileOverlayInner}>
               <span className={styles.tileName}>{normalizedName}</span>
               <span className={styles.tileLogoPlaceholder} />
+            </div>
+          </div>
+        ) : null}
+        {mode === "logo" ? (
+          <div className={styles.logoOverlay} aria-hidden="true">
+            <div className={styles.logoOverlayCard}>
+              <span className={styles.logoOverlayBadge}>Logo preview</span>
+              <div className={styles.logoOverlayPlate}>
+                <span className={styles.logoOverlayInitial}>{logoInitial}</span>
+              </div>
+              <div className={styles.logoOverlayText}>
+                <span className={styles.logoOverlayName}>{normalizedName}</span>
+                <span className={styles.logoOverlayMeta}>Right rail example</span>
+              </div>
             </div>
           </div>
         ) : null}

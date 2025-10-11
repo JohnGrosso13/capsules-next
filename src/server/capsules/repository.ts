@@ -497,6 +497,34 @@ export async function updateCapsulePromoTile(params: {
   return Boolean(result.data?.id);
 }
 
+export async function updateCapsuleLogo(params: {
+  capsuleId: string;
+  ownerId: string;
+  logoUrl: string | null;
+}): Promise<boolean> {
+  const normalizedCapsuleId = normalizeString(params.capsuleId);
+  const normalizedOwnerId = normalizeString(params.ownerId);
+  if (!normalizedCapsuleId || !normalizedOwnerId) {
+    return false;
+  }
+
+  const normalizedLogoUrl = normalizeString(params.logoUrl ?? null);
+
+  const result = await db
+    .from("capsules")
+    .update({ logo_url: normalizedLogoUrl })
+    .eq("id", normalizedCapsuleId)
+    .eq("created_by_id", normalizedOwnerId)
+    .select<{ id: string | null }>("id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.updateLogo", result.error);
+  }
+
+  return Boolean(result.data?.id);
+}
+
 export async function findCapsuleById(capsuleId: string): Promise<CapsuleRow | null> {
   const normalizedId = normalizeString(capsuleId);
   if (!normalizedId) return null;

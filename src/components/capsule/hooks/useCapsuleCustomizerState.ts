@@ -9,11 +9,12 @@ import { computeDisplayUploads } from "@/components/memory/process-uploads";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 
-export type CapsuleCustomizerMode = "banner" | "tile";
+export type CapsuleCustomizerMode = "banner" | "tile" | "logo";
 
 export type CapsuleCustomizerSaveResult =
   | { type: "banner"; bannerUrl: string | null }
-  | { type: "tile"; tileUrl: string | null };
+  | { type: "tile"; tileUrl: string | null }
+  | { type: "logo"; logoUrl: string | null };
 
 type ChatRole = "assistant" | "user";
 
@@ -51,11 +52,11 @@ type PreviewMetrics = {
   maxOffsetY: number;
 };
 
-export const PROMPT_CHIPS = [
-  "Bold neon gradients",
-  "Soft sunrise palette",
-  "Minimal dark mode",
-] as const;
+const PROMPT_CHIP_MAP: Record<CapsuleCustomizerMode, readonly string[]> = {
+  banner: ["Bold neon gradients", "Soft sunrise palette", "Minimal dark mode"] as const,
+  tile: ["Hero launch tile", "Vibrant gradient tile", "Cyberpunk feature art"] as const,
+  logo: ["Minimal monogram logo", "Gradient orb icon", "Playful mascot badge"] as const,
+};
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -100,7 +101,7 @@ function buildAssistantResponse({
   const cleanPrompt = prompt.trim();
   const displayPrompt = cleanPrompt.length ? cleanPrompt : "that idea";
 
-  const assetLabel = asset === "tile" ? "tile" : "banner";
+  const assetLabel = asset === "tile" ? "promo tile" : asset === "logo" ? "logo" : "banner";
   const action =
     mode === "generate" ? `I generated a ${assetLabel}` : `I updated your existing ${assetLabel}`;
   const capsuleSegment = capsuleName.length ? ` for ${capsuleName}` : "";
@@ -211,35 +212,68 @@ export function useCapsuleCustomizerState(
   }, [capsuleName]);
 
   const customizerMode: CapsuleCustomizerMode = mode ?? "banner";
-  const assetLabel = customizerMode === "tile" ? "tile" : "banner";
-  const previewAlt =
-    customizerMode === "tile" ? "Preview of your Capsule promo tile" : "Preview of your Capsule banner";
-  const headerTitle =
-    customizerMode === "tile" ? "Design your Capsule promo tile" : "Design your Capsule banner";
-  const headerSubtitle =
-    customizerMode === "tile"
-      ? "Chat with Capsule AI, pick from memories, or upload brand visuals to set your vertical tile."
-      : "Chat with Capsule AI, pick from memories, or upload brand visuals to set your capsule banner.";
-  const prompterPlaceholder =
-    customizerMode === "tile" ? "Describe your tile or a vibe to try..." : "Describe your banner or a vibe to try...";
-  const aiWorkingMessage =
-    customizerMode === "tile"
-      ? "Let me work on a tile that matches that vibe..."
-      : "Let me work on a banner that matches that vibe...";
-  const assistantIntro =
-    customizerMode === "tile"
-      ? `Hi! I'm here to help you design a promo tile for ${normalizedName}. Describe the mood, colors, or imagery you'd like and I'll generate options.`
-      : `Hi! I'm here to help you design a capsule banner for ${normalizedName}. Describe the mood, colors, or imagery you'd like and I'll generate options.`;
-  const footerDefaultHint =
-    customizerMode === "tile"
-      ? "Upload an image, pick a memory, or describe a new tile below."
-      : "Upload an image, pick a memory, or describe a new banner below.";
-  const stageAriaLabel =
-    customizerMode === "tile" ? "Capsule promo tile preview" : "Capsule banner preview";
-  const recentDescription =
-    customizerMode === "tile"
-      ? "Quickly reuse the vertical art you or Capsule AI picked last."
-      : "Quickly reuse what you or Capsule AI picked last.";
+
+  const {
+    assetLabel,
+    previewAlt,
+    headerTitle,
+    headerSubtitle,
+    prompterPlaceholder,
+    aiWorkingMessage,
+    assistantIntro,
+    footerDefaultHint,
+    stageAriaLabel,
+    recentDescription,
+    promptChips,
+  } = React.useMemo(() => {
+    const safeName = normalizedName;
+    if (customizerMode === "tile") {
+      return {
+        assetLabel: "tile" as const,
+        previewAlt: "Preview of your Capsule promo tile",
+        headerTitle: "Design your Capsule promo tile",
+        headerSubtitle:
+          "Chat with Capsule AI, pick from memories, or upload brand visuals to set your vertical tile.",
+        prompterPlaceholder: "Describe your tile or a vibe to try...",
+        aiWorkingMessage: "Let me work on a tile that matches that vibe...",
+        assistantIntro: `Hi! I'm here to help you design a promo tile for ${safeName}. Describe the mood, colors, or imagery you'd like and I'll generate options.`,
+        footerDefaultHint: "Upload an image, pick a memory, or describe a new tile below.",
+        stageAriaLabel: "Capsule promo tile preview",
+        recentDescription: "Quickly reuse the vertical art you or Capsule AI picked last.",
+        promptChips: PROMPT_CHIP_MAP.tile,
+      };
+    }
+    if (customizerMode === "logo") {
+      return {
+        assetLabel: "logo" as const,
+        previewAlt: "Preview of your Capsule logo",
+        headerTitle: "Design your Capsule logo",
+        headerSubtitle:
+          "Upload a mark, pick a memory, or ask Capsule AI for a square logo that feels on brand everywhere it appears.",
+        prompterPlaceholder: "Describe your logo idea or style...",
+        aiWorkingMessage: "Let me sketch a logo that matches that vibe...",
+        assistantIntro: `Hi! I'm here to help you craft a capsule logo for ${safeName}. Describe letters, shapes, colors, or mascots and I'll mock up options.`,
+        footerDefaultHint: "Upload a mark, pick a memory, or describe a logo below.",
+        stageAriaLabel: "Capsule logo preview",
+        recentDescription: "Reuse logo artwork you or Capsule AI created recently.",
+        promptChips: PROMPT_CHIP_MAP.logo,
+      };
+    }
+    return {
+      assetLabel: "banner" as const,
+      previewAlt: "Preview of your Capsule banner",
+      headerTitle: "Design your Capsule banner",
+      headerSubtitle:
+        "Chat with Capsule AI, pick from memories, or upload brand visuals to set your capsule banner.",
+      prompterPlaceholder: "Describe your banner or a vibe to try...",
+      aiWorkingMessage: "Let me work on a banner that matches that vibe...",
+      assistantIntro: `Hi! I'm here to help you design a capsule banner for ${safeName}. Describe the mood, colors, or imagery you'd like and I'll generate options.`,
+      footerDefaultHint: "Upload an image, pick a memory, or describe a new banner below.",
+      stageAriaLabel: "Capsule banner preview",
+      recentDescription: "Quickly reuse what you or Capsule AI picked last.",
+      promptChips: PROMPT_CHIP_MAP.banner,
+    };
+  }, [customizerMode, normalizedName]);
 
   const { user, envelope, items, loading, error, refresh } = useMemoryUploads("upload");
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
@@ -787,7 +821,8 @@ export function useCapsuleCustomizerState(
           if (source?.imageUrl) body.imageUrl = source.imageUrl;
           if (source?.imageData) body.imageData = source.imageData;
 
-          const response = await fetch("/api/ai/banner", {
+          const aiEndpoint = customizerMode === "logo" ? "/api/ai/logo" : "/api/ai/banner";
+          const response = await fetch(aiEndpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -998,9 +1033,12 @@ export function useCapsuleCustomizerState(
       throw new Error("Unable to read image dimensions.");
     }
 
-    const maxWidth = customizerMode === "tile" ? 1080 : 1600;
-    const maxHeight = customizerMode === "tile" ? 1920 : 900;
-    const aspectRatio = customizerMode === "tile" ? 9 / 16 : 16 / 9;
+    const { maxWidth, maxHeight, aspectRatio } =
+      customizerMode === "tile"
+        ? { maxWidth: 1080, maxHeight: 1920, aspectRatio: 9 / 16 }
+        : customizerMode === "logo"
+          ? { maxWidth: 1024, maxHeight: 1024, aspectRatio: 1 }
+          : { maxWidth: 1600, maxHeight: 900, aspectRatio: 16 / 9 };
 
     let targetWidth = Math.min(maxWidth, naturalWidth);
     let targetHeight = Math.round(targetWidth / aspectRatio);
@@ -1105,7 +1143,8 @@ export function useCapsuleCustomizerState(
       }
       const imageData = btoa(binary);
 
-      const endpoint = customizerMode === "tile" ? "tile" : "banner";
+      const endpoint =
+        customizerMode === "tile" ? "tile" : customizerMode === "logo" ? "logo" : "banner";
       const response = await fetch(`/api/capsules/${capsuleId}/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1139,9 +1178,15 @@ export function useCapsuleCustomizerState(
         throw new Error(message || `Failed to save ${assetLabel}.`);
       }
 
-      const payload = (await response.json()) as { bannerUrl?: string | null; tileUrl?: string | null };
+      const payload = (await response.json()) as {
+        bannerUrl?: string | null;
+        tileUrl?: string | null;
+        logoUrl?: string | null;
+      };
       if (customizerMode === "tile") {
         onSaved?.({ type: "tile", tileUrl: payload.tileUrl ?? null });
+      } else if (customizerMode === "logo") {
+        onSaved?.({ type: "logo", logoUrl: payload.logoUrl ?? null });
       } else {
         onSaved?.({ type: "banner", bannerUrl: payload.bannerUrl ?? null });
       }
@@ -1237,7 +1282,7 @@ export function useCapsuleCustomizerState(
   return {
     open,
     mode: customizerMode,
-    promptChips: PROMPT_CHIPS,
+    promptChips,
     assetLabel,
     headerTitle,
     headerSubtitle,

@@ -23,6 +23,7 @@ import {
   updateCapsuleMemberRole,
   updateCapsuleBanner,
   updateCapsulePromoTile,
+  updateCapsuleLogo,
 } from "./repository";
 import { indexMemory } from "@/server/memories/service";
 import { normalizeMediaUrl } from "@/lib/media";
@@ -398,6 +399,105 @@ export async function updateCapsulePromoTileImage(
   return { tileUrl: resolvedTileUrl };
 }
 
+export async function updateCapsuleLogoImage(
+  ownerId: string,
+  capsuleId: string,
+  params: {
+    logoUrl: string;
+    storageKey?: string | null;
+    mimeType?: string | null;
+    crop?: BannerCrop | null;
+    source?: string | null;
+    originalUrl?: string | null;
+    originalName?: string | null;
+    prompt?: string | null;
+    width?: number | null;
+    height?: number | null;
+    memoryId?: string | null;
+  },
+): Promise<{ logoUrl: string | null }> {
+  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
+  const capsuleIdValue = normalizeId(capsule.id);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.logo.update: capsule has invalid identifier");
+  }
+
+  const normalizedUrl = normalizeOptionalString(params.logoUrl ?? null);
+  if (!normalizedUrl) {
+    throw new CapsuleMembershipError("invalid", "A logo URL is required.", 400);
+  }
+
+  const resolvedLogoUrl = resolveCapsuleMediaUrl(normalizedUrl);
+  if (!resolvedLogoUrl) {
+    throw new CapsuleMembershipError("invalid", "A logo URL is required.", 400);
+  }
+
+  const updated = await updateCapsuleLogo({
+    capsuleId: capsuleIdValue,
+    ownerId: capsuleOwnerId,
+    logoUrl: resolvedLogoUrl,
+  });
+
+  if (!updated) {
+    throw new CapsuleMembershipError("invalid", "Failed to update capsule logo.", 400);
+  }
+
+  const capsuleName = normalizeOptionalString(capsule.name ?? null) ?? "your capsule";
+  const originalName = normalizeOptionalString(params.originalName ?? null);
+
+  const memoryTitle = originalName ? `${originalName} logo` : `Logo for ${capsuleName}`;
+
+  const savedAtIso = new Date().toISOString();
+  const baseDescription = `Custom logo saved for ${capsuleName} on ${savedAtIso}.`;
+  const promptText = normalizeOptionalString(params.prompt ?? null);
+  const description = promptText ? `${baseDescription} Prompt: ${promptText}` : baseDescription;
+
+  const metadata: Record<string, string | number | boolean> = {
+    capsule_id: capsuleIdValue,
+    asset_variant: "logo",
+    asset_ratio: "1:1",
+  };
+
+  if (params.storageKey) metadata.storage_key = params.storageKey;
+  if (params.source) metadata.source_kind = params.source;
+  const resolvedOriginalUrl = resolveCapsuleMediaUrl(
+    normalizeOptionalString(params.originalUrl ?? null),
+  );
+  if (resolvedOriginalUrl) metadata.original_url = resolvedOriginalUrl;
+  if (promptText) metadata.prompt = promptText;
+  if (params.width) metadata.width = params.width;
+  if (params.height) metadata.height = params.height;
+  if (params.originalName) metadata.original_name = params.originalName;
+  if (params.mimeType) metadata.mime_type = params.mimeType;
+  const normalizedMemoryId = normalizeOptionalString(params.memoryId ?? null);
+  if (normalizedMemoryId) metadata.memory_id = normalizedMemoryId;
+  if (params.crop) {
+    if (Number.isFinite(params.crop.offsetX)) {
+      metadata.crop_offset_x = Number(params.crop.offsetX.toFixed(4));
+    }
+    if (Number.isFinite(params.crop.offsetY)) {
+      metadata.crop_offset_y = Number(params.crop.offsetY.toFixed(4));
+    }
+  }
+
+  await indexMemory({
+    ownerId: capsuleOwnerId,
+    kind: "upload",
+    mediaUrl: resolvedLogoUrl,
+    mediaType: normalizeOptionalString(params.mimeType ?? null) ?? "image/jpeg",
+    title: memoryTitle,
+    description,
+    postId: null,
+    metadata: Object.keys(metadata).length ? metadata : null,
+    rawText: description,
+    source: "capsule_logo",
+    tags: ["capsule", "logo", capsuleName],
+    eventAt: savedAtIso,
+  });
+
+  return { logoUrl: resolvedLogoUrl };
+}
+
 export async function getCapsuleMembership(
   capsuleId: string,
   viewerId: string | null | undefined,
@@ -456,6 +556,7 @@ export async function getCapsuleMembership(
       ownerId,
       bannerUrl: resolveCapsuleMediaUrl(capsule.banner_url ?? null),
       promoTileUrl: resolveCapsuleMediaUrl(capsule.promo_tile_url ?? null),
+      logoUrl: resolveCapsuleMediaUrl(capsule.logo_url ?? null),
     },
     viewer,
     counts: {

@@ -53,6 +53,7 @@ export type CapsuleMembershipState = {
     ownerId: string;
     bannerUrl: string | null;
     promoTileUrl: string | null;
+    logoUrl: string | null;
   };
   viewer: CapsuleMembershipViewer;
   counts: {

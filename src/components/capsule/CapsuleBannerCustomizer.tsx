@@ -7,7 +7,6 @@ import styles from "./CapsuleBannerCustomizer.module.css";
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
 import { Button } from "@/components/ui/button";
 import {
-  PROMPT_CHIPS,
   useCapsuleCustomizerState,
   type CapsuleCustomizerMode,
   type CapsuleCustomizerSaveResult,
@@ -42,6 +41,7 @@ export function CapsuleBannerCustomizer(props: CapsuleBannerCustomizerProps) {
   const {
     open,
     mode,
+    promptChips,
     assetLabel,
     headerTitle,
     headerSubtitle,
@@ -64,6 +64,7 @@ export function CapsuleBannerCustomizer(props: CapsuleBannerCustomizerProps) {
   if (!open) return null;
 
   const { messages, busy, prompterSession, onPrompterAction, logRef } = chat;
+  const saveLabel = mode === "tile" ? "Save tile" : mode === "logo" ? "Save logo" : "Save banner";
 
   return (
     <div className={styles.overlay} role="presentation" onClick={overlayClick}>
@@ -175,7 +176,7 @@ export function CapsuleBannerCustomizer(props: CapsuleBannerCustomizerProps) {
               </div>
 
               <div className={styles.intentChips}>
-                {PROMPT_CHIPS.map((chip) => (
+                {promptChips.map((chip) => (
                   <button
                     key={chip}
                     type="button"
@@ -256,7 +257,7 @@ export function CapsuleBannerCustomizer(props: CapsuleBannerCustomizerProps) {
               disabled={!preview.selected || preview.selected.kind === "ai" || save.pending}
               loading={save.pending}
             >
-              {mode === "tile" ? "Save tile" : "Save banner"}
+              {saveLabel}
             </Button>
           </div>
         </footer>
@@ -267,6 +268,10 @@ export function CapsuleBannerCustomizer(props: CapsuleBannerCustomizerProps) {
 
 export function CapsuleTileCustomizer(props: Omit<CapsuleBannerCustomizerProps, "mode">) {
   return <CapsuleBannerCustomizer {...props} mode="tile" />;
+}
+
+export function CapsuleLogoCustomizer(props: Omit<CapsuleBannerCustomizerProps, "mode">) {
+  return <CapsuleBannerCustomizer {...props} mode="logo" />;
 }
 
 export type { CapsuleCustomizerSaveResult, CapsuleCustomizerMode };
