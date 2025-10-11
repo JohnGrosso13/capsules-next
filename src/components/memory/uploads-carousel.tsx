@@ -7,6 +7,7 @@ import styles from "./uploads-carousel.module.css";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 import { computeDisplayUploads } from "./process-uploads";
 import { useMemoryUploads } from "./use-memory-uploads";
@@ -212,23 +213,21 @@ export function UploadsCarousel() {
         <h3 className={styles.title}>Uploads</h3>
         <div className={styles.controls}>
           <Button
-            variant="ghost"
+            variant="secondary"
             size="icon"
+            leftIcon={<CaretLeft size={18} weight="bold" />}
             onClick={handleShowPrev}
             aria-label="Previous uploads"
             disabled={!hasRotation}
-          >
-            {"<"}
-          </Button>
+          />
           <Button
-            variant="ghost"
+            variant="secondary"
             size="icon"
+            leftIcon={<CaretRight size={18} weight="bold" />}
             onClick={handleShowNext}
             aria-label="Next uploads"
             disabled={!hasRotation}
-          >
-            {">"}
-          </Button>
+          />
           <input
             ref={fileInputRef}
             type="file"

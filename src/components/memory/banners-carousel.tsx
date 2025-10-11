@@ -9,6 +9,7 @@ import { useMemoryUploads } from "./use-memory-uploads";
 import { computeDisplayUploads } from "./process-uploads";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import type { DisplayMemoryUpload } from "./uploads-types";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 const MAX_VISIBLE = 6;
 
@@ -135,23 +136,21 @@ export function BannersCarousel() {
         <h3 className={styles.title}>Banners and Tiles</h3>
         <div className={styles.controls}>
           <Button
-            variant="ghost"
+            variant="secondary"
             size="icon"
+            leftIcon={<CaretLeft size={18} weight="bold" />}
             onClick={handleShowPrev}
             aria-label="Previous banners and tiles"
             disabled={!hasRotation || loading}
-          >
-            {"<"}
-          </Button>
+          />
           <Button
-            variant="ghost"
+            variant="secondary"
             size="icon"
+            leftIcon={<CaretRight size={18} weight="bold" />}
             onClick={handleShowNext}
             aria-label="Next banners and tiles"
             disabled={!hasRotation || loading}
-          >
-            {">"}
-          </Button>
+          />
           <Button
             variant="secondary"
             size="sm"
@@ -185,6 +184,5 @@ export function BannersCarousel() {
     </div>
   );
 }
-
 
 
