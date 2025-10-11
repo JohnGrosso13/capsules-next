@@ -136,8 +136,14 @@
   justify-content: center;
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
-  background: color-mix(in srgb, var(--color-brand) 30%, transparent);
+  border: 1px solid var(
+    --settings-active-badge-border,
+    color-mix(in srgb, var(--color-brand) 55%, transparent)
+  );
+  background: var(
+    --settings-active-badge-background,
+    color-mix(in srgb, var(--color-brand) 30%, transparent)
+  );
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;

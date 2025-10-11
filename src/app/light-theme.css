@@ -1,8 +1,14 @@
 @layer base {
   :root[data-theme="light"] {
+    /* Base color tokens (light) */
+    --color-fg: rgba(14, 16, 36, 0.96);
+    --color-fg-muted: rgba(14, 16, 36, 0.76);
+    --color-fg-subtle: rgba(14, 16, 36, 0.6);
+    --color-border: rgba(14, 23, 42, 0.12);
+    --color-border-strong: rgba(14, 23, 42, 0.22);
     /* Readable text tokens for components expecting --text/--text-2 */
-    --text: var(--color-fg, rgba(14, 16, 36, 0.96));
-    --text-2: var(--color-fg-muted, rgba(14, 16, 36, 0.76));
+    --text: var(--color-fg);
+    --text-2: var(--color-fg-muted);
     --text-on-brand: var(--color-brand-foreground, #0e1024);
 
     --dock-bg-1: rgba(255, 255, 255, 0.96);
@@ -74,6 +80,8 @@
     --rail-bg-1: rgba(255, 255, 255, 0.95);
     --rail-bg-2: rgba(255, 255, 255, 0.86);
     --rail-border: rgba(14, 23, 42, 0.12);
+    /* App background for components that read --app-bg (e.g., swatch previews) */
+    --app-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 247, 255, 0.92));
 
     --text-3: var(--color-fg-subtle, rgba(14, 16, 36, 0.6));
     --accent-glow: rgba(15, 23, 42, 0.14);
@@ -626,6 +634,9 @@
     --settings-nav-item-active-shadow: 0 0 18px var(--accent-glow, rgba(79, 70, 229, 0.24)),
       0 6px 12px rgba(37, 47, 88, 0.18),
       inset 0 1px 0 rgba(255, 255, 255, 0.82);
+    /* Themes panel – Active badge uses header blues */
+    --settings-active-badge-background: color-mix(in srgb, var(--header-brand-color, #0ea5e9) 35%, transparent);
+    --settings-active-badge-border: color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 62%, transparent);
 
     --surface-1: rgba(255, 255, 255, 0.98);
     --surface-3: rgba(245, 247, 255, 0.94);
