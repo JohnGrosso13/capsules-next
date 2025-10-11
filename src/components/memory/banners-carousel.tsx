@@ -3,13 +3,14 @@
 import * as React from "react";
 import useEmblaCarousel from "embla-carousel-react";
 
-import styles from "./uploads-carousel.module.css";
 import { Button } from "@/components/ui/button";
 import { useMemoryUploads } from "./use-memory-uploads";
 import { computeDisplayUploads } from "./process-uploads";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import type { DisplayMemoryUpload } from "./uploads-types";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import styles from "./uploads-carousel.module.css";
+import { MemoryUploadDetailDialog } from "./upload-detail-dialog";
 
 const MAX_VISIBLE = 6;
 
@@ -25,6 +26,7 @@ export function BannersCarousel() {
   const { user, items, loading, error, refresh } = useMemoryUploads("banner");
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: "start", dragFree: true, loop: false });
   const [slidesPerView, setSlidesPerView] = React.useState<number>(() => getSlidesPerView());
+  const [activeItem, setActiveItem] = React.useState<DisplayMemoryUpload | null>(null);
 
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
   const currentOrigin = React.useMemo(
@@ -106,16 +108,23 @@ export function BannersCarousel() {
     const title = item.title?.trim() || item.description?.trim() || "Capsule banner";
     const desc = item.description?.trim() || null;
     return (
-      <div className={styles.card}>
-        <div className={`${styles.media} ${styles.bannerMedia}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className={styles.img} src={url} alt={title} />
+      <button
+        type="button"
+        className={styles.cardButton}
+        onClick={() => setActiveItem(item)}
+        aria-label={`View details for ${title}`}
+      >
+        <div className={styles.card}>
+          <div className={`${styles.media} ${styles.bannerMedia}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className={styles.img} src={url} alt={title} />
+          </div>
+          <div className={styles.meta}>
+            <h4 className={styles.metaTitle}>{title}</h4>
+            {desc ? <p className={styles.metaDesc}>{desc}</p> : null}
+          </div>
         </div>
-        <div className={styles.meta}>
-          <h4 className={styles.metaTitle}>{title}</h4>
-          {desc ? <p className={styles.metaDesc}>{desc}</p> : null}
-        </div>
-      </div>
+      </button>
     );
   };
 
@@ -131,11 +140,12 @@ export function BannersCarousel() {
   }
 
   return (
-    <div className={styles.root}>
-      <div className={styles.header}>
-        <h3 className={styles.title}>Banners and Tiles</h3>
-        <div className={styles.controls}>
-          <Button
+    <>
+      <div className={styles.root}>
+        <div className={styles.header}>
+          <h3 className={styles.title}>Banners and Tiles</h3>
+          <div className={styles.controls}>
+            <Button
             variant="secondary"
             size="icon"
             leftIcon={<CaretLeft size={18} weight="bold" />}
@@ -181,8 +191,9 @@ export function BannersCarousel() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+      <MemoryUploadDetailDialog item={activeItem} onClose={() => setActiveItem(null)} />
+    </>
   );
 }
-
 

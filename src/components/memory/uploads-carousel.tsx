@@ -3,7 +3,6 @@
 import * as React from "react";
 import useEmblaCarousel from "embla-carousel-react";
 
-import styles from "./uploads-carousel.module.css";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
@@ -12,6 +11,8 @@ import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { computeDisplayUploads } from "./process-uploads";
 import { useMemoryUploads } from "./use-memory-uploads";
 import type { DisplayMemoryUpload } from "./uploads-types";
+import styles from "./uploads-carousel.module.css";
+import { MemoryUploadDetailDialog } from "./upload-detail-dialog";
 
 function isVideo(mime: string | null | undefined) {
   return typeof mime === "string" && mime.startsWith("video/");
@@ -33,6 +34,7 @@ export function UploadsCarousel() {
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: "start", dragFree: true, loop: false });
   const [slidesPerView, setSlidesPerView] = React.useState<number>(() => getSlidesPerView());
+  const [activeItem, setActiveItem] = React.useState<DisplayMemoryUpload | null>(null);
 
   const {
     fileInputRef,
@@ -172,27 +174,34 @@ export function UploadsCarousel() {
     const title = item.title?.trim() || item.description?.trim() || "Upload";
     const desc = item.description?.trim() || null;
     return (
-      <div className={styles.card}>
-        <div className={styles.media}>
-          {isVideo(mime) ? (
-            <video
-              className={styles.video}
-              src={item.fullUrl || url}
-              preload="metadata"
-              muted
-              playsInline
-              loop
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img className={styles.img} src={url} alt={title} />
-          )}
+      <button
+        type="button"
+        className={styles.cardButton}
+        onClick={() => setActiveItem(item)}
+        aria-label={`View details for ${title}`}
+      >
+        <div className={styles.card}>
+          <div className={styles.media}>
+            {isVideo(mime) ? (
+              <video
+                className={styles.video}
+                src={item.fullUrl || url}
+                preload="metadata"
+                muted
+                playsInline
+                loop
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className={styles.img} src={url} alt={title} />
+            )}
+          </div>
+          <div className={styles.meta}>
+            <h4 className={styles.metaTitle}>{title}</h4>
+            {desc ? <p className={styles.metaDesc}>{desc}</p> : null}
+          </div>
         </div>
-        <div className={styles.meta}>
-          <h4 className={styles.metaTitle}>{title}</h4>
-          {desc ? <p className={styles.metaDesc}>{desc}</p> : null}
-        </div>
-      </div>
+      </button>
     );
   };
 
@@ -208,11 +217,12 @@ export function UploadsCarousel() {
   }
 
   return (
-    <div className={styles.root}>
-      <div className={styles.header}>
-        <h3 className={styles.title}>Uploads</h3>
-        <div className={styles.controls}>
-          <Button
+    <>
+      <div className={styles.root}>
+        <div className={styles.header}>
+          <h3 className={styles.title}>Uploads</h3>
+          <div className={styles.controls}>
+            <Button
             variant="secondary"
             size="icon"
             leftIcon={<CaretLeft size={18} weight="bold" />}
@@ -275,6 +285,8 @@ export function UploadsCarousel() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+      <MemoryUploadDetailDialog item={activeItem} onClose={() => setActiveItem(null)} />
+    </>
   );
 }
