@@ -127,6 +127,57 @@
     --style-friends-badge-bg: var(--tile-badge-bg-base);
     --style-friends-badge-color: var(--tile-badge-color-base);
     --style-friends-border-hover: var(--tile-border-hover-base);
+    /* Party tile tokens (blue to match header) */
+    --style-party-bg: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--header-brand-color, #0ea5e9) 24%, transparent),
+      color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 20%, transparent)
+    ), var(--tile-bg-base);
+    --style-party-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 36%,
+      var(--tile-border-base)
+    );
+    --style-party-text: var(--tile-text-base);
+    --style-party-desc: var(--tile-desc-base);
+    --style-party-shadow: var(--tile-shadow-base);
+    --style-party-shadow-hover: 0 12px 26px color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 18%,
+      rgba(15, 23, 42, 0.16)
+    );
+    --style-party-icon-bg: color-mix(
+      in srgb,
+      var(--header-brand-color, #0ea5e9) 26%,
+      rgba(255, 255, 255, 0.12)
+    );
+    --style-party-icon-color: var(--tile-icon-color-base);
+    --style-party-badge-bg: color-mix(
+      in srgb,
+      var(--header-brand-color, #0ea5e9) 62%,
+      rgba(59, 130, 246, 0.28)
+    );
+    --style-party-badge-color: var(--text-on-brand, #0e1024);
+    --style-party-border-hover: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 48%,
+      var(--tile-border-hover-base)
+    );
+    --style-party-accent-a: color-mix(
+      in srgb,
+      var(--header-brand-color, #0ea5e9) 58%,
+      #3b82f6
+    );
+    --style-party-accent-b: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 46%,
+      #0ea5e9
+    );
+    --style-party-accent-c: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 28%,
+      rgba(15, 23, 42, 0.72)
+    );
     --style-chats-bg: var(--tile-bg-base);
     --style-chats-border: var(--tile-border-base);
     --style-chats-text: var(--tile-text-base);
@@ -325,6 +376,32 @@
       180deg,
       color-mix(in srgb, var(--color-brand) 55%, rgba(59, 130, 246, 0.2)),
       color-mix(in srgb, var(--color-brand) 65%, rgba(22, 163, 255, 0.18))
+    );
+    /* Friends party action tokens */
+    --friends-party-action-text: var(--text-on-brand, #0e1024);
+    --friends-party-action-background: var(
+      --header-brand-gradient,
+      linear-gradient(120deg, #38bdf8 0%, #0ea5e9 55%, #22d3ee 100%)
+    );
+    --friends-party-action-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 62%,
+      transparent
+    );
+    --friends-party-action-hover-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 72%,
+      transparent
+    );
+    --friends-party-action-active-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 82%,
+      transparent
+    );
+    --friends-party-action-active-shadow: 0 14px 32px color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 28%,
+      rgba(15, 23, 42, 0.18)
     );
 
     /* AI prompter tokens */

@@ -55,9 +55,9 @@
   gap: 10px;
   padding: 10px 18px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-brand) 65%, transparent);
-  background: color-mix(in srgb, var(--color-brand) 30%, transparent);
-  color: var(--text);
+  border: 1px solid var(--friends-action-border, color-mix(in srgb, var(--color-brand) 65%, transparent));
+  background: var(--friends-action-background, color-mix(in srgb, var(--color-brand) 30%, transparent));
+  color: var(--friends-action-text, var(--text));
   font-weight: 700;
   letter-spacing: 0.01em;
   transition: transform 160ms ease, filter 160ms ease, border-color 160ms ease;
@@ -65,8 +65,8 @@
 
 .chatActionButton:hover:not(:disabled) {
   transform: translateY(-1px);
-  filter: brightness(1.05);
-  border-color: color-mix(in srgb, var(--color-brand) 75%, transparent);
+  filter: var(--friends-action-hover-filter, brightness(1.05));
+  border-color: var(--friends-action-hover-border, color-mix(in srgb, var(--color-brand) 75%, transparent));
 }
 
 .chatActionButton:disabled {
@@ -77,8 +77,32 @@
 }
 
 .chatActionButtonActive {
-  border-color: color-mix(in srgb, var(--color-brand) 85%, transparent);
-  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-brand) 28%, transparent);
+  border-color: var(--friends-action-active-border, color-mix(in srgb, var(--color-brand) 85%, transparent));
+  box-shadow: var(--friends-action-active-shadow, 0 12px 26px color-mix(in srgb, var(--color-brand) 28%, transparent));
+}
+
+.partyActionButton {
+  --friends-action-text: var(--friends-party-action-text, var(--text));
+  --friends-action-border: var(
+    --friends-party-action-border,
+    color-mix(in srgb, var(--color-brand) 65%, transparent)
+  );
+  --friends-action-background: var(
+    --friends-party-action-background,
+    color-mix(in srgb, var(--color-brand) 30%, transparent)
+  );
+  --friends-action-hover-border: var(
+    --friends-party-action-hover-border,
+    color-mix(in srgb, var(--color-brand) 75%, transparent)
+  );
+  --friends-action-active-border: var(
+    --friends-party-action-active-border,
+    color-mix(in srgb, var(--color-brand) 85%, transparent)
+  );
+  --friends-action-active-shadow: var(
+    --friends-party-action-active-shadow,
+    0 12px 26px color-mix(in srgb, var(--color-brand) 28%, transparent)
+  );
 }
 
 .livePill {
@@ -499,7 +523,6 @@
     justify-content: flex-end;
   }
 }
-
 
 
 

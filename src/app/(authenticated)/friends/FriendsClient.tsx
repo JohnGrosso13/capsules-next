@@ -384,7 +384,9 @@ export function FriendsClient() {
               </button>
               <button
                 type="button"
-                className={`${styles.chatActionButton} ${isPartyActive ? styles.chatActionButtonActive : ""}`.trim()}
+                className={`${styles.chatActionButton} ${styles.partyActionButton} ${
+                  isPartyActive ? styles.chatActionButtonActive : ""
+                }`.trim()}
                 onClick={() => selectTab("Party")}
                 disabled={partyButtonDisabled}
               >

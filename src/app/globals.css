@@ -420,6 +420,13 @@
       color-mix(in srgb, var(--color-brand) 60%, rgba(10, 12, 32, 0.75)),
       color-mix(in srgb, var(--color-brand) 70%, rgba(6, 8, 24, 0.85))
     );
+    /* Friends party action tokens */
+    --friends-party-action-text: var(--text);
+    --friends-party-action-border: color-mix(in srgb, var(--color-brand) 65%, transparent);
+    --friends-party-action-background: color-mix(in srgb, var(--color-brand) 30%, transparent);
+    --friends-party-action-hover-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
+    --friends-party-action-active-border: color-mix(in srgb, var(--color-brand) 85%, transparent);
+    --friends-party-action-active-shadow: 0 12px 26px color-mix(in srgb, var(--color-brand) 28%, transparent);
 
     /* AI prompter tokens */
     --prompter-ai-message-background: var(--cta-gradient);
@@ -982,7 +989,6 @@
     animation: marquee 60s linear infinite;
   }
 }
-
 
 
 

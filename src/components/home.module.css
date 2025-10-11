@@ -7129,9 +7129,19 @@
   --tile-badge-color-final: var(--style-party-badge-color, var(--tile-badge-color-base));
   --tile-border-hover: var(--style-party-border-hover, var(--tile-border-hover-base));
   --tile-shadow-hover: var(--style-party-shadow-hover, var(--tile-shadow-hover-base));
-  --tile-accent-a: color-mix(in srgb, var(--color-brand) 48%, #6366f1);
-  --tile-accent-b: color-mix(in srgb, var(--color-info) 36%, #3b82f6);
-  --tile-accent-c: color-mix(in srgb, var(--color-brand) 26%, rgba(15, 23, 42, 0.72));
+  /* Use tokenized party accent colors; fall back keeps existing look */
+  --tile-accent-a: var(
+    --style-party-accent-a,
+    color-mix(in srgb, var(--header-brand-color, var(--color-info)) 58%, #3b82f6)
+  );
+  --tile-accent-b: var(
+    --style-party-accent-b,
+    color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 46%, #0ea5e9)
+  );
+  --tile-accent-c: var(
+    --style-party-accent-c,
+    color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 28%, rgba(15, 23, 42, 0.72))
+  );
   --tile-glow-opacity: 0.28;
 }
 
@@ -8116,7 +8126,6 @@ ers */
 
 
 }
-
 
 
 

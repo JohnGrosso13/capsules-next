@@ -631,7 +631,7 @@ export function ConnectionsRail() {
               </button>
               <button
                 type="button"
-                className={`${friendsStyles.chatActionButton} ${
+                className={`${friendsStyles.chatActionButton} ${friendsStyles.partyActionButton} ${
                   isPartyActive ? friendsStyles.chatActionButtonActive : ""
                 }`.trim()}
                 onClick={handlePartyButtonClick}
