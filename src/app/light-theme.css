@@ -320,6 +320,7 @@
     --home-railtab-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82),
       inset 0 -1px 0 rgba(14, 23, 42, 0.12),
       0 2px 8px rgba(15, 23, 42, 0.12);
+    --home-railtab-accent: var(--header-brand-strong-color, #2563eb);
 
     /* Friends surface tokens */
     --friends-tabs-scrim: color-mix(in srgb, var(--surface-overlay, rgba(255, 255, 255, 0.78)) 82%, rgba(148, 197, 255, 0.22));
@@ -403,6 +404,52 @@
       var(--header-brand-strong-color, #2563eb) 28%,
       rgba(15, 23, 42, 0.18)
     );
+
+    /* Friends group action tokens (light: header blue) */
+    --friends-group-action-text: var(--text-on-brand, #0e1024);
+    --friends-group-action-background: var(
+      --header-brand-gradient,
+      linear-gradient(120deg, #38bdf8 0%, #0ea5e9 55%, #22d3ee 100%)
+    );
+    --friends-group-action-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 62%,
+      transparent
+    );
+    --friends-group-action-hover-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 72%,
+      transparent
+    );
+    --friends-group-action-active-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 82%,
+      transparent
+    );
+    --friends-group-action-active-shadow: 0 14px 32px color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 28%,
+      rgba(15, 23, 42, 0.18)
+    );
+
+    /* Party Voice tokens (hero, buttons, status) */
+    --party-hero-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--header-brand-color, #0ea5e9) 35%, transparent) 0%,
+      color-mix(in srgb, var(--header-brand-color, #0ea5e9) 10%, transparent) 100%
+    );
+    --party-hero-accent: color-mix(in srgb, var(--header-brand-color, #0ea5e9) 55%, transparent);
+    --party-primary-background: var(
+      --header-brand-gradient,
+      linear-gradient(120deg, #38bdf8 0%, #0ea5e9 55%, #22d3ee 100%)
+    );
+    --party-primary-border: color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 85%, transparent);
+    --party-status-background: color-mix(in srgb, var(--header-brand-color, #0ea5e9) 25%, transparent);
+    --party-status-border: color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 60%, transparent);
+    --party-startaudio-border: color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 65%, transparent);
+    --party-startaudio-background: color-mix(in srgb, var(--header-brand-color, #0ea5e9) 20%, transparent);
+    --party-control-hover-border: color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 60%, transparent);
+    --party-input-focus-border: color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 75%, transparent);
 
     /* AI prompter tokens */
     --prompter-ai-message-background: var(--cta-gradient);

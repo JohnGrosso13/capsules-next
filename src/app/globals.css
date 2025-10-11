@@ -427,6 +427,34 @@
     --friends-party-action-hover-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
     --friends-party-action-active-border: color-mix(in srgb, var(--color-brand) 85%, transparent);
     --friends-party-action-active-shadow: 0 12px 26px color-mix(in srgb, var(--color-brand) 28%, transparent);
+    /* Friends group action tokens (dark: fallback to brand) */
+    --friends-group-action-text: var(--text);
+    --friends-group-action-border: color-mix(in srgb, var(--color-brand) 65%, transparent);
+    --friends-group-action-background: color-mix(in srgb, var(--color-brand) 30%, transparent);
+    --friends-group-action-hover-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
+    --friends-group-action-active-border: color-mix(in srgb, var(--color-brand) 85%, transparent);
+    --friends-group-action-active-shadow: 0 12px 26px color-mix(in srgb, var(--color-brand) 28%, transparent);
+    --home-railtab-accent: var(--color-brand-strong);
+
+    /* Party Voice tokens defaults (dark fallback to brand) */
+    --party-hero-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 35%, transparent) 0%,
+      color-mix(in srgb, var(--color-brand) 10%, transparent) 100%
+    );
+    --party-hero-accent: color-mix(in srgb, var(--color-brand) 55%, transparent);
+    --party-primary-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 75%, transparent),
+      color-mix(in srgb, var(--color-brand) 45%, transparent)
+    );
+    --party-primary-border: color-mix(in srgb, var(--color-brand) 85%, transparent);
+    --party-status-background: color-mix(in srgb, var(--color-brand) 25%, transparent);
+    --party-status-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
+    --party-startaudio-border: color-mix(in srgb, var(--color-brand) 65%, transparent);
+    --party-startaudio-background: color-mix(in srgb, var(--color-brand) 20%, transparent);
+    --party-control-hover-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
+    --party-input-focus-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
 
     /* AI prompter tokens */
     --prompter-ai-message-background: var(--cta-gradient);
@@ -989,7 +1017,6 @@
     animation: marquee 60s linear infinite;
   }
 }
-
 
 
 

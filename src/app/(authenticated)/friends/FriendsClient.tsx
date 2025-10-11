@@ -375,7 +375,7 @@ export function FriendsClient() {
             <div className={styles.tabsHeaderAction}>
               <button
                 type="button"
-                className={styles.chatActionButton}
+                className={`${styles.chatActionButton} ${styles.groupActionButton}`}
                 onClick={handleOpenGroupCreator}
                 disabled={groupButtonDisabled}
               >

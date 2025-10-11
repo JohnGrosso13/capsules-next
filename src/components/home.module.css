@@ -7705,7 +7705,7 @@
 
 
 
-  outline: 2px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--home-railtab-accent, var(--color-brand)) 55%, transparent);
 
 
 
@@ -7941,7 +7941,7 @@
 
 
 
-  border-color: color-mix(in srgb, var(--color-brand) 45%, var(--pill-border));
+  border-color: color-mix(in srgb, var(--home-railtab-accent, var(--color-brand)) 45%, var(--pill-border));
 
 
 
@@ -7977,7 +7977,7 @@
 
 
 
-    0 8px 18px color-mix(in srgb, var(--color-brand) 18%, rgba(5, 10, 30, 0.28)); /* reduced drop */
+    0 8px 18px color-mix(in srgb, var(--home-railtab-accent, var(--color-brand)) 18%, rgba(5, 10, 30, 0.28)); /* reduced drop */
 
 
 
@@ -8126,9 +8126,6 @@ ers */
 
 
 }
-
-
-
 
 
 

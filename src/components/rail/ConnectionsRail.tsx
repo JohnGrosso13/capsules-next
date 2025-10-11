@@ -621,7 +621,7 @@ export function ConnectionsRail() {
             <div className={homeStyles.railHeaderAction}>
               <button
                 type="button"
-                className={friendsStyles.chatActionButton}
+                className={`${friendsStyles.chatActionButton} ${friendsStyles.groupActionButton}`}
                 onClick={handleOpenGroupCreator}
                 disabled={!hasEligibleFriends}
                 aria-label="Start a group chat"

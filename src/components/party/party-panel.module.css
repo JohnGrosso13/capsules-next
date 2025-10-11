@@ -123,8 +123,8 @@
 }
 
 .noticeInfo {
-  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
-  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+  background: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 18%, transparent);
+  border-color: color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 55%, transparent);
 }
 
 .heroCard {
@@ -134,10 +134,13 @@
   padding: 28px 32px;
   border-radius: 28px;
   border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-brand) 35%, transparent) 0%,
-    color-mix(in srgb, var(--color-brand) 10%, transparent) 100%
+  background: var(
+    --party-hero-background,
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 35%, transparent) 0%,
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 10%, transparent) 100%
+    )
   );
   position: relative;
   overflow: hidden;
@@ -149,7 +152,7 @@
   inset: 30% -60% -30% 40%;
   background: radial-gradient(
     circle at center,
-    color-mix(in srgb, var(--color-brand) 55%, transparent) 0%,
+    var(--party-hero-accent, color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 55%, transparent)) 0%,
     transparent 70%
   );
   opacity: 0.45;
@@ -222,7 +225,7 @@
 
 .input:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--color-brand) 75%, transparent);
+  border-color: var(--party-input-focus-border, color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 75%, transparent));
   background: color-mix(in srbg, var(--card-background, #111827) 88%, transparent);
 }
 
@@ -241,12 +244,18 @@
 }
 
 .primaryButton {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-brand) 75%, transparent),
-    color-mix(in srgb, var(--color-brand) 45%, transparent)
+  background: var(
+    --party-primary-background,
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 75%, transparent),
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 45%, transparent)
+    )
   );
-  border: 1px solid color-mix(in srgb, var(--color-brand) 85%, transparent);
+  border: 1px solid var(
+    --party-primary-border,
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 85%, transparent)
+  );
   color: var(--text-on-brand, #0b0b0b);
 }
 
@@ -300,8 +309,8 @@
   gap: 8px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-brand) 25%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, transparent);
+  background: var(--party-status-background, color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 25%, transparent));
+  border: 1px solid var(--party-status-border, color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 60%, transparent));
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -364,9 +373,9 @@
   margin-bottom: 12px;
   align-self: flex-start;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-brand) 65%, transparent);
+  border: 1px solid var(--party-startaudio-border, color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 65%, transparent));
   padding: 8px 14px;
-  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
+  background: var(--party-startaudio-background, color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 20%, transparent));
   color: var(--text);
   font-weight: 600;
 }
@@ -502,7 +511,7 @@
 }
 
 .controlButton:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--color-brand) 60%, transparent);
+  border-color: var(--party-control-hover-border, color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 60%, transparent));
   transform: translateY(-1px);
 }
 
