@@ -36,8 +36,10 @@ export async function getUserProfileSummary(userId: string): Promise<{
   avatarUrl: string | null;
 }> {
   const user = await requireUser(userId);
+  const resolvedId =
+    typeof user.id === "number" ? String(user.id) : typeof user.id === "string" ? user.id : "";
   return {
-    id: user.id,
+    id: resolvedId,
     name: normalizeOptionalString(user.full_name ?? null),
     avatarUrl: resolveProfileMediaUrl(user.avatar_url ?? null),
   };

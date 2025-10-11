@@ -80,6 +80,11 @@ export function AccountSettingsSection({
         throw new Error(message || `Avatar reset failed with status ${response.status}`);
       }
       setCustomAvatarUrl(null);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("capsules:avatar-updated", { detail: { avatarUrl: null } }),
+        );
+      }
     } catch (err) {
       console.error("settings account reset error", err);
       setError("Unable to reset your avatar. Please try again.");

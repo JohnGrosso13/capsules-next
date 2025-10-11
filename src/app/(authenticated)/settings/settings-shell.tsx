@@ -47,6 +47,52 @@ export function SettingsShell({
   accountProfile,
 }: SettingsShellProps): React.JSX.Element {
   const [activeSection, setActiveSection] = React.useState<SettingsSectionKey>("capsules");
+  const [accountProfileState, setAccountProfileState] =
+    React.useState<AccountProfileProps>(accountProfile);
+  const lastAccountProfileProp = React.useRef<AccountProfileProps>(accountProfile);
+
+  React.useEffect(() => {
+    if (lastAccountProfileProp.current !== accountProfile) {
+      lastAccountProfileProp.current = accountProfile;
+      setAccountProfileState(accountProfile);
+    }
+  }, [accountProfile]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handleAvatarUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ avatarUrl?: unknown }>).detail;
+      if (!detail || !("avatarUrl" in detail)) {
+        return;
+      }
+
+      const rawAvatar = detail.avatarUrl;
+      let normalized: string | null;
+      if (typeof rawAvatar === "string") {
+        const trimmed = rawAvatar.trim();
+        normalized = trimmed.length ? trimmed : null;
+      } else if (rawAvatar === null) {
+        normalized = null;
+      } else {
+        return;
+      }
+
+      setAccountProfileState((prev) => {
+        if ((prev.avatarUrl ?? null) === normalized) {
+          return prev;
+        }
+        return { ...prev, avatarUrl: normalized };
+      });
+    };
+
+    window.addEventListener("capsules:avatar-updated", handleAvatarUpdate as EventListener);
+    return () => {
+      window.removeEventListener("capsules:avatar-updated", handleAvatarUpdate as EventListener);
+    };
+  }, []);
 
   return (
     <div className={layout.main}>
@@ -94,7 +140,7 @@ export function SettingsShell({
 
           {activeSection === "account" ? (
             <section aria-label="Account settings" className={layout.section}>
-              <AccountSettingsSection profile={accountProfile} />
+              <AccountSettingsSection profile={accountProfileState} />
             </section>
           ) : null}
 

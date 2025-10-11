@@ -260,6 +260,16 @@ export function useFriendsRealtime(
   onEvent: () => void,
 ): PresenceMap {
   const [presence, setPresenceState] = React.useState<PresenceMap>(() => presenceCache);
+  const tokenProviderRef = React.useRef(tokenProvider);
+  const onEventRef = React.useRef(onEvent);
+
+  React.useEffect(() => {
+    tokenProviderRef.current = tokenProvider;
+  }, [tokenProvider]);
+
+  React.useEffect(() => {
+    onEventRef.current = onEvent;
+  }, [onEvent]);
 
   const setPresence = React.useCallback<React.Dispatch<React.SetStateAction<PresenceMap>>>((update) => {
     setPresenceState((prev) => {
@@ -296,14 +306,20 @@ export function useFriendsRealtime(
 
     const connect = async () => {
       try {
-        const client = await factory.getClient(tokenProvider);
+        const client = await factory.getClient(() => tokenProviderRef.current());
         if (unsubscribed) {
           await client.close().catch(() => {});
           return;
         }
         clientInstance = client;
 
-        const eventsCleanup = await client.subscribe(eventsChannelName, () => onEvent());
+        const eventsCleanup = await client.subscribe(eventsChannelName, () => {
+          try {
+            onEventRef.current?.();
+          } catch (error) {
+            console.error("Realtime events handler error", error);
+          }
+        });
         unsubscribeEvents = wrapCleanup(eventsCleanup, "Realtime events unsubscribe error");
         if (unsubscribed) {
           unsubscribeEvents();
@@ -362,7 +378,7 @@ export function useFriendsRealtime(
         clientInstance = null;
       }
     };
-  }, [eventsChannelName, presenceChannelName, tokenProvider, onEvent, setPresence]);
+  }, [eventsChannelName, presenceChannelName, setPresence]);
 
   return presence;
 }

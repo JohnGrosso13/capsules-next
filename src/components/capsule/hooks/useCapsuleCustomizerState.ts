@@ -1278,7 +1278,15 @@ export function useCapsuleCustomizerState(
       } else if (customizerMode === "logo") {
         onSaved?.({ type: "logo", logoUrl: payload.logoUrl ?? null });
       } else if (customizerMode === "avatar") {
-        onSaved?.({ type: "avatar", avatarUrl: payload.avatarUrl ?? null });
+        const nextAvatarUrl = payload.avatarUrl ?? null;
+        onSaved?.({ type: "avatar", avatarUrl: nextAvatarUrl });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("capsules:avatar-updated", {
+              detail: { avatarUrl: nextAvatarUrl },
+            }),
+          );
+        }
       } else if (customizerMode === "storeBanner") {
         onSaved?.({ type: "storeBanner", storeBannerUrl: payload.storeBannerUrl ?? null });
       } else {
