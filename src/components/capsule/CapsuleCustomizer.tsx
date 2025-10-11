@@ -212,6 +212,7 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
                 imageRef={preview.imageRef}
                 selectedBanner={preview.selected}
                 previewOffset={preview.previewOffset}
+                previewScale={preview.previewScale}
                 previewAlt={previewAlt}
                 normalizedName={normalizedName}
                 isDragging={preview.isDragging}

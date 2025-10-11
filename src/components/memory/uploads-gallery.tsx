@@ -1,9 +1,9 @@
 "use client";
-
 import * as React from "react";
 
 import styles from "./uploads-gallery.module.css";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 
 import { computeDisplayUploads } from "./process-uploads";
@@ -57,12 +57,18 @@ export function UploadsGallery() {
   return (
     <section className={styles.root}>
       <div className={styles.actions}>
+        <ButtonLink
+          variant="ghost"
+          size="icon"
+          href="/memory"
+          leftIcon={<ArrowLeft size={18} weight="bold" />}
+          aria-label="Back to Memory"
+        >
+          Back to Memory
+        </ButtonLink>
         <Button variant="secondary" size="sm" onClick={() => { void refresh(); }} disabled={loading}>
           {loading ? "Refreshing..." : "Refresh"}
         </Button>
-        <ButtonLink variant="ghost" size="sm" href="/memory">
-          Back to Memory
-        </ButtonLink>
       </div>
 
       {error ? <p className={styles.status}>{error}</p> : null}

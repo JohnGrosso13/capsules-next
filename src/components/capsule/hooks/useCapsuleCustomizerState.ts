@@ -52,6 +52,7 @@ type PreviewMetrics = {
   overflowY: number;
   maxOffsetX: number;
   maxOffsetY: number;
+  scale: number;
 };
 
 const PROMPT_CHIP_MAP: Record<CapsuleCustomizerMode, readonly string[]> = {
@@ -175,6 +176,7 @@ export type CapsulePreviewState = {
   previewDraggable: boolean;
   previewPannable: boolean;
   previewCanPan: boolean;
+  previewScale: number;
   isDragging: boolean;
   stageRef: React.RefObject<HTMLDivElement | null>;
   imageRef: React.RefObject<HTMLImageElement | null>;
@@ -351,6 +353,7 @@ export function useCapsuleCustomizerState(
   const selectedBannerRef = React.useRef<SelectedBanner | null>(null);
   const previewOffsetRef = React.useRef({ x: 0, y: 0 });
   const [previewOffset, setPreviewOffset] = React.useState(previewOffsetRef.current);
+  const [previewScale, setPreviewScale] = React.useState(1);
   const [isDraggingPreview, setIsDraggingPreview] = React.useState(false);
   const [previewCanPan, setPreviewCanPan] = React.useState(false);
   const [prompterSession, setPrompterSession] = React.useState(0);
@@ -366,6 +369,7 @@ export function useCapsuleCustomizerState(
     overflowY: 0,
     maxOffsetX: 0,
     maxOffsetY: 0,
+    scale: 1,
   });
   const dragStateRef = React.useRef<DragState | null>(null);
   const [savePending, setSavePending] = React.useState(false);
@@ -463,11 +467,13 @@ export function useCapsuleCustomizerState(
       setIsDraggingPreview(false);
       setPreviewCanPan(false);
       setSaveError(null);
+      setPreviewScale(1);
       previewMetricsRef.current = {
         overflowX: 0,
         overflowY: 0,
         maxOffsetX: 0,
         maxOffsetY: 0,
+        scale: 1,
       };
 
       const normalizedBanner =
@@ -487,21 +493,36 @@ export function useCapsuleCustomizerState(
     if (!container || !image) return;
 
     const containerRect = container.getBoundingClientRect();
-    const imageRect = image.getBoundingClientRect();
-    if (!containerRect.width || !containerRect.height || !imageRect.width || !imageRect.height) {
+    const naturalWidth = image.naturalWidth || image.width;
+    const naturalHeight = image.naturalHeight || image.height;
+    if (
+      !containerRect.width ||
+      !containerRect.height ||
+      !naturalWidth ||
+      !naturalHeight
+    ) {
       return;
     }
 
-    const overflowX = Math.max(0, imageRect.width - containerRect.width);
-    const overflowY = Math.max(0, imageRect.height - containerRect.height);
+    const baseScale = Math.max(
+      containerRect.width / naturalWidth,
+      containerRect.height / naturalHeight,
+    );
+    const scaledWidth = naturalWidth * baseScale;
+    const scaledHeight = naturalHeight * baseScale;
+
+    const overflowX = Math.max(0, scaledWidth - containerRect.width);
+    const overflowY = Math.max(0, scaledHeight - containerRect.height);
     const metrics: PreviewMetrics = {
       overflowX,
       overflowY,
       maxOffsetX: overflowX / 2,
       maxOffsetY: overflowY / 2,
+      scale: baseScale,
     };
 
     previewMetricsRef.current = metrics;
+    setPreviewScale(baseScale);
     setPreviewCanPan(metrics.maxOffsetX > 0 || metrics.maxOffsetY > 0);
     applyPreviewOffset(previewOffsetRef.current.x, previewOffsetRef.current.y, metrics);
   }, [applyPreviewOffset]);
@@ -1393,6 +1414,7 @@ export function useCapsuleCustomizerState(
       previewDraggable,
       previewPannable,
       previewCanPan,
+      previewScale,
       isDragging: isDraggingPreview,
       stageRef: previewStageRef,
       imageRef: previewImageRef,

@@ -15,6 +15,7 @@ type CapsuleBannerPreviewProps = {
   imageRef: React.RefObject<HTMLImageElement | null>;
   selectedBanner: SelectedBanner | null;
   previewOffset: { x: number; y: number };
+  previewScale: number;
   previewAlt: string;
   normalizedName: string;
   isDragging: boolean;
@@ -45,6 +46,7 @@ export function CapsuleBannerPreview({
   imageRef,
   selectedBanner,
   previewOffset,
+  previewScale,
   previewAlt,
   normalizedName,
   isDragging,
@@ -81,7 +83,7 @@ export function CapsuleBannerPreview({
           alt={previewAlt}
           className={styles.previewImage}
           style={{
-            transform: `translate3d(-50%, -50%, 0) translate3d(${previewOffset.x}px, ${previewOffset.y}px, 0)`,
+            transform: `translate3d(-50%, -50%, 0) translate3d(${previewOffset.x}px, ${previewOffset.y}px, 0) scale(${previewScale})`,
           }}
           draggable={false}
           onDragStart={(event) => event.preventDefault()}

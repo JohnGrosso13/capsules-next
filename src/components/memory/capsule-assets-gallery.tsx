@@ -1,9 +1,8 @@
 "use client";
-
 import * as React from "react";
-import Link from "next/link";
+import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 
@@ -181,6 +180,15 @@ export function CapsuleAssetsGallery({ initialTab }: CapsuleAssetsGalleryProps) 
     <section className={styles.root}>
       <div className={styles.actions}>
         <div className={styles.actionGroup}>
+          <ButtonLink
+            variant="ghost"
+            size="icon"
+            href="/memory"
+            leftIcon={<ArrowLeft size={18} weight="bold" />}
+            aria-label="Back to Memory"
+          >
+            Back to Memory
+          </ButtonLink>
           <Button
             variant="secondary"
             size="sm"
@@ -190,9 +198,6 @@ export function CapsuleAssetsGallery({ initialTab }: CapsuleAssetsGalleryProps) 
             loading={loading}
           >
             Refresh
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/memory">Back to Memory</Link>
           </Button>
         </div>
       </div>
