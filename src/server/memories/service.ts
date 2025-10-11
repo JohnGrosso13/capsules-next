@@ -296,8 +296,17 @@ export async function indexMemory({
 
 type MemoryKindFilter = {
   dbKinds: string[] | null;
-  sourceFilters: string[] | null;
+  sourceIncludes: string[] | null;
+  sourceExcludes: string[] | null;
 };
+
+const BANNER_SOURCE_TOKENS = [
+  "capsule_banner",
+  "banner",
+  "capsule_tile",
+  "tile",
+  "promo_tile",
+];
 
 function normalizeSourceValue(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -305,9 +314,8 @@ function normalizeSourceValue(value: unknown): string | null {
   return trimmed.length ? trimmed : null;
 }
 
-function matchesSourceFilters(meta: unknown, sources: string[] | null): boolean {
-  if (!sources || sources.length === 0) return true;
-  if (!meta) return false;
+function extractSourceTokens(meta: unknown): string[] {
+  if (!meta) return [];
 
   let record: Record<string, unknown> | null = null;
   if (typeof meta === "object") {
@@ -323,29 +331,64 @@ function matchesSourceFilters(meta: unknown, sources: string[] | null): boolean 
     }
   }
 
-  if (!record) return false;
+  if (!record) return [];
 
-  const directSource = normalizeSourceValue(record.source);
-  if (directSource && sources.includes(directSource)) return true;
+  const tokens: string[] = [];
+  const pushToken = (value: unknown) => {
+    const normalized = normalizeSourceValue(value);
+    if (normalized) tokens.push(normalized);
+  };
 
-  const sourceKind = normalizeSourceValue(record.source_kind);
-  if (sourceKind && sources.includes(sourceKind)) return true;
+  pushToken(record.source);
+  pushToken(record.source_kind);
+  pushToken(record.asset_variant);
+  pushToken(record.asset_kind);
 
-  return false;
+  const summaryTags = record.summary_tags;
+  if (Array.isArray(summaryTags)) {
+    summaryTags.forEach((value) => pushToken(value));
+  }
+
+  return Array.from(new Set(tokens));
+}
+
+function matchesSourceRules(
+  meta: unknown,
+  includes: string[] | null,
+  excludes: string[] | null,
+): boolean {
+  const tokens = extractSourceTokens(meta);
+
+  if (includes && includes.length) {
+    const includeSet = new Set(includes);
+    const hasMatch = tokens.some((token) => includeSet.has(token));
+    if (!hasMatch) return false;
+  }
+
+  if (excludes && excludes.length) {
+    const excludeSet = new Set(excludes);
+    const hasExcluded = tokens.some((token) => excludeSet.has(token));
+    if (hasExcluded) return false;
+  }
+
+  return true;
 }
 
 function resolveMemoryKindFilters(kind: string | null | undefined): MemoryKindFilter {
   if (typeof kind !== "string") {
-    return { dbKinds: null, sourceFilters: null };
+    return { dbKinds: null, sourceIncludes: null, sourceExcludes: null };
   }
   const normalized = kind.trim().toLowerCase();
   if (!normalized) {
-    return { dbKinds: null, sourceFilters: null };
+    return { dbKinds: null, sourceIncludes: null, sourceExcludes: null };
   }
   if (normalized === "banner" || normalized === "capsule_banner") {
-    return { dbKinds: ["upload"], sourceFilters: ["capsule_banner", "banner", "capsule_tile", "tile"] };
+    return { dbKinds: ["upload"], sourceIncludes: BANNER_SOURCE_TOKENS, sourceExcludes: null };
   }
-  return { dbKinds: [normalized], sourceFilters: null };
+  if (normalized === "upload") {
+    return { dbKinds: ["upload"], sourceIncludes: null, sourceExcludes: BANNER_SOURCE_TOKENS };
+  }
+  return { dbKinds: [normalized], sourceIncludes: null, sourceExcludes: null };
 }
 
 async function fetchLegacyMemoryItems(
@@ -381,9 +424,9 @@ async function fetchLegacyMemoryItems(
 
     const rows = result.data ?? [];
     const normalized = rows.map((row) => normalizeLegacyMemoryRow(row as Record<string, unknown>));
-    return filters.sourceFilters && filters.sourceFilters.length
-      ? normalized.filter((item) => matchesSourceFilters(item.meta, filters.sourceFilters))
-      : normalized;
+    return normalized.filter((item) =>
+      matchesSourceRules(item.meta, filters.sourceIncludes, filters.sourceExcludes),
+    );
   }
 
   return [];
@@ -419,11 +462,17 @@ export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: 
   }
 
   const rows = result.data ?? [];
-  if (!filters.sourceFilters || filters.sourceFilters.length === 0) {
+  const hasIncludes = Boolean(filters.sourceIncludes && filters.sourceIncludes.length);
+  const hasExcludes = Boolean(filters.sourceExcludes && filters.sourceExcludes.length);
+  if (!hasIncludes && !hasExcludes) {
     return rows;
   }
   return rows.filter((row) =>
-    matchesSourceFilters((row as Record<string, unknown>).meta, filters.sourceFilters),
+    matchesSourceRules(
+      (row as Record<string, unknown>).meta,
+      filters.sourceIncludes,
+      filters.sourceExcludes,
+    ),
   );
 }
 
@@ -713,4 +762,3 @@ export async function deleteMemories({
 
   return { memories: deletedMemories, legacy: deletedLegacy };
 }
-
