@@ -821,7 +821,7 @@ function CapsuleStorePlaceholder({
               <MagnifyingGlass size={18} weight="bold" />
               <input
                 type="search"
-                placeholder="Search products, prompts, or saved concepts…"
+                placeholder="Search products, prompts, or saved concepts..."
                 disabled
                 aria-disabled="true"
               />
