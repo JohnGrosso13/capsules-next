@@ -65,9 +65,10 @@ create table if not exists public.capsules (
   slug text unique,
   name text not null,
   description text,
-    banner_url text,
-    promo_tile_url text,
-    logo_url text,
+  banner_url text,
+  store_banner_url text,
+  promo_tile_url text,
+  logo_url text,
   created_by_id uuid not null references public.users(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
