@@ -11,6 +11,7 @@ import {
   updateFriendsGraph,
   type FriendsChannelInfo,
 } from "@/services/friends/client";
+import { fetchPartyInvites, respondToPartyInvite } from "@/services/party-invite/client";
 import {
   FRIENDS_GRAPH_REFRESH_EVENT,
   FRIENDS_GRAPH_UPDATE_EVENT,
@@ -24,6 +25,7 @@ import type {
   FriendRequestSummary,
   SocialGraphSnapshot,
 } from "@/lib/supabase/friends";
+import type { PartyInviteSummary } from "@/types/party";
 
 export type FriendItem = {
   id: string;
@@ -39,6 +41,16 @@ export type RequestItem = {
   id: string;
   user: { name?: string | null } | null;
   kind: "incoming" | "outgoing";
+};
+
+export type PartyInviteItem = {
+  id: string;
+  partyId: string;
+  hostName: string;
+  hostAvatar: string | null;
+  topic: string | null;
+  expiresAt: string | null;
+  senderId: string;
 };
 
 export type ChannelInfo = FriendsChannelInfo;
@@ -113,6 +125,18 @@ function mapRequestSummaries(
   }));
 }
 
+function mapPartyInviteSummaries(summaries: PartyInviteSummary[]): PartyInviteItem[] {
+  return summaries.map((invite) => ({
+    id: invite.id,
+    partyId: invite.partyId,
+    hostName: invite.sender?.name ?? "Party host",
+    hostAvatar: invite.sender?.avatarUrl ?? null,
+    topic: invite.topic ?? null,
+    expiresAt: invite.expiresAt ?? null,
+    senderId: invite.senderId,
+  }));
+}
+
 export type UseFriendsDataOptions = {
   subscribeRealtime?: boolean;
 };
@@ -126,6 +150,7 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
   const [friendSummaries, setFriendSummaries] = React.useState<FriendSummary[]>([]);
   const [incomingSummaries, setIncomingSummaries] = React.useState<FriendRequestSummary[]>([]);
   const [outgoingSummaries, setOutgoingSummaries] = React.useState<FriendRequestSummary[]>([]);
+  const [incomingPartySummaries, setIncomingPartySummaries] = React.useState<PartyInviteSummary[]>([]);
   const [channels, setChannels] = React.useState<ChannelInfo>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -162,10 +187,22 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
         return channelData;
       });
       applyGraph(graph);
+
+      try {
+        const inviteData = await fetchPartyInvites();
+        setIncomingPartySummaries(inviteData.incoming ?? []);
+      } catch (inviteError) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Party invite refresh error", inviteError);
+        }
+        setIncomingPartySummaries([]);
+      }
+
       setError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load friends";
       setError(message);
+      setIncomingPartySummaries([]);
     } finally {
       setLoading(false);
     }
@@ -222,14 +259,18 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     () => mapRequestSummaries(outgoingSummaries, "outgoing"),
     [outgoingSummaries],
   );
+  const partyInvites = React.useMemo(
+    () => mapPartyInviteSummaries(incomingPartySummaries),
+    [incomingPartySummaries],
+  );
 
   const counters: FriendsCounters = React.useMemo(
     () => ({
       friends: hasRealFriends ? friendSummaries.length : 0,
       chats: 0,
-      requests: incomingSummaries.length,
+      requests: incomingSummaries.length + partyInvites.length,
     }),
-    [hasRealFriends, friendSummaries.length, incomingSummaries.length],
+    [hasRealFriends, friendSummaries.length, incomingSummaries.length, partyInvites.length],
   );
 
   const mutate = React.useCallback(
@@ -301,11 +342,24 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     await mutate({ action: "cancel", requestId });
   }, [mutate]);
 
+  const acceptPartyInviteRequest = React.useCallback(async (inviteId: string) => {
+    const invite = await respondToPartyInvite(inviteId, "accept");
+    setIncomingPartySummaries((prev) => prev.filter((invite) => invite.id !== inviteId));
+    return invite;
+  }, []);
+
+  const declinePartyInviteRequest = React.useCallback(async (inviteId: string) => {
+    const invite = await respondToPartyInvite(inviteId, "decline");
+    setIncomingPartySummaries((prev) => prev.filter((invite) => invite.id !== inviteId));
+    return invite;
+  }, []);
+
   return {
     friends,
     hasRealFriends,
     incomingRequests,
     outgoingRequests,
+    partyInvites,
     counters,
     loading,
     error,
@@ -316,6 +370,8 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     acceptRequest,
     declineRequest,
     cancelRequest,
+    acceptPartyInvite: acceptPartyInviteRequest,
+    declinePartyInvite: declinePartyInviteRequest,
     viewerId,
   } as const;
 }

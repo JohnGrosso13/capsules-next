@@ -117,8 +117,19 @@ function formatChatSummary(unread: number, lastReminder: number | null, now: num
   return "You're all caught up on chats.";
 }
 
-function formatRequestsSummary(incoming: number, outgoing: number): string {
-  if (incoming > 0) return `${incoming} ${pluralize("request", incoming)} need your review.`;
+function formatRequestsSummary(incoming: number, outgoing: number, party: number): string {
+  const total = incoming + party;
+  if (total > 0) {
+    const parts: string[] = [];
+    if (party > 0) {
+      parts.push(`${party} party ${pluralize("invite", party)}`);
+    }
+    if (incoming > 0) {
+      parts.push(`${incoming} friend ${pluralize("request", incoming)}`);
+    }
+    const joined = parts.join(" · ");
+    return `${joined} waiting.`;
+  }
   if (outgoing > 0) return `Waiting on ${outgoing} ${pluralize("invitation", outgoing)}.`;
   return "No pending requests right now.";
 }
@@ -142,10 +153,13 @@ export function ConnectionsRail() {
     hasRealFriends,
     incomingRequests,
     outgoingRequests,
+    partyInvites,
     removeFriend,
     acceptRequest,
     declineRequest,
     cancelRequest,
+    acceptPartyInvite,
+    declinePartyInvite,
   } = useFriendsDataContext();
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
@@ -164,6 +178,7 @@ export function ConnectionsRail() {
     status: partyStatus,
     action: partyAction,
     error: partyError,
+    joinParty,
   } = usePartyContext();
   type GroupFlowState = { mode: "create" } | { mode: "invite"; sessionId: string };
   const [groupFlow, setGroupFlow] = React.useState<GroupFlowState | null>(null);
@@ -417,6 +432,7 @@ export function ConnectionsRail() {
     [hasRealFriends, friends.length],
   );
 
+  const totalPendingRequests = incomingRequests.length + partyInvites.length;
   const connectionTiles = React.useMemo<ConnectionTile[]>(() => {
     const now = chatTicker || Date.now();
     const defaults = {
@@ -433,8 +449,8 @@ export function ConnectionsRail() {
         badge: chatUnreadCount > 0 ? chatUnreadCount : null,
       },
       requests: {
-        description: formatRequestsSummary(incomingRequests.length, outgoingRequests.length),
-        badge: incomingRequests.length > 0 ? incomingRequests.length : null,
+        description: formatRequestsSummary(incomingRequests.length, outgoingRequests.length, partyInvites.length),
+        badge: totalPendingRequests > 0 ? totalPendingRequests : null,
       },
     } as const;
 
@@ -458,6 +474,8 @@ export function ConnectionsRail() {
     connectedFriends,
     totalFriendsForSummary,
     incomingRequests.length,
+    partyInvites.length,
+    totalPendingRequests,
     outgoingRequests.length,
     chatUnreadCount,
     lastChatTimestamp,
@@ -538,6 +556,31 @@ export function ConnectionsRail() {
       }
     },
     [cancelRequest],
+  );
+
+  const handleAcceptInvite = React.useCallback(
+    async (inviteId: string) => {
+      try {
+        const invite = await acceptPartyInvite(inviteId);
+        await joinParty(invite.partyId, { displayName: null });
+        setRailMode("connections");
+        setActiveRailTab("party");
+      } catch (error) {
+        console.error("Party invite accept error", error);
+      }
+    },
+    [acceptPartyInvite, joinParty],
+  );
+
+  const handleDeclineInvite = React.useCallback(
+    async (inviteId: string) => {
+      try {
+        await declinePartyInvite(inviteId);
+      } catch (error) {
+        console.error("Party invite decline error", error);
+      }
+    },
+    [declinePartyInvite],
   );
 
   React.useEffect(() => {
@@ -694,9 +737,12 @@ export function ConnectionsRail() {
             <RequestsList
               incoming={incomingRequests}
               outgoing={outgoingRequests}
+              partyInvites={partyInvites}
               onAccept={handleAccept}
               onDecline={handleDecline}
               onCancel={handleCancel}
+              onAcceptInvite={handleAcceptInvite}
+              onDeclineInvite={handleDeclineInvite}
             />
           </div>
           {/* Overlay for group chat create/invite */}
@@ -718,3 +764,6 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
+
+
+

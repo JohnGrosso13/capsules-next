@@ -79,6 +79,7 @@ export function FriendsClient() {
     friends,
     incomingRequests,
     outgoingRequests,
+    partyInvites,
     counters,
     loading,
     error,
@@ -89,6 +90,8 @@ export function FriendsClient() {
     acceptRequest,
     declineRequest,
     cancelRequest,
+    acceptPartyInvite,
+    declinePartyInvite,
   } = useFriendsDataContext();
   const {
     startChat: startChatSession,
@@ -313,6 +316,35 @@ export function FriendsClient() {
     [cancelRequest],
   );
 
+  const handleAcceptInvite = React.useCallback(
+    async (inviteId: string) => {
+      try {
+        const invite = await acceptPartyInvite(inviteId);
+        setNotice("Joining party...");
+        await party.joinParty(invite.partyId, { displayName: null });
+        selectTab("Party");
+        setNotice(null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Couldn't join that party.";
+        setNotice(message);
+      }
+    },
+    [acceptPartyInvite, party, selectTab],
+  );
+
+  const handleDeclineInvite = React.useCallback(
+    async (inviteId: string) => {
+      try {
+        await declinePartyInvite(inviteId);
+        setNotice("Invite dismissed.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Couldn't dismiss that invite.";
+        setNotice(message);
+      }
+    },
+    [declinePartyInvite],
+  );
+
   const inviteSession =
     groupFlow?.mode === "invite" ? chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null : null;
 
@@ -459,9 +491,12 @@ export function FriendsClient() {
           <RequestsList
             incoming={incomingRequests}
             outgoing={outgoingRequests}
+            partyInvites={partyInvites}
             onAccept={handleAccept}
             onDecline={handleDecline}
             onCancel={handleCancel}
+            onAcceptInvite={handleAcceptInvite}
+            onDeclineInvite={handleDeclineInvite}
           />
         </div>
       </section>

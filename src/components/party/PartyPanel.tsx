@@ -26,9 +26,9 @@ import { RoomEvent, type Room } from "livekit-client";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
 import type { ChatFriendTarget } from "@/components/providers/ChatProvider";
-import { useChatContext } from "@/components/providers/ChatProvider";
 import { usePartyContext, type PartySession } from "@/components/providers/PartyProvider";
 import { useCurrentUser } from "@/services/auth/client";
+import { sendPartyInviteRequest } from "@/services/party-invite/client";
 
 import styles from "./party-panel.module.css";
 
@@ -97,7 +97,6 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
     handleRoomDisconnected,
   } = usePartyContext();
   const { user } = useCurrentUser();
-  const { startChat, sendMessage } = useChatContext();
 
   const [displayName, setDisplayName] = React.useState(() => user?.name ?? "");
   const [topic, setTopic] = React.useState("");
@@ -201,28 +200,19 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
         });
         return;
       }
-      const target = friendTargets.get(friend.userId);
-      if (!target) {
+      if (!friendTargets.has(friend.userId)) {
         setInviteFeedback({
           message: "We couldn't prepare an invite for that friend.",
           tone: "warning",
         });
         return;
       }
-      const message = inviteUrl
-        ? `🔊 Hop into my Capsules party: ${inviteUrl}`
-        : `🔊 Hop into my Capsules party. Use code ${session.partyId}`;
       try {
-        const chat = startChat(target, { activate: true });
-        if (!chat) {
-          setInviteFeedback({
-            message: `We couldn't open a chat with ${friend.name}.`,
-            tone: "warning",
-          });
-          return;
-        }
         setInviteBusyId(friend.id);
-        await sendMessage(chat.id, message);
+        await sendPartyInviteRequest({
+          partyId: session.partyId,
+          recipientId: friend.userId,
+        });
         setInviteFeedback({
           message: `Invite sent to ${friend.name}.`,
           tone: "success",
@@ -230,14 +220,14 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
       } catch (err) {
         console.error("Party invite error", err);
         setInviteFeedback({
-          message: "We couldn't deliver that invite. Try again soon.",
+          message: err instanceof Error ? err.message : "We couldn't deliver that invite. Try again soon.",
           tone: "warning",
         });
       } finally {
         setInviteBusyId(null);
       }
     },
-    [friendTargets, inviteUrl, sendMessage, session, startChat],
+    [friendTargets, session],
   );
 
   const handleResetAndLeave = React.useCallback(async () => {
@@ -255,16 +245,19 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
 
   const partyStatusLabel = React.useMemo(() => {
     if (isLoading) {
-      if (action === "create") return "Spinning up your party…";
-      if (action === "close") return "Ending party…";
-      return "Preparing…";
+      if (action === "create") return "Spinning up your party...";
+      if (action === "close") return "Ending party...";
+      if (action === "resume") return "Reconnecting you to your party...";
+      return "Preparing...";
     }
     if (isConnecting) {
-      if (action === "join") return "Connecting to party…";
+      if (action === "join") return "Connecting to party...";
+      if (action === "resume") return "Re-establishing audio...";
       return "Linking voice...";
     }
     if (!session) return "No active party.";
     if (status === "connected") return "Live and connected.";
+    if (action === "resume") return "Trying to reconnect.";
     return "Ready to connect.";
   }, [action, isConnecting, isLoading, session, status]);
 
@@ -317,6 +310,9 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
             </p>
           </div>
           <div className={styles.heroActions}>
+            {loading && action === "resume" ? (
+              <div className={styles.heroResumeNotice}>Reconnecting you to your last party...</div>
+            ) : null}
             <label className={styles.label} htmlFor="party-display-name">
               Display name
             </label>
@@ -348,7 +344,13 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
               disabled={loading || !displayName.trim()}
             >
               <UsersThree size={18} weight="duotone" />
-              {loading && action === "create" ? "Starting..." : "Start a party"}
+              {loading
+                ? action === "create"
+                  ? "Starting..."
+                  : action === "resume"
+                  ? "Reconnecting..."
+                  : "Start a party"
+                : "Start a party"}
             </button>
           </div>
         </div>
@@ -428,7 +430,13 @@ export function PartyPanel({ friends, friendTargets, onShowFriends, variant = "d
             }}
             disabled={loading || !joinCode.trim()}
           >
-            {loading && action === "join" ? "Connecting..." : "Join"}
+            {loading
+              ? action === "join"
+                ? "Connecting..."
+                : action === "resume"
+                ? "Reconnecting..."
+                : "Join"
+              : "Join"}
           </button>
         </div>
       </div>
@@ -675,3 +683,4 @@ function ParticipantBadge({ participant, isLocal }: ParticipantBadgeProps) {
     </div>
   );
 }
+

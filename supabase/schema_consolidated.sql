@@ -1,6 +1,6 @@
 -- Consolidated schema snapshot (generated)
 -- Source: supabase/migrations/*.sql
--- Generated at: 2025-09-28T02:59:02.121Z
+-- Generated at: 2025-10-11T19:48:06.933Z
 -- Note: This file is for bootstrapping dev databases from scratch.
 --       It concatenates ordered migrations and relies on IF NOT EXISTS guards.
 
@@ -37,13 +37,6 @@ begin
   end if;
 end $$;
 
-do $$
-begin
-  if not exists (select 1 from pg_type where typname = 'capsule_member_request_status') then
-    create type public.capsule_member_request_status as enum ('pending','approved','declined','cancelled');
-  end if;
-end $$;
-
 -- Core identity tables
 create table if not exists public.users (
   id uuid primary key default gen_random_uuid(),
@@ -66,8 +59,6 @@ create table if not exists public.capsules (
   name text not null,
   description text,
   banner_url text,
-  store_banner_url text,
-  promo_tile_url text,
   logo_url text,
   created_by_id uuid not null references public.users(id) on delete cascade,
   created_at timestamptz not null default now(),
@@ -84,33 +75,6 @@ create table if not exists public.capsule_members (
 
 create index if not exists idx_capsule_members_user on public.capsule_members(user_id);
 create index if not exists idx_capsule_members_capsule on public.capsule_members(capsule_id);
-
-create table if not exists public.capsule_member_requests (
-  id uuid primary key default gen_random_uuid(),
-  capsule_id uuid not null references public.capsules(id) on delete cascade,
-  requester_id uuid not null references public.users(id) on delete cascade,
-  status public.capsule_member_request_status not null default 'pending',
-  role public.member_role not null default 'member',
-  message text,
-  responded_by uuid references public.users(id) on delete set null,
-  created_at timestamptz not null default now(),
-  responded_at timestamptz,
-  approved_at timestamptz,
-  declined_at timestamptz,
-  cancelled_at timestamptz,
-  updated_at timestamptz not null default now(),
-  constraint capsule_member_requests_unique_requester unique (capsule_id, requester_id)
-);
-
-create index if not exists idx_capsule_member_requests_capsule
-  on public.capsule_member_requests(capsule_id);
-
-create index if not exists idx_capsule_member_requests_requester
-  on public.capsule_member_requests(requester_id);
-
-create index if not exists idx_capsule_member_requests_status_pending
-  on public.capsule_member_requests(status)
-  where status = 'pending';
 
 -- Content tables
 create table if not exists public.posts (
@@ -330,23 +294,12 @@ create index if not exists idx_publish_jobs_user on public.publish_jobs(owner_us
 create index if not exists idx_publish_jobs_status on public.publish_jobs(status);
 
 -- Row level security policies for service role automation
-alter table public.capsule_member_requests enable row level security;
 alter table public.friend_requests enable row level security;
 alter table public.friendships enable row level security;
 alter table public.user_follows enable row level security;
 alter table public.user_blocks enable row level security;
 alter table public.social_links enable row level security;
 alter table public.publish_jobs enable row level security;
-
-do $$ begin
-  begin
-    create policy "Service role full access capsule_member_requests"
-      on public.capsule_member_requests
-      to service_role
-      using (true)
-      with check (true);
-  exception when others then null; end;
-end $$;
 
 do $$ begin
   begin
@@ -478,16 +431,6 @@ begin
   begin
     create trigger trg_subscribers_updated_at
       before update on public.subscribers
-      for each row execute function public.set_updated_at();
-  exception when duplicate_object then null;
-  end;
-end $$;
-
-do $$
-begin
-  begin
-    create trigger trg_capsule_member_requests_updated_at
-      before update on public.capsule_member_requests
       for each row execute function public.set_updated_at();
   exception when duplicate_object then null;
   end;
@@ -1122,74 +1065,143 @@ analyze public.memories;
 -- END MIGRATION: 0007_memories_post_memory_indexes.sql
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
---
--- Name: media_upload_sessions; Type: TABLE; Schema: public; Owner: postgres
---
 
-CREATE TABLE public.media_upload_sessions (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    owner_user_id uuid NOT NULL,
-    upload_id text NOT NULL,
-    r2_key text NOT NULL,
-    r2_bucket text NOT NULL,
-    absolute_url text,
-    content_type text,
-    content_length bigint,
-    part_size bigint,
-    total_parts integer,
-    checksum text,
-    metadata jsonb,
-    derived_assets jsonb,
-    parts jsonb,
-    status text DEFAULT 'initialized'::text NOT NULL,
-    client_ip text,
-    turnstile_action text,
-    turnstile_cdata text,
-    memory_id uuid,
-    error_reason text,
-    created_at timestamptz DEFAULT now() NOT NULL,
-    updated_at timestamptz DEFAULT now() NOT NULL,
-    uploaded_at timestamptz,
-    completed_at timestamptz
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 0008_r2_upload_pipeline.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- 0008_r2_upload_pipeline.sql: Cloudflare R2 direct upload sessions
+create table if not exists public.media_upload_sessions (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null references public.users(id) on delete cascade,
+  upload_id text not null,
+  r2_key text not null,
+  r2_bucket text not null,
+  absolute_url text,
+  content_type text,
+  content_length bigint,
+  part_size bigint,
+  total_parts integer,
+  checksum text,
+  metadata jsonb,
+  derived_assets jsonb,
+  parts jsonb,
+  status text not null default 'initialized' check (status in (
+    'initialized',
+    'uploading',
+    'uploaded',
+    'processing',
+    'completed',
+    'failed'
+  )),
+  client_ip text,
+  turnstile_action text,
+  turnstile_cdata text,
+  memory_id uuid references public.memories(id) on delete set null,
+  error_reason text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  uploaded_at timestamptz,
+  completed_at timestamptz
 );
 
-ALTER TABLE ONLY public.media_upload_sessions
-    ADD CONSTRAINT media_upload_sessions_pkey PRIMARY KEY (id);
+create index if not exists idx_media_upload_sessions_owner_created
+  on public.media_upload_sessions(owner_user_id, created_at desc);
 
-ALTER TABLE ONLY public.media_upload_sessions
-    ADD CONSTRAINT media_upload_sessions_owner_fkey FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+create index if not exists idx_media_upload_sessions_status
+  on public.media_upload_sessions(status);
 
-ALTER TABLE ONLY public.media_upload_sessions
-    ADD CONSTRAINT media_upload_sessions_memory_fkey FOREIGN KEY (memory_id) REFERENCES public.memories(id) ON DELETE SET NULL;
+create unique index if not exists idx_media_upload_sessions_upload_id
+  on public.media_upload_sessions(upload_id);
 
-ALTER TABLE ONLY public.media_upload_sessions
-    ADD CONSTRAINT media_upload_sessions_status_check CHECK (status = ANY (ARRAY['initialized'::text, 'uploading'::text, 'uploaded'::text, 'processing'::text, 'completed'::text, 'failed'::text]));
+alter table public.media_upload_sessions enable row level security;
 
-CREATE INDEX idx_media_upload_sessions_owner_created ON public.media_upload_sessions USING btree (owner_user_id, created_at DESC);
+do $$ begin
+  create policy "Media upload sessions service" on public.media_upload_sessions
+    to service_role using (true) with check (true);
+exception when duplicate_object then null; end $$;
 
-CREATE UNIQUE INDEX idx_media_upload_sessions_upload_id ON public.media_upload_sessions USING btree (upload_id);
+do $$ begin
+  create policy "Media upload sessions owner read" on public.media_upload_sessions
+    for select using (auth.uid() = owner_user_id);
+exception when duplicate_object then null; end $$;
 
-CREATE INDEX idx_media_upload_sessions_status ON public.media_upload_sessions USING btree (status);
+-- Keep updated_at current
 do $$
 begin
-  create trigger trg_media_upload_sessions_updated_at
-    before update on public.media_upload_sessions
-    for each row execute function public.set_updated_at();
-exception when duplicate_object then null;
+  begin
+    create trigger trg_media_upload_sessions_updated_at
+      before update on public.media_upload_sessions
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then null;
+  end;
 end $$;
-ALTER TABLE public.media_upload_sessions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY media_upload_sessions_service ON public.media_upload_sessions
-    FOR ALL
-    TO service_role
-    USING (true)
-    WITH CHECK (true);
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 0008_r2_upload_pipeline.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-CREATE POLICY media_upload_sessions_owner_read ON public.media_upload_sessions
-    FOR SELECT
-    USING (auth.uid() = owner_user_id);
 
--- artifacts core tables
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 0009_theme_styles.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- 0009_theme_styles.sql: dedicated table for user theme styles
+create table if not exists public.theme_styles (
+  id uuid default gen_random_uuid() primary key,
+  owner_user_id uuid references public.users(id) on delete cascade,
+  title text not null default '',
+  summary text,
+  description text,
+  prompt text,
+  details text,
+  theme_mode text check (theme_mode in ('light','dark')),
+  vars jsonb not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_theme_styles_owner on public.theme_styles(owner_user_id, created_at desc);
+create index if not exists idx_theme_styles_mode on public.theme_styles(theme_mode);
+
+create or replace function public.update_theme_styles_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists theme_styles_set_updated_at on public.theme_styles;
+create trigger theme_styles_set_updated_at
+  before update on public.theme_styles
+  for each row execute function public.update_theme_styles_updated_at();
+
+alter table public.theme_styles enable row level security;
+
+do $$ begin
+  create policy "Theme styles service" on public.theme_styles
+    to service_role using (true) with check (true);
+exception when duplicate_object then null; end $$;
+
+
+do $$ begin
+  create policy "Theme styles owner" on public.theme_styles
+    for all to authenticated
+    using (owner_user_id = auth.uid())
+    with check (owner_user_id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 0009_theme_styles.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 0010_artifacts_core.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- 0010_artifacts_core.sql: core artifact storage
 create table if not exists public.artifact_artifacts (
   id uuid primary key default gen_random_uuid(),
   owner_user_id uuid not null references public.users(id) on delete cascade,
@@ -1240,17 +1252,42 @@ create table if not exists public.artifact_events (
 create index if not exists idx_artifact_events_artifact
   on public.artifact_events(artifact_id, emitted_at desc);
 
-create trigger trg_artifact_artifacts_updated_at
-  before update on public.artifact_artifacts
-  for each row execute function public.set_updated_at();
+do $$ begin
+  if not exists (
+    select 1
+    from pg_trigger t
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where t.tgname = 'trg_artifact_artifacts_updated_at'
+      and n.nspname = 'public'
+      and c.relname = 'artifact_artifacts'
+  ) then
+    create trigger trg_artifact_artifacts_updated_at
+      before update on public.artifact_artifacts
+      for each row execute function public.set_updated_at();
+  end if;
+exception when others then null; end $$;
 
-create trigger trg_artifact_assets_updated_at
-  before update on public.artifact_assets
-  for each row execute function public.set_updated_at();
+do $$ begin
+  if not exists (
+    select 1
+    from pg_trigger t
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where t.tgname = 'trg_artifact_assets_updated_at'
+      and n.nspname = 'public'
+      and c.relname = 'artifact_assets'
+  ) then
+    create trigger trg_artifact_assets_updated_at
+      before update on public.artifact_assets
+      for each row execute function public.set_updated_at();
+  end if;
+exception when others then null; end $$;
 
 alter table public.artifact_artifacts enable row level security;
 alter table public.artifact_assets enable row level security;
 alter table public.artifact_events enable row level security;
+
 do $$ begin
   create policy "Artifact service access" on public.artifact_artifacts
     to service_role using (true) with check (true);
@@ -1300,3 +1337,193 @@ do $$ begin
       )
     );
 exception when duplicate_object then null; end $$;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 0010_artifacts_core.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 0011_capsule_member_requests.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- Capsule member requests support
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_type
+    where typname = 'capsule_member_request_status'
+  ) then
+    create type public.capsule_member_request_status as enum (
+      'pending',
+      'approved',
+      'declined',
+      'cancelled'
+    );
+  end if;
+end
+$$;
+
+create table if not exists public.capsule_member_requests (
+  id uuid primary key default gen_random_uuid(),
+  capsule_id uuid not null references public.capsules(id) on delete cascade,
+  requester_id uuid not null references public.users(id) on delete cascade,
+  status public.capsule_member_request_status not null default 'pending',
+  role public.member_role not null default 'member',
+  message text,
+  responded_by uuid references public.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  responded_at timestamptz,
+  approved_at timestamptz,
+  declined_at timestamptz,
+  cancelled_at timestamptz,
+  updated_at timestamptz not null default now(),
+  constraint capsule_member_requests_unique_requester unique (capsule_id, requester_id)
+);
+
+create index if not exists idx_capsule_member_requests_capsule
+  on public.capsule_member_requests(capsule_id);
+
+create index if not exists idx_capsule_member_requests_requester
+  on public.capsule_member_requests(requester_id);
+
+create index if not exists idx_capsule_member_requests_status_pending
+  on public.capsule_member_requests(status)
+  where status = 'pending';
+
+alter table public.capsule_member_requests enable row level security;
+
+do $$
+begin
+  begin
+    create policy "Service role full access capsule_member_requests"
+      on public.capsule_member_requests
+      to service_role
+      using (true)
+      with check (true);
+  exception when others then
+    null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create trigger trg_capsule_member_requests_updated_at
+      before update on public.capsule_member_requests
+      for each row execute function public.set_updated_at();
+  exception when duplicate_object then
+    null;
+  end;
+end
+$$;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 0011_capsule_member_requests.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202510101200_add_capsule_promo_tile.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- Add promo_tile_url column to store vertical promo tile images for capsules
+alter table public.capsules
+  add column if not exists promo_tile_url text;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202510101200_add_capsule_promo_tile.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202510111045_add_capsule_store_banner.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- Add store banner URL column for Capsule storefront hero artwork.
+alter table public.capsules
+  add column if not exists store_banner_url text;
+
+comment on column public.capsules.store_banner_url is
+  'Optional storefront hero banner image for a capsule.';
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202510111045_add_capsule_store_banner.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202510111330_add_party_invites.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'party_invite_status') then
+    create type public.party_invite_status as enum ('pending','accepted','declined','cancelled','expired');
+  end if;
+end $$;
+
+create table if not exists public.party_invites (
+  id uuid primary key default gen_random_uuid(),
+  party_id text not null,
+  sender_id uuid not null references public.users(id) on delete cascade,
+  recipient_id uuid not null references public.users(id) on delete cascade,
+  status public.party_invite_status not null default 'pending',
+  topic text,
+  message text,
+  metadata jsonb,
+  created_at timestamptz not null default now(),
+  responded_at timestamptz,
+  accepted_at timestamptz,
+  declined_at timestamptz,
+  cancelled_at timestamptz,
+  updated_at timestamptz not null default now(),
+  expires_at timestamptz,
+  constraint party_invites_not_self check (sender_id <> recipient_id)
+);
+
+create index if not exists idx_party_invites_recipient_pending
+  on public.party_invites(recipient_id)
+  where status = 'pending' and (expires_at is null or expires_at > now());
+
+create index if not exists idx_party_invites_sender_pending
+  on public.party_invites(sender_id)
+  where status = 'pending' and (expires_at is null or expires_at > now());
+
+create unique index if not exists uniq_party_invites_pending
+  on public.party_invites(party_id, recipient_id)
+  where status = 'pending' and (expires_at is null or expires_at > now());
+
+do $$
+begin
+  begin
+    create trigger trg_party_invites_updated_at
+      before update on public.party_invites
+      for each row execute function public.set_updated_at();
+  exception
+    when duplicate_object then null;
+  end;
+end $$;
+
+alter table public.party_invites enable row level security;
+
+do $$
+begin
+  begin
+    create policy "Service role full access party_invites"
+      on public.party_invites
+      to service_role
+      using (true)
+      with check (true);
+  exception
+    when others then null;
+  end;
+end $$;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202510111330_add_party_invites.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+

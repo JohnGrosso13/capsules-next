@@ -204,6 +204,16 @@
   backdrop-filter: blur(12px);
 }
 
+.heroResumeNotice {
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid var(--party-status-border, color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 55%, transparent));
+  background: color-mix(in srgb, var(--party-status-background, rgba(37, 99, 235, 0.16)) 85%, transparent);
+  color: var(--text);
+}
+
 .label {
   font-size: 0.75rem;
   font-weight: 600;

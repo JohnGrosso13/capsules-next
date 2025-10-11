@@ -6,7 +6,7 @@ import type { Room } from "livekit-client";
 import type { PartyTokenResponse } from "@/server/validation/schemas/party";
 
 type PartyStatus = "idle" | "loading" | "connecting" | "connected";
-type PartyAction = "create" | "join" | "leave" | "close" | null;
+type PartyAction = "create" | "join" | "leave" | "close" | "resume" | null;
 
 export type PartySession = {
   partyId: string;
@@ -15,6 +15,7 @@ export type PartySession = {
   metadata: PartyTokenResponse["metadata"];
   expiresAt: string;
   isOwner: boolean;
+  displayName: string | null;
 };
 
 type CreatePartyOptions = {
@@ -44,12 +45,15 @@ type PartyContextValue = {
 const PartyContext = React.createContext<PartyContextValue | null>(null);
 
 const PARTY_STORAGE_KEY = "capsule:party:last-session";
+const PARTY_RESUME_MAX_AGE_MS = 10 * 60 * 1000;
 
 type StoredSession = {
   partyId: string;
   isOwner: boolean;
   metadata: PartySession["metadata"];
   expiresAt: string;
+  displayName: string | null;
+  lastSeenAt: string;
 };
 
 function saveSessionSnapshot(session: PartySession | null) {
@@ -63,10 +67,37 @@ function saveSessionSnapshot(session: PartySession | null) {
       isOwner: session.isOwner,
       metadata: session.metadata,
       expiresAt: session.expiresAt,
+      displayName: session.displayName,
+      lastSeenAt: new Date().toISOString(),
     };
     window.localStorage.setItem(PARTY_STORAGE_KEY, JSON.stringify(snapshot));
   } catch {
     // ignore storage errors
+  }
+}
+
+function loadSessionSnapshot(): StoredSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PARTY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredSession>;
+    if (!parsed || typeof parsed.partyId !== "string") {
+      return null;
+    }
+    if (!parsed.metadata || typeof parsed.metadata !== "object") {
+      return null;
+    }
+    return {
+      partyId: parsed.partyId,
+      isOwner: Boolean(parsed.isOwner),
+      metadata: parsed.metadata as PartySession["metadata"],
+      expiresAt: typeof parsed.expiresAt === "string" ? parsed.expiresAt : "",
+      displayName: typeof parsed.displayName === "string" ? parsed.displayName : null,
+      lastSeenAt: typeof parsed.lastSeenAt === "string" ? parsed.lastSeenAt : new Date().toISOString(),
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -131,28 +162,79 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = React.useState<PartySession | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const roomRef = React.useRef<Room | null>(null);
+  const resumeAttemptRef = React.useRef(false);
   const inviteUrl = React.useMemo(() => getInviteUrl(session), [session]);
 
   React.useEffect(() => {
-    if (session) {
-      saveSessionSnapshot(session);
-    } else if (typeof window !== "undefined") {
-      saveSessionSnapshot(null);
-    }
-  }, [session]);
+    if (!session) return;
+    saveSessionSnapshot(session);
+  }, [session, status]);
 
   const resetError = React.useCallback(() => {
     setError(null);
   }, []);
 
+  React.useEffect(() => {
+    if (session || status !== "idle" || resumeAttemptRef.current) {
+      return;
+    }
+    const snapshot = loadSessionSnapshot();
+    if (!snapshot) {
+      return;
+    }
+    const lastSeen = Date.parse(snapshot.lastSeenAt);
+    if (!Number.isNaN(lastSeen) && Date.now() - lastSeen > PARTY_RESUME_MAX_AGE_MS) {
+      saveSessionSnapshot(null);
+      return;
+    }
+    resumeAttemptRef.current = true;
+    setAction("resume");
+    setStatus("loading");
+    setError(null);
+
+    (async () => {
+      try {
+        const payload = await postJson<PartyTokenResponse>("/api/party/token", {
+          partyId: snapshot.partyId,
+          displayName: snapshot.displayName ?? undefined,
+        });
+        const nextSession: PartySession = {
+          partyId: payload.partyId,
+          token: payload.token,
+          livekitUrl: payload.livekitUrl,
+          metadata: payload.metadata,
+          expiresAt: payload.expiresAt,
+          isOwner: payload.isOwner,
+          displayName: snapshot.displayName ?? null,
+        };
+        setSession(nextSession);
+        setStatus("connecting");
+      } catch (resumeError) {
+        console.error("Party resume error", resumeError);
+        const message =
+          resumeError instanceof Error
+            ? resumeError.message
+            : "Unable to reconnect to the party.";
+        setError(message);
+        setStatus("idle");
+        setAction(null);
+        saveSessionSnapshot(null);
+      } finally {
+        resumeAttemptRef.current = false;
+      }
+    })();
+  }, [session, status]);
+
   const handleRoomConnected = React.useCallback((room: Room) => {
     roomRef.current = room;
+    resumeAttemptRef.current = false;
     setStatus("connected");
     setAction(null);
   }, []);
 
   const handleRoomDisconnected = React.useCallback(() => {
     roomRef.current = null;
+    resumeAttemptRef.current = false;
     setStatus("idle");
     setSession(null);
     setAction(null);
@@ -163,10 +245,12 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
       setAction("create");
       setStatus("loading");
       setError(null);
+      const displayName = options.displayName?.trim() || null;
+      const topic = options.topic?.trim() || null;
       try {
         const payload = await postJson<PartyTokenResponse>("/api/party", {
-          displayName: options.displayName ?? undefined,
-          topic: options.topic ?? undefined,
+          displayName: displayName ?? undefined,
+          topic: topic ?? undefined,
         });
         const nextSession: PartySession = {
           partyId: payload.partyId,
@@ -175,6 +259,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
           metadata: payload.metadata,
           expiresAt: payload.expiresAt,
           isOwner: payload.isOwner,
+          displayName,
         };
         setSession(nextSession);
         setStatus("connecting");
@@ -193,13 +278,14 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   const joinParty = React.useCallback(
     async (partyId: string, options: JoinPartyOptions) => {
       const normalizedId = partyId.trim().toLowerCase();
+      const displayName = options.displayName?.trim() || null;
       setAction("join");
       setStatus("loading");
       setError(null);
       try {
         const payload = await postJson<PartyTokenResponse>("/api/party/token", {
           partyId: normalizedId,
-          displayName: options.displayName ?? undefined,
+          displayName: displayName ?? undefined,
         });
         const nextSession: PartySession = {
           partyId: payload.partyId,
@@ -208,6 +294,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
           metadata: payload.metadata,
           expiresAt: payload.expiresAt,
           isOwner: payload.isOwner,
+          displayName,
         };
         setSession(nextSession);
         setStatus("connecting");
@@ -233,6 +320,8 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
         roomRef.current = null;
       }
     } finally {
+      resumeAttemptRef.current = false;
+      saveSessionSnapshot(null);
       setSession(null);
       setStatus("idle");
       setAction(null);
@@ -255,6 +344,8 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
         await room.disconnect(true);
       }
       roomRef.current = null;
+      resumeAttemptRef.current = false;
+      saveSessionSnapshot(null);
       setSession(null);
       setStatus("idle");
       setAction(null);
