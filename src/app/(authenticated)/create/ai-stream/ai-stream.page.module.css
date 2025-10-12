@@ -12,7 +12,7 @@
   flex-direction: column;
   gap: clamp(24px, 3vw, 36px);
   width: 100%;
-  --studio-track-height: clamp(960px, calc(100vh + 320px), 1480px);
+  --studio-track-height: clamp(780px, calc(100vh + 160px), 1200px);
 }
 
 .navBar {
@@ -96,7 +96,7 @@
 
 .contentArea {
   display: grid;
-  gap: clamp(18px, 2.4vw, 28px);
+  gap: clamp(14px, 2vw, 22px);
   width: 100%;
   overflow: visible;
   padding-bottom: clamp(48px, 6vh, 96px);
@@ -105,7 +105,7 @@
 .studioLayout {
   width: 100%;
   display: flex;
-  gap: clamp(8px, 1vw, 16px);
+  gap: clamp(6px, 0.8vw, 12px);
   min-height: var(--studio-track-height);
   height: var(--studio-track-height);
   align-items: stretch;
@@ -134,7 +134,7 @@
 }
 
 .stageManagerColumn {
-  gap: clamp(8px, 1vw, 16px);
+  gap: clamp(6px, 0.8vw, 12px);
 }
 
 .resizeHandle {
@@ -145,15 +145,15 @@
 }
 
 .resizeHandleVertical {
-  width: 14px;
+  width: 10px;
   cursor: col-resize;
-  margin: 0 clamp(6px, 1vw, 12px);
+  margin: 0 clamp(4px, 0.6vw, 10px);
 }
 
 .resizeHandleHorizontal {
-  height: 12px;
+  height: 10px;
   cursor: row-resize;
-  margin: clamp(6px, 1vw, 12px) 0;
+  margin: clamp(4px, 0.6vw, 10px) 0;
 }
 
 .resizeHandle::before {
@@ -166,15 +166,15 @@
     rgba(154, 166, 255, 0.75),
     rgba(98, 108, 255, 0.58)
   );
-  opacity: 0.78; /* clearer visual line */
-  box-shadow: 0 0 16px rgba(120, 136, 255, 0.5);
+  opacity: 0.42; /* subtle default */
+  box-shadow: 0 0 10px rgba(120, 136, 255, 0.35);
   transition: opacity 0.2s ease, box-shadow 0.2s ease;
 }
 
 .resizeHandle:hover::before,
 .resizeHandle:focus-visible::before {
   opacity: 1;
-  box-shadow: 0 0 22px rgba(150, 172, 255, 0.7);
+  box-shadow: 0 0 18px rgba(150, 172, 255, 0.65);
 }
 
 .resizeHandle[data-panel-group-direction="horizontal"]::before {
@@ -194,9 +194,10 @@
 }
 
 .previewPanel {
-  display: grid;
-  gap: 18px;
-  padding: clamp(20px, 3vw, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: clamp(18px, 2.6vw, 24px);
   border-radius: 26px;
   border: 1px solid var(--card-border, rgba(126, 142, 255, 0.24));
   background:
@@ -239,7 +240,10 @@
 
 .previewFrame {
   position: relative;
-  min-height: 340px;
+  flex: 1 1 auto;
+  min-height: 260px;
+  display: grid;
+  place-items: center;
   border-radius: clamp(20px, 3vw, 24px);
   border: 1px solid var(--card-border, rgba(140, 154, 255, 0.28));
   background:
@@ -250,8 +254,6 @@
     ),
     radial-gradient(280px 340px at 24% 18%, color-mix(in srgb, var(--color-brand, #6366f1) 28%, transparent), transparent 72%),
     var(--surface-base, rgba(10, 12, 32, 0.92));
-  display: grid;
-  place-items: center;
   color: var(--text-2, rgba(205, 214, 255, 0.78));
   font-size: 0.95rem;
   text-transform: uppercase;

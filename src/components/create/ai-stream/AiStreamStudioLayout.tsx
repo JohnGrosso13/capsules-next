@@ -204,9 +204,9 @@ export function AiStreamStudioLayout({
         className={styles.studioLayout}
         style={{ height: "var(--studio-track-height)", overflow: "visible" }}
       >
-        <Panel defaultSize={58} minSize={38} collapsible={false}>
+        <Panel defaultSize={62} minSize={48} collapsible={false}>
           <PanelGroup direction="vertical" className={styles.panelColumn}>
-            <Panel defaultSize={70} minSize={54} collapsible={false}>
+            <Panel defaultSize={64} minSize={48} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.previewPanel} ${styles.panelCard}`}>
                   <div className={styles.previewHeader}>
@@ -257,7 +257,7 @@ export function AiStreamStudioLayout({
               </div>
             </Panel>
             <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={18} minSize={10} collapsible={false}>
+            <Panel defaultSize={22} minSize={16} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.quickActionsCard} ${styles.panelCard}`}>
                   <div className={styles.quickActionsHeader}>
@@ -285,7 +285,7 @@ export function AiStreamStudioLayout({
               </div>
             </Panel>
             <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={12} minSize={8} collapsible={false}>
+            <Panel defaultSize={14} minSize={12} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.signalCard} ${styles.panelCard}`}>
                   <div className={styles.signalHeader}>
