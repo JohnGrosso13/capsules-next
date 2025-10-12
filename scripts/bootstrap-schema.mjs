@@ -27,7 +27,11 @@ const schemaPath = path.resolve("supabase", "schema_consolidated.sql");
 
 async function main() {
   const sql = await fs.readFile(schemaPath, "utf8");
-  const client = new Client({ connectionString: dbUrl });
+  const useSSL = !/localhost|127\.0\.0\.1/.test(dbUrl);
+  const client = new Client({
+    connectionString: dbUrl,
+    ssl: useSSL ? { rejectUnauthorized: false } : undefined,
+  });
   await client.connect();
 
   try {

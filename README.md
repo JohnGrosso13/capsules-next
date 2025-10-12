@@ -12,7 +12,10 @@ Next.js + Supabase foundation for the Capsules social, commerce, and live platfo
 
 ## Database migrations
 
-The canonical schema now lives in `supabase/migrations`. Each `.sql` file is applied once and tracked in `public.__migrations`.
+The canonical schema baseline lives in `supabase/migrations/0001_base.sql`. Add new changes as incrementally numbered files (`0002_<feature>.sql`, `0003_<feature>.sql`, ...); all applied migrations remain tracked in `public.__migrations`.
+
+- `supabase/schema_consolidated.sql` mirrors the latest baseline and is safe to use for `supabase db reset` or local bootstraps. Do not edit it by hand - regenerate it from the migrations folder (`cp supabase/migrations/0001_base.sql supabase/schema_consolidated.sql`) whenever the baseline changes.
+- After resetting the database, restore local privileges with `npm run db:grants:dev` so the Supabase service role can access the tables.
 
 ```bash
 # Apply any new migrations to the database referenced by DATABASE_URL
@@ -57,7 +60,7 @@ Useful environment variables:
 
 ## Analytics scaffolding
 
-- Overview metrics live in the `analytics` schema (see `supabase/migrations/0002_analytics.sql`).
+- Overview metrics live in the `analytics` schema (see the analytics section inside `supabase/migrations/0001_base.sql`).
 - Use `fetchAnalyticsOverview` and related helpers (`src/server/analytics/service.ts`) for admin dashboards.
 - Refresh materialized views via Supabase cron/Scheduled Functions (call `analytics.refresh_*`).
   \n\n## Request validation
