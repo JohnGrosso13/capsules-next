@@ -196,7 +196,14 @@ export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<st
 
     const nextName = normalizeString(incoming.full_name);
     const currentName = normalizeString(existing.full_name);
-    if (nextName && nextName !== currentName) updates.full_name = nextName;
+    if (nextName) {
+      const namesMatchIgnoringCase =
+        typeof currentName === "string" &&
+        currentName.localeCompare(nextName, undefined, { sensitivity: "accent" }) === 0;
+      if (!currentName || (namesMatchIgnoringCase && currentName !== nextName)) {
+        updates.full_name = nextName;
+      }
+    }
 
     const nextAvatar = normalizeString(incoming.avatar_url);
     const currentAvatar = normalizeString(existing.avatar_url);
