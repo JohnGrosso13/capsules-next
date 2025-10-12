@@ -199,10 +199,14 @@ export function AiStreamStudioLayout({
     }
 
     return (
-      <PanelGroup direction="horizontal" className={styles.studioLayout}>
-        <Panel defaultSize={48} minSize={32}>
+      <PanelGroup
+        direction="horizontal"
+        className={styles.studioLayout}
+        style={{ height: "var(--studio-track-height)", overflow: "visible" }}
+      >
+        <Panel defaultSize={48} minSize={32} collapsible={false}>
           <PanelGroup direction="vertical" className={styles.panelColumn}>
-            <Panel defaultSize={72} minSize={52}>
+            <Panel defaultSize={72} minSize={52} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.previewPanel} ${styles.panelCard}`}>
                   <div className={styles.previewHeader}>
@@ -253,7 +257,7 @@ export function AiStreamStudioLayout({
               </div>
             </Panel>
             <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={17} minSize={10}>
+            <Panel defaultSize={17} minSize={10} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.quickActionsCard} ${styles.panelCard}`}>
                   <div className={styles.quickActionsHeader}>
@@ -281,7 +285,7 @@ export function AiStreamStudioLayout({
               </div>
             </Panel>
             <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={11} minSize={8}>
+            <Panel defaultSize={11} minSize={8} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.signalCard} ${styles.panelCard}`}>
                   <div className={styles.signalHeader}>
@@ -310,7 +314,7 @@ export function AiStreamStudioLayout({
 
         <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
 
-        <Panel defaultSize={32} minSize={18}>
+        <Panel defaultSize={32} minSize={18} collapsible={false}>
           <div className={`${styles.panelColumn} ${styles.stageManagerColumn}`}>
             <div className={`${styles.stageManagerCard} ${styles.panelCard}`}>
               <header className={styles.stageManagerHeader}>
@@ -400,9 +404,9 @@ export function AiStreamStudioLayout({
 
         <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
 
-        <Panel defaultSize={20} minSize={15}>
+        <Panel defaultSize={20} minSize={15} collapsible={false}>
           <PanelGroup direction="vertical" className={styles.panelColumn}>
-            <Panel defaultSize={40} minSize={18}>
+            <Panel defaultSize={40} minSize={18} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.resourceCard} ${styles.panelCard}`}>
                   <header className={styles.resourceHeader}>
@@ -438,7 +442,7 @@ export function AiStreamStudioLayout({
               </div>
             </Panel>
             <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={35} minSize={18}>
+            <Panel defaultSize={35} minSize={18} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.resourceCard} ${styles.panelCard}`}>
                   <header className={styles.resourceHeader}>
@@ -471,7 +475,7 @@ export function AiStreamStudioLayout({
               </div>
             </Panel>
             <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={25} minSize={14}>
+            <Panel defaultSize={25} minSize={14} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.resourceCard} ${styles.panelCard}`}>
                   <header className={styles.resourceHeader}>

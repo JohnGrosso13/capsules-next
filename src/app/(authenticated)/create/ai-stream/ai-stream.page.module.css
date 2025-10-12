@@ -11,6 +11,8 @@
   display: flex;
   flex-direction: column;
   gap: clamp(24px, 3vw, 36px);
+  width: 100%;
+  --studio-track-height: clamp(960px, calc(100vh + 320px), 1480px);
 }
 
 .navBar {
@@ -95,14 +97,19 @@
 .contentArea {
   display: grid;
   gap: clamp(22px, 3vw, 36px);
+  width: 100%;
+  overflow: visible;
+  padding-bottom: clamp(48px, 6vh, 96px);
 }
 
 .studioLayout {
   width: 100%;
   display: flex;
   gap: clamp(12px, 1.6vw, 20px);
-  min-height: 75vh; /* ensure enough height for vertical panel sizing */
+  min-height: var(--studio-track-height);
+  height: var(--studio-track-height);
   align-items: stretch;
+  overflow: visible;
 }
 
 .panelColumn {
@@ -928,8 +935,14 @@
 }
 
 @media (max-width: 1024px) {
+  .shellWrap {
+    --studio-track-height: auto;
+  }
+
   .studioLayout {
     grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+    height: auto;
   }
 
   .producerLayout {
