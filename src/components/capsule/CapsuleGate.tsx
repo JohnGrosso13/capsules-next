@@ -18,6 +18,8 @@ type CapsuleGateProps = {
   capsules: CapsuleSummary[];
   defaultCapsuleId?: string | null;
   forceSelector?: boolean;
+  onCapsuleChosen?: (capsule: CapsuleSummary | null) => void;
+  autoActivate?: boolean;
 };
 
 type PlaceholderCapsule = {
@@ -169,6 +171,8 @@ export function CapsuleGate({
   capsules,
   defaultCapsuleId = null,
   forceSelector = false,
+  onCapsuleChosen,
+  autoActivate = true,
 }: CapsuleGateProps) {
   const ownedCapsules = React.useMemo(
     () => capsules.filter((capsule) => capsule.ownership === "owner"),
@@ -195,10 +199,22 @@ export function CapsuleGate({
     startInSelector ? null : resolvedDefaultId,
   );
   const canSwitchCapsules = startInSelector || capsules.length > 1;
+  const shouldAutoActivate = autoActivate !== false;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams?.toString() ?? "";
+
+  const handleSelect = React.useCallback(
+    (capsuleId: string) => {
+      const capsule = capsules.find((entry) => entry.id === capsuleId) ?? null;
+      onCapsuleChosen?.(capsule);
+      if (shouldAutoActivate) {
+        setActiveId(capsuleId);
+      }
+    },
+    [capsules, onCapsuleChosen, shouldAutoActivate, setActiveId],
+  );
 
   const syncUrl = React.useCallback(
     (nextActiveId: string | null, allowSwitch: boolean) => {
@@ -372,7 +388,7 @@ export function CapsuleGate({
           {hasOwnedCapsule ? (
             <div className={styles.selectorGrid}>
               {ownedCapsules.map((capsule) => (
-                <CapsuleSelectorTile key={capsule.id} capsule={capsule} onSelect={setActiveId} />
+                <CapsuleSelectorTile key={capsule.id} capsule={capsule} onSelect={handleSelect} />
               ))}
             </div>
           ) : (
@@ -389,7 +405,7 @@ export function CapsuleGate({
           {hasMemberCapsules ? (
             <div className={styles.selectorGrid}>
               {memberCapsules.map((capsule) => (
-                <CapsuleSelectorTile key={capsule.id} capsule={capsule} onSelect={setActiveId} />
+                <CapsuleSelectorTile key={capsule.id} capsule={capsule} onSelect={handleSelect} />
               ))}
             </div>
           ) : (
