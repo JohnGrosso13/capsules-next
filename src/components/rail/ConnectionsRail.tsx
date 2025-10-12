@@ -67,22 +67,25 @@ const CONNECTION_TILE_DEFS: Array<{
     key: "friends",
     title: "Friends",
     icon: <UsersThree size={28} weight="duotone" className="duo" />,
-    badgeIcon: <UsersThree weight="fill" />,
+    badgeIcon: <UsersThree size={16} weight="fill" />,
   },
   {
     key: "party",
     title: "Party",
     icon: <MicrophoneStage size={28} weight="duotone" className="duo" />,
+    badgeIcon: <MicrophoneStage size={16} weight="fill" />,
   },
   {
     key: "chats",
     title: "Chats",
     icon: <ChatsCircle size={28} weight="duotone" className="duo" />,
+    badgeIcon: <ChatsCircle size={16} weight="fill" />,
   },
   {
     key: "requests",
     title: "Requests",
     icon: <Handshake size={28} weight="duotone" className="duo" />,
+    badgeIcon: <Handshake size={16} weight="fill" />,
   },
 ];
 

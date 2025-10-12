@@ -12,7 +12,7 @@ import {
 import type { PartyInviteSummary, PartyInviteStatus, RawInviteRow } from "./types";
 import { PartyInviteError } from "./types";
 
-const DEFAULT_INVITE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const DEFAULT_INVITE_TTL_MS: number | null = null; // null = no automatic expiry
 
 function asString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -72,7 +72,10 @@ function computeExpiry(requestedExpiresAt?: string | null): string | null {
       return new Date(parsed).toISOString();
     }
   }
-  return new Date(Date.now() + DEFAULT_INVITE_TTL_MS).toISOString();
+  if (typeof DEFAULT_INVITE_TTL_MS === "number" && Number.isFinite(DEFAULT_INVITE_TTL_MS)) {
+    return new Date(Date.now() + DEFAULT_INVITE_TTL_MS).toISOString();
+  }
+  return null;
 }
 
 export async function sendPartyInvite(params: {
