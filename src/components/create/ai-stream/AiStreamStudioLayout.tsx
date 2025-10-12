@@ -199,24 +199,40 @@ export function AiStreamStudioLayout({
 
     return (
       <div className={styles.studioLayout}>
-        <div className={styles.studioMain}>
+        <section className={styles.liveColumn} aria-label="Live preview and controls">
           <div className={styles.previewPanel}>
             <div className={styles.previewHeader}>
               <div>
-                <div className={styles.previewTitle}>Program Preview</div>
-                <div className={styles.shellCardSubtitle}>
+                <div className={styles.previewTitle}>Live Program Feed</div>
+                <div className={styles.previewSubtitle}>
                   Routed to {selectedCapsule.name}
                 </div>
               </div>
-              <Button variant="gradient" size="sm" disabled>
-                Go live (preview)
-              </Button>
+              <div className={styles.previewActions}>
+                <Button variant="outline" size="sm" disabled>
+                  Stream settings
+                </Button>
+                <Button variant="gradient" size="sm" disabled>
+                  Go live
+                </Button>
+              </div>
             </div>
-            <div className={styles.previewFrame}>Program Feed</div>
-            <div className={styles.previewHeader}>
-              <span className={styles.previewStatus}>
-                <span aria-hidden>●</span> AI health monitor
-              </span>
+            <div className={styles.previewFrame}>Program Preview</div>
+            <div className={styles.previewFooter}>
+              <div className={styles.previewStats}>
+                <div className={styles.previewStat}>
+                  <span className={styles.previewStatLabel}>Uptime</span>
+                  <span className={styles.previewStatValue}>00:00:00</span>
+                </div>
+                <div className={styles.previewStat}>
+                  <span className={styles.previewStatLabel}>Viewers</span>
+                  <span className={styles.previewStatValue}>0</span>
+                </div>
+                <div className={styles.previewStat}>
+                  <span className={styles.previewStatLabel}>Bitrate</span>
+                  <span className={styles.previewStatValue}>--</span>
+                </div>
+              </div>
               <div className={styles.controlToolbar}>
                 <Button variant="outline" size="sm" disabled>
                   Camera
@@ -229,68 +245,249 @@ export function AiStreamStudioLayout({
                 </Button>
               </div>
             </div>
-            <div className={styles.studioControlGrid}>
-              <div className={styles.studioControlChip}>
-                <span className={styles.studioControlLabel}>Scene</span>
-                AI selects layout per segment
+          </div>
+
+          <div className={styles.quickActionsCard}>
+            <div className={styles.quickActionsHeader}>
+              <div>
+                <div className={styles.quickActionsTitle}>Quick controls</div>
+                <div className={styles.quickActionsSubtitle}>
+                  On-the-fly adjustments for your Capsule audience.
+                </div>
               </div>
-              <div className={styles.studioControlChip}>
-                <span className={styles.studioControlLabel}>Overlays</span>
-                Lower-thirds &amp; sponsor cadence
-              </div>
-              <div className={styles.studioControlChip}>
-                <span className={styles.studioControlLabel}>Chat</span>
-                Highlights, polls, and mod queue
-              </div>
-              <div className={styles.studioControlChip}>
-                <span className={styles.studioControlLabel}>Recording</span>
-                Auto VOD &amp; live clipping
-              </div>
+              <Button variant="ghost" size="xs" disabled>
+                Customize
+              </Button>
+            </div>
+            <div className={styles.quickActionsGrid}>
+              {["Edit stream info", "Launch raid", "Run promo", "Drop poll"].map((action) => (
+                <button key={action} type="button" className={styles.quickActionButton} disabled>
+                  {action}
+                </button>
+              ))}
+              <button type="button" className={styles.quickActionButton} disabled>
+                Add action
+              </button>
             </div>
           </div>
-        </div>
-        <aside className={styles.studioSidebar}>
-          <div className={styles.shellCard}>
-            <div className={styles.shellCardTitle}>Pre-live checklist</div>
-            <div className={styles.shellCardSubtitle}>
-              Studio will confirm these before the countdown hits zero.
+
+          <div className={styles.signalCard}>
+            <div className={styles.signalHeader}>
+              <div className={styles.signalTitle}>Live telemetry</div>
+              <span className={styles.signalPill}>AI monitor</span>
             </div>
-            <ul className={styles.shellList}>
-              <li className={styles.shellListItem}>
-                Camera &amp; mic permissions
-                <span className={styles.shellBadge}>Auto</span>
+            <ul className={styles.signalList}>
+              <li>
+                <span>Bitrate &amp; dropped frames</span>
+                <strong>Stable</strong>
               </li>
-              <li className={styles.shellListItem}>
-                Scene &amp; overlay sanity check
-                <span className={styles.shellBadge}>AI</span>
+              <li>
+                <span>Audience sentiment</span>
+                <strong>Calm</strong>
               </li>
-              <li className={styles.shellListItem}>
-                Simulcast destinations ready
-                <span className={styles.shellBadge}>Mux</span>
+              <li>
+                <span>Highlights queued</span>
+                <strong>3 clips</strong>
               </li>
             </ul>
           </div>
-          <div className={styles.shellCard}>
-            <div className={styles.shellCardTitle}>Live signals</div>
-            <div className={styles.shellCardSubtitle}>
-              Health, engagement, and crew notes update during the show.
+        </section>
+
+        <section className={styles.assistantColumn} aria-label="AI stage manager">
+          <div className={styles.stageManagerCard}>
+            <header className={styles.stageManagerHeader}>
+              <div>
+                <div className={styles.stageManagerTitle}>AI stage manager</div>
+                <div className={styles.stageManagerSubtitle}>
+                  Guides show pacing, sponsor beats, and guest handoffs.
+                </div>
+              </div>
+              <Button variant="ghost" size="xs" disabled>
+                View run of show
+              </Button>
+            </header>
+            <div className={styles.stageManagerTimeline}>
+              <div className={styles.stageManagerEvent}>
+                <span className={styles.stageManagerEventTime}>Now</span>
+                <div className={styles.stageManagerEventBody}>
+                  <strong>Open with origin story</strong>
+                  <p>
+                    60-second intro with host on camera. Slide deck is primed and overlays are synced.
+                  </p>
+                </div>
+              </div>
+              <div className={styles.stageManagerEvent}>
+                <span className={styles.stageManagerEventTime}>+05</span>
+                <div className={styles.stageManagerEventBody}>
+                  <strong>Invite guest speaker</strong>
+                  <p>
+                    Queue split-screen layout and drop guest bio lower-third.
+                  </p>
+                </div>
+              </div>
+              <div className={styles.stageManagerEvent}>
+                <span className={styles.stageManagerEventTime}>+12</span>
+                <div className={styles.stageManagerEventBody}>
+                  <strong>Community prompt</strong>
+                  <p>
+                    Run poll about feature wishlist. AI will surface top responses for wrap-up.
+                  </p>
+                </div>
+              </div>
             </div>
-            <ul className={styles.shellList}>
-              <li className={styles.shellListItem}>
-                Bitrate / dropped frames
-                <span className={styles.shellBadge}>0 issues</span>
+            <div className={styles.stageManagerThread}>
+              <div className={styles.stageManagerMessage}>
+                <span className={styles.stageManagerAuthor}>Stage manager</span>
+                <p>
+                  Want me to prep a sponsor segment once the demo wraps? I can ready the CTA overlay
+                  and chat reminder.
+                </p>
+              </div>
+              <div className={styles.stageManagerMessageSelf}>
+                <span className={styles.stageManagerAuthor}>You</span>
+                <p>
+                  Yes - schedule it for the 18 minute mark if engagement is high.
+                </p>
+              </div>
+            </div>
+            <footer className={styles.stageManagerFooter}>
+              <div className={styles.stageManagerSuggestions}>
+                {["Draft outro talking points", "Prep Q&A handoff", "Summarize chat sentiment"].map(
+                  (item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className={styles.stageManagerSuggestion}
+                      disabled
+                    >
+                      {item}
+                    </button>
+                  ),
+                )}
+              </div>
+              <div className={styles.stageManagerComposer}>
+                <input
+                  className={styles.stageManagerInput}
+                  placeholder="Ask your AI crew for support..."
+                  disabled
+                />
+                <Button variant="gradient" size="sm" disabled>
+                  Send
+                </Button>
+              </div>
+            </footer>
+          </div>
+        </section>
+
+        <section className={styles.resourceColumn} aria-label="Live resources">
+          <div className={styles.resourceCard}>
+            <header className={styles.resourceHeader}>
+              <div className={styles.resourceTitle}>Activity feed</div>
+              <Button variant="ghost" size="xs" disabled>
+                Filter
+              </Button>
+            </header>
+            <ul className={styles.resourceList}>
+              <li>
+                <span className={styles.resourceTime}>00:15</span>
+                <div>
+                  <strong>luna_dev followed</strong>
+                  <p>Auto thank-you message queued in chat.</p>
+                </div>
               </li>
-              <li className={styles.shellListItem}>
-                Chat heat index
-                <span className={styles.shellBadge}>Warming up</span>
+              <li>
+                <span className={styles.resourceTime}>00:09</span>
+                <div>
+                  <strong>crowdsource tipped $15</strong>
+                  <p>Overlay shout-out scheduled after current segment.</p>
+                </div>
               </li>
-              <li className={styles.shellListItem}>
-                AI crew alerts
-                <span className={styles.shellBadge}>Queued</span>
+              <li>
+                <span className={styles.resourceTime}>00:03</span>
+                <div>
+                  <strong>Clip ready</strong>
+                  <p>AI clipped &quot;Live coding reveal&quot; for instant share.</p>
+                </div>
               </li>
             </ul>
           </div>
-        </aside>
+
+          <div className={styles.resourceCard}>
+            <header className={styles.resourceHeader}>
+              <div className={styles.resourceTitle}>Audience chat</div>
+              <Button variant="ghost" size="xs" disabled>
+                Pop out
+              </Button>
+            </header>
+            <div className={styles.chatTranscript}>
+              <div className={styles.chatMessage}>
+                <span className={styles.chatAuthor}>mod-bot</span>
+                <p>Be kind - AI will auto flag anything off-topic.</p>
+              </div>
+              <div className={styles.chatMessage}>
+                <span className={styles.chatAuthor}>streamfan42</span>
+                <p>This layout looks slick! Any tips for mobile folks?</p>
+              </div>
+              <div className={styles.chatMessage}>
+                <span className={styles.chatAuthor}>crew-sam</span>
+                <p>Guest ready in green room. Handing off when you&apos;re set.</p>
+              </div>
+            </div>
+            <div className={styles.chatComposer}>
+              <input className={styles.chatInput} placeholder="Message the crowd..." disabled />
+              <Button variant="outline" size="sm" disabled>
+                Chat
+              </Button>
+            </div>
+          </div>
+
+          <div className={styles.resourceCard}>
+            <header className={styles.resourceHeader}>
+              <div className={styles.resourceTitle}>Collaborators</div>
+              <Button variant="ghost" size="xs" disabled>
+                Invite
+              </Button>
+            </header>
+            <ul className={styles.collaboratorList}>
+              <li className={styles.collaboratorItem}>
+                <div className={styles.collaboratorMeta}>
+                  <span className={styles.collaboratorName}>Sam Reynolds</span>
+                  <span className={styles.collaboratorRole}>Producer</span>
+                </div>
+                <span
+                  className={`${styles.collaboratorStatus} ${styles.collaboratorStatusOnline}`}
+                >
+                  On comms
+                </span>
+              </li>
+              <li className={styles.collaboratorItem}>
+                <div className={styles.collaboratorMeta}>
+                  <span className={styles.collaboratorName}>Jess Patel</span>
+                  <span className={styles.collaboratorRole}>Moderator</span>
+                </div>
+                <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusIdle}`}>
+                  Reviewing queue
+                </span>
+              </li>
+              <li className={styles.collaboratorItem}>
+                <div className={styles.collaboratorMeta}>
+                  <span className={styles.collaboratorName}>Aria</span>
+                  <span className={styles.collaboratorRole}>AI writer</span>
+                </div>
+                <span
+                  className={`${styles.collaboratorStatus} ${styles.collaboratorStatusAway}`}
+                >
+                  Updating recap
+                </span>
+              </li>
+            </ul>
+            <footer className={styles.collaboratorFooter}>
+              <Button variant="ghost" size="xs" disabled>
+                Manage collaborators
+              </Button>
+            </footer>
+          </div>
+        </section>
       </div>
     );
   };
@@ -363,7 +560,7 @@ export function AiStreamStudioLayout({
             <li>Flags moments for instant clips &amp; VOD chapters.</li>
           </ul>
           <div className={styles.assistantPrompt}>
-            “Queue the sponsor slate in 2 minutes and remind me to plug the merch drop.”
+            &quot;Queue the sponsor slate in 2 minutes and remind me to plug the merch drop.&quot;
           </div>
         </div>
       </div>

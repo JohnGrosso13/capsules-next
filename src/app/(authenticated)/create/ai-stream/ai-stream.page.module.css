@@ -99,107 +99,502 @@
 
 .studioLayout {
   display: grid;
-  gap: clamp(18px, 2.6vw, 28px);
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: clamp(18px, 2.8vw, 32px);
+  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.6fr) minmax(0, 1.4fr);
   align-items: start;
 }
 
-.studioMain {
+.liveColumn,
+.assistantColumn,
+.resourceColumn {
   display: grid;
   gap: clamp(16px, 2.4vw, 24px);
 }
 
 .previewPanel {
   display: grid;
-  gap: 14px;
-  padding: clamp(18px, 3vw, 26px);
+  gap: 18px;
+  padding: clamp(20px, 3vw, 28px);
   border-radius: 26px;
-  border: 1px solid rgba(126, 142, 255, 0.24);
-  background: linear-gradient(
+  border: 1px solid var(--card-border, rgba(126, 142, 255, 0.24));
+  background:
+    linear-gradient(
       160deg,
-      rgba(86, 99, 242, 0.18),
-      rgba(86, 99, 242, 0.05)
+      color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 58%, transparent),
+      color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 52%, transparent)
     ),
-    rgba(14, 18, 46, 0.92);
+    var(--surface-elevated, rgba(17, 22, 45, 0.86));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 18%, transparent),
     0 20px 40px rgba(5, 10, 26, 0.28);
 }
 
 .previewHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
   flex-wrap: wrap;
+  gap: 16px;
 }
 
 .previewTitle {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.previewSubtitle {
+  font-size: 0.9rem;
+  color: var(--text-2, rgba(200, 208, 255, 0.78));
+}
+
+.previewActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .previewFrame {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 20px;
-  border: 1px dashed rgba(148, 158, 255, 0.42);
+  position: relative;
+  min-height: clamp(340px, 38vw, 420px);
+  border-radius: clamp(20px, 3vw, 24px);
+  border: 1px solid var(--card-border, rgba(140, 154, 255, 0.28));
   background:
-    radial-gradient(circle at top left, rgba(114, 133, 255, 0.3), transparent 60%),
-    rgba(17, 21, 54, 0.88);
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 55%, transparent),
+      color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 65%, transparent)
+    ),
+    radial-gradient(280px 340px at 24% 18%, color-mix(in srgb, var(--color-brand, #6366f1) 28%, transparent), transparent 72%),
+    var(--surface-base, rgba(10, 12, 32, 0.92));
   display: grid;
   place-items: center;
-  color: rgba(205, 214, 255, 0.78);
+  color: var(--text-2, rgba(205, 214, 255, 0.78));
   font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.18em;
 }
 
-.previewStatus {
-  display: inline-flex;
+.previewFooter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(137, 150, 255, 0.3);
-  background: rgba(30, 36, 88, 0.6);
-  font-size: 0.8rem;
-  color: rgba(214, 220, 255, 0.86);
+  justify-content: space-between;
+}
+
+.previewStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.previewStat {
+  display: grid;
+  gap: 4px;
+}
+
+.previewStatLabel {
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3, rgba(186, 196, 255, 0.75));
+}
+
+.previewStatValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, rgba(228, 234, 255, 0.92));
 }
 
 .controlToolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  justify-content: flex-end;
 }
 
-.studioControlGrid {
+.quickActionsCard {
+  display: grid;
+  gap: 16px;
+  padding: clamp(18px, 2.6vw, 24px);
+  border-radius: 20px;
+  border: 1px solid var(--card-border, rgba(126, 140, 255, 0.24));
+  background: color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 60%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 12%, transparent);
+}
+
+.quickActionsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.quickActionsTitle {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.quickActionsSubtitle {
+  font-size: 0.85rem;
+  color: var(--text-2, rgba(198, 206, 255, 0.78));
+}
+
+.quickActionsGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.quickActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(142, 154, 255, 0.22)) 85%, transparent);
+  background: color-mix(in srgb, var(--surface-muted, rgba(26, 30, 74, 0.82)) 70%, transparent);
+  color: var(--text, rgba(215, 222, 255, 0.85));
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.quickActionButton:disabled {
+  opacity: 0.7;
+}
+
+.signalCard {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  padding: clamp(18px, 2.6vw, 24px);
+  border-radius: 20px;
+  border: 1px solid var(--card-border, rgba(132, 148, 255, 0.2));
+  background: color-mix(in srgb, var(--surface-overlay, rgba(17, 21, 54, 0.88)) 68%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 12%, transparent);
 }
 
-.studioControlChip {
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(146, 156, 255, 0.18);
-  background: rgba(18, 22, 56, 0.82);
+.signalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.signalTitle {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.signalPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(148, 160, 255, 0.3)) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-muted, rgba(30, 36, 88, 0.6)) 64%, transparent);
+  font-size: 0.75rem;
+  color: var(--text-2, rgba(209, 216, 255, 0.82));
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.signalList {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
   font-size: 0.88rem;
-  color: rgba(210, 218, 255, 0.85);
+  color: var(--text-2, rgba(204, 212, 255, 0.82));
+}
+
+.signalList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.signalList strong {
+  color: var(--text, rgba(232, 236, 255, 0.92));
+}
+
+.stageManagerCard {
+  display: grid;
+  gap: 18px;
+  padding: clamp(20px, 3vw, 28px);
+  border-radius: 24px;
+  border: 1px solid var(--card-border, rgba(132, 150, 255, 0.24));
+  background: color-mix(in srgb, var(--surface-overlay, rgba(19, 23, 58, 0.92)) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 16%, transparent),
+    0 16px 32px rgba(6, 10, 28, 0.28);
+}
+
+.stageManagerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.stageManagerTitle {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.stageManagerSubtitle {
+  font-size: 0.88rem;
+  color: var(--text-2, rgba(200, 208, 255, 0.82));
+}
+
+.stageManagerTimeline {
+  display: grid;
+  gap: 12px;
+}
+
+.stageManagerEvent {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(146, 156, 255, 0.16);
+  background: rgba(22, 26, 64, 0.6);
+}
+
+.stageManagerEventTime {
+  font-size: 0.82rem;
+  color: var(--text-3, rgba(192, 202, 255, 0.7));
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.stageManagerEventBody {
   display: grid;
   gap: 4px;
+  font-size: 0.9rem;
+  color: var(--text, rgba(213, 220, 255, 0.86));
 }
 
-.studioControlLabel {
+.stageManagerThread {
+  display: grid;
+  gap: 12px;
+}
+
+.stageManagerMessage,
+.stageManagerMessageSelf {
+  padding: 14px 16px;
+  border-radius: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.stageManagerMessage {
+  border: 1px solid rgba(132, 146, 255, 0.2);
+  background: color-mix(in srgb, var(--surface-muted, rgba(24, 28, 68, 0.8)) 70%, transparent);
+  color: var(--text, rgba(210, 218, 255, 0.88));
+}
+
+.stageManagerMessageSelf {
+  border: 1px solid rgba(96, 110, 255, 0.32);
+  background: color-mix(in srgb, var(--surface-overlay, rgba(40, 46, 102, 0.92)) 74%, transparent);
+  color: var(--text, rgba(232, 236, 255, 0.92));
+}
+
+.stageManagerAuthor {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-3, rgba(186, 196, 255, 0.72));
+}
+
+.stageManagerFooter {
+  display: grid;
+  gap: 14px;
+}
+
+.stageManagerSuggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.stageManagerSuggestion {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(146, 156, 255, 0.2)) 75%, transparent);
+  background: color-mix(in srgb, var(--surface-muted, rgba(28, 32, 74, 0.6)) 68%, transparent);
+  color: var(--text, rgba(210, 218, 255, 0.85));
+  font-size: 0.82rem;
+}
+
+.stageManagerComposer {
+  display: flex;
+  gap: 10px;
+}
+
+.stageManagerInput {
+  flex: 1;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(146, 156, 255, 0.26)) 85%, transparent);
+  background: color-mix(in srgb, var(--surface-base, rgba(18, 22, 56, 0.9)) 72%, transparent);
+  color: var(--text, #f8fafc);
+  padding: 12px 14px;
+  font-size: 0.9rem;
+}
+
+.resourceCard {
+  display: grid;
+  gap: 16px;
+  padding: clamp(18px, 2.6vw, 24px);
+  border-radius: 20px;
+  border: 1px solid var(--card-border, rgba(132, 148, 255, 0.2));
+  background: color-mix(in srgb, var(--surface-elevated, rgba(16, 20, 50, 0.86)) 70%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 10%, transparent);
+}
+
+.resourceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.resourceTitle {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.resourceList {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.88rem;
+  color: var(--text-2, rgba(208, 214, 255, 0.84));
+}
+
+.resourceList li {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.resourceTime {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3, rgba(186, 196, 255, 0.7));
+}
+
+.resourceList strong {
+  color: var(--text, rgba(230, 236, 255, 0.92));
+}
+
+.chatTranscript {
+  display: grid;
+  gap: 12px;
+  max-height: 220px;
+  overflow: hidden auto;
+  padding-right: 6px;
+}
+
+.chatMessage {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-muted, rgba(24, 28, 68, 0.7)) 68%, transparent);
+  color: var(--text, rgba(210, 218, 255, 0.86));
+  font-size: 0.88rem;
+}
+
+.chatAuthor {
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(187, 196, 255, 0.78);
+  color: var(--text-3, rgba(186, 196, 255, 0.72));
 }
 
-.studioSidebar {
+.chatComposer {
+  display: flex;
+  gap: 10px;
+}
+
+.chatInput {
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(146, 156, 255, 0.26)) 85%, transparent);
+  background: color-mix(in srgb, var(--surface-base, rgba(18, 22, 56, 0.9)) 72%, transparent);
+  color: var(--text, #f8fafc);
+  padding: 10px 12px;
+  font-size: 0.88rem;
+}
+
+.collaboratorList {
   display: grid;
-  gap: clamp(16px, 2.4vw, 24px);
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-2, rgba(206, 214, 255, 0.84));
+}
+
+.collaboratorItem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.collaboratorMeta {
+  display: grid;
+  gap: 2px;
+}
+
+.collaboratorName {
+  font-weight: 600;
+}
+
+.collaboratorRole {
+  font-size: 0.78rem;
+  color: var(--text-3, rgba(186, 196, 255, 0.72));
+}
+
+.collaboratorStatus {
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.collaboratorStatusOnline {
+  background: color-mix(in srgb, var(--color-success, #2dd4bf) 18%, transparent);
+  color: color-mix(in srgb, var(--color-success, #2dd4bf) 85%, var(--text, #f8fafc));
+}
+
+.collaboratorStatusIdle {
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 18%, transparent);
+  color: color-mix(in srgb, var(--color-brand, #6366f1) 78%, var(--text, #f8fafc));
+}
+
+.collaboratorStatusAway {
+  background: color-mix(in srgb, var(--color-accent, #22d3ee) 18%, transparent);
+  color: color-mix(in srgb, var(--color-accent, #22d3ee) 78%, var(--text, #f8fafc));
+}
+
+.collaboratorFooter {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .shellCard {
