@@ -56,8 +56,8 @@ export async function ensurePartyRoom(metadata: PartyMetadata): Promise<void> {
       name: roomName,
       metadata,
       maxParticipants: MAX_PARTY_CAPACITY,
-      emptyTimeout: 15,
-      departureTimeout: 10,
+      emptyTimeout: 60,
+      departureTimeout: 20,
     });
   } catch (error) {
     const code = getLivekitErrorCode(error);

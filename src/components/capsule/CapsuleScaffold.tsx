@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   Broadcast,
+  CaretDown,
   MagnifyingGlass,
   MagicWand,
   ImageSquare,
@@ -676,6 +677,7 @@ function CapsuleStorePlaceholder({
         ["--store-banner-image" as string]: `url("${storeBannerUrl}")`,
       } as React.CSSProperties)
     : undefined;
+  const storeSearchId = React.useId();
   const productSpots = [
     {
       id: "feature",
@@ -733,40 +735,56 @@ function CapsuleStorePlaceholder({
     { id: "cart-sticker", name: "Die-cut Sticker", price: "$5.00", note: "Set of 3" },
   ];
 
+  const quickSorts = [
+    {
+      id: "sort-featured",
+      title: "Legendary Guild Tee",
+      detail: "$22.00 • Featured drop",
+      accent: capTheme.storeMediaBlue,
+      icon: <TShirt size={28} weight="duotone" />,
+    },
+    {
+      id: "sort-spotlight",
+      title: "Cavern Mouse Pad",
+      detail: "$18.00 • Spotlight",
+      accent: capTheme.storeMediaPurple,
+      icon: <ImageSquare size={28} weight="duotone" />,
+    },
+    {
+      id: "sort-limited",
+      title: "Epic Sword Sticker",
+      detail: "$3.00 • Limited run",
+      accent: capTheme.storeMediaAmber,
+      icon: <MagicWand size={28} weight="duotone" />,
+    },
+  ];
+
   const filterSections = [
     {
-      id: "type",
-      label: "Type",
+      id: "category",
+      label: "Category",
       options: [
-        { id: "type-hero", label: "Hero drops", active: true },
-        { id: "type-apparel", label: "Apparel", active: false },
-        { id: "type-digital", label: "Digital add-ons", active: false },
-        { id: "type-collectibles", label: "Collectibles", active: false },
+        { id: "category-apparel", label: "Apparel", count: 12, active: true },
+        { id: "category-accessories", label: "Accessories", count: 6, active: false },
+        { id: "category-stickers", label: "Stickers", count: 9, active: false },
+        { id: "category-digital", label: "Digital drops", count: 4, active: false },
       ],
     },
     {
-      id: "status",
-      label: "Status",
+      id: "stage",
+      label: "Stage",
       options: [
-        { id: "status-draft", label: "Draft", active: true },
-        { id: "status-review", label: "Needs review", active: false },
-        { id: "status-scheduled", label: "Scheduled", active: false },
-      ],
-    },
-    {
-      id: "access",
-      label: "Access",
-      options: [
-        { id: "access-public", label: "Public launch", active: true },
-        { id: "access-members", label: "Members-only", active: false },
-        { id: "access-backstage", label: "Backstage pass", active: false },
+        { id: "stage-draft", label: "In draft", count: 8, active: true },
+        { id: "stage-review", label: "Needs review", count: 3, active: false },
+        { id: "stage-live", label: "Live now", count: 2, active: false },
       ],
     },
   ];
 
   const filterToggles = [
-    { id: "toggle-members", label: "Priority for members-only releases", active: true },
-    { id: "toggle-drafts", label: "Include unpublished tiles", active: true },
+    { id: "toggle-ready", label: "Show only launch-ready listings", active: false },
+    { id: "toggle-collabs", label: "Include collaborator submissions", active: true },
+    { id: "toggle-limited", label: "Highlight limited drops", active: true },
   ];
 
   const setupSteps = [
@@ -817,52 +835,120 @@ function CapsuleStorePlaceholder({
 
         <div className={capTheme.storeGrid}>
           <aside className={capTheme.storeFilters}>
-            <form className={capTheme.storeSearch} role="search" aria-label="Search storefront">
-              <MagnifyingGlass size={18} weight="bold" />
-              <input
-                type="search"
-                placeholder="Search products, prompts, or saved concepts..."
+            <header className={capTheme.storeFiltersHeader}>
+              <div>
+                <h2>Filters</h2>
+                <p>Fine-tune how drops appear before launch.</p>
+              </div>
+              <button
+                type="button"
+                className={capTheme.storeClearButton}
                 disabled
                 aria-disabled="true"
-              />
-            </form>
+              >
+                Clear all
+              </button>
+            </header>
 
-            <div className={capTheme.storeFilterSections}>
-              {filterSections.map((section) => (
-                <section key={section.id} className={capTheme.storeFilterSection}>
-                  <h3>{section.label}</h3>
-                  <ul className={capTheme.storeFilterList}>
-                    {section.options.map((option) => (
-                      <li key={option.id}>
-                        <button
-                          type="button"
-                          className={capTheme.storeFilterOption}
-                          data-active={option.active ? "true" : undefined}
-                          disabled
-                          aria-disabled="true"
-                        >
-                          {option.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
+            <form
+              className={capTheme.storeFiltersForm}
+              aria-label="Filter storefront"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <label className={capTheme.storeSearch} htmlFor={storeSearchId}>
+                <MagnifyingGlass size={18} weight="bold" />
+                <input
+                  id={storeSearchId}
+                  type="search"
+                  placeholder="Search products, prompts, or saved concepts..."
+                  disabled
+                  aria-disabled="true"
+                />
+              </label>
 
-            <div className={capTheme.storeFilterToggles}>
-              {filterToggles.map((toggle) => (
-                <label key={toggle.id} className={capTheme.storeToggle}>
-                  <input
-                    type="checkbox"
-                    defaultChecked={toggle.active}
+              <div className={capTheme.storeFilterSections}>
+                {filterSections.map((section) => (
+                  <fieldset key={section.id} className={capTheme.storeFilterSection}>
+                    <legend>{section.label}</legend>
+                    <ul className={capTheme.storeFilterList}>
+                      {section.options.map((option) => (
+                        <li key={option.id}>
+                          <label
+                            className={capTheme.storeFilterOption}
+                            data-active={option.active ? "true" : undefined}
+                          >
+                            <input
+                              type="checkbox"
+                              defaultChecked={option.active}
+                              disabled
+                              aria-disabled="true"
+                            />
+                            <span className={capTheme.storeFilterLabelText}>{option.label}</span>
+                            {typeof option.count === "number" ? (
+                              <span className={capTheme.storeFilterBadge}>{option.count}</span>
+                            ) : null}
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </fieldset>
+                ))}
+              </div>
+
+              <div className={capTheme.storeFilterDivider} />
+
+              <section className={capTheme.storeSortSection} aria-label="Sort options">
+                <div className={capTheme.storeSortRow}>
+                  <span className={capTheme.storeSortLabel}>Sort by</span>
+                  <button
+                    type="button"
+                    className={capTheme.storeSortButton}
                     disabled
                     aria-disabled="true"
-                  />
-                  <span>{toggle.label}</span>
-                </label>
-              ))}
-            </div>
+                  >
+                    <span>Relevance</span>
+                    <CaretDown size={12} weight="bold" />
+                  </button>
+                </div>
+                <div className={capTheme.storeQuickSorts}>
+                  {quickSorts.map((sort) => (
+                    <article key={sort.id} className={capTheme.storeQuickSortCard}>
+                      <div className={`${capTheme.storeQuickSortPreview} ${sort.accent}`}>
+                        {sort.icon}
+                      </div>
+                      <div className={capTheme.storeQuickSortMeta}>
+                        <span>{sort.title}</span>
+                        <strong>{sort.detail}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        className={capTheme.storeQuickSortAction}
+                        disabled
+                        aria-disabled="true"
+                      >
+                        Use
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <div className={capTheme.storeFilterDivider} />
+
+              <div className={capTheme.storeFilterToggles}>
+                {filterToggles.map((toggle) => (
+                  <label key={toggle.id} className={capTheme.storeToggle}>
+                    <input
+                      type="checkbox"
+                      defaultChecked={toggle.active}
+                      disabled
+                      aria-disabled="true"
+                    />
+                    <span>{toggle.label}</span>
+                  </label>
+                ))}
+              </div>
+            </form>
           </aside>
 
           <section className={capTheme.storeMainColumn}>

@@ -47,6 +47,7 @@ type PartyStageProps = {
   status: string;
   onLeave(): Promise<void> | void;
   onClose(): Promise<void> | void;
+  onReconnecting(): void;
   onReady(room: Room): void;
   onDisconnected(): void;
 };
@@ -98,6 +99,7 @@ export function PartyPanel({
     leaveParty,
     closeParty,
     resetError,
+    handleRoomReconnecting,
     handleRoomConnected,
     handleRoomDisconnected,
   } = usePartyContext();
@@ -412,6 +414,7 @@ export function PartyPanel({
           status={status}
           onLeave={handleResetAndLeave}
           onClose={handleResetAndClose}
+          onReconnecting={handleRoomReconnecting}
           onReady={handleRoomConnected}
           onDisconnected={handleRoomDisconnected}
         />
@@ -515,6 +518,7 @@ function PartyStage({
   status,
   onLeave,
   onClose,
+  onReconnecting,
   onReady,
   onDisconnected,
 }: PartyStageProps) {
@@ -528,9 +532,6 @@ function PartyStage({
         audio
         video={false}
         connectOptions={{ autoSubscribe: true }}
-        onDisconnected={() => {
-          onDisconnected();
-        }}
       >
         <RoomAudioRenderer />
         <StartAudio label="Tap to allow party audio" className={styles.startAudio} />
@@ -540,6 +541,7 @@ function PartyStage({
           status={status}
           onLeave={onLeave}
           onClose={onClose}
+          onReconnecting={onReconnecting}
           onReady={onReady}
           onDisconnected={onDisconnected}
         />
@@ -554,6 +556,7 @@ type PartyStageSceneProps = {
   status: string;
   onLeave(): Promise<void> | void;
   onClose(): Promise<void> | void;
+  onReconnecting(): void;
   onReady(room: Room): void;
   onDisconnected(): void;
 };
@@ -564,6 +567,7 @@ function PartyStageScene({
   status,
   onLeave,
   onClose,
+  onReconnecting,
   onReady,
   onDisconnected,
 }: PartyStageSceneProps) {
@@ -578,15 +582,25 @@ function PartyStageScene({
     const handleRoomDisconnected = () => {
       onDisconnected();
     };
+    const handleRoomReconnecting = () => {
+      onReconnecting();
+    };
+    const handleRoomReconnected = () => {
+      onReady(room);
+    };
 
     onReady(room);
     setMicEnabled(room.localParticipant?.isMicrophoneEnabled ?? true);
     room.on(RoomEvent.Disconnected, handleRoomDisconnected);
+    room.on(RoomEvent.Reconnecting, handleRoomReconnecting);
+    room.on(RoomEvent.Reconnected, handleRoomReconnected);
 
     return () => {
       room.off(RoomEvent.Disconnected, handleRoomDisconnected);
+      room.off(RoomEvent.Reconnecting, handleRoomReconnecting);
+      room.off(RoomEvent.Reconnected, handleRoomReconnected);
     };
-  }, [onDisconnected, onReady, room]);
+  }, [onDisconnected, onReady, onReconnecting, room]);
 
   const handleToggleMic = React.useCallback(async () => {
     if (!room) return;

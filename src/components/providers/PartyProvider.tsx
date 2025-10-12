@@ -39,6 +39,7 @@ type PartyContextValue = {
   leaveParty(): Promise<void>;
   closeParty(): Promise<void>;
   resetError(): void;
+  handleRoomReconnecting(): void;
   handleRoomConnected(room: Room): void;
   handleRoomDisconnected(): void;
 };
@@ -260,6 +261,10 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     setAction(null);
   }, []);
 
+  const handleRoomReconnecting = React.useCallback(() => {
+    setStatus((current) => (current === "connected" ? "connecting" : current));
+  }, []);
+
   const handleRoomDisconnected = React.useCallback(() => {
     roomRef.current = null;
     resumeAttemptRef.current = false;
@@ -392,6 +397,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
       leaveParty,
       closeParty,
       resetError,
+      handleRoomReconnecting,
       handleRoomConnected,
       handleRoomDisconnected,
     }),
@@ -406,6 +412,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
       leaveParty,
       closeParty,
       resetError,
+      handleRoomReconnecting,
       handleRoomConnected,
       handleRoomDisconnected,
     ],
