@@ -65,3 +65,24 @@ export async function updateUserAvatar(params: {
   const updated = handleResult(result, "users.updateAvatar");
   return Boolean(updated?.id);
 }
+
+export async function updateUserName(params: {
+  userId: string;
+  fullName: string | null;
+}): Promise<boolean> {
+  const normalizedId = normalizeString(params.userId);
+  if (!normalizedId) return false;
+
+  const normalizedName = normalizeString(params.fullName);
+
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from("users")
+    .update({ full_name: normalizedName ?? null })
+    .eq("id", normalizedId)
+    .select<{ id: string | null }>("id")
+    .maybeSingle();
+
+  const updated = handleResult(result, "users.updateName");
+  return Boolean(updated?.id);
+}

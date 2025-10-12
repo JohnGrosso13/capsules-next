@@ -4,6 +4,7 @@ import * as React from "react";
 import type { Room } from "livekit-client";
 
 import type { PartyTokenResponse } from "@/server/validation/schemas/party";
+import { useCurrentUser } from "@/services/auth/client";
 
 type PartyStatus = "idle" | "loading" | "connecting" | "connected";
 type PartyAction = "create" | "join" | "leave" | "close" | "resume" | null;
@@ -157,6 +158,19 @@ async function deleteJson(url: string): Promise<void> {
   }
 }
 
+function resolveDisplayName(
+  provided: string | null | undefined,
+  fallback: string | null,
+): string | null {
+  if (typeof provided === "string") {
+    const trimmed = provided.trim();
+    if (trimmed.length) {
+      return trimmed;
+    }
+  }
+  return fallback ?? null;
+}
+
 export function PartyProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = React.useState<PartyStatus>("idle");
   const [action, setAction] = React.useState<PartyAction>(null);
@@ -165,6 +179,17 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   const roomRef = React.useRef<Room | null>(null);
   const resumeAttemptRef = React.useRef(false);
   const inviteUrl = React.useMemo(() => getInviteUrl(session), [session]);
+  const { user } = useCurrentUser();
+  const fallbackDisplayName = React.useMemo(() => {
+    const base = user?.name;
+    if (!base) return null;
+    const trimmed = base.trim();
+    return trimmed.length ? trimmed : null;
+  }, [user?.name]);
+  const fallbackDisplayNameRef = React.useRef<string | null>(fallbackDisplayName);
+  React.useEffect(() => {
+    fallbackDisplayNameRef.current = fallbackDisplayName;
+  }, [fallbackDisplayName]);
 
   React.useEffect(() => {
     if (!session) return;
@@ -195,9 +220,13 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
+        const resumeDisplayName = resolveDisplayName(
+          snapshot.displayName,
+          fallbackDisplayNameRef.current,
+        );
         const payload = await postJson<PartyTokenResponse>("/api/party/token", {
           partyId: snapshot.partyId,
-          displayName: snapshot.displayName ?? undefined,
+          displayName: resumeDisplayName ?? undefined,
         });
         const nextSession: PartySession = {
           partyId: payload.partyId,
@@ -206,7 +235,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
           metadata: payload.metadata,
           expiresAt: payload.expiresAt,
           isOwner: payload.isOwner,
-          displayName: snapshot.displayName ?? null,
+          displayName: resumeDisplayName,
         };
         setSession(nextSession);
         setStatus("connecting");
@@ -243,11 +272,14 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     setAction("create");
     setStatus("loading");
     setError(null);
-    const displayName = options.displayName?.trim() || null;
+    const resolvedDisplayName = resolveDisplayName(
+      options.displayName ?? null,
+      fallbackDisplayNameRef.current,
+    );
     const topic = options.topic?.trim() || null;
     try {
       const payload = await postJson<PartyTokenResponse>("/api/party", {
-        displayName: displayName ?? undefined,
+        displayName: resolvedDisplayName ?? undefined,
         topic: topic ?? undefined,
       });
       const nextSession: PartySession = {
@@ -257,7 +289,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
         metadata: payload.metadata,
         expiresAt: payload.expiresAt,
         isOwner: payload.isOwner,
-        displayName,
+        displayName: resolvedDisplayName,
       };
       setSession(nextSession);
       setStatus("connecting");
@@ -273,14 +305,17 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
 
   const joinParty = React.useCallback(async (partyId: string, options: JoinPartyOptions) => {
     const normalizedId = partyId.trim().toLowerCase();
-    const displayName = options.displayName?.trim() || null;
+    const resolvedDisplayName = resolveDisplayName(
+      options.displayName ?? null,
+      fallbackDisplayNameRef.current,
+    );
     setAction("join");
     setStatus("loading");
     setError(null);
     try {
       const payload = await postJson<PartyTokenResponse>("/api/party/token", {
         partyId: normalizedId,
-        displayName: displayName ?? undefined,
+        displayName: resolvedDisplayName ?? undefined,
       });
       const nextSession: PartySession = {
         partyId: payload.partyId,
@@ -289,7 +324,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
         metadata: payload.metadata,
         expiresAt: payload.expiresAt,
         isOwner: payload.isOwner,
-        displayName,
+        displayName: resolvedDisplayName,
       };
       setSession(nextSession);
       setStatus("connecting");

@@ -3,7 +3,7 @@ import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 
-import { findUserById, updateUserAvatar } from "./repository";
+import { findUserById, updateUserAvatar, updateUserName } from "./repository";
 
 type BannerCrop = {
   offsetX: number;
@@ -14,6 +14,12 @@ function normalizeOptionalString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+const MAX_DISPLAY_NAME_LENGTH = 80;
+
+function collapseWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function resolveProfileMediaUrl(value: string | null): string | null {
@@ -43,6 +49,25 @@ export async function getUserProfileSummary(userId: string): Promise<{
     name: normalizeOptionalString(user.full_name ?? null),
     avatarUrl: resolveProfileMediaUrl(user.avatar_url ?? null),
   };
+}
+
+export async function updateUserDisplayName(
+  ownerId: string,
+  name: string | null,
+): Promise<{ name: string | null }> {
+  await requireUser(ownerId);
+  const normalized = normalizeOptionalString(name ?? null);
+  const collapsed = normalized ? collapseWhitespace(normalized) : null;
+  if (collapsed && collapsed.length > MAX_DISPLAY_NAME_LENGTH) {
+    throw new Error(`Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or fewer.`);
+  }
+
+  const updated = await updateUserName({ userId: ownerId, fullName: collapsed });
+  if (!updated) {
+    throw new Error("Failed to update display name.");
+  }
+
+  return { name: collapsed };
 }
 
 export async function updateUserAvatarImage(

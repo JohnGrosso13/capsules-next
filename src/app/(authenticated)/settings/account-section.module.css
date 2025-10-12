@@ -80,3 +80,70 @@
   color: #fecdd3;
   font-size: 0.9rem;
 }
+
+.displayNameSection {
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  padding-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.displayNameIntro {
+  display: grid;
+  gap: 4px;
+}
+
+.displayNameTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+
+.displayNameIntro p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.displayNameLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.displayNameForm {
+  display: grid;
+  gap: 12px;
+}
+
+.displayNameInput {
+  max-width: 320px;
+}
+
+.displayNameActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.displayNameHint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-3);
+}
+
+.displayNameMessage {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.displayNameMessageSuccess {
+  color: var(--color-success, #34d399);
+}
+
+.displayNameMessageError {
+  color: #fecdd3;
+}

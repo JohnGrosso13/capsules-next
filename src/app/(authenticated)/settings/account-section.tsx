@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   ProfileAvatarCustomizer,
   type CapsuleCustomizerSaveResult,
@@ -37,6 +38,10 @@ function buildInitials(name: string | null, email: string | null): string {
   return fallback ? fallback.toUpperCase() : "U";
 }
 
+function normalizeDisplayNameInput(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 type AccountSettingsSectionProps = {
   profile: AccountProfile;
 };
@@ -44,6 +49,15 @@ type AccountSettingsSectionProps = {
 export function AccountSettingsSection({
   profile,
 }: AccountSettingsSectionProps): React.JSX.Element {
+  const [profileDisplayName, setProfileDisplayName] = React.useState<string | null>(
+    profile.name ?? null,
+  );
+  const [displayNameDraft, setDisplayNameDraft] = React.useState(profile.name ?? "");
+  const [displayNamePending, setDisplayNamePending] = React.useState(false);
+  const [displayNameFeedback, setDisplayNameFeedback] = React.useState<
+    { tone: "success" | "error"; message: string } | null
+  >(null);
+
   const [customAvatarUrl, setCustomAvatarUrl] = React.useState<string | null>(
     profile.avatarUrl ?? null,
   );
@@ -53,8 +67,16 @@ export function AccountSettingsSection({
 
   const hasCustomAvatar = Boolean(customAvatarUrl);
   const activeAvatarUrl = customAvatarUrl ?? profile.clerkAvatarUrl ?? null;
-  const displayName = profile.name ?? profile.email ?? "Your profile";
-  const initials = buildInitials(profile.name, profile.email);
+  const savedDisplayNameNormalized = profileDisplayName
+    ? normalizeDisplayNameInput(profileDisplayName)
+    : "";
+  const draftDisplayNameNormalized = normalizeDisplayNameInput(displayNameDraft);
+  const hasDisplayNameChanges = draftDisplayNameNormalized !== savedDisplayNameNormalized;
+  const resolvedDisplayName =
+    (profileDisplayName && profileDisplayName.length ? profileDisplayName : null) ??
+    profile.email ??
+    "Your profile";
+  const initials = buildInitials(profileDisplayName, profile.email);
 
   const handleCustomizerSaved = React.useCallback((result: CapsuleCustomizerSaveResult) => {
     if (result.type === "avatar") {
@@ -93,6 +115,87 @@ export function AccountSettingsSection({
     }
   }, [profile.clerkAvatarUrl]);
 
+  React.useEffect(() => {
+    if (!displayNameFeedback) return;
+    if (typeof window === "undefined") return;
+    const timer = window.setTimeout(() => {
+      setDisplayNameFeedback(null);
+    }, 3200);
+    return () => window.clearTimeout(timer);
+  }, [displayNameFeedback]);
+
+  const submitDisplayName = React.useCallback(
+    async (rawValue: string | null) => {
+      const normalizedInput =
+        typeof rawValue === "string" ? normalizeDisplayNameInput(rawValue) : null;
+      const nextValue = normalizedInput && normalizedInput.length ? normalizedInput : null;
+
+      const nextNormalized = nextValue ?? "";
+      if (nextNormalized === savedDisplayNameNormalized) {
+        setDisplayNameDraft(nextValue ?? "");
+        setDisplayNameFeedback(null);
+        return;
+      }
+
+      setDisplayNamePending(true);
+      setDisplayNameFeedback(null);
+      try {
+        const response = await fetch("/api/account/profile", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: nextValue }),
+        });
+        if (!response.ok) {
+          const message = await response.text().catch(() => "");
+          throw new Error(message || `Display name update failed with status ${response.status}`);
+        }
+        const payload = (await response.json().catch(() => null)) as
+          | { name?: unknown }
+          | null;
+        const updatedName =
+          payload && typeof payload === "object" && typeof payload.name === "string"
+            ? payload.name
+            : null;
+
+        setProfileDisplayName(updatedName);
+        setDisplayNameDraft(updatedName ?? "");
+        setDisplayNameFeedback({
+          tone: "success",
+          message: updatedName
+            ? "Display name updated."
+            : "Display name cleared. We'll use your account name instead.",
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("capsules:profile-updated", {
+              detail: { name: updatedName ?? null },
+            }),
+          );
+        }
+      } catch (err) {
+        console.error("settings account display name update error", err);
+        const message =
+          err instanceof Error && err.message
+            ? err.message
+            : "Unable to update your display name. Please try again.";
+        setDisplayNameFeedback({ tone: "error", message });
+      } finally {
+        setDisplayNamePending(false);
+      }
+    },
+    [savedDisplayNameNormalized],
+  );
+
+  const handleDisplayNameSave = React.useCallback(() => {
+    void submitDisplayName(displayNameDraft);
+  }, [displayNameDraft, submitDisplayName]);
+
+  const handleDisplayNameClear = React.useCallback(() => {
+    setDisplayNameDraft("");
+    void submitDisplayName(null);
+  }, [submitDisplayName, setDisplayNameDraft]);
+
   return (
     <>
       <article className={`${cards.card} ${layout.card}`}>
@@ -110,7 +213,7 @@ export function AccountSettingsSection({
               )}
             </span>
             <div className={styles.profileMeta}>
-              <span className={styles.profileName}>{displayName}</span>
+              <span className={styles.profileName}>{resolvedDisplayName}</span>
               {profile.email ? <span className={styles.profileEmail}>{profile.email}</span> : null}
               <span className={styles.profileStatus}>
                 {hasCustomAvatar
@@ -150,13 +253,73 @@ export function AccountSettingsSection({
             Use the customizer to upload art, reuse memories, or ask Capsule AI to generate a
             circular portrait.
           </p>
+
+          <div className={styles.displayNameSection}>
+            <div className={styles.displayNameIntro}>
+              <h4 className={styles.displayNameTitle}>Your display name</h4>
+              <p>
+                This optional name appears in parties, invites, and other member lists. Leave it
+                blank to fall back to your account name.
+              </p>
+            </div>
+            <label className={styles.displayNameLabel} htmlFor="settings-display-name">
+              Display name
+            </label>
+            <div className={styles.displayNameForm}>
+              <Input
+                id="settings-display-name"
+                value={displayNameDraft}
+                onChange={(event) => setDisplayNameDraft(event.target.value)}
+                placeholder={profile.email ?? "Your profile"}
+                maxLength={80}
+                disabled={displayNamePending}
+                className={styles.displayNameInput}
+              />
+              <div className={styles.displayNameActions}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={handleDisplayNameSave}
+                  disabled={!hasDisplayNameChanges || displayNamePending}
+                  loading={displayNamePending && hasDisplayNameChanges}
+                >
+                  Save display name
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleDisplayNameClear}
+                  disabled={
+                    displayNamePending ||
+                    (!profileDisplayName && draftDisplayNameNormalized.length === 0)
+                  }
+                >
+                  Clear display name
+                </Button>
+              </div>
+            </div>
+            <p className={styles.displayNameHint}>
+              Default name: {profile.email ?? "no account name on file"}
+            </p>
+            {displayNameFeedback ? (
+              <p
+                className={`${styles.displayNameMessage} ${
+                  displayNameFeedback.tone === "error"
+                    ? styles.displayNameMessageError
+                    : styles.displayNameMessageSuccess
+                }`}
+              >
+                {displayNameFeedback.message}
+              </p>
+            ) : null}
+          </div>
         </div>
       </article>
 
       <ProfileAvatarCustomizer
         open={customizerOpen}
         capsuleId={null}
-        capsuleName={displayName}
+        capsuleName={resolvedDisplayName}
         onClose={() => setCustomizerOpen(false)}
         onSaved={handleCustomizerSaved}
       />

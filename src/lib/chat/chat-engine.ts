@@ -41,6 +41,33 @@ type UserProfile = {
   avatarUrl: string | null;
 };
 
+type ChatParticipantDto = {
+  id: string;
+  name: string;
+  avatar: string | null;
+};
+
+type ChatMessageDto = {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  body: string;
+  sentAt: string;
+};
+
+type ChatHistoryResponse = {
+  success: true;
+  conversationId: string;
+  participants: ChatParticipantDto[];
+  messages: ChatMessageDto[];
+};
+
+type ChatSendResponse = {
+  success: true;
+  message: ChatMessageDto;
+  participants: ChatParticipantDto[];
+};
+
 export class ChatEngine {
   private readonly store: ChatStore;
   private client: RealtimeClient | null = null;
@@ -50,6 +77,8 @@ export class ChatEngine {
   private resolvedSelfClientId: string | null = null;
   private supabaseUserId: string | null = null;
   private userProfile: UserProfile = { id: null, name: null, email: null, avatarUrl: null };
+  private conversationHistoryLoaded = new Set<string>();
+  private conversationHistoryLoading = new Map<string, Promise<void>>();
 
   constructor(store?: ChatStore) {
     this.store = store ?? new ChatStore();
@@ -211,6 +240,7 @@ export class ChatEngine {
     if (options?.activate ?? true) {
       this.store.resetUnread(conversationId);
     }
+    void this.ensureConversationHistory(conversationId);
     return { id: conversationId, created };
   }
 
@@ -302,6 +332,7 @@ export class ChatEngine {
   openSession(sessionId: string): void {
     this.store.setActiveSession(sessionId);
     this.store.resetUnread(sessionId);
+    void this.ensureConversationHistory(sessionId);
   }
 
   closeSession(): void {
@@ -310,72 +341,157 @@ export class ChatEngine {
 
   deleteSession(sessionId: string): void {
     this.store.deleteSession(sessionId);
+    this.conversationHistoryLoaded.delete(sessionId);
+    this.conversationHistoryLoading.delete(sessionId);
   }
 
   async sendMessage(conversationId: string, body: string): Promise<void> {
     const trimmed = body.replace(/\s+/g, " ").trim();
     if (!trimmed) return;
-    const selfIdentity =
-      this.resolvedSelfClientId ?? this.store.getSelfClientId() ?? this.store.getCurrentUserId();
+    const selfIdentity = this.resolveSelfId();
     if (!selfIdentity) {
       throw new Error("Chat identity is not ready yet.");
     }
-    const client = this.client;
-    if (!client) {
-      throw new Error("Chat connection is not ready yet.");
-    }
-    const selfParticipant = this.buildSelfParticipant() ?? {
-      id: selfIdentity,
-      name: this.userProfile.name ?? this.userProfile.email ?? selfIdentity,
-      avatar: this.userProfile.avatarUrl ?? null,
-    };
+    const selfParticipant =
+      this.buildSelfParticipant() ?? ({
+        id: selfIdentity,
+        name: this.userProfile.name ?? this.userProfile.email ?? selfIdentity,
+        avatar: this.userProfile.avatarUrl ?? null,
+      } satisfies ChatParticipant);
     const prepared = this.store.prepareLocalMessage(conversationId, trimmed, {
       selfParticipant,
     });
     if (!prepared) return;
-    const { message, session } = prepared;
-    const payload: ChatMessageEventPayload = {
-      type: "chat.message",
-      conversationId,
-      senderId: selfIdentity,
-      participants: session.participants.map((participant) => ({
-        id: participant.id,
-        name: participant.name,
-        avatar: participant.avatar,
-      })),
-      session: {
-        type: session.type,
-        title: session.title,
-        avatar: session.avatar,
-        createdBy: session.createdBy ?? null,
-      },
-      message: {
-        id: message.id,
-        body: message.body,
-        sentAt: message.sentAt,
-      },
-    };
+    const { message } = prepared;
+    void this.ensureConversationHistory(conversationId);
 
-    const channels = new Set<string>();
-    payload.participants.forEach((participant) => {
-      try {
-        channels.add(getChatDirectChannel(participant.id));
-      } catch {
-        // ignore invalid id
-      }
-    });
-    if (this.clientChannelName) {
-      channels.add(this.clientChannelName);
-    }
     try {
-      await Promise.all(
-        Array.from(channels).map((channel) => client.publish(channel, "chat.message", payload)),
-      );
+      const response = await fetch("/api/chat/messages", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          conversationId,
+          messageId: message.id,
+          body: message.body,
+          sentAt: message.sentAt,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = `Failed to send message (${response.status})`;
+        try {
+          const payload = (await response.json()) as { message?: string; error?: string };
+          errorMessage = payload.message ?? payload.error ?? errorMessage;
+        } catch {
+          const text = await response.text().catch(() => "");
+          if (text) errorMessage = text;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const payload = (await response.json()) as ChatSendResponse;
+      if (Array.isArray(payload.participants) && payload.participants.length) {
+        this.applyParticipantsFromDto(conversationId, payload.participants);
+      }
       this.store.markMessageStatus(conversationId, message.id, "sent");
     } catch (error) {
       this.store.markMessageStatus(conversationId, message.id, "failed");
       throw error;
     }
+  }
+
+  private applyParticipantsFromDto(
+    conversationId: string,
+    participants: ChatParticipantDto[],
+  ): void {
+    if (!Array.isArray(participants) || participants.length === 0) return;
+    const descriptor = {
+      id: conversationId,
+      type: "direct" as const,
+      title: "",
+      avatar: null,
+      createdBy: null,
+      participants: participants.map((participant) => ({
+        id: participant.id,
+        name: participant.name || participant.id,
+        avatar: participant.avatar ?? null,
+      })),
+    };
+    this.store.applySessionEvent(descriptor);
+  }
+
+  private upsertMessageFromDto(conversationId: string, dto: ChatMessageDto): void {
+    if (!dto?.id || !dto.body) return;
+    const sanitized = dto.body.replace(/\s+/g, " ").trim();
+    if (!sanitized) return;
+    const chatMessage = {
+      id: dto.id,
+      authorId: dto.senderId,
+      body: sanitized,
+      sentAt: dto.sentAt,
+      status: "sent" as const,
+    };
+    const isLocal = this.isSelfUser(dto.senderId);
+    this.store.addMessage(conversationId, chatMessage, { isLocal });
+  }
+
+  private isSelfUser(userId: string | null | undefined): boolean {
+    if (!userId) return false;
+    const trimmed = userId.trim();
+    if (!trimmed) return false;
+    if (this.supabaseUserId && this.supabaseUserId === trimmed) return true;
+    if (this.resolvedSelfClientId && this.resolvedSelfClientId === trimmed) return true;
+    return false;
+  }
+
+  private ensureConversationHistory(conversationId: string): Promise<void> {
+    if (isGroupConversationId(conversationId)) {
+      return Promise.resolve();
+    }
+    if (this.conversationHistoryLoaded.has(conversationId)) {
+      return Promise.resolve();
+    }
+    const existing = this.conversationHistoryLoading.get(conversationId);
+    if (existing) return existing;
+    const promise = this.loadConversationHistory(conversationId)
+      .catch((error) => {
+        console.error("chat history load error", { conversationId, error });
+      })
+      .finally(() => {
+        this.conversationHistoryLoading.delete(conversationId);
+      });
+    this.conversationHistoryLoading.set(conversationId, promise);
+    return promise;
+  }
+
+  private async loadConversationHistory(conversationId: string): Promise<void> {
+    const params = new URLSearchParams({ conversationId, limit: "50" });
+    const response = await fetch(`/api/chat/messages?${params.toString()}`, {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!response.ok) {
+      let errorMessage = `Failed to load conversation (${response.status})`;
+      try {
+        const payload = (await response.json()) as { message?: string; error?: string };
+        errorMessage = payload.message ?? payload.error ?? errorMessage;
+      } catch {
+        const text = await response.text().catch(() => "");
+        if (text) errorMessage = text;
+      }
+      throw new Error(errorMessage);
+    }
+    const data = (await response.json()) as ChatHistoryResponse;
+    if (Array.isArray(data.participants) && data.participants.length) {
+      this.applyParticipantsFromDto(conversationId, data.participants);
+    }
+    data.messages.forEach((message) => {
+      this.upsertMessageFromDto(conversationId, message);
+    });
+    this.conversationHistoryLoaded.add(conversationId);
   }
 
   dispatchRealtimeEvent(event: RealtimeEvent): void {
@@ -456,6 +572,13 @@ export class ChatEngine {
     if (event.name !== "chat.message") return;
     const payload = event.data as ChatMessageEventPayload;
     this.store.applyMessageEvent(payload);
+    if (
+      payload &&
+      typeof payload.conversationId === "string" &&
+      !this.conversationHistoryLoaded.has(payload.conversationId)
+    ) {
+      void this.ensureConversationHistory(payload.conversationId);
+    }
   }
 
   private resolveSelfId(preferred?: string | null): string | null {
