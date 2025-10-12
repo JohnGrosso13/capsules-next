@@ -41,6 +41,8 @@ function presenceMapsEqual(a: PresenceMap, b: PresenceMap): boolean {
 }
 
 const AWAY_TIMEOUT_MS = 8 * 60 * 1000;
+const OFFLINE_GRACE_MS = 30 * 1000;
+const OFFLINE_RETENTION_MS = 60 * 60 * 1000;
 const ACTIVITY_EVENTS: Array<keyof WindowEventMap> = [
   "pointerdown",
   "keydown",
@@ -71,6 +73,73 @@ function createPresenceManager(setPresence: React.Dispatch<React.SetStateAction<
   let activityHandler: ((event: Event) => void) | null = null;
   let visibilityHandler: (() => void) | null = null;
   let lastActivityEmit = 0;
+  const offlineTimers = new Map<string, number>();
+
+  const clearOfflineTimer = (clientId: string) => {
+    if (typeof window === "undefined") return;
+    const handle = offlineTimers.get(clientId);
+    if (typeof handle === "number") {
+      window.clearTimeout(handle);
+      offlineTimers.delete(clientId);
+    }
+  };
+
+  const clearAllOfflineTimers = () => {
+    if (typeof window === "undefined") return;
+    offlineTimers.forEach((handle) => {
+      window.clearTimeout(handle);
+    });
+    offlineTimers.clear();
+  };
+
+  const pruneOfflineEntries = (map: PresenceMap): PresenceMap => {
+    const now = Date.now();
+    let pruned = false;
+    const next: PresenceMap = {};
+    Object.entries(map).forEach(([clientId, value]) => {
+      const updated =
+        value.updatedAt && !Number.isNaN(Date.parse(value.updatedAt))
+          ? Date.parse(value.updatedAt)
+          : null;
+      if (value.status === "offline" && updated !== null && now - updated > OFFLINE_RETENTION_MS) {
+        pruned = true;
+        return;
+      }
+      next[clientId] = value;
+    });
+    return pruned ? next : map;
+  };
+
+  const markOffline = (clientId: string) => {
+    setPresence((prev) => {
+      const current = prev[clientId];
+      if (current?.status === "offline") {
+        return pruneOfflineEntries(prev);
+      }
+      const timestamp = new Date().toISOString();
+      const next = pruneOfflineEntries({
+        ...prev,
+        [clientId]: {
+          status: "offline",
+          updatedAt: timestamp,
+        },
+      });
+      return presenceMapsEqual(prev, next) ? prev : next;
+    });
+  };
+
+  const scheduleOffline = (clientId: string) => {
+    if (typeof window === "undefined") {
+      markOffline(clientId);
+      return;
+    }
+    clearOfflineTimer(clientId);
+    const timer = window.setTimeout(() => {
+      offlineTimers.delete(clientId);
+      markOffline(clientId);
+    }, OFFLINE_GRACE_MS);
+    offlineTimers.set(clientId, timer);
+  };
 
   const clearAwayTimer = () => {
     if (awayTimer !== null && typeof window !== "undefined") {
@@ -168,14 +237,10 @@ function createPresenceManager(setPresence: React.Dispatch<React.SetStateAction<
     const clientId = String(message.clientId ?? "").trim();
     if (!clientId) return;
     if (message.action === "leave" || message.action === "absent") {
-      setPresence((prev) => {
-        if (!prev[clientId]) return prev;
-        const next = { ...prev };
-        delete next[clientId];
-        return next;
-      });
+      scheduleOffline(clientId);
       return;
     }
+    clearOfflineTimer(clientId);
     const data = (message.data ?? {}) as {
       status?: string;
       updatedAt?: string;
@@ -198,7 +263,8 @@ function createPresenceManager(setPresence: React.Dispatch<React.SetStateAction<
   };
 
   const syncMembers = (members: ReadonlyArray<PresenceMember>) => {
-    const current: PresenceMap = {};
+    const memberPresence: PresenceMap = {};
+    const activeIds = new Set<string>();
     members.forEach((member) => {
       const clientId = String(member?.clientId ?? "").trim();
       if (!clientId) return;
@@ -207,12 +273,40 @@ function createPresenceManager(setPresence: React.Dispatch<React.SetStateAction<
         status?: string;
         updatedAt?: string;
       };
-      current[clientId] = {
+      memberPresence[clientId] = {
         status: normalizePresenceStatus(data.status),
         updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null,
       };
+      activeIds.add(clientId);
+      clearOfflineTimer(clientId);
     });
-    setPresence((prev) => (presenceMapsEqual(prev, current) ? prev : current));
+
+    setPresence((prev) => {
+      let changed = false;
+      const merged: PresenceMap = { ...prev };
+      Object.entries(memberPresence).forEach(([clientId, value]) => {
+        const existing = merged[clientId];
+        if (!existing || existing.status !== value.status || existing.updatedAt !== value.updatedAt) {
+          merged[clientId] = value;
+          changed = true;
+        }
+      });
+      const cleaned = pruneOfflineEntries(merged);
+      if (!changed && cleaned === prev) {
+        return prev;
+      }
+      if (!changed && cleaned !== prev) {
+        return cleaned;
+      }
+      return presenceMapsEqual(prev, cleaned) ? prev : cleaned;
+    });
+
+    Object.keys(presenceCache).forEach((clientId) => {
+      if (activeIds.has(clientId)) return;
+      const entry = presenceCache[clientId];
+      if (entry?.status === "offline") return;
+      scheduleOffline(clientId);
+    });
   };
 
   const enterPresence = async (channel: RealtimePresenceChannel, clientId: string) => {
@@ -221,6 +315,7 @@ function createPresenceManager(setPresence: React.Dispatch<React.SetStateAction<
       status: "online",
       updatedAt: timestamp,
     });
+    clearOfflineTimer(clientId);
     selfClientId = clientId;
     currentStatus = "online";
     applyLocalStatus("online", timestamp);
@@ -233,6 +328,9 @@ function createPresenceManager(setPresence: React.Dispatch<React.SetStateAction<
     const timestamp = new Date().toISOString();
     channel.update({ status: "offline", updatedAt: timestamp }).catch(() => {});
     applyLocalStatus("offline", timestamp);
+    if (selfClientId) {
+      clearOfflineTimer(selfClientId);
+    }
     channel.leave().catch(() => {});
     presenceChannel = null;
     selfClientId = null;
@@ -242,6 +340,7 @@ function createPresenceManager(setPresence: React.Dispatch<React.SetStateAction<
 
   const teardown = () => {
     clearAwayTimer();
+    clearAllOfflineTimers();
     stopVisibilityTracking();
     detachActivityListeners();
     lastActivityEmit = 0;
