@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import type { CapsuleSummary } from "@/server/capsules/service";
+import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 
 import { AiStreamCapsuleGate } from "./AiStreamCapsuleGate";
 import styles from "@/app/(authenticated)/create/ai-stream/ai-stream.page.module.css";
@@ -198,297 +199,329 @@ export function AiStreamStudioLayout({
     }
 
     return (
-      <div className={styles.studioLayout}>
-        <section className={styles.liveColumn} aria-label="Live preview and controls">
-          <div className={styles.previewPanel}>
-            <div className={styles.previewHeader}>
-              <div>
-                <div className={styles.previewTitle}>Live Program Feed</div>
-                <div className={styles.previewSubtitle}>
-                  Routed to {selectedCapsule.name}
+      <PanelGroup direction="horizontal" className={styles.studioLayout}>
+        <Panel defaultSize={48} minSize={32}>
+          <PanelGroup direction="vertical" className={styles.panelColumn}>
+            <Panel defaultSize={72} minSize={52}>
+              <div className={styles.panelSection}>
+                <div className={`${styles.previewPanel} ${styles.panelCard}`}>
+                  <div className={styles.previewHeader}>
+                    <div>
+                      <div className={styles.previewTitle}>Live Program Feed</div>
+                      <div className={styles.previewSubtitle}>
+                        Routed to {selectedCapsule.name}
+                      </div>
+                    </div>
+                    <div className={styles.previewActions}>
+                      <Button variant="outline" size="sm" disabled>
+                        Stream settings
+                      </Button>
+                      <Button variant="gradient" size="sm" disabled>
+                        Go live
+                      </Button>
+                    </div>
+                  </div>
+                  <div className={styles.previewFrame}>Program Preview</div>
+                  <div className={styles.previewFooter}>
+                    <div className={styles.previewStats}>
+                      <div className={styles.previewStat}>
+                        <span className={styles.previewStatLabel}>Uptime</span>
+                        <span className={styles.previewStatValue}>00:00:00</span>
+                      </div>
+                      <div className={styles.previewStat}>
+                        <span className={styles.previewStatLabel}>Viewers</span>
+                        <span className={styles.previewStatValue}>0</span>
+                      </div>
+                      <div className={styles.previewStat}>
+                        <span className={styles.previewStatLabel}>Bitrate</span>
+                        <span className={styles.previewStatValue}>--</span>
+                      </div>
+                    </div>
+                    <div className={styles.controlToolbar}>
+                      <Button variant="outline" size="sm" disabled>
+                        Camera
+                      </Button>
+                      <Button variant="outline" size="sm" disabled>
+                        Microphone
+                      </Button>
+                      <Button variant="outline" size="sm" disabled>
+                        Share screen
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className={styles.previewActions}>
-                <Button variant="outline" size="sm" disabled>
-                  Stream settings
-                </Button>
-                <Button variant="gradient" size="sm" disabled>
-                  Go live
-                </Button>
-              </div>
-            </div>
-            <div className={styles.previewFrame}>Program Preview</div>
-            <div className={styles.previewFooter}>
-              <div className={styles.previewStats}>
-                <div className={styles.previewStat}>
-                  <span className={styles.previewStatLabel}>Uptime</span>
-                  <span className={styles.previewStatValue}>00:00:00</span>
-                </div>
-                <div className={styles.previewStat}>
-                  <span className={styles.previewStatLabel}>Viewers</span>
-                  <span className={styles.previewStatValue}>0</span>
-                </div>
-                <div className={styles.previewStat}>
-                  <span className={styles.previewStatLabel}>Bitrate</span>
-                  <span className={styles.previewStatValue}>--</span>
-                </div>
-              </div>
-              <div className={styles.controlToolbar}>
-                <Button variant="outline" size="sm" disabled>
-                  Camera
-                </Button>
-                <Button variant="outline" size="sm" disabled>
-                  Microphone
-                </Button>
-                <Button variant="outline" size="sm" disabled>
-                  Share screen
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.quickActionsCard}>
-            <div className={styles.quickActionsHeader}>
-              <div>
-                <div className={styles.quickActionsTitle}>Quick controls</div>
-                <div className={styles.quickActionsSubtitle}>
-                  On-the-fly adjustments for your Capsule audience.
-                </div>
-              </div>
-              <Button variant="ghost" size="xs" disabled>
-                Customize
-              </Button>
-            </div>
-            <div className={styles.quickActionsGrid}>
-              {["Edit stream info", "Launch raid", "Run promo", "Drop poll"].map((action) => (
-                <button key={action} type="button" className={styles.quickActionButton} disabled>
-                  {action}
-                </button>
-              ))}
-              <button type="button" className={styles.quickActionButton} disabled>
-                Add action
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.signalCard}>
-            <div className={styles.signalHeader}>
-              <div className={styles.signalTitle}>Live telemetry</div>
-              <span className={styles.signalPill}>AI monitor</span>
-            </div>
-            <ul className={styles.signalList}>
-              <li>
-                <span>Bitrate &amp; dropped frames</span>
-                <strong>Stable</strong>
-              </li>
-              <li>
-                <span>Audience sentiment</span>
-                <strong>Calm</strong>
-              </li>
-              <li>
-                <span>Highlights queued</span>
-                <strong>3 clips</strong>
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        <section className={styles.assistantColumn} aria-label="AI stage manager">
-          <div className={styles.stageManagerCard}>
-            <header className={styles.stageManagerHeader}>
-              <div>
-                <div className={styles.stageManagerTitle}>AI stage manager</div>
-                <div className={styles.stageManagerSubtitle}>
-                  Guides show pacing, sponsor beats, and guest handoffs.
-                </div>
-              </div>
-              <Button variant="ghost" size="xs" disabled>
-                View run of show
-              </Button>
-            </header>
-            <div className={styles.stageManagerTimeline}>
-              <div className={styles.stageManagerEvent}>
-                <span className={styles.stageManagerEventTime}>Now</span>
-                <div className={styles.stageManagerEventBody}>
-                  <strong>Open with origin story</strong>
-                  <p>
-                    60-second intro with host on camera. Slide deck is primed and overlays are synced.
-                  </p>
-                </div>
-              </div>
-              <div className={styles.stageManagerEvent}>
-                <span className={styles.stageManagerEventTime}>+05</span>
-                <div className={styles.stageManagerEventBody}>
-                  <strong>Invite guest speaker</strong>
-                  <p>
-                    Queue split-screen layout and drop guest bio lower-third.
-                  </p>
-                </div>
-              </div>
-              <div className={styles.stageManagerEvent}>
-                <span className={styles.stageManagerEventTime}>+12</span>
-                <div className={styles.stageManagerEventBody}>
-                  <strong>Community prompt</strong>
-                  <p>
-                    Run poll about feature wishlist. AI will surface top responses for wrap-up.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className={styles.stageManagerThread}>
-              <div className={styles.stageManagerMessage}>
-                <span className={styles.stageManagerAuthor}>Stage manager</span>
-                <p>
-                  Want me to prep a sponsor segment once the demo wraps? I can ready the CTA overlay
-                  and chat reminder.
-                </p>
-              </div>
-              <div className={styles.stageManagerMessageSelf}>
-                <span className={styles.stageManagerAuthor}>You</span>
-                <p>
-                  Yes - schedule it for the 18 minute mark if engagement is high.
-                </p>
-              </div>
-            </div>
-            <footer className={styles.stageManagerFooter}>
-              <div className={styles.stageManagerSuggestions}>
-                {["Draft outro talking points", "Prep Q&A handoff", "Summarize chat sentiment"].map(
-                  (item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className={styles.stageManagerSuggestion}
-                      disabled
-                    >
-                      {item}
+            </Panel>
+            <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
+            <Panel defaultSize={17} minSize={10}>
+              <div className={styles.panelSection}>
+                <div className={`${styles.quickActionsCard} ${styles.panelCard}`}>
+                  <div className={styles.quickActionsHeader}>
+                    <div>
+                      <div className={styles.quickActionsTitle}>Quick controls</div>
+                      <div className={styles.quickActionsSubtitle}>
+                        On-the-fly adjustments for your Capsule audience.
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="xs" disabled>
+                      Customize
+                    </Button>
+                  </div>
+                  <div className={styles.quickActionsGrid}>
+                    {["Edit stream info", "Launch raid", "Run promo", "Drop poll"].map((action) => (
+                      <button key={action} type="button" className={styles.quickActionButton} disabled>
+                        {action}
+                      </button>
+                    ))}
+                    <button type="button" className={styles.quickActionButton} disabled>
+                      Add action
                     </button>
-                  ),
-                )}
+                  </div>
+                </div>
               </div>
-              <div className={styles.stageManagerComposer}>
-                <input
-                  className={styles.stageManagerInput}
-                  placeholder="Ask your AI crew for support..."
-                  disabled
-                />
-                <Button variant="gradient" size="sm" disabled>
-                  Send
+            </Panel>
+            <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
+            <Panel defaultSize={11} minSize={8}>
+              <div className={styles.panelSection}>
+                <div className={`${styles.signalCard} ${styles.panelCard}`}>
+                  <div className={styles.signalHeader}>
+                    <div className={styles.signalTitle}>Live telemetry</div>
+                    <span className={styles.signalPill}>AI monitor</span>
+                  </div>
+                  <ul className={styles.signalList}>
+                    <li>
+                      <span>Bitrate &amp; dropped frames</span>
+                      <strong>Stable</strong>
+                    </li>
+                    <li>
+                      <span>Audience sentiment</span>
+                      <strong>Calm</strong>
+                    </li>
+                    <li>
+                      <span>Highlights queued</span>
+                      <strong>3 clips</strong>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </Panel>
+          </PanelGroup>
+        </Panel>
+
+        <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
+
+        <Panel defaultSize={32} minSize={18}>
+          <div className={`${styles.panelColumn} ${styles.stageManagerColumn}`}>
+            <div className={`${styles.stageManagerCard} ${styles.panelCard}`}>
+              <header className={styles.stageManagerHeader}>
+                <div>
+                  <div className={styles.stageManagerTitle}>AI stage manager</div>
+                  <div className={styles.stageManagerSubtitle}>
+                    Guides show pacing, sponsor beats, and guest handoffs.
+                  </div>
+                </div>
+                <Button variant="ghost" size="xs" disabled>
+                  View run of show
                 </Button>
-              </div>
-            </footer>
-          </div>
-        </section>
-
-        <section className={styles.resourceColumn} aria-label="Live resources">
-          <div className={styles.resourceCard}>
-            <header className={styles.resourceHeader}>
-              <div className={styles.resourceTitle}>Activity feed</div>
-              <Button variant="ghost" size="xs" disabled>
-                Filter
-              </Button>
-            </header>
-            <ul className={styles.resourceList}>
-              <li>
-                <span className={styles.resourceTime}>00:15</span>
-                <div>
-                  <strong>luna_dev followed</strong>
-                  <p>Auto thank-you message queued in chat.</p>
+              </header>
+              <div className={styles.stageManagerTimeline}>
+                <div className={styles.stageManagerEvent}>
+                  <span className={styles.stageManagerEventTime}>Now</span>
+                  <div className={styles.stageManagerEventBody}>
+                    <strong>Open with origin story</strong>
+                    <p>
+                      60-second intro with host on camera. Slide deck is primed and overlays are synced.
+                    </p>
+                  </div>
                 </div>
-              </li>
-              <li>
-                <span className={styles.resourceTime}>00:09</span>
-                <div>
-                  <strong>crowdsource tipped $15</strong>
-                  <p>Overlay shout-out scheduled after current segment.</p>
+                <div className={styles.stageManagerEvent}>
+                  <span className={styles.stageManagerEventTime}>+05</span>
+                  <div className={styles.stageManagerEventBody}>
+                    <strong>Invite guest speaker</strong>
+                    <p>
+                      Queue split-screen layout and drop guest bio lower-third.
+                    </p>
+                  </div>
                 </div>
-              </li>
-              <li>
-                <span className={styles.resourceTime}>00:03</span>
-                <div>
-                  <strong>Clip ready</strong>
-                  <p>AI clipped &quot;Live coding reveal&quot; for instant share.</p>
+                <div className={styles.stageManagerEvent}>
+                  <span className={styles.stageManagerEventTime}>+12</span>
+                  <div className={styles.stageManagerEventBody}>
+                    <strong>Community prompt</strong>
+                    <p>
+                      Run poll about feature wishlist. AI will surface top responses for wrap-up.
+                    </p>
+                  </div>
                 </div>
-              </li>
-            </ul>
-          </div>
-
-          <div className={styles.resourceCard}>
-            <header className={styles.resourceHeader}>
-              <div className={styles.resourceTitle}>Audience chat</div>
-              <Button variant="ghost" size="xs" disabled>
-                Pop out
-              </Button>
-            </header>
-            <div className={styles.chatTranscript}>
-              <div className={styles.chatMessage}>
-                <span className={styles.chatAuthor}>mod-bot</span>
-                <p>Be kind - AI will auto flag anything off-topic.</p>
               </div>
-              <div className={styles.chatMessage}>
-                <span className={styles.chatAuthor}>streamfan42</span>
-                <p>This layout looks slick! Any tips for mobile folks?</p>
+              <div className={styles.stageManagerThread}>
+                <div className={styles.stageManagerMessage}>
+                  <span className={styles.stageManagerAuthor}>Stage manager</span>
+                  <p>
+                    Want me to prep a sponsor segment once the demo wraps? I can ready the CTA overlay
+                    and chat reminder.
+                  </p>
+                </div>
+                <div className={styles.stageManagerMessageSelf}>
+                  <span className={styles.stageManagerAuthor}>You</span>
+                  <p>
+                    Yes - schedule it for the 18 minute mark if engagement is high.
+                  </p>
+                </div>
               </div>
-              <div className={styles.chatMessage}>
-                <span className={styles.chatAuthor}>crew-sam</span>
-                <p>Guest ready in green room. Handing off when you&apos;re set.</p>
-              </div>
+              <footer className={styles.stageManagerFooter}>
+                <div className={styles.stageManagerSuggestions}>
+                  {["Draft outro talking points", "Prep Q&A handoff", "Summarize chat sentiment"].map(
+                    (item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={styles.stageManagerSuggestion}
+                        disabled
+                      >
+                        {item}
+                      </button>
+                    ),
+                  )}
+                </div>
+                <div className={styles.stageManagerComposer}>
+                  <input
+                    className={styles.stageManagerInput}
+                    placeholder="Ask your AI crew for support..."
+                    disabled
+                  />
+                  <Button variant="gradient" size="sm" disabled>
+                    Send
+                  </Button>
+                </div>
+              </footer>
             </div>
-            <div className={styles.chatComposer}>
-              <input className={styles.chatInput} placeholder="Message the crowd..." disabled />
-              <Button variant="outline" size="sm" disabled>
-                Chat
-              </Button>
-            </div>
           </div>
+        </Panel>
 
-          <div className={styles.resourceCard}>
-            <header className={styles.resourceHeader}>
-              <div className={styles.resourceTitle}>Collaborators</div>
-              <Button variant="ghost" size="xs" disabled>
-                Invite
-              </Button>
-            </header>
-            <ul className={styles.collaboratorList}>
-              <li className={styles.collaboratorItem}>
-                <div className={styles.collaboratorMeta}>
-                  <span className={styles.collaboratorName}>Sam Reynolds</span>
-                  <span className={styles.collaboratorRole}>Producer</span>
+        <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
+
+        <Panel defaultSize={20} minSize={15}>
+          <PanelGroup direction="vertical" className={styles.panelColumn}>
+            <Panel defaultSize={40} minSize={18}>
+              <div className={styles.panelSection}>
+                <div className={`${styles.resourceCard} ${styles.panelCard}`}>
+                  <header className={styles.resourceHeader}>
+                    <div className={styles.resourceTitle}>Activity feed</div>
+                    <Button variant="ghost" size="xs" disabled>
+                      Filter
+                    </Button>
+                  </header>
+                  <ul className={styles.resourceList}>
+                    <li>
+                      <span className={styles.resourceTime}>00:15</span>
+                      <div>
+                        <strong>luna_dev followed</strong>
+                        <p>Auto thank-you message queued in chat.</p>
+                      </div>
+                    </li>
+                    <li>
+                      <span className={styles.resourceTime}>00:09</span>
+                      <div>
+                        <strong>crowdsource tipped $15</strong>
+                        <p>Overlay shout-out scheduled after current segment.</p>
+                      </div>
+                    </li>
+                    <li>
+                      <span className={styles.resourceTime}>00:03</span>
+                      <div>
+                        <strong>Clip ready</strong>
+                        <p>AI clipped &quot;Live coding reveal&quot; for instant share.</p>
+                      </div>
+                    </li>
+                  </ul>
                 </div>
-                <span
-                  className={`${styles.collaboratorStatus} ${styles.collaboratorStatusOnline}`}
-                >
-                  On comms
-                </span>
-              </li>
-              <li className={styles.collaboratorItem}>
-                <div className={styles.collaboratorMeta}>
-                  <span className={styles.collaboratorName}>Jess Patel</span>
-                  <span className={styles.collaboratorRole}>Moderator</span>
+              </div>
+            </Panel>
+            <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
+            <Panel defaultSize={35} minSize={18}>
+              <div className={styles.panelSection}>
+                <div className={`${styles.resourceCard} ${styles.panelCard}`}>
+                  <header className={styles.resourceHeader}>
+                    <div className={styles.resourceTitle}>Audience chat</div>
+                    <Button variant="ghost" size="xs" disabled>
+                      Pop out
+                    </Button>
+                  </header>
+                  <div className={styles.chatTranscript}>
+                    <div className={styles.chatMessage}>
+                      <span className={styles.chatAuthor}>mod-bot</span>
+                      <p>Be kind - AI will auto flag anything off-topic.</p>
+                    </div>
+                    <div className={styles.chatMessage}>
+                      <span className={styles.chatAuthor}>streamfan42</span>
+                      <p>This layout looks slick! Any tips for mobile folks?</p>
+                    </div>
+                    <div className={styles.chatMessage}>
+                      <span className={styles.chatAuthor}>crew-sam</span>
+                      <p>Guest ready in green room. Handing off when you&apos;re set.</p>
+                    </div>
+                  </div>
+                  <div className={styles.chatComposer}>
+                    <input className={styles.chatInput} placeholder="Message the crowd..." disabled />
+                    <Button variant="outline" size="sm" disabled>
+                      Chat
+                    </Button>
+                  </div>
                 </div>
-                <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusIdle}`}>
-                  Reviewing queue
-                </span>
-              </li>
-              <li className={styles.collaboratorItem}>
-                <div className={styles.collaboratorMeta}>
-                  <span className={styles.collaboratorName}>Aria</span>
-                  <span className={styles.collaboratorRole}>AI writer</span>
+              </div>
+            </Panel>
+            <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
+            <Panel defaultSize={25} minSize={14}>
+              <div className={styles.panelSection}>
+                <div className={`${styles.resourceCard} ${styles.panelCard}`}>
+                  <header className={styles.resourceHeader}>
+                    <div className={styles.resourceTitle}>Collaborators</div>
+                    <Button variant="ghost" size="xs" disabled>
+                      Invite
+                    </Button>
+                  </header>
+                  <ul className={styles.collaboratorList}>
+                    <li className={styles.collaboratorItem}>
+                      <div className={styles.collaboratorMeta}>
+                        <span className={styles.collaboratorName}>Sam Reynolds</span>
+                        <span className={styles.collaboratorRole}>Producer</span>
+                      </div>
+                      <span
+                        className={`${styles.collaboratorStatus} ${styles.collaboratorStatusOnline}`}
+                      >
+                        On comms
+                      </span>
+                    </li>
+                    <li className={styles.collaboratorItem}>
+                      <div className={styles.collaboratorMeta}>
+                        <span className={styles.collaboratorName}>Jess Patel</span>
+                        <span className={styles.collaboratorRole}>Moderator</span>
+                      </div>
+                      <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusIdle}`}>
+                        Reviewing queue
+                      </span>
+                    </li>
+                    <li className={styles.collaboratorItem}>
+                      <div className={styles.collaboratorMeta}>
+                        <span className={styles.collaboratorName}>Aria</span>
+                        <span className={styles.collaboratorRole}>AI writer</span>
+                      </div>
+                      <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusAway}`}>
+                        Updating recap
+                      </span>
+                    </li>
+                  </ul>
+                  <footer className={styles.collaboratorFooter}>
+                    <Button variant="ghost" size="xs" disabled>
+                      Manage collaborators
+                    </Button>
+                  </footer>
                 </div>
-                <span
-                  className={`${styles.collaboratorStatus} ${styles.collaboratorStatusAway}`}
-                >
-                  Updating recap
-                </span>
-              </li>
-            </ul>
-            <footer className={styles.collaboratorFooter}>
-              <Button variant="ghost" size="xs" disabled>
-                Manage collaborators
-              </Button>
-            </footer>
-          </div>
-        </section>
-      </div>
+              </div>
+            </Panel>
+          </PanelGroup>
+        </Panel>
+      </PanelGroup>
     );
   };
 

@@ -98,17 +98,86 @@
 }
 
 .studioLayout {
-  display: grid;
-  gap: clamp(18px, 2.8vw, 32px);
-  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.6fr) minmax(0, 1.4fr);
-  align-items: start;
+  width: 100%;
+  display: flex;
+  gap: clamp(12px, 1.6vw, 20px);
+  min-height: 75vh; /* ensure enough height for vertical panel sizing */
+  align-items: stretch;
 }
 
-.liveColumn,
-.assistantColumn,
-.resourceColumn {
-  display: grid;
-  gap: clamp(16px, 2.4vw, 24px);
+.panelColumn {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.panelSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panelCard {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.stageManagerColumn {
+  gap: clamp(12px, 1.6vw, 20px);
+}
+
+.resizeHandle {
+  position: relative;
+  flex: 0 0 auto;
+  outline: none;
+  touch-action: none;
+}
+
+.resizeHandleVertical {
+  width: 14px;
+  cursor: col-resize;
+  margin: 0 clamp(6px, 1vw, 12px);
+}
+
+.resizeHandleHorizontal {
+  height: 12px;
+  cursor: row-resize;
+  margin: clamp(6px, 1vw, 12px) 0;
+}
+
+.resizeHandle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--card-border, rgba(110, 120, 210, 0.5));
+  opacity: 0.55; /* clearer visual line */
+  transition: opacity 0.2s ease;
+}
+
+.resizeHandle:hover::before,
+.resizeHandle:focus-visible::before {
+  opacity: 0.85;
+}
+
+.resizeHandle[data-panel-group-direction="horizontal"]::before {
+  left: 50%;
+  top: 8%;
+  bottom: 8%;
+  transform: translateX(-50%);
+  width: 2px;
+}
+
+.resizeHandle[data-panel-group-direction="vertical"]::before {
+  top: 50%;
+  left: 8%;
+  right: 8%;
+  transform: translateY(-50%);
+  height: 2px;
 }
 
 .previewPanel {
@@ -127,6 +196,8 @@
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 18%, transparent),
     0 20px 40px rgba(5, 10, 26, 0.28);
+  height: 100%;
+  min-height: 0;
 }
 
 .previewHeader {
@@ -155,7 +226,7 @@
 
 .previewFrame {
   position: relative;
-  min-height: clamp(340px, 38vw, 420px);
+  min-height: 340px;
   border-radius: clamp(20px, 3vw, 24px);
   border: 1px solid var(--card-border, rgba(140, 154, 255, 0.28));
   background:
@@ -221,6 +292,8 @@
   border: 1px solid var(--card-border, rgba(126, 140, 255, 0.24));
   background: color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 60%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 12%, transparent);
+  height: 100%;
+  min-height: 0;
 }
 
 .quickActionsHeader {
@@ -272,6 +345,8 @@
   border: 1px solid var(--card-border, rgba(132, 148, 255, 0.2));
   background: color-mix(in srgb, var(--surface-overlay, rgba(17, 21, 54, 0.88)) 68%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 12%, transparent);
+  height: 100%;
+  min-height: 0;
 }
 
 .signalHeader {
@@ -331,6 +406,8 @@
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 16%, transparent),
     0 16px 32px rgba(6, 10, 28, 0.28);
+  height: 100%;
+  min-height: 0;
 }
 
 .stageManagerHeader {
@@ -456,6 +533,8 @@
   border: 1px solid var(--card-border, rgba(132, 148, 255, 0.2));
   background: color-mix(in srgb, var(--surface-elevated, rgba(16, 20, 50, 0.86)) 70%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 10%, transparent);
+  height: 100%;
+  min-height: 0;
 }
 
 .resourceHeader {
@@ -569,6 +648,9 @@
 }
 
 .collaboratorStatus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.76rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -879,3 +961,24 @@
     gap: 20px;
   }
 }
+
+
+
+
+
+.resizeHandle{touch-action:none;}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
