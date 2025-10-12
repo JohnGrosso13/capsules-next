@@ -96,7 +96,7 @@
 
 .contentArea {
   display: grid;
-  gap: clamp(22px, 3vw, 36px);
+  gap: clamp(18px, 2.4vw, 28px);
   width: 100%;
   overflow: visible;
   padding-bottom: clamp(48px, 6vh, 96px);
@@ -105,7 +105,7 @@
 .studioLayout {
   width: 100%;
   display: flex;
-  gap: clamp(12px, 1.6vw, 20px);
+  gap: clamp(8px, 1vw, 16px);
   min-height: var(--studio-track-height);
   height: var(--studio-track-height);
   align-items: stretch;
@@ -134,7 +134,7 @@
 }
 
 .stageManagerColumn {
-  gap: clamp(12px, 1.6vw, 20px);
+  gap: clamp(8px, 1vw, 16px);
 }
 
 .resizeHandle {
@@ -161,14 +161,20 @@
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: var(--card-border, rgba(110, 120, 210, 0.5));
-  opacity: 0.55; /* clearer visual line */
-  transition: opacity 0.2s ease;
+  background: linear-gradient(
+    180deg,
+    rgba(154, 166, 255, 0.75),
+    rgba(98, 108, 255, 0.58)
+  );
+  opacity: 0.78; /* clearer visual line */
+  box-shadow: 0 0 16px rgba(120, 136, 255, 0.5);
+  transition: opacity 0.2s ease, box-shadow 0.2s ease;
 }
 
 .resizeHandle:hover::before,
 .resizeHandle:focus-visible::before {
-  opacity: 0.85;
+  opacity: 1;
+  box-shadow: 0 0 22px rgba(150, 172, 255, 0.7);
 }
 
 .resizeHandle[data-panel-group-direction="horizontal"]::before {
@@ -176,7 +182,7 @@
   top: 8%;
   bottom: 8%;
   transform: translateX(-50%);
-  width: 2px;
+  width: 3px;
 }
 
 .resizeHandle[data-panel-group-direction="vertical"]::before {
@@ -184,7 +190,7 @@
   left: 8%;
   right: 8%;
   transform: translateY(-50%);
-  height: 2px;
+  height: 3px;
 }
 
 .previewPanel {
