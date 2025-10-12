@@ -20,6 +20,8 @@ type CapsuleGateProps = {
   forceSelector?: boolean;
   onCapsuleChosen?: (capsule: CapsuleSummary | null) => void;
   autoActivate?: boolean;
+  selectorTitle?: React.ReactNode;
+  selectorSubtitle?: React.ReactNode;
 };
 
 type PlaceholderCapsule = {
@@ -173,6 +175,8 @@ export function CapsuleGate({
   forceSelector = false,
   onCapsuleChosen,
   autoActivate = true,
+  selectorTitle = "Choose a Capsule",
+  selectorSubtitle = "Pick a space to open and jump back into the action.",
 }: CapsuleGateProps) {
   const ownedCapsules = React.useMemo(
     () => capsules.filter((capsule) => capsule.ownership === "owner"),
@@ -277,6 +281,7 @@ export function CapsuleGate({
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!shouldAutoActivate) return;
     if (!canSwitchCapsules) return;
     const handleSwitch = (event: Event) => {
       const detail = (event as CustomEvent<{ focus?: boolean }>).detail;
@@ -290,12 +295,13 @@ export function CapsuleGate({
     return () => {
       window.removeEventListener("capsule:switch", handleSwitch);
     };
-  }, [canSwitchCapsules]);
+  }, [canSwitchCapsules, shouldAutoActivate]);
 
   React.useEffect(() => {
+    if (!shouldAutoActivate) return;
     if (typeof window === "undefined") return;
     syncUrl(activeId, canSwitchCapsules);
-  }, [activeId, canSwitchCapsules, syncUrl]);
+  }, [activeId, canSwitchCapsules, shouldAutoActivate, syncUrl]);
 
   const activeCapsule = React.useMemo(() => {
     if (!activeId) return null;
@@ -303,13 +309,14 @@ export function CapsuleGate({
   }, [activeId, capsules]);
 
   React.useEffect(() => {
+    if (!shouldAutoActivate) return;
     const detail = {
       capsuleId: activeCapsule?.id ?? null,
       capsuleName: activeCapsule?.name ?? null,
       status: "waiting" as const,
     };
     window.dispatchEvent(new CustomEvent("capsule:live-chat", { detail }));
-  }, [activeCapsule?.id, activeCapsule?.name]);
+  }, [activeCapsule?.id, activeCapsule?.name, shouldAutoActivate]);
 
   if (!capsules.length) {
     return (
@@ -374,10 +381,10 @@ export function CapsuleGate({
         </div>
       ) : null}
       <div className={styles.selectorHeader}>
-        <h2 className={styles.selectorTitle}>Choose a Capsule</h2>
-        <p className={styles.selectorSubtitle}>
-          Pick a space to open and jump back into the action.
-        </p>
+        <h2 className={styles.selectorTitle}>{selectorTitle}</h2>
+        {selectorSubtitle ? (
+          <p className={styles.selectorSubtitle}>{selectorSubtitle}</p>
+        ) : null}
       </div>
       <div className={styles.selectorSections}>
         <section className={styles.selectorSection} aria-label="User Created Capsules">
