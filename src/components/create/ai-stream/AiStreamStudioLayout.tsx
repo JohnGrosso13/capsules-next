@@ -202,7 +202,7 @@ export function AiStreamStudioLayout({
       <PanelGroup
         direction="horizontal"
         className={styles.studioLayout}
-        style={{ height: "var(--studio-track-height)", overflow: "visible" }}
+        style={{ height: "auto", minHeight: "var(--studio-track-height)", overflow: "visible" }}
       >
         <Panel defaultSize={62} minSize={48} collapsible={false}>
           <PanelGroup direction="vertical" className={styles.panelColumn}>
