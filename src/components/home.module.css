@@ -2908,8 +2908,10 @@
 
 .railConnections {
   display: grid;
-
   gap: 12px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: min(100%, calc(100vh - var(--header-height, 96px) - 48px));
+  min-height: 0;
 }
 
 .railConnectionsOuter {
@@ -3139,15 +3141,11 @@
 
   z-index: 1;
 
-  overflow: hidden; /* avoid visible overlap artifacts at co
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 
-
-
-
-
-
-
-ers */
+  overflow: hidden; /* avoid visible overlap artifacts at corners */
 
   border-top-left-radius: 0;
 
