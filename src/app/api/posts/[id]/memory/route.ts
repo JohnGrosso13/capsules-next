@@ -138,7 +138,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         mediaUrl: mediaUrl ?? null,
         mediaType: null,
         metadata,
-        embedding,
       });
 
       try {
@@ -155,12 +154,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
               : typeof memoryRecord.id === "number"
                 ? String(memoryRecord.id)
                 : null;
-          const storedEmbedding = Array.isArray(memoryRecord.embedding)
-            ? (memoryRecord.embedding as number[])
-            : null;
-          const vectorForPinecone = embedding && embedding.length ? embedding : storedEmbedding;
+          const vectorForPinecone = embedding && embedding.length ? embedding : null;
 
-          if (memoryId && vectorForPinecone && vectorForPinecone.length) {
+          if (memoryId && vectorForPinecone) {
             await upsertMemoryVector({
               id: memoryId,
               ownerId: userId,

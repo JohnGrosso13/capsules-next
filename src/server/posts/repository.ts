@@ -102,7 +102,6 @@ type MemoryRecordDbRow = {
   media_url?: string | null;
   media_type?: string | null;
   meta?: Record<string, unknown> | null;
-  embedding?: number[] | null;
 };
 
 type PostLikesCountRow = {
@@ -513,7 +512,6 @@ export async function upsertPostMemory(options: {
   mediaUrl: string | null;
   mediaType: string | null;
   metadata: Record<string, unknown> | null;
-  embedding: number[] | null;
 }): Promise<void> {
   const result = await db.rpc("upsert_post_memory", {
     p_owner_user_id: options.ownerId,
@@ -524,7 +522,6 @@ export async function upsertPostMemory(options: {
     p_media_url: options.mediaUrl,
     p_media_type: options.mediaType,
     p_meta: options.metadata,
-    p_embedding: options.embedding,
   });
   if (result.error) throw decorateDatabaseError("posts.memories.upsert", result.error);
 }
@@ -538,7 +535,7 @@ export async function fetchLatestPostMemoryRecord(options: {
   let query = db
     .from("memories")
     .select<MemoryRecordDbRow>(
-      "id, owner_user_id, kind, post_id, title, description, media_url, media_type, meta, embedding",
+      "id, owner_user_id, kind, post_id, title, description, media_url, media_type, meta",
     )
     .eq("owner_user_id", options.ownerId)
     .eq("post_id", options.postId)

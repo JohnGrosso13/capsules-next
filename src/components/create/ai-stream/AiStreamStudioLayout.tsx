@@ -34,9 +34,135 @@ const TAB_ITEMS: Array<{ id: StudioTab; label: string; icon: React.ReactNode }> 
 
 const TAB_SET = new Set<StudioTab>(TAB_ITEMS.map((item) => item.id));
 
+type PanelGroupStorageLike = {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  flush?: () => void | Promise<void>;
+  cancel?: () => void;
+};
+
+const DEFAULT_LAYOUT_VIEW = "ai-stream-studio";
+
+const AUTO_SAVE_SEGMENTS = {
+  main: "main",
+  leftColumn: "left-column",
+  rightColumn: "right-column",
+} as const;
+
+type AutoSaveSegment = (typeof AUTO_SAVE_SEGMENTS)[keyof typeof AUTO_SAVE_SEGMENTS];
+
+function buildAutoSaveId(view: string, ownerId: string, segment: AutoSaveSegment): string {
+  return `${view}|${segment}|${ownerId}`;
+}
+
+function usePanelLayoutStorage(
+  view: string,
+  initialLayouts?: Record<string, unknown>,
+): PanelGroupStorageLike {
+  const initialSignature = React.useMemo(
+    () => JSON.stringify(initialLayouts ?? {}),
+    [initialLayouts],
+  );
+
+  const storage = React.useMemo<PanelGroupStorageLike>(() => {
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = initialSignature ? (JSON.parse(initialSignature) as Record<string, unknown>) : {};
+    } catch (error) {
+      console.warn("Failed to parse initial panel layout state", error);
+    }
+
+    const cache = new Map<string, string>();
+    Object.entries(parsed).forEach(([key, value]) => {
+      if (value === undefined) return;
+      try {
+        cache.set(key, JSON.stringify(value));
+      } catch (error) {
+        console.warn("Failed to serialize cached panel layout state", error);
+      }
+    });
+
+    let pending = new Map<string, string>();
+    let timer: number | null = null;
+
+    const flush = async () => {
+      if (!pending.size) {
+        timer = null;
+        return;
+      }
+      const entries: Array<{ storageKey: string; state: unknown }> = [];
+      pending.forEach((serialized, key) => {
+        try {
+          entries.push({ storageKey: key, state: JSON.parse(serialized) });
+        } catch (error) {
+          console.warn("Failed to parse panel layout payload", error);
+        }
+      });
+      pending = new Map();
+      timer = null;
+      if (!entries.length) return;
+      try {
+        await fetch("/api/studio/layout", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ view, entries }),
+        });
+      } catch (error) {
+        console.warn("Failed to persist studio layout state", error);
+      }
+    };
+
+    const scheduleFlush = () => {
+      if (typeof window === "undefined") return;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
+      timer = window.setTimeout(() => {
+        void flush();
+      }, 500);
+    };
+
+    const cancel = () => {
+      if (typeof window === "undefined") return;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
+      timer = null;
+      pending = new Map();
+    };
+
+    const storageImpl: PanelGroupStorageLike = {
+      getItem(key) {
+        return cache.get(key) ?? null;
+      },
+      setItem(key, value) {
+        cache.set(key, value);
+        pending.set(key, value);
+        scheduleFlush();
+      },
+      flush,
+      cancel,
+    };
+
+    return storageImpl;
+  }, [initialSignature, view]);
+
+  React.useEffect(() => {
+    return () => {
+      void storage.flush?.();
+      storage.cancel?.();
+    };
+  }, [storage]);
+
+  return storage;
+}
+
 type AiStreamStudioLayoutProps = {
   capsules: CapsuleSummary[];
   initialView?: StudioTab;
+  layoutOwnerId: string;
+  layoutView?: string;
+  initialPanelLayouts?: Record<string, unknown>;
 };
 
 function normalizeTab(value: string | null | undefined, fallback: StudioTab): StudioTab {
@@ -51,6 +177,9 @@ function normalizeTab(value: string | null | undefined, fallback: StudioTab): St
 export function AiStreamStudioLayout({
   capsules,
   initialView = "studio",
+  layoutOwnerId,
+  layoutView = DEFAULT_LAYOUT_VIEW,
+  initialPanelLayouts,
 }: AiStreamStudioLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -71,6 +200,17 @@ export function AiStreamStudioLayout({
   }, [capsules, selectedCapsuleId]);
 
   const [selectorOpen, setSelectorOpen] = React.useState(true);
+
+  const autoSaveIds = React.useMemo(
+    () => ({
+      main: buildAutoSaveId(layoutView, layoutOwnerId, AUTO_SAVE_SEGMENTS.main),
+      leftColumn: buildAutoSaveId(layoutView, layoutOwnerId, AUTO_SAVE_SEGMENTS.leftColumn),
+      rightColumn: buildAutoSaveId(layoutView, layoutOwnerId, AUTO_SAVE_SEGMENTS.rightColumn),
+    }),
+    [layoutOwnerId, layoutView],
+  );
+
+  const panelStorage = usePanelLayoutStorage(layoutView, initialPanelLayouts);
 
   const queryView = React.useMemo(() => {
     const param = searchParams?.get("view") ?? null;
@@ -202,10 +342,17 @@ export function AiStreamStudioLayout({
       <PanelGroup
         direction="horizontal"
         className={styles.studioLayout}
+        autoSaveId={autoSaveIds.main}
+        storage={panelStorage}
         style={{ height: "auto", minHeight: "var(--studio-track-height)", overflow: "visible" }}
       >
         <Panel defaultSize={62} minSize={48} collapsible={false}>
-          <PanelGroup direction="vertical" className={styles.panelColumn}>
+          <PanelGroup
+            direction="vertical"
+            className={styles.panelColumn}
+            autoSaveId={autoSaveIds.leftColumn}
+            storage={panelStorage}
+          >
             <Panel defaultSize={64} minSize={48} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.previewPanel} ${styles.panelCard}`}>

@@ -684,14 +684,10 @@ select date, posts_count from analytics.daily_posts_view;
 -- BEGIN MIGRATION: 0003_memories.sql
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
--- 0003_memories.sql: Memories table, policies, and vector search RPC
+-- 0003_memories.sql: Memories table, policies, and supporting indexes
 -- This migration adds the core `public.memories` table expected by the app,
--- including pgvector support, indexes, RLS policies, and a cosine search RPC.
+-- including ownership policies and indexes while delegating semantic search to external services.
 
--- Enable pgvector extension (safe if already installed)
-create extension if not exists vector;
-
--- Create memories table to store assets and descriptions
 create table if not exists public.memories (
   id uuid default gen_random_uuid() primary key,
   owner_user_id uuid references public.users(id) on delete cascade,
@@ -702,7 +698,6 @@ create table if not exists public.memories (
   media_type text,
   post_id text,
   meta jsonb,
-  embedding vector(1536),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -710,33 +705,6 @@ create table if not exists public.memories (
 -- Helpful indexes
 create index if not exists idx_memories_owner on public.memories(owner_user_id, created_at desc);
 create index if not exists idx_memories_kind on public.memories(kind);
-
--- Optional vector index (IVFFLAT); requires populated embeddings and <=2000 dims
-do $$
-declare
-  v_dims int;
-begin
-  select a.atttypmod - 4 into v_dims
-  from pg_attribute a
-  join pg_class c on c.oid = a.attrelid
-  join pg_namespace n on n.oid = c.relnamespace
-  where n.nspname = 'public'
-    and c.relname = 'memories'
-    and a.attname = 'embedding'
-    and a.attnum > 0
-    and not a.attisdropped
-  limit 1;
-
-  if v_dims is null or v_dims <= 2000 then
-    begin
-      create index idx_memories_embedding on public.memories using ivfflat (embedding vector_cosine_ops) with (lists = 100);
-    exception when duplicate_table or duplicate_object then
-      null;
-    end;
-  else
-    raise notice 'Skipping ivfflat index for memories.embedding; dimension % exceeds 2000', v_dims;
-  end if;
-end $$;
 
 -- RLS policies
 alter table public.memories enable row level security;
@@ -748,32 +716,6 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   create policy "Authenticated read own" on public.memories for select to authenticated using (true);
 exception when duplicate_object then null; end $$;
-
--- RPC for cosine search over embeddings
-create or replace function public.search_memories_cosine(
-  p_owner_id uuid,
-  p_query_embedding vector(1536),
-  p_match_threshold float,
-  p_match_count int
-) returns table (
-  id uuid,
-  kind text,
-  media_url text,
-  media_type text,
-  title text,
-  description text,
-  created_at timestamptz,
-  similarity float
-) as $$
-  select m.id, m.kind, m.media_url, m.media_type, m.title, m.description, m.created_at,
-         1 - (m.embedding <=> p_query_embedding) as similarity
-  from public.memories m
-  where m.owner_user_id = p_owner_id
-    and m.embedding is not null
-    and (1 - (m.embedding <=> p_query_embedding)) >= coalesce(p_match_threshold, 0.0)
-  order by m.embedding <=> p_query_embedding
-  limit least(greatest(p_match_count, 1), 200);
-$$ language sql stable;
 
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 -- END MIGRATION: 0003_memories.sql
@@ -807,66 +749,6 @@ $$;
 
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 -- END MIGRATION: 0004_memories_allow_theme.sql
--- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-
--- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
--- BEGIN MIGRATION: 0005_memories_vector_3072.sql
--- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
--- 0005_memories_vector_3072.sql: expand memory embeddings to 3,072 dimensions
--- Switches pgvector column and search RPC to the larger dimension returned by
--- OpenAI text-embedding-3-large and broadens the kind constraint to include videos.
-
--- Drop legacy IVFFLAT index (max dimension 2000) before switching to 3072.
-drop index if exists idx_memories_embedding;
-
-alter table public.memories
-  drop constraint if exists memories_kind_check;
-
-alter table public.memories
-  alter column embedding type vector(3072) using NULL::vector(3072);
-
-alter table public.memories
-  alter column kind drop default;
-
--- Normalize existing rows so the new check constraint can be applied safely
-update public.memories set kind = lower(kind) where kind is not null;
-update public.memories set kind = 'upload' where kind is null or kind not in ('upload','generated','post','video');
-
-alter table public.memories
-  add constraint memories_kind_check check (kind in ('upload','generated','post','video'));
-
-alter table public.memories
-  alter column kind set default 'upload';
-
-create or replace function public.search_memories_cosine(
-  p_owner_id uuid,
-  p_query_embedding vector(3072),
-  p_match_threshold float,
-  p_match_count int
-) returns table (
-  id uuid,
-  kind text,
-  media_url text,
-  media_type text,
-  title text,
-  description text,
-  created_at timestamptz,
-  similarity float
-) as $$
-  select m.id, m.kind, m.media_url, m.media_type, m.title, m.description, m.created_at,
-         1 - (m.embedding <=> p_query_embedding) as similarity
-  from public.memories m
-  where m.owner_user_id = p_owner_id
-    and m.embedding is not null
-    and (1 - (m.embedding <=> p_query_embedding)) >= coalesce(p_match_threshold, 0.0)
-  order by m.embedding <=> p_query_embedding
-  limit least(greatest(p_match_count, 1), 200);
-$$ language sql stable;
-
--- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
--- END MIGRATION: 0005_memories_vector_3072.sql
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
@@ -906,66 +788,6 @@ $$;
 
 -- 0007_memories_post_memory_indexes.sql
 -- Add/verify indexes and idempotent upsert support for post save ("remember")
-
--- Ensure pgvector extension exists (safe no-op if already installed)
-create extension if not exists vector;
-
--- Choose index method based on vector dimension and availability
-do $$
-declare
-  v_dims int := null;
-  v_has_hnsw boolean := false;
-  v_exists boolean := false;
-begin
-  -- does the index already exist?
-  select exists (
-    select 1 from pg_indexes
-    where schemaname = 'public' and indexname = 'idx_memories_embedding'
-  ) into v_exists;
-  if v_exists then
-    return;
-  end if;
-
-  -- read declared dimension of memories.embedding (vector(n))
-  select
-    coalesce(
-      nullif(
-        regexp_replace(format_type(a.atttypid, a.atttypmod), '^vector\((\d+)\)$', '\1'),
-        ''
-      )::int,
-      case when a.atttypmod > 0 then a.atttypmod - 4 else null end
-    )
-  into v_dims
-  from pg_attribute a
-  join pg_class c on c.oid = a.attrelid
-  join pg_namespace n on n.oid = c.relnamespace
-  where n.nspname = 'public'
-    and c.relname = 'memories'
-    and a.attname = 'embedding'
-    and a.attnum > 0
-    and not a.attisdropped
-  limit 1;
-
-  -- check if HNSW access method is available (pgvector >= 0.7)
-  select exists (select 1 from pg_am where amname = 'hnsw') into v_has_hnsw;
-
-  if v_dims is null then
-    return; -- column missing; skip
-  end if;
-
-  if v_dims > 2000 then
-    raise notice 'Skipping embedding index: dimension % exceeds local pgvector limit', v_dims;
-    return;
-  end if;
-
-  if v_has_hnsw then
-    execute 'create index idx_memories_embedding on public.memories using hnsw (embedding vector_cosine_ops)';
-  else
-    execute 'create index idx_memories_embedding on public.memories using ivfflat (embedding vector_cosine_ops) with (lists = 100)';
-  end if;
-exception when undefined_table then
-  null;
-end $$;
 
 -- 2) Partial indexes around post saves (source = 'post_memory') for fast lookups
 do $$
@@ -1011,7 +833,6 @@ begin
 end $$;
 
 -- 5) RPC to upsert a saved post (source='post_memory') using partial unique index
---    Accepts optional embedding as float4[] and casts to vector(3072) when provided
 create or replace function public.upsert_post_memory(
   p_owner_user_id uuid,
   p_post_id text,
@@ -1020,8 +841,7 @@ create or replace function public.upsert_post_memory(
   p_description text default null,
   p_media_url text default null,
   p_media_type text default null,
-  p_meta jsonb default jsonb_build_object('source','post_memory'),
-  p_embedding float4[] default null
+  p_meta jsonb default jsonb_build_object('source','post_memory')
 ) returns void as $$
 begin
   insert into public.memories (
@@ -1032,8 +852,7 @@ begin
     media_url,
     media_type,
     post_id,
-    meta,
-    embedding
+    meta
   ) values (
     p_owner_user_id,
     coalesce(p_kind, 'post'),
@@ -1042,8 +861,7 @@ begin
     p_media_url,
     p_media_type,
     p_post_id,
-    coalesce(p_meta, jsonb_build_object('source','post_memory')),
-    case when p_embedding is null then null else (p_embedding::vector(3072)) end
+    coalesce(p_meta, jsonb_build_object('source','post_memory'))
   )
   on conflict (owner_user_id, post_id, kind)
     where ((memories.meta->>'source') = 'post_memory')
@@ -1053,7 +871,6 @@ begin
     media_url = excluded.media_url,
     media_type = excluded.media_type,
     meta = excluded.meta,
-    embedding = coalesce(excluded.embedding, memories.embedding),
     updated_at = now();
 end;
 $$ language plpgsql security definer;

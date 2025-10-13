@@ -4,25 +4,19 @@ import { getPineconeVectorStore } from "@/adapters/vector/pinecone";
 import type { RecordMetadata } from "@pinecone-database/pinecone";
 import type { VectorStore } from "@/ports/vector-store";
 
-const vectorVendor = process.env.VECTOR_VENDOR ?? "pinecone";
-
 let vectorStoreInstance: VectorStore<RecordMetadata> | null = null;
 
-switch (vectorVendor) {
-  case "pinecone":
-  case "":
-  case undefined:
+function getOrCreateVectorStore(): VectorStore<RecordMetadata> {
+  if (!vectorStoreInstance) {
     vectorStoreInstance = getPineconeVectorStore();
-    break;
-  default:
-    console.warn(`Unknown vector vendor "${vectorVendor}". Vector store disabled.`);
-    vectorStoreInstance = null;
+  }
+  return vectorStoreInstance;
 }
 
 export function getVectorStore<T extends RecordMetadata = RecordMetadata>(): VectorStore<T> | null {
-  return vectorStoreInstance as VectorStore<T> | null;
+  return getOrCreateVectorStore() as VectorStore<T>;
 }
 
 export function getVectorVendor(): string {
-  return vectorVendor;
+  return "pinecone";
 }

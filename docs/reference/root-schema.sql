@@ -72,11 +72,7 @@ ALTER TABLE public.posts
 ADD COLUMN IF NOT EXISTS author_user_id UUID REFERENCES public.users(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_author_user ON public.posts(author_user_id);
 
--- 8) Memory table with pgvector for semantic recall
--- Enable pgvector extension
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Create memories table to store assets and descriptions
+-- Create memories table to store assets and descriptions (Pinecone holds vector data)
 CREATE TABLE IF NOT EXISTS public.memories (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   owner_user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
@@ -87,17 +83,14 @@ CREATE TABLE IF NOT EXISTS public.memories (
   media_type TEXT,
   post_id TEXT,
   meta JSONB,
-  embedding VECTOR(1536),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_memories_owner ON public.memories(owner_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_memories_kind ON public.memories(kind);
--- Vector index (optional, requires population); adjust lists based on data size
-DO $$ BEGIN
-  CREATE INDEX idx_memories_embedding ON public.memories USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
-EXCEPTION WHEN duplicate_table THEN NULL; END $$;
+-- Vector indexes (HNSW/IVFFlat) are intentionally omitted.
+-- Pinecone handles semantic recall in production and removes write overhead here.
 
 -- RLS
 ALTER TABLE public.memories ENABLE ROW LEVEL SECURITY;
@@ -109,31 +102,6 @@ DO $$ BEGIN
   CREATE POLICY "Authenticated read own" ON public.memories FOR SELECT TO authenticated USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- RPC for cosine search
-CREATE OR REPLACE FUNCTION public.search_memories_cosine(
-  p_owner_id UUID,
-  p_query_embedding VECTOR(1536),
-  p_match_threshold FLOAT,
-  p_match_count INT
-) RETURNS TABLE (
-  id UUID,
-  kind TEXT,
-  media_url TEXT,
-  media_type TEXT,
-  title TEXT,
-  description TEXT,
-  created_at TIMESTAMPTZ,
-  similarity FLOAT
-) AS $$
-  SELECT m.id, m.kind, m.media_url, m.media_type, m.title, m.description, m.created_at,
-         1 - (m.embedding <=> p_query_embedding) AS similarity
-  FROM public.memories m
-  WHERE m.owner_user_id = p_owner_id
-    AND m.embedding IS NOT NULL
-    AND (1 - (m.embedding <=> p_query_embedding)) >= COALESCE(p_match_threshold, 0.0)
-  ORDER BY m.embedding <=> p_query_embedding
-  LIMIT LEAST(GREATEST(p_match_count, 1), 200);
-$$ LANGUAGE SQL STABLE;
 
 -- Legacy memory_items upgrade (ensures older table stores media details)
 DO 
@@ -154,4 +122,3 @@ BEGIN
     END;
   END IF;
 END;
-

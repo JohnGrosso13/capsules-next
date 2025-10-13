@@ -14,7 +14,7 @@ import { serverEnv } from "@/lib/env/server";
 const db = getDatabaseAdminClient();
 const DEFAULT_LIST_LIMIT = 200;
 const MEMORY_FIELDS =
-  "id, owner_user_id, kind, post_id, title, description, media_url, media_type, meta, created_at, embedding";
+  "id, owner_user_id, kind, post_id, title, description, media_url, media_type, meta, created_at";
 
 type MemoryRow = {
   id: string;
@@ -27,7 +27,6 @@ type MemoryRow = {
   media_type: string | null;
   meta: Record<string, unknown> | null;
   created_at: string | null;
-  embedding?: number[] | null;
 };
 
 type MemoryIdRow = {
@@ -81,6 +80,9 @@ export async function indexMemory({
 }) {
   const meta: Record<string, unknown> =
     metadata && typeof metadata === "object" ? { ...metadata } : {};
+  if (Object.prototype.hasOwnProperty.call(meta, "embedding")) {
+    delete meta.embedding;
+  }
 
   const originalTitle = typeof title === "string" && title.trim().length ? title.trim() : null;
   const originalDescription =
@@ -211,20 +213,20 @@ export async function indexMemory({
 
   try {
     embedding = await embedText(text);
-
-    if (embedding && embedding.length) {
-      if (!expectedEmbeddingDim || embedding.length === expectedEmbeddingDim) {
-        record.embedding = embedding;
-      } else {
-        console.warn(
-          "embedding dimension mismatch",
-          embedding.length,
-          "expected",
-          expectedEmbeddingDim,
-          "- skipping stored embedding",
-        );
-        embedding = null;
-      }
+    if (
+      embedding &&
+      embedding.length &&
+      expectedEmbeddingDim &&
+      embedding.length !== expectedEmbeddingDim
+    ) {
+      console.warn(
+        "embedding dimension mismatch",
+        embedding.length,
+        "expected",
+        expectedEmbeddingDim,
+        "- discarding embedding before vector sync",
+      );
+      embedding = null;
     }
   } catch (error) {
     console.warn("embedding failed", error);
@@ -246,27 +248,12 @@ export async function indexMemory({
     const memoryId = toStringId(inserted?.id);
     if (!memoryId) return;
 
-    const persistedEmbedding = Array.isArray(inserted?.embedding)
-      ? (inserted?.embedding as number[])
-      : null;
-    const vectorCandidate =
-      embedding && embedding.length
-        ? embedding
-        : persistedEmbedding && persistedEmbedding.length
-          ? persistedEmbedding
-          : null;
-
-    const vector =
-      expectedEmbeddingDim && vectorCandidate && vectorCandidate.length !== expectedEmbeddingDim
-        ? null
-        : vectorCandidate;
-
-    if (vector && vector.length) {
+    if (embedding && embedding.length) {
       try {
         await upsertMemoryVector({
           id: memoryId,
           ownerId,
-          values: vector,
+          values: embedding,
           kind,
           postId,
           title: finalTitle ?? null,
