@@ -207,7 +207,9 @@ export async function ensureSupabaseUser(profile: NormalizedProfile): Promise<st
 
     const nextAvatar = normalizeString(incoming.avatar_url);
     const currentAvatar = normalizeString(existing.avatar_url);
-    if (nextAvatar && nextAvatar !== currentAvatar) updates.avatar_url = nextAvatar;
+    if (nextAvatar && !currentAvatar) {
+      updates.avatar_url = nextAvatar;
+    }
 
     const nextEmail = normalizeString(incoming.email);
     const currentEmail = normalizeString(existing.email);
