@@ -531,17 +531,108 @@
 
 .stageManagerComposer {
   display: flex;
-  gap: 10px;
+  justify-content: center;
 }
 
-.stageManagerInput {
+.stageManagerPrompter {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgba(160, 172, 255, 0.26) 85%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgba(255, 255, 255, 0.08) 70%, transparent),
+    color-mix(in srgb, rgba(30, 34, 80, 0.78) 78%, transparent)
+  );
+  box-shadow:
+    0 24px 48px color-mix(in srgb, rgba(90, 110, 255, 0.55) 28%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+.stageManagerPrompter::before {
+  content: "";
+  position: absolute;
+  inset: -20px -26px;
+  border-radius: inherit;
+  background: radial-gradient(
+    70% 70% at 50% 50%,
+    color-mix(in srgb, rgba(124, 140, 255, 0.65) 50%, transparent) 0%,
+    transparent 78%
+  );
+  opacity: 0.45;
+  filter: blur(30px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.stageManagerPrompterPlaceholder {
   flex: 1;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(146, 156, 255, 0.26)) 85%, transparent);
-  background: color-mix(in srgb, var(--surface-base, rgba(18, 22, 56, 0.9)) 72%, transparent);
-  color: var(--text, #f8fafc);
-  padding: 12px 14px;
-  font-size: 0.9rem;
+  min-width: 0;
+  color: color-mix(in srgb, var(--text, #f8fafc) 72%, transparent);
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+
+.stageManagerPrompterActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stageManagerPrompterIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgba(182, 194, 255, 0.3) 82%, transparent);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.14) 68%, transparent);
+  color: color-mix(in srgb, rgba(218, 224, 255, 0.88) 85%, transparent);
+  cursor: default;
+}
+
+.stageManagerPrompterPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, rgba(129, 93, 255, 0.94) 80%, transparent),
+    color-mix(in srgb, rgba(104, 220, 255, 0.92) 70%, transparent)
+  );
+  color: var(--text-on-brand, #0a0c24);
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  box-shadow:
+    0 18px 36px color-mix(in srgb, rgba(120, 132, 255, 0.6) 36%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.stageManagerPrompterCaret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 40px;
+  border: none;
+  border-radius: 0 999px 999px 0;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.18) 68%, transparent);
+  color: color-mix(in srgb, rgba(190, 202, 255, 0.85) 82%, transparent);
+}
+
+.stageManagerPrompter button {
+  pointer-events: none;
 }
 
 .resourceCard {

@@ -10,7 +10,14 @@ import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { AiStreamCapsuleGate } from "./AiStreamCapsuleGate";
 import styles from "@/app/(authenticated)/create/ai-stream/ai-stream.page.module.css";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
-import { Broadcast, SquaresFour, Storefront } from "@phosphor-icons/react/dist/ssr";
+import {
+  Broadcast,
+  SquaresFour,
+  Storefront,
+  Paperclip,
+  Microphone,
+  CaretDown,
+} from "@phosphor-icons/react/dist/ssr";
 
 type StudioTab = "studio" | "producer" | "encoder";
 
@@ -535,14 +542,25 @@ export function AiStreamStudioLayout({
                   )}
                 </div>
                 <div className={styles.stageManagerComposer}>
-                  <input
-                    className={styles.stageManagerInput}
-                    placeholder="Ask your AI crew for support..."
-                    disabled
-                  />
-                  <Button variant="gradient" size="sm" disabled>
-                    Send
-                  </Button>
+                  <div className={styles.stageManagerPrompter} aria-hidden>
+                    <button className={styles.stageManagerPrompterIcon} type="button" disabled>
+                      <Paperclip size={18} weight="duotone" />
+                    </button>
+                    <span className={styles.stageManagerPrompterPlaceholder}>
+                      Ask your Capsule AI to create anything...
+                    </span>
+                    <div className={styles.stageManagerPrompterActions}>
+                      <button className={styles.stageManagerPrompterIcon} type="button" disabled>
+                        <Microphone size={18} weight="duotone" />
+                      </button>
+                      <button className={styles.stageManagerPrompterPrimary} type="button" disabled>
+                        Generate
+                      </button>
+                      <button className={styles.stageManagerPrompterCaret} type="button" disabled>
+                        <CaretDown size={14} weight="bold" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </footer>
             </div>

@@ -285,6 +285,32 @@
   border: 1px solid var(--header-button-border);
   background: var(--header-button-bg);
   box-shadow: var(--header-button-shadow);
+  position: relative;
+}
+
+.avatarButtonCustom::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: color-mix(in srgb, var(--header-button-bg) 80%, transparent);
+  background-image: var(--header-avatar-image);
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  transition: transform var(--motion-duration-medium) var(--motion-ease-standard);
+}
+
+.avatarButtonCustom:hover::before {
+  transform: scale(1.02);
+}
+
+.clerkAvatarBox {
+  opacity: 0 !important;
+}
+
+.avatarButtonCustom[data-has-avatar="false"]::before {
+  display: none;
 }
 
 /* Exact CTA per screenshot: lavender core with subtle purple/cyan edges */
