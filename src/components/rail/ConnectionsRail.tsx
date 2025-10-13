@@ -187,6 +187,7 @@ export function ConnectionsRail() {
     startGroupChat,
     addParticipantsToGroup,
     sessions: chatSessions,
+    closeSession: closeChatSession,
   } = useChatContext();
   const {
     session: partySession,
@@ -616,6 +617,12 @@ export function ConnectionsRail() {
     setActiveFriendTarget(null);
     setFriendActionPendingId(null);
   }, [pathname]);
+
+  React.useEffect(() => {
+    if (railMode === "tiles") {
+      closeChatSession();
+    }
+  }, [railMode, closeChatSession]);
 
   const partyButtonLabel =
     partyStatus === "loading" ? "Connecting..." : partySession ? "Party Live" : "Party Voice";
