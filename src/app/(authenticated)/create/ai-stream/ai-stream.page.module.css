@@ -29,11 +29,11 @@
   gap: 12px;
   padding: 8px;
   border-radius: 999px;
-  background: rgba(26, 32, 72, 0.55);
-  border: 1px solid rgba(122, 136, 255, 0.24);
+  background: var(--studio-surface-glass);
+  border: 1px solid var(--studio-border-soft);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 18px 32px rgba(6, 10, 28, 0.35);
+    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 16%, transparent),
+    var(--studio-shadow-soft);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -46,9 +46,9 @@
   min-width: 168px;
   padding: 14px 18px;
   border-radius: 18px;
-  border: 1px solid rgba(118, 130, 255, 0.2);
-  background: rgba(14, 18, 44, 0.85);
-  color: var(--text, #f8fafc);
+  border: 1px solid var(--studio-border-strong);
+  background: var(--studio-surface-panel);
+  color: var(--studio-text-primary);
   font-weight: 600;
   text-align: left;
   transition:
@@ -60,26 +60,26 @@
 
 .navButton:hover {
   transform: translateY(-2px);
-  border-color: rgba(154, 168, 255, 0.38);
+  border-color: var(--studio-border-focus);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 14px 28px rgba(6, 10, 28, 0.3);
+    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 20%, transparent),
+    var(--studio-shadow-soft);
 }
 
 .navButton:focus-visible {
   outline: none;
   transform: translateY(-1px);
   box-shadow:
-    0 0 0 2px rgba(70, 104, 255, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    0 0 0 2px color-mix(in srgb, var(--studio-border-focus) 80%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 22%, transparent);
 }
 
 .navButtonActive {
-  background: linear-gradient(120deg, rgba(92, 106, 255, 0.26), rgba(92, 106, 255, 0.08));
-  border-color: rgba(165, 176, 255, 0.55);
+  background: var(--studio-surface-accent);
+  border-color: var(--studio-border-focus);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 20px 36px rgba(7, 12, 40, 0.35);
+    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 28%, transparent),
+    var(--studio-shadow-strong);
 }
 
 .navButtonLabel {
@@ -89,7 +89,7 @@
 
 .navButtonDesc {
   font-size: 0.78rem;
-  color: rgba(206, 214, 255, 0.8);
+  color: var(--studio-text-secondary);
   letter-spacing: 0.02em;
 }
 
@@ -166,18 +166,18 @@
   border-radius: 999px;
   background: linear-gradient(
     180deg,
-    rgba(154, 166, 255, 0.75),
-    rgba(98, 108, 255, 0.58)
+    color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent),
+    color-mix(in srgb, var(--color-brand, #6366f1) 38%, transparent)
   );
   opacity: 0.42; /* subtle default */
-  box-shadow: 0 0 10px rgba(120, 136, 255, 0.35);
+  box-shadow: var(--studio-glow-soft);
   transition: opacity 0.2s ease, box-shadow 0.2s ease;
 }
 
 .resizeHandle:hover::before,
 .resizeHandle:focus-visible::before {
   opacity: 1;
-  box-shadow: 0 0 18px rgba(150, 172, 255, 0.65);
+  box-shadow: var(--studio-glow-strong);
 }
 
 .resizeHandle[data-panel-group-direction="horizontal"]::before {
@@ -203,7 +203,7 @@
   gap: 16px;
   padding: clamp(18px, 2.6vw, 24px);
   border-radius: 26px;
-  border: 1px solid var(--card-border, rgba(126, 142, 255, 0.24));
+  border: 1px solid var(--studio-border-strong);
   background:
     linear-gradient(
       160deg,
@@ -212,8 +212,8 @@
     ),
     var(--surface-elevated, rgba(17, 22, 45, 0.86));
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 18%, transparent),
-    0 20px 40px rgba(5, 10, 26, 0.28);
+    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 18%, transparent),
+    var(--studio-shadow-soft);
   height: 100%;
   min-height: 0;
 }
@@ -233,7 +233,7 @@
 
 .previewSubtitle {
   font-size: 0.9rem;
-  color: var(--text-2, rgba(200, 208, 255, 0.78));
+  color: var(--studio-text-secondary);
 }
 
 .previewActions {
@@ -249,7 +249,7 @@
   display: grid;
   place-items: center;
   border-radius: clamp(20px, 3vw, 24px);
-  border: 1px solid var(--card-border, rgba(140, 154, 255, 0.28));
+  border: 1px solid var(--studio-border-strong);
   background:
     linear-gradient(
       180deg,
@@ -258,7 +258,7 @@
     ),
     radial-gradient(280px 340px at 24% 18%, color-mix(in srgb, var(--color-brand, #6366f1) 28%, transparent), transparent 72%),
     var(--surface-base, rgba(10, 12, 32, 0.92));
-  color: var(--text-2, rgba(205, 214, 255, 0.78));
+  color: var(--studio-text-secondary);
   font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -287,13 +287,13 @@
   font-size: 0.75rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--text-3, rgba(186, 196, 255, 0.75));
+  color: var(--studio-text-tertiary);
 }
 
 .previewStatValue {
   font-size: 1rem;
   font-weight: 700;
-  color: var(--text, rgba(228, 234, 255, 0.92));
+  color: var(--studio-text-primary);
 }
 
 .controlToolbar {
@@ -308,9 +308,9 @@
   gap: 16px;
   padding: clamp(18px, 2.6vw, 24px);
   border-radius: 20px;
-  border: 1px solid var(--card-border, rgba(126, 140, 255, 0.24));
-  background: color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 60%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 12%, transparent);
+  border: 1px solid var(--studio-border-strong);
+  background: var(--studio-surface-panel);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 12%, transparent);
   height: 100%;
   min-height: 0;
 }
@@ -329,7 +329,7 @@
 
 .quickActionsSubtitle {
   font-size: 0.85rem;
-  color: var(--text-2, rgba(198, 206, 255, 0.78));
+  color: var(--studio-text-secondary);
 }
 
 .quickActionsGrid {
@@ -344,9 +344,9 @@
   justify-content: center;
   padding: 12px 16px;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(142, 154, 255, 0.22)) 85%, transparent);
-  background: color-mix(in srgb, var(--surface-muted, rgba(26, 30, 74, 0.82)) 70%, transparent);
-  color: var(--text, rgba(215, 222, 255, 0.85));
+  border: 1px solid var(--studio-pill-border);
+  background: var(--studio-pill-bg);
+  color: var(--studio-text-primary);
   font-size: 0.88rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -361,9 +361,9 @@
   gap: 12px;
   padding: clamp(18px, 2.6vw, 24px);
   border-radius: 20px;
-  border: 1px solid var(--card-border, rgba(132, 148, 255, 0.2));
-  background: color-mix(in srgb, var(--surface-overlay, rgba(17, 21, 54, 0.88)) 68%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 12%, transparent);
+  border: 1px solid var(--studio-border-strong);
+  background: var(--studio-surface-highlight);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 12%, transparent);
   height: 100%;
   min-height: 0;
 }
@@ -389,7 +389,7 @@
   border: 1px solid color-mix(in srgb, var(--card-border, rgba(148, 160, 255, 0.3)) 80%, transparent);
   background: color-mix(in srgb, var(--surface-muted, rgba(30, 36, 88, 0.6)) 64%, transparent);
   font-size: 0.75rem;
-  color: var(--text-2, rgba(209, 216, 255, 0.82));
+  color: var(--studio-text-secondary);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -401,7 +401,7 @@
   margin: 0;
   padding: 0;
   font-size: 0.88rem;
-  color: var(--text-2, rgba(204, 212, 255, 0.82));
+  color: var(--studio-text-secondary);
 }
 
 .signalList li {
@@ -412,7 +412,7 @@
 }
 
 .signalList strong {
-  color: var(--text, rgba(232, 236, 255, 0.92));
+  color: var(--studio-text-primary);
 }
 
 .stageManagerCard {
@@ -420,11 +420,11 @@
   gap: 18px;
   padding: clamp(20px, 3vw, 28px);
   border-radius: 24px;
-  border: 1px solid var(--card-border, rgba(132, 150, 255, 0.24));
-  background: color-mix(in srgb, var(--surface-overlay, rgba(19, 23, 58, 0.92)) 70%, transparent);
+  border: 1px solid var(--studio-border-strong);
+  background: var(--studio-surface-highlight);
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 16%, transparent),
-    0 16px 32px rgba(6, 10, 28, 0.28);
+    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 16%, transparent),
+    var(--studio-shadow-soft);
   height: 100%;
   min-height: 0;
   min-width: 0;
@@ -449,7 +449,7 @@
 
 .stageManagerSubtitle {
   font-size: 0.88rem;
-  color: var(--text-2, rgba(200, 208, 255, 0.82));
+  color: var(--studio-text-secondary);
 }
 
 .stageManagerTimeline {
@@ -463,13 +463,13 @@
   gap: 12px;
   padding: 12px;
   border-radius: 16px;
-  border: 1px solid rgba(146, 156, 255, 0.16);
-  background: rgba(22, 26, 64, 0.6);
+  border: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-muted);
 }
 
 .stageManagerEventTime {
   font-size: 0.82rem;
-  color: var(--text-3, rgba(192, 202, 255, 0.7));
+  color: var(--studio-text-tertiary);
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
@@ -478,7 +478,7 @@
   display: grid;
   gap: 4px;
   font-size: 0.9rem;
-  color: var(--text, rgba(213, 220, 255, 0.86));
+  color: var(--studio-text-primary);
 }
 
 .stageManagerThread {
@@ -496,22 +496,22 @@
 }
 
 .stageManagerMessage {
-  border: 1px solid rgba(132, 146, 255, 0.2);
-  background: color-mix(in srgb, var(--surface-muted, rgba(24, 28, 68, 0.8)) 70%, transparent);
-  color: var(--text, rgba(210, 218, 255, 0.88));
+  border: 1px solid var(--studio-border-strong);
+  background: var(--studio-surface-muted);
+  color: var(--studio-text-primary);
 }
 
 .stageManagerMessageSelf {
-  border: 1px solid rgba(96, 110, 255, 0.32);
+  border: 1px solid color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent);
   background: color-mix(in srgb, var(--surface-overlay, rgba(40, 46, 102, 0.92)) 74%, transparent);
-  color: var(--text, rgba(232, 236, 255, 0.92));
+  color: var(--studio-text-primary);
 }
 
 .stageManagerAuthor {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--text-3, rgba(186, 196, 255, 0.72));
+  color: var(--studio-text-tertiary);
 }
 
 .stageManagerFooter {
@@ -530,7 +530,7 @@
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--card-border, rgba(146, 156, 255, 0.2)) 75%, transparent);
   background: color-mix(in srgb, var(--surface-muted, rgba(28, 32, 74, 0.6)) 68%, transparent);
-  color: var(--text, rgba(210, 218, 255, 0.85));
+  color: var(--studio-text-primary);
   font-size: 0.82rem;
 }
 
@@ -549,15 +549,15 @@
   gap: 16px;
   padding: 14px 18px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, rgba(160, 172, 255, 0.26) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--studio-border-strong) 85%, transparent);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, rgba(255, 255, 255, 0.08) 70%, transparent),
-    color-mix(in srgb, rgba(30, 34, 80, 0.78) 78%, transparent)
+    color-mix(in srgb, var(--studio-text-primary) 8%, transparent),
+    color-mix(in srgb, var(--studio-surface-highlight) 78%, transparent)
   );
   box-shadow:
-    0 24px 48px color-mix(in srgb, rgba(90, 110, 255, 0.55) 28%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    0 24px 48px color-mix(in srgb, var(--color-brand, #6366f1) 28%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 22%, transparent);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
 }
@@ -567,11 +567,7 @@
   position: absolute;
   inset: -20px -26px;
   border-radius: inherit;
-  background: radial-gradient(
-    70% 70% at 50% 50%,
-    color-mix(in srgb, rgba(124, 140, 255, 0.65) 50%, transparent) 0%,
-    transparent 78%
-  );
+  background: radial-gradient(70% 70% at 50% 50%, var(--studio-prompter-ring) 0%, transparent 78%);
   opacity: 0.45;
   filter: blur(30px);
   pointer-events: none;
@@ -581,7 +577,7 @@
 .stageManagerPrompterPlaceholder {
   flex: 1 1 160px;
   min-width: 0;
-  color: color-mix(in srgb, var(--text, #f8fafc) 72%, transparent);
+  color: color-mix(in srgb, var(--studio-text-primary) 72%, transparent);
   font-size: 0.95rem;
   letter-spacing: 0.01em;
 }
@@ -602,9 +598,9 @@
   width: 38px;
   height: 38px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, rgba(182, 194, 255, 0.3) 82%, transparent);
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.14) 68%, transparent);
-  color: color-mix(in srgb, rgba(218, 224, 255, 0.88) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--studio-border-strong) 85%, transparent);
+  background: color-mix(in srgb, var(--studio-text-primary) 14%, transparent);
+  color: color-mix(in srgb, var(--studio-text-primary) 85%, transparent);
   cursor: default;
 }
 
@@ -618,15 +614,15 @@
   border: none;
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, rgba(129, 93, 255, 0.94) 80%, transparent),
-    color-mix(in srgb, rgba(104, 220, 255, 0.92) 70%, transparent)
+    color-mix(in srgb, var(--color-brand, #6366f1) 80%, transparent),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 70%, transparent)
   );
   color: var(--text-on-brand, #0a0c24);
   font-weight: 700;
   letter-spacing: 0.015em;
   box-shadow:
-    0 18px 36px color-mix(in srgb, rgba(120, 132, 255, 0.6) 36%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    0 18px 36px color-mix(in srgb, var(--color-brand, #6366f1) 36%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 45%, transparent);
 }
 
 .stageManagerPrompterCaret {
@@ -637,8 +633,8 @@
   height: 40px;
   border: none;
   border-radius: 0 999px 999px 0;
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.18) 68%, transparent);
-  color: color-mix(in srgb, rgba(190, 202, 255, 0.85) 82%, transparent);
+  background: color-mix(in srgb, var(--studio-text-primary) 18%, transparent);
+  color: color-mix(in srgb, var(--studio-text-primary) 82%, transparent);
 }
 
 .stageManagerPrompter button {
@@ -650,9 +646,9 @@
   gap: 16px;
   padding: clamp(18px, 2.6vw, 24px);
   border-radius: 20px;
-  border: 1px solid var(--card-border, rgba(132, 148, 255, 0.2));
+  border: 1px solid var(--studio-border-strong);
   background: color-mix(in srgb, var(--surface-elevated, rgba(16, 20, 50, 0.86)) 70%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, #f8fafc) 10%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 10%, transparent);
   height: 100%;
   min-height: 0;
 }
@@ -676,7 +672,7 @@
   margin: 0;
   padding: 0;
   font-size: 0.88rem;
-  color: var(--text-2, rgba(208, 214, 255, 0.84));
+  color: var(--studio-text-secondary);
 }
 
 .resourceList li {
@@ -689,11 +685,11 @@
   font-size: 0.78rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-3, rgba(186, 196, 255, 0.7));
+  color: var(--studio-text-tertiary);
 }
 
 .resourceList strong {
-  color: var(--text, rgba(230, 236, 255, 0.92));
+  color: var(--studio-text-primary);
 }
 
 .chatRailShell {
@@ -719,7 +715,7 @@
   padding: 0;
   margin: 0;
   font-size: 0.88rem;
-  color: var(--text-2, rgba(206, 214, 255, 0.84));
+  color: var(--studio-text-secondary);
 }
 
 .collaboratorItem {
@@ -740,7 +736,7 @@
 
 .collaboratorRole {
   font-size: 0.78rem;
-  color: var(--text-3, rgba(186, 196, 255, 0.72));
+  color: var(--studio-text-tertiary);
 }
 
 .collaboratorStatus {
@@ -756,17 +752,17 @@
 
 .collaboratorStatusOnline {
   background: color-mix(in srgb, var(--color-success, #2dd4bf) 18%, transparent);
-  color: color-mix(in srgb, var(--color-success, #2dd4bf) 85%, var(--text, #f8fafc));
+  color: color-mix(in srgb, var(--color-success, #2dd4bf) 85%, var(--studio-text-primary));
 }
 
 .collaboratorStatusIdle {
   background: color-mix(in srgb, var(--color-brand, #6366f1) 18%, transparent);
-  color: color-mix(in srgb, var(--color-brand, #6366f1) 78%, var(--text, #f8fafc));
+  color: color-mix(in srgb, var(--color-brand, #6366f1) 78%, var(--studio-text-primary));
 }
 
 .collaboratorStatusAway {
   background: color-mix(in srgb, var(--color-accent, #22d3ee) 18%, transparent);
-  color: color-mix(in srgb, var(--color-accent, #22d3ee) 78%, var(--text, #f8fafc));
+  color: color-mix(in srgb, var(--color-accent, #22d3ee) 78%, var(--studio-text-primary));
 }
 
 .collaboratorFooter {
@@ -780,9 +776,9 @@
   gap: 12px;
   padding: clamp(18px, 3vw, 26px);
   border-radius: 22px;
-  border: 1px solid rgba(132, 150, 255, 0.22);
-  background: rgba(19, 23, 58, 0.9);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--studio-border-strong);
+  background: var(--studio-surface-panel);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 12%, transparent);
 }
 
 .shellCardTitle {
@@ -792,7 +788,7 @@
 
 .shellCardSubtitle {
   font-size: 0.9rem;
-  color: rgba(198, 206, 255, 0.82);
+  color: var(--studio-text-secondary);
 }
 
 .shellList {
@@ -802,7 +798,7 @@
   display: grid;
   gap: 10px;
   font-size: 0.88rem;
-  color: rgba(205, 212, 255, 0.82);
+  color: var(--studio-text-secondary);
 }
 
 .shellListItem {
@@ -811,7 +807,7 @@
   justify-content: space-between;
   gap: 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(134, 146, 255, 0.16);
+  border-bottom: 1px solid var(--studio-divider);
 }
 
 .shellListItem:last-child {
@@ -825,12 +821,12 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(53, 62, 136, 0.65);
-  border: 1px solid rgba(150, 162, 255, 0.24);
+  background: var(--studio-status-bg);
+  border: 1px solid var(--studio-status-border);
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(207, 216, 255, 0.86);
+  color: var(--studio-text-primary);
 }
 
 .producerLayout {
@@ -863,8 +859,8 @@
 .sceneItem {
   padding: 12px;
   border-radius: 14px;
-  border: 1px solid rgba(142, 154, 255, 0.18);
-  background: rgba(21, 25, 60, 0.9);
+  border: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-panel);
   display: grid;
   gap: 6px;
 }
@@ -875,7 +871,7 @@
 
 .sceneItemMeta {
   font-size: 0.8rem;
-  color: rgba(202, 210, 255, 0.78);
+  color: var(--studio-text-secondary);
 }
 
 .timelineCard {
@@ -883,9 +879,9 @@
   gap: 16px;
   padding: clamp(18px, 3vw, 26px);
   border-radius: 22px;
-  border: 1px solid rgba(132, 150, 255, 0.22);
-  background: rgba(18, 22, 56, 0.9);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--studio-border-strong);
+  background: var(--studio-surface-panel);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 12%, transparent);
 }
 
 .timelineRail {
@@ -896,8 +892,12 @@
 .timelineRow {
   height: 38px;
   border-radius: 12px;
-  background: linear-gradient(90deg, rgba(96, 111, 255, 0.4), rgba(96, 111, 255, 0.1));
-  border: 1px solid rgba(146, 158, 255, 0.26);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 18%, transparent)
+  );
+  border: 1px solid color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
   position: relative;
   overflow: hidden;
 }
@@ -908,8 +908,8 @@
   inset: 0;
   background-image: repeating-linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.08),
-    rgba(255, 255, 255, 0.08) 2px,
+    color-mix(in srgb, var(--studio-text-primary) 8%, transparent),
+    color-mix(in srgb, var(--studio-text-primary) 8%, transparent) 2px,
     transparent 2px,
     transparent 12px
   );
@@ -921,16 +921,16 @@
   gap: 14px;
   padding: clamp(18px, 3vw, 24px);
   border-radius: 22px;
-  border: 1px solid rgba(138, 152, 255, 0.22);
-  background: rgba(22, 26, 62, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--studio-border-strong);
+  background: var(--studio-surface-panel);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 12%, transparent);
 }
 
 .assistantList {
   display: grid;
   gap: 12px;
   font-size: 0.9rem;
-  color: rgba(204, 212, 255, 0.84);
+  color: var(--studio-text-secondary);
   list-style: none;
   padding: 0;
   margin: 0;
@@ -939,10 +939,10 @@
 .assistantPrompt {
   padding: 12px;
   border-radius: 16px;
-  border: 1px solid rgba(142, 154, 255, 0.18);
-  background: rgba(28, 32, 74, 0.88);
+  border: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-muted);
   font-size: 0.88rem;
-  color: rgba(210, 218, 255, 0.86);
+  color: var(--studio-text-primary);
 }
 
 .encoderLayout {
@@ -961,9 +961,9 @@
   gap: 12px;
   padding: clamp(18px, 3vw, 24px);
   border-radius: 20px;
-  border: 1px solid rgba(136, 150, 255, 0.22);
-  background: rgba(20, 24, 60, 0.88);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--studio-border-strong);
+  background: var(--studio-surface-panel);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 12%, transparent);
 }
 
 .encoderSectionTitle {
@@ -973,7 +973,7 @@
 
 .encoderSectionSubtitle {
   font-size: 0.9rem;
-  color: rgba(202, 210, 255, 0.8);
+  color: var(--studio-text-secondary);
 }
 
 .encoderList {
@@ -983,7 +983,7 @@
   display: grid;
   gap: 10px;
   font-size: 0.88rem;
-  color: rgba(205, 214, 255, 0.82);
+  color: var(--studio-text-secondary);
 }
 
 .encoderRow {
@@ -992,7 +992,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid rgba(138, 150, 255, 0.14);
+  border-bottom: 1px solid var(--studio-divider);
 }
 
 .encoderRow:last-child {
@@ -1003,14 +1003,14 @@
   font-size: 0.78rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(210, 218, 255, 0.72);
+  color: var(--studio-text-tertiary);
 }
 
 .encoderChecklist {
   display: grid;
   gap: 8px;
   font-size: 0.85rem;
-  color: rgba(204, 212, 255, 0.8);
+  color: var(--studio-text-secondary);
 }
 
 .encoderChecklistItem {
@@ -1019,8 +1019,8 @@
   gap: 8px;
   padding: 8px 12px;
   border-radius: 12px;
-  border: 1px dashed rgba(146, 156, 255, 0.2);
-  background: rgba(28, 32, 72, 0.6);
+  border: 1px dashed var(--studio-border-dashed);
+  background: var(--studio-surface-muted);
 }
 
 @media (max-width: 1024px) {

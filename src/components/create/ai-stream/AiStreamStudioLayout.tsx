@@ -850,7 +850,7 @@ export function AiStreamStudioLayout({
   };
 
   return (
-    <div className={styles.shellWrap}>
+    <div className={`${capTheme.theme} ${styles.shellWrap}`}>
       <header className={styles.navBar}>
         <div className={capTheme.tabStrip} role="tablist" aria-label="AI Stream Studio sections">
           {TAB_ITEMS.map((tab) => {

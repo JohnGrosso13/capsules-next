@@ -9,6 +9,93 @@
   --prompt-glow-opacity: 0.54;
   --prompt-glow-blur: 18px;
   --card-radius: 16px;
+  /* Live Studio surfaces & tokens */
+  --studio-surface-glass: color-mix(
+    in srgb,
+    var(--surface-overlay, rgba(10, 14, 30, 0.72)) 65%,
+    transparent
+  );
+  --studio-surface-panel: color-mix(
+    in srgb,
+    var(--surface-elevated, rgba(16, 20, 50, 0.86)) 72%,
+    transparent
+  );
+  --studio-surface-muted: color-mix(
+    in srgb,
+    var(--surface-muted, rgba(17, 22, 45, 0.8)) 68%,
+    transparent
+  );
+  --studio-surface-highlight: color-mix(
+    in srgb,
+    var(--surface-overlay, rgba(17, 21, 54, 0.88)) 64%,
+    transparent
+  );
+  --studio-surface-accent: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 18%, transparent)
+  );
+  --studio-border-soft: color-mix(
+    in srgb,
+    var(--card-border, rgba(132, 148, 255, 0.2)) 80%,
+    transparent
+  );
+  --studio-border-strong: var(--card-border, rgba(132, 148, 255, 0.2));
+  --studio-border-focus: color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
+  --studio-border-dashed: color-mix(
+    in srgb,
+    var(--card-border, rgba(146, 156, 255, 0.2)) 65%,
+    transparent
+  );
+  --studio-text-primary: var(--text, rgba(232, 236, 255, 0.92));
+  --studio-text-secondary: var(--text-2, rgba(206, 214, 255, 0.84));
+  --studio-text-tertiary: var(--text-3, rgba(186, 196, 255, 0.72));
+  --studio-shadow-soft: var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34));
+  --studio-shadow-strong: var(--shadow-xl, 0 32px 68px rgba(5, 10, 30, 0.46));
+  --studio-glow-soft: 0 0 10px color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
+  --studio-glow-strong: 0 0 18px color-mix(in srgb, var(--color-brand, #6366f1) 68%, transparent);
+  --studio-pill-bg: color-mix(
+    in srgb,
+    var(--surface-muted, rgba(24, 28, 68, 0.8)) 70%,
+    transparent
+  );
+  --studio-pill-border: color-mix(
+    in srgb,
+    var(--card-border, rgba(142, 154, 255, 0.2)) 80%,
+    transparent
+  );
+  --studio-pill-text: var(--studio-text-primary);
+  --studio-pill-muted: var(--studio-text-tertiary);
+  --studio-status-bg: color-mix(
+    in srgb,
+    var(--surface-muted, rgba(28, 32, 74, 0.6)) 68%,
+    transparent
+  );
+  --studio-status-border: color-mix(
+    in srgb,
+    var(--card-border, rgba(146, 156, 255, 0.2)) 75%,
+    transparent
+  );
+  --studio-divider: color-mix(
+    in srgb,
+    var(--card-border, rgba(136, 150, 255, 0.22)) 70%,
+    transparent
+  );
+  --studio-scroll-track: color-mix(
+    in srgb,
+    var(--surface-muted, rgba(17, 22, 45, 0.8)) 52%,
+    transparent
+  );
+  --studio-scroll-thumb: color-mix(
+    in srgb,
+    var(--color-brand, #6366f1) 38%,
+    transparent
+  );
+  --studio-prompter-ring: color-mix(
+    in srgb,
+    rgba(124, 140, 255, 0.65) 50%,
+    transparent
+  );
   --live-stage-border: color-mix(
     in srgb,
     var(--card-border, rgba(255, 255, 255, 0.16)) 82%,
