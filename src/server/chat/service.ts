@@ -1,9 +1,16 @@
-import { parseConversationId, isGroupConversationId } from "@/lib/chat/channels";
+import { createHash } from "node:crypto";
+
+import {
+  getChatConversationId,
+  parseConversationId,
+  isGroupConversationId,
+} from "@/lib/chat/channels";
 
 import {
   fetchUsersByIds,
   listChatMessages,
   upsertChatMessage,
+  findUserIdentity,
   type ChatMessageRow,
   type ChatParticipantRow,
 } from "./repository";
@@ -88,6 +95,102 @@ function buildConversationTitle(participants: ChatParticipantSummary[], senderId
   return primary?.name ?? "Chat";
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const MESSAGE_ID_NAMESPACE = "capsules.chat.message:v1";
+
+function formatUuidFromBytes(bytes: Buffer): string {
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function canonicalizeMessageId(messageId: string, conversationId: string): string {
+  const trimmed = typeof messageId === "string" ? messageId.trim() : "";
+  if (!trimmed) {
+    throw new ChatServiceError("invalid_message_id", 400, "Message id is required.");
+  }
+  if (UUID_PATTERN.test(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+
+  const digest = createHash("sha256")
+    .update(MESSAGE_ID_NAMESPACE)
+    .update("|")
+    .update(conversationId)
+    .update("|")
+    .update(trimmed)
+    .digest();
+
+  const uuidBytes = Buffer.from(digest.subarray(0, 16));
+  uuidBytes[6] = ((uuidBytes[6] ?? 0) & 0x0f) | 0x50;
+  uuidBytes[8] = ((uuidBytes[8] ?? 0) & 0x3f) | 0x80;
+
+  return formatUuidFromBytes(uuidBytes);
+}
+
+type ResolvedIdentity = {
+  canonicalId: string;
+  profile: ChatParticipantRow | null;
+};
+
+async function resolveIdentity(
+  cache: Map<string, ResolvedIdentity | null>,
+  identifier: string,
+  original?: string | null,
+): Promise<ResolvedIdentity | null> {
+  const normalized = normalizeId(identifier);
+  if (!normalized) return null;
+  if (cache.has(normalized)) {
+    return cache.get(normalized) ?? null;
+  }
+  if (UUID_PATTERN.test(normalized)) {
+    const resolved: ResolvedIdentity = { canonicalId: normalized, profile: null };
+    cache.set(normalized, resolved);
+    return resolved;
+  }
+
+  const probes = new Set<string>();
+  if (original && typeof original === "string" && original.trim()) {
+    probes.add(original.trim());
+  }
+  probes.add(identifier);
+  probes.add(normalized);
+
+  for (const probe of probes) {
+    const match = await findUserIdentity(probe);
+    if (match) {
+      const profile: ChatParticipantRow = {
+        id: match.id,
+        full_name: match.full_name,
+        avatar_url: match.avatar_url,
+        user_key: match.user_key,
+      };
+      const resolved: ResolvedIdentity = { canonicalId: match.id, profile };
+      cache.set(normalized, resolved);
+      const probeNormalized = normalizeId(probe);
+      if (probeNormalized && probeNormalized !== normalized) {
+        cache.set(probeNormalized, resolved);
+      }
+      return resolved;
+    }
+  }
+
+  cache.set(normalized, null);
+  return null;
+}
+
+function mergeParticipantMaps(
+  primary: Map<string, ChatParticipantRow>,
+  fallbacks: Iterable<ResolvedIdentity>,
+) {
+  for (const entry of fallbacks) {
+    if (!entry?.profile) continue;
+    if (!primary.has(entry.canonicalId)) {
+      primary.set(entry.canonicalId, entry.profile);
+    }
+  }
+}
+
 export async function sendDirectMessage(params: {
   conversationId: string;
   senderId: string;
@@ -115,8 +218,28 @@ export async function sendDirectMessage(params: {
     throw new ChatServiceError("auth_required", 401, "Sign in to send a message.");
   }
   const senderNormalized = normalizeId(senderIdTrimmed);
-  const isParticipant = senderNormalized === left || senderNormalized === right;
-  if (!isParticipant) {
+  const identityCache = new Map<string, ResolvedIdentity | null>();
+  const leftResolved = await resolveIdentity(identityCache, left);
+  const rightResolved = await resolveIdentity(identityCache, right);
+  const senderResolved = await resolveIdentity(identityCache, senderNormalized, senderIdTrimmed);
+
+  if (!leftResolved || !rightResolved) {
+    throw new ChatServiceError(
+      "invalid_conversation",
+      404,
+      "That conversation could not be found.",
+    );
+  }
+  if (!senderResolved) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to send a message.");
+  }
+
+  const canonicalSenderId = senderResolved.canonicalId;
+  const canonicalLeft = leftResolved.canonicalId;
+  const canonicalRight = rightResolved.canonicalId;
+  const isParticipant =
+    canonicalSenderId === canonicalLeft || canonicalSenderId === canonicalRight;
+  if (!isParticipant && senderNormalized !== left && senderNormalized !== right) {
     throw new ChatServiceError(
       "forbidden",
       403,
@@ -124,7 +247,12 @@ export async function sendDirectMessage(params: {
     );
   }
 
-  const otherParticipant = senderNormalized === left ? right : left;
+  const canonicalConversationId = getChatConversationId(canonicalLeft, canonicalRight);
+  const canonicalMessageId = canonicalizeMessageId(params.messageId, canonicalConversationId);
+
+  const otherResolved =
+    canonicalSenderId === canonicalLeft ? rightResolved : leftResolved;
+  const otherCanonicalId = otherResolved.canonicalId;
   const bodySanitized = sanitizeBody(params.body ?? "");
   if (!bodySanitized) {
     throw new ChatServiceError("invalid_body", 400, "Message text cannot be empty.");
@@ -137,14 +265,17 @@ export async function sendDirectMessage(params: {
     );
   }
 
-  const participantRows = await fetchUsersByIds([
-    senderNormalized,
-    otherParticipant,
-  ]);
+  const participantIds = Array.from(new Set([canonicalSenderId, otherCanonicalId]));
+  const participantRows = await fetchUsersByIds(participantIds);
   const participantMap = new Map(participantRows.map((row) => [row.id, row]));
+  mergeParticipantMaps(participantMap, [
+    senderResolved,
+    leftResolved,
+    rightResolved,
+  ]);
   const participantSummaries: ChatParticipantSummary[] = [
-    toParticipantSummary(participantMap.get(senderNormalized), senderNormalized),
-    toParticipantSummary(participantMap.get(otherParticipant), otherParticipant),
+    toParticipantSummary(participantMap.get(canonicalSenderId), canonicalSenderId),
+    toParticipantSummary(participantMap.get(otherCanonicalId), otherCanonicalId),
   ].filter((participant, index, list) => list.findIndex((item) => item.id === participant.id) === index);
 
   let clientSentAt: string | null = null;
@@ -156,9 +287,9 @@ export async function sendDirectMessage(params: {
   }
 
   const messageRow = await upsertChatMessage({
-    id: params.messageId,
-    conversation_id: params.conversationId,
-    sender_id: senderIdTrimmed,
+    id: canonicalMessageId,
+    conversation_id: canonicalConversationId,
+    sender_id: canonicalSenderId,
     body: bodySanitized,
     client_sent_at: clientSentAt,
   });
@@ -190,6 +321,7 @@ export async function getDirectConversationHistory(params: {
   before?: string | null;
   limit?: number;
 }): Promise<{
+  conversationId: string;
   participants: ChatParticipantSummary[];
   messages: ChatMessageRecord[];
 }> {
@@ -209,7 +341,29 @@ export async function getDirectConversationHistory(params: {
     throw new ChatServiceError("auth_required", 401, "Sign in to view this conversation.");
   }
   const requesterNormalized = normalizeId(requesterTrimmed);
-  const isParticipant = requesterNormalized === left || requesterNormalized === right;
+  const identityCache = new Map<string, ResolvedIdentity | null>();
+  const leftResolved = await resolveIdentity(identityCache, left);
+  const rightResolved = await resolveIdentity(identityCache, right);
+  const requesterResolved = await resolveIdentity(identityCache, requesterNormalized, requesterTrimmed);
+
+  if (!leftResolved || !rightResolved) {
+    throw new ChatServiceError(
+      "invalid_conversation",
+      404,
+      "That conversation could not be found.",
+    );
+  }
+
+  const canonicalRequester =
+    requesterResolved?.canonicalId ?? requesterNormalized;
+  const canonicalLeft = leftResolved.canonicalId;
+  const canonicalRight = rightResolved.canonicalId;
+  const isParticipant =
+    canonicalRequester === canonicalLeft ||
+    canonicalRequester === canonicalRight ||
+    requesterNormalized === left ||
+    requesterNormalized === right;
+
   if (!isParticipant) {
     throw new ChatServiceError(
       "forbidden",
@@ -218,17 +372,36 @@ export async function getDirectConversationHistory(params: {
     );
   }
 
-  const participantRows = await fetchUsersByIds([left, right]);
+  const canonicalConversationId = getChatConversationId(canonicalLeft, canonicalRight);
+
+  const participantRows = await fetchUsersByIds([canonicalLeft, canonicalRight]);
   const participantMap = new Map(participantRows.map((row) => [row.id, row]));
+  mergeParticipantMaps(participantMap, [leftResolved, rightResolved]);
   const participantSummaries: ChatParticipantSummary[] = [left, right]
-    .map((id) => toParticipantSummary(participantMap.get(id), id))
+    .map((id, index) => {
+      const resolved = index === 0 ? leftResolved : rightResolved;
+      const canonical = resolved?.canonicalId ?? id;
+      const row = resolved ? participantMap.get(resolved.canonicalId) : participantMap.get(canonical);
+      return toParticipantSummary(row, canonical);
+    })
     .filter((participant, index, list) => list.findIndex((item) => item.id === participant.id) === index);
 
-  const messages = await listChatMessages(params.conversationId, {
+  let messages = await listChatMessages(canonicalConversationId, {
     limit: params.limit ?? 50,
     before: params.before ?? null,
   });
+  if (
+    messages.length === 0 &&
+    canonicalConversationId !== params.conversationId
+  ) {
+    messages = await listChatMessages(params.conversationId, {
+      limit: params.limit ?? 50,
+      before: params.before ?? null,
+    });
+  }
+
   return {
+    conversationId: messages.length ? canonicalConversationId : params.conversationId,
     participants: participantSummaries,
     messages: messages.map(toMessageRecord),
   };
