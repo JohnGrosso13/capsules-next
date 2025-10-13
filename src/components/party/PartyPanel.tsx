@@ -111,6 +111,8 @@ export function PartyPanel({
   const [inviteFeedback, setInviteFeedback] = React.useState<InviteStatus | null>(null);
   const [inviteBusyId, setInviteBusyId] = React.useState<string | null>(null);
   const [copyState, setCopyState] = React.useState<"idle" | "copied">("idle");
+  const [showInviteDetails, setShowInviteDetails] = React.useState(false);
+  const inviteRevealTimer = React.useRef<number | null>(null);
 
   const partyQuery = searchParams?.get("party");
 
@@ -137,6 +139,25 @@ export function PartyPanel({
     const timer = window.setTimeout(() => setInviteFeedback(null), 3800);
     return () => window.clearTimeout(timer);
   }, [inviteFeedback]);
+
+  React.useEffect(() => {
+    return () => {
+      if (inviteRevealTimer.current !== null) {
+        window.clearTimeout(inviteRevealTimer.current);
+        inviteRevealTimer.current = null;
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!session) {
+      setShowInviteDetails(false);
+      if (inviteRevealTimer.current !== null) {
+        window.clearTimeout(inviteRevealTimer.current);
+        inviteRevealTimer.current = null;
+      }
+    }
+  }, [session?.partyId, session]);
 
   const isLoading = status === "loading";
   const isConnecting = status === "connecting";
@@ -193,6 +214,19 @@ export function PartyPanel({
       });
     }
   }, [inviteUrl, session]);
+
+  const handleGenerateInvite = React.useCallback(async () => {
+    await handleCopyInvite();
+    setShowInviteDetails(true);
+    if (inviteRevealTimer.current !== null) {
+      window.clearTimeout(inviteRevealTimer.current);
+      inviteRevealTimer.current = null;
+    }
+    inviteRevealTimer.current = window.setTimeout(() => {
+      setShowInviteDetails(false);
+      setCopyState("idle");
+    }, 10000);
+  }, [handleCopyInvite]);
 
   const handleInviteFriend = React.useCallback(
     async (friend: FriendItem) => {
@@ -274,158 +308,78 @@ export function PartyPanel({
 
   const panelClassName =
     variant === "compact" ? `${styles.panel} ${styles.panelCompact}`.trim() : styles.panel;
+  const tileClassName =
+    variant === "compact" ? `${styles.partyTile} ${styles.partyTileCompact}`.trim() : styles.partyTile;
 
-  return (
-    <div className={panelClassName}>
-      {error ? (
-        <div className={styles.errorBanner} role="alert">
-          <div>
-            <XCircle size={18} weight="duotone" />
-            <span>{error}</span>
-          </div>
+  const renderInactiveTile = () => (
+    <>
+      <header className={styles.tileHeader}>
+        <div className={styles.tileHeading}>
+          <span className={styles.tileEyebrow}>Party voice</span>
+          <h2 className={styles.tileTitle}>Host a party lobby</h2>
+          <p className={styles.tileSubtitle}>
+            Set a vibe, invite friends, and jump into voice together in seconds.
+          </p>
+        </div>
+      </header>
+      <section className={`${styles.section} ${styles.sectionSplit}`.trim()}>
+        <div className={styles.sectionBody}>
+          {loading && action === "resume" ? (
+            <div className={styles.sectionNotice}>Reconnecting you to your last party...</div>
+          ) : null}
+          <label className={styles.label} htmlFor="party-display-name">
+            Display name
+          </label>
+          <input
+            id="party-display-name"
+            className={styles.input}
+            placeholder="How should others see you?"
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            disabled={loading}
+          />
+          <label className={styles.label} htmlFor="party-topic">
+            Party vibe (optional)
+          </label>
+          <input
+            id="party-topic"
+            className={styles.input}
+            placeholder="Casual catch-up, raid prep, midnight build..."
+            value={topic}
+            onChange={(event) => setTopic(event.target.value)}
+            disabled={loading}
+          />
           <button
             type="button"
-            onClick={resetError}
-            aria-label="Dismiss error"
-            className={styles.dismissButton}
+            className={styles.primaryButton}
+            onClick={() => {
+              void handleCreateParty();
+            }}
+            disabled={loading || !displayName.trim()}
           >
-            Dismiss
+            <UsersThree size={18} weight="duotone" />
+            {loading
+              ? action === "create"
+                ? "Starting..."
+                : action === "resume"
+                  ? "Reconnecting..."
+                  : "Start a party"
+              : "Start a party"}
           </button>
         </div>
-      ) : null}
-
-      {inviteFeedback ? (
-        <div
-          className={`${styles.notice} ${
-            inviteFeedback.tone === "success"
-              ? styles.noticeSuccess
-              : inviteFeedback.tone === "warning"
-                ? styles.noticeWarning
-                : styles.noticeInfo
-          }`}
-        >
-          {inviteFeedback.message}
-        </div>
-      ) : null}
-
-      {!session ? (
-        <div className={styles.heroCard}>
-          <div className={styles.heroCopy}>
-            <span className={styles.heroKicker}>
-              <Sparkle size={18} weight="duotone" />
-              Party voice
-            </span>
-            <h2 className={styles.heroTitle}>Drop-in party chat built for Capsules</h2>
-            <p className={styles.heroSubtitle}>
-              Start a futuristic voice lobby, sync up instantly, and keep the convo flowing without
-              leaving Capsules.
-            </p>
-          </div>
-          <div className={styles.heroActions}>
-            {loading && action === "resume" ? (
-              <div className={styles.heroResumeNotice}>Reconnecting you to your last party...</div>
-            ) : null}
-            <label className={styles.label} htmlFor="party-display-name">
-              Display name
-            </label>
-            <input
-              id="party-display-name"
-              className={styles.input}
-              placeholder="How should others see you?"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              disabled={loading}
-            />
-            <label className={styles.label} htmlFor="party-topic">
-              Party vibe (optional)
-            </label>
-            <input
-              id="party-topic"
-              className={styles.input}
-              placeholder="Casual catch-up, raid prep, midnight build..."
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              disabled={loading}
-            />
-            <button
-              type="button"
-              className={styles.primaryButton}
-              onClick={() => {
-                void handleCreateParty();
-              }}
-              disabled={loading || !displayName.trim()}
-            >
-              <UsersThree size={18} weight="duotone" />
-              {loading
-                ? action === "create"
-                  ? "Starting..."
-                  : action === "resume"
-                    ? "Reconnecting..."
-                    : "Start a party"
-                : "Start a party"}
-            </button>
+        <div className={styles.sectionAside}>
+          <div className={styles.sectionAsideInner}>
+            <Sparkle size={18} weight="duotone" />
+            <span>Parties run in the background so you can keep browsing Capsules.</span>
           </div>
         </div>
-      ) : null}
-
-      {session ? (
-        <div className={styles.sessionCard}>
-          <div className={styles.sessionHeader}>
-            <div className={styles.sessionStatus}>
-              <MicrophoneStage size={18} weight="duotone" />
-              <span>{partyStatusLabel}</span>
-            </div>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => {
-                void handleCopyInvite();
-              }}
-              disabled={loading}
-            >
-              <CopySimple size={16} weight="bold" />
-              {copyState === "copied" ? "Copied" : "Copy invite"}
-            </button>
-          </div>
-          <div className={styles.sessionMeta}>
-            <div className={styles.metaBlock}>
-              <span className={styles.metaLabel}>Party code</span>
-              <code className={styles.metaCode}>{session.partyId}</code>
-            </div>
-            <div className={styles.metaBlock}>
-              <span className={styles.metaLabel}>Host</span>
-              <span className={styles.metaValue}>
-                {session.metadata.ownerDisplayName ?? "Unknown"}
-                {session.isOwner ? <span className={styles.hostBadge}>you</span> : null}
-              </span>
-            </div>
-            <div className={styles.metaBlock}>
-              <span className={styles.metaLabel}>Created</span>
-              <span className={styles.metaValue}>{createdAtLabel || "Moments ago"}</span>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {session ? (
-        <PartyStage
-          session={session}
-          canClose={session.isOwner}
-          status={status}
-          onLeave={handleResetAndLeave}
-          onClose={handleResetAndClose}
-          onReconnecting={handleRoomReconnecting}
-          onReady={handleRoomConnected}
-          onDisconnected={handleRoomDisconnected}
-        />
-      ) : null}
-
-      <div className={styles.joinCard}>
-        <div className={styles.joinHeader}>
+      </section>
+      <section className={styles.section}>
+        <div className={styles.sectionHeaderRow}>
           <LinkSimple size={18} weight="duotone" />
           <span>Have a code? Jump into a party</span>
         </div>
-        <div className={styles.joinRow}>
+        <div className={styles.inlineJoin}>
           <input
             className={styles.input}
             placeholder="party code"
@@ -450,23 +404,68 @@ export function PartyPanel({
               : "Join"}
           </button>
         </div>
-      </div>
+      </section>
+    </>
+  );
 
-      {session ? (
-        <div className={styles.inviteCard}>
-          <div className={styles.inviteHeader}>
-            <PaperPlaneTilt size={18} weight="duotone" />
-            <div>
-              <span className={styles.inviteTitle}>Invite friends</span>
-              <p className={styles.inviteSubtitle}>
-                Drop an invite in chat and they’ll join the voice lobby instantly.
-              </p>
-            </div>
+  const renderActiveTile = (currentSession: PartySession) => (
+    <>
+      <header className={styles.tileHeader}>
+        <div className={styles.headerMeta}>
+          <span className={styles.statusPill}>
+            <MicrophoneStage size={16} weight="duotone" />
+            {partyStatusLabel}
+          </span>
+          <div className={styles.headerDetailRow}>
+            <span className={styles.metaLabel}>Host</span>
+            <span className={styles.metaValue}>
+              {currentSession.metadata.ownerDisplayName ?? "Unknown"}
+              {currentSession.isOwner ? <span className={styles.hostBadge}>you</span> : null}
+            </span>
           </div>
-
+          <div className={styles.headerDetailRow}>
+            <span className={styles.metaLabel}>Created</span>
+            <span className={styles.metaValue}>{createdAtLabel || "Moments ago"}</span>
+          </div>
+        </div>
+        <div className={styles.headerActions}>
+          {showInviteDetails ? <code className={styles.codeChip}>{currentSession.partyId}</code> : null}
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => {
+              void handleGenerateInvite();
+            }}
+            disabled={loading}
+          >
+            <CopySimple size={16} weight="bold" />
+            {copyState === "copied" ? "Invite copied" : "Generate invite"}
+          </button>
+        </div>
+      </header>
+      <section className={styles.section}>
+        <PartyStage
+          session={currentSession}
+          canClose={currentSession.isOwner}
+          status={status}
+          onLeave={handleResetAndLeave}
+          onClose={handleResetAndClose}
+          onReconnecting={handleRoomReconnecting}
+          onReady={handleRoomConnected}
+          onDisconnected={handleRoomDisconnected}
+        />
+      </section>
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <span className={styles.sectionTitle}>Invite friends</span>
+          <p className={styles.sectionSubtitle}>
+            Drop an invite in chat and they'll join the voice lobby instantly.
+          </p>
+        </div>
+        <div className={styles.sectionBody}>
           {inviteableFriends.length === 0 ? (
             <div className={styles.emptyState}>
-              <p>You don’t have invite-ready friends yet.</p>
+              <p>You don't have invite-ready friends yet.</p>
               <button type="button" className={styles.secondaryButton} onClick={onShowFriends}>
                 Find friends
               </button>
@@ -507,7 +506,77 @@ export function PartyPanel({
             </ul>
           )}
         </div>
+      </section>
+      <section className={styles.section}>
+        <div className={styles.sectionHeaderRow}>
+          <LinkSimple size={18} weight="duotone" />
+          <span>Need to join manually?</span>
+        </div>
+        <div className={styles.inlineJoin}>
+          <input
+            className={styles.input}
+            placeholder="party code"
+            value={joinCode}
+            onChange={(event) => setJoinCode(event.target.value)}
+            disabled={loading}
+          />
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => {
+              void handleJoinParty();
+            }}
+            disabled={loading || !joinCode.trim()}
+          >
+            {loading
+              ? action === "join"
+                ? "Connecting..."
+                : action === "resume"
+                  ? "Reconnecting..."
+                  : "Join"
+              : "Join"}
+          </button>
+        </div>
+      </section>
+    </>
+  );
+
+  return (
+    <div className={panelClassName}>
+      {error ? (
+        <div className={styles.errorBanner} role="alert">
+          <div>
+            <XCircle size={18} weight="duotone" />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={resetError}
+            aria-label="Dismiss error"
+            className={styles.dismissButton}
+          >
+            Dismiss
+          </button>
+        </div>
       ) : null}
+
+      {inviteFeedback ? (
+        <div
+          className={`${styles.notice} ${
+            inviteFeedback.tone === "success"
+              ? styles.noticeSuccess
+              : inviteFeedback.tone === "warning"
+                ? styles.noticeWarning
+                : styles.noticeInfo
+          }`}
+        >
+          {inviteFeedback.message}
+        </div>
+      ) : null}
+
+      <div className={tileClassName}>
+        {session ? renderActiveTile(session) : renderInactiveTile()}
+      </div>
     </div>
   );
 }
@@ -523,30 +592,28 @@ function PartyStage({
   onDisconnected,
 }: PartyStageProps) {
   return (
-    <div className={styles.stageCard}>
-      <LiveKitRoom
-        key={session.partyId}
-        serverUrl={session.livekitUrl}
-        token={session.token}
-        connect
-        audio
-        video={false}
-        connectOptions={{ autoSubscribe: true }}
-      >
-        <RoomAudioRenderer />
-        <StartAudio label="Tap to allow party audio" className={styles.startAudio} />
-        <PartyStageScene
-          session={session}
-          canClose={canClose}
-          status={status}
-          onLeave={onLeave}
-          onClose={onClose}
-          onReconnecting={onReconnecting}
-          onReady={onReady}
-          onDisconnected={onDisconnected}
-        />
-      </LiveKitRoom>
-    </div>
+    <LiveKitRoom
+      key={session.partyId}
+      serverUrl={session.livekitUrl}
+      token={session.token}
+      connect
+      audio
+      video={false}
+      connectOptions={{ autoSubscribe: true }}
+    >
+      <RoomAudioRenderer />
+      <StartAudio label="Tap to allow party audio" className={styles.startAudio} />
+      <PartyStageScene
+        session={session}
+        canClose={canClose}
+        status={status}
+        onLeave={onLeave}
+        onClose={onClose}
+        onReconnecting={onReconnecting}
+        onReady={onReady}
+        onDisconnected={onDisconnected}
+      />
+    </LiveKitRoom>
   );
 }
 

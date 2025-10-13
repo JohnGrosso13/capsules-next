@@ -8,6 +8,246 @@
   gap: 20px;
 }
 
+.partyTile {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 28px;
+  border-radius: 28px;
+  border: 1px solid
+    var(--party-tile-border, color-mix(in srgb, var(--card-border) 68%, transparent));
+  background: var(
+    --party-tile-background,
+    color-mix(in srgb, var(--card-background, #101a33) 95%, transparent)
+  );
+  box-shadow: var(
+    --party-tile-shadow,
+    0 24px 48px color-mix(in srgb, rgba(7, 11, 26, 0.9) 28%, transparent)
+  );
+}
+
+.partyTileCompact {
+  gap: 22px;
+  padding: 22px;
+  border-radius: 24px;
+}
+
+.tileHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.tileHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 540px;
+}
+
+.tileEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+.tileTitle {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.tileSubtitle {
+  font-size: 1rem;
+  color: color-mix(in srgb, var(--text) 75%, transparent);
+  line-height: 1.5;
+}
+
+.headerMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: color-mix(
+    in srgb,
+    var(--header-brand-strong-color, var(--color-brand)) 28%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 60%, transparent);
+  color: var(--text);
+}
+
+.headerDetailRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.codeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid
+    color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--card-bg-1, rgba(255, 255, 255, 0.98)) 92%,
+    transparent
+  );
+  font-family: var(
+    --font-mono,
+    "JetBrains Mono",
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace
+  );
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 22px;
+  border-top: 1px solid
+    color-mix(in srgb, var(--card-border) 55%, transparent);
+}
+
+.section:first-of-type {
+  margin-top: 6px;
+}
+
+.sectionSplit {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 26px;
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1 1 320px;
+}
+
+.sectionAside {
+  flex: 1 1 220px;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.sectionAsideInner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px dashed
+    color-mix(in srgb, var(--card-border) 50%, transparent);
+  color: color-mix(in srgb, var(--text) 80%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--header-brand-color, var(--color-brand)) 12%,
+    transparent
+  );
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.sectionNotice {
+  border-radius: 14px;
+  border: 1px solid
+    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 50%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--header-brand-color, var(--color-brand)) 18%,
+    transparent
+  );
+  color: color-mix(in srgb, var(--text) 85%, transparent);
+  padding: 12px 14px;
+  font-weight: 600;
+}
+
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sectionHeaderRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sectionSubtitle {
+  font-size: 0.95rem;
+  color: color-mix(in srgb, var(--text) 72%, transparent);
+  line-height: 1.5;
+}
+
+.inlineJoin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.inlineJoin .input {
+  flex: 1 1 220px;
+}
+
+.inlineJoin .secondaryButton {
+  flex: 0 0 auto;
+}
+
 .panelCompact .heroCard {
   grid-template-columns: minmax(0, 1fr);
   gap: 18px;
@@ -840,13 +1080,21 @@
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 
-  .joinRow {
+  .sectionSplit {
     flex-direction: column;
   }
 
-  .joinRow .input,
-  .joinRow .secondaryButton {
+  .sectionAside {
+    max-width: none;
+  }
+
+  .inlineJoin .input,
+  .inlineJoin .secondaryButton {
     width: 100%;
+  }
+
+  .headerActions {
+    justify-content: flex-start;
   }
 
   .inviteRow {
@@ -874,5 +1122,10 @@
   .inviteCard,
   .joinCard {
     padding: 18px 16px;
+  }
+
+  .partyTile {
+    padding: 22px;
+    border-radius: 22px;
   }
 }
