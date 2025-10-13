@@ -674,6 +674,14 @@ function PartyStageScene({
     const next = !(room.localParticipant?.isMicrophoneEnabled ?? true);
     setMicBusy(true);
     try {
+      if (next && typeof room.startAudio === "function") {
+        // Mobile browsers require an active audio context before capturing audio.
+        try {
+          await room.startAudio();
+        } catch (audioError) {
+          console.warn("[party] failed to start audio before enabling mic", audioError);
+        }
+      }
       await room.localParticipant?.setMicrophoneEnabled(next);
       setMicEnabled(next);
     } catch (err) {
