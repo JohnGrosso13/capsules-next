@@ -892,3 +892,88 @@
     --header-brand-gradient: linear-gradient(120deg, #38bdf8 0%, #0ea5e9 55%, #22d3ee 100%);
   }
 }
+
+  /* Party Voice light overrides (appended by Codex) */
+  :root[data-theme="light"] {
+    /* Party Voice: light theme overrides */
+    --party-tile-background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    --party-tile-border: var(--card-border);
+    --party-tile-shadow: var(--card-shadow);
+    --party-hero-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 18%, rgba(255, 255, 255, 0)) 0%,
+      color-mix(in srgb, rgba(255, 255, 255, 1) 92%, transparent) 100%
+    );
+    --party-hero-border: var(--card-border);
+    --party-hero-accent: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 45%, transparent);
+    --party-hero-actions-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+    --party-hero-actions-border: var(--pill-border);
+
+    --party-status-pill-background: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 18%, transparent);
+    --party-status-pill-border: color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 35%, transparent);
+    --party-status-pill-text: var(--text);
+
+    --party-primary-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 75%, transparent),
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 55%, transparent)
+    );
+    --party-primary-border: color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 70%, transparent);
+
+    --party-secondary-background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    --party-secondary-border: var(--card-border);
+    --party-secondary-hover-border: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 45%, var(--card-border));
+
+    --party-panel-background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    --party-panel-border: var(--card-border);
+
+    --party-status-background: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 12%, transparent);
+    --party-status-border: color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 35%, transparent);
+
+    --party-input-border: var(--card-border);
+    --party-input-background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    --party-input-focus-border: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 55%, transparent);
+    --party-input-focus-background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    --party-input-placeholder: var(--text-3);
+
+    --party-code-background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    --party-code-border: color-mix(in srgb, var(--card-border) 85%, transparent);
+
+    --party-control-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+    --party-control-hover-border: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 45%, var(--card-border));
+    --party-control-danger-border: color-mix(in srgb, var(--color-danger) 40%, transparent);
+    --party-control-danger-background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+    --party-control-danger-text: var(--text);
+
+    --party-invite-background: linear-gradient(180deg, var(--rail-bg-1, var(--card-bg-1)), var(--rail-bg-2, var(--card-bg-2)));
+    --party-invite-border: color-mix(in srgb, var(--card-border) 78%, transparent);
+    --party-invite-row-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+    --party-invite-row-border: color-mix(in srgb, var(--card-border) 78%, transparent);
+    --party-invite-avatar-background: linear-gradient(135deg, color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 65%, transparent), rgba(255,255,255,0.8));
+
+    --party-participant-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+    --party-participant-border: color-mix(in srgb, var(--card-border) 75%, transparent);
+    --party-participant-avatar-background: linear-gradient(135deg, color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 70%, transparent), rgba(255,255,255,0.86));
+    --party-participant-speaking-border: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 55%, transparent);
+    --party-participant-speaking-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+
+    --party-empty-border: color-mix(in srgb, var(--card-border) 60%, transparent);
+    --party-hint-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+    --party-hint-border: color-mix(in srgb, var(--card-border) 45%, transparent);
+    --party-hint-text: var(--text-2);
+
+    --party-notice-background: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 12%, transparent);
+    --party-notice-border: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 40%, transparent);
+    --party-notice-text: var(--text);
+    --party-notice-success-background: color-mix(in srgb, var(--color-success) 16%, transparent);
+    --party-notice-success-border: color-mix(in srgb, var(--color-success) 40%, transparent);
+    --party-notice-warning-background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+    --party-notice-warning-border: color-mix(in srgb, var(--color-warning) 40%, transparent);
+    --party-notice-info-background: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 16%, transparent);
+    --party-notice-info-border: color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 40%, transparent);
+    --party-error-background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+    --party-error-border: color-mix(in srgb, var(--color-danger) 40%, transparent);
+    --party-error-text: var(--text);
+    --party-status-online-text: color-mix(in srgb, var(--color-success) 55%, rgba(14, 16, 36, 0.9));
+    --party-status-idle-text: var(--text-2);
+  }

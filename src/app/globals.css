@@ -530,11 +530,15 @@
     --home-railtab-accent: var(--color-brand-strong);
 
     /* Party Voice tokens defaults (dark fallback to brand) */
+    --party-tile-background: color-mix(in srgb, var(--card-background, #101a33) 95%, transparent);
+    --party-tile-border: color-mix(in srgb, var(--card-border) 68%, transparent);
+    --party-tile-shadow: 0 24px 48px color-mix(in srgb, rgba(7, 11, 26, 0.9) 28%, transparent);
     --party-hero-background: linear-gradient(
       135deg,
       color-mix(in srgb, var(--color-brand) 35%, transparent) 0%,
       color-mix(in srgb, var(--color-brand) 10%, transparent) 100%
     );
+    --party-hero-border: color-mix(in srgb, var(--card-border) 70%, transparent);
     --party-hero-accent: color-mix(in srgb, var(--color-brand) 55%, transparent);
     --party-primary-background: linear-gradient(
       135deg,
@@ -547,12 +551,26 @@
     --party-startaudio-border: color-mix(in srgb, var(--color-brand) 65%, transparent);
     --party-startaudio-background: color-mix(in srgb, var(--color-brand) 20%, transparent);
     --party-control-hover-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
+    --party-control-danger-border: color-mix(in srgb, var(--color-danger) 60%, transparent);
+    --party-control-danger-background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+    --party-control-danger-text: var(--text);
     --party-hero-actions-background: color-mix(
       in srgb,
       var(--card-background, rgba(11, 17, 36, 0.94)) 75%,
       transparent
     );
     --party-hero-actions-border: color-mix(in srgb, var(--card-border) 60%, transparent);
+    --party-status-pill-background: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, var(--color-brand)) 28%,
+      transparent
+    );
+    --party-status-pill-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, var(--color-brand)) 60%,
+      transparent
+    );
+    --party-status-pill-text: var(--text);
     --party-panel-background: linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 92%, transparent) 0%,
@@ -575,6 +593,12 @@
       var(--surface-muted, rgba(17, 22, 45, 0.8)) 12%
     );
     --party-input-focus-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
+    --party-input-focus-background: color-mix(
+      in srgb,
+      var(--party-input-background) 94%,
+      rgba(255, 255, 255, 0.08)
+    );
+    --party-input-placeholder: var(--text-3, rgba(255, 255, 255, 0.56));
     --party-code-background: linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 95%, transparent) 0%,
@@ -604,7 +628,68 @@
       color-mix(in srgb, rgba(12, 17, 38, 0.88) 82%, transparent) 100%
     );
     --party-participant-border: color-mix(in srgb, var(--card-border) 78%, transparent);
+    --party-participant-avatar-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 80%, transparent),
+      color-mix(in srgb, var(--color-brand) 40%, transparent)
+    );
+    --party-participant-speaking-border: color-mix(in srgb, var(--color-brand) 70%, transparent);
+    --party-participant-speaking-shadow: 0 12px 26px color-mix(in srgb, var(--color-brand) 20%, transparent);
     --party-empty-border: color-mix(in srgb, var(--card-border) 70%, transparent);
+    --party-hint-background: color-mix(
+      in srgb,
+      var(--header-brand-color, var(--color-brand)) 12%,
+      transparent
+    );
+    --party-hint-border: color-mix(in srgb, var(--card-border) 50%, transparent);
+    --party-hint-text: color-mix(in srgb, var(--text) 80%, transparent);
+    --party-notice-background: color-mix(
+      in srgb,
+      var(--header-brand-color, var(--color-brand)) 18%,
+      transparent
+    );
+    --party-notice-border: color-mix(
+      in srgb,
+      var(--header-brand-color, var(--color-brand)) 50%,
+      transparent
+    );
+    --party-notice-text: color-mix(in srgb, var(--text) 85%, transparent);
+    --party-notice-success-background: color-mix(
+      in srgb,
+      var(--color-success, #3dd178) 22%,
+      transparent
+    );
+    --party-notice-success-border: color-mix(
+      in srgb,
+      var(--color-success, #3dd178) 60%,
+      transparent
+    );
+    --party-notice-warning-background: color-mix(
+      in srgb,
+      var(--color-warning, #f7c14b) 20%,
+      transparent
+    );
+    --party-notice-warning-border: color-mix(
+      in srgb,
+      var(--color-warning, #f7c14b) 55%,
+      transparent
+    );
+    --party-notice-info-background: color-mix(
+      in srgb,
+      var(--header-brand-color, var(--color-brand)) 18%,
+      transparent
+    );
+    --party-notice-info-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, var(--color-brand)) 55%,
+      transparent
+    );
+    --party-error-background: color-mix(in srgb, var(--color-danger) 20%, transparent);
+    --party-error-border: color-mix(in srgb, var(--color-danger) 60%, transparent);
+    --party-error-text: var(--text);
+    --party-invite-avatar-background: color-mix(in srgb, var(--color-brand) 45%, transparent);
+    --party-status-online-text: color-mix(in srgb, var(--color-success, #3dd178) 80%, transparent);
+    --party-status-idle-text: color-mix(in srgb, var(--text) 55%, transparent);
 
     /* AI prompter tokens */
     --prompter-ai-message-background: var(--cta-gradient);

@@ -14,16 +14,9 @@
   gap: 28px;
   padding: 28px;
   border-radius: 28px;
-  border: 1px solid
-    var(--party-tile-border, color-mix(in srgb, var(--card-border) 68%, transparent));
-  background: var(
-    --party-tile-background,
-    color-mix(in srgb, var(--card-background, #101a33) 95%, transparent)
-  );
-  box-shadow: var(
-    --party-tile-shadow,
-    0 24px 48px color-mix(in srgb, rgba(7, 11, 26, 0.9) 28%, transparent)
-  );
+  border: 1px solid var(--party-tile-border);
+  background: var(--party-tile-background);
+  box-shadow: var(--party-tile-shadow);
 }
 
 .partyTileCompact {
@@ -86,14 +79,9 @@
   border-radius: 999px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  background: color-mix(
-    in srgb,
-    var(--header-brand-strong-color, var(--color-brand)) 28%,
-    transparent
-  );
-  border: 1px solid
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 60%, transparent);
-  color: var(--text);
+  background: var(--party-status-pill-background);
+  border: 1px solid var(--party-status-pill-border);
+  color: var(--party-status-pill-text);
 }
 
 .headerDetailRow {
@@ -181,28 +169,18 @@
   gap: 12px;
   padding: 16px 18px;
   border-radius: 20px;
-  border: 1px dashed
-    color-mix(in srgb, var(--card-border) 50%, transparent);
-  color: color-mix(in srgb, var(--text) 80%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--header-brand-color, var(--color-brand)) 12%,
-    transparent
-  );
+  border: 1px dashed var(--party-hint-border);
+  color: var(--party-hint-text);
+  background: var(--party-hint-background);
   font-weight: 600;
   line-height: 1.4;
 }
 
 .sectionNotice {
   border-radius: 14px;
-  border: 1px solid
-    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 50%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--header-brand-color, var(--color-brand)) 18%,
-    transparent
-  );
-  color: color-mix(in srgb, var(--text) 85%, transparent);
+  border: 1px solid var(--party-notice-border);
+  background: var(--party-notice-background);
+  color: var(--party-notice-text);
   padding: 12px 14px;
   font-weight: 600;
 }
@@ -320,9 +298,9 @@
   gap: 16px;
   padding: 14px 18px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--color-danger) 60%, transparent);
-  background: color-mix(in srgb, var(--color-danger) 20%, transparent);
-  color: var(--text);
+  border: 1px solid var(--party-error-border);
+  background: var(--party-error-background);
+  color: var(--party-error-text);
   font-weight: 600;
 }
 
@@ -333,7 +311,7 @@
 }
 
 .dismissButton {
-  border: 1px solid color-mix(in srgb, var(--color-danger) 60%, transparent);
+  border: 1px solid var(--party-error-border);
   background: transparent;
   color: inherit;
   border-radius: 12px;
@@ -353,22 +331,18 @@
 }
 
 .noticeSuccess {
-  background: color-mix(in srgb, var(--color-success, #3dd178) 22%, transparent);
-  border-color: color-mix(in srgb, var(--color-success, #3dd178) 60%, transparent);
+  background: var(--party-notice-success-background);
+  border-color: var(--party-notice-success-border);
 }
 
 .noticeWarning {
-  background: color-mix(in srgb, var(--color-warning, #f7c14b) 20%, transparent);
-  border-color: color-mix(in srgb, var(--color-warning, #f7c14b) 55%, transparent);
+  background: var(--party-notice-warning-background);
+  border-color: var(--party-notice-warning-border);
 }
 
 .noticeInfo {
-  background: color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 18%, transparent);
-  border-color: color-mix(
-    in srgb,
-    var(--header-brand-strong-color, var(--color-brand)) 55%,
-    transparent
-  );
+  background: var(--party-notice-info-background);
+  border-color: var(--party-notice-info-border);
 }
 
 .heroCard {
@@ -377,15 +351,8 @@
   gap: 32px;
   padding: 28px 32px;
   border-radius: 28px;
-  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
-  background: var(
-    --party-hero-background,
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 35%, transparent) 0%,
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 10%, transparent) 100%
-    )
-  );
+  border: 1px solid var(--party-hero-border);
+  background: var(--party-hero-background);
   position: relative;
   overflow: hidden;
 }
@@ -394,15 +361,7 @@
   content: "";
   position: absolute;
   inset: 30% -60% -30% 40%;
-  background: radial-gradient(
-    circle at center,
-    var(
-        --party-hero-accent,
-        color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 55%, transparent)
-      )
-      0%,
-    transparent 70%
-  );
+  background: radial-gradient(circle at center, var(--party-hero-accent) 0%, transparent 70%);
   opacity: 0.45;
   pointer-events: none;
 }
@@ -447,12 +406,8 @@
   gap: 14px;
   padding: 18px 20px;
   border-radius: 20px;
-  background: var(
-    --party-hero-actions-background,
-    color-mix(in srgb, var(--card-background, #111827) 75%, transparent)
-  );
-  border: 1px solid
-    var(--party-hero-actions-border, color-mix(in srgb, var(--card-border) 60%, transparent));
+  background: var(--party-hero-actions-background);
+  border: 1px solid var(--party-hero-actions-border);
   backdrop-filter: blur(12px);
 }
 
@@ -461,16 +416,8 @@
   border-radius: 12px;
   font-size: 0.9rem;
   font-weight: 600;
-  border: 1px solid
-    var(
-      --party-status-border,
-      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 55%, transparent)
-    );
-  background: color-mix(
-    in srgb,
-    var(--party-status-background, rgba(37, 99, 235, 0.16)) 85%,
-    transparent
-  );
+  border: 1px solid var(--party-status-border);
+  background: var(--party-status-background);
   color: var(--text);
 }
 
@@ -485,9 +432,8 @@
 .input {
   width: 100%;
   border-radius: 14px;
-  border: 1px solid
-    var(--party-input-border, color-mix(in srgb, var(--card-border) 70%, transparent));
-  background: var(--party-input-background, var(--surface-elevated));
+  border: 1px solid var(--party-input-border);
+  background: var(--party-input-background);
   padding: 12px 14px;
   color: var(--text);
   font-size: 0.95rem;
@@ -498,19 +444,12 @@
 
 .input:focus {
   outline: none;
-  border-color: var(
-    --party-input-focus-border,
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 75%, transparent)
-  );
-  background: color-mix(
-    in srgb,
-    var(--party-input-background, var(--surface-elevated)) 94%,
-    rgba(255, 255, 255, 0.08)
-  );
+  border-color: var(--party-input-focus-border);
+  background: var(--party-input-focus-background);
 }
 
 .input::placeholder {
-  color: var(--text-3, rgba(255, 255, 255, 0.56));
+  color: var(--party-input-placeholder);
 }
 
 .primaryButton,
@@ -531,19 +470,8 @@
 }
 
 .primaryButton {
-  background: var(
-    --party-primary-background,
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 75%, transparent),
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 45%, transparent)
-    )
-  );
-  border: 1px solid
-    var(
-      --party-primary-border,
-      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 85%, transparent)
-    );
+  background: var(--party-primary-background);
+  border: 1px solid var(--party-primary-border);
   color: var(--text-on-brand, #0b0b0b);
 }
 
@@ -558,24 +486,13 @@
 }
 
 .secondaryButton {
-  background: var(
-    --party-secondary-background,
-    linear-gradient(
-      180deg,
-      var(--card-bg-1, rgba(255, 255, 255, 0.96)),
-      var(--card-bg-2, rgba(241, 245, 255, 0.9))
-    )
-  );
-  border: 1px solid
-    var(--party-secondary-border, color-mix(in srgb, var(--card-border) 65%, transparent));
+  background: var(--party-secondary-background);
+  border: 1px solid var(--party-secondary-border);
   color: var(--text);
 }
 
 .secondaryButton:hover:not(:disabled) {
-  border-color: var(
-    --party-secondary-hover-border,
-    color-mix(in srgb, var(--color-brand) 65%, transparent)
-  );
+  border-color: var(--party-secondary-hover-border);
   transform: translateY(-1px);
 }
 
@@ -590,16 +507,8 @@
   gap: 18px;
   padding: 22px 26px;
   border-radius: 24px;
-  border: 1px solid
-    var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
-  background: var(
-    --party-panel-background,
-    linear-gradient(
-      180deg,
-      var(--card-bg-1, rgba(255, 255, 255, 0.96)),
-      var(--card-bg-2, rgba(241, 245, 255, 0.9))
-    )
-  );
+  border: 1px solid var(--party-panel-border);
+  background: var(--party-panel-background);
 }
 
 .sessionHeader {
@@ -616,15 +525,8 @@
   gap: 8px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: var(
-    --party-status-background,
-    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 25%, transparent)
-  );
-  border: 1px solid
-    var(
-      --party-status-border,
-      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 60%, transparent)
-    );
+  background: var(--party-status-background);
+  border: 1px solid var(--party-status-border);
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -672,16 +574,8 @@
   font-size: 1rem;
   padding: 6px 10px;
   border-radius: 12px;
-  background: var(
-    --party-code-background,
-    linear-gradient(
-      180deg,
-      var(--card-bg-1, rgba(255, 255, 255, 0.98)),
-      var(--card-bg-2, rgba(237, 242, 255, 0.92))
-    )
-  );
-  border: 1px solid
-    var(--party-code-border, color-mix(in srgb, var(--card-border) 65%, transparent));
+  background: var(--party-code-background);
+  border: 1px solid var(--party-code-border);
   letter-spacing: 0.1em;
 }
 
@@ -714,32 +608,17 @@
 .stageCard {
   padding: 22px 24px;
   border-radius: 24px;
-  border: 1px solid
-    var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
-  background: var(
-    --party-panel-background,
-    linear-gradient(
-      180deg,
-      var(--card-bg-1, rgba(255, 255, 255, 0.96)),
-      var(--card-bg-2, rgba(241, 245, 255, 0.9))
-    )
-  );
+  border: 1px solid var(--party-panel-border);
+  background: var(--party-panel-background);
 }
 
 .startAudio {
   margin-bottom: 12px;
   align-self: flex-start;
   border-radius: 999px;
-  border: 1px solid
-    var(
-      --party-startaudio-border,
-      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 65%, transparent)
-    );
+  border: 1px solid var(--party-startaudio-border);
   padding: 8px 14px;
-  background: var(
-    --party-startaudio-background,
-    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 20%, transparent)
-  );
+  background: var(--party-startaudio-background);
   color: var(--text);
   font-weight: 600;
 }
@@ -782,12 +661,8 @@
   gap: 14px;
   padding: 14px 16px;
   border-radius: 18px;
-  border: 1px solid
-    var(--party-participant-border, color-mix(in srgb, var(--card-border) 70%, transparent));
-  background: var(
-    --party-participant-background,
-    color-mix(in srgb, var(--card-background, #101a33) 88%, transparent)
-  );
+  border: 1px solid var(--party-participant-border);
+  background: var(--party-participant-background);
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -795,8 +670,8 @@
 }
 
 .participantSpeaking {
-  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
-  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-brand) 20%, transparent);
+  border-color: var(--party-participant-speaking-border);
+  box-shadow: var(--party-participant-speaking-shadow);
   transform: translateY(-2px);
 }
 
@@ -809,11 +684,7 @@
   justify-content: center;
   font-weight: 700;
   letter-spacing: 0.08em;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-brand) 80%, transparent),
-    color-mix(in srgb, var(--color-brand) 40%, transparent)
-  );
+  background: var(--party-participant-avatar-background);
   color: var(--text-on-brand, #080808);
 }
 
@@ -858,7 +729,7 @@
   padding: 18px;
   border-radius: 16px;
   border: 1px dashed
-    var(--party-empty-border, color-mix(in srgb, var(--card-border) 60%, transparent));
+    var(--party-empty-border);
   color: color-mix(in srgb, var(--text) 65%, transparent);
   font-size: 0.95rem;
 }
@@ -874,16 +745,8 @@
   align-items: center;
   gap: 8px;
   border-radius: 999px;
-  border: 1px solid
-    var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
-  background: var(
-    --party-control-background,
-    linear-gradient(
-      180deg,
-      var(--card-bg-1, rgba(255, 255, 255, 0.96)),
-      var(--card-bg-2, rgba(241, 245, 255, 0.9))
-    )
-  );
+  border: 1px solid var(--party-panel-border);
+  background: var(--party-control-background);
   color: var(--text);
   padding: 10px 16px;
   font-weight: 600;
@@ -894,10 +757,7 @@
 }
 
 .controlButton:hover:not(:disabled) {
-  border-color: var(
-    --party-control-hover-border,
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 60%, transparent)
-  );
+  border-color: var(--party-control-hover-border);
   transform: translateY(-1px);
 }
 
@@ -907,9 +767,9 @@
 }
 
 .controlDanger {
-  border-color: color-mix(in srgb, var(--color-danger) 60%, transparent);
-  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
-  color: var(--text);
+  border-color: var(--party-control-danger-border);
+  background: var(--party-control-danger-background);
+  color: var(--party-control-danger-text);
 }
 
 .statusHint {
@@ -923,16 +783,8 @@
   gap: 14px;
   padding: 20px 22px;
   border-radius: 20px;
-  border: 1px solid
-    var(--party-panel-border, color-mix(in srgb, var(--card-border) 70%, transparent));
-  background: var(
-    --party-panel-background,
-    linear-gradient(
-      180deg,
-      var(--card-bg-1, rgba(255, 255, 255, 0.96)),
-      var(--card-bg-2, rgba(241, 245, 255, 0.9))
-    )
-  );
+  border: 1px solid var(--party-panel-border);
+  background: var(--party-panel-background);
 }
 
 .joinHeader {
@@ -959,12 +811,8 @@
   gap: 18px;
   padding: 22px 24px;
   border-radius: 22px;
-  border: 1px solid
-    var(--party-invite-border, color-mix(in srgb, var(--card-border) 70%, transparent));
-  background: var(
-    --party-invite-background,
-    color-mix(in srgb, var(--card-background, #101a33) 92%, transparent)
-  );
+  border: 1px solid var(--party-invite-border);
+  background: var(--party-invite-background);
 }
 
 .inviteHeader {
@@ -994,7 +842,7 @@
   padding: 28px;
   border-radius: 18px;
   border: 1px dashed
-    var(--party-empty-border, color-mix(in srgb, var(--card-border) 60%, transparent));
+    var(--party-empty-border);
   color: color-mix(in srgb, var(--text) 70%, transparent);
 }
 
@@ -1011,12 +859,8 @@
   gap: 16px;
   padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid
-    var(--party-invite-row-border, color-mix(in srgb, var(--card-border) 65%, transparent));
-  background: var(
-    --party-invite-row-background,
-    color-mix(in srgb, var(--card-background, #101a33) 94%, transparent)
-  );
+  border: 1px solid var(--party-invite-row-border);
+  background: var(--party-invite-row-background);
 }
 
 .inviteMeta {
@@ -1035,7 +879,7 @@
   justify-content: center;
   font-weight: 700;
   letter-spacing: 0.08em;
-  background: color-mix(in srgb, var(--color-brand) 45%, transparent);
+  background: var(--party-invite-avatar-background);
   color: var(--text);
 }
 
@@ -1059,11 +903,11 @@
 }
 
 .statusOnline {
-  color: color-mix(in srgb, var(--color-success, #3dd178) 80%, transparent);
+  color: var(--party-status-online-text);
 }
 
 .statusIdle {
-  color: color-mix(in srgb, var(--text) 55%, transparent);
+  color: var(--party-status-idle-text);
 }
 
 @media (max-width: 960px) {
@@ -1129,3 +973,5 @@
     border-radius: 22px;
   }
 }
+
+
