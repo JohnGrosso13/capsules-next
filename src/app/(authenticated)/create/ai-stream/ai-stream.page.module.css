@@ -133,7 +133,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden auto;
 }
 
 .stageManagerColumn {
@@ -427,6 +427,11 @@
     0 16px 32px rgba(6, 10, 28, 0.28);
   height: 100%;
   min-height: 0;
+  min-width: 0;
+}
+
+.stageManagerCard > * {
+  min-width: 0;
 }
 
 .stageManagerHeader {
@@ -532,6 +537,7 @@
 .stageManagerComposer {
   display: flex;
   justify-content: center;
+  min-width: 0;
 }
 
 .stageManagerPrompter {
@@ -539,6 +545,7 @@
   width: 100%;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 14px 18px;
   border-radius: 999px;
@@ -572,7 +579,7 @@
 }
 
 .stageManagerPrompterPlaceholder {
-  flex: 1;
+  flex: 1 1 160px;
   min-width: 0;
   color: color-mix(in srgb, var(--text, #f8fafc) 72%, transparent);
   font-size: 0.95rem;
@@ -583,6 +590,9 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
+  flex: 1 1 auto;
+  justify-content: flex-end;
 }
 
 .stageManagerPrompterIcon {
@@ -686,44 +696,20 @@
   color: var(--text, rgba(230, 236, 255, 0.92));
 }
 
-.chatTranscript {
-  display: grid;
-  gap: 12px;
-  max-height: 220px;
-  overflow: hidden auto;
-  padding-right: 6px;
-}
-
-.chatMessage {
-  display: grid;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface-muted, rgba(24, 28, 68, 0.7)) 68%, transparent);
-  color: var(--text, rgba(210, 218, 255, 0.86));
-  font-size: 0.88rem;
-}
-
-.chatAuthor {
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-3, rgba(186, 196, 255, 0.72));
-}
-
-.chatComposer {
-  display: flex;
-  gap: 10px;
-}
-
-.chatInput {
+.chatRailShell {
   flex: 1;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(146, 156, 255, 0.26)) 85%, transparent);
-  background: color-mix(in srgb, var(--surface-base, rgba(18, 22, 56, 0.9)) 72%, transparent);
-  color: var(--text, #f8fafc);
-  padding: 10px 12px;
-  font-size: 0.88rem;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  min-height: 0;
+  width: 100%;
+  padding: clamp(18px, 2.6vw, 24px);
+  overflow: visible;
+}
+
+.chatRailShell > * {
+  flex: 1;
+  min-height: 0;
 }
 
 .collaboratorList {
@@ -1095,6 +1081,6 @@
 
 
 
-
-
-
+.stageManagerPrompterActions > * {
+  flex-shrink: 0;
+}

@@ -588,6 +588,81 @@ export class ChatStore {
     this.emit();
   }
 
+  remapSessionId(oldId: string, newId: string) {
+    const sourceId = typeof oldId === "string" ? oldId.trim() : "";
+    const targetId = typeof newId === "string" ? newId.trim() : "";
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const sourceSession = this.sessions.get(sourceId);
+    if (!sourceSession) return;
+
+    const resolveMessage = (existing: ChatMessage | undefined, incoming: ChatMessage): ChatMessage => {
+      if (!existing) return { ...incoming };
+      if (existing.status === "sent") return existing;
+      if (incoming.status === "sent") return { ...incoming };
+      if (existing.status === "failed" && incoming.status === "pending") return { ...incoming };
+      return existing;
+    };
+
+    const accumulateMessages = (base: Map<string, ChatMessage>, messages: ChatMessage[]) => {
+      messages.forEach((message) => {
+        const current = base.get(message.id);
+        base.set(message.id, resolveMessage(current, message));
+      });
+    };
+
+    let targetSession = this.sessions.get(targetId);
+    if (!targetSession || targetSession === sourceSession) {
+      this.sessions.delete(sourceId);
+      sourceSession.id = targetId;
+      this.sessions.set(targetId, sourceSession);
+      targetSession = sourceSession;
+    } else {
+      const participantMerge = mergeParticipants(
+        targetSession.participants,
+        sourceSession.participants,
+      );
+      targetSession.participants = participantMerge;
+
+      const messageMap = new Map<string, ChatMessage>();
+      accumulateMessages(messageMap, targetSession.messages);
+      accumulateMessages(messageMap, sourceSession.messages);
+      const mergedMessages = Array.from(messageMap.values()).sort((a, b) => {
+        const leftTs = Date.parse(a.sentAt);
+        const rightTs = Date.parse(b.sentAt);
+        if (Number.isFinite(leftTs) && Number.isFinite(rightTs)) {
+          return leftTs - rightTs;
+        }
+        if (Number.isFinite(leftTs)) return -1;
+        if (Number.isFinite(rightTs)) return 1;
+        return a.sentAt.localeCompare(b.sentAt);
+      });
+      targetSession.messages = mergedMessages;
+      targetSession.messageIndex = new Map(
+        mergedMessages.map((message, index) => [message.id, index]),
+      );
+      targetSession.lastMessageTimestamp = mergedMessages.reduce((latest, message) => {
+        const ts = Date.parse(message.sentAt);
+        return Number.isFinite(ts) ? Math.max(latest, ts) : latest;
+      }, Math.max(targetSession.lastMessageTimestamp, sourceSession.lastMessageTimestamp));
+      targetSession.unreadCount = Math.max(targetSession.unreadCount, sourceSession.unreadCount);
+      if (!targetSession.createdBy && sourceSession.createdBy) {
+        targetSession.createdBy = sourceSession.createdBy;
+      }
+      if (!targetSession.title && sourceSession.title) {
+        targetSession.title = sourceSession.title;
+      }
+      if (!targetSession.avatar && sourceSession.avatar) {
+        targetSession.avatar = sourceSession.avatar;
+      }
+      this.sessions.delete(sourceId);
+    }
+
+    if (this.activeSessionId === sourceId) {
+      this.activeSessionId = targetId;
+    }
+    this.emit();
+  }
+
   ensureSession(descriptor: ChatSessionDescriptor): ChatSessionInternal {
     const { session, changed } = this.ensureSessionInternal(descriptor);
     if (changed) {
@@ -647,6 +722,66 @@ export class ChatStore {
     session.lastMessageTimestamp = Number.isFinite(timestamp) ? timestamp : this.now();
     if (options.isLocal && this.activeSessionId === session.id) {
       session.unreadCount = 0;
+    }
+    if (changed) {
+      this.emit();
+    }
+  }
+
+  acknowledgeMessage(
+    sessionId: string,
+    clientMessageId: string,
+    serverPayload: { id: string; authorId: string; body: string; sentAt: string },
+  ) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+    if (!serverPayload || typeof serverPayload.id !== "string") return;
+    const sanitizedBody = sanitizeMessageBody(serverPayload.body ?? "");
+    if (!sanitizedBody) return;
+    const nextMessage: ChatMessage = {
+      id: serverPayload.id,
+      authorId: serverPayload.authorId || serverPayload.id,
+      body: sanitizedBody,
+      sentAt: serverPayload.sentAt || new Date().toISOString(),
+      status: "sent",
+    };
+    const clientIndex = session.messageIndex.get(clientMessageId);
+    const serverIndex = session.messageIndex.get(nextMessage.id);
+    let changed = false;
+    if (typeof clientIndex === "number") {
+      const existing = session.messages[clientIndex];
+      session.messages[clientIndex] = existing ? { ...existing, ...nextMessage } : nextMessage;
+      if (nextMessage.id !== clientMessageId) {
+        session.messageIndex.delete(clientMessageId);
+        session.messageIndex.set(nextMessage.id, clientIndex);
+      }
+      const timestamp = Date.parse(nextMessage.sentAt);
+      if (Number.isFinite(timestamp)) {
+        session.lastMessageTimestamp = Math.max(session.lastMessageTimestamp, timestamp);
+      }
+      changed = true;
+    } else if (typeof serverIndex === "number") {
+      const existing = session.messages[serverIndex];
+      const merged = existing ? { ...existing, ...nextMessage } : nextMessage;
+      if (
+        !existing ||
+        existing.id !== merged.id ||
+        existing.body !== merged.body ||
+        existing.sentAt !== merged.sentAt ||
+        existing.status !== merged.status ||
+        existing.authorId !== merged.authorId
+      ) {
+        session.messages[serverIndex] = merged;
+        const timestamp = Date.parse(merged.sentAt);
+        if (Number.isFinite(timestamp)) {
+          session.lastMessageTimestamp = Math.max(session.lastMessageTimestamp, timestamp);
+        }
+        changed = true;
+      }
+    } else {
+      const isLocal = this.isSelfId(nextMessage.authorId);
+      this.addMessage(sessionId, nextMessage, { isLocal });
+      return;
     }
     if (changed) {
       this.emit();

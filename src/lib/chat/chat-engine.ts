@@ -358,12 +358,13 @@ export class ChatEngine {
         name: this.userProfile.name ?? this.userProfile.email ?? selfIdentity,
         avatar: this.userProfile.avatarUrl ?? null,
       } satisfies ChatParticipant);
-    const prepared = this.store.prepareLocalMessage(conversationId, trimmed, {
+    let effectiveConversationId = conversationId;
+    const prepared = this.store.prepareLocalMessage(effectiveConversationId, trimmed, {
       selfParticipant,
     });
     if (!prepared) return;
     const { message } = prepared;
-    void this.ensureConversationHistory(conversationId);
+    void this.ensureConversationHistory(effectiveConversationId);
 
     try {
       const response = await fetch("/api/chat/messages", {
@@ -393,12 +394,27 @@ export class ChatEngine {
       }
 
       const payload = (await response.json()) as ChatSendResponse;
-      if (Array.isArray(payload.participants) && payload.participants.length) {
-        this.applyParticipantsFromDto(conversationId, payload.participants);
+      const responseConversationId =
+        (payload?.message?.conversationId?.trim() ?? "") || effectiveConversationId;
+      if (responseConversationId && responseConversationId !== effectiveConversationId) {
+        this.handleConversationRemap(effectiveConversationId, responseConversationId);
+        effectiveConversationId = responseConversationId;
       }
-      this.store.markMessageStatus(conversationId, message.id, "sent");
+      if (Array.isArray(payload.participants) && payload.participants.length) {
+        this.applyParticipantsFromDto(effectiveConversationId, payload.participants);
+      }
+      if (payload?.message && typeof payload.message.id === "string") {
+        this.store.acknowledgeMessage(effectiveConversationId, message.id, {
+          id: payload.message.id,
+          authorId: payload.message.senderId,
+          body: payload.message.body,
+          sentAt: payload.message.sentAt,
+        });
+      } else {
+        this.store.markMessageStatus(effectiveConversationId, message.id, "sent");
+      }
     } catch (error) {
-      this.store.markMessageStatus(conversationId, message.id, "failed");
+      this.store.markMessageStatus(effectiveConversationId, message.id, "failed");
       throw error;
     }
   }
@@ -485,13 +501,23 @@ export class ChatEngine {
       throw new Error(errorMessage);
     }
     const data = (await response.json()) as ChatHistoryResponse;
+    const resolvedId =
+      (typeof data.conversationId === "string" && data.conversationId.trim().length
+        ? data.conversationId.trim()
+        : conversationId) || conversationId;
+    if (resolvedId !== conversationId) {
+      this.handleConversationRemap(conversationId, resolvedId);
+    }
     if (Array.isArray(data.participants) && data.participants.length) {
-      this.applyParticipantsFromDto(conversationId, data.participants);
+      this.applyParticipantsFromDto(resolvedId, data.participants);
     }
     data.messages.forEach((message) => {
-      this.upsertMessageFromDto(conversationId, message);
+      this.upsertMessageFromDto(resolvedId, message);
     });
-    this.conversationHistoryLoaded.add(conversationId);
+    this.conversationHistoryLoaded.add(resolvedId);
+    if (resolvedId !== conversationId) {
+      this.conversationHistoryLoaded.delete(conversationId);
+    }
   }
 
   dispatchRealtimeEvent(event: RealtimeEvent): void {
@@ -500,6 +526,14 @@ export class ChatEngine {
 
   private findSession(conversationId: string): ChatSession | null {
     return this.store.getSnapshot().sessions.find((item) => item.id === conversationId) ?? null;
+  }
+
+  private handleConversationRemap(oldId: string, newId: string): void {
+    if (!oldId || !newId || oldId === newId) return;
+    this.store.remapSessionId(oldId, newId);
+    if (this.conversationHistoryLoaded.delete(oldId)) {
+      this.conversationHistoryLoaded.add(newId);
+    }
   }
 
   private async publishSessionUpdate(conversationId: string): Promise<void> {

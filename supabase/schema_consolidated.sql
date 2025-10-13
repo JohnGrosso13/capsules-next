@@ -1344,3 +1344,114 @@ end $$;
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 -- END MIGRATION: 202510111330_add_party_invites.sql
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 0005_user_panel_layouts.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- Capture per-user panel layout state for the AI Stream studio experience.
+create table if not exists public.user_panel_layouts (
+  user_id uuid not null references public.users(id) on delete cascade,
+  view text not null,
+  storage_key text not null,
+  state jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint user_panel_layouts_user_storage_key_unique unique (user_id, storage_key)
+);
+
+create index if not exists idx_user_panel_layouts_user_view
+  on public.user_panel_layouts (user_id, view);
+
+create index if not exists idx_user_panel_layouts_view
+  on public.user_panel_layouts (view);
+
+alter table public.user_panel_layouts enable row level security;
+
+do $$
+begin
+  begin
+    create policy "Service role full access user_panel_layouts"
+      on public.user_panel_layouts
+      to service_role
+      using (true)
+      with check (true);
+  exception
+    when others then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create trigger trg_user_panel_layouts_updated_at
+      before update on public.user_panel_layouts
+      for each row execute function public.set_updated_at();
+  exception
+    when duplicate_object then null;
+  end;
+end
+$$;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 0005_user_panel_layouts.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 0006_chat_messages.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- Persistent storage for direct chat messages between users.
+create table if not exists public.chat_messages (
+  id uuid not null,
+  conversation_id text not null,
+  sender_id uuid not null references public.users(id) on delete cascade,
+  body text not null,
+  client_sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint chat_messages_pkey primary key (id),
+  constraint chat_messages_conversation_not_blank check (length(btrim(conversation_id)) > 0),
+  constraint chat_messages_body_not_blank check (length(btrim(body)) > 0)
+);
+
+create index if not exists idx_chat_messages_conversation_created_at
+  on public.chat_messages (conversation_id, created_at desc);
+
+create index if not exists idx_chat_messages_sender
+  on public.chat_messages (sender_id, created_at desc);
+
+alter table public.chat_messages enable row level security;
+
+do $$
+begin
+  begin
+    create policy "Service role full access chat_messages"
+      on public.chat_messages
+      to service_role
+      using (true)
+      with check (true);
+  exception
+    when others then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create trigger trg_chat_messages_updated_at
+      before update on public.chat_messages
+      for each row execute function public.set_updated_at();
+  exception
+    when duplicate_object then null;
+  end;
+end
+$$;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 0006_chat_messages.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

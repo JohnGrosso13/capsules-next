@@ -20,6 +20,19 @@ export type ChatParticipantRow = {
   user_key: string | null;
 };
 
+type UserIdentityRow = ChatParticipantRow & {
+  clerk_id: string | null;
+  email: string | null;
+};
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ILIKE_ESCAPE_PATTERN = /[%_\\]/g;
+
+function escapeIlikePattern(value: string): string {
+  return value.replace(ILIKE_ESCAPE_PATTERN, (match) => `\\${match}`);
+}
+
 function wrapDatabaseError(context: string, error: DatabaseError): Error {
   const message = context ? `${context}: ${error.message}` : error.message;
   const wrapped = new Error(message);
@@ -103,4 +116,65 @@ export async function fetchUsersByIds(userIds: string[]): Promise<ChatParticipan
     .in("id", uniqueIds)
     .fetch();
   return expectArrayResult(result, "chat_messages.participants");
+}
+
+export async function findUserIdentity(identifier: string): Promise<UserIdentityRow | null> {
+  const db = getDatabaseAdminClient();
+  const trimmed = typeof identifier === "string" ? identifier.trim() : "";
+  if (!trimmed) return null;
+
+  const selectColumns =
+    "id, full_name, avatar_url, user_key, clerk_id, email" as const satisfies string;
+
+  const attempt = async (
+    column: "id" | "user_key" | "clerk_id" | "email",
+    operator: "eq" | "ilike",
+    value: string,
+  ): Promise<UserIdentityRow | null> => {
+    let query = db.from("users").select<UserIdentityRow>(selectColumns).limit(1);
+    query = operator === "eq" ? query.eq(column, value) : query.ilike(column, value);
+    const result = await query.maybeSingle();
+    if (result.error && result.error.code !== "PGRST116") {
+      throw wrapDatabaseError(`users.lookup.${column}.${operator}`, result.error);
+    }
+    return result.data;
+  };
+
+  const attempts: Array<{ column: "id" | "user_key" | "clerk_id" | "email"; operator: "eq" | "ilike"; value: string }> =
+    [
+      { column: "user_key", operator: "eq", value: trimmed },
+      { column: "clerk_id", operator: "eq", value: trimmed },
+    ];
+
+  if (UUID_PATTERN.test(trimmed)) {
+    attempts.unshift({ column: "id", operator: "eq", value: trimmed.toLowerCase() });
+  }
+
+  const ilikeValue = escapeIlikePattern(trimmed);
+  attempts.push(
+    { column: "user_key", operator: "ilike", value: ilikeValue },
+    { column: "clerk_id", operator: "ilike", value: ilikeValue },
+  );
+
+  if (trimmed.includes("@")) {
+    attempts.push(
+      { column: "email", operator: "eq", value: trimmed },
+      { column: "email", operator: "ilike", value: ilikeValue },
+    );
+  }
+
+  for (const entry of attempts) {
+    try {
+      const found = await attempt(entry.column, entry.operator, entry.value);
+      if (found) return found;
+    } catch (error) {
+      if (entry.column === "id" && entry.operator === "eq") {
+        // Ignore invalid UUID casts for id.eq attempts; continue to other strategies.
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  return null;
 }

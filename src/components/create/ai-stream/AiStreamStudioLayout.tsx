@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { CapsuleSummary } from "@/server/capsules/service";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
+import { LiveChatRail } from "@/components/live/LiveChatRail";
 
 import { AiStreamCapsuleGate } from "./AiStreamCapsuleGate";
 import styles from "@/app/(authenticated)/create/ai-stream/ai-stream.page.module.css";
@@ -662,33 +663,12 @@ export function AiStreamStudioLayout({
 
         <Panel defaultSize={10} minSize={9} collapsible={false}>
           <div className={styles.panelSection}>
-            <div className={`${styles.resourceCard} ${styles.panelCard}`}>
-              <header className={styles.resourceHeader}>
-                <div className={styles.resourceTitle}>Audience chat</div>
-                <Button variant="ghost" size="xs" disabled>
-                  Pop out
-                </Button>
-              </header>
-              <div className={styles.chatTranscript}>
-                <div className={styles.chatMessage}>
-                  <span className={styles.chatAuthor}>mod-bot</span>
-                  <p>Be kind - AI will auto flag anything off-topic.</p>
-                </div>
-                <div className={styles.chatMessage}>
-                  <span className={styles.chatAuthor}>streamfan42</span>
-                  <p>This layout looks slick! Any tips for mobile folks?</p>
-                </div>
-                <div className={styles.chatMessage}>
-                  <span className={styles.chatAuthor}>crew-sam</span>
-                  <p>Guest ready in green room. Handing off when you&apos;re set.</p>
-                </div>
-              </div>
-              <div className={styles.chatComposer}>
-                <input className={styles.chatInput} placeholder="Message the crowd..." disabled />
-                <Button variant="outline" size="sm" disabled>
-                  Chat
-                </Button>
-              </div>
+            <div className={styles.chatRailShell}>
+              <LiveChatRail
+                capsuleId={selectedCapsule.id}
+                capsuleName={selectedCapsule.name}
+                status="waiting"
+              />
             </div>
           </div>
         </Panel>

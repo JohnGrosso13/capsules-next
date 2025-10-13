@@ -159,6 +159,34 @@ async function deleteJson(url: string): Promise<void> {
   }
 }
 
+function suppressDataChannelErrors(room: Room) {
+  try {
+    const scopedRoom = room as unknown as {
+      engine?: { lossyDC?: RTCDataChannel | null; reliableDC?: RTCDataChannel | null };
+    };
+    const engine = scopedRoom.engine;
+    if (!engine) return;
+    const attach = (channel: RTCDataChannel | null | undefined, kind: "lossy" | "reliable") => {
+      if (!channel) return;
+      const label = channel.label;
+      channel.onerror = (event: Event) => {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            `[party] data channel warning (${kind}${label ? `:${label}` : ""})`,
+            event,
+          );
+        }
+      };
+    };
+    attach(engine.lossyDC ?? null, "lossy");
+    attach(engine.reliableDC ?? null, "reliable");
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("Unable to adjust LiveKit data channel error handlers", error);
+    }
+  }
+}
+
 function resolveDisplayName(
   provided: string | null | undefined,
   fallback: string | null,
@@ -241,7 +269,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
         setSession(nextSession);
         setStatus("connecting");
       } catch (resumeError) {
-        console.error("Party resume error", resumeError);
+        console.warn("Party resume issue", resumeError);
         const message =
           resumeError instanceof Error ? resumeError.message : "Unable to reconnect to the party.";
         setError(message);
@@ -256,6 +284,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
 
   const handleRoomConnected = React.useCallback((room: Room) => {
     roomRef.current = room;
+    suppressDataChannelErrors(room);
     resumeAttemptRef.current = false;
     setStatus("connected");
     setAction(null);

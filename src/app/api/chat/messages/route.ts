@@ -115,7 +115,7 @@ export async function GET(req: Request) {
 
     return validatedJson(historyResponseSchema, {
       success: true,
-      conversationId: queryParse.data.conversationId,
+      conversationId: history.conversationId,
       participants: history.participants,
       messages: history.messages,
     });
