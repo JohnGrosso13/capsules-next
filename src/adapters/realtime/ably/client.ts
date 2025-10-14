@@ -10,6 +10,7 @@ import type {
   RealtimeClient,
   RealtimeClientFactory,
   RealtimeEvent,
+  RealtimeSubscribeOptions,
   RealtimePresenceChannel,
 } from "@/ports/realtime";
 
@@ -115,8 +116,23 @@ class AblyRealtimeConnection implements RealtimeClient {
   async subscribe(
     channelName: string,
     handler: (event: RealtimeEvent) => void,
+    options?: RealtimeSubscribeOptions,
   ): Promise<() => void> {
     const channel = this.client.channels.get(channelName);
+    if (options?.params && Object.keys(options.params).length) {
+      try {
+        await channel.setOptions({ params: options.params });
+      } catch (error) {
+        console.error("Ably channel option error", { channel: channelName, error });
+      }
+    }
+    if (options?.params) {
+      try {
+        await channel.attach();
+      } catch (error) {
+        console.error("Ably channel attach error", { channel: channelName, error });
+      }
+    }
     const listener = (message: AblyTypes.Message) => {
       handler({
         name: message.name ?? "",

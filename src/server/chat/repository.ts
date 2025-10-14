@@ -1,4 +1,5 @@
 import { getDatabaseAdminClient } from "@/config/database";
+import { CHAT_CONSTANTS } from "@/lib/chat/channels";
 import type { DatabaseError, DatabaseResult } from "@/ports/database";
 
 const TABLE = "chat_messages";
@@ -98,6 +99,29 @@ export async function listChatMessages(
   const result = await query.fetch();
   const rows = expectArrayResult(result, "chat_messages.list");
   return rows.slice().reverse();
+}
+
+export async function listRecentMessagesForUser(
+  normalizedUserId: string,
+  options: { limit: number },
+): Promise<ChatMessageRow[]> {
+  const trimmed = typeof normalizedUserId === "string" ? normalizedUserId.trim() : "";
+  if (!trimmed) return [];
+  const db = getDatabaseAdminClient();
+  const limit = Number.isFinite(options.limit) ? Math.max(1, Math.min(500, options.limit)) : 100;
+  const leftPattern = `${CHAT_CONSTANTS.CONVERSATION_PREFIX}:${trimmed}:%`;
+  const rightPattern = `${CHAT_CONSTANTS.CONVERSATION_PREFIX}:%:${trimmed}`;
+
+  const result = await db
+    .from(TABLE)
+    .select<ChatMessageRow>(
+      "id, conversation_id, sender_id, body, client_sent_at, created_at, updated_at",
+    )
+    .or(`conversation_id.like.${leftPattern},conversation_id.like.${rightPattern}`)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return expectArrayResult(result, "chat_messages.list_recent_user");
 }
 
 export async function fetchUsersByIds(userIds: string[]): Promise<ChatParticipantRow[]> {

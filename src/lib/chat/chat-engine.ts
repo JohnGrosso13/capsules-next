@@ -13,6 +13,7 @@ import type {
   RealtimeClient,
   RealtimeClientFactory,
   RealtimeEvent,
+  RealtimeSubscribeOptions,
 } from "@/ports/realtime";
 import type {
   ChatParticipant,
@@ -21,6 +22,8 @@ import type {
   ChatMessageEventPayload,
 } from "@/components/providers/chat-store";
 import { ChatStore } from "@/components/providers/chat-store";
+
+const DIRECT_CHANNEL_WATERMARK_PREFIX = "capsule:chat:watermark:direct:";
 
 type StartChatResult = {
   id: string;
@@ -68,6 +71,23 @@ type ChatSendResponse = {
   participants: ChatParticipantDto[];
 };
 
+type ChatInboxConversation = {
+  conversationId: string;
+  participants: ChatParticipantDto[];
+  session: {
+    type: "direct";
+    title: string;
+    avatar: string | null;
+    createdBy: string | null;
+  };
+  lastMessage: ChatMessageDto | null;
+};
+
+type ChatInboxResponse = {
+  success: true;
+  conversations: ChatInboxConversation[];
+};
+
 export class ChatEngine {
   private readonly store: ChatStore;
   private client: RealtimeClient | null = null;
@@ -79,6 +99,10 @@ export class ChatEngine {
   private userProfile: UserProfile = { id: null, name: null, email: null, avatarUrl: null };
   private conversationHistoryLoaded = new Set<string>();
   private conversationHistoryLoading = new Map<string, Promise<void>>();
+  private inboxLoaded = false;
+  private inboxLoading: Promise<void> | null = null;
+  private directChannelWatermarkKey: string | null = null;
+  private directChannelWatermarkMs: number | null = null;
 
   constructor(store?: ChatStore) {
     this.store = store ?? new ChatStore();
@@ -129,23 +153,27 @@ export class ChatEngine {
     const trimmed = typeof userId === "string" ? userId.trim() : "";
     const normalized = trimmed.length > 0 ? trimmed : null;
     if (this.supabaseUserId === normalized) return;
+    this.resetInboxState();
     const previousSupabaseId = this.supabaseUserId;
     this.supabaseUserId = normalized;
-    if (normalized) {
-      this.store.setCurrentUserId(normalized);
-      const aliases: string[] = [];
-      if (previousSupabaseId && previousSupabaseId !== normalized) {
-        aliases.push(previousSupabaseId);
-      }
-      if (this.userProfile.id && this.userProfile.id !== normalized) {
-        aliases.push(this.userProfile.id);
-      }
-      if (this.resolvedSelfClientId && this.resolvedSelfClientId !== normalized) {
-        aliases.push(this.resolvedSelfClientId);
-      }
-      const participant = this.createSelfParticipant(normalized);
-      this.store.applySelfParticipant(participant, aliases);
+    this.updateDirectChannelWatermarkContext(normalized);
+    if (!normalized) {
+      this.store.setCurrentUserId(null);
+      return;
     }
+    this.store.setCurrentUserId(normalized);
+    const aliases: string[] = [];
+    if (previousSupabaseId && previousSupabaseId !== normalized) {
+      aliases.push(previousSupabaseId);
+    }
+    if (this.userProfile.id && this.userProfile.id !== normalized) {
+      aliases.push(this.userProfile.id);
+    }
+    if (this.resolvedSelfClientId && this.resolvedSelfClientId !== normalized) {
+      aliases.push(this.resolvedSelfClientId);
+    }
+    const participant = this.createSelfParticipant(normalized);
+    this.store.applySelfParticipant(participant, aliases);
   }
 
   getSelfClientId(): string | null {
@@ -176,9 +204,14 @@ export class ChatEngine {
       this.store.setSelfClientId(clientId);
       const channelName = getChatDirectChannel(clientId);
       this.clientChannelName = channelName;
-      const cleanup = await client.subscribe(channelName, (event) => {
-        this.handleRealtimeEvent(event);
-      });
+      const subscribeOptions = this.buildDirectChannelSubscribeOptions();
+      const cleanup = await client.subscribe(
+        channelName,
+        (event) => {
+          this.handleRealtimeEvent(event);
+        },
+        subscribeOptions,
+      );
       this.unsubscribe = cleanup;
     } catch (error) {
       console.error("ChatEngine connect failed", error);
@@ -212,6 +245,7 @@ export class ChatEngine {
     this.clientChannelName = null;
     this.resolvedSelfClientId = null;
     this.store.setSelfClientId(null);
+    this.resetInboxState();
   }
 
   startDirectChat(
@@ -410,6 +444,7 @@ export class ChatEngine {
           body: payload.message.body,
           sentAt: payload.message.sentAt,
         });
+        this.recordDirectChannelWatermarkFromIso(payload.message.sentAt);
       } else {
         this.store.markMessageStatus(effectiveConversationId, message.id, "sent");
       }
@@ -417,6 +452,79 @@ export class ChatEngine {
       this.store.markMessageStatus(effectiveConversationId, message.id, "failed");
       throw error;
     }
+  }
+
+  private buildDirectChannelSubscribeOptions(): RealtimeSubscribeOptions | undefined {
+    const params: Record<string, string> = {};
+    if (Number.isFinite(this.directChannelWatermarkMs) && this.directChannelWatermarkMs) {
+      const start = Math.max(0, Math.trunc(this.directChannelWatermarkMs - 1000));
+      if (start > 0) {
+        params.start = String(start);
+      }
+    }
+    if (!params.start) {
+      params.rewind = "5m";
+    }
+    return Object.keys(params).length ? { params } : undefined;
+  }
+
+  private updateDirectChannelWatermarkContext(userId: string | null): void {
+    if (typeof window === "undefined") {
+      this.directChannelWatermarkKey = null;
+      this.directChannelWatermarkMs = null;
+      return;
+    }
+    if (!userId) {
+      this.directChannelWatermarkKey = null;
+      this.directChannelWatermarkMs = null;
+      return;
+    }
+    const key = `${DIRECT_CHANNEL_WATERMARK_PREFIX}${userId}`;
+    this.directChannelWatermarkKey = key;
+    try {
+      const stored = window.localStorage.getItem(key);
+      if (!stored) {
+        this.directChannelWatermarkMs = null;
+        return;
+      }
+      const parsed = Number.parseInt(stored, 10);
+      this.directChannelWatermarkMs = Number.isFinite(parsed) ? parsed : null;
+    } catch {
+      this.directChannelWatermarkMs = null;
+    }
+  }
+
+  private persistDirectChannelWatermark(): void {
+    if (typeof window === "undefined") return;
+    const key = this.directChannelWatermarkKey;
+    if (!key) return;
+    if (this.directChannelWatermarkMs === null) {
+      try {
+        window.localStorage.removeItem(key);
+      } catch {
+        // ignore storage failures
+      }
+      return;
+    }
+    try {
+      window.localStorage.setItem(key, String(this.directChannelWatermarkMs));
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  private recordDirectChannelWatermark(timestampMs: number | null | undefined): void {
+    if (!Number.isFinite(timestampMs) || !timestampMs) return;
+    if (this.directChannelWatermarkMs && timestampMs <= this.directChannelWatermarkMs) return;
+    this.directChannelWatermarkMs = timestampMs;
+    this.persistDirectChannelWatermark();
+  }
+
+  private recordDirectChannelWatermarkFromIso(sentAt: string | null | undefined): void {
+    if (typeof sentAt !== "string" || !sentAt.trim()) return;
+    const parsed = Date.parse(sentAt);
+    if (Number.isNaN(parsed)) return;
+    this.recordDirectChannelWatermark(parsed);
   }
 
   private applyParticipantsFromDto(
@@ -452,6 +560,7 @@ export class ChatEngine {
     };
     const isLocal = this.isSelfUser(dto.senderId);
     this.store.addMessage(conversationId, chatMessage, { isLocal });
+    this.recordDirectChannelWatermarkFromIso(chatMessage.sentAt);
   }
 
   private isSelfUser(userId: string | null | undefined): boolean {
@@ -481,6 +590,97 @@ export class ChatEngine {
       });
     this.conversationHistoryLoading.set(conversationId, promise);
     return promise;
+  }
+
+  async bootstrapInbox(): Promise<void> {
+    if (this.inboxLoaded) return;
+    if (this.inboxLoading) {
+      await this.inboxLoading;
+      return;
+    }
+    const selfId = this.resolveSelfId();
+    if (!selfId) return;
+    const promise = this.loadInbox()
+      .catch((error) => {
+        console.error("chat inbox load error", error);
+      })
+      .finally(() => {
+        this.inboxLoading = null;
+      });
+    this.inboxLoading = promise;
+    await promise;
+  }
+
+  private async loadInbox(): Promise<void> {
+    const params = new URLSearchParams({ limit: "50" });
+    const response = await fetch(`/api/chat/inbox?${params.toString()}`, {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!response.ok) {
+      let message = `Failed to load inbox (${response.status})`;
+      try {
+        const payload = (await response.json()) as { message?: string; error?: string };
+        message = payload.message ?? payload.error ?? message;
+      } catch {
+        const text = await response.text().catch(() => "");
+        if (text) message = text;
+      }
+      throw new Error(message);
+    }
+    const data = (await response.json()) as ChatInboxResponse;
+    if (!data?.success || !Array.isArray(data.conversations)) {
+      this.inboxLoaded = true;
+      return;
+    }
+    data.conversations.forEach((conversation) => {
+      const participants = (conversation.participants ?? [])
+        .map((participant) => ({
+          id: participant.id,
+          name: participant.name,
+          avatar: participant.avatar ?? null,
+        }))
+        .filter((participant): participant is ChatParticipant => Boolean(participant.id));
+      if (!participants.length) return;
+      const descriptor = {
+        id: conversation.conversationId,
+        type: conversation.session?.type ?? "direct",
+        title: conversation.session?.title ?? "",
+        avatar: conversation.session?.avatar ?? null,
+        createdBy: conversation.session?.createdBy ?? null,
+        participants,
+      };
+      this.store.startSession(descriptor);
+      const lastMessage = conversation.lastMessage;
+      if (
+        lastMessage &&
+        typeof lastMessage.id === "string" &&
+        typeof lastMessage.body === "string" &&
+        typeof lastMessage.sentAt === "string"
+      ) {
+        const sanitized = lastMessage.body.replace(/\s+/g, " ").trim();
+        if (sanitized) {
+          const chatMessage = {
+            id: lastMessage.id,
+            authorId: lastMessage.senderId,
+            body: sanitized,
+            sentAt: lastMessage.sentAt,
+            status: "sent" as const,
+          };
+          const isLocal = this.isSelfUser(chatMessage.authorId);
+          this.store.addMessage(descriptor.id, chatMessage, { isLocal });
+          this.recordDirectChannelWatermarkFromIso(chatMessage.sentAt);
+        }
+      }
+    });
+    this.inboxLoaded = true;
+  }
+
+  private resetInboxState() {
+    this.inboxLoaded = false;
+    this.inboxLoading = null;
+    this.conversationHistoryLoaded.clear();
+    this.conversationHistoryLoading.clear();
   }
 
   private async loadConversationHistory(conversationId: string): Promise<void> {
@@ -606,6 +806,9 @@ export class ChatEngine {
     if (event.name !== "chat.message") return;
     const payload = event.data as ChatMessageEventPayload;
     this.store.applyMessageEvent(payload);
+    if (payload?.message?.sentAt) {
+      this.recordDirectChannelWatermarkFromIso(payload.message.sentAt);
+    }
     if (
       payload &&
       typeof payload.conversationId === "string" &&

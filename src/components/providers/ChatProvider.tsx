@@ -122,6 +122,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [engine, viewerId]);
 
   React.useEffect(() => {
+    if (!viewerId) return;
+    void engine.bootstrapInbox();
+  }, [engine, viewerId]);
+
+  React.useEffect(() => {
     const envelope = buildRealtimeEnvelope(user);
     const factory = getRealtimeClientFactory();
     void engine.connectRealtime({

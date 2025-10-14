@@ -11,6 +11,7 @@ import {
   listChatMessages,
   upsertChatMessage,
   findUserIdentity,
+  listRecentMessagesForUser,
   type ChatMessageRow,
   type ChatParticipantRow,
 } from "./repository";
@@ -28,6 +29,18 @@ export type ChatParticipantSummary = {
   id: string;
   name: string;
   avatar: string | null;
+};
+
+export type ChatConversationSummary = {
+  conversationId: string;
+  participants: ChatParticipantSummary[];
+  lastMessage: ChatMessageRecord | null;
+  session: {
+    type: "direct";
+    title: string;
+    avatar: string | null;
+    createdBy: string | null;
+  };
 };
 
 export class ChatServiceError extends Error {
@@ -405,4 +418,115 @@ export async function getDirectConversationHistory(params: {
     participants: participantSummaries,
     messages: messages.map(toMessageRecord),
   };
+}
+
+export async function listRecentDirectConversations(params: {
+  userId: string;
+  limit?: number;
+}): Promise<ChatConversationSummary[]> {
+  const trimmedUser = params.userId?.trim();
+  if (!trimmedUser) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to view messages.");
+  }
+  const normalizedUser = normalizeId(trimmedUser);
+  if (!normalizedUser) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to view messages.");
+  }
+
+  const identityCache = new Map<string, ResolvedIdentity | null>();
+  const requesterResolved = await resolveIdentity(identityCache, normalizedUser, trimmedUser);
+  if (!requesterResolved) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to view messages.");
+  }
+
+  const canonicalUserId = requesterResolved.canonicalId;
+  const normalizedCanonicalUserId = normalizeId(canonicalUserId);
+  if (!normalizedCanonicalUserId) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to view messages.");
+  }
+
+  const requestedLimit = Number.isFinite(params.limit) ? Number(params.limit) : 25;
+  const conversationLimit = Math.max(1, Math.min(100, requestedLimit));
+  const fetchLimit = Math.min(500, conversationLimit * 15);
+
+  const recentRows = await listRecentMessagesForUser(normalizedCanonicalUserId, {
+    limit: fetchLimit,
+  });
+
+  if (!recentRows.length) return [];
+
+  const latestByConversation = new Map<string, ChatMessageRow>();
+  recentRows.forEach((row) => {
+    if (!row?.conversation_id) return;
+    if (!latestByConversation.has(row.conversation_id)) {
+      latestByConversation.set(row.conversation_id, row);
+    }
+  });
+
+  if (!latestByConversation.size) return [];
+
+  const conversationEntries = Array.from(latestByConversation.values())
+    .sort((a, b) => Date.parse(resolveSentAt(b)) - Date.parse(resolveSentAt(a)))
+    .slice(0, conversationLimit)
+    .map((row) => {
+      try {
+        const { left, right } = parseConversationId(row.conversation_id);
+        if (left !== normalizedCanonicalUserId && right !== normalizedCanonicalUserId) {
+          return null;
+        }
+        return { row, left, right };
+      } catch {
+        return null;
+      }
+    })
+    .filter((entry): entry is { row: ChatMessageRow; left: string; right: string } =>
+      entry !== null,
+    );
+
+  const participantIdSet = new Set<string>();
+  conversationEntries.forEach(({ left, right }) => {
+    if (left) participantIdSet.add(left);
+    if (right) participantIdSet.add(right);
+  });
+
+  const participantRows = await fetchUsersByIds(Array.from(participantIdSet));
+  const participantMap = new Map(participantRows.map((row) => [row.id, row]));
+
+  const summaries: ChatConversationSummary[] = [];
+
+  conversationEntries.forEach(({ row, left, right }) => {
+    const resolvedLeft = participantMap.get(left) ?? null;
+    const resolvedRight = participantMap.get(right) ?? null;
+
+    const participants = [
+      toParticipantSummary(resolvedLeft ?? undefined, left),
+      toParticipantSummary(resolvedRight ?? undefined, right),
+    ].filter(
+      (participant, index, list) =>
+        list.findIndex((item) => item.id === participant.id) === index,
+    );
+
+    if (!participants.some((participant) => participant.id === canonicalUserId)) {
+      participants.push(toParticipantSummary(participantMap.get(canonicalUserId), canonicalUserId));
+    }
+
+    const messageRecord = toMessageRecord(row);
+    const sessionTitle = buildConversationTitle(participants, canonicalUserId);
+    const remoteParticipant =
+      participants.find((participant) => participant.id !== canonicalUserId) ?? null;
+
+    summaries.push({
+      conversationId: row.conversation_id,
+      participants,
+      lastMessage: messageRecord,
+      session: {
+        type: "direct",
+        title: sessionTitle,
+        avatar: remoteParticipant?.avatar ?? null,
+        createdBy: null,
+      },
+    });
+  });
+
+  return summaries;
 }

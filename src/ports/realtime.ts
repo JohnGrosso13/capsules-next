@@ -17,6 +17,10 @@ export type RealtimeAuthPayload = {
   environment?: string | null;
 };
 
+export type RealtimeSubscribeOptions = {
+  params?: Record<string, string>;
+};
+
 export type RealtimeCapabilities = Record<string, string[]>;
 
 export interface RealtimePublisher {
@@ -39,7 +43,11 @@ export interface RealtimePresenceChannel {
 }
 
 export interface RealtimeClient {
-  subscribe(channel: string, handler: (event: RealtimeEvent) => void): Promise<() => void>;
+  subscribe(
+    channel: string,
+    handler: (event: RealtimeEvent) => void,
+    options?: RealtimeSubscribeOptions,
+  ): Promise<() => void>;
   publish(channel: string, name: string, payload: unknown): Promise<void>;
   presence(channel: string): RealtimePresenceChannel;
   clientId(): string | null;
