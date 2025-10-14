@@ -47,6 +47,7 @@ export type ChatContextValue = {
   closeSession: () => void;
   deleteSession: (sessionId: string) => void;
   sendMessage: (conversationId: string, body: string) => Promise<void>;
+  notifyTyping: (conversationId: string, typing: boolean) => void;
 };
 
 const ChatContext = React.createContext<ChatContextValue | null>(null);
@@ -206,6 +207,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [engine],
   );
 
+  const notifyTyping = React.useCallback(
+    (conversationId: string, typing: boolean) => {
+      engine.notifyTyping(conversationId, typing);
+    },
+    [engine],
+  );
+
   const { sessions, activeSessionId, activeSession, unreadCount } = snapshot;
   const currentUserId = user?.id ?? null;
   const selfClientId = engine.getSelfClientId();
@@ -227,6 +235,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       closeSession,
       deleteSession,
       sendMessage,
+      notifyTyping,
     }),
     [
       sessions,
@@ -244,6 +253,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       closeSession,
       deleteSession,
       sendMessage,
+      notifyTyping,
     ],
   );
 

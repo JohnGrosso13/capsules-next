@@ -45,6 +45,22 @@ function initialsFrom(name: string): string {
   return `${parts[0]![0] ?? ""}${parts[parts.length - 1]![0] ?? ""}`.toUpperCase();
 }
 
+function typingDisplayName(participant: ChatParticipant): string {
+  const name = typeof participant.name === "string" ? participant.name.trim() : "";
+  if (name) return name;
+  const id = typeof participant.id === "string" ? participant.id.trim() : "";
+  return id || "Someone";
+}
+
+function describeTypingParticipants(participants: ChatParticipant[]): string {
+  const names = participants.map(typingDisplayName);
+  if (!names.length) return "";
+  if (names.length === 1) return `${names[0]} is typing…`;
+  if (names.length === 2) return `${names[0]} and ${names[1]} are typing…`;
+  if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} are typing…`;
+  return `${names[0]}, ${names[1]}, and ${names.length - 2} others are typing…`;
+}
+
 type ChatConversationProps = {
   session: ChatSession;
   currentUserId: string | null;
@@ -53,6 +69,7 @@ type ChatConversationProps = {
   onBack?: () => void;
   onDelete?: () => void;
   onInviteParticipants?: () => void;
+  onTypingChange?: (conversationId: string, typing: boolean) => void;
 };
 
 function renderConversationAvatar(
@@ -170,6 +187,30 @@ export function ChatConversation({
     return map;
   }, [session.participants]);
 
+  const typingParticipants = React.useMemo(() => {
+    if (!Array.isArray(session.typing) || session.typing.length === 0) {
+      return [] as ChatParticipant[];
+    }
+    const seen = new Set<string>();
+    const unique: ChatParticipant[] = [];
+    session.typing.forEach((participant) => {
+      if (!participant || typeof participant.id !== "string") return;
+      if (selfIdentifiers.has(participant.id)) return;
+      const key = participant.id.trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      unique.push(participant);
+    });
+    return unique;
+  }, [session.typing, selfIdentifiers]);
+
+  const typingText = React.useMemo(
+    () => (typingParticipants.length ? describeTypingParticipants(typingParticipants) : ""),
+    [typingParticipants],
+  );
+  const primaryTypingParticipant = typingParticipants[0] ?? null;
+  const typingRemainderCount = typingParticipants.length > 1 ? typingParticipants.length - 1 : 0;
+
   React.useEffect(() => {
     const container = messagesRef.current;
     if (!container) return;
@@ -177,6 +218,28 @@ export function ChatConversation({
       container.scrollTop = container.scrollHeight;
     });
   }, [session.messages.length]);
+
+  const handleDraftChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setDraft(value);
+      if (onTypingChange) {
+        const hasContent = value.replace(/\s+/g, "").length > 0;
+        onTypingChange(session.id, hasContent);
+      }
+    },
+    [onTypingChange, session.id],
+  );
+
+  const handleDraftBlur = React.useCallback(() => {
+    onTypingChange?.(session.id, false);
+  }, [onTypingChange, session.id]);
+
+  React.useEffect(() => {
+    return () => {
+      onTypingChange?.(session.id, false);
+    };
+  }, [onTypingChange, session.id]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -187,6 +250,7 @@ export function ChatConversation({
     try {
       await onSend(trimmed);
       setDraft("");
+      onTypingChange?.(session.id, false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message.";
       setError(message);
@@ -328,13 +392,47 @@ export function ChatConversation({
             </div>
           );
         })}
+        {typingParticipants.length > 0 && typingText.length > 0 ? (
+          <div className={styles.typingIndicatorRow}>
+            {primaryTypingParticipant ? (
+              <span className={styles.typingIndicatorAvatar} aria-hidden>
+                {primaryTypingParticipant.avatar ? (
+                  <Image
+                    src={primaryTypingParticipant.avatar}
+                    alt=""
+                    width={36}
+                    height={36}
+                    className={styles.typingIndicatorAvatarImage}
+                    sizes="36px"
+                  />
+                ) : (
+                  <span className={styles.typingIndicatorInitials}>
+                    {initialsFrom(typingDisplayName(primaryTypingParticipant))}
+                  </span>
+                )}
+                {typingRemainderCount > 0 ? (
+                  <span className={styles.typingIndicatorBadge}>+{typingRemainderCount}</span>
+                ) : null}
+              </span>
+            ) : null}
+            <div className={styles.typingIndicatorBubble} role="status" aria-live="polite">
+              <span className={styles.typingIndicatorText}>{typingText}</span>
+              <span className={styles.typingIndicatorDots} aria-hidden>
+                <span />
+                <span />
+                <span />
+              </span>
+            </div>
+          </div>
+        ) : null}
       </div>
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
       <form className={styles.composer} onSubmit={handleSubmit}>
         <input
           className={styles.messageInput}
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={handleDraftChange}
+          onBlur={handleDraftBlur}
           placeholder={session.type === "group" ? "Message the group" : "Type a message"}
           disabled={sending}
           aria-label="Message"

@@ -20,10 +20,14 @@ import type {
   ChatSession,
   ChatSessionEventPayload,
   ChatMessageEventPayload,
+  ChatTypingEventPayload,
 } from "@/components/providers/chat-store";
 import { ChatStore } from "@/components/providers/chat-store";
 
 const DIRECT_CHANNEL_WATERMARK_PREFIX = "capsule:chat:watermark:direct:";
+const TYPING_EVENT_REFRESH_MS = 2500;
+const TYPING_EVENT_IDLE_TIMEOUT_MS = 5000;
+const TYPING_EVENT_TTL_MS = 6000;
 
 type StartChatResult = {
   id: string;
@@ -103,6 +107,7 @@ export class ChatEngine {
   private inboxLoading: Promise<void> | null = null;
   private directChannelWatermarkKey: string | null = null;
   private directChannelWatermarkMs: number | null = null;
+  private typingStates = new Map<string, { active: boolean; lastSent: number; timeout: number | null }>();
 
   constructor(store?: ChatStore) {
     this.store = store ?? new ChatStore();
@@ -245,6 +250,7 @@ export class ChatEngine {
     this.clientChannelName = null;
     this.resolvedSelfClientId = null;
     this.store.setSelfClientId(null);
+    this.resetTypingState();
     this.resetInboxState();
   }
 
@@ -448,9 +454,20 @@ export class ChatEngine {
       } else {
         this.store.markMessageStatus(effectiveConversationId, message.id, "sent");
       }
+      this.stopTyping(effectiveConversationId, true);
     } catch (error) {
       this.store.markMessageStatus(effectiveConversationId, message.id, "failed");
       throw error;
+    }
+  }
+
+  notifyTyping(conversationId: string, typing: boolean): void {
+    const trimmed = typeof conversationId === "string" ? conversationId.trim() : "";
+    if (!trimmed) return;
+    if (typing) {
+      this.beginTyping(trimmed);
+    } else {
+      this.stopTyping(trimmed, true);
     }
   }
 
@@ -492,6 +509,98 @@ export class ChatEngine {
     } catch {
       this.directChannelWatermarkMs = null;
     }
+  }
+
+  private beginTyping(conversationId: string): void {
+    const now = Date.now();
+    const existing =
+      this.typingStates.get(conversationId) ?? { active: false, lastSent: 0, timeout: null };
+    const shouldSend = !existing.active || now - existing.lastSent >= TYPING_EVENT_REFRESH_MS;
+    if (shouldSend) {
+      existing.lastSent = now;
+      void this.publishTypingEvent(conversationId, true);
+    }
+    existing.active = true;
+    if (existing.timeout && typeof window !== "undefined") {
+      window.clearTimeout(existing.timeout);
+    }
+    if (typeof window !== "undefined") {
+      existing.timeout = window.setTimeout(() => {
+        this.stopTyping(conversationId, true);
+      }, TYPING_EVENT_IDLE_TIMEOUT_MS);
+    } else {
+      existing.timeout = null;
+    }
+    this.typingStates.set(conversationId, existing);
+  }
+
+  private stopTyping(conversationId: string, publish: boolean): void {
+    const existing = this.typingStates.get(conversationId);
+    if (existing?.timeout && typeof window !== "undefined") {
+      window.clearTimeout(existing.timeout);
+    }
+    if (!existing) {
+      if (publish) {
+        void this.publishTypingEvent(conversationId, false);
+      }
+      return;
+    }
+    this.typingStates.delete(conversationId);
+    if (publish && existing.active) {
+      void this.publishTypingEvent(conversationId, false);
+    }
+  }
+
+  private resetTypingState(): void {
+    if (typeof window !== "undefined") {
+      this.typingStates.forEach((state) => {
+        if (state.timeout) {
+          window.clearTimeout(state.timeout);
+        }
+      });
+    }
+    this.typingStates.clear();
+  }
+
+  private async publishTypingEvent(conversationId: string, typing: boolean): Promise<void> {
+    const client = this.client;
+    if (!client) return;
+    const session = this.findSession(conversationId);
+    if (!session) return;
+    const selfId = this.resolveSelfId();
+    if (!selfId) return;
+    const sender =
+      this.buildSelfParticipant(selfId) ?? this.createSelfParticipant(selfId) ?? null;
+    if (!sender) return;
+    const payload: ChatTypingEventPayload = {
+      type: "chat.typing",
+      conversationId: session.id,
+      senderId: sender.id,
+      sender,
+      typing,
+      participants: session.participants.map((participant) => ({ ...participant })),
+      expiresAt: new Date(Date.now() + TYPING_EVENT_TTL_MS).toISOString(),
+    };
+    const channels = new Set<string>();
+    const senderNormalized = sender.id.trim().toLowerCase();
+    session.participants.forEach((participant) => {
+      if (!participant || !participant.id) return;
+      const participantId = participant.id.trim();
+      if (!participantId) return;
+      if (participantId.trim().toLowerCase() === senderNormalized) return;
+      try {
+        channels.add(getChatDirectChannel(participantId));
+      } catch {
+        // ignore invalid participant ids
+      }
+    });
+    if (this.clientChannelName) {
+      channels.add(this.clientChannelName);
+    }
+    if (!channels.size) return;
+    await Promise.all(
+      Array.from(channels).map((channel) => client.publish(channel, "chat.typing", payload)),
+    );
   }
 
   private persistDirectChannelWatermark(): void {
@@ -789,22 +898,27 @@ export class ChatEngine {
           avatar: participant.avatar ?? null,
         }))
         .filter((participant): participant is ChatParticipant => Boolean(participant.id));
-      if (!normalizedParticipants.length) return;
-      const descriptor = {
-        id: payload.conversationId,
-        type:
-          payload.session.type ??
-          (isGroupConversationId(payload.conversationId) ? "group" : "direct"),
-        title: payload.session.title ?? "",
-        avatar: payload.session.avatar ?? null,
-        createdBy: payload.session.createdBy ?? null,
-        participants: normalizedParticipants,
-      };
-      this.store.applySessionEvent(descriptor);
-      return;
-    }
-    if (event.name !== "chat.message") return;
-    const payload = event.data as ChatMessageEventPayload;
+    if (!normalizedParticipants.length) return;
+    const descriptor = {
+      id: payload.conversationId,
+      type:
+        payload.session.type ??
+        (isGroupConversationId(payload.conversationId) ? "group" : "direct"),
+      title: payload.session.title ?? "",
+      avatar: payload.session.avatar ?? null,
+      createdBy: payload.session.createdBy ?? null,
+      participants: normalizedParticipants,
+    };
+    this.store.applySessionEvent(descriptor);
+    return;
+  }
+  if (event.name === "chat.typing") {
+    const payload = event.data as ChatTypingEventPayload;
+    this.store.applyTypingEvent(payload);
+    return;
+  }
+  if (event.name !== "chat.message") return;
+  const payload = event.data as ChatMessageEventPayload;
     this.store.applyMessageEvent(payload);
     if (payload?.message?.sentAt) {
       this.recordDirectChannelWatermarkFromIso(payload.message.sentAt);

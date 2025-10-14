@@ -18,6 +18,16 @@ export type ChatMessage = {
   status: "pending" | "sent" | "failed";
 };
 
+export type ChatTypingEventPayload = {
+  type: "chat.typing";
+  conversationId: string;
+  senderId: string;
+  typing: boolean;
+  sender?: Partial<ChatParticipant> | null;
+  participants?: ChatParticipant[];
+  expiresAt?: string | null;
+};
+
 export type ChatSession = {
   id: string;
   type: ChatSessionType;
@@ -29,6 +39,7 @@ export type ChatSession = {
   unreadCount: number;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
+  typing: ChatParticipant[];
 };
 
 export type ChatSessionDescriptor = {
@@ -111,6 +122,7 @@ type ChatSessionInternal = {
   messageIndex: Map<string, number>;
   lastMessageTimestamp: number;
   unreadCount: number;
+  typing: Map<string, { participant: ChatParticipant; expiresAt: number }>;
 };
 
 export type StorageAdapter = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -130,6 +142,8 @@ export type ChatStoreConfig = {
 };
 
 const DEFAULT_MESSAGE_LIMIT = 100;
+const TYPING_TTL_MS = 6000;
+const TYPING_MIN_DURATION_MS = 1500;
 
 const USER_ID_PATTERN = /user[:_-][0-9a-z-]+/i;
 
@@ -202,6 +216,14 @@ function canonicalParticipantKey(id: string): string {
     return base;
   }
   return withoutClient;
+}
+
+function typingKey(id: string | null | undefined): string | null {
+  if (typeof id !== "string") return null;
+  const trimmed = id.trim();
+  if (!trimmed) return null;
+  const canonical = canonicalParticipantKey(trimmed);
+  return canonical || trimmed;
 }
 
 export function normalizeParticipant(
@@ -331,6 +353,7 @@ export class ChatStore {
   private currentUserId: string | null = null;
   private selfClientId: string | null = null;
   private selfAliases = new Set<string>();
+  private typingSweepTimer: number | null = null;
 
   constructor(config?: ChatStoreConfig) {
     this.storage = config?.storage ?? null;
@@ -869,6 +892,104 @@ export class ChatStore {
     this.emit();
   }
 
+  applyTypingEvent(payload: ChatTypingEventPayload) {
+    if (!payload || payload.type !== "chat.typing") return;
+    const conversationId = typeof payload.conversationId === "string" ? payload.conversationId.trim() : "";
+    if (!conversationId) return;
+    const senderIdRaw = typeof payload.senderId === "string" ? payload.senderId.trim() : "";
+    if (!senderIdRaw) return;
+    const senderKey = typingKey(senderIdRaw);
+    if (!senderKey) return;
+
+    const normalizedParticipants = Array.isArray(payload.participants)
+      ? mergeParticipants(
+          payload.participants
+            .map((participant) => normalizeParticipant(participant))
+            .filter((participant): participant is ChatParticipant => Boolean(participant)),
+        )
+      : [];
+
+    let senderParticipant: ChatParticipant | null = null;
+    const inferredFromPayload =
+      payload.sender && typeof payload.sender === "object"
+        ? normalizeParticipant({
+            id: (payload.sender.id ?? payload.senderId ?? senderIdRaw) as string,
+            name: (payload.sender as ChatParticipant | undefined)?.name ?? senderIdRaw,
+            avatar: (payload.sender as ChatParticipant | undefined)?.avatar ?? null,
+          } as ChatParticipant)
+        : null;
+
+    if (inferredFromPayload) {
+      senderParticipant = inferredFromPayload;
+    }
+
+    if (!senderParticipant) {
+      senderParticipant =
+        normalizedParticipants.find((participant) => typingKey(participant.id) === senderKey) ?? null;
+    }
+
+    if (!senderParticipant) {
+      senderParticipant = {
+        id: senderIdRaw,
+        name: senderIdRaw,
+        avatar: null,
+      };
+    }
+
+    if (!normalizedParticipants.some((participant) => typingKey(participant.id) === senderKey)) {
+      normalizedParticipants.push(senderParticipant);
+    }
+
+    const descriptor: ChatSessionDescriptor = {
+      id: conversationId,
+      type: isGroupConversationId(conversationId) ? "group" : "direct",
+      title: "",
+      avatar: null,
+      createdBy: null,
+      participants: normalizedParticipants,
+    };
+
+    const { session } = this.ensureSessionInternal(descriptor);
+    const target = session as ChatSessionInternal;
+    if (!target.typing) {
+      target.typing = new Map();
+    }
+
+    const now = this.now();
+    const expiresAtIso = typeof payload.expiresAt === "string" ? Date.parse(payload.expiresAt) : Number.NaN;
+    const expiresAt =
+      Number.isFinite(expiresAtIso) && expiresAtIso > now
+        ? Math.max(expiresAtIso, now + TYPING_MIN_DURATION_MS)
+        : now + TYPING_TTL_MS;
+
+    const selfSender = this.isSelfId(senderParticipant.id);
+    let changed = false;
+
+    if (payload.typing && !selfSender) {
+      const existing = target.typing.get(senderKey);
+      const existingExpires = existing?.expiresAt ?? 0;
+      const existingName = existing?.participant?.name ?? null;
+      target.typing.set(senderKey, { participant: senderParticipant, expiresAt });
+      if (!existing || existingExpires !== expiresAt || existingName !== senderParticipant.name) {
+        changed = true;
+      }
+    } else {
+      if (target.typing.delete(senderKey)) {
+        changed = true;
+      }
+    }
+
+    if (this.pruneTypingEntries(target, now)) {
+      changed = true;
+    }
+
+    this.scheduleTypingSweep();
+
+    if (changed) {
+      this.emit();
+    }
+  }
+
   updateFromFriends(friends: FriendItem[]) {
     if (!Array.isArray(friends) || !friends.length) return;
     const friendIdMap = new Map<string, FriendItem>();
@@ -1113,12 +1234,16 @@ export class ChatStore {
         messageIndex: new Map(),
         lastMessageTimestamp: 0,
         unreadCount: 0,
+        typing: new Map(),
       };
       map.set(session.id, session);
       created = true;
       changed = true;
     } else {
       const current = session as ChatSessionInternal;
+      if (!current.typing) {
+        current.typing = new Map();
+      }
       if (
         current.type !== sanitized.type ||
         current.title !== sanitized.title ||
@@ -1173,9 +1298,114 @@ export class ChatStore {
     saveChatState(this.storage, this.toStoredState(), this.storageKey);
   }
 
+  private pruneTypingEntries(session: ChatSessionInternal, now: number): boolean {
+    if (!session.typing || session.typing.size === 0) return false;
+    let changed = false;
+    session.typing.forEach((entry, key) => {
+      if (!entry || !Number.isFinite(entry.expiresAt) || entry.expiresAt <= now) {
+        session.typing.delete(key);
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
+  private collectTypingSnapshot(
+    session: ChatSessionInternal,
+    now: number,
+  ): { participants: ChatParticipant[]; changed: boolean } {
+    if (!session.typing || session.typing.size === 0) {
+      return { participants: [], changed: false };
+    }
+    const expiredKeys: string[] = [];
+    const seen = new Set<string>();
+    const typingParticipants: ChatParticipant[] = [];
+    const selfKeys = new Set(
+      Array.from(this.getSelfIds(), (id) => typingKey(id)).filter(
+        (value): value is string => typeof value === "string" && value.length > 0,
+      ),
+    );
+    session.typing.forEach((entry, key) => {
+      if (!entry || !entry.participant) {
+        expiredKeys.push(key);
+        return;
+      }
+      if (!Number.isFinite(entry.expiresAt) || entry.expiresAt <= now) {
+        expiredKeys.push(key);
+        return;
+      }
+      const participantKey = typingKey(entry.participant.id);
+      if (!participantKey) {
+        expiredKeys.push(key);
+        return;
+      }
+      if (selfKeys.has(participantKey)) {
+        expiredKeys.push(key);
+        return;
+      }
+      if (seen.has(participantKey)) return;
+      seen.add(participantKey);
+      typingParticipants.push({ ...entry.participant });
+    });
+    if (expiredKeys.length) {
+      expiredKeys.forEach((key) => session.typing.delete(key));
+      return { participants: typingParticipants, changed: true };
+    }
+    return { participants: typingParticipants, changed: false };
+  }
+
+  private scheduleTypingSweep(): void {
+    if (typeof window === "undefined") return;
+    if (this.typingSweepTimer !== null) {
+      window.clearTimeout(this.typingSweepTimer);
+      this.typingSweepTimer = null;
+    }
+    let nextExpiry: number | null = null;
+    const now = this.now();
+    this.sessions.forEach((session) => {
+      const internal = session as ChatSessionInternal;
+      if (!internal.typing || internal.typing.size === 0) return;
+      internal.typing.forEach((entry) => {
+        if (!entry || !Number.isFinite(entry.expiresAt)) return;
+        const expiry = entry.expiresAt;
+        if (expiry <= now) {
+          nextExpiry = now + 100;
+        } else if (nextExpiry === null || expiry < nextExpiry) {
+          nextExpiry = expiry;
+        }
+      });
+    });
+    if (nextExpiry === null) return;
+    const delay = Math.max(100, Math.trunc(nextExpiry - now + 50));
+    this.typingSweepTimer = window.setTimeout(() => {
+      this.runTypingSweep();
+    }, delay) as unknown as number;
+  }
+
+  private runTypingSweep(): void {
+    if (typeof window === "undefined") return;
+    this.typingSweepTimer = null;
+    const now = this.now();
+    let changed = false;
+    this.sessions.forEach((session) => {
+      const internal = session as ChatSessionInternal;
+      if (!internal.typing || internal.typing.size === 0) return;
+      if (this.pruneTypingEntries(internal, now)) {
+        changed = true;
+      }
+    });
+    if (changed) {
+      this.emit();
+    }
+    this.scheduleTypingSweep();
+  }
+
   private buildSnapshot(): ChatStoreSnapshot {
     const entries: Array<{ session: ChatSession; order: number }> = [];
+    const now = this.now();
     this.sessions.forEach((session) => {
+      const internal = session as ChatSessionInternal;
+      const typingSnapshot = this.collectTypingSnapshot(internal, now);
       const messages = session.messages.map((message) => ({ ...message }));
       const lastMessage = messages[messages.length - 1] ?? null;
       entries.push({
@@ -1192,6 +1422,7 @@ export class ChatStore {
           unreadCount: session.unreadCount,
           lastMessageAt: lastMessage?.sentAt ?? null,
           lastMessagePreview: lastMessage?.body ?? null,
+          typing: typingSnapshot.participants,
         },
       });
     });

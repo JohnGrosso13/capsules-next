@@ -25,6 +25,7 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
     currentUserId,
     selfClientId,
     sendMessage,
+    notifyTyping,
     openSession,
     closeSession,
     deleteSession,
@@ -70,6 +71,7 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
           currentUserId={currentUserId}
           selfClientId={selfClientId}
           onSend={(body) => sendMessage(activeSession.id, body)}
+          onTypingChange={notifyTyping}
           onBack={closeSession}
           onDelete={() => handleDelete(activeSession.id)}
           {...(onInviteToGroup
