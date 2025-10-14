@@ -3151,3 +3151,19 @@
 
   border-top-right-radius: 0;
 }
+
+.railPanel[data-tab="friends"],
+.railPanel[data-tab="party"],
+.railPanel[data-tab="requests"] {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+@media (max-width: 1000px) {
+  .railConnections {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}

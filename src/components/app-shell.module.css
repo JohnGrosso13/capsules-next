@@ -350,6 +350,7 @@
     --connections-rail-offset: 0px;
     --connections-rail-offset-md: 0px;
     --connections-rail-offset-sm: 0px;
+    --connections-rail-offset-xs: 0px;
   }
   .layoutWithRight .leftRail,
   .layoutWithRight .rightRail {

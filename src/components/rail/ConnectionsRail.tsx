@@ -333,6 +333,24 @@ export function ConnectionsRail() {
   const [chatTicker, setChatTicker] = React.useState(() => Date.now());
   const pathname = usePathname();
   const [connectionOverrides, setConnectionOverrides] = React.useState<ConnectionOverrideMap>({});
+  const connectionsContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [connectionsViewportHeight, setConnectionsViewportHeight] = React.useState<number | null>(
+    null,
+  );
+
+  const updateConnectionsViewportHeight = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    const node = connectionsContainerRef.current;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || 0;
+    const topOffset = Number.isFinite(rect.top) ? rect.top : 0;
+    const bottomInset = 24;
+    const available = viewportHeight - topOffset - bottomInset;
+    if (!Number.isFinite(available)) return;
+    const nextHeight = Math.max(360, Math.round(available));
+    setConnectionsViewportHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+  }, []);
 
   const lastChatTimestamp = React.useMemo(() => {
     let latest = 0;
@@ -449,6 +467,31 @@ export function ConnectionsRail() {
         handleConnectionUpdate as EventListener,
       );
   }, []);
+
+  React.useEffect(() => {
+    if (railMode !== "connections") {
+      setConnectionsViewportHeight(null);
+      return;
+    }
+    updateConnectionsViewportHeight();
+  }, [railMode, activeRailTab, updateConnectionsViewportHeight]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || railMode !== "connections") return;
+    let frame = 0;
+    const handleResize = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updateConnectionsViewportHeight();
+      });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [railMode, updateConnectionsViewportHeight]);
 
   const connectedFriends = React.useMemo(() => countConnectedFriends(friends), [friends]);
   const totalFriendsForSummary = React.useMemo(
@@ -629,9 +672,21 @@ export function ConnectionsRail() {
   const partyButtonDisabled = partyStatus === "loading";
   const isPartyActive = activeRailTab === "party";
   const showPartyLivePill = Boolean(partySession);
+  const connectionsStyle: React.CSSProperties | undefined =
+    railMode === "connections" && connectionsViewportHeight
+      ? {
+          height: `${connectionsViewportHeight}px`,
+          maxHeight: `${connectionsViewportHeight}px`,
+          minHeight: 0,
+          overflow: "hidden",
+        }
+      : undefined;
 
   return (
-    <div className={`${homeStyles.railConnections} ${homeStyles.railConnectionsOuter}`.trim()}>
+    <div
+      className={`${homeStyles.railConnections} ${homeStyles.railConnectionsOuter}`.trim()}
+      data-mode={railMode}
+    >
       {railMode === "tiles" ? (
         <div className={homeStyles.connectionTiles}>
           {connectionTiles.map((tile) => (
@@ -678,7 +733,12 @@ export function ConnectionsRail() {
           ))}
         </div>
       ) : (
-        <div className={homeStyles.railConnections}>
+        <div
+          ref={connectionsContainerRef}
+          className={homeStyles.railConnections}
+          data-mode="connections"
+          style={connectionsStyle}
+        >
           <div className={homeStyles.railHeaderRow}>
             <button
               type="button"
@@ -734,7 +794,11 @@ export function ConnectionsRail() {
               </button>
             ))}
           </div>
-          <div className={homeStyles.railPanel} hidden={activeRailTab !== "friends"}>
+          <div
+            className={homeStyles.railPanel}
+            hidden={activeRailTab !== "friends"}
+            data-tab="friends"
+          >
             <FriendsRail
               friends={friends}
               pendingId={friendActionPendingId}
@@ -746,7 +810,11 @@ export function ConnectionsRail() {
               }}
             />
           </div>
-          <div className={homeStyles.railPanel} hidden={activeRailTab !== "party"}>
+          <div
+            className={homeStyles.railPanel}
+            hidden={activeRailTab !== "party"}
+            data-tab="party"
+          >
             <PartyPanel
               friends={friends}
               friendTargets={friendTargetMap}
@@ -754,14 +822,22 @@ export function ConnectionsRail() {
               variant="compact"
             />
           </div>
-          <div className={homeStyles.railPanel} hidden={activeRailTab !== "chats"}>
+          <div
+            className={homeStyles.railPanel}
+            hidden={activeRailTab !== "chats"}
+            data-tab="chats"
+          >
             <ChatPanel
               variant="rail"
               emptyNotice={<p>No chats yet. Start a conversation from your friends list.</p>}
               onInviteToGroup={handleInviteToGroup}
             />
           </div>
-          <div className={homeStyles.railPanel} hidden={activeRailTab !== "requests"}>
+          <div
+            className={homeStyles.railPanel}
+            hidden={activeRailTab !== "requests"}
+            data-tab="requests"
+          >
             <RequestsList
               incoming={incomingRequests}
               outgoing={outgoingRequests}
