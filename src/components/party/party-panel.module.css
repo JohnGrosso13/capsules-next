@@ -778,6 +778,15 @@
   color: color-mix(in srgb, var(--text) 60%, transparent);
 }
 
+.micNotice {
+  font-size: 0.82rem;
+  color: var(--party-notice-warning-text, #b45309);
+  background: color-mix(in srgb, var(--party-startaudio-background) 70%, transparent);
+  border-radius: 12px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--party-control-border, rgba(0, 0, 0, 0.08)) 70%, transparent);
+}
+
 .joinCard {
   display: flex;
   flex-direction: column;
@@ -974,4 +983,3 @@
     border-radius: 22px;
   }
 }
-

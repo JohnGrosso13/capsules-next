@@ -71,6 +71,11 @@ type LegacyNavigator = Navigator & {
 
 async function requestMicrophonePermission(): Promise<void> {
   if (typeof window === "undefined") return;
+  if (!window.isSecureContext) {
+    throw new Error(
+      "Microphone access requires a secure connection. Reopen Capsules over HTTPS or use a trusted tunnel when testing on mobile.",
+    );
+  }
   const nav = window.navigator as LegacyNavigator;
 
   const modernGetUserMedia = nav.mediaDevices?.getUserMedia?.bind(nav.mediaDevices);
@@ -81,24 +86,59 @@ async function requestMicrophonePermission(): Promise<void> {
     null;
 
   if (!modernGetUserMedia && !legacyGetUserMedia) {
-    return;
+    throw new Error("Microphone access is not supported in this browser.");
   }
 
   let stream: MediaStream | null = null;
 
-  if (modernGetUserMedia) {
-    stream = await modernGetUserMedia({ audio: true });
-  } else if (legacyGetUserMedia) {
-    stream = await new Promise<MediaStream>((resolve, reject) => {
-      legacyGetUserMedia(
-        { audio: true },
-        (legacyStream) => resolve(legacyStream),
-        (error) => reject(error),
-      );
-    });
+  try {
+    if (modernGetUserMedia) {
+      stream = await modernGetUserMedia({ audio: true });
+    } else if (legacyGetUserMedia) {
+      stream = await new Promise<MediaStream>((resolve, reject) => {
+        legacyGetUserMedia(
+          { audio: true },
+          (legacyStream) => resolve(legacyStream),
+          (error) => reject(error),
+        );
+      });
+    }
+  } catch (permissionError) {
+    throw normalizeMicrophoneError(permissionError);
+  } finally {
+    stream?.getTracks().forEach((track) => track.stop());
   }
+}
 
-  stream?.getTracks().forEach((track) => track.stop());
+function normalizeMicrophoneError(error: unknown): Error {
+  if (typeof window !== "undefined" && !window.isSecureContext) {
+    return new Error(
+      "Microphone access requires HTTPS. Reopen Capsules using https:// or a secure tunnel when testing on mobile.",
+    );
+  }
+  if (error instanceof DOMException) {
+    switch (error.name) {
+      case "NotAllowedError":
+      case "PermissionDeniedError":
+        return new Error("Capsules does not have permission to use your microphone. Enable it in your browser settings and try again.");
+      case "NotReadableError":
+      case "AbortError":
+        return new Error("Your microphone is busy with another app. Close other apps using the mic and try again.");
+      case "SecurityError":
+        return new Error(
+          "Microphone access is blocked in this context. Use HTTPS or adjust your browser privacy settings.",
+        );
+      case "NotFoundError":
+      case "DevicesNotFoundError":
+        return new Error("We couldn't find an available microphone. Connect one and try again.");
+      default:
+        break;
+    }
+  }
+  if (error instanceof Error) {
+    return error;
+  }
+  return new Error("We couldn't access your microphone. Please try again.");
 }
 
 
@@ -686,6 +726,7 @@ function PartyStageScene({
   const participants = useParticipants();
   const [micEnabled, setMicEnabled] = React.useState<boolean>(true);
   const [micBusy, setMicBusy] = React.useState(false);
+  const [micNotice, setMicNotice] = React.useState<string | null>(null);
   const { mergedProps: startAudioProps, canPlayAudio } = useStartAudio({
     room,
     props: {
@@ -748,8 +789,11 @@ function PartyStageScene({
       }
       await room.localParticipant?.setMicrophoneEnabled(next);
       setMicEnabled(room.localParticipant?.isMicrophoneEnabled ?? next);
+      setMicNotice(null);
     } catch (err) {
       console.warn("Toggle microphone failed", err);
+      const message = normalizeMicrophoneError(err);
+      setMicNotice(message.message);
       setMicEnabled(room.localParticipant?.isMicrophoneEnabled ?? true);
     } finally {
       setMicBusy(false);
@@ -831,6 +875,11 @@ function PartyStageScene({
       {status !== "connected" ? (
         <div className={styles.statusHint}>
           <span>Connection status: {status}</span>
+        </div>
+      ) : null}
+      {micNotice ? (
+        <div className={styles.micNotice} role="status">
+          {micNotice}
         </div>
       ) : null}
     </div>
