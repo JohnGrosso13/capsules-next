@@ -55,10 +55,10 @@ function typingDisplayName(participant: ChatParticipant): string {
 function describeTypingParticipants(participants: ChatParticipant[]): string {
   const names = participants.map(typingDisplayName);
   if (!names.length) return "";
-  if (names.length === 1) return `${names[0]} is typing…`;
-  if (names.length === 2) return `${names[0]} and ${names[1]} are typing…`;
-  if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} are typing…`;
-  return `${names[0]}, ${names[1]}, and ${names.length - 2} others are typing…`;
+  if (names.length === 1) return `${names[0]} is typing...`;
+  if (names.length === 2) return `${names[0]} and ${names[1]} are typing...`;
+  if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} are typing...`;
+  return `${names[0]}, ${names[1]}, and ${names.length - 2} others are typing...`;
 }
 
 type ChatConversationProps = {
@@ -165,6 +165,7 @@ export function ChatConversation({
   onBack,
   onDelete,
   onInviteParticipants,
+  onTypingChange,
 }: ChatConversationProps) {
   const { user } = useCurrentUser();
   const [draft, setDraft] = React.useState("");
