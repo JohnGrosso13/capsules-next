@@ -207,6 +207,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = React.useState<string | null>(null);
   const roomRef = React.useRef<Room | null>(null);
   const resumeAttemptRef = React.useRef(false);
+  const suppressResumeRef = React.useRef(false);
   const inviteUrl = React.useMemo(() => getInviteUrl(session), [session]);
   const { user } = useCurrentUser();
   const fallbackDisplayName = React.useMemo(() => {
@@ -230,7 +231,12 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
-    if (session || status !== "idle" || resumeAttemptRef.current) {
+    if (
+      session ||
+      status !== "idle" ||
+      resumeAttemptRef.current ||
+      suppressResumeRef.current
+    ) {
       return;
     }
     const snapshot = loadSessionSnapshot();
@@ -373,6 +379,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const leaveParty = React.useCallback(async () => {
+    suppressResumeRef.current = true;
     setAction("leave");
     setStatus("loading");
     try {
@@ -382,16 +389,18 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
         roomRef.current = null;
       }
     } finally {
-      resumeAttemptRef.current = false;
       saveSessionSnapshot(null);
       setSession(null);
       setStatus("idle");
       setAction(null);
+      suppressResumeRef.current = false;
+      resumeAttemptRef.current = false;
     }
   }, []);
 
   const closeParty = React.useCallback(async () => {
     if (!session) return;
+    suppressResumeRef.current = true;
     setAction("close");
     setStatus("loading");
     try {
@@ -406,11 +415,12 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
         await room.disconnect(true);
       }
       roomRef.current = null;
-      resumeAttemptRef.current = false;
       saveSessionSnapshot(null);
       setSession(null);
       setStatus("idle");
       setAction(null);
+      suppressResumeRef.current = false;
+      resumeAttemptRef.current = false;
     }
   }, [session]);
 

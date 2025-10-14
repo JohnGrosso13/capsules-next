@@ -18,9 +18,9 @@ import {
 import {
   LiveKitRoom,
   RoomAudioRenderer,
-  StartAudio,
   useParticipants,
   useRoomContext,
+  useStartAudio,
 } from "@livekit/components-react";
 import { RoomEvent, type Room } from "livekit-client";
 
@@ -56,6 +56,51 @@ type InviteStatus = {
   message: string;
   tone: "success" | "warning" | "info";
 };
+
+type LegacyGetUserMediaFn = (
+  constraints: MediaStreamConstraints,
+  successCallback: NavigatorUserMediaSuccessCallback,
+  errorCallback?: NavigatorUserMediaErrorCallback,
+) => void;
+
+type LegacyNavigator = Navigator & {
+  webkitGetUserMedia?: LegacyGetUserMediaFn;
+  mozGetUserMedia?: LegacyGetUserMediaFn;
+  getUserMedia?: LegacyGetUserMediaFn;
+};
+
+async function requestMicrophonePermission(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const nav = window.navigator as LegacyNavigator;
+
+  const modernGetUserMedia = nav.mediaDevices?.getUserMedia?.bind(nav.mediaDevices);
+  const legacyGetUserMedia =
+    nav.getUserMedia?.bind(nav) ??
+    nav.webkitGetUserMedia?.bind(nav) ??
+    nav.mozGetUserMedia?.bind(nav) ??
+    null;
+
+  if (!modernGetUserMedia && !legacyGetUserMedia) {
+    return;
+  }
+
+  let stream: MediaStream | null = null;
+
+  if (modernGetUserMedia) {
+    stream = await modernGetUserMedia({ audio: true });
+  } else if (legacyGetUserMedia) {
+    stream = await new Promise<MediaStream>((resolve, reject) => {
+      legacyGetUserMedia(
+        { audio: true },
+        (legacyStream) => resolve(legacyStream),
+        (error) => reject(error),
+      );
+    });
+  }
+
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
 
 function formatRelativeTime(value: string | null | undefined): string {
   if (!value) return "";
@@ -602,7 +647,6 @@ function PartyStage({
       connectOptions={{ autoSubscribe: true }}
     >
       <RoomAudioRenderer />
-      <StartAudio label="Tap to allow party audio" className={styles.startAudio} />
       <PartyStageScene
         session={session}
         canClose={canClose}
@@ -642,6 +686,17 @@ function PartyStageScene({
   const participants = useParticipants();
   const [micEnabled, setMicEnabled] = React.useState<boolean>(true);
   const [micBusy, setMicBusy] = React.useState(false);
+  const { mergedProps: startAudioProps, canPlayAudio } = useStartAudio({
+    room,
+    props: {
+      type: "button",
+      className: `${styles.controlButton} ${styles.startAudio}`,
+    },
+  });
+  const startAudioButtonProps = React.useMemo(() => {
+    const { style: _style, ...rest } = startAudioProps;
+    return rest;
+  }, [startAudioProps]);
 
   React.useEffect(() => {
     if (!room) return;
@@ -674,16 +729,25 @@ function PartyStageScene({
     const next = !(room.localParticipant?.isMicrophoneEnabled ?? true);
     setMicBusy(true);
     try {
-      if (next && typeof room.startAudio === "function") {
-        // Mobile browsers require an active audio context before capturing audio.
+      if (next) {
         try {
-          await room.startAudio();
-        } catch (audioError) {
-          console.warn("[party] failed to start audio before enabling mic", audioError);
+          await requestMicrophonePermission();
+        } catch (permissionError) {
+          console.warn("[party] microphone getUserMedia request failed", permissionError);
+          throw new Error("Microphone permission is required to speak.");
+        }
+
+        if (typeof room.startAudio === "function") {
+          // Mobile browsers require an active audio context before capturing audio.
+          try {
+            await room.startAudio();
+          } catch (audioError) {
+            console.warn("[party] failed to start audio before enabling mic", audioError);
+          }
         }
       }
       await room.localParticipant?.setMicrophoneEnabled(next);
-      setMicEnabled(next);
+      setMicEnabled(room.localParticipant?.isMicrophoneEnabled ?? next);
     } catch (err) {
       console.warn("Toggle microphone failed", err);
       setMicEnabled(room.localParticipant?.isMicrophoneEnabled ?? true);
@@ -720,6 +784,12 @@ function PartyStageScene({
         ) : null}
       </div>
       <div className={styles.controls}>
+        {!canPlayAudio ? (
+          <button {...startAudioButtonProps}>
+            <MicrophoneStage size={16} weight="bold" />
+            Tap to allow party audio
+          </button>
+        ) : null}
         <button
           type="button"
           className={styles.controlButton}
@@ -796,3 +866,4 @@ function ParticipantBadge({ participant, isLocal }: ParticipantBadgeProps) {
     </div>
   );
 }
+

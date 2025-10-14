@@ -613,14 +613,15 @@
 }
 
 .startAudio {
-  margin-bottom: 12px;
-  align-self: flex-start;
-  border-radius: 999px;
-  border: 1px solid var(--party-startaudio-border);
-  padding: 8px 14px;
+  position: static !important;
+  inset: auto !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-color: var(--party-startaudio-border);
   background: var(--party-startaudio-background);
   color: var(--text);
-  font-weight: 600;
+  box-shadow: var(--party-startaudio-shadow, none);
 }
 
 .stageInner {
@@ -973,5 +974,4 @@
     border-radius: 22px;
   }
 }
-
 
