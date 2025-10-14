@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { getUserProfileSummary, updateUserDisplayName } from "@/server/users/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import { deriveRequestOrigin } from "@/lib/url";
 
 const responseSchema = z.object({
   id: z.string(),
@@ -26,7 +27,8 @@ export async function GET(req: Request) {
   }
 
   try {
-    const profile = await getUserProfileSummary(ownerId);
+    const requestOrigin = deriveRequestOrigin(req);
+    const profile = await getUserProfileSummary(ownerId, { origin: requestOrigin ?? null });
     return validatedJson(responseSchema, {
       id: profile.id ?? "",
       name: profile.name ?? null,

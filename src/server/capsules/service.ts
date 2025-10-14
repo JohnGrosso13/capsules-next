@@ -54,10 +54,14 @@ function normalizeOptionalString(value: unknown): string | null {
   return trimmed.length ? trimmed : null;
 }
 
-function resolveCapsuleMediaUrl(value: string | null): string | null {
+function resolveCapsuleMediaUrl(
+  value: string | null,
+  originOverride?: string | null,
+): string | null {
   const normalized = normalizeMediaUrl(value);
   if (!normalized) return null;
-  return resolveToAbsoluteUrl(normalized, serverEnv.SITE_URL) ?? normalized;
+  const origin = originOverride ?? serverEnv.SITE_URL;
+  return resolveToAbsoluteUrl(normalized, origin) ?? normalized;
 }
 
 function normalizeMemberRole(value: unknown): string {
@@ -120,6 +124,7 @@ export type CapsuleGatePayload = {
 
 export async function resolveCapsuleGate(
   supabaseUserId: string | null | undefined,
+  options: { origin?: string | null } = {},
 ): Promise<CapsuleGatePayload> {
   if (!supabaseUserId) {
     return { capsules: [], defaultCapsuleId: null };
@@ -128,10 +133,10 @@ export async function resolveCapsuleGate(
   const capsules = await listCapsulesForUser(supabaseUserId);
   const hydratedCapsules = capsules.map((capsule) => ({
     ...capsule,
-    bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl),
-    storeBannerUrl: resolveCapsuleMediaUrl(capsule.storeBannerUrl),
-    promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl),
-    logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl),
+    bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl, options.origin ?? null),
+    storeBannerUrl: resolveCapsuleMediaUrl(capsule.storeBannerUrl, options.origin ?? null),
+    promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl, options.origin ?? null),
+    logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl, options.origin ?? null),
   }));
   const defaultCapsuleId = hydratedCapsules.length === 1 ? (hydratedCapsules[0]?.id ?? null) : null;
 
@@ -140,15 +145,16 @@ export async function resolveCapsuleGate(
 
 export async function getUserCapsules(
   supabaseUserId: string | null | undefined,
+  options: { origin?: string | null } = {},
 ): Promise<CapsuleSummary[]> {
   if (!supabaseUserId) return [];
   const capsules = await listCapsulesForUser(supabaseUserId);
   return capsules.map((capsule) => ({
     ...capsule,
-    bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl),
-    storeBannerUrl: resolveCapsuleMediaUrl(capsule.storeBannerUrl),
-    promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl),
-    logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl),
+    bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl, options.origin ?? null),
+    storeBannerUrl: resolveCapsuleMediaUrl(capsule.storeBannerUrl, options.origin ?? null),
+    promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl, options.origin ?? null),
+    logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl, options.origin ?? null),
   }));
 }
 
@@ -156,9 +162,11 @@ export async function getRecentCapsules(
   options: {
     viewerId?: string | null | undefined;
     limit?: number;
+    origin?: string | null;
   } = {},
 ): Promise<DiscoverCapsuleSummary[]> {
   const normalizedViewer = normalizeId(options.viewerId ?? null);
+  const origin = options.origin ?? null;
   const queryOptions: {
     excludeCreatorId?: string | null;
     limit?: number;
@@ -171,25 +179,26 @@ export async function getRecentCapsules(
   const capsules = await listRecentPublicCapsules(queryOptions);
   return capsules.map((capsule) => ({
     ...capsule,
-    bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl),
-    storeBannerUrl: resolveCapsuleMediaUrl(capsule.storeBannerUrl),
-    promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl),
-    logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl),
+    bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl, origin),
+    storeBannerUrl: resolveCapsuleMediaUrl(capsule.storeBannerUrl, origin),
+    promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl, origin),
+    logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl, origin),
   }));
 }
 
 export async function getCapsuleSummaryForViewer(
   capsuleId: string,
   viewerId?: string | null | undefined,
+  options: { origin?: string | null } = {},
 ): Promise<CapsuleSummary | null> {
   const summary = await repoGetCapsuleSummaryForViewer(capsuleId, viewerId ?? null);
   if (!summary) return null;
   return {
     ...summary,
-    bannerUrl: resolveCapsuleMediaUrl(summary.bannerUrl),
-    storeBannerUrl: resolveCapsuleMediaUrl(summary.storeBannerUrl),
-    promoTileUrl: resolveCapsuleMediaUrl(summary.promoTileUrl),
-    logoUrl: resolveCapsuleMediaUrl(summary.logoUrl),
+    bannerUrl: resolveCapsuleMediaUrl(summary.bannerUrl, options.origin ?? null),
+    storeBannerUrl: resolveCapsuleMediaUrl(summary.storeBannerUrl, options.origin ?? null),
+    promoTileUrl: resolveCapsuleMediaUrl(summary.promoTileUrl, options.origin ?? null),
+    logoUrl: resolveCapsuleMediaUrl(summary.logoUrl, options.origin ?? null),
   };
 }
 
@@ -225,6 +234,7 @@ export async function updateCapsuleBannerImage(
     height?: number | null;
     memoryId?: string | null;
   },
+  context: { origin?: string | null } = {},
 ): Promise<{ bannerUrl: string | null }> {
   const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
   const capsuleIdValue = normalizeId(capsule.id);
@@ -237,7 +247,7 @@ export async function updateCapsuleBannerImage(
     throw new CapsuleMembershipError("invalid", "A banner URL is required.", 400);
   }
 
-  const resolvedBannerUrl = resolveCapsuleMediaUrl(normalizedUrl);
+  const resolvedBannerUrl = resolveCapsuleMediaUrl(normalizedUrl, context.origin ?? null);
   if (!resolvedBannerUrl) {
     throw new CapsuleMembershipError("invalid", "A banner URL is required.", 400);
   }
@@ -272,6 +282,7 @@ export async function updateCapsuleBannerImage(
   if (params.source) metadata.source_kind = params.source;
   const resolvedOriginalUrl = resolveCapsuleMediaUrl(
     normalizeOptionalString(params.originalUrl ?? null),
+    context.origin ?? null,
   );
   if (resolvedOriginalUrl) metadata.original_url = resolvedOriginalUrl;
   if (promptText) metadata.prompt = promptText;
@@ -324,6 +335,7 @@ export async function updateCapsuleStoreBannerImage(
     height?: number | null;
     memoryId?: string | null;
   },
+  context: { origin?: string | null } = {},
 ): Promise<{ storeBannerUrl: string | null }> {
   const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
   const capsuleIdValue = normalizeId(capsule.id);
@@ -336,7 +348,7 @@ export async function updateCapsuleStoreBannerImage(
     throw new CapsuleMembershipError("invalid", "A store banner URL is required.", 400);
   }
 
-  const resolvedStoreBannerUrl = resolveCapsuleMediaUrl(normalizedUrl);
+  const resolvedStoreBannerUrl = resolveCapsuleMediaUrl(normalizedUrl, context.origin ?? null);
   if (!resolvedStoreBannerUrl) {
     throw new CapsuleMembershipError("invalid", "A store banner URL is required.", 400);
   }
@@ -373,6 +385,7 @@ export async function updateCapsuleStoreBannerImage(
   if (params.source) metadata.source_kind = params.source;
   const resolvedOriginalUrl = resolveCapsuleMediaUrl(
     normalizeOptionalString(params.originalUrl ?? null),
+    context.origin ?? null,
   );
   if (resolvedOriginalUrl) metadata.original_url = resolvedOriginalUrl;
   if (promptText) metadata.prompt = promptText;
@@ -425,6 +438,7 @@ export async function updateCapsulePromoTileImage(
     height?: number | null;
     memoryId?: string | null;
   },
+  context: { origin?: string | null } = {},
 ): Promise<{ tileUrl: string | null }> {
   const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
   const capsuleIdValue = normalizeId(capsule.id);
@@ -437,7 +451,7 @@ export async function updateCapsulePromoTileImage(
     throw new CapsuleMembershipError("invalid", "A tile URL is required.", 400);
   }
 
-  const resolvedTileUrl = resolveCapsuleMediaUrl(normalizedUrl);
+  const resolvedTileUrl = resolveCapsuleMediaUrl(normalizedUrl, context.origin ?? null);
   if (!resolvedTileUrl) {
     throw new CapsuleMembershipError("invalid", "A tile URL is required.", 400);
   }
@@ -472,6 +486,7 @@ export async function updateCapsulePromoTileImage(
   if (params.source) metadata.source_kind = params.source;
   const resolvedOriginalUrl = resolveCapsuleMediaUrl(
     normalizeOptionalString(params.originalUrl ?? null),
+    context.origin ?? null,
   );
   if (resolvedOriginalUrl) metadata.original_url = resolvedOriginalUrl;
   if (promptText) metadata.prompt = promptText;
@@ -524,6 +539,7 @@ export async function updateCapsuleLogoImage(
     height?: number | null;
     memoryId?: string | null;
   },
+  context: { origin?: string | null } = {},
 ): Promise<{ logoUrl: string | null }> {
   const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
   const capsuleIdValue = normalizeId(capsule.id);
@@ -536,7 +552,7 @@ export async function updateCapsuleLogoImage(
     throw new CapsuleMembershipError("invalid", "A logo URL is required.", 400);
   }
 
-  const resolvedLogoUrl = resolveCapsuleMediaUrl(normalizedUrl);
+  const resolvedLogoUrl = resolveCapsuleMediaUrl(normalizedUrl, context.origin ?? null);
   if (!resolvedLogoUrl) {
     throw new CapsuleMembershipError("invalid", "A logo URL is required.", 400);
   }
@@ -571,6 +587,7 @@ export async function updateCapsuleLogoImage(
   if (params.source) metadata.source_kind = params.source;
   const resolvedOriginalUrl = resolveCapsuleMediaUrl(
     normalizeOptionalString(params.originalUrl ?? null),
+    context.origin ?? null,
   );
   if (resolvedOriginalUrl) metadata.original_url = resolvedOriginalUrl;
   if (promptText) metadata.prompt = promptText;

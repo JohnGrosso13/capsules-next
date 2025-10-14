@@ -2,6 +2,7 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import type { IncomingUserPayload } from "@/lib/auth/payload";
 import type { CreatePostInput } from "@/server/posts/types";
 import { createPostSlim, getPostsSlim } from "@/server/posts/api";
+import { deriveRequestOrigin } from "@/lib/url";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
   createPostRequestSchema,
@@ -20,6 +21,7 @@ export async function GET(req: Request) {
     console.warn("posts viewer resolve failed", viewerError);
   }
 
+    const requestOrigin = deriveRequestOrigin(req);
   const url = new URL(req.url);
   const result = await getPostsSlim({
     viewerId,

@@ -8,6 +8,7 @@ import { getStorageProvider } from "@/config/storage";
 import { generateStorageObjectKey } from "@/lib/storage/keys";
 import type { StorageMetadataValue } from "@/ports/storage";
 import { returnError, validatedJson } from "@/server/validation/http";
+import { deriveRequestOrigin } from "@/lib/url";
 
 type LogoParamsContext = {
   params: { id: string } | Promise<{ id: string }>;
@@ -75,6 +76,7 @@ export async function POST(req: Request, context: LogoParamsContext) {
   }
 
   try {
+    const requestOrigin = deriveRequestOrigin(req);
     let finalUrl = parsedBody.data.imageUrl ?? null;
     let finalKey = parsedBody.data.storageKey ?? null;
     const mimeType = parsedBody.data.mimeType ?? "image/jpeg";
@@ -136,19 +138,24 @@ export async function POST(req: Request, context: LogoParamsContext) {
       throw new Error("Logo upload did not produce a URL");
     }
 
-    const result = await updateCapsuleLogoImage(ownerId, parsedParams.data.id, {
-      logoUrl: finalUrl,
-      storageKey: finalKey,
-      mimeType,
-      crop: parsedBody.data.crop ?? null,
-      source,
-      originalUrl: parsedBody.data.originalUrl ?? null,
-      originalName: parsedBody.data.originalName ?? null,
-      prompt: parsedBody.data.prompt ?? null,
-      width: parsedBody.data.width ?? null,
-      height: parsedBody.data.height ?? null,
-      memoryId: parsedBody.data.memoryId ?? null,
-    });
+    const result = await updateCapsuleLogoImage(
+      ownerId,
+      parsedParams.data.id,
+      {
+        logoUrl: finalUrl,
+        storageKey: finalKey,
+        mimeType,
+        crop: parsedBody.data.crop ?? null,
+        source,
+        originalUrl: parsedBody.data.originalUrl ?? null,
+        originalName: parsedBody.data.originalName ?? null,
+        prompt: parsedBody.data.prompt ?? null,
+        width: parsedBody.data.width ?? null,
+        height: parsedBody.data.height ?? null,
+        memoryId: parsedBody.data.memoryId ?? null,
+      },
+      { origin: requestOrigin ?? null },
+    );
     return validatedJson(responseSchema, result);
   } catch (error) {
     console.error("capsules.logo.update error", error);

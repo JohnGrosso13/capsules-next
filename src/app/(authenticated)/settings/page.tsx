@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
 import { AppPage } from "@/components/app-page";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
 import { getUserCapsules } from "@/server/capsules/service";
+import { deriveRequestOrigin } from "@/lib/url";
 import { getUserProfileSummary } from "@/server/users/service";
 
 import { SettingsShell } from "./settings-shell";
@@ -46,9 +48,12 @@ export default async function SettingsPage() {
     avatar_url: user.imageUrl ?? null,
   });
 
-  const allCapsules = await getUserCapsules(supabaseUserId);
+  const headerList = await headers();
+  const requestOrigin = deriveRequestOrigin({ headers: headerList }) ?? null;
+
+  const allCapsules = await getUserCapsules(supabaseUserId, { origin: requestOrigin });
   const ownedCapsules = allCapsules.filter((capsule) => capsule.ownership === "owner");
-  const profileSummary = await getUserProfileSummary(supabaseUserId);
+  const profileSummary = await getUserProfileSummary(supabaseUserId, { origin: requestOrigin });
 
   const accountProfile = {
     id: supabaseUserId,

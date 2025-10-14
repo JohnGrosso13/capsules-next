@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
@@ -6,6 +7,7 @@ import { AppPage } from "@/components/app-page";
 import { RecentCapsulesGrid } from "@/components/explore/recent-capsules-grid";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
 import { getRecentCapsules } from "@/server/capsules/service";
+import { deriveRequestOrigin } from "@/lib/url";
 
 export const metadata: Metadata = {
   title: "Explore Capsules",
@@ -44,7 +46,14 @@ export default async function ExplorePage() {
     avatar_url: user.imageUrl ?? null,
   });
 
-  const recentCapsules = await getRecentCapsules({ viewerId: supabaseUserId, limit: 16 });
+  const headerList = await headers();
+  const requestOrigin = deriveRequestOrigin({ headers: headerList }) ?? null;
+
+  const recentCapsules = await getRecentCapsules({
+    viewerId: supabaseUserId,
+    limit: 16,
+    origin: requestOrigin,
+  });
 
   return (
     <AppPage activeNav="explore" showPrompter showDiscoveryRightRail>

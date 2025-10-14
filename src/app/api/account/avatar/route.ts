@@ -8,6 +8,7 @@ import { getStorageProvider } from "@/config/storage";
 import { generateStorageObjectKey } from "@/lib/storage/keys";
 import type { StorageMetadataValue } from "@/ports/storage";
 import { returnError, validatedJson } from "@/server/validation/http";
+import { deriveRequestOrigin } from "@/lib/url";
 
 const bodySchema = z
   .object({
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
   }
 
   try {
+    const requestOrigin = deriveRequestOrigin(req);
     let finalUrl = parsedBody.data.imageUrl ?? null;
     let finalKey = parsedBody.data.storageKey ?? null;
     const mimeType = parsedBody.data.mimeType ?? "image/jpeg";
@@ -119,19 +121,23 @@ export async function POST(req: Request) {
       throw new Error("Avatar upload did not produce a URL");
     }
 
-    const result = await updateUserAvatarImage(ownerId, {
-      avatarUrl: finalUrl,
-      storageKey: finalKey,
-      mimeType,
-      crop: parsedBody.data.crop ?? null,
-      source,
-      originalUrl: parsedBody.data.originalUrl ?? null,
-      originalName: parsedBody.data.originalName ?? null,
-      prompt: parsedBody.data.prompt ?? null,
-      width: parsedBody.data.width ?? null,
-      height: parsedBody.data.height ?? null,
-      memoryId: parsedBody.data.memoryId ?? null,
-    });
+    const result = await updateUserAvatarImage(
+      ownerId,
+      {
+        avatarUrl: finalUrl,
+        storageKey: finalKey,
+        mimeType,
+        crop: parsedBody.data.crop ?? null,
+        source,
+        originalUrl: parsedBody.data.originalUrl ?? null,
+        originalName: parsedBody.data.originalName ?? null,
+        prompt: parsedBody.data.prompt ?? null,
+        width: parsedBody.data.width ?? null,
+        height: parsedBody.data.height ?? null,
+        memoryId: parsedBody.data.memoryId ?? null,
+      },
+      { origin: requestOrigin ?? null },
+    );
 
     return validatedJson(responseSchema, result);
   } catch (error) {

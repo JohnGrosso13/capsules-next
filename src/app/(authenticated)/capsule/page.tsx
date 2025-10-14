@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
 import { AppPage } from "@/components/app-page";
 import { CapsuleGate } from "@/components/capsule/CapsuleGate";
 import { resolveCapsuleGate, getCapsuleSummaryForViewer } from "@/server/capsules/service";
+import { deriveRequestOrigin } from "@/lib/url";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
 
 import capTheme from "./capsule.module.css";
@@ -52,7 +54,12 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
     avatar_url: user.imageUrl ?? null,
   });
 
-  const { capsules, defaultCapsuleId } = await resolveCapsuleGate(supabaseUserId);
+  const headerList = await headers();
+  const requestOrigin = deriveRequestOrigin({ headers: headerList }) ?? null;
+
+  const { capsules, defaultCapsuleId } = await resolveCapsuleGate(supabaseUserId, {
+    origin: requestOrigin,
+  });
 
   const resolvedSearchParams = (await Promise.resolve(searchParams ?? {})) as CapsuleSearchParams;
   const requestedCapsuleParam = resolvedSearchParams.capsuleId;
@@ -69,7 +76,7 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
     if (capsulesWithPreview.some((capsule) => capsule.id === requestedCapsuleId)) {
       selectedCapsuleId = requestedCapsuleId;
     } else {
-      const previewCapsule = await getCapsuleSummaryForViewer(requestedCapsuleId, supabaseUserId);
+      const previewCapsule = await getCapsuleSummaryForViewer(requestedCapsuleId, supabaseUserId, { origin: requestOrigin });
       if (previewCapsule) {
         const exists = capsulesWithPreview.some((capsule) => capsule.id === previewCapsule.id);
         if (!exists) {

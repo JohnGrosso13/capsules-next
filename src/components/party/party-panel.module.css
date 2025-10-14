@@ -687,6 +687,15 @@
   letter-spacing: 0.08em;
   background: var(--party-participant-avatar-background);
   color: var(--text-on-brand, #080808);
+  overflow: hidden;
+}
+
+.participantAvatarImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .participantDetails {

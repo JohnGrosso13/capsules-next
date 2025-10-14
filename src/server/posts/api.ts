@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 
 import { buildImageVariants, pickBestDisplayVariant } from "@/lib/cloudflare/images";
+import { resolveToAbsoluteUrl } from "@/lib/url";
 import type { CloudflareImageVariantSet } from "@/lib/cloudflare/images";
 import { serverEnv } from "@/lib/env/server";
 import { createPostRecord } from "@/lib/supabase/posts";
@@ -64,6 +65,7 @@ function slimError(status: number, code: string, message: string, details?: unkn
 
 export type PostsQueryInput = {
   viewerId: string | null;
+  origin?: string | null;
   query: {
     capsuleId?: string | null;
     limit?: string | number | null;
@@ -92,6 +94,59 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
   const { capsuleId, before, after } = parsedQuery.data;
   const limit = parsedQuery.data.limit ?? 60;
   const viewerId = options.viewerId;
+  const requestOrigin = options.origin ?? null;
+  const originForAssets = requestOrigin ?? serverEnv.SITE_URL;
+
+  const sanitizeAttachment = (attachment: NormalizedAttachment): NormalizedAttachment => {
+    const resolvedUrl = resolveToAbsoluteUrl(attachment.url, originForAssets) ?? attachment.url;
+    const resolvedThumb = attachment.thumbnailUrl
+      ? resolveToAbsoluteUrl(attachment.thumbnailUrl, originForAssets) ?? attachment.thumbnailUrl
+      : attachment.thumbnailUrl ?? null;
+    const variants = attachment.variants ?? null;
+    let sanitizedVariants: CloudflareImageVariantSet | null = null;
+    if (variants) {
+      const cloned: CloudflareImageVariantSet = { ...variants };
+      cloned.original =
+        resolveToAbsoluteUrl(variants.original, originForAssets) ?? variants.original;
+      if (Object.prototype.hasOwnProperty.call(variants, "thumb")) {
+        if (variants.thumb == null) {
+          cloned.thumb = null;
+        } else {
+          const sanitizedThumb = resolveToAbsoluteUrl(variants.thumb, originForAssets);
+          cloned.thumb = sanitizedThumb ?? variants.thumb;
+        }
+      } else {
+        delete cloned.thumb;
+      }
+      if (Object.prototype.hasOwnProperty.call(variants, "feed")) {
+        if (variants.feed == null) {
+          cloned.feed = null;
+        } else {
+          const sanitizedFeed = resolveToAbsoluteUrl(variants.feed, originForAssets);
+          cloned.feed = sanitizedFeed ?? variants.feed;
+        }
+      } else {
+        delete cloned.feed;
+      }
+      if (Object.prototype.hasOwnProperty.call(variants, "full")) {
+        if (variants.full == null) {
+          cloned.full = null;
+        } else {
+          const sanitizedFull = resolveToAbsoluteUrl(variants.full, originForAssets);
+          cloned.full = sanitizedFull ?? variants.full;
+        }
+      } else {
+        delete cloned.full;
+      }
+      sanitizedVariants = cloned;
+    }
+    return {
+      ...attachment,
+      url: resolvedUrl,
+      thumbnailUrl: resolvedThumb,
+      variants: sanitizedVariants,
+    };
+  };
 
   let rows: PostsViewRow[];
   try {
@@ -196,7 +251,18 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
         normalized.viewerRemembered = Boolean(normalized.viewerRemembered);
       }
 
-      normalized.mediaUrl = await ensureAccessibleMediaUrl(normalized.mediaUrl);
+      const accessibleMedia = await ensureAccessibleMediaUrl(normalized.mediaUrl);
+      if (accessibleMedia) {
+        normalized.mediaUrl =
+          resolveToAbsoluteUrl(accessibleMedia, originForAssets) ?? accessibleMedia;
+      } else {
+        normalized.mediaUrl = accessibleMedia;
+      }
+
+      if (normalized.userAvatar) {
+        normalized.userAvatar =
+          resolveToAbsoluteUrl(normalized.userAvatar, originForAssets) ?? normalized.userAvatar;
+      }
 
       return normalized;
     }),
@@ -330,7 +396,7 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                 ? buildImageVariants(url, {
                     base: serverEnv.CLOUDFLARE_IMAGE_RESIZE_BASE_URL,
                     thumbnailUrl,
-                    origin: serverEnv.SITE_URL,
+                    origin: originForAssets,
                   })
                 : null;
 
@@ -385,8 +451,9 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
               (post.dbId ? attachmentsByPost.get(post.dbId) : undefined) ??
               [];
             if (!attachments.length) return;
-            post.attachments = attachments;
-            const primary = attachments[0] ?? null;
+            const sanitizedAttachments = attachments.map(sanitizeAttachment);
+            post.attachments = sanitizedAttachments;
+            const primary = sanitizedAttachments[0] ?? null;
             if (!primary) return;
             const preferredDisplay = pickBestDisplayVariant(primary.variants ?? null);
             if (preferredDisplay) {

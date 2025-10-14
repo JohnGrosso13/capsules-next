@@ -40,17 +40,41 @@ export function resolveToAbsoluteUrl(
     if (currentOrigin) {
       try {
         const current = new URL(currentOrigin);
-        if (
-          isLocalLikeHostname(absolute.hostname) &&
-          isLocalLikeHostname(current.hostname) &&
-          absolute.hostname !== current.hostname
+        const absoluteHostname = absolute.hostname;
+        const currentHostname = current.hostname;
+        const hostsMatch = absoluteHostname === currentHostname;
+
+        if (hostsMatch) {
+          if (absolute.protocol !== current.protocol) {
+            absolute.protocol = current.protocol;
+          }
+          if (absolute.port !== current.port) {
+            if (current.port) {
+              absolute.port = current.port;
+            } else if (absolute.port === "80" || absolute.port === "443") {
+              absolute.port = "";
+            }
+          }
+        } else if (
+          isLocalLikeHostname(absoluteHostname) &&
+          isLocalLikeHostname(currentHostname) &&
+          absoluteHostname !== currentHostname
         ) {
           absolute.protocol = current.protocol;
           absolute.hostname = current.hostname;
           absolute.port = current.port;
+        } else if (
+          absolute.protocol === "http:" &&
+          current.protocol === "https:" &&
+          !isLocalLikeHostname(absoluteHostname)
+        ) {
+          absolute.protocol = "https:";
+          if (absolute.port === "80") {
+            absolute.port = "";
+          }
         }
       } catch {
-        // noop – fallback to the parsed absolute URL
+        // noop - fallback to the parsed absolute URL
       }
     }
     return absolute.toString();
@@ -64,6 +88,91 @@ export function resolveToAbsoluteUrl(
       return trimmed;
     }
   }
+}
+
+function safeParseUrl(value: string | null): URL | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed.length) return null;
+  try {
+    return new URL(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeHeaderValue(value: string | null): string | null {
+  if (typeof value !== "string") return null;
+  const first = value.split(",")[0]?.trim() ?? "";
+  return first.length ? first : null;
+}
+
+type HeaderLike = {
+  get(name: string): string | null;
+};
+
+function extractHeaders(
+  input: Request | { headers?: HeaderLike | null } | null | undefined,
+): HeaderLike | null {
+  if (!input) return null;
+  if (input instanceof Request) return input.headers;
+  if (input.headers && typeof input.headers.get === "function") {
+    return input.headers;
+  }
+  return null;
+}
+
+export function deriveRequestOrigin(
+  input: Request | { headers?: HeaderLike | null } | null | undefined,
+): string | null {
+  const headers = extractHeaders(input);
+  if (!headers) return null;
+
+  const getHeader = (name: string) => normalizeHeaderValue(headers.get(name));
+
+  const originHeader = getHeader("origin");
+  const originUrl =
+    originHeader && originHeader.toLowerCase() !== "null" ? safeParseUrl(originHeader) : null;
+  if (originUrl) {
+    return originUrl.origin;
+  }
+
+  const forwardedProto = getHeader("x-forwarded-proto") ?? getHeader("x-forwarded-protocol");
+  const forwardedHost = getHeader("x-forwarded-host");
+  const forwardedPort = getHeader("x-forwarded-port");
+  const hostHeader = forwardedHost ?? getHeader("host");
+
+  let protocol = forwardedProto;
+  if (!protocol) {
+    const frontEndHttps = getHeader("front-end-https");
+    if (frontEndHttps && frontEndHttps.toLowerCase() !== "off") {
+      protocol = "https";
+    }
+  }
+
+  if (hostHeader) {
+    const authority =
+      forwardedPort && !hostHeader.includes(":") ? `${hostHeader}:${forwardedPort}` : hostHeader;
+    const protoCandidate =
+      protocol ??
+      (originHeader ? safeParseUrl(originHeader)?.protocol.replace(/:$/, "") : null) ??
+      "https";
+    const composite = `${protoCandidate}://${authority}`;
+    const compositeUrl = safeParseUrl(composite);
+    if (compositeUrl) {
+      return compositeUrl.origin;
+    }
+    const httpsFallback = safeParseUrl(`https://${authority}`);
+    if (httpsFallback) {
+      return httpsFallback.origin;
+    }
+    const httpFallback = safeParseUrl(`http://${authority}`);
+    if (httpFallback) {
+      return httpFallback.origin;
+    }
+  }
+
+  return null;
 }
 
 export function resolveRedirectUrl(target: string | null | undefined, siteUrl: string) {

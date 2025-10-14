@@ -8,6 +8,7 @@ import { getStorageProvider } from "@/config/storage";
 import { generateStorageObjectKey } from "@/lib/storage/keys";
 import type { StorageMetadataValue } from "@/ports/storage";
 import { returnError, validatedJson } from "@/server/validation/http";
+import { deriveRequestOrigin } from "@/lib/url";
 
 type BannerParamsContext = {
   params: { id: string } | Promise<{ id: string }>;
@@ -80,6 +81,7 @@ export async function POST(req: Request, context: BannerParamsContext) {
   }
 
   try {
+    const requestOrigin = deriveRequestOrigin(req);
     let finalUrl = parsedBody.data.imageUrl ?? null;
     let finalKey = parsedBody.data.storageKey ?? null;
     const mimeType = parsedBody.data.mimeType ?? "image/jpeg";
@@ -141,19 +143,24 @@ export async function POST(req: Request, context: BannerParamsContext) {
       throw new Error("Banner upload did not produce a URL");
     }
 
-    const result = await updateCapsuleBannerImage(ownerId, parsedParams.data.id, {
-      bannerUrl: finalUrl,
-      storageKey: finalKey,
-      mimeType,
-      crop: parsedBody.data.crop ?? null,
-      source,
-      originalUrl: parsedBody.data.originalUrl ?? null,
-      originalName: parsedBody.data.originalName ?? null,
-      prompt: parsedBody.data.prompt ?? null,
-      width: parsedBody.data.width ?? null,
-      height: parsedBody.data.height ?? null,
-      memoryId: parsedBody.data.memoryId ?? null,
-    });
+    const result = await updateCapsuleBannerImage(
+      ownerId,
+      parsedParams.data.id,
+      {
+        bannerUrl: finalUrl,
+        storageKey: finalKey,
+        mimeType,
+        crop: parsedBody.data.crop ?? null,
+        source,
+        originalUrl: parsedBody.data.originalUrl ?? null,
+        originalName: parsedBody.data.originalName ?? null,
+        prompt: parsedBody.data.prompt ?? null,
+        width: parsedBody.data.width ?? null,
+        height: parsedBody.data.height ?? null,
+        memoryId: parsedBody.data.memoryId ?? null,
+      },
+      { origin: requestOrigin ?? null },
+    );
     return validatedJson(responseSchema, result);
   } catch (error) {
     console.error("capsules.banner.update error", error);

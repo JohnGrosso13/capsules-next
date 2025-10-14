@@ -34,6 +34,11 @@ import styles from "./party-panel.module.css";
 
 type PartyPanelVariant = "default" | "compact";
 
+type ParticipantProfile = {
+  name: string | null;
+  avatar: string | null;
+};
+
 type PartyPanelProps = {
   friends: FriendItem[];
   friendTargets: Map<string, ChatFriendTarget>;
@@ -45,6 +50,7 @@ type PartyStageProps = {
   session: PartySession;
   canClose: boolean;
   status: string;
+  participantProfiles: Map<string, ParticipantProfile>;
   onLeave(): Promise<void> | void;
   onClose(): Promise<void> | void;
   onReconnecting(): void;
@@ -198,6 +204,23 @@ export function PartyPanel({
   const [copyState, setCopyState] = React.useState<"idle" | "copied">("idle");
   const [showInviteDetails, setShowInviteDetails] = React.useState(false);
   const inviteRevealTimer = React.useRef<number | null>(null);
+
+  const participantProfiles = React.useMemo(() => {
+    const map = new Map<string, ParticipantProfile>();
+    friendTargets.forEach((target, userId) => {
+      map.set(userId, {
+        name: target.name ?? null,
+        avatar: target.avatar ?? null,
+      });
+    });
+    if (user?.id) {
+      map.set(user.id, {
+        name: user.name ?? user.email ?? null,
+        avatar: user.avatarUrl ?? null,
+      });
+    }
+    return map;
+  }, [friendTargets, user?.avatarUrl, user?.email, user?.id, user?.name]);
 
   const partyQuery = searchParams?.get("party");
 
@@ -533,6 +556,7 @@ export function PartyPanel({
           session={currentSession}
           canClose={currentSession.isOwner}
           status={status}
+          participantProfiles={participantProfiles}
           onLeave={handleResetAndLeave}
           onClose={handleResetAndClose}
           onReconnecting={handleRoomReconnecting}
@@ -670,6 +694,7 @@ function PartyStage({
   session,
   canClose,
   status,
+  participantProfiles,
   onLeave,
   onClose,
   onReconnecting,
@@ -691,6 +716,7 @@ function PartyStage({
         session={session}
         canClose={canClose}
         status={status}
+        participantProfiles={participantProfiles}
         onLeave={onLeave}
         onClose={onClose}
         onReconnecting={onReconnecting}
@@ -705,6 +731,7 @@ type PartyStageSceneProps = {
   session: PartySession;
   canClose: boolean;
   status: string;
+  participantProfiles: Map<string, ParticipantProfile>;
   onLeave(): Promise<void> | void;
   onClose(): Promise<void> | void;
   onReconnecting(): void;
@@ -716,6 +743,7 @@ function PartyStageScene({
   session: _session,
   canClose,
   status,
+  participantProfiles,
   onLeave,
   onClose,
   onReconnecting,
@@ -812,12 +840,14 @@ function PartyStageScene({
       </div>
       <div className={styles.participantsGrid}>
         {participants.map((participant) => {
-          const isLocal = participant.identity === room?.localParticipant?.identity;
+          const profile = participant.identity
+            ? participantProfiles.get(participant.identity)
+            : null;
           return (
             <ParticipantBadge
               key={participant.sid}
               participant={participant}
-              isLocal={Boolean(isLocal)}
+              profile={profile ?? null}
             />
           );
         })}
@@ -888,20 +918,40 @@ function PartyStageScene({
 
 type ParticipantBadgeProps = {
   participant: ReturnType<typeof useParticipants>[number];
-  isLocal: boolean;
+  profile: ParticipantProfile | null;
 };
 
-function ParticipantBadge({ participant, isLocal }: ParticipantBadgeProps) {
+function ParticipantBadge({ participant, profile }: ParticipantBadgeProps) {
   const speaking = participant.isSpeaking;
   const mic = participant.isMicrophoneEnabled;
-  const name = participant.name || participant.identity || "Guest";
+  const fallbackName = participant.name || participant.identity || "Guest";
+  const profileName = profile?.name ?? null;
+  const hasProfileName = typeof profileName === "string" && profileName.trim().length > 0;
+  const name = hasProfileName ? profileName : fallbackName;
+  const avatarCandidate = profile?.avatar ?? null;
+  const avatar =
+    typeof avatarCandidate === "string" && avatarCandidate.trim().length > 0
+      ? avatarCandidate
+      : null;
+  const initials = initialsFromName(name);
   return (
     <div className={`${styles.participantCard} ${speaking ? styles.participantSpeaking : ""}`}>
-      <div className={styles.participantAvatar}>{initialsFromName(name)}</div>
+      <div className={styles.participantAvatar}>
+        {avatar ? (
+          <img
+            alt={`${name}'s avatar`}
+            src={avatar}
+            className={styles.participantAvatarImage}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          initials
+        )}
+      </div>
       <div className={styles.participantDetails}>
         <div className={styles.participantNameRow}>
           <span className={styles.participantName}>{name}</span>
-          {isLocal ? <span className={styles.participantBadge}>you</span> : null}
         </div>
         <div className={styles.participantState}>
           {mic ? (

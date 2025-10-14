@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { createCapsule, getUserCapsules } from "@/server/capsules/service";
+import { deriveRequestOrigin } from "@/lib/url";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 
 const createRequestSchema = z.object({
@@ -39,7 +40,8 @@ export async function GET(req: Request) {
   }
 
   try {
-    const capsules = await getUserCapsules(ownerId);
+    const requestOrigin = deriveRequestOrigin(req);
+    const capsules = await getUserCapsules(ownerId, { origin: requestOrigin ?? null });
     return validatedJson(listResponseSchema, { capsules });
   } catch (error) {
     console.error("capsules.list error", error);

@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import type { ReactElement } from "react";
 
 import { AppPage } from "@/components/app-page";
 import { AiStreamStudioLayout } from "@/components/create/ai-stream/AiStreamStudioLayout";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
 import { getUserPanelLayouts } from "@/lib/supabase/studio-layouts";
 import { getCapsuleSummaryForViewer, resolveCapsuleGate } from "@/server/capsules/service";
+import { deriveRequestOrigin } from "@/lib/url";
 
 // Styles for the studio are imported inside the layout component.
 
@@ -26,7 +29,7 @@ const STUDIO_LAYOUT_VIEW = "ai-stream-studio";
 
 export default async function AiStreamStudioPage({
   searchParams,
-}: AiStreamStudioPageProps): Promise<JSX.Element> {
+}: AiStreamStudioPageProps): Promise<ReactElement> {
   const { userId } = await auth();
   if (!userId) {
     redirect("/sign-in?redirect_url=/create/ai-stream");
@@ -58,7 +61,12 @@ export default async function AiStreamStudioPage({
     avatar_url: user.imageUrl ?? null,
   });
 
-  const { capsules } = await resolveCapsuleGate(supabaseUserId);
+  const headerList = await headers();
+  const requestOrigin = deriveRequestOrigin({ headers: headerList }) ?? null;
+
+  const { capsules } = await resolveCapsuleGate(supabaseUserId, {
+    origin: requestOrigin,
+  });
   const initialPanelLayouts = await getUserPanelLayouts(supabaseUserId, STUDIO_LAYOUT_VIEW);
 
   const resolvedSearchParams = (await Promise.resolve(searchParams ?? {})) as AiStreamSearchParams;
@@ -73,7 +81,7 @@ export default async function AiStreamStudioPage({
   if (requestedCapsuleId) {
     const alreadyPresent = capsulesWithPreview.some((capsule) => capsule.id === requestedCapsuleId);
     if (!alreadyPresent) {
-      const previewCapsule = await getCapsuleSummaryForViewer(requestedCapsuleId, supabaseUserId);
+      const previewCapsule = await getCapsuleSummaryForViewer(requestedCapsuleId, supabaseUserId, { origin: requestOrigin });
       if (previewCapsule) {
         capsulesWithPreview.unshift(previewCapsule);
       }

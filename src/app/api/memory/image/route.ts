@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { getDatabaseAdminClient } from "@/config/database";
-import { resolveToAbsoluteUrl } from "@/lib/url";
+import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 import { normalizeLegacyMemoryRow } from "@/server/posts/service";
 
@@ -150,7 +150,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Memory media unavailable." }, { status: 404 });
     }
 
-    const absoluteUrl = resolveToAbsoluteUrl(mediaUrl, serverEnv.SITE_URL);
+        const baseOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
+    const absoluteUrl = resolveToAbsoluteUrl(mediaUrl, baseOrigin);
     if (!absoluteUrl) {
       return NextResponse.json({ error: "Memory media unavailable." }, { status: 400 });
     }

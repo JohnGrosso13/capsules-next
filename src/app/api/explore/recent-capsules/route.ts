@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { getRecentCapsules } from "@/server/capsules/service";
 import { returnError, validatedJson } from "@/server/validation/http";
+import { deriveRequestOrigin } from "@/lib/url";
 
 const listResponseSchema = z.object({
   capsules: z.array(
@@ -29,9 +30,11 @@ export async function GET(req: Request) {
     const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
     const limit =
       typeof parsedLimit === "number" && !Number.isNaN(parsedLimit) ? parsedLimit : undefined;
+    const requestOrigin = deriveRequestOrigin(req);
     const capsules = await getRecentCapsules({
       viewerId,
       ...(limit !== undefined ? { limit } : {}),
+      origin: requestOrigin ?? null,
     });
     return validatedJson(listResponseSchema, { capsules });
   } catch (error) {

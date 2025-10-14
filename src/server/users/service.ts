@@ -22,10 +22,14 @@ function collapseWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function resolveProfileMediaUrl(value: string | null): string | null {
+function resolveProfileMediaUrl(
+  value: string | null,
+  originOverride?: string | null,
+): string | null {
   const normalized = normalizeMediaUrl(value);
   if (!normalized) return null;
-  return resolveToAbsoluteUrl(normalized, serverEnv.SITE_URL) ?? normalized;
+  const origin = originOverride ?? serverEnv.SITE_URL;
+  return resolveToAbsoluteUrl(normalized, origin) ?? normalized;
 }
 
 async function requireUser(userId: string) {
@@ -36,7 +40,10 @@ async function requireUser(userId: string) {
   return user;
 }
 
-export async function getUserProfileSummary(userId: string): Promise<{
+export async function getUserProfileSummary(
+  userId: string,
+  options: { origin?: string | null } = {},
+): Promise<{
   id: string;
   name: string | null;
   avatarUrl: string | null;
@@ -47,7 +54,7 @@ export async function getUserProfileSummary(userId: string): Promise<{
   return {
     id: resolvedId,
     name: normalizeOptionalString(user.full_name ?? null),
-    avatarUrl: resolveProfileMediaUrl(user.avatar_url ?? null),
+    avatarUrl: resolveProfileMediaUrl(user.avatar_url ?? null, options.origin ?? null),
   };
 }
 
@@ -85,6 +92,7 @@ export async function updateUserAvatarImage(
     height?: number | null;
     memoryId?: string | null;
   },
+  context: { origin?: string | null } = {},
 ): Promise<{ avatarUrl: string | null }> {
   const user = await requireUser(ownerId);
 
@@ -93,7 +101,7 @@ export async function updateUserAvatarImage(
     throw new Error("A profile avatar URL is required.");
   }
 
-  const resolvedAvatarUrl = resolveProfileMediaUrl(normalizedUrl);
+  const resolvedAvatarUrl = resolveProfileMediaUrl(normalizedUrl, context.origin ?? null);
   if (!resolvedAvatarUrl) {
     throw new Error("Failed to resolve profile avatar URL.");
   }
@@ -126,6 +134,7 @@ export async function updateUserAvatarImage(
   if (params.source) metadata.source_kind = params.source;
   const resolvedOriginalUrl = resolveProfileMediaUrl(
     normalizeOptionalString(params.originalUrl ?? null),
+    context.origin ?? null,
   );
   if (resolvedOriginalUrl) metadata.original_url = resolvedOriginalUrl;
   if (promptText) metadata.prompt = promptText;
