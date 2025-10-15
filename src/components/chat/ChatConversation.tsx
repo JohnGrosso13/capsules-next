@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { ArrowLeft, PaperPlaneTilt, Trash, UserPlus } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, PaperPlaneTilt, Trash, UserPlus, Smiley } from "@phosphor-icons/react/dist/ssr";
 
 import type {
   ChatMessage,
@@ -61,6 +61,8 @@ function describeTypingParticipants(participants: ChatParticipant[]): string {
   return `${names[0]}, ${names[1]}, and ${names.length - 2} others are typing...`;
 }
 
+const REACTION_OPTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"] as const;
+
 type ChatConversationProps = {
   session: ChatSession;
   currentUserId: string | null;
@@ -70,6 +72,7 @@ type ChatConversationProps = {
   onDelete?: () => void;
   onInviteParticipants?: () => void;
   onTypingChange?: (conversationId: string, typing: boolean) => void;
+  onToggleReaction?: (conversationId: string, messageId: string, emoji: string) => Promise<void>;
 };
 
 function renderConversationAvatar(
@@ -165,12 +168,14 @@ export function ChatConversation({
   onBack,
   onDelete,
   onInviteParticipants,
+  onToggleReaction,
   onTypingChange,
 }: ChatConversationProps) {
   const { user } = useCurrentUser();
   const [draft, setDraft] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [reactionTargetId, setReactionTargetId] = React.useState<string | null>(null);
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
 
   const selfIdentifiers = React.useMemo(() => {
@@ -187,6 +192,23 @@ export function ChatConversation({
     });
     return map;
   }, [session.participants]);
+
+  React.useEffect(() => {
+    setReactionTargetId(null);
+  }, [session.id]);
+
+  React.useEffect(() => {
+    if (!reactionTargetId) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setReactionTargetId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [reactionTargetId]);
 
   const typingParticipants = React.useMemo(() => {
     if (!Array.isArray(session.typing) || session.typing.length === 0) {
@@ -211,6 +233,28 @@ export function ChatConversation({
   );
   const primaryTypingParticipant = typingParticipants[0] ?? null;
   const typingRemainderCount = typingParticipants.length > 1 ? typingParticipants.length - 1 : 0;
+
+  const handleToggleReaction = React.useCallback(
+    (messageId: string, emoji: string) => {
+      if (!onToggleReaction) return;
+      void onToggleReaction(session.id, messageId, emoji).catch((error) => {
+        console.error("chat reaction toggle failed", error);
+      });
+    },
+    [onToggleReaction, session.id],
+  );
+
+  const handleReactionPickerToggle = React.useCallback((messageId: string) => {
+    setReactionTargetId((current) => (current === messageId ? null : messageId));
+  }, []);
+
+  const handleReactionSelect = React.useCallback(
+    (messageId: string, emoji: string) => {
+      handleToggleReaction(messageId, emoji);
+      setReactionTargetId(null);
+    },
+    [handleToggleReaction],
+  );
 
   React.useEffect(() => {
     const container = messagesRef.current;
@@ -353,6 +397,9 @@ export function ChatConversation({
           const avatar = isSelf ? selfAvatar : (author?.avatar ?? null);
           const displayName = isSelf ? selfName : (author?.name ?? "Member");
           const statusNode = renderStatus(message);
+          const messageReactions = Array.isArray(message.reactions) ? message.reactions : [];
+          const showReactions = messageReactions.length > 0 || Boolean(onToggleReaction);
+          const isPickerOpen = reactionTargetId === message.id;
           return (
             <div
               key={message.id}
@@ -388,6 +435,56 @@ export function ChatConversation({
                 >
                   {message.body}
                 </div>
+                {showReactions ? (
+                  <div className={styles.messageReactions}>
+                    {messageReactions.map((reaction) => (
+                      <button
+                        key={reaction.emoji}
+                        type="button"
+                        className={`${styles.messageReaction} ${
+                          reaction.selfReacted ? styles.messageReactionActive : ""
+                        }`.trim()}
+                        onClick={() => handleToggleReaction(message.id, reaction.emoji)}
+                        disabled={!onToggleReaction}
+                        aria-pressed={reaction.selfReacted}
+                        aria-label={`${reaction.emoji} reaction from ${reaction.count} ${
+                          reaction.count === 1 ? "person" : "people"
+                        }`}
+                      >
+                        <span className={styles.messageReactionEmoji}>{reaction.emoji}</span>
+                        <span className={styles.messageReactionCount}>{reaction.count}</span>
+                      </button>
+                    ))}
+                    {onToggleReaction ? (
+                      <div className={styles.messageReactionAdd}>
+                        <button
+                          type="button"
+                          className={styles.messageReactionAddButton}
+                          onClick={() => handleReactionPickerToggle(message.id)}
+                          aria-expanded={isPickerOpen}
+                          aria-label="Add reaction"
+                        >
+                          <Smiley size={14} weight="duotone" />
+                        </button>
+                        {isPickerOpen ? (
+                          <div className={styles.messageReactionPicker} role="menu">
+                            {REACTION_OPTIONS.map((option) => (
+                              <button
+                                key={`${message.id}-${option}`}
+                                type="button"
+                                className={styles.messageReactionOption}
+                                onClick={() => handleReactionSelect(message.id, option)}
+                                aria-label={`React with ${option}`}
+                              >
+                                {option}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 {statusNode ? <div className={styles.messageMeta}>{statusNode}</div> : null}
               </div>
             </div>

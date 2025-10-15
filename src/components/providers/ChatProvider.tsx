@@ -47,6 +47,11 @@ export type ChatContextValue = {
   closeSession: () => void;
   deleteSession: (sessionId: string) => void;
   sendMessage: (conversationId: string, body: string) => Promise<void>;
+  toggleMessageReaction: (
+    conversationId: string,
+    messageId: string,
+    emoji: string,
+  ) => Promise<void>;
   notifyTyping: (conversationId: string, typing: boolean) => void;
 };
 
@@ -207,6 +212,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [engine],
   );
 
+  const toggleMessageReaction = React.useCallback(
+    async (conversationId: string, messageId: string, emoji: string) => {
+      await engine.toggleMessageReaction(conversationId, messageId, emoji);
+    },
+    [engine],
+  );
+
   const notifyTyping = React.useCallback(
     (conversationId: string, typing: boolean) => {
       engine.notifyTyping(conversationId, typing);
@@ -235,6 +247,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       closeSession,
       deleteSession,
       sendMessage,
+      toggleMessageReaction,
       notifyTyping,
     }),
     [
@@ -253,6 +266,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       closeSession,
       deleteSession,
       sendMessage,
+      toggleMessageReaction,
       notifyTyping,
     ],
   );

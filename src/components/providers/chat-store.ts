@@ -10,12 +10,20 @@ export type ChatParticipant = {
   avatar: string | null;
 };
 
+export type ChatMessageReaction = {
+  emoji: string;
+  count: number;
+  users: ChatParticipant[];
+  selfReacted: boolean;
+};
+
 export type ChatMessage = {
   id: string;
   authorId: string;
   body: string;
   sentAt: string;
   status: "pending" | "sent" | "failed";
+  reactions: ChatMessageReaction[];
 };
 
 export type ChatTypingEventPayload = {
@@ -66,7 +74,27 @@ export type ChatMessageEventPayload = {
     id: string;
     body: string;
     sentAt: string;
+    reactions?: Array<{
+      emoji: string;
+      count?: number;
+      users?: ChatParticipant[];
+    }>;
   };
+};
+
+export type ChatReactionEventPayload = {
+  type: "chat.reaction";
+  conversationId: string;
+  messageId: string;
+  emoji: string;
+  action: "added" | "removed";
+  actor: ChatParticipant;
+  reactions: Array<{
+    emoji: string;
+    count?: number;
+    users?: ChatParticipant[];
+  }>;
+  participants?: ChatParticipant[];
 };
 
 export type ChatSessionEventPayload = {
@@ -80,12 +108,18 @@ export type StoredMessage = {
   authorId: string;
   body: string;
   sentAt: string;
+  reactions?: StoredMessageReaction[];
 };
 
 export type StoredParticipant = {
   id: string;
   name: string;
   avatar: string | null;
+};
+
+export type StoredMessageReaction = {
+  emoji: string;
+  users: StoredParticipant[];
 };
 
 export type StoredSession = {
@@ -268,6 +302,75 @@ export function mergeParticipants(...lists: Array<Iterable<ChatParticipant>>): C
     }
   }
   return Array.from(map.values());
+}
+
+type ReactionDescriptorInput = {
+  emoji: string;
+  users?: Array<Partial<ChatParticipant> | ChatParticipant | null | undefined>;
+};
+
+function normalizeReactions(
+  descriptors: ReactionDescriptorInput[] | undefined,
+  isSelf: (id: string | null | undefined) => boolean,
+): ChatMessageReaction[] {
+  if (!Array.isArray(descriptors) || descriptors.length === 0) {
+    return [];
+  }
+  const emojiMap = new Map<string, Map<string, ChatParticipant>>();
+  descriptors.forEach((descriptor) => {
+    if (!descriptor) return;
+    const emoji =
+      typeof descriptor.emoji === "string" ? descriptor.emoji.trim() : "";
+    if (!emoji) return;
+    const users = Array.isArray(descriptor.users) ? descriptor.users : [];
+    let userMap = emojiMap.get(emoji);
+    if (!userMap) {
+      userMap = new Map<string, ChatParticipant>();
+      emojiMap.set(emoji, userMap);
+    }
+    users.forEach((user) => {
+      const normalized = normalizeParticipant(user);
+      if (!normalized) return;
+      userMap!.set(normalized.id, normalized);
+    });
+  });
+  const reactions: ChatMessageReaction[] = [];
+  emojiMap.forEach((userMap, emoji) => {
+    const users = Array.from(userMap.values()).sort((a, b) => {
+      const nameCompare = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      if (nameCompare !== 0) return nameCompare;
+      return a.id.localeCompare(b.id);
+    });
+    reactions.push({
+      emoji,
+      count: users.length,
+      users,
+      selfReacted: users.some((user) => isSelf(user.id)),
+    });
+  });
+  reactions.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.emoji.localeCompare(b.emoji);
+  });
+  return reactions;
+}
+
+function reactionsEqual(a: ChatMessageReaction[], b: ChatMessageReaction[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    const left = a[index]!;
+    const right = b[index]!;
+    if (left.emoji !== right.emoji) return false;
+    if (left.count !== right.count) return false;
+    if (left.selfReacted !== right.selfReacted) return false;
+    if (left.users.length !== right.users.length) return false;
+    for (let userIndex = 0; userIndex < left.users.length; userIndex += 1) {
+      if (left.users[userIndex]!.id !== right.users[userIndex]!.id) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 function participantsEqual(a: ChatParticipant[], b: ChatParticipant[]): boolean {
@@ -544,12 +647,21 @@ export class ChatStore {
           typeof storedMessage.body === "string" &&
           typeof storedMessage.sentAt === "string"
         ) {
+          const reactionDescriptors =
+            Array.isArray(storedMessage.reactions) && storedMessage.reactions.length > 0
+              ? storedMessage.reactions.map((reaction) => ({
+                  emoji: typeof reaction?.emoji === "string" ? reaction.emoji : "",
+                  users: Array.isArray(reaction?.users) ? reaction.users : [],
+                }))
+              : [];
+          const reactions = normalizeReactions(reactionDescriptors, (id) => this.isSelfId(id));
           const restoredMessage: ChatMessage = {
             id: storedMessage.id,
             authorId: storedMessage.authorId,
             body: storedMessage.body,
             sentAt: storedMessage.sentAt,
             status: "sent",
+            reactions,
           };
           session.messages.push(restoredMessage);
           session.messageIndex.set(restoredMessage.id, session.messages.length - 1);
@@ -582,12 +694,25 @@ export class ChatStore {
           name: participant.name,
           avatar: participant.avatar,
         })),
-        messages: session.messages.slice(-this.messageLimit).map((message) => ({
-          id: message.id,
-          authorId: message.authorId,
-          body: message.body,
-          sentAt: message.sentAt,
-        })),
+        messages: session.messages.slice(-this.messageLimit).map((message) => {
+          const storedMessage: StoredMessage = {
+            id: message.id,
+            authorId: message.authorId,
+            body: message.body,
+            sentAt: message.sentAt,
+          };
+          if (message.reactions.length > 0) {
+            storedMessage.reactions = message.reactions.map((reaction) => ({
+              emoji: reaction.emoji,
+              users: reaction.users.map((user) => ({
+                id: user.id,
+                name: user.name,
+                avatar: user.avatar,
+              })),
+            }));
+          }
+          return storedMessage;
+        }),
       })),
     };
   }
@@ -721,11 +846,19 @@ export class ChatStore {
     const existingIndex = session.messageIndex.get(message.id);
     if (typeof existingIndex === "number") {
       const existing = session.messages[existingIndex];
-      session.messages[existingIndex] = { ...existing, ...message };
+      const reactions =
+        Array.isArray(message.reactions) && message.reactions.length >= 0
+          ? message.reactions
+          : existing?.reactions ?? [];
+      session.messages[existingIndex] = { ...existing, ...message, reactions };
       changed = true;
     } else {
-      session.messages.push(message);
-      session.messageIndex.set(message.id, session.messages.length - 1);
+      const nextMessage = {
+        ...message,
+        reactions: Array.isArray(message.reactions) ? message.reactions : [],
+      };
+      session.messages.push(nextMessage);
+      session.messageIndex.set(nextMessage.id, session.messages.length - 1);
       if (!options.isLocal && this.activeSessionId !== session.id) {
         session.unreadCount += 1;
       }
@@ -754,38 +887,51 @@ export class ChatStore {
   acknowledgeMessage(
     sessionId: string,
     clientMessageId: string,
-    serverPayload: { id: string; authorId: string; body: string; sentAt: string },
+    serverPayload: {
+      id: string;
+      authorId: string;
+      body: string;
+      sentAt: string;
+      reactions?: Array<{ emoji: string; users?: ChatParticipant[] }>;
+    },
   ) {
     const session = this.sessions.get(sessionId);
     if (!session) return;
     if (!serverPayload || typeof serverPayload.id !== "string") return;
     const sanitizedBody = sanitizeMessageBody(serverPayload.body ?? "");
     if (!sanitizedBody) return;
-    const nextMessage: ChatMessage = {
+    const normalizedReactions = normalizeReactions(serverPayload.reactions, (id) => this.isSelfId(id));
+    const baseMessage: ChatMessage = {
       id: serverPayload.id,
       authorId: serverPayload.authorId || serverPayload.id,
       body: sanitizedBody,
       sentAt: serverPayload.sentAt || new Date().toISOString(),
       status: "sent",
+      reactions: normalizedReactions,
     };
     const clientIndex = session.messageIndex.get(clientMessageId);
-    const serverIndex = session.messageIndex.get(nextMessage.id);
+    const serverIndex = session.messageIndex.get(baseMessage.id);
     let changed = false;
     if (typeof clientIndex === "number") {
       const existing = session.messages[clientIndex];
-      session.messages[clientIndex] = existing ? { ...existing, ...nextMessage } : nextMessage;
-      if (nextMessage.id !== clientMessageId) {
+      const merged = existing
+        ? { ...existing, ...baseMessage, reactions: normalizedReactions }
+        : { ...baseMessage, reactions: normalizedReactions };
+      session.messages[clientIndex] = merged;
+      if (baseMessage.id !== clientMessageId) {
         session.messageIndex.delete(clientMessageId);
-        session.messageIndex.set(nextMessage.id, clientIndex);
+        session.messageIndex.set(baseMessage.id, clientIndex);
       }
-      const timestamp = Date.parse(nextMessage.sentAt);
+      const timestamp = Date.parse(merged.sentAt);
       if (Number.isFinite(timestamp)) {
         session.lastMessageTimestamp = Math.max(session.lastMessageTimestamp, timestamp);
       }
       changed = true;
     } else if (typeof serverIndex === "number") {
       const existing = session.messages[serverIndex];
-      const merged = existing ? { ...existing, ...nextMessage } : nextMessage;
+      const merged = existing
+        ? { ...existing, ...baseMessage, reactions: normalizedReactions }
+        : { ...baseMessage, reactions: normalizedReactions };
       if (
         !existing ||
         existing.id !== merged.id ||
@@ -802,8 +948,8 @@ export class ChatStore {
         changed = true;
       }
     } else {
-      const isLocal = this.isSelfId(nextMessage.authorId);
-      this.addMessage(sessionId, nextMessage, { isLocal });
+      const isLocal = this.isSelfId(baseMessage.authorId);
+      this.addMessage(sessionId, baseMessage, { isLocal });
       return;
     }
     if (changed) {
@@ -873,15 +1019,48 @@ export class ChatStore {
     const messageBody = sanitizeMessageBody(payload.message.body);
     if (!messageBody) return;
     const authorId = payload.senderId || payload.message.id;
+    const reactions = normalizeReactions(payload.message.reactions, (id) => this.isSelfId(id));
     const chatMessage: ChatMessage = {
       id: payload.message.id,
       authorId,
       body: messageBody,
       sentAt: payload.message.sentAt ?? new Date().toISOString(),
       status: "sent",
+      reactions,
     };
     const isLocal = this.isSelfId(authorId);
     this.addMessage(session.id, chatMessage, { isLocal });
+  }
+
+  applyReactionEvent(payload: ChatReactionEventPayload) {
+    if (!payload || payload.type !== "chat.reaction") return;
+    const conversationId =
+      typeof payload.conversationId === "string" ? payload.conversationId.trim() : "";
+    const messageId = typeof payload.messageId === "string" ? payload.messageId.trim() : "";
+    if (!conversationId || !messageId) return;
+    const session = this.sessions.get(conversationId);
+    if (!session) return;
+    const participantUpdates: ChatParticipant[] = [];
+    if (payload.actor) {
+      const normalizedActor = normalizeParticipant(payload.actor);
+      if (normalizedActor) {
+        participantUpdates.push(normalizedActor);
+      }
+    }
+    if (Array.isArray(payload.participants) && payload.participants.length > 0) {
+      participantUpdates.push(...payload.participants);
+    }
+    if (participantUpdates.length > 0) {
+      this.upsertParticipants(conversationId, participantUpdates);
+    }
+    const messageIndex = session.messageIndex.get(messageId);
+    if (typeof messageIndex !== "number") return;
+    const existing = session.messages[messageIndex];
+    if (!existing) return;
+    const reactions = normalizeReactions(payload.reactions, (id) => this.isSelfId(id));
+    if (reactionsEqual(existing.reactions, reactions)) return;
+    session.messages[messageIndex] = { ...existing, reactions };
+    this.emit();
   }
 
   resetUnread(sessionId: string) {
@@ -1107,6 +1286,7 @@ export class ChatStore {
       body: trimmed,
       sentAt,
       status: "pending",
+      reactions: [],
     };
     this.addMessage(session.id, localMessage, { isLocal: true });
     return {

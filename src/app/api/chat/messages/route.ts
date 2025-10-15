@@ -14,12 +14,19 @@ const participantSchema = z.object({
   avatar: z.string().nullable(),
 });
 
+const reactionSchema = z.object({
+  emoji: z.string(),
+  count: z.number().int().min(0),
+  users: z.array(participantSchema),
+});
+
 const messageSchema = z.object({
   id: z.string(),
   conversationId: z.string(),
   senderId: z.string(),
   body: z.string(),
   sentAt: z.string(),
+  reactions: z.array(reactionSchema),
 });
 
 const sendRequestSchema = z.object({

@@ -21,6 +21,8 @@ import type {
   ChatSessionEventPayload,
   ChatMessageEventPayload,
   ChatTypingEventPayload,
+  ChatReactionEventPayload,
+  ChatMessageReaction,
 } from "@/components/providers/chat-store";
 import { ChatStore } from "@/components/providers/chat-store";
 
@@ -54,12 +56,19 @@ type ChatParticipantDto = {
   avatar: string | null;
 };
 
+type ChatMessageReactionDto = {
+  emoji: string;
+  count: number;
+  users: ChatParticipantDto[];
+};
+
 type ChatMessageDto = {
   id: string;
   conversationId: string;
   senderId: string;
   body: string;
   sentAt: string;
+  reactions?: ChatMessageReactionDto[];
 };
 
 type ChatHistoryResponse = {
@@ -90,6 +99,19 @@ type ChatInboxConversation = {
 type ChatInboxResponse = {
   success: true;
   conversations: ChatInboxConversation[];
+};
+
+type ChatReactionMutationResponse = {
+  success: true;
+  conversationId: string;
+  messageId: string;
+  emoji: string;
+  action: "added" | "removed";
+  reactions: Array<{
+    emoji: string;
+    count: number;
+    users: ChatParticipantDto[];
+  }>;
 };
 
 export class ChatEngine {
@@ -444,11 +466,25 @@ export class ChatEngine {
         this.applyParticipantsFromDto(effectiveConversationId, payload.participants);
       }
       if (payload?.message && typeof payload.message.id === "string") {
+        const reactionDescriptors =
+          Array.isArray(payload.message.reactions) && payload.message.reactions.length > 0
+            ? payload.message.reactions.map((reaction) => ({
+                emoji: reaction.emoji,
+                users: Array.isArray(reaction.users)
+                  ? reaction.users.map((user) => ({
+                      id: user.id,
+                      name: user.name || user.id,
+                      avatar: user.avatar ?? null,
+                    }))
+                  : [],
+              }))
+            : [];
         this.store.acknowledgeMessage(effectiveConversationId, message.id, {
           id: payload.message.id,
           authorId: payload.message.senderId,
           body: payload.message.body,
           sentAt: payload.message.sentAt,
+          reactions: reactionDescriptors,
         });
         this.recordDirectChannelWatermarkFromIso(payload.message.sentAt);
       } else {
@@ -459,6 +495,127 @@ export class ChatEngine {
       this.store.markMessageStatus(effectiveConversationId, message.id, "failed");
       throw error;
     }
+  }
+
+  async toggleMessageReaction(
+    conversationId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<void> {
+    const trimmedEmoji = typeof emoji === "string" ? emoji.trim() : "";
+    if (!trimmedEmoji) return;
+    let snapshot = this.store.getSnapshot();
+    let session = snapshot.sessions.find((item) => item.id === conversationId) ?? null;
+    if (!session) {
+      await this.ensureConversationHistory(conversationId);
+      snapshot = this.store.getSnapshot();
+      session = snapshot.sessions.find((item) => item.id === conversationId) ?? null;
+    }
+    if (!session) {
+      throw new Error("Unable to locate conversation for reaction.");
+    }
+    let message =
+      session.messages.find((item) => item.id === messageId) ?? null;
+    if (!message) {
+      await this.ensureConversationHistory(conversationId);
+      snapshot = this.store.getSnapshot();
+      session = snapshot.sessions.find((item) => item.id === conversationId) ?? session;
+      message = session?.messages.find((item) => item.id === messageId) ?? null;
+    }
+    if (!message) {
+      throw new Error("Unable to locate message for reaction.");
+    }
+    const hasSelf = message.reactions.some(
+      (reaction) =>
+        reaction.emoji === trimmedEmoji &&
+        reaction.users.some((user) => this.isSelfUser(user.id)),
+    );
+    const action: "add" | "remove" = hasSelf ? "remove" : "add";
+    await this.mutateReaction(conversationId, messageId, trimmedEmoji, action, session);
+  }
+
+  private async mutateReaction(
+    conversationId: string,
+    messageId: string,
+    emoji: string,
+    action: "add" | "remove",
+    session: ChatSession,
+  ): Promise<void> {
+    const response = await fetch("/api/chat/reactions", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        conversationId,
+        messageId,
+        emoji,
+        action,
+      }),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to ${action === "add" ? "add" : "remove"} reaction (${response.status})`;
+      try {
+        const payload = (await response.json()) as { message?: string; error?: string };
+        errorMessage = payload.message ?? payload.error ?? errorMessage;
+      } catch {
+        const text = await response.text().catch(() => "");
+        if (text) errorMessage = text;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const payload = (await response.json()) as ChatReactionMutationResponse;
+    const resolvedConversationId =
+      (payload?.conversationId?.trim() ?? "") || conversationId;
+    if (resolvedConversationId && resolvedConversationId !== conversationId) {
+      this.handleConversationRemap(conversationId, resolvedConversationId);
+    }
+    const latestSnapshot = this.store.getSnapshot();
+    const targetSession =
+      latestSnapshot.sessions.find((item) => item.id === resolvedConversationId) ?? session;
+
+    const fallbackSelfId =
+      this.resolveSelfId() ??
+      this.supabaseUserId ??
+      this.resolvedSelfClientId ??
+      this.userProfile.id ??
+      null;
+    const actor =
+      this.buildSelfParticipant(fallbackSelfId) ??
+      (fallbackSelfId ? this.createSelfParticipant(fallbackSelfId) : null);
+    if (!actor) {
+      throw new Error("Chat identity is not ready yet.");
+    }
+
+    const reactionEntries =
+      Array.isArray(payload.reactions) && payload.reactions.length > 0
+        ? payload.reactions.map((reaction) => ({
+            emoji: reaction.emoji,
+            users: Array.isArray(reaction.users)
+              ? reaction.users.map((user) => ({
+                  id: user.id,
+                  name: user.name || user.id,
+                  avatar: user.avatar ?? null,
+                }))
+              : [],
+          }))
+        : [];
+
+    const eventPayload: ChatReactionEventPayload = {
+      type: "chat.reaction",
+      conversationId: resolvedConversationId,
+      messageId: payload.messageId || messageId,
+      emoji: payload.emoji || emoji,
+      action: payload.action,
+      actor,
+      reactions: reactionEntries,
+      participants: targetSession.participants.map((participant) => ({ ...participant })),
+    };
+
+    this.store.applyReactionEvent(eventPayload);
   }
 
   notifyTyping(conversationId: string, typing: boolean): void {
@@ -656,16 +813,68 @@ export class ChatEngine {
     this.store.applySessionEvent(descriptor);
   }
 
+  private normalizeReactionsFromDto(
+    reactions: ChatMessageReactionDto[] | undefined,
+  ): ChatMessageReaction[] {
+    if (!Array.isArray(reactions) || reactions.length === 0) {
+      return [];
+    }
+    const aggregation = new Map<string, Map<string, ChatParticipant>>();
+    reactions.forEach((reaction) => {
+      if (!reaction) return;
+      const emoji = typeof reaction.emoji === "string" ? reaction.emoji.trim() : "";
+      if (!emoji) return;
+      const users = Array.isArray(reaction.users) ? reaction.users : [];
+      let bucket = aggregation.get(emoji);
+      if (!bucket) {
+        bucket = new Map<string, ChatParticipant>();
+        aggregation.set(emoji, bucket);
+      }
+      users.forEach((user) => {
+        if (!user?.id) return;
+        const normalized: ChatParticipant = {
+          id: user.id,
+          name: typeof user.name === "string" && user.name.trim().length
+            ? user.name.trim()
+            : user.id,
+          avatar: user.avatar ?? null,
+        };
+        bucket!.set(normalized.id, normalized);
+      });
+    });
+    const normalized: ChatMessageReaction[] = [];
+    aggregation.forEach((bucket, emoji) => {
+      const users = Array.from(bucket.values()).sort((a, b) => {
+        const nameCompare = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+        if (nameCompare !== 0) return nameCompare;
+        return a.id.localeCompare(b.id);
+      });
+      normalized.push({
+        emoji,
+        count: users.length,
+        users,
+        selfReacted: users.some((user) => this.isSelfUser(user.id)),
+      });
+    });
+    normalized.sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.emoji.localeCompare(b.emoji);
+    });
+    return normalized;
+  }
+
   private upsertMessageFromDto(conversationId: string, dto: ChatMessageDto): void {
     if (!dto?.id || !dto.body) return;
     const sanitized = dto.body.replace(/\s+/g, " ").trim();
     if (!sanitized) return;
+    const reactions = this.normalizeReactionsFromDto(dto.reactions);
     const chatMessage = {
       id: dto.id,
       authorId: dto.senderId,
       body: sanitized,
       sentAt: dto.sentAt,
       status: "sent" as const,
+      reactions,
     };
     const isLocal = this.isSelfUser(dto.senderId);
     this.store.addMessage(conversationId, chatMessage, { isLocal });
@@ -769,12 +978,14 @@ export class ChatEngine {
       ) {
         const sanitized = lastMessage.body.replace(/\s+/g, " ").trim();
         if (sanitized) {
+          const reactions = this.normalizeReactionsFromDto(lastMessage.reactions);
           const chatMessage = {
             id: lastMessage.id,
             authorId: lastMessage.senderId,
             body: sanitized,
             sentAt: lastMessage.sentAt,
             status: "sent" as const,
+            reactions,
           };
           const isLocal = this.isSelfUser(chatMessage.authorId);
           this.store.addMessage(descriptor.id, chatMessage, { isLocal });
@@ -915,6 +1126,12 @@ export class ChatEngine {
   if (event.name === "chat.typing") {
     const payload = event.data as ChatTypingEventPayload;
     this.store.applyTypingEvent(payload);
+    return;
+  }
+  if (event.name === "chat.reaction") {
+    const payload = event.data as ChatReactionEventPayload;
+    if (!payload || payload.type !== "chat.reaction") return;
+    this.store.applyReactionEvent(payload);
     return;
   }
   if (event.name !== "chat.message") return;

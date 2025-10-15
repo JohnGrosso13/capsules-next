@@ -21,6 +21,13 @@ export type ChatParticipantRow = {
   user_key: string | null;
 };
 
+export type ChatMessageReactionRow = {
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+};
+
 type UserIdentityRow = ChatParticipantRow & {
   clerk_id: string | null;
   email: string | null;
@@ -99,6 +106,71 @@ export async function listChatMessages(
   const result = await query.fetch();
   const rows = expectArrayResult(result, "chat_messages.list");
   return rows.slice().reverse();
+}
+
+export async function findChatMessageById(messageId: string): Promise<ChatMessageRow | null> {
+  const db = getDatabaseAdminClient();
+  const trimmed = typeof messageId === "string" ? messageId.trim() : "";
+  if (!trimmed) return null;
+  const result = await db
+    .from(TABLE)
+    .select<ChatMessageRow>("id, conversation_id, sender_id, body, client_sent_at, created_at, updated_at")
+    .eq("id", trimmed)
+    .maybeSingle();
+  if (result.error) {
+    throw wrapDatabaseError("chat_messages.find_by_id", result.error);
+  }
+  return result.data ?? null;
+}
+
+export async function upsertChatMessageReaction(row: {
+  message_id: string;
+  user_id: string;
+  emoji: string;
+}): Promise<ChatMessageReactionRow> {
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from("chat_message_reactions")
+    .upsert([row], { onConflict: "message_id,user_id,emoji" })
+    .select<ChatMessageReactionRow>("message_id, user_id, emoji, created_at")
+    .single();
+  return expectResult(result, "chat_message_reactions.upsert");
+}
+
+export async function deleteChatMessageReaction(params: {
+  message_id: string;
+  user_id: string;
+  emoji: string;
+}): Promise<void> {
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from("chat_message_reactions")
+    .delete()
+    .eq("message_id", params.message_id)
+    .eq("user_id", params.user_id)
+    .eq("emoji", params.emoji)
+    .limit(1)
+    .select("message_id");
+  expectArrayResult(result, "chat_message_reactions.delete");
+}
+
+export async function listChatMessageReactions(
+  messageIds: string[],
+): Promise<ChatMessageReactionRow[]> {
+  const uniqueIds = Array.from(
+    new Set(
+      messageIds
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+  if (!uniqueIds.length) return [];
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from("chat_message_reactions")
+    .select<ChatMessageReactionRow>("message_id, user_id, emoji, created_at")
+    .in("message_id", uniqueIds);
+  return expectArrayResult(result, "chat_message_reactions.list");
 }
 
 export async function listRecentMessagesForUser(
