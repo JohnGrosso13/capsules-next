@@ -4,6 +4,7 @@ import { act } from "react";
 import ReactDOM from "react-dom/client";
 
 import { PartyProvider, usePartyContext } from "../PartyProvider";
+import type { Room } from "livekit-client";
 
 vi.mock("@/services/auth/client", () => ({
   useCurrentUser: () => ({ user: { name: "Test User" } }),
@@ -112,10 +113,10 @@ describe("PartyProvider", () => {
       disconnect: vi.fn(async () => {
         contextRef.current?.handleRoomDisconnected();
       }),
-    };
+    } as unknown as Room;
 
     await act(async () => {
-      contextRef.current?.handleRoomConnected(mockRoom as any);
+      contextRef.current?.handleRoomConnected(mockRoom as unknown as Room);
     });
 
     await act(async () => {

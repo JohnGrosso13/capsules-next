@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 
 import {
   MicrophoneStage,
@@ -38,6 +39,9 @@ type ParticipantProfile = {
   name: string | null;
   avatar: string | null;
 };
+
+type NavigatorUserMediaSuccessCallback = (stream: MediaStream) => void;
+type NavigatorUserMediaErrorCallback = (error: DOMException) => void;
 
 type PartyPanelProps = {
   friends: FriendItem[];
@@ -104,8 +108,8 @@ async function requestMicrophonePermission(): Promise<void> {
       stream = await new Promise<MediaStream>((resolve, reject) => {
         legacyGetUserMedia(
           { audio: true },
-          (legacyStream) => resolve(legacyStream),
-          (error) => reject(error),
+          (legacyStream: MediaStream) => resolve(legacyStream),
+          (error: DOMException) => reject(error),
         );
       });
     }
@@ -568,13 +572,13 @@ export function PartyPanel({
         <div className={styles.sectionHeader}>
           <span className={styles.sectionTitle}>Invite friends</span>
           <p className={styles.sectionSubtitle}>
-            Drop an invite in chat and they'll join the voice lobby instantly.
+            Drop an invite in chat and they&apos;ll join the voice lobby instantly.
           </p>
         </div>
         <div className={styles.sectionBody}>
           {inviteableFriends.length === 0 ? (
             <div className={styles.emptyState}>
-              <p>You don't have invite-ready friends yet.</p>
+              <p>You don&apos;t have invite-ready friends yet.</p>
               <button type="button" className={styles.secondaryButton} onClick={onShowFriends}>
                 Find friends
               </button>
@@ -938,12 +942,15 @@ function ParticipantBadge({ participant, profile }: ParticipantBadgeProps) {
     <div className={`${styles.participantCard} ${speaking ? styles.participantSpeaking : ""}`}>
       <div className={styles.participantAvatar}>
         {avatar ? (
-          <img
+          <Image
             alt={`${name}'s avatar`}
             src={avatar}
+            width={42}
+            height={42}
             className={styles.participantAvatarImage}
             loading="lazy"
             referrerPolicy="no-referrer"
+            sizes="42px"
           />
         ) : (
           initials

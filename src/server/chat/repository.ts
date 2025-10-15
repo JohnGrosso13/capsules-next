@@ -150,7 +150,8 @@ export async function deleteChatMessageReaction(params: {
     .eq("user_id", params.user_id)
     .eq("emoji", params.emoji)
     .limit(1)
-    .select("message_id");
+    .select("message_id")
+    .fetch();
   expectArrayResult(result, "chat_message_reactions.delete");
 }
 
@@ -169,7 +170,8 @@ export async function listChatMessageReactions(
   const result = await db
     .from("chat_message_reactions")
     .select<ChatMessageReactionRow>("message_id, user_id, emoji, created_at")
-    .in("message_id", uniqueIds);
+    .in("message_id", uniqueIds)
+    .fetch();
   return expectArrayResult(result, "chat_message_reactions.list");
 }
 
@@ -191,7 +193,8 @@ export async function listRecentMessagesForUser(
     )
     .or(`conversation_id.like.${leftPattern},conversation_id.like.${rightPattern}`)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(limit)
+    .fetch();
 
   return expectArrayResult(result, "chat_messages.list_recent_user");
 }

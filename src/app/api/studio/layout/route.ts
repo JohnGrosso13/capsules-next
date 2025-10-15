@@ -14,7 +14,7 @@ const DEFAULT_VIEW = "ai-stream-studio";
 const layoutStateSchema = z
   .object({
     layout: z.array(z.number()),
-    expandToSizes: z.record(z.number()).optional(),
+    expandToSizes: z.record(z.string(), z.number()).optional(),
   })
   .passthrough();
 
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
   }
 
   const layouts = await getUserPanelLayouts(ownerId, view, keys.length ? keys : undefined);
-  return Response.json({ view, layouts });
+  return Response.json({ view, layouts }, { status: 200 });
 }
 
 export async function PUT(req: Request) {
@@ -76,5 +76,5 @@ export async function PUT(req: Request) {
 
   await upsertUserPanelLayouts(ownerId, view, normalizedEntries);
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true }, { status: 200 });
 }

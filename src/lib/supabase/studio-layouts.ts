@@ -73,7 +73,8 @@ export async function upsertUserPanelLayouts(
   const result = await db
     .from(TABLE)
     .upsert(payload, { onConflict: "user_id,storage_key" })
-    .select("storage_key");
+    .select("storage_key")
+    .fetch();
 
   ensure(result, "studioLayouts.upsert");
 }

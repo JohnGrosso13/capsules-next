@@ -349,7 +349,7 @@ export function AiStreamStudioLayout({
     return (
       <PanelGroup
         direction="horizontal"
-        className={styles.studioLayout}
+        className={styles.studioLayout ?? ""}
         autoSaveId={autoSaveIds.main}
         storage={panelStorage}
         style={{ height: "auto", minHeight: "var(--studio-track-height)", overflow: "visible" }}
@@ -357,7 +357,7 @@ export function AiStreamStudioLayout({
         <Panel defaultSize={62} minSize={48} collapsible={false}>
           <PanelGroup
             direction="vertical"
-            className={styles.panelColumn}
+            className={styles.panelColumn ?? ""}
             autoSaveId={autoSaveIds.leftColumn}
             storage={panelStorage}
           >
@@ -571,7 +571,7 @@ export function AiStreamStudioLayout({
         <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
 
         <Panel defaultSize={14} minSize={12} collapsible={false}>
-          <PanelGroup direction="vertical" className={styles.panelColumn}>
+          <PanelGroup direction="vertical" className={styles.panelColumn ?? ""}>
             <Panel defaultSize={60} minSize={18} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.resourceCard} ${styles.panelCard}`}>
