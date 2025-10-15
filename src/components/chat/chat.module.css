@@ -626,11 +626,265 @@
   gap: 6px;
   align-items: center;
   margin-top: 6px;
+  position: relative;
 }
 
 .messageItemSelf .messageReactions {
   justify-content: flex-end;
   margin-left: auto;
+}
+
+.messageItemOther .messageReactionPicker {
+  left: 0;
+  right: auto;
+}
+
+.messageItemSelf .messageReactionPicker {
+  right: 0;
+  left: auto;
+}
+
+.messageReaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
+  background: var(
+    --chats-reaction-background,
+    color-mix(in srgb, rgba(24, 26, 58, 0.88) 82%, transparent)
+  );
+  color: var(--text);
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.messageReaction:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+}
+
+.messageReaction:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.messageReactionActive {
+  border-color: color-mix(in srgb, var(--color-brand) 75%, transparent);
+  background: var(
+    --chats-reaction-active-background,
+    color-mix(in srgb, rgba(76, 86, 212, 0.42) 85%, transparent)
+  );
+  color: var(--text);
+  box-shadow: var(
+    --chats-reaction-active-shadow,
+    0 8px 18px color-mix(in srgb, rgba(76, 86, 212, 0.35) 60%, transparent)
+  );
+}
+
+.messageReactionEmoji {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.messageReactionCount {
+  font-weight: 600;
+}
+
+.messageReactionAdd {
+  position: relative;
+}
+
+.messageReactionAddButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
+  background: var(
+    --chats-reaction-add-background,
+    color-mix(in srgb, rgba(28, 30, 62, 0.78) 80%, transparent)
+  );
+  color: var(--text-2, rgba(255, 255, 255, 0.7));
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.messageReactionAddButton:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+  box-shadow: 0 10px 18px color-mix(in srgb, rgba(76, 86, 212, 0.28) 60%, transparent);
+}
+
+.messageReactionAddButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 80%, transparent);
+  outline-offset: 2px;
+}
+
+.messageReactionAddButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.messageReactionPicker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 78%, transparent);
+  background: var(
+    --chats-reaction-picker-background,
+    color-mix(in srgb, rgba(16, 18, 40, 0.94) 88%, rgba(8, 10, 24, 0.92))
+  );
+  box-shadow: var(
+    --chats-reaction-picker-shadow,
+    0 20px 32px color-mix(in srgb, rgba(0, 0, 0, 0.65) 80%, transparent)
+  );
+  max-width: min(260px, calc(100vw - 72px));
+  z-index: 4;
+}
+
+.messageReactionOption {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.messageReactionOption:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, rgba(78, 88, 210, 0.3) 80%, transparent);
+}
+
+.messageReactionOption:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 78%, transparent);
+  outline-offset: 2px;
+}
+
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: var(
+    --chats-composer-background,
+    color-mix(in srgb, rgba(12, 14, 36, 0.92) 85%, rgba(6, 8, 24, 0.95))
+  );
+}
+
+.messageInput {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pill-border) 82%, transparent);
+  background: var(
+    --chats-composer-input-background,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(10, 12, 28, 0.7))
+  );
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.messageInput::placeholder {
+  color: var(--text-3, rgba(255, 255, 255, 0.55));
+}
+
+.messageInput:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-brand) 78%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand) 32%, transparent);
+}
+
+.messageInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sendButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: none;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--chats-send-foreground, var(--text));
+  background: var(
+    --chats-send-background,
+    linear-gradient(135deg, rgba(120, 86, 255, 0.88), rgba(76, 138, 255, 0.8))
+  );
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.sendButton:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px color-mix(in srgb, rgba(120, 86, 255, 0.4) 65%, transparent);
+}
+
+.sendButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 82%, transparent);
+  outline-offset: 3px;
+}
+
+.sendButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.sendButtonIcon {
+  display: inline-flex;
+}
+
+@media (max-width: 640px) {
+  .composer {
+    padding: 14px 16px;
+  }
+  .messageReactionPicker {
+    right: auto;
+    left: 0;
+  }
 }
 
 
