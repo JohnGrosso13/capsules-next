@@ -674,7 +674,7 @@
       --style-chats-badge-bg,
       color-mix(in srgb, var(--color-brand) 62%, rgba(59, 130, 246, 0.28))
     );
-    --chats-thread-badge-text: var(--style-chats-badge-color, var(--text-on-brand, #0e1024));
+    --chats-thread-badge-text: var(--style-chats-badge-color, var(--text-on-brand));
     --chats-conversation-background: linear-gradient(
       180deg,
       color-mix(in srgb, rgba(224, 231, 255, 0.78) 70%, transparent),
@@ -696,7 +696,7 @@
       color-mix(in srgb, var(--color-brand) 65%, rgba(96, 165, 250, 0.32)),
       color-mix(in srgb, rgba(96, 165, 250, 0.35) 70%, rgba(59, 130, 246, 0.3))
     );
-    --chats-message-self-text: var(--text-on-brand, #0e1024);
+    --chats-message-self-text: var(--text-on-brand);
     --chats-error-border: color-mix(in srgb, var(--color-danger) 35%, rgba(14, 23, 42, 0.18));
     --chats-error-background: color-mix(
       in srgb,
@@ -721,7 +721,32 @@
       color-mix(in srgb, var(--color-brand) 65%, rgba(37, 99, 235, 0.25)),
       color-mix(in srgb, rgba(96, 165, 250, 0.35) 70%, rgba(59, 130, 246, 0.3))
     );
-    --chats-send-button-text: var(--text-on-brand, #0e1024);
+    --chats-send-button-text: var(--text-on-brand);
+    --chats-reaction-background: color-mix(
+      in srgb,
+      rgba(226, 232, 255, 0.86) 70%,
+      rgba(203, 213, 255, 0.42)
+    );
+    --chats-reaction-border: color-mix(in srgb, rgba(148, 163, 184, 0.32) 65%, transparent);
+    --chats-reaction-active-background: color-mix(
+      in srgb,
+      var(--color-brand) 45%,
+      rgba(219, 234, 254, 0.6)
+    );
+    --chats-reaction-active-shadow: 0 8px 18px
+      color-mix(in srgb, rgba(59, 130, 246, 0.28) 60%, transparent);
+    --chats-reaction-add-background: color-mix(
+      in srgb,
+      rgba(221, 231, 255, 0.78) 70%,
+      rgba(255, 255, 255, 0.9)
+    );
+    --chats-reaction-picker-border: color-mix(in srgb, rgba(148, 163, 184, 0.24) 70%, transparent);
+    --chats-reaction-picker-background: color-mix(
+      in srgb,
+      rgba(255, 255, 255, 0.96) 85%,
+      rgba(210, 224, 255, 0.34)
+    );
+    --chats-reaction-picker-shadow: 0 20px 32px rgba(15, 23, 42, 0.16);
     --chats-menu-panel-background: color-mix(
       in srgb,
       var(--surface-elevated, rgba(255, 255, 255, 0.92)) 95%,

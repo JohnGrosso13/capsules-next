@@ -723,7 +723,7 @@
       --style-chats-badge-bg,
       color-mix(in srgb, var(--color-brand) 75%, rgba(10, 12, 32, 0.85))
     );
-    --chats-thread-badge-text: var(--style-chats-badge-color, var(--text-on-brand, #ffffff));
+    --chats-thread-badge-text: var(--style-chats-badge-color, var(--text-on-brand));
     --chats-conversation-background: linear-gradient(
       180deg,
       color-mix(in srgb, rgba(24, 28, 52, 0.76) 70%, transparent),
@@ -745,7 +745,7 @@
       color-mix(in srgb, var(--color-brand) 85%, rgba(76, 81, 219, 0.95)),
       color-mix(in srgb, var(--color-brand) 70%, rgba(41, 45, 120, 0.85))
     );
-    --chats-message-self-text: var(--text-on-brand, #ffffff);
+    --chats-message-self-text: var(--text-on-brand);
     --chats-error-border: rgba(248, 113, 113, 0.4);
     --chats-error-background: rgba(248, 113, 113, 0.12);
     --chats-error-text: rgba(254, 226, 226, 0.95);
@@ -816,6 +816,19 @@
       color-mix(in srgb, rgba(66, 71, 194, 0.9) 70%, rgba(48, 52, 148, 0.9))
     );
     --chats-send-button-text: var(--text-on-brand, #ffffff);
+    --chats-reaction-background: color-mix(in srgb, rgba(24, 26, 58, 0.88) 82%, transparent);
+    --chats-reaction-border: color-mix(in srgb, var(--pill-border) 78%, transparent);
+    --chats-reaction-active-background: color-mix(in srgb, rgba(76, 86, 212, 0.42) 85%, transparent);
+    --chats-reaction-active-shadow: 0 8px 18px
+      color-mix(in srgb, rgba(76, 86, 212, 0.35) 60%, transparent);
+    --chats-reaction-add-background: color-mix(in srgb, rgba(28, 30, 62, 0.78) 80%, transparent);
+    --chats-reaction-picker-border: color-mix(in srgb, var(--card-border) 78%, transparent);
+    --chats-reaction-picker-background: color-mix(
+      in srgb,
+      rgba(16, 18, 40, 0.94) 88%,
+      rgba(8, 10, 24, 0.92)
+    );
+    --chats-reaction-picker-shadow: 0 20px 32px color-mix(in srgb, rgba(0, 0, 0, 0.65) 80%, transparent);
     --chats-menu-panel-background: color-mix(in srgb, rgba(8, 10, 30, 0.92) 85%, transparent);
     --chats-menu-panel-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
 

@@ -7,11 +7,8 @@
   min-height: 0;
   border-radius: 20px;
   border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
-  background: var(
-    --chats-panel-background,
-    color-mix(in srgb, rgba(10, 12, 32, 0.78) 85%, rgba(6, 8, 24, 0.92))
-  );
-  box-shadow: var(--chats-panel-shadow, 0 18px 40px rgba(0, 0, 0, 0.35));
+  background: var(--chats-panel-background);
+  box-shadow: var(--chats-panel-shadow);
   overflow: hidden;
 }
 
@@ -56,14 +53,7 @@
   text-align: center;
   padding: 36px 32px;
   border-radius: 18px;
-  background: var(
-    --chats-empty-background,
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(18, 22, 48, 0.78) 70%, transparent),
-      color-mix(in srgb, rgba(6, 8, 24, 0.9) 75%, transparent)
-    )
-  );
+  background: var(--chats-empty-background);
   color: var(--text);
   border: 1px dashed color-mix(in srgb, var(--card-border) 85%, transparent);
 }
@@ -83,17 +73,7 @@
   padding: 12px 14px;
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--card-border) 82%, transparent);
-  background: var(
-    --chats-thread-background,
-    var(
-      --style-chats-bg,
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, rgba(32, 36, 64, 0.54) 70%, rgba(10, 12, 30, 0.65)),
-        color-mix(in srgb, rgba(8, 10, 24, 0.82) 70%, rgba(4, 6, 20, 0.9))
-      )
-    )
-  );
+  background: var(--chats-thread-background);
   transition:
     transform 160ms ease,
     border-color 160ms ease,
@@ -138,10 +118,7 @@
   border-radius: 16px;
   overflow: hidden;
   flex-shrink: 0;
-  background: var(
-    --chats-avatar-background,
-    var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
-  );
+  background: var(--chats-avatar-background);
   display: grid;
   place-items: center;
   font-size: 1rem;
@@ -174,10 +151,7 @@
   place-items: center;
   border: 2px solid
     color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.85)) 80%, transparent);
-  background: var(
-    --chats-avatar-background,
-    var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
-  );
+  background: var(--chats-avatar-background);
   margin-left: -18px;
   font-weight: 700;
   color: var(--text);
@@ -234,21 +208,16 @@
     color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 76%, transparent)
       0%,
     color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 84%, transparent) 50%,
-    color-mix(
-        in srgb,
-        var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%,
-        transparent
-      )
-      100%
+    color-mix(in srgb, var(--header-brand-accent-color, var(--color-accent)) 88%, transparent) 100%
   );
   border: 1px solid
     color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 62%, transparent);
   box-shadow: 0 10px 22px
     color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 28%, transparent);
-  color: var(--text-on-brand, #041021);
+  color: var(--text-on-brand);
   letter-spacing: 0.08em;
   white-space: nowrap;
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--text-on-brand, #041021) 22%, transparent);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--text-on-brand) 22%, transparent);
   transition:
     box-shadow var(--motion-duration-quick, 120ms)
       var(--motion-ease-standard, cubic-bezier(0.2, 0, 0.4, 1)),
@@ -297,7 +266,7 @@
   );
   color: var(
     --chats-thread-badge-text,
-    var(--style-chats-badge-color, var(--text-on-brand, #ffffff))
+    var(--style-chats-badge-color, var(--text-on-brand))
   );
   font-size: 0.75rem;
   font-weight: 700;
@@ -308,14 +277,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  background: var(
-    --chats-conversation-background,
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(24, 28, 52, 0.76) 70%, transparent),
-      color-mix(in srgb, rgba(6, 8, 24, 0.9) 80%, transparent)
-    )
-  );
+  background: var(--chats-conversation-background);
 }
 
 .conversationHeader {
@@ -350,14 +312,7 @@
   height: 38px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
-  background: var(
-    --chats-control-background,
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(255, 255, 255, 0.12) 65%, transparent),
-      color-mix(in srgb, rgba(8, 10, 30, 0.78) 80%, transparent)
-    )
-  );
+  background: var(--chats-control-background);
   color: var(--text);
   transition:
     transform 160ms ease,
@@ -386,10 +341,7 @@
   border-radius: 16px;
   overflow: hidden;
   flex-shrink: 0;
-  background: var(
-    --chats-avatar-background,
-    var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
-  );
+  background: var(--chats-avatar-background);
   display: grid;
   place-items: center;
   font-size: 1rem;
@@ -420,10 +372,7 @@
   overflow: hidden;
   display: grid;
   place-items: center;
-  background: var(
-    --chats-avatar-background,
-    var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
-  );
+  background: var(--chats-avatar-background);
   border: 2px solid
     color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.9)) 80%, transparent);
   margin-left: -18px;
@@ -589,14 +538,11 @@
   position: relative;
   padding: 12px 16px;
   border-radius: 18px 18px 18px 6px;
-  background: var(
-    --chats-message-background,
-    color-mix(in srgb, rgba(46, 50, 86, 0.78) 75%, rgba(10, 12, 30, 0.85))
-  );
+  background: var(--chats-message-background);
   color: var(--text);
   line-height: 1.5;
   word-break: break-word;
-  box-shadow: var(--chats-message-shadow, 0 12px 22px rgba(0, 0, 0, 0.35));
+  box-shadow: var(--chats-message-shadow);
 }
 
 .messageItemSelf .messageBubble {
@@ -604,15 +550,8 @@
 }
 
 .messageBubbleSelf {
-  background: var(
-    --chats-message-self-background,
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand) 85%, rgba(76, 81, 219, 0.95)),
-      color-mix(in srgb, var(--color-brand) 70%, rgba(41, 45, 120, 0.85))
-    )
-  );
-  color: var(--chats-message-self-text, var(--text-on-brand, #ffffff));
+  background: var(--chats-message-self-background);
+  color: var(--chats-message-self-text);
 }
 
 .messageMeta {
@@ -650,11 +589,8 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
-  background: var(
-    --chats-reaction-background,
-    color-mix(in srgb, rgba(24, 26, 58, 0.88) 82%, transparent)
-  );
+  border: 1px solid var(--chats-reaction-border);
+  background: var(--chats-reaction-background);
   color: var(--text);
   font-size: 0.78rem;
   letter-spacing: 0.01em;
@@ -679,15 +615,9 @@
 
 .messageReactionActive {
   border-color: color-mix(in srgb, var(--color-brand) 75%, transparent);
-  background: var(
-    --chats-reaction-active-background,
-    color-mix(in srgb, rgba(76, 86, 212, 0.42) 85%, transparent)
-  );
+  background: var(--chats-reaction-active-background);
   color: var(--text);
-  box-shadow: var(
-    --chats-reaction-active-shadow,
-    0 8px 18px color-mix(in srgb, rgba(76, 86, 212, 0.35) 60%, transparent)
-  );
+  box-shadow: var(--chats-reaction-active-shadow);
 }
 
 .messageReactionEmoji {
@@ -710,12 +640,9 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
-  background: var(
-    --chats-reaction-add-background,
-    color-mix(in srgb, rgba(28, 30, 62, 0.78) 80%, transparent)
-  );
-  color: var(--text-2, rgba(255, 255, 255, 0.7));
+  border: 1px solid var(--chats-reaction-border);
+  background: var(--chats-reaction-add-background);
+  color: var(--text-2);
   cursor: pointer;
   transition:
     transform 160ms ease,
@@ -750,15 +677,9 @@
   flex-wrap: wrap;
   padding: 6px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--card-border) 78%, transparent);
-  background: var(
-    --chats-reaction-picker-background,
-    color-mix(in srgb, rgba(16, 18, 40, 0.94) 88%, rgba(8, 10, 24, 0.92))
-  );
-  box-shadow: var(
-    --chats-reaction-picker-shadow,
-    0 20px 32px color-mix(in srgb, rgba(0, 0, 0, 0.65) 80%, transparent)
-  );
+  border: 1px solid var(--chats-reaction-picker-border);
+  background: var(--chats-reaction-picker-background);
+  box-shadow: var(--chats-reaction-picker-shadow);
   max-width: min(260px, calc(100vw - 72px));
   z-index: 4;
 }
@@ -796,21 +717,15 @@
   gap: 12px;
   padding: 16px 20px;
   border-top: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
-  background: var(
-    --chats-composer-background,
-    color-mix(in srgb, rgba(12, 14, 36, 0.92) 85%, rgba(6, 8, 24, 0.95))
-  );
+  background: var(--chats-composer-background);
 }
 
 .messageInput {
   flex: 1;
   padding: 10px 16px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--pill-border) 82%, transparent);
-  background: var(
-    --chats-composer-input-background,
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(10, 12, 28, 0.7))
-  );
+  border: 1px solid var(--chats-input-border);
+  background: var(--chats-input-background);
   color: var(--text);
   font-size: 0.9rem;
   line-height: 1.4;
@@ -820,7 +735,7 @@
 }
 
 .messageInput::placeholder {
-  color: var(--text-3, rgba(255, 255, 255, 0.55));
+  color: var(--text-3);
 }
 
 .messageInput:focus-visible {
@@ -841,14 +756,11 @@
   gap: 8px;
   padding: 10px 18px;
   border-radius: 999px;
-  border: none;
+  border: 1px solid var(--chats-send-button-border);
   font-weight: 700;
   font-size: 0.9rem;
-  color: var(--chats-send-foreground, var(--text));
-  background: var(
-    --chats-send-background,
-    linear-gradient(135deg, rgba(120, 86, 255, 0.88), rgba(76, 138, 255, 0.8))
-  );
+  color: var(--chats-send-button-text);
+  background: var(--chats-send-button-background);
   cursor: pointer;
   transition:
     transform 160ms ease,
