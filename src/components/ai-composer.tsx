@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import styles from "./ai-composer.module.css";
 import { ComposerForm, type ComposerChoice } from "./composer/ComposerForm";
 import type { ComposerDraft } from "@/lib/composer/draft";
+import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
 import { usePortalHost } from "@/hooks/usePortalHost";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
 
@@ -18,12 +19,17 @@ type AiComposerDrawerProps = {
   prompt: string;
   message?: string | null;
   choices?: ComposerChoice[] | null;
+  sidebar: ComposerSidebarData;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
   onPost(): void;
-  onSave?(): void;
+  onSave?(projectId?: string | null): void;
   onPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
   onForceChoice?(key: string): void;
+  onSelectRecentChat(id: string): void;
+  onSelectDraft(id: string): void;
+  onCreateProject(name: string): void;
+  onSelectProject(id: string | null): void;
 };
 
 export function AiComposerDrawer(props: AiComposerDrawerProps) {
@@ -34,12 +40,17 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     prompt,
     message,
     choices,
+    sidebar,
     onChange,
     onClose,
     onPost,
     onSave,
     onPrompt,
     onForceChoice,
+    onSelectRecentChat,
+    onSelectDraft,
+    onCreateProject,
+    onSelectProject,
   } = props;
   const portalClassName = styles.portalHost ?? "ai-composer-portal-host";
   const { host, ready } = usePortalHost(portalClassName, open);
@@ -76,11 +87,22 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       prompt={prompt}
       message={message ?? null}
       choices={choices ?? null}
+      sidebar={sidebar}
       onChange={onChange}
       onClose={onClose}
       onPost={onPost}
-      onSave={onSave ?? onPost}
+      onSave={
+        onSave ??
+        ((projectId?: string | null) => {
+          void projectId;
+          onPost();
+        })
+      }
       onPrompt={onPrompt}
+      onSelectRecentChat={onSelectRecentChat}
+      onSelectDraft={onSelectDraft}
+      onCreateProject={onCreateProject}
+      onSelectProject={onSelectProject}
       {...(onForceChoice ? { onForceChoice } : {})}
     />,
     host,

@@ -1,10 +1,19 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import styles from "../ai-composer.module.css";
 import homeStyles from "@/components/home.module.css";
 import contextMenuStyles from "@/components/ui/context-menu.module.css";
-import { X, Paperclip, CaretDown, CaretRight, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import {
+  X,
+  Paperclip,
+  CaretDown,
+  Sparkle,
+  ChatsTeardrop,
+  FloppyDiskBack,
+  FolderSimple,
+  ImageSquare,
+} from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
 import { AttachmentPanel } from "./components/AttachmentPanel";
@@ -18,6 +27,7 @@ import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanel
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
 import { ensurePollStructure, isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
+import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
 import {
   buildImageVariants,
   pickBestDisplayVariant,
@@ -96,6 +106,82 @@ const QUICK_PROMPT_PRESETS: Record<string, Array<{ label: string; prompt: string
   ],
 };
 
+type SidebarListItem = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  onClick(): void;
+  active?: boolean;
+  disabled?: boolean;
+  icon?: React.ReactNode;
+};
+
+type SidebarSectionProps = {
+  title: string;
+  description?: string;
+  items: SidebarListItem[];
+  emptyMessage: string;
+  itemIcon?: React.ReactNode;
+  thumbClassName?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
+function SidebarSection({
+  title,
+  description,
+  items,
+  emptyMessage,
+  itemIcon,
+  thumbClassName,
+  actionLabel,
+  onAction,
+}: SidebarSectionProps) {
+  return (
+    <section className={styles.memorySection}>
+      <header className={styles.memoryHeader}>
+        <div className={styles.memoryHeaderTop}>
+          <span className={styles.memoryTitle}>{title}</span>
+          {onAction ? (
+            <button type="button" className={styles.memoryLinkBtn} onClick={onAction}>
+              {actionLabel ?? "Add"}
+            </button>
+          ) : null}
+        </div>
+        {description ? <p className={styles.memorySubtitle}>{description}</p> : null}
+      </header>
+      {items.length ? (
+        <ol className={styles.memoryList}>
+          {items.map((item) => {
+            const cardClass = `${styles.memoryCard}${item.active ? ` ${styles.memoryCardActive}` : ""}`;
+            const thumbClass = `${styles.memoryThumb}${thumbClassName ? ` ${thumbClassName}` : ""}`;
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  className={cardClass}
+                  onClick={item.onClick}
+                  disabled={item.disabled}
+                >
+                  <span className={thumbClass}>{item.icon ?? itemIcon ?? null}</span>
+                  <span className={styles.memoryMeta}>
+                    <span className={styles.memoryName}>{item.title}</span>
+                    {item.subtitle ? (
+                      <span className={styles.memoryType}>{item.subtitle}</span>
+                    ) : null}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <div className={styles.memoryEmpty}>{emptyMessage}</div>
+      )}
+    </section>
+  );
+}
+
 type MemoryPreset = {
   key: string;
   label: string;
@@ -126,7 +212,7 @@ const DEFAULT_MEMORY_PRESETS: MemoryPreset[] = [
     key: "weekly-recap",
     label: "Weekly Recap",
     description: "Blueprint",
-    prompt: "Summarize the weekâ€™s highlights with sections for wins, shoutouts, and next moves.",
+    prompt: "Summarize the week’s highlights with sections for wins, shoutouts, and next moves.",
   },
 ];
 
@@ -170,7 +256,7 @@ function getPromptPlaceholder(kind: string): string {
     case "image":
       return "Describe the vibe or upload a visual you want to evolve...";
     case "video":
-      return "Explain the clip, storyboard, or edit youâ€™re dreaming up...";
+      return "Explain the clip, storyboard, or edit you’re dreaming up...";
     case "document":
       return "Outline the doc, brief, or playbook you want Capsule AI to draft...";
     case "tournament":
@@ -185,13 +271,13 @@ function getFooterHint(kind: string): string {
     case "poll":
       return "Give Capsule AI a prompt or tweak the poll structure below.";
     case "image":
-      return "Upload a visual, pull from your library, or describe the feel youâ€™re after.";
+      return "Upload a visual, pull from your library, or describe the feel you’re after.";
     case "video":
       return "Drop in reference footage or narrate the scenes you need.";
     case "document":
       return "Share the sections you need, or ask Capsule AI to outline it for you.";
     case "tournament":
-      return "Tell Capsule AI how the bracket should flow and itâ€™ll draft it out.";
+      return "Tell Capsule AI how the bracket should flow and it’ll draft it out.";
     default:
       return "Chat with Capsule AI, reference a blueprint, or upload supporting visuals.";
   }
@@ -213,10 +299,15 @@ type ComposerFormProps = {
   prompt: string;
   message?: string | null | undefined;
   choices?: ComposerChoice[] | null | undefined;
+  sidebar: ComposerSidebarData;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
   onPost(): void;
-  onSave?(): void;
+  onSave?(projectId?: string | null): void;
+  onSelectRecentChat(id: string): void;
+  onSelectDraft(id: string): void;
+  onCreateProject(name: string): void;
+  onSelectProject(id: string | null): void;
   onForceChoice?(key: string): void;
   onPrompt?(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
 };
@@ -227,10 +318,15 @@ export function ComposerForm({
   prompt,
   message,
   choices: _choices,
+  sidebar,
   onChange,
   onClose,
   onPost,
   onSave,
+  onSelectRecentChat,
+  onSelectDraft,
+  onCreateProject,
+  onSelectProject,
   onPrompt,
   onForceChoice,
 }: ComposerFormProps) {
@@ -489,12 +585,6 @@ export function ComposerForm({
     }));
   }, [_choices]);
 
-  const accentClasses = [
-    styles.memoryAccent1,
-    styles.memoryAccent2,
-    styles.memoryAccent3,
-    styles.memoryAccent4,
-  ];
 
   const handleMemorySelect = React.useCallback(
     (item: MemoryItem) => {
@@ -531,11 +621,11 @@ export function ComposerForm({
 
   const handleSave = React.useCallback(() => {
     if (onSave) {
-      onSave();
+      onSave(sidebar.selectedProjectId ?? null);
     } else {
       onPost();
     }
-  }, [onPost, onSave]);
+  }, [onPost, onSave, sidebar.selectedProjectId]);
 
   const handlePreviewToggle = React.useCallback(() => {
     actions.setPreviewOpen(!previewOpen);
@@ -651,46 +741,115 @@ export function ComposerForm({
 
   const showWelcomeMessage = !message;
 
+  const recentSidebarItems: SidebarListItem[] = React.useMemo(
+    () =>
+      sidebar.recentChats.map((item) => ({
+        id: item.id,
+        title: item.title,
+        subtitle: item.caption,
+        onClick: () => onSelectRecentChat(item.id),
+      })),
+    [onSelectRecentChat, sidebar.recentChats],
+  );
+
+  const draftSidebarItems: SidebarListItem[] = React.useMemo(
+    () =>
+      sidebar.drafts.map((item) =>
+        item.kind === "draft"
+          ? {
+              id: item.id,
+              title: item.title,
+              subtitle: item.caption,
+              onClick: () => onSelectDraft(item.id),
+              active:
+                Boolean(sidebar.selectedProjectId) &&
+                Boolean(item.projectId) &&
+                sidebar.selectedProjectId === item.projectId,
+              icon: <FloppyDiskBack size={18} weight="duotone" />,
+            }
+          : {
+              id: `choice-${item.key}`,
+              title: item.title,
+              subtitle: item.caption,
+              onClick: () => {
+                if (onForceChoice) onForceChoice(item.key);
+              },
+              disabled: !onForceChoice,
+              icon: <Sparkle size={18} weight="fill" />,
+            },
+      ),
+    [onForceChoice, onSelectDraft, sidebar.drafts, sidebar.selectedProjectId],
+  );
+
+  const projectSidebarItems: SidebarListItem[] = React.useMemo(
+    () =>
+      sidebar.projects.map((project) => {
+        const isActive = sidebar.selectedProjectId === project.id;
+        return {
+          id: project.id,
+          title: project.name,
+          subtitle: project.caption,
+          active: isActive,
+          onClick: () => onSelectProject(isActive ? null : project.id),
+          icon: <FolderSimple size={18} weight="duotone" />,
+        };
+      }),
+    [onSelectProject, sidebar.projects, sidebar.selectedProjectId],
+  );
+
+  const handleCreateProjectClick = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    const input = window.prompt("Name your project");
+    if (!input) return;
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    onCreateProject(trimmed);
+  }, [onCreateProject]);
+
   const leftRail = (
     <div className={styles.memoryRail}>
-      <header className={styles.memoryHeader}>
-        <div className={styles.memoryHeaderTop}>
-          <span className={styles.memoryTitle}>Blueprints</span>
-          <button type="button" className={styles.memoryLinkBtn}>
-            Browse library
-            <CaretRight size={14} weight="bold" />
-          </button>
+      <SidebarSection
+        title="Recent chats"
+        description="Pick up where you and Capsule left off."
+        items={recentSidebarItems}
+        emptyMessage="No chats yet"
+        itemIcon={<ChatsTeardrop size={18} weight="duotone" />}
+        thumbClassName={styles.memoryThumbChat}
+      />
+      <SidebarSection
+        title="Saved drafts"
+        description="Continue refining drafts or jump into AI suggestions."
+        items={draftSidebarItems}
+        emptyMessage="No drafts saved yet"
+        itemIcon={<FloppyDiskBack size={18} weight="duotone" />}
+        thumbClassName={styles.memoryThumbDraft}
+      />
+      <SidebarSection
+        title="Projects"
+        description="Organize drafts and ideas into collections."
+        items={projectSidebarItems}
+        emptyMessage="Create a project to organize drafts"
+        itemIcon={<FolderSimple size={18} weight="duotone" />}
+        thumbClassName={styles.memoryThumbProject}
+        actionLabel="New project"
+        onAction={handleCreateProjectClick}
+      />
+      <div className={styles.sidebarMemories}>
+        <div className={styles.sidebarMemoriesCopy}>
+          <span className={styles.memoryTitle}>Memories</span>
+          <p className={styles.memorySubtitle}>Open your stored assets and brand visuals.</p>
         </div>
-        <p className={styles.memorySubtitle}>Reuse drafts or jump-start something new with a tap.</p>
-      </header>
-      {memoryItems.length ? (
-        <ol className={styles.memoryList}>
-          {memoryItems.map((item, index) => {
-            const accent = accentClasses[index % accentClasses.length];
-            const disabled = item.kind === "choice" && !onForceChoice;
-            return (
-              <li key={item.key}>
-                <button
-                  type="button"
-                  className={styles.memoryCard}
-                  onClick={() => handleMemorySelect(item)}
-                  disabled={disabled}
-                >
-                  <span className={`${styles.memoryThumb} ${accent}`} aria-hidden="true">
-                    <Sparkle size={18} weight="fill" />
-                  </span>
-                  <span className={styles.memoryMeta}>
-                    <span className={styles.memoryName}>{item.label}</span>
-                    <span className={styles.memoryType}>{item.description}</span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      ) : (
-        <div className={styles.memoryEmpty}>No blueprints yet</div>
-      )}
+        <button
+          type="button"
+          className={styles.sidebarMemoriesButton}
+          onClick={handleMemoryShortcut}
+        >
+          <span className={`${styles.memoryThumb} ${styles.memoryThumbMemory}`}>
+            <ImageSquare size={18} weight="duotone" />
+          </span>
+          <span>Browse memories</span>
+        </button>
+      </div>
     </div>
   );
 

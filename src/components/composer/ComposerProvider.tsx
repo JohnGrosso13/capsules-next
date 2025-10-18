@@ -11,6 +11,22 @@ import { applyThemeVars } from "@/lib/theme";
 import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
 import type { ComposerDraft } from "@/lib/composer/draft";
+import {
+  buildSidebarStorageKey,
+  EMPTY_SIDEBAR_SNAPSHOT,
+  loadSidebarSnapshot,
+  saveSidebarSnapshot,
+  type ComposerSidebarSnapshot,
+  type ComposerStoredDraft,
+  type ComposerStoredProject,
+  type ComposerStoredRecentChat,
+} from "@/lib/composer/sidebar-store";
+import {
+  formatRelativeTime,
+  truncateLabel,
+  type ComposerSidebarData,
+  type SidebarDraftListItem,
+} from "@/lib/composer/sidebar-types";
 import { normalizeDraftFromPost } from "@/lib/composer/normalizers";
 import { buildPostPayload } from "@/lib/composer/payload";
 import type { ComposerMode } from "@/lib/ai/nav";
@@ -75,6 +91,51 @@ async function callStyler(
   return stylerResponseSchema.parse(json);
 }
 
+function cloneData<T>(value: T): T {
+  if (value === null || value === undefined) return value;
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function pickFirstMeaningfulText(...values: Array<string | null | undefined>): string | null {
+  for (const value of values) {
+    if (!value) continue;
+    const trimmed = value.replace(/\s+/g, " ").trim();
+    if (trimmed.length) return trimmed;
+  }
+  return null;
+}
+
+function describeRecentTitle(entry: ComposerStoredRecentChat): string {
+  const primary = pickFirstMeaningfulText(entry.message, entry.prompt, entry.draft.content ?? "");
+  return truncateLabel(primary ?? "Recent chat", 70);
+}
+
+function describeDraftTitle(entry: ComposerStoredDraft): string {
+  const primary = pickFirstMeaningfulText(
+    entry.title,
+    entry.prompt,
+    entry.draft.content ?? "",
+    entry.message,
+  );
+  return truncateLabel(primary ?? "Saved draft", 70);
+}
+
+function describeDraftCaption(updatedAt: string): string {
+  return `Updated ${formatRelativeTime(updatedAt)}`;
+}
+
+function describeRecentCaption(entry: ComposerStoredRecentChat): string {
+  return formatRelativeTime(entry.updatedAt);
+}
+
+function describeProjectCaption(project: ComposerStoredProject): string {
+  const countLabel = project.draftIds.length === 1 ? "1 draft" : `${project.draftIds.length} drafts`;
+  return `${countLabel} · ${formatRelativeTime(project.updatedAt)}`;
+}
+
 async function persistPost(
   post: Record<string, unknown>,
   userEnvelope?: Record<string, unknown> | null,
@@ -114,6 +175,12 @@ type ComposerContextValue = {
   submitPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void>;
   forceChoice?(key: string): Promise<void>;
   updateDraft(draft: ComposerDraft): void;
+  sidebar: ComposerSidebarData;
+  selectRecentChat(id: string): void;
+  selectDraft(id: string): void;
+  createProject(name: string): void;
+  selectProject(id: string | null): void;
+  saveDraft(projectId?: string | null): void;
 };
 
 const initialState: ComposerState = {
@@ -186,6 +253,247 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const { user } = useCurrentUser();
   const [state, setState] = React.useState<ComposerState>(initialState);
   const [feedTarget, setFeedTarget] = React.useState<FeedTarget>({ scope: "home" });
+  const [sidebarStore, setSidebarStore] = React.useState<ComposerSidebarSnapshot>(
+    EMPTY_SIDEBAR_SNAPSHOT,
+  );
+
+  const sidebarStorageKey = React.useMemo(
+    () => buildSidebarStorageKey(user?.id ?? null),
+    [user?.id],
+  );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    setSidebarStore(loadSidebarSnapshot(sidebarStorageKey));
+  }, [sidebarStorageKey]);
+
+  const updateSidebarStore = React.useCallback(
+    (updater: (prev: ComposerSidebarSnapshot) => ComposerSidebarSnapshot) => {
+      setSidebarStore((prev) => {
+        const next = updater(prev);
+        if (typeof window !== "undefined") {
+          saveSidebarSnapshot(sidebarStorageKey, next);
+        }
+        return next;
+      });
+    },
+    [sidebarStorageKey],
+  );
+
+  const recordRecentChat = React.useCallback(
+    (input: {
+      prompt: string;
+      message: string | null;
+      draft: ComposerDraft;
+      rawPost: Record<string, unknown> | null;
+    }) => {
+      updateSidebarStore((prev) => {
+        const now = new Date().toISOString();
+        const entry: ComposerStoredRecentChat = {
+          id: safeRandomUUID(),
+          prompt: input.prompt,
+          message: input.message ?? null,
+          draft: cloneData(input.draft),
+          rawPost: input.rawPost ? cloneData(input.rawPost) : null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        const filtered = prev.recentChats.filter(
+          (item) => item.prompt !== entry.prompt || item.message !== entry.message,
+        );
+        return {
+          ...prev,
+          recentChats: [entry, ...filtered].slice(0, 12),
+        };
+      });
+    },
+    [updateSidebarStore],
+  );
+
+  const selectProject = React.useCallback(
+    (projectId: string | null) => {
+      updateSidebarStore((prev) => {
+        if (!projectId) {
+          return { ...prev, selectedProjectId: null };
+        }
+        const exists = prev.projects.some((project) => project.id === projectId);
+        return {
+          ...prev,
+          selectedProjectId: exists ? projectId : prev.selectedProjectId,
+        };
+      });
+    },
+    [updateSidebarStore],
+  );
+
+  const createProject = React.useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      updateSidebarStore((prev) => {
+        const now = new Date().toISOString();
+        const project: ComposerStoredProject = {
+          id: safeRandomUUID(),
+          name: trimmed,
+          draftIds: [],
+          createdAt: now,
+          updatedAt: now,
+        };
+        return {
+          ...prev,
+          projects: [project, ...prev.projects],
+          selectedProjectId: project.id,
+        };
+      });
+    },
+    [updateSidebarStore],
+  );
+
+  const upsertDraft = React.useCallback(
+    (draftState: ComposerState, projectId?: string | null) => {
+      const { draft, rawPost, prompt, message } = draftState;
+      if (!draft) return;
+      const baseId =
+        typeof (rawPost as { client_id?: unknown })?.client_id === "string"
+          ? ((rawPost as { client_id: string }).client_id ?? safeRandomUUID())
+          : safeRandomUUID();
+      const assignedProjectId =
+        projectId === undefined ? sidebarStore.selectedProjectId : projectId ?? null;
+
+      updateSidebarStore((prev) => {
+        const now = new Date().toISOString();
+        const sanitizedDraft = cloneData(draft);
+        const sanitizedRawPost = rawPost ? cloneData(rawPost) : null;
+        const existingIndex = prev.drafts.findIndex((item) => item.id === baseId);
+        let drafts = [...prev.drafts];
+        if (existingIndex >= 0) {
+          drafts[existingIndex] = {
+            ...drafts[existingIndex],
+            prompt,
+            title: sanitizedDraft.title ?? drafts[existingIndex].title ?? null,
+            message: message ?? null,
+            draft: sanitizedDraft,
+            rawPost: sanitizedRawPost,
+            projectId: assignedProjectId ?? drafts[existingIndex].projectId ?? null,
+            updatedAt: now,
+          };
+        } else {
+          drafts = [
+            {
+              id: baseId,
+              prompt,
+              title: sanitizedDraft.title ?? null,
+              message: message ?? null,
+              draft: sanitizedDraft,
+              rawPost: sanitizedRawPost,
+              projectId: assignedProjectId ?? null,
+              createdAt: now,
+              updatedAt: now,
+            },
+            ...drafts,
+          ];
+        }
+        drafts = drafts.slice(0, 100);
+
+        const projects = prev.projects.map((project) => {
+          if (!assignedProjectId || project.id !== assignedProjectId) return project;
+          const draftIds = project.draftIds.includes(baseId)
+            ? project.draftIds
+            : [baseId, ...project.draftIds];
+          return { ...project, draftIds, updatedAt: now };
+        });
+
+        let selected = prev.selectedProjectId;
+        if (assignedProjectId && projects.some((project) => project.id === assignedProjectId)) {
+          selected = assignedProjectId;
+        } else if (selected && !projects.some((project) => project.id === selected)) {
+          selected = null;
+        }
+
+        return {
+          ...prev,
+          drafts,
+          projects,
+          selectedProjectId: selected,
+        };
+      });
+    },
+    [sidebarStore.selectedProjectId, updateSidebarStore],
+  );
+
+  const selectSavedDraft = React.useCallback(
+    (draftId: string) => {
+      const entry = sidebarStore.drafts.find((draftItem) => draftItem.id === draftId);
+      if (!entry) return;
+      const draftClone = cloneData(entry.draft);
+      const rawPostClone = entry.rawPost ? cloneData(entry.rawPost) : null;
+      setState(() => ({
+        open: true,
+        loading: false,
+        prompt: entry.prompt,
+        draft: draftClone,
+        rawPost: rawPostClone,
+        message: entry.message,
+        choices: null,
+      }));
+      recordRecentChat({
+        prompt: entry.prompt,
+        message: entry.message,
+        draft: draftClone,
+        rawPost: rawPostClone,
+      });
+      updateSidebarStore((prev) => {
+        const index = prev.drafts.findIndex((draftItem) => draftItem.id === draftId);
+        if (index < 0) return prev;
+        const now = new Date().toISOString();
+        const updatedDraft = { ...prev.drafts[index], updatedAt: now };
+        const others = prev.drafts.filter((draftItem) => draftItem.id !== draftId);
+        return { ...prev, drafts: [updatedDraft, ...others] };
+      });
+      if (entry.projectId) {
+        selectProject(entry.projectId);
+      }
+    },
+    [recordRecentChat, selectProject, sidebarStore.drafts, updateSidebarStore],
+  );
+
+  const selectRecentChat = React.useCallback(
+    (chatId: string) => {
+      const entry = sidebarStore.recentChats.find((chat) => chat.id === chatId);
+      if (!entry) return;
+      const draftClone = cloneData(entry.draft);
+      const rawPostClone = entry.rawPost ? cloneData(entry.rawPost) : null;
+      setState(() => ({
+        open: true,
+        loading: false,
+        prompt: entry.prompt,
+        draft: draftClone,
+        rawPost: rawPostClone,
+        message: entry.message,
+        choices: null,
+      }));
+      updateSidebarStore((prev) => {
+        const found = prev.recentChats.find((chat) => chat.id === chatId);
+        if (!found) return prev;
+        const now = new Date().toISOString();
+        const others = prev.recentChats.filter((chat) => chat.id !== chatId);
+        return { ...prev, recentChats: [{ ...found, updatedAt: now }, ...others] };
+      });
+    },
+    [sidebarStore.recentChats, updateSidebarStore],
+  );
+
+  const saveDraft = React.useCallback(
+    (projectId?: string | null) => {
+      setState((prev) => {
+        if (prev.draft) {
+          upsertDraft(prev, projectId);
+        }
+        return prev;
+      });
+    },
+    [upsertDraft],
+  );
 
   const currentUserName = React.useMemo(() => {
     if (!user) return null;
@@ -230,8 +538,14 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         message: payload.message ?? null,
         choices: payload.choices ?? null,
       }));
+      recordRecentChat({
+        prompt,
+        message: payload.message ?? null,
+        draft,
+        rawPost,
+      });
     },
-    [activeCapsuleId],
+    [activeCapsuleId, recordRecentChat],
   );
 
   const handlePrompterAction = React.useCallback(
@@ -493,6 +807,43 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...prev, draft }));
   }, []);
 
+  const sidebarData = React.useMemo<ComposerSidebarData>(() => {
+    const recentChats = sidebarStore.recentChats.map((entry) => ({
+      id: entry.id,
+      title: describeRecentTitle(entry),
+      caption: describeRecentCaption(entry),
+    }));
+
+    const savedDraftItems: SidebarDraftListItem[] = sidebarStore.drafts.map((entry) => ({
+      kind: "draft",
+      id: entry.id,
+      title: describeDraftTitle(entry),
+      caption: describeDraftCaption(entry.updatedAt),
+      projectId: entry.projectId ?? null,
+    }));
+
+    const choiceItems: SidebarDraftListItem[] = (state.choices ?? []).map((choice) => ({
+      kind: "choice",
+      key: choice.key,
+      title: truncateLabel(choice.label, 70),
+      caption: "Blueprint suggestion",
+    }));
+
+    const projects = sidebarStore.projects.map((project) => ({
+      id: project.id,
+      name: truncateLabel(project.name, 60),
+      caption: describeProjectCaption(project),
+      draftCount: project.draftIds.length,
+    }));
+
+    return {
+      recentChats,
+      drafts: [...choiceItems, ...savedDraftItems],
+      projects,
+      selectedProjectId: sidebarStore.selectedProjectId,
+    };
+  }, [sidebarStore, state.choices]);
+
   const forceChoice = state.choices ? forceChoiceInternal : undefined;
 
   const contextValue = React.useMemo<ComposerContextValue>(() => {
@@ -503,18 +854,51 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       post,
       submitPrompt,
       updateDraft,
+      sidebar: sidebarData,
+      selectRecentChat,
+      selectDraft: selectSavedDraft,
+      createProject,
+      selectProject,
+      saveDraft,
     };
     if (forceChoice) {
       base.forceChoice = forceChoice;
     }
     return base;
-  }, [state, handlePrompterAction, close, post, submitPrompt, forceChoice, updateDraft]);
+  }, [
+    state,
+    handlePrompterAction,
+    close,
+    post,
+    submitPrompt,
+    forceChoice,
+    updateDraft,
+    sidebarData,
+    selectRecentChat,
+    selectSavedDraft,
+    createProject,
+    selectProject,
+    saveDraft,
+  ]);
 
   return <ComposerContext.Provider value={contextValue}>{children}</ComposerContext.Provider>;
 }
 
 export function AiComposerRoot() {
-  const { state, close, updateDraft, post, submitPrompt, forceChoice } = useComposer();
+  const {
+    state,
+    close,
+    updateDraft,
+    post,
+    submitPrompt,
+    forceChoice,
+    sidebar,
+    selectRecentChat,
+    selectDraft,
+    createProject,
+    selectProject,
+    saveDraft,
+  } = useComposer();
 
   const forceHandlers = forceChoice
     ? {
@@ -536,6 +920,12 @@ export function AiComposerRoot() {
       onClose={close}
       onPost={post}
       onPrompt={submitPrompt}
+      sidebar={sidebar}
+      onSelectRecentChat={selectRecentChat}
+      onSelectDraft={selectDraft}
+      onCreateProject={createProject}
+      onSelectProject={selectProject}
+      onSave={saveDraft}
       {...forceHandlers}
     />
   );
