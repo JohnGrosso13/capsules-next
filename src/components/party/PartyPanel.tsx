@@ -25,7 +25,14 @@ import {
   useRoomContext,
   useStartAudio,
 } from "@livekit/components-react";
-import { RoomEvent, Track, type RemoteTrackPublication, type Room } from "livekit-client";
+import {
+  RoomEvent,
+  Track,
+  type Participant,
+  type RemoteTrackPublication,
+  type Room,
+  type TrackPublication,
+} from "livekit-client";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
 import type { ChatFriendTarget } from "@/components/providers/ChatProvider";
@@ -800,7 +807,7 @@ function PartyStageScene({
     };
 
     onReady(room);
-    setMicEnabled(room.localParticipant?.isMicrophoneEnabled ?? true);
+    setMicEnabled(resolveLocalMicEnabled(room));
     room.on(RoomEvent.Disconnected, handleRoomDisconnected);
     room.on(RoomEvent.Reconnecting, handleRoomReconnecting);
     room.on(RoomEvent.Reconnected, handleRoomReconnected);
@@ -811,6 +818,37 @@ function PartyStageScene({
       room.off(RoomEvent.Reconnected, handleRoomReconnected);
     };
   }, [onDisconnected, onReady, onReconnecting, room]);
+
+  React.useEffect(() => {
+    if (!room) return;
+
+    const syncMicState = () => {
+      setMicEnabled(resolveLocalMicEnabled(room));
+    };
+
+    const handleTrackToggle = (publication: TrackPublication, participant: Participant) => {
+      if (participant.isLocal && publication.kind === Track.Kind.Audio) {
+        syncMicState();
+      }
+    };
+
+    syncMicState();
+    const handleLocalTrackPublished = (publication: TrackPublication, participant: Participant) => {
+      if (participant.isLocal && publication.kind === Track.Kind.Audio) {
+        syncMicState();
+      }
+    };
+
+    room.on(RoomEvent.TrackMuted, handleTrackToggle);
+    room.on(RoomEvent.TrackUnmuted, handleTrackToggle);
+    room.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
+
+    return () => {
+      room.off(RoomEvent.TrackMuted, handleTrackToggle);
+      room.off(RoomEvent.TrackUnmuted, handleTrackToggle);
+      room.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
+    };
+  }, [room]);
 
   React.useEffect(() => {
     if (!room) return;
@@ -861,13 +899,13 @@ function PartyStageScene({
         }
       }
       await room.localParticipant?.setMicrophoneEnabled(next);
-      setMicEnabled(room.localParticipant?.isMicrophoneEnabled ?? next);
+      setMicEnabled(resolveLocalMicEnabled(room));
       setMicNotice(null);
     } catch (err) {
       console.warn("Toggle microphone failed", err);
       const message = normalizeMicrophoneError(err);
       setMicNotice(message.message);
-      setMicEnabled(room.localParticipant?.isMicrophoneEnabled ?? true);
+      setMicEnabled(resolveLocalMicEnabled(room));
     } finally {
       setMicBusy(false);
     }
@@ -979,6 +1017,21 @@ type ParticipantBadgeProps = {
   participant: ReturnType<typeof useParticipants>[number];
   profile: ParticipantProfile | null;
 };
+
+function resolveLocalMicEnabled(room: Room | null): boolean {
+  if (!room) return true;
+  const participant = room.localParticipant;
+  if (!participant) return true;
+  if (participant.audioTrackPublications.size > 0) {
+    for (const publication of participant.audioTrackPublications.values()) {
+      if (!publication.isMuted) {
+        return true;
+      }
+    }
+    return false;
+  }
+  return participant.isMicrophoneEnabled;
+}
 
 function ParticipantBadge({ participant, profile }: ParticipantBadgeProps) {
   const speaking = participant.isSpeaking;
