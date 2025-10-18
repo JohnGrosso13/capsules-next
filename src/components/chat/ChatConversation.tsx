@@ -177,6 +177,7 @@ export function ChatConversation({
   const { user } = useCurrentUser();
   const { friends } = useFriendsDataContext();
   const [draft, setDraft] = React.useState("");
+  const [hoveredMessageId, setHoveredMessageId] = React.useState<string | null>(null);
   const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [reactionTargetId, setReactionTargetId] = React.useState<string | null>(null);
@@ -574,56 +575,47 @@ export function ChatConversation({
                 >
                   {message.body}
                 </div>
-                {showReactions ? (
-                  <div className={styles.messageReactions}>
-                    {messageReactions.map((reaction) => (
+                <div className={styles.messageHoverBar} data-open={hoveredMessageId === message.id || isPickerOpen}>
+                  {REACTION_OPTIONS.slice(0, 5).map((option) => (
+                    <button
+                      key={`${message.id}-quick-${option}`}
+                      type="button"
+                      className={styles.messageQuickReact}
+                      onClick={() => handleReactionSelect(message.id, option)}
+                      aria-label={`React with ${option}`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                  {onToggleReaction ? (
+                    <div className={styles.messageHoverMore}>
                       <button
-                        key={reaction.emoji}
                         type="button"
-                        className={`${styles.messageReaction} ${
-                          reaction.selfReacted ? styles.messageReactionActive : ""
-                        }`.trim()}
-                        onClick={() => handleToggleReaction(message.id, reaction.emoji)}
-                        disabled={!onToggleReaction}
-                        aria-pressed={reaction.selfReacted}
-                        aria-label={`${reaction.emoji} reaction from ${reaction.count} ${
-                          reaction.count === 1 ? "person" : "people"
-                        }`}
+                        className={styles.messageHoverMoreButton}
+                        onClick={() => handleReactionPickerToggle(message.id)}
+                        aria-expanded={isPickerOpen}
+                        aria-label="More reactions"
                       >
-                        <span className={styles.messageReactionEmoji}>{reaction.emoji}</span>
-                        <span className={styles.messageReactionCount}>{reaction.count}</span>
+                        <Smiley size={14} weight="duotone" />
                       </button>
-                    ))}
-                    {onToggleReaction ? (
-                      <div className={styles.messageReactionAdd}>
-                        <button
-                          type="button"
-                          className={styles.messageReactionAddButton}
-                          onClick={() => handleReactionPickerToggle(message.id)}
-                          aria-expanded={isPickerOpen}
-                          aria-label="Add reaction"
-                        >
-                          <Smiley size={14} weight="duotone" />
-                        </button>
-                        {isPickerOpen ? (
-                          <div className={styles.messageReactionPicker} role="menu">
-                            {REACTION_OPTIONS.map((option) => (
-                              <button
-                                key={`${message.id}-${option}`}
-                                type="button"
-                                className={styles.messageReactionOption}
-                                onClick={() => handleReactionSelect(message.id, option)}
-                                aria-label={`React with ${option}`}
-                              >
-                                {option}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
+                      {isPickerOpen ? (
+                        <div className={styles.messageReactionPicker} role="menu">
+                          {REACTION_OPTIONS.map((option) => (
+                            <button
+                              key={`${message.id}-${option}`}
+                              type="button"
+                              className={styles.messageReactionOption}
+                              onClick={() => handleReactionSelect(message.id, option)}
+                              aria-label={`React with ${option}`}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
                 {statusNode ? <div className={styles.messageMeta}>{statusNode}</div> : null}
               </div>
             </div>
