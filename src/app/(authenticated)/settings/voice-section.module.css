@@ -92,3 +92,89 @@
   flex-wrap: wrap;
   gap: 12px;
 }
+
+.micTestGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card-background) 78%, transparent),
+    color-mix(in srgb, var(--card-background) 58%, transparent)
+  );
+}
+
+.micTestHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.micTestHeader h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.micTestHeader p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+.micTestMeter {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 32px;
+  padding: 4px 0;
+}
+
+.micTestMeterBar {
+  flex: 1;
+  min-width: 4px;
+  max-width: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-border) 60%, transparent);
+  transition: transform 120ms ease, background-color 120ms ease;
+}
+
+.micTestMeterBarActive {
+  transform: scaleY(1.6);
+  background: linear-gradient(
+    180deg,
+    var(--color-brand, #5d6bff),
+    color-mix(in srgb, var(--color-brand, #5d6bff) 45%, #22d3ee)
+  );
+}
+
+.micTestStatusRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.micTestToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--text) 65%, transparent);
+}
+
+.micTestToggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.micTestActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
