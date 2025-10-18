@@ -13,6 +13,8 @@ import {
   PaperPlaneTilt,
   SignOut,
   Sparkle,
+  SpeakerSimpleHigh,
+  SpeakerSimpleSlash,
   UsersThree,
   XCircle,
 } from "@phosphor-icons/react/dist/ssr";
@@ -23,7 +25,7 @@ import {
   useRoomContext,
   useStartAudio,
 } from "@livekit/components-react";
-import { RoomEvent, type Room } from "livekit-client";
+import { RoomEvent, Track, type RemoteTrackPublication, type Room } from "livekit-client";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
 import type { ChatFriendTarget } from "@/components/providers/ChatProvider";
@@ -759,6 +761,7 @@ function PartyStageScene({
   const [micEnabled, setMicEnabled] = React.useState<boolean>(true);
   const [micBusy, setMicBusy] = React.useState(false);
   const [micNotice, setMicNotice] = React.useState<string | null>(null);
+  const [isDeafened, setIsDeafened] = React.useState(false);
   const { mergedProps: startAudioProps, canPlayAudio } = useStartAudio({
     room,
     props: {
@@ -770,6 +773,18 @@ function PartyStageScene({
     const { style: _style, ...rest } = startAudioProps;
     return rest;
   }, [startAudioProps]);
+
+  const applyDeafenState = React.useCallback((targetRoom: Room, nextDeafened: boolean) => {
+    const volume = nextDeafened ? 0 : 1;
+    targetRoom.remoteParticipants.forEach((participant) => {
+      participant.audioTrackPublications.forEach((publication) => {
+        const track = publication.audioTrack;
+        if (track && "setVolume" in track && typeof track.setVolume === "function") {
+          track.setVolume(volume);
+        }
+      });
+    });
+  }, []);
 
   React.useEffect(() => {
     if (!room) return;
@@ -796,6 +811,32 @@ function PartyStageScene({
       room.off(RoomEvent.Reconnected, handleRoomReconnected);
     };
   }, [onDisconnected, onReady, onReconnecting, room]);
+
+  React.useEffect(() => {
+    if (!room) return;
+
+    applyDeafenState(room, isDeafened);
+
+    const handleTrackSubscribed = (_track: unknown, publication: RemoteTrackPublication) => {
+      if (publication.kind === Track.Kind.Audio) {
+        const track = publication.audioTrack;
+        if (track && "setVolume" in track && typeof track.setVolume === "function") {
+          track.setVolume(isDeafened ? 0 : 1);
+        }
+      }
+    };
+
+    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+
+    return () => {
+      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+    };
+  }, [applyDeafenState, isDeafened, room]);
+
+  const handleToggleDeafen = React.useCallback(() => {
+    if (!room) return;
+    setIsDeafened((prev) => !prev);
+  }, [room]);
 
   const handleToggleMic = React.useCallback(async () => {
     if (!room) return;
@@ -882,6 +923,20 @@ function PartyStageScene({
             <MicrophoneSlash size={16} weight="bold" />
           )}
           {micEnabled ? "Mute" : "Unmute"}
+        </button>
+        <button
+          type="button"
+          className={styles.controlButton}
+          onClick={handleToggleDeafen}
+          disabled={!room}
+          aria-pressed={isDeafened}
+        >
+          {isDeafened ? (
+            <SpeakerSimpleSlash size={16} weight="bold" />
+          ) : (
+            <SpeakerSimpleHigh size={16} weight="bold" />
+          )}
+          {isDeafened ? "Undeafen" : "Deafen"}
         </button>
         <button
           type="button"
