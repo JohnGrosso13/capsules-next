@@ -1,4 +1,4 @@
-import { fetchPartyMetadata } from "@/server/livekit/party";
+import { fetchPartyMetadata, isUserInParty } from "@/server/livekit/party";
 import { publishFriendEvents } from "@/services/realtime/friends";
 
 import {
@@ -105,7 +105,10 @@ export async function sendPartyInvite(params: {
     throw new PartyInviteError("not_found", "That party is no longer active.", 404);
   }
   if (metadata.ownerId !== senderId) {
-    throw new PartyInviteError("forbidden", "Only the host can send invitations.", 403);
+    const isParticipant = await isUserInParty(normalizedPartyId, senderId);
+    if (!isParticipant) {
+      throw new PartyInviteError("forbidden", "Only party members can send invitations.", 403);
+    }
   }
 
   const inviteRow = await upsertPendingInvite({

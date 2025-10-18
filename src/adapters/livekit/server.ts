@@ -4,6 +4,7 @@ import {
   AccessToken,
   RoomServiceClient,
   type AccessTokenOptions,
+  type ParticipantInfo,
   type VideoGrant,
 } from "livekit-server-sdk";
 
@@ -156,6 +157,11 @@ export async function fetchLivekitRoom(name: string): Promise<LivekitRoomSnapsho
 export async function deleteLivekitRoom(name: string): Promise<void> {
   const client = getRoomServiceClient();
   await client.deleteRoom(name);
+}
+
+export async function listLivekitRoomParticipants(name: string): Promise<ParticipantInfo[]> {
+  const client = getRoomServiceClient();
+  return client.listParticipants(name);
 }
 
 export async function issueLivekitAccessToken(
