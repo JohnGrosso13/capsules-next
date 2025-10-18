@@ -474,7 +474,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-width: min(72ch, 78vw);`n  position: relative;
+  max-width: min(72ch, 78vw);
+  position: relative;
 }
 
 .messageItemSelf .messageBubbleGroup {
@@ -529,7 +530,10 @@
   display: none;
 }
 
-.messageTimestamp {`n  font-size: 0.75rem;`n  color: var(--text-3, var(--text));`n}
+.messageTimestamp {
+  font-size: 0.75rem;
+  color: var(--text-3, var(--text));
+}
 
 .messageBubble {
   position: relative;
@@ -788,7 +792,8 @@
 
 @media (max-width: 640px) {
   .composer {
-    padding: 14px 16px;`n  position: relative;
+    padding: 14px 16px;
+    position: relative;
   }
   .messageReactionPicker {
     right: auto;
