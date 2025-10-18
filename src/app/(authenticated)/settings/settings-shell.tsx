@@ -8,6 +8,7 @@ import { ThemeStyleCarousel } from "@/components/theme-style-carousel";
 import layout from "./settings.module.css";
 import { CapsuleSettingsSection } from "./capsules-section";
 import { AccountSettingsSection } from "./account-section";
+import { VoiceSettingsSection } from "./voice-section";
 
 type CapsuleSettingsProps = React.ComponentProps<typeof CapsuleSettingsSection>;
 type AccountProfileProps = React.ComponentProps<typeof AccountSettingsSection>["profile"];
@@ -17,7 +18,7 @@ type SettingsShellProps = {
   accountProfile: AccountProfileProps;
 };
 
-type SettingsSectionKey = "capsules" | "account" | "appearance";
+type SettingsSectionKey = "capsules" | "account" | "appearance" | "voice";
 
 const NAVIGATION_ITEMS: Array<
   | {
@@ -34,8 +35,8 @@ const NAVIGATION_ITEMS: Array<
   { key: "capsules", label: "Capsules", enabled: true },
   { key: "account", label: "Account", enabled: true },
   { key: "appearance", label: "Appearance", enabled: true },
+  { key: "voice", label: "Voice", enabled: true },
   { key: "notifications", label: "Notifications", enabled: false },
-  { key: "voice", label: "Voice", enabled: false },
   { key: "devices", label: "Devices", enabled: false },
   { key: "privacy", label: "Privacy", enabled: false },
   { key: "accessibility", label: "Accessibility", enabled: false },
@@ -152,6 +153,12 @@ export function SettingsShell({
                   <ThemeStyleCarousel />
                 </div>
               </article>
+            </section>
+          ) : null}
+
+          {activeSection === "voice" ? (
+            <section aria-label="Voice settings" className={layout.section}>
+              <VoiceSettingsSection />
             </section>
           ) : null}
         </div>

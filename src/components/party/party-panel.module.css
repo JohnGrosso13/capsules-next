@@ -676,6 +676,20 @@
   transform: translateY(-2px);
 }
 
+.participantActionable {
+  cursor: pointer;
+}
+
+.participantActionable:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand, #5d6bff) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.participantSelected {
+  border-color: color-mix(in srgb, var(--color-brand, #5d6bff) 60%, var(--party-participant-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand, #5d6bff) 32%, transparent);
+}
+
 .participantAvatar {
   width: 42px;
   height: 42px;
@@ -731,6 +745,46 @@
   gap: 6px;
   font-size: 0.82rem;
   color: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+.participantMenu {
+  width: 260px;
+  padding: 14px 16px;
+  gap: 10px;
+}
+
+.participantMenuHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+}
+
+.participantMenuName {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.participantMenuSlider {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.participantMenuSliderLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+.participantMenuSliderInput {
+  width: 100%;
+  accent-color: var(--color-brand, #5d6bff);
 }
 
 .participantEmpty {

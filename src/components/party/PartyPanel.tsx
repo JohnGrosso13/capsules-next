@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { createPortal } from "react-dom";
 
 import {
   MicrophoneStage,
@@ -35,11 +36,12 @@ import {
 } from "livekit-client";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
-import type { ChatFriendTarget } from "@/components/providers/ChatProvider";
+import { useChatContext, type ChatFriendTarget } from "@/components/providers/ChatProvider";
 import { usePartyContext, type PartySession } from "@/components/providers/PartyProvider";
 import { useCurrentUser } from "@/services/auth/client";
 import { sendPartyInviteRequest } from "@/services/party-invite/client";
 
+import cm from "@/components/ui/context-menu.module.css";
 import styles from "./party-panel.module.css";
 
 type PartyPanelVariant = "default" | "compact";
@@ -64,6 +66,7 @@ type PartyStageProps = {
   canClose: boolean;
   status: string;
   participantProfiles: Map<string, ParticipantProfile>;
+  friendTargets: Map<string, ChatFriendTarget>;
   onLeave(): Promise<void> | void;
   onClose(): Promise<void> | void;
   onReconnecting(): void;
@@ -570,6 +573,7 @@ export function PartyPanel({
           canClose={currentSession.isOwner}
           status={status}
           participantProfiles={participantProfiles}
+          friendTargets={friendTargets}
           onLeave={handleResetAndLeave}
           onClose={handleResetAndClose}
           onReconnecting={handleRoomReconnecting}
@@ -708,6 +712,7 @@ function PartyStage({
   canClose,
   status,
   participantProfiles,
+  friendTargets,
   onLeave,
   onClose,
   onReconnecting,
@@ -730,6 +735,7 @@ function PartyStage({
         canClose={canClose}
         status={status}
         participantProfiles={participantProfiles}
+        friendTargets={friendTargets}
         onLeave={onLeave}
         onClose={onClose}
         onReconnecting={onReconnecting}
@@ -745,6 +751,7 @@ type PartyStageSceneProps = {
   canClose: boolean;
   status: string;
   participantProfiles: Map<string, ParticipantProfile>;
+  friendTargets: Map<string, ChatFriendTarget>;
   onLeave(): Promise<void> | void;
   onClose(): Promise<void> | void;
   onReconnecting(): void;
@@ -752,11 +759,19 @@ type PartyStageSceneProps = {
   onDisconnected(): void;
 };
 
+type ParticipantMenuState = {
+  identity: string;
+  name: string;
+  avatar: string | null;
+  anchorRect: DOMRect;
+};
+
 function PartyStageScene({
   session: _session,
   canClose,
   status,
   participantProfiles,
+  friendTargets,
   onLeave,
   onClose,
   onReconnecting,
@@ -765,10 +780,13 @@ function PartyStageScene({
 }: PartyStageSceneProps) {
   const room = useRoomContext();
   const participants = useParticipants();
+  const chat = useChatContext();
   const [micEnabled, setMicEnabled] = React.useState<boolean>(true);
   const [micBusy, setMicBusy] = React.useState(false);
   const [micNotice, setMicNotice] = React.useState<string | null>(null);
   const [isDeafened, setIsDeafened] = React.useState(false);
+  const [volumeLevels, setVolumeLevels] = React.useState<Record<string, number>>({});
+  const [menuState, setMenuState] = React.useState<ParticipantMenuState | null>(null);
   const { mergedProps: startAudioProps, canPlayAudio } = useStartAudio({
     room,
     props: {
@@ -781,17 +799,41 @@ function PartyStageScene({
     return rest;
   }, [startAudioProps]);
 
-  const applyDeafenState = React.useCallback((targetRoom: Room, nextDeafened: boolean) => {
-    const volume = nextDeafened ? 0 : 1;
-    targetRoom.remoteParticipants.forEach((participant) => {
+  const getParticipantVolume = React.useCallback(
+    (identity: string | null | undefined): number => {
+      if (!identity) return 1;
+      const stored = volumeLevels[identity];
+      if (typeof stored === "number" && Number.isFinite(stored)) {
+        return Math.min(Math.max(stored, 0), 1);
+      }
+      return 1;
+    },
+    [volumeLevels],
+  );
+
+  const setRemoteParticipantVolume = React.useCallback(
+    (identity: string | null | undefined, volume: number) => {
+      if (!room || !identity) return;
+      const participant = room.remoteParticipants.get(identity);
+      if (!participant) return;
+      const clampedVolume = Math.min(Math.max(volume, 0), 1);
       participant.audioTrackPublications.forEach((publication) => {
         const track = publication.audioTrack;
         if (track && "setVolume" in track && typeof track.setVolume === "function") {
-          track.setVolume(volume);
+          track.setVolume(clampedVolume);
         }
       });
+    },
+    [room],
+  );
+
+  const applyParticipantAudioState = React.useCallback(() => {
+    if (!room) return;
+    room.remoteParticipants.forEach((participant, identity) => {
+      const targetVolume = isDeafened ? 0 : getParticipantVolume(identity);
+      setRemoteParticipantVolume(identity, targetVolume);
     });
-  }, []);
+  }, [getParticipantVolume, isDeafened, room, setRemoteParticipantVolume]);
 
   React.useEffect(() => {
     if (!room) return;
@@ -851,16 +893,25 @@ function PartyStageScene({
   }, [room]);
 
   React.useEffect(() => {
+    applyParticipantAudioState();
+  }, [applyParticipantAudioState]);
+
+  React.useEffect(() => {
     if (!room) return;
 
-    applyDeafenState(room, isDeafened);
-
-    const handleTrackSubscribed = (_track: unknown, publication: RemoteTrackPublication) => {
-      if (publication.kind === Track.Kind.Audio) {
-        const track = publication.audioTrack;
-        if (track && "setVolume" in track && typeof track.setVolume === "function") {
-          track.setVolume(isDeafened ? 0 : 1);
-        }
+    const handleTrackSubscribed = (
+      _track: unknown,
+      publication: RemoteTrackPublication,
+      participant: Participant,
+    ) => {
+      if (participant.isLocal) return;
+      if (publication.kind !== Track.Kind.Audio) return;
+      const identity = participant.identity;
+      if (!identity) return;
+      const targetVolume = isDeafened ? 0 : getParticipantVolume(identity);
+      const track = publication.audioTrack;
+      if (track && "setVolume" in track && typeof track.setVolume === "function") {
+        track.setVolume(targetVolume);
       }
     };
 
@@ -869,12 +920,101 @@ function PartyStageScene({
     return () => {
       room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
     };
-  }, [applyDeafenState, isDeafened, room]);
+  }, [getParticipantVolume, isDeafened, room]);
 
   const handleToggleDeafen = React.useCallback(() => {
     if (!room) return;
     setIsDeafened((prev) => !prev);
   }, [room]);
+
+  const handleParticipantVolumeChange = React.useCallback(
+    (identity: string, sliderPercent: number) => {
+      if (!identity) return;
+      const normalized = Math.min(Math.max(sliderPercent, 0), 100) / 100;
+      setVolumeLevels((prev) => {
+        const previous = prev[identity] ?? 1;
+        if (Math.abs(previous - normalized) < 0.001) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [identity]: normalized,
+        };
+      });
+      const effectiveVolume = isDeafened ? 0 : normalized;
+      setRemoteParticipantVolume(identity, effectiveVolume);
+    },
+    [isDeafened, setRemoteParticipantVolume],
+  );
+
+  const closeParticipantMenu = React.useCallback(() => {
+    setMenuState(null);
+  }, []);
+
+  const handleOpenParticipantMenu = React.useCallback(
+    (
+      participant: ReturnType<typeof useParticipants>[number],
+      profile: ParticipantProfile | null,
+      anchor: HTMLElement,
+    ) => {
+      if (participant.isLocal) return;
+      const identity = participant.identity;
+      if (!identity) return;
+      const rect = anchor.getBoundingClientRect();
+      const nameCandidate =
+        profile?.name ?? participant.name ?? identity ?? "Guest";
+      setMenuState({
+        identity,
+        name: nameCandidate,
+        avatar: profile?.avatar ?? null,
+        anchorRect: rect,
+      });
+    },
+    [],
+  );
+
+  const handleSendMessage = React.useCallback(
+    (identity: string) => {
+      if (!identity) return;
+      if (identity === room?.localParticipant?.identity) return;
+      const knownProfile = participantProfiles.get(identity) ?? null;
+      const target =
+        friendTargets.get(identity) ??
+        {
+          userId: identity,
+          name: knownProfile?.name ?? identity,
+          avatar: knownProfile?.avatar ?? null,
+        };
+      const result = chat.startChat(target, { activate: true });
+      if (!result) {
+        console.warn("Unable to start a chat session for participant", identity);
+      }
+      closeParticipantMenu();
+    },
+    [chat, closeParticipantMenu, friendTargets, participantProfiles, room],
+  );
+
+  React.useEffect(() => {
+    if (!menuState) return;
+    if (typeof window === "undefined") return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeParticipantMenu();
+      }
+    };
+    const handleViewportChange = () => {
+      closeParticipantMenu();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleViewportChange, true);
+    window.addEventListener("resize", handleViewportChange);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleViewportChange, true);
+      window.removeEventListener("resize", handleViewportChange);
+    };
+  }, [closeParticipantMenu, menuState]);
 
   const handleToggleMic = React.useCallback(async () => {
     if (!room) return;
@@ -912,9 +1052,13 @@ function PartyStageScene({
   }, [room]);
 
   const participantCount = participants.length;
+  const menuVolume = menuState ? getParticipantVolume(menuState.identity) : 1;
+  const canMessageSelected =
+    Boolean(menuState && menuState.identity !== room?.localParticipant?.identity);
 
   return (
-    <div className={styles.stageInner}>
+    <>
+      <div className={styles.stageInner}>
       <div className={styles.stageHeader}>
         <span className={styles.stageTitle}>Live lobby</span>
         <span className={styles.stageMeta}>
@@ -931,6 +1075,8 @@ function PartyStageScene({
               key={participant.sid}
               participant={participant}
               profile={profile ?? null}
+              isSelected={menuState?.identity === participant.identity}
+              onOpenMenu={handleOpenParticipantMenu}
             />
           );
         })}
@@ -1009,13 +1155,30 @@ function PartyStageScene({
           {micNotice}
         </div>
       ) : null}
-    </div>
+      </div>
+      {menuState ? (
+        <ParticipantMenuPortal
+          state={menuState}
+          onClose={closeParticipantMenu}
+          onSendMessage={() => handleSendMessage(menuState.identity)}
+          onVolumeChange={(value) => handleParticipantVolumeChange(menuState.identity, value)}
+          volume={menuVolume}
+          disableMessage={!canMessageSelected}
+        />
+      ) : null}
+    </>
   );
 }
 
 type ParticipantBadgeProps = {
   participant: ReturnType<typeof useParticipants>[number];
   profile: ParticipantProfile | null;
+  isSelected?: boolean;
+  onOpenMenu?: (
+    participant: ReturnType<typeof useParticipants>[number],
+    profile: ParticipantProfile | null,
+    anchor: HTMLElement,
+  ) => void;
 };
 
 function resolveLocalMicEnabled(room: Room | null): boolean {
@@ -1033,7 +1196,12 @@ function resolveLocalMicEnabled(room: Room | null): boolean {
   return participant.isMicrophoneEnabled;
 }
 
-function ParticipantBadge({ participant, profile }: ParticipantBadgeProps) {
+function ParticipantBadge({
+  participant,
+  profile,
+  isSelected = false,
+  onOpenMenu,
+}: ParticipantBadgeProps) {
   const speaking = participant.isSpeaking;
   const mic = participant.isMicrophoneEnabled;
   const fallbackName = participant.name || participant.identity || "Guest";
@@ -1046,8 +1214,45 @@ function ParticipantBadge({ participant, profile }: ParticipantBadgeProps) {
       ? avatarCandidate
       : null;
   const initials = initialsFromName(name);
+  const actionable = Boolean(onOpenMenu && !participant.isLocal);
+  const classes = [
+    styles.participantCard,
+    speaking ? styles.participantSpeaking : "",
+    actionable ? styles.participantActionable : "",
+    isSelected ? styles.participantSelected : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const activateMenu = (anchor: HTMLElement) => {
+    if (!actionable || !onOpenMenu) return;
+    onOpenMenu(participant, profile, anchor);
+  };
+
+  const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!actionable) return;
+    activateMenu(event.currentTarget);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!actionable) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      activateMenu(event.currentTarget);
+    }
+  };
+
   return (
-    <div className={`${styles.participantCard} ${speaking ? styles.participantSpeaking : ""}`}>
+    <div
+      className={classes}
+      role={actionable ? "button" : undefined}
+      tabIndex={actionable ? 0 : undefined}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      aria-pressed={actionable ? isSelected : undefined}
+      aria-label={actionable ? `Interact with ${name}` : undefined}
+      data-identity={participant.identity ?? undefined}
+    >
       <div className={styles.participantAvatar}>
         {avatar ? (
           <Image
@@ -1081,3 +1286,82 @@ function ParticipantBadge({ participant, profile }: ParticipantBadgeProps) {
   );
 }
 
+type ParticipantMenuPortalProps = {
+  state: ParticipantMenuState;
+  onClose(): void;
+  onSendMessage(): void;
+  onVolumeChange(value: number): void;
+  volume: number;
+  disableMessage?: boolean;
+};
+
+function ParticipantMenuPortal({
+  state,
+  onClose,
+  onSendMessage,
+  onVolumeChange,
+  volume,
+  disableMessage = false,
+}: ParticipantMenuPortalProps) {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return null;
+  }
+  const menuWidth = 260;
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const scrollX = window.scrollX ?? window.pageXOffset ?? 0;
+  const scrollY = window.scrollY ?? window.pageYOffset ?? 0;
+  const targetBottom = scrollY + state.anchorRect.bottom;
+  const topCandidate = targetBottom + 12;
+  const maxTop = scrollY + viewportHeight - 200;
+  const menuTop = Math.max(scrollY + 16, Math.min(topCandidate, maxTop));
+  const rawLeft =
+    scrollX + state.anchorRect.left + state.anchorRect.width / 2 - menuWidth / 2;
+  const minLeft = scrollX + 16;
+  const maxLeft = scrollX + viewportWidth - menuWidth - 16;
+  const menuLeft = Math.max(minLeft, Math.min(rawLeft, maxLeft));
+  const volumePercent = Math.round(Math.min(Math.max(volume, 0), 1) * 100);
+
+  return createPortal(
+    <>
+      <div className={cm.backdrop} onClick={onClose} aria-hidden="true" />
+      <div
+        className={`${cm.menu} ${styles.participantMenu}`}
+        style={{ top: `${menuTop}px`, left: `${menuLeft}px`, width: `${menuWidth}px` }}
+        role="dialog"
+        aria-label={`${state.name} options`}
+      >
+        <div className={styles.participantMenuHeader}>
+          <span className={styles.participantMenuName}>{state.name}</span>
+        </div>
+        <button
+          type="button"
+          className={cm.item}
+          onClick={onSendMessage}
+          disabled={disableMessage}
+        >
+          <PaperPlaneTilt size={16} weight="bold" />
+          Send a message
+        </button>
+        <div className={cm.separator} aria-hidden="true" />
+        <div className={styles.participantMenuSlider}>
+          <div className={styles.participantMenuSliderLabel}>
+            <span>User volume</span>
+            <span>{volumePercent}%</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={volumePercent}
+            onChange={(event) => onVolumeChange(Number(event.currentTarget.value))}
+            className={styles.participantMenuSliderInput}
+            aria-label="Adjust user volume"
+          />
+        </div>
+      </div>
+    </>,
+    document.body,
+  );
+}
