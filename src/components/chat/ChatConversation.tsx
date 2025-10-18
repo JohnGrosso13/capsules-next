@@ -177,16 +177,26 @@ export function ChatConversation({
   const { user } = useCurrentUser();
   const { friends } = useFriendsDataContext();
   const [draft, setDraft] = React.useState("");
-  const [hoveredMessageId, setHoveredMessageId] = React.useState<string | null>(null);
   const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [reactionTargetId, setReactionTargetId] = React.useState<string | null>(null);
+
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
   const membersAnchorRef = React.useRef<HTMLButtonElement | null>(null);
   const membersMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [menuCoords, setMenuCoords] = React.useState<{ top: number; left: number } | null>(null);
   const [friendPending, setFriendPending] = React.useState<Record<string, boolean>>({});
+  const bubbleRefs = React.useRef(new Map<string, HTMLDivElement>());
+  const hoverBarRef = React.useRef<HTMLDivElement | null>(null);
+  const hoverHideTimerRef = React.useRef<number | null>(null);
+  const [hoverBarStyle, setHoverBarStyle] = React.useState<{
+    id: string;
+    top: number;
+    left: number;
+    placement: "above" | "below";
+  } | null>(null);
+  const reactionTargetRef = React.useRef<string | null>(null);
 
   const selfIdentifiers = React.useMemo(() => {
     const ids = new Set<string>();
@@ -254,6 +264,125 @@ export function ChatConversation({
       window.removeEventListener("scroll", handleLayoutChange, true);
     };
   }, [membersOpen, updateMenuCoords]);
+
+  const clearHoverHideTimer = React.useCallback(() => {
+    if (hoverHideTimerRef.current) {
+      window.clearTimeout(hoverHideTimerRef.current);
+      hoverHideTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleHoverBarUpdate = React.useCallback(
+    (messageId: string) => {
+      const bubbleEl = bubbleRefs.current.get(messageId);
+      if (!bubbleEl) return;
+
+      const compute = (attempt = 0) => {
+        const rect = bubbleEl.getBoundingClientRect();
+        const barEl = hoverBarRef.current;
+        const width = barEl?.offsetWidth ?? 220;
+        const height = barEl?.offsetHeight ?? 44;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const gutter = 12;
+
+        const pickerAllowance = reactionTargetRef.current === messageId ? 160 : 0;
+        const spaceAbove = Math.max(0, rect.top - gutter);
+        const spaceBelow = Math.max(0, viewportHeight - gutter - rect.bottom);
+
+        let placement: "above" | "below" = spaceAbove > spaceBelow ? "above" : "below";
+        const requiredBase = height + 8;
+        const requiredWithPicker = height + 8 + pickerAllowance;
+
+        if (placement === "above" && spaceAbove < requiredBase) {
+          placement = "below";
+        }
+        if (placement === "below" && spaceBelow < requiredBase) {
+          placement = "above";
+        }
+
+        if (placement === "above" && spaceAbove < requiredWithPicker && spaceBelow >= requiredWithPicker) {
+          placement = "below";
+        } else if (placement === "below" && spaceBelow < requiredWithPicker && spaceAbove >= requiredWithPicker) {
+          placement = "above";
+        }
+
+        let top = placement === "above" ? rect.top - height - 8 : rect.bottom + 8;
+        if (top < gutter) top = gutter;
+        if (top + height > viewportHeight - gutter) {
+          top = Math.max(gutter, viewportHeight - height - gutter);
+        }
+
+        let left = rect.left + rect.width / 2 - width / 2;
+        if (left < gutter) left = gutter;
+        if (left + width > viewportWidth - gutter) {
+          left = viewportWidth - width - gutter;
+        }
+
+        setHoverBarStyle((prev) => {
+          if (
+            prev &&
+            prev.id === messageId &&
+            Math.abs(prev.top - top) < 1 &&
+            Math.abs(prev.left - left) < 1 &&
+            prev.placement === placement
+          ) {
+            return prev;
+          }
+          return { id: messageId, top, left, placement };
+        });
+
+        if (!barEl && attempt < 2) {
+          window.requestAnimationFrame(() => compute(attempt + 1));
+        }
+      };
+
+      compute();
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    reactionTargetRef.current = reactionTargetId;
+  }, [reactionTargetId]);
+
+  React.useEffect(() => {
+    if (!hoverBarStyle) return;
+    scheduleHoverBarUpdate(hoverBarStyle.id);
+  }, [hoverBarStyle, scheduleHoverBarUpdate, reactionTargetId]);
+  React.useEffect(() => {
+    return () => {
+      clearHoverHideTimer();
+    };
+  }, [clearHoverHideTimer]);
+
+
+  React.useEffect(() => {
+    if (!hoverBarStyle) return;
+    const handle = () => scheduleHoverBarUpdate(hoverBarStyle.id);
+    window.addEventListener("resize", handle);
+    window.addEventListener("scroll", handle, true);
+    return () => {
+      window.removeEventListener("resize", handle);
+      window.removeEventListener("scroll", handle, true);
+    };
+  }, [hoverBarStyle, scheduleHoverBarUpdate]);
+
+  const handleHoverBarMouseEnter = React.useCallback(() => {
+    clearHoverHideTimer();
+  }, [clearHoverHideTimer]);
+
+  const handleHoverBarMouseLeave = React.useCallback(() => {
+    clearHoverHideTimer();
+    hoverHideTimerRef.current = window.setTimeout(() => {
+      setHoverBarStyle((prev) => {
+        if (!prev) return prev;
+        if (reactionTargetRef.current === prev.id) return prev;
+        return null;
+      });
+      hoverHideTimerRef.current = null;
+    }, 140);
+  }, [clearHoverHideTimer]);
 
   const typingParticipants = React.useMemo(() => {
     if (!Array.isArray(session.typing) || session.typing.length === 0) {
@@ -537,13 +666,26 @@ export function ChatConversation({
           const avatar = isSelf ? selfAvatar : (author?.avatar ?? null);
           const displayName = isSelf ? selfName : (author?.name ?? "Member");
           const statusNode = renderStatus(message);
-          const messageReactions = Array.isArray(message.reactions) ? message.reactions : [];
-          const showReactions = messageReactions.length > 0 || Boolean(onToggleReaction);
-          const isPickerOpen = reactionTargetId === message.id;
           return (
             <div
               key={message.id}
               className={`${styles.messageItem} ${isSelf ? styles.messageItemSelf : styles.messageItemOther}`.trim()}
+              onMouseEnter={() => {
+                clearHoverHideTimer();
+                setHoverBarStyle((prev) => {
+                  if (prev && prev.id === message.id) return prev;
+                  return { id: message.id, top: 0, left: 0, placement: "above" };
+                });
+                scheduleHoverBarUpdate(message.id);
+              }}
+              onMouseLeave={() => {
+                if (reactionTargetRef.current === message.id) return;
+                clearHoverHideTimer();
+                hoverHideTimerRef.current = window.setTimeout(() => {
+                  setHoverBarStyle((prev) => (prev && prev.id === message.id ? null : prev));
+                  hoverHideTimerRef.current = null;
+                }, 140);
+              }}
             >
               {!isSelf ? (
                 <span className={styles.messageAvatar} aria-hidden>
@@ -572,51 +714,16 @@ export function ChatConversation({
                 </div>
                 <div
                   className={`${styles.messageBubble} ${isSelf ? styles.messageBubbleSelf : ""}`.trim()}
+                  ref={(node) => {
+                    if (node) {
+                      bubbleRefs.current.set(message.id, node);
+                    } else {
+                      bubbleRefs.current.delete(message.id);
+                    }
+                  }}
                 >
                   {message.body}
-                </div>
-                <div className={styles.messageHoverBar} data-open={hoveredMessageId === message.id || isPickerOpen}>
-                  {REACTION_OPTIONS.slice(0, 5).map((option) => (
-                    <button
-                      key={`${message.id}-quick-${option}`}
-                      type="button"
-                      className={styles.messageQuickReact}
-                      onClick={() => handleReactionSelect(message.id, option)}
-                      aria-label={`React with ${option}`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                  {onToggleReaction ? (
-                    <div className={styles.messageHoverMore}>
-                      <button
-                        type="button"
-                        className={styles.messageHoverMoreButton}
-                        onClick={() => handleReactionPickerToggle(message.id)}
-                        aria-expanded={isPickerOpen}
-                        aria-label="More reactions"
-                      >
-                        <Smiley size={14} weight="duotone" />
-                      </button>
-                      {isPickerOpen ? (
-                        <div className={styles.messageReactionPicker} role="menu">
-                          {REACTION_OPTIONS.map((option) => (
-                            <button
-                              key={`${message.id}-${option}`}
-                              type="button"
-                              className={styles.messageReactionOption}
-                              onClick={() => handleReactionSelect(message.id, option)}
-                              aria-label={`React with ${option}`}
-                            >
-                              {option}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-                {statusNode ? <div className={styles.messageMeta}>{statusNode}</div> : null}
+                </div>                {statusNode ? <div className={styles.messageMeta}>{statusNode}</div> : null}
               </div>
             </div>
           );
@@ -655,6 +762,60 @@ export function ChatConversation({
           </div>
         ) : null}
       </div>
+      {hoverBarStyle
+        ? createPortal(
+            <div
+              ref={hoverBarRef}
+              className={styles.messageHoverBar}
+              data-placement={hoverBarStyle.placement}
+              style={{ top: Math.round(hoverBarStyle.top), left: Math.round(hoverBarStyle.left) }}
+              onMouseEnter={handleHoverBarMouseEnter}
+              onMouseLeave={handleHoverBarMouseLeave}
+            >
+              {REACTION_OPTIONS.slice(0, 5).map((option) => (
+                <button
+                  key={`${hoverBarStyle.id}-quick-${option}`}
+                  type="button"
+                  className={styles.messageQuickReact}
+                  onClick={() => handleReactionSelect(hoverBarStyle.id, option)}
+                  aria-label={`React with ${option}`}
+                >
+                  {option}
+                </button>
+              ))}
+              {onToggleReaction ? (
+                <div className={styles.messageHoverMore}>
+                  <button
+                    type="button"
+                    className={styles.messageHoverMoreButton}
+                    onClick={() => handleReactionPickerToggle(hoverBarStyle.id)}
+                    aria-expanded={reactionTargetId === hoverBarStyle.id}
+                    aria-label="More reactions"
+                  >
+                    <Smiley size={14} weight="duotone" />
+                  </button>
+                  {reactionTargetId === hoverBarStyle.id ? (
+                    <div className={styles.messageReactionPicker} role="menu">
+                      {REACTION_OPTIONS.map((option) => (
+                        <button
+                          key={`${hoverBarStyle.id}-${option}`}
+                          type="button"
+                          className={styles.messageReactionOption}
+                          onClick={() => handleReactionSelect(hoverBarStyle.id, option)}
+                          aria-label={`React with ${option}`}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
+
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
       <form className={styles.composer} onSubmit={handleSubmit}>
         <input
