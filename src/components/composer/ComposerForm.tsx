@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import styles from "../ai-composer.module.css";
@@ -17,7 +17,7 @@ import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanel
 
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
-import { isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
+import { ensurePollStructure, isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
 import {
   buildImageVariants,
   pickBestDisplayVariant,
@@ -27,19 +27,74 @@ import {
 import { buildLocalImageVariants, shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 
 const PANEL_WELCOME =
-  "Hi! I'm here to help you design a capsule banner for Memory Lane. Describe the mood, colors, or imagery you'd like and I'll generate options.";
+  "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
 
-const QUICK_PROMPT_PRESETS: Array<{ label: string; prompt: string }> = [
-  {
-    label: "Bold neon gradients",
-    prompt: "Design a bold neon gradient banner with futuristic energy.",
-  },
-  {
-    label: "Soft sunrise palette",
-    prompt: "Create a capsule banner inspired by a soft sunrise palette.",
-  },
-  { label: "Minimal dark mode", prompt: "Draft a minimal dark mode banner with crisp typography." },
-];
+const QUICK_PROMPT_PRESETS: Record<string, Array<{ label: string; prompt: string }>> = {
+  default: [
+    {
+      label: "Launch announcement",
+      prompt: "Draft a hype launch announcement with three punchy bullet highlights.",
+    },
+    {
+      label: "Weekly recap",
+      prompt: "Summarize our latest wins in a warm, conversational recap post.",
+    },
+    {
+      label: "Event teaser",
+      prompt: "Write a teaser for an upcoming event with a strong call to action.",
+    },
+  ],
+  poll: [
+    {
+      label: "Engagement poll",
+      prompt: "Create a poll asking the community which initiative we should prioritize next.",
+    },
+    {
+      label: "Preference check",
+      prompt: "Draft a poll comparing three visual themes for our brand refresh.",
+    },
+  ],
+  image: [
+    {
+      label: "Logo direction",
+      prompt: "Explore a logo direction that feels modern, fluid, and a little rebellious.",
+    },
+    {
+      label: "Moodboard",
+      prompt: "Generate a cinematic moodboard for a late-night product drop.",
+    },
+  ],
+  video: [
+    {
+      label: "Clip storyboard",
+      prompt: "Outline a 30-second video storyboard with three scenes and caption ideas.",
+    },
+    {
+      label: "Highlight reel",
+      prompt: "Suggest cuts for a highlight reel that spotlights our top community moments.",
+    },
+  ],
+  document: [
+    {
+      label: "Playbook outline",
+      prompt: "Draft a one-page playbook with sections for goal, timeline, and takeaways.",
+    },
+    {
+      label: "Brief template",
+      prompt: "Create a creative brief template for designers with clear instructions.",
+    },
+  ],
+  tournament: [
+    {
+      label: "Bracket kickoff",
+      prompt: "Describe a tournament bracket reveal with rounds, rewards, and hype copy.",
+    },
+    {
+      label: "Match highlights",
+      prompt: "Summarize key matchups and storylines for our upcoming community tournament.",
+    },
+  ],
+};
 
 type MemoryPreset = {
   key: string;
@@ -50,30 +105,97 @@ type MemoryPreset = {
 
 const DEFAULT_MEMORY_PRESETS: MemoryPreset[] = [
   {
-    key: "ai-promo",
-    label: "AI Generated Promo Tile",
-    description: "Memory",
-    prompt: "Generate a promo banner that feels energetic and futuristic.",
+    key: "ai-launch-post",
+    label: "AI Generated Launch Post",
+    description: "Blueprint",
+    prompt: "Write a launch announcement that blends optimism with a daring tone.",
   },
   {
-    key: "ai-memory-lane",
-    label: "AI Generated Banner for Memory Lane",
-    description: "Memory",
-    prompt: "Create a nostalgic banner for Memory Lane with warm highlights.",
+    key: "ai-community-poll",
+    label: "Community Pulse Check",
+    description: "Blueprint",
+    prompt: "Draft a poll that helps us understand what the community wants next.",
   },
   {
-    key: "signup-flow",
-    label: "Sign Up Process",
-    description: "Memory",
-    prompt: "Draft visuals for a signup process announcement banner.",
+    key: "visual-logo",
+    label: "Logo Direction",
+    description: "Blueprint",
+    prompt: "Explore a logo treatment that mixes playful gradients with crisp typography.",
   },
   {
-    key: "successful-upload",
-    label: "Successful Upload",
-    description: "Memory",
-    prompt: "Celebrate a successful upload with a celebratory banner concept.",
+    key: "weekly-recap",
+    label: "Weekly Recap",
+    description: "Blueprint",
+    prompt: "Summarize the weekâ€™s highlights with sections for wins, shoutouts, and next moves.",
   },
 ];
+
+const ASSET_KIND_OPTIONS = [
+  { key: "text", label: "Post" },
+  { key: "poll", label: "Poll" },
+  { key: "image", label: "Visual" },
+  { key: "video", label: "Video" },
+  { key: "document", label: "Document" },
+  { key: "tournament", label: "Tournament" },
+];
+
+const KIND_FALLBACK_LABELS: Record<string, string> = {
+  text: "Post",
+  poll: "Poll",
+  image: "Visual",
+  video: "Video",
+  document: "Document",
+  tournament: "Tournament",
+};
+
+function normalizeComposerKind(value: string | null | undefined): string {
+  const raw = (value ?? "").toLowerCase();
+  if (!raw) return "text";
+  if (raw === "banner" || raw === "visual" || raw === "logo" || raw === "artwork") return "image";
+  if (raw === "reel" || raw === "story" || raw === "clip") return "video";
+  if (raw === "doc" || raw === "deck" || raw === "brief") return "document";
+  if (raw === "tourney" || raw === "bracket") return "tournament";
+  if (raw === "article" || raw === "summary") return "text";
+  return raw;
+}
+
+function resolveKindLabel(kind: string): string {
+  return KIND_FALLBACK_LABELS[kind] ?? (kind.length ? kind[0].toUpperCase() + kind.slice(1) : "Post");
+}
+
+function getPromptPlaceholder(kind: string): string {
+  switch (kind) {
+    case "poll":
+      return "Ask Capsule to craft poll questions or add your own...";
+    case "image":
+      return "Describe the vibe or upload a visual you want to evolve...";
+    case "video":
+      return "Explain the clip, storyboard, or edit youâ€™re dreaming up...";
+    case "document":
+      return "Outline the doc, brief, or playbook you want Capsule AI to draft...";
+    case "tournament":
+      return "Sketch out the tournament structure or let Capsule AI design the bracket...";
+    default:
+      return "Describe what you need Capsule AI to create...";
+  }
+}
+
+function getFooterHint(kind: string): string {
+  switch (kind) {
+    case "poll":
+      return "Give Capsule AI a prompt or tweak the poll structure below.";
+    case "image":
+      return "Upload a visual, pull from your library, or describe the feel youâ€™re after.";
+    case "video":
+      return "Drop in reference footage or narrate the scenes you need.";
+    case "document":
+      return "Share the sections you need, or ask Capsule AI to outline it for you.";
+    case "tournament":
+      return "Tell Capsule AI how the bracket should flow and itâ€™ll draft it out.";
+    default:
+      return "Chat with Capsule AI, reference a blueprint, or upload supporting visuals.";
+  }
+}
 
 type MemoryItem = {
   key: string;
@@ -94,6 +216,7 @@ type ComposerFormProps = {
   onChange(draft: ComposerDraft): void;
   onClose(): void;
   onPost(): void;
+  onSave?(): void;
   onForceChoice?(key: string): void;
   onPrompt?(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
 };
@@ -107,6 +230,7 @@ export function ComposerForm({
   onChange,
   onClose,
   onPost,
+  onSave,
   onPrompt,
   onForceChoice,
 }: ComposerFormProps) {
@@ -123,6 +247,8 @@ export function ComposerForm({
       },
     [draft],
   );
+
+  const pollStructure = React.useMemo(() => ensurePollStructure(workingDraft), [workingDraft]);
 
   const updateDraft = React.useCallback(
     (partial: Partial<ComposerDraft>) => {
@@ -168,6 +294,22 @@ export function ComposerForm({
   useAttachmentViewer({ open: viewerOpen, onClose: closeViewer });
   const closeMobileRail = React.useCallback(() => actions.setMobileRailOpen(false), [actions]);
   useResponsiveRail({ open: mobileRailOpen, onClose: closeMobileRail });
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const media = window.matchMedia("(max-width: 900px)");
+    const apply = (matches: boolean) => {
+      actions.setPreviewOpen(matches ? false : true);
+    };
+    apply(media.matches);
+    const handleChange = (event: MediaQueryListEvent) => apply(event.matches);
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", handleChange);
+      return () => media.removeEventListener("change", handleChange);
+    }
+    media.addListener(handleChange);
+    return () => media.removeListener(handleChange);
+  }, [actions]);
 
   const displayAttachment = React.useMemo<LocalAttachment | null>(() => {
     if (attachment) return attachment;
@@ -264,6 +406,23 @@ export function ComposerForm({
     return variantUrl ?? attachmentUrl;
   }, [attachmentKind, attachmentUrl, attachmentVariants, hasAttachment]);
 
+  const activeKind = React.useMemo(() => {
+    const normalized = normalizeComposerKind(workingDraft.kind);
+    if ((normalized === "text" || !normalized) && attachmentKind) {
+      return attachmentKind;
+    }
+    return normalized;
+  }, [attachmentKind, workingDraft.kind]);
+
+  const toggleActiveKey = React.useMemo(
+    () => (ASSET_KIND_OPTIONS.some((option) => option.key === activeKind) ? activeKind : "text"),
+    [activeKind],
+  );
+
+  const promptPlaceholder = React.useMemo(() => getPromptPlaceholder(activeKind), [activeKind]);
+  const footerHint = React.useMemo(() => getFooterHint(activeKind), [activeKind]);
+  const activeKindLabel = React.useMemo(() => resolveKindLabel(activeKind), [activeKind]);
+
   const vibeSuggestions = React.useMemo(() => {
     if (!displayAttachment || displayAttachment.status !== "ready" || !displayAttachment.url) {
       return [] as Array<{ label: string; prompt: string }>;
@@ -299,19 +458,24 @@ export function ComposerForm({
     [updateDraft],
   );
 
+  const baseQuickPromptOptions = React.useMemo(
+    () => QUICK_PROMPT_PRESETS[activeKind] ?? QUICK_PROMPT_PRESETS.default,
+    [activeKind],
+  );
+
   const quickPromptOptions = React.useMemo(() => {
     if (vibeSuggestions.length) {
       return vibeSuggestions;
     }
-    return QUICK_PROMPT_PRESETS;
-  }, [vibeSuggestions]);
+    return baseQuickPromptOptions;
+  }, [baseQuickPromptOptions, vibeSuggestions]);
 
   const memoryItems = React.useMemo<MemoryItem[]>(() => {
     if (_choices?.length) {
       return _choices.map((choice) => ({
         key: choice.key,
         label: choice.label,
-        description: "Memory",
+        description: "Blueprint",
         prompt: null,
         kind: "choice" as const,
       }));
@@ -352,6 +516,30 @@ export function ComposerForm({
     if (!firstMemory) return;
     handleMemorySelect(firstMemory);
   }, [handleMemorySelect, memoryItems]);
+
+  const handleKindSelect = React.useCallback(
+    (nextKind: string) => {
+      const normalized = normalizeComposerKind(nextKind);
+      const partial: Partial<ComposerDraft> = { kind: normalized };
+      if (normalized === "poll") {
+        partial.poll = ensurePollStructure(workingDraft);
+      }
+      updateDraft(partial);
+    },
+    [updateDraft, workingDraft],
+  );
+
+  const handleSave = React.useCallback(() => {
+    if (onSave) {
+      onSave();
+    } else {
+      onPost();
+    }
+  }, [onPost, onSave]);
+
+  const handlePreviewToggle = React.useCallback(() => {
+    actions.setPreviewOpen(!previewOpen);
+  }, [actions, previewOpen]);
 
   const handlePromptSubmit = React.useCallback(() => {
     if (!onPrompt) return;
@@ -438,23 +626,42 @@ export function ComposerForm({
   }, [clearAttachment, updateDraft, workingDraft.kind]);
 
   const draftReady = isComposerDraftReady(workingDraft);
+
+  const hasDraftContent = React.useMemo(() => {
+    if ((workingDraft.content ?? "").trim().length > 0) return true;
+    if ((workingDraft.title ?? "").trim().length > 0) return true;
+    if ((workingDraft.mediaUrl ?? "").trim().length > 0) return true;
+    if (readyAttachment?.url) return true;
+    if (pollStructure) {
+      const hasQuestion = pollStructure.question.trim().length > 0;
+      const hasOption = pollStructure.options.some((option) => option.trim().length > 0);
+      if (hasQuestion || hasOption) return true;
+    }
+    return false;
+  }, [
+    readyAttachment?.url,
+    workingDraft.content,
+    workingDraft.mediaUrl,
+    workingDraft.title,
+    pollStructure,
+  ]);
+
+  const canSave = hasDraftContent && !attachmentUploading && !loading;
   const canPost = draftReady && !attachmentUploading && !loading;
 
   const showWelcomeMessage = !message;
-  const promptPlaceholder = "Describe your banner or a vibe...";
-  const footerHint = "Upload an image, pick a memory, or describe a new banner below.";
 
   const leftRail = (
     <div className={styles.memoryRail}>
       <header className={styles.memoryHeader}>
         <div className={styles.memoryHeaderTop}>
-          <span className={styles.memoryTitle}>Recent</span>
+          <span className={styles.memoryTitle}>Blueprints</span>
           <button type="button" className={styles.memoryLinkBtn}>
-            View all memories
+            Browse library
             <CaretRight size={14} weight="bold" />
           </button>
         </div>
-        <p className={styles.memorySubtitle}>Quickly reuse what you or Capsule AI picked last.</p>
+        <p className={styles.memorySubtitle}>Reuse drafts or jump-start something new with a tap.</p>
       </header>
       {memoryItems.length ? (
         <ol className={styles.memoryList}>
@@ -482,7 +689,7 @@ export function ComposerForm({
           })}
         </ol>
       ) : (
-        <div className={styles.memoryEmpty}>No memories yet</div>
+        <div className={styles.memoryEmpty}>No blueprints yet</div>
       )}
     </div>
   );
@@ -527,9 +734,8 @@ export function ComposerForm({
                   className={`${styles.msgBubble} ${styles.aiBubble} ${styles.attachmentPromptBubble}`}
                 >
                   <p className={styles.attachmentPromptIntro}>
-                    I&rsquo;m ready to help with this{" "}
-                    {displayAttachment?.mimeType.startsWith("video/") ? "video" : "image"}. What
-                    should we do next?
+                    Ready to vibe this {attachmentKind === "video" ? "clip" : "visual"} into
+                    something new. What should we explore next?
                   </p>
                   <div className={styles.vibeActions}>
                     {vibeSuggestions.map((suggestion) => (
@@ -651,32 +857,266 @@ export function ComposerForm({
     </>
   );
 
+  const previewState = React.useMemo(() => {
+    const kind = activeKind;
+    const label = activeKindLabel;
+    const content = (workingDraft.content ?? "").trim();
+    const title = (workingDraft.title ?? "").trim();
+    const mediaPrompt = (workingDraft.mediaPrompt ?? "").trim();
+    const mediaUrl = attachmentDisplayUrl ?? attachmentFullUrl ?? workingDraft.mediaUrl ?? null;
+    const attachmentName = displayAttachment?.name ?? null;
+    const renderPlaceholder = (message: string) => (
+      <div className={styles.previewPlaceholderCard}>
+        <span className={styles.previewPlaceholderIcon}>
+          <Sparkle size={20} weight="fill" />
+        </span>
+        <p>{message}</p>
+      </div>
+    );
+
+    let helper: string | null = null;
+    let body: React.ReactNode;
+    let empty = false;
+
+    switch (kind) {
+      case "poll": {
+        const poll = pollStructure;
+        const question = poll.question.trim();
+        const options = poll.options.map((option) => option.trim()).filter(Boolean);
+        empty = !question && options.length === 0;
+        if (empty) {
+          body = renderPlaceholder("Describe the poll you want and the live preview will appear.");
+        } else {
+          const displayOptions = options.length ? options : ["Option 1", "Option 2", "Option 3"];
+          helper = `${displayOptions.length} option${displayOptions.length === 1 ? "" : "s"} ready`;
+          body = (
+            <div className={styles.previewPollCard}>
+              <h3 className={styles.previewPollQuestion}>{question || "Untitled poll"}</h3>
+              <ul className={styles.previewPollOptions}>
+                {displayOptions.map((option, index) => (
+                  <li key={`${option}-${index}`}>
+                    <span className={styles.previewPollOptionBullet}>{index + 1}</span>
+                    <span className={styles.previewPollOptionLabel}>{option}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        }
+        break;
+      }
+      case "image": {
+        empty = !mediaUrl;
+        helper = mediaPrompt || attachmentName;
+        if (empty) {
+          body = renderPlaceholder("Upload or describe a visual to stage it here.");
+        } else {
+          body = (
+            <figure className={styles.previewMediaFrame} data-kind="image">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={mediaUrl ?? undefined}
+                alt={attachmentName ?? mediaPrompt || "Generated visual preview"}
+              />
+              {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
+            </figure>
+          );
+        }
+        break;
+      }
+      case "video": {
+        empty = !mediaUrl;
+        helper = mediaPrompt || attachmentName;
+        if (empty) {
+          body = renderPlaceholder("Drop a clip or describe scenes to preview them here.");
+        } else {
+          body = (
+            <figure className={styles.previewMediaFrame} data-kind="video">
+              <video src={mediaUrl ?? undefined} controls preload="metadata" />
+              {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
+            </figure>
+          );
+        }
+        break;
+      }
+      case "document": {
+        const blocks = content
+          ? content.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean)
+          : [];
+        empty = blocks.length === 0 && !title;
+        if (empty) {
+          body = renderPlaceholder("Outline the sections you need and the document will render.");
+        } else {
+          const displayBlocks = blocks.length ? blocks : ["Overview", "Highlights", "Next steps"];
+          helper = `${displayBlocks.length} section${
+            displayBlocks.length === 1 ? "" : "s"
+          } in progress`;
+          body = (
+            <div className={styles.previewDocumentCard}>
+              <h3 className={styles.previewDocumentTitle}>{title || "Untitled document"}</h3>
+              <ol className={styles.previewDocumentSections}>
+                {displayBlocks.map((block, index) => {
+                  const [heading, ...rest] = block.split(/\n+/);
+                  const bodyText = rest.join(" ").trim();
+                  return (
+                    <li key={`${heading}-${index}`}>
+                      <span className={styles.previewDocumentSectionBadge}>
+                        {index + 1 < 10 ? `0${index + 1}` : index + 1}
+                      </span>
+                      <div className={styles.previewDocumentSectionContent}>
+                        <h4>{heading || `Section ${index + 1}`}</h4>
+                        {bodyText ? <p>{bodyText}</p> : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          );
+        }
+        break;
+      }
+      case "tournament": {
+        const rounds = content
+          ? content.split(/\n+/).map((value) => value.trim()).filter(Boolean)
+          : [];
+        empty = rounds.length === 0 && !title;
+        if (empty) {
+          body = renderPlaceholder(
+            "Tell Capsule AI about rounds, seeds, or teams to map the bracket.",
+          );
+        } else {
+          const displayRounds = rounds.length
+            ? rounds
+            : ["Round of 16", "Quarterfinals", "Semifinals", "Final"];
+          helper = `${displayRounds.length} stage${
+            displayRounds.length === 1 ? "" : "s"
+          } plotted`;
+          body = (
+            <div className={styles.previewTournamentCard}>
+              <h3 className={styles.previewTournamentTitle}>{title || "Tournament bracket"}</h3>
+              <div className={styles.previewTournamentGrid}>
+                {displayRounds.map((round, index) => (
+                  <div key={`${round}-${index}`} className={styles.previewTournamentColumn}>
+                    <span>{round}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        break;
+      }
+      default: {
+        const paragraphs = content
+          ? content.split(/\n+/).map((block) => block.trim()).filter(Boolean)
+          : [];
+        empty = paragraphs.length === 0 && !title;
+        if (empty) {
+          body = renderPlaceholder(
+            `Give Capsule AI a prompt to see your ${label.toLowerCase()} take shape.`,
+          );
+        } else {
+          body = (
+            <div className={styles.previewPostCard}>
+              {title ? <h3 className={styles.previewPostTitle}>{title}</h3> : null}
+              <div className={styles.previewPostBody}>
+                {paragraphs.map((paragraph, index) => (
+                  <p key={`${paragraph}-${index}`}>{paragraph}</p>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        break;
+      }
+    }
+
+    return { kind, label, body, empty, helper };
+  }, [
+    activeKind,
+    activeKindLabel,
+    attachmentDisplayUrl,
+    attachmentFullUrl,
+    displayAttachment?.name,
+    pollStructure,
+    workingDraft.content,
+    workingDraft.mediaPrompt,
+    workingDraft.mediaUrl,
+    workingDraft.title,
+  ]);
+
+  const previewPrimaryAction = React.useMemo(() => {
+    if (activeKind === "image" || activeKind === "video") {
+      return {
+        label: "Upload asset",
+        onClick: handleAttachClick,
+        disabled: loading || attachmentUploading,
+      };
+    }
+    const trimmed = (workingDraft.content ?? "").trim();
+    const pollHasStructure =
+      pollStructure.question.trim().length > 0 ||
+      pollStructure.options.some((option) => option.trim().length > 0);
+    const label =
+      activeKind === "poll" ? "Generate via AI" : activeKind === "document" ? "Outline with AI" : "Ask Capsule";
+    const allowed = trimmed.length > 0 || pollHasStructure;
+    return {
+      label,
+      onClick: handlePromptSubmit,
+      disabled: loading || attachmentUploading || !allowed,
+    };
+  }, [
+    activeKind,
+    attachmentUploading,
+    handleAttachClick,
+    handlePromptSubmit,
+    loading,
+    workingDraft.content,
+    pollStructure,
+  ]);
+
+  const previewSecondaryAction = React.useMemo(() => {
+    const label =
+      activeKind === "image" || activeKind === "video" ? "Open library" : "Browse blueprints";
+    return {
+      label,
+      onClick: handleMemoryShortcut,
+      disabled: !memoryItems.length,
+    };
+  }, [activeKind, handleMemoryShortcut, memoryItems.length]);
+
   const previewContent = (
-    <PreviewColumn title="Preview">
-      <div className={styles.previewCanvas}>
-        <div className={styles.previewCard}>
-          <span className={styles.previewGlyph}>
-            <Sparkle size={28} weight="fill" />
-          </span>
-          <p className={styles.previewCopy}>
-            Start by chatting with Capsule AI or choosing an image.
-          </p>
-        </div>
+    <PreviewColumn
+      title="Preview"
+      meta={<span className={styles.previewTypeBadge}>{previewState.label}</span>}
+    >
+      <div
+        id="composer-preview-pane"
+        className={styles.previewCanvas}
+        data-kind={previewState.kind}
+        data-empty={previewState.empty ? "true" : undefined}
+      >
+        <div className={styles.previewStage}>{previewState.body}</div>
+        {previewState.helper ? (
+          <p className={styles.previewHelper}>{previewState.helper}</p>
+        ) : null}
         <div className={styles.previewActions}>
           <button
             type="button"
             className={styles.previewActionPrimary}
-            onClick={handleAttachClick}
-            disabled={loading || attachmentUploading}
+            onClick={previewPrimaryAction.onClick}
+            disabled={previewPrimaryAction.disabled}
           >
-            Upload image
+            {previewPrimaryAction.label}
           </button>
           <button
             type="button"
             className={styles.previewActionSecondary}
-            onClick={handleMemoryShortcut}
+            onClick={previewSecondaryAction.onClick}
+            disabled={previewSecondaryAction.disabled}
           >
-            Memory
+            {previewSecondaryAction.label}
           </button>
         </div>
       </div>
@@ -732,13 +1172,38 @@ export function ComposerForm({
           <X size={18} weight="bold" />
         </button>
 
-        <header className={styles.panelHeader}>
-          <div className={styles.panelTitleGroup}>
-            <h2 className={styles.panelTitle}>Design your Capsule banner</h2>
-            <p className={styles.panelSubtitle}>
-              Chat with Capsule AI, pick from memories, or upload brand visuals to set your capsule
-              banner.
+        <header className={styles.panelToolbar}>
+          <div className={styles.toolbarHeading}>
+            <span className={styles.toolbarBadge}>
+              <Sparkle size={16} weight="fill" aria-hidden="true" />
+              Capsule AI
+            </span>
+            <h2 className={styles.toolbarTitle}>Composer Studio</h2>
+            <p className={styles.toolbarSubtitle}>
+              Build and vibe {activeKindLabel.toLowerCase()}s with prompts, assets, and blueprints.
             </p>
+          </div>
+          <div
+            className={styles.toolbarModes}
+            role="tablist"
+            aria-label="Select what you want to create"
+          >
+            {ASSET_KIND_OPTIONS.map((option) => {
+              const selected = toggleActiveKey === option.key;
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  className={`${styles.modeToggle} ${selected ? styles.modeToggleActive : ""}`}
+                  data-selected={selected ? "true" : undefined}
+                  onClick={() => handleKindSelect(option.key)}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
         </header>
 
@@ -790,11 +1255,28 @@ export function ComposerForm({
             </button>
             <button
               type="button"
+              className={styles.secondaryAction}
+              onClick={handleSave}
+              disabled={!canSave}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className={styles.previewToggle}
+              onClick={handlePreviewToggle}
+              aria-pressed={previewOpen}
+              aria-controls="composer-preview-pane"
+            >
+              Preview
+            </button>
+            <button
+              type="button"
               className={styles.primaryAction}
               onClick={onPost}
               disabled={!canPost}
             >
-              Save banner
+              Post
             </button>
           </div>
         </footer>
@@ -875,3 +1357,11 @@ export function ComposerForm({
     </div>
   );
 }
+
+
+
+
+
+
+
+

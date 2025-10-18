@@ -21,6 +21,7 @@ type AiComposerDrawerProps = {
   onChange(draft: ComposerDraft): void;
   onClose(): void;
   onPost(): void;
+  onSave?(): void;
   onPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
   onForceChoice?(key: string): void;
 };
@@ -36,6 +37,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     onChange,
     onClose,
     onPost,
+    onSave,
     onPrompt,
     onForceChoice,
   } = props;
@@ -77,6 +79,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       onChange={onChange}
       onClose={onClose}
       onPost={onPost}
+      onSave={onSave ?? onPost}
       onPrompt={onPrompt}
       {...(onForceChoice ? { onForceChoice } : {})}
     />,

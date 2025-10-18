@@ -445,7 +445,7 @@ export function AiPrompterStage({
       } else if (hasAttachmentPayload) {
         emitAction({ kind: "post_manual", content: value, raw: value });
       } else {
-        emitAction({ kind: "generate", text: value, raw: value });
+        emitAction({ kind: "post_manual", content: value, raw: value });
       }
       resetAfterSubmit();
       return;
