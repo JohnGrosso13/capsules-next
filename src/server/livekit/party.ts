@@ -9,6 +9,7 @@ import {
   deleteLivekitRoom,
   issueLivekitAccessToken,
   getLivekitErrorCode,
+  listLivekitRoomParticipants,
   type LivekitRoomSnapshot,
 } from "@/adapters/livekit/server";
 import type { PartyMetadata } from "@/server/validation/schemas/party";
@@ -96,6 +97,25 @@ export async function fetchPartyMetadata(partyId: string): Promise<PartyMetadata
     const code = getLivekitErrorCode(error);
     if (code === "not_found") {
       return null;
+    }
+    throw error;
+  }
+}
+
+export async function isUserInParty(partyId: string, userId: string): Promise<boolean> {
+  const normalizedPartyId = partyId.trim().toLowerCase();
+  const normalizedUserId = userId.trim();
+  if (!normalizedPartyId || !normalizedUserId) {
+    return false;
+  }
+  const roomName = getPartyRoomName(normalizedPartyId);
+  try {
+    const participants = await listLivekitRoomParticipants(roomName);
+    return participants.some((participant) => participant.identity === normalizedUserId);
+  } catch (error) {
+    const code = getLivekitErrorCode(error);
+    if (code === "not_found") {
+      return false;
     }
     throw error;
   }
