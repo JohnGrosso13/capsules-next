@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { ArrowLeft, PaperPlaneTilt, Trash, UserPlus, Smiley } from "@phosphor-icons/react/dist/ssr";
+import { createPortal } from "react-dom";
 
 import type {
   ChatMessage,
@@ -10,6 +11,8 @@ import type {
   ChatSession,
 } from "@/components/providers/ChatProvider";
 import { useCurrentUser } from "@/services/auth/client";
+import { useFriendsDataContext } from "@/components/providers/FriendsDataProvider";
+import { requestFriend } from "@/lib/api/friends";
 
 import styles from "./chat.module.css";
 
@@ -172,11 +175,17 @@ export function ChatConversation({
   onTypingChange,
 }: ChatConversationProps) {
   const { user } = useCurrentUser();
+  const { friends } = useFriendsDataContext();
   const [draft, setDraft] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [reactionTargetId, setReactionTargetId] = React.useState<string | null>(null);
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
+  const membersAnchorRef = React.useRef<HTMLButtonElement | null>(null);
+  const membersMenuRef = React.useRef<HTMLDivElement | null>(null);
+  const [membersOpen, setMembersOpen] = React.useState(false);
+  const [menuCoords, setMenuCoords] = React.useState<{ top: number; left: number } | null>(null);
+  const [friendPending, setFriendPending] = React.useState<Record<string, boolean>>({});
 
   const selfIdentifiers = React.useMemo(() => {
     const ids = new Set<string>();
@@ -209,6 +218,41 @@ export function ChatConversation({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [reactionTargetId]);
+  const updateMenuCoords = React.useCallback(() => {
+    const el = membersAnchorRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setMenuCoords({ top: Math.round(rect.bottom + 8), left: Math.round(rect.left) });
+  }, []);
+
+  React.useEffect(() => {
+    if (!membersOpen) return;
+    const handlePointer = (event: MouseEvent | PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      const insideTrigger = membersAnchorRef.current?.contains(target) ?? false;
+      const insideMenu = membersMenuRef.current?.contains(target) ?? false;
+      if (!insideTrigger && !insideMenu) setMembersOpen(false);
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMembersOpen(false);
+      }
+    };
+    const handleLayoutChange = () => updateMenuCoords();
+    document.addEventListener("pointerdown", handlePointer);
+    document.addEventListener("keydown", handleKey);
+    window.addEventListener("resize", handleLayoutChange);
+    window.addEventListener("scroll", handleLayoutChange, true);
+    updateMenuCoords();
+    return () => {
+      document.removeEventListener("pointerdown", handlePointer);
+      document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("resize", handleLayoutChange);
+      window.removeEventListener("scroll", handleLayoutChange, true);
+    };
+  }, [membersOpen, updateMenuCoords]);
 
   const typingParticipants = React.useMemo(() => {
     if (!Array.isArray(session.typing) || session.typing.length === 0) {
@@ -317,6 +361,44 @@ export function ChatConversation({
       : formatPresence(lastPresenceSource);
   const title = session.title?.trim() || (remoteParticipants[0]?.name ?? "Chat");
 
+  const friendUserIdSet = React.useMemo(() => {
+    const set = new Set<string>();
+    friends.forEach((f) => {
+      if (f.userId) set.add(String(f.userId).trim());
+    });
+    return set;
+  }, [friends]);
+
+  const isSelf = React.useCallback(
+    (participantId: string | null | undefined) => {
+      if (!participantId) return false;
+      const id = participantId.trim();
+      if (!id) return false;
+      return id === currentUserId || id === selfClientId;
+    },
+    [currentUserId, selfClientId],
+  );
+
+  const handleAddFriend = React.useCallback(
+    async (participant: ChatParticipant) => {
+      const id = participant.id;
+      if (!id || isSelf(id) || friendUserIdSet.has(id)) return;
+      setFriendPending((prev) => ({ ...prev, [id]: true }));
+      try {
+        await requestFriend({ userId: id, name: participant.name, avatar: participant.avatar });
+      } catch (err) {
+        console.error("Friend request failed", err);
+      } finally {
+        setFriendPending((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      }
+    },
+    [friendUserIdSet, isSelf],
+  );
+
   return (
     <div className={styles.conversation}>
       <div className={styles.conversationHeader}>
@@ -331,13 +413,40 @@ export function ChatConversation({
               <ArrowLeft size={18} weight="bold" />
             </button>
           ) : null}
-          <span className={styles.conversationAvatar} aria-hidden>
-            {renderConversationAvatar(session, remoteParticipants, title)}
-          </span>
-          <div className={styles.conversationTitleBlock}>
-            <span className={styles.conversationTitle}>{title}</span>
-            {presence ? <span className={styles.conversationSubtitle}>{presence}</span> : null}
-          </div>
+          {session.type === "group" ? (
+            <button
+              type="button"
+              className={`${styles.conversationAvatar} ${styles.conversationAvatarButton}`.trim()}
+              aria-haspopup="menu"
+              aria-expanded={membersOpen}
+              aria-label="Show group members"
+              onClick={() => {
+                setMembersOpen((prev) => !prev);
+                if (!membersOpen) {
+                  // position menu near the avatar group
+                  // coords will update via effect as well
+                  const el = membersAnchorRef.current;
+                  if (el) {
+                    const rect = el.getBoundingClientRect();
+                    setMenuCoords({ top: Math.round(rect.bottom + 8), left: Math.round(rect.left) });
+                  }
+                }
+              }}
+              ref={membersAnchorRef}
+            >
+              {renderConversationAvatar(session, remoteParticipants, title)}
+            </button>
+          ) : (
+            <span className={styles.conversationAvatar} aria-hidden>
+              {renderConversationAvatar(session, remoteParticipants, title)}
+            </span>
+          )}
+          {session.type === "group" ? null : (
+            <div className={styles.conversationTitleBlock}>
+              <span className={styles.conversationTitle}>{title}</span>
+              {presence ? <span className={styles.conversationSubtitle}>{presence}</span> : null}
+            </div>
+          )}
         </div>
         <div className={styles.conversationHeaderActions}>
           {session.type === "group" && onInviteParticipants ? (
@@ -360,35 +469,65 @@ export function ChatConversation({
               <Trash size={18} weight="duotone" />
             </button>
           ) : null}
+
+        {session.type === "group" && membersOpen
+          ? createPortal(
+              <div
+                ref={membersMenuRef}
+                className={styles.membersMenuPanel}
+                role="menu"
+                style={{ position: "fixed", top: menuCoords?.top ?? 0, left: menuCoords?.left ?? 0, zIndex: 1600 }}
+              >
+                <div className={styles.membersMenuHeader}>{presence}</div>
+                <ul className={styles.membersMenuList}>
+                  {session.participants.map((participant) => {
+                    const alreadyFriend = participant.id ? friendUserIdSet.has(participant.id) : false;
+                    const disabled = isSelf(participant.id) || alreadyFriend || Boolean(friendPending[participant.id]);
+                    return (
+                      <li key={participant.id} className={styles.membersMenuItem}>
+                        <span className={styles.membersMenuAvatar} aria-hidden>
+                          {participant.avatar ? (
+                            <Image
+                              src={participant.avatar}
+                              alt=""
+                              width={28}
+                              height={28}
+                              className={styles.membersMenuAvatarImage}
+                              sizes="28px"
+                            />
+                          ) : (
+                            <span className={styles.membersMenuInitials}>{initialsFrom(participant.name)}</span>
+                          )}
+                        </span>
+                        <span className={styles.membersMenuName}>
+                          {isSelf(participant.id) ? `${participant.name} (You)` : participant.name}
+                        </span>
+                        <span className={styles.membersMenuActionWrap}>
+                          {alreadyFriend ? (
+                            <span className={styles.membersMenuStatus}>Friends</span>
+                          ) : isSelf(participant.id) ? null : (
+                            <button
+                              type="button"
+                              className={styles.membersMenuAction}
+                              disabled={disabled}
+                              onClick={() => void handleAddFriend(participant)}
+                            >
+                              {friendPending[participant.id] ? "Sending..." : "Add Friend"}
+                            </button>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>,
+              document.body,
+            )
+          : null}
+
         </div>
       </div>
 
-      {session.type === "group" ? (
-        <div className={styles.conversationParticipants}>
-          {session.participants.map((participant) => (
-            <span
-              key={participant.id}
-              className={styles.conversationParticipant}
-              title={participant.name}
-            >
-              {participant.avatar ? (
-                <Image
-                  src={participant.avatar}
-                  alt=""
-                  width={28}
-                  height={28}
-                  className={styles.conversationParticipantAvatar}
-                  sizes="28px"
-                />
-              ) : (
-                <span className={styles.conversationParticipantInitials}>
-                  {initialsFrom(participant.name)}
-                </span>
-              )}
-            </span>
-          ))}
-        </div>
-      ) : null}
 
       <div ref={messagesRef} className={styles.messageList}>
         {session.messages.map((message) => {
@@ -543,3 +682,6 @@ export function ChatConversation({
     </div>
   );
 }
+
+
+
