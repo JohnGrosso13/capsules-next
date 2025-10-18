@@ -1,0 +1,390 @@
+.outer {
+  /* Align page offset to compact header height */
+  padding: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset)) 0 var(--layout-desktop-bottom-padding);
+}
+@media (max-width: 640px) {
+  .outer {
+    --header-height: 0px;
+    padding: calc(env(safe-area-inset-top, 0px) + var(--layout-mobile-top-offset)) 0 calc(var(--mobile-dock-height, 0px) + var(--layout-mobile-bottom-offset));
+  }
+  .page {
+    width: 100%;
+    margin: 0;
+    padding: var(--layout-mobile-top-offset) 0 var(--layout-mobile-outer-padding-bottom);
+    padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
+    padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
+  }
+  .main {
+    gap: var(--layout-mobile-section-gap);
+  }
+  .layout {
+    gap: var(--layout-mobile-section-gap);
+  }
+}
+
+.page {
+  /* Expanded container to allow a left balancing spacer so the FEED centers perfectly */
+  width: min(1600px, calc(100% - var(--layout-page-width-offset)));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-page-gap);
+}
+
+.pageCapsule {
+  /* Capsule page should be full-width for an immersive stream layout */
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.header {
+  margin-bottom: var(--space-sm);
+}
+.headerInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm-plus);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+.brandMark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--gradient-brand);
+  display: inline-block;
+}
+.brandName {
+  font-size: 1.1rem;
+}
+
+.nav {
+  display: flex;
+  gap: var(--space-lg-plus);
+  font-weight: 700;
+}
+.navLink {
+  color: var(--text-2);
+}
+.navLink:hover {
+  color: var(--text);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+.iconButton {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--pill-border);
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1),
+    var(--pill-bg-2)
+  );
+}
+.iconGlyph {
+  width: 20px;
+  height: 20px;
+}
+.primaryCta {
+  white-space: nowrap;
+}
+
+.main {
+  display: grid;
+  gap: var(--layout-page-gap);
+}
+.prompterStage {
+  /* Match Home prompter spacing and width exactly */
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto var(--layout-prompter-margin-bottom);
+  position: relative;
+  z-index: 300;
+  isolation: isolate;
+}
+@media (max-width: 640px) {
+  .prompterStage {
+    margin-bottom: var(--layout-prompter-margin-bottom-mobile);
+  }
+}
+
+.layout {
+  --app-feed-width: clamp(640px, 52vw, 760px);
+  --app-rail-width: clamp(260px, 22vw, 320px);
+  --app-column-gap: clamp(20px, 2.5vw, 40px);
+  display: grid;
+  /* Left rail first, main content second to match app pages */
+  grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width));
+  gap: var(--layout-column-gap);
+  column-gap: var(--app-column-gap);
+  align-items: start;
+  justify-content: center;
+}
+
+.layoutWithRight {
+  grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width)) minmax(0, var(--app-rail-width));
+  column-gap: var(--app-column-gap);
+  justify-content: center;
+}
+.layoutWithRight .leftRail,
+.layoutWithRight .rightRail {
+  max-width: var(--app-rail-width);
+  width: min(100%, var(--app-rail-width));
+}
+/* Ensure non-home three-column pages center content identically to Home */
+.layoutWithRight .content {
+  max-width: var(--app-feed-width, 680px);
+  width: min(100%, var(--app-feed-width, 680px));
+  justify-self: center;
+  grid-column: 2;
+}
+
+.layoutHome {
+  /* Three tracks: left spacer (rail-sized), centered feed, right rail */
+  grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width)) minmax(0, var(--app-rail-width));
+  column-gap: var(--app-column-gap);
+  justify-content: center;
+}
+
+.contentHome {
+  max-width: var(--app-feed-width, 680px);
+  width: min(100%, var(--app-feed-width, 680px));
+  justify-self: center;
+  /* Place feed in the center column */
+  grid-column: 2;
+}
+
+.leftRail {
+  position: sticky;
+  top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
+  max-width: var(--app-rail-width, clamp(260px, 22vw, 320px));
+  width: min(100%, var(--app-rail-width, clamp(260px, 22vw, 320px)));
+  --connections-rail-offset: -60px;
+  --connections-rail-offset-md: -50px;
+  --connections-rail-offset-sm: -40px;
+  --connections-rail-offset-xs: 0px;
+}
+.rightRail {
+  position: sticky;
+  top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
+  max-width: var(--app-rail-width, clamp(260px, 22vw, 320px));
+  width: min(100%, var(--app-rail-width, clamp(260px, 22vw, 320px)));
+}
+.leftRailHome {
+  max-width: var(--app-rail-width, 320px);
+  width: min(100%, var(--app-rail-width, 320px));
+  grid-column: 1;
+}
+.rightRailHome {
+  max-width: var(--app-rail-width, 320px);
+  width: min(100%, var(--app-rail-width, 320px));
+  grid-column: 3;
+}
+
+.layoutCapsule {
+  /* Full-width three-column layout: rails at edges, center fills remaining space */
+  --capsule-rail-width: clamp(240px, 20vw, 320px);
+  --capsule-gap: clamp(20px, 2.5vw, 40px);
+  grid-template-columns: minmax(260px, var(--capsule-rail-width)) minmax(0, 1fr) minmax(260px, var(--capsule-rail-width));
+  column-gap: var(--capsule-gap);
+  justify-content: stretch;
+}
+
+.layoutCapsuleNoRight {
+  grid-template-columns: minmax(260px, var(--capsule-rail-width)) minmax(0, 1fr);
+}
+
+.contentCapsule {
+  max-width: none;
+  width: 100%;
+  justify-self: stretch;
+  grid-column: 2;
+  padding: 0 clamp(18px, 2vw, 36px);
+  height: calc(
+    100vh - (var(--header-height, var(--space-8xl)) + var(--layout-header-offset))
+  );
+  display: grid;
+  grid-template-rows: 1fr; /* Fill available height with live area; banner moved below */
+  overflow: auto;
+}
+
+.leftRailCapsule {
+  max-width: var(--capsule-rail-width, 340px);
+  width: min(100%, var(--capsule-rail-width, 340px));
+  grid-column: 1;
+  --connections-rail-offset: 12px;
+  --connections-rail-offset-md: 8px;
+  --connections-rail-offset-sm: 4px;
+  --connections-rail-offset-xs: 0px;
+}
+
+.rightRailCapsule {
+  max-width: var(--capsule-rail-width, 340px);
+  width: min(100%, var(--capsule-rail-width, 340px));
+  grid-column: 3;
+  /* Stretch chat to viewport height under the header; subtract page gap + outer bottom padding to avoid page scroll */
+  height: calc(
+    100vh
+      - (var(--header-height, var(--space-8xl)) + var(--layout-header-offset))
+      - var(--layout-page-gap, var(--space-2xl))
+      - var(--layout-desktop-bottom-padding, 0px)
+      - 1px
+  );
+  display: flex;
+  flex-direction: column;
+}
+
+/* Capsule layout: remove extra bottom padding so rails can truly dock */
+.outerCapsule {
+  --layout-desktop-bottom-padding: 0px;
+}
+
+.capsuleBanner {
+  /* Big banner embedded in center column beneath header */
+  width: 100%;
+  /* Dock into the header by tucking slightly upward */
+  margin: -8px 0 var(--layout-page-gap);
+  border: 1px solid var(--card-border);
+  background:
+    radial-gradient(1200px 300px at 20% -30%, rgba(255,255,255,0.08), transparent 60%),
+    radial-gradient(1200px 300px at 80% -30%, rgba(255,255,255,0.08), transparent 60%),
+    linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.06)), var(--glass-bg-2, rgba(255,255,255,0.03)));
+  border-radius: 0 0 var(--radius-2xl, 20px) var(--radius-2xl, 20px);
+  padding: clamp(10px, 1.2vw, 16px);
+  min-height: clamp(60px, 9vh, 120px);
+  box-shadow: var(--card-shadow);
+}
+
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .layoutWithRight {
+    grid-template-columns: 1fr;
+  }
+  .layoutHome {
+    justify-content: stretch;
+    column-gap: var(--layout-column-gap);
+    grid-template-columns: 1fr;
+  }
+  .pageCapsule {
+    padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
+    padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
+  }
+  .layoutCapsule {
+    justify-content: stretch;
+    column-gap: var(--layout-column-gap);
+    grid-template-columns: 1fr;
+  }
+  .contentHome,
+  .leftRailHome,
+  .rightRailHome {
+    /* Reset explicit placement when single-column */
+    grid-column: auto;
+  }
+  .contentCapsule,
+  .leftRailCapsule,
+  .rightRailCapsule {
+    grid-column: auto;
+  }
+  .contentHome,
+  .leftRailHome,
+  .rightRailHome {
+    max-width: none;
+    width: 100%;
+  }
+  .contentCapsule,
+  .leftRailCapsule,
+  .rightRailCapsule {
+    max-width: none;
+    width: 100%;
+  }
+  .contentCapsule {
+    height: auto;
+    grid-template-rows: initial;
+    padding: 0;
+  }
+  .rightRailCapsule {
+    height: auto;
+  }
+  .leftRail {
+    --connections-rail-offset: 0px;
+    --connections-rail-offset-md: 0px;
+    --connections-rail-offset-sm: 0px;
+  }
+  .layoutWithRight .leftRail,
+  .layoutWithRight .rightRail {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+.content {
+  display: grid;
+  gap: var(--layout-page-gap);
+}
+
+.rail {
+  position: sticky;
+  /* Match page top padding so rail aligns with content start */
+  top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
+  display: block;
+  /* Borderless rail: containers inside (tiles/panel) own their glass shells */
+}
+@media (max-width: 1000px) {
+  .rail {
+    position: static;
+  }
+}
+@media (max-width: 640px) {
+  .rail {
+    display: none;
+  }
+}
+
+.navLinkActive {
+  color: var(--text);
+}
+.promoRowSpace {
+  width: 100%;
+  margin: 0;
+  display: grid;
+  justify-items: stretch;
+}
+@media (max-width: 640px) {
+  .outer {
+    --header-height: 0px;
+    padding: calc(env(safe-area-inset-top, 0px) + var(--layout-mobile-top-offset)) 0 calc(var(--mobile-dock-height, 0px) + var(--layout-mobile-bottom-offset));
+  }
+  .page {
+    width: 100%;
+    margin: 0;
+    padding: var(--layout-mobile-top-offset) 0 var(--layout-mobile-outer-padding-bottom);
+    padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
+    padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
+  }
+  .main {
+    gap: var(--layout-mobile-section-gap);
+  }
+  .layout {
+    gap: var(--layout-mobile-section-gap);
+  }
+}

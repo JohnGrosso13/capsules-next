@@ -1,0 +1,20 @@
+.page {
+  min-height: calc(100vh - 4rem);
+  background:
+    radial-gradient(
+      120% 120% at 20% 0%,
+      color-mix(in srgb, var(--color-brand, #5669ff) 24%, transparent),
+      color-mix(in srgb, var(--surface-overlay, rgba(18, 22, 42, 0.05)) 55%, transparent) 55%,
+      transparent 85%
+    ),
+    radial-gradient(
+      140% 140% at 110% 10%,
+      color-mix(in srgb, var(--color-accent, #22d3ee) 24%, transparent),
+      color-mix(in srgb, var(--surface-overlay, rgba(10, 12, 24, 0.05)) 60%, transparent) 60%,
+      transparent 85%
+    ),
+    var(--surface-app, var(--background, #05070f));
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}

@@ -1,0 +1,1 @@
+chat(tokens): fully tokenize DM styles\n\n- Remove rgba/hex fallbacks in chat.module.css\n- Add reaction tokens to registry\n- Provide dark/light theme values for new tokens\n- Use send/input/composer vars consistently

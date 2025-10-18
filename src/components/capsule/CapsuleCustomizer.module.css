@@ -1,0 +1,1003 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background:
+    radial-gradient(1200px 600px at 50% 20%, rgba(58, 72, 160, 0.24), transparent),
+    linear-gradient(180deg, rgba(6, 10, 24, 0.84), rgba(6, 10, 24, 0.94));
+  backdrop-filter: blur(14px);
+  z-index: 1200;
+}
+
+.panel {
+  width: min(1600px, 96vw);
+  min-height: clamp(620px, 82vh, 880px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(1.5rem, 3vw, 2.25rem);
+  /* Tighter vertical spacing between content and footer */
+  row-gap: clamp(1rem, 2vw, 1.5rem);
+  padding: clamp(1.75rem, 3vw, 2.5rem);
+  border-radius: 28px;
+  border: 1px solid
+    color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.1)) 80%, transparent);
+  background:
+    linear-gradient(
+      195deg,
+      color-mix(in srgb, var(--surface-overlay, rgba(12, 18, 40, 0.92)) 92%, transparent),
+      rgba(16, 22, 46, 0.86)
+    ),
+    radial-gradient(800px 320px at 0% 0%, rgba(102, 126, 255, 0.22), transparent 70%);
+  box-shadow: 0 22px 70px rgba(6, 10, 26, 0.55);
+  color: var(--text, #f7f8ff);
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(580px 240px at 85% 15%, rgba(92, 180, 255, 0.12), transparent 70%);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+.titleGroup {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.titleGroup h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 800;
+}
+
+.titleGroup p {
+  margin: 0;
+  color: color-mix(in srgb, var(--text, #f7f8ff) 70%, transparent);
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.closeButton {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.3) 70%, transparent);
+  background: color-mix(in srgb, rgba(14, 18, 36, 0.65) 90%, transparent);
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.closeButton:hover,
+.closeButton:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.6);
+  background: color-mix(in srgb, rgba(20, 24, 44, 0.78) 92%, transparent);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid rgba(160, 180, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.content {
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) minmax(0, 1.7fr) minmax(420px, 560px);
+  gap: clamp(2rem, 3.5vw, 3.5rem);
+  position: relative;
+  z-index: 1;
+}
+
+.recentColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  border-right: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 80%, transparent);
+  padding-right: clamp(1.5rem, 2.75vw, 3rem);
+}
+
+.recentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.recentHeader h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.recentDescription {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--text, #f7f8ff) 68%, transparent);
+}
+
+.recentList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 0.45rem;
+}
+
+.recentItem {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 75%, transparent);
+  background: color-mix(in srgb, rgba(18, 24, 44, 0.72) 90%, transparent);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.recentItem:hover,
+.recentItem:focus-visible {
+  border-color: rgba(160, 190, 255, 0.55);
+  background: color-mix(in srgb, rgba(24, 30, 54, 0.82) 90%, transparent);
+  transform: translateY(-1px);
+}
+
+.recentItem:focus-visible {
+  outline: 2px solid rgba(150, 170, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.recentItem[data-selected="true"] {
+  border-color: rgba(110, 150, 255, 0.85);
+  box-shadow: 0 12px 24px rgba(36, 48, 96, 0.45);
+}
+
+.recentImage {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 80%, transparent);
+}
+
+.recentMeta {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.recentTitle {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: rgba(236, 240, 255, 0.92);
+}
+
+.recentSubtle {
+  font-size: 0.8rem;
+  color: rgba(205, 215, 255, 0.72);
+}
+
+.recentHint {
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: rgba(210, 220, 255, 0.75);
+  margin: 0;
+}
+
+.previewColumn {
+  display: grid;
+  grid-template-rows: 1fr;
+  gap: 1.5rem;
+  align-content: stretch;
+  border-left: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 80%, transparent);
+  padding-left: clamp(2rem, 3vw, 3.25rem);
+}
+
+.previewStage {
+  position: relative;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 80%, transparent);
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 82%, transparent) 0%,
+    color-mix(in srgb, var(--color-accent) 68%, var(--color-brand)) 54%,
+    color-mix(in srgb, var(--color-brand-strong, #6366f1) 88%, transparent) 100%
+  );
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  user-select: none;
+}
+
+.previewStage[data-mode="storeBanner"] {
+  aspect-ratio: 5 / 2;
+  max-width: clamp(420px, 48vw, 720px);
+}
+
+.previewStage[data-mode="tile"] {
+  aspect-ratio: 9 / 16;
+  max-width: clamp(280px, 32vw, 360px);
+}
+
+.previewStage[data-mode="logo"],
+.previewStage[data-mode="avatar"] {
+  aspect-ratio: 1 / 1;
+  max-width: clamp(260px, 28vw, 320px);
+}
+
+@supports not (aspect-ratio: 1 / 1) {
+  .previewStage {
+    min-height: clamp(320px, 36vw, 520px);
+  }
+
+  .previewStage[data-mode="tile"] {
+    min-height: clamp(380px, 56vw, 640px);
+  }
+
+  .previewStage[data-mode="storeBanner"] {
+    min-height: clamp(220px, 30vw, 360px);
+  }
+
+  .previewStage[data-mode="logo"],
+  .previewStage[data-mode="avatar"] {
+    min-height: clamp(260px, 40vw, 360px);
+  }
+}
+
+.previewPlaceholder {
+  display: grid;
+  gap: 0.75rem;
+  place-items: center;
+  padding: 1.5rem;
+  text-align: center;
+  color: rgba(245, 247, 255, 0.86);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.previewAi {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  gap: 0.75rem;
+  align-content: center;
+  justify-items: center;
+  padding: clamp(1.5rem, 3vw, 2rem);
+  text-align: center;
+  background:
+    radial-gradient(520px 240px at 50% 0%, rgba(255, 255, 255, 0.18), transparent 70%),
+    linear-gradient(160deg, rgba(68, 78, 200, 0.65), rgba(36, 42, 92, 0.78));
+}
+
+.previewAiLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: rgba(235, 240, 255, 0.8);
+}
+
+.previewAi p {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.previewImage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  min-width: 0;
+  min-height: 0;
+  pointer-events: none;
+  user-select: none;
+  touch-action: none;
+  transform: translate3d(-50%, -50%, 0);
+  will-change: transform;
+}
+
+.tileOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: clamp(18px, 3vw, 26px);
+  background: linear-gradient(
+    180deg,
+    rgba(4, 8, 20, 0) 40%,
+    rgba(4, 8, 20, 0.64) 78%,
+    rgba(4, 8, 20, 0.86)
+  );
+  pointer-events: none;
+}
+
+.tileOverlayInner {
+  width: 100%;
+  display: grid;
+  gap: clamp(10px, 2.5vw, 16px);
+  justify-items: center;
+}
+
+.storeOverlay {
+  position: absolute;
+  inset: auto clamp(18px, 3vw, 28px) clamp(18px, 3vw, 28px);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+  pointer-events: none;
+}
+
+.storeOverlayButtonGroup {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.storeOverlayButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1px dashed color-mix(in srgb, rgba(118, 140, 252, 0.55) 70%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, rgba(37, 70, 150, 0.35) 60%, transparent),
+    rgba(18, 26, 54, 0.88)
+  );
+  color: rgba(230, 236, 255, 0.9);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 10px 28px rgba(6, 12, 28, 0.36),
+    inset 0 0 0 1px rgba(173, 194, 255, 0.08);
+  pointer-events: none;
+}
+
+.storeOverlayButton svg {
+  width: 16px;
+  height: 16px;
+  color: color-mix(in srgb, rgba(231, 236, 255, 0.94) 82%, transparent);
+}
+
+.tileName {
+  font-size: clamp(1.05rem, 2.6vw, 1.3rem);
+  font-weight: 800;
+  color: rgba(248, 250, 255, 0.96);
+  text-align: center;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+}
+
+.tileLogoPlaceholder {
+  width: clamp(52px, 5vw, 64px);
+  height: clamp(52px, 5vw, 64px);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background:
+    radial-gradient(220px 160px at 20% -10%, rgba(255, 255, 255, 0.28), transparent 60%),
+    linear-gradient(160deg, rgba(86, 108, 255, 0.24), rgba(42, 92, 160, 0.3));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+}
+
+.logoOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(18px, 4vw, 28px);
+  pointer-events: none;
+}
+
+.logoOverlayCard {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
+}
+
+.logoOverlayBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(235, 240, 255, 0.82);
+  background: color-mix(in srgb, rgba(6, 12, 38, 0.6) 88%, transparent);
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.24) 50%, transparent);
+  padding: 4px 12px;
+  border-radius: var(--pill-radius, 999px);
+}
+
+.logoOverlayPlate {
+  width: clamp(84px, 12vw, 112px);
+  height: clamp(84px, 12vw, 112px);
+  border-radius: var(--capsule-logo-radius-lg, 18px);
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.3) 70%, transparent);
+  background:
+    radial-gradient(200px 140px at 20% 0%, rgba(255, 255, 255, 0.32), transparent 60%),
+    linear-gradient(140deg, rgba(86, 108, 255, 0.42), rgba(20, 114, 218, 0.34));
+  box-shadow: 0 18px 38px rgba(6, 12, 32, 0.42);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.logoOverlayInitial {
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+  font-weight: 800;
+  color: rgba(248, 250, 255, 0.96);
+  text-shadow: 0 12px 24px rgba(6, 12, 32, 0.55);
+}
+
+.logoOverlayText {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+}
+
+.logoOverlayName {
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  font-weight: 700;
+  color: rgba(248, 250, 255, 0.96);
+}
+
+.logoOverlayMeta {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(220, 230, 255, 0.68);
+}
+
+.avatarOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(18px, 4vw, 28px);
+  pointer-events: none;
+}
+
+.avatarOverlayCard {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+
+.avatarOverlayPlate {
+  position: relative;
+  width: clamp(96px, 14vw, 128px);
+  height: clamp(96px, 14vw, 128px);
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, rgba(255, 255, 255, 0.38) 70%, transparent);
+  background:
+    radial-gradient(220px 160px at 50% 0%, rgba(255, 255, 255, 0.28), transparent 60%),
+    linear-gradient(160deg, rgba(86, 108, 255, 0.35), rgba(20, 114, 218, 0.26));
+  box-shadow: 0 20px 44px rgba(6, 12, 32, 0.5);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.avatarOverlayPlate::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.4) 60%, transparent);
+}
+
+.avatarOverlayInitial {
+  position: relative;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  font-weight: 800;
+  color: rgba(248, 250, 255, 0.96);
+  text-shadow: 0 14px 24px rgba(6, 12, 32, 0.55);
+}
+
+.avatarOverlayText {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+}
+
+.avatarOverlayName {
+  font-size: clamp(0.95rem, 2vw, 1.15rem);
+  font-weight: 700;
+  color: rgba(248, 250, 255, 0.96);
+}
+
+.avatarOverlayMeta {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(220, 230, 255, 0.68);
+}
+
+.previewActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.previewPanel {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+  overflow: hidden;
+}
+
+.previewMeta {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 85%, transparent);
+  background: color-mix(in srgb, rgba(12, 18, 36, 0.78) 92%, transparent);
+  font-size: 0.92rem;
+}
+
+.previewMetaLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(220, 229, 255, 0.72);
+}
+
+.previewStage[data-draggable="true"] {
+  cursor: grab;
+  touch-action: none;
+}
+
+.previewStage[data-draggable="true"][data-dragging="true"] {
+  cursor: grabbing;
+}
+
+.previewMetaValue {
+  margin: 0;
+  color: rgba(245, 248, 255, 0.86);
+  line-height: 1.5;
+}
+
+.memorySection {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 80%, transparent);
+  background: color-mix(in srgb, rgba(10, 14, 30, 0.78) 92%, transparent);
+}
+
+.memoryPickerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background:
+    radial-gradient(900px 420px at 50% 15%, rgba(74, 104, 226, 0.24), transparent 75%),
+    linear-gradient(180deg, rgba(6, 10, 24, 0.82), rgba(6, 10, 24, 0.92));
+  backdrop-filter: blur(14px);
+}
+
+.memoryPickerPanel {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: min(80vh, 640px);
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.2) 75%, transparent);
+  background:
+    linear-gradient(
+      200deg,
+      color-mix(in srgb, rgba(14, 18, 40, 0.94) 92%, transparent),
+      rgba(10, 16, 38, 0.9)
+    ),
+    radial-gradient(500px 260px at 15% 0%, rgba(110, 150, 255, 0.12), transparent 70%);
+  box-shadow: 0 22px 70px rgba(6, 10, 26, 0.55);
+  color: var(--text, #f7f8ff);
+  overflow: hidden;
+}
+
+.memoryPickerClose {
+  position: absolute;
+  top: clamp(1rem, 3vw, 1.25rem);
+  right: clamp(1rem, 3vw, 1.25rem);
+}
+
+.memoryPickerContent {
+  max-height: min(60vh, 460px);
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
+.memoryPickerContent::-webkit-scrollbar {
+  width: 6px;
+}
+
+.memoryPickerContent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.memoryPickerContent::-webkit-scrollbar-thumb {
+  background: rgba(180, 196, 255, 0.22);
+  border-radius: 999px;
+}
+
+.memoryHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.memoryActions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.memoryTitleGroup {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.memoryTitleGroup h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.memoryTitleGroup span {
+  font-size: 0.85rem;
+  color: rgba(220, 229, 255, 0.68);
+}
+
+.memoryStatus {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(225, 232, 255, 0.72);
+}
+
+.memoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.6rem;
+}
+
+.memoryCard {
+  position: relative;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 72%, transparent);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.memoryCard img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.memoryCard:hover,
+.memoryCard:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 12px 24px rgba(12, 18, 34, 0.45);
+}
+
+.memoryCard:focus-visible {
+  outline: 2px solid rgba(150, 170, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.memoryCard[data-selected="true"] {
+  border-color: rgba(136, 178, 255, 0.9);
+  box-shadow: 0 12px 28px rgba(56, 104, 255, 0.46);
+}
+
+.chatColumn {
+  /* Switch to flex so we can dock the prompter to the bottom */
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-height: 100%;
+}
+
+.chatLog {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: clamp(320px, 46vh, 480px);
+  overflow-y: auto;
+  flex: 1 1 auto; /* take up remaining space above the dock */
+}
+
+/* Dock that groups the prompter + chips and anchors them visually */
+.prompterDock {
+  margin-top: auto;
+  display: grid;
+  /* Tighten space between prompter and chips */
+  gap: 0.35rem;
+  align-content: end;
+  position: relative;
+  padding-top: 0.25rem;
+}
+
+.prompterDock::before {
+  /* Subtle top fade/glow to make the dock feel attached */
+  content: "";
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  top: -12px;
+  height: 28px;
+  pointer-events: none;
+  border-radius: 28px;
+  background: radial-gradient(60% 100% at 50% 0%, rgba(120, 140, 255, 0.08), transparent 70%);
+  filter: blur(8px);
+}
+
+.prompterWrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.prompterWrap :global(.prompterStage) {
+  max-width: none;
+  margin: 0;
+}
+
+.prompterWrap :global(.prompterStage .intentControls) {
+  display: none;
+}
+
+.intentChips {
+  display: flex;
+  flex-wrap: nowrap; /* keep to a single row of three */
+  gap: 0.6rem;
+  /* Center the chips under the prompter and reduce vertical padding */
+  justify-content: center;
+  padding-top: 0.1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.intentChip {
+  appearance: none;
+  border-radius: 999px;
+  padding: 0.46rem 0.9rem;
+  /* Fluent + Glassmorphic + Neumorphic: reuse chip variables for consistency */
+  border: 1px solid var(--chip-border, var(--pill-border, rgba(255, 255, 255, 0.16)));
+  background: linear-gradient(
+    180deg,
+    var(--chip-bg-1, var(--glass-bg-1, rgba(255, 255, 255, 0.08))),
+    var(--chip-bg-2, var(--glass-bg-2, rgba(255, 255, 255, 0.04)))
+  );
+  color: var(--text, rgba(229, 235, 255, 0.92));
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--chip-shadow, 0 8px 18px rgba(5, 10, 30, 0.22));
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.intentChip:hover,
+.intentChip:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--chip-hover-border, rgba(156, 178, 255, 0.9));
+  background: linear-gradient(
+    180deg,
+    var(--chip-hover-bg-1, var(--chip-bg-1)),
+    var(--chip-hover-bg-2, var(--chip-bg-2))
+  );
+  box-shadow: var(--chip-hover-shadow, 0 14px 28px rgba(5, 10, 30, 0.28));
+}
+
+.intentChip:focus-visible {
+  outline: 2px solid rgba(150, 170, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.chatMessage {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+.chatAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-brand, #5868ff) 22%, transparent);
+  color: rgba(229, 235, 255, 0.92);
+  flex-shrink: 0;
+}
+
+.chatMessage[data-role="user"] .chatAvatar {
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.92) 24%, transparent);
+  color: rgba(12, 15, 30, 0.9);
+}
+
+.chatBubble {
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  background: color-mix(in srgb, rgba(80, 95, 220, 0.24) 80%, transparent);
+  border: 1px solid color-mix(in srgb, rgba(105, 140, 255, 0.28) 80%, transparent);
+  color: rgba(239, 242, 255, 0.92);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chatMessage[data-role="user"] .chatBubble {
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 88%, transparent);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(230, 234, 255, 0.92);
+}
+
+.chatTyping {
+  font-size: 0.9rem;
+  color: rgba(211, 220, 255, 0.8);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  /* Reduce top padding so the prompter/chips sit a bit lower */
+  padding-top: 0.6rem;
+  border-top: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 80%, transparent);
+  position: relative;
+  z-index: 1;
+}
+
+.footerStatus {
+  font-size: 0.9rem;
+  color: rgba(230, 236, 255, 0.78);
+}
+
+.footerError {
+  color: rgba(255, 140, 140, 0.9);
+  font-weight: 600;
+}
+
+.footerActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+@media (max-width: 960px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+
+  .recentColumn {
+    order: 2;
+    border-right: none;
+    padding-right: 0;
+  }
+
+  .recentList {
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .previewColumn {
+    order: 3;
+    border-left: none;
+    padding-left: 0;
+  }
+
+  .chatColumn {
+    order: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    padding: 1.5rem;
+  }
+
+  .content {
+    gap: 1.5rem;
+  }
+
+  .memoryPickerPanel {
+    width: 100%;
+    max-height: calc(100vh - 2.5rem);
+    padding: 1.5rem;
+  }
+
+  .memoryPickerContent {
+    max-height: calc(70vh - 2rem);
+  }
+
+  .memoryPickerClose {
+    top: 0.75rem;
+    right: 0.75rem;
+  }
+
+  .memoryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

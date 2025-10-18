@@ -1,0 +1,138 @@
+.main {
+  /* Fill the AppShell content column so spacing is driven by shared gaps */
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Outer container reminiscent of the previous glass/neumorphic shell */
+.shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px; /* match AppShell gap for left column vs rail */
+  align-items: start;
+}
+
+/* Side rail */
+.side {
+  position: sticky;
+  /* Align with AppShell rail sticky offset */
+  top: calc(var(--header-height, 72px) + 36px);
+  align-self: start;
+}
+.sideInner {
+  border: 1px solid var(--rail-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(
+    180deg,
+    var(--rail-bg-1, rgba(255, 255, 255, 0.09)),
+    var(--rail-bg-2, rgba(255, 255, 255, 0.05))
+  );
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.5),
+    0 16px 32px rgba(5, 10, 30, 0.35);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+}
+.sideTitle {
+  display: block;
+  margin: 4px 4px 10px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+.sideNav {
+  display: grid;
+  gap: 8px;
+}
+.sideItem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  border: 1px solid var(--settings-nav-item-border, rgba(255, 255, 255, 0.16));
+  background: var(
+    --settings-nav-item-background,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04))
+  );
+  box-shadow: var(
+    --settings-nav-item-shadow,
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.45)
+  );
+}
+
+.sideItem[aria-disabled="true"],
+.sideItem:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.sideItemActive {
+  color: var(--text-on-brand);
+  /* Use app brand gradient with fallback */
+  background: var(--brand-gradient, var(--gradient-brand));
+  border-color: transparent;
+  box-shadow: var(
+    --settings-nav-item-active-shadow,
+    0 0 18px var(--accent-glow, rgba(99, 102, 241, 0.34)),
+    0 6px 12px rgba(2, 6, 23, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45)
+  );
+}
+
+/* Content */
+.content {
+  display: grid;
+  gap: 16px;
+}
+.contentHead {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px 2px;
+}
+.contentTitle {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+
+.section {
+  display: grid;
+  gap: 12px;
+}
+.sectionTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.card {
+  overflow: hidden;
+}
+
+@media (max-width: 980px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .side {
+    position: static;
+  }
+}

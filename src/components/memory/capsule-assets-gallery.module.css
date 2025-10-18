@@ -1,0 +1,52 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.actionGroup {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tabList {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.tabContent {
+  margin-top: 20px;
+}
+
+.status {
+  color: var(--text-3, rgba(255, 255, 255, 0.62));
+  font-size: 0.85rem;
+}
+
+.empty {
+  border: 1px dashed var(--card-border);
+  border-radius: 12px;
+  padding: 18px;
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  font-size: 0.9rem;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.cardButton {
+  width: 100%;
+}

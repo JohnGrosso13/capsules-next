@@ -1,0 +1,31 @@
+.tileHost {
+  --capsule-tile-aspect: 9 / 16;
+  --capsule-tile-aspect-sm: 4 / 3;
+  --capsule-tile-foreground: #f8fafc;
+  --capsule-tile-background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 26%, transparent),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 18%, transparent) 60%,
+    color-mix(in srgb, var(--color-brand-strong, #4338ca) 44%, transparent) 100%
+  );
+  --capsule-tile-overlay: linear-gradient(
+    180deg,
+    rgba(4, 6, 18, 0.16),
+    rgba(4, 6, 18, 0.84) 78%,
+    rgba(4, 6, 18, 0.94)
+  );
+  --capsule-tile-border: color-mix(
+    in srgb,
+    var(--card-border, rgba(255, 255, 255, 0.16)) 88%,
+    transparent
+  );
+  --capsule-tile-border-hover: color-mix(in srgb, var(--color-brand, #6366f1) 48%, transparent);
+  --capsule-tile-shadow: 0 26px 60px
+    color-mix(in srgb, var(--color-brand, #6366f1) 32%, rgba(5, 10, 30, 0.48));
+}
+
+@media (max-width: 640px) {
+  .tileHost {
+    --capsule-tile-aspect: 4 / 3;
+  }
+}
