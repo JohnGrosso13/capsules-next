@@ -1,5 +1,3 @@
-"use server";
-
 import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
