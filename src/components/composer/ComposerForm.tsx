@@ -12,7 +12,7 @@ import {
   ChatsTeardrop,
   FloppyDiskBack,
   FolderSimple,
-  ImageSquare,
+  Brain,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
@@ -126,6 +126,37 @@ type SidebarSectionProps = {
   actionLabel?: string;
   onAction?: () => void;
 };
+
+type SidebarTabKey = "recent" | "drafts" | "projects" | "memories";
+
+type SidebarTabOption = {
+  key: SidebarTabKey;
+  label: string;
+  renderIcon(selected: boolean): React.ReactNode;
+};
+
+const SIDEBAR_TAB_OPTIONS: SidebarTabOption[] = [
+  {
+    key: "recent",
+    label: "Recent chats",
+    renderIcon: (selected) => <ChatsTeardrop size={18} weight={selected ? "fill" : "duotone"} />,
+  },
+  {
+    key: "drafts",
+    label: "Saved drafts",
+    renderIcon: (selected) => <FloppyDiskBack size={18} weight={selected ? "fill" : "duotone"} />,
+  },
+  {
+    key: "projects",
+    label: "Projects",
+    renderIcon: (selected) => <FolderSimple size={18} weight={selected ? "fill" : "duotone"} />,
+  },
+  {
+    key: "memories",
+    label: "Memories",
+    renderIcon: (selected) => <Brain size={18} weight={selected ? "fill" : "duotone"} />,
+  },
+];
 
 function SidebarSection({
   title,
@@ -741,6 +772,8 @@ export function ComposerForm({
 
   const showWelcomeMessage = !message;
 
+  const [activeSidebarTab, setActiveSidebarTab] = React.useState<SidebarTabKey>("recent");
+
   const recentSidebarItems: SidebarListItem[] = React.useMemo(
     () =>
       sidebar.recentChats.map((item) => ({
@@ -806,50 +839,98 @@ export function ComposerForm({
     onCreateProject(trimmed);
   }, [onCreateProject]);
 
+  const sidebarContent = React.useMemo(() => {
+    switch (activeSidebarTab) {
+      case "recent":
+        return (
+          <SidebarSection
+            title="Recent chats"
+            description="Pick up where you and Capsule left off."
+            items={recentSidebarItems}
+            emptyMessage="No chats yet"
+            itemIcon={<ChatsTeardrop size={18} weight="duotone" />}
+            thumbClassName={styles.memoryThumbChat}
+          />
+        );
+      case "drafts":
+        return (
+          <SidebarSection
+            title="Saved drafts"
+            description="Continue refining drafts or jump into AI suggestions."
+            items={draftSidebarItems}
+            emptyMessage="No drafts saved yet"
+            itemIcon={<FloppyDiskBack size={18} weight="duotone" />}
+            thumbClassName={styles.memoryThumbDraft}
+          />
+        );
+      case "projects":
+        return (
+          <SidebarSection
+            title="Projects"
+            description="Organize drafts and ideas into collections."
+            items={projectSidebarItems}
+            emptyMessage="Create a project to organize drafts"
+            itemIcon={<FolderSimple size={18} weight="duotone" />}
+            thumbClassName={styles.memoryThumbProject}
+            actionLabel="New project"
+            onAction={handleCreateProjectClick}
+          />
+        );
+      case "memories":
+        return (
+          <div className={styles.sidebarMemories}>
+            <div className={styles.sidebarMemoriesCopy}>
+              <span className={styles.memoryTitle}>Memories</span>
+              <p className={styles.memorySubtitle}>Open your stored assets and brand visuals.</p>
+            </div>
+            <button
+              type="button"
+              className={styles.sidebarMemoriesButton}
+              onClick={handleMemoryShortcut}
+            >
+              <span className={`${styles.memoryThumb} ${styles.memoryThumbMemory}`}>
+                <Brain size={18} weight="fill" />
+              </span>
+              <span>Browse memories</span>
+            </button>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }, [
+    activeSidebarTab,
+    draftSidebarItems,
+    handleCreateProjectClick,
+    handleMemoryShortcut,
+    projectSidebarItems,
+    recentSidebarItems,
+  ]);
+
   const leftRail = (
     <div className={styles.memoryRail}>
-      <SidebarSection
-        title="Recent chats"
-        description="Pick up where you and Capsule left off."
-        items={recentSidebarItems}
-        emptyMessage="No chats yet"
-        itemIcon={<ChatsTeardrop size={18} weight="duotone" />}
-        thumbClassName={styles.memoryThumbChat}
-      />
-      <SidebarSection
-        title="Saved drafts"
-        description="Continue refining drafts or jump into AI suggestions."
-        items={draftSidebarItems}
-        emptyMessage="No drafts saved yet"
-        itemIcon={<FloppyDiskBack size={18} weight="duotone" />}
-        thumbClassName={styles.memoryThumbDraft}
-      />
-      <SidebarSection
-        title="Projects"
-        description="Organize drafts and ideas into collections."
-        items={projectSidebarItems}
-        emptyMessage="Create a project to organize drafts"
-        itemIcon={<FolderSimple size={18} weight="duotone" />}
-        thumbClassName={styles.memoryThumbProject}
-        actionLabel="New project"
-        onAction={handleCreateProjectClick}
-      />
-      <div className={styles.sidebarMemories}>
-        <div className={styles.sidebarMemoriesCopy}>
-          <span className={styles.memoryTitle}>Memories</span>
-          <p className={styles.memorySubtitle}>Open your stored assets and brand visuals.</p>
-        </div>
-        <button
-          type="button"
-          className={styles.sidebarMemoriesButton}
-          onClick={handleMemoryShortcut}
-        >
-          <span className={`${styles.memoryThumb} ${styles.memoryThumbMemory}`}>
-            <ImageSquare size={18} weight="duotone" />
-          </span>
-          <span>Browse memories</span>
-        </button>
+      <div className={styles.sidebarTabs} role="tablist" aria-label="Composer navigation">
+        {SIDEBAR_TAB_OPTIONS.map((tab) => {
+          const selected = tab.key === activeSidebarTab;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              tabIndex={selected ? 0 : -1}
+              className={`${styles.sidebarTab} ${selected ? styles.sidebarTabActive : ""}`}
+              data-selected={selected ? "true" : undefined}
+              onClick={() => setActiveSidebarTab(tab.key)}
+              title={tab.label}
+            >
+              {tab.renderIcon(selected)}
+              <span className={styles.srOnly}>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
+      {sidebarContent}
     </div>
   );
 
@@ -1333,14 +1414,7 @@ export function ComposerForm({
 
         <header className={styles.panelToolbar}>
           <div className={styles.toolbarHeading}>
-            <span className={styles.toolbarBadge}>
-              <Sparkle size={16} weight="fill" aria-hidden="true" />
-              Capsule AI
-            </span>
             <h2 className={styles.toolbarTitle}>Composer Studio</h2>
-            <p className={styles.toolbarSubtitle}>
-              Build and vibe {activeKindLabel.toLowerCase()}s with prompts, assets, and blueprints.
-            </p>
           </div>
           <div
             className={styles.toolbarModes}

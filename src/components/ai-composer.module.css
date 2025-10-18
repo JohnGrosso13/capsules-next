@@ -674,6 +674,64 @@
   gap: 1.1rem;
 }
 
+.sidebarTabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgba(148, 163, 255, 0.3) 70%, transparent);
+  background: color-mix(in srgb, rgba(20, 26, 60, 0.72) 85%, transparent);
+  width: fit-content;
+}
+
+.sidebarTab {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: rgba(207, 216, 255, 0.72);
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+  outline: none;
+}
+
+.sidebarTab:hover,
+.sidebarTab:focus-visible {
+  color: rgba(245, 249, 255, 0.94);
+  transform: translateY(-1px);
+}
+
+.sidebarTab:focus-visible {
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.45);
+}
+
+.sidebarTabActive {
+  background: linear-gradient(135deg, rgba(129, 140, 248, 0.92), rgba(56, 189, 248, 0.78));
+  color: rgba(248, 250, 255, 0.96);
+  box-shadow: 0 16px 30px rgba(20, 44, 126, 0.5);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  white-space: nowrap;
+}
+
 .memoryHeader {
   display: flex;
   flex-direction: column;
