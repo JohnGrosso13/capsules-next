@@ -23,6 +23,44 @@ export type LocalAttachment = {
 
 type DirectUploadResult = Awaited<ReturnType<typeof uploadFileDirect>>;
 
+type RemoteAttachmentOptions = {
+  url: string;
+  name?: string | null;
+  mimeType?: string | null;
+  thumbUrl?: string | null;
+  size?: number | null;
+};
+
+function inferMimeFromUrl(url: string | null | undefined, fallback = "image/*"): string {
+  if (!url) return fallback;
+  const normalized = url.split("?")[0]?.toLowerCase() ?? "";
+  if (normalized.endsWith(".mp4") || normalized.endsWith(".mov") || normalized.endsWith(".m4v")) {
+    return "video/mp4";
+  }
+  if (normalized.endsWith(".webm")) return "video/webm";
+  if (
+    normalized.endsWith(".png") ||
+    normalized.endsWith(".apng") ||
+    normalized.endsWith(".avif") ||
+    normalized.endsWith(".bmp") ||
+    normalized.endsWith(".gif") ||
+    normalized.endsWith(".jpg") ||
+    normalized.endsWith(".jpeg") ||
+    normalized.endsWith(".jfif") ||
+    normalized.endsWith(".pjpeg") ||
+    normalized.endsWith(".pjp") ||
+    normalized.endsWith(".svg") ||
+    normalized.endsWith(".webp")
+  ) {
+    if (normalized.endsWith(".svg")) return "image/svg+xml";
+    if (normalized.endsWith(".gif")) return "image/gif";
+    if (normalized.endsWith(".webp")) return "image/webp";
+    if (normalized.endsWith(".png")) return "image/png";
+    return "image/jpeg";
+  }
+  return fallback;
+}
+
 async function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -321,8 +359,28 @@ async function maybeCaptureAndUploadThumb(file: File, mimeType: string): Promise
 
 export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
   const { fileInputRef, handleAttachClick } = useAttachmentInput();
-  const { attachment, setAttachment, readyAttachment, uploading, clearAttachment } =
-    useAttachmentState(fileInputRef);
+  const {
+    attachment,
+    setAttachment,
+    readyAttachment,
+    uploading,
+    clearAttachment: resetAttachment,
+  } = useAttachmentState(fileInputRef);
+  const remoteTimersRef = React.useRef<number[]>([]);
+  const cancelRemoteTimers = React.useCallback(() => {
+    if (typeof window === "undefined") {
+      remoteTimersRef.current = [];
+      return;
+    }
+    for (const timerId of remoteTimersRef.current) {
+      window.clearTimeout(timerId);
+    }
+    remoteTimersRef.current = [];
+  }, []);
+  const clearAttachment = React.useCallback(() => {
+    cancelRemoteTimers();
+    resetAttachment();
+  }, [cancelRemoteTimers, resetAttachment]);
   const processFile = useAttachmentProcessor(maxSizeBytes, setAttachment);
 
   const handleAttachmentSelect = React.useCallback(
@@ -344,6 +402,93 @@ export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
     [processFile],
   );
 
+  const attachRemoteAttachment = React.useCallback(
+    (options: RemoteAttachmentOptions) => {
+      const rawUrl = options.url ?? "";
+      const trimmedUrl = rawUrl.trim();
+      if (!trimmedUrl.length) return;
+
+      const generatedId = safeRandomUUID();
+      const providedName = options.name ?? "";
+      const displayName = providedName.trim().length ? providedName.trim() : "Memory asset";
+      const fallbackMime = options.mimeType?.trim().length ? options.mimeType.trim() : undefined;
+      const resolvedMime = inferMimeFromUrl(
+        trimmedUrl,
+        fallbackMime ? fallbackMime : "image/*",
+      );
+
+      cancelRemoteTimers();
+
+      setAttachment({
+        id: generatedId,
+        name: displayName,
+        size: typeof options.size === "number" && options.size > 0 ? options.size : 0,
+        mimeType: resolvedMime,
+        status: "uploading",
+        url: null,
+        thumbUrl: options.thumbUrl ?? null,
+        progress: 0.05,
+      });
+
+      if (typeof window === "undefined") {
+        setAttachment((previous) =>
+          previous && previous.id === generatedId
+            ? {
+                ...previous,
+                status: "ready",
+                url: trimmedUrl,
+                progress: 1,
+                mimeType: resolvedMime,
+              }
+            : previous,
+        );
+        return;
+      }
+
+      const schedule = (handler: () => void, delay: number) => {
+        const timerId = window.setTimeout(handler, delay);
+        remoteTimersRef.current.push(timerId);
+      };
+
+      schedule(() => {
+        setAttachment((previous) =>
+          previous && previous.id === generatedId
+            ? { ...previous, progress: Math.max(previous.progress, 0.42) }
+            : previous,
+        );
+      }, 220);
+
+      schedule(() => {
+        setAttachment((previous) =>
+          previous && previous.id === generatedId
+            ? { ...previous, progress: Math.max(previous.progress, 0.76) }
+            : previous,
+        );
+      }, 420);
+
+      schedule(() => {
+        setAttachment((previous) =>
+          previous && previous.id === generatedId
+            ? {
+                ...previous,
+                status: "ready",
+                url: trimmedUrl,
+                progress: 1,
+                mimeType: resolvedMime,
+                thumbUrl: options.thumbUrl ?? previous.thumbUrl ?? null,
+                size:
+                  typeof options.size === "number" && options.size > 0
+                    ? options.size
+                    : previous.size,
+              }
+            : previous,
+        );
+        cancelRemoteTimers();
+      }, 720);
+    },
+    [cancelRemoteTimers, setAttachment],
+  );
+
   return {
     fileInputRef,
     attachment,
@@ -353,5 +498,6 @@ export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
     handleAttachClick,
     handleAttachmentSelect,
     handleAttachmentFile,
+    attachRemoteAttachment,
   } as const;
 }

@@ -10,7 +10,7 @@ import {
   CaretDown,
   Sparkle,
   ChatsTeardrop,
-  FloppyDiskBack,
+  FileText,
   FolderSimple,
   Brain,
 } from "@phosphor-icons/react/dist/ssr";
@@ -19,12 +19,16 @@ import { ComposerLayout } from "./components/ComposerLayout";
 import { AttachmentPanel } from "./components/AttachmentPanel";
 import { PreviewColumn } from "./components/PreviewColumn";
 import { VoiceRecorder } from "./components/VoiceRecorder";
+import { ComposerMemoryPicker, type MemoryPickerTab } from "./components/ComposerMemoryPicker";
 import { useComposerFormReducer, type ComposerFormState } from "./hooks/useComposerFormReducer";
 import { useComposerLayout } from "./hooks/useComposerLayout";
 import { useComposerVoice } from "./hooks/useComposerVoice";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
 
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
+import { computeDisplayUploads } from "@/components/memory/process-uploads";
+import { useMemoryUploads } from "@/components/memory/use-memory-uploads";
+import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
 import { ensurePollStructure, isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
@@ -144,7 +148,7 @@ const SIDEBAR_TAB_OPTIONS: SidebarTabOption[] = [
   {
     key: "drafts",
     label: "Saved drafts",
-    renderIcon: (selected) => <FloppyDiskBack size={18} weight={selected ? "fill" : "duotone"} />,
+    renderIcon: (selected) => <FileText size={18} weight={selected ? "fill" : "duotone"} />,
   },
   {
     key: "projects",
@@ -399,12 +403,46 @@ export function ComposerForm({
     clearAttachment,
     handleAttachClick,
     handleAttachmentSelect,
+    attachRemoteAttachment,
   } = useAttachmentUpload();
+  const [memoryPickerOpen, setMemoryPickerOpen] = React.useState(false);
+  const [memoryPickerTab, setMemoryPickerTab] = React.useState<MemoryPickerTab>("uploads");
+  const memoryUploads = useMemoryUploads("upload");
+  const memoryAssets = useMemoryUploads(null);
+  const {
+    items: uploadItems,
+    loading: uploadsLoading,
+    error: uploadsError,
+    refresh: refreshUploads,
+  } = memoryUploads;
+  const {
+    items: assetItems,
+    loading: assetsLoading,
+    error: assetsError,
+    refresh: refreshAssets,
+  } = memoryAssets;
 
   const openViewer = React.useCallback(() => actions.viewer.open(), [actions]);
   const closeViewer = React.useCallback(() => actions.viewer.close(), [actions]);
 
   const cloudflareBypass = React.useMemo(shouldBypassCloudflareImages, []);
+  const cloudflareEnabled = React.useMemo(() => !cloudflareBypass, [cloudflareBypass]);
+  const memoryOrigin = React.useMemo(
+    () => (typeof window !== "undefined" ? window.location.origin : null),
+    [],
+  );
+  const uploadMemories = React.useMemo(
+    () => computeDisplayUploads(uploadItems, { origin: memoryOrigin, cloudflareEnabled }),
+    [cloudflareEnabled, memoryOrigin, uploadItems],
+  );
+  const assetMemories = React.useMemo(
+    () =>
+      computeDisplayUploads(
+        assetItems.filter((item) => (item.kind ?? "").toLowerCase() !== "upload"),
+        { origin: memoryOrigin, cloudflareEnabled },
+      ),
+    [assetItems, cloudflareEnabled, memoryOrigin],
+  );
 
   useComposerLayout({ layout, layoutActions: actions.layout, mainRef });
 
@@ -421,6 +459,12 @@ export function ComposerForm({
   useAttachmentViewer({ open: viewerOpen, onClose: closeViewer });
   const closeMobileRail = React.useCallback(() => actions.setMobileRailOpen(false), [actions]);
   useResponsiveRail({ open: mobileRailOpen, onClose: closeMobileRail });
+
+  React.useEffect(() => {
+    if (!memoryPickerOpen) return;
+    void refreshUploads();
+    void refreshAssets();
+  }, [memoryPickerOpen, refreshAssets, refreshUploads]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -631,12 +675,58 @@ export function ComposerForm({
     [closeMobileRail, handleSuggestionSelect, onForceChoice],
   );
 
-  const handleMemoryShortcut = React.useCallback(() => {
+  const handleBlueprintShortcut = React.useCallback(() => {
     if (!memoryItems.length) return;
     const firstMemory = memoryItems[0];
     if (!firstMemory) return;
     handleMemorySelect(firstMemory);
   }, [handleMemorySelect, memoryItems]);
+
+  const handleMemoryPickerClose = React.useCallback(() => {
+    setMemoryPickerOpen(false);
+  }, []);
+
+  const handleMemoryPickerOpen = React.useCallback(
+    (tab: MemoryPickerTab = "uploads") => {
+      setMemoryPickerTab(tab);
+      setMemoryPickerOpen(true);
+      closeMobileRail();
+    },
+    [closeMobileRail],
+  );
+
+  const handleMemoryAttach = React.useCallback(
+    (memory: DisplayMemoryUpload) => {
+      const primaryUrl =
+        memory.fullUrl?.trim() ||
+        memory.media_url?.trim() ||
+        memory.displayUrl?.trim() ||
+        "";
+      if (!primaryUrl) return;
+      const displayName =
+        memory.title?.trim() ||
+        memory.description?.trim() ||
+        "Memory asset";
+      attachRemoteAttachment({
+        url: primaryUrl,
+        name: displayName,
+        mimeType: memory.media_type ?? null,
+        thumbUrl: memory.displayUrl ?? null,
+      });
+      setMemoryPickerOpen(false);
+      closeMobileRail();
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => {
+          promptInputRef.current?.focus();
+        });
+      }
+    },
+    [attachRemoteAttachment, closeMobileRail],
+  );
+
+  const handleMemoryTabChange = React.useCallback((tab: MemoryPickerTab) => {
+    setMemoryPickerTab(tab);
+  }, []);
 
   const handleKindSelect = React.useCallback(
     (nextKind: string) => {
@@ -785,34 +875,45 @@ export function ComposerForm({
     [onSelectRecentChat, sidebar.recentChats],
   );
 
-  const draftSidebarItems: SidebarListItem[] = React.useMemo(
-    () =>
-      sidebar.drafts.map((item) =>
-        item.kind === "draft"
-          ? {
-              id: item.id,
-              title: item.title,
-              subtitle: item.caption,
-              onClick: () => onSelectDraft(item.id),
-              active:
-                Boolean(sidebar.selectedProjectId) &&
-                Boolean(item.projectId) &&
-                sidebar.selectedProjectId === item.projectId,
-              icon: <FloppyDiskBack size={18} weight="duotone" />,
-            }
-          : {
-              id: `choice-${item.key}`,
-              title: item.title,
-              subtitle: item.caption,
-              onClick: () => {
-                if (onForceChoice) onForceChoice(item.key);
-              },
-              disabled: !onForceChoice,
-              icon: <Sparkle size={18} weight="fill" />,
-            },
-      ),
-    [onForceChoice, onSelectDraft, sidebar.drafts, sidebar.selectedProjectId],
-  );
+  const draftSidebarItems: SidebarListItem[] = React.useMemo(() => {
+    const seenDraftIds = new Set<string>();
+    const seenChoiceKeys = new Set<string>();
+    const items: SidebarListItem[] = [];
+
+    for (const item of sidebar.drafts) {
+      if (item.kind === "draft") {
+        if (seenDraftIds.has(item.id)) continue;
+        seenDraftIds.add(item.id);
+        items.push({
+          id: item.id,
+          title: item.title,
+          subtitle: item.caption,
+          onClick: () => onSelectDraft(item.id),
+          active:
+            Boolean(sidebar.selectedProjectId) &&
+            Boolean(item.projectId) &&
+            sidebar.selectedProjectId === item.projectId,
+          icon: <FileText size={18} weight="duotone" />,
+        });
+        continue;
+      }
+
+      if (seenChoiceKeys.has(item.key)) continue;
+      seenChoiceKeys.add(item.key);
+      items.push({
+        id: `choice-${item.key}`,
+        title: item.title,
+        subtitle: item.caption,
+        onClick: () => {
+          if (onForceChoice) onForceChoice(item.key);
+        },
+        disabled: !onForceChoice,
+        icon: <Sparkle size={18} weight="fill" />,
+      });
+    }
+
+    return items;
+  }, [onForceChoice, onSelectDraft, sidebar.drafts, sidebar.selectedProjectId]);
 
   const projectSidebarItems: SidebarListItem[] = React.useMemo(
     () =>
@@ -859,7 +960,7 @@ export function ComposerForm({
             description="Continue refining drafts or jump into AI suggestions."
             items={draftSidebarItems}
             emptyMessage="No drafts saved yet"
-            itemIcon={<FloppyDiskBack size={18} weight="duotone" />}
+            itemIcon={<FileText size={18} weight="duotone" />}
             thumbClassName={styles.memoryThumbDraft}
           />
         );
@@ -886,7 +987,7 @@ export function ComposerForm({
             <button
               type="button"
               className={styles.sidebarMemoriesButton}
-              onClick={handleMemoryShortcut}
+              onClick={() => handleMemoryPickerOpen("uploads")}
             >
               <span className={`${styles.memoryThumb} ${styles.memoryThumbMemory}`}>
                 <Brain size={18} weight="fill" />
@@ -902,7 +1003,7 @@ export function ComposerForm({
     activeSidebarTab,
     draftSidebarItems,
     handleCreateProjectClick,
-    handleMemoryShortcut,
+    handleMemoryPickerOpen,
     projectSidebarItems,
     recentSidebarItems,
   ]);
@@ -1317,14 +1418,19 @@ export function ComposerForm({
   ]);
 
   const previewSecondaryAction = React.useMemo(() => {
-    const label =
-      activeKind === "image" || activeKind === "video" ? "Open library" : "Browse blueprints";
+    if (activeKind === "image" || activeKind === "video") {
+      return {
+        label: "Open library",
+        onClick: () => handleMemoryPickerOpen(memoryPickerTab),
+        disabled: false,
+      };
+    }
     return {
-      label,
-      onClick: handleMemoryShortcut,
+      label: "Browse blueprints",
+      onClick: handleBlueprintShortcut,
       disabled: !memoryItems.length,
     };
-  }, [activeKind, handleMemoryShortcut, memoryItems.length]);
+  }, [activeKind, handleBlueprintShortcut, handleMemoryPickerOpen, memoryItems.length, memoryPickerTab]);
 
   const previewContent = (
     <PreviewColumn
@@ -1513,6 +1619,20 @@ export function ComposerForm({
             </button>
           </div>
         </footer>
+
+        <ComposerMemoryPicker
+          open={memoryPickerOpen}
+          activeTab={memoryPickerTab}
+          onTabChange={handleMemoryTabChange}
+          uploads={uploadMemories}
+          uploadsLoading={uploadsLoading}
+          uploadsError={uploadsError}
+          assets={assetMemories}
+          assetsLoading={assetsLoading}
+          assetsError={assetsError}
+          onSelect={handleMemoryAttach}
+          onClose={handleMemoryPickerClose}
+        />
 
         {viewerOpen && displayAttachment && displayAttachment.status === "ready" ? (
           <div
