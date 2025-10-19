@@ -281,7 +281,12 @@ function normalizeComposerKind(value: string | null | undefined): string {
 }
 
 function resolveKindLabel(kind: string): string {
-  return KIND_FALLBACK_LABELS[kind] ?? (kind.length ? kind[0].toUpperCase() + kind.slice(1) : "Post");
+  const fallback = KIND_FALLBACK_LABELS[kind];
+  if (fallback) return fallback;
+  if (!kind) return "Post";
+  const first = kind.charAt(0);
+  const rest = kind.slice(1);
+  return `${first.toUpperCase()}${rest}`;
 }
 
 function getPromptPlaceholder(kind: string): string {
