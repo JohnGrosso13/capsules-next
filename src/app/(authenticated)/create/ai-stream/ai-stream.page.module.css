@@ -999,6 +999,90 @@
   border-bottom: none;
 }
 
+.clipRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--studio-divider);
+}
+
+.clipRow:last-child {
+  border-bottom: none;
+}
+
+.clipMeta {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.clipTitle {
+  font-weight: 600;
+  color: var(--studio-text-primary);
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+
+.clipSubtitle {
+  font-size: 0.8rem;
+  color: var(--studio-text-secondary);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.clipActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.clipStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--studio-surface-muted);
+  color: var(--studio-text-secondary);
+  border: 1px solid var(--studio-border-soft);
+  text-transform: none;
+}
+
+.clipStatusPending {
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 16%, transparent);
+  color: color-mix(in srgb, var(--color-brand, #6366f1) 80%, var(--studio-text-primary));
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 40%, transparent);
+}
+
+.clipStatusRunning {
+  background: color-mix(in srgb, var(--color-accent, #22d3ee) 18%, transparent);
+  color: color-mix(in srgb, var(--color-accent, #22d3ee) 78%, var(--studio-text-primary));
+  border-color: color-mix(in srgb, var(--color-accent, #22d3ee) 42%, transparent);
+}
+
+.clipStatusCompleted {
+  background: color-mix(in srgb, var(--color-success, #2dd4bf) 18%, transparent);
+  color: color-mix(in srgb, var(--color-success, #2dd4bf) 85%, var(--studio-text-primary));
+  border-color: color-mix(in srgb, var(--color-success, #2dd4bf) 42%, transparent);
+}
+
+.clipStatusErrored {
+  background: color-mix(in srgb, #f87171 18%, transparent);
+  color: color-mix(in srgb, #f87171 82%, var(--studio-text-primary));
+  border-color: color-mix(in srgb, #f87171 42%, transparent);
+}
+
+.clipStatusMeta {
+  font-size: 0.75rem;
+  color: var(--studio-text-tertiary);
+}
+
 .encoderAction {
   font-size: 0.78rem;
   letter-spacing: 0.12em;

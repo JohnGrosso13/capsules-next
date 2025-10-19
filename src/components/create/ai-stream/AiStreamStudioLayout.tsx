@@ -11,6 +11,7 @@ import { LiveChatRail } from "@/components/live/LiveChatRail";
 import { AiStreamCapsuleGate } from "./AiStreamCapsuleGate";
 import styles from "@/app/(authenticated)/create/ai-stream/ai-stream.page.module.css";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
+import { getBrowserSupabaseClient } from "@/lib/supabase/browser";
 import {
   Broadcast,
   SquaresFour,
@@ -21,6 +22,7 @@ import {
   FilmSlate,
 } from "@phosphor-icons/react/dist/ssr";
 import MuxPlayer from "@mux/mux-player-react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 type StudioTab = "studio" | "producer" | "encoder" | "clips";
 
@@ -123,6 +125,47 @@ type StreamOverview = {
   assets: StreamAsset[];
   aiJobs: StreamAiJob[];
 };
+
+type MuxRealtimeTable = "mux_live_streams" | "mux_live_stream_sessions" | "mux_assets" | "mux_ai_jobs";
+
+function formatJobDisplayName(value: string): string {
+  if (!value) return "Automation job";
+  return value
+    .replace(/[_-]+/g, " ")
+    .split(" ")
+    .map((part) => {
+      const lower = part.toLowerCase();
+      if (!part) return part;
+      if (lower === "ai") return "AI";
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(" ");
+}
+
+function formatJobStatusLabel(value: string): string {
+  if (!value) return "Pending";
+  return value
+    .replace(/[_-]+/g, " ")
+    .split(" ")
+    .map((part) => {
+      const lower = part.toLowerCase();
+      if (!part) return part;
+      if (lower === "ai") return "AI";
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(" ");
+}
+
+function computeElapsedSeconds(
+  start: string | null | undefined,
+  end: string | null | undefined,
+): number | null {
+  if (!start || !end) return null;
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null;
+  return Math.round((endMs - startMs) / 1000);
+}
 
 type PanelGroupStorageLike = {
   getItem(key: string): string | null;
@@ -310,6 +353,10 @@ export function AiStreamStudioLayout({
     React.useState<"low" | "reduced" | "standard">("low");
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
   const [uptimeTick, setUptimeTick] = React.useState(() => Date.now());
+  const supabaseRef = React.useRef<SupabaseClient | null>(null);
+  const streamOverviewRef = React.useRef<StreamOverview | null>(null);
+  const fetchControllerRef = React.useRef<AbortController | null>(null);
+  const refreshTimerRef = React.useRef<number | null>(null);
 
   const dateFormatter = React.useMemo(
     () => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }),
@@ -363,31 +410,42 @@ export function AiStreamStudioLayout({
   }, [activeSession?.startedAt, uptimeTick]);
 
   React.useEffect(() => {
-    if (!selectedCapsuleId) {
-      setStreamOverview(null);
-      setOverviewError(null);
-      setOverviewLoading(false);
-      return;
-    }
+    streamOverviewRef.current = streamOverview;
+  }, [streamOverview]);
 
-    let cancelled = false;
-    const controller = new AbortController();
-    setOverviewLoading(true);
-    setOverviewError(null);
+  const fetchOverview = React.useCallback(
+    async (capsuleId: string, options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
+      const controller = new AbortController();
+      if (fetchControllerRef.current) {
+        fetchControllerRef.current.abort();
+      }
+      fetchControllerRef.current = controller;
 
-    fetch(`/api/mux/live?capsuleId=${encodeURIComponent(selectedCapsuleId)}`, {
-      method: "GET",
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (cancelled) return;
+      if (!silent || !streamOverviewRef.current) {
+        setOverviewLoading(true);
+      }
+      if (!silent) {
+        setOverviewError(null);
+      }
+
+      try {
+        const response = await fetch(`/api/mux/live?capsuleId=${encodeURIComponent(capsuleId)}`, {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
         if (response.ok) {
           const payload = (await response.json()) as StreamOverview;
           setStreamOverview(payload);
+          setOverviewError(null);
         } else if (response.status === 404) {
           setStreamOverview(null);
-        } else {
+          if (!silent) {
+            setOverviewError(null);
+          }
+        } else if (!silent) {
           let message = "Failed to load stream overview.";
           try {
             const body = await response.json();
@@ -399,21 +457,131 @@ export function AiStreamStudioLayout({
           }
           setOverviewError(message);
         }
-      })
-      .catch((error) => {
-        if (cancelled || controller.signal.aborted) return;
+      } catch (error) {
+        if (controller.signal.aborted) return;
         console.warn("mux.live.overview", error);
-        setOverviewError("Failed to load stream overview.");
-      })
-      .finally(() => {
-        if (!cancelled) setOverviewLoading(false);
-      });
+        if (!silent) {
+          setOverviewError("Failed to load stream overview.");
+        }
+      } finally {
+        if (fetchControllerRef.current === controller) {
+          fetchControllerRef.current = null;
+        }
+        if (!silent || !streamOverviewRef.current) {
+          setOverviewLoading(false);
+        }
+      }
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    if (!selectedCapsuleId) {
+      if (fetchControllerRef.current) {
+        fetchControllerRef.current.abort();
+        fetchControllerRef.current = null;
+      }
+      setStreamOverview(null);
+      setOverviewError(null);
+      setOverviewLoading(false);
+      return;
+    }
+
+    fetchOverview(selectedCapsuleId);
 
     return () => {
-      cancelled = true;
-      controller.abort();
+      if (fetchControllerRef.current) {
+        fetchControllerRef.current.abort();
+        fetchControllerRef.current = null;
+      }
     };
-  }, [selectedCapsuleId]);
+  }, [fetchOverview, selectedCapsuleId]);
+
+  const scheduleOverviewRefresh = React.useCallback(
+    (reason: MuxRealtimeTable) => {
+      if (!selectedCapsuleId) return;
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+      const shouldShowSpinner = !streamOverviewRef.current;
+      const delay = reason === "mux_live_streams" ? 120 : 220;
+      refreshTimerRef.current = window.setTimeout(() => {
+        refreshTimerRef.current = null;
+        fetchOverview(selectedCapsuleId, { silent: !shouldShowSpinner });
+      }, delay);
+    },
+    [fetchOverview, selectedCapsuleId],
+  );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!selectedCapsuleId) return;
+
+    if (!supabaseRef.current) {
+      try {
+        supabaseRef.current = getBrowserSupabaseClient();
+      } catch (error) {
+        console.warn("supabase.mux.refresh unavailable", error);
+        return;
+      }
+    }
+
+    const supabase = supabaseRef.current;
+    if (!supabase) return;
+
+    const channelName = `mux:studio:${selectedCapsuleId}`;
+    const channel = supabase.channel(channelName);
+    const tables: MuxRealtimeTable[] = [
+      "mux_live_streams",
+      "mux_live_stream_sessions",
+      "mux_assets",
+      "mux_ai_jobs",
+    ];
+
+    tables.forEach((table) => {
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table, filter: `capsule_id=eq.${selectedCapsuleId}` },
+        () => {
+          scheduleOverviewRefresh(table);
+        },
+      );
+    });
+
+    channel.subscribe();
+
+    return () => {
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [scheduleOverviewRefresh, selectedCapsuleId]);
+
+  React.useEffect(() => {
+    if (typeof document === "undefined" || typeof window === "undefined") return;
+    if (!selectedCapsuleId) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        scheduleOverviewRefresh("mux_live_streams");
+      }
+    };
+
+    const handleFocus = () => {
+      scheduleOverviewRefresh("mux_live_streams");
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [scheduleOverviewRefresh, selectedCapsuleId]);
 
   const handleEnsureStream = React.useCallback(async () => {
     if (!selectedCapsuleId) return;
@@ -704,7 +872,7 @@ export function AiStreamStudioLayout({
                   </div>
                   <div className={styles.previewFrame}>
                     {overviewLoading ? (
-                      <div className={styles.previewPlaceholder}>Loading stream preview…</div>
+                      <div className={styles.previewPlaceholder}>Loading stream preview...</div>
                     ) : streamOverview?.playback.playbackId ? (
                       <MuxPlayer
                         playbackId={streamOverview.playback.playbackId ?? undefined}
@@ -723,7 +891,7 @@ export function AiStreamStudioLayout({
                           onClick={handleEnsureStream}
                           disabled={actionBusy === "ensure" || overviewLoading}
                         >
-                          {actionBusy === "ensure" ? "Preparing…" : "Set up streaming"}
+                          {actionBusy === "ensure" ? "Preparing..." : "Set up streaming"}
                         </Button>
                       </div>
                     )}
@@ -762,7 +930,7 @@ export function AiStreamStudioLayout({
                         onClick={handleEnsureStream}
                         disabled={actionBusy === "ensure" || overviewLoading}
                       >
-                        {actionBusy === "ensure" ? "Preparing…" : "Refresh stream"}
+                        {actionBusy === "ensure" ? "Preparing..." : "Refresh stream"}
                       </Button>
                       <Button
                         variant="outline"
@@ -770,7 +938,7 @@ export function AiStreamStudioLayout({
                         onClick={handleRotateStreamKey}
                         disabled={!streamOverview || actionBusy === "rotate" || overviewLoading}
                       >
-                        {actionBusy === "rotate" ? "Rotating…" : "Rotate key"}
+                        {actionBusy === "rotate" ? "Rotating..." : "Rotate key"}
                       </Button>
                       <Button
                         variant="outline"
@@ -1075,15 +1243,15 @@ export function AiStreamStudioLayout({
             <ul className={styles.sceneList}>
               <li className={styles.sceneItem}>
                 <div className={styles.sceneItemTitle}>Main stage</div>
-                <div className={styles.sceneItemMeta}>AI camera framing • host + guest</div>
+                <div className={styles.sceneItemMeta}>AI camera framing | host + guest</div>
               </li>
               <li className={styles.sceneItem}>
                 <div className={styles.sceneItemTitle}>Clips &amp; react</div>
-                <div className={styles.sceneItemMeta}>Picture-in-picture • sponsor lower-third</div>
+                <div className={styles.sceneItemMeta}>Picture-in-picture | sponsor lower-third</div>
               </li>
               <li className={styles.sceneItem}>
                 <div className={styles.sceneItemTitle}>Q&amp;A wrap</div>
-                <div className={styles.sceneItemMeta}>Chat overlay • poll recap</div>
+                <div className={styles.sceneItemMeta}>Chat overlay | poll recap</div>
               </li>
             </ul>
           </div>
@@ -1140,7 +1308,7 @@ export function AiStreamStudioLayout({
     if (overviewLoading && !streamOverview) {
       return (
         <div className={styles.noticeCard}>
-          <h3>Loading streaming configuration…</h3>
+          <h3>Loading streaming configuration...</h3>
           <p>Retrieving the latest credentials from Mux.</p>
         </div>
       );
@@ -1169,7 +1337,7 @@ export function AiStreamStudioLayout({
               onClick={handleEnsureStream}
               disabled={actionBusy === "ensure" || overviewLoading}
             >
-              {actionBusy === "ensure" ? "Preparing…" : "Create live stream"}
+              {actionBusy === "ensure" ? "Preparing..." : "Create live stream"}
             </Button>
           </div>
         </div>
@@ -1252,7 +1420,7 @@ export function AiStreamStudioLayout({
                     onClick={handleRotateStreamKey}
                     disabled={actionBusy === "rotate" || overviewLoading}
                   >
-                    {actionBusy === "rotate" ? "Rotating…" : "Rotate"}
+                    {actionBusy === "rotate" ? "Rotating..." : "Rotate"}
                   </Button>
                 </div>
               </li>
@@ -1348,13 +1516,16 @@ export function AiStreamStudioLayout({
     if (overviewLoading && !streamOverview) {
       return (
         <div className={styles.noticeCard}>
-          <h3>Loading recordings…</h3>
+          <h3>Loading recordings...</h3>
           <p>Collecting the latest Mux assets for {selectedCapsule.name}.</p>
         </div>
       );
     }
 
-    if (!streamOverview || streamOverview.assets.length === 0) {
+    if (
+      !streamOverview ||
+      (streamOverview.assets.length === 0 && streamOverview.aiJobs.length === 0)
+    ) {
       return (
         <div className={styles.noticeCard}>
           <h3>No recordings yet</h3>
@@ -1368,6 +1539,19 @@ export function AiStreamStudioLayout({
 
     const assets = streamOverview.assets.slice(0, 8);
     const jobs = streamOverview.aiJobs.slice(0, 8);
+    const statusClassFor = (status: string) => {
+      const normalized = status.toLowerCase();
+      if (["completed", "succeeded", "finished", "ready"].includes(normalized)) {
+        return styles.clipStatusCompleted;
+      }
+      if (["running", "processing", "active", "in_progress", "started"].includes(normalized)) {
+        return styles.clipStatusRunning;
+      }
+      if (["failed", "errored", "error", "cancelled", "canceled"].includes(normalized)) {
+        return styles.clipStatusErrored;
+      }
+      return styles.clipStatusPending;
+    };
 
     return (
       <div className={styles.encoderLayout}>
@@ -1378,35 +1562,58 @@ export function AiStreamStudioLayout({
             shareable link.
           </div>
           <ul className={styles.encoderList}>
-            {assets.map((asset) => (
-              <li key={asset.id} className={styles.clipRow}>
+            {assets.length ? (
+              assets.map((asset) => {
+                const durationValue =
+                  typeof asset.durationSeconds === "number"
+                    ? asset.durationSeconds
+                    : asset.durationSeconds
+                      ? Number(asset.durationSeconds)
+                      : null;
+                const durationLabel = formatDuration(durationValue);
+                const metaParts = [
+                  formatJobStatusLabel(asset.status),
+                  durationLabel !== "--" ? durationLabel : null,
+                  formatTimestamp(asset.readyAt ?? asset.createdAt),
+                ].filter((part): part is string => Boolean(part && part !== "--"));
+
+                return (
+                  <li key={asset.id} className={styles.clipRow}>
+                    <div className={styles.clipMeta}>
+                      <div className={styles.clipTitle}>{asset.muxAssetId}</div>
+                      <div className={styles.clipSubtitle}>
+                        {metaParts.length ? metaParts.join(" | ") : "Awaiting asset details"}
+                      </div>
+                    </div>
+                    <div className={styles.clipActions}>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => handleCopyToClipboard(`asset-${asset.id}`, asset.playbackUrl)}
+                        disabled={!asset.playbackUrl}
+                      >
+                        {copiedField === `asset-${asset.id}` ? "Copied" : "Copy URL"}
+                      </Button>
+                      {asset.playbackUrl ? (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => window.open(asset.playbackUrl ?? "", "_blank")}
+                        >
+                          Open
+                        </Button>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })
+            ) : (
+              <li className={styles.clipRow}>
                 <div className={styles.clipMeta}>
-                  <div className={styles.clipTitle}>{asset.muxAssetId}</div>
-                  <div className={styles.clipSubtitle}>
-                    {asset.status} • {formatDuration(asset.durationSeconds)} •{" "}
-                    {formatTimestamp(asset.readyAt ?? asset.createdAt)}
-                  </div>
-                </div>
-                <div className={styles.clipActions}>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => handleCopyToClipboard(`asset-${asset.id}`, asset.playbackUrl)}
-                  >
-                    {copiedField === `asset-${asset.id}` ? "Copied" : "Copy URL"}
-                  </Button>
-                  {asset.playbackUrl ? (
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      onClick={() => window.open(asset.playbackUrl ?? "", "_blank")}
-                    >
-                      Open
-                    </Button>
-                  ) : null}
+                  <div className={styles.clipSubtitle}>No recordings are available yet.</div>
                 </div>
               </li>
-            ))}
+            )}
           </ul>
         </section>
         <section className={styles.encoderSection}>
@@ -1416,19 +1623,52 @@ export function AiStreamStudioLayout({
           </div>
           <ul className={styles.encoderList}>
             {jobs.length ? (
-              jobs.map((job) => (
-                <li key={job.id} className={styles.clipRow}>
-                  <div className={styles.clipMeta}>
-                    <div className={styles.clipTitle}>{job.jobType}</div>
-                    <div className={styles.clipSubtitle}>
-                      {job.status} • {formatTimestamp(job.startedAt ?? job.createdAt)}
+              jobs.map((job) => {
+                const timelineParts: string[] = [];
+                const queuedLabel = formatTimestamp(job.createdAt);
+                if (queuedLabel !== "--") {
+                  timelineParts.push(`Queued ${queuedLabel}`);
+                }
+                if (job.startedAt) {
+                  const startedLabel = formatTimestamp(job.startedAt);
+                  if (startedLabel !== "--") {
+                    timelineParts.push(`Started ${startedLabel}`);
+                  }
+                }
+                if (job.completedAt) {
+                  const completedLabel = formatTimestamp(job.completedAt);
+                  if (completedLabel !== "--") {
+                    timelineParts.push(`Completed ${completedLabel}`);
+                  }
+                }
+                const runtimeSeconds = computeElapsedSeconds(job.startedAt, job.completedAt);
+                const runtimeLabel = formatDuration(runtimeSeconds);
+                if (runtimeLabel !== "--") {
+                  timelineParts.push(`Duration ${runtimeLabel}`);
+                }
+                if (job.priority) {
+                  timelineParts.push(`Priority ${job.priority}`);
+                }
+
+                return (
+                  <li key={job.id} className={styles.clipRow}>
+                    <div className={styles.clipMeta}>
+                      <div className={styles.clipTitle}>{formatJobDisplayName(job.jobType)}</div>
+                      <div className={styles.clipSubtitle}>
+                        {timelineParts.length ? timelineParts.join(" | ") : "Job queued"}
+                      </div>
                     </div>
-                  </div>
-                  <div className={styles.clipActions}>
-                    <span className={styles.clipStatus}>{job.status}</span>
-                  </div>
-                </li>
-              ))
+                    <div className={styles.clipActions}>
+                      <span className={`${styles.clipStatus} ${statusClassFor(job.status)}`}>
+                        {formatJobStatusLabel(job.status)}
+                      </span>
+                      {job.priority ? (
+                        <span className={styles.clipStatusMeta}>Priority {job.priority}</span>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })
             ) : (
               <li className={styles.clipRow}>
                 <div className={styles.clipMeta}>
@@ -1471,7 +1711,9 @@ export function AiStreamStudioLayout({
           ? renderStudioContent()
           : activeTab === "producer"
             ? renderProducerContent()
-            : renderEncoderContent()}
+            : activeTab === "encoder"
+              ? renderEncoderContent()
+              : renderClipsContent()}
       </main>
     </div>
   );
