@@ -21,19 +21,21 @@ type MuxClientCache = {
 
 let cachedClient: MuxClientCache | null = null;
 
+const DEFAULT_PLAYBACK_HOST = "https://stream.mux.com";
+
 const MUX_PLAYBACK_HOSTS: Record<string, string> = {
-  production: "https://stream.mux.com",
+  production: DEFAULT_PLAYBACK_HOST,
   staging: "https://stream-staging.mux.com",
-  test: "https://stream.mux.com",
+  test: DEFAULT_PLAYBACK_HOST,
 };
 
 function resolvePlaybackHost(environment: string | null | undefined): string {
   if (typeof environment !== "string") {
-    return MUX_PLAYBACK_HOSTS.production;
+    return MUX_PLAYBACK_HOSTS.production ?? DEFAULT_PLAYBACK_HOST;
   }
   const normalized = environment.trim().toLowerCase();
   const host = MUX_PLAYBACK_HOSTS[normalized];
-  return host ?? MUX_PLAYBACK_HOSTS.production;
+  return host ?? MUX_PLAYBACK_HOSTS.production ?? DEFAULT_PLAYBACK_HOST;
 }
 
 function requireMuxCredentials(): {
