@@ -78,6 +78,41 @@ export function buildLocalImageVariants(
   };
 }
 
+function normalizeHostname(input: string | null | undefined): string | null {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim().toLowerCase();
+  return trimmed.length ? trimmed : null;
+}
+
+function isHostCloudflareCompatible(hostname: string | null | undefined): boolean {
+  const normalized = normalizeHostname(hostname);
+  if (!normalized) return false;
+  if (isLocalLikeHostname(normalized)) return false;
+  if (/ngrok/i.test(normalized)) return false;
+  if (/\.vercel\.app$/.test(normalized)) return false;
+  return true;
+}
+
+function extractHostname(origin: string | null | undefined): string | null {
+  if (typeof origin !== "string") return null;
+  try {
+    return new URL(origin).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+export function shouldUseCloudflareImagesForHost(hostname: string | null | undefined): boolean {
+  if (shouldForceCloudflareImages()) return true;
+  return isHostCloudflareCompatible(hostname);
+}
+
+export function shouldUseCloudflareImagesForOrigin(origin: string | null | undefined): boolean {
+  if (shouldForceCloudflareImages()) return true;
+  const hostname = extractHostname(origin);
+  return shouldUseCloudflareImagesForHost(hostname);
+}
+
 export function shouldBypassCloudflareImages(): boolean {
   if (shouldForceCloudflareImages()) return false;
   if (typeof window === "undefined") {
@@ -85,7 +120,5 @@ export function shouldBypassCloudflareImages(): boolean {
   }
   const host = window.location.hostname?.toLowerCase() ?? "";
   if (!host.length) return false;
-  if (isLocalLikeHostname(host)) return true;
-  if (/ngrok/.test(host)) return true;
-  return false;
+  return !shouldUseCloudflareImagesForHost(host);
 }

@@ -5,6 +5,10 @@ import { buildImageVariants, pickBestDisplayVariant } from "@/lib/cloudflare/ima
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import type { CloudflareImageVariantSet } from "@/lib/cloudflare/images";
 import { serverEnv } from "@/lib/env/server";
+import {
+  buildLocalImageVariants,
+  shouldUseCloudflareImagesForOrigin,
+} from "@/lib/cloudflare/runtime";
 import { createPostRecord } from "@/lib/supabase/posts";
 import { listUploadSessionsByIds, type UploadSessionRecord } from "@/server/memories/uploads";
 import {
@@ -66,6 +70,7 @@ function slimError(status: number, code: string, message: string, details?: unkn
 export type PostsQueryInput = {
   viewerId: string | null;
   origin?: string | null;
+  cloudflareEnabled?: boolean | null;
   query: {
     capsuleId?: string | null;
     limit?: string | number | null;
@@ -95,7 +100,18 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
   const limit = parsedQuery.data.limit ?? 60;
   const viewerId = options.viewerId;
   const requestOrigin = options.origin ?? null;
-  const originForAssets = requestOrigin ?? serverEnv.SITE_URL;
+  const defaultOrigin = serverEnv.SITE_URL;
+  const originForAssets = requestOrigin ?? defaultOrigin;
+
+  let cloudflareOriginCandidate = requestOrigin ?? defaultOrigin;
+  if (!shouldUseCloudflareImagesForOrigin(cloudflareOriginCandidate)) {
+    cloudflareOriginCandidate = defaultOrigin;
+  }
+  const cloudflareEnabled =
+    typeof options.cloudflareEnabled === "boolean"
+      ? options.cloudflareEnabled
+      : shouldUseCloudflareImagesForOrigin(cloudflareOriginCandidate);
+  const cloudflareOrigin = cloudflareEnabled ? cloudflareOriginCandidate : null;
 
   const sanitizeAttachment = (attachment: NormalizedAttachment): NormalizedAttachment => {
     const resolvedUrl = resolveToAbsoluteUrl(attachment.url, originForAssets) ?? attachment.url;
@@ -140,6 +156,18 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
       }
       sanitizedVariants = cloned;
     }
+
+    if (!cloudflareEnabled && sanitizedVariants) {
+      sanitizedVariants = {
+        original: resolvedUrl,
+        feed: resolvedThumb ?? resolvedUrl,
+        thumb: resolvedThumb ?? resolvedUrl,
+        full: resolvedUrl,
+        feedSrcset: null,
+        fullSrcset: null,
+      };
+    }
+
     return {
       ...attachment,
       url: resolvedUrl,
@@ -392,13 +420,18 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                 mimeType = "image/jpeg";
               }
 
-              let variants: CloudflareImageVariantSet | null = isLikelyImage(mimeType, url)
-                ? buildImageVariants(url, {
+              let variants: CloudflareImageVariantSet | null = null;
+              if (isLikelyImage(mimeType, url)) {
+                if (cloudflareEnabled && cloudflareOrigin) {
+                  variants = buildImageVariants(url, {
                     base: serverEnv.CLOUDFLARE_IMAGE_RESIZE_BASE_URL,
                     thumbnailUrl,
-                    origin: originForAssets,
-                  })
-                : null;
+                    origin: cloudflareOrigin,
+                  });
+                } else {
+                  variants = buildLocalImageVariants(url, thumbnailUrl, originForAssets);
+                }
+              }
 
               if (derivedThumbUrl || derivedPreviewUrl) {
                 variants = variants
@@ -456,7 +489,7 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
             const primary = sanitizedAttachments[0] ?? null;
             if (!primary) return;
             const preferredDisplay = pickBestDisplayVariant(primary.variants ?? null);
-            if (preferredDisplay) {
+            if (cloudflareEnabled && preferredDisplay) {
               post.mediaUrl = preferredDisplay;
             } else if (!post.mediaUrl) {
               const fallbackMedia = primary.thumbnailUrl ?? primary.url;
