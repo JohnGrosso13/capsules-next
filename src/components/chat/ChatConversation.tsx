@@ -68,7 +68,19 @@ function describeTypingParticipants(participants: ChatParticipant[]): string {
   return `${names[0]}, ${names[1]}, and ${names.length - 2} others are typing...`;
 }
 
-const REACTION_OPTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"] as const;
+const REACTION_OPTIONS = ["??", "??", "??", "??", "??", "??"] as const;
+
+const MESSAGE_GROUP_WINDOW_MS = 5 * 60_000;
+
+function isContinuationOf(previous: ChatMessage | null | undefined, current: ChatMessage): boolean {
+  if (!previous) return false;
+  if ((previous.authorId ?? null) !== (current.authorId ?? null)) return false;
+  const previousTime = Date.parse(previous.sentAt);
+  const currentTime = Date.parse(current.sentAt);
+  if (!Number.isFinite(previousTime) || !Number.isFinite(currentTime)) return false;
+  return Math.abs(currentTime - previousTime) < MESSAGE_GROUP_WINDOW_MS;
+}
+
 
 type ChatConversationProps = {
   session: ChatSession;
@@ -384,12 +396,17 @@ export function ChatConversation({
 
       {session.type === "group" ? (
         <div className={styles.conversationParticipants}>
-          {session.participants.map((participant) => (
-            <span
-              key={participant.id}
-              className={styles.conversationParticipant}
-              title={participant.name}
-            >
+            {session.participants.map((participant) => (
+              <button
+                key={participant.id}
+                type="button"
+                className={styles.conversationParticipant}
+                title={participant.name}
+                onClick={() => onInviteParticipants?.()}
+                disabled={!onInviteParticipants}
+                aria-disabled={!onInviteParticipants}
+                aria-label={participant.name ? `View ${participant.name}` : "View participant"}
+              >
               {participant.avatar ? (
                 <Image
                   src={participant.avatar}
@@ -404,29 +421,42 @@ export function ChatConversation({
                   {initialsFrom(participant.name)}
                 </span>
               )}
-            </span>
+            </button>
           ))}
         </div>
       ) : null}
 
       <div ref={messagesRef} className={styles.messageList}>
-        {session.messages.map((message) => {
+        {session.messages.map((message, index) => {
+          const previous = index > 0 ? session.messages[index - 1] : null;
           const isSelf = message.authorId ? selfIdentifiers.has(message.authorId) : false;
           const author = message.authorId ? participantMap.get(message.authorId) : null;
           const avatar = isSelf ? selfAvatar : (author?.avatar ?? null);
           const displayName = isSelf ? selfName : (author?.name ?? "Member");
           const statusNode = renderStatus(message);
+          const grouped = isContinuationOf(previous, message);
+          const showAvatar = !grouped;
+          const showHeader = !grouped;
+          const messageTimestamp = formatMessageTime(message.sentAt);
           const messageReactions = Array.isArray(message.reactions) ? message.reactions : [];
-          const showReactions = messageReactions.length > 0 || Boolean(onToggleReaction);
+          const hasReactions = messageReactions.length > 0;
+          const showReactions = Boolean(onToggleReaction) || hasReactions;
           const isPickerOpen = reactionTargetId === message.id;
+          const itemClassName = `${styles.messageItem} ${
+            isSelf ? styles.messageItemSelf : styles.messageItemOther
+          } ${grouped ? styles.messageItemGrouped : ""}`.trim();
+          const avatarClassName = `${styles.messageAvatar} ${
+            showAvatar ? "" : styles.messageAvatarHidden
+          }`.trim();
+          const reactionClassName = `${styles.messageReactions} ${
+            hasReactions || isPickerOpen ? styles.messageReactionsVisible : ""
+          }`.trim();
+          const messageTitle = showHeader ? undefined : messageTimestamp || undefined;
           return (
-            <div
-              key={message.id}
-              className={`${styles.messageItem} ${isSelf ? styles.messageItemSelf : styles.messageItemOther}`.trim()}
-            >
-              {!isSelf ? (
-                <span className={styles.messageAvatar} aria-hidden>
-                  {avatar ? (
+            <div key={message.id} className={itemClassName}>
+              <span className={avatarClassName} aria-hidden>
+                {showAvatar ? (
+                  avatar ? (
                     <Image
                       src={avatar}
                       alt=""
@@ -439,23 +469,26 @@ export function ChatConversation({
                     <span className={styles.messageAvatarFallback}>
                       {initialsFrom(displayName)}
                     </span>
-                  )}
-                </span>
-              ) : null}
+                  )
+                ) : null}
+              </span>
               <div className={styles.messageBubbleGroup}>
-                <div className={styles.messageHeader}>
-                  {!isSelf ? <span className={styles.messageAuthor}>{displayName}</span> : null}
-                  <span className={styles.messageTimestamp}>
-                    {formatMessageTime(message.sentAt)}
-                  </span>
-                </div>
+                {showHeader ? (
+                  <div className={styles.messageHeader}>
+                    <span className={styles.messageAuthor}>{displayName}</span>
+                    <time className={styles.messageTimestamp} dateTime={message.sentAt}>
+                      {messageTimestamp}
+                    </time>
+                  </div>
+                ) : null}
                 <div
                   className={`${styles.messageBubble} ${isSelf ? styles.messageBubbleSelf : ""}`.trim()}
+                  title={messageTitle}
                 >
                   {message.body}
                 </div>
                 {showReactions ? (
-                  <div className={styles.messageReactions}>
+                  <div className={reactionClassName}>
                     {messageReactions.map((reaction) => (
                       <button
                         key={reaction.emoji}
@@ -562,3 +595,4 @@ export function ChatConversation({
     </div>
   );
 }
+
