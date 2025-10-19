@@ -636,10 +636,10 @@ export function ComposerForm({
     [updateDraft],
   );
 
-  const baseQuickPromptOptions = React.useMemo<QuickPromptOption[]>(
-    () => QUICK_PROMPT_PRESETS[activeKind] ?? QUICK_PROMPT_PRESETS.default,
-    [activeKind],
-  );
+  const baseQuickPromptOptions = React.useMemo<QuickPromptOption[]>(() => {
+    const preset = QUICK_PROMPT_PRESETS[activeKind];
+    return preset ? preset : QUICK_PROMPT_PRESETS.default;
+  }, [activeKind]);
 
   const quickPromptOptions = React.useMemo<QuickPromptOption[]>(() => {
     if (vibeSuggestions.length) {
