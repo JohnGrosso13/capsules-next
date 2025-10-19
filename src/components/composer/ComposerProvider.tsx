@@ -367,14 +367,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         const existingIndex = prev.drafts.findIndex((item) => item.id === baseId);
         let drafts = [...prev.drafts];
         if (existingIndex >= 0) {
+          const existingDraft = drafts[existingIndex]!;
           drafts[existingIndex] = {
-            ...drafts[existingIndex],
+            ...existingDraft,
             prompt,
-            title: sanitizedDraft.title ?? drafts[existingIndex].title ?? null,
+            title: sanitizedDraft.title ?? existingDraft.title ?? null,
             message: message ?? null,
             draft: sanitizedDraft,
             rawPost: sanitizedRawPost,
-            projectId: assignedProjectId ?? drafts[existingIndex].projectId ?? null,
+            projectId: assignedProjectId ?? existingDraft.projectId ?? null,
             updatedAt: now,
           };
         } else {
@@ -446,7 +447,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         const index = prev.drafts.findIndex((draftItem) => draftItem.id === draftId);
         if (index < 0) return prev;
         const now = new Date().toISOString();
-        const updatedDraft = { ...prev.drafts[index], updatedAt: now };
+        const existingDraft = prev.drafts[index];
+        if (!existingDraft) return prev;
+        const updatedDraft = { ...existingDraft, updatedAt: now };
         const others = prev.drafts.filter((draftItem) => draftItem.id !== draftId);
         return { ...prev, drafts: [updatedDraft, ...others] };
       });

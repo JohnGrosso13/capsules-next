@@ -62,59 +62,59 @@ function cloneValue<T>(value: T): T {
 }
 
 function sanitizeRecentChats(items: unknown[]): ComposerStoredRecentChat[] {
-  return items
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const record = item as Partial<ComposerStoredRecentChat>;
-      if (typeof record.id !== "string" || typeof record.prompt !== "string") return null;
-      return {
-        id: record.id,
-        prompt: record.prompt,
-        message: typeof record.message === "string" ? record.message : null,
-        draft: (record.draft as ComposerDraft) ?? {
-          kind: "text",
-          title: null,
-          content: "",
-          mediaUrl: null,
-          mediaPrompt: null,
-          poll: null,
-          suggestions: [],
-        },
-        rawPost: (record.rawPost as Record<string, unknown>) ?? null,
-        createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date().toISOString(),
-        updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString(),
-      };
-    })
-    .filter((entry): entry is ComposerStoredRecentChat => Boolean(entry));
+  const sanitized: ComposerStoredRecentChat[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as Partial<ComposerStoredRecentChat>;
+    if (typeof record.id !== "string" || typeof record.prompt !== "string") continue;
+    sanitized.push({
+      id: record.id,
+      prompt: record.prompt,
+      message: typeof record.message === "string" ? record.message : null,
+      draft: (record.draft as ComposerDraft) ?? {
+        kind: "text",
+        title: null,
+        content: "",
+        mediaUrl: null,
+        mediaPrompt: null,
+        poll: null,
+        suggestions: [],
+      },
+      rawPost: (record.rawPost as Record<string, unknown>) ?? null,
+      createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date().toISOString(),
+      updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString(),
+    });
+  }
+  return sanitized;
 }
 
 function sanitizeDrafts(items: unknown[]): ComposerStoredDraft[] {
-  return items
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const record = item as Partial<ComposerStoredDraft>;
-      if (typeof record.id !== "string" || typeof record.prompt !== "string") return null;
-      return {
-        id: record.id,
-        prompt: record.prompt,
-        title: typeof record.title === "string" ? record.title : null,
-        message: typeof record.message === "string" ? record.message : null,
-        draft: (record.draft as ComposerDraft) ?? {
-          kind: "text",
-          title: null,
-          content: "",
-          mediaUrl: null,
-          mediaPrompt: null,
-          poll: null,
-          suggestions: [],
-        },
-        rawPost: (record.rawPost as Record<string, unknown>) ?? null,
-        projectId: typeof record.projectId === "string" ? record.projectId : null,
-        createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date().toISOString(),
-        updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString(),
-      };
-    })
-    .filter((entry): entry is ComposerStoredDraft => Boolean(entry));
+  const sanitized: ComposerStoredDraft[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as Partial<ComposerStoredDraft>;
+    if (typeof record.id !== "string" || typeof record.prompt !== "string") continue;
+    sanitized.push({
+      id: record.id,
+      prompt: record.prompt,
+      title: typeof record.title === "string" ? record.title : null,
+      message: typeof record.message === "string" ? record.message : null,
+      draft: (record.draft as ComposerDraft) ?? {
+        kind: "text",
+        title: null,
+        content: "",
+        mediaUrl: null,
+        mediaPrompt: null,
+        poll: null,
+        suggestions: [],
+      },
+      rawPost: (record.rawPost as Record<string, unknown>) ?? null,
+      projectId: typeof record.projectId === "string" ? record.projectId : null,
+      createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date().toISOString(),
+      updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString(),
+    });
+  }
+  return sanitized;
 }
 
 function sanitizeProjects(items: unknown[]): ComposerStoredProject[] {

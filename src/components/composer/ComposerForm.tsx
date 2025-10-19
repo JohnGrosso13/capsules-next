@@ -45,21 +45,23 @@ const PANEL_WELCOME =
 
 type QuickPromptOption = { label: string; prompt: string };
 
+const DEFAULT_QUICK_PROMPTS: QuickPromptOption[] = [
+  {
+    label: "Launch announcement",
+    prompt: "Draft a hype launch announcement with three punchy bullet highlights.",
+  },
+  {
+    label: "Weekly recap",
+    prompt: "Summarize our latest wins in a warm, conversational recap post.",
+  },
+  {
+    label: "Event teaser",
+    prompt: "Write a teaser for an upcoming event with a strong call to action.",
+  },
+];
+
 const QUICK_PROMPT_PRESETS: Record<string, QuickPromptOption[]> = {
-  default: [
-    {
-      label: "Launch announcement",
-      prompt: "Draft a hype launch announcement with three punchy bullet highlights.",
-    },
-    {
-      label: "Weekly recap",
-      prompt: "Summarize our latest wins in a warm, conversational recap post.",
-    },
-    {
-      label: "Event teaser",
-      prompt: "Write a teaser for an upcoming event with a strong call to action.",
-    },
-  ],
+  default: DEFAULT_QUICK_PROMPTS,
   poll: [
     {
       label: "Engagement poll",
@@ -111,6 +113,14 @@ const QUICK_PROMPT_PRESETS: Record<string, QuickPromptOption[]> = {
     },
   ],
 };
+
+function resolveQuickPromptPreset(kind: string): QuickPromptOption[] {
+  const preset = QUICK_PROMPT_PRESETS[kind];
+  if (Array.isArray(preset)) {
+    return preset;
+  }
+  return DEFAULT_QUICK_PROMPTS;
+}
 
 type SidebarListItem = {
   id: string;
@@ -636,10 +646,10 @@ export function ComposerForm({
     [updateDraft],
   );
 
-  const baseQuickPromptOptions = React.useMemo<QuickPromptOption[]>(() => {
-    const preset = QUICK_PROMPT_PRESETS[activeKind];
-    return preset ? preset : QUICK_PROMPT_PRESETS.default;
-  }, [activeKind]);
+  const baseQuickPromptOptions = React.useMemo(
+    () => resolveQuickPromptPreset(activeKind),
+    [activeKind],
+  );
 
   const quickPromptOptions = React.useMemo<QuickPromptOption[]>(() => {
     if (vibeSuggestions.length) {
@@ -1276,7 +1286,7 @@ export function ComposerForm({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={mediaUrl ?? undefined}
-                alt={attachmentName ?? mediaPrompt || "Generated visual preview"}
+                alt={attachmentName ?? (mediaPrompt || "Generated visual preview")}
               />
               {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
             </figure>
