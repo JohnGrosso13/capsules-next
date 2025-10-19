@@ -4,6 +4,7 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import {
   ChatServiceError,
   listRecentDirectConversations,
+  listRecentGroupConversations,
 } from "@/server/chat/service";
 import { returnError, validatedJson } from "@/server/validation/http";
 
@@ -22,7 +23,7 @@ const messageSchema = z.object({
 });
 
 const sessionSchema = z.object({
-  type: z.literal("direct"),
+  type: z.enum(["direct", "group"]),
   title: z.string(),
   avatar: z.string().nullable(),
   createdBy: z.string().nullable(),
@@ -66,14 +67,29 @@ export async function GET(req: Request) {
   }
 
   try {
-    const summaries = await listRecentDirectConversations({
-      userId,
-      ...(parseResult.data.limit !== undefined ? { limit: parseResult.data.limit } : {}),
+    const limit = parseResult.data.limit ?? undefined;
+    const [directSummaries, groupSummaries] = await Promise.all([
+      listRecentDirectConversations({
+        userId,
+        ...(limit !== undefined ? { limit } : {}),
+      }),
+      listRecentGroupConversations({
+        userId,
+        ...(limit !== undefined ? { limit } : {}),
+      }),
+    ]);
+
+    const combined = [...directSummaries, ...groupSummaries].sort((a, b) => {
+      const leftTime = a.lastMessage ? Date.parse(a.lastMessage.sentAt) : 0;
+      const rightTime = b.lastMessage ? Date.parse(b.lastMessage.sentAt) : 0;
+      return rightTime - leftTime;
     });
+
+    const limited = limit !== undefined ? combined.slice(0, limit) : combined;
 
     return validatedJson(responseSchema, {
       success: true,
-      conversations: summaries.map((summary) => ({
+      conversations: limited.map((summary) => ({
         conversationId: summary.conversationId,
         participants: summary.participants.map((participant) => ({
           id: participant.id,

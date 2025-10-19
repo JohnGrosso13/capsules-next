@@ -247,13 +247,7 @@ export function AiPrompterStage({
           : intentLabel(effectiveIntent);
 
   const buttonClassName: string =
-    effectiveIntent === "navigate"
-      ? cssClass("genBtn", "genBtnNavigate")
-      : effectiveIntent === "post"
-        ? cssClass("genBtn", "genBtnPost")
-        : effectiveIntent === "style"
-          ? cssClass("genBtn", "genBtnStyle")
-          : cssClass("genBtn");
+    effectiveIntent === "style" ? cssClass("genBtn", "genBtnStyle") : cssClass("genBtn");
 
   const buttonDisabled =
     attachmentUploading ||

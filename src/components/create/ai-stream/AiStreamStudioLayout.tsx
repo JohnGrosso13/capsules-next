@@ -184,8 +184,14 @@ const AUTO_SAVE_SEGMENTS = {
 
 type AutoSaveSegment = (typeof AUTO_SAVE_SEGMENTS)[keyof typeof AUTO_SAVE_SEGMENTS];
 
-function buildAutoSaveId(view: string, ownerId: string, segment: AutoSaveSegment): string {
-  return `${view}|${segment}|${ownerId}`;
+function buildAutoSaveId(
+  view: string,
+  ownerId: string,
+  segment: AutoSaveSegment,
+  capsuleId?: string | null,
+): string {
+  const capsuleScope = capsuleId ? `capsule:${capsuleId}` : "capsule:global";
+  return `${view}|${segment}|${capsuleScope}|${ownerId}`;
 }
 
 function usePanelLayoutStorage(
@@ -334,13 +340,25 @@ export function AiStreamStudioLayout({
 
   const [selectorOpen, setSelectorOpen] = React.useState(true);
 
+  const capsuleLayoutScope = selectedCapsule?.id ?? null;
+
   const autoSaveIds = React.useMemo(
     () => ({
-      main: buildAutoSaveId(layoutView, layoutOwnerId, AUTO_SAVE_SEGMENTS.main),
-      leftColumn: buildAutoSaveId(layoutView, layoutOwnerId, AUTO_SAVE_SEGMENTS.leftColumn),
-      rightColumn: buildAutoSaveId(layoutView, layoutOwnerId, AUTO_SAVE_SEGMENTS.rightColumn),
+      main: buildAutoSaveId(layoutView, layoutOwnerId, AUTO_SAVE_SEGMENTS.main, capsuleLayoutScope),
+      leftColumn: buildAutoSaveId(
+        layoutView,
+        layoutOwnerId,
+        AUTO_SAVE_SEGMENTS.leftColumn,
+        capsuleLayoutScope,
+      ),
+      rightColumn: buildAutoSaveId(
+        layoutView,
+        layoutOwnerId,
+        AUTO_SAVE_SEGMENTS.rightColumn,
+        capsuleLayoutScope,
+      ),
     }),
-    [layoutOwnerId, layoutView],
+    [capsuleLayoutScope, layoutOwnerId, layoutView],
   );
 
   const panelStorage = usePanelLayoutStorage(layoutView, initialPanelLayouts);
@@ -827,20 +845,22 @@ export function AiStreamStudioLayout({
 
     return (
       <PanelGroup
+        key={autoSaveIds.main}
         direction="horizontal"
         className={styles.studioLayout ?? ""}
         autoSaveId={autoSaveIds.main}
         storage={panelStorage}
         style={{ height: "auto", minHeight: "var(--studio-track-height)", overflow: "visible" }}
       >
-        <Panel defaultSize={62} minSize={48} collapsible={false}>
+        <Panel defaultSize={50} minSize={44} collapsible={false}>
           <PanelGroup
+            key={autoSaveIds.leftColumn}
             direction="vertical"
             className={styles.panelColumn ?? ""}
             autoSaveId={autoSaveIds.leftColumn}
             storage={panelStorage}
           >
-            <Panel defaultSize={64} minSize={48} collapsible={false}>
+            <Panel defaultSize={58} minSize={46} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.previewPanel} ${styles.panelCard}`}>
                   <div className={styles.previewHeader}>
@@ -953,7 +973,7 @@ export function AiStreamStudioLayout({
               </div>
             </Panel>
             <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={22} minSize={16} collapsible={false}>
+            <Panel defaultSize={24} minSize={16} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.quickActionsCard} ${styles.panelCard}`}>
                   <div className={styles.quickActionsHeader}>
@@ -981,7 +1001,7 @@ export function AiStreamStudioLayout({
               </div>
             </Panel>
             <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={14} minSize={12} collapsible={false}>
+            <Panel defaultSize={18} minSize={12} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.signalCard} ${styles.panelCard}`}>
                   <div className={styles.signalHeader}>
@@ -1111,8 +1131,14 @@ export function AiStreamStudioLayout({
 
         <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
 
-        <Panel defaultSize={14} minSize={12} collapsible={false}>
-          <PanelGroup direction="vertical" className={styles.panelColumn ?? ""}>
+        <Panel defaultSize={12} minSize={11} collapsible={false}>
+          <PanelGroup
+            key={autoSaveIds.rightColumn}
+            direction="vertical"
+            className={styles.panelColumn ?? ""}
+            autoSaveId={autoSaveIds.rightColumn}
+            storage={panelStorage}
+          >
             <Panel defaultSize={60} minSize={18} collapsible={false}>
               <div className={styles.panelSection}>
                 <div className={`${styles.resourceCard} ${styles.panelCard}`}>
@@ -1202,7 +1228,7 @@ export function AiStreamStudioLayout({
 
         <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
 
-        <Panel defaultSize={10} minSize={9} collapsible={false}>
+        <Panel defaultSize={20} minSize={14} collapsible={false}>
           <div className={styles.panelSection}>
             <div className={styles.chatRailShell}>
               <LiveChatRail
@@ -1685,10 +1711,15 @@ export function AiStreamStudioLayout({
   return (
     <div className={`${capTheme.theme} ${styles.shellWrap}`}>
       <header className={styles.navBar}>
-        <div className={capTheme.tabStrip} role="tablist" aria-label="AI Stream Studio sections">
+        <div
+          className={`${capTheme.tabStrip} ${styles.tabStrip}`}
+          role="tablist"
+          aria-label="AI Stream Studio sections"
+        >
           {TAB_ITEMS.map((tab) => {
             const isActive = activeTab === tab.id;
-            const btnClass = isActive ? `${capTheme.tab} ${capTheme.tabActive}` : capTheme.tab;
+            const baseClass = `${capTheme.tab} ${styles.tabButton}`;
+            const btnClass = isActive ? `${baseClass} ${capTheme.tabActive}` : baseClass;
             return (
               <button
                 key={tab.id}

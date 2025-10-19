@@ -2,7 +2,11 @@ import "server-only";
 
 import { getRealtimePublisher } from "@/config/realtime-server";
 import { getChatDirectChannel } from "@/lib/chat/channels";
-import type { ChatMessageEventPayload, ChatReactionEventPayload } from "@/components/providers/chat-store";
+import type {
+  ChatMessageEventPayload,
+  ChatReactionEventPayload,
+  ChatSessionEventPayload,
+} from "@/components/providers/chat-store";
 import type { ChatParticipantSummary } from "@/server/chat/service";
 
 type DirectChatSessionMeta = {
@@ -150,5 +154,45 @@ export async function publishReactionEvent(params: {
 
   await Promise.all(
     Array.from(channels).map((channel) => publisher.publish(channel, "chat.reaction", payload)),
+  );
+}
+
+export async function publishSessionEvent(params: {
+  conversationId: string;
+  participants: ChatParticipantSummary[];
+  session: { type: "direct" | "group"; title: string; avatar: string | null; createdBy: string | null };
+}): Promise<void> {
+  const publisher = getRealtimePublisher();
+  if (!publisher) return;
+
+  const participants = params.participants
+    .map((participant) => ({ id: participant.id, name: participant.name, avatar: participant.avatar ?? null }))
+    .filter((p) => Boolean(p.id));
+  if (!participants.length) return;
+
+  const payload: ChatSessionEventPayload = {
+    type: "chat.session",
+    conversationId: params.conversationId,
+    session: {
+      id: params.conversationId,
+      type: params.session.type,
+      title: params.session.title,
+      avatar: params.session.avatar,
+      createdBy: params.session.createdBy,
+      participants,
+    },
+  } as unknown as ChatSessionEventPayload;
+
+  const channels = new Set<string>();
+  participants.forEach((participant) => {
+    try {
+      channels.add(getChatDirectChannel(participant.id));
+    } catch {
+      // ignore
+    }
+  });
+  if (!channels.size) return;
+  await Promise.all(
+    Array.from(channels).map((channel) => publisher.publish(channel, "chat.session", payload)),
   );
 }

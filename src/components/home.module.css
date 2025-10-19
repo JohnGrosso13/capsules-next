@@ -85,6 +85,21 @@
   display: grid;
 
   gap: 16px;
+
+  --ai-prompter-button-gradient: linear-gradient(
+    120deg,
+    color-mix(in srgb, #7c5cff 92%, transparent),
+    color-mix(in srgb, #21c3fe 92%, transparent)
+  );
+  --ai-prompter-button-text: rgba(248, 250, 255, 0.94);
+  --ai-prompter-button-border: color-mix(in srgb, #7c5cff 60%, rgba(255, 255, 255, 0.3));
+  --ai-prompter-button-border-hover: color-mix(
+    in srgb,
+    #21c3fe 62%,
+    rgba(255, 255, 255, 0.34)
+  );
+  --ai-prompter-button-shadow: 0 18px 36px rgba(21, 115, 211, 0.36);
+  --ai-prompter-button-shadow-hover: 0 24px 48px rgba(21, 115, 211, 0.46);
 }
 
 .prompterStage[data-dropping="true"] .promptBar {
@@ -409,12 +424,25 @@
   gap: 8px;
   border-radius: var(--radius-pill, 999px);
   padding: 9px 16px;
-  background: var(--cta-chip-gradient, var(--cta-button-gradient, var(--cta-gradient)));
-  color: var(--cta-chip-text, var(--cta-button-text, var(--text)));
+  background: var(
+    --ai-prompter-button-gradient,
+    var(--cta-chip-gradient, var(--cta-button-gradient, var(--cta-gradient)))
+  );
+  color: var(
+    --ai-prompter-button-text,
+    var(--cta-chip-text, var(--cta-button-text, var(--text)))
+  );
   font-weight: 700;
   letter-spacing: 0.01em;
-  border: 1px solid var(--cta-chip-border, var(--chip-border, var(--pill-border)));
-  box-shadow: var(--cta-chip-shadow, var(--chip-shadow, var(--shadow-lg)));
+  border: 1px solid
+    var(
+      --ai-prompter-button-border,
+      var(--cta-chip-border, var(--chip-border, var(--pill-border)))
+    );
+  box-shadow: var(
+    --ai-prompter-button-shadow,
+    var(--cta-chip-shadow, var(--chip-shadow, var(--shadow-lg)))
+  );
   position: relative;
   overflow: hidden;
   isolation: isolate;
@@ -535,11 +563,20 @@
 .genBtn:hover {
   transform: translateY(-1px) scale(1.02);
   border-color: var(
-    --cta-chip-border-hover,
-    var(--cta-chip-border, var(--chip-hover-border, var(--card-hover-border)))
+    --ai-prompter-button-border-hover,
+    var(
+      --cta-chip-border-hover,
+      var(--cta-chip-border, var(--chip-hover-border, var(--card-hover-border)))
+    )
   );
-  box-shadow: var(--cta-chip-shadow-hover, var(--chip-hover-shadow, var(--shadow-lg)));
-  color: var(--cta-chip-text, var(--cta-button-text, var(--text)));
+  box-shadow: var(
+    --ai-prompter-button-shadow-hover,
+    var(--cta-chip-shadow-hover, var(--chip-hover-shadow, var(--shadow-lg)))
+  );
+  color: var(
+    --ai-prompter-button-text,
+    var(--cta-chip-text, var(--cta-button-text, var(--text)))
+  );
 }
 
 .genBtn:disabled {
@@ -549,50 +586,37 @@
   box-shadow: var(--chip-shadow, var(--shadow-sm));
 }
 
-.genBtnNavigate {
-  background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--color-success) 80%, transparent),
-    color-mix(in srgb, var(--color-accent) 65%, transparent)
-  );
-  color: var(--text);
-  border: 1px solid color-mix(in srgb, var(--color-success) 55%, transparent);
-  box-shadow: 0 18px 36px
-    color-mix(in srgb, var(--color-success) 36%, var(--surface-overlay, var(--surface-elevated)));
-}
-
-.genBtnPost {
-  background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--color-warning) 72%, transparent),
-    color-mix(in srgb, var(--color-accent) 40%, transparent)
-  );
-  color: var(--text);
-  border: 1px solid color-mix(in srgb, var(--color-warning) 55%, transparent);
-  box-shadow: 0 18px 36px
-    color-mix(in srgb, var(--color-warning) 34%, var(--surface-overlay, var(--surface-elevated)));
-}
-
-.genBtnPost:hover {
-  box-shadow: 0 24px 48px
-    color-mix(in srgb, var(--color-warning) 44%, var(--surface-overlay, var(--surface-elevated)));
-}
-
 /* Keep Style intent distinct but not the full Launch CTA look */
 
 .genBtnStyle {
-  background: var(--cta-chip-gradient, var(--cta-button-gradient, var(--cta-gradient)));
-  color: var(--cta-chip-text, var(--cta-button-text, var(--text)));
-  border: 1px solid var(--cta-chip-border, var(--chip-border));
-  box-shadow: var(--cta-chip-shadow, var(--shadow-lg));
+  background: var(
+    --ai-prompter-button-gradient,
+    var(--cta-chip-gradient, var(--cta-button-gradient, var(--cta-gradient)))
+  );
+  color: var(
+    --ai-prompter-button-text,
+    var(--cta-chip-text, var(--cta-button-text, var(--text)))
+  );
+  border: 1px solid
+    var(
+      --ai-prompter-button-border,
+      var(--cta-chip-border, var(--chip-border, var(--pill-border)))
+    );
+  box-shadow: var(
+    --ai-prompter-button-shadow,
+    var(--cta-chip-shadow, var(--chip-shadow, var(--shadow-lg)))
+  );
 }
 
 .genBtnStyle:hover {
   box-shadow: var(
-    --cta-chip-shadow-hover,
-    var(--chip-hover-shadow, var(--shadow-xl, var(--shadow-lg)))
+    --ai-prompter-button-shadow-hover,
+    var(--cta-chip-shadow-hover, var(--chip-hover-shadow, var(--shadow-lg)))
   );
-  color: var(--cta-chip-text, var(--cta-button-text, var(--text)));
+  color: var(
+    --ai-prompter-button-text,
+    var(--cta-chip-text, var(--cta-button-text, var(--text)))
+  );
 }
 
 .genLabel {
