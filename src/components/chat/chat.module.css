@@ -771,7 +771,9 @@
   top: auto;
   right: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
+  /* Ensure a horizontal, Discord-like grid that doesn't collapse to a thin column */
+  grid-template-columns: repeat(6, 32px);
+  grid-auto-rows: 32px;
   gap: 4px;
   padding: 6px;
   border-radius: 12px;
@@ -783,6 +785,8 @@
   );
   box-shadow: var(--chats-reaction-picker-shadow, 0 16px 32px rgba(0, 0, 0, 0.28));
   z-index: 4;
+  /* Prevent overly narrow columns when the container is tiny */
+  min-width: 212px; /* 6 * 32px + 5 * 4px gap */
 }
 
 .messageReactionOption {
@@ -1171,6 +1175,8 @@
   .messageReactionPicker {
     right: auto;
     left: 0;
+    grid-template-columns: repeat(6, 32px);
+    min-width: 212px;
   }
 
   .sendButton {
