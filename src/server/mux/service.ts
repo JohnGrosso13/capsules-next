@@ -21,7 +21,6 @@ import {
   listLiveStreamSessions,
   listPendingAiJobs,
   markWebhookEventProcessed,
-  updateLiveStreamByMuxId,
   updateLiveStreamRecord,
   updateLiveStreamSession,
   updateMuxAssetRecord,
@@ -77,13 +76,6 @@ function selectPlayback(muxStream: LiveStream | null): LiveStreamPlayback {
     playbackId,
     playbackPolicy: publicPlayback?.policy ?? null,
     playbackUrl: playbackId ? buildMuxPlaybackUrl(playbackId) : null,
-  };
-}
-
-function deriveIngestInfo(): StreamIngestInfo {
-  return {
-    primary: PRIMARY_INGEST_URL,
-    backup: BACKUP_INGEST_URL,
   };
 }
 
