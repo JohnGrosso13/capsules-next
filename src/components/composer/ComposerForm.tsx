@@ -116,8 +116,12 @@ const QUICK_PROMPT_PRESETS: Record<string, QuickPromptOption[]> = {
 
 function resolveQuickPromptPreset(kind: string): QuickPromptOption[] {
   const preset = QUICK_PROMPT_PRESETS[kind];
-  if (Array.isArray(preset)) {
+  const fallback = QUICK_PROMPT_PRESETS.default;
+  if (preset && preset.length > 0) {
     return preset;
+  }
+  if (fallback && fallback.length > 0) {
+    return fallback;
   }
   return DEFAULT_QUICK_PROMPTS;
 }
