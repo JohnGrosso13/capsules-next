@@ -18,9 +18,11 @@ import {
   Paperclip,
   Microphone,
   CaretDown,
+  FilmSlate,
 } from "@phosphor-icons/react/dist/ssr";
+import MuxPlayer from "@mux/mux-player-react";
 
-type StudioTab = "studio" | "producer" | "encoder";
+type StudioTab = "studio" | "producer" | "encoder" | "clips";
 
 const TAB_ITEMS: Array<{ id: StudioTab; label: string; icon: React.ReactNode }> = [
   {
@@ -38,9 +40,89 @@ const TAB_ITEMS: Array<{ id: StudioTab; label: string; icon: React.ReactNode }> 
     label: "External Encoder",
     icon: <Storefront size={18} weight="bold" className={capTheme.tabIcon} />,
   },
+  {
+    id: "clips",
+    label: "Clips & Highlights",
+    icon: <FilmSlate size={18} weight="bold" className={capTheme.tabIcon} />,
+  },
 ];
 
 const TAB_SET = new Set<StudioTab>(TAB_ITEMS.map((item) => item.id));
+
+type StreamSession = {
+  id: string;
+  status: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  durationSeconds: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type StreamAsset = {
+  id: string;
+  liveStreamId: string | null;
+  muxAssetId: string;
+  status: string;
+  playbackId: string | null;
+  playbackUrl: string | null;
+  playbackPolicy: string | null;
+  durationSeconds: number | null;
+  readyAt: string | null;
+  erroredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type StreamAiJob = {
+  id: string;
+  jobType: string;
+  status: string;
+  priority: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type StreamOverview = {
+  liveStream: {
+    id: string;
+    capsuleId: string;
+    ownerUserId: string;
+    muxLiveStreamId: string;
+    status: string;
+    latencyMode: string | null;
+    isLowLatency: boolean;
+    streamKey: string;
+    streamKeyBackup: string | null;
+    ingestUrl: string | null;
+    ingestUrlBackup: string | null;
+    playbackId: string | null;
+    playbackUrl: string | null;
+    playbackPolicy: string | null;
+    activeAssetId: string | null;
+    createdAt: string;
+    updatedAt: string;
+    lastSeenAt: string | null;
+    lastActiveAt: string | null;
+    lastIdleAt: string | null;
+  };
+  playback: {
+    playbackId: string | null;
+    playbackUrl: string | null;
+    playbackPolicy: string | null;
+  };
+  ingest: {
+    primary: string | null;
+    backup: string | null;
+    streamKey: string;
+    backupStreamKey: string | null;
+  };
+  sessions: StreamSession[];
+  assets: StreamAsset[];
+  aiJobs: StreamAiJob[];
+};
 
 type PanelGroupStorageLike = {
   getItem(key: string): string | null;
@@ -220,6 +302,235 @@ export function AiStreamStudioLayout({
 
   const panelStorage = usePanelLayoutStorage(layoutView, initialPanelLayouts);
 
+  const [streamOverview, setStreamOverview] = React.useState<StreamOverview | null>(null);
+  const [overviewLoading, setOverviewLoading] = React.useState(false);
+  const [overviewError, setOverviewError] = React.useState<string | null>(null);
+  const [actionBusy, setActionBusy] = React.useState<"ensure" | "rotate" | null>(null);
+  const [desiredLatencyMode, setDesiredLatencyMode] =
+    React.useState<"low" | "reduced" | "standard">("low");
+  const [copiedField, setCopiedField] = React.useState<string | null>(null);
+  const [uptimeTick, setUptimeTick] = React.useState(() => Date.now());
+
+  const dateFormatter = React.useMemo(
+    () => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }),
+    [],
+  );
+
+  const formatTimestamp = React.useCallback(
+    (value: string | null | undefined) => {
+      if (!value) return "--";
+      const parsed = Date.parse(value);
+      if (!Number.isFinite(parsed)) return "--";
+      return dateFormatter.format(new Date(parsed));
+    },
+    [dateFormatter],
+  );
+
+  const formatDuration = React.useCallback((input: number | null | undefined) => {
+    if (!input || input <= 0) return "--";
+    const totalSeconds = Math.floor(input);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return [hours, minutes, seconds]
+      .map((value) => value.toString().padStart(2, "0"))
+      .join(":");
+  }, []);
+
+  const activeSession = React.useMemo(() => {
+    if (!streamOverview) return null;
+    return (
+      streamOverview.sessions.find(
+        (session) =>
+          !session.endedAt && (session.status === "active" || session.status === "connected"),
+      ) ?? null
+    );
+  }, [streamOverview]);
+
+  React.useEffect(() => {
+    if (!activeSession?.startedAt) return;
+    const timer = window.setInterval(() => {
+      setUptimeTick(Date.now());
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [activeSession?.startedAt]);
+
+  const uptimeSeconds = React.useMemo(() => {
+    if (!activeSession?.startedAt) return null;
+    const parsedStart = Date.parse(activeSession.startedAt);
+    if (!Number.isFinite(parsedStart)) return null;
+    return Math.max(0, Math.floor((uptimeTick - parsedStart) / 1000));
+  }, [activeSession?.startedAt, uptimeTick]);
+
+  React.useEffect(() => {
+    if (!selectedCapsuleId) {
+      setStreamOverview(null);
+      setOverviewError(null);
+      setOverviewLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    setOverviewLoading(true);
+    setOverviewError(null);
+
+    fetch(`/api/mux/live?capsuleId=${encodeURIComponent(selectedCapsuleId)}`, {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (cancelled) return;
+        if (response.ok) {
+          const payload = (await response.json()) as StreamOverview;
+          setStreamOverview(payload);
+        } else if (response.status === 404) {
+          setStreamOverview(null);
+        } else {
+          let message = "Failed to load stream overview.";
+          try {
+            const body = await response.json();
+            if (body && typeof body.message === "string") {
+              message = body.message;
+            }
+          } catch {
+            // ignore parse errors
+          }
+          setOverviewError(message);
+        }
+      })
+      .catch((error) => {
+        if (cancelled || controller.signal.aborted) return;
+        console.warn("mux.live.overview", error);
+        setOverviewError("Failed to load stream overview.");
+      })
+      .finally(() => {
+        if (!cancelled) setOverviewLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [selectedCapsuleId]);
+
+  const handleEnsureStream = React.useCallback(async () => {
+    if (!selectedCapsuleId) return;
+    setActionBusy("ensure");
+    setOverviewLoading(true);
+    try {
+      const response = await fetch("/api/mux/live", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          capsuleId: selectedCapsuleId,
+          action: "ensure",
+          latencyMode: desiredLatencyMode,
+        }),
+      });
+
+      if (response.ok) {
+        const payload = (await response.json()) as StreamOverview;
+        setStreamOverview(payload);
+        setOverviewError(null);
+      } else {
+        let message = "Failed to prepare streaming.";
+        try {
+          const body = await response.json();
+          if (body && typeof body.message === "string") message = body.message;
+        } catch {
+          // ignore
+        }
+        setOverviewError(message);
+      }
+    } catch (error) {
+      console.warn("mux.ensure", error);
+      setOverviewError("Failed to prepare streaming.");
+    } finally {
+      setActionBusy(null);
+      setOverviewLoading(false);
+    }
+  }, [desiredLatencyMode, selectedCapsuleId]);
+
+  const handleRotateStreamKey = React.useCallback(async () => {
+    if (!selectedCapsuleId) return;
+    setActionBusy("rotate");
+    setOverviewLoading(true);
+    try {
+      const response = await fetch("/api/mux/live", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capsuleId: selectedCapsuleId, action: "rotate-key" }),
+      });
+
+      if (response.ok) {
+        const payload = (await response.json()) as StreamOverview;
+        setStreamOverview(payload);
+        setOverviewError(null);
+      } else {
+        let message = "Failed to rotate stream key.";
+        try {
+          const body = await response.json();
+          if (body && typeof body.message === "string") message = body.message;
+        } catch {
+          // ignore
+        }
+        setOverviewError(message);
+      }
+    } catch (error) {
+      console.warn("mux.rotateKey", error);
+      setOverviewError("Failed to rotate stream key.");
+    } finally {
+      setActionBusy(null);
+      setOverviewLoading(false);
+    }
+  }, [selectedCapsuleId]);
+
+  const handleCopyToClipboard = React.useCallback(
+    (label: string, value: string | null | undefined) => {
+      if (!value) return;
+      if (typeof navigator === "undefined" || !navigator.clipboard) {
+        console.warn("Clipboard API not available");
+        return;
+      }
+      navigator.clipboard
+        .writeText(value)
+        .then(() => {
+          setCopiedField(label);
+          window.setTimeout(() => setCopiedField(null), 2000);
+        })
+      .catch((error) => {
+        console.warn("Failed to copy", error);
+      });
+    },
+    [],
+  );
+
+  const handleLatencyChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      setDesiredLatencyMode(event.target.value as "low" | "reduced" | "standard");
+    },
+    [],
+  );
+
+  const playbackUrl = React.useMemo(() => {
+    if (streamOverview?.playback.playbackUrl) {
+      return streamOverview.playback.playbackUrl;
+    }
+    if (streamOverview?.playback.playbackId) {
+      return `https://stream.mux.com/${streamOverview.playback.playbackId}.m3u8`;
+    }
+    return null;
+  }, [streamOverview]);
+
+  const embedCodeSnippet = React.useMemo(() => {
+    if (!streamOverview?.playback.playbackId) return null;
+    return `<mux-player stream-type="live" playback-id="${streamOverview.playback.playbackId}"></mux-player>`;
+  }, [streamOverview]);
+
   const queryView = React.useMemo(() => {
     const param = searchParams?.get("view") ?? null;
     return normalizeTab(param, "studio");
@@ -366,45 +677,107 @@ export function AiStreamStudioLayout({
                 <div className={`${styles.previewPanel} ${styles.panelCard}`}>
                   <div className={styles.previewHeader}>
                     <div>
-                      <div className={styles.previewTitle}>Live Program Feed</div>
+                      <div className={styles.previewTitle}>{selectedCapsule.name}</div>
                       <div className={styles.previewSubtitle}>
-                        Routed to {selectedCapsule.name}
+                        {streamOverview
+                          ? `Status: ${streamOverview.liveStream.status}`
+                          : overviewLoading
+                            ? "Checking Mux live stream..."
+                            : "Mux live stream not yet configured."}
                       </div>
+                      {overviewError ? (
+                        <div className={styles.previewError}>{overviewError}</div>
+                      ) : null}
                     </div>
                     <div className={styles.previewActions}>
-                      <Button variant="outline" size="sm" disabled>
-                        Stream settings
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTabChange("encoder")}
+                      >
+                        Encoder settings
                       </Button>
                       <Button variant="gradient" size="sm" disabled>
                         Go live
                       </Button>
                     </div>
                   </div>
-                  <div className={styles.previewFrame}>Program Preview</div>
+                  <div className={styles.previewFrame}>
+                    {overviewLoading ? (
+                      <div className={styles.previewPlaceholder}>Loading stream preview…</div>
+                    ) : streamOverview?.playback.playbackId ? (
+                      <MuxPlayer
+                        playbackId={streamOverview.playback.playbackId ?? undefined}
+                        streamType="live"
+                        metadata={{
+                          video_title: `${selectedCapsule.name} live preview`,
+                        }}
+                        style={{ width: "100%", height: "100%", borderRadius: "18px" }}
+                      />
+                    ) : (
+                      <div className={styles.previewEmpty}>
+                        <p>Set up your stream in the Encoder tab to preview playback here.</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleEnsureStream}
+                          disabled={actionBusy === "ensure" || overviewLoading}
+                        >
+                          {actionBusy === "ensure" ? "Preparing…" : "Set up streaming"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                   <div className={styles.previewFooter}>
                     <div className={styles.previewStats}>
                       <div className={styles.previewStat}>
                         <span className={styles.previewStatLabel}>Uptime</span>
-                        <span className={styles.previewStatValue}>00:00:00</span>
+                        <span className={styles.previewStatValue}>{formatDuration(uptimeSeconds)}</span>
                       </div>
                       <div className={styles.previewStat}>
-                        <span className={styles.previewStatLabel}>Viewers</span>
-                        <span className={styles.previewStatValue}>0</span>
+                        <span className={styles.previewStatLabel}>Latency</span>
+                        <span className={styles.previewStatValue}>
+                          {streamOverview
+                            ? streamOverview.liveStream.latencyMode ??
+                              (streamOverview.liveStream.isLowLatency ? "low" : "standard")
+                            : "--"}
+                        </span>
                       </div>
                       <div className={styles.previewStat}>
-                        <span className={styles.previewStatLabel}>Bitrate</span>
-                        <span className={styles.previewStatValue}>--</span>
+                        <span className={styles.previewStatLabel}>Last active</span>
+                        <span className={styles.previewStatValue}>
+                          {streamOverview
+                            ? formatTimestamp(
+                                streamOverview.liveStream.lastActiveAt ??
+                                  streamOverview.liveStream.lastSeenAt,
+                              )
+                            : "--"}
+                        </span>
                       </div>
                     </div>
                     <div className={styles.controlToolbar}>
-                      <Button variant="outline" size="sm" disabled>
-                        Camera
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleEnsureStream}
+                        disabled={actionBusy === "ensure" || overviewLoading}
+                      >
+                        {actionBusy === "ensure" ? "Preparing…" : "Refresh stream"}
                       </Button>
-                      <Button variant="outline" size="sm" disabled>
-                        Microphone
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRotateStreamKey}
+                        disabled={!streamOverview || actionBusy === "rotate" || overviewLoading}
+                      >
+                        {actionBusy === "rotate" ? "Rotating…" : "Rotate key"}
                       </Button>
-                      <Button variant="outline" size="sm" disabled>
-                        Share screen
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTabChange("encoder")}
+                      >
+                        Encoder tab
                       </Button>
                     </div>
                   </div>
@@ -763,67 +1136,179 @@ export function AiStreamStudioLayout({
         </div>
       );
     }
+
+    if (overviewLoading && !streamOverview) {
+      return (
+        <div className={styles.noticeCard}>
+          <h3>Loading streaming configuration…</h3>
+          <p>Retrieving the latest credentials from Mux.</p>
+        </div>
+      );
+    }
+
+    if (!streamOverview) {
+      return (
+        <div className={styles.noticeCard}>
+          <h3>Generate Mux streaming credentials</h3>
+          <p>
+            Pick the desired latency profile and create a dedicated live stream for {selectedCapsule.name}
+            . We&apos;ll provision RTMP ingest URLs and stream keys instantly.
+          </p>
+          <div className={styles.encoderSetupControls}>
+            <label className={styles.encoderLatencySelect}>
+              <span>Latency profile</span>
+              <select value={desiredLatencyMode} onChange={handleLatencyChange}>
+                <option value="low">Low latency</option>
+                <option value="reduced">Reduced latency</option>
+                <option value="standard">Standard latency</option>
+              </select>
+            </label>
+            <Button
+              variant="gradient"
+              size="sm"
+              onClick={handleEnsureStream}
+              disabled={actionBusy === "ensure" || overviewLoading}
+            >
+              {actionBusy === "ensure" ? "Preparing…" : "Create live stream"}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={styles.encoderLayout}>
         <div className={styles.encoderGrid}>
           <section className={styles.encoderSection}>
+            <div className={styles.encoderSectionTitle}>RTMP ingest endpoints</div>
+            <div className={styles.encoderSectionSubtitle}>
+              Configure OBS, Streamlabs, or any RTMP-compatible encoder with these URLs.
+            </div>
+            <ul className={styles.encoderList}>
+              <li className={styles.encoderRow}>
+                <div>
+                  <div className={styles.encoderLabel}>Primary ingest</div>
+                  <div className={styles.encoderValue}>
+                    {streamOverview.ingest.primary ?? "rtmps://global-live.mux.com:443/app"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.encoderActionButton}
+                  onClick={() =>
+                    handleCopyToClipboard(
+                      "primary-ingest",
+                      streamOverview.ingest.primary ?? "rtmps://global-live.mux.com:443/app",
+                    )
+                  }
+                >
+                  {copiedField === "primary-ingest" ? "Copied" : "Copy"}
+                </button>
+              </li>
+              <li className={styles.encoderRow}>
+                <div>
+                  <div className={styles.encoderLabel}>Backup ingest</div>
+                  <div className={styles.encoderValue}>
+                    {streamOverview.ingest.backup ?? "rtmps://global-live-backup.mux.com:443/app"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.encoderActionButton}
+                  onClick={() =>
+                    handleCopyToClipboard(
+                      "backup-ingest",
+                      streamOverview.ingest.backup ?? "rtmps://global-live-backup.mux.com:443/app",
+                    )
+                  }
+                >
+                  {copiedField === "backup-ingest" ? "Copied" : "Copy"}
+                </button>
+              </li>
+            </ul>
+          </section>
+          <section className={styles.encoderSection}>
             <div className={styles.encoderSectionTitle}>Stream keys</div>
             <div className={styles.encoderSectionSubtitle}>
-              Generate capsule-wide or event-specific keys. Regeneration will revoke existing sessions.
+              Share with trusted operators only. Rotating the key disconnects any active sessions.
             </div>
             <ul className={styles.encoderList}>
               <li className={styles.encoderRow}>
-                Primary RTMP
-                <span className={styles.encoderAction}>Copy</span>
+                <div>
+                  <div className={styles.encoderLabel}>Primary stream key</div>
+                  <div className={styles.encoderValue}>{streamOverview.ingest.streamKey}</div>
+                </div>
+                <div className={styles.encoderRowActions}>
+                  <button
+                    type="button"
+                    className={styles.encoderActionButton}
+                    onClick={() => handleCopyToClipboard("primary-key", streamOverview.ingest.streamKey)}
+                  >
+                    {copiedField === "primary-key" ? "Copied" : "Copy"}
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={handleRotateStreamKey}
+                    disabled={actionBusy === "rotate" || overviewLoading}
+                  >
+                    {actionBusy === "rotate" ? "Rotating…" : "Rotate"}
+                  </Button>
+                </div>
               </li>
               <li className={styles.encoderRow}>
-                Backup ingest
-                <span className={styles.encoderAction}>Copy</span>
-              </li>
-              <li className={styles.encoderRow}>
-                WebRTC token
-                <span className={styles.encoderAction}>Rotate</span>
+                <div>
+                  <div className={styles.encoderLabel}>Backup stream key</div>
+                  <div className={styles.encoderValue}>
+                    {streamOverview.ingest.backupStreamKey ?? "Not provisioned"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.encoderActionButton}
+                  onClick={() =>
+                    handleCopyToClipboard("backup-key", streamOverview.ingest.backupStreamKey)
+                  }
+                >
+                  {copiedField === "backup-key" ? "Copied" : "Copy"}
+                </button>
               </li>
             </ul>
           </section>
           <section className={styles.encoderSection}>
-            <div className={styles.encoderSectionTitle}>Latency &amp; encoding</div>
+            <div className={styles.encoderSectionTitle}>Playback &amp; embeds</div>
             <div className={styles.encoderSectionSubtitle}>
-              Choose the balance between real-time interaction and stability. We&apos;ll surface
-              recommended OBS settings.
+              Use the Mux player embed or raw HLS URL to power your Capsule portal or landing pages.
             </div>
             <ul className={styles.encoderList}>
               <li className={styles.encoderRow}>
-                Mode: Ultra-low latency
-                <span className={styles.encoderAction}>Adjust</span>
+                <div>
+                  <div className={styles.encoderLabel}>Playback URL</div>
+                  <div className={styles.encoderValue}>{playbackUrl ?? "--"}</div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.encoderActionButton}
+                  onClick={() => handleCopyToClipboard("playback-url", playbackUrl)}
+                >
+                  {copiedField === "playback-url" ? "Copied" : "Copy"}
+                </button>
               </li>
               <li className={styles.encoderRow}>
-                Bitrate target: 6 Mbps
-                <span className={styles.encoderAction}>Edit</span>
-              </li>
-              <li className={styles.encoderRow}>
-                Keyframe interval: 2s
-                <span className={styles.encoderAction}>Edit</span>
-              </li>
-            </ul>
-          </section>
-          <section className={styles.encoderSection}>
-            <div className={styles.encoderSectionTitle}>Simulcast</div>
-            <div className={styles.encoderSectionSubtitle}>
-              Link additional destinations. AI producer can coordinate platform-specific calls to action.
-            </div>
-            <ul className={styles.encoderList}>
-              <li className={styles.encoderRow}>
-                Twitch channel
-                <span className={styles.encoderAction}>Authorize</span>
-              </li>
-              <li className={styles.encoderRow}>
-                YouTube event
-                <span className={styles.encoderAction}>Link</span>
-              </li>
-              <li className={styles.encoderRow}>
-                Custom RTMP
-                <span className={styles.encoderAction}>Add</span>
+                <div>
+                  <div className={styles.encoderLabel}>Mux player embed</div>
+                  <div className={styles.encoderValue}>
+                    {embedCodeSnippet ?? "<mux-player stream-type=\"live\" playback-id=\"...\" />"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.encoderActionButton}
+                  onClick={() => handleCopyToClipboard("embed-code", embedCodeSnippet)}
+                  disabled={!embedCodeSnippet}
+                >
+                  {copiedField === "embed-code" ? "Copied" : "Copy"}
+                </button>
               </li>
             </ul>
           </section>
@@ -831,19 +1316,127 @@ export function AiStreamStudioLayout({
         <section className={styles.encoderSection}>
           <div className={styles.encoderSectionTitle}>Reliability &amp; recording plan</div>
           <div className={styles.encoderSectionSubtitle}>
-            Configure Mux alerting, cloud backups, and local capture reminders so your crew is always
-            covered.
+            Mux automatically records each broadcast and we keep the resulting assets in your Capsule
+            library. Pair this with local capture inside your studio for redundancy.
           </div>
           <div className={styles.encoderChecklist}>
             <div className={styles.encoderChecklistItem}>
-              Primary / backup ingest health monitoring
+              Cloud recording for every live session
             </div>
-            <div className={styles.encoderChecklistItem}>Cloud asset recording to Capsule library</div>
             <div className={styles.encoderChecklistItem}>
-              Local recording reminders for OBS operators
+              Configure OBS backups with the provided ingest pair
             </div>
-            <div className={styles.encoderChecklistItem}>Webhook pings to moderators &amp; crew</div>
+            <div className={styles.encoderChecklistItem}>
+              Trigger Capsules automation via webhook on stream events
+            </div>
           </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderClipsContent = () => {
+    if (!selectedCapsule) {
+      return (
+        <div className={styles.noticeCard}>
+          <h3>Select a Capsule to review clips and highlights</h3>
+          <p>The Clips view surfaces recent live recordings and AI-generated jobs for your Capsule.</p>
+        </div>
+      );
+    }
+
+    if (overviewLoading && !streamOverview) {
+      return (
+        <div className={styles.noticeCard}>
+          <h3>Loading recordings…</h3>
+          <p>Collecting the latest Mux assets for {selectedCapsule.name}.</p>
+        </div>
+      );
+    }
+
+    if (!streamOverview || streamOverview.assets.length === 0) {
+      return (
+        <div className={styles.noticeCard}>
+          <h3>No recordings yet</h3>
+          <p>
+            Once you go live, your sessions will appear here automatically so you can publish clips and
+            highlights.
+          </p>
+        </div>
+      );
+    }
+
+    const assets = streamOverview.assets.slice(0, 8);
+    const jobs = streamOverview.aiJobs.slice(0, 8);
+
+    return (
+      <div className={styles.encoderLayout}>
+        <section className={styles.encoderSection}>
+          <div className={styles.encoderSectionTitle}>Recent recordings</div>
+          <div className={styles.encoderSectionSubtitle}>
+            Mux automatically archived these sessions. Click to open the playback asset or copy the
+            shareable link.
+          </div>
+          <ul className={styles.encoderList}>
+            {assets.map((asset) => (
+              <li key={asset.id} className={styles.clipRow}>
+                <div className={styles.clipMeta}>
+                  <div className={styles.clipTitle}>{asset.muxAssetId}</div>
+                  <div className={styles.clipSubtitle}>
+                    {asset.status} • {formatDuration(asset.durationSeconds)} •{" "}
+                    {formatTimestamp(asset.readyAt ?? asset.createdAt)}
+                  </div>
+                </div>
+                <div className={styles.clipActions}>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => handleCopyToClipboard(`asset-${asset.id}`, asset.playbackUrl)}
+                  >
+                    {copiedField === `asset-${asset.id}` ? "Copied" : "Copy URL"}
+                  </Button>
+                  {asset.playbackUrl ? (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => window.open(asset.playbackUrl ?? "", "_blank")}
+                    >
+                      Open
+                    </Button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className={styles.encoderSection}>
+          <div className={styles.encoderSectionTitle}>AI pipeline jobs</div>
+          <div className={styles.encoderSectionSubtitle}>
+            Track Clips, highlight summaries, and other automation generated from your streams.
+          </div>
+          <ul className={styles.encoderList}>
+            {jobs.length ? (
+              jobs.map((job) => (
+                <li key={job.id} className={styles.clipRow}>
+                  <div className={styles.clipMeta}>
+                    <div className={styles.clipTitle}>{job.jobType}</div>
+                    <div className={styles.clipSubtitle}>
+                      {job.status} • {formatTimestamp(job.startedAt ?? job.createdAt)}
+                    </div>
+                  </div>
+                  <div className={styles.clipActions}>
+                    <span className={styles.clipStatus}>{job.status}</span>
+                  </div>
+                </li>
+              ))
+            ) : (
+              <li className={styles.clipRow}>
+                <div className={styles.clipMeta}>
+                  <div className={styles.clipSubtitle}>No AI jobs have been queued yet.</div>
+                </div>
+              </li>
+            )}
+          </ul>
         </section>
       </div>
     );

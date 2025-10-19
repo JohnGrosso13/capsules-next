@@ -25,6 +25,8 @@
         "@clerk/nextjs": "^6.32.2",
         "@livekit/components-core": "^0.12.10",
         "@livekit/components-react": "^2.9.12",
+        "@mux/mux-node": "^12.8.0",
+        "@mux/mux-player-react": "^3.6.1",
         "@phosphor-icons/react": "^2.1.10",
         "@pinecone-database/pinecone": "^6.1.2",
         "@radix-ui/react-slot": "^1.1.1",
