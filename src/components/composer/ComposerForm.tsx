@@ -43,7 +43,9 @@ import { buildLocalImageVariants, shouldBypassCloudflareImages } from "@/lib/clo
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
 
-const QUICK_PROMPT_PRESETS: Record<string, Array<{ label: string; prompt: string }>> = {
+type QuickPromptOption = { label: string; prompt: string };
+
+const QUICK_PROMPT_PRESETS: Record<string, QuickPromptOption[]> = {
   default: [
     {
       label: "Launch announcement",
@@ -634,12 +636,12 @@ export function ComposerForm({
     [updateDraft],
   );
 
-  const baseQuickPromptOptions = React.useMemo(
+  const baseQuickPromptOptions = React.useMemo<QuickPromptOption[]>(
     () => QUICK_PROMPT_PRESETS[activeKind] ?? QUICK_PROMPT_PRESETS.default,
     [activeKind],
   );
 
-  const quickPromptOptions = React.useMemo(() => {
+  const quickPromptOptions = React.useMemo<QuickPromptOption[]>(() => {
     if (vibeSuggestions.length) {
       return vibeSuggestions;
     }
