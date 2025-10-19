@@ -37,6 +37,7 @@ npm run dev                # Starts Next.js with Turbopack
 
 - `npm run db:reset:chat` — truncate direct + group chat tables (uses `SUPABASE_MIGRATIONS_URL` / `DATABASE_URL` if set).
 - `npm run db:prune-chat -- --days 30` — delete chat messages older than the provided retention window (defaults to 30 days).
+- `npm run db:cleanup:reactions` — remove corrupted/invalid reaction rows (e.g., legacy `??` entries) if you ran the app before this fix.
 - Manual QA checklist lives in [`docs/chat-group-qa.md`](docs/chat-group-qa.md).
 
 Environment knobs:

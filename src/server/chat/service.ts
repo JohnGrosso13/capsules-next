@@ -117,10 +117,13 @@ function sanitizeReactionEmoji(value: string): string {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
   if (!trimmed) return "";
-  if (trimmed.length > MAX_REACTION_EMOJI_LENGTH) {
-    return trimmed.slice(0, MAX_REACTION_EMOJI_LENGTH);
-  }
-  return trimmed;
+  const limited =
+    trimmed.length > MAX_REACTION_EMOJI_LENGTH ? trimmed.slice(0, MAX_REACTION_EMOJI_LENGTH) : trimmed;
+  // Require at least one emoji-like codepoint. This prevents corrupt placeholders like "??" from being stored.
+  // Extended_Pictographic covers most emoji; include VS16 (FE0F) and ZWJ sequences implicitly.
+  const hasEmoji = /\p{Extended_Pictographic}/u.test(limited);
+  if (!hasEmoji) return "";
+  return limited;
 }
 
 function normalizeId(value: string | null | undefined): string {
