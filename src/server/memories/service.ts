@@ -697,7 +697,7 @@ export async function searchMemories({
 
   const ids = candidateOrder.slice(0, limit);
   if (!ids.length) {
-    const fallback = await listMemories({ ownerId, origin });
+    const fallback = await listMemories({ ownerId, origin: origin ?? null });
     return fallback.slice(0, limit);
   }
 
@@ -769,7 +769,7 @@ export async function searchMemories({
     console.warn("memory search hydrate failed", error);
   }
 
-  const fallback = await listMemories({ ownerId, origin });
+  const fallback = await listMemories({ ownerId, origin: origin ?? null });
   return fallback.slice(0, limit);
 }
 
