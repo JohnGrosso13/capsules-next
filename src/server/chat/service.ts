@@ -18,6 +18,7 @@ import {
   deleteChatMessageReaction,
   createGroupConversation,
   updateGroupConversation,
+  deleteGroupConversation,
   listGroupConversationsByIds,
   listGroupMembershipsForUser,
   addGroupParticipants,
@@ -40,6 +41,7 @@ import {
   publishDirectMessageEvent,
   publishReactionEvent,
   publishSessionEvent,
+  publishSessionDeletedEvent,
 } from "@/services/realtime/chat";
 
 export type ChatMessageRecord = {
@@ -98,6 +100,14 @@ export class ChatServiceError extends Error {
 
 const MAX_BODY_LENGTH = 4000;
 const MAX_REACTION_EMOJI_LENGTH = 32;
+const DEFAULT_MAX_GROUP_PARTICIPANTS = 50;
+const MAX_GROUP_PARTICIPANTS = (() => {
+  const raw = process.env.CHAT_GROUP_MAX_PARTICIPANTS;
+  if (!raw) return DEFAULT_MAX_GROUP_PARTICIPANTS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 2) return DEFAULT_MAX_GROUP_PARTICIPANTS;
+  return Math.floor(parsed);
+})();
 
 function sanitizeBody(value: string): string {
   return value.replace(/\s+/g, " ").trim();
@@ -944,6 +954,7 @@ export async function createGroupConversationSession(params: {
       "Add at least one other participant to create a group chat.",
     );
   }
+  assertGroupParticipantLimit(participantSet.size);
 
   const explicitTitle =
     typeof params.title === "string" && params.title.trim().length ? params.title.trim() : null;
@@ -1035,6 +1046,11 @@ export async function addParticipantsToGroupConversation(params: {
     throw new ChatServiceError("forbidden", 403, "You do not have access to this conversation.");
   }
 
+  const [conversationRow] = await listGroupConversationsByIds([trimmedConversationId]);
+  if (!conversationRow) {
+    throw new ChatServiceError("invalid_conversation", 404, "That group could not be found.");
+  }
+
   const newParticipants: ResolvedIdentity[] = [];
   for (const rawId of params.participantIds) {
     if (typeof rawId !== "string" || !rawId.trim()) continue;
@@ -1045,6 +1061,8 @@ export async function addParticipantsToGroupConversation(params: {
     memberSet.add(normalized);
     newParticipants.push(resolved);
   }
+
+  assertGroupParticipantLimit(memberSet.size);
 
   if (!newParticipants.length) {
     return membershipRows.length
@@ -1068,9 +1086,9 @@ export async function addParticipantsToGroupConversation(params: {
     participants: updatedParticipants,
     session: {
       type: "group",
-      title: (await updateGroupConversation(trimmedConversationId, {}))?.title ?? "",
-      avatar: (await updateGroupConversation(trimmedConversationId, {}))?.avatar_url ?? null,
-      createdBy: null,
+      title: conversationRow.title ?? "",
+      avatar: conversationRow.avatar_url ?? null,
+      createdBy: conversationRow.created_by ?? null,
     },
   });
   return updatedParticipants;
@@ -1142,9 +1160,9 @@ export async function removeParticipantFromGroupConversation(params: {
     participants: updated,
     session: {
       type: "group",
-      title: (await updateGroupConversation(trimmedConversationId, {}))?.title ?? "",
-      avatar: (await updateGroupConversation(trimmedConversationId, {}))?.avatar_url ?? null,
-      createdBy: null,
+      title: conversationRow.title ?? "",
+      avatar: conversationRow.avatar_url ?? null,
+      createdBy: conversationRow.created_by ?? null,
     },
   });
   return updated;
@@ -1190,11 +1208,7 @@ export async function renameGroupConversation(params: {
   const updated = await updateGroupConversation(trimmedConversationId, {
     title: normalizedTitle,
   });
-  const membershipRows2 = await listGroupParticipants(trimmedConversationId);
-  const memberSet2 = new Set(
-    membershipRows2.map((row) => normalizeId(row.user_id)).filter((value): value is string => Boolean(value)),
-  );
-  const participants = await buildGroupParticipantSummaries(memberSet2, [requesterResolved]);
+  const participants = await buildGroupParticipantSummaries(memberSet, [requesterResolved]);
   await publishSessionEvent({
     conversationId: trimmedConversationId,
     participants,
@@ -1209,6 +1223,54 @@ export async function renameGroupConversation(params: {
     conversationId: trimmedConversationId,
     title: updated?.title ?? normalizedTitle ?? "",
   };
+}
+
+export async function deleteGroupConversationSession(params: {
+  conversationId: string;
+  requesterId: string;
+}): Promise<void> {
+  const trimmedConversationId = params.conversationId?.trim();
+  if (!trimmedConversationId) {
+    throw new ChatServiceError("invalid_conversation", 400, "A conversation id is required.");
+  }
+  if (!isGroupConversationId(trimmedConversationId)) {
+    throw new ChatServiceError("invalid_conversation", 400, "That group cannot be found.");
+  }
+
+  const identityCache = new Map<string, ResolvedIdentity | null>();
+  const requesterResolved = await resolveIdentity(identityCache, params.requesterId, params.requesterId);
+  if (!requesterResolved) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to manage this conversation.");
+  }
+  const requesterId = normalizeId(requesterResolved.canonicalId);
+  if (!requesterId) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to manage this conversation.");
+  }
+
+  const [conversationRow] = await listGroupConversationsByIds([trimmedConversationId]);
+  if (!conversationRow) {
+    throw new ChatServiceError("invalid_conversation", 404, "That group could not be found.");
+  }
+  const membershipRows = await listGroupParticipants(trimmedConversationId);
+  const memberSet = new Set(
+    membershipRows.map((row) => normalizeId(row.user_id)).filter((value): value is string => Boolean(value)),
+  );
+  if (!memberSet.has(requesterId)) {
+    throw new ChatServiceError("forbidden", 403, "You do not have access to this conversation.");
+  }
+  const isCreator = conversationRow.created_by
+    ? normalizeId(conversationRow.created_by) === requesterId
+    : false;
+  if (!isCreator) {
+    throw new ChatServiceError("forbidden", 403, "Only the group owner can delete this conversation.");
+  }
+
+  const participants = await buildGroupParticipantSummaries(memberSet, [requesterResolved]);
+  await deleteGroupConversation(trimmedConversationId);
+  await publishSessionDeletedEvent({
+    conversationId: trimmedConversationId,
+    participants,
+  });
 }
 
 async function buildGroupParticipantSummaries(
@@ -1695,4 +1757,13 @@ export async function listRecentGroupConversations(params: {
   }
 
   return summaries;
+}
+function assertGroupParticipantLimit(nextCount: number): void {
+  if (nextCount > MAX_GROUP_PARTICIPANTS) {
+    throw new ChatServiceError(
+      "group_too_large",
+      400,
+      `Group chats can include at most ${MAX_GROUP_PARTICIPANTS} participants.`,
+    );
+  }
 }

@@ -1208,6 +1208,19 @@ export class ChatEngine {
     this.store.applyTypingEvent(payload);
     return;
   }
+  if (event.name === "chat.session.deleted") {
+    const payload = event.data as { type?: string; conversationId?: string };
+    const conversationId = payload?.conversationId;
+    if (typeof conversationId === "string" && conversationId.trim()) {
+      const trimmed = conversationId.trim();
+      const active = this.store.getSnapshot().activeSessionId;
+      this.deleteSession(trimmed);
+      if (active === trimmed) {
+        this.closeSession();
+      }
+    }
+    return;
+  }
   if (event.name === "chat.reaction") {
     const payload = event.data as ChatReactionEventPayload;
     if (!payload || payload.type !== "chat.reaction") return;
@@ -1256,5 +1269,32 @@ export class ChatEngine {
     const name = this.userProfile.name ?? this.userProfile.email ?? trimmed;
     const avatar = this.userProfile.avatarUrl ?? null;
     return { id: trimmed, name, avatar };
+  }
+
+  async deleteGroupConversation(conversationId: string): Promise<void> {
+    const trimmed = conversationId.trim();
+    if (!trimmed) return;
+    try {
+      const params = new URLSearchParams({ conversationId: trimmed });
+      const response = await fetch(`/api/chat/groups?${params.toString()}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        let errorMessage = `Failed to delete group (${response.status})`;
+        try {
+          const payload = (await response.json()) as { message?: string; error?: string };
+          errorMessage = payload.message ?? payload.error ?? errorMessage;
+        } catch {
+          const text = await response.text().catch(() => "");
+          if (text) errorMessage = text;
+        }
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error("ChatEngine deleteGroupConversation error", error);
+      throw error;
+    }
+    this.deleteSession(trimmed);
   }
 }

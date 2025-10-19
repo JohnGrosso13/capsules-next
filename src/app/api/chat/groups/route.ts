@@ -5,6 +5,7 @@ import {
   ChatServiceError,
   createGroupConversationSession,
   renameGroupConversation,
+  deleteGroupConversationSession,
 } from "@/server/chat/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 
@@ -46,6 +47,11 @@ const renameResponseSchema = z.object({
   success: z.literal(true),
   conversationId: z.string(),
   title: z.string(),
+});
+
+const deleteResponseSchema = z.object({
+  success: z.literal(true),
+  conversationId: z.string(),
 });
 
 export const runtime = "nodejs";
@@ -120,5 +126,32 @@ export async function PATCH(req: Request) {
     }
     console.error("chat.groups rename error", error);
     return returnError(500, "chat_group_rename_failed", "Unable to rename that group chat.");
+  }
+}
+
+export async function DELETE(req: Request) {
+  const userId = await ensureUserFromRequest(req, null, { allowGuests: false });
+  if (!userId) {
+    return returnError(401, "auth_required", "Sign in to delete this group.");
+  }
+
+  const url = new URL(req.url);
+  const conversationId = url.searchParams.get("conversationId") ?? undefined;
+  if (!conversationId) {
+    return returnError(400, "invalid_request", "Provide a conversationId to delete.");
+  }
+
+  try {
+    await deleteGroupConversationSession({ conversationId, requesterId: userId });
+    return validatedJson(deleteResponseSchema, {
+      success: true,
+      conversationId,
+    });
+  } catch (error) {
+    if (error instanceof ChatServiceError) {
+      return returnError(error.status, `chat_${error.code}`, error.message);
+    }
+    console.error("chat.groups delete error", error);
+    return returnError(500, "chat_group_delete_failed", "Unable to delete that group chat.");
   }
 }

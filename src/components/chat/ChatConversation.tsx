@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { ArrowLeft, PaperPlaneTilt, Trash, UserPlus, Smiley } from "@phosphor-icons/react/dist/ssr";
+import {
+  ArrowLeft,
+  PaperPlaneTilt,
+  Trash,
+  UserPlus,
+  Smiley,
+  NotePencil,
+} from "@phosphor-icons/react/dist/ssr";
 
 import type {
   ChatMessage,
@@ -71,6 +78,7 @@ type ChatConversationProps = {
   onBack?: () => void;
   onDelete?: () => void;
   onInviteParticipants?: () => void;
+  onRenameGroup?: () => void;
   onTypingChange?: (conversationId: string, typing: boolean) => void;
   onToggleReaction?: (conversationId: string, messageId: string, emoji: string) => Promise<void>;
 };
@@ -168,6 +176,7 @@ export function ChatConversation({
   onBack,
   onDelete,
   onInviteParticipants,
+  onRenameGroup,
   onToggleReaction,
   onTypingChange,
 }: ChatConversationProps) {
@@ -340,6 +349,16 @@ export function ChatConversation({
           </div>
         </div>
         <div className={styles.conversationHeaderActions}>
+          {session.type === "group" && onRenameGroup ? (
+            <button
+              type="button"
+              className={styles.conversationAction}
+              onClick={onRenameGroup}
+              aria-label="Rename group"
+            >
+              <NotePencil size={18} weight="duotone" />
+            </button>
+          ) : null}
           {session.type === "group" && onInviteParticipants ? (
             <button
               type="button"

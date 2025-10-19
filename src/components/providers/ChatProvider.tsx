@@ -45,7 +45,7 @@ export type ChatContextValue = {
   renameGroupChat: (conversationId: string, name: string) => Promise<void>;
   openSession: (sessionId: string) => void;
   closeSession: () => void;
-  deleteSession: (sessionId: string) => void;
+  deleteSession: (sessionId: string) => Promise<void>;
   sendMessage: (conversationId: string, body: string) => Promise<void>;
   toggleMessageReaction: (
     conversationId: string,
@@ -199,8 +199,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [engine]);
 
   const deleteSession = React.useCallback(
-    (sessionId: string) => {
-      engine.deleteSession(sessionId);
+    async (sessionId: string) => {
+      const session = engine.getSnapshot().sessions.find((item) => item.id === sessionId) ?? null;
+      if (session?.type === "group") {
+        await engine.deleteGroupConversation(sessionId);
+      } else {
+        engine.deleteSession(sessionId);
+      }
     },
     [engine],
   );

@@ -196,3 +196,34 @@ export async function publishSessionEvent(params: {
     Array.from(channels).map((channel) => publisher.publish(channel, "chat.session", payload)),
   );
 }
+
+export async function publishSessionDeletedEvent(params: {
+  conversationId: string;
+  participants: ChatParticipantSummary[];
+}): Promise<void> {
+  const publisher = getRealtimePublisher();
+  if (!publisher) return;
+
+  const participants = params.participants
+    .map((participant) => ({ id: participant.id, name: participant.name, avatar: participant.avatar ?? null }))
+    .filter((participant) => Boolean(participant.id));
+
+  const payload = {
+    type: "chat.session.deleted",
+    conversationId: params.conversationId,
+  };
+
+  const channels = new Set<string>();
+  participants.forEach((participant) => {
+    try {
+      channels.add(getChatDirectChannel(participant.id));
+    } catch {
+      // ignore invalid ids
+    }
+  });
+  if (!channels.size) return;
+
+  await Promise.all(
+    Array.from(channels).map((channel) => publisher.publish(channel, "chat.session.deleted", payload)),
+  );
+}
