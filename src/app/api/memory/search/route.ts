@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { searchMemories } from "@/lib/supabase/memories";
+import { deriveRequestOrigin } from "@/lib/url";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -20,7 +21,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const items = await searchMemories({ ownerId, query, limit });
+    const requestOrigin = deriveRequestOrigin(req);
+    const items = await searchMemories({ ownerId, query, limit, origin: requestOrigin ?? null });
     return NextResponse.json({ items });
   } catch (error) {
     console.error("memory search error", error);
