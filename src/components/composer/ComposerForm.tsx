@@ -168,7 +168,7 @@ function SidebarSection({
   items,
   emptyMessage,
   itemIcon,
-  thumbClassName,
+  thumbClassName = "",
   actionLabel,
   onAction,
 }: SidebarSectionProps) {
@@ -967,7 +967,7 @@ export function ComposerForm({
             items={recentSidebarItems}
             emptyMessage="No chats yet"
             itemIcon={<ChatsTeardrop size={18} weight="duotone" />}
-            thumbClassName={styles.memoryThumbChat}
+            thumbClassName={styles.memoryThumbChat ?? ""}
           />
         );
       case "drafts":
@@ -978,7 +978,7 @@ export function ComposerForm({
             items={draftSidebarItems}
             emptyMessage="No drafts saved yet"
             itemIcon={<FileText size={18} weight="duotone" />}
-            thumbClassName={styles.memoryThumbDraft}
+            thumbClassName={styles.memoryThumbDraft ?? ""}
           />
         );
       case "projects":
@@ -989,7 +989,7 @@ export function ComposerForm({
             items={projectSidebarItems}
             emptyMessage="Create a project to organize drafts"
             itemIcon={<FolderSimple size={18} weight="duotone" />}
-            thumbClassName={styles.memoryThumbProject}
+            thumbClassName={styles.memoryThumbProject ?? ""}
             actionLabel="New project"
             onAction={handleCreateProjectClick}
           />
