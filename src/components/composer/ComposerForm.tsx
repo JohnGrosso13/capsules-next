@@ -877,13 +877,25 @@ export function ComposerForm({
 
   const draftSidebarItems: SidebarListItem[] = React.useMemo(() => {
     const seenDraftIds = new Set<string>();
+    const seenDraftSignatures = new Set<string>();
     const seenChoiceKeys = new Set<string>();
     const items: SidebarListItem[] = [];
 
     for (const item of sidebar.drafts) {
       if (item.kind === "draft") {
-        if (seenDraftIds.has(item.id)) continue;
-        seenDraftIds.add(item.id);
+        const normalizedId = (item.id ?? "").trim();
+        if (normalizedId && seenDraftIds.has(normalizedId)) continue;
+
+        const signature = `${(item.projectId ?? "none").trim().toLowerCase()}|${(
+          item.title ?? ""
+        )
+          .trim()
+          .toLowerCase()}|${(item.caption ?? "").trim().toLowerCase()}`;
+        if (signature && seenDraftSignatures.has(signature)) continue;
+
+        if (normalizedId) seenDraftIds.add(normalizedId);
+        if (signature) seenDraftSignatures.add(signature);
+
         items.push({
           id: item.id,
           title: item.title,
@@ -1031,7 +1043,7 @@ export function ComposerForm({
           );
         })}
       </div>
-      {sidebarContent}
+      <div className={styles.sidebarScroll}>{sidebarContent}</div>
     </div>
   );
 
