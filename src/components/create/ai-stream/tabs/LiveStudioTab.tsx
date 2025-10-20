@@ -11,7 +11,7 @@ import { Paperclip, Microphone, CaretDown } from "@phosphor-icons/react/dist/ssr
 
 import { AiStreamCapsuleGate } from "../AiStreamCapsuleGate";
 import styles from "@/app/(authenticated)/create/ai-stream/ai-stream.page.module.css";
-import type { StreamOverview } from "../useAiStreamStudioStore";
+import type { StreamOverview } from "@/types/ai-stream";
 import { formatDuration, formatTimestamp } from "../formatUtils";
 
 type PanelGroupStorageLike = {

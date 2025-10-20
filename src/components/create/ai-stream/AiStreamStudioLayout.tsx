@@ -10,10 +10,9 @@ import type { CapsuleSummary } from "@/server/capsules/service";
 
 import styles from "@/app/(authenticated)/create/ai-stream/ai-stream.page.module.css";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
+import encoderStyles from "./tabs/EncoderTab.module.css";
 import {
   AiStreamStudioStoreProvider,
-  StreamSimulcastDestination,
-  StreamWebhookEndpoint,
   useAiStreamStudioStore,
 } from "./useAiStreamStudioStore";
 import { useAiStreamStudioNavigation } from "./useAiStreamStudioNavigation";
@@ -29,6 +28,7 @@ import {
 import { LiveStudioTab } from "./tabs/LiveStudioTab";
 import { ProducerConsoleTab } from "./tabs/ProducerConsoleTab";
 import type { StudioTab } from "./types";
+import type { StreamSimulcastDestination, StreamWebhookEndpoint } from "@/types/ai-stream";
 import {
   Broadcast,
   SquaresFour,
@@ -647,8 +647,8 @@ function AiStreamStudioLayoutInner({
             Pick the desired latency profile and create a dedicated live stream for {selectedCapsule.name}
             . We&apos;ll provision RTMP ingest URLs and stream keys instantly.
           </p>
-          <div className={styles.encoderSetupControls}>
-            <label className={styles.encoderLatencySelect}>
+          <div className={encoderStyles.encoderSetupControls}>
+            <label className={encoderStyles.encoderLatencySelect}>
               <span>Latency profile</span>
               <select value={streamPreferences.latencyMode} onChange={handleLatencyChange}>
                 <option value="low">Low latency</option>
@@ -670,24 +670,24 @@ function AiStreamStudioLayoutInner({
     }
 
     return (
-      <div className={styles.encoderLayout}>
-        <div className={styles.encoderGrid}>
-          <section className={styles.encoderSection}>
-            <div className={styles.encoderSectionTitle}>RTMP ingest endpoints</div>
-            <div className={styles.encoderSectionSubtitle}>
+      <div className={encoderStyles.encoderLayout}>
+        <div className={encoderStyles.encoderGrid}>
+          <section className={encoderStyles.encoderSection}>
+            <div className={encoderStyles.encoderSectionTitle}>RTMP ingest endpoints</div>
+            <div className={encoderStyles.encoderSectionSubtitle}>
               Configure OBS, Streamlabs, or any RTMP-compatible encoder with these URLs.
             </div>
-            <ul className={styles.encoderList}>
-              <li className={styles.encoderRow}>
+            <ul className={encoderStyles.encoderList}>
+              <li className={encoderStyles.encoderRow}>
                 <div>
-                  <div className={styles.encoderLabel}>Primary ingest</div>
-                  <div className={styles.encoderValue}>
+                  <div className={encoderStyles.encoderLabel}>Primary ingest</div>
+                  <div className={encoderStyles.encoderValue}>
                     {streamOverview.ingest.primary ?? "rtmps://global-live.mux.com:443/app"}
                   </div>
                 </div>
                 <button
                   type="button"
-                  className={styles.encoderActionButton}
+                  className={encoderStyles.encoderActionButton}
                   onClick={() =>
                     copy(
                       "primary-ingest",
@@ -698,16 +698,16 @@ function AiStreamStudioLayoutInner({
                   {copiedField === "primary-ingest" ? "Copied" : "Copy"}
                 </button>
               </li>
-              <li className={styles.encoderRow}>
+              <li className={encoderStyles.encoderRow}>
                 <div>
-                  <div className={styles.encoderLabel}>Backup ingest</div>
-                  <div className={styles.encoderValue}>
+                  <div className={encoderStyles.encoderLabel}>Backup ingest</div>
+                  <div className={encoderStyles.encoderValue}>
                     {streamOverview.ingest.backup ?? "rtmps://global-live-backup.mux.com:443/app"}
                   </div>
                 </div>
                 <button
                   type="button"
-                  className={styles.encoderActionButton}
+                  className={encoderStyles.encoderActionButton}
                   onClick={() =>
                     copy(
                       "backup-ingest",
@@ -720,15 +720,15 @@ function AiStreamStudioLayoutInner({
               </li>
             </ul>
           </section>
-          <section className={styles.encoderSection}>
-            <div className={styles.encoderSectionTitle}>Stream preferences</div>
-            <div className={styles.encoderSectionSubtitle}>
+          <section className={encoderStyles.encoderSection}>
+            <div className={encoderStyles.encoderSectionTitle}>Stream preferences</div>
+            <div className={encoderStyles.encoderSectionSubtitle}>
               Choose latency and reliability options. Changes to latency apply to newly prepared streams.
             </div>
-            <div className={styles.prefsGrid}>
-              <div className={styles.radioGroup} role="radiogroup" aria-label="Latency mode">
-                <div className={styles.encoderLabel}>Latency mode</div>
-                <label className={styles.radioOption}>
+            <div className={encoderStyles.prefsGrid}>
+              <div className={encoderStyles.radioGroup} role="radiogroup" aria-label="Latency mode">
+                <div className={encoderStyles.encoderLabel}>Latency mode</div>
+                <label className={encoderStyles.radioOption}>
                   <input
                     type="radio"
                     name="latency"
@@ -738,7 +738,7 @@ function AiStreamStudioLayoutInner({
                   />
                   Low latency
                 </label>
-                <label className={styles.radioOption}>
+                <label className={encoderStyles.radioOption}>
                   <input
                     type="radio"
                     name="latency"
@@ -748,105 +748,105 @@ function AiStreamStudioLayoutInner({
                   />
                   Normal latency
                 </label>
-                <span className={styles.encoderHint}>Used when preparing/refreshing the live stream.</span>
+                <span className={encoderStyles.encoderHint}>Used when preparing/refreshing the live stream.</span>
               </div>
-              <div className={styles.fieldGroup}>
-                <label className={styles.switchRow}>
+              <div className={encoderStyles.fieldGroup}>
+                <label className={encoderStyles.switchRow}>
                   <input
                     type="checkbox"
-                    className={styles.switch}
+                    className={encoderStyles.switch}
                     checked={streamPreferences.disconnectProtection}
                     onChange={(event) =>
                       updateStreamPreferences({ disconnectProtection: event.target.checked })
                     }
                   />
                   <div>
-                    <div className={styles.encoderLabel}>Disconnect protection</div>
-                    <div className={styles.encoderHint}>Display a slate if the encoder drops briefly.</div>
+                    <div className={encoderStyles.encoderLabel}>Disconnect protection</div>
+                    <div className={encoderStyles.encoderHint}>Display a slate if the encoder drops briefly.</div>
                   </div>
                 </label>
-                <label className={styles.switchRow}>
+                <label className={encoderStyles.switchRow}>
                   <input
                     type="checkbox"
-                    className={styles.switch}
+                    className={encoderStyles.switch}
                     checked={streamPreferences.audioWarnings}
                     onChange={(event) =>
                       updateStreamPreferences({ audioWarnings: event.target.checked })
                     }
                   />
                   <div>
-                    <div className={styles.encoderLabel}>Copyrighted audio warnings</div>
-                    <div className={styles.encoderHint}>Flag repeated detections in your VODs.</div>
+                    <div className={encoderStyles.encoderLabel}>Copyrighted audio warnings</div>
+                    <div className={encoderStyles.encoderHint}>Flag repeated detections in your VODs.</div>
                   </div>
                 </label>
               </div>
             </div>
           </section>
-          <section className={styles.encoderSection}>
-            <div className={styles.encoderSectionTitle}>VOD &amp; Clips</div>
-            <div className={styles.encoderSectionSubtitle}>
+          <section className={encoderStyles.encoderSection}>
+            <div className={encoderStyles.encoderSectionTitle}>VOD &amp; Clips</div>
+            <div className={encoderStyles.encoderSectionSubtitle}>
               Control how we store and publish recordings and experimental auto clips.
             </div>
-            <div className={styles.fieldGroup}>
-              <label className={styles.switchRow}>
+            <div className={encoderStyles.fieldGroup}>
+              <label className={encoderStyles.switchRow}>
                 <input
                   type="checkbox"
-                  className={styles.switch}
+                  className={encoderStyles.switch}
                   checked={streamPreferences.storePastBroadcasts}
                   onChange={(event) =>
                     updateStreamPreferences({ storePastBroadcasts: event.target.checked })
                   }
                 />
                 <div>
-                  <div className={styles.encoderLabel}>Store past broadcasts</div>
-                  <div className={styles.encoderHint}>Keep recordings for up to 7 days (longer for partners).</div>
+                  <div className={encoderStyles.encoderLabel}>Store past broadcasts</div>
+                  <div className={encoderStyles.encoderHint}>Keep recordings for up to 7 days (longer for partners).</div>
                 </div>
               </label>
-              <label className={styles.switchRow}>
+              <label className={encoderStyles.switchRow}>
                 <input
                   type="checkbox"
-                  className={styles.switch}
+                  className={encoderStyles.switch}
                   checked={streamPreferences.alwaysPublishVods}
                   onChange={(event) =>
                     updateStreamPreferences({ alwaysPublishVods: event.target.checked })
                   }
                 />
                 <div>
-                  <div className={styles.encoderLabel}>Always publish VODs</div>
-                  <div className={styles.encoderHint}>VODs will be set public by default.</div>
+                  <div className={encoderStyles.encoderLabel}>Always publish VODs</div>
+                  <div className={encoderStyles.encoderHint}>VODs will be set public by default.</div>
                 </div>
               </label>
-              <label className={styles.switchRow}>
+              <label className={encoderStyles.switchRow}>
                 <input
                   type="checkbox"
-                  className={styles.switch}
+                  className={encoderStyles.switch}
                   checked={streamPreferences.autoClips}
                   onChange={(event) =>
                     updateStreamPreferences({ autoClips: event.target.checked })
                   }
                 />
                 <div>
-                  <div className={styles.encoderLabel}>Auto clips (alpha)</div>
-                  <div className={styles.encoderHint}>Experimental: generate quick clips automatically.</div>
+                  <div className={encoderStyles.encoderLabel}>Auto clips (alpha)</div>
+                  <div className={encoderStyles.encoderHint}>Experimental: generate quick clips automatically.</div>
                 </div>
               </label>
             </div>
           </section>
-          <section className={styles.encoderSection}>
-            <div className={styles.encoderSectionTitle}>Encoder toolset</div>
-            <div className={styles.encoderSectionSubtitle}>
+          <section className={encoderStyles.encoderSection}>
+            <div className={encoderStyles.encoderSectionTitle}>Encoder toolset</div>
+            <div className={encoderStyles.encoderSectionSubtitle}>
               Download an OBS profile or pair a mobile encoder with your ingest settings.
             </div>
-            <div className={styles.encoderTools}>
-              <div className={styles.encoderToolCard}>
-                <div className={styles.encoderToolHeader}>
-                  <div className={styles.encoderToolTitle}>OBS profile</div>
-                  <span className={styles.encoderToolBadge}>JSON</span>
+            <div className={encoderStyles.encoderTools}>
+              <div className={encoderStyles.encoderToolCard}>
+                <div className={encoderStyles.encoderToolHeader}>
+                  <div className={encoderStyles.encoderToolTitle}>OBS profile</div>
+                  <span className={encoderStyles.encoderToolBadge}>JSON</span>
                 </div>
-                <p className={styles.encoderToolBody}>
+                <p className={encoderStyles.encoderToolBody}>
                   Export ingest URLs, stream keys, and your current preferences for a one-click OBS import.
                 </p>
-                <div className={styles.encoderToolActions}>
+                <div className={encoderStyles.encoderToolActions}>
                   <Button
                     variant="outline"
                     size="sm"
@@ -857,29 +857,29 @@ function AiStreamStudioLayoutInner({
                   </Button>
                 </div>
               </div>
-              <div className={styles.encoderToolCard}>
-                <div className={styles.encoderToolHeader}>
-                  <div className={styles.encoderToolTitle}>Mobile ingest QR</div>
-                  <span className={styles.encoderToolBadge}>RTMP</span>
+              <div className={encoderStyles.encoderToolCard}>
+                <div className={encoderStyles.encoderToolHeader}>
+                  <div className={encoderStyles.encoderToolTitle}>Mobile ingest QR</div>
+                  <span className={encoderStyles.encoderToolBadge}>RTMP</span>
                 </div>
-                <p className={styles.encoderToolBody}>
+                <p className={encoderStyles.encoderToolBody}>
                   Scan with a mobile encoder to prefill the ingest URL and stream key instantly.
                 </p>
-                <div className={styles.encoderQr}>
+                <div className={encoderStyles.encoderQr}>
                   {qrGenerating ? (
-                    <div className={styles.encoderQrPlaceholder}>Generating QR…</div>
+                    <div className={encoderStyles.encoderQrPlaceholder}>Generating QR…</div>
                   ) : qrError ? (
-                    <div className={styles.encoderQrError}>{qrError}</div>
+                    <div className={encoderStyles.encoderQrError}>{qrError}</div>
                   ) : qrImageDataUrl ? (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={qrImageDataUrl} alt="Mobile ingest QR code" />
                     </>
                   ) : (
-                    <div className={styles.encoderQrPlaceholder}>Stream key required</div>
+                    <div className={encoderStyles.encoderQrPlaceholder}>Stream key required</div>
                   )}
                 </div>
-                <div className={styles.encoderToolActions}>
+                <div className={encoderStyles.encoderToolActions}>
                   <Button
                     variant="outline"
                     size="sm"
@@ -896,13 +896,13 @@ function AiStreamStudioLayoutInner({
               </div>
             </div>
           </section>
-          <section className={styles.encoderSection}>
-            <div className={styles.encoderSectionTitle}>Simulcast destinations</div>
-            <div className={styles.encoderSectionSubtitle}>
+          <section className={encoderStyles.encoderSection}>
+            <div className={encoderStyles.encoderSectionTitle}>Simulcast destinations</div>
+            <div className={encoderStyles.encoderSectionSubtitle}>
               Push your broadcast to partner platforms while Capsules manages the master feed.
             </div>
             {streamPreferences.simulcastDestinations.length ? (
-              <ul className={styles.encoderDestinationList}>
+              <ul className={encoderStyles.encoderDestinationList}>
                 {streamPreferences.simulcastDestinations.map((destination) => {
                   const statusLabel = !destination.enabled
                     ? "Disabled"
@@ -912,25 +912,25 @@ function AiStreamStudioLayoutInner({
                         ? "Error"
                         : "Idle";
                   const statusClass = !destination.enabled
-                    ? `${styles.encoderDestinationStatus} ${styles.encoderDestinationStatusDisabled}`
+                    ? `${encoderStyles.encoderDestinationStatus} ${encoderStyles.encoderDestinationStatusDisabled}`
                     : destination.status === "live"
-                      ? `${styles.encoderDestinationStatus} ${styles.encoderDestinationStatusLive}`
+                      ? `${encoderStyles.encoderDestinationStatus} ${encoderStyles.encoderDestinationStatusLive}`
                       : destination.status === "error"
-                        ? `${styles.encoderDestinationStatus} ${styles.encoderDestinationStatusError}`
-                        : styles.encoderDestinationStatus;
+                        ? `${encoderStyles.encoderDestinationStatus} ${encoderStyles.encoderDestinationStatusError}`
+                        : encoderStyles.encoderDestinationStatus;
                   return (
-                    <li key={destination.id} className={styles.encoderDestinationItem}>
-                      <div className={styles.encoderDestinationHeader}>
-                        <div className={styles.encoderDestinationHeading}>
-                          <span className={styles.encoderDestinationLabel}>{destination.label}</span>
-                          <span className={styles.encoderDestinationProvider}>
+                    <li key={destination.id} className={encoderStyles.encoderDestinationItem}>
+                      <div className={encoderStyles.encoderDestinationHeader}>
+                        <div className={encoderStyles.encoderDestinationHeading}>
+                          <span className={encoderStyles.encoderDestinationLabel}>{destination.label}</span>
+                          <span className={encoderStyles.encoderDestinationProvider}>
                             {resolveProviderLabel(destination.provider)}
                           </span>
                         </div>
                         <span className={statusClass}>{statusLabel}</span>
                       </div>
-                      <div className={styles.encoderDestinationUrl}>{destination.url}</div>
-                      <div className={styles.encoderDestinationMeta}>
+                      <div className={encoderStyles.encoderDestinationUrl}>{destination.url}</div>
+                      <div className={encoderStyles.encoderDestinationMeta}>
                         <span>
                           Stream key: {" "}
                           {destination.streamKey ? maskSecret(destination.streamKey) : "Use account default"}
@@ -940,10 +940,10 @@ function AiStreamStudioLayoutInner({
                           {destination.lastSyncedAt ? formatTimestamp(destination.lastSyncedAt) : "--"}
                         </span>
                       </div>
-                      <div className={styles.encoderDestinationActions}>
+                      <div className={encoderStyles.encoderDestinationActions}>
                         <button
                           type="button"
-                          className={styles.encoderActionButton}
+                          className={encoderStyles.encoderActionButton}
                           onClick={() =>
                             copy(`simulcast-url-${destination.id}`, destination.url)
                           }
@@ -953,7 +953,7 @@ function AiStreamStudioLayoutInner({
                         {destination.streamKey ? (
                           <button
                             type="button"
-                            className={styles.encoderActionButton}
+                            className={encoderStyles.encoderActionButton}
                             onClick={() =>
                               copy(`simulcast-key-${destination.id}`, destination.streamKey)
                             }
@@ -963,7 +963,7 @@ function AiStreamStudioLayoutInner({
                         ) : null}
                         <button
                           type="button"
-                          className={styles.encoderActionButton}
+                          className={encoderStyles.encoderActionButton}
                           onClick={() => handleToggleSimulcastDestination(destination.id)}
                         >
                           {destination.enabled ? "Disable" : "Enable"}
@@ -981,13 +981,13 @@ function AiStreamStudioLayoutInner({
                 })}
               </ul>
             ) : (
-              <div className={styles.encoderEmptyState}>No additional destinations configured yet.</div>
+              <div className={encoderStyles.encoderEmptyState}>No additional destinations configured yet.</div>
             )}
             {addingDestination ? (
-              <form className={styles.encoderForm} onSubmit={handleAddSimulcastDestination}>
-                <div className={styles.encoderFormRow}>
-                  <div className={styles.encoderFormGroup}>
-                    <label className={styles.encoderLabel} htmlFor="simulcast-label">
+              <form className={encoderStyles.encoderForm} onSubmit={handleAddSimulcastDestination}>
+                <div className={encoderStyles.encoderFormRow}>
+                  <div className={encoderStyles.encoderFormGroup}>
+                    <label className={encoderStyles.encoderLabel} htmlFor="simulcast-label">
                       Label
                     </label>
                     <Input
@@ -997,13 +997,13 @@ function AiStreamStudioLayoutInner({
                       placeholder="Acme Twitch channel"
                     />
                   </div>
-                  <div className={styles.encoderFormGroup}>
-                    <label className={styles.encoderLabel} htmlFor="simulcast-provider">
+                  <div className={encoderStyles.encoderFormGroup}>
+                    <label className={encoderStyles.encoderLabel} htmlFor="simulcast-provider">
                       Platform
                     </label>
                     <select
                       id="simulcast-provider"
-                      className={styles.encoderSelect}
+                      className={encoderStyles.encoderSelect}
                       value={destinationDraft.provider}
                       onChange={(event) => handleDestinationDraftChange("provider", event.target.value)}
                     >
@@ -1015,8 +1015,8 @@ function AiStreamStudioLayoutInner({
                     </select>
                   </div>
                 </div>
-                <div className={styles.encoderFormGroup}>
-                  <label className={styles.encoderLabel} htmlFor="simulcast-url">
+                <div className={encoderStyles.encoderFormGroup}>
+                  <label className={encoderStyles.encoderLabel} htmlFor="simulcast-url">
                     Ingest URL
                   </label>
                   <Input
@@ -1026,8 +1026,8 @@ function AiStreamStudioLayoutInner({
                     placeholder="rtmps://live.twitch.tv/app"
                   />
                 </div>
-                <div className={styles.encoderFormGroup}>
-                  <label className={styles.encoderLabel} htmlFor="simulcast-key">
+                <div className={encoderStyles.encoderFormGroup}>
+                  <label className={encoderStyles.encoderLabel} htmlFor="simulcast-key">
                     Stream key (optional)
                   </label>
                   <Input
@@ -1038,9 +1038,9 @@ function AiStreamStudioLayoutInner({
                   />
                 </div>
                 {destinationError ? (
-                  <div className={styles.encoderFormError}>{destinationError}</div>
+                  <div className={encoderStyles.encoderFormError}>{destinationError}</div>
                 ) : null}
-                <div className={styles.encoderFormActions}>
+                <div className={encoderStyles.encoderFormActions}>
                   <Button variant="outline" size="sm" type="submit">
                     Save destination
                   </Button>
@@ -1062,31 +1062,31 @@ function AiStreamStudioLayoutInner({
               </Button>
             )}
           </section>
-          <section className={styles.encoderSection}>
-            <div className={styles.encoderSectionTitle}>Webhook automation</div>
-            <div className={styles.encoderSectionSubtitle}>
+          <section className={encoderStyles.encoderSection}>
+            <div className={encoderStyles.encoderSectionTitle}>Webhook automation</div>
+            <div className={encoderStyles.encoderSectionSubtitle}>
               Trigger downstream workflows when your stream starts, ends, or publishes new recordings.
             </div>
             {streamPreferences.webhookEndpoints.length ? (
-              <ul className={styles.encoderWebhookList}>
+              <ul className={encoderStyles.encoderWebhookList}>
                 {streamPreferences.webhookEndpoints.map((endpoint) => (
-                  <li key={endpoint.id} className={styles.encoderWebhookItem}>
-                    <div className={styles.encoderWebhookHeader}>
-                      <div className={styles.encoderWebhookHeading}>
-                        <span className={styles.encoderWebhookLabel}>{endpoint.label}</span>
+                  <li key={endpoint.id} className={encoderStyles.encoderWebhookItem}>
+                    <div className={encoderStyles.encoderWebhookHeader}>
+                      <div className={encoderStyles.encoderWebhookHeading}>
+                        <span className={encoderStyles.encoderWebhookLabel}>{endpoint.label}</span>
                       </div>
                       <span
                         className={
                           endpoint.enabled
-                            ? `${styles.encoderWebhookStatus} ${styles.encoderWebhookStatusEnabled}`
-                            : `${styles.encoderWebhookStatus} ${styles.encoderWebhookStatusDisabled}`
+                            ? `${encoderStyles.encoderWebhookStatus} ${encoderStyles.encoderWebhookStatusEnabled}`
+                            : `${encoderStyles.encoderWebhookStatus} ${encoderStyles.encoderWebhookStatusDisabled}`
                         }
                       >
                         {endpoint.enabled ? "Enabled" : "Disabled"}
                       </span>
                     </div>
-                    <div className={styles.encoderWebhookUrl}>{endpoint.url}</div>
-                    <div className={styles.encoderWebhookMeta}>
+                    <div className={encoderStyles.encoderWebhookUrl}>{endpoint.url}</div>
+                    <div className={encoderStyles.encoderWebhookMeta}>
                       <span>
                         Secret: {" "}
                         {endpoint.secret ? maskSecret(endpoint.secret) : "Not configured"}
@@ -1097,20 +1097,20 @@ function AiStreamStudioLayoutInner({
                       </span>
                     </div>
                     {endpoint.events.length ? (
-                      <div className={styles.encoderWebhookEvents}>
+                      <div className={encoderStyles.encoderWebhookEvents}>
                         {endpoint.events.map((event) => (
-                          <span key={event} className={styles.encoderWebhookEvent}>
+                          <span key={event} className={encoderStyles.encoderWebhookEvent}>
                             {event}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <div className={styles.encoderWebhookEventsEmpty}>Listening to all events</div>
+                      <div className={encoderStyles.encoderWebhookEventsEmpty}>Listening to all events</div>
                     )}
-                    <div className={styles.encoderWebhookActions}>
+                    <div className={encoderStyles.encoderWebhookActions}>
                       <button
                         type="button"
-                        className={styles.encoderActionButton}
+                        className={encoderStyles.encoderActionButton}
                         onClick={() =>
                           copy(`webhook-url-${endpoint.id}`, endpoint.url)
                         }
@@ -1120,7 +1120,7 @@ function AiStreamStudioLayoutInner({
                       {endpoint.secret ? (
                         <button
                           type="button"
-                          className={styles.encoderActionButton}
+                          className={encoderStyles.encoderActionButton}
                           onClick={() =>
                             copy(
                               `webhook-secret-${endpoint.id}`,
@@ -1133,7 +1133,7 @@ function AiStreamStudioLayoutInner({
                       ) : null}
                       <button
                         type="button"
-                        className={styles.encoderActionButton}
+                        className={encoderStyles.encoderActionButton}
                         onClick={() => handleToggleWebhookEndpoint(endpoint.id)}
                       >
                         {endpoint.enabled ? "Disable" : "Enable"}
@@ -1150,13 +1150,13 @@ function AiStreamStudioLayoutInner({
                 ))}
               </ul>
             ) : (
-              <div className={styles.encoderEmptyState}>No webhooks configured yet.</div>
+              <div className={encoderStyles.encoderEmptyState}>No webhooks configured yet.</div>
             )}
             {addingWebhook ? (
-              <form className={styles.encoderForm} onSubmit={handleAddWebhookEndpoint}>
-                <div className={styles.encoderFormRow}>
-                  <div className={styles.encoderFormGroup}>
-                    <label className={styles.encoderLabel} htmlFor="webhook-label">
+              <form className={encoderStyles.encoderForm} onSubmit={handleAddWebhookEndpoint}>
+                <div className={encoderStyles.encoderFormRow}>
+                  <div className={encoderStyles.encoderFormGroup}>
+                    <label className={encoderStyles.encoderLabel} htmlFor="webhook-label">
                       Label
                     </label>
                     <Input
@@ -1166,8 +1166,8 @@ function AiStreamStudioLayoutInner({
                       placeholder="Discord automation"
                     />
                   </div>
-                  <div className={styles.encoderFormGroup}>
-                    <label className={styles.encoderLabel} htmlFor="webhook-url">
+                  <div className={encoderStyles.encoderFormGroup}>
+                    <label className={encoderStyles.encoderLabel} htmlFor="webhook-url">
                       Webhook URL
                     </label>
                     <Input
@@ -1178,8 +1178,8 @@ function AiStreamStudioLayoutInner({
                     />
                   </div>
                 </div>
-                <div className={styles.encoderFormGroup}>
-                  <label className={styles.encoderLabel} htmlFor="webhook-secret">
+                <div className={encoderStyles.encoderFormGroup}>
+                  <label className={encoderStyles.encoderLabel} htmlFor="webhook-secret">
                     Signing secret (optional)
                   </label>
                   <Input
@@ -1189,11 +1189,11 @@ function AiStreamStudioLayoutInner({
                     placeholder="whsec_..."
                   />
                 </div>
-                <div className={styles.encoderFormGroup}>
-                  <div className={styles.encoderLabel}>Events</div>
-                  <div className={styles.encoderEventGrid}>
+                <div className={encoderStyles.encoderFormGroup}>
+                  <div className={encoderStyles.encoderLabel}>Events</div>
+                  <div className={encoderStyles.encoderEventGrid}>
                     {WEBHOOK_EVENT_OPTIONS.map((option) => (
-                      <label key={option.value} className={styles.encoderEventOption}>
+                      <label key={option.value} className={encoderStyles.encoderEventOption}>
                         <input
                           type="checkbox"
                           checked={webhookDraft.events.includes(option.value)}
@@ -1203,10 +1203,10 @@ function AiStreamStudioLayoutInner({
                       </label>
                     ))}
                   </div>
-                  <span className={styles.encoderHint}>Leave unchecked to receive all stream events.</span>
+                  <span className={encoderStyles.encoderHint}>Leave unchecked to receive all stream events.</span>
                 </div>
-                {webhookError ? <div className={styles.encoderFormError}>{webhookError}</div> : null}
-                <div className={styles.encoderFormActions}>
+                {webhookError ? <div className={encoderStyles.encoderFormError}>{webhookError}</div> : null}
+                <div className={encoderStyles.encoderFormActions}>
                   <Button variant="outline" size="sm" type="submit">
                     Save webhook
                   </Button>
@@ -1228,32 +1228,32 @@ function AiStreamStudioLayoutInner({
               </Button>
             )}
           </section>
-          <section className={styles.encoderSection}>
-            <div className={styles.encoderSectionTitle}>Stream keys</div>
-            <div className={styles.encoderSectionSubtitle}>
+          <section className={encoderStyles.encoderSection}>
+            <div className={encoderStyles.encoderSectionTitle}>Stream keys</div>
+            <div className={encoderStyles.encoderSectionSubtitle}>
               Share with trusted operators only. Rotating the key disconnects any active sessions.
             </div>
-            <ul className={styles.encoderList}>
-              <li className={styles.encoderRow}>
+            <ul className={encoderStyles.encoderList}>
+              <li className={encoderStyles.encoderRow}>
                 <div>
-                  <div className={styles.encoderLabel}>Primary stream key</div>
-                  <div className={styles.encoderValue}>
+                  <div className={encoderStyles.encoderLabel}>Primary stream key</div>
+                  <div className={encoderStyles.encoderValue}>
                     {showPrimaryKey
                       ? streamOverview.ingest.streamKey
                       : maskSecret(streamOverview.ingest.streamKey)}
                   </div>
                 </div>
-                <div className={styles.encoderRowActions}>
+                <div className={encoderStyles.encoderRowActions}>
                   <button
                     type="button"
-                    className={styles.encoderActionButton}
+                    className={encoderStyles.encoderActionButton}
                     onClick={() => setShowPrimaryKey((value) => !value)}
                   >
                     {showPrimaryKey ? "Hide" : "Show"}
                   </button>
                   <button
                     type="button"
-                    className={styles.encoderActionButton}
+                    className={encoderStyles.encoderActionButton}
                     onClick={() => copy("primary-key", streamOverview.ingest.streamKey)}
                   >
                     {copiedField === "primary-key" ? "Copied" : "Copy"}
@@ -1268,10 +1268,10 @@ function AiStreamStudioLayoutInner({
                   </Button>
                 </div>
               </li>
-              <li className={styles.encoderRow}>
+              <li className={encoderStyles.encoderRow}>
                 <div>
-                  <div className={styles.encoderLabel}>Backup stream key</div>
-                  <div className={styles.encoderValue}>
+                  <div className={encoderStyles.encoderLabel}>Backup stream key</div>
+                  <div className={encoderStyles.encoderValue}>
                     {streamOverview.ingest.backupStreamKey
                       ? showBackupKey
                         ? streamOverview.ingest.backupStreamKey
@@ -1279,10 +1279,10 @@ function AiStreamStudioLayoutInner({
                       : "Not provisioned"}
                   </div>
                 </div>
-                <div className={styles.encoderRowActions}>
+                <div className={encoderStyles.encoderRowActions}>
                   <button
                     type="button"
-                    className={styles.encoderActionButton}
+                    className={encoderStyles.encoderActionButton}
                     onClick={() => setShowBackupKey((value) => !value)}
                     disabled={!streamOverview.ingest.backupStreamKey}
                   >
@@ -1290,7 +1290,7 @@ function AiStreamStudioLayoutInner({
                   </button>
                   <button
                     type="button"
-                    className={styles.encoderActionButton}
+                    className={encoderStyles.encoderActionButton}
                     onClick={() =>
                       copy("backup-key", streamOverview.ingest.backupStreamKey)
                     }
@@ -1302,35 +1302,35 @@ function AiStreamStudioLayoutInner({
               </li>
             </ul>
           </section>
-          <section className={styles.encoderSection}>
-            <div className={styles.encoderSectionTitle}>Playback &amp; embeds</div>
-            <div className={styles.encoderSectionSubtitle}>
+          <section className={encoderStyles.encoderSection}>
+            <div className={encoderStyles.encoderSectionTitle}>Playback &amp; embeds</div>
+            <div className={encoderStyles.encoderSectionSubtitle}>
               Use the Mux player embed or raw HLS URL to power your Capsule portal or landing pages.
             </div>
-            <ul className={styles.encoderList}>
-              <li className={styles.encoderRow}>
+            <ul className={encoderStyles.encoderList}>
+              <li className={encoderStyles.encoderRow}>
                 <div>
-                  <div className={styles.encoderLabel}>Playback URL</div>
-                  <div className={styles.encoderValue}>{playbackUrl ?? "--"}</div>
+                  <div className={encoderStyles.encoderLabel}>Playback URL</div>
+                  <div className={encoderStyles.encoderValue}>{playbackUrl ?? "--"}</div>
                 </div>
                 <button
                   type="button"
-                  className={styles.encoderActionButton}
+                  className={encoderStyles.encoderActionButton}
                   onClick={() => copy("playback-url", playbackUrl)}
                 >
                   {copiedField === "playback-url" ? "Copied" : "Copy"}
                 </button>
               </li>
-              <li className={styles.encoderRow}>
+              <li className={encoderStyles.encoderRow}>
                 <div>
-                  <div className={styles.encoderLabel}>Mux player embed</div>
-                  <div className={styles.encoderValue}>
+                  <div className={encoderStyles.encoderLabel}>Mux player embed</div>
+                  <div className={encoderStyles.encoderValue}>
                     {embedCodeSnippet ?? "<mux-player stream-type=\"live\" playback-id=\"...\" />"}
                   </div>
                 </div>
                 <button
                   type="button"
-                  className={styles.encoderActionButton}
+                  className={encoderStyles.encoderActionButton}
                   onClick={() => copy("embed-code", embedCodeSnippet)}
                   disabled={!embedCodeSnippet}
                 >
@@ -1340,18 +1340,18 @@ function AiStreamStudioLayoutInner({
             </ul>
           </section>
         </div>
-        <section className={styles.encoderSection}>
-          <div className={styles.encoderSectionTitle}>Reliability &amp; recording plan</div>
-          <div className={styles.encoderSectionSubtitle}>
+        <section className={encoderStyles.encoderSection}>
+          <div className={encoderStyles.encoderSectionTitle}>Reliability &amp; recording plan</div>
+          <div className={encoderStyles.encoderSectionSubtitle}>
             Mux automatically records each broadcast and we keep the resulting assets in your Capsule
             library. Pair this with local capture inside your studio for redundancy.
           </div>
-          <div className={styles.encoderChecklist}>
-            <div className={styles.encoderChecklistItem}>Cloud recording for every live session</div>
-            <div className={styles.encoderChecklistItem}>
+          <div className={encoderStyles.encoderChecklist}>
+            <div className={encoderStyles.encoderChecklistItem}>Cloud recording for every live session</div>
+            <div className={encoderStyles.encoderChecklistItem}>
               Configure OBS backups with the provided ingest pair
             </div>
-            <div className={styles.encoderChecklistItem}>
+            <div className={encoderStyles.encoderChecklistItem}>
               Trigger Capsules automation via webhook on stream events
             </div>
           </div>
@@ -1412,14 +1412,14 @@ function AiStreamStudioLayoutInner({
     };
 
     return (
-      <div className={styles.encoderLayout}>
-        <section className={styles.encoderSection}>
-          <div className={styles.encoderSectionTitle}>Recent recordings</div>
-          <div className={styles.encoderSectionSubtitle}>
+      <div className={encoderStyles.encoderLayout}>
+        <section className={encoderStyles.encoderSection}>
+          <div className={encoderStyles.encoderSectionTitle}>Recent recordings</div>
+          <div className={encoderStyles.encoderSectionSubtitle}>
             Mux automatically archived these sessions. Click to open the playback asset or copy the
             shareable link.
           </div>
-          <ul className={styles.encoderList}>
+          <ul className={encoderStyles.encoderList}>
             {assets.length ? (
               assets.map((asset) => {
                 const durationValue =
@@ -1474,12 +1474,12 @@ function AiStreamStudioLayoutInner({
             )}
           </ul>
         </section>
-        <section className={styles.encoderSection}>
-          <div className={styles.encoderSectionTitle}>AI pipeline jobs</div>
-          <div className={styles.encoderSectionSubtitle}>
+        <section className={encoderStyles.encoderSection}>
+          <div className={encoderStyles.encoderSectionTitle}>AI pipeline jobs</div>
+          <div className={encoderStyles.encoderSectionSubtitle}>
             Track Clips, highlight summaries, and other automation generated from your streams.
           </div>
-          <ul className={styles.encoderList}>
+          <ul className={encoderStyles.encoderList}>
             {jobs.length ? (
               jobs.map((job) => {
                 const timelineParts: string[] = [];
