@@ -15,6 +15,7 @@ import {
   createMuxAssetRecord,
   getAssetByMuxAssetId,
   getLiveStreamByCapsuleId,
+  getCapsuleStreamSettings,
   getLiveStreamByMuxId,
   findActiveSessionForStream,
   listAssetsForCapsule,
@@ -24,11 +25,13 @@ import {
   updateLiveStreamRecord,
   updateLiveStreamSession,
   updateMuxAssetRecord,
+  upsertCapsuleStreamSettings,
   insertWebhookEvent,
   type MuxAiJobRecord,
   type MuxAssetRecord,
   type MuxLiveStreamRecord,
   type MuxLiveStreamSessionRecord,
+  type CapsuleStreamSettingsRecord,
 } from "@/server/mux/repository";
 import {
   queueAssetHighlightSummaries,
@@ -44,6 +47,44 @@ const BACKUP_INGEST_URL = "rtmps://global-live-backup.mux.com:443/app";
 const MAX_SESSION_HISTORY = 20;
 const MAX_ASSET_HISTORY = 20;
 
+function normalizeLatencyModeValue(
+  value: string | null | undefined,
+): CapsuleStreamPreferences["latencyMode"] {
+  if (value === "standard" || value === "reduced") {
+    return value;
+  }
+  return "low";
+}
+
+function normalizeBoolean(value: boolean | null | undefined, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function normalizeStreamSettingsRecord(
+  record: CapsuleStreamSettingsRecord | null,
+): CapsuleStreamPreferences {
+  if (!record) {
+    return { ...DEFAULT_STREAM_PREFERENCES };
+  }
+  return {
+    latencyMode: normalizeLatencyModeValue(record.latencyMode),
+    disconnectProtection: normalizeBoolean(
+      record.disconnectProtection,
+      DEFAULT_STREAM_PREFERENCES.disconnectProtection,
+    ),
+    audioWarnings: normalizeBoolean(record.audioWarnings, DEFAULT_STREAM_PREFERENCES.audioWarnings),
+    storePastBroadcasts: normalizeBoolean(
+      record.storePastBroadcasts,
+      DEFAULT_STREAM_PREFERENCES.storePastBroadcasts,
+    ),
+    alwaysPublishVods: normalizeBoolean(
+      record.alwaysPublishVods,
+      DEFAULT_STREAM_PREFERENCES.alwaysPublishVods,
+    ),
+    autoClips: normalizeBoolean(record.autoClips, DEFAULT_STREAM_PREFERENCES.autoClips),
+  };
+}
+
 type LiveStreamPlayback = {
   playbackId: string | null;
   playbackUrl: string | null;
@@ -55,6 +96,24 @@ type StreamIngestInfo = {
   backup: string | null;
 };
 
+export type CapsuleStreamPreferences = {
+  latencyMode: "low" | "reduced" | "standard";
+  disconnectProtection: boolean;
+  audioWarnings: boolean;
+  storePastBroadcasts: boolean;
+  alwaysPublishVods: boolean;
+  autoClips: boolean;
+};
+
+const DEFAULT_STREAM_PREFERENCES: CapsuleStreamPreferences = {
+  latencyMode: "low",
+  disconnectProtection: true,
+  audioWarnings: true,
+  storePastBroadcasts: true,
+  alwaysPublishVods: true,
+  autoClips: false,
+};
+
 export type CapsuleLiveStreamOverview = {
   liveStream: MuxLiveStreamRecord;
   playback: LiveStreamPlayback;
@@ -63,6 +122,47 @@ export type CapsuleLiveStreamOverview = {
   assets: MuxAssetRecord[];
   aiJobs: MuxAiJobRecord[];
 };
+
+export async function getCapsuleStreamPreferences(
+  capsuleId: string,
+): Promise<CapsuleStreamPreferences> {
+  const record = await getCapsuleStreamSettings(capsuleId);
+  return normalizeStreamSettingsRecord(record);
+}
+
+export async function upsertCapsuleStreamPreferences(params: {
+  capsuleId: string;
+  ownerUserId: string;
+  preferences: Partial<CapsuleStreamPreferences>;
+}): Promise<CapsuleStreamPreferences> {
+  const updates: Record<string, unknown> = {};
+  if (params.preferences.latencyMode !== undefined) {
+    updates.latencyMode = params.preferences.latencyMode;
+  }
+  if (params.preferences.disconnectProtection !== undefined) {
+    updates.disconnectProtection = params.preferences.disconnectProtection;
+  }
+  if (params.preferences.audioWarnings !== undefined) {
+    updates.audioWarnings = params.preferences.audioWarnings;
+  }
+  if (params.preferences.storePastBroadcasts !== undefined) {
+    updates.storePastBroadcasts = params.preferences.storePastBroadcasts;
+  }
+  if (params.preferences.alwaysPublishVods !== undefined) {
+    updates.alwaysPublishVods = params.preferences.alwaysPublishVods;
+  }
+  if (params.preferences.autoClips !== undefined) {
+    updates.autoClips = params.preferences.autoClips;
+  }
+
+  const record = await upsertCapsuleStreamSettings({
+    capsuleId: params.capsuleId,
+    ownerUserId: params.ownerUserId,
+    updates,
+  });
+
+  return normalizeStreamSettingsRecord(record);
+}
 
 function selectPlayback(muxStream: LiveStream | null): LiveStreamPlayback {
   if (!muxStream?.playback_ids || !muxStream.playback_ids.length) {
@@ -238,6 +338,9 @@ export async function ensureCapsuleLiveStream(params: {
   };
   if (params.latencyMode) {
     ensureParams.latencyMode = params.latencyMode;
+  } else {
+    const preferences = await getCapsuleStreamPreferences(params.capsuleId);
+    ensureParams.latencyMode = preferences.latencyMode;
   }
   const record = await ensureLiveStreamRecord(ensureParams);
   return buildOverview(record);

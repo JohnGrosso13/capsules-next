@@ -101,7 +101,7 @@ async function requireCapsule(capsuleId: string) {
   return { capsule, ownerId };
 }
 
-async function requireCapsuleOwnership(capsuleId: string, ownerId: string) {
+export async function requireCapsuleOwnership(capsuleId: string, ownerId: string) {
   const normalizedOwnerId = normalizeId(ownerId);
   if (!normalizedOwnerId) {
     throw new CapsuleMembershipError("forbidden", "Authentication required.", 403);

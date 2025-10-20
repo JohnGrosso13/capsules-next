@@ -128,6 +128,29 @@ type StreamOverview = {
 
 type MuxRealtimeTable = "mux_live_streams" | "mux_live_stream_sessions" | "mux_assets" | "mux_ai_jobs";
 
+type StreamPreferences = {
+  latencyMode: "low" | "reduced" | "standard";
+  disconnectProtection: boolean;
+  audioWarnings: boolean;
+  storePastBroadcasts: boolean;
+  alwaysPublishVods: boolean;
+  autoClips: boolean;
+};
+
+const DEFAULT_STREAM_PREFERENCES: StreamPreferences = {
+  latencyMode: "low",
+  disconnectProtection: true,
+  audioWarnings: true,
+  storePastBroadcasts: true,
+  alwaysPublishVods: true,
+  autoClips: false,
+};
+
+type StreamOverviewResponse = {
+  overview: StreamOverview | null;
+  preferences: StreamPreferences;
+};
+
 function formatJobDisplayName(value: string): string {
   if (!value) return "Automation job";
   return value
@@ -367,14 +390,42 @@ export function AiStreamStudioLayout({
   const [overviewLoading, setOverviewLoading] = React.useState(false);
   const [overviewError, setOverviewError] = React.useState<string | null>(null);
   const [actionBusy, setActionBusy] = React.useState<"ensure" | "rotate" | null>(null);
-  const [desiredLatencyMode, setDesiredLatencyMode] =
-    React.useState<"low" | "reduced" | "standard">("low");
+  const [streamPreferences, setStreamPreferences] = React.useState<StreamPreferences>(
+    DEFAULT_STREAM_PREFERENCES,
+  );
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
+  const [showPrimaryKey, setShowPrimaryKey] = React.useState(false);
+  const [showBackupKey, setShowBackupKey] = React.useState(false);
   const [uptimeTick, setUptimeTick] = React.useState(() => Date.now());
   const supabaseRef = React.useRef<SupabaseClient | null>(null);
   const streamOverviewRef = React.useRef<StreamOverview | null>(null);
   const fetchControllerRef = React.useRef<AbortController | null>(null);
   const refreshTimerRef = React.useRef<number | null>(null);
+  const preferenceSaveControllerRef = React.useRef<AbortController | null>(null);
+  const skipPreferencePersistRef = React.useRef(true);
+  const preferenceHydrationPendingRef = React.useRef(false);
+  const lastPersistedPreferencesRef = React.useRef<string>(
+    JSON.stringify(DEFAULT_STREAM_PREFERENCES),
+  );
+
+  const applyServerPreferences = React.useCallback((incoming?: StreamPreferences | null) => {
+    const normalized = incoming
+      ? { ...DEFAULT_STREAM_PREFERENCES, ...incoming }
+      : { ...DEFAULT_STREAM_PREFERENCES };
+    skipPreferencePersistRef.current = true;
+    preferenceHydrationPendingRef.current = true;
+    setStreamPreferences(normalized);
+    lastPersistedPreferencesRef.current = JSON.stringify(normalized);
+  }, []);
+
+  const updateStreamPreferences = React.useCallback((updates: Partial<StreamPreferences>) => {
+    setStreamPreferences((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const preferenceSignature = React.useMemo(
+    () => JSON.stringify(streamPreferences),
+    [streamPreferences],
+  );
 
   const dateFormatter = React.useMemo(
     () => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }),
@@ -431,6 +482,12 @@ export function AiStreamStudioLayout({
     streamOverviewRef.current = streamOverview;
   }, [streamOverview]);
 
+  React.useEffect(() => {
+    if (!preferenceHydrationPendingRef.current) return;
+    preferenceHydrationPendingRef.current = false;
+    skipPreferencePersistRef.current = false;
+  }, [streamPreferences]);
+
   const fetchOverview = React.useCallback(
     async (capsuleId: string, options?: { silent?: boolean }) => {
       const silent = options?.silent ?? false;
@@ -455,11 +512,15 @@ export function AiStreamStudioLayout({
         });
 
         if (response.ok) {
-          const payload = (await response.json()) as StreamOverview;
-          setStreamOverview(payload);
+          const payload = (await response.json()) as StreamOverviewResponse;
+          setStreamOverview(payload.overview ?? null);
+          streamOverviewRef.current = payload.overview ?? null;
+          applyServerPreferences(payload.preferences);
           setOverviewError(null);
         } else if (response.status === 404) {
           setStreamOverview(null);
+          streamOverviewRef.current = null;
+          applyServerPreferences(null);
           if (!silent) {
             setOverviewError(null);
           }
@@ -490,7 +551,7 @@ export function AiStreamStudioLayout({
         }
       }
     },
-    [],
+    [applyServerPreferences],
   );
 
   React.useEffect(() => {
@@ -499,6 +560,14 @@ export function AiStreamStudioLayout({
         fetchControllerRef.current.abort();
         fetchControllerRef.current = null;
       }
+      if (preferenceSaveControllerRef.current) {
+        preferenceSaveControllerRef.current.abort();
+        preferenceSaveControllerRef.current = null;
+      }
+      skipPreferencePersistRef.current = true;
+      preferenceHydrationPendingRef.current = false;
+      setStreamPreferences(DEFAULT_STREAM_PREFERENCES);
+      lastPersistedPreferencesRef.current = JSON.stringify(DEFAULT_STREAM_PREFERENCES);
       setStreamOverview(null);
       setOverviewError(null);
       setOverviewLoading(false);
@@ -514,6 +583,58 @@ export function AiStreamStudioLayout({
       }
     };
   }, [fetchOverview, selectedCapsuleId]);
+
+  React.useEffect(() => {
+    if (!selectedCapsuleId) {
+      return;
+    }
+    if (skipPreferencePersistRef.current) {
+      return;
+    }
+    if (preferenceSignature === lastPersistedPreferencesRef.current) {
+      return;
+    }
+
+    const controller = new AbortController();
+    if (preferenceSaveControllerRef.current) {
+      preferenceSaveControllerRef.current.abort();
+    }
+    preferenceSaveControllerRef.current = controller;
+
+    const persist = async () => {
+      try {
+        const response = await fetch("/api/mux/live", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            capsuleId: selectedCapsuleId,
+            preferences: streamPreferences,
+          }),
+          signal: controller.signal,
+        });
+
+        if (response.ok) {
+          const payload = (await response.json()) as StreamOverviewResponse;
+          applyServerPreferences(payload.preferences);
+          setStreamOverview(payload.overview ?? null);
+          streamOverviewRef.current = payload.overview ?? null;
+          lastPersistedPreferencesRef.current = JSON.stringify(payload.preferences);
+        } else if (!controller.signal.aborted) {
+          console.warn("mux.preferences.persist.failed", response.status);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.warn("mux.preferences.persist.error", error);
+        }
+      }
+    };
+
+    void persist();
+
+    return () => {
+      controller.abort();
+    };
+  }, [applyServerPreferences, preferenceSignature, selectedCapsuleId, streamPreferences]);
 
   const scheduleOverviewRefresh = React.useCallback(
     (reason: MuxRealtimeTable) => {
@@ -613,19 +734,28 @@ export function AiStreamStudioLayout({
         body: JSON.stringify({
           capsuleId: selectedCapsuleId,
           action: "ensure",
-          latencyMode: desiredLatencyMode,
+          latencyMode: streamPreferences.latencyMode,
         }),
       });
 
       if (response.ok) {
-        const payload = (await response.json()) as StreamOverview;
-        setStreamOverview(payload);
+        const payload = (await response.json()) as StreamOverviewResponse;
+        setStreamOverview(payload.overview ?? null);
+        streamOverviewRef.current = payload.overview ?? null;
+        applyServerPreferences(payload.preferences);
         setOverviewError(null);
       } else {
         let message = "Failed to prepare streaming.";
         try {
           const body = await response.json();
-          if (body && typeof body.message === "string") message = body.message;
+          if (body && typeof body.message === "string") {
+            message =
+              typeof body.code === "string" && body.code.length
+                ? `${body.message} (${body.code})`
+                : body.message;
+          } else if (body && typeof body.error === "string") {
+            message = body.error;
+          }
         } catch {
           // ignore
         }
@@ -638,7 +768,7 @@ export function AiStreamStudioLayout({
       setActionBusy(null);
       setOverviewLoading(false);
     }
-  }, [desiredLatencyMode, selectedCapsuleId]);
+  }, [applyServerPreferences, selectedCapsuleId, streamPreferences.latencyMode]);
 
   const handleRotateStreamKey = React.useCallback(async () => {
     if (!selectedCapsuleId) return;
@@ -653,14 +783,23 @@ export function AiStreamStudioLayout({
       });
 
       if (response.ok) {
-        const payload = (await response.json()) as StreamOverview;
-        setStreamOverview(payload);
+        const payload = (await response.json()) as StreamOverviewResponse;
+        setStreamOverview(payload.overview ?? null);
+        streamOverviewRef.current = payload.overview ?? null;
+        applyServerPreferences(payload.preferences);
         setOverviewError(null);
       } else {
         let message = "Failed to rotate stream key.";
         try {
           const body = await response.json();
-          if (body && typeof body.message === "string") message = body.message;
+          if (body && typeof body.message === "string") {
+            message =
+              typeof body.code === "string" && body.code.length
+                ? `${body.message} (${body.code})`
+                : body.message;
+          } else if (body && typeof body.error === "string") {
+            message = body.error;
+          }
         } catch {
           // ignore
         }
@@ -673,7 +812,7 @@ export function AiStreamStudioLayout({
       setActionBusy(null);
       setOverviewLoading(false);
     }
-  }, [selectedCapsuleId]);
+  }, [applyServerPreferences, selectedCapsuleId]);
 
   const handleCopyToClipboard = React.useCallback(
     (label: string, value: string | null | undefined) => {
@@ -695,11 +834,18 @@ export function AiStreamStudioLayout({
     [],
   );
 
+  const maskSecret = React.useCallback((value: string | null | undefined) => {
+    if (!value) return "--";
+    const visible = 4;
+    const maskedLength = Math.max(0, value.length - visible);
+    return "\u2022".repeat(maskedLength) + value.slice(-visible);
+  }, []);
+
   const handleLatencyChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
-      setDesiredLatencyMode(event.target.value as "low" | "reduced" | "standard");
+    (event: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+      updateStreamPreferences({ latencyMode: event.target.value as "low" | "reduced" | "standard" });
     },
-    [],
+    [updateStreamPreferences],
   );
 
   const playbackUrl = React.useMemo(() => {
@@ -1351,7 +1497,7 @@ export function AiStreamStudioLayout({
           <div className={styles.encoderSetupControls}>
             <label className={styles.encoderLatencySelect}>
               <span>Latency profile</span>
-              <select value={desiredLatencyMode} onChange={handleLatencyChange}>
+              <select value={streamPreferences.latencyMode} onChange={handleLatencyChange}>
                 <option value="low">Low latency</option>
                 <option value="reduced">Reduced latency</option>
                 <option value="standard">Standard latency</option>
@@ -1422,6 +1568,118 @@ export function AiStreamStudioLayout({
             </ul>
           </section>
           <section className={styles.encoderSection}>
+            <div className={styles.encoderSectionTitle}>Stream preferences</div>
+            <div className={styles.encoderSectionSubtitle}>
+              Choose latency and reliability options. Changes to latency apply to newly prepared streams.
+            </div>
+            <div className={styles.prefsGrid}>
+              <div className={styles.radioGroup} role="radiogroup" aria-label="Latency mode">
+                <div className={styles.encoderLabel}>Latency mode</div>
+                <label className={styles.radioOption}>
+                  <input
+                    type="radio"
+                    name="latency"
+                    value="low"
+                    checked={streamPreferences.latencyMode === "low"}
+                    onChange={handleLatencyChange}
+                  />
+                  Low latency
+                </label>
+                <label className={styles.radioOption}>
+                  <input
+                    type="radio"
+                    name="latency"
+                    value="standard"
+                    checked={streamPreferences.latencyMode === "standard"}
+                    onChange={handleLatencyChange}
+                  />
+                  Normal latency
+                </label>
+                <span className={styles.encoderHint}>Used when preparing/refreshing the live stream.</span>
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.switchRow}>
+                  <input
+                    type="checkbox"
+                    className={styles.switch}
+                    checked={streamPreferences.disconnectProtection}
+                    onChange={(e) =>
+                      updateStreamPreferences({ disconnectProtection: e.target.checked })
+                    }
+                  />
+                  <div>
+                    <div className={styles.encoderLabel}>Disconnect protection</div>
+                    <div className={styles.encoderHint}>Display a slate if the encoder drops briefly.</div>
+                  </div>
+                </label>
+                <label className={styles.switchRow}>
+                  <input
+                    type="checkbox"
+                    className={styles.switch}
+                    checked={streamPreferences.audioWarnings}
+                    onChange={(e) =>
+                      updateStreamPreferences({ audioWarnings: e.target.checked })
+                    }
+                  />
+                  <div>
+                    <div className={styles.encoderLabel}>Copyrighted audio warnings</div>
+                    <div className={styles.encoderHint}>Flag repeated detections in your VODs.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </section>
+          <section className={styles.encoderSection}>
+            <div className={styles.encoderSectionTitle}>VOD &amp; Clips</div>
+            <div className={styles.encoderSectionSubtitle}>
+              Control how we store and publish recordings and experimental auto clips.
+            </div>
+            <div className={styles.fieldGroup}>
+              <label className={styles.switchRow}>
+                <input
+                  type="checkbox"
+                  className={styles.switch}
+                  checked={streamPreferences.storePastBroadcasts}
+                  onChange={(e) =>
+                    updateStreamPreferences({ storePastBroadcasts: e.target.checked })
+                  }
+                />
+                <div>
+                  <div className={styles.encoderLabel}>Store past broadcasts</div>
+                  <div className={styles.encoderHint}>Keep recordings for up to 7 days (longer for partners).</div>
+                </div>
+              </label>
+              <label className={styles.switchRow}>
+                <input
+                  type="checkbox"
+                  className={styles.switch}
+                  checked={streamPreferences.alwaysPublishVods}
+                  onChange={(e) =>
+                    updateStreamPreferences({ alwaysPublishVods: e.target.checked })
+                  }
+                />
+                <div>
+                  <div className={styles.encoderLabel}>Always publish VODs</div>
+                  <div className={styles.encoderHint}>VODs will be set public by default.</div>
+                </div>
+              </label>
+              <label className={styles.switchRow}>
+                <input
+                  type="checkbox"
+                  className={styles.switch}
+                  checked={streamPreferences.autoClips}
+                  onChange={(e) =>
+                    updateStreamPreferences({ autoClips: e.target.checked })
+                  }
+                />
+                <div>
+                  <div className={styles.encoderLabel}>Auto clips (alpha)</div>
+                  <div className={styles.encoderHint}>Experimental: generate quick clips automatically.</div>
+                </div>
+              </label>
+            </div>
+          </section>
+          <section className={styles.encoderSection}>
             <div className={styles.encoderSectionTitle}>Stream keys</div>
             <div className={styles.encoderSectionSubtitle}>
               Share with trusted operators only. Rotating the key disconnects any active sessions.
@@ -1430,9 +1688,20 @@ export function AiStreamStudioLayout({
               <li className={styles.encoderRow}>
                 <div>
                   <div className={styles.encoderLabel}>Primary stream key</div>
-                  <div className={styles.encoderValue}>{streamOverview.ingest.streamKey}</div>
+                  <div className={styles.encoderValue}>
+                    {showPrimaryKey
+                      ? streamOverview.ingest.streamKey
+                      : maskSecret(streamOverview.ingest.streamKey)}
+                  </div>
                 </div>
                 <div className={styles.encoderRowActions}>
+                  <button
+                    type="button"
+                    className={styles.encoderActionButton}
+                    onClick={() => setShowPrimaryKey((v) => !v)}
+                  >
+                    {showPrimaryKey ? "Hide" : "Show"}
+                  </button>
                   <button
                     type="button"
                     className={styles.encoderActionButton}
@@ -1454,18 +1723,33 @@ export function AiStreamStudioLayout({
                 <div>
                   <div className={styles.encoderLabel}>Backup stream key</div>
                   <div className={styles.encoderValue}>
-                    {streamOverview.ingest.backupStreamKey ?? "Not provisioned"}
+                    {streamOverview.ingest.backupStreamKey
+                      ? showBackupKey
+                        ? streamOverview.ingest.backupStreamKey
+                        : maskSecret(streamOverview.ingest.backupStreamKey)
+                      : "Not provisioned"}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className={styles.encoderActionButton}
-                  onClick={() =>
-                    handleCopyToClipboard("backup-key", streamOverview.ingest.backupStreamKey)
-                  }
-                >
-                  {copiedField === "backup-key" ? "Copied" : "Copy"}
-                </button>
+                <div className={styles.encoderRowActions}>
+                  <button
+                    type="button"
+                    className={styles.encoderActionButton}
+                    onClick={() => setShowBackupKey((v) => !v)}
+                    disabled={!streamOverview.ingest.backupStreamKey}
+                  >
+                    {showBackupKey ? "Hide" : "Show"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.encoderActionButton}
+                    onClick={() =>
+                      handleCopyToClipboard("backup-key", streamOverview.ingest.backupStreamKey)
+                    }
+                    disabled={!streamOverview.ingest.backupStreamKey}
+                  >
+                    {copiedField === "backup-key" ? "Copied" : "Copy"}
+                  </button>
+                </div>
               </li>
             </ul>
           </section>
@@ -1711,15 +1995,11 @@ export function AiStreamStudioLayout({
   return (
     <div className={`${capTheme.theme} ${styles.shellWrap}`}>
       <header className={styles.navBar}>
-        <div
-          className={`${capTheme.tabStrip} ${styles.tabStrip}`}
-          role="tablist"
-          aria-label="AI Stream Studio sections"
-        >
+        <div className={styles.navTabs} role="tablist" aria-label="AI Stream Studio sections">
           {TAB_ITEMS.map((tab) => {
             const isActive = activeTab === tab.id;
-            const baseClass = `${capTheme.tab} ${styles.tabButton}`;
-            const btnClass = isActive ? `${baseClass} ${capTheme.tabActive}` : baseClass;
+            const baseClass = `${styles.navButton}`;
+            const btnClass = isActive ? `${baseClass} ${styles.navButtonActive}` : baseClass;
             return (
               <button
                 key={tab.id}

@@ -9,6 +9,7 @@ import { parseJsonBody, returnError, validatedJson } from "@/server/validation/h
 import {
   partyCreateRequestSchema,
   partyTokenResponseSchema,
+  type PartyPrivacy,
 } from "@/server/validation/schemas/party";
 
 export const runtime = "nodejs";
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
 
   const displayName = parsed.data.displayName?.trim() || null;
   const topic = parsed.data.topic?.trim() || null;
+  const privacy: PartyPrivacy = parsed.data.privacy ?? "friends";
 
   try {
     const partyId = createPartyId();
@@ -34,6 +36,7 @@ export async function POST(req: Request) {
       ownerId,
       ownerDisplayName: displayName,
       topic,
+      privacy,
     });
 
     await ensurePartyRoom(metadata);

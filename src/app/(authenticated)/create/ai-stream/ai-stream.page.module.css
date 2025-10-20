@@ -1015,6 +1015,23 @@
   color: var(--studio-text-secondary);
 }
 
+.encoderLabel {
+  font-weight: 600;
+  color: var(--studio-text-primary);
+}
+
+.encoderValue {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace);
+  letter-spacing: 0.04em;
+  color: var(--studio-text-primary);
+}
+
+.encoderHint {
+  font-size: 0.82rem;
+  color: var(--studio-text-tertiary);
+}
+
 .encoderList {
   list-style: none;
   margin: 0;
@@ -1036,6 +1053,61 @@
 
 .encoderRow:last-child {
   border-bottom: none;
+}
+
+.encoderRowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.encoderActionButton {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-muted);
+  color: var(--studio-text-primary);
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.encoderLatencySelect {
+  display: grid;
+  gap: 6px;
+}
+
+.prefsGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.fieldGroup {
+  display: grid;
+  gap: 10px;
+}
+
+.switchRow {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: start;
+  gap: 10px;
+}
+
+.switch {
+  width: 16px;
+  height: 16px;
+}
+
+.radioGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.radioOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .clipRow {

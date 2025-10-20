@@ -12,7 +12,7 @@ import {
   listLivekitRoomParticipants,
   type LivekitRoomSnapshot,
 } from "@/adapters/livekit/server";
-import type { PartyMetadata } from "@/server/validation/schemas/party";
+import type { PartyMetadata, PartyPrivacy } from "@/server/validation/schemas/party";
 
 type IssueTokenOptions = {
   identity: string;
@@ -40,12 +40,14 @@ export function buildPartyMetadata(params: {
   ownerId: string;
   ownerDisplayName: string | null;
   topic: string | null;
+  privacy: PartyPrivacy;
 }): PartyMetadata {
   return {
     partyId: params.partyId,
     ownerId: params.ownerId,
     ownerDisplayName: params.ownerDisplayName,
     topic: params.topic,
+    privacy: params.privacy,
     createdAt: new Date().toISOString(),
   };
 }
@@ -79,6 +81,7 @@ function coerceMetadata(room: LivekitRoomSnapshot | null): PartyMetadata | null 
         ownerId: parsed.ownerId,
         ownerDisplayName: parsed.ownerDisplayName ?? null,
         topic: parsed.topic ?? null,
+        privacy: parsed.privacy ?? "friends",
         createdAt: parsed.createdAt ?? new Date().toISOString(),
       };
     }

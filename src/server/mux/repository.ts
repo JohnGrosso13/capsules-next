@@ -13,6 +13,8 @@ const WEBHOOK_COLUMNS =
   "id, event_id, event_type, mux_object_type, mux_object_id, attempt, status, received_at, processed_at, data, created_at";
 const AI_JOB_COLUMNS =
   "id, capsule_id, live_stream_id, asset_id, job_type, status, priority, payload, result, error_message, started_at, completed_at, created_at, updated_at";
+const STREAM_SETTINGS_COLUMNS =
+  "capsule_id, owner_user_id, latency_mode, disconnect_protection, audio_warnings, store_past_broadcasts, always_publish_vods, auto_clips, metadata, created_at, updated_at";
 
 type LiveStreamRow = {
   id: string;
@@ -114,6 +116,20 @@ type AiJobRow = {
   updated_at: string | null;
 };
 
+type StreamSettingsRow = {
+  capsule_id: string | null;
+  owner_user_id: string | null;
+  latency_mode: string | null;
+  disconnect_protection: boolean | null;
+  audio_warnings: boolean | null;
+  store_past_broadcasts: boolean | null;
+  always_publish_vods: boolean | null;
+  auto_clips: boolean | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 export type MuxLiveStreamRecord = {
   id: string;
   capsuleId: string;
@@ -210,6 +226,20 @@ export type MuxAiJobRecord = {
   errorMessage: string | null;
   startedAt: string | null;
   completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CapsuleStreamSettingsRecord = {
+  capsuleId: string;
+  ownerUserId: string;
+  latencyMode: string | null;
+  disconnectProtection: boolean;
+  audioWarnings: boolean;
+  storePastBroadcasts: boolean;
+  alwaysPublishVods: boolean;
+  autoClips: boolean;
+  metadata: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -388,6 +418,85 @@ function ensureAiJob(row: AiJobRow | null, context: string): MuxAiJobRecord {
   return mapped;
 }
 
+function mapStreamSettings(row: StreamSettingsRow | null): CapsuleStreamSettingsRecord | null {
+  if (!row?.capsule_id || !row.owner_user_id) {
+    return null;
+  }
+  const createdAt = row.created_at ?? new Date().toISOString();
+  return {
+    capsuleId: row.capsule_id,
+    ownerUserId: row.owner_user_id,
+    latencyMode: row.latency_mode ?? null,
+    disconnectProtection: row.disconnect_protection ?? true,
+    audioWarnings: row.audio_warnings ?? true,
+    storePastBroadcasts: row.store_past_broadcasts ?? true,
+    alwaysPublishVods: row.always_publish_vods ?? true,
+    autoClips: row.auto_clips ?? false,
+    metadata: row.metadata ?? null,
+    createdAt,
+    updatedAt: row.updated_at ?? createdAt,
+  };
+}
+
+function ensureStreamSettings(
+  row: StreamSettingsRow | null,
+  context: string,
+): CapsuleStreamSettingsRecord {
+  const mapped = mapStreamSettings(row);
+  if (!mapped) {
+    throw new Error(`${context}: invalid capsule stream settings record`);
+  }
+  return mapped;
+}
+
+type StreamSettingsUpdate = Partial<{
+  latencyMode: string | null;
+  disconnectProtection: boolean | null;
+  audioWarnings: boolean | null;
+  storePastBroadcasts: boolean | null;
+  alwaysPublishVods: boolean | null;
+  autoClips: boolean | null;
+  metadata: Record<string, unknown> | null;
+}>;
+
+export async function upsertCapsuleStreamSettings(params: {
+  capsuleId: string;
+  ownerUserId: string;
+  updates: StreamSettingsUpdate;
+}): Promise<CapsuleStreamSettingsRecord> {
+  const existing = await getCapsuleStreamSettings(params.capsuleId);
+  const now = new Date().toISOString();
+
+  const payload = {
+    capsule_id: params.capsuleId,
+    owner_user_id: params.ownerUserId,
+    latency_mode: params.updates.latencyMode ?? existing?.latencyMode ?? null,
+    disconnect_protection:
+      params.updates.disconnectProtection ?? existing?.disconnectProtection ?? true,
+    audio_warnings: params.updates.audioWarnings ?? existing?.audioWarnings ?? true,
+    store_past_broadcasts:
+      params.updates.storePastBroadcasts ?? existing?.storePastBroadcasts ?? true,
+    always_publish_vods:
+      params.updates.alwaysPublishVods ?? existing?.alwaysPublishVods ?? true,
+    auto_clips: params.updates.autoClips ?? existing?.autoClips ?? false,
+    metadata: params.updates.metadata ?? existing?.metadata ?? null,
+    created_at: existing?.createdAt ?? now,
+    updated_at: now,
+  };
+
+  const result = await db
+    .from("capsule_stream_settings")
+    .upsert(payload, { onConflict: "capsule_id" })
+    .select<StreamSettingsRow>(STREAM_SETTINGS_COLUMNS)
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("mux.streamSettings.upsert", result.error);
+  }
+
+  return ensureStreamSettings(result.data ?? null, "mux.streamSettings.upsert");
+}
+
 export async function getLiveStreamByCapsuleId(
   capsuleId: string,
 ): Promise<MuxLiveStreamRecord | null> {
@@ -402,6 +511,22 @@ export async function getLiveStreamByCapsuleId(
   }
 
   return mapLiveStream(result.data ?? null);
+}
+
+export async function getCapsuleStreamSettings(
+  capsuleId: string,
+): Promise<CapsuleStreamSettingsRecord | null> {
+  const result = await db
+    .from("capsule_stream_settings")
+    .select<StreamSettingsRow>(STREAM_SETTINGS_COLUMNS)
+    .eq("capsule_id", capsuleId)
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("mux.streamSettings.fetch", result.error);
+  }
+
+  return mapStreamSettings(result.data ?? null);
 }
 
 export async function getLiveStreamByMuxId(
