@@ -1071,6 +1071,292 @@
   font-size: 0.82rem;
 }
 
+.encoderTools {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.encoderToolCard {
+  display: grid;
+  gap: 12px;
+  padding: clamp(16px, 2.6vw, 22px);
+  border-radius: 18px;
+  border: 1px solid var(--studio-border-strong);
+  background: var(--studio-surface-panel);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 12%, transparent);
+}
+
+.encoderToolHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.encoderToolTitle {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.encoderToolBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--studio-pill-border);
+  background: color-mix(in srgb, var(--studio-pill-bg) 70%, transparent);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--studio-pill-text);
+}
+
+.encoderToolBody {
+  font-size: 0.85rem;
+  color: var(--studio-text-secondary);
+  line-height: 1.5;
+}
+
+.encoderToolActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.encoderQr {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px dashed var(--studio-border-soft);
+  background: var(--studio-surface-muted);
+  min-height: 160px;
+}
+
+.encoderQr img {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #fff;
+  padding: 8px;
+}
+
+.encoderQrPlaceholder,
+.encoderQrError {
+  font-size: 0.82rem;
+  color: var(--studio-text-tertiary);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.encoderQrError {
+  color: color-mix(in srgb, #f87171 85%, var(--studio-text-primary));
+}
+
+.encoderDestinationList,
+.encoderWebhookList {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.encoderDestinationItem,
+.encoderWebhookItem {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-panel);
+}
+
+.encoderDestinationHeader,
+.encoderWebhookHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.encoderDestinationHeading,
+.encoderWebhookHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.encoderDestinationLabel,
+.encoderWebhookLabel {
+  font-weight: 600;
+  color: var(--studio-text-primary);
+}
+
+.encoderDestinationProvider {
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--studio-text-tertiary);
+}
+
+.encoderDestinationStatus,
+.encoderWebhookStatus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-muted);
+  color: var(--studio-text-secondary);
+}
+
+.encoderDestinationStatusLive {
+  background: color-mix(in srgb, var(--color-success, #2dd4bf) 18%, transparent);
+  color: color-mix(in srgb, var(--color-success, #2dd4bf) 85%, var(--studio-text-primary));
+  border-color: color-mix(in srgb, var(--color-success, #2dd4bf) 40%, transparent);
+}
+
+.encoderDestinationStatusError {
+  background: color-mix(in srgb, #f87171 18%, transparent);
+  color: color-mix(in srgb, #f87171 82%, var(--studio-text-primary));
+  border-color: color-mix(in srgb, #f87171 40%, transparent);
+}
+
+.encoderDestinationStatusDisabled,
+.encoderWebhookStatusDisabled {
+  opacity: 0.6;
+}
+
+.encoderWebhookStatusEnabled {
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 18%, transparent);
+  color: color-mix(in srgb, var(--color-brand, #6366f1) 78%, var(--studio-text-primary));
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 38%, transparent);
+}
+
+.encoderDestinationUrl,
+.encoderWebhookUrl {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace);
+  font-size: 0.82rem;
+  color: var(--studio-text-secondary);
+  word-break: break-word;
+}
+
+.encoderDestinationMeta,
+.encoderWebhookMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.82rem;
+  color: var(--studio-text-tertiary);
+}
+
+.encoderDestinationActions,
+.encoderWebhookActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.encoderEmptyState {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed var(--studio-border-soft);
+  background: var(--studio-surface-muted);
+  font-size: 0.85rem;
+  color: var(--studio-text-tertiary);
+  text-align: center;
+}
+
+.encoderForm {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+  padding: clamp(16px, 2vw, 20px);
+  border-radius: 16px;
+  border: 1px solid var(--studio-border-soft);
+  background: color-mix(in srgb, var(--studio-surface-muted) 80%, transparent);
+}
+
+.encoderFormRow {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.encoderFormGroup {
+  display: grid;
+  gap: 6px;
+}
+
+.encoderSelect {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-muted);
+  color: var(--studio-text-primary);
+}
+
+.encoderFormError {
+  font-size: 0.82rem;
+  color: color-mix(in srgb, #f87171 85%, var(--studio-text-primary));
+}
+
+.encoderFormActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.encoderEventGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.encoderEventOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--studio-text-secondary);
+}
+
+.encoderWebhookEvents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.encoderWebhookEvent {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--studio-text-secondary);
+}
+
+.encoderWebhookEventsEmpty {
+  font-size: 0.82rem;
+  color: var(--studio-text-tertiary);
+}
+
 .encoderLatencySelect {
   display: grid;
   gap: 6px;

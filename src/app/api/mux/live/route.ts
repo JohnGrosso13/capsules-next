@@ -8,6 +8,7 @@ import {
   getCapsuleStreamPreferences,
   rotateLiveStreamKeyForCapsule,
   upsertCapsuleStreamPreferences,
+  type CapsuleStreamPreferences,
 } from "@/server/mux/service";
 import { CapsuleMembershipError, requireCapsuleOwnership } from "@/server/capsules/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
@@ -32,11 +33,59 @@ const updatePreferencesSchema = z.object({
       storePastBroadcasts: z.boolean().optional(),
       alwaysPublishVods: z.boolean().optional(),
       autoClips: z.boolean().optional(),
+      simulcastDestinations: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            label: z.string().optional(),
+            provider: z.string().optional(),
+            url: z.string().optional(),
+            streamKey: z.string().nullable().optional(),
+            enabled: z.boolean().optional(),
+            status: z.enum(["idle", "live", "error"]).optional(),
+            lastSyncedAt: z.string().nullable().optional(),
+          }),
+        )
+        .optional(),
+      webhookEndpoints: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            label: z.string().optional(),
+            url: z.string().optional(),
+            secret: z.string().nullable().optional(),
+            events: z.array(z.string()).optional(),
+            enabled: z.boolean().optional(),
+            lastDeliveredAt: z.string().nullable().optional(),
+          }),
+        )
+        .optional(),
     })
     .refine(
       (prefs) => Object.values(prefs).some((value) => value !== undefined),
       "At least one preference must be provided.",
     ),
+});
+
+const simulcastDestinationSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  provider: z.string(),
+  url: z.string().url(),
+  streamKey: z.string().nullable(),
+  enabled: z.boolean(),
+  status: z.enum(["idle", "live", "error"]),
+  lastSyncedAt: z.string().nullable(),
+});
+
+const webhookEndpointSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  url: z.string().url(),
+  secret: z.string().nullable(),
+  events: z.array(z.string()),
+  enabled: z.boolean(),
+  lastDeliveredAt: z.string().nullable(),
 });
 
 const liveStreamResponseSchema = z.object({
@@ -64,6 +113,8 @@ const streamPreferencesSchema = z.object({
   storePastBroadcasts: z.boolean(),
   alwaysPublishVods: z.boolean(),
   autoClips: z.boolean(),
+  simulcastDestinations: z.array(simulcastDestinationSchema),
+  webhookEndpoints: z.array(webhookEndpointSchema),
 });
 
 const streamOverviewPayloadSchema = z.object({
@@ -207,6 +258,10 @@ export async function PUT(req: Request) {
 
   const { capsuleId, preferences } = bodyResult.data;
 
+  const cleanedPreferences = Object.fromEntries(
+    Object.entries(preferences).filter(([, value]) => value !== undefined),
+  ) as Partial<CapsuleStreamPreferences>;
+
   let capsuleOwnerId: string;
   try {
     const ownership = await requireCapsuleOwnership(capsuleId, ownerId);
@@ -221,7 +276,7 @@ export async function PUT(req: Request) {
   const updatedPreferences = await upsertCapsuleStreamPreferences({
     capsuleId,
     ownerUserId: capsuleOwnerId,
-    preferences,
+    preferences: cleanedPreferences,
   });
 
   const overview = await getCapsuleLiveStreamOverview(capsuleId);

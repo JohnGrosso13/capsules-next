@@ -456,6 +456,8 @@ type StreamSettingsUpdate = Partial<{
   storePastBroadcasts: boolean | null;
   alwaysPublishVods: boolean | null;
   autoClips: boolean | null;
+  simulcastDestinations: unknown;
+  webhookEndpoints: unknown;
   metadata: Record<string, unknown> | null;
 }>;
 
@@ -466,6 +468,34 @@ export async function upsertCapsuleStreamSettings(params: {
 }): Promise<CapsuleStreamSettingsRecord> {
   const existing = await getCapsuleStreamSettings(params.capsuleId);
   const now = new Date().toISOString();
+
+  const existingMetadata = (existing?.metadata ?? {}) as Record<string, unknown>;
+  let nextMetadata: Record<string, unknown> = { ...existingMetadata };
+
+  if (params.updates.metadata !== undefined) {
+    const provided = params.updates.metadata ?? {};
+    nextMetadata = {
+      ...(typeof provided === "object" && provided ? (provided as Record<string, unknown>) : {}),
+    };
+  }
+
+  if (params.updates.simulcastDestinations !== undefined) {
+    nextMetadata = {
+      ...nextMetadata,
+      simulcastDestinations: params.updates.simulcastDestinations ?? [],
+    };
+  } else if (nextMetadata.simulcastDestinations === undefined && existingMetadata.simulcastDestinations !== undefined) {
+    nextMetadata.simulcastDestinations = existingMetadata.simulcastDestinations;
+  }
+
+  if (params.updates.webhookEndpoints !== undefined) {
+    nextMetadata = {
+      ...nextMetadata,
+      webhookEndpoints: params.updates.webhookEndpoints ?? [],
+    };
+  } else if (nextMetadata.webhookEndpoints === undefined && existingMetadata.webhookEndpoints !== undefined) {
+    nextMetadata.webhookEndpoints = existingMetadata.webhookEndpoints;
+  }
 
   const payload = {
     capsule_id: params.capsuleId,
@@ -479,7 +509,7 @@ export async function upsertCapsuleStreamSettings(params: {
     always_publish_vods:
       params.updates.alwaysPublishVods ?? existing?.alwaysPublishVods ?? true,
     auto_clips: params.updates.autoClips ?? existing?.autoClips ?? false,
-    metadata: params.updates.metadata ?? existing?.metadata ?? null,
+    metadata: Object.keys(nextMetadata).length ? nextMetadata : null,
     created_at: existing?.createdAt ?? now,
     updated_at: now,
   };

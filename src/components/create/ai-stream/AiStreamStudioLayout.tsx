@@ -4,27 +4,37 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { downloadObsProfile, normalizeMuxError } from "@/lib/mux/liveClient";
 import type { CapsuleSummary } from "@/server/capsules/service";
-import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
-import { LiveChatRail } from "@/components/live/LiveChatRail";
 
-import { AiStreamCapsuleGate } from "./AiStreamCapsuleGate";
 import styles from "@/app/(authenticated)/create/ai-stream/ai-stream.page.module.css";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browser";
+import {
+  AiStreamStudioStoreProvider,
+  StreamSimulcastDestination,
+  StreamWebhookEndpoint,
+  useAiStreamStudioStore,
+} from "./useAiStreamStudioStore";
+import { useAiStreamStudioNavigation } from "./useAiStreamStudioNavigation";
+import { useClipboardCopy } from "./useClipboardCopy";
+import { useMobileIngestQr } from "./useMobileIngestQr";
+import {
+  formatJobDisplayName,
+  formatJobStatusLabel,
+  computeElapsedSeconds,
+  formatTimestamp,
+  formatDuration,
+} from "./formatUtils";
+import { LiveStudioTab } from "./tabs/LiveStudioTab";
+import { ProducerConsoleTab } from "./tabs/ProducerConsoleTab";
+import type { StudioTab } from "./types";
 import {
   Broadcast,
   SquaresFour,
   Storefront,
-  Paperclip,
-  Microphone,
-  CaretDown,
   FilmSlate,
 } from "@phosphor-icons/react/dist/ssr";
-import MuxPlayer from "@mux/mux-player-react";
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-type StudioTab = "studio" | "producer" | "encoder" | "clips";
 
 const TAB_ITEMS: Array<{ id: StudioTab; label: string; icon: React.ReactNode }> = [
   {
@@ -51,143 +61,58 @@ const TAB_ITEMS: Array<{ id: StudioTab; label: string; icon: React.ReactNode }> 
 
 const TAB_SET = new Set<StudioTab>(TAB_ITEMS.map((item) => item.id));
 
-type StreamSession = {
-  id: string;
-  status: string;
-  startedAt: string | null;
-  endedAt: string | null;
-  durationSeconds: number | null;
-  createdAt: string;
-  updatedAt: string;
+type DestinationDraft = {
+  label: string;
+  provider: string;
+  url: string;
+  streamKey: string;
 };
 
-type StreamAsset = {
-  id: string;
-  liveStreamId: string | null;
-  muxAssetId: string;
-  status: string;
-  playbackId: string | null;
-  playbackUrl: string | null;
-  playbackPolicy: string | null;
-  durationSeconds: number | null;
-  readyAt: string | null;
-  erroredAt: string | null;
-  createdAt: string;
-  updatedAt: string;
+type WebhookDraft = {
+  label: string;
+  url: string;
+  secret: string;
+  events: string[];
 };
 
-type StreamAiJob = {
-  id: string;
-  jobType: string;
-  status: string;
-  priority: number;
-  startedAt: string | null;
-  completedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
+const SIMULCAST_PROVIDER_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "twitch", label: "Twitch" },
+  { value: "youtube", label: "YouTube" },
+  { value: "kick", label: "Kick" },
+  { value: "facebook", label: "Facebook Live" },
+  { value: "custom", label: "Custom RTMP" },
+];
+
+const WEBHOOK_EVENT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "stream.started", label: "Stream started" },
+  { value: "stream.ended", label: "Stream ended" },
+  { value: "asset.ready", label: "Recording ready" },
+  { value: "asset.errored", label: "Recording error" },
+];
+
+const DEFAULT_PRIMARY_INGEST_URL = "rtmps://global-live.mux.com:443/app";
+
+type AiStreamStudioLayoutProps = {
+  capsules: CapsuleSummary[];
+  initialView?: StudioTab;
+  layoutOwnerId: string;
+  layoutView?: string;
+  initialPanelLayouts?: Record<string, unknown>;
 };
 
-type StreamOverview = {
-  liveStream: {
-    id: string;
-    capsuleId: string;
-    ownerUserId: string;
-    muxLiveStreamId: string;
-    status: string;
-    latencyMode: string | null;
-    isLowLatency: boolean;
-    streamKey: string;
-    streamKeyBackup: string | null;
-    ingestUrl: string | null;
-    ingestUrlBackup: string | null;
-    playbackId: string | null;
-    playbackUrl: string | null;
-    playbackPolicy: string | null;
-    activeAssetId: string | null;
-    createdAt: string;
-    updatedAt: string;
-    lastSeenAt: string | null;
-    lastActiveAt: string | null;
-    lastIdleAt: string | null;
-  };
-  playback: {
-    playbackId: string | null;
-    playbackUrl: string | null;
-    playbackPolicy: string | null;
-  };
-  ingest: {
-    primary: string | null;
-    backup: string | null;
-    streamKey: string;
-    backupStreamKey: string | null;
-  };
-  sessions: StreamSession[];
-  assets: StreamAsset[];
-  aiJobs: StreamAiJob[];
-};
-
-type MuxRealtimeTable = "mux_live_streams" | "mux_live_stream_sessions" | "mux_assets" | "mux_ai_jobs";
-
-type StreamPreferences = {
-  latencyMode: "low" | "reduced" | "standard";
-  disconnectProtection: boolean;
-  audioWarnings: boolean;
-  storePastBroadcasts: boolean;
-  alwaysPublishVods: boolean;
-  autoClips: boolean;
-};
-
-const DEFAULT_STREAM_PREFERENCES: StreamPreferences = {
-  latencyMode: "low",
-  disconnectProtection: true,
-  audioWarnings: true,
-  storePastBroadcasts: true,
-  alwaysPublishVods: true,
-  autoClips: false,
-};
-
-type StreamOverviewResponse = {
-  overview: StreamOverview | null;
-  preferences: StreamPreferences;
-};
-
-function formatJobDisplayName(value: string): string {
-  if (!value) return "Automation job";
-  return value
-    .replace(/[_-]+/g, " ")
-    .split(" ")
-    .map((part) => {
-      const lower = part.toLowerCase();
-      if (!part) return part;
-      if (lower === "ai") return "AI";
-      return part.charAt(0).toUpperCase() + part.slice(1);
-    })
-    .join(" ");
+function generatePreferenceId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `pref-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function formatJobStatusLabel(value: string): string {
-  if (!value) return "Pending";
-  return value
-    .replace(/[_-]+/g, " ")
-    .split(" ")
-    .map((part) => {
-      const lower = part.toLowerCase();
-      if (!part) return part;
-      if (lower === "ai") return "AI";
-      return part.charAt(0).toUpperCase() + part.slice(1);
-    })
-    .join(" ");
-}
-
-function computeElapsedSeconds(
-  start: string | null | undefined,
-  end: string | null | undefined,
-): number | null {
-  if (!start || !end) return null;
-  const startMs = Date.parse(start);
-  const endMs = Date.parse(end);
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null;
-  return Math.round((endMs - startMs) / 1000);
+export function AiStreamStudioLayout(props: AiStreamStudioLayoutProps) {
+  return (
+    <AiStreamStudioStoreProvider>
+      <AiStreamStudioLayoutInner {...props} />
+    </AiStreamStudioStoreProvider>
+  );
 }
 
 type PanelGroupStorageLike = {
@@ -319,14 +244,6 @@ function usePanelLayoutStorage(
   return storage;
 }
 
-type AiStreamStudioLayoutProps = {
-  capsules: CapsuleSummary[];
-  initialView?: StudioTab;
-  layoutOwnerId: string;
-  layoutView?: string;
-  initialPanelLayouts?: Record<string, unknown>;
-};
-
 function normalizeTab(value: string | null | undefined, fallback: StudioTab): StudioTab {
   if (!value) return fallback;
   const maybe = value.toLowerCase() as StudioTab;
@@ -336,7 +253,7 @@ function normalizeTab(value: string | null | undefined, fallback: StudioTab): St
   return fallback;
 }
 
-export function AiStreamStudioLayout({
+function AiStreamStudioLayoutInner({
   capsules,
   initialView = "studio",
   layoutOwnerId,
@@ -347,21 +264,42 @@ export function AiStreamStudioLayout({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamsString = React.useMemo(() => searchParams?.toString() ?? "", [searchParams]);
+  const {
+    state: {
+      selectedCapsuleId,
+      streamOverview,
+      streamPreferences,
+      overviewLoading,
+      overviewError,
+      actionBusy,
+    },
+    actions: {
+      setOverviewError,
+      updateStreamPreferences,
+      ensureStream,
+      rotateStreamKey,
+    },
+  } = useAiStreamStudioStore();
 
   const initialTab = React.useMemo(
     () => normalizeTab(initialView, "studio"),
     [initialView],
   );
-  const [activeTab, setActiveTab] = React.useState<StudioTab>(initialTab);
 
-  const [selectedCapsuleId, setSelectedCapsuleId] = React.useState<string | null>(null);
-
-  const selectedCapsule = React.useMemo(() => {
-    if (!selectedCapsuleId) return null;
-    return capsules.find((capsule) => capsule.id === selectedCapsuleId) ?? null;
-  }, [capsules, selectedCapsuleId]);
-
-  const [selectorOpen, setSelectorOpen] = React.useState(true);
+  const {
+    activeTab,
+    handleTabChange,
+    handleCapsuleChange,
+    selectedCapsule,
+    selectorOpen,
+  } = useAiStreamStudioNavigation({
+    capsules,
+    initialTab,
+    pathname,
+    searchParams,
+    searchParamsString,
+    router,
+  });
 
   const capsuleLayoutScope = selectedCapsule?.id ?? null;
 
@@ -385,73 +323,50 @@ export function AiStreamStudioLayout({
   );
 
   const panelStorage = usePanelLayoutStorage(layoutView, initialPanelLayouts);
-
-  const [streamOverview, setStreamOverview] = React.useState<StreamOverview | null>(null);
-  const [overviewLoading, setOverviewLoading] = React.useState(false);
-  const [overviewError, setOverviewError] = React.useState<string | null>(null);
-  const [actionBusy, setActionBusy] = React.useState<"ensure" | "rotate" | null>(null);
-  const [streamPreferences, setStreamPreferences] = React.useState<StreamPreferences>(
-    DEFAULT_STREAM_PREFERENCES,
-  );
-  const [copiedField, setCopiedField] = React.useState<string | null>(null);
+  const { copiedField, copy } = useClipboardCopy();
   const [showPrimaryKey, setShowPrimaryKey] = React.useState(false);
   const [showBackupKey, setShowBackupKey] = React.useState(false);
+  const [downloadBusy, setDownloadBusy] = React.useState(false);
+  const [addingDestination, setAddingDestination] = React.useState(false);
+  const [destinationDraft, setDestinationDraft] = React.useState<DestinationDraft>(() => ({
+    label: "",
+    provider: SIMULCAST_PROVIDER_OPTIONS[0]?.value ?? "custom",
+    url: "",
+    streamKey: "",
+  }));
+  const [destinationError, setDestinationError] = React.useState<string | null>(null);
+  const [addingWebhook, setAddingWebhook] = React.useState(false);
+  const [webhookDraft, setWebhookDraft] = React.useState<WebhookDraft>({
+    label: "",
+    url: "",
+    secret: "",
+    events: [],
+  });
+  const [webhookError, setWebhookError] = React.useState<string | null>(null);
   const [uptimeTick, setUptimeTick] = React.useState(() => Date.now());
-  const supabaseRef = React.useRef<SupabaseClient | null>(null);
-  const streamOverviewRef = React.useRef<StreamOverview | null>(null);
-  const fetchControllerRef = React.useRef<AbortController | null>(null);
-  const refreshTimerRef = React.useRef<number | null>(null);
-  const preferenceSaveControllerRef = React.useRef<AbortController | null>(null);
-  const skipPreferencePersistRef = React.useRef(true);
-  const preferenceHydrationPendingRef = React.useRef(false);
-  const lastPersistedPreferencesRef = React.useRef<string>(
-    JSON.stringify(DEFAULT_STREAM_PREFERENCES),
-  );
-
-  const applyServerPreferences = React.useCallback((incoming?: StreamPreferences | null) => {
-    const normalized = incoming
-      ? { ...DEFAULT_STREAM_PREFERENCES, ...incoming }
-      : { ...DEFAULT_STREAM_PREFERENCES };
-    skipPreferencePersistRef.current = true;
-    preferenceHydrationPendingRef.current = true;
-    setStreamPreferences(normalized);
-    lastPersistedPreferencesRef.current = JSON.stringify(normalized);
+  const providerLabelMap = React.useMemo(() => {
+    return new Map(SIMULCAST_PROVIDER_OPTIONS.map((option) => [option.value, option.label]));
   }, []);
 
-  const updateStreamPreferences = React.useCallback((updates: Partial<StreamPreferences>) => {
-    setStreamPreferences((prev) => ({ ...prev, ...updates }));
-  }, []);
-
-  const preferenceSignature = React.useMemo(
-    () => JSON.stringify(streamPreferences),
-    [streamPreferences],
+  const resolveProviderLabel = React.useCallback(
+    (value: string) => providerLabelMap.get(value) ?? "Custom",
+    [providerLabelMap],
   );
 
-  const dateFormatter = React.useMemo(
-    () => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }),
-    [],
-  );
+  const mobileIngestPayload = React.useMemo(() => {
+    if (!streamOverview) return null;
+    const ingestUrl = streamOverview.ingest.primary ?? DEFAULT_PRIMARY_INGEST_URL;
+    const streamKey = streamOverview.ingest.streamKey;
+    if (!ingestUrl || !streamKey) return null;
+    return JSON.stringify({
+      capsuleId: streamOverview.liveStream.capsuleId,
+      capsuleName: selectedCapsule?.name ?? null,
+      ingestUrl,
+      streamKey,
+    });
+  }, [selectedCapsule?.name, streamOverview]);
 
-  const formatTimestamp = React.useCallback(
-    (value: string | null | undefined) => {
-      if (!value) return "--";
-      const parsed = Date.parse(value);
-      if (!Number.isFinite(parsed)) return "--";
-      return dateFormatter.format(new Date(parsed));
-    },
-    [dateFormatter],
-  );
-
-  const formatDuration = React.useCallback((input: number | null | undefined) => {
-    if (!input || input <= 0) return "--";
-    const totalSeconds = Math.floor(input);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return [hours, minutes, seconds]
-      .map((value) => value.toString().padStart(2, "0"))
-      .join(":");
-  }, []);
+  const { qrImageDataUrl, qrGenerating, qrError } = useMobileIngestQr(mobileIngestPayload);
 
   const activeSession = React.useMemo(() => {
     if (!streamOverview) return null;
@@ -478,361 +393,13 @@ export function AiStreamStudioLayout({
     return Math.max(0, Math.floor((uptimeTick - parsedStart) / 1000));
   }, [activeSession?.startedAt, uptimeTick]);
 
-  React.useEffect(() => {
-    streamOverviewRef.current = streamOverview;
-  }, [streamOverview]);
+  const handleEnsureStream = React.useCallback(() => {
+    void ensureStream();
+  }, [ensureStream]);
 
-  React.useEffect(() => {
-    if (!preferenceHydrationPendingRef.current) return;
-    preferenceHydrationPendingRef.current = false;
-    skipPreferencePersistRef.current = false;
-  }, [streamPreferences]);
-
-  const fetchOverview = React.useCallback(
-    async (capsuleId: string, options?: { silent?: boolean }) => {
-      const silent = options?.silent ?? false;
-      const controller = new AbortController();
-      if (fetchControllerRef.current) {
-        fetchControllerRef.current.abort();
-      }
-      fetchControllerRef.current = controller;
-
-      if (!silent || !streamOverviewRef.current) {
-        setOverviewLoading(true);
-      }
-      if (!silent) {
-        setOverviewError(null);
-      }
-
-      try {
-        const response = await fetch(`/api/mux/live?capsuleId=${encodeURIComponent(capsuleId)}`, {
-          method: "GET",
-          cache: "no-store",
-          signal: controller.signal,
-        });
-
-        if (response.ok) {
-          const payload = (await response.json()) as StreamOverviewResponse;
-          setStreamOverview(payload.overview ?? null);
-          streamOverviewRef.current = payload.overview ?? null;
-          applyServerPreferences(payload.preferences);
-          setOverviewError(null);
-        } else if (response.status === 404) {
-          setStreamOverview(null);
-          streamOverviewRef.current = null;
-          applyServerPreferences(null);
-          if (!silent) {
-            setOverviewError(null);
-          }
-        } else if (!silent) {
-          let message = "Failed to load stream overview.";
-          try {
-            const body = await response.json();
-            if (body && typeof body.message === "string") {
-              message = body.message;
-            }
-          } catch {
-            // ignore parse errors
-          }
-          setOverviewError(message);
-        }
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        console.warn("mux.live.overview", error);
-        if (!silent) {
-          setOverviewError("Failed to load stream overview.");
-        }
-      } finally {
-        if (fetchControllerRef.current === controller) {
-          fetchControllerRef.current = null;
-        }
-        if (!silent || !streamOverviewRef.current) {
-          setOverviewLoading(false);
-        }
-      }
-    },
-    [applyServerPreferences],
-  );
-
-  React.useEffect(() => {
-    if (!selectedCapsuleId) {
-      if (fetchControllerRef.current) {
-        fetchControllerRef.current.abort();
-        fetchControllerRef.current = null;
-      }
-      if (preferenceSaveControllerRef.current) {
-        preferenceSaveControllerRef.current.abort();
-        preferenceSaveControllerRef.current = null;
-      }
-      skipPreferencePersistRef.current = true;
-      preferenceHydrationPendingRef.current = false;
-      setStreamPreferences(DEFAULT_STREAM_PREFERENCES);
-      lastPersistedPreferencesRef.current = JSON.stringify(DEFAULT_STREAM_PREFERENCES);
-      setStreamOverview(null);
-      setOverviewError(null);
-      setOverviewLoading(false);
-      return;
-    }
-
-    fetchOverview(selectedCapsuleId);
-
-    return () => {
-      if (fetchControllerRef.current) {
-        fetchControllerRef.current.abort();
-        fetchControllerRef.current = null;
-      }
-    };
-  }, [fetchOverview, selectedCapsuleId]);
-
-  React.useEffect(() => {
-    if (!selectedCapsuleId) {
-      return;
-    }
-    if (skipPreferencePersistRef.current) {
-      return;
-    }
-    if (preferenceSignature === lastPersistedPreferencesRef.current) {
-      return;
-    }
-
-    const controller = new AbortController();
-    if (preferenceSaveControllerRef.current) {
-      preferenceSaveControllerRef.current.abort();
-    }
-    preferenceSaveControllerRef.current = controller;
-
-    const persist = async () => {
-      try {
-        const response = await fetch("/api/mux/live", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            capsuleId: selectedCapsuleId,
-            preferences: streamPreferences,
-          }),
-          signal: controller.signal,
-        });
-
-        if (response.ok) {
-          const payload = (await response.json()) as StreamOverviewResponse;
-          applyServerPreferences(payload.preferences);
-          setStreamOverview(payload.overview ?? null);
-          streamOverviewRef.current = payload.overview ?? null;
-          lastPersistedPreferencesRef.current = JSON.stringify(payload.preferences);
-        } else if (!controller.signal.aborted) {
-          console.warn("mux.preferences.persist.failed", response.status);
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          console.warn("mux.preferences.persist.error", error);
-        }
-      }
-    };
-
-    void persist();
-
-    return () => {
-      controller.abort();
-    };
-  }, [applyServerPreferences, preferenceSignature, selectedCapsuleId, streamPreferences]);
-
-  const scheduleOverviewRefresh = React.useCallback(
-    (reason: MuxRealtimeTable) => {
-      if (!selectedCapsuleId) return;
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
-      const shouldShowSpinner = !streamOverviewRef.current;
-      const delay = reason === "mux_live_streams" ? 120 : 220;
-      refreshTimerRef.current = window.setTimeout(() => {
-        refreshTimerRef.current = null;
-        fetchOverview(selectedCapsuleId, { silent: !shouldShowSpinner });
-      }, delay);
-    },
-    [fetchOverview, selectedCapsuleId],
-  );
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!selectedCapsuleId) return;
-
-    if (!supabaseRef.current) {
-      try {
-        supabaseRef.current = getBrowserSupabaseClient();
-      } catch (error) {
-        console.warn("supabase.mux.refresh unavailable", error);
-        return;
-      }
-    }
-
-    const supabase = supabaseRef.current;
-    if (!supabase) return;
-
-    const channelName = `mux:studio:${selectedCapsuleId}`;
-    const channel = supabase.channel(channelName);
-    const tables: MuxRealtimeTable[] = [
-      "mux_live_streams",
-      "mux_live_stream_sessions",
-      "mux_assets",
-      "mux_ai_jobs",
-    ];
-
-    tables.forEach((table) => {
-      channel.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table, filter: `capsule_id=eq.${selectedCapsuleId}` },
-        () => {
-          scheduleOverviewRefresh(table);
-        },
-      );
-    });
-
-    channel.subscribe();
-
-    return () => {
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
-      supabase.removeChannel(channel);
-    };
-  }, [scheduleOverviewRefresh, selectedCapsuleId]);
-
-  React.useEffect(() => {
-    if (typeof document === "undefined" || typeof window === "undefined") return;
-    if (!selectedCapsuleId) return;
-
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        scheduleOverviewRefresh("mux_live_streams");
-      }
-    };
-
-    const handleFocus = () => {
-      scheduleOverviewRefresh("mux_live_streams");
-    };
-
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [scheduleOverviewRefresh, selectedCapsuleId]);
-
-  const handleEnsureStream = React.useCallback(async () => {
-    if (!selectedCapsuleId) return;
-    setActionBusy("ensure");
-    setOverviewLoading(true);
-    try {
-      const response = await fetch("/api/mux/live", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          capsuleId: selectedCapsuleId,
-          action: "ensure",
-          latencyMode: streamPreferences.latencyMode,
-        }),
-      });
-
-      if (response.ok) {
-        const payload = (await response.json()) as StreamOverviewResponse;
-        setStreamOverview(payload.overview ?? null);
-        streamOverviewRef.current = payload.overview ?? null;
-        applyServerPreferences(payload.preferences);
-        setOverviewError(null);
-      } else {
-        let message = "Failed to prepare streaming.";
-        try {
-          const body = await response.json();
-          if (body && typeof body.message === "string") {
-            message =
-              typeof body.code === "string" && body.code.length
-                ? `${body.message} (${body.code})`
-                : body.message;
-          } else if (body && typeof body.error === "string") {
-            message = body.error;
-          }
-        } catch {
-          // ignore
-        }
-        setOverviewError(message);
-      }
-    } catch (error) {
-      console.warn("mux.ensure", error);
-      setOverviewError("Failed to prepare streaming.");
-    } finally {
-      setActionBusy(null);
-      setOverviewLoading(false);
-    }
-  }, [applyServerPreferences, selectedCapsuleId, streamPreferences.latencyMode]);
-
-  const handleRotateStreamKey = React.useCallback(async () => {
-    if (!selectedCapsuleId) return;
-    setActionBusy("rotate");
-    setOverviewLoading(true);
-    try {
-      const response = await fetch("/api/mux/live", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ capsuleId: selectedCapsuleId, action: "rotate-key" }),
-      });
-
-      if (response.ok) {
-        const payload = (await response.json()) as StreamOverviewResponse;
-        setStreamOverview(payload.overview ?? null);
-        streamOverviewRef.current = payload.overview ?? null;
-        applyServerPreferences(payload.preferences);
-        setOverviewError(null);
-      } else {
-        let message = "Failed to rotate stream key.";
-        try {
-          const body = await response.json();
-          if (body && typeof body.message === "string") {
-            message =
-              typeof body.code === "string" && body.code.length
-                ? `${body.message} (${body.code})`
-                : body.message;
-          } else if (body && typeof body.error === "string") {
-            message = body.error;
-          }
-        } catch {
-          // ignore
-        }
-        setOverviewError(message);
-      }
-    } catch (error) {
-      console.warn("mux.rotateKey", error);
-      setOverviewError("Failed to rotate stream key.");
-    } finally {
-      setActionBusy(null);
-      setOverviewLoading(false);
-    }
-  }, [applyServerPreferences, selectedCapsuleId]);
-
-  const handleCopyToClipboard = React.useCallback(
-    (label: string, value: string | null | undefined) => {
-      if (!value) return;
-      if (typeof navigator === "undefined" || !navigator.clipboard) {
-        console.warn("Clipboard API not available");
-        return;
-      }
-      navigator.clipboard
-        .writeText(value)
-        .then(() => {
-          setCopiedField(label);
-          window.setTimeout(() => setCopiedField(null), 2000);
-        })
-      .catch((error) => {
-        console.warn("Failed to copy", error);
-      });
-    },
-    [],
-  );
+  const handleRotateStreamKey = React.useCallback(() => {
+    void rotateStreamKey();
+  }, [rotateStreamKey]);
 
   const maskSecret = React.useCallback((value: string | null | undefined) => {
     if (!value) return "--";
@@ -847,6 +414,172 @@ export function AiStreamStudioLayout({
     },
     [updateStreamPreferences],
   );
+
+  const handleDestinationDraftChange = React.useCallback(
+    (field: keyof DestinationDraft, value: string) => {
+      setDestinationDraft((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
+
+  const handleAddSimulcastDestination = React.useCallback(
+    (event?: React.FormEvent<HTMLFormElement>) => {
+      event?.preventDefault();
+      const trimmedUrl = destinationDraft.url.trim();
+      if (!trimmedUrl.length) {
+        setDestinationError("Destination ingest URL is required.");
+        return;
+      }
+      const provider = destinationDraft.provider || "custom";
+      const label = destinationDraft.label.trim() || `${resolveProviderLabel(provider)} destination`;
+      const streamKeyValue = destinationDraft.streamKey.trim();
+      const nextDestination: StreamSimulcastDestination = {
+        id: generatePreferenceId(),
+        label,
+        provider,
+        url: trimmedUrl,
+        streamKey: streamKeyValue.length ? streamKeyValue : null,
+        enabled: true,
+        status: "idle",
+        lastSyncedAt: null,
+      };
+      updateStreamPreferences({
+        simulcastDestinations: [...streamPreferences.simulcastDestinations, nextDestination],
+      });
+      setDestinationDraft((prev) => ({ ...prev, label: "", url: "", streamKey: "" }));
+      setDestinationError(null);
+      setAddingDestination(false);
+    },
+    [destinationDraft, resolveProviderLabel, streamPreferences.simulcastDestinations, updateStreamPreferences],
+  );
+
+  const handleToggleSimulcastDestination = React.useCallback(
+    (id: string) => {
+      updateStreamPreferences({
+        simulcastDestinations: streamPreferences.simulcastDestinations.map((destination) =>
+          destination.id === id
+            ? {
+                ...destination,
+                enabled: !destination.enabled,
+                status: destination.enabled ? "idle" : destination.status,
+              }
+            : destination,
+        ),
+      });
+    },
+    [streamPreferences.simulcastDestinations, updateStreamPreferences],
+  );
+
+  const handleRemoveSimulcastDestination = React.useCallback(
+    (id: string) => {
+      updateStreamPreferences({
+        simulcastDestinations: streamPreferences.simulcastDestinations.filter(
+          (destination) => destination.id !== id,
+        ),
+      });
+    },
+    [streamPreferences.simulcastDestinations, updateStreamPreferences],
+  );
+
+  const handleCancelAddDestination = React.useCallback(() => {
+    setAddingDestination(false);
+    setDestinationError(null);
+    setDestinationDraft((prev) => ({ ...prev, label: "", url: "", streamKey: "" }));
+  }, []);
+
+  const handleWebhookFieldChange = React.useCallback(
+    (field: "label" | "url" | "secret", value: string) => {
+      setWebhookDraft((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
+
+  const handleWebhookEventToggle = React.useCallback((eventValue: string) => {
+    setWebhookDraft((prev) => {
+      const exists = prev.events.includes(eventValue);
+      const nextEvents = exists
+        ? prev.events.filter((value) => value !== eventValue)
+        : [...prev.events, eventValue];
+      return { ...prev, events: nextEvents };
+    });
+  }, []);
+
+  const handleAddWebhookEndpoint = React.useCallback(
+    (event?: React.FormEvent<HTMLFormElement>) => {
+      event?.preventDefault();
+      const trimmedUrl = webhookDraft.url.trim();
+      if (!trimmedUrl.length) {
+        setWebhookError("Webhook URL is required.");
+        return;
+      }
+      const label = webhookDraft.label.trim() || "Streaming webhook";
+      const secretValue = webhookDraft.secret.trim();
+      const newEndpoint: StreamWebhookEndpoint = {
+        id: generatePreferenceId(),
+        label,
+        url: trimmedUrl,
+        secret: secretValue.length ? secretValue : null,
+        events: Array.from(new Set(webhookDraft.events)).sort(),
+        enabled: true,
+        lastDeliveredAt: null,
+      };
+      updateStreamPreferences({
+        webhookEndpoints: [...streamPreferences.webhookEndpoints, newEndpoint],
+      });
+      setWebhookDraft({ label: "", url: "", secret: "", events: [] });
+      setWebhookError(null);
+      setAddingWebhook(false);
+    },
+    [streamPreferences.webhookEndpoints, updateStreamPreferences, webhookDraft],
+  );
+
+  const handleToggleWebhookEndpoint = React.useCallback(
+    (id: string) => {
+      updateStreamPreferences({
+        webhookEndpoints: streamPreferences.webhookEndpoints.map((endpoint) =>
+          endpoint.id === id ? { ...endpoint, enabled: !endpoint.enabled } : endpoint,
+        ),
+      });
+    },
+    [streamPreferences.webhookEndpoints, updateStreamPreferences],
+  );
+
+  const handleRemoveWebhookEndpoint = React.useCallback(
+    (id: string) => {
+      updateStreamPreferences({
+        webhookEndpoints: streamPreferences.webhookEndpoints.filter((endpoint) => endpoint.id !== id),
+      });
+    },
+    [streamPreferences.webhookEndpoints, updateStreamPreferences],
+  );
+
+  const handleCancelAddWebhook = React.useCallback(() => {
+    setAddingWebhook(false);
+    setWebhookError(null);
+    setWebhookDraft({ label: "", url: "", secret: "", events: [] });
+  }, []);
+
+  const handleDownloadObsProfile = React.useCallback(async () => {
+    if (!selectedCapsuleId) return;
+    setDownloadBusy(true);
+    try {
+      const { blob, filename } = await downloadObsProfile({ capsuleId: selectedCapsuleId });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      const normalizedError = normalizeMuxError(error, "Failed to download OBS profile.");
+      console.warn("mux.obsProfile.download", normalizedError);
+      setOverviewError(normalizedError.message);
+    } finally {
+      setDownloadBusy(false);
+    }
+  }, [selectedCapsuleId, setOverviewError]);
 
   const playbackUrl = React.useMemo(() => {
     if (streamOverview?.playback.playbackUrl) {
@@ -863,606 +596,26 @@ export function AiStreamStudioLayout({
     return `<mux-player stream-type="live" playback-id="${streamOverview.playback.playbackId}"></mux-player>`;
   }, [streamOverview]);
 
-  const queryView = React.useMemo(() => {
-    const param = searchParams?.get("view") ?? null;
-    return normalizeTab(param, "studio");
-  }, [searchParams]);
-
-  const queryCapsuleId = React.useMemo(() => {
-    const param = searchParams?.get("capsuleId") ?? null;
-    if (!param) return null;
-    return capsules.some((capsule) => capsule.id === param) ? param : null;
-  }, [capsules, searchParams]);
-
-  React.useEffect(() => {
-    const normalized = normalizeTab(queryView, initialTab);
-    setActiveTab(normalized);
-  }, [initialTab, queryView]);
-
-  React.useEffect(() => {
-    if (queryCapsuleId === null) {
-      setSelectedCapsuleId(null);
-      setSelectorOpen(true);
-      return;
-    }
-    setSelectedCapsuleId(queryCapsuleId);
-    setSelectorOpen(false);
-  }, [queryCapsuleId]);
-
-  const hasSwitchParam = React.useMemo(() => {
-    return searchParams?.has("switch") ?? false;
-  }, [searchParams]);
-
-  React.useEffect(() => {
-    if (!hasSwitchParam) return;
-    setSelectedCapsuleId(null);
-    setSelectorOpen(true);
-  }, [hasSwitchParam]);
-
-  const updateUrl = React.useCallback(
-    (nextTab: StudioTab) => {
-      if (!pathname) return;
-      const params = new URLSearchParams(searchParamsString);
-      if (nextTab === "studio") {
-        params.delete("view");
-      } else {
-        params.set("view", nextTab);
-      }
-
-      params.delete("switch");
-
-      const nextSearch = params.toString();
-      if (nextSearch === searchParamsString) return;
-      const nextHref = nextSearch.length ? `${pathname}?${nextSearch}` : pathname;
-      router.replace(nextHref, { scroll: false });
-    },
-    [pathname, router, searchParamsString],
+  const renderStudioContent = () => (
+    <LiveStudioTab
+      selectorOpen={selectorOpen}
+      selectedCapsule={selectedCapsule}
+      capsules={capsules}
+      onCapsuleChange={handleCapsuleChange}
+      autoSaveIds={autoSaveIds}
+      panelStorage={panelStorage}
+      streamOverview={streamOverview}
+      overviewLoading={overviewLoading}
+      overviewError={overviewError}
+      actionBusy={actionBusy}
+      uptimeSeconds={uptimeSeconds}
+      onEnsureStream={handleEnsureStream}
+      onNavigateToEncoder={() => handleTabChange("encoder")}
+    />
   );
-
-  const handleTabChange = React.useCallback(
-    (nextValue: string) => {
-      const normalized = normalizeTab(nextValue, activeTab);
-      if (normalized === activeTab) return;
-      setActiveTab(normalized);
-      updateUrl(normalized);
-    },
-    [activeTab, updateUrl],
+  const renderProducerContent = () => (
+    <ProducerConsoleTab selectedCapsule={selectedCapsule} />
   );
-
-  const syncSelectorSearchParams = React.useCallback(
-    (capsuleId: string | null, reopenSelector: boolean) => {
-      if (!pathname) return;
-      const params = new URLSearchParams(searchParamsString);
-      if (capsuleId) {
-        params.set("capsuleId", capsuleId);
-        params.delete("switch");
-      } else {
-        params.delete("capsuleId");
-        if (reopenSelector) {
-          params.set("switch", "1");
-        } else {
-          params.delete("switch");
-        }
-      }
-      const nextSearch = params.toString();
-      if (nextSearch === searchParamsString) return;
-      const nextHref = nextSearch.length ? `${pathname}?${nextSearch}` : pathname;
-      router.replace(nextHref, { scroll: false });
-    },
-    [pathname, router, searchParamsString],
-  );
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handleCapsuleSwitch = () => {
-      setSelectedCapsuleId(null);
-      setSelectorOpen(true);
-      syncSelectorSearchParams(null, true);
-    };
-    window.addEventListener("capsule:switch", handleCapsuleSwitch);
-    return () => {
-      window.removeEventListener("capsule:switch", handleCapsuleSwitch);
-    };
-  }, [syncSelectorSearchParams]);
-
-  const handleCapsuleChange = React.useCallback(
-    (capsule: CapsuleSummary | null) => {
-      const capsuleId = capsule?.id ?? null;
-      setSelectedCapsuleId(capsuleId);
-      const shouldReopenSelector = !capsuleId;
-      setSelectorOpen(shouldReopenSelector);
-      syncSelectorSearchParams(capsuleId, shouldReopenSelector);
-    },
-    [syncSelectorSearchParams],
-  );
-
-  const renderStudioContent = () => {
-    if (selectorOpen || !selectedCapsule) {
-      return (
-        <>
-          <AiStreamCapsuleGate
-            capsules={capsules}
-            selectedCapsule={selectedCapsule}
-            onSelectionChange={handleCapsuleChange}
-          />
-        </>
-      );
-    }
-
-    return (
-      <PanelGroup
-        key={autoSaveIds.main}
-        direction="horizontal"
-        className={styles.studioLayout ?? ""}
-        autoSaveId={autoSaveIds.main}
-        storage={panelStorage}
-        style={{ height: "auto", minHeight: "var(--studio-track-height)", overflow: "visible" }}
-      >
-        <Panel defaultSize={50} minSize={44} collapsible={false}>
-          <PanelGroup
-            key={autoSaveIds.leftColumn}
-            direction="vertical"
-            className={styles.panelColumn ?? ""}
-            autoSaveId={autoSaveIds.leftColumn}
-            storage={panelStorage}
-          >
-            <Panel defaultSize={58} minSize={46} collapsible={false}>
-              <div className={styles.panelSection}>
-                <div className={`${styles.previewPanel} ${styles.panelCard}`}>
-                  <div className={styles.previewHeader}>
-                    <div>
-                      <div className={styles.previewTitle}>{selectedCapsule.name}</div>
-                      <div className={styles.previewSubtitle}>
-                        {streamOverview
-                          ? `Status: ${streamOverview.liveStream.status}`
-                          : overviewLoading
-                            ? "Checking Mux live stream..."
-                            : "Mux live stream not yet configured."}
-                      </div>
-                      {overviewError ? (
-                        <div className={styles.previewError}>{overviewError}</div>
-                      ) : null}
-                    </div>
-                    <div className={styles.previewActions}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleTabChange("encoder")}
-                      >
-                        Encoder settings
-                      </Button>
-                      <Button variant="gradient" size="sm" disabled>
-                        Go live
-                      </Button>
-                    </div>
-                  </div>
-                  <div className={styles.previewFrame}>
-                    {overviewLoading ? (
-                      <div className={styles.previewPlaceholder}>Loading stream preview...</div>
-                    ) : streamOverview?.playback.playbackId ? (
-                      <MuxPlayer
-                        playbackId={streamOverview.playback.playbackId ?? undefined}
-                        streamType="live"
-                        metadata={{
-                          video_title: `${selectedCapsule.name} live preview`,
-                        }}
-                        style={{ width: "100%", height: "100%", borderRadius: "18px" }}
-                      />
-                    ) : (
-                      <div className={styles.previewEmpty}>
-                        <p>Set up your stream in the Encoder tab to preview playback here.</p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleEnsureStream}
-                          disabled={actionBusy === "ensure" || overviewLoading}
-                        >
-                          {actionBusy === "ensure" ? "Preparing..." : "Set up streaming"}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <div className={styles.previewFooter}>
-                    <div className={styles.previewStats}>
-                      <div className={styles.previewStat}>
-                        <span className={styles.previewStatLabel}>Uptime</span>
-                        <span className={styles.previewStatValue}>{formatDuration(uptimeSeconds)}</span>
-                      </div>
-                      <div className={styles.previewStat}>
-                        <span className={styles.previewStatLabel}>Latency</span>
-                        <span className={styles.previewStatValue}>
-                          {streamOverview
-                            ? streamOverview.liveStream.latencyMode ??
-                              (streamOverview.liveStream.isLowLatency ? "low" : "standard")
-                            : "--"}
-                        </span>
-                      </div>
-                      <div className={styles.previewStat}>
-                        <span className={styles.previewStatLabel}>Last active</span>
-                        <span className={styles.previewStatValue}>
-                          {streamOverview
-                            ? formatTimestamp(
-                                streamOverview.liveStream.lastActiveAt ??
-                                  streamOverview.liveStream.lastSeenAt,
-                              )
-                            : "--"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={styles.controlToolbar}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleEnsureStream}
-                        disabled={actionBusy === "ensure" || overviewLoading}
-                      >
-                        {actionBusy === "ensure" ? "Preparing..." : "Refresh stream"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRotateStreamKey}
-                        disabled={!streamOverview || actionBusy === "rotate" || overviewLoading}
-                      >
-                        {actionBusy === "rotate" ? "Rotating..." : "Rotate key"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleTabChange("encoder")}
-                      >
-                        Encoder tab
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Panel>
-            <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={24} minSize={16} collapsible={false}>
-              <div className={styles.panelSection}>
-                <div className={`${styles.quickActionsCard} ${styles.panelCard}`}>
-                  <div className={styles.quickActionsHeader}>
-                    <div>
-                      <div className={styles.quickActionsTitle}>Quick controls</div>
-                      <div className={styles.quickActionsSubtitle}>
-                        On-the-fly adjustments for your Capsule audience.
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="xs" disabled>
-                      Customize
-                    </Button>
-                  </div>
-                  <div className={styles.quickActionsGrid}>
-                    {["Edit stream info", "Launch raid", "Run promo", "Drop poll"].map((action) => (
-                      <button key={action} type="button" className={styles.quickActionButton} disabled>
-                        {action}
-                      </button>
-                    ))}
-                    <button type="button" className={styles.quickActionButton} disabled>
-                      Add action
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </Panel>
-            <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={18} minSize={12} collapsible={false}>
-              <div className={styles.panelSection}>
-                <div className={`${styles.signalCard} ${styles.panelCard}`}>
-                  <div className={styles.signalHeader}>
-                    <div className={styles.signalTitle}>Live telemetry</div>
-                    <span className={styles.signalPill}>AI monitor</span>
-                  </div>
-                  <ul className={styles.signalList}>
-                    <li>
-                      <span>Bitrate &amp; dropped frames</span>
-                      <strong>Stable</strong>
-                    </li>
-                    <li>
-                      <span>Audience sentiment</span>
-                      <strong>Calm</strong>
-                    </li>
-                    <li>
-                      <span>Highlights queued</span>
-                      <strong>3 clips</strong>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </Panel>
-          </PanelGroup>
-        </Panel>
-
-        <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
-
-        <Panel defaultSize={18} minSize={15} collapsible={false}>
-          <div className={`${styles.panelColumn} ${styles.stageManagerColumn}`}>
-            <div className={`${styles.stageManagerCard} ${styles.panelCard}`}>
-              <header className={styles.stageManagerHeader}>
-                <div>
-                  <div className={styles.stageManagerTitle}>AI stage manager</div>
-                  <div className={styles.stageManagerSubtitle}>
-                    Guides show pacing, sponsor beats, and guest handoffs.
-                  </div>
-                </div>
-                <Button variant="ghost" size="xs" disabled>
-                  View run of show
-                </Button>
-              </header>
-              <div className={styles.stageManagerTimeline}>
-                <div className={styles.stageManagerEvent}>
-                  <span className={styles.stageManagerEventTime}>Now</span>
-                  <div className={styles.stageManagerEventBody}>
-                    <strong>Open with origin story</strong>
-                    <p>
-                      60-second intro with host on camera. Slide deck is primed and overlays are synced.
-                    </p>
-                  </div>
-                </div>
-                <div className={styles.stageManagerEvent}>
-                  <span className={styles.stageManagerEventTime}>+05</span>
-                  <div className={styles.stageManagerEventBody}>
-                    <strong>Invite guest speaker</strong>
-                    <p>
-                      Queue split-screen layout and drop guest bio lower-third.
-                    </p>
-                  </div>
-                </div>
-                <div className={styles.stageManagerEvent}>
-                  <span className={styles.stageManagerEventTime}>+12</span>
-                  <div className={styles.stageManagerEventBody}>
-                    <strong>Community prompt</strong>
-                    <p>
-                      Run poll about feature wishlist. AI will surface top responses for wrap-up.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className={styles.stageManagerThread}>
-                <div className={styles.stageManagerMessage}>
-                  <span className={styles.stageManagerAuthor}>Stage manager</span>
-                  <p>
-                    Want me to prep a sponsor segment once the demo wraps? I can ready the CTA overlay
-                    and chat reminder.
-                  </p>
-                </div>
-                <div className={styles.stageManagerMessageSelf}>
-                  <span className={styles.stageManagerAuthor}>You</span>
-                  <p>
-                    Yes - schedule it for the 18 minute mark if engagement is high.
-                  </p>
-                </div>
-              </div>
-              <footer className={styles.stageManagerFooter}>
-                <div className={styles.stageManagerSuggestions}>
-                  {["Draft outro talking points", "Prep Q&A handoff", "Summarize chat sentiment"].map(
-                    (item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        className={styles.stageManagerSuggestion}
-                        disabled
-                      >
-                        {item}
-                      </button>
-                    ),
-                  )}
-                </div>
-                <div className={styles.stageManagerComposer}>
-                  <div className={styles.stageManagerPrompter} aria-hidden>
-                    <button className={styles.stageManagerPrompterIcon} type="button" disabled>
-                      <Paperclip size={18} weight="duotone" />
-                    </button>
-                    <span className={styles.stageManagerPrompterPlaceholder}>
-                      Ask your Capsule AI to create anything...
-                    </span>
-                    <div className={styles.stageManagerPrompterActions}>
-                      <button className={styles.stageManagerPrompterIcon} type="button" disabled>
-                        <Microphone size={18} weight="duotone" />
-                      </button>
-                      <button className={styles.stageManagerPrompterPrimary} type="button" disabled>
-                        Generate
-                      </button>
-                      <button className={styles.stageManagerPrompterCaret} type="button" disabled>
-                        <CaretDown size={14} weight="bold" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </footer>
-            </div>
-          </div>
-        </Panel>
-
-        <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
-
-        <Panel defaultSize={12} minSize={11} collapsible={false}>
-          <PanelGroup
-            key={autoSaveIds.rightColumn}
-            direction="vertical"
-            className={styles.panelColumn ?? ""}
-            autoSaveId={autoSaveIds.rightColumn}
-            storage={panelStorage}
-          >
-            <Panel defaultSize={60} minSize={18} collapsible={false}>
-              <div className={styles.panelSection}>
-                <div className={`${styles.resourceCard} ${styles.panelCard}`}>
-                  <header className={styles.resourceHeader}>
-                    <div className={styles.resourceTitle}>Activity feed</div>
-                    <Button variant="ghost" size="xs" disabled>
-                      Filter
-                    </Button>
-                  </header>
-                  <ul className={styles.resourceList}>
-                    <li>
-                      <span className={styles.resourceTime}>00:15</span>
-                      <div>
-                        <strong>luna_dev followed</strong>
-                        <p>Auto thank-you message queued in chat.</p>
-                      </div>
-                    </li>
-                    <li>
-                      <span className={styles.resourceTime}>00:09</span>
-                      <div>
-                        <strong>crowdsource tipped $15</strong>
-                        <p>Overlay shout-out scheduled after current segment.</p>
-                      </div>
-                    </li>
-                    <li>
-                      <span className={styles.resourceTime}>00:03</span>
-                      <div>
-                        <strong>Clip ready</strong>
-                        <p>AI clipped &quot;Live coding reveal&quot; for instant share.</p>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </Panel>
-            <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-            <Panel defaultSize={40} minSize={14} collapsible={false}>
-              <div className={styles.panelSection}>
-                <div className={`${styles.resourceCard} ${styles.panelCard}`}>
-                  <header className={styles.resourceHeader}>
-                    <div className={styles.resourceTitle}>Collaborators</div>
-                    <Button variant="ghost" size="xs" disabled>
-                      Invite
-                    </Button>
-                  </header>
-                  <ul className={styles.collaboratorList}>
-                    <li className={styles.collaboratorItem}>
-                      <div className={styles.collaboratorMeta}>
-                        <span className={styles.collaboratorName}>Sam Reynolds</span>
-                        <span className={styles.collaboratorRole}>Producer</span>
-                      </div>
-                      <span
-                        className={`${styles.collaboratorStatus} ${styles.collaboratorStatusOnline}`}
-                      >
-                        On comms
-                      </span>
-                    </li>
-                    <li className={styles.collaboratorItem}>
-                      <div className={styles.collaboratorMeta}>
-                        <span className={styles.collaboratorName}>Jess Patel</span>
-                        <span className={styles.collaboratorRole}>Moderator</span>
-                      </div>
-                      <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusIdle}`}>
-                        Reviewing queue
-                      </span>
-                    </li>
-                    <li className={styles.collaboratorItem}>
-                      <div className={styles.collaboratorMeta}>
-                        <span className={styles.collaboratorName}>Aria</span>
-                        <span className={styles.collaboratorRole}>AI writer</span>
-                      </div>
-                      <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusAway}`}>
-                        Updating recap
-                      </span>
-                    </li>
-                  </ul>
-                  <footer className={styles.collaboratorFooter}>
-                    <Button variant="ghost" size="xs" disabled>
-                      Manage collaborators
-                    </Button>
-                  </footer>
-                </div>
-              </div>
-            </Panel>
-          </PanelGroup>
-        </Panel>
-
-        <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
-
-        <Panel defaultSize={20} minSize={14} collapsible={false}>
-          <div className={styles.panelSection}>
-            <div className={styles.chatRailShell}>
-              <LiveChatRail
-                capsuleId={selectedCapsule.id}
-                capsuleName={selectedCapsule.name}
-                status="waiting"
-              />
-            </div>
-          </div>
-        </Panel>
-      </PanelGroup>
-    );
-  };
-
-  const renderProducerContent = () => {
-    if (!selectedCapsule) {
-      return (
-        <div className={styles.noticeCard}>
-          <h3>Pick a Capsule to unlock Producer tools</h3>
-          <p>
-            Once you choose a destination, we&apos;ll populate AI scene controls, cue playlists, and
-            automation templates tailored to that Capsule.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className={styles.producerLayout}>
-        <div className={styles.producerColumn}>
-          <div className={styles.shellCard}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.shellCardTitle}>Scene stack</div>
-              <Button variant="outline" size="sm" disabled>
-                + New Scene
-              </Button>
-            </div>
-            <ul className={styles.sceneList}>
-              <li className={styles.sceneItem}>
-                <div className={styles.sceneItemTitle}>Main stage</div>
-                <div className={styles.sceneItemMeta}>AI camera framing | host + guest</div>
-              </li>
-              <li className={styles.sceneItem}>
-                <div className={styles.sceneItemTitle}>Clips &amp; react</div>
-                <div className={styles.sceneItemMeta}>Picture-in-picture | sponsor lower-third</div>
-              </li>
-              <li className={styles.sceneItem}>
-                <div className={styles.sceneItemTitle}>Q&amp;A wrap</div>
-                <div className={styles.sceneItemMeta}>Chat overlay | poll recap</div>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className={styles.timelineCard}>
-          <div className={styles.sectionHeader}>
-            <div className={styles.shellCardTitle}>Run of show timeline</div>
-            <Button variant="outline" size="sm" disabled>
-              Add cue
-            </Button>
-          </div>
-          <div className={styles.shellCardSubtitle}>
-            Arrange segments, sponsor reads, and automation triggers. AI producer can auto-fire cues.
-          </div>
-          <div className={styles.timelineRail}>
-            <div className={styles.timelineRow} />
-            <div className={styles.timelineRow} />
-            <div className={styles.timelineRow} />
-          </div>
-        </div>
-        <div className={styles.assistantCard}>
-          <div className={styles.sectionHeader}>
-            <div className={styles.shellCardTitle}>AI copilot</div>
-            <Button variant="outline" size="sm" disabled>
-              Open chat
-            </Button>
-          </div>
-          <ul className={styles.assistantList}>
-            <li>Summaries live chat into beat-by-beat show notes.</li>
-            <li>Suggests follow-up questions and polls in real time.</li>
-            <li>Flags moments for instant clips &amp; VOD chapters.</li>
-          </ul>
-          <div className={styles.assistantPrompt}>
-            &quot;Queue the sponsor slate in 2 minutes and remind me to plug the merch drop.&quot;
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   const renderEncoderContent = () => {
     if (!selectedCapsule) {
@@ -1536,7 +689,7 @@ export function AiStreamStudioLayout({
                   type="button"
                   className={styles.encoderActionButton}
                   onClick={() =>
-                    handleCopyToClipboard(
+                    copy(
                       "primary-ingest",
                       streamOverview.ingest.primary ?? "rtmps://global-live.mux.com:443/app",
                     )
@@ -1556,7 +709,7 @@ export function AiStreamStudioLayout({
                   type="button"
                   className={styles.encoderActionButton}
                   onClick={() =>
-                    handleCopyToClipboard(
+                    copy(
                       "backup-ingest",
                       streamOverview.ingest.backup ?? "rtmps://global-live-backup.mux.com:443/app",
                     )
@@ -1603,8 +756,8 @@ export function AiStreamStudioLayout({
                     type="checkbox"
                     className={styles.switch}
                     checked={streamPreferences.disconnectProtection}
-                    onChange={(e) =>
-                      updateStreamPreferences({ disconnectProtection: e.target.checked })
+                    onChange={(event) =>
+                      updateStreamPreferences({ disconnectProtection: event.target.checked })
                     }
                   />
                   <div>
@@ -1617,8 +770,8 @@ export function AiStreamStudioLayout({
                     type="checkbox"
                     className={styles.switch}
                     checked={streamPreferences.audioWarnings}
-                    onChange={(e) =>
-                      updateStreamPreferences({ audioWarnings: e.target.checked })
+                    onChange={(event) =>
+                      updateStreamPreferences({ audioWarnings: event.target.checked })
                     }
                   />
                   <div>
@@ -1640,8 +793,8 @@ export function AiStreamStudioLayout({
                   type="checkbox"
                   className={styles.switch}
                   checked={streamPreferences.storePastBroadcasts}
-                  onChange={(e) =>
-                    updateStreamPreferences({ storePastBroadcasts: e.target.checked })
+                  onChange={(event) =>
+                    updateStreamPreferences({ storePastBroadcasts: event.target.checked })
                   }
                 />
                 <div>
@@ -1654,8 +807,8 @@ export function AiStreamStudioLayout({
                   type="checkbox"
                   className={styles.switch}
                   checked={streamPreferences.alwaysPublishVods}
-                  onChange={(e) =>
-                    updateStreamPreferences({ alwaysPublishVods: e.target.checked })
+                  onChange={(event) =>
+                    updateStreamPreferences({ alwaysPublishVods: event.target.checked })
                   }
                 />
                 <div>
@@ -1668,8 +821,8 @@ export function AiStreamStudioLayout({
                   type="checkbox"
                   className={styles.switch}
                   checked={streamPreferences.autoClips}
-                  onChange={(e) =>
-                    updateStreamPreferences({ autoClips: e.target.checked })
+                  onChange={(event) =>
+                    updateStreamPreferences({ autoClips: event.target.checked })
                   }
                 />
                 <div>
@@ -1678,6 +831,402 @@ export function AiStreamStudioLayout({
                 </div>
               </label>
             </div>
+          </section>
+          <section className={styles.encoderSection}>
+            <div className={styles.encoderSectionTitle}>Encoder toolset</div>
+            <div className={styles.encoderSectionSubtitle}>
+              Download an OBS profile or pair a mobile encoder with your ingest settings.
+            </div>
+            <div className={styles.encoderTools}>
+              <div className={styles.encoderToolCard}>
+                <div className={styles.encoderToolHeader}>
+                  <div className={styles.encoderToolTitle}>OBS profile</div>
+                  <span className={styles.encoderToolBadge}>JSON</span>
+                </div>
+                <p className={styles.encoderToolBody}>
+                  Export ingest URLs, stream keys, and your current preferences for a one-click OBS import.
+                </p>
+                <div className={styles.encoderToolActions}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadObsProfile}
+                    disabled={downloadBusy || overviewLoading}
+                  >
+                    {downloadBusy ? "Preparing..." : "Download profile"}
+                  </Button>
+                </div>
+              </div>
+              <div className={styles.encoderToolCard}>
+                <div className={styles.encoderToolHeader}>
+                  <div className={styles.encoderToolTitle}>Mobile ingest QR</div>
+                  <span className={styles.encoderToolBadge}>RTMP</span>
+                </div>
+                <p className={styles.encoderToolBody}>
+                  Scan with a mobile encoder to prefill the ingest URL and stream key instantly.
+                </p>
+                <div className={styles.encoderQr}>
+                  {qrGenerating ? (
+                    <div className={styles.encoderQrPlaceholder}>Generating QR…</div>
+                  ) : qrError ? (
+                    <div className={styles.encoderQrError}>{qrError}</div>
+                  ) : qrImageDataUrl ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={qrImageDataUrl} alt="Mobile ingest QR code" />
+                    </>
+                  ) : (
+                    <div className={styles.encoderQrPlaceholder}>Stream key required</div>
+                  )}
+                </div>
+                <div className={styles.encoderToolActions}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      mobileIngestPayload
+                        ? copy("mobile-ingest", mobileIngestPayload)
+                        : undefined
+                    }
+                    disabled={!mobileIngestPayload}
+                  >
+                    {copiedField === "mobile-ingest" ? "Copied" : "Copy setup code"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section className={styles.encoderSection}>
+            <div className={styles.encoderSectionTitle}>Simulcast destinations</div>
+            <div className={styles.encoderSectionSubtitle}>
+              Push your broadcast to partner platforms while Capsules manages the master feed.
+            </div>
+            {streamPreferences.simulcastDestinations.length ? (
+              <ul className={styles.encoderDestinationList}>
+                {streamPreferences.simulcastDestinations.map((destination) => {
+                  const statusLabel = !destination.enabled
+                    ? "Disabled"
+                    : destination.status === "live"
+                      ? "Live"
+                      : destination.status === "error"
+                        ? "Error"
+                        : "Idle";
+                  const statusClass = !destination.enabled
+                    ? `${styles.encoderDestinationStatus} ${styles.encoderDestinationStatusDisabled}`
+                    : destination.status === "live"
+                      ? `${styles.encoderDestinationStatus} ${styles.encoderDestinationStatusLive}`
+                      : destination.status === "error"
+                        ? `${styles.encoderDestinationStatus} ${styles.encoderDestinationStatusError}`
+                        : styles.encoderDestinationStatus;
+                  return (
+                    <li key={destination.id} className={styles.encoderDestinationItem}>
+                      <div className={styles.encoderDestinationHeader}>
+                        <div className={styles.encoderDestinationHeading}>
+                          <span className={styles.encoderDestinationLabel}>{destination.label}</span>
+                          <span className={styles.encoderDestinationProvider}>
+                            {resolveProviderLabel(destination.provider)}
+                          </span>
+                        </div>
+                        <span className={statusClass}>{statusLabel}</span>
+                      </div>
+                      <div className={styles.encoderDestinationUrl}>{destination.url}</div>
+                      <div className={styles.encoderDestinationMeta}>
+                        <span>
+                          Stream key: {" "}
+                          {destination.streamKey ? maskSecret(destination.streamKey) : "Use account default"}
+                        </span>
+                        <span>
+                          Last sync: {" "}
+                          {destination.lastSyncedAt ? formatTimestamp(destination.lastSyncedAt) : "--"}
+                        </span>
+                      </div>
+                      <div className={styles.encoderDestinationActions}>
+                        <button
+                          type="button"
+                          className={styles.encoderActionButton}
+                          onClick={() =>
+                            copy(`simulcast-url-${destination.id}`, destination.url)
+                          }
+                        >
+                          {copiedField === `simulcast-url-${destination.id}` ? "Copied" : "Copy URL"}
+                        </button>
+                        {destination.streamKey ? (
+                          <button
+                            type="button"
+                            className={styles.encoderActionButton}
+                            onClick={() =>
+                              copy(`simulcast-key-${destination.id}`, destination.streamKey)
+                            }
+                          >
+                            {copiedField === `simulcast-key-${destination.id}` ? "Copied" : "Copy key"}
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className={styles.encoderActionButton}
+                          onClick={() => handleToggleSimulcastDestination(destination.id)}
+                        >
+                          {destination.enabled ? "Disable" : "Enable"}
+                        </button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => handleRemoveSimulcastDestination(destination.id)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className={styles.encoderEmptyState}>No additional destinations configured yet.</div>
+            )}
+            {addingDestination ? (
+              <form className={styles.encoderForm} onSubmit={handleAddSimulcastDestination}>
+                <div className={styles.encoderFormRow}>
+                  <div className={styles.encoderFormGroup}>
+                    <label className={styles.encoderLabel} htmlFor="simulcast-label">
+                      Label
+                    </label>
+                    <Input
+                      id="simulcast-label"
+                      value={destinationDraft.label}
+                      onChange={(event) => handleDestinationDraftChange("label", event.target.value)}
+                      placeholder="Acme Twitch channel"
+                    />
+                  </div>
+                  <div className={styles.encoderFormGroup}>
+                    <label className={styles.encoderLabel} htmlFor="simulcast-provider">
+                      Platform
+                    </label>
+                    <select
+                      id="simulcast-provider"
+                      className={styles.encoderSelect}
+                      value={destinationDraft.provider}
+                      onChange={(event) => handleDestinationDraftChange("provider", event.target.value)}
+                    >
+                      {SIMULCAST_PROVIDER_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className={styles.encoderFormGroup}>
+                  <label className={styles.encoderLabel} htmlFor="simulcast-url">
+                    Ingest URL
+                  </label>
+                  <Input
+                    id="simulcast-url"
+                    value={destinationDraft.url}
+                    onChange={(event) => handleDestinationDraftChange("url", event.target.value)}
+                    placeholder="rtmps://live.twitch.tv/app"
+                  />
+                </div>
+                <div className={styles.encoderFormGroup}>
+                  <label className={styles.encoderLabel} htmlFor="simulcast-key">
+                    Stream key (optional)
+                  </label>
+                  <Input
+                    id="simulcast-key"
+                    value={destinationDraft.streamKey}
+                    onChange={(event) => handleDestinationDraftChange("streamKey", event.target.value)}
+                    placeholder="sk_live_..."
+                  />
+                </div>
+                {destinationError ? (
+                  <div className={styles.encoderFormError}>{destinationError}</div>
+                ) : null}
+                <div className={styles.encoderFormActions}>
+                  <Button variant="outline" size="sm" type="submit">
+                    Save destination
+                  </Button>
+                  <Button variant="ghost" size="sm" type="button" onClick={handleCancelAddDestination}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  setDestinationError(null);
+                  setAddingDestination(true);
+                }}
+              >
+                Add destination
+              </Button>
+            )}
+          </section>
+          <section className={styles.encoderSection}>
+            <div className={styles.encoderSectionTitle}>Webhook automation</div>
+            <div className={styles.encoderSectionSubtitle}>
+              Trigger downstream workflows when your stream starts, ends, or publishes new recordings.
+            </div>
+            {streamPreferences.webhookEndpoints.length ? (
+              <ul className={styles.encoderWebhookList}>
+                {streamPreferences.webhookEndpoints.map((endpoint) => (
+                  <li key={endpoint.id} className={styles.encoderWebhookItem}>
+                    <div className={styles.encoderWebhookHeader}>
+                      <div className={styles.encoderWebhookHeading}>
+                        <span className={styles.encoderWebhookLabel}>{endpoint.label}</span>
+                      </div>
+                      <span
+                        className={
+                          endpoint.enabled
+                            ? `${styles.encoderWebhookStatus} ${styles.encoderWebhookStatusEnabled}`
+                            : `${styles.encoderWebhookStatus} ${styles.encoderWebhookStatusDisabled}`
+                        }
+                      >
+                        {endpoint.enabled ? "Enabled" : "Disabled"}
+                      </span>
+                    </div>
+                    <div className={styles.encoderWebhookUrl}>{endpoint.url}</div>
+                    <div className={styles.encoderWebhookMeta}>
+                      <span>
+                        Secret: {" "}
+                        {endpoint.secret ? maskSecret(endpoint.secret) : "Not configured"}
+                      </span>
+                      <span>
+                        Last delivery: {" "}
+                        {endpoint.lastDeliveredAt ? formatTimestamp(endpoint.lastDeliveredAt) : "Never"}
+                      </span>
+                    </div>
+                    {endpoint.events.length ? (
+                      <div className={styles.encoderWebhookEvents}>
+                        {endpoint.events.map((event) => (
+                          <span key={event} className={styles.encoderWebhookEvent}>
+                            {event}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={styles.encoderWebhookEventsEmpty}>Listening to all events</div>
+                    )}
+                    <div className={styles.encoderWebhookActions}>
+                      <button
+                        type="button"
+                        className={styles.encoderActionButton}
+                        onClick={() =>
+                          copy(`webhook-url-${endpoint.id}`, endpoint.url)
+                        }
+                      >
+                        {copiedField === `webhook-url-${endpoint.id}` ? "Copied" : "Copy URL"}
+                      </button>
+                      {endpoint.secret ? (
+                        <button
+                          type="button"
+                          className={styles.encoderActionButton}
+                          onClick={() =>
+                            copy(
+                              `webhook-secret-${endpoint.id}`,
+                              endpoint.secret ?? "",
+                            )
+                          }
+                        >
+                          {copiedField === `webhook-secret-${endpoint.id}` ? "Copied" : "Copy secret"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className={styles.encoderActionButton}
+                        onClick={() => handleToggleWebhookEndpoint(endpoint.id)}
+                      >
+                        {endpoint.enabled ? "Disable" : "Enable"}
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => handleRemoveWebhookEndpoint(endpoint.id)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className={styles.encoderEmptyState}>No webhooks configured yet.</div>
+            )}
+            {addingWebhook ? (
+              <form className={styles.encoderForm} onSubmit={handleAddWebhookEndpoint}>
+                <div className={styles.encoderFormRow}>
+                  <div className={styles.encoderFormGroup}>
+                    <label className={styles.encoderLabel} htmlFor="webhook-label">
+                      Label
+                    </label>
+                    <Input
+                      id="webhook-label"
+                      value={webhookDraft.label}
+                      onChange={(event) => handleWebhookFieldChange("label", event.target.value)}
+                      placeholder="Discord automation"
+                    />
+                  </div>
+                  <div className={styles.encoderFormGroup}>
+                    <label className={styles.encoderLabel} htmlFor="webhook-url">
+                      Webhook URL
+                    </label>
+                    <Input
+                      id="webhook-url"
+                      value={webhookDraft.url}
+                      onChange={(event) => handleWebhookFieldChange("url", event.target.value)}
+                      placeholder="https://example.com/hooks/capsules"
+                    />
+                  </div>
+                </div>
+                <div className={styles.encoderFormGroup}>
+                  <label className={styles.encoderLabel} htmlFor="webhook-secret">
+                    Signing secret (optional)
+                  </label>
+                  <Input
+                    id="webhook-secret"
+                    value={webhookDraft.secret}
+                    onChange={(event) => handleWebhookFieldChange("secret", event.target.value)}
+                    placeholder="whsec_..."
+                  />
+                </div>
+                <div className={styles.encoderFormGroup}>
+                  <div className={styles.encoderLabel}>Events</div>
+                  <div className={styles.encoderEventGrid}>
+                    {WEBHOOK_EVENT_OPTIONS.map((option) => (
+                      <label key={option.value} className={styles.encoderEventOption}>
+                        <input
+                          type="checkbox"
+                          checked={webhookDraft.events.includes(option.value)}
+                          onChange={() => handleWebhookEventToggle(option.value)}
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <span className={styles.encoderHint}>Leave unchecked to receive all stream events.</span>
+                </div>
+                {webhookError ? <div className={styles.encoderFormError}>{webhookError}</div> : null}
+                <div className={styles.encoderFormActions}>
+                  <Button variant="outline" size="sm" type="submit">
+                    Save webhook
+                  </Button>
+                  <Button variant="ghost" size="sm" type="button" onClick={handleCancelAddWebhook}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  setWebhookError(null);
+                  setAddingWebhook(true);
+                }}
+              >
+                Add webhook
+              </Button>
+            )}
           </section>
           <section className={styles.encoderSection}>
             <div className={styles.encoderSectionTitle}>Stream keys</div>
@@ -1698,14 +1247,14 @@ export function AiStreamStudioLayout({
                   <button
                     type="button"
                     className={styles.encoderActionButton}
-                    onClick={() => setShowPrimaryKey((v) => !v)}
+                    onClick={() => setShowPrimaryKey((value) => !value)}
                   >
                     {showPrimaryKey ? "Hide" : "Show"}
                   </button>
                   <button
                     type="button"
                     className={styles.encoderActionButton}
-                    onClick={() => handleCopyToClipboard("primary-key", streamOverview.ingest.streamKey)}
+                    onClick={() => copy("primary-key", streamOverview.ingest.streamKey)}
                   >
                     {copiedField === "primary-key" ? "Copied" : "Copy"}
                   </button>
@@ -1734,7 +1283,7 @@ export function AiStreamStudioLayout({
                   <button
                     type="button"
                     className={styles.encoderActionButton}
-                    onClick={() => setShowBackupKey((v) => !v)}
+                    onClick={() => setShowBackupKey((value) => !value)}
                     disabled={!streamOverview.ingest.backupStreamKey}
                   >
                     {showBackupKey ? "Hide" : "Show"}
@@ -1743,7 +1292,7 @@ export function AiStreamStudioLayout({
                     type="button"
                     className={styles.encoderActionButton}
                     onClick={() =>
-                      handleCopyToClipboard("backup-key", streamOverview.ingest.backupStreamKey)
+                      copy("backup-key", streamOverview.ingest.backupStreamKey)
                     }
                     disabled={!streamOverview.ingest.backupStreamKey}
                   >
@@ -1767,7 +1316,7 @@ export function AiStreamStudioLayout({
                 <button
                   type="button"
                   className={styles.encoderActionButton}
-                  onClick={() => handleCopyToClipboard("playback-url", playbackUrl)}
+                  onClick={() => copy("playback-url", playbackUrl)}
                 >
                   {copiedField === "playback-url" ? "Copied" : "Copy"}
                 </button>
@@ -1782,7 +1331,7 @@ export function AiStreamStudioLayout({
                 <button
                   type="button"
                   className={styles.encoderActionButton}
-                  onClick={() => handleCopyToClipboard("embed-code", embedCodeSnippet)}
+                  onClick={() => copy("embed-code", embedCodeSnippet)}
                   disabled={!embedCodeSnippet}
                 >
                   {copiedField === "embed-code" ? "Copied" : "Copy"}
@@ -1798,9 +1347,7 @@ export function AiStreamStudioLayout({
             library. Pair this with local capture inside your studio for redundancy.
           </div>
           <div className={styles.encoderChecklist}>
-            <div className={styles.encoderChecklistItem}>
-              Cloud recording for every live session
-            </div>
+            <div className={styles.encoderChecklistItem}>Cloud recording for every live session</div>
             <div className={styles.encoderChecklistItem}>
               Configure OBS backups with the provided ingest pair
             </div>
@@ -1809,6 +1356,7 @@ export function AiStreamStudioLayout({
             </div>
           </div>
         </section>
+
       </div>
     );
   };
@@ -1899,7 +1447,7 @@ export function AiStreamStudioLayout({
                       <Button
                         variant="ghost"
                         size="xs"
-                        onClick={() => handleCopyToClipboard(`asset-${asset.id}`, asset.playbackUrl)}
+                        onClick={() => copy(`asset-${asset.id}`, asset.playbackUrl)}
                         disabled={!asset.playbackUrl}
                       >
                         {copiedField === `asset-${asset.id}` ? "Copied" : "Copy URL"}

@@ -1,5 +1,6 @@
 import type { LiveStream } from "@mux/mux-node/resources/video/live-streams";
 import type { Asset } from "@mux/mux-node/resources/video/assets";
+import { randomUUID } from "node:crypto";
 
 import {
   buildMuxPlaybackUrl,
@@ -46,6 +47,108 @@ const PRIMARY_INGEST_URL = "rtmps://global-live.mux.com:443/app";
 const BACKUP_INGEST_URL = "rtmps://global-live-backup.mux.com:443/app";
 const MAX_SESSION_HISTORY = 20;
 const MAX_ASSET_HISTORY = 20;
+const DEFAULT_SIMULCAST_STATUS = "idle" as const;
+const ALLOWED_SIMULCAST_STATUSES = new Set(["idle", "live", "error"]);
+
+export type CapsuleStreamSimulcastDestination = {
+  id: string;
+  label: string;
+  provider: string;
+  url: string;
+  streamKey: string | null;
+  enabled: boolean;
+  status: "idle" | "live" | "error";
+  lastSyncedAt: string | null;
+};
+
+export type CapsuleStreamWebhookEndpoint = {
+  id: string;
+  label: string;
+  url: string;
+  secret: string | null;
+  events: string[];
+  enabled: boolean;
+  lastDeliveredAt: string | null;
+};
+
+function ensurePreferenceId(value: unknown): string {
+  if (typeof value === "string" && value.trim().length) {
+    return value.trim();
+  }
+  try {
+    return randomUUID();
+  } catch {
+    return `pref-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+function sanitizeSimulcastDestinations(value: unknown): CapsuleStreamSimulcastDestination[] {
+  if (!Array.isArray(value)) return [];
+  const results: CapsuleStreamSimulcastDestination[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const data = entry as Record<string, unknown>;
+    const url = typeof data.url === "string" ? data.url.trim() : "";
+    if (!url) continue;
+    const labelRaw = typeof data.label === "string" ? data.label.trim() : "";
+    const providerRaw = typeof data.provider === "string" ? data.provider.trim() : "";
+    const streamKeyRaw = typeof data.streamKey === "string" ? data.streamKey.trim() : "";
+    const enabled = typeof data.enabled === "boolean" ? data.enabled : true;
+    const statusRaw = typeof data.status === "string" ? data.status.trim().toLowerCase() : DEFAULT_SIMULCAST_STATUS;
+    const status = ALLOWED_SIMULCAST_STATUSES.has(statusRaw)
+      ? (statusRaw as CapsuleStreamSimulcastDestination["status"])
+      : DEFAULT_SIMULCAST_STATUS;
+    const lastSyncedAt =
+      typeof data.lastSyncedAt === "string" && data.lastSyncedAt.trim().length
+        ? data.lastSyncedAt.trim()
+        : null;
+
+    results.push({
+      id: ensurePreferenceId(data.id),
+      label: labelRaw.length ? labelRaw : "Custom destination",
+      provider: providerRaw.length ? providerRaw : "custom",
+      url,
+      streamKey: streamKeyRaw.length ? streamKeyRaw : null,
+      enabled,
+      status,
+      lastSyncedAt,
+    });
+  }
+  return results;
+}
+
+function sanitizeWebhookEndpoints(value: unknown): CapsuleStreamWebhookEndpoint[] {
+  if (!Array.isArray(value)) return [];
+  const results: CapsuleStreamWebhookEndpoint[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const data = entry as Record<string, unknown>;
+    const url = typeof data.url === "string" ? data.url.trim() : "";
+    if (!url) continue;
+    const labelRaw = typeof data.label === "string" ? data.label.trim() : "";
+    const secretRaw = typeof data.secret === "string" ? data.secret.trim() : "";
+    const eventsValue = Array.isArray(data.events) ? data.events : [];
+    const events = eventsValue
+      .map((event) => (typeof event === "string" ? event.trim() : ""))
+      .filter((event) => event.length);
+    const enabled = typeof data.enabled === "boolean" ? data.enabled : true;
+    const lastDeliveredAt =
+      typeof data.lastDeliveredAt === "string" && data.lastDeliveredAt.trim().length
+        ? data.lastDeliveredAt.trim()
+        : null;
+
+    results.push({
+      id: ensurePreferenceId(data.id),
+      label: labelRaw.length ? labelRaw : "Streaming automation",
+      url,
+      secret: secretRaw.length ? secretRaw : null,
+      events,
+      enabled,
+      lastDeliveredAt,
+    });
+  }
+  return results;
+}
 
 function normalizeLatencyModeValue(
   value: string | null | undefined,
@@ -66,6 +169,7 @@ function normalizeStreamSettingsRecord(
   if (!record) {
     return { ...DEFAULT_STREAM_PREFERENCES };
   }
+  const metadata = (record.metadata ?? {}) as Record<string, unknown>;
   return {
     latencyMode: normalizeLatencyModeValue(record.latencyMode),
     disconnectProtection: normalizeBoolean(
@@ -82,6 +186,8 @@ function normalizeStreamSettingsRecord(
       DEFAULT_STREAM_PREFERENCES.alwaysPublishVods,
     ),
     autoClips: normalizeBoolean(record.autoClips, DEFAULT_STREAM_PREFERENCES.autoClips),
+    simulcastDestinations: sanitizeSimulcastDestinations(metadata.simulcastDestinations),
+    webhookEndpoints: sanitizeWebhookEndpoints(metadata.webhookEndpoints),
   };
 }
 
@@ -103,6 +209,8 @@ export type CapsuleStreamPreferences = {
   storePastBroadcasts: boolean;
   alwaysPublishVods: boolean;
   autoClips: boolean;
+  simulcastDestinations: CapsuleStreamSimulcastDestination[];
+  webhookEndpoints: CapsuleStreamWebhookEndpoint[];
 };
 
 const DEFAULT_STREAM_PREFERENCES: CapsuleStreamPreferences = {
@@ -112,6 +220,8 @@ const DEFAULT_STREAM_PREFERENCES: CapsuleStreamPreferences = {
   storePastBroadcasts: true,
   alwaysPublishVods: true,
   autoClips: false,
+  simulcastDestinations: [],
+  webhookEndpoints: [],
 };
 
 export type CapsuleLiveStreamOverview = {
@@ -153,6 +263,14 @@ export async function upsertCapsuleStreamPreferences(params: {
   }
   if (params.preferences.autoClips !== undefined) {
     updates.autoClips = params.preferences.autoClips;
+  }
+  if (params.preferences.simulcastDestinations !== undefined) {
+    updates.simulcastDestinations = sanitizeSimulcastDestinations(
+      params.preferences.simulcastDestinations,
+    );
+  }
+  if (params.preferences.webhookEndpoints !== undefined) {
+    updates.webhookEndpoints = sanitizeWebhookEndpoints(params.preferences.webhookEndpoints);
   }
 
   const record = await upsertCapsuleStreamSettings({
