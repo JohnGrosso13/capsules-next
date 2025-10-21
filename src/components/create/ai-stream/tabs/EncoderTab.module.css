@@ -458,3 +458,248 @@
   border: 1px dashed var(--studio-border-dashed);
   background: var(--studio-surface-muted);
 }
+
+.encoderSurface {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.encoderColumns {
+  display: grid;
+  gap: 24px;
+}
+
+.encoderPrimaryColumn,
+.encoderSecondaryColumn {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 1080px) {
+  .encoderColumns {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+}
+
+.emptyCard {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.cardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cardHeaderTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setupChecklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.setupItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setupLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--studio-text-primary);
+}
+
+.statusIconComplete {
+  color: var(--color-success, #16a34a);
+}
+
+.statusIconPending {
+  color: var(--studio-text-tertiary);
+}
+
+.latencyControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.latencySelectWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--studio-text-secondary);
+}
+
+.latencySelect {
+  min-width: 160px;
+  border-radius: 12px;
+  border: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-muted);
+  color: var(--studio-text-primary);
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+.latencyInline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cardSplit {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 880px) {
+  .cardSplit {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.cardSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cardSectionTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--studio-text-primary);
+}
+
+.inlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.badgeWithIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.encoderToolStatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.encoderToolStatusMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--studio-text-secondary);
+}
+
+.encoderToolStatusMetaLight {
+  font-size: 0.78rem;
+  color: var(--studio-text-tertiary);
+}
+
+.encoderToolAlert {
+  margin-bottom: 18px;
+}
+
+.destinationIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 10px;
+  border-radius: 999px;
+  background: var(--studio-surface-muted);
+  color: var(--studio-text-primary);
+}
+
+.destinationIconTwitch {
+  background: rgba(145, 70, 255, 0.18);
+  color: #9146ff;
+}
+
+.destinationIconYoutube {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
+}
+
+.destinationIconFacebook {
+  background: rgba(59, 130, 246, 0.18);
+  color: #3b82f6;
+}
+
+.destinationIconKick {
+  background: rgba(34, 197, 94, 0.18);
+  color: #22c55e;
+}
+
+.destinationIconCustom {
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--studio-text-secondary);
+}
+
+.encoderDestinationAlert {
+  margin-top: 12px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--color-warning, #f59e0b);
+}
+
+.encoderDestinationAlert svg {
+  flex-shrink: 0;
+}
+
+.encoderWebhookHint {
+  margin-top: 16px;
+  font-size: 0.82rem;
+  color: var(--studio-text-tertiary);
+}
+
+.encoderWebhookTestSuccess {
+  margin-left: 6px;
+  font-size: 0.78rem;
+  color: var(--color-success, #16a34a);
+}
+
+.encoderWebhookTestError {
+  margin-left: 6px;
+  font-size: 0.78rem;
+  color: var(--color-error, #f87171);
+}
+
+
+

@@ -9,6 +9,7 @@ import {
   rotateLiveStreamKeyForCapsule,
   upsertCapsuleStreamPreferences,
   type CapsuleStreamPreferences,
+  MuxPlanRestrictionError,
 } from "@/server/mux/service";
 import { CapsuleMembershipError, requireCapsuleOwnership } from "@/server/capsules/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
@@ -100,6 +101,16 @@ const liveStreamResponseSchema = z.object({
     backup: z.string().nullable(),
     streamKey: z.string(),
     backupStreamKey: z.string().nullable(),
+  }),
+  health: z.object({
+    status: z.string(),
+    latencyMode: z.string().nullable(),
+    reconnectWindowSeconds: z.number().nullable(),
+    lastSeenAt: z.string().nullable(),
+    lastActiveAt: z.string().nullable(),
+    lastIdleAt: z.string().nullable(),
+    lastErrorAt: z.string().nullable(),
+    recentError: z.string().nullable(),
   }),
   sessions: z.array(z.unknown()),
   assets: z.array(z.unknown()),
@@ -224,6 +235,9 @@ export async function POST(req: Request) {
     }
   } catch (error) {
     console.error("mux.live.post", error);
+    if (error instanceof MuxPlanRestrictionError) {
+      return returnError(error.status, error.code, error.message);
+    }
     const message =
       error && typeof error === "object" && "message" in error && typeof error.message === "string"
         ? error.message

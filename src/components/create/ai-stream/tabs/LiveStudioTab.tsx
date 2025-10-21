@@ -10,6 +10,10 @@ import MuxPlayer from "@mux/mux-player-react";
 import { Paperclip, Microphone, CaretDown } from "@phosphor-icons/react/dist/ssr";
 
 import { AiStreamCapsuleGate } from "../AiStreamCapsuleGate";
+import {
+  StudioNotificationBanner,
+  type StudioNotification,
+} from "../StudioNotificationBanner";
 import styles from "@/app/(authenticated)/create/ai-stream/ai-stream.page.module.css";
 import type { StreamOverview } from "@/types/ai-stream";
 import { formatDuration, formatTimestamp } from "../formatUtils";
@@ -36,9 +40,10 @@ type LiveStudioTabProps = {
   panelStorage: PanelGroupStorageLike;
   streamOverview: StreamOverview | null;
   overviewLoading: boolean;
-  overviewError: string | null;
+  overviewError?: string | null;
   actionBusy: "ensure" | "rotate" | null;
   uptimeSeconds: number | null;
+  notification?: StudioNotification | null;
   onEnsureStream: () => void;
   onNavigateToEncoder: () => void;
 };
@@ -52,9 +57,10 @@ export function LiveStudioTab({
   panelStorage,
   streamOverview,
   overviewLoading,
-  overviewError,
+  _overviewError,
   actionBusy,
   uptimeSeconds,
+  notification,
   onEnsureStream,
   onNavigateToEncoder,
 }: LiveStudioTabProps) {
@@ -87,18 +93,23 @@ export function LiveStudioTab({
         >
           <Panel defaultSize={58} minSize={46} collapsible={false}>
             <div className={styles.panelSection}>
+              {notification ? (
+                <StudioNotificationBanner
+                  notification={notification}
+                  className={styles.encoderBanner}
+                />
+              ) : null}
               <div className={`${styles.previewPanel} ${styles.panelCard}`}>
                 <div className={styles.previewHeader}>
                   <div>
                     <div className={styles.previewTitle}>{selectedCapsule.name}</div>
                     <div className={styles.previewSubtitle}>
                       {streamOverview
-                        ? `Status: ${streamOverview.liveStream.status}`
+                        ? `Status: ${streamOverview.health.status}`
                         : overviewLoading
                           ? "Checking Mux live stream..."
                           : "Mux live stream not yet configured."}
                     </div>
-                    {overviewError ? <div className={styles.previewError}>{overviewError}</div> : null}
                   </div>
                   <div className={styles.previewActions}>
                     <Button variant="outline" size="sm" onClick={onNavigateToEncoder}>
@@ -144,10 +155,7 @@ export function LiveStudioTab({
                     <div className={styles.previewStat}>
                       <span className={styles.previewStatLabel}>Latency</span>
                       <span className={styles.previewStatValue}>
-                        {streamOverview
-                          ? streamOverview.liveStream.latencyMode ??
-                            (streamOverview.liveStream.isLowLatency ? "low" : "standard")
-                          : "--"}
+                        {streamOverview ? streamOverview.health.latencyMode ?? "standard" : "--"}
                       </span>
                     </div>
                     <div className={styles.previewStat}>
@@ -383,3 +391,16 @@ export function LiveStudioTab({
     </PanelGroup>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

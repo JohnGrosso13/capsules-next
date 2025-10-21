@@ -3,14 +3,26 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { downloadObsProfile, normalizeMuxError } from "@/lib/mux/liveClient";
+import { Badge } from "@/components/ui/badge";
+import { downloadObsProfile, normalizeMuxError, triggerWebhookTest } from "@/lib/mux/liveClient";
 import type { CapsuleSummary } from "@/server/capsules/service";
 
 import styles from "@/app/(authenticated)/create/ai-stream/ai-stream.page.module.css";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
 import encoderStyles from "./tabs/EncoderTab.module.css";
+import {
+  ExternalEncoderTab,
+  type DestinationDraft,
+  type WebhookDraft,
+} from "./tabs/ExternalEncoderTab";
 import {
   AiStreamStudioStoreProvider,
   useAiStreamStudioStore,
@@ -27,6 +39,10 @@ import {
 } from "./formatUtils";
 import { LiveStudioTab } from "./tabs/LiveStudioTab";
 import { ProducerConsoleTab } from "./tabs/ProducerConsoleTab";
+import {
+  StudioNotificationBanner,
+  type StudioNotification,
+} from "./StudioNotificationBanner";
 import type { StudioTab } from "./types";
 import type { StreamSimulcastDestination, StreamWebhookEndpoint } from "@/types/ai-stream";
 import {
@@ -60,20 +76,6 @@ const TAB_ITEMS: Array<{ id: StudioTab; label: string; icon: React.ReactNode }> 
 ];
 
 const TAB_SET = new Set<StudioTab>(TAB_ITEMS.map((item) => item.id));
-
-type DestinationDraft = {
-  label: string;
-  provider: string;
-  url: string;
-  streamKey: string;
-};
-
-type WebhookDraft = {
-  label: string;
-  url: string;
-  secret: string;
-  events: string[];
-};
 
 const SIMULCAST_PROVIDER_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "twitch", label: "Twitch" },
@@ -278,6 +280,7 @@ function AiStreamStudioLayoutInner({
       updateStreamPreferences,
       ensureStream,
       rotateStreamKey,
+      refreshOverview,
     },
   } = useAiStreamStudioStore();
 
@@ -343,7 +346,20 @@ function AiStreamStudioLayoutInner({
     events: [],
   });
   const [webhookError, setWebhookError] = React.useState<string | null>(null);
+  const [webhookTestStatus, setWebhookTestStatus] = React.useState<
+    Record<string, "idle" | "pending" | "success" | "error">
+  >({});
+  const webhookTestTimersRef = React.useRef<Record<string, number>>({});
   const [uptimeTick, setUptimeTick] = React.useState(() => Date.now());
+
+  React.useEffect(() => {
+    return () => {
+      Object.values(webhookTestTimersRef.current).forEach((timerId) =>
+        window.clearTimeout(timerId),
+      );
+      webhookTestTimersRef.current = {};
+    };
+  }, []);
   const providerLabelMap = React.useMemo(() => {
     return new Map(SIMULCAST_PROVIDER_OPTIONS.map((option) => [option.value, option.label]));
   }, []);
@@ -487,6 +503,11 @@ function AiStreamStudioLayoutInner({
     setDestinationDraft((prev) => ({ ...prev, label: "", url: "", streamKey: "" }));
   }, []);
 
+  const handleStartAddDestination = React.useCallback(() => {
+    setDestinationError(null);
+    setAddingDestination(true);
+  }, []);
+
   const handleWebhookFieldChange = React.useCallback(
     (field: "label" | "url" | "secret", value: string) => {
       setWebhookDraft((prev) => ({ ...prev, [field]: value }));
@@ -559,6 +580,45 @@ function AiStreamStudioLayoutInner({
     setWebhookDraft({ label: "", url: "", secret: "", events: [] });
   }, []);
 
+  const handleSendWebhookTest = React.useCallback(
+    async (endpointId: string) => {
+      if (!selectedCapsuleId) return;
+      const currentStatus = webhookTestStatus[endpointId];
+      if (currentStatus === "pending") {
+        return;
+      }
+      setWebhookTestStatus((prev) => ({ ...prev, [endpointId]: "pending" }));
+      if (webhookTestTimersRef.current[endpointId]) {
+        window.clearTimeout(webhookTestTimersRef.current[endpointId]);
+        delete webhookTestTimersRef.current[endpointId];
+      }
+      try {
+        await triggerWebhookTest({ capsuleId: selectedCapsuleId, endpointId });
+        setWebhookTestStatus((prev) => ({ ...prev, [endpointId]: "success" }));
+        const timer = window.setTimeout(() => {
+          setWebhookTestStatus((prev) => ({ ...prev, [endpointId]: "idle" }));
+          delete webhookTestTimersRef.current[endpointId];
+        }, 2500);
+        webhookTestTimersRef.current[endpointId] = timer;
+      } catch (error) {
+        const normalizedError = normalizeMuxError(error, "Failed to send webhook test event.");
+        setOverviewError(normalizedError.message);
+        setWebhookTestStatus((prev) => ({ ...prev, [endpointId]: "error" }));
+        const timer = window.setTimeout(() => {
+          setWebhookTestStatus((prev) => ({ ...prev, [endpointId]: "idle" }));
+          delete webhookTestTimersRef.current[endpointId];
+        }, 2500);
+        webhookTestTimersRef.current[endpointId] = timer;
+      }
+    },
+    [selectedCapsuleId, webhookTestStatus, setOverviewError],
+  );
+
+  const handleStartAddWebhook = React.useCallback(() => {
+    setWebhookError(null);
+    setAddingWebhook(true);
+  }, []);
+
   const handleDownloadObsProfile = React.useCallback(async () => {
     if (!selectedCapsuleId) return;
     setDownloadBusy(true);
@@ -591,6 +651,174 @@ function AiStreamStudioLayoutInner({
     return null;
   }, [streamOverview]);
 
+  const simulcastErrorCount = React.useMemo(
+    () =>
+      streamPreferences.simulcastDestinations.filter(
+        (destination) => destination.enabled && destination.status === "error",
+      ).length,
+    [streamPreferences.simulcastDestinations],
+  );
+
+  const recentHealthError = streamOverview?.health.recentError ?? "";
+  const keyRotationSuggested = React.useMemo(() => {
+    const combined = `${recentHealthError}\n${overviewError ?? ""}`.toLowerCase();
+    return ["stream key", "invalid key", "unauthorized"].some((needle) =>
+      combined.includes(needle),
+    );
+  }, [overviewError, recentHealthError]);
+
+  const handleStatusRefresh = React.useCallback(() => {
+    void refreshOverview({ silent: false });
+  }, [refreshOverview]);
+
+  const encoderNotification = React.useMemo<StudioNotification | null>(() => {
+    const navigateToEncoder = () => handleTabChange("encoder");
+
+    if (overviewLoading && !streamOverview) {
+      return null;
+    }
+
+    if (overviewError) {
+      return {
+        tone: "danger",
+        title: "Streaming requires attention",
+        description: overviewError,
+        actions: [
+          { label: "Open Encoder", onClick: navigateToEncoder, variant: "ghost", size: "xs" },
+          { label: "Refresh", onClick: handleStatusRefresh, variant: "outline", size: "xs" },
+        ],
+      };
+    }
+
+    if (!streamOverview) {
+      return {
+        tone: "warning",
+        title: "Configure your external encoder",
+        description:
+          "Generate RTMP credentials and automation targets in the External Encoder tab before going live.",
+        actions: [
+          { label: "Set up streaming", onClick: navigateToEncoder, variant: "ghost", size: "xs" },
+        ],
+      };
+    }
+
+    if (simulcastErrorCount > 0) {
+      const description =
+        simulcastErrorCount === 1
+          ? "One simulcast destination is failing to sync. Review the External Encoder tab."
+          : `${simulcastErrorCount} simulcast destinations are failing to sync. Review the External Encoder tab.`;
+      return {
+        tone: "danger",
+        title: "Simulcast destinations require attention",
+        description,
+        actions: [
+          { label: "Review destinations", onClick: navigateToEncoder, variant: "ghost", size: "xs" },
+          { label: "Refresh", onClick: handleStatusRefresh, variant: "outline", size: "xs" },
+        ],
+      };
+    }
+
+    if (keyRotationSuggested) {
+      return {
+        tone: "warning",
+        title: "Rotate your stream key",
+        description:
+          "Mux rejected the incoming signal. Rotate the stream key before going live again.",
+        actions: [
+          { label: "Open Encoder", onClick: navigateToEncoder, variant: "ghost", size: "xs" },
+        ],
+      };
+    }
+
+    const health = streamOverview.health;
+    const status = health.status.toLowerCase();
+
+    if (health.recentError) {
+      return {
+        tone: "danger",
+        title: "Mux reported an ingest error",
+        description:
+          health.recentError ??
+          (health.lastSeenAt
+            ? `Last successful heartbeat ${formatTimestamp(health.lastSeenAt)}`
+            : "Mux stopped receiving a signal from this encoder."),
+        actions: [
+          { label: "Review encoder", onClick: navigateToEncoder, variant: "ghost", size: "xs" },
+          { label: "Refresh", onClick: handleStatusRefresh, variant: "outline", size: "xs" },
+        ],
+      };
+    }
+
+    if (status !== "active" && status !== "connected") {
+      return {
+        tone: "info",
+        title: "Awaiting encoder signal",
+        description: health.lastSeenAt
+          ? `Mux last saw this encoder ${formatTimestamp(
+              health.lastSeenAt,
+            )}. Start streaming from OBS or your encoder to preview the feed.`
+          : "Start streaming from OBS or your encoder to preview the feed.",
+        actions: [
+          { label: "Check encoder", onClick: navigateToEncoder, variant: "ghost", size: "xs" },
+        ],
+      };
+    }
+
+    return null;
+  }, [
+    handleStatusRefresh,
+    handleTabChange,
+    keyRotationSuggested,
+    overviewError,
+    overviewLoading,
+    simulcastErrorCount,
+    streamOverview,
+  ]);
+
+  const navIndicators = React.useMemo(() => {
+    const indicators: Partial<
+      Record<
+        StudioTab,
+        { tone: "brand" | "neutral" | "success" | "warning" | "danger" | "info"; label: string }
+      >
+    > = {};
+
+    if (activeSession) {
+      indicators.studio = { tone: "success", label: "Live" };
+    } else if (streamOverview) {
+      indicators.studio = { tone: "info", label: streamOverview.health.status };
+    }
+
+    if (!streamOverview) {
+      indicators.encoder = { tone: "warning", label: "Setup" };
+      indicators.clips = { tone: "neutral", label: "Waiting setup" };
+    } else {
+      if (simulcastErrorCount > 0) {
+        const label = simulcastErrorCount === 1 ? "Simulcast issue" : `${simulcastErrorCount} issues`;
+        indicators.encoder = { tone: "danger", label };
+        indicators.producer = { tone: "danger", label: "Simulcast issue" };
+      }
+
+      if (keyRotationSuggested) {
+        indicators.encoder = { tone: "warning", label: "Rotate key" };
+      }
+
+      if (streamOverview.assets.length === 0 && streamOverview.aiJobs.length === 0) {
+        indicators.clips = { tone: "neutral", label: "No recordings" };
+      } else if (streamOverview.assets.length) {
+        indicators.clips = {
+          tone: "info",
+          label:
+            streamOverview.assets.length === 1
+              ? "1 recording"
+              : `${Math.min(streamOverview.assets.length, 9)} recordings`,
+        };
+      }
+    }
+
+    return indicators;
+  }, [activeSession, keyRotationSuggested, simulcastErrorCount, streamOverview]);
+
   const embedCodeSnippet = React.useMemo(() => {
     if (!streamOverview?.playback.playbackId) return null;
     return `<mux-player stream-type="live" playback-id="${streamOverview.playback.playbackId}"></mux-player>`;
@@ -609,48 +837,63 @@ function AiStreamStudioLayoutInner({
       overviewError={overviewError}
       actionBusy={actionBusy}
       uptimeSeconds={uptimeSeconds}
+      notification={encoderNotification}
       onEnsureStream={handleEnsureStream}
       onNavigateToEncoder={() => handleTabChange("encoder")}
     />
   );
   const renderProducerContent = () => (
-    <ProducerConsoleTab selectedCapsule={selectedCapsule} />
+    <ProducerConsoleTab
+      selectedCapsule={selectedCapsule}
+      notification={encoderNotification}
+    />
   );
 
-  const renderEncoderContent = () => {
-    if (!selectedCapsule) {
-      return (
-        <div className={styles.noticeCard}>
-          <h3>Choose a Capsule to set up external encoders</h3>
-          <p>
-            We&apos;ll generate RTMP credentials, latency profiles, and simulcast targets specific to
-            your selected Capsule once it&apos;s chosen.
-          </p>
-        </div>
-      );
-    }
+const renderEncoderContent = () => {
+  if (!selectedCapsule) {
+    return (
+      <Card variant="outline" className={encoderStyles.emptyCard}>
+        <CardHeader>
+          <CardTitle>Choose a Capsule to set up external encoders</CardTitle>
+          <CardDescription>
+            We&apos;ll generate RTMP credentials, latency profiles, and simulcast targets specific
+            to your selected Capsule once it&apos;s chosen.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
-    if (overviewLoading && !streamOverview) {
-      return (
-        <div className={styles.noticeCard}>
-          <h3>Loading streaming configuration...</h3>
-          <p>Retrieving the latest credentials from Mux.</p>
-        </div>
-      );
-    }
+  if (overviewLoading && !streamOverview) {
+    return (
+      <Card className={encoderStyles.emptyCard}>
+        <CardHeader>
+          <CardTitle>Loading streaming configuration...</CardTitle>
+          <CardDescription>Retrieving the latest credentials from Mux.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
-    if (!streamOverview) {
-      return (
-        <div className={styles.noticeCard}>
-          <h3>Generate Mux streaming credentials</h3>
-          <p>
-            Pick the desired latency profile and create a dedicated live stream for {selectedCapsule.name}
-            . We&apos;ll provision RTMP ingest URLs and stream keys instantly.
-          </p>
-          <div className={encoderStyles.encoderSetupControls}>
-            <label className={encoderStyles.encoderLatencySelect}>
+  if (!streamOverview) {
+    return (
+      <Card className={encoderStyles.emptyCard}>
+        <CardHeader>
+          <CardTitle>Generate Mux streaming credentials</CardTitle>
+          <CardDescription>
+            Pick the desired latency profile and create a dedicated live stream for {selectedCapsule.name}.
+            We&apos;ll provision RTMP ingest URLs and stream keys instantly.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className={encoderStyles.latencyInline}>
+            <label className={encoderStyles.latencySelectWrapper}>
               <span>Latency profile</span>
-              <select value={streamPreferences.latencyMode} onChange={handleLatencyChange}>
+              <select
+                value={streamPreferences.latencyMode}
+                onChange={handleLatencyChange}
+                className={encoderStyles.latencySelect}
+              >
                 <option value="low">Low latency</option>
                 <option value="reduced">Reduced latency</option>
                 <option value="standard">Standard latency</option>
@@ -660,723 +903,103 @@ function AiStreamStudioLayoutInner({
               variant="gradient"
               size="sm"
               onClick={handleEnsureStream}
-              disabled={actionBusy === "ensure" || overviewLoading}
+              loading={actionBusy === "ensure"}
+              disabled={overviewLoading}
             >
-              {actionBusy === "ensure" ? "Preparing..." : "Create live stream"}
+              Create live stream
             </Button>
           </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className={encoderStyles.encoderLayout}>
-        <div className={encoderStyles.encoderGrid}>
-          <section className={encoderStyles.encoderSection}>
-            <div className={encoderStyles.encoderSectionTitle}>RTMP ingest endpoints</div>
-            <div className={encoderStyles.encoderSectionSubtitle}>
-              Configure OBS, Streamlabs, or any RTMP-compatible encoder with these URLs.
-            </div>
-            <ul className={encoderStyles.encoderList}>
-              <li className={encoderStyles.encoderRow}>
-                <div>
-                  <div className={encoderStyles.encoderLabel}>Primary ingest</div>
-                  <div className={encoderStyles.encoderValue}>
-                    {streamOverview.ingest.primary ?? "rtmps://global-live.mux.com:443/app"}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className={encoderStyles.encoderActionButton}
-                  onClick={() =>
-                    copy(
-                      "primary-ingest",
-                      streamOverview.ingest.primary ?? "rtmps://global-live.mux.com:443/app",
-                    )
-                  }
-                >
-                  {copiedField === "primary-ingest" ? "Copied" : "Copy"}
-                </button>
-              </li>
-              <li className={encoderStyles.encoderRow}>
-                <div>
-                  <div className={encoderStyles.encoderLabel}>Backup ingest</div>
-                  <div className={encoderStyles.encoderValue}>
-                    {streamOverview.ingest.backup ?? "rtmps://global-live-backup.mux.com:443/app"}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className={encoderStyles.encoderActionButton}
-                  onClick={() =>
-                    copy(
-                      "backup-ingest",
-                      streamOverview.ingest.backup ?? "rtmps://global-live-backup.mux.com:443/app",
-                    )
-                  }
-                >
-                  {copiedField === "backup-ingest" ? "Copied" : "Copy"}
-                </button>
-              </li>
-            </ul>
-          </section>
-          <section className={encoderStyles.encoderSection}>
-            <div className={encoderStyles.encoderSectionTitle}>Stream preferences</div>
-            <div className={encoderStyles.encoderSectionSubtitle}>
-              Choose latency and reliability options. Changes to latency apply to newly prepared streams.
-            </div>
-            <div className={encoderStyles.prefsGrid}>
-              <div className={encoderStyles.radioGroup} role="radiogroup" aria-label="Latency mode">
-                <div className={encoderStyles.encoderLabel}>Latency mode</div>
-                <label className={encoderStyles.radioOption}>
-                  <input
-                    type="radio"
-                    name="latency"
-                    value="low"
-                    checked={streamPreferences.latencyMode === "low"}
-                    onChange={handleLatencyChange}
-                  />
-                  Low latency
-                </label>
-                <label className={encoderStyles.radioOption}>
-                  <input
-                    type="radio"
-                    name="latency"
-                    value="standard"
-                    checked={streamPreferences.latencyMode === "standard"}
-                    onChange={handleLatencyChange}
-                  />
-                  Normal latency
-                </label>
-                <span className={encoderStyles.encoderHint}>Used when preparing/refreshing the live stream.</span>
-              </div>
-              <div className={encoderStyles.fieldGroup}>
-                <label className={encoderStyles.switchRow}>
-                  <input
-                    type="checkbox"
-                    className={encoderStyles.switch}
-                    checked={streamPreferences.disconnectProtection}
-                    onChange={(event) =>
-                      updateStreamPreferences({ disconnectProtection: event.target.checked })
-                    }
-                  />
-                  <div>
-                    <div className={encoderStyles.encoderLabel}>Disconnect protection</div>
-                    <div className={encoderStyles.encoderHint}>Display a slate if the encoder drops briefly.</div>
-                  </div>
-                </label>
-                <label className={encoderStyles.switchRow}>
-                  <input
-                    type="checkbox"
-                    className={encoderStyles.switch}
-                    checked={streamPreferences.audioWarnings}
-                    onChange={(event) =>
-                      updateStreamPreferences({ audioWarnings: event.target.checked })
-                    }
-                  />
-                  <div>
-                    <div className={encoderStyles.encoderLabel}>Copyrighted audio warnings</div>
-                    <div className={encoderStyles.encoderHint}>Flag repeated detections in your VODs.</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </section>
-          <section className={encoderStyles.encoderSection}>
-            <div className={encoderStyles.encoderSectionTitle}>VOD &amp; Clips</div>
-            <div className={encoderStyles.encoderSectionSubtitle}>
-              Control how we store and publish recordings and experimental auto clips.
-            </div>
-            <div className={encoderStyles.fieldGroup}>
-              <label className={encoderStyles.switchRow}>
-                <input
-                  type="checkbox"
-                  className={encoderStyles.switch}
-                  checked={streamPreferences.storePastBroadcasts}
-                  onChange={(event) =>
-                    updateStreamPreferences({ storePastBroadcasts: event.target.checked })
-                  }
-                />
-                <div>
-                  <div className={encoderStyles.encoderLabel}>Store past broadcasts</div>
-                  <div className={encoderStyles.encoderHint}>Keep recordings for up to 7 days (longer for partners).</div>
-                </div>
-              </label>
-              <label className={encoderStyles.switchRow}>
-                <input
-                  type="checkbox"
-                  className={encoderStyles.switch}
-                  checked={streamPreferences.alwaysPublishVods}
-                  onChange={(event) =>
-                    updateStreamPreferences({ alwaysPublishVods: event.target.checked })
-                  }
-                />
-                <div>
-                  <div className={encoderStyles.encoderLabel}>Always publish VODs</div>
-                  <div className={encoderStyles.encoderHint}>VODs will be set public by default.</div>
-                </div>
-              </label>
-              <label className={encoderStyles.switchRow}>
-                <input
-                  type="checkbox"
-                  className={encoderStyles.switch}
-                  checked={streamPreferences.autoClips}
-                  onChange={(event) =>
-                    updateStreamPreferences({ autoClips: event.target.checked })
-                  }
-                />
-                <div>
-                  <div className={encoderStyles.encoderLabel}>Auto clips (alpha)</div>
-                  <div className={encoderStyles.encoderHint}>Experimental: generate quick clips automatically.</div>
-                </div>
-              </label>
-            </div>
-          </section>
-          <section className={encoderStyles.encoderSection}>
-            <div className={encoderStyles.encoderSectionTitle}>Encoder toolset</div>
-            <div className={encoderStyles.encoderSectionSubtitle}>
-              Download an OBS profile or pair a mobile encoder with your ingest settings.
-            </div>
-            <div className={encoderStyles.encoderTools}>
-              <div className={encoderStyles.encoderToolCard}>
-                <div className={encoderStyles.encoderToolHeader}>
-                  <div className={encoderStyles.encoderToolTitle}>OBS profile</div>
-                  <span className={encoderStyles.encoderToolBadge}>JSON</span>
-                </div>
-                <p className={encoderStyles.encoderToolBody}>
-                  Export ingest URLs, stream keys, and your current preferences for a one-click OBS import.
-                </p>
-                <div className={encoderStyles.encoderToolActions}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadObsProfile}
-                    disabled={downloadBusy || overviewLoading}
-                  >
-                    {downloadBusy ? "Preparing..." : "Download profile"}
-                  </Button>
-                </div>
-              </div>
-              <div className={encoderStyles.encoderToolCard}>
-                <div className={encoderStyles.encoderToolHeader}>
-                  <div className={encoderStyles.encoderToolTitle}>Mobile ingest QR</div>
-                  <span className={encoderStyles.encoderToolBadge}>RTMP</span>
-                </div>
-                <p className={encoderStyles.encoderToolBody}>
-                  Scan with a mobile encoder to prefill the ingest URL and stream key instantly.
-                </p>
-                <div className={encoderStyles.encoderQr}>
-                  {qrGenerating ? (
-                    <div className={encoderStyles.encoderQrPlaceholder}>Generating QR…</div>
-                  ) : qrError ? (
-                    <div className={encoderStyles.encoderQrError}>{qrError}</div>
-                  ) : qrImageDataUrl ? (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={qrImageDataUrl} alt="Mobile ingest QR code" />
-                    </>
-                  ) : (
-                    <div className={encoderStyles.encoderQrPlaceholder}>Stream key required</div>
-                  )}
-                </div>
-                <div className={encoderStyles.encoderToolActions}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      mobileIngestPayload
-                        ? copy("mobile-ingest", mobileIngestPayload)
-                        : undefined
-                    }
-                    disabled={!mobileIngestPayload}
-                  >
-                    {copiedField === "mobile-ingest" ? "Copied" : "Copy setup code"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </section>
-          <section className={encoderStyles.encoderSection}>
-            <div className={encoderStyles.encoderSectionTitle}>Simulcast destinations</div>
-            <div className={encoderStyles.encoderSectionSubtitle}>
-              Push your broadcast to partner platforms while Capsules manages the master feed.
-            </div>
-            {streamPreferences.simulcastDestinations.length ? (
-              <ul className={encoderStyles.encoderDestinationList}>
-                {streamPreferences.simulcastDestinations.map((destination) => {
-                  const statusLabel = !destination.enabled
-                    ? "Disabled"
-                    : destination.status === "live"
-                      ? "Live"
-                      : destination.status === "error"
-                        ? "Error"
-                        : "Idle";
-                  const statusClass = !destination.enabled
-                    ? `${encoderStyles.encoderDestinationStatus} ${encoderStyles.encoderDestinationStatusDisabled}`
-                    : destination.status === "live"
-                      ? `${encoderStyles.encoderDestinationStatus} ${encoderStyles.encoderDestinationStatusLive}`
-                      : destination.status === "error"
-                        ? `${encoderStyles.encoderDestinationStatus} ${encoderStyles.encoderDestinationStatusError}`
-                        : encoderStyles.encoderDestinationStatus;
-                  return (
-                    <li key={destination.id} className={encoderStyles.encoderDestinationItem}>
-                      <div className={encoderStyles.encoderDestinationHeader}>
-                        <div className={encoderStyles.encoderDestinationHeading}>
-                          <span className={encoderStyles.encoderDestinationLabel}>{destination.label}</span>
-                          <span className={encoderStyles.encoderDestinationProvider}>
-                            {resolveProviderLabel(destination.provider)}
-                          </span>
-                        </div>
-                        <span className={statusClass}>{statusLabel}</span>
-                      </div>
-                      <div className={encoderStyles.encoderDestinationUrl}>{destination.url}</div>
-                      <div className={encoderStyles.encoderDestinationMeta}>
-                        <span>
-                          Stream key: {" "}
-                          {destination.streamKey ? maskSecret(destination.streamKey) : "Use account default"}
-                        </span>
-                        <span>
-                          Last sync: {" "}
-                          {destination.lastSyncedAt ? formatTimestamp(destination.lastSyncedAt) : "--"}
-                        </span>
-                      </div>
-                      <div className={encoderStyles.encoderDestinationActions}>
-                        <button
-                          type="button"
-                          className={encoderStyles.encoderActionButton}
-                          onClick={() =>
-                            copy(`simulcast-url-${destination.id}`, destination.url)
-                          }
-                        >
-                          {copiedField === `simulcast-url-${destination.id}` ? "Copied" : "Copy URL"}
-                        </button>
-                        {destination.streamKey ? (
-                          <button
-                            type="button"
-                            className={encoderStyles.encoderActionButton}
-                            onClick={() =>
-                              copy(`simulcast-key-${destination.id}`, destination.streamKey)
-                            }
-                          >
-                            {copiedField === `simulcast-key-${destination.id}` ? "Copied" : "Copy key"}
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          className={encoderStyles.encoderActionButton}
-                          onClick={() => handleToggleSimulcastDestination(destination.id)}
-                        >
-                          {destination.enabled ? "Disable" : "Enable"}
-                        </button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => handleRemoveSimulcastDestination(destination.id)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <div className={encoderStyles.encoderEmptyState}>No additional destinations configured yet.</div>
-            )}
-            {addingDestination ? (
-              <form className={encoderStyles.encoderForm} onSubmit={handleAddSimulcastDestination}>
-                <div className={encoderStyles.encoderFormRow}>
-                  <div className={encoderStyles.encoderFormGroup}>
-                    <label className={encoderStyles.encoderLabel} htmlFor="simulcast-label">
-                      Label
-                    </label>
-                    <Input
-                      id="simulcast-label"
-                      value={destinationDraft.label}
-                      onChange={(event) => handleDestinationDraftChange("label", event.target.value)}
-                      placeholder="Acme Twitch channel"
-                    />
-                  </div>
-                  <div className={encoderStyles.encoderFormGroup}>
-                    <label className={encoderStyles.encoderLabel} htmlFor="simulcast-provider">
-                      Platform
-                    </label>
-                    <select
-                      id="simulcast-provider"
-                      className={encoderStyles.encoderSelect}
-                      value={destinationDraft.provider}
-                      onChange={(event) => handleDestinationDraftChange("provider", event.target.value)}
-                    >
-                      {SIMULCAST_PROVIDER_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className={encoderStyles.encoderFormGroup}>
-                  <label className={encoderStyles.encoderLabel} htmlFor="simulcast-url">
-                    Ingest URL
-                  </label>
-                  <Input
-                    id="simulcast-url"
-                    value={destinationDraft.url}
-                    onChange={(event) => handleDestinationDraftChange("url", event.target.value)}
-                    placeholder="rtmps://live.twitch.tv/app"
-                  />
-                </div>
-                <div className={encoderStyles.encoderFormGroup}>
-                  <label className={encoderStyles.encoderLabel} htmlFor="simulcast-key">
-                    Stream key (optional)
-                  </label>
-                  <Input
-                    id="simulcast-key"
-                    value={destinationDraft.streamKey}
-                    onChange={(event) => handleDestinationDraftChange("streamKey", event.target.value)}
-                    placeholder="sk_live_..."
-                  />
-                </div>
-                {destinationError ? (
-                  <div className={encoderStyles.encoderFormError}>{destinationError}</div>
-                ) : null}
-                <div className={encoderStyles.encoderFormActions}>
-                  <Button variant="outline" size="sm" type="submit">
-                    Save destination
-                  </Button>
-                  <Button variant="ghost" size="sm" type="button" onClick={handleCancelAddDestination}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  setDestinationError(null);
-                  setAddingDestination(true);
-                }}
-              >
-                Add destination
-              </Button>
-            )}
-          </section>
-          <section className={encoderStyles.encoderSection}>
-            <div className={encoderStyles.encoderSectionTitle}>Webhook automation</div>
-            <div className={encoderStyles.encoderSectionSubtitle}>
-              Trigger downstream workflows when your stream starts, ends, or publishes new recordings.
-            </div>
-            {streamPreferences.webhookEndpoints.length ? (
-              <ul className={encoderStyles.encoderWebhookList}>
-                {streamPreferences.webhookEndpoints.map((endpoint) => (
-                  <li key={endpoint.id} className={encoderStyles.encoderWebhookItem}>
-                    <div className={encoderStyles.encoderWebhookHeader}>
-                      <div className={encoderStyles.encoderWebhookHeading}>
-                        <span className={encoderStyles.encoderWebhookLabel}>{endpoint.label}</span>
-                      </div>
-                      <span
-                        className={
-                          endpoint.enabled
-                            ? `${encoderStyles.encoderWebhookStatus} ${encoderStyles.encoderWebhookStatusEnabled}`
-                            : `${encoderStyles.encoderWebhookStatus} ${encoderStyles.encoderWebhookStatusDisabled}`
-                        }
-                      >
-                        {endpoint.enabled ? "Enabled" : "Disabled"}
-                      </span>
-                    </div>
-                    <div className={encoderStyles.encoderWebhookUrl}>{endpoint.url}</div>
-                    <div className={encoderStyles.encoderWebhookMeta}>
-                      <span>
-                        Secret: {" "}
-                        {endpoint.secret ? maskSecret(endpoint.secret) : "Not configured"}
-                      </span>
-                      <span>
-                        Last delivery: {" "}
-                        {endpoint.lastDeliveredAt ? formatTimestamp(endpoint.lastDeliveredAt) : "Never"}
-                      </span>
-                    </div>
-                    {endpoint.events.length ? (
-                      <div className={encoderStyles.encoderWebhookEvents}>
-                        {endpoint.events.map((event) => (
-                          <span key={event} className={encoderStyles.encoderWebhookEvent}>
-                            {event}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className={encoderStyles.encoderWebhookEventsEmpty}>Listening to all events</div>
-                    )}
-                    <div className={encoderStyles.encoderWebhookActions}>
-                      <button
-                        type="button"
-                        className={encoderStyles.encoderActionButton}
-                        onClick={() =>
-                          copy(`webhook-url-${endpoint.id}`, endpoint.url)
-                        }
-                      >
-                        {copiedField === `webhook-url-${endpoint.id}` ? "Copied" : "Copy URL"}
-                      </button>
-                      {endpoint.secret ? (
-                        <button
-                          type="button"
-                          className={encoderStyles.encoderActionButton}
-                          onClick={() =>
-                            copy(
-                              `webhook-secret-${endpoint.id}`,
-                              endpoint.secret ?? "",
-                            )
-                          }
-                        >
-                          {copiedField === `webhook-secret-${endpoint.id}` ? "Copied" : "Copy secret"}
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className={encoderStyles.encoderActionButton}
-                        onClick={() => handleToggleWebhookEndpoint(endpoint.id)}
-                      >
-                        {endpoint.enabled ? "Disable" : "Enable"}
-                      </button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => handleRemoveWebhookEndpoint(endpoint.id)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className={encoderStyles.encoderEmptyState}>No webhooks configured yet.</div>
-            )}
-            {addingWebhook ? (
-              <form className={encoderStyles.encoderForm} onSubmit={handleAddWebhookEndpoint}>
-                <div className={encoderStyles.encoderFormRow}>
-                  <div className={encoderStyles.encoderFormGroup}>
-                    <label className={encoderStyles.encoderLabel} htmlFor="webhook-label">
-                      Label
-                    </label>
-                    <Input
-                      id="webhook-label"
-                      value={webhookDraft.label}
-                      onChange={(event) => handleWebhookFieldChange("label", event.target.value)}
-                      placeholder="Discord automation"
-                    />
-                  </div>
-                  <div className={encoderStyles.encoderFormGroup}>
-                    <label className={encoderStyles.encoderLabel} htmlFor="webhook-url">
-                      Webhook URL
-                    </label>
-                    <Input
-                      id="webhook-url"
-                      value={webhookDraft.url}
-                      onChange={(event) => handleWebhookFieldChange("url", event.target.value)}
-                      placeholder="https://example.com/hooks/capsules"
-                    />
-                  </div>
-                </div>
-                <div className={encoderStyles.encoderFormGroup}>
-                  <label className={encoderStyles.encoderLabel} htmlFor="webhook-secret">
-                    Signing secret (optional)
-                  </label>
-                  <Input
-                    id="webhook-secret"
-                    value={webhookDraft.secret}
-                    onChange={(event) => handleWebhookFieldChange("secret", event.target.value)}
-                    placeholder="whsec_..."
-                  />
-                </div>
-                <div className={encoderStyles.encoderFormGroup}>
-                  <div className={encoderStyles.encoderLabel}>Events</div>
-                  <div className={encoderStyles.encoderEventGrid}>
-                    {WEBHOOK_EVENT_OPTIONS.map((option) => (
-                      <label key={option.value} className={encoderStyles.encoderEventOption}>
-                        <input
-                          type="checkbox"
-                          checked={webhookDraft.events.includes(option.value)}
-                          onChange={() => handleWebhookEventToggle(option.value)}
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <span className={encoderStyles.encoderHint}>Leave unchecked to receive all stream events.</span>
-                </div>
-                {webhookError ? <div className={encoderStyles.encoderFormError}>{webhookError}</div> : null}
-                <div className={encoderStyles.encoderFormActions}>
-                  <Button variant="outline" size="sm" type="submit">
-                    Save webhook
-                  </Button>
-                  <Button variant="ghost" size="sm" type="button" onClick={handleCancelAddWebhook}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  setWebhookError(null);
-                  setAddingWebhook(true);
-                }}
-              >
-                Add webhook
-              </Button>
-            )}
-          </section>
-          <section className={encoderStyles.encoderSection}>
-            <div className={encoderStyles.encoderSectionTitle}>Stream keys</div>
-            <div className={encoderStyles.encoderSectionSubtitle}>
-              Share with trusted operators only. Rotating the key disconnects any active sessions.
-            </div>
-            <ul className={encoderStyles.encoderList}>
-              <li className={encoderStyles.encoderRow}>
-                <div>
-                  <div className={encoderStyles.encoderLabel}>Primary stream key</div>
-                  <div className={encoderStyles.encoderValue}>
-                    {showPrimaryKey
-                      ? streamOverview.ingest.streamKey
-                      : maskSecret(streamOverview.ingest.streamKey)}
-                  </div>
-                </div>
-                <div className={encoderStyles.encoderRowActions}>
-                  <button
-                    type="button"
-                    className={encoderStyles.encoderActionButton}
-                    onClick={() => setShowPrimaryKey((value) => !value)}
-                  >
-                    {showPrimaryKey ? "Hide" : "Show"}
-                  </button>
-                  <button
-                    type="button"
-                    className={encoderStyles.encoderActionButton}
-                    onClick={() => copy("primary-key", streamOverview.ingest.streamKey)}
-                  >
-                    {copiedField === "primary-key" ? "Copied" : "Copy"}
-                  </button>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={handleRotateStreamKey}
-                    disabled={actionBusy === "rotate" || overviewLoading}
-                  >
-                    {actionBusy === "rotate" ? "Rotating..." : "Rotate"}
-                  </Button>
-                </div>
-              </li>
-              <li className={encoderStyles.encoderRow}>
-                <div>
-                  <div className={encoderStyles.encoderLabel}>Backup stream key</div>
-                  <div className={encoderStyles.encoderValue}>
-                    {streamOverview.ingest.backupStreamKey
-                      ? showBackupKey
-                        ? streamOverview.ingest.backupStreamKey
-                        : maskSecret(streamOverview.ingest.backupStreamKey)
-                      : "Not provisioned"}
-                  </div>
-                </div>
-                <div className={encoderStyles.encoderRowActions}>
-                  <button
-                    type="button"
-                    className={encoderStyles.encoderActionButton}
-                    onClick={() => setShowBackupKey((value) => !value)}
-                    disabled={!streamOverview.ingest.backupStreamKey}
-                  >
-                    {showBackupKey ? "Hide" : "Show"}
-                  </button>
-                  <button
-                    type="button"
-                    className={encoderStyles.encoderActionButton}
-                    onClick={() =>
-                      copy("backup-key", streamOverview.ingest.backupStreamKey)
-                    }
-                    disabled={!streamOverview.ingest.backupStreamKey}
-                  >
-                    {copiedField === "backup-key" ? "Copied" : "Copy"}
-                  </button>
-                </div>
-              </li>
-            </ul>
-          </section>
-          <section className={encoderStyles.encoderSection}>
-            <div className={encoderStyles.encoderSectionTitle}>Playback &amp; embeds</div>
-            <div className={encoderStyles.encoderSectionSubtitle}>
-              Use the Mux player embed or raw HLS URL to power your Capsule portal or landing pages.
-            </div>
-            <ul className={encoderStyles.encoderList}>
-              <li className={encoderStyles.encoderRow}>
-                <div>
-                  <div className={encoderStyles.encoderLabel}>Playback URL</div>
-                  <div className={encoderStyles.encoderValue}>{playbackUrl ?? "--"}</div>
-                </div>
-                <button
-                  type="button"
-                  className={encoderStyles.encoderActionButton}
-                  onClick={() => copy("playback-url", playbackUrl)}
-                >
-                  {copiedField === "playback-url" ? "Copied" : "Copy"}
-                </button>
-              </li>
-              <li className={encoderStyles.encoderRow}>
-                <div>
-                  <div className={encoderStyles.encoderLabel}>Mux player embed</div>
-                  <div className={encoderStyles.encoderValue}>
-                    {embedCodeSnippet ?? "<mux-player stream-type=\"live\" playback-id=\"...\" />"}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className={encoderStyles.encoderActionButton}
-                  onClick={() => copy("embed-code", embedCodeSnippet)}
-                  disabled={!embedCodeSnippet}
-                >
-                  {copiedField === "embed-code" ? "Copied" : "Copy"}
-                </button>
-              </li>
-            </ul>
-          </section>
-        </div>
-        <section className={encoderStyles.encoderSection}>
-          <div className={encoderStyles.encoderSectionTitle}>Reliability &amp; recording plan</div>
-          <div className={encoderStyles.encoderSectionSubtitle}>
-            Mux automatically records each broadcast and we keep the resulting assets in your Capsule
-            library. Pair this with local capture inside your studio for redundancy.
-          </div>
-          <div className={encoderStyles.encoderChecklist}>
-            <div className={encoderStyles.encoderChecklistItem}>Cloud recording for every live session</div>
-            <div className={encoderStyles.encoderChecklistItem}>
-              Configure OBS backups with the provided ingest pair
-            </div>
-            <div className={encoderStyles.encoderChecklistItem}>
-              Trigger Capsules automation via webhook on stream events
-            </div>
-          </div>
-        </section>
-
-      </div>
+        </CardContent>
+      </Card>
     );
-  };
+  }
+
+  return (
+    <ExternalEncoderTab
+      capsuleName={selectedCapsule.name}
+      activeSession={activeSession}
+      streamOverview={streamOverview}
+      streamPreferences={streamPreferences}
+      overviewLoading={overviewLoading}
+      overviewError={overviewError}
+      actionBusy={actionBusy}
+      onEnsureStream={handleEnsureStream}
+      onLatencyChange={handleLatencyChange}
+      onRotateStreamKey={handleRotateStreamKey}
+      onDownloadObsProfile={handleDownloadObsProfile}
+      onCopy={copy}
+      copiedField={copiedField}
+      maskSecret={maskSecret}
+      showPrimaryKey={showPrimaryKey}
+      onTogglePrimaryKey={() => setShowPrimaryKey((value) => !value)}
+      showBackupKey={showBackupKey}
+      onToggleBackupKey={() => setShowBackupKey((value) => !value)}
+      downloadBusy={downloadBusy}
+      qrGenerating={qrGenerating}
+      qrError={qrError}
+      qrImageDataUrl={qrImageDataUrl}
+      mobileIngestPayload={mobileIngestPayload}
+      simulcastDraft={destinationDraft}
+      onSimulcastDraftChange={handleDestinationDraftChange}
+      simulcastOptions={SIMULCAST_PROVIDER_OPTIONS}
+      addingDestination={addingDestination}
+      onStartAddDestination={handleStartAddDestination}
+      onAddSimulcastDestination={handleAddSimulcastDestination}
+      onCancelAddDestination={handleCancelAddDestination}
+      destinationError={destinationError}
+      onToggleDestination={handleToggleSimulcastDestination}
+      onRemoveDestination={handleRemoveSimulcastDestination}
+      resolveProviderLabel={resolveProviderLabel}
+      webhookDraft={webhookDraft}
+      onWebhookFieldChange={handleWebhookFieldChange}
+      onWebhookEventToggle={handleWebhookEventToggle}
+      webhookOptions={WEBHOOK_EVENT_OPTIONS}
+      addingWebhook={addingWebhook}
+      onStartAddWebhook={handleStartAddWebhook}
+      onAddWebhookEndpoint={handleAddWebhookEndpoint}
+      onCancelAddWebhook={handleCancelAddWebhook}
+      webhookError={webhookError}
+      onToggleWebhook={handleToggleWebhookEndpoint}
+      onRemoveWebhook={handleRemoveWebhookEndpoint}
+      playbackUrl={playbackUrl}
+      embedCodeSnippet={embedCodeSnippet}
+      onUpdatePreferences={updateStreamPreferences}
+      defaultPrimaryIngestUrl={DEFAULT_PRIMARY_INGEST_URL}
+      webhookTestStatus={webhookTestStatus}
+      onSendWebhookTest={handleSendWebhookTest}
+    />
+  );
+};
 
   const renderClipsContent = () => {
+    const notificationBanner = encoderNotification ? (
+      <StudioNotificationBanner
+        notification={encoderNotification}
+        className={styles.encoderBanner}
+      />
+    ) : null;
+
     if (!selectedCapsule) {
       return (
-        <div className={styles.noticeCard}>
-          <h3>Select a Capsule to review clips and highlights</h3>
-          <p>The Clips view surfaces recent live recordings and AI-generated jobs for your Capsule.</p>
-        </div>
+        <>
+          {notificationBanner}
+          <div className={styles.noticeCard}>
+            <h3>Select a Capsule to review clips and highlights</h3>
+            <p>The Clips view surfaces recent live recordings and AI-generated jobs for your Capsule.</p>
+          </div>
+        </>
       );
     }
 
     if (overviewLoading && !streamOverview) {
       return (
-        <div className={styles.noticeCard}>
-          <h3>Loading recordings...</h3>
-          <p>Collecting the latest Mux assets for {selectedCapsule.name}.</p>
-        </div>
+        <>
+          {notificationBanner}
+          <div className={styles.noticeCard}>
+            <h3>Loading recordings...</h3>
+            <p>Collecting the latest Mux assets for {selectedCapsule.name}.</p>
+          </div>
+        </>
       );
     }
 
@@ -1385,13 +1008,16 @@ function AiStreamStudioLayoutInner({
       (streamOverview.assets.length === 0 && streamOverview.aiJobs.length === 0)
     ) {
       return (
-        <div className={styles.noticeCard}>
-          <h3>No recordings yet</h3>
-          <p>
-            Once you go live, your sessions will appear here automatically so you can publish clips and
-            highlights.
-          </p>
-        </div>
+        <>
+          {notificationBanner}
+          <div className={styles.noticeCard}>
+            <h3>No recordings yet</h3>
+            <p>
+              Once you go live, your sessions will appear here automatically so you can publish clips and
+              highlights.
+            </p>
+          </div>
+        </>
       );
     }
 
@@ -1413,6 +1039,7 @@ function AiStreamStudioLayoutInner({
 
     return (
       <div className={encoderStyles.encoderLayout}>
+        {notificationBanner}
         <section className={encoderStyles.encoderSection}>
           <div className={encoderStyles.encoderSectionTitle}>Recent recordings</div>
           <div className={encoderStyles.encoderSectionSubtitle}>
@@ -1546,6 +1173,7 @@ function AiStreamStudioLayoutInner({
         <div className={styles.navTabs} role="tablist" aria-label="AI Stream Studio sections">
           {TAB_ITEMS.map((tab) => {
             const isActive = activeTab === tab.id;
+            const indicator = navIndicators[tab.id];
             const baseClass = `${styles.navButton}`;
             const btnClass = isActive ? `${baseClass} ${styles.navButtonActive}` : baseClass;
             return (
@@ -1558,7 +1186,14 @@ function AiStreamStudioLayoutInner({
                 onClick={() => handleTabChange(tab.id)}
               >
                 {tab.icon}
-                {tab.label}
+                <span className={styles.navButtonLabel}>{tab.label}</span>
+                {indicator ? (
+                  <span className={styles.navBadge}>
+                    <Badge variant="soft" tone={indicator.tone} size="sm">
+                      {indicator.label}
+                    </Badge>
+                  </span>
+                ) : null}
               </button>
             );
           })}
@@ -1577,3 +1212,8 @@ function AiStreamStudioLayoutInner({
     </div>
   );
 }
+
+
+
+
+

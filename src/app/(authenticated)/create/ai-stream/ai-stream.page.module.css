@@ -126,6 +126,12 @@
   letter-spacing: 0.01em;
 }
 
+.navBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .navButtonDesc {
   font-size: 0.78rem;
   color: var(--studio-text-secondary);
@@ -1046,3 +1052,16 @@
 .stageManagerPrompterActions > * {
   flex-shrink: 0;
 }
+
+.encoderBanner {
+  margin-bottom: 18px;
+}
+
+.encoderBannerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+

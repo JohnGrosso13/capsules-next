@@ -6,12 +6,17 @@ import { Button } from "@/components/ui/button";
 import type { CapsuleSummary } from "@/server/capsules/service";
 
 import styles from "@/app/(authenticated)/create/ai-stream/ai-stream.page.module.css";
+import {
+  StudioNotificationBanner,
+  type StudioNotification,
+} from "../StudioNotificationBanner";
 
 type ProducerConsoleTabProps = {
   selectedCapsule: CapsuleSummary | null;
+  notification?: StudioNotification | null;
 };
 
-export function ProducerConsoleTab({ selectedCapsule }: ProducerConsoleTabProps) {
+export function ProducerConsoleTab({ selectedCapsule, notification }: ProducerConsoleTabProps) {
   if (!selectedCapsule) {
     return (
       <div className={styles.noticeCard}>
@@ -26,6 +31,12 @@ export function ProducerConsoleTab({ selectedCapsule }: ProducerConsoleTabProps)
 
   return (
     <div className={styles.producerLayout}>
+      {notification ? (
+        <StudioNotificationBanner
+          notification={notification}
+          className={styles.encoderBanner}
+        />
+      ) : null}
       <div className={styles.producerColumn}>
         <div className={styles.shellCard}>
           <div className={styles.sectionHeader}>
@@ -85,3 +96,7 @@ export function ProducerConsoleTab({ selectedCapsule }: ProducerConsoleTabProps)
     </div>
   );
 }
+
+
+
+

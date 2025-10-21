@@ -61,6 +61,16 @@ const baseOverview: StreamOverview = {
     streamKey: "sk_primary",
     backupStreamKey: "sk_backup",
   },
+  health: {
+    status: "idle",
+    latencyMode: "low",
+    reconnectWindowSeconds: null,
+    lastSeenAt: null,
+    lastActiveAt: null,
+    lastIdleAt: null,
+    lastErrorAt: null,
+    recentError: null,
+  },
   sessions: [],
   assets: [],
   aiJobs: [],
@@ -283,3 +293,6 @@ describe("useAiStreamStudioStore", () => {
     expect(latestState?.actionBusy).toBeNull();
   });
 });
+
+
+

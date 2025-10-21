@@ -302,3 +302,31 @@ export async function downloadObsProfile({
   const filename = parseAttachmentFilename(response.headers.get("Content-Disposition"), capsuleId);
   return { blob, filename };
 }
+
+type TriggerWebhookTestParams = RequestOptions & {
+  capsuleId: string;
+  endpointId: string;
+};
+
+export async function triggerWebhookTest({
+  capsuleId,
+  endpointId,
+  signal,
+}: TriggerWebhookTestParams): Promise<void> {
+  const response = await fetch(
+    "/api/mux/live/webhook-test",
+    withSignal(
+      {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capsuleId, endpointId }),
+      },
+      signal,
+    ),
+  );
+
+  if (!response.ok) {
+    throw await createErrorFromResponse(response, "Failed to send webhook test event.");
+  }
+}

@@ -70,6 +70,16 @@ export type StreamOverview = {
     streamKey: string;
     backupStreamKey: string | null;
   };
+  health: {
+    status: string;
+    latencyMode: string | null;
+    reconnectWindowSeconds: number | null;
+    lastSeenAt: string | null;
+    lastActiveAt: string | null;
+    lastIdleAt: string | null;
+    lastErrorAt: string | null;
+    recentError: string | null;
+  };
   sessions: StreamSession[];
   assets: StreamAsset[];
   aiJobs: StreamAiJob[];
