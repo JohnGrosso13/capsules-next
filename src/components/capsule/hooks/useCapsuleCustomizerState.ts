@@ -3,12 +3,29 @@
 import * as React from "react";
 
 import type { PrompterAction } from "@/components/ai-prompter-stage";
-import { useMemoryUploads } from "@/components/memory/use-memory-uploads";
-import { computeDisplayUploads } from "@/components/memory/process-uploads";
-import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
-import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
+import { useCapsuleCustomizerCopy } from "./useCapsuleCustomizerCopy";
+import { useCapsuleCustomizerSelection } from "./useCapsuleCustomizerSelection";
+import { useCapsuleCustomizerPreview } from "./useCapsuleCustomizerPreview";
+import { useCapsuleCustomizerChat } from "./useCapsuleCustomizerChat";
+import { useCapsuleCustomizerMemory } from "./useCapsuleCustomizerMemory";
+import {
+  type BannerCrop,
+  type CapsuleCustomizerMode,
+  type ChatBannerOption,
+  type ChatMessage,
+  type CroppableBanner,
+  type PromptHistorySnapshot,
+  type SelectedBanner,
+} from "./capsuleCustomizerTypes";
 
-export type CapsuleCustomizerMode = "banner" | "storeBanner" | "tile" | "logo" | "avatar";
+export type {
+  CapsuleCustomizerMode,
+  BannerCrop,
+  SelectedBanner,
+  ChatMessage,
+  ChatBannerOption,
+  PromptHistorySnapshot,
+} from "./capsuleCustomizerTypes";
 
 export type CapsuleCustomizerSaveResult =
   | { type: "banner"; bannerUrl: string | null }
@@ -17,162 +34,7 @@ export type CapsuleCustomizerSaveResult =
   | { type: "logo"; logoUrl: string | null }
   | { type: "avatar"; avatarUrl: string | null };
 
-type ChatRole = "assistant" | "user";
-
-export type BannerCrop = {
-  offsetX: number;
-  offsetY: number;
-};
-
-export type SelectedBanner =
-  | ({ kind: "upload"; name: string; url: string; file: File | null } & { crop: BannerCrop })
-  | ({
-      kind: "memory";
-      id: string;
-      title: string | null;
-      url: string;
-      fullUrl: string | null;
-    } & { crop: BannerCrop })
-  | { kind: "ai"; prompt: string };
-
-type CroppableBanner = Extract<SelectedBanner, { kind: "upload" | "memory" }>;
-
-export type PromptHistorySnapshot = {
-  base: string | null;
-  refinements: string[];
-  sourceKey: string | null;
-};
-
-export type ChatBannerOption = {
-  id: string;
-  label: string;
-  previewUrl: string;
-  banner: SelectedBanner;
-  promptState: PromptHistorySnapshot;
-};
-
-export type ChatMessage = {
-  id: string;
-  role: ChatRole;
-  content: string;
-  bannerOptions?: ChatBannerOption[];
-};
-
-type DragState = {
-  pointerId: number;
-  cleanup: () => void;
-};
-
-type PreviewMetrics = {
-  overflowX: number;
-  overflowY: number;
-  maxOffsetX: number;
-  maxOffsetY: number;
-  scale: number;
-};
-
-const MODE_ASPECT_RATIO: Record<CapsuleCustomizerMode, number> = {
-  banner: 16 / 9,
-  storeBanner: 5 / 2,
-  tile: 9 / 16,
-  logo: 1,
-  avatar: 1,
-};
-
-const AI_CROP_BIAS: Record<CapsuleCustomizerMode, { x: number; y: number }> = {
-  banner: { x: 0, y: -0.18 },
-  storeBanner: { x: 0, y: -0.12 },
-  tile: { x: 0, y: 0 },
-  logo: { x: 0, y: 0 },
-  avatar: { x: 0, y: 0 },
-};
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-const MAX_PROMPT_REFINEMENTS = 4;
-const PREVIEW_SCALE_BUFFER = 0.015;
-const ASPECT_TOLERANCE = 0.0025;
-
-const clampBias = (value: number) => clamp(value, -1, 1);
-
-function randomId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function base64ToFile(base64: string, mimeType: string, filename: string): File | null {
-  if (typeof atob !== "function") {
-    console.warn("capsule banner: base64 decoding not supported in this environment");
-    return null;
-  }
-  try {
-    const binary = atob(base64);
-    const buffer = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      buffer[index] = binary.charCodeAt(index);
-    }
-    return new File([buffer], filename, { type: mimeType });
-  } catch (error) {
-    console.warn("capsule banner: failed to decode base64 image", error);
-    return null;
-  }
-}
-
-function ensureSentence(text: string): string {
-  return /[.!?]$/.test(text) ? text : `${text}.`;
-}
-
-function sanitizeServerMessage(message?: string | null): string {
-  if (!message) return "";
-  const trimmed = message.trim();
-  if (!trimmed.length) return "";
-  const withoutThanks = trimmed.replace(/^\s*thanks[^.!?]*[.!?]\s*/i, "").trim();
-  return withoutThanks;
-}
-
-function buildAssistantResponse({
-  prompt,
-  capsuleName,
-  mode,
-  serverMessage,
-  asset,
-}: {
-  prompt: string;
-  capsuleName: string;
-  mode: "generate" | "edit";
-  asset: CapsuleCustomizerMode;
-  serverMessage?: string | null;
-}): string {
-  const cleanPrompt = prompt.trim();
-  const displayPrompt = cleanPrompt.length ? cleanPrompt : "that idea";
-
-  const assetLabel =
-    asset === "tile"
-      ? "promo tile"
-      : asset === "logo"
-        ? "logo"
-        : asset === "avatar"
-          ? "avatar"
-            : asset === "storeBanner"
-              ? "store banner"
-              : "banner";
-  const action =
-    mode === "generate" ? `I generated a ${assetLabel}` : `I updated your existing ${assetLabel}`;
-  const capsuleSegment = capsuleName.length ? ` for ${capsuleName}` : "";
-
-  const intro = `${action}${capsuleSegment} inspired by "${displayPrompt}".`;
-  const sanitizedDetail = sanitizeServerMessage(serverMessage);
-  const detail = sanitizedDetail.length
-    ? ensureSentence(sanitizedDetail)
-    : "The preview on the right shows how it came together.";
-  const nextPrompt =
-    mode === "generate"
-      ? "What should we explore next—tweak this vibe, spin a remix, or try something totally different?"
-      : "Want me to keep iterating on it or pivot to a fresh direction?";
-
-  return `${intro} ${detail} ${nextPrompt}`;
-}
+type MemoryHookReturn = ReturnType<typeof useCapsuleCustomizerMemory>;
 
 function describeSource(source: SelectedBanner | null, label: string): string {
   if (!source) {
@@ -183,40 +45,6 @@ function describeSource(source: SelectedBanner | null, label: string): string {
   return `AI prompt - "${source.prompt}"`;
 }
 
-function cloneSelectedBanner(banner: SelectedBanner): SelectedBanner {
-  if (banner.kind === "upload") {
-    return {
-      kind: "upload",
-      name: banner.name,
-      url: banner.url,
-      file: banner.file ?? null,
-      crop: { ...banner.crop },
-    };
-  }
-  if (banner.kind === "memory") {
-    return {
-      kind: "memory",
-      id: banner.id,
-      title: banner.title,
-      url: banner.url,
-      fullUrl: banner.fullUrl,
-      crop: { ...banner.crop },
-    };
-  }
-  return { ...banner };
-}
-
-function isCroppableBanner(banner: SelectedBanner | null): banner is CroppableBanner {
-  return Boolean(banner && banner.kind !== "ai");
-}
-
-function bannerSourceKey(banner: SelectedBanner | null): string | null {
-  if (!banner) return null;
-  if (banner.kind === "memory") return `memory:${banner.id}`;
-  if (banner.kind === "upload") return `upload:${banner.url}`;
-  if (banner.kind === "ai") return `ai:${banner.prompt}`;
-  return null;
-}
 
 function buildPromptEnvelope(base: string, refinements: string[], latest: string): string {
   const segments = [base, ...refinements, latest]
@@ -247,19 +75,19 @@ export type CapsuleChatState = {
 };
 
 export type CapsuleMemoryState = {
-  user: ReturnType<typeof useMemoryUploads>["user"];
-  loading: boolean;
-  error: string | null;
-  processedMemories: DisplayMemoryUpload[];
-  recentMemories: DisplayMemoryUpload[];
-  isPickerOpen: boolean;
-  openPicker: () => void;
-  closePicker: () => void;
-  onSelectMemory: (memory: DisplayMemoryUpload) => void;
-  onPickMemory: (memory: DisplayMemoryUpload) => void;
-  onQuickPick: () => void;
-  refresh: () => Promise<void>;
-  buttonRef: React.RefObject<HTMLButtonElement | null>;
+  user: MemoryHookReturn["user"];
+  loading: MemoryHookReturn["loading"];
+  error: MemoryHookReturn["error"];
+  processedMemories: MemoryHookReturn["processedMemories"];
+  recentMemories: MemoryHookReturn["recentMemories"];
+  isPickerOpen: MemoryHookReturn["memoryPickerOpen"];
+  openPicker: MemoryHookReturn["openMemoryPicker"];
+  closePicker: MemoryHookReturn["closeMemoryPicker"];
+  onSelectMemory: MemoryHookReturn["handleMemorySelect"];
+  onPickMemory: MemoryHookReturn["handleMemoryPick"];
+  onQuickPick: MemoryHookReturn["handleQuickPick"];
+  refresh: MemoryHookReturn["refresh"];
+  buttonRef: MemoryHookReturn["memoryButtonRef"];
 };
 
 export type CapsulePreviewState = {
@@ -334,491 +162,101 @@ export function useCapsuleCustomizerState(
     footerDefaultHint,
     stageAriaLabel,
     recentDescription,
-  } = React.useMemo(() => {
-    const safeName = normalizedName;
-    if (customizerMode === "storeBanner") {
-      return {
-        assetLabel: "store banner" as const,
-        previewAlt: "Preview of your Capsule store banner",
-        headerTitle: "Design your Capsule store banner",
-        headerSubtitle:
-          "Chat with Capsule AI, pick from memories, or upload visuals to set your storefront hero image.",
-        prompterPlaceholder: "Describe your store hero or a vibe to try...",
-        aiWorkingMessage: "Let me work on a store banner that matches that vibe...",
-        assistantIntro: `Hi! I'm here to help you design a capsule store banner for ${safeName}. Describe products, mood, or layout ideas and I'll generate options.`,
-        footerDefaultHint: "Upload an image, pick a memory, or describe a new store banner below.",
-        stageAriaLabel: "Capsule store banner preview",
-        recentDescription: "Reuse the hero art you or Capsule AI used in your storefront recently.",
-      };
-    }
-    if (customizerMode === "tile") {
-      return {
-        assetLabel: "tile" as const,
-        previewAlt: "Preview of your Capsule promo tile",
-        headerTitle: "Design your Capsule promo tile",
-        headerSubtitle:
-          "Chat with Capsule AI, pick from memories, or upload brand visuals to set your vertical tile.",
-        prompterPlaceholder: "Describe your tile or a vibe to try...",
-        aiWorkingMessage: "Let me work on a tile that matches that vibe...",
-        assistantIntro: `Hi! I'm here to help you design a promo tile for ${safeName}. Describe the mood, colors, or imagery you'd like and I'll generate options.`,
-        footerDefaultHint: "Upload an image, pick a memory, or describe a new tile below.",
-        stageAriaLabel: "Capsule promo tile preview",
-        recentDescription: "Quickly reuse the vertical art you or Capsule AI picked last.",
-      };
-    }
-    if (customizerMode === "logo") {
-      return {
-        assetLabel: "logo" as const,
-        previewAlt: "Preview of your Capsule logo",
-        headerTitle: "Design your Capsule logo",
-        headerSubtitle:
-          "Upload a mark, pick a memory, or ask Capsule AI for a square logo that feels on brand everywhere it appears.",
-        prompterPlaceholder: "Describe your logo idea or style...",
-        aiWorkingMessage: "Let me sketch a logo that matches that vibe...",
-        assistantIntro: `Hi! I'm here to help you craft a capsule logo for ${safeName}. Describe letters, shapes, colors, or mascots and I'll mock up options.`,
-        footerDefaultHint: "Upload a mark, pick a memory, or describe a logo below.",
-        stageAriaLabel: "Capsule logo preview",
-        recentDescription: "Reuse logo artwork you or Capsule AI created recently.",
-      };
-    }
-    if (customizerMode === "avatar") {
-      return {
-        assetLabel: "avatar" as const,
-        previewAlt: "Preview of your profile avatar",
-        headerTitle: "Design your profile avatar",
-        headerSubtitle:
-          "Upload a portrait, pick from memories, or ask Capsule AI for a circular avatar that looks great across the app.",
-        prompterPlaceholder: "Describe your avatar idea or vibe...",
-        aiWorkingMessage: "Let me create an avatar that fits that direction...",
-        assistantIntro: `Hi! I'm here to help you craft a personal avatar for ${safeName}. Describe lighting, colors, or mood and I'll generate options.`,
-        footerDefaultHint: "Upload a portrait, pick a memory, or describe a new avatar below.",
-        stageAriaLabel: "Profile avatar preview",
-        recentDescription: "Reuse avatar imagery you or Capsule AI created recently.",
-      };
-    }
-    return {
-      assetLabel: "banner" as const,
-      previewAlt: "Preview of your Capsule banner",
-      headerTitle: "Design your Capsule banner",
-      headerSubtitle:
-        "Chat with Capsule AI, pick from memories, or upload brand visuals to set your capsule banner.",
-      prompterPlaceholder: "Describe your banner or a vibe to try...",
-      aiWorkingMessage: "Let me work on a banner that matches that vibe...",
-      assistantIntro: `Hi! I'm here to help you design a capsule banner for ${safeName}. Describe the mood, colors, or imagery you'd like and I'll generate options.`,
-      footerDefaultHint: "Upload an image, pick a memory, or describe a new banner below.",
-      stageAriaLabel: "Capsule banner preview",
-      recentDescription: "Quickly reuse what you or Capsule AI picked last.",
-    };
-  }, [customizerMode, normalizedName]);
+  } = useCapsuleCustomizerCopy(customizerMode, normalizedName);
 
-  const { user, envelope, items, loading, error, refresh } = useMemoryUploads("upload");
-  const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
-  const origin = React.useMemo(
-    () => (typeof window !== "undefined" ? window.location.origin : null),
-    [],
-  );
-  const processedMemories = React.useMemo<DisplayMemoryUpload[]>(
-    () => computeDisplayUploads(items, { origin, cloudflareEnabled }),
-    [cloudflareEnabled, items, origin],
-  );
-  const recentMemories = React.useMemo<DisplayMemoryUpload[]>(
-    () => processedMemories.slice(0, 4),
-    [processedMemories],
-  );
-
-  const [messages, setMessages] = React.useState<ChatMessage[]>(() => [
-    {
-      id: randomId(),
-      role: "assistant",
-      content: assistantIntro,
-    },
-  ]);
-  const [chatBusy, setChatBusy] = React.useState(false);
-  const [selectedBanner, setSelectedBanner] = React.useState<SelectedBanner | null>(null);
-  const selectedBannerRef = React.useRef<SelectedBanner | null>(null);
-  const promptHistoryRef = React.useRef<{
-    base: string | null;
-    refinements: string[];
-    sourceKey: string | null;
-  }>({
-    base: null,
-    refinements: [],
-    sourceKey: null,
-  });
-  const resetPromptHistory = React.useCallback(() => {
-    promptHistoryRef.current = { base: null, refinements: [], sourceKey: null };
-  }, []);
-  const previewOffsetRef = React.useRef({ x: 0, y: 0 });
-  const pendingCropRef = React.useRef<{ offsetX: number; offsetY: number } | null>(null);
-  const [previewOffset, setPreviewOffset] = React.useState(previewOffsetRef.current);
-  const [previewScale, setPreviewScale] = React.useState(1);
-  const [isDraggingPreview, setIsDraggingPreview] = React.useState(false);
-  const [previewCanPan, setPreviewCanPan] = React.useState(false);
-  const [prompterSession, setPrompterSession] = React.useState(0);
-  const [memoryPickerOpen, setMemoryPickerOpen] = React.useState(false);
-  const chatLogRef = React.useRef<HTMLDivElement | null>(null);
+  const {
+    selectedBanner,
+    setSelectedBanner,
+    selectedBannerRef,
+  } = useCapsuleCustomizerSelection();
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const memoryButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const uploadObjectUrlRef = React.useRef<string | null>(null);
-  const previewStageRef = React.useRef<HTMLDivElement | null>(null);
-  const previewImageRef = React.useRef<HTMLImageElement | null>(null);
-  const previewMetricsRef = React.useRef<PreviewMetrics>({
-    overflowX: 0,
-    overflowY: 0,
-    maxOffsetX: 0,
-    maxOffsetY: 0,
-    scale: 1,
-  });
-  const dragStateRef = React.useRef<DragState | null>(null);
   const [savePending, setSavePending] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
-  const previewDraggable = selectedBanner?.kind === "upload" || selectedBanner?.kind === "memory";
-  const previewPannable = previewDraggable && previewCanPan;
-  const activeImageUrl = previewDraggable ? (selectedBanner?.url ?? null) : null;
-
-  React.useEffect(() => {
-    selectedBannerRef.current = selectedBanner;
-  }, [selectedBanner]);
-
-  const syncBannerCropToMessages = React.useCallback(
-    (nextBanner: CroppableBanner) => {
-      const sourceKey = bannerSourceKey(nextBanner);
-      if (!sourceKey) return;
-
-      setMessages((previousMessages) => {
-        let didChange = false;
-
-        const mapped = previousMessages.map((message) => {
-          if (!message.bannerOptions?.length) return message;
-
-          let optionsChanged = false;
-          const nextOptions = message.bannerOptions.map((option) => {
-            const optionSourceKey = bannerSourceKey(option.banner);
-            if (optionSourceKey !== sourceKey) return option;
-            if (!isCroppableBanner(option.banner)) return option;
-
-            const existingCrop = option.banner.crop ?? { offsetX: 0, offsetY: 0 };
-            if (
-              existingCrop.offsetX === nextBanner.crop.offsetX &&
-              existingCrop.offsetY === nextBanner.crop.offsetY
-            ) {
-              return option;
-            }
-
-            optionsChanged = true;
-            return {
-              ...option,
-              banner: {
-                ...option.banner,
-                crop: { ...nextBanner.crop },
-              },
-            };
-          });
-
-          if (!optionsChanged) return message;
-          didChange = true;
-          return {
-            ...message,
-            bannerOptions: nextOptions,
-          };
-        });
-
-        return didChange ? mapped : previousMessages;
-      });
-    },
-    [setMessages],
-  );
-
-  const readFileAsDataUrl = React.useCallback((file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          resolve(reader.result);
-        } else {
-          reject(new Error("Failed to read file as data URL."));
-        }
-      };
-      reader.onerror = () => {
-        reject(new Error("Failed to read file as data URL."));
-      };
-      reader.readAsDataURL(file);
-    });
+  const clearSaveError = React.useCallback(() => {
+    setSaveError(null);
   }, []);
 
-  const convertUrlToDataUrl = React.useCallback(
-    async (url: string): Promise<string> => {
-      const init: RequestInit = url.startsWith("blob:") ? {} : { credentials: "include" };
-      const response = await fetch(url, init);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${assetLabel} image for editing.`);
-      }
-      const blob = await response.blob();
-      return await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (typeof reader.result === "string") {
-            resolve(reader.result);
-          } else {
-            reject(new Error(`Failed to read ${assetLabel} image.`));
-          }
-        };
-        reader.onerror = () => reject(new Error(`Failed to read ${assetLabel} image.`));
-        reader.readAsDataURL(blob);
-      });
+  const fetchMemoryAssetRef = React.useRef<(memoryId: string) => Promise<string>>(
+    async () => {
+      throw new Error("Memory asset fetch not ready.");
     },
-    [assetLabel],
   );
+  const cropUpdateRef = React.useRef<(banner: CroppableBanner) => void>(() => {});
 
-  const applyPreviewOffset = React.useCallback(
-    (nextX: number, nextY: number, metricsOverride?: PreviewMetrics) => {
-      const metrics = metricsOverride ?? previewMetricsRef.current;
-      const { maxOffsetX, maxOffsetY } = metrics;
-      const clampedX = maxOffsetX ? clamp(nextX, -maxOffsetX, maxOffsetX) : 0;
-      const clampedY = maxOffsetY ? clamp(nextY, -maxOffsetY, maxOffsetY) : 0;
-      const nextOffset = { x: clampedX, y: clampedY };
+  const {
+    previewState,
+    updateSelectedBanner,
+    composeAssetImage,
+  } = useCapsuleCustomizerPreview({
+    assetLabel,
+    customizerMode,
+    open,
+    selectedBanner,
+    setSelectedBanner,
+    onCropUpdate: (banner) => cropUpdateRef.current(banner),
+    resetSaveError: clearSaveError,
+    fetchMemoryAssetUrl: (memoryId) => fetchMemoryAssetRef.current(memoryId),
+  });
 
-      const hasOffsetChanged =
-        previewOffsetRef.current.x !== nextOffset.x || previewOffsetRef.current.y !== nextOffset.y;
+  const {
+    messages,
+    chatBusy,
+    prompterSession,
+    chatLogRef,
+    handlePrompterAction,
+    handleBannerOptionSelect,
+    resetPromptHistory,
+    resetConversation,
+    syncBannerCropToMessages,
+  } = useCapsuleCustomizerChat({
+    aiWorkingMessage,
+    assistantIntro,
+    assetLabel,
+    normalizedName,
+    customizerMode,
+    updateSelectedBanner,
+    setSelectedBanner,
+    selectedBannerRef,
+    setSaveError,
+    fetchMemoryAssetUrl: (memoryId) => fetchMemoryAssetRef.current(memoryId),
+  });
 
-      previewOffsetRef.current = nextOffset;
+  cropUpdateRef.current = syncBannerCropToMessages;
 
-      setPreviewOffset((prev) => {
-        if (!hasOffsetChanged) {
-          return prev;
-        }
-        return nextOffset;
-      });
+  const memory = useCapsuleCustomizerMemory({
+    open,
+    onClose,
+    updateSelectedBanner,
+    onResetPromptHistory: resetPromptHistory,
+  });
 
-      const normalizedX = maxOffsetX ? nextOffset.x / maxOffsetX : 0;
-      const normalizedY = maxOffsetY ? nextOffset.y / maxOffsetY : 0;
-      const nextCrop = { offsetX: normalizedX, offsetY: normalizedY };
+  fetchMemoryAssetRef.current = memory.fetchMemoryAssetUrl;
 
-      let updatedBanner: SelectedBanner | null = null;
-      setSelectedBanner((prev) => {
-        if (!prev || prev.kind === "ai") return prev;
-        const existingCrop = prev.crop ?? { offsetX: 0, offsetY: 0 };
-        if (
-          existingCrop.offsetX === nextCrop.offsetX &&
-          existingCrop.offsetY === nextCrop.offsetY
-        ) {
-          updatedBanner = prev;
-          return prev;
-        }
-
-        const nextBanner =
-          prev.kind === "upload"
-            ? { ...prev, crop: nextCrop }
-            : prev.kind === "memory"
-              ? { ...prev, crop: nextCrop }
-              : prev;
-
-        updatedBanner = nextBanner;
-        return nextBanner;
-      });
-
-      if (isCroppableBanner(updatedBanner)) {
-        selectedBannerRef.current = updatedBanner;
-        syncBannerCropToMessages(updatedBanner);
-      }
-    },
-    [setPreviewOffset, syncBannerCropToMessages],
-  );
-
-  const updateSelectedBanner = React.useCallback(
-    (banner: SelectedBanner | null) => {
-      if (dragStateRef.current) {
-        dragStateRef.current.cleanup();
-      }
-      setIsDraggingPreview(false);
-      setPreviewCanPan(false);
-      setSaveError(null);
-      setPreviewScale(1);
-      previewMetricsRef.current = {
-        overflowX: 0,
-        overflowY: 0,
-        maxOffsetX: 0,
-        maxOffsetY: 0,
-        scale: 1,
-      };
-
-      const normalizedBanner =
-        banner && banner.kind !== "ai"
-          ? { ...banner, crop: banner.crop ?? { offsetX: 0, offsetY: 0 } }
-          : banner;
-
-      if (normalizedBanner && normalizedBanner.kind !== "ai") {
-        pendingCropRef.current = normalizedBanner.crop ?? { offsetX: 0, offsetY: 0 };
-      } else {
-        pendingCropRef.current = null;
-      }
-
-      previewOffsetRef.current = { x: 0, y: 0 };
-      setPreviewOffset({ x: 0, y: 0 });
-      setSelectedBanner(normalizedBanner);
-    },
-    [setPreviewOffset],
-  );
-
-  const measurePreview = React.useCallback(() => {
-    const container = previewStageRef.current;
-    const image = previewImageRef.current;
-    if (!container || !image) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const naturalWidth = image.naturalWidth || image.width;
-    const naturalHeight = image.naturalHeight || image.height;
-    if (!containerRect.width || !containerRect.height || !naturalWidth || !naturalHeight) {
-      return;
-    }
-
-    const widthRatio = containerRect.width / naturalWidth;
-    const heightRatio = containerRect.height / naturalHeight;
-    const coverScale = Math.max(widthRatio, heightRatio);
-    const needsShrink = naturalWidth > containerRect.width || naturalHeight > containerRect.height;
-    const baseScale = needsShrink ? coverScale * (1 + PREVIEW_SCALE_BUFFER) : 1;
-    const scaledWidth = naturalWidth * baseScale;
-    const scaledHeight = naturalHeight * baseScale;
-
-    const overflowX = Math.max(0, scaledWidth - containerRect.width);
-    const overflowY = Math.max(0, scaledHeight - containerRect.height);
-    const metrics: PreviewMetrics = {
-      overflowX,
-      overflowY,
-      maxOffsetX: overflowX / 2,
-      maxOffsetY: overflowY / 2,
-      scale: baseScale,
-    };
-
-    previewMetricsRef.current = metrics;
-    setPreviewScale(baseScale);
-    setPreviewCanPan(metrics.maxOffsetX > 0 || metrics.maxOffsetY > 0);
-    const pendingCrop = pendingCropRef.current;
-    if (pendingCrop) {
-      pendingCropRef.current = null;
-      const targetX = (pendingCrop.offsetX || 0) * metrics.maxOffsetX;
-      const targetY = (pendingCrop.offsetY || 0) * metrics.maxOffsetY;
-      applyPreviewOffset(targetX, targetY, metrics);
-    } else {
-      applyPreviewOffset(previewOffsetRef.current.x, previewOffsetRef.current.y, metrics);
-    }
-  }, [applyPreviewOffset]);
-
-  const closeMemoryPicker = React.useCallback(() => {
-    setMemoryPickerOpen((previous) => {
-      if (!previous) return previous;
-      if (typeof window !== "undefined") {
-        window.setTimeout(() => {
-          memoryButtonRef.current?.focus();
-        }, 0);
-      } else {
-        memoryButtonRef.current?.focus();
-      }
-      return false;
-    });
-  }, []);
-
-  const openMemoryPicker = React.useCallback(() => {
-    if (!memoryPickerOpen && !loading && items.length === 0) {
-      void refresh();
-    }
-    setMemoryPickerOpen(true);
-  }, [items.length, loading, memoryPickerOpen, refresh]);
+  const {
+    user,
+    loading,
+    error,
+    processedMemories,
+    recentMemories,
+    memoryPickerOpen,
+    openMemoryPicker,
+    closeMemoryPicker,
+    handleMemorySelect,
+    handleMemoryPick,
+    handleQuickPick,
+    refresh,
+    memoryButtonRef,
+  } = memory;
 
   React.useEffect(() => {
     if (!open) return;
-    setMessages([
-      {
-        id: randomId(),
-        role: "assistant",
-        content: assistantIntro,
-      },
-    ]);
-    setChatBusy(false);
-    updateSelectedBanner(null);
-    resetPromptHistory();
-    setPrompterSession((value) => value + 1);
+    resetConversation(assistantIntro);
     if (uploadObjectUrlRef.current) {
       URL.revokeObjectURL(uploadObjectUrlRef.current);
       uploadObjectUrlRef.current = null;
     }
-  }, [assistantIntro, normalizedName, open, resetPromptHistory, updateSelectedBanner]);
-
-  React.useEffect(() => {
-    if (!open) {
-      setMemoryPickerOpen(false);
-    }
-  }, [open]);
-
-  React.useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        if (memoryPickerOpen) return;
-        event.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [memoryPickerOpen, onClose, open]);
-
-  React.useEffect(() => {
-    return () => {
-      dragStateRef.current?.cleanup();
-    };
-  }, []);
-
-  React.useEffect(() => {
-    if (!open && dragStateRef.current) {
-      dragStateRef.current.cleanup();
-    }
-  }, [open]);
-
-  React.useLayoutEffect(() => {
-    if (!open) return;
-    measurePreview();
-  }, [measurePreview, open, activeImageUrl]);
-
-  React.useEffect(() => {
-    if (!open) return;
-    const stage = previewStageRef.current;
-    if (!stage || typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver(() => {
-      measurePreview();
-    });
-
-    observer.observe(stage);
-    return () => observer.disconnect();
-  }, [measurePreview, open]);
-
-  React.useEffect(() => {
-    if (!open) return;
-    const handleResize = () => {
-      measurePreview();
-    };
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [measurePreview, open]);
-
-  React.useEffect(() => {
-    if (!memoryPickerOpen) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeMemoryPicker();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [closeMemoryPicker, memoryPickerOpen]);
+  }, [assistantIntro, open, resetConversation]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -880,756 +318,6 @@ export function useCapsuleCustomizerState(
     [resetPromptHistory, updateSelectedBanner],
   );
 
-  const fetchMemoryAssetUrl = React.useCallback(
-    async (memoryIdRaw: string): Promise<string> => {
-      const trimmedId = memoryIdRaw.trim();
-      if (!trimmedId.length) {
-        throw new Error("Memory is missing its identifier.");
-      }
-
-      const payload: Record<string, unknown> = { memoryId: trimmedId };
-      if (envelope) {
-        payload.user = envelope;
-      }
-
-      const response = await fetch("/api/memory/image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).catch((error: unknown) => {
-        throw error instanceof Error ? error : new Error("Failed to fetch memory image.");
-      });
-
-      const contentType = response.headers.get("content-type") ?? "";
-
-      if (!response.ok) {
-        let message = "";
-        if (contentType.includes("application/json")) {
-          const detail = (await response.json().catch(() => null)) as { error?: string } | null;
-          if (detail && typeof detail.error === "string" && detail.error.trim().length) {
-            message = detail.error.trim();
-          }
-        }
-        if (!message) {
-          message =
-            response.status === 404
-              ? "Memory image not available."
-              : "Failed to fetch memory image.";
-        }
-        throw new Error(message);
-      }
-
-      if (contentType.includes("application/json")) {
-        const detail = (await response.json().catch(() => null)) as { error?: string } | null;
-        const message =
-          detail && typeof detail.error === "string" && detail.error.trim().length
-            ? detail.error.trim()
-            : "Failed to fetch memory image.";
-        throw new Error(message);
-      }
-
-      const buffer = await response.arrayBuffer();
-      const blob = new Blob([buffer], { type: contentType || "image/jpeg" });
-      return URL.createObjectURL(blob);
-    },
-    [envelope],
-  );
-
-  const resolveBannerSourceForEdit = React.useCallback(
-    async (
-      banner: SelectedBanner | null,
-    ): Promise<{ imageUrl?: string; imageData?: string } | null> => {
-      if (!banner) return null;
-      if (banner.kind === "memory") {
-        try {
-          const proxiedUrl = await fetchMemoryAssetUrl(banner.id);
-          const dataUri = await convertUrlToDataUrl(proxiedUrl);
-          URL.revokeObjectURL(proxiedUrl);
-          return { imageData: dataUri };
-        } catch (error) {
-          console.warn("memory proxy fetch failed", error);
-          const remote = banner.fullUrl ?? banner.url;
-          if (remote && /^https?:\/\//i.test(remote)) return { imageUrl: remote };
-          if (remote && remote.startsWith("data:")) return { imageData: remote };
-        }
-        return null;
-      }
-      if (banner.kind === "upload") {
-        if (banner.file instanceof File) {
-          const dataUri = await readFileAsDataUrl(banner.file);
-          return { imageData: dataUri };
-        }
-        if (banner.url) {
-          if (/^https?:\/\//i.test(banner.url)) return { imageUrl: banner.url };
-          if (banner.url.startsWith("data:")) return { imageData: banner.url };
-          if (banner.url.startsWith("blob:")) {
-            const dataUri = await convertUrlToDataUrl(banner.url);
-            return { imageData: dataUri };
-          }
-        }
-      }
-      return null;
-    },
-    [convertUrlToDataUrl, fetchMemoryAssetUrl, readFileAsDataUrl],
-  );
-
-  const handleMemorySelect = React.useCallback(
-    (memory: DisplayMemoryUpload) => {
-      const url = memory.fullUrl || memory.displayUrl;
-      updateSelectedBanner({
-        kind: "memory",
-        id: memory.id,
-        title: memory.title?.trim() || memory.description?.trim() || null,
-        url,
-        fullUrl: memory.fullUrl || memory.displayUrl,
-        crop: { offsetX: 0, offsetY: 0 },
-      });
-      resetPromptHistory();
-    },
-    [resetPromptHistory, updateSelectedBanner],
-  );
-
-  const handleMemoryPick = React.useCallback(
-    (memory: DisplayMemoryUpload) => {
-      handleMemorySelect(memory);
-      closeMemoryPicker();
-    },
-    [closeMemoryPicker, handleMemorySelect],
-  );
-
-  const handleQuickPick = React.useCallback(() => {
-    const firstMemory = processedMemories[0];
-    if (firstMemory) {
-      handleMemoryPick(firstMemory);
-    }
-  }, [handleMemoryPick, processedMemories]);
-
-  const handleBannerOptionSelect = React.useCallback(
-    (option: ChatBannerOption) => {
-      const candidate = cloneSelectedBanner(option.banner);
-      promptHistoryRef.current = {
-        base: option.promptState.base,
-        refinements: [...option.promptState.refinements],
-        sourceKey: option.promptState.sourceKey,
-      };
-      updateSelectedBanner(candidate);
-      selectedBannerRef.current = candidate;
-      setSaveError(null);
-    },
-    [updateSelectedBanner],
-  );
-
-  const loadImageElement = React.useCallback(
-    (src: string, allowCrossOrigin: boolean): Promise<HTMLImageElement> =>
-      new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        if (allowCrossOrigin) {
-          img.crossOrigin = "anonymous";
-        }
-        img.decoding = "async";
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error(`Failed to load image for ${assetLabel} preview.`));
-        img.src = src;
-      }),
-    [assetLabel],
-  );
-
-  const ensureAspectForGeneratedBanner = React.useCallback(
-    async ({
-      url,
-      file,
-      mimeType,
-    }: {
-      url: string;
-      file: File | null;
-      mimeType: string;
-    }): Promise<{ url: string; file: File | null; crop: BannerCrop; updated: boolean }> => {
-      const targetAspect = MODE_ASPECT_RATIO[customizerMode];
-      if (!targetAspect || !url) {
-        return {
-          url,
-          file,
-          crop: { offsetX: 0, offsetY: AI_CROP_BIAS[customizerMode]?.y ?? 0 },
-          updated: false,
-        };
-      }
-
-      let sourceUrl = url;
-      let revokeSourceUrl: string | null = null;
-      let fetchedUrl: string | null = null;
-      const allowCrossOrigin = !file;
-
-      try {
-        if (file) {
-          sourceUrl = URL.createObjectURL(file);
-          revokeSourceUrl = sourceUrl;
-        }
-
-        let image: HTMLImageElement;
-        try {
-          image = await loadImageElement(sourceUrl, allowCrossOrigin);
-        } catch (error) {
-          if (!allowCrossOrigin) {
-            throw error;
-          }
-          const response = await fetch(url, { mode: "cors" });
-          if (!response.ok) {
-            throw error;
-          }
-          const blob = await response.blob();
-          fetchedUrl = URL.createObjectURL(blob);
-          image = await loadImageElement(fetchedUrl, false);
-        }
-
-        const naturalWidth = image.naturalWidth || image.width;
-        const naturalHeight = image.naturalHeight || image.height;
-        if (!naturalWidth || !naturalHeight) {
-          throw new Error("Unable to measure generated image.");
-        }
-
-        const imageAspect = naturalWidth / naturalHeight;
-        if (Math.abs(imageAspect - targetAspect) <= ASPECT_TOLERANCE) {
-          return {
-            url,
-            file,
-            crop: { offsetX: 0, offsetY: 0 },
-            updated: false,
-          };
-        }
-
-        let sourceWidth = naturalWidth;
-        let sourceHeight = naturalHeight;
-        let sourceX = 0;
-        let sourceY = 0;
-        const bias = AI_CROP_BIAS[customizerMode] ?? { x: 0, y: 0 };
-
-        if (imageAspect > targetAspect) {
-          sourceHeight = naturalHeight;
-          sourceWidth = Math.round(sourceHeight * targetAspect);
-          const maxOffsetX = Math.max(0, naturalWidth - sourceWidth);
-          const offsetX = clamp(
-            Math.round(maxOffsetX / 2 - (maxOffsetX / 2) * clampBias(bias.x)),
-            0,
-            maxOffsetX,
-          );
-          sourceX = offsetX;
-        } else {
-          sourceWidth = naturalWidth;
-          sourceHeight = Math.round(sourceWidth / targetAspect);
-          const maxOffsetY = Math.max(0, naturalHeight - sourceHeight);
-          const offsetY = clamp(
-            Math.round(maxOffsetY / 2 - (maxOffsetY / 2) * clampBias(bias.y)),
-            0,
-            maxOffsetY,
-          );
-          sourceY = offsetY;
-        }
-
-        sourceWidth = Math.max(1, sourceWidth);
-        sourceHeight = Math.max(1, sourceHeight);
-
-        const canvas = document.createElement("canvas");
-        canvas.width = sourceWidth;
-        canvas.height = sourceHeight;
-        const context = canvas.getContext("2d");
-        if (!context) {
-          throw new Error("Canvas context unavailable.");
-        }
-
-        context.drawImage(
-          image,
-          sourceX,
-          sourceY,
-          sourceWidth,
-          sourceHeight,
-          0,
-          0,
-          canvas.width,
-          canvas.height,
-        );
-
-        const effectiveMime =
-          mimeType && mimeType.startsWith("image/") ? mimeType : "image/jpeg";
-        const blob = await new Promise<Blob>((resolve, reject) => {
-          canvas.toBlob(
-            (result) => {
-              if (result) {
-                resolve(result);
-              } else {
-                reject(new Error("Failed to crop generated banner."));
-              }
-            },
-            effectiveMime,
-            effectiveMime === "image/jpeg" ? 0.92 : undefined,
-          );
-        });
-
-        const finalFile =
-          file && file.name
-            ? new File([blob], file.name, { type: effectiveMime })
-            : new File(
-                [blob],
-                `capsule-ai-${customizerMode}-${Date.now()}.${
-                  (effectiveMime.split("/")[1] ?? "jpg").replace(/[^a-z0-9]+/gi, "") || "jpg"
-                }`,
-                { type: effectiveMime },
-              );
-
-        const dataUrl = await readFileAsDataUrl(finalFile);
-
-        return {
-          url: dataUrl,
-          file: finalFile,
-          crop: { offsetX: 0, offsetY: 0 },
-          updated: true,
-        };
-      } catch (error) {
-        console.warn("capsule banner aspect normalization failed", error);
-        return {
-          url,
-          file,
-          crop: { offsetX: 0, offsetY: AI_CROP_BIAS[customizerMode]?.y ?? 0 },
-          updated: false,
-        };
-      } finally {
-        if (revokeSourceUrl) {
-          URL.revokeObjectURL(revokeSourceUrl);
-        }
-        if (fetchedUrl) {
-          URL.revokeObjectURL(fetchedUrl);
-        }
-      }
-    },
-    [customizerMode, loadImageElement, readFileAsDataUrl],
-  );
-
-  const handlePrompterAction = React.useCallback(
-    (action: PrompterAction) => {
-      if (chatBusy) return;
-
-      const firstAttachment = action.attachments?.[0] ?? null;
-      let attachmentBanner: SelectedBanner | null = null;
-      if (firstAttachment?.url) {
-        attachmentBanner = {
-          kind: "upload",
-          name: firstAttachment.name ?? "Uploaded image",
-          url: firstAttachment.url,
-          file: null,
-          crop: { offsetX: 0, offsetY: 0 },
-        };
-      }
-
-      const rawText =
-        action.kind === "generate"
-          ? action.text
-          : action.kind === "style" ||
-              action.kind === "post_ai" ||
-              action.kind === "tool_logo" ||
-              action.kind === "tool_poll" ||
-              action.kind === "tool_image_edit"
-            ? action.prompt
-            : action.kind === "post_manual"
-              ? action.content
-              : "";
-      const trimmed = rawText?.trim();
-      if (!trimmed) {
-        if (attachmentBanner) {
-          updateSelectedBanner(attachmentBanner);
-        }
-        return;
-      }
-
-      const previousBanner = selectedBannerRef.current;
-      if (attachmentBanner) {
-        updateSelectedBanner(attachmentBanner);
-        selectedBannerRef.current = attachmentBanner;
-      }
-
-      const userMessage: ChatMessage = { id: randomId(), role: "user", content: trimmed };
-      const assistantId = randomId();
-      setMessages((prev) => [
-        ...prev,
-        userMessage,
-        {
-          id: assistantId,
-          role: "assistant",
-          content: aiWorkingMessage,
-        },
-      ]);
-      setChatBusy(true);
-      setSaveError(null);
-      updateSelectedBanner({ kind: "ai", prompt: trimmed });
-
-      const bannerForEdit = attachmentBanner ?? previousBanner ?? null;
-      const previousPromptHistory = {
-        base: promptHistoryRef.current.base,
-        refinements: [...promptHistoryRef.current.refinements],
-        sourceKey: promptHistoryRef.current.sourceKey,
-      };
-
-      const run = async () => {
-        try {
-          const source = await resolveBannerSourceForEdit(bannerForEdit);
-          const aiMode: "generate" | "edit" = source ? "edit" : "generate";
-          const currentSourceKey = bannerSourceKey(bannerForEdit);
-          let promptForRequest = trimmed;
-
-          if (aiMode === "generate") {
-            promptHistoryRef.current = {
-              base: trimmed,
-              refinements: [],
-              sourceKey: null,
-            };
-          } else if (
-            !promptHistoryRef.current.base ||
-            !currentSourceKey ||
-            promptHistoryRef.current.sourceKey !== currentSourceKey
-          ) {
-            promptHistoryRef.current = {
-              base: trimmed,
-              refinements: [],
-              sourceKey: currentSourceKey,
-            };
-          } else {
-            const nextRefinements = [...promptHistoryRef.current.refinements, trimmed];
-            const boundedRefinements = nextRefinements.slice(-MAX_PROMPT_REFINEMENTS);
-            const refinementsBeforeLatest =
-              boundedRefinements.length > 1 ? boundedRefinements.slice(0, -1) : [];
-            const latestRefinement =
-              boundedRefinements[boundedRefinements.length - 1] ?? trimmed;
-            promptForRequest = buildPromptEnvelope(
-              promptHistoryRef.current.base,
-              refinementsBeforeLatest,
-              latestRefinement,
-            );
-            promptHistoryRef.current = {
-              base: promptHistoryRef.current.base,
-              refinements: boundedRefinements,
-              sourceKey: currentSourceKey,
-            };
-          }
-
-          const body: Record<string, unknown> = {
-            prompt: promptForRequest,
-            capsuleName: normalizedName,
-            mode: aiMode,
-          };
-          if (source?.imageUrl) body.imageUrl = source.imageUrl;
-          if (source?.imageData) body.imageData = source.imageData;
-
-          const aiEndpoint = customizerMode === "logo" ? "/api/ai/logo" : "/api/ai/banner";
-          const response = await fetch(aiEndpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(body),
-          });
-
-          const payload = (await response.json().catch(() => null)) as {
-            url?: string;
-            message?: string | null;
-            imageData?: string | null;
-            mimeType?: string | null;
-          } | null;
-
-          if (!response.ok || !payload?.url) {
-            const message =
-              (payload?.message && typeof payload.message === "string" && payload.message) ||
-              "Failed to generate banner.";
-            throw new Error(message);
-          }
-
-          const mimeType =
-            payload?.mimeType &&
-            typeof payload.mimeType === "string" &&
-            payload.mimeType.trim().length
-              ? payload.mimeType.trim()
-              : "image/jpeg";
-          const imageData =
-            payload?.imageData && typeof payload.imageData === "string" && payload.imageData.length
-              ? payload.imageData
-              : null;
-
-          const fileUrl = payload.url ?? (imageData ? `data:${mimeType};base64,${imageData}` : "");
-          let bannerFile: File | null = null;
-
-          if (imageData) {
-            const extension = mimeType.split("/")[1] ?? "jpg";
-            const filename = `capsule-ai-banner-${Date.now()}.${extension.replace(/[^a-z0-9]+/gi, "") || "jpg"}`;
-            bannerFile = base64ToFile(imageData, mimeType, filename);
-          }
-
-          const normalizedAsset = await ensureAspectForGeneratedBanner({
-            url: fileUrl,
-            file: bannerFile,
-            mimeType,
-          });
-
-          const generatedBanner: SelectedBanner = {
-            kind: "upload",
-            name: `AI generated ${assetLabel}`,
-            url: normalizedAsset.url,
-            file: normalizedAsset.file ?? bannerFile,
-            crop: normalizedAsset.crop,
-          };
-
-          updateSelectedBanner(generatedBanner);
-          promptHistoryRef.current.sourceKey = bannerSourceKey(generatedBanner);
-
-          const serverMessage =
-            payload?.message && typeof payload.message === "string" ? payload.message : null;
-          const responseCopy = buildAssistantResponse({
-            prompt: trimmed,
-            capsuleName: normalizedName,
-            mode: aiMode,
-            asset: customizerMode,
-            serverMessage,
-          });
-
-          const promptStateSnapshot: PromptHistorySnapshot = {
-            base: promptHistoryRef.current.base,
-            refinements: [...promptHistoryRef.current.refinements],
-            sourceKey: promptHistoryRef.current.sourceKey,
-          };
-
-          const previewUrl = normalizedAsset.url || fileUrl;
-          const bannerOption: ChatBannerOption = {
-            id: randomId(),
-            label: aiMode === "generate" ? "New banner concept" : "Remixed banner",
-            previewUrl,
-            banner: cloneSelectedBanner(generatedBanner),
-            promptState: {
-              base: promptStateSnapshot.base,
-              refinements: [...promptStateSnapshot.refinements],
-              sourceKey: promptStateSnapshot.sourceKey,
-            },
-          };
-
-          setMessages((prev) =>
-            prev.map((entry) =>
-              entry.id === assistantId
-                ? {
-                    ...entry,
-                    content: responseCopy,
-                    bannerOptions: [bannerOption],
-                  }
-                : entry,
-            ),
-          );
-        } catch (error) {
-          console.error("capsule banner ai error", error);
-          const message = error instanceof Error ? error.message : "Failed to generate banner.";
-          promptHistoryRef.current = {
-            base: previousPromptHistory.base,
-            refinements: [...previousPromptHistory.refinements],
-            sourceKey: previousPromptHistory.sourceKey,
-          };
-          setSelectedBanner(bannerForEdit ?? null);
-          setMessages((prev) =>
-            prev.map((entry) =>
-              entry.id === assistantId
-                ? {
-                    ...entry,
-                    content: `I ran into an issue: ${message}`,
-                  }
-                : entry,
-            ),
-          );
-          setSaveError(message);
-        } finally {
-          setChatBusy(false);
-        }
-      };
-
-      void run();
-    },
-    [
-      aiWorkingMessage,
-      assetLabel,
-      chatBusy,
-      customizerMode,
-      ensureAspectForGeneratedBanner,
-      normalizedName,
-      resolveBannerSourceForEdit,
-      updateSelectedBanner,
-    ],
-  );
-
-  const composeAssetImage = React.useCallback(async () => {
-    if (!selectedBanner || selectedBanner.kind === "ai") {
-      throw new Error(`Select an image to save as a ${assetLabel}.`);
-    }
-
-    const crop = selectedBanner.crop ?? { offsetX: 0, offsetY: 0 };
-
-    const candidateUrls: string[] = [];
-    const revokeUrls: string[] = [];
-    let allowCrossOrigin = true;
-
-    if (selectedBanner.kind === "memory" && selectedBanner.id) {
-      try {
-        const proxiedUrl = await fetchMemoryAssetUrl(selectedBanner.id);
-        if (proxiedUrl) {
-          candidateUrls.push(proxiedUrl);
-          revokeUrls.push(proxiedUrl);
-        }
-      } catch (proxyError) {
-        console.warn("memory proxy fetch failed", proxyError);
-      }
-    }
-
-    if (selectedBanner.kind === "upload" && selectedBanner.file instanceof File) {
-      const objectUrl = URL.createObjectURL(selectedBanner.file);
-      candidateUrls.push(objectUrl);
-      revokeUrls.push(objectUrl);
-      allowCrossOrigin = false;
-    } else if (selectedBanner.kind === "memory") {
-      if (selectedBanner.fullUrl) candidateUrls.push(selectedBanner.fullUrl);
-      if (selectedBanner.url && selectedBanner.url !== selectedBanner.fullUrl) {
-        candidateUrls.push(selectedBanner.url);
-      }
-    } else if (selectedBanner.url) {
-      candidateUrls.push(selectedBanner.url);
-    }
-
-    if (!candidateUrls.length) {
-      throw new Error(`No ${assetLabel} image available.`);
-    }
-
-    let img: HTMLImageElement | null = null;
-    let lastError: unknown = null;
-
-    for (const candidate of candidateUrls) {
-      const isBlob =
-        candidate.startsWith("blob:") ||
-        candidate.startsWith("data:") ||
-        candidate.startsWith("file:");
-      try {
-        img = await loadImageElement(candidate, allowCrossOrigin && !isBlob);
-        break;
-      } catch (error) {
-        lastError = error;
-        if (!isBlob) {
-          try {
-            const response = await fetch(candidate, { mode: "cors" });
-            if (!response.ok) {
-              throw new Error(`Image fetch failed with status ${response.status}`);
-            }
-            const fetchedBlob = await response.blob();
-            const fetchedUrl = URL.createObjectURL(fetchedBlob);
-            revokeUrls.push(fetchedUrl);
-            img = await loadImageElement(fetchedUrl, false);
-            break;
-          } catch (fetchError) {
-            lastError = fetchError;
-            continue;
-          }
-        }
-      }
-    }
-
-    if (!img) {
-      revokeUrls.forEach((url) => URL.revokeObjectURL(url));
-      throw lastError instanceof Error
-        ? lastError
-        : new Error(`Failed to load image for ${assetLabel} preview.`);
-    }
-
-    if (revokeUrls.length) {
-      queueMicrotask(() => {
-        revokeUrls.forEach((url) => URL.revokeObjectURL(url));
-      });
-    }
-
-    const naturalWidth = img.naturalWidth || img.width;
-    const naturalHeight = img.naturalHeight || img.height;
-    if (!naturalWidth || !naturalHeight) {
-      throw new Error("Unable to read image dimensions.");
-    }
-
-    const { maxWidth, maxHeight, aspectRatio } =
-      customizerMode === "tile"
-        ? { maxWidth: 1080, maxHeight: 1920, aspectRatio: 9 / 16 }
-        : customizerMode === "logo" || customizerMode === "avatar"
-          ? { maxWidth: 1024, maxHeight: 1024, aspectRatio: 1 }
-          : customizerMode === "storeBanner"
-            ? { maxWidth: 1600, maxHeight: 640, aspectRatio: 5 / 2 }
-            : { maxWidth: 1600, maxHeight: 900, aspectRatio: 16 / 9 };
-
-    let targetWidth = Math.min(maxWidth, naturalWidth);
-    let targetHeight = Math.round(targetWidth / aspectRatio);
-    if (targetHeight > naturalHeight) {
-      targetHeight = Math.min(maxHeight, naturalHeight);
-      targetWidth = Math.round(targetHeight * aspectRatio);
-    }
-    if (!Number.isFinite(targetWidth) || targetWidth <= 0) {
-      targetWidth = maxWidth;
-    }
-    if (!Number.isFinite(targetHeight) || targetHeight <= 0) {
-      targetHeight = maxHeight;
-    }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(targetWidth));
-    canvas.height = Math.max(1, Math.round(targetHeight));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Failed to prepare drawing context.");
-    }
-
-    const scale = Math.max(canvas.width / naturalWidth, canvas.height / naturalHeight);
-    const scaledWidth = naturalWidth * scale;
-    const scaledHeight = naturalHeight * scale;
-    const overflowX = Math.max(0, scaledWidth - canvas.width);
-    const overflowY = Math.max(0, scaledHeight - canvas.height);
-    const baseOffsetX = overflowX / 2;
-    const baseOffsetY = overflowY / 2;
-    const shiftX = (overflowX / 2) * (crop.offsetX ?? 0);
-    const shiftY = (overflowY / 2) * (crop.offsetY ?? 0);
-    const offsetX = Math.min(Math.max(baseOffsetX - shiftX, 0), overflowX);
-    const offsetY = Math.min(Math.max(baseOffsetY - shiftY, 0), overflowY);
-
-    const sourceWidth = canvas.width / scale;
-    const sourceHeight = canvas.height / scale;
-    const maxSourceX = Math.max(0, naturalWidth - sourceWidth);
-    const maxSourceY = Math.max(0, naturalHeight - sourceHeight);
-    const sourceX = Math.min(Math.max(0, offsetX / scale), maxSourceX);
-    const sourceY = Math.min(Math.max(0, offsetY / scale), maxSourceY);
-
-    ctx.drawImage(
-      img,
-      sourceX,
-      sourceY,
-      sourceWidth,
-      sourceHeight,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-    );
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      const quality = 0.92;
-      canvas.toBlob(
-        (result) => {
-          if (result) {
-            resolve(result);
-          } else {
-            reject(new Error("Failed to export image."));
-          }
-        },
-        "image/jpeg",
-        quality,
-      );
-    });
-
-    return {
-      blob,
-      width: canvas.width,
-      height: canvas.height,
-      mimeType: "image/jpeg" as const,
-    };
-  }, [assetLabel, customizerMode, fetchMemoryAssetUrl, loadImageElement, selectedBanner]);
 
   const handleSaveAsset = React.useCallback(async () => {
     if (customizerMode !== "avatar" && !capsuleId) {
@@ -1767,62 +455,6 @@ export function useCapsuleCustomizerState(
     refresh,
   ]);
 
-  const handlePreviewPointerDown = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!previewDraggable) return;
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-
-      measurePreview();
-      const metrics = previewMetricsRef.current;
-      if (!metrics || (metrics.maxOffsetX === 0 && metrics.maxOffsetY === 0)) {
-        return;
-      }
-
-      if (dragStateRef.current) {
-        dragStateRef.current.cleanup();
-      }
-
-      const pointerId = event.pointerId;
-      const startX = event.clientX;
-      const startY = event.clientY;
-      const startOffset = { ...previewOffsetRef.current };
-
-      const move = (nativeEvent: PointerEvent) => {
-        if (nativeEvent.pointerId !== pointerId) return;
-        nativeEvent.preventDefault();
-        const deltaX = nativeEvent.clientX - startX;
-        const deltaY = nativeEvent.clientY - startY;
-        applyPreviewOffset(startOffset.x + deltaX, startOffset.y + deltaY);
-      };
-
-      const finish = (nativeEvent: PointerEvent) => {
-        if (nativeEvent.pointerId !== pointerId) return;
-        cleanup();
-      };
-
-      function cleanup() {
-        window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", finish);
-        window.removeEventListener("pointercancel", finish);
-        dragStateRef.current = null;
-        setIsDraggingPreview(false);
-      }
-
-      dragStateRef.current = {
-        pointerId,
-        cleanup,
-      };
-
-      window.addEventListener("pointermove", move, { passive: false });
-      window.addEventListener("pointerup", finish);
-      window.addEventListener("pointercancel", finish);
-
-      setIsDraggingPreview(true);
-      event.preventDefault();
-    },
-    [applyPreviewOffset, measurePreview, previewDraggable],
-  );
-
   const overlayClick = React.useCallback<React.MouseEventHandler<HTMLDivElement>>(
     (event) => {
       if (event.target === event.currentTarget) {
@@ -1874,16 +506,16 @@ export function useCapsuleCustomizerState(
     },
     preview: {
       selected: selectedBanner,
-      previewOffset,
-      previewDraggable,
-      previewPannable,
-      previewCanPan,
-      previewScale,
-      isDragging: isDraggingPreview,
-      stageRef: previewStageRef,
-      imageRef: previewImageRef,
-      onPointerDown: handlePreviewPointerDown,
-      onImageLoad: measurePreview,
+      previewOffset: previewState.previewOffset,
+      previewDraggable: previewState.previewDraggable,
+      previewPannable: previewState.previewPannable,
+      previewCanPan: previewState.previewCanPan,
+      previewScale: previewState.previewScale,
+      isDragging: previewState.isDraggingPreview,
+      stageRef: previewState.stageRef,
+      imageRef: previewState.imageRef,
+      onPointerDown: previewState.onPointerDown,
+      onImageLoad: previewState.onImageLoad,
     },
     uploads: {
       onUploadClick: handleUploadClick,
