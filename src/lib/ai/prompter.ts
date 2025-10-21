@@ -329,6 +329,21 @@ export async function generateImageFromPrompt(
 ): Promise<string> {
   requireOpenAIKey();
 
+  const isNonProd = (process.env.NODE_ENV ?? "").toLowerCase() !== "production";
+
+  const candidateModels = Array.from(
+    new Set(
+      [
+        isNonProd ? serverEnv.OPENAI_IMAGE_MODEL_DEV : null,
+        serverEnv.OPENAI_IMAGE_MODEL,
+        // Prefer the most affordable legacy model while testing.
+        isNonProd ? "dall-e-2" : null,
+        "gpt-image-1",
+        "dall-e-3",
+      ].filter((model): model is string => typeof model === "string" && model.length > 0),
+    ),
+  );
+
   const attempt = async (modelName: string) => {
     const params = resolveImageParams(options);
 
@@ -371,15 +386,16 @@ export async function generateImageFromPrompt(
     throw new Error("OpenAI image response missing url and b64_json.");
   };
 
-  try {
-    return await attempt(serverEnv.OPENAI_IMAGE_MODEL);
-  } catch (primaryError) {
+  let primaryError: unknown = null;
+  for (const model of candidateModels) {
     try {
-      return await attempt("dall-e-3");
-    } catch {
-      throw primaryError;
+      return await attempt(model);
+    } catch (error) {
+      if (!primaryError) primaryError = error;
     }
   }
+
+  throw primaryError instanceof Error ? primaryError : new Error("Failed to generate image.");
 }
 
 export async function editImageWithInstruction(
@@ -420,9 +436,21 @@ export async function editImageWithInstruction(
 
   const allowedEditModels = new Set(["gpt-image-1", "dall-e-2", "gpt-image-0721-mini-alpha"]);
 
-  const configured = serverEnv.OPENAI_IMAGE_MODEL.toLowerCase();
+  const isNonProd = (process.env.NODE_ENV ?? "").toLowerCase() !== "production";
 
-  const model = allowedEditModels.has(configured) ? serverEnv.OPENAI_IMAGE_MODEL : "gpt-image-1";
+  const configured = serverEnv.OPENAI_IMAGE_MODEL.toLowerCase();
+  const devConfigured = serverEnv.OPENAI_IMAGE_MODEL_DEV?.toLowerCase() ?? null;
+
+  const preferredEditModel = (
+    [
+      isNonProd && devConfigured && allowedEditModels.has(devConfigured)
+        ? serverEnv.OPENAI_IMAGE_MODEL_DEV
+        : null,
+      allowedEditModels.has(configured) ? serverEnv.OPENAI_IMAGE_MODEL : null,
+    ].find((entry): entry is string => typeof entry === "string" && entry.length > 0) ?? "gpt-image-1"
+  );
+
+  const model = preferredEditModel;
 
   fd.append("model", model);
 
