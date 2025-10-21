@@ -434,8 +434,6 @@ export async function editImageWithInstruction(
 
   if (params.size) fd.append("size", params.size);
 
-  if (params.quality) fd.append("quality", params.quality);
-
   const response = await fetchOpenAI("/images/edits", {
     method: "POST",
 
@@ -1110,3 +1108,4 @@ export async function transcribeAudioFromBase64({
 
   throw new Error("Transcription failed");
 }
+

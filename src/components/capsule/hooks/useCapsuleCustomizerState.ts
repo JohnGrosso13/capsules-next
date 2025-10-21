@@ -35,6 +35,8 @@ export type SelectedBanner =
     } & { crop: BannerCrop })
   | { kind: "ai"; prompt: string };
 
+type CroppableBanner = Extract<SelectedBanner, { kind: "upload" | "memory" }>;
+
 export type PromptHistorySnapshot = {
   base: string | null;
   refinements: string[];
@@ -69,21 +71,28 @@ type PreviewMetrics = {
   scale: number;
 };
 
-const PROMPT_CHIP_MAP: Record<CapsuleCustomizerMode, readonly string[]> = {
-  banner: ["Bold neon gradients", "Soft sunrise palette", "Minimal dark mode"] as const,
-  storeBanner: [
-    "Product spotlight hero",
-    "Gradient storefront header",
-    "Minimal launch announcement",
-  ] as const,
-  tile: ["Hero launch tile", "Vibrant gradient tile", "Cyberpunk feature art"] as const,
-  logo: ["Minimal monogram logo", "Gradient orb icon", "Playful mascot badge"] as const,
-  avatar: ["Bold portrait lighting", "Soft pastel avatar", "Futuristic neon portrait"] as const,
+const MODE_ASPECT_RATIO: Record<CapsuleCustomizerMode, number> = {
+  banner: 16 / 9,
+  storeBanner: 5 / 2,
+  tile: 9 / 16,
+  logo: 1,
+  avatar: 1,
+};
+
+const AI_CROP_BIAS: Record<CapsuleCustomizerMode, { x: number; y: number }> = {
+  banner: { x: 0, y: -0.18 },
+  storeBanner: { x: 0, y: -0.12 },
+  tile: { x: 0, y: 0 },
+  logo: { x: 0, y: 0 },
+  avatar: { x: 0, y: 0 },
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 const MAX_PROMPT_REFINEMENTS = 4;
 const PREVIEW_SCALE_BUFFER = 0.015;
+const ASPECT_TOLERANCE = 0.0025;
+
+const clampBias = (value: number) => clamp(value, -1, 1);
 
 function randomId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -110,6 +119,18 @@ function base64ToFile(base64: string, mimeType: string, filename: string): File 
   }
 }
 
+function ensureSentence(text: string): string {
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+}
+
+function sanitizeServerMessage(message?: string | null): string {
+  if (!message) return "";
+  const trimmed = message.trim();
+  if (!trimmed.length) return "";
+  const withoutThanks = trimmed.replace(/^\s*thanks[^.!?]*[.!?]\s*/i, "").trim();
+  return withoutThanks;
+}
+
 function buildAssistantResponse({
   prompt,
   capsuleName,
@@ -133,15 +154,24 @@ function buildAssistantResponse({
         ? "logo"
         : asset === "avatar"
           ? "avatar"
-          : asset === "storeBanner"
-            ? "store banner"
-            : "banner";
+            : asset === "storeBanner"
+              ? "store banner"
+              : "banner";
   const action =
     mode === "generate" ? `I generated a ${assetLabel}` : `I updated your existing ${assetLabel}`;
   const capsuleSegment = capsuleName.length ? ` for ${capsuleName}` : "";
-  const suffix = serverMessage?.trim()?.length ? ` ${serverMessage.trim()}` : "";
 
-  return `${action}${capsuleSegment} based on "${displayPrompt}".${suffix}`;
+  const intro = `${action}${capsuleSegment} inspired by "${displayPrompt}".`;
+  const sanitizedDetail = sanitizeServerMessage(serverMessage);
+  const detail = sanitizedDetail.length
+    ? ensureSentence(sanitizedDetail)
+    : "The preview on the right shows how it came together.";
+  const nextPrompt =
+    mode === "generate"
+      ? "What should we explore next—tweak this vibe, spin a remix, or try something totally different?"
+      : "Want me to keep iterating on it or pivot to a fresh direction?";
+
+  return `${intro} ${detail} ${nextPrompt}`;
 }
 
 function describeSource(source: SelectedBanner | null, label: string): string {
@@ -176,6 +206,10 @@ function cloneSelectedBanner(banner: SelectedBanner): SelectedBanner {
   return { ...banner };
 }
 
+function isCroppableBanner(banner: SelectedBanner | null): banner is CroppableBanner {
+  return Boolean(banner && banner.kind !== "ai");
+}
+
 function bannerSourceKey(banner: SelectedBanner | null): string | null {
   if (!banner) return null;
   if (banner.kind === "memory") return `memory:${banner.id}`;
@@ -208,6 +242,7 @@ export type CapsuleChatState = {
   busy: boolean;
   prompterSession: number;
   onPrompterAction: (action: PrompterAction) => void;
+  onBannerSelect: (option: ChatBannerOption) => void;
   logRef: React.RefObject<HTMLDivElement | null>;
 };
 
@@ -256,7 +291,6 @@ export type CapsuleSaveState = {
 export type UseCapsuleCustomizerStateReturn = {
   open: boolean;
   mode: CapsuleCustomizerMode;
-  promptChips: readonly string[];
   assetLabel: string;
   headerTitle: string;
   headerSubtitle: string;
@@ -300,7 +334,6 @@ export function useCapsuleCustomizerState(
     footerDefaultHint,
     stageAriaLabel,
     recentDescription,
-    promptChips,
   } = React.useMemo(() => {
     const safeName = normalizedName;
     if (customizerMode === "storeBanner") {
@@ -316,7 +349,6 @@ export function useCapsuleCustomizerState(
         footerDefaultHint: "Upload an image, pick a memory, or describe a new store banner below.",
         stageAriaLabel: "Capsule store banner preview",
         recentDescription: "Reuse the hero art you or Capsule AI used in your storefront recently.",
-        promptChips: PROMPT_CHIP_MAP.storeBanner,
       };
     }
     if (customizerMode === "tile") {
@@ -332,7 +364,6 @@ export function useCapsuleCustomizerState(
         footerDefaultHint: "Upload an image, pick a memory, or describe a new tile below.",
         stageAriaLabel: "Capsule promo tile preview",
         recentDescription: "Quickly reuse the vertical art you or Capsule AI picked last.",
-        promptChips: PROMPT_CHIP_MAP.tile,
       };
     }
     if (customizerMode === "logo") {
@@ -348,7 +379,6 @@ export function useCapsuleCustomizerState(
         footerDefaultHint: "Upload a mark, pick a memory, or describe a logo below.",
         stageAriaLabel: "Capsule logo preview",
         recentDescription: "Reuse logo artwork you or Capsule AI created recently.",
-        promptChips: PROMPT_CHIP_MAP.logo,
       };
     }
     if (customizerMode === "avatar") {
@@ -364,7 +394,6 @@ export function useCapsuleCustomizerState(
         footerDefaultHint: "Upload a portrait, pick a memory, or describe a new avatar below.",
         stageAriaLabel: "Profile avatar preview",
         recentDescription: "Reuse avatar imagery you or Capsule AI created recently.",
-        promptChips: PROMPT_CHIP_MAP.avatar,
       };
     }
     return {
@@ -379,7 +408,6 @@ export function useCapsuleCustomizerState(
       footerDefaultHint: "Upload an image, pick a memory, or describe a new banner below.",
       stageAriaLabel: "Capsule banner preview",
       recentDescription: "Quickly reuse what you or Capsule AI picked last.",
-      promptChips: PROMPT_CHIP_MAP.banner,
     };
   }, [customizerMode, normalizedName]);
 
@@ -421,6 +449,7 @@ export function useCapsuleCustomizerState(
     promptHistoryRef.current = { base: null, refinements: [], sourceKey: null };
   }, []);
   const previewOffsetRef = React.useRef({ x: 0, y: 0 });
+  const pendingCropRef = React.useRef<{ offsetX: number; offsetY: number } | null>(null);
   const [previewOffset, setPreviewOffset] = React.useState(previewOffsetRef.current);
   const [previewScale, setPreviewScale] = React.useState(1);
   const [isDraggingPreview, setIsDraggingPreview] = React.useState(false);
@@ -450,6 +479,55 @@ export function useCapsuleCustomizerState(
   React.useEffect(() => {
     selectedBannerRef.current = selectedBanner;
   }, [selectedBanner]);
+
+  const syncBannerCropToMessages = React.useCallback(
+    (nextBanner: CroppableBanner) => {
+      const sourceKey = bannerSourceKey(nextBanner);
+      if (!sourceKey) return;
+
+      setMessages((previousMessages) => {
+        let didChange = false;
+
+        const mapped = previousMessages.map((message) => {
+          if (!message.bannerOptions?.length) return message;
+
+          let optionsChanged = false;
+          const nextOptions = message.bannerOptions.map((option) => {
+            const optionSourceKey = bannerSourceKey(option.banner);
+            if (optionSourceKey !== sourceKey) return option;
+            if (!isCroppableBanner(option.banner)) return option;
+
+            const existingCrop = option.banner.crop ?? { offsetX: 0, offsetY: 0 };
+            if (
+              existingCrop.offsetX === nextBanner.crop.offsetX &&
+              existingCrop.offsetY === nextBanner.crop.offsetY
+            ) {
+              return option;
+            }
+
+            optionsChanged = true;
+            return {
+              ...option,
+              banner: {
+                ...option.banner,
+                crop: { ...nextBanner.crop },
+              },
+            };
+          });
+
+          if (!optionsChanged) return message;
+          didChange = true;
+          return {
+            ...message,
+            bannerOptions: nextOptions,
+          };
+        });
+
+        return didChange ? mapped : previousMessages;
+      });
+    },
+    [setMessages],
+  );
 
   const readFileAsDataUrl = React.useCallback((file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -514,17 +592,37 @@ export function useCapsuleCustomizerState(
 
       const normalizedX = maxOffsetX ? nextOffset.x / maxOffsetX : 0;
       const normalizedY = maxOffsetY ? nextOffset.y / maxOffsetY : 0;
+      const nextCrop = { offsetX: normalizedX, offsetY: normalizedY };
 
+      let updatedBanner: SelectedBanner | null = null;
       setSelectedBanner((prev) => {
         if (!prev || prev.kind === "ai") return prev;
         const existingCrop = prev.crop ?? { offsetX: 0, offsetY: 0 };
-        if (existingCrop.offsetX === normalizedX && existingCrop.offsetY === normalizedY) {
+        if (
+          existingCrop.offsetX === nextCrop.offsetX &&
+          existingCrop.offsetY === nextCrop.offsetY
+        ) {
+          updatedBanner = prev;
           return prev;
         }
-        return { ...prev, crop: { offsetX: normalizedX, offsetY: normalizedY } };
+
+        const nextBanner =
+          prev.kind === "upload"
+            ? { ...prev, crop: nextCrop }
+            : prev.kind === "memory"
+              ? { ...prev, crop: nextCrop }
+              : prev;
+
+        updatedBanner = nextBanner;
+        return nextBanner;
       });
+
+      if (isCroppableBanner(updatedBanner)) {
+        selectedBannerRef.current = updatedBanner;
+        syncBannerCropToMessages(updatedBanner);
+      }
     },
-    [setPreviewOffset],
+    [setPreviewOffset, syncBannerCropToMessages],
   );
 
   const updateSelectedBanner = React.useCallback(
@@ -549,10 +647,17 @@ export function useCapsuleCustomizerState(
           ? { ...banner, crop: banner.crop ?? { offsetX: 0, offsetY: 0 } }
           : banner;
 
+      if (normalizedBanner && normalizedBanner.kind !== "ai") {
+        pendingCropRef.current = normalizedBanner.crop ?? { offsetX: 0, offsetY: 0 };
+      } else {
+        pendingCropRef.current = null;
+      }
+
+      previewOffsetRef.current = { x: 0, y: 0 };
+      setPreviewOffset({ x: 0, y: 0 });
       setSelectedBanner(normalizedBanner);
-      applyPreviewOffset(0, 0, previewMetricsRef.current);
     },
-    [applyPreviewOffset],
+    [setPreviewOffset],
   );
 
   const measurePreview = React.useCallback(() => {
@@ -567,11 +672,11 @@ export function useCapsuleCustomizerState(
       return;
     }
 
-    const coverScale = Math.max(
-      containerRect.width / naturalWidth,
-      containerRect.height / naturalHeight,
-    );
-    const baseScale = coverScale * (1 + PREVIEW_SCALE_BUFFER);
+    const widthRatio = containerRect.width / naturalWidth;
+    const heightRatio = containerRect.height / naturalHeight;
+    const coverScale = Math.max(widthRatio, heightRatio);
+    const needsShrink = naturalWidth > containerRect.width || naturalHeight > containerRect.height;
+    const baseScale = needsShrink ? coverScale * (1 + PREVIEW_SCALE_BUFFER) : 1;
     const scaledWidth = naturalWidth * baseScale;
     const scaledHeight = naturalHeight * baseScale;
 
@@ -588,7 +693,15 @@ export function useCapsuleCustomizerState(
     previewMetricsRef.current = metrics;
     setPreviewScale(baseScale);
     setPreviewCanPan(metrics.maxOffsetX > 0 || metrics.maxOffsetY > 0);
-    applyPreviewOffset(previewOffsetRef.current.x, previewOffsetRef.current.y, metrics);
+    const pendingCrop = pendingCropRef.current;
+    if (pendingCrop) {
+      pendingCropRef.current = null;
+      const targetX = (pendingCrop.offsetX || 0) * metrics.maxOffsetX;
+      const targetY = (pendingCrop.offsetY || 0) * metrics.maxOffsetY;
+      applyPreviewOffset(targetX, targetY, metrics);
+    } else {
+      applyPreviewOffset(previewOffsetRef.current.x, previewOffsetRef.current.y, metrics);
+    }
   }, [applyPreviewOffset]);
 
   const closeMemoryPicker = React.useCallback(() => {
@@ -891,6 +1004,205 @@ export function useCapsuleCustomizerState(
     }
   }, [handleMemoryPick, processedMemories]);
 
+  const handleBannerOptionSelect = React.useCallback(
+    (option: ChatBannerOption) => {
+      const candidate = cloneSelectedBanner(option.banner);
+      promptHistoryRef.current = {
+        base: option.promptState.base,
+        refinements: [...option.promptState.refinements],
+        sourceKey: option.promptState.sourceKey,
+      };
+      updateSelectedBanner(candidate);
+      selectedBannerRef.current = candidate;
+      setSaveError(null);
+    },
+    [updateSelectedBanner],
+  );
+
+  const loadImageElement = React.useCallback(
+    (src: string, allowCrossOrigin: boolean): Promise<HTMLImageElement> =>
+      new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        if (allowCrossOrigin) {
+          img.crossOrigin = "anonymous";
+        }
+        img.decoding = "async";
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error(`Failed to load image for ${assetLabel} preview.`));
+        img.src = src;
+      }),
+    [assetLabel],
+  );
+
+  const ensureAspectForGeneratedBanner = React.useCallback(
+    async ({
+      url,
+      file,
+      mimeType,
+    }: {
+      url: string;
+      file: File | null;
+      mimeType: string;
+    }): Promise<{ url: string; file: File | null; crop: BannerCrop; updated: boolean }> => {
+      const targetAspect = MODE_ASPECT_RATIO[customizerMode];
+      if (!targetAspect || !url) {
+        return {
+          url,
+          file,
+          crop: { offsetX: 0, offsetY: AI_CROP_BIAS[customizerMode]?.y ?? 0 },
+          updated: false,
+        };
+      }
+
+      let sourceUrl = url;
+      let revokeSourceUrl: string | null = null;
+      let fetchedUrl: string | null = null;
+      const allowCrossOrigin = !file;
+
+      try {
+        if (file) {
+          sourceUrl = URL.createObjectURL(file);
+          revokeSourceUrl = sourceUrl;
+        }
+
+        let image: HTMLImageElement;
+        try {
+          image = await loadImageElement(sourceUrl, allowCrossOrigin);
+        } catch (error) {
+          if (!allowCrossOrigin) {
+            throw error;
+          }
+          const response = await fetch(url, { mode: "cors" });
+          if (!response.ok) {
+            throw error;
+          }
+          const blob = await response.blob();
+          fetchedUrl = URL.createObjectURL(blob);
+          image = await loadImageElement(fetchedUrl, false);
+        }
+
+        const naturalWidth = image.naturalWidth || image.width;
+        const naturalHeight = image.naturalHeight || image.height;
+        if (!naturalWidth || !naturalHeight) {
+          throw new Error("Unable to measure generated image.");
+        }
+
+        const imageAspect = naturalWidth / naturalHeight;
+        if (Math.abs(imageAspect - targetAspect) <= ASPECT_TOLERANCE) {
+          return {
+            url,
+            file,
+            crop: { offsetX: 0, offsetY: 0 },
+            updated: false,
+          };
+        }
+
+        let sourceWidth = naturalWidth;
+        let sourceHeight = naturalHeight;
+        let sourceX = 0;
+        let sourceY = 0;
+        const bias = AI_CROP_BIAS[customizerMode] ?? { x: 0, y: 0 };
+
+        if (imageAspect > targetAspect) {
+          sourceHeight = naturalHeight;
+          sourceWidth = Math.round(sourceHeight * targetAspect);
+          const maxOffsetX = Math.max(0, naturalWidth - sourceWidth);
+          const offsetX = clamp(
+            Math.round(maxOffsetX / 2 - (maxOffsetX / 2) * clampBias(bias.x)),
+            0,
+            maxOffsetX,
+          );
+          sourceX = offsetX;
+        } else {
+          sourceWidth = naturalWidth;
+          sourceHeight = Math.round(sourceWidth / targetAspect);
+          const maxOffsetY = Math.max(0, naturalHeight - sourceHeight);
+          const offsetY = clamp(
+            Math.round(maxOffsetY / 2 - (maxOffsetY / 2) * clampBias(bias.y)),
+            0,
+            maxOffsetY,
+          );
+          sourceY = offsetY;
+        }
+
+        sourceWidth = Math.max(1, sourceWidth);
+        sourceHeight = Math.max(1, sourceHeight);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = sourceWidth;
+        canvas.height = sourceHeight;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          throw new Error("Canvas context unavailable.");
+        }
+
+        context.drawImage(
+          image,
+          sourceX,
+          sourceY,
+          sourceWidth,
+          sourceHeight,
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        );
+
+        const effectiveMime =
+          mimeType && mimeType.startsWith("image/") ? mimeType : "image/jpeg";
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob(
+            (result) => {
+              if (result) {
+                resolve(result);
+              } else {
+                reject(new Error("Failed to crop generated banner."));
+              }
+            },
+            effectiveMime,
+            effectiveMime === "image/jpeg" ? 0.92 : undefined,
+          );
+        });
+
+        const finalFile =
+          file && file.name
+            ? new File([blob], file.name, { type: effectiveMime })
+            : new File(
+                [blob],
+                `capsule-ai-${customizerMode}-${Date.now()}.${
+                  (effectiveMime.split("/")[1] ?? "jpg").replace(/[^a-z0-9]+/gi, "") || "jpg"
+                }`,
+                { type: effectiveMime },
+              );
+
+        const dataUrl = await readFileAsDataUrl(finalFile);
+
+        return {
+          url: dataUrl,
+          file: finalFile,
+          crop: { offsetX: 0, offsetY: 0 },
+          updated: true,
+        };
+      } catch (error) {
+        console.warn("capsule banner aspect normalization failed", error);
+        return {
+          url,
+          file,
+          crop: { offsetX: 0, offsetY: AI_CROP_BIAS[customizerMode]?.y ?? 0 },
+          updated: false,
+        };
+      } finally {
+        if (revokeSourceUrl) {
+          URL.revokeObjectURL(revokeSourceUrl);
+        }
+        if (fetchedUrl) {
+          URL.revokeObjectURL(fetchedUrl);
+        }
+      }
+    },
+    [customizerMode, loadImageElement, readFileAsDataUrl],
+  );
+
   const handlePrompterAction = React.useCallback(
     (action: PrompterAction) => {
       if (chatBusy) return;
@@ -1047,12 +1359,18 @@ export function useCapsuleCustomizerState(
             bannerFile = base64ToFile(imageData, mimeType, filename);
           }
 
+          const normalizedAsset = await ensureAspectForGeneratedBanner({
+            url: fileUrl,
+            file: bannerFile,
+            mimeType,
+          });
+
           const generatedBanner: SelectedBanner = {
             kind: "upload",
             name: `AI generated ${assetLabel}`,
-            url: fileUrl,
-            file: bannerFile,
-            crop: { offsetX: 0, offsetY: 0 },
+            url: normalizedAsset.url,
+            file: normalizedAsset.file ?? bannerFile,
+            crop: normalizedAsset.crop,
           };
 
           updateSelectedBanner(generatedBanner);
@@ -1074,7 +1392,7 @@ export function useCapsuleCustomizerState(
             sourceKey: promptHistoryRef.current.sourceKey,
           };
 
-          const previewUrl = payload.url ?? fileUrl;
+          const previewUrl = normalizedAsset.url || fileUrl;
           const bannerOption: ChatBannerOption = {
             id: randomId(),
             label: aiMode === "generate" ? "New banner concept" : "Remixed banner",
@@ -1130,40 +1448,11 @@ export function useCapsuleCustomizerState(
       assetLabel,
       chatBusy,
       customizerMode,
+      ensureAspectForGeneratedBanner,
       normalizedName,
       resolveBannerSourceForEdit,
       updateSelectedBanner,
     ],
-  );
-
-  const handleBannerOptionSelect = React.useCallback(
-    (option: ChatBannerOption) => {
-      const candidate = cloneSelectedBanner(option.banner);
-      promptHistoryRef.current = {
-        base: option.promptState.base,
-        refinements: [...option.promptState.refinements],
-        sourceKey: option.promptState.sourceKey,
-      };
-      updateSelectedBanner(candidate);
-      selectedBannerRef.current = candidate;
-      setSaveError(null);
-    },
-    [updateSelectedBanner],
-  );
-
-  const loadImageElement = React.useCallback(
-    (src: string, allowCrossOrigin: boolean): Promise<HTMLImageElement> =>
-      new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        if (allowCrossOrigin) {
-          img.crossOrigin = "anonymous";
-        }
-        img.decoding = "async";
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error(`Failed to load image for ${assetLabel} preview.`));
-        img.src = src;
-      }),
-    [assetLabel],
   );
 
   const composeAssetImage = React.useCallback(async () => {
@@ -1457,6 +1746,7 @@ export function useCapsuleCustomizerState(
       } else {
         onSaved?.({ type: "banner", bannerUrl: payload.bannerUrl ?? null });
       }
+      await refresh().catch(() => {});
       updateSelectedBanner(null);
       onClose();
     } catch (error) {
@@ -1474,6 +1764,7 @@ export function useCapsuleCustomizerState(
     onSaved,
     selectedBanner,
     updateSelectedBanner,
+    refresh,
   ]);
 
   const handlePreviewPointerDown = React.useCallback(
@@ -1549,7 +1840,6 @@ export function useCapsuleCustomizerState(
   return {
     open,
     mode: customizerMode,
-    promptChips,
     assetLabel,
     headerTitle,
     headerSubtitle,
@@ -1610,4 +1900,3 @@ export function useCapsuleCustomizerState(
     describeSelection,
   };
 }
-

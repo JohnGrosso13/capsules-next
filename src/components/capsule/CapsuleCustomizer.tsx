@@ -75,7 +75,6 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
   const {
     open,
     mode,
-    promptChips,
     assetLabel,
     headerTitle,
     headerSubtitle,
@@ -210,7 +209,7 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
             <div className={styles.prompterDock}>
               <div className={styles.prompterWrap}>
                 <AiPrompterStage
-                key={prompterSession}
+                  key={prompterSession}
                 placeholder={prompterPlaceholder}
                 chips={[]}
                 statusMessage={null}
@@ -219,24 +218,6 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
               />
               </div>
 
-              <div className={styles.intentChips}>
-                {promptChips.map((chip) => (
-                  <button
-                    key={chip}
-                    type="button"
-                    className={styles.intentChip}
-                    onClick={() =>
-                      onPrompterAction({
-                        kind: "generate",
-                        text: chip,
-                        raw: chip,
-                      })
-                    }
-                  >
-                    {chip}
-                  </button>
-                ))}
-              </div>
             </div>
           </section>
           <section className={styles.previewColumn}>
