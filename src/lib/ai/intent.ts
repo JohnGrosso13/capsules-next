@@ -188,7 +188,7 @@ function detectGenerateIntent(lc: string): IntentResolution | null {
 export function detectIntentHeuristically(rawText: string): IntentResolution {
   const text = (rawText || "").trim();
   if (!text) {
-    return scoreIntent("post", EMPTY_POST_CONFIDENCE, "No prompt yet; defaulting to post.", "heuristic");
+    return scoreIntent("post", EMPTY_POST_CONFIDENCE, "Ready when you are.", "heuristic");
   }
   const lc = text.toLowerCase();
   const candidates: IntentResolution[] = [];

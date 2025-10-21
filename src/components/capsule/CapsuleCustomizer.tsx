@@ -11,6 +11,7 @@ import {
   type CapsuleCustomizerMode,
   type CapsuleCustomizerSaveResult,
   type ChatMessage,
+  type ChatBannerOption,
 } from "./hooks/useCapsuleCustomizerState";
 import { CapsuleBannerPreview } from "./CapsuleBannerPreview";
 import { CapsuleAssetActions } from "./CapsuleAssetActions";
@@ -25,16 +26,49 @@ type CapsuleCustomizerProps = {
   mode?: CapsuleCustomizerMode;
 };
 
-function ChatMessageBubble({ message }: { message: ChatMessage }) {
+
+function ChatMessageBubble({
+  message,
+  onBannerSelect,
+}: {
+  message: ChatMessage;
+  onBannerSelect: (option: ChatBannerOption) => void;
+}) {
   return (
     <div className={styles.chatMessage} data-role={message.role}>
       <span className={styles.chatAvatar} aria-hidden>
         {message.role === "assistant" ? "AI" : "You"}
       </span>
-      <div className={styles.chatBubble}>{message.content}</div>
+      <div className={styles.chatBubble}>
+        {message.content}
+        {message.bannerOptions && message.bannerOptions.length ? (
+          <div className={styles.chatBannerGallery} role="list">
+            {message.bannerOptions.map((option, index) => (
+              <button
+                key={option.id}
+                type="button"
+                className={styles.chatBannerOption}
+                onClick={() => onBannerSelect(option)}
+                role="listitem"
+                aria-label={`Add banner option ${index + 1} to selection`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={option.previewUrl}
+                  alt={`Banner concept ${index + 1}`}
+                  className={styles.chatBannerImage}
+                  loading="lazy"
+                />
+                <span className={styles.chatBannerOptionOverlay}>Add to banner</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
+
 
 function CapsuleCustomizer(props: CapsuleCustomizerProps) {
   const state = useCapsuleCustomizerState(props);
@@ -63,7 +97,7 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
 
   if (!open) return null;
 
-  const { messages, busy, prompterSession, onPrompterAction, logRef } = chat;
+  const { messages, busy, prompterSession, onPrompterAction, onBannerSelect, logRef } = chat;
   const saveLabel =
     mode === "tile"
       ? "Save tile"
@@ -164,7 +198,7 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
           <section className={styles.chatColumn}>
             <div ref={logRef} className={styles.chatLog} aria-live="polite">
               {messages.map((message) => (
-                <ChatMessageBubble key={message.id} message={message} />
+                <ChatMessageBubble key={message.id} message={message} onBannerSelect={onBannerSelect} />
               ))}
               {busy ? (
                 <div className={styles.chatTyping} aria-live="polite">
@@ -176,12 +210,13 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
             <div className={styles.prompterDock}>
               <div className={styles.prompterWrap}>
                 <AiPrompterStage
-                  key={prompterSession}
-                  placeholder={prompterPlaceholder}
-                  chips={[]}
-                  statusMessage={null}
-                  onAction={onPrompterAction}
-                />
+                key={prompterSession}
+                placeholder={prompterPlaceholder}
+                chips={[]}
+                statusMessage={null}
+                onAction={onPrompterAction}
+                variant="bannerCustomizer"
+              />
               </div>
 
               <div className={styles.intentChips}>
@@ -298,3 +333,7 @@ export function ProfileAvatarCustomizer(props: Omit<CapsuleCustomizerProps, "mod
 
 export { CapsuleCustomizer };
 export type { CapsuleCustomizerSaveResult, CapsuleCustomizerMode, CapsuleCustomizerProps };
+
+
+
+

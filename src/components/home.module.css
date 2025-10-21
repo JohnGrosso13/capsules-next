@@ -283,6 +283,15 @@
   padding: 8px 4px;
 }
 
+.multilineInput {
+  min-height: 56px;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.5;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
 /* Inline attach button inside the prompter */
 
 .promptAttachBtn {

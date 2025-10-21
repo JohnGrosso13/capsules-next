@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 
@@ -19,12 +19,6 @@ export type CapsuleCustomizerSaveResult =
 
 type ChatRole = "assistant" | "user";
 
-export type ChatMessage = {
-  id: string;
-  role: ChatRole;
-  content: string;
-};
-
 export type BannerCrop = {
   offsetX: number;
   offsetY: number;
@@ -40,6 +34,27 @@ export type SelectedBanner =
       fullUrl: string | null;
     } & { crop: BannerCrop })
   | { kind: "ai"; prompt: string };
+
+export type PromptHistorySnapshot = {
+  base: string | null;
+  refinements: string[];
+  sourceKey: string | null;
+};
+
+export type ChatBannerOption = {
+  id: string;
+  label: string;
+  previewUrl: string;
+  banner: SelectedBanner;
+  promptState: PromptHistorySnapshot;
+};
+
+export type ChatMessage = {
+  id: string;
+  role: ChatRole;
+  content: string;
+  bannerOptions?: ChatBannerOption[];
+};
 
 type DragState = {
   pointerId: number;
@@ -67,6 +82,8 @@ const PROMPT_CHIP_MAP: Record<CapsuleCustomizerMode, readonly string[]> = {
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const MAX_PROMPT_REFINEMENTS = 4;
+const PREVIEW_SCALE_BUFFER = 0.015;
 
 function randomId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -134,6 +151,47 @@ function describeSource(source: SelectedBanner | null, label: string): string {
   if (source.kind === "upload") return `Uploaded - ${source.name}`;
   if (source.kind === "memory") return `Memory - ${source.title?.trim() || "Untitled memory"}`;
   return `AI prompt - "${source.prompt}"`;
+}
+
+function cloneSelectedBanner(banner: SelectedBanner): SelectedBanner {
+  if (banner.kind === "upload") {
+    return {
+      kind: "upload",
+      name: banner.name,
+      url: banner.url,
+      file: banner.file ?? null,
+      crop: { ...banner.crop },
+    };
+  }
+  if (banner.kind === "memory") {
+    return {
+      kind: "memory",
+      id: banner.id,
+      title: banner.title,
+      url: banner.url,
+      fullUrl: banner.fullUrl,
+      crop: { ...banner.crop },
+    };
+  }
+  return { ...banner };
+}
+
+function bannerSourceKey(banner: SelectedBanner | null): string | null {
+  if (!banner) return null;
+  if (banner.kind === "memory") return `memory:${banner.id}`;
+  if (banner.kind === "upload") return `upload:${banner.url}`;
+  if (banner.kind === "ai") return `ai:${banner.prompt}`;
+  return null;
+}
+
+function buildPromptEnvelope(base: string, refinements: string[], latest: string): string {
+  const segments = [base, ...refinements, latest]
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length);
+  if (!segments.length) return latest;
+  return segments
+    .map((segment, index) => (index === 0 ? segment : `Refine with: ${segment}`))
+    .join("\n\n");
 }
 
 export type UseCapsuleCustomizerOptions = {
@@ -350,6 +408,18 @@ export function useCapsuleCustomizerState(
   const [chatBusy, setChatBusy] = React.useState(false);
   const [selectedBanner, setSelectedBanner] = React.useState<SelectedBanner | null>(null);
   const selectedBannerRef = React.useRef<SelectedBanner | null>(null);
+  const promptHistoryRef = React.useRef<{
+    base: string | null;
+    refinements: string[];
+    sourceKey: string | null;
+  }>({
+    base: null,
+    refinements: [],
+    sourceKey: null,
+  });
+  const resetPromptHistory = React.useCallback(() => {
+    promptHistoryRef.current = { base: null, refinements: [], sourceKey: null };
+  }, []);
   const previewOffsetRef = React.useRef({ x: 0, y: 0 });
   const [previewOffset, setPreviewOffset] = React.useState(previewOffsetRef.current);
   const [previewScale, setPreviewScale] = React.useState(1);
@@ -497,10 +567,11 @@ export function useCapsuleCustomizerState(
       return;
     }
 
-    const baseScale = Math.max(
+    const coverScale = Math.max(
       containerRect.width / naturalWidth,
       containerRect.height / naturalHeight,
     );
+    const baseScale = coverScale * (1 + PREVIEW_SCALE_BUFFER);
     const scaledWidth = naturalWidth * baseScale;
     const scaledHeight = naturalHeight * baseScale;
 
@@ -552,12 +623,13 @@ export function useCapsuleCustomizerState(
     ]);
     setChatBusy(false);
     updateSelectedBanner(null);
+    resetPromptHistory();
     setPrompterSession((value) => value + 1);
     if (uploadObjectUrlRef.current) {
       URL.revokeObjectURL(uploadObjectUrlRef.current);
       uploadObjectUrlRef.current = null;
     }
-  }, [assistantIntro, normalizedName, open, updateSelectedBanner]);
+  }, [assistantIntro, normalizedName, open, resetPromptHistory, updateSelectedBanner]);
 
   React.useEffect(() => {
     if (!open) {
@@ -689,9 +761,10 @@ export function useCapsuleCustomizerState(
         file,
         crop: { offsetX: 0, offsetY: 0 },
       });
+      resetPromptHistory();
       event.target.value = "";
     },
-    [updateSelectedBanner],
+    [resetPromptHistory, updateSelectedBanner],
   );
 
   const fetchMemoryAssetUrl = React.useCallback(
@@ -798,8 +871,9 @@ export function useCapsuleCustomizerState(
         fullUrl: memory.fullUrl || memory.displayUrl,
         crop: { offsetX: 0, offsetY: 0 },
       });
+      resetPromptHistory();
     },
-    [updateSelectedBanner],
+    [resetPromptHistory, updateSelectedBanner],
   );
 
   const handleMemoryPick = React.useCallback(
@@ -875,13 +949,56 @@ export function useCapsuleCustomizerState(
       updateSelectedBanner({ kind: "ai", prompt: trimmed });
 
       const bannerForEdit = attachmentBanner ?? previousBanner ?? null;
+      const previousPromptHistory = {
+        base: promptHistoryRef.current.base,
+        refinements: [...promptHistoryRef.current.refinements],
+        sourceKey: promptHistoryRef.current.sourceKey,
+      };
 
       const run = async () => {
         try {
           const source = await resolveBannerSourceForEdit(bannerForEdit);
           const aiMode: "generate" | "edit" = source ? "edit" : "generate";
+          const currentSourceKey = bannerSourceKey(bannerForEdit);
+          let promptForRequest = trimmed;
+
+          if (aiMode === "generate") {
+            promptHistoryRef.current = {
+              base: trimmed,
+              refinements: [],
+              sourceKey: null,
+            };
+          } else if (
+            !promptHistoryRef.current.base ||
+            !currentSourceKey ||
+            promptHistoryRef.current.sourceKey !== currentSourceKey
+          ) {
+            promptHistoryRef.current = {
+              base: trimmed,
+              refinements: [],
+              sourceKey: currentSourceKey,
+            };
+          } else {
+            const nextRefinements = [...promptHistoryRef.current.refinements, trimmed];
+            const boundedRefinements = nextRefinements.slice(-MAX_PROMPT_REFINEMENTS);
+            const refinementsBeforeLatest =
+              boundedRefinements.length > 1 ? boundedRefinements.slice(0, -1) : [];
+            const latestRefinement =
+              boundedRefinements[boundedRefinements.length - 1] ?? trimmed;
+            promptForRequest = buildPromptEnvelope(
+              promptHistoryRef.current.base,
+              refinementsBeforeLatest,
+              latestRefinement,
+            );
+            promptHistoryRef.current = {
+              base: promptHistoryRef.current.base,
+              refinements: boundedRefinements,
+              sourceKey: currentSourceKey,
+            };
+          }
+
           const body: Record<string, unknown> = {
-            prompt: trimmed,
+            prompt: promptForRequest,
             capsuleName: normalizedName,
             mode: aiMode,
           };
@@ -921,32 +1038,25 @@ export function useCapsuleCustomizerState(
               ? payload.imageData
               : null;
 
-          let fileUrl = payload.url;
+          const fileUrl = payload.url ?? (imageData ? `data:${mimeType};base64,${imageData}` : "");
           let bannerFile: File | null = null;
 
           if (imageData) {
             const extension = mimeType.split("/")[1] ?? "jpg";
             const filename = `capsule-ai-banner-${Date.now()}.${extension.replace(/[^a-z0-9]+/gi, "") || "jpg"}`;
             bannerFile = base64ToFile(imageData, mimeType, filename);
-
-            if (bannerFile) {
-              if (uploadObjectUrlRef.current) {
-                URL.revokeObjectURL(uploadObjectUrlRef.current);
-                uploadObjectUrlRef.current = null;
-              }
-              const objectUrl = URL.createObjectURL(bannerFile);
-              uploadObjectUrlRef.current = objectUrl;
-              fileUrl = objectUrl;
-            }
           }
 
-          updateSelectedBanner({
+          const generatedBanner: SelectedBanner = {
             kind: "upload",
             name: `AI generated ${assetLabel}`,
             url: fileUrl,
             file: bannerFile,
             crop: { offsetX: 0, offsetY: 0 },
-          });
+          };
+
+          updateSelectedBanner(generatedBanner);
+          promptHistoryRef.current.sourceKey = bannerSourceKey(generatedBanner);
 
           const serverMessage =
             payload?.message && typeof payload.message === "string" ? payload.message : null;
@@ -958,12 +1068,32 @@ export function useCapsuleCustomizerState(
             serverMessage,
           });
 
+          const promptStateSnapshot: PromptHistorySnapshot = {
+            base: promptHistoryRef.current.base,
+            refinements: [...promptHistoryRef.current.refinements],
+            sourceKey: promptHistoryRef.current.sourceKey,
+          };
+
+          const previewUrl = payload.url ?? fileUrl;
+          const bannerOption: ChatBannerOption = {
+            id: randomId(),
+            label: aiMode === "generate" ? "New banner concept" : "Remixed banner",
+            previewUrl,
+            banner: cloneSelectedBanner(generatedBanner),
+            promptState: {
+              base: promptStateSnapshot.base,
+              refinements: [...promptStateSnapshot.refinements],
+              sourceKey: promptStateSnapshot.sourceKey,
+            },
+          };
+
           setMessages((prev) =>
             prev.map((entry) =>
               entry.id === assistantId
                 ? {
                     ...entry,
                     content: responseCopy,
+                    bannerOptions: [bannerOption],
                   }
                 : entry,
             ),
@@ -971,6 +1101,11 @@ export function useCapsuleCustomizerState(
         } catch (error) {
           console.error("capsule banner ai error", error);
           const message = error instanceof Error ? error.message : "Failed to generate banner.";
+          promptHistoryRef.current = {
+            base: previousPromptHistory.base,
+            refinements: [...previousPromptHistory.refinements],
+            sourceKey: previousPromptHistory.sourceKey,
+          };
           setSelectedBanner(bannerForEdit ?? null);
           setMessages((prev) =>
             prev.map((entry) =>
@@ -999,6 +1134,21 @@ export function useCapsuleCustomizerState(
       resolveBannerSourceForEdit,
       updateSelectedBanner,
     ],
+  );
+
+  const handleBannerOptionSelect = React.useCallback(
+    (option: ChatBannerOption) => {
+      const candidate = cloneSelectedBanner(option.banner);
+      promptHistoryRef.current = {
+        base: option.promptState.base,
+        refinements: [...option.promptState.refinements],
+        sourceKey: option.promptState.sourceKey,
+      };
+      updateSelectedBanner(candidate);
+      selectedBannerRef.current = candidate;
+      setSaveError(null);
+    },
+    [updateSelectedBanner],
   );
 
   const loadImageElement = React.useCallback(
@@ -1414,6 +1564,7 @@ export function useCapsuleCustomizerState(
       busy: chatBusy,
       prompterSession,
       onPrompterAction: handlePrompterAction,
+      onBannerSelect: handleBannerOptionSelect,
       logRef: chatLogRef,
     },
     memory: {
@@ -1459,3 +1610,4 @@ export function useCapsuleCustomizerState(
     describeSelection,
   };
 }
+

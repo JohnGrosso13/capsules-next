@@ -3,6 +3,8 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
+import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
+import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { Buffer } from "node:buffer";
 
@@ -24,8 +26,10 @@ const responseSchema = z.object({
 async function persistAndDescribeImage(
   source: string,
   filenameHint: string,
+  options: { baseUrl?: string | null } = {},
 ): Promise<{ url: string; imageData: string | null; mimeType: string | null }> {
-  let normalizedSource = source;
+  const absoluteSource = resolveToAbsoluteUrl(source, options.baseUrl) ?? source;
+  let normalizedSource = absoluteSource;
   let base64Data: string | null = null;
   let mimeType: string | null = null;
 
@@ -37,7 +41,7 @@ async function persistAndDescribeImage(
     }
   } else {
     try {
-      const response = await fetch(source);
+      const response = await fetch(absoluteSource);
       if (response.ok) {
         const contentType = response.headers.get("content-type") || "image/png";
         const arrayBuffer = await response.arrayBuffer();
@@ -51,9 +55,11 @@ async function persistAndDescribeImage(
     }
   }
 
-  let storedUrl = source;
+  let storedUrl = absoluteSource;
   try {
-    const stored = await storeImageSrcToSupabase(normalizedSource, filenameHint);
+    const stored = await storeImageSrcToSupabase(normalizedSource, filenameHint, {
+      baseUrl: options.baseUrl ?? null,
+    });
     if (stored?.url) {
       storedUrl = stored.url;
     }
@@ -101,6 +107,7 @@ export async function POST(req: Request) {
 
   const { prompt, mode, displayName, imageUrl, imageData } = parsed.data;
   const effectiveName = typeof displayName === "string" ? displayName : "";
+  const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
   try {
     if (mode === "generate") {
@@ -109,7 +116,9 @@ export async function POST(req: Request) {
         quality: "high",
         size: "768x768",
       });
-      const stored = await persistAndDescribeImage(generated, "profile-avatar-generate");
+      const stored = await persistAndDescribeImage(generated, "profile-avatar-generate", {
+        baseUrl: requestOrigin,
+      });
       return validatedJson(responseSchema, {
         url: stored.url,
         message:
@@ -121,7 +130,9 @@ export async function POST(req: Request) {
 
     let sourceUrl = imageUrl ?? null;
     if (!sourceUrl && imageData) {
-      const stored = await storeImageSrcToSupabase(imageData, "profile-avatar-source");
+      const stored = await storeImageSrcToSupabase(imageData, "profile-avatar-source", {
+        baseUrl: requestOrigin,
+      });
       sourceUrl = stored?.url ?? null;
     }
 
@@ -135,7 +146,9 @@ export async function POST(req: Request) {
 
     const normalizedSource = await (async () => {
       try {
-        const stored = await storeImageSrcToSupabase(sourceUrl as string, "profile-avatar-source");
+        const stored = await storeImageSrcToSupabase(sourceUrl as string, "profile-avatar-source", {
+          baseUrl: requestOrigin,
+        });
         return stored?.url ?? sourceUrl!;
       } catch {
         return sourceUrl!;
@@ -147,7 +160,9 @@ export async function POST(req: Request) {
       quality: "high",
       size: "768x768",
     });
-    const stored = await persistAndDescribeImage(edited, "profile-avatar-edit");
+    const stored = await persistAndDescribeImage(edited, "profile-avatar-edit", {
+      baseUrl: requestOrigin,
+    });
 
     return validatedJson(responseSchema, {
       url: stored.url,

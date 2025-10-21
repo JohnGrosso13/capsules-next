@@ -3,6 +3,8 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
+import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
+import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { Buffer } from "node:buffer";
 
@@ -24,8 +26,10 @@ const responseSchema = z.object({
 async function persistAndDescribeImage(
   source: string,
   filenameHint: string,
+  options: { baseUrl?: string | null } = {},
 ): Promise<{ url: string; imageData: string | null; mimeType: string | null }> {
-  let normalizedSource = source;
+  const absoluteSource = resolveToAbsoluteUrl(source, options.baseUrl) ?? source;
+  let normalizedSource = absoluteSource;
   let base64Data: string | null = null;
   let mimeType: string | null = null;
 
@@ -37,7 +41,7 @@ async function persistAndDescribeImage(
     }
   } else {
     try {
-      const response = await fetch(source);
+      const response = await fetch(absoluteSource);
       if (response.ok) {
         const contentType = response.headers.get("content-type") || "image/png";
         const arrayBuffer = await response.arrayBuffer();
@@ -51,9 +55,11 @@ async function persistAndDescribeImage(
     }
   }
 
-  let storedUrl = source;
+  let storedUrl = absoluteSource;
   try {
-    const stored = await storeImageSrcToSupabase(normalizedSource, filenameHint);
+    const stored = await storeImageSrcToSupabase(normalizedSource, filenameHint, {
+      baseUrl: options.baseUrl ?? null,
+    });
     if (stored?.url) {
       storedUrl = stored.url;
     }
@@ -101,6 +107,7 @@ export async function POST(req: Request) {
 
   const { prompt, mode, capsuleName, imageUrl, imageData } = parsed.data;
   const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
+  const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
   try {
     if (mode === "generate") {
@@ -109,7 +116,9 @@ export async function POST(req: Request) {
         quality: "high",
         size: "1024x1024",
       });
-      const stored = await persistAndDescribeImage(generated, "capsule-banner-generate");
+      const stored = await persistAndDescribeImage(generated, "capsule-banner-generate", {
+        baseUrl: requestOrigin,
+      });
       return validatedJson(responseSchema, {
         url: stored.url,
         message:
@@ -121,7 +130,9 @@ export async function POST(req: Request) {
 
     let sourceUrl = imageUrl ?? null;
     if (!sourceUrl && imageData) {
-      const stored = await storeImageSrcToSupabase(imageData, "capsule-banner-source");
+      const stored = await storeImageSrcToSupabase(imageData, "capsule-banner-source", {
+        baseUrl: requestOrigin,
+      });
       sourceUrl = stored?.url ?? null;
     }
 
@@ -136,7 +147,9 @@ export async function POST(req: Request) {
     // Normalize the source into storage to ensure it is fetchable by the image edit API.
     const normalizedSource = await (async () => {
       try {
-        const stored = await storeImageSrcToSupabase(sourceUrl as string, "capsule-banner-source");
+        const stored = await storeImageSrcToSupabase(sourceUrl as string, "capsule-banner-source", {
+          baseUrl: requestOrigin,
+        });
         return stored?.url ?? sourceUrl!;
       } catch {
         return sourceUrl!;
@@ -148,7 +161,9 @@ export async function POST(req: Request) {
       quality: "high",
       size: "1024x1024",
     });
-    const stored = await persistAndDescribeImage(edited, "capsule-banner-edit");
+    const stored = await persistAndDescribeImage(edited, "capsule-banner-edit", {
+      baseUrl: requestOrigin,
+    });
 
     return validatedJson(responseSchema, {
       url: stored.url,

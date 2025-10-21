@@ -2,6 +2,7 @@ import type { Buffer as NodeBuffer } from "node:buffer";
 import { getStorageProvider } from "@/config/storage";
 import { generateStorageObjectKey } from "@/lib/storage/keys";
 import { serverEnv } from "@/lib/env/server";
+import { resolveToAbsoluteUrl } from "@/lib/url";
 import type { StorageMetadataValue } from "@/ports/storage";
 
 function extFromContentType(contentType: string) {
@@ -79,8 +80,15 @@ export async function uploadBufferToStorage(
   return { url, key };
 }
 
-export async function storeImageSrcToSupabase(src: string, filenameHint = "image") {
+export async function storeImageSrcToSupabase(
+  src: string,
+  filenameHint = "image",
+  options?: { baseUrl?: string | null },
+) {
   if (!src) throw new Error("No image source provided");
+
+  const baseUrl = options?.baseUrl ?? serverEnv.SITE_URL;
+  const resolvedSrc = resolveToAbsoluteUrl(src, baseUrl) ?? src;
 
   if (/^data:/i.test(src)) {
     const match = src.match(/^data:([^;]+);base64,(.*)$/i);
@@ -104,7 +112,7 @@ export async function storeImageSrcToSupabase(src: string, filenameHint = "image
 
   const parseUrl = (() => {
     try {
-      return new URL(src);
+      return new URL(resolvedSrc);
     } catch {
       return null;
     }
@@ -144,16 +152,16 @@ export async function storeImageSrcToSupabase(src: string, filenameHint = "image
     const isKnownR2Host = isBucketHost || isCustomR2Host || isAccountBucketPath;
 
     if (isLocalHost || isKnownR2Host) {
-      return { url: src, key: null };
+      return { url: resolvedSrc, key: null };
     }
   }
 
   try {
-    const response = await fetch(src);
+    const response = await fetch(resolvedSrc);
 
     if (!response.ok) {
       console.warn(`Failed to fetch remote image (${response.status})`);
-      return { url: src, key: null };
+      return { url: resolvedSrc, key: null };
     }
 
     const arrayBuffer = await response.arrayBuffer();
@@ -168,6 +176,6 @@ export async function storeImageSrcToSupabase(src: string, filenameHint = "image
     return uploadBufferToStorage(bytes, contentType, filenameHint);
   } catch (error) {
     console.warn("storeImageSrcToSupabase fetch failed", error);
-    return { url: src, key: null };
+    return { url: resolvedSrc, key: null };
   }
 }
