@@ -34,7 +34,7 @@ export function ProducerConsoleTab({ selectedCapsule, notification }: ProducerCo
       {notification ? (
         <StudioNotificationBanner
           notification={notification}
-          className={styles.encoderBanner}
+          className={styles.encoderBanner ?? ""}
         />
       ) : null}
       <div className={styles.producerColumn}>

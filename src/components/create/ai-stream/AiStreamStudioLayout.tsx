@@ -972,10 +972,11 @@ const renderEncoderContent = () => {
 };
 
   const renderClipsContent = () => {
+    const encoderBannerClassName = styles.encoderBanner ?? "";
     const notificationBanner = encoderNotification ? (
       <StudioNotificationBanner
         notification={encoderNotification}
-        className={styles.encoderBanner}
+        className={encoderBannerClassName}
       />
     ) : null;
 

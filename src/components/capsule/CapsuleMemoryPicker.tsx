@@ -5,36 +5,21 @@ import { ImagesSquare, ArrowClockwise, X } from "@phosphor-icons/react/dist/ssr"
 
 import styles from "./CapsuleCustomizer.module.css";
 import { Button } from "@/components/ui/button";
-import type { CapsuleMemoryState, SelectedBanner } from "./hooks/useCapsuleCustomizerState";
-import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
+import {
+  useCapsuleCustomizerMemory,
+  useCapsuleCustomizerPreview,
+} from "./hooks/capsuleCustomizerContext";
 
-type CapsuleMemoryPickerProps = {
-  open: boolean;
-  processedMemories: DisplayMemoryUpload[];
-  selectedBanner: SelectedBanner | null;
-  state: Pick<CapsuleMemoryState, "loading" | "error" | "user">;
-  onClose: () => void;
-  onQuickPick: () => void;
-  onRefresh: () => void;
-  onPick: (memory: DisplayMemoryUpload) => void;
-};
+export function CapsuleMemoryPicker() {
+  const memory = useCapsuleCustomizerMemory();
+  const preview = useCapsuleCustomizerPreview();
 
-export function CapsuleMemoryPicker({
-  open,
-  processedMemories,
-  selectedBanner,
-  state,
-  onClose,
-  onQuickPick,
-  onRefresh,
-  onPick,
-}: CapsuleMemoryPickerProps) {
-  if (!open) return null;
+  if (!memory.isPickerOpen) return null;
 
-  const { loading, error, user } = state;
+  const { loading, error, user } = memory;
 
   return (
-    <div className={styles.memoryPickerOverlay} role="presentation" onClick={onClose}>
+    <div className={styles.memoryPickerOverlay} role="presentation" onClick={memory.closePicker}>
       <div
         id="memory-picker-dialog"
         className={styles.memoryPickerPanel}
@@ -46,7 +31,7 @@ export function CapsuleMemoryPicker({
         <button
           type="button"
           className={`${styles.closeButton} ${styles.memoryPickerClose}`}
-          onClick={onClose}
+          onClick={memory.closePicker}
           aria-label="Close memory picker"
         >
           <X size={18} weight="bold" />
@@ -61,9 +46,9 @@ export function CapsuleMemoryPicker({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onQuickPick}
+                onClick={memory.onQuickPick}
                 leftIcon={<ImagesSquare size={16} weight="bold" />}
-                disabled={!processedMemories.length}
+                disabled={!memory.processedMemories.length}
               >
                 Quick pick
               </Button>
@@ -71,7 +56,7 @@ export function CapsuleMemoryPicker({
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  void onRefresh();
+                  void memory.refresh();
                 }}
                 leftIcon={<ArrowClockwise size={16} weight="bold" />}
                 disabled={loading}
@@ -85,28 +70,30 @@ export function CapsuleMemoryPicker({
               <p className={styles.memoryStatus}>Sign in to access your memories.</p>
             ) : error ? (
               <p className={styles.memoryStatus}>{error}</p>
-            ) : !processedMemories.length ? (
+            ) : !memory.processedMemories.length ? (
               <p className={styles.memoryStatus}>
                 {loading ? "Loading your memories..." : "No memories found yet."}
               </p>
             ) : (
               <div className={styles.memoryGrid}>
-                {processedMemories.map((memory) => {
+                {memory.processedMemories.map((memoryItem) => {
                   const selected =
-                    selectedBanner?.kind === "memory" && selectedBanner.id === memory.id;
+                    preview.selected?.kind === "memory" && preview.selected.id === memoryItem.id;
                   const alt =
-                    memory.title?.trim() || memory.description?.trim() || "Capsule memory preview";
+                    memoryItem.title?.trim() ||
+                    memoryItem.description?.trim() ||
+                    "Capsule memory preview";
                   return (
                     <button
-                      key={memory.id}
+                      key={memoryItem.id}
                       type="button"
                       className={styles.memoryCard}
                       data-selected={selected ? "true" : undefined}
-                      onClick={() => onPick(memory)}
+                      onClick={() => memory.onPickMemory(memoryItem)}
                       aria-label={`Use memory ${alt}`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={memory.displayUrl} alt={alt} loading="lazy" />
+                      <img src={memoryItem.displayUrl} alt={alt} loading="lazy" />
                     </button>
                   );
                 })}

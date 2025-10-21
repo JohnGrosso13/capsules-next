@@ -239,12 +239,24 @@ export function CapsuleContent({
     tileCustomizerOpen,
   ]);
 
+  const lastMembershipBannerRef = React.useRef<string | null | undefined>(undefined);
   React.useEffect(() => {
-    setBannerUrlOverride(membership?.capsule?.bannerUrl ?? null);
+    const next = membership?.capsule?.bannerUrl ?? null;
+    if (lastMembershipBannerRef.current === next) {
+      return;
+    }
+    lastMembershipBannerRef.current = next;
+    setBannerUrlOverride(next);
   }, [membership?.capsule?.bannerUrl]);
 
+  const lastMembershipStoreBannerRef = React.useRef<string | null | undefined>(undefined);
   React.useEffect(() => {
-    setStoreBannerUrlOverride(membership?.capsule?.storeBannerUrl ?? null);
+    const next = membership?.capsule?.storeBannerUrl ?? null;
+    if (lastMembershipStoreBannerRef.current === next) {
+      return;
+    }
+    lastMembershipStoreBannerRef.current = next;
+    setStoreBannerUrlOverride(next);
   }, [membership?.capsule?.storeBannerUrl]);
 
   React.useEffect(() => {

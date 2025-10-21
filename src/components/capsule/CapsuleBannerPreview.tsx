@@ -4,23 +4,10 @@ import * as React from "react";
 import { ShareFat, Sparkle, UsersThree } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./CapsuleCustomizer.module.css";
-import type { CapsuleCustomizerMode, SelectedBanner } from "./hooks/useCapsuleCustomizerState";
-
-type CapsuleBannerPreviewProps = {
-  mode: CapsuleCustomizerMode;
-  stageRef: React.RefObject<HTMLDivElement | null>;
-  imageRef: React.RefObject<HTMLImageElement | null>;
-  selectedBanner: SelectedBanner | null;
-  previewOffset: { x: number; y: number };
-  previewScale: number;
-  previewAlt: string;
-  normalizedName: string;
-  isDragging: boolean;
-  previewPannable: boolean;
-  stageAriaLabel: string;
-  onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
-  onImageLoad: () => void;
-};
+import {
+  useCapsuleCustomizerMeta,
+  useCapsuleCustomizerPreview,
+} from "./hooks/capsuleCustomizerContext";
 
 function buildInitials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -37,21 +24,22 @@ function buildInitials(name: string): string {
   return fallback ? fallback.toUpperCase() : "U";
 }
 
-export function CapsuleBannerPreview({
-  mode,
-  stageRef,
-  imageRef,
-  selectedBanner,
-  previewOffset,
-  previewScale,
-  previewAlt,
-  normalizedName,
-  isDragging,
-  previewPannable,
-  stageAriaLabel,
-  onPointerDown,
-  onImageLoad,
-}: CapsuleBannerPreviewProps) {
+export function CapsuleBannerPreview() {
+  const meta = useCapsuleCustomizerMeta();
+  const preview = useCapsuleCustomizerPreview();
+  const { selected: selectedBanner, previewOffset, previewScale } = preview;
+
+  const mode = meta.mode;
+  const stageRef = preview.stageRef;
+  const imageRef = preview.imageRef;
+  const normalizedName = meta.normalizedName;
+  const previewAlt = meta.previewAlt;
+  const isDragging = preview.isDragging;
+  const previewPannable = preview.previewPannable;
+  const stageAriaLabel = meta.stageAriaLabel;
+  const onPointerDown = preview.onPointerDown;
+  const onImageLoad = preview.onImageLoad;
+
   const logoInitial = normalizedName.trim().charAt(0).toUpperCase() || "C";
   const avatarInitial = buildInitials(normalizedName);
   let content: React.ReactNode;

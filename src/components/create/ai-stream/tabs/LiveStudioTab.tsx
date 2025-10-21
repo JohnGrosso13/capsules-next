@@ -57,13 +57,15 @@ export function LiveStudioTab({
   panelStorage,
   streamOverview,
   overviewLoading,
-  _overviewError,
+  overviewError: overviewErrorMessage,
   actionBusy,
   uptimeSeconds,
   notification,
   onEnsureStream,
   onNavigateToEncoder,
 }: LiveStudioTabProps) {
+  const encoderBannerClassName = styles.encoderBanner ?? "";
+
   if (selectorOpen || !selectedCapsule) {
     return (
       <AiStreamCapsuleGate
@@ -96,7 +98,7 @@ export function LiveStudioTab({
               {notification ? (
                 <StudioNotificationBanner
                   notification={notification}
-                  className={styles.encoderBanner}
+                  className={encoderBannerClassName}
                 />
               ) : null}
               <div className={`${styles.previewPanel} ${styles.panelCard}`}>
@@ -106,10 +108,13 @@ export function LiveStudioTab({
                     <div className={styles.previewSubtitle}>
                       {streamOverview
                         ? `Status: ${streamOverview.health.status}`
-                        : overviewLoading
-                          ? "Checking Mux live stream..."
-                          : "Mux live stream not yet configured."}
+                      : overviewLoading
+                        ? "Checking Mux live stream..."
+                        : "Mux live stream not yet configured."}
                     </div>
+                    {overviewErrorMessage ? (
+                      <div className={styles.previewSubtitle}>{overviewErrorMessage}</div>
+                    ) : null}
                   </div>
                   <div className={styles.previewActions}>
                     <Button variant="outline" size="sm" onClick={onNavigateToEncoder}>

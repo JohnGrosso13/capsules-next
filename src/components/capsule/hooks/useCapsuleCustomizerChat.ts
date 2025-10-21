@@ -15,6 +15,8 @@ import {
   type PromptHistorySnapshot,
   type SelectedBanner,
 } from "./capsuleCustomizerTypes";
+import { buildPromptEnvelope } from "./capsulePromptUtils";
+import { base64ToFile } from "./capsuleImageUtils";
 
 const MAX_PROMPT_REFINEMENTS = 4;
 const ASPECT_TOLERANCE = 0.0025;
@@ -47,7 +49,7 @@ type UseCustomizerChatOptions = {
   updateSelectedBanner: (banner: SelectedBanner | null) => void;
   setSelectedBanner: React.Dispatch<React.SetStateAction<SelectedBanner | null>>;
   selectedBannerRef: React.MutableRefObject<SelectedBanner | null>;
-  setSaveError: React.Dispatch<React.SetStateAction<string | null>>;
+  setSaveError: (value: string | null) => void;
   fetchMemoryAssetUrl: (memoryId: string) => Promise<string>;
 };
 
@@ -56,24 +58,6 @@ function randomId(): string {
     return crypto.randomUUID();
   }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function base64ToFile(base64: string, mimeType: string, filename: string): File | null {
-  if (typeof atob !== "function") {
-    console.warn("capsule banner: base64 decoding not supported in this environment");
-    return null;
-  }
-  try {
-    const binary = atob(base64);
-    const buffer = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      buffer[index] = binary.charCodeAt(index);
-    }
-    return new File([buffer], filename, { type: mimeType });
-  } catch (error) {
-    console.warn("capsule banner: failed to decode base64 image", error);
-    return null;
-  }
 }
 
 function ensureSentence(text: string): string {
@@ -577,25 +561,23 @@ export function useCapsuleCustomizerChat({
               refinements: [],
               sourceKey: currentSourceKey,
             };
-          } else {
-            const nextRefinements = [...promptHistoryRef.current.refinements, trimmed];
-            const boundedRefinements = nextRefinements.slice(-MAX_PROMPT_REFINEMENTS);
-            const refinementsBeforeLatest =
-              boundedRefinements.length > 1 ? boundedRefinements.slice(0, -1) : [];
-            const latestRefinement =
-              boundedRefinements[boundedRefinements.length - 1] ?? trimmed;
-            promptForRequest = [
-              promptHistoryRef.current.base,
-              ...refinementsBeforeLatest,
-              latestRefinement,
-            ]
-              .filter((part): part is string => Boolean(part && part.trim().length))
-              .join("\n\n");
-            promptHistoryRef.current = {
-              base: promptHistoryRef.current.base,
-              refinements: boundedRefinements,
-              sourceKey: currentSourceKey,
-            };
+        } else {
+          const nextRefinements = [...promptHistoryRef.current.refinements, trimmed];
+          const boundedRefinements = nextRefinements.slice(-MAX_PROMPT_REFINEMENTS);
+          const refinementsBeforeLatest =
+            boundedRefinements.length > 1 ? boundedRefinements.slice(0, -1) : [];
+          const latestRefinement =
+            boundedRefinements[boundedRefinements.length - 1] ?? trimmed;
+          promptForRequest = buildPromptEnvelope(
+            promptHistoryRef.current.base,
+            refinementsBeforeLatest,
+            latestRefinement,
+          );
+          promptHistoryRef.current = {
+            base: promptHistoryRef.current.base,
+            refinements: boundedRefinements,
+            sourceKey: currentSourceKey,
+          };
           }
 
           const body: Record<string, unknown> = {

@@ -15,6 +15,7 @@ import {
   capsuleMembershipActionSchema,
   capsuleMembershipResponseSchema,
 } from "@/server/validation/schemas/capsules";
+import { deriveRequestOrigin } from "@/lib/url";
 
 const paramsSchema = z.object({
   id: z.string().uuid("capsule id must be a valid UUID"),
@@ -44,9 +45,12 @@ export async function GET(req: Request, context: CapsuleMembershipRouteContext) 
   }
 
   const viewerId = await ensureUserFromRequest(req, {}, { allowGuests: true });
+  const requestOrigin = deriveRequestOrigin(req);
 
   try {
-    const membership = await getCapsuleMembership(parsedParams.data.id, viewerId);
+    const membership = await getCapsuleMembership(parsedParams.data.id, viewerId, {
+      origin: requestOrigin ?? null,
+    });
     return validatedJson(capsuleMembershipResponseSchema, { membership });
   } catch (error) {
     if (error instanceof CapsuleMembershipError) {
@@ -75,34 +79,49 @@ export async function POST(req: Request, context: CapsuleMembershipRouteContext)
   }
 
   const { action, message, requestId, memberId, role } = parsedBody.data;
+  const requestOrigin = deriveRequestOrigin(req) ?? null;
 
   try {
     let membership;
     switch (action) {
       case "request_join": {
         const requestOptions = typeof message === "string" ? { message } : {};
-        membership = await requestCapsuleMembership(actorId, parsedParams.data.id, requestOptions);
+        membership = await requestCapsuleMembership(actorId, parsedParams.data.id, requestOptions, {
+          origin: requestOrigin,
+        });
         break;
       }
       case "approve_request": {
         if (!requestId) {
           return returnError(400, "invalid_request", "requestId is required to approve a request.");
         }
-        membership = await approveCapsuleMemberRequest(actorId, parsedParams.data.id, requestId);
+        membership = await approveCapsuleMemberRequest(
+          actorId,
+          parsedParams.data.id,
+          requestId,
+          { origin: requestOrigin },
+        );
         break;
       }
       case "decline_request": {
         if (!requestId) {
           return returnError(400, "invalid_request", "requestId is required to decline a request.");
         }
-        membership = await declineCapsuleMemberRequest(actorId, parsedParams.data.id, requestId);
+        membership = await declineCapsuleMemberRequest(
+          actorId,
+          parsedParams.data.id,
+          requestId,
+          { origin: requestOrigin },
+        );
         break;
       }
       case "remove_member": {
         if (!memberId) {
           return returnError(400, "invalid_request", "memberId is required to remove a member.");
         }
-        membership = await removeCapsuleMember(actorId, parsedParams.data.id, memberId);
+        membership = await removeCapsuleMember(actorId, parsedParams.data.id, memberId, {
+          origin: requestOrigin,
+        });
         break;
       }
       case "set_role": {
@@ -112,7 +131,13 @@ export async function POST(req: Request, context: CapsuleMembershipRouteContext)
         if (!role) {
           return returnError(400, "invalid_request", "role is required to set a member role.");
         }
-        membership = await setCapsuleMemberRole(actorId, parsedParams.data.id, memberId, role);
+        membership = await setCapsuleMemberRole(
+          actorId,
+          parsedParams.data.id,
+          memberId,
+          role,
+          { origin: requestOrigin },
+        );
         break;
       }
       default:

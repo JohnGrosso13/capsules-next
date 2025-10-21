@@ -3,7 +3,6 @@
 import * as React from "react";
 
 import {
-  bannerSourceKey,
   isCroppableBanner,
   type BannerCrop,
   type CapsuleCustomizerMode,
@@ -24,13 +23,6 @@ type PreviewMetrics = {
   scale: number;
 };
 
-type ComposeAssetResult = {
-  blob: Blob;
-  width: number;
-  height: number;
-  mimeType: "image/jpeg";
-};
-
 type UseCustomizerPreviewParams = {
   assetLabel: string;
   customizerMode: CapsuleCustomizerMode;
@@ -39,7 +31,6 @@ type UseCustomizerPreviewParams = {
   setSelectedBanner: React.Dispatch<React.SetStateAction<SelectedBanner | null>>;
   onCropUpdate: (banner: CroppableBanner) => void;
   resetSaveError: () => void;
-  fetchMemoryAssetUrl: (memoryId: string) => Promise<string>;
 };
 
 const PREVIEW_SCALE_BUFFER = 0.015;
@@ -72,7 +63,6 @@ export function useCapsuleCustomizerPreview({
   setSelectedBanner,
   onCropUpdate,
   resetSaveError,
-  fetchMemoryAssetUrl,
 }: UseCustomizerPreviewParams) {
   const previewStageRef = React.useRef<HTMLDivElement | null>(null);
   const previewImageRef = React.useRef<HTMLImageElement | null>(null);
@@ -236,187 +226,6 @@ export function useCapsuleCustomizerPreview({
     }
   }, [applyPreviewOffset]);
 
-  const loadImageElement = React.useCallback(
-    (src: string, allowCrossOrigin: boolean): Promise<HTMLImageElement> =>
-      new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        if (allowCrossOrigin) {
-          img.crossOrigin = "anonymous";
-        }
-        img.decoding = "async";
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error(`Failed to load image for ${assetLabel} preview.`));
-        img.src = src;
-      }),
-    [assetLabel],
-  );
-
-  const composeAssetImage = React.useCallback(async (): Promise<ComposeAssetResult> => {
-    if (!selectedBanner || selectedBanner.kind === "ai") {
-      throw new Error(`Choose an image before saving your ${assetLabel}.`);
-    }
-
-    const crop = selectedBanner.crop ?? { offsetX: 0, offsetY: 0 };
-
-    const candidateUrls: string[] = [];
-    const revokeUrls: string[] = [];
-    let allowCrossOrigin = true;
-
-    if (selectedBanner.kind === "memory" && selectedBanner.id) {
-      try {
-        const proxiedUrl = await fetchMemoryAssetUrl(selectedBanner.id);
-        if (proxiedUrl) {
-          candidateUrls.push(proxiedUrl);
-          revokeUrls.push(proxiedUrl);
-        }
-      } catch (error) {
-        console.warn("memory proxy fetch failed", error);
-      }
-    }
-
-    if (selectedBanner.kind === "upload" && selectedBanner.file instanceof File) {
-      const objectUrl = URL.createObjectURL(selectedBanner.file);
-      candidateUrls.push(objectUrl);
-      revokeUrls.push(objectUrl);
-      allowCrossOrigin = false;
-    } else if (selectedBanner.kind === "memory") {
-      if (selectedBanner.fullUrl) candidateUrls.push(selectedBanner.fullUrl);
-      if (selectedBanner.url && selectedBanner.url !== selectedBanner.fullUrl) {
-        candidateUrls.push(selectedBanner.url);
-      }
-    } else if (selectedBanner.url) {
-      candidateUrls.push(selectedBanner.url);
-    }
-
-    if (!candidateUrls.length) {
-      throw new Error(`No ${assetLabel} image available.`);
-    }
-
-    let img: HTMLImageElement | null = null;
-    let lastError: unknown = null;
-
-    for (const candidate of candidateUrls) {
-      const isBlob =
-        candidate.startsWith("blob:") ||
-        candidate.startsWith("data:") ||
-        candidate.startsWith("file:");
-      try {
-        img = await loadImageElement(candidate, allowCrossOrigin && !isBlob);
-        break;
-      } catch (error) {
-        lastError = error;
-        if (!isBlob) {
-          try {
-            const response = await fetch(candidate, { mode: "cors" });
-            if (!response.ok) {
-              throw new Error(`Image fetch failed with status ${response.status}`);
-            }
-            const fetchedBlob = await response.blob();
-            const fetchedUrl = URL.createObjectURL(fetchedBlob);
-            revokeUrls.push(fetchedUrl);
-            img = await loadImageElement(fetchedUrl, false);
-            break;
-          } catch (fetchError) {
-            lastError = fetchError;
-            continue;
-          }
-        }
-      }
-    }
-
-  if (!img) {
-      revokeUrls.forEach((url) => URL.revokeObjectURL(url));
-      throw lastError instanceof Error
-        ? lastError
-        : new Error(`Failed to load image for ${assetLabel} preview.`);
-    }
-
-    if (revokeUrls.length) {
-      queueMicrotask(() => {
-        revokeUrls.forEach((url) => URL.revokeObjectURL(url));
-      });
-    }
-
-    const naturalWidth = img.naturalWidth || img.width;
-    const naturalHeight = img.naturalHeight || img.height;
-    if (!naturalWidth || !naturalHeight) {
-      throw new Error("Unable to read image dimensions.");
-    }
-
-    const { maxWidth, maxHeight, aspectRatio } =
-      customizerMode === "tile"
-        ? { maxWidth: 1080, maxHeight: 1920, aspectRatio: 9 / 16 }
-        : customizerMode === "logo" || customizerMode === "avatar"
-          ? { maxWidth: 1024, maxHeight: 1024, aspectRatio: 1 }
-          : customizerMode === "storeBanner"
-            ? { maxWidth: 1600, maxHeight: 640, aspectRatio: 5 / 2 }
-            : { maxWidth: 1600, maxHeight: 900, aspectRatio: 16 / 9 };
-
-    let targetWidth = Math.min(maxWidth, naturalWidth);
-    let targetHeight = Math.round(targetWidth / aspectRatio);
-    if (targetHeight > naturalHeight) {
-      targetHeight = Math.min(maxHeight, naturalHeight);
-      targetWidth = Math.round(targetHeight * aspectRatio);
-    }
-    if (!Number.isFinite(targetWidth) || targetWidth <= 0) {
-      targetWidth = maxWidth;
-    }
-    if (!Number.isFinite(targetHeight) || targetHeight <= 0) {
-      targetHeight = maxHeight;
-    }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(targetWidth));
-    canvas.height = Math.max(1, Math.round(targetHeight));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Failed to prepare drawing context.");
-    }
-
-    const scale = Math.max(canvas.width / naturalWidth, canvas.height / naturalHeight);
-    const scaledWidth = naturalWidth * scale;
-    const scaledHeight = naturalHeight * scale;
-    const maxOffsetX = Math.max(0, scaledWidth - canvas.width);
-    const maxOffsetY = Math.max(0, scaledHeight - canvas.height);
-
-    const offsetX = clamp(
-      Math.round(maxOffsetX / 2 - (maxOffsetX / 2) * clampBias(crop.offsetX)),
-      0,
-      maxOffsetX,
-    );
-    const offsetY = clamp(
-      Math.round(maxOffsetY / 2 - (maxOffsetY / 2) * clampBias(crop.offsetY)),
-      0,
-      maxOffsetY,
-    );
-
-    ctx.drawImage(
-      img,
-      offsetX,
-      offsetY,
-      canvas.width / scale,
-      canvas.height / scale,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-    );
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((value) => {
-        if (value) resolve(value);
-        else reject(new Error("Failed to prepare asset export."));
-      }, "image/jpeg");
-    });
-
-    return {
-      blob,
-      width: canvas.width,
-      height: canvas.height,
-      mimeType: "image/jpeg" as const,
-    };
-  }, [assetLabel, customizerMode, fetchMemoryAssetUrl, loadImageElement, selectedBanner]);
-
   const handlePreviewPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!previewDraggable || !previewPannable) return;
@@ -524,6 +333,5 @@ export function useCapsuleCustomizerPreview({
       onImageLoad: measurePreview,
     },
     updateSelectedBanner,
-    composeAssetImage,
   } as const;
 }

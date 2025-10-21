@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -559,7 +560,12 @@ export function ExternalEncoderTab({
                   ) : qrError ? (
                     <div className={styles.encoderQrError}>{qrError}</div>
                   ) : qrImageDataUrl ? (
-                    <img src={qrImageDataUrl} alt="OBS mobile ingest QR code" />
+                    <Image
+                      src={qrImageDataUrl}
+                      alt="OBS mobile ingest QR code"
+                      width={200}
+                      height={200}
+                    />
                   ) : (
                     <div className={styles.encoderQrPlaceholder}>
                       Start streaming to generate a mobile ingest QR.

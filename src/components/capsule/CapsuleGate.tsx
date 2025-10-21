@@ -178,31 +178,62 @@ export function CapsuleGate({
   selectorTitle = "Choose a Capsule",
   selectorSubtitle = "Pick a space to open and jump back into the action.",
 }: CapsuleGateProps) {
+  const [capsuleList, setCapsuleList] = React.useState<CapsuleSummary[]>(() => capsules);
+
+  React.useEffect(() => {
+    setCapsuleList(capsules);
+  }, [capsules]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleBannerUpdate = (rawEvent: Event) => {
+      const event = rawEvent as CustomEvent<{ capsuleId?: string | null; bannerUrl?: string | null }>;
+      const capsuleId = event.detail?.capsuleId;
+      if (!capsuleId) return;
+      const nextBannerUrl = event.detail?.bannerUrl ?? null;
+      setCapsuleList((previous) => {
+        let changed = false;
+        const nextList = previous.map((capsule) => {
+          if (capsule.id !== capsuleId) return capsule;
+          if (capsule.bannerUrl === nextBannerUrl) return capsule;
+          changed = true;
+          return { ...capsule, bannerUrl: nextBannerUrl };
+        });
+        return changed ? nextList : previous;
+      });
+    };
+
+    window.addEventListener("capsule:banner-updated", handleBannerUpdate);
+    return () => {
+      window.removeEventListener("capsule:banner-updated", handleBannerUpdate);
+    };
+  }, []);
+
   const ownedCapsules = React.useMemo(
-    () => capsules.filter((capsule) => capsule.ownership === "owner"),
-    [capsules],
+    () => capsuleList.filter((capsule) => capsule.ownership === "owner"),
+    [capsuleList],
   );
   const memberCapsules = React.useMemo(
-    () => capsules.filter((capsule) => capsule.ownership !== "owner"),
-    [capsules],
+    () => capsuleList.filter((capsule) => capsule.ownership !== "owner"),
+    [capsuleList],
   );
   const hasOwnedCapsule = ownedCapsules.length > 0;
   const hasMemberCapsules = memberCapsules.length > 0;
   const knownCapsuleIds = React.useMemo(
-    () => new Set(capsules.map((capsule) => capsule.id)),
-    [capsules],
+    () => new Set(capsuleList.map((capsule) => capsule.id)),
+    [capsuleList],
   );
   const startInSelector = forceSelector || !hasOwnedCapsule;
   const resolvedDefaultId = React.useMemo(() => {
-    if (!capsules.length) return null;
+    if (!capsuleList.length) return null;
     if (defaultCapsuleId && knownCapsuleIds.has(defaultCapsuleId)) return defaultCapsuleId;
     if (hasOwnedCapsule) return ownedCapsules[0]?.id ?? null;
-    return capsules[0]?.id ?? null;
-  }, [capsules, defaultCapsuleId, hasOwnedCapsule, knownCapsuleIds, ownedCapsules]);
+    return capsuleList[0]?.id ?? null;
+  }, [capsuleList, defaultCapsuleId, hasOwnedCapsule, knownCapsuleIds, ownedCapsules]);
   const [activeId, setActiveId] = React.useState<string | null>(() =>
     startInSelector ? null : resolvedDefaultId,
   );
-  const canSwitchCapsules = startInSelector || capsules.length > 1;
+  const canSwitchCapsules = startInSelector || capsuleList.length > 1;
   const shouldAutoActivate = autoActivate !== false;
   const router = useRouter();
   const pathname = usePathname();
@@ -211,13 +242,13 @@ export function CapsuleGate({
 
   const handleSelect = React.useCallback(
     (capsuleId: string) => {
-      const capsule = capsules.find((entry) => entry.id === capsuleId) ?? null;
+      const capsule = capsuleList.find((entry) => entry.id === capsuleId) ?? null;
       onCapsuleChosen?.(capsule);
       if (shouldAutoActivate) {
         setActiveId(capsuleId);
       }
     },
-    [capsules, onCapsuleChosen, shouldAutoActivate, setActiveId],
+    [capsuleList, onCapsuleChosen, shouldAutoActivate, setActiveId],
   );
 
   const syncUrl = React.useCallback(
@@ -272,12 +303,12 @@ export function CapsuleGate({
       return;
     }
     setActiveId((previous) => {
-      if (previous && capsules.some((capsule) => capsule.id === previous)) {
+      if (previous && capsuleList.some((capsule) => capsule.id === previous)) {
         return previous;
       }
       return resolvedDefaultId;
     });
-  }, [capsules, resolvedDefaultId, startInSelector]);
+  }, [capsuleList, resolvedDefaultId, startInSelector]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -305,8 +336,8 @@ export function CapsuleGate({
 
   const activeCapsule = React.useMemo(() => {
     if (!activeId) return null;
-    return capsules.find((capsule) => capsule.id === activeId) ?? null;
-  }, [activeId, capsules]);
+    return capsuleList.find((capsule) => capsule.id === activeId) ?? null;
+  }, [activeId, capsuleList]);
 
   React.useEffect(() => {
     if (!shouldAutoActivate) return;
@@ -318,7 +349,7 @@ export function CapsuleGate({
     window.dispatchEvent(new CustomEvent("capsule:live-chat", { detail }));
   }, [activeCapsule?.id, activeCapsule?.name, shouldAutoActivate]);
 
-  if (!capsules.length) {
+  if (!capsuleList.length) {
     return (
       <div className={styles.gateWrap}>
         <div className={styles.gateCard}>

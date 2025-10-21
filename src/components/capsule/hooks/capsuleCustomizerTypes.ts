@@ -57,6 +57,13 @@ export function bannerSourceKey(banner: SelectedBanner | null): string | null {
 
 export type ChatRole = "assistant" | "user";
 
+export type CapsuleCustomizerSaveResult =
+  | { type: "banner"; bannerUrl: string | null }
+  | { type: "storeBanner"; storeBannerUrl: string | null }
+  | { type: "tile"; tileUrl: string | null }
+  | { type: "logo"; logoUrl: string | null }
+  | { type: "avatar"; avatarUrl: string | null };
+
 export type PromptHistorySnapshot = {
   base: string | null;
   refinements: string[];
