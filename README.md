@@ -95,3 +95,4 @@ Direct upload support, background processing, and worker configuration are docum
   - `src/app/api/ai/image/edit/route.ts` – edits an existing image by instruction.
 - Video attachments are supported in the prompter picker (images and videos). The upload pipeline remains unchanged.
 - The system is designed to extend with more tools (documents, tournaments, ladders) with minimal UI/logic changes.
+- Phase 1 introduces user-first prompt composition with optional style presets (`docs/reference/style-modifiers.md`) and persistent run logging (`docs/reference/ai-image-runs.md`). Make sure the web client subscribes to the Ably channel `ai:image:{userId}` to surface streaming prompt/error state in the UI.

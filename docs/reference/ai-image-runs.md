@@ -34,3 +34,14 @@ await generateImageFromPrompt(resolvedPrompt, imageOptions, {
 ```
 
 Supplying the context enables both run persistence and realtime streaming. Calls without the context continue to work without logging.
+
+### Deployment Checklist
+
+- Apply migration `supabase/migrations/202510221205_ai_image_runs.sql` in each environment (`dev`, `staging`, `production`) before deploying code that inserts into the table.  
+  ```bash
+  node scripts/run-sql.mjs \
+    --file supabase/migrations/202510221205_ai_image_runs.sql \
+    --url "$SUPABASE_DB_URL"
+  ```
+- Ensure the web client subscribes to the Ably channel `ai:image:{userId}` (lower-cased) to receive prompt/error updates emitted by the server.
+- Capture the selected `stylePreset` and resolved prompt in logs or UI diagnostics so the team can reuse real examples when iterating in Phase 2.
