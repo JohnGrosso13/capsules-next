@@ -82,6 +82,7 @@ type ComposeDraftOptions = {
   history?: ComposerChatMessage[];
   attachments?: ComposerChatAttachment[];
   capsuleId?: string | null;
+  rawOptions?: Record<string, unknown>;
 };
 const nullableStringSchema = {
   anyOf: [{ type: "string" }, { type: "null" }],
@@ -549,9 +550,9 @@ function buildBasePost(incoming: Record<string, unknown> = {}): DraftPost {
 
 export async function createPostDraft(
   userText: string,
-  options: ComposeDraftOptions = {},
+  context: ComposeDraftOptions = {},
 ): Promise<Record<string, unknown>> {
-  const { history, attachments, capsuleId, rawOptions } = options;
+  const { history, attachments, capsuleId, rawOptions } = context;
   const historyMessages = mapConversationToMessages(history);
   const imageIntent =
     /(image|logo|banner|thumbnail|picture|photo|icon|cover|poster|graphic|illustration|art|avatar|background)\b/i.test(
@@ -737,9 +738,9 @@ export async function createPostDraft(
 export async function createPollDraft(
   userText: string,
   hint: Record<string, unknown> = {},
-  options: ComposeDraftOptions = {},
+  context: ComposeDraftOptions = {},
 ): Promise<PollDraft> {
-  const { history, attachments, capsuleId, rawOptions } = options;
+  const { history, attachments, capsuleId, rawOptions } = context;
   const historyMessages = mapConversationToMessages(history);
   const system = [
     "You are Capsules AI. Create a concise poll from the user instruction.",
@@ -815,9 +816,9 @@ export async function refinePostDraft(
 
   incomingPost: Record<string, unknown>,
 
-  options: ComposeDraftOptions = {},
+  context: ComposeDraftOptions = {},
 ): Promise<Record<string, unknown>> {
-  const { history, attachments, capsuleId, rawOptions } = options;
+  const { history, attachments, capsuleId, rawOptions } = context;
   const historyMessages = mapConversationToMessages(history);
   const base = buildBasePost(incomingPost);
 

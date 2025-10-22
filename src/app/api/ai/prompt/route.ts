@@ -174,9 +174,7 @@ export async function POST(req: Request) {
       : {};
 
   try {
-    let payload:
-      | z.infer<typeof draftPostResponseSchema>
-      | null = null;
+    let payload: unknown;
 
     if (preferPoll) {
       const pollDraft = await createPollDraft(message, pollHint, composeOptions);
@@ -189,7 +187,7 @@ export async function POST(req: Request) {
           poll: pollDraft.poll,
           source: "ai-prompter",
         },
-      };
+      } as z.infer<typeof draftPostResponseSchema>;
     } else if (incomingPost) {
       payload = await refinePostDraft(message, incomingPost, composeOptions);
     } else {

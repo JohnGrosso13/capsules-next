@@ -10,23 +10,19 @@ import { useCapsuleCustomizerSave } from "./useCapsuleCustomizerSave";
 import { useCapsuleCustomizerChat } from "./useCapsuleCustomizerChat";
 import { useCapsuleCustomizerMemory } from "./useCapsuleCustomizerMemory";
 import {
-  type BannerCrop,
   type CapsuleCustomizerMode,
   type CapsuleCustomizerSaveResult,
   type ChatBannerOption,
   type ChatMessage,
   type CroppableBanner,
-  type PromptHistorySnapshot,
   type SelectedBanner,
 } from "./capsuleCustomizerTypes";
 
 export type {
   CapsuleCustomizerMode,
-  BannerCrop,
   SelectedBanner,
   ChatMessage,
   ChatBannerOption,
-  PromptHistorySnapshot,
   CapsuleCustomizerSaveResult,
 } from "./capsuleCustomizerTypes";
 
@@ -184,8 +180,6 @@ export function useCapsuleCustomizerState(
   }, []);
 
   const { previewState, updateSelectedBanner } = useCapsuleCustomizerPreview({
-    assetLabel,
-    customizerMode,
     open,
     selectedBanner,
     setSelectedBanner,
@@ -294,7 +288,7 @@ export function useCapsuleCustomizerState(
     if (node) {
       node.scrollTop = node.scrollHeight;
     }
-  }, [messages, open]);
+  }, [chatLogRef, messages, open]);
 
   const handleClose = React.useCallback(() => {
     onClose();

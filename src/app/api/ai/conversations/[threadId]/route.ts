@@ -25,14 +25,14 @@ const responseSchema = z.object({
 
 export async function GET(
   req: Request,
-  { params }: { params: { threadId: string } },
+  context: { params: Promise<{ threadId: string }> },
 ) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
     return returnError(401, "auth_required", "Sign in to view conversations.");
   }
 
-  const paramsResult = paramsSchema.safeParse(params);
+  const paramsResult = paramsSchema.safeParse(await context.params);
   if (!paramsResult.success) {
     return returnError(400, "invalid_request", "threadId is required.");
   }
@@ -43,7 +43,7 @@ export async function GET(
     return returnError(404, "not_found", "Conversation not found.");
   }
 
-  const normalizedHistory = sanitizeComposerChatHistory(snapshot.history) as ComposerChatMessage[];
+  const normalizedHistory = sanitizeComposerChatHistory(snapshot.history);
 
   return validatedJson(responseSchema, {
     threadId: snapshot.threadId,

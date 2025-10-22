@@ -34,7 +34,6 @@ export async function blobToBase64(blob: Blob): Promise<string> {
     let binary = "";
     for (let index = 0; index < bytes.length; index += CHUNK_SIZE) {
       const chunk = bytes.subarray(index, index + CHUNK_SIZE);
-      // eslint-disable-next-line unicorn/prefer-code-point
       binary += String.fromCharCode(...chunk);
     }
     return btoa(binary);
@@ -74,4 +73,3 @@ export function base64ToFile(base64: string, mimeType: string, filename: string)
     return null;
   }
 }
-

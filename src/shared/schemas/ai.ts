@@ -26,7 +26,7 @@ export const composerChatMessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
   content: z.string(),
   createdAt: z.string(),
-  attachments: z.array(composerAttachmentSchema).optional(),
+  attachments: z.array(composerAttachmentSchema).optional().nullable(),
 });
 
 export const draftPostResponseSchema = z.object({

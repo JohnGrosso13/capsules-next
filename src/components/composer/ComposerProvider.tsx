@@ -315,6 +315,19 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setSidebarStore(loadSidebarSnapshot(sidebarStorageKey));
   }, [sidebarStorageKey]);
 
+  const updateSidebarStore = React.useCallback(
+    (updater: (prev: ComposerSidebarSnapshot) => ComposerSidebarSnapshot) => {
+      setSidebarStore((prev) => {
+        const next = updater(prev);
+        if (typeof window !== "undefined") {
+          saveSidebarSnapshot(sidebarStorageKey, next);
+        }
+        return next;
+      });
+    },
+    [sidebarStorageKey],
+  );
+
   React.useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -324,18 +337,19 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           method: "GET",
           credentials: "include",
         });
-        if (!response.ok) return;
+        if (!response.ok || cancelled) return;
         const payload = (await response.json().catch(() => null)) as {
           conversations?: RemoteConversationSummary[];
         } | null;
-        if (!payload?.conversations || cancelled) return;
+        const conversations = payload?.conversations;
+        if (!conversations?.length || cancelled) return;
         updateSidebarStore((prev) => {
           const merged = new Map<string, ComposerStoredRecentChat>();
           for (const chat of prev.recentChats) {
             const key = chat.threadId ?? chat.id;
             merged.set(key, chat);
           }
-          for (const conversation of payload.conversations) {
+          for (const conversation of conversations) {
             const history = sanitizeComposerChatHistory(conversation.history ?? []);
             const normalizedDraft = normalizeDraftFromPost(
               (conversation.rawPost as Record<string, unknown>) ??
@@ -373,19 +387,6 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [updateSidebarStore, user]);
-
-  const updateSidebarStore = React.useCallback(
-    (updater: (prev: ComposerSidebarSnapshot) => ComposerSidebarSnapshot) => {
-      setSidebarStore((prev) => {
-        const next = updater(prev);
-        if (typeof window !== "undefined") {
-          saveSidebarSnapshot(sidebarStorageKey, next);
-        }
-        return next;
-      });
-    },
-    [sidebarStorageKey],
-  );
 
   const recordRecentChat = React.useCallback(
     (input: {

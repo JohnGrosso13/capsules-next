@@ -1,10 +1,7 @@
 import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import {
-  sanitizeComposerChatHistory,
-  type ComposerChatMessage,
-} from "@/lib/composer/chat-types";
+import { sanitizeComposerChatHistory } from "@/lib/composer/chat-types";
 import { composerChatMessageSchema } from "@/shared/schemas/ai";
 import {
   returnError,
@@ -40,7 +37,7 @@ export async function GET(req: Request) {
     updatedAt: summary.updatedAt,
     draft: summary.draft,
     rawPost: summary.rawPost,
-    history: sanitizeComposerChatHistory(summary.history ?? []) as ComposerChatMessage[],
+    history: sanitizeComposerChatHistory(summary.history ?? []),
   }));
 
   return validatedJson(responseSchema, { conversations });

@@ -5,7 +5,6 @@ import * as React from "react";
 import {
   isCroppableBanner,
   type BannerCrop,
-  type CapsuleCustomizerMode,
   type CroppableBanner,
   type SelectedBanner,
 } from "./capsuleCustomizerTypes";
@@ -24,8 +23,6 @@ type PreviewMetrics = {
 };
 
 type UseCustomizerPreviewParams = {
-  assetLabel: string;
-  customizerMode: CapsuleCustomizerMode;
   open: boolean;
   selectedBanner: SelectedBanner | null;
   setSelectedBanner: React.Dispatch<React.SetStateAction<SelectedBanner | null>>;
@@ -34,30 +31,10 @@ type UseCustomizerPreviewParams = {
 };
 
 const PREVIEW_SCALE_BUFFER = 0.015;
-const ASPECT_TOLERANCE = 0.0025;
-
-const MODE_ASPECT_RATIO: Record<CapsuleCustomizerMode, number> = {
-  banner: 16 / 9,
-  storeBanner: 5 / 2,
-  tile: 9 / 16,
-  logo: 1,
-  avatar: 1,
-};
-
-const AI_CROP_BIAS: Record<CapsuleCustomizerMode, { x: number; y: number }> = {
-  banner: { x: 0, y: -0.18 },
-  storeBanner: { x: 0, y: -0.12 },
-  tile: { x: 0, y: 0 },
-  logo: { x: 0, y: 0 },
-  avatar: { x: 0, y: 0 },
-};
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-const clampBias = (value: number) => clamp(value, -1, 1);
 
 export function useCapsuleCustomizerPreview({
-  assetLabel,
-  customizerMode,
   open,
   selectedBanner,
   setSelectedBanner,
