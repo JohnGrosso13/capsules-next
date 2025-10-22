@@ -12,6 +12,11 @@ import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
 import type { ComposerDraft } from "@/lib/composer/draft";
 import {
+  sanitizeComposerChatHistory,
+  type ComposerChatAttachment,
+  type ComposerChatMessage,
+} from "@/lib/composer/chat-types";
+import {
   buildSidebarStorageKey,
   EMPTY_SIDEBAR_SNAPSHOT,
   loadSidebarSnapshot,
@@ -42,6 +47,9 @@ async function callAiPrompt(
   options?: Record<string, unknown>,
   post?: Record<string, unknown>,
   attachments?: PrompterAttachment[],
+  history?: ComposerChatMessage[],
+  threadId?: string | null,
+  capsuleId?: string | null,
 ): Promise<DraftPostResponse> {
   const body: Record<string, unknown> = { message };
   if (options && Object.keys(options).length) body.options = options;
@@ -54,7 +62,18 @@ async function callAiPrompt(
       size: attachment.size,
       url: attachment.url,
       thumbnailUrl: attachment.thumbnailUrl ?? null,
+      storageKey: attachment.storageKey ?? null,
+      sessionId: attachment.sessionId ?? null,
     }));
+  }
+  if (history && history.length) {
+    body.history = history;
+  }
+  if (threadId) {
+    body.threadId = threadId;
+  }
+  if (capsuleId) {
+    body.capsuleId = capsuleId;
   }
 
   const response = await fetch("/api/ai/prompt", {
@@ -127,6 +146,31 @@ function describeDraftCaption(updatedAt: string): string {
   return `Updated ${formatRelativeTime(updatedAt)}`;
 }
 
+function mapPrompterAttachmentToChat(
+  attachment: PrompterAttachment,
+): ComposerChatAttachment {
+  return {
+    id: attachment.id,
+    name: attachment.name,
+    mimeType: attachment.mimeType,
+    size: attachment.size,
+    url: attachment.url,
+    thumbnailUrl: attachment.thumbnailUrl ?? null,
+    storageKey: attachment.storageKey ?? null,
+    sessionId: attachment.sessionId ?? null,
+  };
+}
+
+type RemoteConversationSummary = {
+  threadId: string;
+  prompt: string;
+  message: string | null;
+  updatedAt: string;
+  draft: Record<string, unknown> | null;
+  rawPost: Record<string, unknown> | null;
+  history: ComposerChatMessage[];
+};
+
 function describeRecentCaption(entry: ComposerStoredRecentChat): string {
   return formatRelativeTime(entry.updatedAt);
 }
@@ -165,6 +209,8 @@ type ComposerState = {
   rawPost: Record<string, unknown> | null;
   message: string | null;
   choices: ComposerChoice[] | null;
+  history: ComposerChatMessage[];
+  threadId: string | null;
 };
 
 type ComposerContextValue = {
@@ -191,6 +237,8 @@ const initialState: ComposerState = {
   rawPost: null,
   message: null,
   choices: null,
+  history: [],
+  threadId: null,
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -267,6 +315,65 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     setSidebarStore(loadSidebarSnapshot(sidebarStorageKey));
   }, [sidebarStorageKey]);
 
+  React.useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const loadRemoteConversations = async () => {
+      try {
+        const response = await fetch("/api/ai/conversations", {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!response.ok) return;
+        const payload = (await response.json().catch(() => null)) as {
+          conversations?: RemoteConversationSummary[];
+        } | null;
+        if (!payload?.conversations || cancelled) return;
+        updateSidebarStore((prev) => {
+          const merged = new Map<string, ComposerStoredRecentChat>();
+          for (const chat of prev.recentChats) {
+            const key = chat.threadId ?? chat.id;
+            merged.set(key, chat);
+          }
+          for (const conversation of payload.conversations) {
+            const history = sanitizeComposerChatHistory(conversation.history ?? []);
+            const normalizedDraft = normalizeDraftFromPost(
+              (conversation.rawPost as Record<string, unknown>) ??
+                (conversation.draft as Record<string, unknown>) ??
+                {},
+            );
+            const entry: ComposerStoredRecentChat = {
+              id: conversation.threadId,
+              prompt: conversation.prompt,
+              message: conversation.message,
+              draft: cloneData(normalizedDraft),
+              rawPost: conversation.rawPost ? cloneData(conversation.rawPost) : null,
+              createdAt: conversation.updatedAt,
+              updatedAt: conversation.updatedAt,
+              history: cloneData(history),
+              threadId: conversation.threadId,
+            };
+            merged.set(conversation.threadId, entry);
+          }
+          const sorted = Array.from(merged.values())
+            .sort((a, b) => {
+              const aTime = Date.parse(a.updatedAt ?? "");
+              const bTime = Date.parse(b.updatedAt ?? "");
+              return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
+            })
+            .slice(0, 20);
+          return { ...prev, recentChats: sorted };
+        });
+      } catch (error) {
+        console.warn("composer remote history fetch failed", error);
+      }
+    };
+    void loadRemoteConversations();
+    return () => {
+      cancelled = true;
+    };
+  }, [updateSidebarStore, user]);
+
   const updateSidebarStore = React.useCallback(
     (updater: (prev: ComposerSidebarSnapshot) => ComposerSidebarSnapshot) => {
       setSidebarStore((prev) => {
@@ -286,24 +393,32 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       message: string | null;
       draft: ComposerDraft;
       rawPost: Record<string, unknown> | null;
+      history: ComposerChatMessage[];
+      threadId: string | null;
     }) => {
       updateSidebarStore((prev) => {
         const now = new Date().toISOString();
+        const entryId = input.threadId ?? safeRandomUUID();
+        const historySlice = input.history.slice(-20);
         const entry: ComposerStoredRecentChat = {
-          id: safeRandomUUID(),
+          id: entryId,
           prompt: input.prompt,
           message: input.message ?? null,
           draft: cloneData(input.draft),
           rawPost: input.rawPost ? cloneData(input.rawPost) : null,
           createdAt: now,
           updatedAt: now,
+          history: cloneData(historySlice),
+          threadId: input.threadId,
         };
         const filtered = prev.recentChats.filter(
-          (item) => item.prompt !== entry.prompt || item.message !== entry.message,
+          (item) =>
+            item.id !== entryId &&
+            (item.threadId ? item.threadId !== entry.threadId : true),
         );
         return {
           ...prev,
-          recentChats: [entry, ...filtered].slice(0, 12),
+          recentChats: [entry, ...filtered].slice(0, 20),
         };
       });
     },
@@ -351,7 +466,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const upsertDraft = React.useCallback(
     (draftState: ComposerState, projectId?: string | null) => {
-      const { draft, rawPost, prompt, message } = draftState;
+      const { draft, rawPost, prompt, message, history, threadId } = draftState;
       if (!draft) return;
       const baseId =
         typeof (rawPost as { client_id?: unknown })?.client_id === "string"
@@ -364,6 +479,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         const now = new Date().toISOString();
         const sanitizedDraft = cloneData(draft);
         const sanitizedRawPost = rawPost ? cloneData(rawPost) : null;
+        const historySlice = cloneData(history.slice(-20));
         const existingIndex = prev.drafts.findIndex((item) => item.id === baseId);
         let drafts = [...prev.drafts];
         if (existingIndex >= 0) {
@@ -377,6 +493,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             rawPost: sanitizedRawPost,
             projectId: assignedProjectId ?? existingDraft.projectId ?? null,
             updatedAt: now,
+            history: historySlice,
+            threadId: threadId ?? existingDraft.threadId ?? null,
           };
         } else {
           drafts = [
@@ -390,6 +508,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               projectId: assignedProjectId ?? null,
               createdAt: now,
               updatedAt: now,
+              history: historySlice,
+              threadId: threadId ?? null,
             },
             ...drafts,
           ];
@@ -436,12 +556,16 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         rawPost: rawPostClone,
         message: entry.message,
         choices: null,
+        history: cloneData(entry.history ?? []),
+        threadId: entry.threadId ?? null,
       }));
       recordRecentChat({
         prompt: entry.prompt,
         message: entry.message,
         draft: draftClone,
         rawPost: rawPostClone,
+        history: entry.history ?? [],
+        threadId: entry.threadId ?? null,
       });
       updateSidebarStore((prev) => {
         const index = prev.drafts.findIndex((draftItem) => draftItem.id === draftId);
@@ -474,6 +598,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         rawPost: rawPostClone,
         message: entry.message,
         choices: null,
+        history: cloneData(entry.history ?? []),
+        threadId: entry.threadId ?? entry.id ?? null,
       }));
       updateSidebarStore((prev) => {
         const found = prev.recentChats.find((chat) => chat.id === chatId);
@@ -532,20 +658,35 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const rawSource = (payload.post ?? {}) as Record<string, unknown>;
       const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
       const draft = normalizeDraftFromPost(rawPost);
-      setState(() => ({
-        open: true,
-        loading: false,
-        prompt,
-        draft,
-        rawPost,
-        message: payload.message ?? null,
-        choices: payload.choices ?? null,
-      }));
+      const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
+      const messageText = payload.message ?? null;
+      let recordedHistory: ComposerChatMessage[] = [];
+      let recordedThreadId: string | null = null;
+      setState((prev) => {
+        const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
+        const historyForState =
+          normalizedHistory.length > 0 ? normalizedHistory : prev.history ?? [];
+        recordedHistory = historyForState;
+        recordedThreadId = nextThreadId;
+        return {
+          open: true,
+          loading: false,
+          prompt,
+          draft,
+          rawPost,
+          message: messageText,
+          choices: payload.choices ?? null,
+          history: historyForState,
+          threadId: nextThreadId,
+        };
+      });
       recordRecentChat({
         prompt,
-        message: payload.message ?? null,
+        message: messageText,
         draft,
         rawPost,
+        history: recordedHistory,
+        threadId: recordedThreadId,
       });
     },
     [activeCapsuleId, recordRecentChat],
@@ -602,28 +743,57 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           console.error("Styler action failed", error);
         }
-        return;
-      }
+      return;
+    }
 
-      if (action.kind === "tool_poll") {
-        const prompt = action.prompt;
-        setState((prev) => ({
+    if (action.kind === "tool_poll") {
+      const prompt = action.prompt;
+      const pendingMessage: ComposerChatMessage = {
+        id: safeRandomUUID(),
+        role: "user",
+        content: prompt,
+        createdAt: new Date().toISOString(),
+        attachments: null,
+      };
+      let baseHistory: ComposerChatMessage[] = [];
+      let threadIdForRequest: string | null = null;
+      setState((prev) => {
+        const existingHistory = prev.history ?? [];
+        baseHistory = existingHistory.slice();
+        const resolvedThreadId = prev.threadId ?? safeRandomUUID();
+        threadIdForRequest = resolvedThreadId;
+        return {
           ...prev,
           open: true,
           loading: true,
           prompt,
           message: null,
           choices: null,
+          history: [...existingHistory, pendingMessage],
+          threadId: resolvedThreadId,
+        };
+      });
+      try {
+        const payload = await callAiPrompt(
+          prompt,
+          { prefer: "poll" },
+          undefined,
+          undefined,
+          baseHistory,
+          threadIdForRequest,
+          activeCapsuleId,
+        );
+        handleAiResponse(prompt, payload);
+      } catch (error) {
+        console.error("Poll tool failed", error);
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          history: baseHistory,
         }));
-        try {
-          const payload = await callAiPrompt(prompt, { prefer: "poll" });
-          handleAiResponse(prompt, payload);
-        } catch (error) {
-          console.error("Poll tool failed", error);
-          setState(initialState);
-        }
-        return;
       }
+      return;
+    }
       // Tool: Logo (generate an image from prompt then open composer)
       if (action.kind === "tool_logo") {
         const prompt = action.prompt;
@@ -652,6 +822,13 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             mediaPrompt: prompt,
             poll: null,
           };
+          const assistantMessage: ComposerChatMessage = {
+            id: safeRandomUUID(),
+            role: "assistant",
+            content: "Generated a logo concept from your prompt.",
+            createdAt: new Date().toISOString(),
+            attachments: null,
+          };
           setState(() => ({
             open: true,
             loading: false,
@@ -661,8 +838,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
               activeCapsuleId,
             ),
-            message: "Generated a logo concept from your prompt.",
+            message: assistantMessage.content,
             choices: null,
+            history: [assistantMessage],
+            threadId: safeRandomUUID(),
           }));
         } catch (error) {
           console.error("Logo tool failed", error);
@@ -700,6 +879,13 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             mediaPrompt: prompt,
             poll: null,
           };
+          const assistantMessage: ComposerChatMessage = {
+            id: safeRandomUUID(),
+            role: "assistant",
+            content: "Updated your image with those vibes.",
+            createdAt: new Date().toISOString(),
+            attachments: null,
+          };
           setState(() => ({
             open: true,
             loading: false,
@@ -709,8 +895,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
               activeCapsuleId,
             ),
-            message: "Updated your image with those vibes.",
+            message: assistantMessage.content,
             choices: null,
+            history: [assistantMessage],
+            threadId: safeRandomUUID(),
           }));
         } catch (error) {
           console.error("Image edit tool failed", error);
@@ -721,16 +909,44 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const prompt = action.kind === "post_ai" ? action.prompt : action.text;
       const composeOptions: Record<string, unknown> | undefined =
         action.kind === "post_ai" ? { compose: action.mode as ComposerMode } : undefined;
-      setState((prev) => ({
-        ...prev,
-        open: true,
-        loading: true,
-        prompt,
-        message: null,
-        choices: null,
-      }));
+      const createdAt = new Date().toISOString();
+      const attachmentForChat =
+        action.attachments?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
+      const pendingMessage: ComposerChatMessage = {
+        id: safeRandomUUID(),
+        role: "user",
+        content: prompt,
+        createdAt,
+        attachments: attachmentForChat.length ? attachmentForChat : null,
+      };
+      let baseHistory: ComposerChatMessage[] = [];
+      let threadIdForRequest: string | null = null;
+      setState((prev) => {
+        const existingHistory = prev.history ?? [];
+        baseHistory = existingHistory.slice();
+        const resolvedThreadId = prev.threadId ?? safeRandomUUID();
+        threadIdForRequest = resolvedThreadId;
+        return {
+          ...prev,
+          open: true,
+          loading: true,
+          prompt,
+          message: null,
+          choices: null,
+          history: [...existingHistory, pendingMessage],
+          threadId: resolvedThreadId,
+        };
+      });
       try {
-        const payload = await callAiPrompt(prompt, composeOptions, undefined, action.attachments);
+        const payload = await callAiPrompt(
+          prompt,
+          composeOptions,
+          undefined,
+          action.attachments,
+          baseHistory,
+          threadIdForRequest,
+          activeCapsuleId,
+        );
         handleAiResponse(prompt, payload);
       } catch (error) {
         console.error("AI prompt failed", error);
@@ -764,27 +980,54 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     async (promptText: string, attachments?: PrompterAttachment[] | null) => {
       const trimmed = promptText.trim();
       if (!trimmed) return;
-      setState((prev) => ({
-        ...prev,
-        loading: true,
-        prompt: trimmed,
-        message: null,
-        choices: null,
-      }));
+      const attachmentList = attachments && attachments.length ? attachments : undefined;
+      const chatAttachments =
+        attachmentList?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
+      const pendingMessage: ComposerChatMessage = {
+        id: safeRandomUUID(),
+        role: "user",
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+        attachments: chatAttachments.length ? chatAttachments : null,
+      };
+      let previousHistory: ComposerChatMessage[] = [];
+      let threadIdForRequest: string | null = null;
+      setState((prev) => {
+        const existingHistory = prev.history ?? [];
+        previousHistory = existingHistory.slice();
+        const resolvedThreadId = prev.threadId ?? safeRandomUUID();
+        threadIdForRequest = resolvedThreadId;
+        return {
+          ...prev,
+          loading: true,
+          prompt: trimmed,
+          message: null,
+          choices: null,
+          history: [...existingHistory, pendingMessage],
+          threadId: resolvedThreadId,
+        };
+      });
       try {
         const payload = await callAiPrompt(
           trimmed,
           undefined,
           state.rawPost ?? undefined,
-          attachments && attachments.length ? attachments : undefined,
+          attachmentList,
+          previousHistory,
+          threadIdForRequest,
+          activeCapsuleId,
         );
         handleAiResponse(trimmed, payload);
       } catch (error) {
         console.error("Composer prompt submit failed", error);
-        setState((prev) => ({ ...prev, loading: false }));
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          history: previousHistory,
+        }));
       }
     },
-    [handleAiResponse, state.rawPost],
+    [activeCapsuleId, handleAiResponse, state.rawPost],
   );
 
   const forceChoiceInternal = React.useCallback(
@@ -796,6 +1039,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           state.prompt,
           { force: key },
           state.rawPost ?? undefined,
+          undefined,
+          state.history,
+          state.threadId,
+          activeCapsuleId,
         );
         handleAiResponse(state.prompt, payload);
       } catch (error) {
@@ -803,7 +1050,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         setState((prev) => ({ ...prev, loading: false }));
       }
     },
-    [state.prompt, state.rawPost, handleAiResponse],
+    [activeCapsuleId, handleAiResponse, state.history, state.prompt, state.rawPost, state.threadId],
   );
 
   const updateDraft = React.useCallback((draft: ComposerDraft) => {
@@ -919,6 +1166,7 @@ export function AiComposerRoot() {
       prompt={state.prompt}
       message={state.message}
       choices={state.choices}
+      history={state.history}
       onChange={updateDraft}
       onClose={close}
       onPost={post}

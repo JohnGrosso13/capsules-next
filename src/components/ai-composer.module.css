@@ -1347,6 +1347,53 @@
   white-space: pre-wrap;
 }
 
+.chatMessageText {
+  white-space: pre-wrap;
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+
+.chatAttachmentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+
+.chatAttachmentLink {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(123, 135, 255, 0.18);
+  background: rgba(123, 135, 255, 0.08);
+  color: inherit;
+  text-decoration: none;
+  max-width: 180px;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.chatAttachmentLink:hover {
+  background: rgba(123, 135, 255, 0.16);
+  border-color: rgba(123, 135, 255, 0.28);
+}
+
+.chatAttachmentPreview {
+  width: 100%;
+  max-height: 120px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.chatAttachmentLabel {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: inherit;
+  word-break: break-word;
+}
+
 .userBubble {
   border-color: rgba(168, 192, 255, 0.36);
   background: linear-gradient(160deg, rgba(80, 112, 255, 0.88), rgba(58, 99, 255, 0.72));

@@ -39,6 +39,7 @@ import {
   type CloudflareImageVariantSet,
 } from "@/lib/cloudflare/images";
 import { buildLocalImageVariants, shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
+import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
@@ -354,6 +355,7 @@ type ComposerFormProps = {
   draft: ComposerDraft | null;
   prompt: string;
   message?: string | null | undefined;
+  history?: ComposerChatMessage[] | null | undefined;
   choices?: ComposerChoice[] | null | undefined;
   sidebar: ComposerSidebarData;
   onChange(draft: ComposerDraft): void;
@@ -373,6 +375,7 @@ export function ComposerForm({
   draft,
   prompt,
   message,
+  history: historyInput,
   choices: _choices,
   sidebar,
   onChange,
@@ -396,9 +399,14 @@ export function ComposerForm({
         mediaPrompt: null,
         poll: null,
         suggestions: [],
-      },
+    },
     [draft],
   );
+
+  const conversationHistory = React.useMemo<ComposerChatMessage[]>(() => {
+    if (!historyInput) return [];
+    return Array.isArray(historyInput) ? historyInput : [];
+  }, [historyInput]);
 
   const pollStructure = React.useMemo(() => ensurePollStructure(workingDraft), [workingDraft]);
 
@@ -881,7 +889,8 @@ export function ComposerForm({
   const canSave = hasDraftContent && !attachmentUploading && !loading;
   const canPost = draftReady && !attachmentUploading && !loading;
 
-  const showWelcomeMessage = !message;
+  const hasConversation = conversationHistory.length > 0;
+  const showWelcomeMessage = !hasConversation;
 
   const [activeSidebarTab, setActiveSidebarTab] = React.useState<SidebarTabKey>("recent");
 
@@ -1082,7 +1091,58 @@ export function ComposerForm({
               </li>
             ) : null}
 
-            {prompt ? (
+            {conversationHistory.length
+              ? conversationHistory.map((entry, index) => {
+                  const role = entry.role === "user" ? "user" : "ai";
+                  const bubbleClass =
+                    role === "user"
+                      ? `${styles.msgBubble} ${styles.userBubble}`
+                      : `${styles.msgBubble} ${styles.aiBubble}`;
+                  const key = entry.id || `${role}-${index}`;
+                  const attachments = Array.isArray(entry.attachments)
+                    ? entry.attachments
+                    : [];
+                  return (
+                    <li key={key} className={styles.msgRow} data-role={role}>
+                      <div className={bubbleClass}>
+                        <div className={styles.chatMessageText}>{entry.content}</div>
+                        {attachments.length ? (
+                          <div className={styles.chatAttachmentList}>
+                            {attachments.map((attachment) => {
+                              const attachmentKey = attachment.id || `${key}-${attachment.name}`;
+                              const isImage = attachment.mimeType.toLowerCase().startsWith("image/");
+                              const previewSrc = attachment.thumbnailUrl ?? attachment.url;
+                              return (
+                                <a
+                                  key={attachmentKey}
+                                  href={attachment.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={styles.chatAttachmentLink}
+                                >
+                                  {isImage && previewSrc ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={previewSrc}
+                                      alt={attachment.name}
+                                      className={styles.chatAttachmentPreview}
+                                    />
+                                  ) : null}
+                                  <span className={styles.chatAttachmentLabel}>
+                                    {attachment.name}
+                                  </span>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })
+              : null}
+
+            {!conversationHistory.length && prompt ? (
               <li className={styles.msgRow} data-role="user">
                 <div className={`${styles.msgBubble} ${styles.userBubble}`}>{prompt}</div>
               </li>
@@ -1127,7 +1187,7 @@ export function ComposerForm({
               </li>
             ) : null}
 
-            {message ? (
+            {!conversationHistory.length && message ? (
               <li className={styles.msgRow} data-role="ai">
                 <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{message}</div>
               </li>

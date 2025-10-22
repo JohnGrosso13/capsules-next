@@ -9,6 +9,7 @@ import type { ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
 import { usePortalHost } from "@/hooks/usePortalHost";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
+import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 
 export type { ComposerDraft } from "@/lib/composer/draft";
 
@@ -19,6 +20,7 @@ type AiComposerDrawerProps = {
   prompt: string;
   message?: string | null;
   choices?: ComposerChoice[] | null;
+  history?: ComposerChatMessage[] | null;
   sidebar: ComposerSidebarData;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
@@ -40,6 +42,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     prompt,
     message,
     choices,
+    history,
     sidebar,
     onChange,
     onClose,
@@ -86,6 +89,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       draft={draft}
       prompt={prompt}
       message={message ?? null}
+      history={history ?? []}
       choices={choices ?? null}
       sidebar={sidebar}
       onChange={onChange}

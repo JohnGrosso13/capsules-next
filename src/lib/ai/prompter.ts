@@ -8,6 +8,7 @@ import { serverEnv } from "../env/server";
 import { getDatabaseAdminClient } from "@/config/database";
 
 import { storeImageSrcToSupabase } from "../supabase/storage";
+import type { ComposerChatAttachment, ComposerChatMessage } from "@/lib/composer/chat-types";
 
 export class AIConfigError extends Error {
   constructor(message: string) {
@@ -43,6 +44,45 @@ type FeedSummary = {
   suggestion: { title: string | null; prompt: string | null } | null;
 };
 
+const HISTORY_MESSAGE_LIMIT = 6;
+
+function summarizeAttachmentForConversation(attachment: ComposerChatAttachment): string {
+  const parts = [attachment.name];
+  if (attachment.mimeType) {
+    parts.push(`(${attachment.mimeType})`);
+  }
+  if (attachment.url) {
+    parts.push(`-> ${attachment.url}`);
+  }
+  return parts.join(" ");
+}
+
+function mapConversationToMessages(
+  history: ComposerChatMessage[] | undefined,
+  limit: number = HISTORY_MESSAGE_LIMIT,
+): ChatMessage[] {
+  if (!history || !Array.isArray(history) || history.length === 0) {
+    return [];
+  }
+  const recent = history.slice(-limit);
+  return recent.map((entry) => {
+    const role = entry.role === "user" ? "user" : "assistant";
+    const attachmentsNote = entry.attachments && entry.attachments.length
+      ? `\n\nAttachments referenced:\n${entry.attachments
+          .map((attachment) => `- ${summarizeAttachmentForConversation(attachment)}`)
+          .join("\n")}`
+      : "";
+    return {
+      role,
+      content: `${entry.content}${attachmentsNote}`.trim(),
+    };
+  });
+}
+type ComposeDraftOptions = {
+  history?: ComposerChatMessage[];
+  attachments?: ComposerChatAttachment[];
+  capsuleId?: string | null;
+};
 const nullableStringSchema = {
   anyOf: [{ type: "string" }, { type: "null" }],
 };
@@ -507,7 +547,12 @@ function buildBasePost(incoming: Record<string, unknown> = {}): DraftPost {
   };
 }
 
-export async function createPostDraft(userText: string): Promise<Record<string, unknown>> {
+export async function createPostDraft(
+  userText: string,
+  options: ComposeDraftOptions = {},
+): Promise<Record<string, unknown>> {
+  const { history, attachments, capsuleId, rawOptions } = options;
+  const historyMessages = mapConversationToMessages(history);
   const imageIntent =
     /(image|logo|banner|thumbnail|picture|photo|icon|cover|poster|graphic|illustration|art|avatar|background)\b/i.test(
       userText,
@@ -537,6 +582,22 @@ export async function createPostDraft(userText: string): Promise<Record<string, 
       .trim();
   }
 
+  const userPayload: Record<string, unknown> = { instruction: userText };
+  if (attachments && attachments.length) {
+    userPayload.attachments = attachments.map((attachment) => ({
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      url: attachment.url,
+      thumbnailUrl: attachment.thumbnailUrl ?? null,
+    }));
+  }
+  if (capsuleId) {
+    userPayload.capsuleId = capsuleId;
+  }
+  if (rawOptions && Object.keys(rawOptions).length) {
+    userPayload.options = rawOptions;
+  }
+
   const messages: ChatMessage[] = [
     {
       role: "system",
@@ -552,10 +613,12 @@ export async function createPostDraft(userText: string): Promise<Record<string, 
       ].join(" "),
     },
 
+    ...historyMessages,
+
     {
       role: "user",
 
-      content: JSON.stringify({ instruction: userText }),
+      content: JSON.stringify(userPayload),
     },
   ];
 
@@ -674,7 +737,10 @@ export async function createPostDraft(userText: string): Promise<Record<string, 
 export async function createPollDraft(
   userText: string,
   hint: Record<string, unknown> = {},
+  options: ComposeDraftOptions = {},
 ): Promise<PollDraft> {
+  const { history, attachments, capsuleId, rawOptions } = options;
+  const historyMessages = mapConversationToMessages(history);
   const system = [
     "You are Capsules AI. Create a concise poll from the user instruction.",
 
@@ -685,10 +751,27 @@ export async function createPollDraft(
     "Keep options succinct (1-3 words when possible).",
   ].join(" ");
 
+  const userPayload: Record<string, unknown> = { instruction: userText, seed: hint || {} };
+  if (attachments && attachments.length) {
+    userPayload.attachments = attachments.map((attachment) => ({
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      url: attachment.url,
+    }));
+  }
+  if (capsuleId) {
+    userPayload.capsuleId = capsuleId;
+  }
+  if (rawOptions && Object.keys(rawOptions).length) {
+    userPayload.options = rawOptions;
+  }
+
   const messages: ChatMessage[] = [
     { role: "system", content: system },
 
-    { role: "user", content: JSON.stringify({ instruction: userText, seed: hint || {} }) },
+    ...historyMessages,
+
+    { role: "user", content: JSON.stringify(userPayload) },
   ];
 
   const { content } = await callOpenAIChat(messages, pollSchema, { temperature: 0.5 });
@@ -731,8 +814,30 @@ export async function refinePostDraft(
   userText: string,
 
   incomingPost: Record<string, unknown>,
+
+  options: ComposeDraftOptions = {},
 ): Promise<Record<string, unknown>> {
+  const { history, attachments, capsuleId, rawOptions } = options;
+  const historyMessages = mapConversationToMessages(history);
   const base = buildBasePost(incomingPost);
+
+  const userPayload: Record<string, unknown> = {
+    instruction: userText,
+    post: incomingPost,
+  };
+  if (attachments && attachments.length) {
+    userPayload.attachments = attachments.map((attachment) => ({
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      url: attachment.url,
+    }));
+  }
+  if (capsuleId) {
+    userPayload.capsuleId = capsuleId;
+  }
+  if (rawOptions && Object.keys(rawOptions).length) {
+    userPayload.options = rawOptions;
+  }
 
   const messages: ChatMessage[] = [
     {
@@ -751,10 +856,12 @@ export async function refinePostDraft(
       ].join(" "),
     },
 
+    ...historyMessages,
+
     {
       role: "user",
 
-      content: JSON.stringify({ instruction: userText, post: incomingPost }),
+      content: JSON.stringify(userPayload),
     },
   ];
 

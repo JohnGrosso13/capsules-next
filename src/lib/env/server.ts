@@ -49,6 +49,8 @@ export type ServerEnv = {
   MUX_TOKEN_SECRET: string | null;
   MUX_WEBHOOK_SECRET: string | null;
   MUX_ENVIRONMENT: string | null;
+  UPSTASH_REDIS_REST_URL: string | null;
+  UPSTASH_REDIS_REST_TOKEN: string | null;
 };
 
 function getEnv(name: string, fallbacks: string[] = [], options: { required?: boolean } = {}) {
@@ -171,4 +173,6 @@ export const serverEnv: ServerEnv = {
   MUX_TOKEN_SECRET: getEnv("MUX_TOKEN_SECRET", []),
   MUX_WEBHOOK_SECRET: getEnv("MUX_WEBHOOK_SECRET", ["MUX_SIGNING_SECRET"]),
   MUX_ENVIRONMENT: getEnv("MUX_ENVIRONMENT", []),
+  UPSTASH_REDIS_REST_URL: getEnv("UPSTASH_REDIS_REST_URL", []),
+  UPSTASH_REDIS_REST_TOKEN: getEnv("UPSTASH_REDIS_REST_TOKEN", []),
 };
