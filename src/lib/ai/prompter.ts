@@ -525,7 +525,35 @@ export async function editImageWithInstruction(
   const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 
   if (!response.ok) {
-    const error = new Error(`OpenAI image edit error: ${response.status}`);
+    const metaError = (() => {
+      const rawError = json?.error;
+      if (!rawError || typeof rawError !== "object") return null;
+      const message =
+        typeof (rawError as { message?: unknown }).message === "string"
+          ? ((rawError as { message: string }).message ?? "").trim()
+          : "";
+      const code =
+        typeof (rawError as { code?: unknown }).code === "string"
+          ? ((rawError as { code: string }).code ?? "").trim()
+          : "";
+      const type =
+        typeof (rawError as { type?: unknown }).type === "string"
+          ? ((rawError as { type: string }).type ?? "").trim()
+          : "";
+      const reason =
+        typeof (rawError as { param?: unknown }).param === "string"
+          ? ((rawError as { param: string }).param ?? "").trim()
+          : "";
+      return { message, code, type, param: reason };
+    })();
+
+    const descriptiveMessage = metaError?.message
+      ? `${metaError.message} (OpenAI status ${response.status}${
+          metaError.code ? `, code ${metaError.code}` : ""
+        })`
+      : `OpenAI image edit error: ${response.status}`;
+
+    const error = new Error(descriptiveMessage);
 
     (error as Error & { meta?: Record<string, unknown> }).meta = json;
 

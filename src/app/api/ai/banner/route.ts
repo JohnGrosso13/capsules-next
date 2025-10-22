@@ -156,22 +156,48 @@ export async function POST(req: Request) {
       }
     })();
 
-    const instruction = buildEditInstruction(prompt);
-    const edited = await editImageWithInstruction(normalizedSource, instruction, {
-      quality: "high",
-      size: "1024x1024",
-    });
-    const stored = await persistAndDescribeImage(edited, "capsule-banner-edit", {
-      baseUrl: requestOrigin,
-    });
+    try {
+      const instruction = buildEditInstruction(prompt);
+      const edited = await editImageWithInstruction(normalizedSource, instruction, {
+        quality: "high",
+        size: "1024x1024",
+      });
+      const stored = await persistAndDescribeImage(edited, "capsule-banner-edit", {
+        baseUrl: requestOrigin,
+      });
 
-    return validatedJson(responseSchema, {
-      url: stored.url,
-      message:
-        "Thanks for the update! I remixed the current banner with those notes so you can preview the refresh.",
-      imageData: stored.imageData ?? undefined,
-      mimeType: stored.mimeType ?? undefined,
-    });
+      return validatedJson(responseSchema, {
+        url: stored.url,
+        message:
+          "Thanks for the update! I remixed the current banner with those notes so you can preview the refresh.",
+        imageData: stored.imageData ?? undefined,
+        mimeType: stored.mimeType ?? undefined,
+      });
+    } catch (editError) {
+      console.warn("ai.banner edit failed; falling back to fresh generation", editError);
+
+      try {
+        const fallbackPrompt = `${buildGenerationPrompt(prompt, effectiveName)} Remix inspired by the current banner, keep the same mood but refresh composition.`;
+        const fallback = await generateImageFromPrompt(fallbackPrompt, {
+          quality: "high",
+          size: "1024x1024",
+        });
+        const stored = await persistAndDescribeImage(fallback, "capsule-banner-edit-fallback", {
+          baseUrl: requestOrigin,
+        });
+
+        return validatedJson(responseSchema, {
+          url: stored.url,
+          message:
+            "OpenAI couldn’t edit the existing banner, so I generated a fresh take with your notes instead.",
+          imageData: stored.imageData ?? undefined,
+          mimeType: stored.mimeType ?? undefined,
+        });
+      } catch (fallbackError) {
+        console.error("ai.banner fallback failed", fallbackError);
+        throw editError;
+      }
+    }
   } catch (error) {
     console.error("ai.banner error", error);
     const message = error instanceof Error ? error.message : "Failed to update banner.";
