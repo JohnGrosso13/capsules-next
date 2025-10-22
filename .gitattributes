@@ -1,0 +1,29 @@
+# Normalize line endings across platforms
+# Default to LF in the repo to avoid CRLF script issues
+* text=auto eol=lf
+
+# Shell scripts explicitly LF
+*.sh text eol=lf
+
+# Windows scripts keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Treat common binaries as binary (no line-ending normalization)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.7z binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.woff binary
+*.woff2 binary

@@ -1,0 +1,16 @@
+name = "artifact-embeddings"
+main = "src/index.ts"
+compatibility_date = "2024-04-05"
+
+[build]
+command = "npm run build"
+
+[vars]
+PINECONE_INDEX = ""
+PINECONE_NAMESPACE = ""
+
+[[queues.consumers]]
+queue = "artifact-commit-events"
+max_batch_size = 20
+max_batch_timeout_ms = 2000
+script_name = "artifact-embeddings"

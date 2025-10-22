@@ -1,0 +1,297 @@
+.liveChat {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  height: 100%;
+  min-height: 0;
+  border-radius: 20px;
+  border: 1px solid var(--live-chat-border, color-mix(in srgb, var(--card-border) 80%, transparent));
+  background: var(
+    --live-chat-bg,
+    color-mix(in srgb, rgba(10, 12, 34, 0.84) 85%, rgba(6, 8, 24, 0.96))
+  );
+  box-shadow: var(
+    --live-chat-shadow,
+    var(--capsule-live-chat-shadow, 0 18px 40px rgba(0, 0, 0, 0.32))
+  );
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid
+    var(--live-chat-divider, color-mix(in srgb, var(--card-border) 84%, transparent));
+}
+
+.headerIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(
+    --live-chat-header-icon-bg,
+    linear-gradient(180deg, rgba(112, 128, 255, 0.3), rgba(60, 78, 210, 0.15))
+  );
+  color: var(--text);
+}
+
+.headerMeta {
+  display: grid;
+  gap: 6px;
+}
+
+.headerTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerTitle {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  border: 1px solid
+    var(--live-chat-status-border, color-mix(in srgb, rgba(255, 255, 255, 0.18) 80%, transparent));
+  background: var(
+    --live-chat-status-bg,
+    color-mix(in srgb, rgba(26, 32, 68, 0.86) 90%, transparent)
+  );
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.statusBadge[data-badge="live"] {
+  background: var(
+    --live-chat-status-live-bg,
+    color-mix(in srgb, rgba(98, 255, 173, 0.32) 90%, transparent)
+  );
+  border-color: var(
+    --live-chat-status-live-border,
+    color-mix(in srgb, rgba(98, 255, 173, 0.42) 70%, transparent)
+  );
+}
+
+.statusBadge[data-badge="ended"] {
+  background: var(
+    --live-chat-status-ended-bg,
+    color-mix(in srgb, rgba(255, 148, 148, 0.28) 90%, transparent)
+  );
+  border-color: var(
+    --live-chat-status-ended-border,
+    color-mix(in srgb, rgba(255, 148, 148, 0.35) 70%, transparent)
+  );
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  display: inline-block;
+}
+
+.headerSubtitle {
+  font-size: 0.85rem;
+  color: var(--text-2);
+}
+
+.headerCapsuleName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.participantRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px 12px;
+  border-bottom: 1px dashed
+    var(--live-chat-divider, color-mix(in srgb, var(--card-border) 70%, transparent));
+  background: var(--live-chat-participant-row-bg, transparent);
+  color: var(--live-chat-participant-fg, var(--text-2));
+  font-size: 0.85rem;
+}
+
+.participantIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(
+    --live-chat-participant-bg,
+    color-mix(in srgb, rgba(112, 128, 255, 0.14) 80%, transparent)
+  );
+  color: var(--text);
+}
+
+.participantText {
+  flex: 1;
+}
+
+.messageScroll {
+  position: relative;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 20px;
+}
+
+.messageScroll[data-empty="true"] {
+  display: grid;
+  place-items: center;
+  padding: 32px 24px;
+}
+
+.messageList {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.messageCard {
+  display: grid;
+  gap: 6px;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(
+    --live-chat-message-bg,
+    linear-gradient(180deg, rgba(22, 24, 54, 0.82), rgba(12, 14, 32, 0.88))
+  );
+  border: 1px solid
+    var(--live-chat-message-border, color-mix(in srgb, rgba(255, 255, 255, 0.08) 80%, transparent));
+  color: var(--text);
+}
+
+.messageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.messageAuthor {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.messageTime {
+  font-size: 0.75rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.55));
+}
+
+.messageBody {
+  font-size: 0.88rem;
+  color: var(--text-2);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.messagePlaceholder {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--live-chat-placeholder-fg, var(--text-2));
+  font-size: 0.9rem;
+}
+
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px 18px;
+  border-top: 1px solid
+    var(--live-chat-composer-border, color-mix(in srgb, var(--card-border) 70%, transparent));
+  background: var(
+    --live-chat-composer-bg,
+    color-mix(in srgb, rgba(10, 12, 36, 0.92) 85%, transparent)
+  );
+}
+
+.composerInput {
+  flex: 1;
+  border-radius: 999px;
+  border: 1px solid
+    var(--live-chat-input-border, color-mix(in srgb, var(--card-border) 82%, transparent));
+  background: var(
+    --live-chat-input-bg,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(12, 14, 28, 0.6))
+  );
+  padding: 10px 16px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.composerInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.composerSend {
+  border-radius: 999px;
+  border: none;
+  padding: 10px 18px;
+  font-weight: 700;
+  color: var(--live-chat-send-fg, var(--text));
+  background: var(
+    --live-chat-send-bg,
+    linear-gradient(135deg, rgba(120, 86, 255, 0.85), rgba(84, 150, 255, 0.85))
+  );
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    opacity 140ms ease;
+}
+
+.composerSend:disabled {
+  opacity: var(--live-chat-send-disabled-opacity, 0.45);
+  background: var(
+    --live-chat-send-bg-disabled,
+    var(
+      --live-chat-send-bg,
+      linear-gradient(135deg, rgba(120, 86, 255, 0.85), rgba(84, 150, 255, 0.85))
+    )
+  );
+  cursor: not-allowed;
+}
+
+.composerSend:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1000px) {
+  .liveChat {
+    border-radius: 18px;
+  }
+  .header {
+    padding: 16px 18px 12px;
+  }
+  .participantRow {
+    padding: 8px 18px 10px;
+  }
+  .messageScroll {
+    padding: 16px;
+  }
+  .composer {
+    padding: 14px 16px 16px;
+  }
+}

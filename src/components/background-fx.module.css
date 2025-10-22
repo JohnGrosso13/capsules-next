@@ -1,0 +1,93 @@
+.bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0; /* behind content but above page background */
+  overflow: hidden;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  transform: translate3d(0, 0, 0);
+}
+
+.purple {
+  background: var(
+    --background-fx-purple,
+    radial-gradient(closest-side at 50% 50%, rgba(124, 58, 237, 0.38), rgba(124, 58, 237, 0) 70%)
+  );
+}
+.indigo {
+  background: var(
+    --background-fx-indigo,
+    radial-gradient(closest-side at 50% 50%, rgba(99, 102, 241, 0.34), rgba(99, 102, 241, 0) 70%)
+  );
+}
+.pink {
+  background: var(
+    --background-fx-pink,
+    radial-gradient(closest-side at 50% 50%, rgba(236, 72, 153, 0.28), rgba(236, 72, 153, 0) 70%)
+  );
+}
+
+/* Initial placements */
+.b1 {
+  width: 70vw;
+  height: 70vw;
+  top: -20vw;
+  left: -30vw;
+}
+.b2 {
+  width: 60vw;
+  height: 60vw;
+  top: -18vw;
+  right: -25vw;
+}
+.b3 {
+  width: 80vw;
+  height: 80vw;
+  bottom: -40vw;
+  left: 10vw;
+}
+.b4 {
+  width: 70vw;
+  height: 70vw;
+  bottom: -30vw;
+  right: -20vw;
+}
+
+/* Soft cloud layer */
+.mist {
+  position: absolute;
+  inset: -20vh -20vw;
+  background: var(
+    --background-fx-mist,
+    radial-gradient(60% 40% at 30% 30%, rgba(255, 255, 255, 0.04), transparent 70%),
+    radial-gradient(50% 45% at 70% 60%, rgba(255, 255, 255, 0.035), transparent 70%),
+    radial-gradient(45% 55% at 50% 80%, rgba(255, 255, 255, 0.03), transparent 70%)
+  );
+  filter: blur(45px) saturate(140%);
+  opacity: 0.45;
+  mix-blend-mode: screen;
+  /* Static: disable drift animation */
+  animation: none;
+}
+
+@keyframes mist-drift {
+  from {
+    transform: translate3d(-2%, 0, 0) scale(1.02);
+  }
+  to {
+    transform: translate3d(2%, -1%, 0) scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mist {
+    animation: none;
+  }
+}

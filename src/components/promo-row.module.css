@@ -1,0 +1,220 @@
+.row {
+  display: grid;
+  width: 100%;
+  max-width: var(--app-feed-width, clamp(640px, 52vw, 760px));
+  margin: 0 auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+@media (max-width: 900px) {
+  .row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+
+.tile {
+  position: relative;
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.4),
+    var(--card-shadow);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+@media (max-width: 640px) {
+  .tile {
+    border-radius: 14px;
+  }
+}
+.tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(
+    --promo-tile-hover-overlay,
+    radial-gradient(120% 90% at 50% -10%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0) 68%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0))
+  );
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+.tile:hover {
+  transform: translateY(-1px);
+  border-color: var(--card-hover-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.52),
+    var(--card-hover-shadow);
+  background: linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
+}
+.tile:hover::before {
+  opacity: 1;
+}
+
+.tile[data-interactive="true"] {
+  cursor: pointer;
+}
+
+.tile[data-interactive="true"]:focus-visible {
+  outline: 2px solid var(--focus-ring, rgba(99, 102, 241, 0.66));
+  outline-offset: 2px;
+}
+
+.tile[data-kind="capsule"] {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.tile[data-kind="capsule"]::before {
+  display: none;
+}
+
+.tile[data-kind="capsule"]:hover {
+  transform: none;
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
+}
+
+.capsuleTile {
+  display: block;
+  width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.capsuleTile:focus-visible {
+  outline: 2px solid var(--focus-ring, rgba(99, 102, 241, 0.66));
+  outline-offset: 4px;
+}
+
+.short {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 9/16;
+  background: var(
+    --promo-short-background,
+    radial-gradient(
+      600px 300px at 30% 20%,
+      color-mix(in srgb, var(--color-brand) 28%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      400px 280px at 70% 80%,
+      color-mix(in srgb, var(--color-accent) 24%, transparent),
+      transparent 62%
+    ),
+    var(--surface-overlay)
+  );
+}
+@media (max-width: 640px) {
+  .short {
+    aspect-ratio: 4/3;
+  }
+}
+
+.media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: var(--glass-bg-2, rgba(255, 255, 255, 0.08));
+}
+
+.fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+}
+.fallbackIcon {
+  width: 64px;
+  height: 64px;
+  opacity: 0.9;
+}
+
+.avatars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.avatar,
+.avatarImage {
+  width: 88px;
+  height: 88px;
+  border-radius: 18px;
+  background: var(--gradient-brand);
+  box-shadow: var(--shadow-md, 0 10px 22px rgba(79, 70, 229, 0.36));
+}
+.avatarImage {
+  display: block;
+  object-fit: cover;
+}
+@media (max-width: 640px) {
+  .avatar,
+  .avatarImage {
+    width: 74px;
+    height: 74px;
+    border-radius: 16px;
+  }
+}
+
+.overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px;
+  background: var(
+    --promo-overlay-gradient,
+    linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6))
+  );
+  display: flex;
+  align-items: flex-end;
+}
+.overlayLabel {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.lightboxFallback {
+  width: 100%;
+  min-height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-overlay, rgba(15, 23, 42, 0.7));
+  color: var(--text, #ffffff);
+}
+
+.lightboxFallbackIcon {
+  width: 112px;
+  height: 112px;
+}

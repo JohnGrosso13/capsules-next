@@ -1,0 +1,272 @@
+.tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: var(--capsule-tile-aspect, 9 / 16);
+  --capsule-logo-size: var(--capsule-logo-size-lg);
+  --capsule-logo-radius: var(--capsule-logo-radius-lg);
+  --capsule-logo-initial-scale: 0.4;
+  --capsule-logo-initial-min: 1.1rem;
+  --capsule-logo-initial-max: 1.4rem;
+  border-radius: clamp(18px, 3vw, 22px);
+  border: 1px solid
+    var(
+      --capsule-tile-border,
+      color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.18)) 84%, transparent)
+    );
+  background: var(
+    --capsule-tile-background,
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(16, 22, 42, 0.82)),
+      var(--card-bg-2, rgba(12, 17, 34, 0.92))
+    )
+  );
+  color: var(--capsule-tile-foreground, #f8fafc);
+  overflow: hidden;
+  box-shadow: var(
+    --capsule-tile-shadow,
+    0 24px 58px color-mix(in srgb, rgba(44, 64, 160, 0.36) 80%, rgba(5, 10, 30, 0.46))
+  );
+  isolation: isolate;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.tile:hover {
+  transform: translateY(-2px);
+  border-color: var(
+    --capsule-tile-border-hover,
+    color-mix(in srgb, var(--color-brand, #6366f1) 38%, transparent)
+  );
+  box-shadow: var(
+    --capsule-tile-shadow-hover,
+    0 28px 64px color-mix(in srgb, rgba(56, 80, 184, 0.42) 78%, rgba(5, 10, 30, 0.5))
+  );
+}
+
+.banner {
+  position: absolute;
+  inset: 0;
+  background-image: var(--capsule-tile-banner, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: var(--capsule-tile-banner-filter, brightness(0.96) saturate(108%));
+  transform: scale(1);
+  transition:
+    transform 0.28s ease,
+    filter 0.28s ease;
+}
+
+.tile:hover .banner {
+  transform: scale(1.04);
+  filter: brightness(1);
+}
+
+.tile[data-has-banner="false"] .banner {
+  background-image: var(
+    --capsule-tile-fallback,
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent),
+      color-mix(in srgb, var(--color-accent, #22d3ee) 18%, transparent) 60%,
+      color-mix(in srgb, var(--color-brand-strong, #4338ca) 42%, transparent) 100%
+    )
+  );
+  filter: none;
+}
+
+.tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(
+    --capsule-tile-overlay,
+    linear-gradient(180deg, rgba(5, 9, 20, 0.12), rgba(5, 9, 20, 0.78) 72%, rgba(5, 9, 20, 0.92))
+  );
+  mix-blend-mode: normal;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -36px 54px rgba(5, 10, 30, 0.36);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 38%);
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 2vw, 18px);
+  padding: clamp(18px, 3vw, 22px);
+  height: 100%;
+}
+
+.header {
+  display: grid;
+  gap: 6px;
+  max-width: 90%;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--capsule-tile-foreground, #f8fafc) 12%, transparent);
+  color: var(--capsule-tile-foreground, #f8fafc);
+  backdrop-filter: blur(6px);
+}
+
+.headline {
+  font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.subheadline {
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  line-height: 1.4;
+  color: color-mix(in srgb, currentColor 74%, transparent);
+}
+
+.identityBlock {
+  margin-top: auto;
+  display: grid;
+  gap: clamp(12px, 3vw, 18px);
+  justify-items: center;
+  text-align: center;
+}
+
+.logo {
+  width: var(--capsule-logo-size);
+  height: var(--capsule-logo-size);
+  border-radius: var(--capsule-logo-radius);
+  border: 2px solid color-mix(in srgb, rgba(255, 255, 255, 0.9) 68%, transparent);
+  background:
+    radial-gradient(220px 140px at 20% -20%, rgba(255, 255, 255, 0.2), transparent 60%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand-strong, #4338ca) 76%, transparent),
+      color-mix(in srgb, var(--color-accent, #22d3ee) 36%, transparent)
+    );
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: clamp(
+    var(--capsule-logo-initial-min, 1rem),
+    calc(var(--capsule-logo-size) * var(--capsule-logo-initial-scale, 0.42)),
+    var(--capsule-logo-initial-max, 1.4rem)
+  );
+  color: inherit;
+  overflow: hidden;
+  box-shadow:
+    0 12px 28px rgba(5, 10, 30, 0.55),
+    0 0 0 3px rgba(7, 12, 28, 0.55);
+}
+
+.logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.logoInitial {
+  display: inline-block;
+  line-height: 1;
+}
+
+.identityText {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+
+.name {
+  font-size: clamp(1.05rem, 2.4vw, 1.24rem);
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slug {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, currentColor 70%, transparent);
+}
+
+.description {
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, currentColor 72%, transparent);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: inherit;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+@media (max-width: 720px) {
+  .tile {
+    border-radius: 18px;
+  }
+
+  .content {
+    padding: clamp(16px, 4vw, 20px);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .tile {
+    aspect-ratio: var(--capsule-tile-aspect-sm, 4 / 5);
+    border-radius: 16px;
+  }
+}
+
+.actionSlot {
+  display: flex;
+  justify-content: center;
+}
