@@ -127,6 +127,14 @@ function resolveQuickPromptPreset(kind: string): QuickPromptOption[] {
   return DEFAULT_QUICK_PROMPTS;
 }
 
+export type ClarifierPrompt = {
+  questionId: string;
+  question: string;
+  rationale: string | null;
+  suggestions: string[];
+  styleTraits: string[];
+};
+
 type SidebarListItem = {
   id: string;
   title: string;
@@ -357,6 +365,7 @@ type ComposerFormProps = {
   message?: string | null | undefined;
   history?: ComposerChatMessage[] | null | undefined;
   choices?: ComposerChoice[] | null | undefined;
+  clarifier?: ClarifierPrompt | null | undefined;
   sidebar: ComposerSidebarData;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
@@ -368,6 +377,7 @@ type ComposerFormProps = {
   onSelectProject(id: string | null): void;
   onForceChoice?(key: string): void;
   onPrompt?(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
+  onClarifierRespond?(answer: string): void;
 };
 
 export function ComposerForm({
@@ -377,6 +387,7 @@ export function ComposerForm({
   message,
   history: historyInput,
   choices: _choices,
+  clarifier: clarifierInput,
   sidebar,
   onChange,
   onClose,
@@ -388,6 +399,7 @@ export function ComposerForm({
   onSelectProject,
   onPrompt,
   onForceChoice,
+  onClarifierRespond,
 }: ComposerFormProps) {
   const workingDraft = React.useMemo<ComposerDraft>(
     () =>
@@ -399,7 +411,7 @@ export function ComposerForm({
         mediaPrompt: null,
         poll: null,
         suggestions: [],
-    },
+      },
     [draft],
   );
 
@@ -407,6 +419,17 @@ export function ComposerForm({
     if (!historyInput) return [];
     return Array.isArray(historyInput) ? historyInput : [];
   }, [historyInput]);
+
+  const clarifier = React.useMemo<ClarifierPrompt | null>(() => {
+    if (!clarifierInput) return null;
+    return {
+      questionId: clarifierInput.questionId,
+      question: clarifierInput.question,
+      rationale: clarifierInput.rationale,
+      suggestions: clarifierInput.suggestions ?? [],
+      styleTraits: clarifierInput.styleTraits ?? [],
+    };
+  }, [clarifierInput]);
 
   const pollStructure = React.useMemo(() => ensurePollStructure(workingDraft), [workingDraft]);
 
@@ -620,6 +643,9 @@ export function ComposerForm({
   );
 
   const promptPlaceholder = React.useMemo(() => getPromptPlaceholder(activeKind), [activeKind]);
+  const currentPromptPlaceholder = clarifier
+    ? "Answer with a quick description or pick a suggestion..."
+    : promptPlaceholder;
   const footerHint = React.useMemo(() => getFooterHint(activeKind), [activeKind]);
   const activeKindLabel = React.useMemo(() => resolveKindLabel(activeKind), [activeKind]);
 
@@ -1187,7 +1213,42 @@ export function ComposerForm({
               </li>
             ) : null}
 
-            {!conversationHistory.length && message ? (
+            {clarifier ? (
+              <li className={styles.msgRow} data-role="ai">
+                <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.clarifierBubble}`}>
+                  <p className={styles.clarifierHeading}>{clarifier.question}</p>
+                  {clarifier.rationale ? (
+                    <p className={styles.clarifierRationale}>{clarifier.rationale}</p>
+                  ) : null}
+                  {clarifier.styleTraits.length ? (
+                    <div className={styles.clarifierTraits}>
+                      {clarifier.styleTraits.map((trait) => (
+                        <span key={`${clarifier.questionId}-${trait}`} className={styles.clarifierTrait}>
+                          {trait}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {clarifier.suggestions.length ? (
+                    <div className={styles.clarifierSuggestions}>
+                      {clarifier.suggestions.map((suggestion) => (
+                        <button
+                          key={`${clarifier.questionId}-${suggestion}`}
+                          type="button"
+                          className={styles.clarifierSuggestion}
+                          onClick={() => onClarifierRespond?.(suggestion)}
+                          disabled={loading}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </li>
+            ) : null}
+
+            {!conversationHistory.length && message && !clarifier ? (
               <li className={styles.msgRow} data-role="ai">
                 <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{message}</div>
               </li>
@@ -1231,7 +1292,7 @@ export function ComposerForm({
           <input
             ref={promptInputRef}
             className={styles.promptInput}
-            placeholder={promptPlaceholder}
+            placeholder={currentPromptPlaceholder}
             value={workingDraft.content}
             onChange={(e) => updateDraft({ content: e.target.value })}
             disabled={loading}

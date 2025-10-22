@@ -4,7 +4,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import styles from "./ai-composer.module.css";
-import { ComposerForm, type ComposerChoice } from "./composer/ComposerForm";
+import { ComposerForm, type ComposerChoice, type ClarifierPrompt } from "./composer/ComposerForm";
 import type { ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
 import { usePortalHost } from "@/hooks/usePortalHost";
@@ -21,6 +21,7 @@ type AiComposerDrawerProps = {
   message?: string | null;
   choices?: ComposerChoice[] | null;
   history?: ComposerChatMessage[] | null;
+  clarifier?: ClarifierPrompt | null;
   sidebar: ComposerSidebarData;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
@@ -32,6 +33,7 @@ type AiComposerDrawerProps = {
   onSelectDraft(id: string): void;
   onCreateProject(name: string): void;
   onSelectProject(id: string | null): void;
+  onClarifierRespond?(answer: string): void;
 };
 
 export function AiComposerDrawer(props: AiComposerDrawerProps) {
@@ -40,21 +42,23 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     loading,
     draft,
     prompt,
-    message,
-    choices,
-    history,
-    sidebar,
-    onChange,
-    onClose,
-    onPost,
-    onSave,
-    onPrompt,
-    onForceChoice,
-    onSelectRecentChat,
-    onSelectDraft,
-    onCreateProject,
-    onSelectProject,
-  } = props;
+  message,
+  choices,
+  history,
+  clarifier,
+  sidebar,
+  onChange,
+  onClose,
+  onPost,
+  onSave,
+  onPrompt,
+  onForceChoice,
+  onSelectRecentChat,
+  onSelectDraft,
+  onCreateProject,
+  onSelectProject,
+  onClarifierRespond,
+} = props;
   const portalClassName = styles.portalHost ?? "ai-composer-portal-host";
   const { host, ready } = usePortalHost(portalClassName, open);
 
@@ -91,6 +95,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       message={message ?? null}
       history={history ?? []}
       choices={choices ?? null}
+      clarifier={clarifier ?? null}
       sidebar={sidebar}
       onChange={onChange}
       onClose={onClose}
@@ -108,6 +113,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       onCreateProject={onCreateProject}
       onSelectProject={onSelectProject}
       {...(onForceChoice ? { onForceChoice } : {})}
+      {...(onClarifierRespond ? { onClarifierRespond } : {})}
     />,
     host,
   );

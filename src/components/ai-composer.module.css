@@ -1971,6 +1971,72 @@
   cursor: not-allowed;
 }
 
+.clarifierBubble {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.clarifierHeading {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.clarifierRationale {
+  margin: 0;
+  color: var(--caps-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.clarifierTraits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.clarifierTrait {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--caps-text-secondary);
+}
+
+.clarifierSuggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.clarifierSuggestion {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.clarifierSuggestion:hover,
+.clarifierSuggestion:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  outline: none;
+}
+
+.clarifierSuggestion:active {
+  transform: translateY(1px);
+}
+
+.clarifierSuggestion:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Viewer actions in composer lightbox */
 .viewerActions {
   display: flex;

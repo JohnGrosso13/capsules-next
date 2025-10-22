@@ -9,6 +9,7 @@ export type AiImageRunStatus = "pending" | "running" | "succeeded" | "failed";
 export type AiImageRunAttempt = {
   attempt: number;
   model: string | null;
+  provider?: string | null;
   startedAt: string;
   completedAt?: string | null;
   errorCode?: string | null;
@@ -48,7 +49,7 @@ export type CreateAiImageRunInput = {
   userPrompt: string;
   resolvedPrompt: string;
   stylePreset?: string | null;
-  provider?: string;
+  provider?: string | null;
   model?: string | null;
   options?: Record<string, unknown>;
   status?: AiImageRunStatus;
@@ -120,6 +121,10 @@ function sanitizeAttempts(input: unknown): AiImageRunAttempt[] {
       const normalized: AiImageRunAttempt = {
         attempt: Math.max(0, Math.floor(attemptNumber)),
         model: typeof source.model === "string" ? source.model : null,
+        provider:
+          typeof source.provider === "string" && source.provider.trim().length
+            ? source.provider.trim()
+            : null,
         startedAt: startedAtValue,
         completedAt:
           typeof source.completedAt === "string" && source.completedAt.length > 0

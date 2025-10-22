@@ -19,6 +19,7 @@ export type AiImageRunRealtimeEvent =
       runId: string;
       attempt: number;
       model: string | null;
+      provider?: string | null;
       status: "started" | "succeeded" | "failed";
       errorCode?: string | null;
       errorMessage?: string | null;

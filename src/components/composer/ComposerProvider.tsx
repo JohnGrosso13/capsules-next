@@ -228,6 +228,7 @@ type ComposerContextValue = {
   close(): void;
   post(): Promise<void>;
   submitPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void>;
+  answerClarifier(answer: string): void;
   forceChoice?(key: string): Promise<void>;
   updateDraft(draft: ComposerDraft): void;
   sidebar: ComposerSidebarData;
@@ -692,6 +693,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             },
           };
         });
+        console.info("image_clarifier_question_displayed", {
+          questionId: payload.questionId,
+          suggestions: payload.suggestions ?? [],
+          styleTraits: payload.styleTraits ?? [],
+        });
         return;
       }
 
@@ -702,12 +708,16 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const messageText = payload.message ?? null;
       let recordedHistory: ComposerChatMessage[] = [];
       let recordedThreadId: string | null = null;
+      let resolvedQuestionId: string | null = null;
       setState((prev) => {
         const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
         const historyForState =
           normalizedHistory.length > 0 ? normalizedHistory : prev.history ?? [];
         recordedHistory = historyForState;
         recordedThreadId = nextThreadId;
+        if (prev.clarifier?.questionId) {
+          resolvedQuestionId = prev.clarifier.questionId;
+        }
         return {
           open: true,
           loading: false,
@@ -721,6 +731,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           clarifier: null,
         };
       });
+      if (resolvedQuestionId) {
+        console.info("image_clarifier_resolved", {
+          questionId: resolvedQuestionId,
+          prompt,
+        });
+      }
       recordRecentChat({
         prompt,
         message: messageText,
@@ -1064,6 +1080,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
                 },
               }
             : undefined;
+        if (clarifierOption?.clarifier) {
+          console.info("image_clarifier_answer_submitted", {
+            questionId: clarifierOption.clarifier.questionId,
+            answer: clarifierOption.clarifier.answer,
+          });
+        }
         const payload = await callAiPrompt(
           trimmed,
           clarifierOption,
@@ -1084,6 +1106,19 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [activeCapsuleId, handleAiResponse, state.clarifier, state.rawPost],
+  );
+
+  const answerClarifier = React.useCallback(
+    (answer: string) => {
+      const trimmed = answer.trim();
+      if (!trimmed) return;
+      console.info("image_clarifier_suggestion_selected", {
+        questionId: state.clarifier?.questionId ?? null,
+        answer: trimmed,
+      });
+      void submitPrompt(trimmed);
+    },
+    [state.clarifier?.questionId, submitPrompt],
   );
 
   const forceChoiceInternal = React.useCallback(
@@ -1159,6 +1194,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       close,
       post,
       submitPrompt,
+      answerClarifier,
       updateDraft,
       sidebar: sidebarData,
       selectRecentChat,
@@ -1177,6 +1213,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     close,
     post,
     submitPrompt,
+    answerClarifier,
     forceChoice,
     updateDraft,
     sidebarData,
@@ -1197,6 +1234,7 @@ export function AiComposerRoot() {
     updateDraft,
     post,
     submitPrompt,
+    answerClarifier,
     forceChoice,
     sidebar,
     selectRecentChat,
@@ -1223,10 +1261,12 @@ export function AiComposerRoot() {
       message={state.message}
       choices={state.choices}
       history={state.history}
+      clarifier={state.clarifier}
       onChange={updateDraft}
       onClose={close}
       onPost={post}
       onPrompt={submitPrompt}
+      onClarifierRespond={answerClarifier}
       sidebar={sidebar}
       onSelectRecentChat={selectRecentChat}
       onSelectDraft={selectDraft}

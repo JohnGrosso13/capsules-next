@@ -16,6 +16,11 @@ if (typeof (globalThis as { DOMParser?: unknown }).DOMParser !== "function") {
 }
 
 import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
+import {
+  generateStabilityImage,
+  hasStabilityApiKey,
+  type StabilityGenerateOptions,
+} from "@/adapters/ai/stability/server";
 import { serverEnv } from "../env/server";
 import { randomUUID } from "node:crypto";
 
@@ -137,6 +142,41 @@ type ClarifierExample = {
   model: string | null;
 };
 
+const CLARIFIER_STATIC_EXAMPLES: ClarifierExample[] = [
+  {
+    prompt: "Design a neon cyberpunk skyline for our Capsule banner.",
+    resolved:
+      "Design a neon cyberpunk skyline with magenta and teal lights, layered holographic billboards, and a soft depth-of-field blur.",
+    style: "vibrant-future",
+    status: "succeeded",
+    model: "openai:gpt-image-1",
+  },
+  {
+    prompt: "Create a cozy pastel avatar of a friendly community manager.",
+    resolved:
+      "Create a cozy pastel illustration of a friendly community manager with soft lighting, gentle gradients, and a subtle grain texture.",
+    style: "soft-pastel",
+    status: "succeeded",
+    model: "openai:gpt-image-1",
+  },
+  {
+    prompt: "Render a dramatic noir-style logo for Midnight Dispatch.",
+    resolved:
+      "Render a dramatic noir logo for Midnight Dispatch with high-contrast lighting, a single spotlight rim, and a minimalist serif wordmark.",
+    style: "noir-spotlight",
+    status: "succeeded",
+    model: "openai:dall-e-2",
+  },
+  {
+    prompt: "Generate a minimal matte background for a Capsule landing page.",
+    resolved:
+      "Generate a minimal matte background with soft shadows, neutral tones, and ample negative space for headline contrast.",
+    style: "minimal-matte",
+    status: "succeeded",
+    model: "openai:gpt-image-1",
+  },
+];
+
 type ComposeDraftResult = DraftPostPlan | ClarifyImagePromptPlan;
 
 type ComposeDraftOptions = {
@@ -145,7 +185,22 @@ type ComposeDraftOptions = {
   capsuleId?: string | null;
   rawOptions?: Record<string, unknown>;
   clarifier?: PromptClarifierInput | null;
+  stylePreset?: string | null;
 };
+
+type ImageProviderId = "openai" | "stability";
+
+const STYLE_PROVIDER_OVERRIDES: Record<string, ImageProviderId> = {
+  "vibrant-future": "stability",
+  "noir-spotlight": "stability",
+  "capsule-default": "openai",
+};
+
+const PROMPT_PROVIDER_HINTS: Array<{ pattern: RegExp; provider: ImageProviderId }> = [
+  { pattern: /\bflux\b/i, provider: "stability" },
+  { pattern: /\bphotoreal\b/i, provider: "openai" },
+  { pattern: /\bvector\b/i, provider: "stability" },
+];
 const nullableStringSchema = {
   anyOf: [{ type: "string" }, { type: "null" }],
 };
@@ -467,6 +522,8 @@ export type ImageRunExecutionContext = {
   stylePreset?: string | null;
   options?: Record<string, unknown>;
   retryDelaysMs?: number[];
+  provider?: string | null;
+  candidateProviders?: ImageProviderId[] | null;
 };
 
 type OpenAiErrorDetails = {
@@ -489,6 +546,7 @@ type RunState = {
   ownerId: string | null;
   assetKind: string;
   mode: "generate" | "edit";
+  provider: string | null;
   stylePreset: string | null;
   options: Record<string, unknown>;
   attempts: AiImageRunAttempt[];
@@ -557,20 +615,31 @@ function summarizeAttachmentsForClarifier(
 async function collectClarifierExamples(limit = CLARIFIER_RECENT_RUN_LIMIT): Promise<
   ClarifierExample[]
 > {
+  const examples: ClarifierExample[] = [...CLARIFIER_STATIC_EXAMPLES];
+  if (examples.length >= limit) {
+    return examples.slice(0, limit);
+  }
   try {
     const runs = await listRecentAiImageRuns({ limit, status: ["succeeded"] });
-    if (!runs.length) return [];
-    return runs.map((run) => ({
-      prompt: truncateForClarifier(run.userPrompt ?? ""),
-      resolved: truncateForClarifier(run.resolvedPrompt ?? ""),
-      style: run.stylePreset ?? null,
-      status: run.status,
-      model: run.model ?? null,
-    }));
+    for (const run of runs) {
+      const promptText = truncateForClarifier(run.userPrompt ?? "");
+      const resolvedText = truncateForClarifier(run.resolvedPrompt ?? "");
+      if (!promptText || !resolvedText) continue;
+      examples.push({
+        prompt: promptText,
+        resolved: resolvedText,
+        style: run.stylePreset ?? null,
+        status: run.status,
+        model: run.model ?? null,
+      });
+      if (examples.length >= limit) {
+        break;
+      }
+    }
   } catch (error) {
     console.warn("image clarifier: failed to load recent runs", error);
-    return [];
   }
+  return examples.slice(0, limit);
 }
 
 async function maybeGenerateImageClarifier(
@@ -657,6 +726,16 @@ async function maybeGenerateImageClarifier(
         : [];
 
     const questionId = clarifier?.questionId ?? randomUUID();
+
+    console.info("image_clarifier_question", {
+      questionId,
+      question,
+      rationale,
+      suggestions,
+      styleTraits,
+      prompt: trimmedPrompt,
+      stylePreset: context.stylePreset ?? null,
+    });
 
     return {
       action: "clarify_image_prompt",
@@ -748,7 +827,14 @@ async function createRunState(
   resolvedOptions: Record<string, unknown>,
 ): Promise<RunState | null> {
   if (!context) return null;
-  const combinedOptions = compactObject({ ...(context.options ?? {}), ...resolvedOptions });
+  const combinedOptions = compactObject({
+    ...(context.options ?? {}),
+    ...resolvedOptions,
+    candidateProviders:
+      context.candidateProviders && context.candidateProviders.length
+        ? context.candidateProviders
+        : undefined,
+  });
 
   try {
     const run = await createAiImageRun({
@@ -759,6 +845,7 @@ async function createRunState(
       userPrompt: context.userPrompt,
       resolvedPrompt: context.resolvedPrompt,
       stylePreset: context.stylePreset ?? null,
+      provider: context.provider ?? null,
       options: combinedOptions,
     });
 
@@ -778,6 +865,7 @@ async function createRunState(
       ownerId: context.ownerId ?? null,
       assetKind: run.assetKind,
       mode: run.mode,
+      provider: run.provider ?? context.provider ?? "openai",
       stylePreset: run.stylePreset,
       options: run.options ?? {},
       attempts: [],
@@ -785,11 +873,15 @@ async function createRunState(
       completionPublished: false,
       async recordAttemptStart(this: RunState, attempt: AiImageRunAttempt) {
         this.attempts.push(attempt);
+        if (attempt.provider) {
+          this.provider = attempt.provider;
+        }
         const retryCount = Math.max(0, this.attempts.length - 1);
         try {
           await updateAiImageRun(this.id, {
             status: "running",
             model: attempt.model ?? null,
+            provider: attempt.provider ?? this.provider ?? null,
             retryCount,
             attempts: this.attempts,
             options: this.options,
@@ -802,6 +894,7 @@ async function createRunState(
           runId: this.id,
           attempt: attempt.attempt,
           model: attempt.model ?? null,
+          provider: attempt.provider ?? this.provider ?? null,
           status: "started",
         });
       },
@@ -813,6 +906,7 @@ async function createRunState(
         const retryCount = Math.max(0, this.attempts.length - 1);
         const patch: UpdateAiImageRunInput = {
           model: attempt.model ?? null,
+          provider: attempt.provider ?? this.provider ?? null,
           retryCount,
           attempts: this.attempts,
           options: this.options,
@@ -846,13 +940,14 @@ async function createRunState(
 
         await publishAiImageEvent(this.ownerId, {
           type: "ai.image.run.attempt",
-          runId: this.id,
-          attempt: attempt.attempt,
-          model: attempt.model ?? null,
-          status: outcome.status === "succeeded" ? "succeeded" : "failed",
-          errorCode: outcome.error?.code ?? null,
-          errorMessage: outcome.error?.message ?? null,
-        });
+            runId: this.id,
+            attempt: attempt.attempt,
+            model: attempt.model ?? null,
+            provider: attempt.provider ?? this.provider ?? null,
+            status: outcome.status === "succeeded" ? "succeeded" : "failed",
+            errorCode: outcome.error?.code ?? null,
+            errorMessage: outcome.error?.message ?? null,
+          });
 
         if (this.completed && !this.completionPublished) {
           this.completionPublished = true;
@@ -906,34 +1001,87 @@ function extractImageResponseMetadata(
 
   return metadata;
 }
-export async function generateImageFromPrompt(
-  prompt: string,
-  options: ImageOptions = {},
-  runContext?: ImageRunExecutionContext,
-): Promise<string> {
-  requireOpenAIKey();
+type ProviderAttemptCounter = { value: number };
 
-  const params = resolveImageParams(options);
-  const runState = await createRunState(runContext, {
-    size: params.size,
-    quality: params.quality,
+type ProviderRuntimeParams = {
+  prompt: string;
+  params: ImageParams;
+  delays: number[];
+  runState: RunState | null;
+  attemptCounter: ProviderAttemptCounter;
+  context?: ImageRunExecutionContext;
+};
+
+function resolveProviderQueue(
+  prompt: string,
+  context: ImageRunExecutionContext | undefined,
+): ImageProviderId[] {
+  const queue: ImageProviderId[] = [];
+
+  const normalizedProvider = (context?.provider ?? null)?.toLowerCase() as ImageProviderId | null;
+  if (normalizedProvider && (normalizedProvider === "openai" || normalizedProvider === "stability")) {
+    queue.push(normalizedProvider);
+  }
+
+  const style = context?.stylePreset ?? null;
+  if (style) {
+    const override = STYLE_PROVIDER_OVERRIDES[style];
+    if (override && !queue.includes(override)) {
+      queue.push(override);
+    }
+  }
+
+  for (const hint of PROMPT_PROVIDER_HINTS) {
+    if (hint.pattern.test(prompt) && !queue.includes(hint.provider)) {
+      queue.push(hint.provider);
+    }
+  }
+
+  if (Array.isArray(context?.candidateProviders)) {
+    for (const candidate of context?.candidateProviders ?? []) {
+      if ((candidate === "openai" || candidate === "stability") && !queue.includes(candidate)) {
+        queue.push(candidate);
+      }
+    }
+  }
+
+  // Default ordering
+  for (const provider of ["openai", "stability"] as ImageProviderId[]) {
+    if (!queue.includes(provider)) {
+      queue.push(provider);
+    }
+  }
+
+  const available = queue.filter((provider) => {
+    if (provider === "stability") return hasStabilityApiKey();
+    if (provider === "openai") return hasOpenAIApiKey();
+    return true;
   });
 
-  const retryDelays =
-    runContext?.retryDelaysMs && runContext.retryDelaysMs.length
-      ? runContext.retryDelaysMs.filter((delay) => Number.isFinite(delay) && (delay as number) >= 0)
-      : DEFAULT_IMAGE_RETRY_DELAYS_MS;
+  return available.length ? available : (["openai"] as ImageProviderId[]);
+}
 
-  const delays = retryDelays.length ? retryDelays : DEFAULT_IMAGE_RETRY_DELAYS_MS;
+function resolveInitialProvider(
+  providers: ImageProviderId[],
+  context?: ImageRunExecutionContext,
+): string | null {
+  if (context?.provider && providers.includes(context.provider as ImageProviderId)) {
+    return context.provider;
+  }
+  return providers[0] ?? null;
+}
+
+async function generateWithOpenAI(
+  runtime: ProviderRuntimeParams,
+): Promise<{ url: string; metadata: Record<string, unknown> | undefined }> {
+  requireOpenAIKey();
 
   const isNonProd = (process.env.NODE_ENV ?? "").toLowerCase() !== "production";
-
   const candidateModels = Array.from(
     new Set(
       [
         isNonProd ? serverEnv.OPENAI_IMAGE_MODEL_DEV : null,
         serverEnv.OPENAI_IMAGE_MODEL,
-        // Prefer the most affordable legacy model while testing.
         isNonProd ? "dall-e-2" : null,
         "gpt-image-1",
         "dall-e-3",
@@ -941,40 +1089,42 @@ export async function generateImageFromPrompt(
     ),
   );
 
-  let attemptCounter = runState ? runState.attempts.length : 0;
   let lastError: unknown = null;
 
   for (let modelIndex = 0; modelIndex < candidateModels.length; modelIndex++) {
     const modelName = candidateModels[modelIndex];
-    if (!modelName) {
-      continue;
-    }
+    if (!modelName) continue;
 
-    for (let retryIndex = 0; retryIndex < delays.length; retryIndex++) {
-      const delay = delays[retryIndex] ?? 0;
-      if (attemptCounter > 0 && delay > 0) {
+    for (let retryIndex = 0; retryIndex < runtime.delays.length; retryIndex++) {
+      const delay = runtime.delays[retryIndex] ?? 0;
+      if (runtime.attemptCounter.value > 0 && delay > 0) {
         await waitFor(delay);
       }
 
-      attemptCounter += 1;
+      runtime.attemptCounter.value += 1;
       const attemptRecord: AiImageRunAttempt = {
-        attempt: attemptCounter,
+        attempt: runtime.attemptCounter.value,
         model: modelName,
+        provider: "openai",
         startedAt: nowIso(),
       };
 
-      if (runState) {
-        await runState.recordAttemptStart(attemptRecord);
+      if (runtime.runState) {
+        await runtime.runState.recordAttemptStart(attemptRecord);
       }
 
       try {
-        const body = { model: modelName, prompt, n: 1, size: params.size, quality: params.quality };
+        const body = {
+          model: modelName,
+          prompt: runtime.prompt,
+          n: 1,
+          size: runtime.params.size,
+          quality: runtime.params.quality,
+        };
 
         const response = await fetchOpenAI("/images/generations", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
 
@@ -999,7 +1149,6 @@ export async function generateImageFromPrompt(
         const image = Array.isArray(json.data)
           ? (json.data as Array<Record<string, unknown>>)[0]
           : null;
-
         if (!image) throw new Error("OpenAI image response missing data.");
 
         const imageData = (image ?? {}) as { url?: unknown; b64_json?: unknown };
@@ -1007,7 +1156,6 @@ export async function generateImageFromPrompt(
           typeof imageData.url === "string" ? (imageData.url as string) : null;
         const b64 =
           typeof imageData.b64_json === "string" ? (imageData.b64_json as string) : null;
-
         if (!url && !b64) {
           throw new Error("OpenAI image response missing url and b64_json.");
         }
@@ -1018,8 +1166,8 @@ export async function generateImageFromPrompt(
         attemptRecord.completedAt = nowIso();
         attemptRecord.meta = { response: responseMetadata };
 
-        if (runState) {
-          await runState.recordAttemptOutcome(attemptRecord, {
+        if (runtime.runState) {
+          await runtime.runState.recordAttemptOutcome(attemptRecord, {
             status: "succeeded",
             imageUrl: finalUrl,
             responseMetadata,
@@ -1027,7 +1175,7 @@ export async function generateImageFromPrompt(
           });
         }
 
-        return finalUrl;
+        return { url: finalUrl, metadata: responseMetadata };
       } catch (error) {
         const details = extractOpenAiErrorDetails(error);
         attemptRecord.completedAt = nowIso();
@@ -1036,12 +1184,12 @@ export async function generateImageFromPrompt(
         attemptRecord.meta = details.meta;
 
         const retryable = shouldRetryError(details);
-        const hasMoreRetries = retryable && retryIndex < delays.length - 1;
+        const hasMoreRetries = retryable && retryIndex < runtime.delays.length - 1;
         const hasMoreModels = modelIndex < candidateModels.length - 1;
         const terminal = !(hasMoreRetries || hasMoreModels);
 
-        if (runState) {
-          await runState.recordAttemptOutcome(attemptRecord, {
+        if (runtime.runState) {
+          await runtime.runState.recordAttemptOutcome(attemptRecord, {
             status: "failed",
             error: details,
             terminal,
@@ -1054,6 +1202,159 @@ export async function generateImageFromPrompt(
         }
         break;
       }
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+  throw new Error("OpenAI provider exhausted without success.");
+}
+
+function mapSizeToAspectRatio(size: string): string {
+  const parts = String(size ?? "").split("x");
+  const width = Number.parseInt(parts[0] ?? "", 10);
+  const height = Number.parseInt(parts[1] ?? "", 10);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return "1:1";
+  }
+  const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+  const divisor = gcd(width, height);
+  return `${width / divisor}:${height / divisor}`;
+}
+
+async function generateWithStability(
+  runtime: ProviderRuntimeParams,
+): Promise<{ url: string; metadata: Record<string, unknown> | undefined }> {
+  if (!hasStabilityApiKey()) {
+    throw new Error("Stability API key is not configured.");
+  }
+
+  runtime.attemptCounter.value += 1;
+  const attemptRecord: AiImageRunAttempt = {
+    attempt: runtime.attemptCounter.value,
+    model: serverEnv.STABILITY_IMAGE_MODEL ?? "sd3.5-large",
+    provider: "stability",
+    startedAt: nowIso(),
+  };
+
+  if (runtime.runState) {
+    await runtime.runState.recordAttemptStart(attemptRecord);
+  }
+
+  try {
+    const aspectRatio = mapSizeToAspectRatio(runtime.params.size);
+    const stabilityOptions: StabilityGenerateOptions = {
+      prompt: runtime.prompt,
+      aspectRatio,
+      stylePreset: runtime.context?.stylePreset ?? null,
+    };
+    if (typeof runtime.context?.options?.["seed"] === "number") {
+      stabilityOptions.seed = Number(runtime.context?.options?.["seed"]);
+    }
+    const result = await generateStabilityImage(stabilityOptions);
+
+    const finalUrl = `data:${result.mimeType};base64,${result.base64}`;
+
+    attemptRecord.completedAt = nowIso();
+    attemptRecord.meta = { response: result.metadata ?? {} };
+
+    if (runtime.runState) {
+      await runtime.runState.recordAttemptOutcome(attemptRecord, {
+        status: "succeeded",
+        imageUrl: finalUrl,
+        responseMetadata: result.metadata ?? {},
+        terminal: true,
+      });
+    }
+
+    return { url: finalUrl, metadata: result.metadata ?? {} };
+  } catch (error) {
+    const details = extractOpenAiErrorDetails(error);
+    attemptRecord.completedAt = nowIso();
+    attemptRecord.errorCode = details.code;
+    attemptRecord.errorMessage = details.message;
+    attemptRecord.meta = details.meta;
+
+    if (runtime.runState) {
+      await runtime.runState.recordAttemptOutcome(attemptRecord, {
+        status: "failed",
+        error: details,
+        terminal: true,
+      });
+    }
+    throw error;
+  }
+}
+
+export async function generateImageFromPrompt(
+  prompt: string,
+  options: ImageOptions = {},
+  runContext?: ImageRunExecutionContext,
+): Promise<string> {
+  const params = resolveImageParams(options);
+  const providerQueue = resolveProviderQueue(prompt, runContext);
+  const retryDelays =
+    runContext?.retryDelaysMs && runContext.retryDelaysMs.length
+      ? runContext.retryDelaysMs.filter((delay) => Number.isFinite(delay) && (delay as number) >= 0)
+      : DEFAULT_IMAGE_RETRY_DELAYS_MS;
+  const delays = retryDelays.length ? retryDelays : DEFAULT_IMAGE_RETRY_DELAYS_MS;
+
+  const enrichedContext = runContext
+    ? {
+        ...runContext,
+        provider: resolveInitialProvider(providerQueue, runContext),
+        candidateProviders: providerQueue,
+      }
+    : undefined;
+
+  const runState = await createRunState(enrichedContext, {
+    size: params.size,
+    quality: params.quality,
+  });
+
+  const attemptCounter: ProviderAttemptCounter = {
+    value: runState ? runState.attempts.length : 0,
+  };
+
+  let lastError: unknown = null;
+
+  for (const provider of providerQueue) {
+    try {
+      const runtime: ProviderRuntimeParams = {
+        prompt,
+        params,
+        delays,
+        runState,
+        attemptCounter,
+      };
+      if (runContext) {
+        runtime.context = runContext;
+      }
+
+      if (provider === "openai") {
+        const result = await generateWithOpenAI(runtime);
+        console.info("image_generation_completed", {
+          provider,
+          model: result.metadata?.model ?? serverEnv.OPENAI_IMAGE_MODEL,
+          attempts: attemptCounter.value,
+        });
+        return result.url;
+      }
+
+      if (provider === "stability") {
+        const result = await generateWithStability(runtime);
+        console.info("image_generation_completed", {
+          provider,
+          model: result.metadata?.model ?? serverEnv.STABILITY_IMAGE_MODEL ?? "sd3.5-large",
+          attempts: attemptCounter.value,
+        });
+        return result.url;
+      }
+    } catch (error) {
+      lastError = error;
+      console.warn("image_generation_provider_failed", { provider, error });
+      continue;
     }
   }
 

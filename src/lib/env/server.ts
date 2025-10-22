@@ -51,6 +51,9 @@ export type ServerEnv = {
   MUX_ENVIRONMENT: string | null;
   UPSTASH_REDIS_REST_URL: string | null;
   UPSTASH_REDIS_REST_TOKEN: string | null;
+  STABILITY_API_KEY: string | null;
+  STABILITY_BASE_URL: string | null;
+  STABILITY_IMAGE_MODEL: string | null;
 };
 
 function getEnv(name: string, fallbacks: string[] = [], options: { required?: boolean } = {}) {
@@ -98,6 +101,10 @@ const algoliaApiKey = getEnv("ALGOLIA_API_KEY", []);
 const algoliaIndexPrefix = getEnv("ALGOLIA_INDEX_PREFIX", ["NEXT_PUBLIC_ALGOLIA_INDEX_PREFIX"]);
 const artifactEmbeddingQueue = getEnv("ARTIFACT_EMBEDDING_QUEUE", []);
 const artifactEmbedGateway = getEnv("ARTIFACT_EMBED_GATEWAY", ["ARTIFACT_EMBEDDING_GATEWAY"]);
+const stabilityApiKey = getEnv("STABILITY_API_KEY", []);
+const stabilityBaseUrlRaw = getEnv("STABILITY_BASE_URL", []);
+const stabilityBaseUrl = stabilityBaseUrlRaw ? stabilityBaseUrlRaw.trim() : null;
+const stabilityImageModel = getEnv("STABILITY_IMAGE_MODEL", ["STABILITY_MODEL"]);
 
 export const serverEnv: ServerEnv = {
   SUPABASE_URL: getEnv("SUPABASE_URL", ["NEXT_PUBLIC_SUPABASE_URL"], { required: true })!,
@@ -175,4 +182,7 @@ export const serverEnv: ServerEnv = {
   MUX_ENVIRONMENT: getEnv("MUX_ENVIRONMENT", []),
   UPSTASH_REDIS_REST_URL: getEnv("UPSTASH_REDIS_REST_URL", []),
   UPSTASH_REDIS_REST_TOKEN: getEnv("UPSTASH_REDIS_REST_TOKEN", []),
+  STABILITY_API_KEY: stabilityApiKey,
+  STABILITY_BASE_URL: stabilityBaseUrl,
+  STABILITY_IMAGE_MODEL: stabilityImageModel,
 };
