@@ -76,7 +76,14 @@ function normalizeRedisValue(raw: string | null): string[] | null {
     return normalized.length ? Array.from(new Set(normalized)) : [];
   } catch (error) {
     console.warn("Friend realtime cache parse error", error);
-    return null;
+    const trimmed = raw.trim();
+    if (!trimmed.length) return null;
+    const fallback = trimmed
+      .split(/[,\s]+/)
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+    if (fallback.length === 0) return null;
+    return Array.from(new Set(fallback));
   }
 }
 

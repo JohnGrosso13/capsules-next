@@ -1381,7 +1381,8 @@ function decodeBase64ToUint8Array(base64: string): Uint8Array {
     .replace(/-/g, "+")
     .replace(/_/g, "/");
   const padLength = normalized.length % 4;
-  const padded = padLength ? normalized + "=".repeat(4 - padLength) : normalized;
+  const padCount = ((4 - padLength) % 4 + 4) % 4;
+  const padded = padCount ? normalized + "=".repeat(padCount) : normalized;
 
   if (typeof globalThis.atob === "function") {
     const binary = globalThis.atob(padded);
