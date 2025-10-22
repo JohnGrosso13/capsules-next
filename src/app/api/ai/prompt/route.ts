@@ -3,11 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { hasOpenAIApiKey } from "@/adapters/ai/openai/server";
-import {
-  createPollDraft,
-  createPostDraft,
-  refinePostDraft,
-} from "@/lib/ai/prompter";
+import { createPollDraft, createPostDraft, refinePostDraft } from "@/lib/ai/prompter";
 import {
   sanitizeComposerChatAttachment,
   sanitizeComposerChatHistory,
@@ -22,6 +18,11 @@ import {
   validatedJson,
 } from "@/server/validation/http";
 import { storeConversationSnapshot } from "@/server/ai/conversation-store";
+import {
+  checkRateLimit,
+  retryAfterSeconds as computeRetryAfterSeconds,
+  type RateLimitDefinition,
+} from "@/server/rate-limit";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -123,6 +124,12 @@ function buildAssistantAttachments(
 
 const HISTORY_RETURN_LIMIT = 24;
 
+const PROMPT_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.prompt",
+  limit: 30,
+  window: "5 m",
+};
+
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
@@ -140,6 +147,17 @@ export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, requestSchema);
   if (!parsed.success) {
     return parsed.response;
+  }
+
+  const rateLimitResult = await checkRateLimit(PROMPT_RATE_LIMIT, ownerId);
+  if (rateLimitResult && !rateLimitResult.success) {
+    const retryAfterSeconds = computeRetryAfterSeconds(rateLimitResult.reset);
+    return returnError(
+      429,
+      "rate_limited",
+      "You’re asking too quickly. Give me a moment before drafting another idea.",
+      retryAfterSeconds === null ? undefined : { retryAfterSeconds },
+    );
   }
 
   const { message } = parsed.data;

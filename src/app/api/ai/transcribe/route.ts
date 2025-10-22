@@ -3,8 +3,19 @@ import { NextResponse } from "next/server";
 import { AIConfigError, transcribeAudioFromBase64 } from "@/lib/ai/prompter";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { returnError } from "@/server/validation/http";
+import {
+  checkRateLimit,
+  retryAfterSeconds as computeRetryAfterSeconds,
+  type RateLimitDefinition,
+} from "@/server/rate-limit";
 
 export const runtime = "nodejs";
+
+const TRANSCRIBE_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.transcribe",
+  limit: 20,
+  window: "10 m",
+};
 
 export async function POST(req: Request) {
   try {
@@ -12,6 +23,17 @@ export async function POST(req: Request) {
     const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
     if (!ownerId) {
       return returnError(401, "auth_required", "Authentication required");
+    }
+
+    const rateLimitResult = await checkRateLimit(TRANSCRIBE_RATE_LIMIT, ownerId);
+    if (rateLimitResult && !rateLimitResult.success) {
+      const retryAfterSeconds = computeRetryAfterSeconds(rateLimitResult.reset);
+      return returnError(
+        429,
+        "rate_limited",
+        "Hold on—too many transcription requests in a short time.",
+        retryAfterSeconds === null ? undefined : { retryAfterSeconds },
+      );
     }
 
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;

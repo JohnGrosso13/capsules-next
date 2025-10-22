@@ -7,6 +7,11 @@ import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { Buffer } from "node:buffer";
+import {
+  checkRateLimit,
+  retryAfterSeconds as computeRetryAfterSeconds,
+  type RateLimitDefinition,
+} from "@/server/rate-limit";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
@@ -22,6 +27,12 @@ const responseSchema = z.object({
   imageData: z.string().optional(),
   mimeType: z.string().optional(),
 });
+
+const AVATAR_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.avatar",
+  limit: 10,
+  window: "30 m",
+};
 
 async function persistAndDescribeImage(
   source: string,
@@ -103,6 +114,17 @@ export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, requestSchema);
   if (!parsed.success) {
     return parsed.response;
+  }
+
+  const rateLimitResult = await checkRateLimit(AVATAR_RATE_LIMIT, ownerId);
+  if (rateLimitResult && !rateLimitResult.success) {
+    const retryAfterSeconds = computeRetryAfterSeconds(rateLimitResult.reset);
+    return returnError(
+      429,
+      "rate_limited",
+      "You’ve hit the avatar refresh limit. Give it a little time before trying again.",
+      retryAfterSeconds === null ? undefined : { retryAfterSeconds },
+    );
   }
 
   const { prompt, mode, displayName, imageUrl, imageData } = parsed.data;
