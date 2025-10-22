@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { z } from "zod";
 
 import type { PrompterAction } from "@/components/ai-prompter-stage";
 import { useCapsuleCustomizerCopy } from "./useCapsuleCustomizerCopy";
@@ -16,6 +17,9 @@ import {
   type ChatMessage,
   type CroppableBanner,
   type SelectedBanner,
+  type CapsuleVariantState,
+  type CapsuleVariant,
+  capsuleVariantSchema,
 } from "./capsuleCustomizerTypes";
 
 export type {
@@ -24,6 +28,8 @@ export type {
   ChatMessage,
   ChatBannerOption,
   CapsuleCustomizerSaveResult,
+  CapsuleVariant,
+  CapsuleVariantState,
 } from "./capsuleCustomizerTypes";
 
 type MemoryHookReturn = ReturnType<typeof useCapsuleCustomizerMemory>;
@@ -125,6 +131,7 @@ export type CapsuleCustomizerCoordinator = {
   uploads: CapsuleUploadState;
   save: CapsuleSaveState;
   actions: CapsuleCustomizerActions;
+  variants: CapsuleVariantState;
 };
 
 export type UseCapsuleCustomizerStateReturn = CapsuleCustomizerCoordinator;
@@ -141,6 +148,66 @@ export function useCapsuleCustomizerState(
   }, [capsuleName]);
 
   const customizerMode: CapsuleCustomizerMode = mode ?? "banner";
+
+  const variantSchema = React.useMemo(() => capsuleVariantSchema, []);
+  const [variants, setVariants] = React.useState<CapsuleVariant[]>([]);
+  const [variantLoading, setVariantLoading] = React.useState(false);
+  const [variantError, setVariantError] = React.useState<string | null>(null);
+
+  const assetKindForVariants = React.useMemo(() => {
+    if (customizerMode === "avatar") return "avatar";
+    if (customizerMode === "logo") return "logo";
+    if (customizerMode === "banner" || customizerMode === "storeBanner") return "banner";
+    return null;
+  }, [customizerMode]);
+
+  const upsertVariant = React.useCallback((variant: CapsuleVariant | null) => {
+    if (!variant) return;
+    setVariants((previous) => {
+      const filtered = previous.filter((entry) => entry.id !== variant.id);
+      const next = [variant, ...filtered];
+      next.sort((a, b) => {
+        if (b.version !== a.version) return b.version - a.version;
+        const aTime = Date.parse(a.createdAt);
+        const bTime = Date.parse(b.createdAt);
+        return Number.isFinite(bTime) && Number.isFinite(aTime) ? bTime - aTime : 0;
+      });
+      return next;
+    });
+  }, []);
+
+  const loadVariants = React.useCallback(async () => {
+    if (!assetKindForVariants) {
+      setVariants([]);
+      return;
+    }
+    setVariantLoading(true);
+    setVariantError(null);
+    try {
+      const params = new URLSearchParams({ assetKind: assetKindForVariants, limit: "20" });
+      if (capsuleId) params.set("capsuleId", capsuleId);
+      const response = await fetch(`/api/ai/variants?${params.toString()}`, {
+        method: "GET",
+        credentials: "include",
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json) {
+        throw new Error("Failed to load image variants.");
+      }
+      const parsed = z.object({ variants: z.array(variantSchema) }).parse(json);
+      setVariants(parsed.variants);
+    } catch (error) {
+      console.warn("capsule variants load failed", error);
+      setVariantError(error instanceof Error ? error.message : "Failed to load variants.");
+    } finally {
+      setVariantLoading(false);
+    }
+  }, [assetKindForVariants, capsuleId, variantSchema]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    void loadVariants();
+  }, [open, loadVariants]);
 
   const {
     assetLabel,
@@ -236,10 +303,33 @@ export function useCapsuleCustomizerState(
     selectedBannerRef,
     setSaveError,
     fetchMemoryAssetUrl: resolveMemoryAssetUrl,
+    onVariantReceived: upsertVariant,
+    onVariantRefreshRequested: loadVariants,
   });
 
   cropUpdateRef.current = syncBannerCropToMessages;
   resetPromptHistoryRef.current = resetPromptHistory;
+
+  const handleVariantSelect = React.useCallback(
+    (variant: CapsuleVariant) => {
+      const metadata = (variant.metadata ?? {}) as Record<string, unknown>;
+      const resolvedPrompt =
+        typeof metadata.resolvedPrompt === "string" && metadata.resolvedPrompt.trim().length
+          ? metadata.resolvedPrompt.trim()
+          : null;
+
+      updateSelectedBanner({
+        kind: "memory",
+        id: variant.id,
+        title: resolvedPrompt || `Variant v${variant.version}`,
+        url: variant.imageUrl,
+        fullUrl: variant.imageUrl,
+        crop: { offsetX: 0, offsetY: 0 },
+      });
+      resetPromptHistory();
+    },
+    [resetPromptHistory, updateSelectedBanner],
+  );
 
   const memory = useCapsuleCustomizerMemory({
     open,
@@ -247,6 +337,17 @@ export function useCapsuleCustomizerState(
     updateSelectedBanner,
     onResetPromptHistory: resetPromptHistory,
   });
+
+  const variantContextValue = React.useMemo<CapsuleVariantState>(
+    () => ({
+      items: variants,
+      loading: variantLoading,
+      error: variantError,
+      refresh: loadVariants,
+      select: handleVariantSelect,
+    }),
+    [variants, variantLoading, variantError, loadVariants, handleVariantSelect],
+  );
 
   fetchMemoryAssetRef.current = memory.fetchMemoryAssetUrl;
   refreshMemoriesRef.current = memory.refresh;
@@ -359,6 +460,7 @@ export function useCapsuleCustomizerState(
       onImageLoad: previewState.onImageLoad,
     },
     uploads,
+    variants: variantContextValue,
     save: saveState,
     actions: {
       handleClose,

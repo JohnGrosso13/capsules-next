@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const url = await generateImageFromPrompt(
+  const result = await generateImageFromPrompt(
     prompt,
     safeOptions,
     {
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       stylePreset: null,
     },
   );
-  return validatedJson(responseSchema, { url });
+  return validatedJson(responseSchema, { url: result.url });
 }
 
 export const runtime = "nodejs";

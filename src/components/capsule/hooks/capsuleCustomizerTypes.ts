@@ -1,5 +1,9 @@
 "use client";
 
+import { z } from "zod";
+
+import { aiImageVariantSchema } from "@/shared/schemas/ai";
+
 export type CapsuleCustomizerMode = "banner" | "storeBanner" | "tile" | "logo" | "avatar";
 
 export type BannerCrop = {
@@ -17,6 +21,21 @@ export type SelectedBanner =
       fullUrl: string | null;
     } & { crop: BannerCrop })
   | { kind: "ai"; prompt: string };
+
+export const capsuleVariantSchema = aiImageVariantSchema.pick({
+  id: true,
+  runId: true,
+  assetKind: true,
+  branchKey: true,
+  version: true,
+  imageUrl: true,
+  thumbUrl: true,
+  metadata: true,
+  parentVariantId: true,
+  createdAt: true,
+});
+
+export type CapsuleVariant = z.infer<typeof capsuleVariantSchema>;
 
 export type CroppableBanner = Extract<SelectedBanner, { kind: "upload" | "memory" }>;
 
@@ -63,6 +82,14 @@ export type CapsuleCustomizerSaveResult =
   | { type: "tile"; tileUrl: string | null }
   | { type: "logo"; logoUrl: string | null }
   | { type: "avatar"; avatarUrl: string | null };
+
+export type CapsuleVariantState = {
+  items: CapsuleVariant[];
+  loading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+  select: (variant: CapsuleVariant) => void;
+};
 
 export type PromptHistorySnapshot = {
   base: string | null;

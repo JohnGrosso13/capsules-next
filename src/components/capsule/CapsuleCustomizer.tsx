@@ -12,6 +12,7 @@ import {
   type CapsuleCustomizerSaveResult,
   type ChatMessage,
   type ChatBannerOption,
+  type CapsuleVariant,
 } from "./hooks/useCapsuleCustomizerState";
 import {
   CapsuleCustomizerProvider,
@@ -21,6 +22,7 @@ import {
   useCapsuleCustomizerMeta,
   useCapsuleCustomizerPreview,
   useCapsuleCustomizerSave,
+  useCapsuleCustomizerVariants,
 } from "./hooks/capsuleCustomizerContext";
 import { CapsuleBannerPreview } from "./CapsuleBannerPreview";
 import { CapsuleAssetActions } from "./CapsuleAssetActions";
@@ -98,6 +100,32 @@ function CapsuleCustomizerContent() {
   const preview = useCapsuleCustomizerPreview();
   const save = useCapsuleCustomizerSave();
   const actions = useCapsuleCustomizerActions();
+  const variants = useCapsuleCustomizerVariants();
+
+  const variantsSupported =
+    meta.mode === "banner" ||
+    meta.mode === "storeBanner" ||
+    meta.mode === "logo" ||
+    meta.mode === "avatar";
+
+  const variantDescription =
+    meta.mode === "avatar"
+      ? "Swap between avatar takes or branch from an earlier edit."
+      : meta.mode === "logo"
+        ? "Compare logo explorations and revert to any saved version."
+        : "Branch, compare, or roll back to earlier AI versions.";
+
+  const truncate = React.useCallback((value: string, max = 72) => {
+    return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
+  }, []);
+
+  const humanize = React.useCallback((value: string) => {
+    return value
+      .split(/[\s_-]+/g)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }, []);
 
   const saveLabel =
     meta.mode === "tile"
@@ -188,13 +216,109 @@ function CapsuleCustomizerContent() {
                     </button>
                   );
                 })
-              ) : (
-                <p className={styles.recentHint}>
-                  Generate, upload, or pick a memory to see it surface here.
-                </p>
-              )}
+            ) : (
+              <p className={styles.recentHint}>
+                Generate, upload, or pick a memory to see it surface here.
+              </p>
+            )}
+          </div>
+          {variantsSupported ? (
+            <div className={styles.variantSection} aria-labelledby="ai-versions-heading">
+              <div className={styles.recentHeader}>
+                <h3 id="ai-versions-heading">AI versions</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    void variants.refresh();
+                  }}
+                  disabled={variants.loading}
+                >
+                  Refresh
+                </Button>
+              </div>
+              <div className={styles.recentDescription}>{variantDescription}</div>
+              <div className={styles.recentList} role="list">
+                {variants.loading ? (
+                  <p className={styles.recentHint}>Loading your saved versions…</p>
+                ) : variants.error ? (
+                  <p className={styles.recentHint}>{variants.error}</p>
+                ) : variants.items.length ? (
+                  variants.items.map((variant: CapsuleVariant) => {
+                    const metadata = (variant.metadata ?? {}) as Record<string, unknown>;
+                    const mode =
+                      typeof metadata.mode === "string" && metadata.mode.trim().length
+                        ? metadata.mode.trim().toLowerCase()
+                        : "generate";
+                    const stylePreset =
+                      typeof metadata.stylePreset === "string" && metadata.stylePreset.trim().length
+                        ? humanize(metadata.stylePreset.trim())
+                        : null;
+                    const providerRaw =
+                      typeof metadata.provider === "string" && metadata.provider.trim().length
+                        ? metadata.provider.trim().toLowerCase()
+                        : null;
+                    const provider =
+                      providerRaw === "openai"
+                        ? "OpenAI"
+                        : providerRaw === "stability"
+                          ? "Stability"
+                          : providerRaw
+                            ? humanize(providerRaw)
+                            : null;
+                    const resolvedPrompt =
+                      typeof metadata.resolvedPrompt === "string" && metadata.resolvedPrompt.trim().length
+                        ? metadata.resolvedPrompt.trim()
+                        : null;
+                    const userPrompt =
+                      typeof metadata.userPrompt === "string" && metadata.userPrompt.trim().length
+                        ? metadata.userPrompt.trim()
+                        : null;
+                    const snippetSource = resolvedPrompt || userPrompt || "";
+                    const snippet = snippetSource.length ? `“${truncate(snippetSource, 68)}”` : null;
+                    const detailParts = [
+                      mode === "edit" ? "Edit" : "Generate",
+                      stylePreset,
+                      provider,
+                    ].filter(Boolean) as string[];
+                    const detail = detailParts.join(" • ");
+                    const thumbUrl = variant.thumbUrl ?? variant.imageUrl;
+                    const selected =
+                      preview.selected?.kind === "memory" && preview.selected.id === variant.id;
+                    return (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        role="listitem"
+                        className={styles.recentItem}
+                        data-selected={selected ? "true" : undefined}
+                        onClick={() => variants.select(variant)}
+                        aria-label={`Switch to AI version ${variant.version}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={thumbUrl}
+                          alt={`AI version ${variant.version}`}
+                          className={styles.recentImage}
+                          loading="lazy"
+                        />
+                        <div className={styles.recentMeta}>
+                          <span className={styles.recentTitle}>{`Version ${variant.version}`}</span>
+                          {detail ? <span className={styles.recentSubtle}>{detail}</span> : null}
+                          {snippet ? <span className={styles.recentSubtle}>{snippet}</span> : null}
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className={styles.recentHint}>
+                    Versions appear here after you generate or edit with Capsule AI.
+                  </p>
+                )}
+              </div>
             </div>
-          </section>
+          ) : null}
+        </section>
 
           <section className={styles.chatColumn}>
             <div ref={chat.logRef} className={styles.chatLog} aria-live="polite">

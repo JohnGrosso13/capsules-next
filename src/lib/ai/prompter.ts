@@ -512,6 +512,13 @@ function resolveImageParams(options: ImageOptions = {}): ImageParams {
 
 const DEFAULT_IMAGE_RETRY_DELAYS_MS = [0, 1200, 3200];
 
+export type ImageGenerationResult = {
+  url: string;
+  runId: string | null;
+  provider: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
 export type ImageRunExecutionContext = {
   ownerId?: string | null;
   capsuleId?: string | null;
@@ -1071,9 +1078,13 @@ function resolveInitialProvider(
   return providers[0] ?? null;
 }
 
-async function generateWithOpenAI(
-  runtime: ProviderRuntimeParams,
-): Promise<{ url: string; metadata: Record<string, unknown> | undefined }> {
+type ProviderResult = {
+  url: string;
+  metadata?: Record<string, unknown> | null;
+  provider: ImageProviderId;
+};
+
+async function generateWithOpenAI(runtime: ProviderRuntimeParams): Promise<ProviderResult> {
   requireOpenAIKey();
 
   const isNonProd = (process.env.NODE_ENV ?? "").toLowerCase() !== "production";
@@ -1175,7 +1186,7 @@ async function generateWithOpenAI(
           });
         }
 
-        return { url: finalUrl, metadata: responseMetadata };
+        return { url: finalUrl, metadata: responseMetadata, provider: "openai" };
       } catch (error) {
         const details = extractOpenAiErrorDetails(error);
         attemptRecord.completedAt = nowIso();
@@ -1223,9 +1234,7 @@ function mapSizeToAspectRatio(size: string): string {
   return `${width / divisor}:${height / divisor}`;
 }
 
-async function generateWithStability(
-  runtime: ProviderRuntimeParams,
-): Promise<{ url: string; metadata: Record<string, unknown> | undefined }> {
+async function generateWithStability(runtime: ProviderRuntimeParams): Promise<ProviderResult> {
   if (!hasStabilityApiKey()) {
     throw new Error("Stability API key is not configured.");
   }
@@ -1268,7 +1277,7 @@ async function generateWithStability(
       });
     }
 
-    return { url: finalUrl, metadata: result.metadata ?? {} };
+    return { url: finalUrl, metadata: result.metadata ?? {}, provider: "stability" };
   } catch (error) {
     const details = extractOpenAiErrorDetails(error);
     attemptRecord.completedAt = nowIso();
@@ -1291,7 +1300,7 @@ export async function generateImageFromPrompt(
   prompt: string,
   options: ImageOptions = {},
   runContext?: ImageRunExecutionContext,
-): Promise<string> {
+): Promise<ImageGenerationResult> {
   const params = resolveImageParams(options);
   const providerQueue = resolveProviderQueue(prompt, runContext);
   const retryDelays =
@@ -1339,7 +1348,12 @@ export async function generateImageFromPrompt(
           model: result.metadata?.model ?? serverEnv.OPENAI_IMAGE_MODEL,
           attempts: attemptCounter.value,
         });
-        return result.url;
+        return {
+          url: result.url,
+          runId: runState?.id ?? null,
+          provider: result.provider,
+          metadata: result.metadata ?? null,
+        };
       }
 
       if (provider === "stability") {
@@ -1349,7 +1363,12 @@ export async function generateImageFromPrompt(
           model: result.metadata?.model ?? serverEnv.STABILITY_IMAGE_MODEL ?? "sd3.5-large",
           attempts: attemptCounter.value,
         });
-        return result.url;
+        return {
+          url: result.url,
+          runId: runState?.id ?? null,
+          provider: result.provider,
+          metadata: result.metadata ?? null,
+        };
       }
     } catch (error) {
       lastError = error;
@@ -1372,7 +1391,7 @@ export async function editImageWithInstruction(
   instruction: string,
   options: ImageOptions = {},
   runContext?: ImageRunExecutionContext,
-): Promise<string> {
+): Promise<ImageGenerationResult> {
   requireOpenAIKey();
 
   const params = resolveImageParams(options);
@@ -1541,7 +1560,12 @@ export async function editImageWithInstruction(
           });
         }
 
-        return finalUrl;
+        return {
+          url: finalUrl,
+          runId: runState?.id ?? null,
+          provider: attemptRecord.provider ?? runState?.provider ?? "openai",
+          metadata: responseMetadata,
+        };
       } catch (error) {
         const details = extractOpenAiErrorDetails(error);
         attemptRecord.completedAt = nowIso();
@@ -1749,7 +1773,9 @@ export async function createPostDraft(
     result.kind = requestedKind || "image";
   } else if (imagePrompt) {
     try {
-      result.mediaUrl = await generateImageFromPrompt(imagePrompt);
+      const generatedImage = await generateImageFromPrompt(imagePrompt);
+
+      result.mediaUrl = generatedImage.url;
 
       result.kind = "image";
 
@@ -1770,7 +1796,9 @@ export async function createPostDraft(
 
     if (imagePrompt) {
       try {
-        result.mediaUrl = await generateImageFromPrompt(imagePrompt);
+        const fallbackImage = await generateImageFromPrompt(imagePrompt);
+
+        result.mediaUrl = fallbackImage.url;
 
         result.kind = "image";
 
@@ -1973,7 +2001,9 @@ export async function refinePostDraft(
     next.kind = typeof postResponse.kind === "string" ? postResponse.kind : next.kind;
   } else if (candidatePrompt) {
     try {
-      next.mediaUrl = await generateImageFromPrompt(candidatePrompt);
+      const iterationImage = await generateImageFromPrompt(candidatePrompt);
+
+      next.mediaUrl = iterationImage.url;
 
       next.mediaPrompt = candidatePrompt;
 
@@ -1995,13 +2025,13 @@ export async function refinePostDraft(
         .filter(Boolean)
         .join(" ");
 
-      const editedUrl = await editImageWithInstruction(
+      const editedResult = await editImageWithInstruction(
         base.mediaUrl,
         combinedPrompt || userText,
         {},
       );
 
-      next.mediaUrl = editedUrl;
+      next.mediaUrl = editedResult.url;
 
       next.mediaPrompt = combinedPrompt || userText;
 
@@ -2345,4 +2375,5 @@ export async function transcribeAudioFromBase64({
 
   throw new Error("Transcription failed");
 }
+
 

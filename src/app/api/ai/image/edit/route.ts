@@ -25,7 +25,7 @@ export async function POST(req: Request) {
         ...(typeof options.size === "string" ? { size: options.size } : {}),
       }
     : {};
-  const url = await editImageWithInstruction(
+  const result = await editImageWithInstruction(
     imageUrl,
     instruction,
     safeOptions,
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       stylePreset: null,
     },
   );
-  return validatedJson(responseSchema, { url });
+  return validatedJson(responseSchema, { url: result.url });
 }
 
 export const runtime = "nodejs";

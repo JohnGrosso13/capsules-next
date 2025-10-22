@@ -4,6 +4,8 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
 import { composeUserLedPrompt } from "@/lib/ai/prompt-styles";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
+import { aiImageVariantSchema } from "@/shared/schemas/ai";
+import { createAiImageVariant, type AiImageVariantRecord } from "@/server/ai/image-variants";
 import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
@@ -21,13 +23,30 @@ const requestSchema = z.object({
   imageUrl: z.string().url().optional(),
   imageData: z.string().min(1).optional(),
   stylePreset: z.string().min(1).optional(),
+  capsuleId: z.string().uuid().optional(),
+  variantId: z.string().uuid().optional(),
 });
+
+const variantResponseSchema = aiImageVariantSchema.pick({
+  id: true,
+  runId: true,
+  assetKind: true,
+  branchKey: true,
+  version: true,
+  imageUrl: true,
+  thumbUrl: true,
+  metadata: true,
+  parentVariantId: true,
+  createdAt: true,
+});
+type VariantResponse = z.infer<typeof variantResponseSchema>;
 
 const responseSchema = z.object({
   url: z.string(),
   message: z.string().optional(),
   imageData: z.string().optional(),
   mimeType: z.string().optional(),
+  variant: variantResponseSchema.optional(),
 });
 
 const AVATAR_RATE_LIMIT: RateLimitDefinition = {
@@ -84,6 +103,22 @@ async function persistAndDescribeImage(
     url: storedUrl,
     imageData: base64Data,
     mimeType,
+  };
+}
+
+function toVariantResponse(record: AiImageVariantRecord | null): VariantResponse | null {
+  if (!record) return null;
+  return {
+    id: record.id,
+    runId: record.runId,
+    assetKind: record.assetKind,
+    branchKey: record.branchKey,
+    version: record.version,
+    imageUrl: record.imageUrl,
+    thumbUrl: record.thumbUrl,
+    metadata: record.metadata ?? {},
+    parentVariantId: record.parentVariantId,
+    createdAt: record.createdAt,
   };
 }
 
@@ -168,7 +203,17 @@ export async function POST(req: Request) {
     );
   }
 
-  const { prompt, mode, displayName, imageUrl, imageData, stylePreset } = parsed.data;
+  const {
+    prompt,
+    mode,
+    displayName,
+    imageUrl,
+    imageData,
+    stylePreset,
+    capsuleId: capsuleIdRaw,
+    variantId,
+  } = parsed.data;
+  const capsuleId = typeof capsuleIdRaw === "string" ? capsuleIdRaw : undefined;
   const effectiveName = typeof displayName === "string" ? displayName : "";
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
@@ -191,15 +236,40 @@ export async function POST(req: Request) {
           options: { displayName: effectiveName || null },
         },
       );
-      const stored = await persistAndDescribeImage(generated, "profile-avatar-generate", {
+      const stored = await persistAndDescribeImage(generated.url, "profile-avatar-generate", {
         baseUrl: requestOrigin,
       });
+      let variantRecord: AiImageVariantRecord | null = null;
+      try {
+        variantRecord = await createAiImageVariant({
+          ownerUserId: ownerId,
+          capsuleId: capsuleId ?? null,
+          assetKind: "avatar",
+          imageUrl: stored.url,
+          thumbUrl: stored.url,
+          runId: generated.runId,
+          metadata: {
+            mode: "generate",
+            userPrompt: prompt,
+            resolvedPrompt: avatarPrompt,
+            stylePreset: stylePreset ?? null,
+            provider: generated.provider,
+            responseMetadata: generated.metadata ?? null,
+          },
+        });
+      } catch (error) {
+        console.warn("ai.avatar: failed to record variant", error);
+      }
+
+      const variantResponse = toVariantResponse(variantRecord);
+
       return validatedJson(responseSchema, {
         url: stored.url,
         message:
           "Thanks for the direction! I generated a circular avatar that should look great throughout the product.",
         imageData: stored.imageData ?? undefined,
         mimeType: stored.mimeType ?? undefined,
+        ...(variantResponse ? { variant: variantResponse } : {}),
       });
     }
 
@@ -248,15 +318,43 @@ export async function POST(req: Request) {
         options: { displayName: effectiveName || null },
       },
     );
-    const stored = await persistAndDescribeImage(edited, "profile-avatar-edit", {
+    const stored = await persistAndDescribeImage(edited.url, "profile-avatar-edit", {
       baseUrl: requestOrigin,
     });
+
+    let variantRecord: AiImageVariantRecord | null = null;
+    try {
+      variantRecord = await createAiImageVariant({
+        ownerUserId: ownerId,
+        capsuleId: capsuleId ?? null,
+        assetKind: "avatar",
+        imageUrl: stored.url,
+        thumbUrl: stored.url,
+        runId: edited.runId,
+        parentVariantId: variantId ?? null,
+        metadata: {
+          mode: "edit",
+          userPrompt: prompt,
+          resolvedPrompt: instruction,
+          stylePreset: stylePreset ?? null,
+          provider: edited.provider,
+          baseVariantId: variantId ?? null,
+          sourceImageUrl: normalizedSource,
+          responseMetadata: edited.metadata ?? null,
+        },
+      });
+    } catch (error) {
+      console.warn("ai.avatar: failed to record edited variant", error);
+    }
+
+    const variantResponse = toVariantResponse(variantRecord);
 
     return validatedJson(responseSchema, {
       url: stored.url,
       message: "Got it! I refreshed the avatar with those notes so you can review the update here.",
       imageData: stored.imageData ?? undefined,
       mimeType: stored.mimeType ?? undefined,
+      ...(variantResponse ? { variant: variantResponse } : {}),
     });
   } catch (error) {
     console.error("ai.avatar error", error);

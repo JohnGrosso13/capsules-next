@@ -8,6 +8,8 @@ import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { Buffer } from "node:buffer";
+import { aiImageVariantSchema } from "@/shared/schemas/ai";
+import { createAiImageVariant, type AiImageVariantRecord } from "@/server/ai/image-variants";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
@@ -16,13 +18,30 @@ const requestSchema = z.object({
   imageUrl: z.string().url().optional(),
   imageData: z.string().min(1).optional(),
   stylePreset: z.string().min(1).optional(),
+  capsuleId: z.string().uuid().optional(),
+  variantId: z.string().uuid().optional(),
 });
+
+const variantResponseSchema = aiImageVariantSchema.pick({
+  id: true,
+  runId: true,
+  assetKind: true,
+  branchKey: true,
+  version: true,
+  imageUrl: true,
+  thumbUrl: true,
+  metadata: true,
+  parentVariantId: true,
+  createdAt: true,
+});
+type VariantResponse = z.infer<typeof variantResponseSchema>;
 
 const responseSchema = z.object({
   url: z.string(),
   message: z.string().optional(),
   imageData: z.string().optional(),
   mimeType: z.string().optional(),
+  variant: variantResponseSchema.optional(),
 });
 
 async function persistAndDescribeImage(
@@ -73,6 +92,22 @@ async function persistAndDescribeImage(
     url: storedUrl,
     imageData: base64Data,
     mimeType,
+  };
+}
+
+function toVariantResponse(record: AiImageVariantRecord | null): VariantResponse | null {
+  if (!record) return null;
+  return {
+    id: record.id,
+    runId: record.runId,
+    assetKind: record.assetKind,
+    branchKey: record.branchKey,
+    version: record.version,
+    imageUrl: record.imageUrl,
+    thumbUrl: record.thumbUrl,
+    metadata: record.metadata ?? {},
+    parentVariantId: record.parentVariantId,
+    createdAt: record.createdAt,
   };
 }
 
@@ -144,7 +179,17 @@ export async function POST(req: Request) {
     return parsed.response;
   }
 
-  const { prompt, mode, capsuleName, imageUrl, imageData, stylePreset } = parsed.data;
+  const {
+    prompt,
+    mode,
+    capsuleName,
+    imageUrl,
+    imageData,
+    stylePreset,
+    capsuleId: capsuleIdRaw,
+    variantId,
+  } = parsed.data;
+  const capsuleId = typeof capsuleIdRaw === "string" ? capsuleIdRaw : undefined;
   const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
@@ -167,15 +212,41 @@ export async function POST(req: Request) {
           options: { capsuleName: effectiveName || null },
         },
       );
-      const stored = await persistAndDescribeImage(generated, "capsule-banner-generate", {
+      const stored = await persistAndDescribeImage(generated.url, "capsule-banner-generate", {
         baseUrl: requestOrigin,
       });
+      let variantRecord: AiImageVariantRecord | null = null;
+      try {
+        variantRecord = await createAiImageVariant({
+          ownerUserId: ownerId,
+          capsuleId: capsuleId ?? null,
+          assetKind: "banner",
+          imageUrl: stored.url,
+          thumbUrl: stored.url,
+          runId: generated.runId,
+          metadata: {
+            mode: "generate",
+            userPrompt: prompt,
+            resolvedPrompt: bannerPrompt,
+            capsuleName: effectiveName || null,
+            stylePreset: stylePreset ?? null,
+            provider: generated.provider,
+            responseMetadata: generated.metadata ?? null,
+          },
+        });
+      } catch (error) {
+        console.warn("ai.banner: failed to record variant", error);
+      }
+
+      const variantResponse = toVariantResponse(variantRecord);
+
       return validatedJson(responseSchema, {
         url: stored.url,
         message:
           "Thanks for sharing that direction! I generated a new hero banner in that spirit - check out the preview on the right.",
         imageData: stored.imageData ?? undefined,
         mimeType: stored.mimeType ?? undefined,
+        ...(variantResponse ? { variant: variantResponse } : {}),
       });
     }
 
@@ -226,9 +297,37 @@ export async function POST(req: Request) {
           options: { capsuleName: effectiveName || null, sourceImageUrl: normalizedSource },
         },
       );
-      const stored = await persistAndDescribeImage(edited, "capsule-banner-edit", {
+      const stored = await persistAndDescribeImage(edited.url, "capsule-banner-edit", {
         baseUrl: requestOrigin,
       });
+
+      let variantRecord: AiImageVariantRecord | null = null;
+      try {
+        variantRecord = await createAiImageVariant({
+          ownerUserId: ownerId,
+          capsuleId: capsuleId ?? null,
+          assetKind: "banner",
+          imageUrl: stored.url,
+          thumbUrl: stored.url,
+          runId: edited.runId,
+          parentVariantId: variantId ?? null,
+          metadata: {
+            mode: "edit",
+            userPrompt: prompt,
+            resolvedPrompt: instruction,
+            capsuleName: effectiveName || null,
+            stylePreset: stylePreset ?? null,
+            provider: edited.provider,
+            baseVariantId: variantId ?? null,
+            sourceImageUrl: normalizedSource,
+            responseMetadata: edited.metadata ?? null,
+          },
+        });
+      } catch (variantError) {
+        console.warn("ai.banner: failed to record edited variant", variantError);
+      }
+
+      const variantResponse = toVariantResponse(variantRecord);
 
       return validatedJson(responseSchema, {
         url: stored.url,
@@ -236,6 +335,7 @@ export async function POST(req: Request) {
           "Thanks for the update! I remixed the current banner with those notes so you can preview the refresh.",
         imageData: stored.imageData ?? undefined,
         mimeType: stored.mimeType ?? undefined,
+        ...(variantResponse ? { variant: variantResponse } : {}),
       });
     } catch (editError) {
       console.warn("ai.banner edit failed; falling back to fresh generation", editError);
@@ -262,7 +362,7 @@ export async function POST(req: Request) {
             options: { capsuleName: effectiveName || null, reason: "edit-fallback" },
           },
         );
-        const stored = await persistAndDescribeImage(fallback, "capsule-banner-edit-fallback", {
+        const stored = await persistAndDescribeImage(fallback.url, "capsule-banner-edit-fallback", {
           baseUrl: requestOrigin,
         });
 
@@ -286,3 +386,7 @@ export async function POST(req: Request) {
 }
 
 export const runtime = "nodejs";
+
+
+
+

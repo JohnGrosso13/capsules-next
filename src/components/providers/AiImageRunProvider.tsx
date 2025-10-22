@@ -391,6 +391,18 @@ export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
       }, delayMs);
     };
 
+    const resolveChannelUserId = async (): Promise<string> => {
+      try {
+        const res = await fetch("/api/account/profile", { credentials: "include" });
+        const json = (await res.json().catch(() => null)) as { id?: unknown } | null;
+        const profileId = json && typeof json.id === "string" ? json.id.trim() : null;
+        if (profileId && profileId.length) return profileId;
+      } catch {
+        // ignore and fall back to auth id
+      }
+      return user.id; // Clerk id fallback (may fail capability if server publishes to Supabase id)
+    };
+
     const connect = async (attempt = 0) => {
       retryCount = attempt;
       let connection: RealtimeClient | null = null;
@@ -402,7 +414,8 @@ export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
           return;
         }
         client = connection;
-        const channel = getAiImageChannel(user.id);
+        const channelUserId = await resolveChannelUserId();
+        const channel = getAiImageChannel(channelUserId);
         const cleanup = await client.subscribe(channel, (event) => {
           const normalized = normalizeEvent(event?.data);
           if (!normalized) return;

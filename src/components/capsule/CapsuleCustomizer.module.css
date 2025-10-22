@@ -148,6 +148,12 @@
   padding-right: 0.45rem;
 }
 
+.variantSection {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.75rem;
+}
+
 .recentItem {
   all: unset;
   display: flex;

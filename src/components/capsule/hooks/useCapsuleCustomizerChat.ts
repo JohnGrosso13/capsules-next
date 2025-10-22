@@ -15,6 +15,7 @@ import {
   type PromptHistorySnapshot,
   type SelectedBanner,
 } from "./capsuleCustomizerTypes";
+import { capsuleVariantSchema, type CapsuleVariant } from "./capsuleCustomizerTypes";
 import { buildPromptEnvelope } from "./capsulePromptUtils";
 import { base64ToFile } from "./capsuleImageUtils";
 
@@ -51,6 +52,8 @@ type UseCustomizerChatOptions = {
   selectedBannerRef: React.MutableRefObject<SelectedBanner | null>;
   setSaveError: (value: string | null) => void;
   fetchMemoryAssetUrl: (memoryId: string) => Promise<string>;
+  onVariantReceived?: (variant: CapsuleVariant | null) => void;
+  onVariantRefreshRequested?: () => void;
 };
 
 function randomId(): string {
@@ -126,6 +129,8 @@ export function useCapsuleCustomizerChat({
   selectedBannerRef,
   setSaveError,
   fetchMemoryAssetUrl,
+  onVariantReceived,
+  onVariantRefreshRequested,
 }: UseCustomizerChatOptions) {
   const [messages, setMessages] = React.useState<ChatMessage[]>(() => [
     { id: randomId(), role: "assistant", content: assistantIntro },
@@ -596,18 +601,35 @@ export function useCapsuleCustomizerChat({
             body: JSON.stringify(body),
           });
 
-          const payload = (await response.json().catch(() => null)) as {
+          type AiResponsePayload = {
             url?: string;
             message?: string | null;
             imageData?: string | null;
             mimeType?: string | null;
-          } | null;
+            variant?: unknown;
+          };
+          const payload = (await response.json().catch(() => null)) as AiResponsePayload | null;
 
-          if (!response.ok || !payload?.url) {
+          const payloadUrl = payload?.url ?? null;
+          if (!response.ok || typeof payloadUrl !== "string" || !payloadUrl.trim().length) {
             const message =
               (payload?.message && typeof payload.message === "string" && payload.message) ||
               "Failed to generate banner.";
             throw new Error(message);
+          }
+
+          let variantRecord: CapsuleVariant | null = null;
+          let variantHandled = false;
+          if (payload?.variant && typeof payload.variant === "object") {
+            const parsedVariant = capsuleVariantSchema.safeParse(payload.variant);
+            if (parsedVariant.success) {
+              variantRecord = parsedVariant.data;
+              variantHandled = true;
+              onVariantReceived?.(variantRecord);
+            }
+          }
+          if (!variantRecord && !variantHandled) {
+            onVariantRefreshRequested?.();
           }
 
           const mimeType =
@@ -621,7 +643,7 @@ export function useCapsuleCustomizerChat({
               ? payload.imageData
               : null;
 
-          const fileUrl = payload.url ?? (imageData ? `data:${mimeType};base64,${imageData}` : "");
+          const fileUrl = payloadUrl || (imageData ? `data:${mimeType};base64,${imageData}` : "");
           let bannerFile: File | null = null;
 
           if (imageData) {

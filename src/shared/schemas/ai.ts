@@ -53,6 +53,22 @@ export const clarifyImagePromptResponseSchema = z.object({
 });
 export type ClarifyImagePromptResponse = z.infer<typeof clarifyImagePromptResponseSchema>;
 
+export const aiImageVariantSchema = z.object({
+  id: z.string().uuid(),
+  runId: z.string().uuid().nullable(),
+  ownerUserId: z.string().uuid().nullable(),
+  capsuleId: z.string().uuid().nullable(),
+  assetKind: z.string(),
+  branchKey: z.string(),
+  version: z.number().int().min(1),
+  imageUrl: z.string(),
+  thumbUrl: z.string().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  parentVariantId: z.string().uuid().nullable(),
+  createdAt: z.string(),
+});
+export type AiImageVariant = z.infer<typeof aiImageVariantSchema>;
+
 export const promptResponseSchema = z.union([draftPostResponseSchema, clarifyImagePromptResponseSchema]);
 export type PromptResponse = z.infer<typeof promptResponseSchema>;
 
