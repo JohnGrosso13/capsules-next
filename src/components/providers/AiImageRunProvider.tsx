@@ -377,20 +377,31 @@ export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
     let isActive = true;
     let client: RealtimeClient | null = null;
     let unsubscribe: (() => void) | null = null;
+    let retryCount = 0;
 
     const tokenProvider = async () => {
       return requestRealtimeToken(buildRealtimeEnvelope(userRef.current));
     };
 
-    const connect = async () => {
+    const attemptReconnect = (delayMs: number) => {
+      if (!isActive || typeof window === "undefined") return;
+      window.setTimeout(() => {
+        if (!isActive) return;
+        void connect(retryCount + 1);
+      }, delayMs);
+    };
+
+    const connect = async (attempt = 0) => {
+      retryCount = attempt;
+      let connection: RealtimeClient | null = null;
       try {
-        const instance = await factory.getClient(tokenProvider);
-        if (!instance) return;
+        connection = await factory.getClient(tokenProvider);
+        if (!connection) return;
         if (!isActive) {
-          await factory.release(instance);
+          await factory.release(connection);
           return;
         }
-        client = instance;
+        client = connection;
         const channel = getAiImageChannel(user.id);
         const cleanup = await client.subscribe(channel, (event) => {
           const normalized = normalizeEvent(event?.data);
@@ -398,16 +409,31 @@ export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
           handleEvent(normalized);
         });
         unsubscribe = () => {
-          Promise.resolve(cleanup()).catch((error) => {
+          Promise.resolve(cleanup()).catch((error: unknown) => {
             console.error("AI image realtime unsubscribe error", error);
           });
         };
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         console.error("AI image realtime connection failed", error);
+        if (connection) {
+          await Promise.resolve(factory.release(connection)).catch((releaseError: unknown) => {
+            console.error("AI image realtime release error", releaseError);
+          });
+          connection = null;
+        }
+        const lower = message.toLowerCase();
+        const denied =
+          lower.includes("denied access based on given capability") ||
+          lower.includes("channel denied");
+        if (denied && attempt < 3) {
+          factory.reset();
+          attemptReconnect(300);
+        }
       }
     };
 
-    void connect();
+    void connect(0);
 
     return () => {
       isActive = false;
