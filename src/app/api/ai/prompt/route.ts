@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import { z } from "zod";
 
 import { hasOpenAIApiKey } from "@/adapters/ai/openai/server";
@@ -53,11 +51,20 @@ const requestSchema = z.object({
   capsuleId: z.string().optional().nullable(),
 });
 
+function generateThreadId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  const random = Math.random().toString(36).slice(2);
+  const timestamp = Date.now().toString(36);
+  return `thread-${timestamp}-${random}`;
+}
+
 function coerceThreadId(value: unknown): string {
   if (typeof value === "string" && value.trim().length > 0) {
     return value.trim();
   }
-  return randomUUID();
+  return generateThreadId();
 }
 
 function sanitizeAttachments(

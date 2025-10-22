@@ -1,7 +1,5 @@
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
-import { Buffer } from "node:buffer";
-
 import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { serverEnv } from "../env/server";
 
@@ -1106,10 +1104,39 @@ export async function summarizeFeedFromDB({
   };
 }
 
+function decodeBase64ToUint8Array(base64: string): Uint8Array {
+  const normalized = base64
+    .replace(/[\r\n\s]+/g, "")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  const padLength = normalized.length % 4;
+  const padded = padLength ? normalized + "=".repeat(4 - padLength) : normalized;
+
+  if (typeof globalThis.atob === "function") {
+    const binary = globalThis.atob(padded);
+    const length = binary.length;
+    const bytes = new Uint8Array(length);
+    for (let index = 0; index < length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  }
+
+  const bufferConstructor = (globalThis as {
+    Buffer?: { from(input: string, encoding: string): Uint8Array };
+  }).Buffer;
+  if (bufferConstructor && typeof bufferConstructor.from === "function") {
+    const nodeBuffer = bufferConstructor.from(padded, "base64");
+    return new Uint8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.byteLength);
+  }
+
+  throw new Error("Base64 decoding is not supported in this runtime.");
+}
+
 function parseBase64Audio(
   input: string,
   fallbackMime: string | null,
-): { buffer: Buffer; mime: string | null } {
+): { bytes: Uint8Array; mime: string | null } {
   if (!input) {
     throw new Error("audio_base64 is required");
   }
@@ -1129,11 +1156,11 @@ function parseBase64Audio(
     base64 = base64.slice(dataUrlMatch[0].length);
   }
 
-  const buffer = Buffer.from(base64, "base64");
+  const bytes = decodeBase64ToUint8Array(base64);
 
   const mime = detectedMime || fallbackMime || "audio/webm";
 
-  return { buffer, mime };
+  return { bytes, mime };
 }
 
 function audioExtensionFromMime(mime: string) {
@@ -1163,11 +1190,9 @@ export async function transcribeAudioFromBase64({
 }): Promise<{ text: string; model: string | null; raw: Json | null }> {
   requireOpenAIKey();
 
-  const { buffer, mime: resolvedMime } = parseBase64Audio(audioBase64, mime);
+  const { bytes, mime: resolvedMime } = parseBase64Audio(audioBase64, mime);
 
-  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-
-  const blob = new Blob([arrayBuffer as ArrayBuffer], { type: resolvedMime || "audio/webm" });
+  const blob = new Blob([bytes], { type: resolvedMime || "audio/webm" });
 
   const extension = audioExtensionFromMime(resolvedMime || "audio/webm");
 
