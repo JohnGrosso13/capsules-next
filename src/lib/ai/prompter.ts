@@ -1,5 +1,20 @@
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
+if (typeof (globalThis as { DOMParser?: unknown }).DOMParser !== "function") {
+  class BasicDOMParser {
+    parseFromString(markup: string) {
+      const textContent = String(markup ?? "");
+      const node = { textContent, innerHTML: textContent };
+      return {
+        textContent,
+        documentElement: node,
+        body: node,
+      } as unknown;
+    }
+  }
+  (globalThis as { DOMParser: unknown }).DOMParser = BasicDOMParser as unknown;
+}
+
 import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { serverEnv } from "../env/server";
 
