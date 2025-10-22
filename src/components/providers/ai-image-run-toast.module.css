@@ -1,0 +1,96 @@
+.container {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: min(24rem, calc(100vw - 2rem));
+  z-index: 2147483000;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  padding: 0.9rem 1.05rem;
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, rgba(10, 13, 24, 0.94) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand, #60a5fa) 22%, rgba(255, 255, 255, 0.12));
+  box-shadow:
+    0 22px 40px rgba(7, 11, 23, 0.55),
+    0 2px 14px rgba(10, 12, 20, 0.35);
+  backdrop-filter: blur(18px);
+  color: var(--text, #f8fafc);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.toast[data-status="running"] {
+  border-color: color-mix(in srgb, var(--color-brand, #60a5fa) 36%, rgba(255, 255, 255, 0.16));
+}
+
+.toast[data-status="success"] {
+  border-color: color-mix(in srgb, var(--color-success, #34d399) 48%, transparent);
+}
+
+.toast[data-status="error"] {
+  border-color: color-mix(in srgb, var(--color-danger, #f87171) 55%, transparent);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.4rem;
+}
+
+.dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand, #60a5fa) 80%, rgba(255, 255, 255, 0.2));
+  box-shadow: 0 0 0 4px rgba(64, 115, 255, 0.18);
+}
+
+.dot[data-status="success"] {
+  background: color-mix(in srgb, var(--color-success, #34d399) 85%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-success, #34d399) 22%, transparent);
+}
+
+.dot[data-status="error"] {
+  background: color-mix(in srgb, var(--color-danger, #f87171) 80%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-danger, #f87171) 25%, transparent);
+}
+
+.title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.message {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--text, #f8fafc) 90%, transparent);
+}
+
+.detail {
+  margin: 0.35rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--text, #f8fafc) 70%, transparent);
+}
+
+@media (max-width: 720px) {
+  .container {
+    right: 1rem;
+    left: 1rem;
+    bottom: 1rem;
+    max-width: unset;
+  }
+
+  .toast {
+    width: 100%;
+  }
+}
+

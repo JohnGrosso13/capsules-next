@@ -12,6 +12,7 @@ import { ComposerProvider, AiComposerRoot } from "@/components/composer/Composer
 import { ChatProvider } from "@/components/providers/ChatProvider";
 import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
 import { PartyProvider } from "@/components/providers/PartyProvider";
+import { AiImageRunProvider } from "@/components/providers/AiImageRunProvider";
 
 export const runtime = "nodejs";
 
@@ -43,12 +44,14 @@ export default function RootLayout({
             <FriendsDataProvider>
               <PartyProvider>
                 <ChatProvider>
-                  <ComposerProvider>
-                    {children}
-                    <AiComposerRoot />
-                  </ComposerProvider>
-                  <GlobalSearchOverlay />
-                  <MobileCommandBar />
+                  <AiImageRunProvider>
+                    <ComposerProvider>
+                      {children}
+                      <AiComposerRoot />
+                    </ComposerProvider>
+                    <GlobalSearchOverlay />
+                    <MobileCommandBar />
+                  </AiImageRunProvider>
                 </ChatProvider>
               </PartyProvider>
             </FriendsDataProvider>
