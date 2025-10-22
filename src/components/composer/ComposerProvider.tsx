@@ -36,9 +36,9 @@ import { normalizeDraftFromPost } from "@/lib/composer/normalizers";
 import { buildPostPayload } from "@/lib/composer/payload";
 import type { ComposerMode } from "@/lib/ai/nav";
 import {
-  draftPostResponseSchema,
+  promptResponseSchema,
   stylerResponseSchema,
-  type DraftPostResponse,
+  type PromptResponse,
   type StylerResponse,
 } from "@/shared/schemas/ai";
 
@@ -50,7 +50,7 @@ async function callAiPrompt(
   history?: ComposerChatMessage[],
   threadId?: string | null,
   capsuleId?: string | null,
-): Promise<DraftPostResponse> {
+): Promise<PromptResponse> {
   const body: Record<string, unknown> = { message };
   if (options && Object.keys(options).length) body.options = options;
   if (post) body.post = post;
@@ -86,7 +86,7 @@ async function callAiPrompt(
   if (!response.ok || !json) {
     throw new Error(`Prompt request failed (${response.status})`);
   }
-  return draftPostResponseSchema.parse(json);
+  return promptResponseSchema.parse(json);
 }
 
 async function callStyler(
@@ -211,6 +211,15 @@ type ComposerState = {
   choices: ComposerChoice[] | null;
   history: ComposerChatMessage[];
   threadId: string | null;
+  clarifier: ClarifierState | null;
+};
+
+type ClarifierState = {
+  questionId: string;
+  question: string;
+  rationale: string | null;
+  suggestions: string[];
+  styleTraits: string[];
 };
 
 type ComposerContextValue = {
@@ -239,6 +248,7 @@ const initialState: ComposerState = {
   choices: null,
   history: [],
   threadId: null,
+  clarifier: null,
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -545,21 +555,22 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const selectSavedDraft = React.useCallback(
     (draftId: string) => {
-      const entry = sidebarStore.drafts.find((draftItem) => draftItem.id === draftId);
-      if (!entry) return;
-      const draftClone = cloneData(entry.draft);
-      const rawPostClone = entry.rawPost ? cloneData(entry.rawPost) : null;
-      setState(() => ({
-        open: true,
-        loading: false,
-        prompt: entry.prompt,
-        draft: draftClone,
-        rawPost: rawPostClone,
-        message: entry.message,
-        choices: null,
-        history: cloneData(entry.history ?? []),
-        threadId: entry.threadId ?? null,
-      }));
+    const entry = sidebarStore.drafts.find((draftItem) => draftItem.id === draftId);
+    if (!entry) return;
+    const draftClone = cloneData(entry.draft);
+    const rawPostClone = entry.rawPost ? cloneData(entry.rawPost) : null;
+    setState(() => ({
+      open: true,
+      loading: false,
+      prompt: entry.prompt,
+      draft: draftClone,
+      rawPost: rawPostClone,
+      message: entry.message,
+      choices: null,
+      history: cloneData(entry.history ?? []),
+      threadId: entry.threadId ?? null,
+      clarifier: null,
+    }));
       recordRecentChat({
         prompt: entry.prompt,
         message: entry.message,
@@ -587,21 +598,22 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const selectRecentChat = React.useCallback(
     (chatId: string) => {
-      const entry = sidebarStore.recentChats.find((chat) => chat.id === chatId);
-      if (!entry) return;
-      const draftClone = cloneData(entry.draft);
-      const rawPostClone = entry.rawPost ? cloneData(entry.rawPost) : null;
-      setState(() => ({
-        open: true,
-        loading: false,
-        prompt: entry.prompt,
-        draft: draftClone,
-        rawPost: rawPostClone,
-        message: entry.message,
-        choices: null,
-        history: cloneData(entry.history ?? []),
-        threadId: entry.threadId ?? entry.id ?? null,
-      }));
+    const entry = sidebarStore.recentChats.find((chat) => chat.id === chatId);
+    if (!entry) return;
+    const draftClone = cloneData(entry.draft);
+    const rawPostClone = entry.rawPost ? cloneData(entry.rawPost) : null;
+    setState(() => ({
+      open: true,
+      loading: false,
+      prompt: entry.prompt,
+      draft: draftClone,
+      rawPost: rawPostClone,
+      message: entry.message,
+      choices: null,
+      history: cloneData(entry.history ?? []),
+      threadId: entry.threadId ?? entry.id ?? null,
+      clarifier: null,
+    }));
       updateSidebarStore((prev) => {
         const found = prev.recentChats.find((chat) => chat.id === chatId);
         if (!found) return prev;
@@ -655,7 +667,34 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleAiResponse = React.useCallback(
-    (prompt: string, payload: DraftPostResponse) => {
+    (prompt: string, payload: PromptResponse) => {
+      if (payload.action === "clarify_image_prompt") {
+        const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
+        setState((prev) => {
+          const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
+          const historyForState =
+            normalizedHistory.length > 0 ? normalizedHistory : prev.history ?? [];
+          return {
+            ...prev,
+            open: true,
+            loading: false,
+            prompt,
+            message: payload.question,
+            choices: null,
+            history: historyForState,
+            threadId: nextThreadId,
+            clarifier: {
+              questionId: payload.questionId,
+              question: payload.question,
+              rationale: payload.rationale ?? null,
+              suggestions: [...(payload.suggestions ?? [])],
+              styleTraits: [...(payload.styleTraits ?? [])],
+            },
+          };
+        });
+        return;
+      }
+
       const rawSource = (payload.post ?? {}) as Record<string, unknown>;
       const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
       const draft = normalizeDraftFromPost(rawPost);
@@ -679,6 +718,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           choices: payload.choices ?? null,
           history: historyForState,
           threadId: nextThreadId,
+          clarifier: null,
         };
       });
       recordRecentChat({
@@ -772,6 +812,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           choices: null,
           history: [...existingHistory, pendingMessage],
           threadId: resolvedThreadId,
+          clarifier: null,
         };
       });
       try {
@@ -805,6 +846,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           prompt,
           message: null,
           choices: null,
+          clarifier: null,
         }));
         try {
           const res = await fetch("/api/ai/image/generate", {
@@ -843,6 +885,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             choices: null,
             history: [assistantMessage],
             threadId: safeRandomUUID(),
+            clarifier: null,
           }));
         } catch (error) {
           console.error("Logo tool failed", error);
@@ -862,6 +905,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           prompt,
           message: null,
           choices: null,
+          clarifier: null,
         }));
         try {
           const res = await fetch("/api/ai/image/edit", {
@@ -900,6 +944,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             choices: null,
             history: [assistantMessage],
             threadId: safeRandomUUID(),
+            clarifier: null,
           }));
         } catch (error) {
           console.error("Image edit tool failed", error);
@@ -936,6 +981,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           choices: null,
           history: [...existingHistory, pendingMessage],
           threadId: resolvedThreadId,
+          clarifier: null,
         };
       });
       try {
@@ -1009,9 +1055,18 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         };
       });
       try {
+        const clarifierOption =
+          state.clarifier && state.clarifier.questionId
+            ? {
+                clarifier: {
+                  questionId: state.clarifier.questionId,
+                  answer: trimmed,
+                },
+              }
+            : undefined;
         const payload = await callAiPrompt(
           trimmed,
-          undefined,
+          clarifierOption,
           state.rawPost ?? undefined,
           attachmentList,
           previousHistory,
@@ -1028,7 +1083,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         }));
       }
     },
-    [activeCapsuleId, handleAiResponse, state.rawPost],
+    [activeCapsuleId, handleAiResponse, state.clarifier, state.rawPost],
   );
 
   const forceChoiceInternal = React.useCallback(

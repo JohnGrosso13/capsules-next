@@ -1,7 +1,8 @@
 import "server-only";
 
 import { getDatabaseAdminClient } from "@/config/database";
-import { expectResult, maybeResult } from "@/lib/database/utils";
+import { decorateDatabaseError, expectResult, maybeResult } from "@/lib/database/utils";
+import type { DatabaseResult } from "@/ports/database";
 
 export type AiImageRunStatus = "pending" | "running" | "succeeded" | "failed";
 
@@ -228,4 +229,25 @@ export async function updateAiImageRun(
 
   const row = maybeResult<AiImageRunRow | null>(result, "ai_image_runs.update");
   return row ? mapRow(row) : null;
+}
+
+export async function listRecentAiImageRuns(
+  options: { limit?: number; status?: AiImageRunStatus[] } = {},
+): Promise<AiImageRunRecord[]> {
+  const limit = Math.max(1, Math.min(100, options.limit ?? 12));
+  let query = db
+    .from(TABLE_NAME)
+    .select<AiImageRunRow>("*")
+    .order("started_at", { ascending: false })
+    .limit(limit);
+  if (options.status && options.status.length) {
+    query = query.in("status", options.status);
+  }
+
+  const result = (await query) as unknown as DatabaseResult<AiImageRunRow[]>;
+  if (result.error) {
+    throw decorateDatabaseError("ai_image_runs.list", result.error);
+  }
+  const rows = result.data ?? [];
+  return rows.map(mapRow);
 }

@@ -2,14 +2,14 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { hasOpenAIApiKey } from "@/adapters/ai/openai/server";
-import { createPollDraft, createPostDraft, refinePostDraft } from "@/lib/ai/prompter";
+import { createPollDraft, createPostDraft, refinePostDraft, type PromptClarifierInput } from "@/lib/ai/prompter";
 import {
   sanitizeComposerChatAttachment,
   sanitizeComposerChatHistory,
   type ComposerChatAttachment,
   type ComposerChatMessage,
 } from "@/lib/composer/chat-types";
-import { draftPostResponseSchema } from "@/shared/schemas/ai";
+import { draftPostResponseSchema, promptResponseSchema } from "@/shared/schemas/ai";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import {
   parseJsonBody,
@@ -130,6 +130,49 @@ function buildAssistantAttachments(
   ];
 }
 
+function extractClarifierOption(
+  raw: Record<string, unknown> | undefined,
+): { clarifier: PromptClarifierInput | null; options: Record<string, unknown> } {
+  if (!raw || typeof raw !== "object") {
+    return { clarifier: null, options: {} };
+  }
+
+  const clone: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    clone[key] = value;
+  }
+
+  let clarifierInput: PromptClarifierInput | null = null;
+  const candidate = (clone as Record<string, unknown>).clarifier;
+  if (candidate && typeof candidate === "object") {
+    const record = candidate as Record<string, unknown>;
+    const questionId =
+      typeof record.questionId === "string" && record.questionId.trim().length
+        ? record.questionId.trim()
+        : undefined;
+    const answer =
+      typeof record.answer === "string" && record.answer.trim().length
+        ? record.answer.trim()
+        : undefined;
+    const skip = record.skip === true;
+    if (questionId !== undefined || answer !== undefined || skip) {
+      const clarifierPayload: PromptClarifierInput = {};
+      if (questionId !== undefined) {
+        clarifierPayload.questionId = questionId;
+      }
+      if (answer !== undefined) {
+        clarifierPayload.answer = answer;
+      }
+      if (skip) {
+        clarifierPayload.skip = true;
+      }
+      clarifierInput = Object.keys(clarifierPayload).length ? clarifierPayload : null;
+    }
+  }
+  delete (clone as Record<string, unknown>).clarifier;
+  return { clarifier: clarifierInput, options: clone };
+}
+
 const HISTORY_RETURN_LIMIT = 24;
 
 const PROMPT_RATE_LIMIT: RateLimitDefinition = {
@@ -169,7 +212,7 @@ export async function POST(req: Request) {
   }
 
   const { message } = parsed.data;
-  const options = parsed.data.options ?? {};
+  const rawOptions = (parsed.data.options as Record<string, unknown> | undefined) ?? {};
   const incomingPost =
     (parsed.data.post as Record<string, unknown> | null | undefined) ?? null;
   const capsuleId = parsed.data.capsuleId ?? null;
@@ -178,26 +221,31 @@ export async function POST(req: Request) {
   const previousHistory = sanitizeComposerChatHistory(parsed.data.history ?? []);
   const threadId = coerceThreadId(parsed.data.threadId);
 
-  const composeOptions = {
-    history: previousHistory,
-    attachments,
-    capsuleId,
-    rawOptions: options,
-  };
-
   const lowerMessage = message.toLowerCase();
   const preferRaw =
-    typeof options?.["prefer"] === "string"
-      ? String(options["prefer"]).toLowerCase()
+    typeof rawOptions?.["prefer"] === "string"
+      ? String(rawOptions["prefer"]).toLowerCase()
       : null;
   const preferPoll =
     preferRaw === "poll" ||
     /\b(poll|survey|vote|choices?)\b/.test(lowerMessage);
 
   const pollHint =
-    typeof options?.["seed"] === "object" && options?.["seed"] !== null
-      ? (options["seed"] as Record<string, unknown>)
+    typeof rawOptions?.["seed"] === "object" && rawOptions?.["seed"] !== null
+      ? (rawOptions["seed"] as Record<string, unknown>)
       : {};
+
+  const { clarifier: clarifierOption, options: sanitizedOptions } = extractClarifierOption(
+    rawOptions,
+  );
+
+  const composeOptions = {
+    history: previousHistory,
+    attachments,
+    capsuleId,
+    rawOptions: sanitizedOptions,
+    clarifier: clarifierOption,
+  };
 
   try {
     let payload: unknown;
@@ -220,8 +268,6 @@ export async function POST(req: Request) {
       payload = await createPostDraft(message, composeOptions);
     }
 
-    const validated = draftPostResponseSchema.parse(payload);
-
     const userEntry: ComposerChatMessage = {
       id: randomUUID(),
       role: "user",
@@ -230,10 +276,89 @@ export async function POST(req: Request) {
       attachments: attachments.length ? attachments : null,
     };
 
+    if (
+      payload &&
+      typeof payload === "object" &&
+      (payload as { action?: string }).action === "clarify_image_prompt"
+    ) {
+      const clarifierPayload = payload as {
+        action: "clarify_image_prompt";
+        questionId: string;
+        question: string;
+        rationale?: string | null;
+        suggestions?: unknown;
+        styleTraits?: unknown;
+      };
+
+      const suggestionList = Array.isArray(clarifierPayload.suggestions)
+        ? clarifierPayload.suggestions
+            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+            .filter((entry) => entry.length > 0)
+        : [];
+      const styleTraitList = Array.isArray(clarifierPayload.styleTraits)
+        ? clarifierPayload.styleTraits
+            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+            .filter((entry) => entry.length > 0)
+        : [];
+
+      const assistantLines: string[] = [clarifierPayload.question.trim()];
+      if (suggestionList.length) {
+        assistantLines.push(
+          "",
+          "Suggested directions:",
+          ...suggestionList.map((entry) => `- ${entry}`),
+        );
+      }
+      const assistantMessage = assistantLines.join("\n").trim();
+
+      const assistantEntry: ComposerChatMessage = {
+        id: randomUUID(),
+        role: "assistant",
+        content: assistantMessage,
+        createdAt: new Date().toISOString(),
+        attachments: null,
+      };
+
+      const historyOut = [...previousHistory, userEntry, assistantEntry].slice(
+        -HISTORY_RETURN_LIMIT,
+      );
+
+      await storeConversationSnapshot(ownerId, threadId, {
+        threadId,
+        prompt: userEntry.content,
+        message: assistantEntry.content,
+        history: historyOut,
+        draft: null,
+        rawPost: null,
+        updatedAt: assistantEntry.createdAt,
+      }).catch((error) => {
+        console.warn("composer conversation store failed", error);
+      });
+
+      const clarifierResponse = promptResponseSchema.parse({
+        action: "clarify_image_prompt",
+        questionId: clarifierPayload.questionId,
+        question: clarifierPayload.question,
+        rationale:
+          typeof clarifierPayload.rationale === "string" &&
+          clarifierPayload.rationale.trim().length
+            ? clarifierPayload.rationale.trim()
+            : undefined,
+        suggestions: suggestionList.length ? suggestionList : undefined,
+        styleTraits: styleTraitList.length ? styleTraitList : undefined,
+        threadId,
+        history: historyOut,
+      });
+
+      return validatedJson(promptResponseSchema, clarifierResponse);
+    }
+
+    const validated = draftPostResponseSchema.parse(payload);
+
     const assistantMessage =
       typeof validated.message === "string" && validated.message.trim().length
         ? validated.message.trim()
-        : "Here’s what I drafted.";
+        : "Here's what I drafted.";
     const assistantAttachments = buildAssistantAttachments(
       validated.post ?? null,
     );
@@ -263,11 +388,13 @@ export async function POST(req: Request) {
       console.warn("composer conversation store failed", error);
     });
 
-    return validatedJson(draftPostResponseSchema, {
+    const finalResponse = promptResponseSchema.parse({
       ...validated,
       threadId,
       history: historyOut,
     });
+
+    return validatedJson(promptResponseSchema, finalResponse);
   } catch (error) {
     console.error("composer prompt failed", error);
     return returnError(
@@ -279,3 +406,4 @@ export async function POST(req: Request) {
 }
 
 export const runtime = "edge";
+

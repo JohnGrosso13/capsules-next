@@ -41,6 +41,21 @@ export type DraftPostResponse = z.infer<typeof draftPostResponseSchema>;
 export type ComposerChatMessage = z.infer<typeof composerChatMessageSchema>;
 export type ComposerAttachment = z.infer<typeof composerAttachmentSchema>;
 
+export const clarifyImagePromptResponseSchema = z.object({
+  action: z.literal("clarify_image_prompt"),
+  questionId: z.string(),
+  question: z.string(),
+  rationale: z.string().optional(),
+  suggestions: z.array(z.string()).optional(),
+  styleTraits: z.array(z.string()).optional(),
+  threadId: z.string().optional(),
+  history: z.array(composerChatMessageSchema).optional(),
+});
+export type ClarifyImagePromptResponse = z.infer<typeof clarifyImagePromptResponseSchema>;
+
+export const promptResponseSchema = z.union([draftPostResponseSchema, clarifyImagePromptResponseSchema]);
+export type PromptResponse = z.infer<typeof promptResponseSchema>;
+
 const variantMapSchema = z.record(z.string(), z.string());
 const stylerVariantsSchema = z.object({
   light: variantMapSchema.optional(),

@@ -17,6 +17,7 @@ if (typeof (globalThis as { DOMParser?: unknown }).DOMParser !== "function") {
 
 import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { serverEnv } from "../env/server";
+import { randomUUID } from "node:crypto";
 
 import { getDatabaseAdminClient } from "@/config/database";
 
@@ -24,6 +25,7 @@ import { storeImageSrcToSupabase } from "../supabase/storage";
 import {
   createAiImageRun,
   updateAiImageRun,
+  listRecentAiImageRuns,
   type AiImageRunAttempt,
   type UpdateAiImageRunInput,
 } from "@/server/ai/image-runs";
@@ -98,14 +100,83 @@ function mapConversationToMessages(
     };
   });
 }
+
+export type PromptClarifierInput = {
+  questionId?: string | null;
+  answer?: string | null;
+  skip?: boolean;
+};
+
+type NormalizedClarifierInput = {
+  questionId: string | null;
+  answer: string | null;
+  skip: boolean;
+};
+
+type DraftPostPlan = {
+  action: "draft_post";
+  message?: string;
+  post: Record<string, unknown>;
+  choices?: Array<{ key: string; label: string }>;
+};
+
+type ClarifyImagePromptPlan = {
+  action: "clarify_image_prompt";
+  questionId: string;
+  question: string;
+  rationale?: string | null;
+  suggestions?: string[];
+  styleTraits?: string[];
+};
+
+type ClarifierExample = {
+  prompt: string;
+  resolved: string;
+  style: string | null;
+  status: string;
+  model: string | null;
+};
+
+type ComposeDraftResult = DraftPostPlan | ClarifyImagePromptPlan;
+
 type ComposeDraftOptions = {
   history?: ComposerChatMessage[];
   attachments?: ComposerChatAttachment[];
   capsuleId?: string | null;
   rawOptions?: Record<string, unknown>;
+  clarifier?: PromptClarifierInput | null;
 };
 const nullableStringSchema = {
   anyOf: [{ type: "string" }, { type: "null" }],
+};
+
+const CLARIFIER_HISTORY_LOOKBACK = 4;
+const CLARIFIER_RECENT_RUN_LIMIT = 12;
+
+const IMAGE_INTENT_REGEX = /(image|logo|banner|thumbnail|picture|photo|icon|cover|poster|graphic|illustration|art|avatar|background)\b/i;
+
+const clarifierSchema: JsonSchema = {
+  name: "CapsulesImageClarifier",
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["should_clarify"],
+    properties: {
+      should_clarify: { type: "boolean" },
+      question: { type: "string" },
+      rationale: nullableStringSchema,
+      suggestions: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: 6,
+      },
+      style_traits: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: 6,
+      },
+    },
+  },
 };
 
 const creationSchema: JsonSchema = {
@@ -436,6 +507,169 @@ function waitFor(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function truncateForClarifier(text: string, max = 220): string {
+  const normalized = typeof text === "string" ? text.replace(/\s+/g, " ").trim() : "";
+  if (!normalized) return "";
+  if (normalized.length <= max) return normalized;
+  const slicePoint = Math.max(0, max - 3);
+  return `${normalized.slice(0, slicePoint)}...`;
+}
+
+function normalizeClarifierInput(
+  input: PromptClarifierInput | null | undefined,
+): NormalizedClarifierInput | null {
+  if (!input || typeof input !== "object") return null;
+  const questionIdRaw =
+    typeof input.questionId === "string" ? input.questionId.trim() : null;
+  const answerRaw = typeof input.answer === "string" ? input.answer.trim() : null;
+  const skip = Boolean(input.skip);
+  const questionId = questionIdRaw && questionIdRaw.length ? questionIdRaw : null;
+  const answer = answerRaw && answerRaw.length ? answerRaw : null;
+  if (!questionId && !answer && !skip) return null;
+  return { questionId, answer, skip };
+}
+
+function summarizeHistoryForClarifier(
+  history: ComposeDraftOptions["history"],
+): Array<{ role: string; content: string }> {
+  if (!history || !history.length) return [];
+  return history
+    .slice(-CLARIFIER_HISTORY_LOOKBACK)
+    .map((entry) => ({
+      role: entry.role,
+      content: truncateForClarifier(entry.content ?? ""),
+    }))
+    .filter((entry) => entry.content.length > 0);
+}
+
+function summarizeAttachmentsForClarifier(
+  attachments: ComposeDraftOptions["attachments"],
+): string[] {
+  if (!attachments || !attachments.length) return [];
+  return attachments
+    .slice(0, 3)
+    .map((attachment) => truncateForClarifier(summarizeAttachmentForConversation(attachment), 180))
+    .filter((entry) => entry.length > 0);
+}
+
+async function collectClarifierExamples(limit = CLARIFIER_RECENT_RUN_LIMIT): Promise<
+  ClarifierExample[]
+> {
+  try {
+    const runs = await listRecentAiImageRuns({ limit, status: ["succeeded"] });
+    if (!runs.length) return [];
+    return runs.map((run) => ({
+      prompt: truncateForClarifier(run.userPrompt ?? ""),
+      resolved: truncateForClarifier(run.resolvedPrompt ?? ""),
+      style: run.stylePreset ?? null,
+      status: run.status,
+      model: run.model ?? null,
+    }));
+  } catch (error) {
+    console.warn("image clarifier: failed to load recent runs", error);
+    return [];
+  }
+}
+
+async function maybeGenerateImageClarifier(
+  userPrompt: string,
+  context: ComposeDraftOptions,
+  clarifier: NormalizedClarifierInput | null,
+): Promise<ClarifyImagePromptPlan | null> {
+  if (clarifier?.skip) return null;
+  const trimmedPrompt = truncateForClarifier(userPrompt, 320);
+  if (!trimmedPrompt) return null;
+
+  try {
+    const historySummary = summarizeHistoryForClarifier(context.history);
+    const attachmentSummary = summarizeAttachmentsForClarifier(context.attachments);
+    const examples = (await collectClarifierExamples()).slice(0, 6);
+
+    const clarifierPayload: Record<string, unknown> = {
+      user_prompt: trimmedPrompt,
+    };
+
+    if (historySummary.length) {
+      clarifierPayload.history = historySummary;
+    }
+    if (attachmentSummary.length) {
+      clarifierPayload.attachments = attachmentSummary;
+    }
+    if (examples.length) {
+      clarifierPayload.examples = examples;
+    }
+    if (clarifier?.questionId) {
+      clarifierPayload.pending_question_id = clarifier.questionId;
+    }
+
+    const systemPrompt = [
+      "You help Capsules AI clarify image generation requests before creating prompts.",
+      "Review the user prompt and context to decide if a follow-up question about style, palette, lighting, medium, or mood is needed.",
+      "If everything is already specific, set should_clarify to false.",
+      "When asking a question, keep it concise and optionally provide up to three short suggestion options the user could pick.",
+      "Do not reference this instruction text in your response.",
+    ].join(" ");
+
+    const { content } = await callOpenAIChat(
+      [
+        { role: "system", content: systemPrompt },
+        {
+          role: "system",
+          content:
+            "The user message will be JSON with fields: user_prompt, history, attachments, examples, pending_question_id.",
+        },
+        { role: "user", content: JSON.stringify(clarifierPayload) },
+      ],
+      clarifierSchema,
+      { temperature: 0.2 },
+    );
+
+    const parsed = extractJSON<Record<string, unknown>>(content) ?? {};
+    const shouldClarify =
+      parsed.should_clarify === undefined ? true : Boolean(parsed.should_clarify);
+    if (!shouldClarify) return null;
+
+    const question =
+      typeof parsed.question === "string" ? parsed.question.trim() : "";
+    if (!question) return null;
+
+    const rationale =
+      typeof parsed.rationale === "string" && parsed.rationale.trim().length
+        ? parsed.rationale.trim()
+        : null;
+
+    const suggestions =
+      Array.isArray(parsed.suggestions)
+        ? (parsed.suggestions as unknown[])
+            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+            .filter((entry) => entry.length > 0)
+            .slice(0, 4)
+        : [];
+
+    const styleTraits =
+      Array.isArray(parsed.style_traits)
+        ? (parsed.style_traits as unknown[])
+            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+            .filter((entry) => entry.length > 0)
+            .slice(0, 6)
+        : [];
+
+    const questionId = clarifier?.questionId ?? randomUUID();
+
+    return {
+      action: "clarify_image_prompt",
+      questionId,
+      question,
+      rationale,
+      suggestions,
+      styleTraits,
+    };
+  } catch (error) {
+    console.warn("image clarifier generation failed", error);
+    return null;
+  }
 }
 
 function compactObject(input: Record<string, unknown>): Record<string, unknown> {
@@ -1060,13 +1294,35 @@ function buildBasePost(incoming: Record<string, unknown> = {}): DraftPost {
 export async function createPostDraft(
   userText: string,
   context: ComposeDraftOptions = {},
-): Promise<Record<string, unknown>> {
-  const { history, attachments, capsuleId, rawOptions } = context;
+): Promise<ComposeDraftResult> {
+  const { history, attachments, capsuleId, rawOptions, clarifier } = context;
+  const normalizedClarifier = normalizeClarifierInput(clarifier);
+  const priorUserMessage =
+    history && history.length
+      ? [...history]
+          .slice()
+          .reverse()
+          .find((entry) => entry.role === "user")?.content ?? null
+      : null;
+  const intentSource = [userText, priorUserMessage].filter(Boolean).join(" ");
+  const imageIntent = IMAGE_INTENT_REGEX.test(intentSource);
   const historyMessages = mapConversationToMessages(history);
-  const imageIntent =
-    /(image|logo|banner|thumbnail|picture|photo|icon|cover|poster|graphic|illustration|art|avatar|background)\b/i.test(
+
+  if (imageIntent && !(normalizedClarifier?.answer || normalizedClarifier?.skip)) {
+    const clarifierPlan = await maybeGenerateImageClarifier(
       userText,
+      context,
+      normalizedClarifier,
     );
+    if (clarifierPlan) {
+      return clarifierPlan;
+    }
+  }
+
+  const instructionForModel =
+    normalizedClarifier?.answer && priorUserMessage
+      ? `${priorUserMessage}\n\nClarification: ${normalizedClarifier.answer}`
+      : userText;
 
   async function inferImagePromptFromInstruction(instruction: string) {
     const { content } = await callOpenAIChat(
@@ -1092,7 +1348,14 @@ export async function createPostDraft(
       .trim();
   }
 
-  const userPayload: Record<string, unknown> = { instruction: userText };
+  const userPayload: Record<string, unknown> = { instruction: instructionForModel };
+  if (normalizedClarifier?.answer) {
+    userPayload.clarifier = compactObject({
+      questionId: normalizedClarifier.questionId ?? undefined,
+      answer: normalizedClarifier.answer,
+      originalPrompt: priorUserMessage ?? undefined,
+    });
+  }
   if (attachments && attachments.length) {
     userPayload.attachments = attachments.map((attachment) => ({
       name: attachment.name,
@@ -1199,7 +1462,7 @@ export async function createPostDraft(
     }
   } else if (!imagePrompt && imageIntent) {
     try {
-      imagePrompt = await inferImagePromptFromInstruction(userText);
+      imagePrompt = await inferImagePromptFromInstruction(instructionForModel);
     } catch {
       // ignore inference failure
     }
