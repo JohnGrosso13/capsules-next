@@ -12,6 +12,7 @@ import type {
   CapsuleSaveState,
   CapsuleUploadState,
 } from "./useCapsuleCustomizerState";
+import type { CapsuleStyleState } from "./useCapsuleCustomizerStyles";
 
 export type CapsuleCustomizerContextValue = Omit<CapsuleCustomizerCoordinator, "open">;
 
@@ -60,6 +61,10 @@ export function useCapsuleCustomizerUploads(): CapsuleUploadState {
 
 export function useCapsuleCustomizerSave(): CapsuleSaveState {
   return useCapsuleCustomizerContext().save;
+}
+
+export function useCapsuleCustomizerStylesState(): CapsuleStyleState {
+  return useCapsuleCustomizerContext().styles;
 }
 
 export function useCapsuleCustomizerActions(): CapsuleCustomizerActions {

@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
@@ -6,12 +6,16 @@ import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import { buildCapsuleArtEditInstruction, buildCapsuleArtGenerationPrompt } from "@/server/ai/capsule-art/prompt-builders";
+import { capsuleStyleSelectionSchema, type CapsuleArtAssetType } from "@/shared/capsule-style";
 import { Buffer } from "node:buffer";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
   mode: z.enum(["generate", "edit"]).default("generate"),
   capsuleName: z.string().optional().nullable(),
+  assetKind: z.enum(["banner", "storeBanner", "tile"]).default("banner"),
+  style: capsuleStyleSelectionSchema.optional().nullable(),
   imageUrl: z.string().url().optional(),
   imageData: z.string().min(1).optional(),
 });
@@ -74,26 +78,6 @@ async function persistAndDescribeImage(
   };
 }
 
-function buildGenerationPrompt(prompt: string, capsuleName: string): string {
-  const safeName = capsuleName.trim().length ? capsuleName.trim() : "your capsule";
-  const instructions = [
-    `Design a cinematic hero banner for the Capsule community "${safeName}".`,
-    "Output should suit a 16:9 layout with clear focal point, depth, and soft gradients for UI overlays.",
-    "Avoid text, logos, watermarks, or heavy typography. Keep it vibrant but balanced.",
-    `Creative direction: ${prompt.trim()}`,
-  ];
-  return instructions.join(" ");
-}
-
-function buildEditInstruction(prompt: string): string {
-  const instructions = [
-    "Refine this hero banner while keeping a clean 16:9 composition and preserving the existing focal balance.",
-    "Do not add text or logos. Maintain clarity and coherent lighting.",
-    `Apply the following direction: ${prompt.trim()}`,
-  ];
-  return instructions.join(" ");
-}
-
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
@@ -106,13 +90,20 @@ export async function POST(req: Request) {
   }
 
   const { prompt, mode, capsuleName, imageUrl, imageData } = parsed.data;
+  const assetKind = (parsed.data.assetKind ?? "banner") as CapsuleArtAssetType;
+  const styleInput = parsed.data.style ?? null;
   const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
   try {
     if (mode === "generate") {
-      const bannerPrompt = buildGenerationPrompt(prompt, effectiveName);
-      const generated = await generateImageFromPrompt(bannerPrompt, {
+      const built = buildCapsuleArtGenerationPrompt({
+        userPrompt: prompt,
+        asset: assetKind,
+        subjectName: effectiveName,
+        style: styleInput ?? undefined,
+      });
+      const generated = await generateImageFromPrompt(built.prompt, {
         quality: "high",
         size: "1024x1024",
       });
@@ -144,7 +135,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Normalize the source into storage to ensure it is fetchable by the image edit API.
     const normalizedSource = await (async () => {
       try {
         const stored = await storeImageSrcToSupabase(sourceUrl as string, "capsule-banner-source", {
@@ -157,8 +147,13 @@ export async function POST(req: Request) {
     })();
 
     try {
-      const instruction = buildEditInstruction(prompt);
-      const edited = await editImageWithInstruction(normalizedSource, instruction, {
+      const builtEdit = buildCapsuleArtEditInstruction({
+        userPrompt: prompt,
+        asset: assetKind,
+        subjectName: effectiveName,
+        style: styleInput ?? undefined,
+      });
+      const edited = await editImageWithInstruction(normalizedSource, builtEdit.prompt, {
         quality: "high",
         size: "1024x1024",
       });
@@ -177,8 +172,13 @@ export async function POST(req: Request) {
       console.warn("ai.banner edit failed; falling back to fresh generation", editError);
 
       try {
-        const fallbackPrompt = `${buildGenerationPrompt(prompt, effectiveName)} Remix inspired by the current banner, keep the same mood but refresh composition.`;
-        const fallback = await generateImageFromPrompt(fallbackPrompt, {
+        const fallbackBuilt = buildCapsuleArtGenerationPrompt({
+          userPrompt: `${prompt}\nRemix inspired by the current banner, keep the same mood but refresh composition.`,
+          asset: assetKind,
+          subjectName: effectiveName,
+          style: styleInput ?? undefined,
+        });
+        const fallback = await generateImageFromPrompt(fallbackBuilt.prompt, {
           quality: "high",
           size: "1024x1024",
         });
@@ -189,7 +189,7 @@ export async function POST(req: Request) {
         return validatedJson(responseSchema, {
           url: stored.url,
           message:
-            "OpenAI couldn’t edit the existing banner, so I generated a fresh take with your notes instead.",
+            "OpenAI couldn't edit the existing banner, so I generated a fresh take with your notes instead.",
           imageData: stored.imageData ?? undefined,
           mimeType: stored.mimeType ?? undefined,
         });

@@ -21,10 +21,12 @@ import {
   useCapsuleCustomizerMeta,
   useCapsuleCustomizerPreview,
   useCapsuleCustomizerSave,
+  useCapsuleCustomizerStylesState,
 } from "./hooks/capsuleCustomizerContext";
 import { CapsuleBannerPreview } from "./CapsuleBannerPreview";
 import { CapsuleAssetActions } from "./CapsuleAssetActions";
 import { CapsuleMemoryPicker } from "./CapsuleMemoryPicker";
+import { CAPSULE_STYLE_CATEGORIES, type CapsuleStyleCategory } from "@/shared/capsule-style";
 
 type CapsuleCustomizerProps = {
   open?: boolean;
@@ -78,6 +80,67 @@ function ChatMessageBubble({
   );
 }
 
+
+const styleCategoryLabels: Record<CapsuleStyleCategory, string> = {
+  palette: "Palette",
+  lighting: "Lighting",
+  medium: "Medium",
+  mood: "Mood",
+};
+
+function CapsuleStyleControls() {
+  const styleState = useCapsuleCustomizerStylesState();
+  const { optionsByCategory, selection, setSelection, resetSelection, summary } = styleState;
+
+  const helperText =
+    summary.length > 0
+      ? summary
+      : "Defaults active — your prompt still leads. Adjust any row to enrich or quiet Capsule cues.";
+
+  return (
+    <section className={styles.styleControls} aria-label="Style modifiers">
+      <div className={styles.styleControlsHeader}>
+        <span className={styles.styleControlsTitle}>Style modifiers</span>
+        <Button variant="ghost" size="xs" onClick={resetSelection}>
+          Reset
+        </Button>
+      </div>
+      <p className={styles.styleControlsSummary}>{helperText}</p>
+      <div className={styles.styleControlsGrid}>
+        {(CAPSULE_STYLE_CATEGORIES as readonly CapsuleStyleCategory[]).map((category) => {
+          const options = optionsByCategory[category] ?? [];
+          if (!options.length) return null;
+          const label = styleCategoryLabels[category];
+          return (
+            <div key={category} className={styles.styleControlGroup}>
+              <span className={styles.styleControlLabel}>{label}</span>
+              <div className={styles.styleControlOptions} role="group" aria-label={`${label} options`}>
+                {options.map((option) => {
+                  const active = selection[category] === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={styles.styleControlOption}
+                      data-active={active ? "true" : undefined}
+                      aria-pressed={active}
+                      onClick={() => setSelection(category, option.id)}
+                    >
+                      <span className={styles.styleControlOptionLabel}>{option.label}</span>
+                      {option.description ? (
+                        <span className={styles.styleControlOptionHint}>{option.description}</span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 function CapsuleCustomizer(props: CapsuleCustomizerProps) {
   const { open, ...contextValue } = useCapsuleCustomizerState(props);
@@ -222,6 +285,7 @@ function CapsuleCustomizerContent() {
                   onAction={chat.onPrompterAction}
                   variant="bannerCustomizer"
                 />
+                <CapsuleStyleControls />
               </div>
             </div>
           </section>
@@ -290,7 +354,4 @@ export function ProfileAvatarCustomizer(props: Omit<CapsuleCustomizerProps, "mod
 
 export { CapsuleCustomizer };
 export type { CapsuleCustomizerSaveResult, CapsuleCustomizerMode, CapsuleCustomizerProps };
-
-
-
 

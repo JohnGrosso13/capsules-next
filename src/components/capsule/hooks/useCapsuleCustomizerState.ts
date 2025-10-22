@@ -10,6 +10,10 @@ import { useCapsuleCustomizerSave } from "./useCapsuleCustomizerSave";
 import { useCapsuleCustomizerChat } from "./useCapsuleCustomizerChat";
 import { useCapsuleCustomizerMemory } from "./useCapsuleCustomizerMemory";
 import {
+  type CapsuleStyleState,
+  useCapsuleCustomizerStyles,
+} from "./useCapsuleCustomizerStyles";
+import {
   type CapsuleCustomizerMode,
   type CapsuleCustomizerSaveResult,
   type ChatBannerOption,
@@ -124,6 +128,7 @@ export type CapsuleCustomizerCoordinator = {
   preview: CapsulePreviewState;
   uploads: CapsuleUploadState;
   save: CapsuleSaveState;
+  styles: CapsuleStyleState;
   actions: CapsuleCustomizerActions;
 };
 
@@ -160,6 +165,8 @@ export function useCapsuleCustomizerState(
     setSelectedBanner,
     selectedBannerRef,
   } = useCapsuleCustomizerSelection();
+
+  const styleState = useCapsuleCustomizerStyles(customizerMode);
 
   const fetchMemoryAssetRef = React.useRef<(memoryId: string) => Promise<string>>(
     async () => {
@@ -236,6 +243,7 @@ export function useCapsuleCustomizerState(
     selectedBannerRef,
     setSaveError,
     fetchMemoryAssetUrl: resolveMemoryAssetUrl,
+    styles: styleState,
   });
 
   cropUpdateRef.current = syncBannerCropToMessages;
@@ -360,6 +368,7 @@ export function useCapsuleCustomizerState(
     },
     uploads,
     save: saveState,
+    styles: styleState,
     actions: {
       handleClose,
       overlayClick,

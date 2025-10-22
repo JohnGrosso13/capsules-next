@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
@@ -6,6 +6,8 @@ import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import { buildCapsuleArtEditInstruction, buildCapsuleArtGenerationPrompt } from "@/server/ai/capsule-art/prompt-builders";
+import { capsuleStyleSelectionSchema } from "@/shared/capsule-style";
 import { Buffer } from "node:buffer";
 import {
   checkRateLimit,
@@ -17,6 +19,7 @@ const requestSchema = z.object({
   prompt: z.string().min(1),
   mode: z.enum(["generate", "edit"]).default("generate"),
   displayName: z.string().optional().nullable(),
+  style: capsuleStyleSelectionSchema.optional().nullable(),
   imageUrl: z.string().url().optional(),
   imageData: z.string().min(1).optional(),
 });
@@ -85,26 +88,6 @@ async function persistAndDescribeImage(
   };
 }
 
-function buildGenerationPrompt(prompt: string, displayName: string): string {
-  const safeName = displayName.trim().length ? displayName.trim() : "your profile";
-  const instructions = [
-    `Design a polished circular avatar portrait for the profile "${safeName}".`,
-    "Use a clean 1:1 composition with flattering lighting, focus on the face or icon centered within a circle.",
-    "Avoid text, brand marks, or heavy backgrounds. Keep edges soft and readable at small sizes.",
-    `Creative direction: ${prompt.trim()}`,
-  ];
-  return instructions.join(" ");
-}
-
-function buildEditInstruction(prompt: string): string {
-  const instructions = [
-    "Refine this avatar while keeping a balanced circular composition and clean lighting.",
-    "Stay focused on the subject. Avoid adding text, watermarks, or cluttered backgrounds.",
-    `Apply the following direction: ${prompt.trim()}`,
-  ];
-  return instructions.join(" ");
-}
-
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
@@ -128,13 +111,19 @@ export async function POST(req: Request) {
   }
 
   const { prompt, mode, displayName, imageUrl, imageData } = parsed.data;
+  const styleInput = parsed.data.style ?? null;
   const effectiveName = typeof displayName === "string" ? displayName : "";
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
   try {
     if (mode === "generate") {
-      const avatarPrompt = buildGenerationPrompt(prompt, effectiveName);
-      const generated = await generateImageFromPrompt(avatarPrompt, {
+      const built = buildCapsuleArtGenerationPrompt({
+        userPrompt: prompt,
+        asset: "avatar",
+        subjectName: effectiveName,
+        style: styleInput ?? undefined,
+      });
+      const generated = await generateImageFromPrompt(built.prompt, {
         quality: "high",
         size: "768x768",
       });
@@ -177,8 +166,13 @@ export async function POST(req: Request) {
       }
     })();
 
-    const instruction = buildEditInstruction(prompt);
-    const edited = await editImageWithInstruction(normalizedSource, instruction, {
+    const builtEdit = buildCapsuleArtEditInstruction({
+      userPrompt: prompt,
+      asset: "avatar",
+      subjectName: effectiveName,
+      style: styleInput ?? undefined,
+    });
+    const edited = await editImageWithInstruction(normalizedSource, builtEdit.prompt, {
       quality: "high",
       size: "768x768",
     });

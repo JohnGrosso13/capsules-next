@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
@@ -6,12 +6,15 @@ import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import { buildCapsuleArtEditInstruction, buildCapsuleArtGenerationPrompt } from "@/server/ai/capsule-art/prompt-builders";
+import { capsuleStyleSelectionSchema } from "@/shared/capsule-style";
 import { Buffer } from "node:buffer";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
   mode: z.enum(["generate", "edit"]).default("generate"),
   capsuleName: z.string().optional().nullable(),
+  style: capsuleStyleSelectionSchema.optional().nullable(),
   imageUrl: z.string().url().optional(),
   imageData: z.string().min(1).optional(),
 });
@@ -74,26 +77,6 @@ async function persistAndDescribeImage(
   };
 }
 
-function buildGenerationPrompt(prompt: string, capsuleName: string): string {
-  const safeName = capsuleName.trim().length ? capsuleName.trim() : "your capsule";
-  const instructions = [
-    `Design a bold, memorable square logo for the Capsule community "${safeName}".`,
-    "Keep the mark centered, high-contrast, and readable inside a rounded-square mask.",
-    "Avoid dense typography or long phrases—favor initials, iconography, or abstract shapes.",
-    `Creative direction: ${prompt.trim()}`,
-  ];
-  return instructions.join(" ");
-}
-
-function buildEditInstruction(prompt: string): string {
-  const instructions = [
-    "Refine this logo while keeping a balanced square composition and clean silhouette.",
-    "Do not introduce lengthy text or watermarks. Preserve clarity at small sizes.",
-    `Apply the following direction: ${prompt.trim()}`,
-  ];
-  return instructions.join(" ");
-}
-
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
@@ -106,13 +89,19 @@ export async function POST(req: Request) {
   }
 
   const { prompt, mode, capsuleName, imageUrl, imageData } = parsed.data;
+  const styleInput = parsed.data.style ?? null;
   const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
   try {
     if (mode === "generate") {
-      const logoPrompt = buildGenerationPrompt(prompt, effectiveName);
-      const generated = await generateImageFromPrompt(logoPrompt, {
+      const built = buildCapsuleArtGenerationPrompt({
+        userPrompt: prompt,
+        asset: "logo",
+        subjectName: effectiveName,
+        style: styleInput ?? undefined,
+      });
+      const generated = await generateImageFromPrompt(built.prompt, {
         quality: "high",
         size: "768x768",
       });
@@ -155,8 +144,13 @@ export async function POST(req: Request) {
       }
     })();
 
-    const instruction = buildEditInstruction(prompt);
-    const edited = await editImageWithInstruction(normalizedSource, instruction, {
+    const builtEdit = buildCapsuleArtEditInstruction({
+      userPrompt: prompt,
+      asset: "logo",
+      subjectName: effectiveName,
+      style: styleInput ?? undefined,
+    });
+    const edited = await editImageWithInstruction(normalizedSource, builtEdit.prompt, {
       quality: "high",
       size: "768x768",
     });

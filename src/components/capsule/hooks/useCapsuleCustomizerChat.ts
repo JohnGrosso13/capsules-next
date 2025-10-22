@@ -16,6 +16,7 @@ import {
   type SelectedBanner,
 } from "./capsuleCustomizerTypes";
 import { buildPromptEnvelope } from "./capsulePromptUtils";
+import type { CapsuleStyleState } from "./useCapsuleCustomizerStyles";
 import { base64ToFile } from "./capsuleImageUtils";
 
 const MAX_PROMPT_REFINEMENTS = 4;
@@ -51,6 +52,7 @@ type UseCustomizerChatOptions = {
   selectedBannerRef: React.MutableRefObject<SelectedBanner | null>;
   setSaveError: (value: string | null) => void;
   fetchMemoryAssetUrl: (memoryId: string) => Promise<string>;
+  styles: CapsuleStyleState;
 };
 
 function randomId(): string {
@@ -126,6 +128,7 @@ export function useCapsuleCustomizerChat({
   selectedBannerRef,
   setSaveError,
   fetchMemoryAssetUrl,
+  styles,
 }: UseCustomizerChatOptions) {
   const [messages, setMessages] = React.useState<ChatMessage[]>(() => [
     { id: randomId(), role: "assistant", content: assistantIntro },
@@ -584,7 +587,15 @@ export function useCapsuleCustomizerChat({
             prompt: promptForRequest,
             capsuleName: normalizedName,
             mode: aiMode,
+            style: { ...styles.selection },
           };
+          if (
+            customizerMode === "banner" ||
+            customizerMode === "storeBanner" ||
+            customizerMode === "tile"
+          ) {
+            body.assetKind = customizerMode;
+          }
           if (source?.imageUrl) body.imageUrl = source.imageUrl;
           if (source?.imageData) body.imageData = source.imageData;
 
@@ -722,6 +733,7 @@ export function useCapsuleCustomizerChat({
       ensureAspectForGeneratedBanner,
       normalizedName,
       resolveBannerSourceForEdit,
+      styles.selection,
       selectedBannerRef,
       setSaveError,
       setSelectedBanner,
