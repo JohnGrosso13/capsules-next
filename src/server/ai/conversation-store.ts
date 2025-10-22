@@ -1,8 +1,6 @@
 import "server-only";
 
-import { Redis } from "@upstash/redis";
-
-import { serverEnv } from "@/lib/env/server";
+import { getRedis } from "@/server/redis/client";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 
 const SUMMARY_HISTORY_LIMIT = 6;
@@ -26,16 +24,6 @@ type ConversationSummary = {
   rawPost: Record<string, unknown> | null;
   history: ComposerChatMessage[];
 };
-
-let redisClient: Redis | null = null;
-
-function getRedis(): Redis | null {
-  if (redisClient) return redisClient;
-  const { UPSTASH_REDIS_REST_URL: url, UPSTASH_REDIS_REST_TOKEN: token } = serverEnv;
-  if (!url || !token) return null;
-  redisClient = new Redis({ url, token });
-  return redisClient;
-}
 
 function buildThreadKey(userId: string, threadId: string): string {
   return `composer:thread:${userId}:${threadId}`;
