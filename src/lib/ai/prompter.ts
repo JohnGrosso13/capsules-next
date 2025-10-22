@@ -22,6 +22,8 @@ import { getDatabaseAdminClient } from "@/config/database";
 
 import { storeImageSrcToSupabase } from "../supabase/storage";
 import type { ComposerChatAttachment, ComposerChatMessage } from "@/lib/composer/chat-types";
+import type { CapsuleImageEvent } from "@/shared/ai-image-events";
+import type { CapsuleStyleSelection } from "@/shared/capsule-style";
 
 export class AIConfigError extends Error {
   constructor(message: string) {
@@ -351,7 +353,34 @@ export async function callOpenAIChat(
   return { content, raw: json };
 }
 
-type ImageOptions = { quality?: string; size?: string };
+type CapsuleImageEventEmitter = (event: CapsuleImageEvent) => void;
+
+type ImageRetryOptions = {
+  attempts?: number;
+  initialDelayMs?: number;
+  multiplier?: number;
+  shouldRetry?: (error: unknown, attempt: number) => boolean;
+};
+
+type ImageInvocationMeta = {
+  ownerId?: string | null;
+  capsuleId?: string | null;
+  assetKind?: string | null;
+  mode?: "generate" | "edit" | "fallback";
+  style?: CapsuleStyleSelection | null;
+  styleSummary?: string | null;
+  prompt?: string | null;
+  userPrompt?: string | null;
+  requestId?: string | null;
+  onEvent?: CapsuleImageEventEmitter | null;
+};
+
+type ImageOptions = {
+  quality?: string;
+  size?: string;
+  retry?: ImageRetryOptions;
+  meta?: ImageInvocationMeta;
+};
 
 type ImageParams = { size: string; quality: string };
 
@@ -377,12 +406,112 @@ function resolveImageParams(options: ImageOptions = {}): ImageParams {
   return { size, quality };
 }
 
+const DEFAULT_IMAGE_RETRY = {
+  attempts: 3,
+  initialDelayMs: 800,
+  multiplier: 1.6,
+};
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function emitImageEvent(meta: ImageInvocationMeta | undefined | null, event: CapsuleImageEvent) {
+  if (!meta?.onEvent) return;
+  try {
+    meta.onEvent(event);
+  } catch (error) {
+    console.warn("image event listener threw", error);
+  }
+}
+
+type NormalizedRetryOptions = {
+  attempts: number;
+  initialDelayMs: number;
+  multiplier: number;
+  shouldRetry?: ImageRetryOptions["shouldRetry"];
+};
+
+function normalizeRetryOptions(retry?: ImageRetryOptions | null): NormalizedRetryOptions {
+  const normalizedAttempts = retry?.attempts ?? DEFAULT_IMAGE_RETRY.attempts;
+  const attempts = Number.isFinite(normalizedAttempts)
+    ? Math.max(1, Math.floor(normalizedAttempts as number))
+    : DEFAULT_IMAGE_RETRY.attempts;
+  return {
+    attempts,
+    initialDelayMs:
+      typeof retry?.initialDelayMs === "number"
+        ? Math.max(0, retry.initialDelayMs)
+        : DEFAULT_IMAGE_RETRY.initialDelayMs,
+    multiplier:
+      typeof retry?.multiplier === "number" && retry.multiplier > 0
+        ? retry.multiplier
+        : DEFAULT_IMAGE_RETRY.multiplier,
+    shouldRetry: retry?.shouldRetry,
+  };
+}
+
+function extractImageError(error: unknown): {
+  message: string;
+  status: number | null;
+  code: string | null;
+  type: string | null;
+} {
+  const baseMessage = error instanceof Error ? error.message : String(error ?? "Unknown error");
+  const status =
+    typeof (error as { status?: unknown })?.status === "number"
+      ? ((error as { status: number }).status ?? null)
+      : null;
+  const meta = (error as { meta?: unknown })?.meta;
+  if (!meta || typeof meta !== "object") {
+    return { message: baseMessage, status, code: null, type: null };
+  }
+  const rawError = (meta as { error?: unknown })?.error;
+  if (!rawError || typeof rawError !== "object") {
+    return { message: baseMessage, status, code: null, type: null };
+  }
+  const message =
+    typeof (rawError as { message?: unknown }).message === "string"
+      ? ((rawError as { message: string }).message ?? baseMessage)
+      : baseMessage;
+  const code =
+    typeof (rawError as { code?: unknown }).code === "string"
+      ? ((rawError as { code: string }).code ?? null)
+      : null;
+  const type =
+    typeof (rawError as { type?: unknown }).type === "string"
+      ? ((rawError as { type: string }).type ?? null)
+      : null;
+  return { message, status, code, type };
+}
+
+function shouldRetryImageError(
+  error: unknown,
+  attempt: number,
+  retry: NormalizedRetryOptions,
+): boolean {
+  if (attempt >= retry.attempts) return false;
+  if (typeof retry.shouldRetry === "function") {
+    try {
+      return Boolean(retry.shouldRetry(error, attempt));
+    } catch (decisionError) {
+      console.warn("image retry decider threw", decisionError);
+    }
+  }
+  const info = extractImageError(error);
+  if (info.status !== null) {
+    if ([401, 403, 404].includes(info.status)) return false;
+    if ([408, 409, 425, 429, 500, 502, 503, 504].includes(info.status)) return true;
+  }
+  return false;
+}
+
 export async function generateImageFromPrompt(
   prompt: string,
   options: ImageOptions = {},
 ): Promise<string> {
   requireOpenAIKey();
 
+  const meta = options.meta ?? null;
+  const retryOptions = normalizeRetryOptions(options.retry);
   const isNonProd = (process.env.NODE_ENV ?? "").toLowerCase() !== "production";
 
   const candidateModels = Array.from(
@@ -398,7 +527,7 @@ export async function generateImageFromPrompt(
     ),
   );
 
-  const attempt = async (modelName: string) => {
+  const attemptModel = async (modelName: string) => {
     const params = resolveImageParams(options);
 
     const body = { model: modelName, prompt, n: 1, size: params.size, quality: params.quality };
@@ -418,7 +547,10 @@ export async function generateImageFromPrompt(
     if (!response.ok) {
       const error = new Error(`OpenAI image error: ${response.status}`);
 
-      (error as Error & { meta?: Record<string, unknown> }).meta = json;
+      (error as Error & { meta?: Record<string, unknown>; status?: number; model?: string }).meta =
+        json;
+      (error as Error & { status?: number }).status = response.status;
+      (error as Error & { model?: string }).model = modelName;
 
       throw error;
     }
@@ -440,16 +572,56 @@ export async function generateImageFromPrompt(
     throw new Error("OpenAI image response missing url and b64_json.");
   };
 
-  let primaryError: unknown = null;
-  for (const model of candidateModels) {
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= retryOptions.attempts; attempt++) {
+    const model = candidateModels[(attempt - 1) % candidateModels.length];
+    emitImageEvent(meta, { type: "attempt", attempt, model });
     try {
-      return await attempt(model);
+      const url = await attemptModel(model);
+      return url;
     } catch (error) {
-      if (!primaryError) primaryError = error;
+      lastError = error;
+      const shouldRetry = shouldRetryImageError(error, attempt, retryOptions);
+      if (!shouldRetry) {
+        const info = extractImageError(error);
+        emitImageEvent(meta, {
+          type: "error",
+          message: info.message,
+          status: info.status ?? undefined,
+          code: info.code ?? undefined,
+        });
+        throw error instanceof Error ? error : new Error(info.message);
+      }
+
+      const delay = Math.round(
+        retryOptions.initialDelayMs * Math.pow(retryOptions.multiplier, attempt - 1),
+      );
+      const info = extractImageError(error);
+      emitImageEvent(meta, {
+        type: "retry",
+        attempt,
+        model,
+        error: {
+          message: info.message,
+          code: info.code ?? undefined,
+          status: info.status ?? undefined,
+          type: info.type ?? undefined,
+        },
+        nextDelayMs: delay,
+      });
+
+      if (delay > 0) await sleep(delay);
     }
   }
 
-  throw primaryError instanceof Error ? primaryError : new Error("Failed to generate image.");
+  const info = extractImageError(lastError);
+  emitImageEvent(meta, {
+    type: "error",
+    message: info.message,
+    status: info.status ?? undefined,
+    code: info.code ?? undefined,
+  });
+  throw lastError instanceof Error ? lastError : new Error(info.message);
 }
 
 export async function editImageWithInstruction(
@@ -460,6 +632,9 @@ export async function editImageWithInstruction(
   options: ImageOptions = {},
 ): Promise<string> {
   requireOpenAIKey();
+
+  const meta = options.meta ?? null;
+  const retryOptions = normalizeRetryOptions(options.retry);
 
   const imgResponse = await fetch(imageUrl);
 
@@ -486,7 +661,6 @@ export async function editImageWithInstruction(
 
   const blob = new Blob([arrayBuffer as ArrayBuffer], { type: "image/png" });
 
-  const fd = new FormData();
 
   const allowedEditModels = new Set(["gpt-image-1", "dall-e-2", "gpt-image-0721-mini-alpha"]);
 
@@ -506,75 +680,129 @@ export async function editImageWithInstruction(
 
   const model = preferredEditModel;
 
-  fd.append("model", model);
-
-  fd.append("image", blob, "image.png");
-
-  fd.append("prompt", instruction || "Make subtle improvements.");
-
   const params = resolveImageParams(options);
 
-  if (params.size) fd.append("size", params.size);
+  const createFormData = () => {
+    fd.append("model", model);
+    fd.append("image", blob, "image.png");
+    fd.append("prompt", instruction || "Make subtle improvements.");
+    if (params.size) fd.append("size", params.size);
+    return fd;
+  };
 
-  const response = await fetchOpenAI("/images/edits", {
-    method: "POST",
+  const attemptEdit = async () => {
+    const response = await fetchOpenAI("/images/edits", {
+      method: "POST",
+      body: createFormData(),
+    });
 
-    body: fd,
-  });
+    const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 
-  const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!response.ok) {
+      const metaError = (() => {
+        const rawError = json?.error;
+        if (!rawError || typeof rawError !== "object") return null;
+        const message =
+          typeof (rawError as { message?: unknown }).message === "string"
+            ? ((rawError as { message: string }).message ?? "").trim()
+            : "";
+        const code =
+          typeof (rawError as { code?: unknown }).code === "string"
+            ? ((rawError as { code: string }).code ?? "").trim()
+            : "";
+        const type =
+          typeof (rawError as { type?: unknown }).type === "string"
+            ? ((rawError as { type: string }).type ?? "").trim()
+            : "";
+        const reason =
+          typeof (rawError as { param?: unknown }).param === "string"
+            ? ((rawError as { param: string }).param ?? "").trim()
+            : "";
+        return { message, code, type, param: reason };
+      })();
 
-  if (!response.ok) {
-    const metaError = (() => {
-      const rawError = json?.error;
-      if (!rawError || typeof rawError !== "object") return null;
-      const message =
-        typeof (rawError as { message?: unknown }).message === "string"
-          ? ((rawError as { message: string }).message ?? "").trim()
-          : "";
-      const code =
-        typeof (rawError as { code?: unknown }).code === "string"
-          ? ((rawError as { code: string }).code ?? "").trim()
-          : "";
-      const type =
-        typeof (rawError as { type?: unknown }).type === "string"
-          ? ((rawError as { type: string }).type ?? "").trim()
-          : "";
-      const reason =
-        typeof (rawError as { param?: unknown }).param === "string"
-          ? ((rawError as { param: string }).param ?? "").trim()
-          : "";
-      return { message, code, type, param: reason };
-    })();
+      const descriptiveMessage = metaError?.message
+        ? `${metaError.message} (OpenAI status ${response.status}${
+            metaError.code ? `, code ${metaError.code}` : ""
+          })`
+        : `OpenAI image edit error: ${response.status}`;
 
-    const descriptiveMessage = metaError?.message
-      ? `${metaError.message} (OpenAI status ${response.status}${
-          metaError.code ? `, code ${metaError.code}` : ""
-        })`
-      : `OpenAI image edit error: ${response.status}`;
+      const error = new Error(descriptiveMessage);
 
-    const error = new Error(descriptiveMessage);
+      (error as Error & { meta?: Record<string, unknown>; status?: number; model?: string }).meta =
+        json;
+      (error as Error & { status?: number }).status = response.status;
+      (error as Error & { model?: string }).model = model;
 
-    (error as Error & { meta?: Record<string, unknown> }).meta = json;
+      throw error;
+    }
 
-    throw error;
+    const image = Array.isArray(json.data) ? (json.data as Array<Record<string, unknown>>)[0] : null;
+
+    if (!image) throw new Error("OpenAI image edit missing data");
+
+    const maybeUrl = typeof image.url === "string" ? image.url : null;
+
+    const maybeB64 = typeof image.b64_json === "string" ? image.b64_json : null;
+
+    const dataUri = maybeUrl ?? (maybeB64 ? `data:image/png;base64,${maybeB64}` : null);
+
+    if (!dataUri) throw new Error("OpenAI image edit missing url/b64");
+
+    const saved = await storeImageSrcToSupabase(dataUri, "edit");
+
+    return saved?.url ?? dataUri;
+  };
+
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= retryOptions.attempts; attempt++) {
+    emitImageEvent(meta, { type: "attempt", attempt, model });
+    try {
+      const url = await attemptEdit();
+      return url;
+    } catch (error) {
+      lastError = error;
+      const shouldRetry = shouldRetryImageError(error, attempt, retryOptions);
+      if (!shouldRetry) {
+        const info = extractImageError(error);
+        emitImageEvent(meta, {
+          type: "error",
+          message: info.message,
+          status: info.status ?? undefined,
+          code: info.code ?? undefined,
+        });
+        throw error instanceof Error ? error : new Error(info.message);
+      }
+
+      const delay = Math.round(
+        retryOptions.initialDelayMs * Math.pow(retryOptions.multiplier, attempt - 1),
+      );
+      const info = extractImageError(error);
+      emitImageEvent(meta, {
+        type: "retry",
+        attempt,
+        model,
+        error: {
+          message: info.message,
+          code: info.code ?? undefined,
+          status: info.status ?? undefined,
+          type: info.type ?? undefined,
+        },
+        nextDelayMs: delay,
+      });
+
+      if (delay > 0) await sleep(delay);
+    }
   }
 
-  const image = Array.isArray(json.data) ? (json.data as Array<Record<string, unknown>>)[0] : null;
-
-  if (!image) throw new Error("OpenAI image edit missing data");
-
-  const maybeUrl = typeof image.url === "string" ? image.url : null;
-
-  const maybeB64 = typeof image.b64_json === "string" ? image.b64_json : null;
-
-  const dataUri = maybeUrl ?? (maybeB64 ? `data:image/png;base64,${maybeB64}` : null);
-
-  if (!dataUri) throw new Error("OpenAI image edit missing url/b64");
-
-  const saved = await storeImageSrcToSupabase(dataUri, "edit");
-
-  return saved?.url ?? dataUri;
+  const info = extractImageError(lastError);
+  emitImageEvent(meta, {
+    type: "error",
+    message: info.message,
+    status: info.status ?? undefined,
+    code: info.code ?? undefined,
+  });
+  throw lastError instanceof Error ? lastError : new Error(info.message);
 }
 
 function buildBasePost(incoming: Record<string, unknown> = {}): DraftPost {
@@ -1251,7 +1479,6 @@ export async function transcribeAudioFromBase64({
 
   for (const model of models) {
     try {
-      const fd = new FormData();
 
       fd.append("file", blob, filename);
 
@@ -1312,4 +1539,3 @@ export async function transcribeAudioFromBase64({
 
   throw new Error("Transcription failed");
 }
-

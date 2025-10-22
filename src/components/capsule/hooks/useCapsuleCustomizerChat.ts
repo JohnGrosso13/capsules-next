@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 
@@ -16,6 +16,7 @@ import {
   type SelectedBanner,
 } from "./capsuleCustomizerTypes";
 import { buildPromptEnvelope } from "./capsulePromptUtils";
+import type { CapsuleImageEvent } from "@/shared/ai-image-events";
 import type { CapsuleStyleState } from "./useCapsuleCustomizerStyles";
 import { base64ToFile } from "./capsuleImageUtils";
 
@@ -111,7 +112,7 @@ function buildAssistantResponse({
     : "The preview on the right shows how it came together.";
   const nextPrompt =
     mode === "generate"
-      ? "What should we explore next—tweak this vibe, spin a remix, or try something totally different?"
+      ? "What should we explore nextâ€”tweak this vibe, spin a remix, or try something totally different?"
       : "Want me to keep iterating on it or pivot to a fresh direction?";
 
   return `${intro} ${detail} ${nextPrompt}`;
@@ -602,37 +603,162 @@ export function useCapsuleCustomizerChat({
           const aiEndpoint = customizerMode === "logo" ? "/api/ai/logo" : "/api/ai/banner";
           const response = await fetch(aiEndpoint, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/x-ndjson, application/json",
+            },
             credentials: "include",
             body: JSON.stringify(body),
           });
 
-          const payload = (await response.json().catch(() => null)) as {
-            url?: string;
-            message?: string | null;
-            imageData?: string | null;
-            mimeType?: string | null;
-          } | null;
+          const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
 
-          if (!response.ok || !payload?.url) {
-            const message =
-              (payload?.message && typeof payload.message === "string" && payload.message) ||
-              "Failed to generate banner.";
-            throw new Error(message);
+          const processNdjsonStream = async () => {
+            const bodyStream = response.body;
+            if (!bodyStream) {
+              throw new Error("Streaming response missing body.");
+            }
+
+            const reader = bodyStream.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            const updateAssistantContent = (content: string) => {
+              setMessages((prev) =>
+                prev.map((entry) =>
+                  entry.id === assistantId
+                    ? {
+                        ...entry,
+                        content,
+                      }
+                    : entry,
+                ),
+              );
+            };
+
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              let newlineIndex: number;
+              while ((newlineIndex = buffer.indexOf("\n")) >= 0) {
+                const rawLine = buffer.slice(0, newlineIndex).trim();
+                buffer = buffer.slice(newlineIndex + 1);
+                if (!rawLine.length) continue;
+                let event: CapsuleImageEvent | null = null;
+                try {
+                  event = JSON.parse(rawLine) as CapsuleImageEvent;
+                } catch {
+                  continue;
+                }
+                if (!event) continue;
+                switch (event.type) {
+                  case "prompt": {
+                    const promptPreview = event.prompt.trim();
+                    const nextContent = promptPreview.length
+                      ? `${aiWorkingMessage}\n\n${promptPreview}`
+                      : aiWorkingMessage;
+                    updateAssistantContent(nextContent);
+                    break;
+                  }
+                  case "attempt": {
+                    const attemptNote = `Generating (attempt ${event.attempt}${event.model ? ` Â· ${event.model}` : ""})â€¦`;
+                    updateAssistantContent(attemptNote);
+                    break;
+                  }
+                  case "retry": {
+                    const retryMessage = event.error?.message ?? "Retrying image call.";
+                    const nextDelay =
+                      typeof event.nextDelayMs === "number" && event.nextDelayMs > 0
+                        ? ` Next attempt in ${(event.nextDelayMs / 1000).toFixed(1)}s.`
+                        : "";
+                    updateAssistantContent(`Retrying: ${retryMessage}${nextDelay}`.trim());
+                    break;
+                  }
+                  case "log": {
+                    if (event.message?.length) {
+                      updateAssistantContent(event.message);
+                    }
+                    break;
+                  }
+                  case "error": {
+                    const errorMessage = event.message || "Failed to generate banner.";
+                    updateAssistantContent(`I ran into an issue: ${errorMessage}`);
+                    setSaveError(errorMessage);
+                    await reader.cancel().catch(() => {});
+                    throw new Error(errorMessage);
+                  }
+                  case "success": {
+                    const mimeType =
+                      typeof event.mimeType === "string" && event.mimeType.trim().length
+                        ? event.mimeType.trim()
+                        : "image/jpeg";
+                    const message =
+                      typeof event.message === "string" && event.message.trim().length
+                        ? event.message.trim()
+                        : null;
+                    if (message) {
+                      updateAssistantContent(ensureSentence(message));
+                    }
+                    await reader.cancel().catch(() => {});
+                    return {
+                      url: event.url,
+                      imageData:
+                        typeof event.imageData === "string" && event.imageData.length
+                          ? event.imageData
+                          : null,
+                      mimeType,
+                      message,
+                    };
+                  }
+                }
+              }
+            }
+
+            throw new Error("Banner generation ended unexpectedly.");
+          };
+
+          let result: { url: string; imageData: string | null; mimeType: string; message: string | null };
+
+          if (contentType.includes("application/x-ndjson")) {
+            result = await processNdjsonStream();
+          } else {
+            const payload = (await response.json().catch(() => null)) as {
+              url?: string;
+              message?: string | null;
+              imageData?: string | null;
+              mimeType?: string | null;
+            } | null;
+
+            if (!response.ok || !payload?.url) {
+              const message =
+                (payload?.message && typeof payload.message === "string" && payload.message) ||
+                "Failed to generate banner.";
+              throw new Error(message);
+            }
+
+            const mimeType =
+              payload?.mimeType &&
+              typeof payload.mimeType === "string" &&
+              payload.mimeType.trim().length
+                ? payload.mimeType.trim()
+                : "image/jpeg";
+            const imageData =
+              payload?.imageData && typeof payload.imageData === "string" && payload.imageData.length
+                ? payload.imageData
+                : null;
+
+            result = {
+              url: payload.url,
+              imageData,
+              mimeType,
+              message: typeof payload.message === "string" ? payload.message : null,
+            };
           }
 
-          const mimeType =
-            payload?.mimeType &&
-            typeof payload.mimeType === "string" &&
-            payload.mimeType.trim().length
-              ? payload.mimeType.trim()
-              : "image/jpeg";
-          const imageData =
-            payload?.imageData && typeof payload.imageData === "string" && payload.imageData.length
-              ? payload.imageData
-              : null;
+          const mimeType = result.mimeType;
+          const imageData = result.imageData;
 
-          const fileUrl = payload.url ?? (imageData ? `data:${mimeType};base64,${imageData}` : "");
+          const fileUrl = result.url ?? (imageData ? `data:${mimeType};base64,${imageData}` : "");
           let bannerFile: File | null = null;
 
           if (imageData) {
@@ -659,7 +785,7 @@ export function useCapsuleCustomizerChat({
           promptHistoryRef.current.sourceKey = bannerSourceKey(generatedBanner);
 
           const serverMessage =
-            payload?.message && typeof payload.message === "string" ? payload.message : null;
+            typeof result.message === "string" ? result.message : null;
           const responseCopy = buildAssistantResponse({
             prompt: trimmed,
             capsuleName: normalizedName,
