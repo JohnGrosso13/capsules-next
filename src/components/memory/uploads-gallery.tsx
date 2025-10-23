@@ -3,16 +3,13 @@ import * as React from "react";
 
 import styles from "./uploads-gallery.module.css";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, FileText } from "@phosphor-icons/react/dist/ssr";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 
 import { computeDisplayUploads } from "./process-uploads";
 import { useMemoryUploads } from "./use-memory-uploads";
 import type { DisplayMemoryUpload } from "./uploads-types";
-
-function isVideo(mime: string | null | undefined) {
-  return typeof mime === "string" && mime.startsWith("video/");
-}
+import { getUploadExtension, isImage, isVideo } from "./upload-helpers";
 
 export function UploadsGallery() {
   const { user, items, loading, error, refresh } = useMemoryUploads();
@@ -29,22 +26,36 @@ export function UploadsGallery() {
 
   const renderCard = (item: DisplayMemoryUpload) => {
     const url = item.displayUrl || item.media_url || "";
+    const fullUrl = item.fullUrl || url;
     const mime = item.media_type || null;
     const title = item.title?.trim() || item.description?.trim() || "Upload";
     const desc = item.description?.trim() || null;
+    const imageLike = isImage(mime);
+    const videoLike = isVideo(mime);
+    const extension = getUploadExtension(item);
+    const metaType = mime ?? extension ?? null;
+
     return (
       <article key={item.id} className={styles.card}>
         <div className={styles.media}>
-          {isVideo(mime) ? (
-            <video className={styles.video} src={item.fullUrl || url} preload="metadata" controls />
-          ) : (
+          {videoLike && fullUrl ? (
+            <video className={styles.video} src={fullUrl} preload="metadata" controls />
+          ) : imageLike && url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img className={styles.img} src={url} alt={title} loading="lazy" />
+          ) : (
+            <div className={styles.filePreview} aria-hidden>
+              <div className={styles.filePreviewIcon}>
+                <FileText size={32} weight="duotone" />
+              </div>
+              <span className={styles.filePreviewExt}>{extension ?? (mime ?? "FILE")}</span>
+            </div>
           )}
         </div>
         <div className={styles.meta}>
           <h4 className={styles.title}>{title}</h4>
           {desc ? <p className={styles.description}>{desc}</p> : null}
+          {metaType ? <span className={styles.metaDetail}>{metaType}</span> : null}
         </div>
       </article>
     );

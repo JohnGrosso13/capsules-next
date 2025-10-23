@@ -538,7 +538,12 @@ export function ComposerForm({
     if (attachment) return attachment;
     if (workingDraft.mediaUrl) {
       const inferredKind = (workingDraft.kind ?? "").toLowerCase();
-      const inferredMime = inferredKind.startsWith("video") ? "video/*" : "image/*";
+      let inferredMime = "application/octet-stream";
+      if (inferredKind.startsWith("video")) inferredMime = "video/*";
+      else if (inferredKind.startsWith("image")) inferredMime = "image/*";
+      else if (inferredKind.startsWith("audio")) inferredMime = "audio/*";
+      else if (inferredKind.startsWith("text")) inferredMime = "text/plain";
+      else if (inferredKind.startsWith("document")) inferredMime = "application/octet-stream";
       const derivedName =
         workingDraft.mediaPrompt?.trim() ||
         workingDraft.title?.trim() ||
@@ -1284,7 +1289,7 @@ export function ComposerForm({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,video/*"
+            accept="*/*"
             className={styles.hiddenFileInput}
             onChange={handleAttachmentSelect}
             disabled={loading || attachmentUploading}
@@ -1864,7 +1869,6 @@ export function ComposerForm({
     </div>
   );
 }
-
 
 
 

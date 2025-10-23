@@ -6,17 +6,14 @@ import useEmblaCarousel from "embla-carousel-react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
-import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight, FileText } from "@phosphor-icons/react/dist/ssr";
 
 import { computeDisplayUploads } from "./process-uploads";
 import { useMemoryUploads } from "./use-memory-uploads";
 import type { DisplayMemoryUpload } from "./uploads-types";
 import styles from "./uploads-carousel.module.css";
 import { MemoryUploadDetailDialog } from "./upload-detail-dialog";
-
-function isVideo(mime: string | null | undefined) {
-  return typeof mime === "string" && mime.startsWith("video/");
-}
+import { getUploadExtension, isImage, isVideo } from "./upload-helpers";
 
 const MAX_VISIBLE = 6;
 const VIEW_ALL_ROUTE = "/memory/uploads";
@@ -119,6 +116,10 @@ export function UploadsCarousel() {
     if (!envelope || !readyAttachment || !readyAttachment.url) return;
     try {
       setError(null);
+      const extension =
+        typeof readyAttachment.name === "string" && readyAttachment.name.includes(".")
+          ? readyAttachment.name.split(".").pop()?.toLowerCase() ?? null
+          : null;
       const body = {
         user: envelope,
         item: {
@@ -131,6 +132,9 @@ export function UploadsCarousel() {
             upload_key: readyAttachment.key ?? undefined,
             upload_session_id: readyAttachment.sessionId ?? undefined,
             source: "upload",
+            mime_type: readyAttachment.mimeType,
+            file_extension: extension ?? undefined,
+            file_size_bytes: readyAttachment.size,
           },
         },
       };
@@ -169,9 +173,16 @@ export function UploadsCarousel() {
 
   const renderCard = (item: DisplayMemoryUpload) => {
     const url = item.displayUrl || item.media_url || "";
+    const fullUrl = item.fullUrl || url;
     const mime = item.media_type || null;
     const title = item.title?.trim() || item.description?.trim() || "Upload";
     const desc = item.description?.trim() || null;
+    const imageLike = isImage(mime);
+    const videoLike = isVideo(mime);
+    const extension = getUploadExtension(item);
+    const shortLabel = extension ?? (mime ? mime.split("/")[0]?.toUpperCase() ?? null : null);
+    const metaType = mime ?? extension ?? null;
+
     return (
       <button
         type="button"
@@ -181,23 +192,31 @@ export function UploadsCarousel() {
       >
         <div className={styles.card}>
           <div className={styles.media}>
-            {isVideo(mime) ? (
+            {videoLike ? (
               <video
                 className={styles.video}
-                src={item.fullUrl || url}
+                src={fullUrl}
                 preload="metadata"
                 muted
                 playsInline
                 loop
               />
-            ) : (
+            ) : imageLike ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img className={styles.img} src={url} alt={title} />
+            ) : (
+              <div className={styles.filePreview} aria-hidden>
+                <div className={styles.filePreviewIcon}>
+                  <FileText size={28} weight="duotone" />
+                </div>
+                <span className={styles.filePreviewExt}>{shortLabel ?? "FILE"}</span>
+              </div>
             )}
           </div>
           <div className={styles.meta}>
             <h4 className={styles.metaTitle}>{title}</h4>
             {desc ? <p className={styles.metaDesc}>{desc}</p> : null}
+            {metaType ? <span className={styles.metaDetail}>{metaType}</span> : null}
           </div>
         </div>
       </button>
@@ -240,7 +259,7 @@ export function UploadsCarousel() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,video/*"
+              accept="*/*"
               onChange={handleAttachmentSelect}
               hidden
             />

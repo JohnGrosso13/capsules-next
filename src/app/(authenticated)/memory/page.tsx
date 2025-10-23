@@ -8,7 +8,7 @@ import { CapsuleAssetsCarousel } from "@/components/memory/asset-carousel";
 
 export const metadata: Metadata = {
   title: "Memory - Capsules",
-  description: "Your uploads and generated media.",
+  description: "Your uploaded files, docs, and generated media.",
   robots: { index: false },
 };
 
@@ -20,7 +20,7 @@ export default function MemoryPage() {
       <section className={styles.wrapper}>
         <header className={styles.hero}>
           <h1>Memory</h1>
-          <p>Upload images and videos - instantly recalled with natural language.</p>
+          <p>Upload files, media, and documents. Capsule AI will recall them instantly.</p>
         </header>
         <UploadsCarousel />
         <CapsuleAssetsCarousel />

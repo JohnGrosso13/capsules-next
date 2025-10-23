@@ -84,7 +84,7 @@ export function PrompterInputBar({
         <button
           type="button"
           className={styles.promptAttachBtn}
-          aria-label="Attach image"
+          aria-label="Attach file"
           onClick={onAttachClick}
           disabled={uploading}
         >
@@ -126,7 +126,7 @@ export function PrompterInputBar({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,video/*"
+          accept="*/*"
           className={styles.attachInput}
           onChange={onFileChange}
         />

@@ -5,7 +5,8 @@ import { safeRandomUUID } from "@/lib/random";
 
 import { uploadFileDirect } from "@/lib/uploads/direct-client";
 
-const DEFAULT_MAX_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB
+const DEFAULT_MAX_SIZE = 50 * 1024 * 1024 * 1024; // 50 GB
+const BASE64_FALLBACK_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 export type LocalAttachment = {
   id: string;
@@ -31,7 +32,7 @@ type RemoteAttachmentOptions = {
   size?: number | null;
 };
 
-function inferMimeFromUrl(url: string | null | undefined, fallback = "image/*"): string {
+function inferMimeFromUrl(url: string | null | undefined, fallback = "*/*"): string {
   if (!url) return fallback;
   const normalized = url.split("?")[0]?.toLowerCase() ?? "";
   if (normalized.endsWith(".mp4") || normalized.endsWith(".mov") || normalized.endsWith(".m4v")) {
@@ -58,6 +59,28 @@ function inferMimeFromUrl(url: string | null | undefined, fallback = "image/*"):
     if (normalized.endsWith(".png")) return "image/png";
     return "image/jpeg";
   }
+  if (normalized.endsWith(".pdf")) return "application/pdf";
+  if (normalized.endsWith(".doc") || normalized.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (normalized.endsWith(".ppt") || normalized.endsWith(".pptx") || normalized.endsWith(".ppsx")) {
+    return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+  }
+  if (normalized.endsWith(".xls") || normalized.endsWith(".xlsx")) {
+    return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  }
+  if (normalized.endsWith(".csv")) return "text/csv";
+  if (normalized.endsWith(".txt")) return "text/plain";
+  if (normalized.endsWith(".json")) return "application/json";
+  if (normalized.endsWith(".zip")) return "application/zip";
+  if (normalized.endsWith(".rar")) return "application/vnd.rar";
+  if (normalized.endsWith(".7z")) return "application/x-7z-compressed";
+  if (normalized.endsWith(".tar") || normalized.endsWith(".tgz")) return "application/x-tar";
+  if (normalized.endsWith(".mp3")) return "audio/mpeg";
+  if (normalized.endsWith(".wav")) return "audio/wav";
+  if (normalized.endsWith(".aac")) return "audio/aac";
+  if (normalized.endsWith(".flac")) return "audio/flac";
+  if (normalized.endsWith(".ogg")) return "audio/ogg";
   return fallback;
 }
 
@@ -117,14 +140,72 @@ async function captureVideoThumbnail(file: File, atSeconds = 0.3): Promise<strin
   });
 }
 
+const ALLOWED_TOP_LEVEL_TYPES = new Set([
+  "image",
+  "video",
+  "audio",
+  "application",
+  "text",
+  "font",
+  "model",
+  "multipart",
+]);
+
+const BLOCKED_MIME_TYPES = new Set([
+  "application/x-msdownload",
+  "application/x-msdos-program",
+  "application/x-dosexec",
+  "application/x-executable",
+  "application/x-sh",
+  "application/x-bat",
+]);
+
+const BLOCKED_EXTENSIONS = new Set([
+  "exe",
+  "msi",
+  "bat",
+  "cmd",
+  "sh",
+  "com",
+  "scr",
+  "dll",
+  "sys",
+  "pkg",
+]);
+
+function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  const rounded = index === 0 ? value : Math.round(value * 10) / 10;
+  return `${rounded.toLocaleString()} ${units[index]}`;
+}
+
 function validateAttachmentFile(file: File, mimeType: string, maxSizeBytes: number): string | null {
-  if (!mimeType.startsWith("image/") && !mimeType.startsWith("video/")) {
-    return "Only image or video attachments are supported right now.";
+  const normalizedMime = (mimeType || "application/octet-stream").toLowerCase();
+  const [rawTopLevel] = normalizedMime.split("/", 1);
+  const topLevel = rawTopLevel || "application";
+
+  if (BLOCKED_MIME_TYPES.has(normalizedMime)) {
+    return "Executable files are not supported.";
+  }
+
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (extension && BLOCKED_EXTENSIONS.has(extension)) {
+    return "Executable files are not supported.";
+  }
+
+  if (topLevel && !ALLOWED_TOP_LEVEL_TYPES.has(topLevel)) {
+    return "This file type isn't supported yet.";
   }
 
   if (file.size > maxSizeBytes) {
-    const maxMB = Math.round(maxSizeBytes / (1024 * 1024));
-    return `File is too large (max ${maxMB.toLocaleString()} MB).`;
+    return `File is too large (max ${formatFileSize(maxSizeBytes)}).`;
   }
 
   return null;
@@ -256,6 +337,35 @@ function updateUploadProgress(
   );
 }
 
+function getFileExtension(name: string): string | null {
+  const dotIndex = name.lastIndexOf(".");
+  if (dotIndex === -1 || dotIndex === name.length - 1) return null;
+  return name.slice(dotIndex + 1).toLowerCase();
+}
+
+function resolveUploadKind(mimeType: string): string {
+  const normalized = mimeType.toLowerCase();
+  if (normalized.startsWith("video/")) return "video";
+  if (normalized.startsWith("image/")) return "image";
+  if (normalized.startsWith("audio/")) return "audio";
+  if (normalized.startsWith("text/")) return "document";
+  if (
+    normalized === "application/pdf" ||
+    normalized.includes("presentation") ||
+    normalized.includes("document") ||
+    normalized.includes("msword") ||
+    normalized.includes("spreadsheet")
+  ) {
+    return "document";
+  }
+  if (normalized.startsWith("application/")) return "file";
+  return "file";
+}
+
+function shouldUseBase64Fallback(file: File, mimeType: string): boolean {
+  return mimeType.startsWith("image/") && file.size <= BASE64_FALLBACK_MAX_SIZE;
+}
+
 async function uploadWithFallback(
   file: File,
   mimeType: string,
@@ -264,26 +374,37 @@ async function uploadWithFallback(
 ): Promise<DirectUploadResult> {
   let directError: Error | null = null;
   let result: DirectUploadResult | null = null;
+  const uploadKind = resolveUploadKind(mimeType);
+  const canUseBase64 = shouldUseBase64Fallback(file, mimeType);
+  const fileExtension = getFileExtension(file.name);
+  const metadata: Record<string, unknown> = {
+    original_filename: file.name,
+    mime_type: mimeType,
+    file_size: file.size,
+    source: "attachment",
+    mime_primary: uploadKind,
+  };
+  if (fileExtension) {
+    metadata.file_extension = fileExtension;
+  }
 
   try {
     result = await uploadFileDirect(file, {
-      kind: mimeType.startsWith("video/") ? "video" : "image",
-      metadata: {
-        original_filename: file.name,
-        mime_type: mimeType,
-        file_size: file.size,
-        source: "attachment",
-      },
+      kind: uploadKind,
+      metadata,
       onProgress: ({ uploadedBytes, totalBytes }) => {
         updateUploadProgress(setAttachment, id, uploadedBytes, totalBytes);
       },
     });
   } catch (error) {
     directError = error instanceof Error ? error : new Error(String(error));
-    console.warn("direct upload failed, falling back to base64", directError);
+    const message = canUseBase64
+      ? "direct upload failed, falling back to base64"
+      : "direct upload failed";
+    console.warn(message, directError);
   }
 
-  if (!result) {
+  if (!result && canUseBase64) {
     result = await uploadViaBase64(file, mimeType, id, directError);
   }
 
@@ -300,6 +421,12 @@ async function uploadViaBase64(
   id: string,
   directError: Error | null,
 ): Promise<DirectUploadResult> {
+  if (!mimeType.startsWith("image/")) {
+    throw directError ?? new Error("This file type requires the direct uploader. Please try again.");
+  }
+  if (file.size > BASE64_FALLBACK_MAX_SIZE) {
+    throw directError ?? new Error("File is too large for fallback upload. Please retry the upload.");
+  }
   const dataUrl = await readFileAsDataUrl(file);
   const base64 = dataUrl.split(",").pop() ?? "";
   const fallbackResponse = await fetch("/api/upload_base64", {
@@ -412,10 +539,7 @@ export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
       const providedName = options.name ?? "";
       const displayName = providedName.trim().length ? providedName.trim() : "Memory asset";
       const fallbackMime = options.mimeType?.trim().length ? options.mimeType.trim() : undefined;
-      const resolvedMime = inferMimeFromUrl(
-        trimmedUrl,
-        fallbackMime ? fallbackMime : "image/*",
-      );
+      const resolvedMime = inferMimeFromUrl(trimmedUrl, fallbackMime ?? "*/*");
 
       cancelRemoteTimers();
 

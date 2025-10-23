@@ -1,14 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { X } from "@phosphor-icons/react/dist/ssr";
+import { DownloadSimple, FileText, X } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./uploads-carousel.module.css";
 import type { DisplayMemoryUpload } from "./uploads-types";
-
-function isVideo(mime: string | null | undefined) {
-  return typeof mime === "string" && mime.startsWith("video/");
-}
+import { getUploadExtension, isImage, isVideo } from "./upload-helpers";
 
 function formatCreatedAt(createdAt: string | null | undefined) {
   if (!createdAt) return null;
@@ -66,7 +63,12 @@ export function MemoryUploadDetailDialog({ item, onClose }: MemoryUploadDetailDi
   const title = item.title?.trim() || item.description?.trim() || "Upload";
   const desc = item.description?.trim() || null;
   const mime = item.media_type || null;
+  const extension = getUploadExtension(item);
+  const videoLike = isVideo(mime);
+  const imageLike = isImage(mime);
+  const fileUrl = item.fullUrl || item.displayUrl || item.media_url || null;
   const createdAt = formatCreatedAt(item.created_at);
+  const metaType = mime ?? extension ?? null;
 
   return (
     <div className={styles.detailOverlay} role="presentation" onClick={onClose}>
@@ -89,21 +91,29 @@ export function MemoryUploadDetailDialog({ item, onClose }: MemoryUploadDetailDi
         </button>
 
         <div className={styles.detailMedia}>
-          {isVideo(mime) ? (
-            <video
-              className={styles.detailVideo}
-              src={item.fullUrl || item.displayUrl}
-              preload="metadata"
-              controls
-            />
-          ) : (
+          {videoLike && fileUrl ? (
+            <video className={styles.detailVideo} src={fileUrl} preload="metadata" controls />
+          ) : imageLike && fileUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              className={styles.detailImg}
-              src={item.fullUrl || item.displayUrl}
-              alt={title}
-              loading="lazy"
-            />
+            <img className={styles.detailImg} src={fileUrl} alt={title} loading="lazy" />
+          ) : (
+            <div className={styles.detailFilePreview} aria-hidden>
+              <div className={styles.detailFileIcon}>
+                <FileText size={52} weight="duotone" />
+              </div>
+              <div className={styles.detailFileExt}>{extension ?? (mime ?? "File")}</div>
+              {fileUrl ? (
+                <a
+                  className={styles.detailDownload}
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <DownloadSimple size={16} weight="bold" />
+                  <span>Download</span>
+                </a>
+              ) : null}
+            </div>
           )}
         </div>
 
@@ -120,6 +130,7 @@ export function MemoryUploadDetailDialog({ item, onClose }: MemoryUploadDetailDi
               No description provided.
             </span>
           )}
+          {metaType ? <div className={styles.detailType}>Type: {metaType}</div> : null}
           {createdAt ? <div className={styles.detailTimestamp}>Saved {createdAt}</div> : null}
         </div>
       </div>

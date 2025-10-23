@@ -20,8 +20,8 @@ export default function MemoryUploadsPage() {
         <header className={styles.hero}>
           <h1>Uploads</h1>
           <p>
-            All of your uploaded images and videos in one place. Use the Memory page for quick
-            access and uploads.
+            All of your uploaded files and media in one place. Use the Memory page for quick access,
+            uploads, and discovery.
           </p>
         </header>
         <UploadsGallery />

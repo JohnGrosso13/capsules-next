@@ -26,7 +26,7 @@ export function AttachmentControls({
         className={styles.attachButton}
         onClick={onAttachClick}
         disabled={uploading}
-        aria-label="Attach an image"
+        aria-label="Attach a file"
       >
         <span className={styles.attachIcon} aria-hidden>
           +
@@ -36,7 +36,7 @@ export function AttachmentControls({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="*/*"
         className={styles.attachInput}
         onChange={onFileChange}
       />
