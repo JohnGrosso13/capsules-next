@@ -151,13 +151,13 @@ export function AiPrompterStage({
   const variantConfig = React.useMemo<VariantConfig>(() => {
     if (variant === "bannerCustomizer") {
       return {
-        allowAttachments: false,
-        allowVoice: false,
+        allowAttachments: true,
+        allowVoice: true,
         allowIntentMenu: false,
         allowIntentHints: false,
         allowTools: false,
         allowNavigation: false,
-        enableDragAndDrop: false,
+        enableDragAndDrop: true,
         multilineInput: true,
         forceIntent: "generate",
         forceButtonLabel: "Generate",

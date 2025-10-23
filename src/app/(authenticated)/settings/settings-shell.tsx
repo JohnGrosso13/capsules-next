@@ -61,13 +61,23 @@ export function SettingsShell({
     }
   }, [accountProfile]);
 
-  const normalizeSectionKey = React.useCallback((value: string | null | undefined) => {
-    const key = typeof value === "string" ? value.trim().toLowerCase() : "";
-    if (key === "capsules" || key === "account" || key === "connections" || key === "appearance" || key === "voice") {
-      return key;
-    }
-    return null;
-  }, []);
+  const normalizeSectionKey = React.useCallback(
+    (value: string | null | undefined): SettingsSectionKey | null => {
+      if (typeof value !== "string") return null;
+      const key = value.trim().toLowerCase();
+      switch (key) {
+        case "capsules":
+        case "account":
+        case "connections":
+        case "appearance":
+        case "voice":
+          return key as SettingsSectionKey;
+        default:
+          return null;
+      }
+    },
+    [],
+  );
 
   const setSectionWithHistory = React.useCallback(
     (section: SettingsSectionKey) => {

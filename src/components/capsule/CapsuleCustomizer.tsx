@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
   Brain,
 } from "@phosphor-icons/react/dist/ssr";
+import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 
 import styles from "./CapsuleCustomizer.module.css";
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
@@ -62,6 +63,10 @@ const LEFT_TAB_PANEL_IDS: Record<LeftRailTab, string> = {
   advanced: "capsule-customizer-panel-advanced",
   memory: "capsule-customizer-panel-memory",
 };
+
+function joinClassNames(...tokens: Array<string | undefined | null>): string {
+  return tokens.filter((token): token is string => Boolean(token)).join(" ");
+}
 
 
 function ChatMessageBubble({
@@ -126,6 +131,15 @@ function CapsuleCustomizerContent() {
   const preview = useCapsuleCustomizerPreview();
   const save = useCapsuleCustomizerSave();
   const actions = useCapsuleCustomizerActions();
+  const panelLayoutId = React.useMemo(
+    () => `capsule-customizer-panels-${meta.mode}`,
+    [meta.mode],
+  );
+  const resizableColumnsClass = styles.resizableColumns ?? "";
+  const navigationPanelClass = joinClassNames(styles.columnPanel, styles.navigationPanel);
+  const chatPanelClass = joinClassNames(styles.columnPanel, styles.chatPanel);
+  const previewPanelClass = joinClassNames(styles.columnPanel, styles.previewPanelWrap);
+  const resizeHandleClass = styles.resizeHandle ?? "";
   const variants = useCapsuleCustomizerVariants();
   const personas = useCapsuleCustomizerPersonas();
   const advanced = useCapsuleCustomizerAdvancedOptions();
@@ -276,7 +290,18 @@ function CapsuleCustomizerContent() {
         </header>
 
         <div className={styles.content}>
-          <section className={styles.recentColumn} aria-label="Customizer navigation">
+          <PanelGroup
+            autoSaveId={panelLayoutId}
+            direction="horizontal"
+            className={resizableColumnsClass}
+          >
+            <Panel
+              defaultSize={24}
+              minSize={22}
+              collapsible={false}
+              className={navigationPanelClass}
+            >
+              <section className={styles.recentColumn} aria-label="Customizer navigation">
             <div className={styles.railTabs} role="tablist" aria-label="Customizer sections">
               {railTabs.map((tab) => {
                 const selected = tab.key === activeRailTab;
@@ -672,8 +697,19 @@ function CapsuleCustomizerContent() {
                 </div>
               ) : null}
             </div>
-          </section>
-          <section className={styles.chatColumn}>
+              </section>
+            </Panel>
+            <PanelResizeHandle
+              className={resizeHandleClass}
+              aria-label="Resize customizer navigation column"
+            />
+            <Panel
+              defaultSize={46}
+              minSize={34}
+              collapsible={false}
+              className={chatPanelClass}
+            >
+              <section className={styles.chatColumn}>
             <div ref={chat.logRef} className={styles.chatLog} aria-live="polite">
               {chat.messages.map((message) => (
                 <ChatMessageBubble
@@ -701,14 +737,27 @@ function CapsuleCustomizerContent() {
                 />
               </div>
             </div>
-          </section>
+              </section>
+            </Panel>
+            <PanelResizeHandle
+              className={resizeHandleClass}
+              aria-label="Resize customizer preview panel"
+            />
 
-          <section className={styles.previewColumn}>
+            <Panel
+              defaultSize={30}
+              minSize={24}
+              collapsible={false}
+              className={previewPanelClass}
+            >
+              <section className={styles.previewColumn}>
             <div className={styles.previewPanel}>
               <CapsuleBannerPreview />
               <CapsuleAssetActions />
             </div>
-          </section>
+              </section>
+            </Panel>
+          </PanelGroup>
         </div>
 
         <CapsuleMemoryPicker />

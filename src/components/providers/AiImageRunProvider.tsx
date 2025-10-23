@@ -253,13 +253,15 @@ export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
           title: update.title ?? base.title ?? meta.title,
           updatedAt: Date.now(),
         };
-        const next = index >= 0 ? [...prev] : [...prev.slice(-(MAX_NOTIFICATIONS - 1)), merged];
+
         if (index >= 0) {
+          const next = [...prev];
           next[index] = merged;
-        } else {
-          next.push(merged);
+          return next;
         }
-        return next;
+
+        const trimmed = prev.length >= MAX_NOTIFICATIONS ? prev.slice(-(MAX_NOTIFICATIONS - 1)) : prev;
+        return [...trimmed, merged];
       });
     },
     [],

@@ -104,18 +104,74 @@
 }
 
 .content {
-  display: grid;
-  grid-template-columns: minmax(260px, 360px) minmax(0, 2.15fr) minmax(380px, 520px);
-  gap: clamp(1.75rem, 3vw, 3rem);
   position: relative;
   z-index: 1;
+  min-height: 0;
+}
+
+.resizableColumns {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.columnPanel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.navigationPanel,
+.chatPanel,
+.previewPanelWrap {
+  min-height: 0;
+}
+
+.resizeHandle {
+  position: relative;
+  width: clamp(10px, 1vw, 14px);
+  margin: 0 clamp(0.6rem, 0.9vw, 0.85rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resizeHandle::before {
+  content: "";
+  width: 3px;
+  height: 52%;
+  border-radius: 999px;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.32) 70%, transparent);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.resizeHandle:hover::before,
+.resizeHandle:focus-visible::before,
+.resizeHandle[data-resize-handle-active="true"]::before {
+  background: color-mix(in srgb, var(--color-brand, #6272ff) 70%, transparent);
+  transform: scaleX(1.15);
+}
+
+.resizeHandle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand, #6272ff) 60%, rgba(255, 255, 255, 0.45));
+  outline-offset: 4px;
+}
+
+.previewPanelWrap {
+  display: flex;
+  flex-direction: column;
 }
 
 .recentColumn {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  border-right: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 80%, transparent);
   padding-right: clamp(1.5rem, 2.75vw, 3rem);
   min-height: 0;
 }
@@ -416,7 +472,6 @@
   grid-template-rows: 1fr;
   gap: 1.5rem;
   align-content: stretch;
-  border-left: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 80%, transparent);
   padding-left: clamp(2rem, 3vw, 3.25rem);
 }
 
@@ -1047,8 +1102,10 @@
 
 .prompterWrap :global(.prompterStage .promptBar) {
   width: 100%;
-  padding: 0.9rem 1.15rem;
+  max-width: none;
+  padding: 1.05rem 1.35rem;
   border-radius: 999px;
+  gap: clamp(0.75rem, 2vw, 1.15rem);
 }
 
 .prompterWrap :global(.prompterStage .promptBar:focus-within) {
@@ -1136,12 +1193,35 @@
 }
 
 @media (max-width: 960px) {
-  .content {
-    grid-template-columns: 1fr;
+  .resizableColumns {
+    flex-direction: column;
+  }
+
+  .resizeHandle {
+    display: none;
+  }
+
+  .columnPanel {
+    width: 100%;
+  }
+
+  .columnPanel + .columnPanel {
+    margin-top: clamp(1.2rem, 2vw, 1.8rem);
+  }
+
+  .chatPanel {
+    order: 1;
+  }
+
+  .navigationPanel {
+    order: 2;
+  }
+
+  .previewPanelWrap {
+    order: 3;
   }
 
   .recentColumn {
-    order: 2;
     border-right: none;
     padding-right: 0;
   }
@@ -1152,13 +1232,8 @@
   }
 
   .previewColumn {
-    order: 3;
     border-left: none;
     padding-left: 0;
-  }
-
-  .chatColumn {
-    order: 1;
   }
 }
 
@@ -1167,8 +1242,8 @@
     padding: 1.5rem;
   }
 
-  .content {
-    gap: 1.5rem;
+  .columnPanel + .columnPanel {
+    margin-top: 1.35rem;
   }
 
   .memoryPickerPanel {
