@@ -11,6 +11,8 @@ import {
   getUploadSessionByUploadId,
   markUploadSessionUploaded,
 } from "@/server/memories/uploads";
+import { deriveUploadMetadata, mergeUploadMetadata, resetProcessingForMissingQueue } from "@/lib/uploads/metadata";
+import { getStorageUploadQueueName } from "@/config/storage";
 
 export const runtime = "nodejs";
 
@@ -66,18 +68,57 @@ export async function POST(req: Request) {
     return returnError(500, "complete_failed", "Failed to finalize upload");
   }
 
+  const queueName = getStorageUploadQueueName();
+  const existingMetadata = (session?.metadata ?? null) as Record<string, unknown> | null;
+  const payloadMetadataRecord =
+    payload.metadata && Object.keys(payload.metadata).length
+      ? (Object.fromEntries(
+          Object.entries(payload.metadata).map(([key, value]) => [key, value ?? null]),
+        ) as Record<string, unknown>)
+      : null;
+
+  const payloadFilename =
+    (payloadMetadataRecord?.["file_original_name"] as string | undefined) ??
+    (payloadMetadataRecord?.["original_filename"] as string | undefined) ??
+    null;
+  const existingFilename =
+    (existingMetadata?.["file_original_name"] as string | undefined) ??
+    (existingMetadata?.["original_filename"] as string | undefined) ??
+    null;
+
+  const derivedMetadata = deriveUploadMetadata({
+    filename: payloadFilename ?? existingFilename,
+    contentType:
+      session?.content_type ??
+      (existingMetadata?.["mime_type"] as string | undefined) ??
+      null,
+    sizeBytes: session?.content_length ?? null,
+    stage: "uploaded",
+  });
+
+  let mergedMetadata = mergeUploadMetadata(
+    existingMetadata,
+    payloadMetadataRecord ?? {},
+  );
+  mergedMetadata = mergeUploadMetadata(mergedMetadata, derivedMetadata.metadata);
+
+  let requiresProcessing = derivedMetadata.plan.requiresProcessing;
+  if (requiresProcessing && !queueName) {
+    mergedMetadata = resetProcessingForMissingQueue(mergedMetadata);
+    requiresProcessing = false;
+  }
+
   let updatedSession = session;
   if (session) {
-    const mergedMetadata =
-      session.metadata && payload.metadata
-        ? { ...session.metadata, ...payload.metadata }
-        : (payload.metadata ?? session?.metadata ?? null);
+    const nextStatus = requiresProcessing ? "processing" : "completed";
     updatedSession = await markUploadSessionUploaded({
       sessionId: session.id,
       uploadId,
       key,
       parts: payload.parts,
       metadata: mergedMetadata,
+      status: nextStatus,
+      completedAt: requiresProcessing ? null : new Date().toISOString(),
     });
   }
 
@@ -86,19 +127,24 @@ export async function POST(req: Request) {
     (session?.absolute_url && session.absolute_url.trim()) ||
     getStorageObjectUrl(key);
 
+  const eventMetadata =
+    (updatedSession?.metadata as Record<string, unknown> | null) ?? mergedMetadata;
+
   try {
-    await enqueueUploadEvent({
-      type: "upload.completed",
-      sessionId: updatedSession?.id ?? session?.id ?? null,
-      uploadId,
-      ownerId: session?.owner_user_id ?? updatedSession?.owner_user_id ?? null,
-      key,
-      bucket: session?.r2_bucket ?? updatedSession?.r2_bucket ?? "",
-      contentType: session?.content_type ?? updatedSession?.content_type ?? null,
-      metadata: payload.metadata ?? session?.metadata ?? updatedSession?.metadata ?? null,
-      absoluteUrl:
-        updatedSession?.absolute_url ?? session?.absolute_url ?? publicUrl ?? null,
-    });
+    if (requiresProcessing || queueName) {
+      await enqueueUploadEvent({
+        type: "upload.completed",
+        sessionId: updatedSession?.id ?? session?.id ?? null,
+        uploadId,
+        ownerId: session?.owner_user_id ?? updatedSession?.owner_user_id ?? null,
+        key,
+        bucket: session?.r2_bucket ?? updatedSession?.r2_bucket ?? "",
+        contentType: session?.content_type ?? updatedSession?.content_type ?? null,
+        metadata: eventMetadata,
+        absoluteUrl:
+          updatedSession?.absolute_url ?? session?.absolute_url ?? publicUrl ?? null,
+      });
+    }
   } catch (queueError) {
     console.warn("enqueue upload event failed", queueError);
   }

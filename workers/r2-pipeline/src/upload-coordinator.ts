@@ -11,6 +11,101 @@ import {
 
 const STORAGE_KEY = "state";
 
+type ProcessingMetadata = Record<string, unknown>;
+
+function readProcessingMetadata(
+  metadata: Record<string, unknown> | null | undefined,
+): ProcessingMetadata | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const processing = (metadata as { processing?: unknown }).processing;
+  if (!processing || typeof processing !== "object") return null;
+  return processing as ProcessingMetadata;
+}
+
+function mergeProcessingStatus(
+  metadata: Record<string, unknown> | null,
+  updates: Record<string, unknown>,
+): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== "object") return metadata ?? null;
+  const processing = readProcessingMetadata(metadata) ?? {};
+  const nextProcessing = { ...processing, ...updates };
+  return { ...metadata, processing: nextProcessing };
+}
+
+function applyProcessingStatus(
+  metadata: Record<string, unknown> | null,
+  status: "queued" | "running" | "completed" | "failed" | "skipped",
+): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== "object") return metadata ?? null;
+  const processing = readProcessingMetadata(metadata) ?? {};
+  const now = new Date().toISOString();
+  const nextProcessing: Record<string, unknown> = { ...processing, status };
+
+  if (status === "queued" && !processing.queued_at) {
+    nextProcessing.queued_at = now;
+  }
+  if (status === "running") {
+    if (!processing.started_at) nextProcessing.started_at = now;
+    nextProcessing.last_activity_at = now;
+  }
+  if (status === "completed") {
+    nextProcessing.completed_at = now;
+    nextProcessing.required = false;
+  }
+  if (status === "failed") {
+    nextProcessing.failed_at = now;
+  }
+  if (status === "skipped") {
+    nextProcessing.completed_at = now;
+    nextProcessing.required = false;
+  }
+
+  return { ...metadata, processing: nextProcessing };
+}
+
+function dedupeTasks(tasks: ProcessingTask[]): ProcessingTask[] {
+  const unique = new Map<string, ProcessingTask>();
+  for (const task of tasks) {
+    unique.set(taskId(task), task);
+  }
+  return Array.from(unique.values());
+}
+
+function ensureSafetyTask(tasks: ProcessingTask[]): ProcessingTask[] {
+  const hasSafety = tasks.some((task) => task.kind === "safety.scan");
+  if (!hasSafety) {
+    tasks.push({ kind: "safety.scan" });
+  }
+  return dedupeTasks(tasks);
+}
+
+function normalizeTask(kind: string): ProcessingTask | null {
+  switch (kind) {
+    case "document.extract-text":
+      return { kind: "document.extract-text" };
+    case "document.preview":
+      return { kind: "document.preview" };
+    case "safety.scan":
+      return { kind: "safety.scan" };
+    default:
+      return null;
+  }
+}
+
+function buildTasksFromMetadata(metadata: Record<string, unknown> | null): ProcessingTask[] {
+  const processing = readProcessingMetadata(metadata);
+  if (!processing) return [];
+  const raw = processing.tasks;
+  if (!Array.isArray(raw)) return [];
+  const tasks: ProcessingTask[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string" || !entry.trim().length) continue;
+    const task = normalizeTask(entry.trim());
+    if (task) tasks.push(task);
+  }
+  return dedupeTasks(tasks);
+}
+
 function taskId(task: ProcessingTask): string {
   switch (task.kind) {
     case "image.thumbnail":
@@ -22,6 +117,11 @@ function taskId(task: ProcessingTask): string {
 }
 
 function buildTasks(event: UploadEventMessage): ProcessingTask[] {
+  const metadataTasks = buildTasksFromMetadata(event.metadata as Record<string, unknown> | null);
+  if (metadataTasks.length) {
+    return ensureSafetyTask(metadataTasks);
+  }
+
   const { contentType } = event;
   if (!contentType) {
     return [{ kind: "safety.scan" }];
@@ -44,6 +144,14 @@ function buildTasks(event: UploadEventMessage): ProcessingTask[] {
   }
   if (contentType.startsWith("audio/")) {
     return [{ kind: "video.audio" }, { kind: "video.transcript" }, { kind: "safety.scan" }];
+  }
+  if (
+    contentType.includes("pdf") ||
+    contentType.includes("msword") ||
+    contentType.includes("presentation") ||
+    contentType.includes("document")
+  ) {
+    return ensureSafetyTask([{ kind: "document.extract-text" }, { kind: "document.preview" }]);
   }
   return [{ kind: "safety.scan" }];
 }
@@ -125,6 +233,7 @@ export class UploadCoordinator {
         derived: [],
         createdAt: new Date().toISOString(),
       };
+      state.metadata = applyProcessingStatus(state.metadata, tasks.length ? "queued" : "skipped");
       await this.saveState(state);
     }
 
@@ -144,6 +253,11 @@ export class UploadCoordinator {
         metadata: state.metadata,
         task,
       });
+    }
+
+    if (messages.length) {
+      state.metadata = applyProcessingStatus(state.metadata, "running");
+      await this.saveState(state);
     }
 
     return { state, tasks: messages };
@@ -174,6 +288,10 @@ export class UploadCoordinator {
         return { kind: "video.audio" };
       case "video.transcript":
         return { kind: "video.transcript" };
+      case "document.extract-text":
+        return { kind: "document.extract-text" };
+      case "document.preview":
+        return { kind: "document.preview" };
       case "safety.scan":
         return { kind: "safety.scan" };
       default:
@@ -204,12 +322,29 @@ export class UploadCoordinator {
       if (!exists) state.derived.push(derived);
     }
 
-    if (!error && this.allTasksComplete(state)) {
-      state.completedAt = new Date().toISOString();
-      await this.notifyCompletion(state);
+    const now = new Date().toISOString();
+    if (error) {
+      state.metadata = mergeProcessingStatus(state.metadata, {
+        last_error: error,
+        last_activity_at: now,
+      });
+      state.metadata = applyProcessingStatus(state.metadata, "failed");
+    } else if (this.allTasksComplete(state)) {
+      state.completedAt = now;
+      state.metadata = applyProcessingStatus(state.metadata, "completed");
+    } else {
+      state.metadata = mergeProcessingStatus(state.metadata, {
+        last_activity_at: now,
+      });
+      state.metadata = applyProcessingStatus(state.metadata, "running");
     }
 
     await this.saveState(state);
+
+    if (!error && this.allTasksComplete(state)) {
+      await this.notifyCompletion(state);
+    }
+
     return state;
   }
 

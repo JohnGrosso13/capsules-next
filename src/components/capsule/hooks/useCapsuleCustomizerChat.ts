@@ -139,7 +139,11 @@ function buildAssistantResponseNatural({
           "add more depth",
         ];
   const hash = Array.from(prompt || "").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-  const pick = (i: number) => pool[(hash + i) % pool.length];
+  const pick = (i: number): string => {
+    if (!pool.length) return "";
+    const candidate = pool[(hash + i) % pool.length];
+    return candidate ?? "";
+  };
   const suggestions = [pick(0), pick(2), pick(3)];
   const adjusted = (asset === "logo" || asset === "avatar")
     ? suggestions.map((s) => s.replace("zoom in on the focal point", "tighten the framing"))

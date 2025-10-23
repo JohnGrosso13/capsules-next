@@ -9,6 +9,7 @@ import {
 import { createUploadSessionRecord } from "@/server/memories/uploads";
 import { putUploadSessionKv } from "@/lib/cloudflare/client";
 import type { StorageMetadataValue } from "@/ports/storage";
+import { deriveUploadMetadata, mergeUploadMetadata } from "@/lib/uploads/metadata";
 
 export const runtime = "nodejs";
 
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
     return returnError(403, "turnstile_failed", "Turnstile verification failed", turnstile);
   }
 
-  const metadataRecord =
+  const userProvidedMetadata =
     params.metadata && Object.keys(params.metadata).length
       ? (Object.fromEntries(
           Object.entries(params.metadata).map(([key, value]) => [
@@ -67,6 +68,18 @@ export async function POST(req: Request) {
         ) as Record<string, StorageMetadataValue | null>)
       : null;
 
+  const derivedMetadata = deriveUploadMetadata({
+    filename: params.filename ?? null,
+    contentType: params.contentType ?? null,
+    sizeBytes: params.contentLength ?? null,
+    stage: "initial",
+  });
+
+  const sessionMetadata = mergeUploadMetadata(
+    (userProvidedMetadata as Record<string, unknown> | null) ?? null,
+    derivedMetadata.metadata,
+  );
+
   let upload;
   try {
     upload = await createMultipartUpload({
@@ -75,7 +88,7 @@ export async function POST(req: Request) {
       contentType: params.contentType,
       fileSize: params.contentLength,
       kind: params.kind ?? "upload",
-      ...(metadataRecord ? { metadata: metadataRecord } : {}),
+      ...(userProvidedMetadata ? { metadata: userProvidedMetadata } : {}),
       ...(typeof params.totalParts === "number" && params.totalParts > 0
         ? { totalParts: params.totalParts }
         : {}),
@@ -98,7 +111,7 @@ export async function POST(req: Request) {
       partSize: upload.partSize,
       totalParts: params.totalParts ?? upload.parts.length,
       checksum: params.checksum,
-      metadata: params.metadata ?? null,
+      metadata: sessionMetadata,
       turnstileAction: turnstile.action ?? null,
       turnstileCdata: turnstile.cdata ?? null,
       clientIp: remoteIp,
@@ -125,7 +138,7 @@ export async function POST(req: Request) {
       bucket: upload.bucket,
       contentType: params.contentType,
       contentLength: params.contentLength,
-      metadata: params.metadata ?? null,
+      metadata: sessionMetadata,
     });
     await putUploadSessionKv(`upload:${upload.uploadId}`, {
       sessionId: session.id,

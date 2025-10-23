@@ -30,6 +30,12 @@ export type ProcessingTask =
       kind: "video.transcript";
     }
   | {
+      kind: "document.extract-text";
+    }
+  | {
+      kind: "document.preview";
+    }
+  | {
       kind: "safety.scan";
     };
 

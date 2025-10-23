@@ -18,6 +18,23 @@ const PLACEHOLDER_POSTER_BASE64 =
   "xAAUAQEAAAAAAAAAAAAAAAAAAAAC/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AygD/" +
   "2Q==";
 
+const MAX_DOCUMENT_TEXT_CHARS = 20_000;
+
+function readProcessingMetadata(
+  metadata: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const processing = (metadata as { processing?: unknown }).processing;
+  if (!processing || typeof processing !== "object") return null;
+  return processing as Record<string, unknown>;
+}
+
+function isProcessingTextLike(metadata: Record<string, unknown> | null | undefined): boolean {
+  const processing = readProcessingMetadata(metadata);
+  const value = processing?.text_like;
+  return typeof value === "boolean" ? value : false;
+}
+
 const worker = {
   async fetch(request: Request, _env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -153,6 +170,10 @@ async function runTask(
       return processAudioExtract(env, message);
     case "video.transcript":
       return processTranscript(env, message, stub);
+    case "document.extract-text":
+      return processDocumentExtractText(env, message);
+    case "document.preview":
+      return processDocumentPreview(env, message);
     case "safety.scan":
       return processSafetyScan(env, message);
     default:
@@ -434,6 +455,91 @@ async function processTranscript(
     metadata: {
       note: "Placeholder transcript. Connect to Workers AI or external service.",
     },
+  };
+}
+
+async function processDocumentExtractText(
+  env: Env,
+  message: ProcessingTaskMessage,
+): Promise<DerivedAssetRecord> {
+  const textLike = isProcessingTextLike(message.metadata as Record<string, unknown> | null);
+  if (textLike) {
+    const object = await env.R2_BUCKET.get(message.key);
+    if (!object) throw new Error("Source document not found in R2");
+    const text = await object.text();
+    const trimmed = text.trim();
+    const truncated = trimmed.length > MAX_DOCUMENT_TEXT_CHARS;
+    const excerpt = truncated ? trimmed.slice(0, MAX_DOCUMENT_TEXT_CHARS) : trimmed;
+    const derivedKey = `${stripExtension(message.key)}__excerpt.txt`;
+    await env.R2_BUCKET.put(derivedKey, excerpt, {
+      httpMetadata: { contentType: "text/plain; charset=utf-8" },
+    });
+    return {
+      type: "document.extract-text",
+      key: derivedKey,
+      url: buildPublicUrl(env, derivedKey),
+      metadata: {
+        truncated,
+        max_chars: MAX_DOCUMENT_TEXT_CHARS,
+        content_type: message.contentType ?? null,
+        note: truncated
+          ? "Excerpt truncated for development safeguard."
+          : "Full text extracted (development placeholder).",
+      },
+    };
+  }
+
+  const derivedKey = `${stripExtension(message.key)}__extract.json`;
+  const payload = {
+    status: "pending",
+    content_type: message.contentType ?? null,
+    generated_at: new Date().toISOString(),
+    note: "Binary document extraction requires an external processor.",
+  };
+  await env.R2_BUCKET.put(derivedKey, JSON.stringify(payload, null, 2), {
+    httpMetadata: { contentType: "application/json" },
+  });
+  return {
+    type: "document.extract-text",
+    key: derivedKey,
+    url: buildPublicUrl(env, derivedKey),
+    metadata: payload,
+  };
+}
+
+async function processDocumentPreview(
+  env: Env,
+  message: ProcessingTaskMessage,
+): Promise<DerivedAssetRecord> {
+  const textLike = isProcessingTextLike(message.metadata as Record<string, unknown> | null);
+  let snippet: string | null = null;
+  if (textLike) {
+    const object = await env.R2_BUCKET.get(message.key);
+    if (object) {
+      const text = await object.text();
+      snippet = text.trim().slice(0, 600);
+    }
+  }
+
+  const derivedKey = `${stripExtension(message.key)}__preview.json`;
+  const payload = {
+    status: textLike && snippet ? "available" : "pending",
+    snippet,
+    content_type: message.contentType ?? null,
+    generated_at: new Date().toISOString(),
+    note: textLike
+      ? "Preview generated from document excerpt (development placeholder)."
+      : "Preview generation requires an external renderer.",
+  };
+  await env.R2_BUCKET.put(derivedKey, JSON.stringify(payload, null, 2), {
+    httpMetadata: { contentType: "application/json" },
+  });
+
+  return {
+    type: "document.preview",
+    key: derivedKey,
+    url: buildPublicUrl(env, derivedKey),
+    metadata: payload,
   };
 }
 

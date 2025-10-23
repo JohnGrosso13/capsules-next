@@ -152,17 +152,28 @@ export async function markUploadSessionUploaded(options: {
   key: string;
   parts: Array<{ partNumber: number; etag: string }>;
   metadata?: Record<string, unknown> | null;
+  status?: UploadSessionStatus;
+  completedAt?: string | null;
 }): Promise<UploadSessionRecord | null> {
+  const nextStatus = options.status ?? "uploaded";
+  const patch: Record<string, unknown> = {
+    upload_id: options.uploadId,
+    r2_key: options.key,
+    uploaded_at: new Date().toISOString(),
+    status: nextStatus,
+    parts: options.parts,
+    metadata: options.metadata ?? null,
+  };
+
+  if (nextStatus === "completed") {
+    patch.completed_at = options.completedAt ?? new Date().toISOString();
+  } else if (options.completedAt !== undefined) {
+    patch.completed_at = options.completedAt;
+  }
+
   const result = await db
     .from("media_upload_sessions")
-    .update({
-      upload_id: options.uploadId,
-      r2_key: options.key,
-      uploaded_at: new Date().toISOString(),
-      status: "uploaded",
-      parts: options.parts,
-      metadata: options.metadata ?? null,
-    })
+    .update(patch)
     .eq("id", options.sessionId)
     .select<Record<string, unknown>>("*")
     .single();
