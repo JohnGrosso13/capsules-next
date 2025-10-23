@@ -1087,9 +1087,12 @@
 }
 
 .prompterWrap :global(.prompterStage) {
+  /* Expand the prompter width beyond the chat column only inside the customizer */
+  --customizer-prompt-expand: clamp(32px, 4vw, 96px);
   max-width: none;
-  width: 100%;
-  margin: 0;
+  width: calc(100% + (var(--customizer-prompt-expand) * 2));
+  margin-left: calc(var(--customizer-prompt-expand) * -1);
+  margin-right: calc(var(--customizer-prompt-expand) * -1);
 }
 
 .prompterWrap :global(.prompterStage .prompter) {
@@ -1193,6 +1196,12 @@
 }
 
 @media (max-width: 960px) {
+  .prompterWrap :global(.prompterStage) {
+    /* On smaller screens, keep it within the column */
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
   .resizableColumns {
     flex-direction: column;
   }
