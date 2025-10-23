@@ -73,6 +73,26 @@ type CapsuleMemberRequestRow = {
   requester: MemberProfileRow | null;
 };
 
+export type CapsuleAssetRow = {
+  id: string | null;
+  owner_user_id: string | null;
+  media_url: string | null;
+  media_type: string | null;
+  title: string | null;
+  description: string | null;
+  meta: Record<string, unknown> | null;
+  created_at: string | null;
+  post_id: string | null;
+  kind: string | null;
+  view_count: number | null;
+  uploaded_by: string | null;
+};
+
+type PostCapsuleRow = {
+  client_id: string | null;
+  capsule_id: string | null;
+};
+
 export type CapsuleSummary = {
   id: string;
   name: string;
@@ -891,4 +911,98 @@ export async function updateCapsuleMemberRole(params: {
   }
 
   return Boolean(result.data?.user_id);
+}
+
+async function fetchPostCapsuleMap(
+  postClientIds: string[],
+): Promise<Map<string, string | null>> {
+  if (!postClientIds.length) return new Map();
+  const uniqueIds = Array.from(
+    new Set(postClientIds.map((id) => normalizeString(id)).filter(Boolean)),
+  ) as string[];
+  if (!uniqueIds.length) return new Map();
+
+  const result = await db
+    .from("posts")
+    .select<PostCapsuleRow>("client_id, capsule_id")
+    .in("client_id", uniqueIds)
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.assets.postMap", result.error);
+  }
+
+  const map = new Map<string, string | null>();
+  (result.data ?? []).forEach((row) => {
+    const key = normalizeString(row?.client_id);
+    if (!key) return;
+    map.set(key, normalizeString(row?.capsule_id));
+  });
+  return map;
+}
+
+export async function listCapsuleAssets(params: {
+  capsuleId: string;
+  limit?: number;
+}): Promise<CapsuleAssetRow[]> {
+  const normalizedCapsuleId = normalizeString(params.capsuleId);
+  if (!normalizedCapsuleId) return [];
+  const limit =
+    typeof params.limit === "number" && params.limit > 0 ? Math.min(params.limit, 500) : 200;
+
+  const result = await db
+    .from("memories")
+    .select<CapsuleAssetRow>(
+      "id, owner_user_id, media_url, media_type, title, description, meta, created_at, post_id, kind, view_count, uploaded_by",
+    )
+    .eq("is_latest", true)
+    .filter("meta->>source", "eq", "post_attachment")
+    .or(
+      `meta->>capsule_id.eq.${normalizedCapsuleId},meta->>capsule_id.is.null`,
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.assets.list", result.error);
+  }
+
+  const rows = result.data ?? [];
+  const matched: CapsuleAssetRow[] = [];
+  const orphanedPostIds: string[] = [];
+
+  rows.forEach((row) => {
+    const meta = (row?.meta ?? null) as Record<string, unknown> | null;
+    const capsuleFromMeta = normalizeString(
+      meta && typeof meta === "object"
+        ? ((meta as { capsule_id?: unknown }).capsule_id as string | undefined)
+        : null,
+    );
+    if (capsuleFromMeta) {
+      if (capsuleFromMeta === normalizedCapsuleId) {
+        matched.push(row);
+      }
+      return;
+    }
+    const postId = normalizeString(row?.post_id ?? null);
+    if (postId) {
+      orphanedPostIds.push(postId);
+    }
+  });
+
+  if (orphanedPostIds.length) {
+    const postMap = await fetchPostCapsuleMap(orphanedPostIds);
+    rows.forEach((row) => {
+      if (matched.includes(row)) return;
+      const postId = normalizeString(row?.post_id ?? null);
+      if (!postId) return;
+      const target = normalizeString(postMap.get(postId) ?? null);
+      if (target === normalizedCapsuleId) {
+        matched.push(row);
+      }
+    });
+  }
+
+  return matched;
 }

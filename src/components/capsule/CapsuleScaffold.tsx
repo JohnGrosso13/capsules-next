@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Broadcast,
@@ -23,8 +24,15 @@ import { AiPrompterStage, type PrompterAction } from "@/components/ai-prompter-s
 import { CapsuleMembersPanel } from "@/components/capsule/CapsuleMembersPanel";
 import { useComposer } from "@/components/composer/ComposerProvider";
 import { HomeFeedList } from "@/components/home-feed-list";
+import {
+  buildDocumentCardData,
+  buildPrompterAttachment,
+  DocumentAttachmentCard,
+  type DocumentAttachmentSource,
+  type DocumentCardData,
+} from "@/components/documents/document-card";
 import homeStyles from "@/components/home.module.css";
-import { useCapsuleFeed } from "@/hooks/useHomeFeed";
+import { useCapsuleFeed, formatFeedCount } from "@/hooks/useHomeFeed";
 import { useCapsuleMembership } from "@/hooks/useCapsuleMembership";
 import { useCurrentUser } from "@/services/auth/client";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
@@ -34,10 +42,12 @@ import {
   CapsuleStoreBannerCustomizer,
   CapsuleTileCustomizer,
 } from "./CapsuleCustomizer";
+import { useCapsuleLibrary, type CapsuleLibraryItem } from "@/hooks/useCapsuleLibrary";
 
 type CapsuleTab = "live" | "feed" | "store";
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
 const FEED_TARGET_EVENT = "composer:feed-target";
+type CapsuleHeroSection = "featured" | "media" | "files";
 
 export type CapsuleContentProps = {
   capsuleId?: string | null;
@@ -66,6 +76,7 @@ export function CapsuleContent({
   const router = useRouter();
   const { user } = useCurrentUser();
   const [membersOpen, setMembersOpen] = React.useState(false);
+  const [heroSection, setHeroSection] = React.useState<CapsuleHeroSection>("featured");
   const {
     membership,
     loading: membershipLoading,
@@ -79,6 +90,13 @@ export function CapsuleContent({
     refresh: refreshMembership,
     setError: setMembershipError,
   } = useCapsuleMembership(capsuleId);
+  const {
+    media: capsuleMedia,
+    files: capsuleFiles,
+    loading: libraryLoading,
+    error: libraryError,
+    refresh: refreshLibrary,
+  } = useCapsuleLibrary(capsuleId);
 
   React.useEffect(() => {
     const initialEvent = new CustomEvent("capsule:tab", { detail: { tab: "feed" as CapsuleTab } });
@@ -136,10 +154,35 @@ export function CapsuleContent({
   }, [router]);
   const showMembers = React.useCallback(() => {
     setMembersOpen(true);
+    setHeroSection("featured");
   }, []);
   const showFeatured = React.useCallback(() => {
     setMembersOpen(false);
+    setHeroSection("featured");
   }, []);
+  const showMedia = React.useCallback(() => {
+    setMembersOpen(false);
+    setHeroSection("media");
+  }, []);
+  const showFiles = React.useCallback(() => {
+    setMembersOpen(false);
+    setHeroSection("files");
+  }, []);
+  const handleAskDocument = React.useCallback(
+    (doc: DocumentCardData) => {
+      const promptSegments = [`Summarize the document "${doc.name}" for the capsule.`];
+      if (doc.summary) {
+        promptSegments.push(`Existing summary: ${doc.summary}`);
+      } else if (doc.snippet) {
+        promptSegments.push(`Preview: ${doc.snippet}`);
+      }
+      const attachment = buildPrompterAttachment(doc);
+      composer
+        .submitPrompt(promptSegments.join("\n\n"), [attachment])
+        .catch((error) => console.error("Document prompt submit failed", error));
+    },
+    [composer],
+  );
   const sendMembershipRequest = React.useCallback(() => {
     void requestJoin().catch(() => {});
   }, [requestJoin]);
@@ -317,6 +360,13 @@ export function CapsuleContent({
     };
   }, [tab, capsuleId]);
 
+  React.useEffect(() => {
+    if (tab !== "feed") {
+      setMembersOpen(false);
+      setHeroSection("featured");
+    }
+  }, [tab]);
+
   // Render chips only on the Feed tab. Hide on Live/Store.
   const prompter = (
     <AiPrompterStage
@@ -386,8 +436,11 @@ export function CapsuleContent({
             membersOpen={membersOpen}
             showMembersBadge={showMembersBadge}
             pendingCount={pendingCount}
+            activeSection={heroSection}
             onSelectMembers={showMembers}
             onSelectFeatured={showFeatured}
+            onSelectMedia={showMedia}
+            onSelectFiles={showFiles}
             errorMessage={membershipErrorVisible}
           />
           {membersOpen ? (
@@ -405,13 +458,31 @@ export function CapsuleContent({
           ) : (
             <>
               <div className={capTheme.prompterTop}>{prompter}</div>
-              <div
-                className={`${capTheme.liveCanvas} ${capTheme.feedCanvas}`}
-                aria-label="Capsule feed"
-                data-capsule-id={capsuleId ?? undefined}
-              >
-                <CapsuleFeed capsuleId={capsuleId} capsuleName={normalizedCapsuleName} />
-              </div>
+              {heroSection === "media" ? (
+                <CapsuleMediaSection
+                  items={capsuleMedia}
+                  loading={libraryLoading}
+                  error={libraryError}
+                  onRetry={refreshLibrary}
+                />
+              ) : heroSection === "files" ? (
+                <CapsuleFilesSection
+                  items={capsuleFiles}
+                  loading={libraryLoading}
+                  error={libraryError}
+                  onRetry={refreshLibrary}
+                  formatCount={formatFeedCount}
+                  onAsk={handleAskDocument}
+                />
+              ) : (
+                <div
+                  className={`${capTheme.liveCanvas} ${capTheme.feedCanvas}`}
+                  aria-label="Capsule feed"
+                  data-capsule-id={capsuleId ?? undefined}
+                >
+                  <CapsuleFeed capsuleId={capsuleId} capsuleName={normalizedCapsuleName} />
+                </div>
+              )}
             </>
           )}
         </>
@@ -509,8 +580,11 @@ type CapsuleHeroProps = {
   membersOpen: boolean;
   showMembersBadge: boolean;
   pendingCount: number;
+  activeSection: CapsuleHeroSection;
   onSelectMembers: () => void;
   onSelectFeatured: () => void;
+  onSelectMedia: () => void;
+  onSelectFiles: () => void;
   errorMessage?: string | null;
 };
 
@@ -525,8 +599,11 @@ function CapsuleHero({
   membersOpen,
   showMembersBadge,
   pendingCount,
+  activeSection,
   onSelectMembers,
   onSelectFeatured,
+  onSelectMedia,
+  onSelectFiles,
   errorMessage,
 }: CapsuleHeroProps) {
   const displayName = capsuleName ?? "Customize this capsule";
@@ -614,27 +691,34 @@ function CapsuleHero({
         ) : null}
       </div>
       <nav className={capTheme.heroTabs} aria-label="Capsule quick links">
-        {HERO_LINKS.map((label, index) => {
+        {HERO_LINKS.map((label) => {
           const isMembersLink = label === "Members";
           const isFeaturedLink = label === "Featured";
-          const isActive = isMembersLink ? membersOpen : !membersOpen && index === 0;
+          const isMediaLink = label === "Media";
+          const isFilesLink = label === "Files";
+          const isActive = (() => {
+            if (isMembersLink) return membersOpen;
+            if (isMediaLink) return !membersOpen && activeSection === "media";
+            if (isFilesLink) return !membersOpen && activeSection === "files";
+            if (isFeaturedLink) return !membersOpen && activeSection === "featured";
+            return false;
+          })();
           const className = isActive
             ? `${capTheme.heroTab} ${capTheme.heroTabActive}`
             : capTheme.heroTab;
           const handleClick = () => {
             if (isMembersLink) {
               onSelectMembers();
-            } else if (isFeaturedLink) {
+            } else if (isMediaLink) {
+              onSelectMedia();
+            } else if (isFilesLink) {
+              onSelectFiles();
+            } else {
               onSelectFeatured();
             }
           };
           return (
-            <button
-              key={label}
-              type="button"
-              className={className}
-              onClick={isMembersLink || isFeaturedLink ? handleClick : undefined}
-            >
+            <button key={label} type="button" className={className} onClick={handleClick}>
               {label}
               {isMembersLink && showMembersBadge ? (
                 <span className={capTheme.heroTabBadge}>{pendingCount}</span>
@@ -644,6 +728,135 @@ function CapsuleHero({
         })}
       </nav>
     </div>
+  );
+}
+
+type CapsuleLibrarySectionProps = {
+  items: CapsuleLibraryItem[];
+  loading: boolean;
+  error: string | null;
+  onRetry(): void;
+};
+
+type CapsuleFilesSectionProps = CapsuleLibrarySectionProps & {
+  formatCount(value?: number | null): string;
+  onAsk(doc: DocumentCardData): void;
+};
+
+function CapsuleLibraryState({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
+      <div className={capTheme.libraryState}>
+        <p>{message}</p>
+        {onRetry ? (
+          <button type="button" className={capTheme.heroAction} onClick={onRetry}>
+            Try again
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function CapsuleMediaSection({ items, loading, error, onRetry }: CapsuleLibrarySectionProps) {
+  if (loading) return <CapsuleLibraryState message="Loading media..." />;
+  if (error) return <CapsuleLibraryState message={error} onRetry={onRetry} />;
+  if (!items.length) return <CapsuleLibraryState message="No media shared yet." />;
+
+  return (
+    <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
+      <div className={homeStyles.mediaGallery} data-count={items.length}>
+        {items.map((item) => {
+          const mime = item.mimeType?.toLowerCase() ?? "";
+          const isVideo = mime.startsWith("video/");
+          const isImage = mime.startsWith("image/");
+          const thumbnail = item.thumbnailUrl ?? (isImage ? item.url : null);
+          return (
+            <div key={item.id} className={homeStyles.mediaWrapper} data-kind={isVideo ? "video" : "image"}>
+              {isVideo ? (
+                <video
+                  className={`${homeStyles.media} ${homeStyles.mediaVideo}`.trim()}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  poster={thumbnail ?? undefined}
+                >
+                  <source src={item.url} type={item.mimeType ?? undefined} />
+                  Your browser does not support the video tag.
+                </video>
+              ) : (
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${homeStyles.mediaButton} ${homeStyles.mediaImageButton}`.trim()}
+                >
+                  <Image
+                    className={`${homeStyles.media} ${homeStyles.mediaImage}`.trim()}
+                    src={thumbnail ?? item.url}
+                    alt={item.title ?? "Capsule media"}
+                    width={1080}
+                    height={1080}
+                    sizes="(max-width: 640px) 100vw, 720px"
+                    loading="lazy"
+                    unoptimized
+                  />
+                </a>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function CapsuleFilesSection({ items, loading, error, onRetry, formatCount, onAsk }: CapsuleFilesSectionProps) {
+  if (loading) return <CapsuleLibraryState message="Loading files..." />;
+  if (error) return <CapsuleLibraryState message={error} onRetry={onRetry} />;
+  if (!items.length) return <CapsuleLibraryState message="No files shared yet." />;
+
+  const documents = items.map((item) => {
+    const meta = item.meta ?? null;
+    const uploadSessionId = (() => {
+      if (!meta || typeof meta !== "object") return null;
+      const record = meta as Record<string, unknown>;
+      for (const key of ["upload_session_id", "session_id"]) {
+        const value = record[key];
+        if (typeof value === "string" && value.trim().length) return value.trim();
+      }
+      return null;
+    })();
+    const source: DocumentAttachmentSource = {
+      id: item.id,
+      url: item.url,
+      name: item.title ?? null,
+      mimeType: item.mimeType ?? null,
+      meta,
+      uploadSessionId,
+    };
+    return buildDocumentCardData(source);
+  });
+
+  return (
+    <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
+      <div className={homeStyles.documentGrid}>
+        {documents.map((doc) => (
+          <DocumentAttachmentCard
+            key={doc.id}
+            doc={doc}
+            formatCount={formatCount}
+            onAsk={() => onAsk(doc)}
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1124,3 +1337,13 @@ function CapsuleFeed({
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
+

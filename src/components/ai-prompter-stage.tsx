@@ -41,6 +41,7 @@ const DEFAULT_PLACEHOLDER = "Ask your Capsule AI to create anything...";
 const COMPACT_PLACEHOLDER = "Ask Capsule AI for ideas...";
 const COMPACT_VIEWPORT_QUERY = "(max-width: 480px)";
 
+import { useComposer } from "@/components/composer/ComposerProvider";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import { useCurrentUser } from "@/services/auth/client";
 import { buildMemoryEnvelope } from "@/lib/memory/envelope";
@@ -148,6 +149,8 @@ export function AiPrompterStage({
   variant = "default",
 }: Props) {
   const router = useRouter();
+  const composerContext = useComposer();
+  const activeCapsuleId = composerContext.activeCapsuleId;
 
   const { user: authUser } = useCurrentUser();
   const userEnvelope = React.useMemo(() => buildMemoryEnvelope(authUser), [authUser]);
@@ -249,7 +252,9 @@ export function AiPrompterStage({
     handleAttachClick,
     handleAttachmentSelect,
     handleAttachmentFile,
-  } = useAttachmentUpload();
+  } = useAttachmentUpload(undefined, {
+    metadata: () => (activeCapsuleId ? { capsule_id: activeCapsuleId } : null),
+  });
 
   const { isDraggingFile, handleDragEnter, handleDragOver, handleDragLeave, handleDrop } =
     usePrompterDragAndDrop({
@@ -714,3 +719,7 @@ export function AiPrompterStage({
     </section>
   );
 }
+
+
+
+

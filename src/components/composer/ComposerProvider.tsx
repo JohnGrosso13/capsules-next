@@ -313,6 +313,8 @@ type ClarifierState = {
 
 type ComposerContextValue = {
   state: ComposerState;
+  feedTarget: FeedTarget;
+  activeCapsuleId: string | null;
   handlePrompterAction(action: PrompterAction): void;
   close(): void;
   post(): Promise<void>;
@@ -1279,6 +1281,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const contextValue = React.useMemo<ComposerContextValue>(() => {
     const base: ComposerContextValue = {
       state,
+      feedTarget,
+      activeCapsuleId,
       handlePrompterAction,
       close,
       post,
@@ -1298,6 +1302,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     return base;
   }, [
     state,
+    feedTarget,
+    activeCapsuleId,
     handlePrompterAction,
     close,
     post,
@@ -1366,3 +1372,4 @@ export function AiComposerRoot() {
     />
   );
 }
+

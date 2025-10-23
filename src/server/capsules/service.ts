@@ -20,11 +20,13 @@ import {
   getCapsuleSummaryForViewer as repoGetCapsuleSummaryForViewer,
   type CapsuleSummary,
   type DiscoverCapsuleSummary,
+  type CapsuleAssetRow,
   updateCapsuleMemberRole,
   updateCapsuleBanner,
   updateCapsuleStoreBanner,
   updateCapsulePromoTile,
   updateCapsuleLogo,
+  listCapsuleAssets,
 } from "./repository";
 import {
   isCapsuleMemberUiRole,
@@ -44,6 +46,26 @@ export type {
   CapsuleMembershipViewer,
   CapsuleMembershipState,
 } from "@/types/capsules";
+
+export type CapsuleLibraryItem = {
+  id: string;
+  url: string;
+  thumbnailUrl: string | null;
+  mimeType: string | null;
+  title: string | null;
+  description: string | null;
+  createdAt: string | null;
+  meta: Record<string, unknown> | null;
+  viewCount: number | null;
+  uploadedBy: string | null;
+  postId: string | null;
+  storageKey: string | null;
+};
+
+export type CapsuleLibrary = {
+  media: CapsuleLibraryItem[];
+  files: CapsuleLibraryItem[];
+};
 
 const REQUEST_MESSAGE_MAX_LENGTH = 500;
 
@@ -879,4 +901,141 @@ export async function setCapsuleMemberRole(
   }
 
   return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
+}
+
+function resolveAssetMimeType(
+  row: CapsuleAssetRow,
+  meta: Record<string, unknown> | null,
+): string | null {
+  const direct = normalizeOptionalString(row.media_type ?? null);
+  if (direct) return direct;
+  if (!meta) return null;
+  const mimeKeys = ["mime_type", "content_type", "mimeType", "contentType"];
+  for (const key of mimeKeys) {
+    const value = normalizeOptionalString((meta as Record<string, unknown>)[key] ?? null);
+    if (value) return value;
+  }
+  return null;
+}
+
+function resolveAssetThumbnail(
+  meta: Record<string, unknown> | null,
+  origin: string | null | undefined,
+): string | null {
+  if (!meta) return null;
+  const thumbKeys = ["thumbnail_url", "thumbnailUrl", "thumb", "preview_url", "previewUrl"];
+  for (const key of thumbKeys) {
+    const value = normalizeOptionalString((meta as Record<string, unknown>)[key] ?? null);
+    if (value) {
+      return resolveCapsuleMediaUrl(value, origin ?? null);
+    }
+  }
+  return null;
+}
+
+function determineAssetCategory(
+  mimeType: string | null,
+  meta: Record<string, unknown> | null,
+): "media" | "file" {
+  const primary = meta
+    ? normalizeOptionalString(
+        ((meta as Record<string, unknown>).mime_primary ??
+          (meta as Record<string, unknown>).category ??
+          null) as string | null,
+      )
+    : null;
+  if (primary && ["image", "video", "audio"].includes(primary)) {
+    return "media";
+  }
+  if (!mimeType) return "file";
+  const lowered = mimeType.toLowerCase();
+  if (lowered.startsWith("image/") || lowered.startsWith("video/") || lowered.startsWith("audio/")) {
+    return "media";
+  }
+  return "file";
+}
+
+function cloneMeta(meta: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return null;
+  return { ...(meta as Record<string, unknown>) };
+}
+
+function mapCapsuleAsset(
+  row: CapsuleAssetRow,
+  origin: string | null | undefined,
+): { item: CapsuleLibraryItem; category: "media" | "file" } | null {
+  const id = normalizeOptionalString(row.id ?? null);
+  const mediaUrl = resolveCapsuleMediaUrl(row.media_url ?? null, origin ?? null);
+  if (!id || !mediaUrl) return null;
+
+  const meta = cloneMeta(row.meta ?? null);
+  const mimeType = resolveAssetMimeType(row, meta);
+  const category = determineAssetCategory(mimeType, meta);
+  const thumbnailUrl = resolveAssetThumbnail(meta, origin);
+  const createdAt = row.created_at ?? null;
+  const uploadedBy = normalizeOptionalString(row.uploaded_by ?? null);
+  const postId = normalizeOptionalString(row.post_id ?? null);
+  const storageKey =
+    meta && typeof meta.storage_key !== "undefined"
+      ? normalizeOptionalString((meta as Record<string, unknown>).storage_key ?? null) ??
+        normalizeOptionalString((meta as Record<string, unknown>).storageKey ?? null)
+      : null;
+  const viewCountRaw = row.view_count;
+  const viewCount =
+    typeof viewCountRaw === "number"
+      ? viewCountRaw
+      : typeof viewCountRaw === "string"
+        ? Number(viewCountRaw) || null
+        : null;
+
+  const item: CapsuleLibraryItem = {
+    id,
+    url: mediaUrl,
+    thumbnailUrl,
+    mimeType,
+    title: row.title ?? null,
+    description: row.description ?? null,
+    createdAt,
+    meta,
+    viewCount,
+    uploadedBy,
+    postId,
+    storageKey,
+  };
+
+  return { item, category };
+}
+
+export async function getCapsuleLibrary(
+  capsuleId: string,
+  viewerId: string | null,
+  options: { origin?: string | null; limit?: number } = {},
+): Promise<CapsuleLibrary> {
+  const summary = await getCapsuleSummaryForViewer(capsuleId, viewerId, {
+    origin: options.origin ?? null,
+  });
+  if (!summary) {
+    throw new CapsuleMembershipError("not_found", "Capsule not found.", 404);
+  }
+
+  const rows = await listCapsuleAssets({
+    capsuleId,
+    limit: options.limit,
+  });
+
+  const media: CapsuleLibraryItem[] = [];
+  const files: CapsuleLibraryItem[] = [];
+  const origin = options.origin ?? null;
+
+  rows.forEach((row) => {
+    const mapped = mapCapsuleAsset(row, origin);
+    if (!mapped) return;
+    if (mapped.category === "media") {
+      media.push(mapped.item);
+    } else {
+      files.push(mapped.item);
+    }
+  });
+
+  return { media, files };
 }

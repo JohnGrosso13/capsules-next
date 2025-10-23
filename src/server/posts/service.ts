@@ -590,6 +590,7 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
           upload_session_id: uploadSessionId ?? undefined,
           mime_type: mime ?? undefined,
           content_type: mime ?? undefined,
+          capsule_id: capsuleId ?? undefined,
         },
         rawText: description,
         source: "post_attachment",

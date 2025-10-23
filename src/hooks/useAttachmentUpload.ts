@@ -36,6 +36,16 @@ type RemoteAttachmentOptions = {
   size?: number | null;
 };
 
+type AttachmentMetadataInput =
+  | Record<string, unknown>
+  | ((
+      context: { file: File; mimeType: string; uploadKind: string },
+    ) => Record<string, unknown> | null | undefined);
+
+type UseAttachmentUploadOptions = {
+  metadata?: AttachmentMetadataInput;
+};
+
 function inferMimeFromUrl(url: string | null | undefined, fallback = "*/*"): string {
   if (!url) return fallback;
   const normalized = url.split("?")[0]?.toLowerCase() ?? "";
@@ -276,6 +286,7 @@ function useAttachmentState(fileInputRef: React.MutableRefObject<HTMLInputElemen
 function useAttachmentProcessor(
   maxSizeBytes: number,
   setAttachment: React.Dispatch<React.SetStateAction<LocalAttachment | null>>,
+  options: UseAttachmentUploadOptions | undefined,
 ): (file: File) => Promise<void> {
   return React.useCallback(
     async (file: File) => {
@@ -302,7 +313,7 @@ function useAttachmentProcessor(
       });
 
       try {
-        const result = await uploadWithFallback(file, mimeType, id, setAttachment);
+        const result = await uploadWithFallback(file, mimeType, id, setAttachment, options);
         const thumbUrl = await maybeCaptureAndUploadThumb(file, mimeType);
 
         setAttachment((prev) =>
@@ -328,7 +339,7 @@ function useAttachmentProcessor(
         );
       }
     },
-    [maxSizeBytes, setAttachment],
+    [maxSizeBytes, options, setAttachment],
   );
 }
 
@@ -370,6 +381,25 @@ function resolveUploadKind(mimeType: string): string {
   return "file";
 }
 
+function mergeAttachmentMetadata(
+  target: Record<string, unknown>,
+  input: AttachmentMetadataInput | undefined,
+  context: { file: File; mimeType: string; uploadKind: string },
+) {
+  if (!input) return;
+  const extra =
+    typeof input === "function"
+      ? input(context) ?? null
+      : input && typeof input === "object"
+        ? input
+        : null;
+  if (!extra) return;
+  for (const [key, value] of Object.entries(extra)) {
+    if (value === undefined) continue;
+    target[key] = value;
+  }
+}
+
 function shouldUseBase64Fallback(file: File, mimeType: string): boolean {
   return mimeType.startsWith("image/") && file.size <= BASE64_FALLBACK_MAX_SIZE;
 }
@@ -379,6 +409,7 @@ async function uploadWithFallback(
   mimeType: string,
   id: string,
   setAttachment: React.Dispatch<React.SetStateAction<LocalAttachment | null>>,
+  options: UseAttachmentUploadOptions | undefined,
 ): Promise<DirectUploadResult> {
   let directError: Error | null = null;
   let result: DirectUploadResult | null = null;
@@ -395,6 +426,7 @@ async function uploadWithFallback(
   if (fileExtension) {
     metadata.file_extension = fileExtension;
   }
+  mergeAttachmentMetadata(metadata, options?.metadata, { file, mimeType, uploadKind });
 
   try {
     result = await uploadFileDirect(file, {
@@ -492,7 +524,10 @@ async function maybeCaptureAndUploadThumb(file: File, mimeType: string): Promise
   }
 }
 
-export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
+export function useAttachmentUpload(
+  maxSizeBytes = DEFAULT_MAX_SIZE,
+  options: UseAttachmentUploadOptions = {},
+) {
   const { fileInputRef, handleAttachClick } = useAttachmentInput();
   const {
     attachment,
@@ -516,7 +551,7 @@ export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
     cancelRemoteTimers();
     resetAttachment();
   }, [cancelRemoteTimers, resetAttachment]);
-  const processFile = useAttachmentProcessor(maxSizeBytes, setAttachment);
+  const processFile = useAttachmentProcessor(maxSizeBytes, setAttachment, options);
 
   const handleAttachmentSelect = React.useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {

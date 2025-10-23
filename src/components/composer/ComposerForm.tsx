@@ -24,6 +24,7 @@ import { useComposerFormReducer, type ComposerFormState } from "./hooks/useCompo
 import { useComposerLayout } from "./hooks/useComposerLayout";
 import { useComposerVoice } from "./hooks/useComposerVoice";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
+import { useComposer } from "./ComposerProvider";
 
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
 import { computeDisplayUploads } from "@/components/memory/process-uploads";
@@ -441,6 +442,7 @@ export function ComposerForm({
     [onChange, workingDraft],
   );
 
+  const { activeCapsuleId } = useComposer();
   const { state, actions } = useComposerFormReducer();
   const { privacy, mobileRailOpen, previewOpen, layout, viewerOpen, voice: voiceState } = state;
 
@@ -458,7 +460,9 @@ export function ComposerForm({
     handleAttachmentSelect,
     handleAttachmentFile,
     attachRemoteAttachment,
-  } = useAttachmentUpload();
+  } = useAttachmentUpload(undefined, {
+    metadata: () => (activeCapsuleId ? { capsule_id: activeCapsuleId } : null),
+  });
   const handlePromptPaste = React.useCallback(
     (event: React.ClipboardEvent<HTMLInputElement>) => {
       const file = extractFileFromDataTransfer(event.clipboardData);
@@ -1883,5 +1887,11 @@ export function ComposerForm({
     </div>
   );
 }
+
+
+
+
+
+
 
 

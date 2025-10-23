@@ -2652,3 +2652,16 @@
     justify-content: flex-start;
   }
 }
+.libraryState {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-2, rgba(255, 255, 255, 0.7));
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.libraryState p {
+  margin: 0;
+  font-size: 0.95rem;
+}
