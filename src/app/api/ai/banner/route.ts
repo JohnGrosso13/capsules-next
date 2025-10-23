@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
-import { composeUserLedPrompt } from "@/lib/ai/prompt-styles";
+// Note: banner uses a minimal literal-first builder; keep prompt-styles for other routes.
+import { buildLiteralBannerPrompt } from "@/lib/ai/banner-prompt";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
@@ -10,7 +11,7 @@ import { parseJsonBody, returnError, validatedJson } from "@/server/validation/h
 import { Buffer } from "node:buffer";
 import { aiImageVariantSchema } from "@/shared/schemas/ai";
 import { createAiImageVariant, type AiImageVariantRecord } from "@/server/ai/image-variants";
-import { mergePersonaCues, type StylePersonaPromptData } from "@/lib/ai/style-persona";
+import type { StylePersonaPromptData } from "@/lib/ai/style-persona";
 import { getStylePersona, type CapsuleStylePersonaRecord } from "@/server/capsules/style-personas";
 
 const requestSchema = z.object({
@@ -120,63 +121,20 @@ function toVariantResponse(record: AiImageVariantRecord | null): VariantResponse
 function buildGenerationPrompt(
   prompt: string,
   capsuleName: string,
-  stylePreset?: string | null,
-  persona?: StylePersonaPromptData | null,
+  _stylePreset?: string | null,
+  _persona?: StylePersonaPromptData | null,
 ): string {
-  const safeName = capsuleName.trim().length ? capsuleName.trim() : "the capsule";
-  const baseCues = {
-    composition: [
-      "Establish a clear focal point with layered foreground, midground, and background for depth.",
-      "Reserve gentle negative space near the edges for interface elements.",
-    ],
-    lighting: [
-      "Blend atmospheric lighting with subtle gradients to create depth without overpowering overlays.",
-    ],
-    palette: ["Use vibrant but balanced colors that work across light and dark themes."],
-    medium: ["High-resolution digital illustration or cinematic render that withstands scaling."],
-    mood: ["Immersive and inviting mood that captures the capsule's vibe."],
-  };
-  const mergedCues = mergePersonaCues(baseCues, persona ?? null);
-  return composeUserLedPrompt({
-    userPrompt: prompt,
-    objective: `Compose a cinematic hero banner that represents ${safeName}.`,
-    subjectContext: "The artwork should render cleanly in a wide 16:9 hero slot with room for UI overlays.",
-    baseCues: mergedCues,
-    baseConstraints: [
-      "Avoid text, logos, or watermarks within the art.",
-      "Keep visual noise low near the top third so headlines remain legible.",
-    ],
-    styleId: stylePreset ?? null,
-  });
+  // Minimal, literal-first prompt. Style presets and persona are intentionally ignored here
+  // to keep the user's subject primary for banners.
+  return buildLiteralBannerPrompt({ userPrompt: prompt, capsuleName, mode: "generate" });
 }
 
 function buildEditInstruction(
   prompt: string,
-  stylePreset?: string | null,
-  persona?: StylePersonaPromptData | null,
+  _stylePreset?: string | null,
+  _persona?: StylePersonaPromptData | null,
 ): string {
-  const baseCues = {
-    composition: [
-      "Protect the current focal hierarchy and keep key elements within the safe zones.",
-    ],
-    lighting: [
-      "Fine-tune lighting to reinforce depth without washing out important regions.",
-    ],
-    mood: ["Match the existing vibe unless the user asks for a change in tone."],
-  };
-  const mergedCues = mergePersonaCues(baseCues, persona ?? null);
-  return composeUserLedPrompt({
-    userPrompt: prompt,
-    objective: "Refresh the existing hero banner while keeping it 16:9 and overlay-friendly.",
-    subjectContext:
-      "Preserve the primary focal point and overall composition so the update still feels like the same capsule.",
-    baseCues: mergedCues,
-    baseConstraints: [
-      "Avoid adding text, logos, or watermark-like elements.",
-      "Maintain clear space for UI overlays near the top and center.",
-    ],
-    styleId: stylePreset ?? null,
-  });
+  return buildLiteralBannerPrompt({ userPrompt: prompt, mode: "edit" });
 }
 
 export async function POST(req: Request) {
@@ -238,7 +196,8 @@ export async function POST(req: Request) {
         bannerPrompt,
         {
           quality: "high",
-          size: "1024x1024",
+          // Prefer 16:9 for hero banners
+          size: "1792x1024",
         },
         {
           ownerId,
@@ -423,7 +382,7 @@ export async function POST(req: Request) {
           fallbackResolvedPrompt,
           {
             quality: "high",
-            size: "1024x1024",
+            size: "1792x1024",
           },
           {
             ownerId,
@@ -464,7 +423,3 @@ export async function POST(req: Request) {
 }
 
 export const runtime = "nodejs";
-
-
-
-
