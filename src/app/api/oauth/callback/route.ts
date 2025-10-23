@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     stateRaw,
   );
   const provider = (url.searchParams.get("provider") || state?.v || "").trim().toLowerCase();
-  const fallbackRedirect = `${serverEnv.SITE_URL}/settings.html?tab=account#linked`;
+  const fallbackRedirect = `${serverEnv.SITE_URL}/settings.html?tab=connections`;
   const redirectBase = toAbsolute(state?.r ?? fallbackRedirect);
 
   const fail = (reason: string) =>

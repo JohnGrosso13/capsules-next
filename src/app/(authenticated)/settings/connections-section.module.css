@@ -1,0 +1,130 @@
+.sectionBody {
+  display: grid;
+  gap: 18px;
+}
+
+.intro {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.alert {
+  margin: 0;
+}
+
+.errorRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, rgba(255, 84, 118, 0.5) 70%, transparent);
+  background: color-mix(in srgb, rgba(255, 84, 118, 0.28) 36%, transparent);
+}
+
+.errorRow p {
+  margin: 0;
+  color: #fecdd3;
+  font-size: 0.92rem;
+}
+
+.providers {
+  display: grid;
+  gap: 16px;
+}
+
+.providerCard {
+  display: grid;
+  gap: 16px;
+}
+
+.providerHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.providerIcon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.24) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(4, 8, 26, 0.46),
+    0 14px 28px rgba(5, 10, 30, 0.35);
+  color: #ff4e45;
+}
+
+.providerHeading {
+  display: grid;
+  gap: 4px;
+}
+
+.providerTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text, rgba(255, 255, 255, 0.94));
+}
+
+.providerSummary {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.providerStatusRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.providerStatus {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-2);
+}
+
+.providerStatus[data-state="connected"] {
+  color: var(--color-success, #34d399);
+  font-weight: 600;
+}
+
+.providerStatus[data-state="disconnected"] {
+  color: var(--text-3);
+}
+
+.providerMeta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-3);
+}
+
+.providerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.loadingNote {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-3);
+}
+
+.emptyState {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-3);
+}

@@ -60,7 +60,7 @@ serve(async (req) => {
     const code = url.searchParams.get('code') || '';
     const stateRaw = url.searchParams.get('state') || '';
     const state = b64urlDecode(stateRaw);
-    const redirect = state?.r || '/settings.html?tab=account#linked';
+    const redirect = state?.r || '/settings.html?tab=connections';
     const userKey = state?.k || '';
     const cfg = providerTokenConfig(provider);
     if (!provider || !cfg || !cfg.clientId || !cfg.clientSecret) {

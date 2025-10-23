@@ -9,6 +9,7 @@ import layout from "./settings.module.css";
 import { CapsuleSettingsSection } from "./capsules-section";
 import { AccountSettingsSection } from "./account-section";
 import { VoiceSettingsSection } from "./voice-section";
+import { ConnectionsSettingsSection } from "./connections-section";
 
 type CapsuleSettingsProps = React.ComponentProps<typeof CapsuleSettingsSection>;
 type AccountProfileProps = React.ComponentProps<typeof AccountSettingsSection>["profile"];
@@ -18,7 +19,7 @@ type SettingsShellProps = {
   accountProfile: AccountProfileProps;
 };
 
-type SettingsSectionKey = "capsules" | "account" | "appearance" | "voice";
+type SettingsSectionKey = "capsules" | "account" | "connections" | "appearance" | "voice";
 
 const NAVIGATION_ITEMS: Array<
   | {
@@ -34,6 +35,7 @@ const NAVIGATION_ITEMS: Array<
 > = [
   { key: "capsules", label: "Capsules", enabled: true },
   { key: "account", label: "Account", enabled: true },
+  { key: "connections", label: "Connections", enabled: true },
   { key: "appearance", label: "Appearance", enabled: true },
   { key: "voice", label: "Voice", enabled: true },
   { key: "notifications", label: "Notifications", enabled: false },
@@ -58,6 +60,70 @@ export function SettingsShell({
       setAccountProfileState(accountProfile);
     }
   }, [accountProfile]);
+
+  const normalizeSectionKey = React.useCallback((value: string | null | undefined) => {
+    const key = typeof value === "string" ? value.trim().toLowerCase() : "";
+    if (key === "capsules" || key === "account" || key === "connections" || key === "appearance" || key === "voice") {
+      return key;
+    }
+    return null;
+  }, []);
+
+  const setSectionWithHistory = React.useCallback(
+    (section: SettingsSectionKey) => {
+      setActiveSection(section);
+      if (typeof window === "undefined") return;
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("tab") !== section) {
+          url.searchParams.set("tab", section);
+        }
+        window.history.replaceState(window.history.state, "", url.toString());
+      } catch (error) {
+        console.error("settings nav update failed", error);
+      }
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      let next = normalizeSectionKey(url.searchParams.get("tab"));
+      let mutated = false;
+      if (!next) {
+        const hash = url.hash.replace(/^#/, "");
+        if (hash === "linked") {
+          next = "connections";
+          url.searchParams.set("tab", "connections");
+          url.hash = "";
+          mutated = true;
+        }
+      }
+      if (next) {
+        setActiveSection(next);
+        if (mutated) {
+          window.history.replaceState(window.history.state, "", url.toString());
+        }
+      }
+    } catch (error) {
+      console.error("settings nav bootstrap failed", error);
+    }
+  }, [normalizeSectionKey]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      const current = normalizeSectionKey(url.searchParams.get("tab"));
+      if (current === activeSection) return;
+      url.searchParams.set("tab", activeSection);
+      window.history.replaceState(window.history.state, "", url.toString());
+    } catch (error) {
+      console.error("settings nav sync failed", error);
+    }
+  }, [activeSection, normalizeSectionKey]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -121,7 +187,7 @@ export function SettingsShell({
                     aria-pressed={isActive}
                     aria-current={isActive ? "page" : undefined}
                     onClick={() => {
-                      setActiveSection(item.key);
+                      setSectionWithHistory(item.key);
                     }}
                   >
                     {item.label}
@@ -142,6 +208,12 @@ export function SettingsShell({
           {activeSection === "account" ? (
             <section aria-label="Account settings" className={layout.section}>
               <AccountSettingsSection profile={accountProfileState} />
+            </section>
+          ) : null}
+
+          {activeSection === "connections" ? (
+            <section aria-label="Connections settings" className={layout.section}>
+              <ConnectionsSettingsSection />
             </section>
           ) : null}
 

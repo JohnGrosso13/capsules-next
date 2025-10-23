@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "provider required" }, { status: 400 });
   }
 
-  const fallbackRedirect = `${serverEnv.SITE_URL}/settings.html?tab=account#linked`;
+  const fallbackRedirect = `${serverEnv.SITE_URL}/settings.html?tab=connections`;
 
   const targetRedirect = typeof body?.redirect === "string" ? body.redirect : null;
 
