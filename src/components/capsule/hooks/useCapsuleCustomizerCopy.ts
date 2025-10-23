@@ -24,9 +24,9 @@ const DEFAULT_COPY: CapsuleCopy = {
   headerSubtitle:
     "Chat with Capsule AI, pick from memories, or upload brand visuals to set your capsule banner.",
   prompterPlaceholder: "Describe your banner or a vibe to try...",
-  aiWorkingMessage: "Let me work on a banner that matches that vibe...",
+  aiWorkingMessage: "Generating your banner...",
   assistantIntro:
-    "Hi! I'm here to help you design a capsule banner for Your capsule. Describe the mood, colors, or imagery you'd like and I'll generate options.",
+    "Tell me what you want in the banner and I’ll make a few options.",
   footerDefaultHint: "Upload an image, pick a memory, or describe a new banner below.",
   stageAriaLabel: "Capsule banner preview",
   recentDescription: "Quickly reuse what you or Capsule AI picked last.",
@@ -48,8 +48,8 @@ export function useCapsuleCustomizerCopy(
           headerSubtitle:
             "Chat with Capsule AI, pick from memories, or upload visuals to set your storefront hero image.",
           prompterPlaceholder: "Describe your store hero or a vibe to try...",
-          aiWorkingMessage: "Let me work on a store banner that matches that vibe...",
-          assistantIntro: `Hi! I'm here to help you design a capsule store banner for ${safeName}. Describe products, mood, or layout ideas and I'll generate options.`,
+          aiWorkingMessage: "Generating your store banner...",
+          assistantIntro: `Describe your store hero and I’ll generate options for ${safeName}.`,
           footerDefaultHint: "Upload an image, pick a memory, or describe a new store banner below.",
           stageAriaLabel: "Capsule store banner preview",
           recentDescription: "Reuse the hero art you or Capsule AI used in your storefront recently.",
@@ -62,8 +62,8 @@ export function useCapsuleCustomizerCopy(
           headerSubtitle:
             "Chat with Capsule AI, pick from memories, or upload brand visuals to set your vertical tile.",
           prompterPlaceholder: "Describe your tile or a vibe to try...",
-          aiWorkingMessage: "Let me work on a tile that matches that vibe...",
-          assistantIntro: `Hi! I'm here to help you design a promo tile for ${safeName}. Describe the mood, colors, or imagery you'd like and I'll generate options.`,
+          aiWorkingMessage: "Generating your tile...",
+          assistantIntro: `Describe your promo tile and I’ll generate options for ${safeName}.`,
           footerDefaultHint: "Upload an image, pick a memory, or describe a new tile below.",
           stageAriaLabel: "Capsule promo tile preview",
           recentDescription: "Quickly reuse the vertical art you or Capsule AI picked last.",
@@ -76,8 +76,8 @@ export function useCapsuleCustomizerCopy(
           headerSubtitle:
             "Upload a mark, pick a memory, or ask Capsule AI for a square logo that feels on brand everywhere it appears.",
           prompterPlaceholder: "Describe your logo idea or style...",
-          aiWorkingMessage: "Let me sketch a logo that matches that vibe...",
-          assistantIntro: `Hi! I'm here to help you craft a capsule logo for ${safeName}. Describe letters, shapes, colors, or mascots and I'll mock up options.`,
+          aiWorkingMessage: "Sketching a logo...",
+          assistantIntro: `Describe your logo idea and I’ll mock up options for ${safeName}.`,
           footerDefaultHint: "Upload a mark, pick a memory, or describe a logo below.",
           stageAriaLabel: "Capsule logo preview",
           recentDescription: "Reuse logo artwork you or Capsule AI created recently.",
@@ -90,8 +90,8 @@ export function useCapsuleCustomizerCopy(
           headerSubtitle:
             "Upload a portrait, pick from memories, or ask Capsule AI for a circular avatar that looks great across the app.",
           prompterPlaceholder: "Describe your avatar idea or vibe...",
-          aiWorkingMessage: "Let me create an avatar that fits that direction...",
-          assistantIntro: `Hi! I'm here to help you craft a personal avatar for ${safeName}. Describe lighting, colors, or mood and I'll generate options.`,
+          aiWorkingMessage: "Creating your avatar...",
+          assistantIntro: `Describe your avatar and I’ll generate options for ${safeName}.`,
           footerDefaultHint: "Upload a portrait, pick a memory, or describe a new avatar below.",
           stageAriaLabel: "Profile avatar preview",
           recentDescription: "Reuse avatar imagery you or Capsule AI created recently.",
@@ -99,7 +99,7 @@ export function useCapsuleCustomizerCopy(
       default:
         return {
           ...DEFAULT_COPY,
-          assistantIntro: `Hi! I'm here to help you design a capsule banner for ${safeName}. Describe the mood, colors, or imagery you'd like and I'll generate options.`,
+          assistantIntro: `Tell me what you want in the banner for ${safeName} and I’ll make a few options.`,
         };
     }
   }, [mode, normalizedName]);

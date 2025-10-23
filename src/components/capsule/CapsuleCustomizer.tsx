@@ -78,9 +78,10 @@ function ChatMessageBubble({
 }) {
   return (
     <div className={styles.chatMessage} data-role={message.role}>
-      <span className={styles.chatAvatar} aria-hidden>
-        {message.role === "assistant" ? "AI" : "You"}
-      </span>
+      <span
+        className={styles.chatAvatar}
+        aria-label={message.role === "assistant" ? "Assistant" : "You"}
+      />
       <div className={styles.chatBubble}>
         {message.content}
         {message.bannerOptions && message.bannerOptions.length ? (
@@ -813,7 +814,6 @@ export function ProfileAvatarCustomizer(props: Omit<CapsuleCustomizerProps, "mod
 
 export { CapsuleCustomizer };
 export type { CapsuleCustomizerSaveResult, CapsuleCustomizerMode, CapsuleCustomizerProps };
-
 
 
 

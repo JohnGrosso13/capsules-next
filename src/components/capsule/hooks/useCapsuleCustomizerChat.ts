@@ -78,6 +78,69 @@ function sanitizeServerMessage(message?: string | null): string {
   return withoutThanks;
 }
 
+// New, more natural assistant response builder that avoids echoing the user
+// prompt and offers concise next-step suggestions.
+function buildAssistantResponseNatural({
+  prompt,
+  capsuleName,
+  mode,
+  serverMessage,
+  asset,
+}: {
+  prompt: string;
+  capsuleName: string;
+  mode: "generate" | "edit";
+  asset: CapsuleCustomizerMode;
+  serverMessage?: string | null;
+}): string {
+  const assetLabel =
+    asset === "tile"
+      ? "promo tile"
+      : asset === "logo"
+        ? "logo"
+        : asset === "avatar"
+          ? "avatar"
+          : asset === "storeBanner"
+            ? "store banner"
+            : "banner";
+
+  const intro =
+    mode === "generate"
+      ? `Here’s a ${assetLabel} concept${capsuleName ? ` for ${capsuleName}` : ""}.`
+      : `I updated your ${assetLabel} with those notes.`;
+
+  const sanitizedDetail = sanitizeServerMessage(serverMessage);
+  const detail = sanitizedDetail.length
+    ? (/[.!?]$/.test(sanitizedDetail) ? sanitizedDetail : `${sanitizedDetail}.`)
+    : "Preview is on the right.";
+
+  const pool =
+    mode === "generate"
+      ? [
+          "make it brighter",
+          "try a darker mood",
+          "shift toward blue/orange",
+          "zoom in on the focal point",
+          "try a different scene",
+        ]
+      : [
+          "soften the lighting",
+          "increase the contrast",
+          "make it more minimal",
+          "try a bolder remix",
+          "add more depth",
+        ];
+  const hash = Array.from(prompt || "").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const pick = (i: number) => pool[(hash + i) % pool.length];
+  const suggestions = [pick(0), pick(2), pick(3)];
+  const adjusted = (asset === "logo" || asset === "avatar")
+    ? suggestions.map((s) => s.replace("zoom in on the focal point", "tighten the framing"))
+    : suggestions;
+  const followUp = `Want changes? Try: '${adjusted[0]}', '${adjusted[1]}', or '${adjusted[2]}'.`;
+
+  return `${intro} ${detail} ${followUp}`;
+}
+
 function buildAssistantResponse({
   prompt,
   capsuleName,
@@ -685,7 +748,7 @@ export function useCapsuleCustomizerChat({
 
           const serverMessage =
             payload?.message && typeof payload.message === "string" ? payload.message : null;
-          const responseCopy = buildAssistantResponse({
+          const responseCopy = buildAssistantResponseNatural({
             prompt: trimmed,
             capsuleName: normalizedName,
             mode: aiMode,
