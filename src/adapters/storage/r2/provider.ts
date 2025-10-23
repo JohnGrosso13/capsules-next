@@ -133,9 +133,11 @@ class R2StorageProvider implements StorageProvider {
       origins.add("http://127.0.0.1:3000");
       origins.add("https://localhost:3000");
       origins.add("https://127.0.0.1:3000");
+      origins.add("null");
     }
 
-    const allowedOrigins = origins.size ? Array.from(origins) : ["*"];
+    origins.add("*");
+    const allowedOrigins = Array.from(origins);
 
     const command = new PutBucketCorsCommand({
       Bucket: this.bucket,
