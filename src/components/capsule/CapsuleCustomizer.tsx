@@ -131,10 +131,7 @@ function CapsuleCustomizerContent() {
   const preview = useCapsuleCustomizerPreview();
   const save = useCapsuleCustomizerSave();
   const actions = useCapsuleCustomizerActions();
-  const panelLayoutId = React.useMemo(
-    () => `capsule-customizer-panels-${meta.mode}`,
-    [meta.mode],
-  );
+  const panelLayoutId = React.useMemo(() => "capsule-customizer-panels-v1", []);
   const resizableColumnsClass = styles.resizableColumns ?? "";
   const navigationPanelClass = joinClassNames(styles.columnPanel, styles.navigationPanel);
   const chatPanelClass = joinClassNames(styles.columnPanel, styles.chatPanel);
