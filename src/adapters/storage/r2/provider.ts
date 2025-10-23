@@ -7,6 +7,7 @@ import {
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
   GetObjectCommand,
+  PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
   UploadPartCommand,
@@ -63,6 +64,8 @@ class R2StorageProvider implements StorageProvider {
   private readonly endpoint: string;
   private readonly bucket: string;
   private readonly uploadPrefix: string;
+  private corsConfigured = false;
+  private corsPromise: Promise<void> | null = null;
 
   constructor() {
     this.bucket = serverEnv.R2_BUCKET;
@@ -88,9 +91,87 @@ class R2StorageProvider implements StorageProvider {
     return this.uploadPrefix;
   }
 
+  private async ensureCors(): Promise<void> {
+    if (this.corsConfigured) return;
+    if (this.corsPromise) {
+      try {
+        await this.corsPromise;
+      } catch {
+        // ignore - handled below
+      }
+      return;
+    }
+
+    const resolveOrigin = (candidate: string | null | undefined): string | null => {
+      if (!candidate) return null;
+      try {
+        return new URL(candidate).origin;
+      } catch {
+        return null;
+      }
+    };
+
+    const origins = new Set<string>();
+    const siteOrigin = resolveOrigin(serverEnv.SITE_URL);
+    if (siteOrigin) origins.add(siteOrigin);
+    const publicOrigin = resolveOrigin(serverEnv.R2_PUBLIC_BASE_URL);
+    if (publicOrigin) origins.add(publicOrigin);
+
+    const extraOriginsRaw =
+      process.env.UPLOAD_CORS_ORIGINS || process.env.R2_UPLOAD_CORS_ORIGINS || "";
+    extraOriginsRaw
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .forEach((entry) => {
+        const origin = resolveOrigin(entry) ?? entry;
+        if (origin) origins.add(origin);
+      });
+
+    if (process.env.NODE_ENV !== "production") {
+      origins.add("http://localhost:3000");
+      origins.add("http://127.0.0.1:3000");
+      origins.add("https://localhost:3000");
+      origins.add("https://127.0.0.1:3000");
+    }
+
+    const allowedOrigins = origins.size ? Array.from(origins) : ["*"];
+
+    const command = new PutBucketCorsCommand({
+      Bucket: this.bucket,
+      CORSConfiguration: {
+        CORSRules: [
+          {
+            AllowedOrigins: allowedOrigins,
+            AllowedMethods: ["GET", "PUT", "POST", "HEAD", "DELETE", "OPTIONS"],
+            AllowedHeaders: ["*"],
+            ExposeHeaders: ["ETag"],
+            MaxAgeSeconds: 60 * 60,
+          },
+        ],
+      },
+    });
+
+    const client = this.getClient();
+    this.corsPromise = client
+      .send(command)
+      .then(() => {
+        this.corsConfigured = true;
+      })
+      .catch((error) => {
+        console.warn("R2 CORS configuration failed", error);
+      })
+      .finally(() => {
+        this.corsPromise = null;
+      });
+
+    await this.corsPromise;
+  }
+
   async createMultipartUpload(
     params: StorageMultipartInitParams,
   ): Promise<StorageMultipartInitResult> {
+    await this.ensureCors();
     const client = this.getClient();
     const key = generateStorageObjectKey({
       prefix: this.uploadPrefix,

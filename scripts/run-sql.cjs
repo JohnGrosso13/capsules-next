@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-const fs = require('fs');
-const path = require('path');
-const { Client } = require('pg');
+/* eslint-disable @typescript-eslint/no-require-imports */
+const fs = require("fs");
+const path = require("path");
+const { Client } = require("pg");
 
 async function main() {
   const file = process.argv[2];
