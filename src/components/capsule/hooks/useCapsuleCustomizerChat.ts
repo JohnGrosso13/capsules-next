@@ -591,15 +591,6 @@ export function useCapsuleCustomizerChat({
           };
           }
 
-          const currentBanner = selectedBannerRef.current;
-          const maskData =
-            aiMode === "edit" &&
-            currentBanner &&
-            currentBanner.kind !== "ai" &&
-            typeof currentBanner.maskDataUrl === "string"
-              ? currentBanner.maskDataUrl
-              : null;
-
           const body: Record<string, unknown> = {
             prompt: promptForRequest,
             capsuleName: normalizedName,
@@ -607,7 +598,6 @@ export function useCapsuleCustomizerChat({
           };
           if (source?.imageUrl) body.imageUrl = source.imageUrl;
           if (source?.imageData) body.imageData = source.imageData;
-          if (maskData) body.maskData = maskData;
           if (stylePersonaId) body.stylePersonaId = stylePersonaId;
           if (typeof seed === "number" && Number.isFinite(seed)) body.seed = Math.floor(seed);
           if (typeof guidance === "number" && Number.isFinite(guidance)) body.guidance = guidance;
@@ -688,7 +678,6 @@ export function useCapsuleCustomizerChat({
             url: normalizedAsset.url,
             file: normalizedAsset.file ?? bannerFile,
             crop: normalizedAsset.crop,
-            maskDataUrl: currentBanner?.maskDataUrl ?? null,
           };
 
           updateSelectedBanner(generatedBanner);

@@ -28,8 +28,6 @@ export function CapsuleBannerPreview() {
   const meta = useCapsuleCustomizerMeta();
   const preview = useCapsuleCustomizerPreview();
   const { selected: selectedBanner, previewOffset, previewScale } = preview;
-  const mask = preview.mask;
-
   const mode = meta.mode;
   const stageRef = preview.stageRef;
   const imageRef = preview.imageRef;
@@ -78,21 +76,6 @@ export function CapsuleBannerPreview() {
           onError={(event) => {
             (event.currentTarget as HTMLImageElement).style.visibility = "hidden";
           }}
-        />
-        <canvas
-          ref={mask.canvasRef}
-          className={styles.previewMaskCanvas}
-          style={{
-            ...transformStyle,
-            opacity: mask.enabled || mask.hasMask ? 0.55 : 0,
-            pointerEvents: mask.enabled ? "auto" : "none",
-            cursor: mask.enabled ? "crosshair" : "default",
-          }}
-          data-enabled={mask.enabled ? "true" : undefined}
-          data-has-mask={mask.hasMask ? "true" : undefined}
-          data-drawing={mask.isDrawing ? "true" : undefined}
-          aria-hidden="true"
-          onPointerDown={mask.onPointerDown}
         />
         {mode === "storeBanner" ? (
           <div className={styles.storeOverlay} aria-hidden="true">

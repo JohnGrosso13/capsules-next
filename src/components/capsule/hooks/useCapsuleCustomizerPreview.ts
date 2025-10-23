@@ -31,8 +31,6 @@ type UseCustomizerPreviewParams = {
 };
 
 const PREVIEW_SCALE_BUFFER = 0.015;
-const MASK_BRUSH_RADIUS = 36;
-const MASK_STROKE_STYLE = "rgba(255, 0, 0, 0.85)";
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -45,7 +43,6 @@ export function useCapsuleCustomizerPreview({
 }: UseCustomizerPreviewParams) {
   const previewStageRef = React.useRef<HTMLDivElement | null>(null);
   const previewImageRef = React.useRef<HTMLImageElement | null>(null);
-  const maskCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const previewMetricsRef = React.useRef<PreviewMetrics>({
     overflowX: 0,
     overflowY: 0,
@@ -56,20 +53,15 @@ export function useCapsuleCustomizerPreview({
   const previewOffsetRef = React.useRef({ x: 0, y: 0 });
   const pendingCropRef = React.useRef<BannerCrop | null>(null);
   const dragStateRef = React.useRef<DragState | null>(null);
-  const maskDataRef = React.useRef<string | null>(null);
 
   const [previewOffset, setPreviewOffset] = React.useState(previewOffsetRef.current);
   const [previewScale, setPreviewScale] = React.useState(1);
   const [isDraggingPreview, setIsDraggingPreview] = React.useState(false);
   const [previewCanPan, setPreviewCanPan] = React.useState(false);
-  const [maskEnabled, setMaskEnabled] = React.useState(false);
-  const [maskHasData, setMaskHasData] = React.useState(false);
-  const [isDrawingMask, setIsDrawingMask] = React.useState(false);
 
   const previewDraggable =
     selectedBanner?.kind === "upload" || selectedBanner?.kind === "memory";
-  const maskEditable = previewDraggable;
-  const previewPannable = previewDraggable && previewCanPan && !maskEnabled;
+  const previewPannable = previewDraggable && previewCanPan;
   const activeImageUrl = previewDraggable ? selectedBanner?.url ?? null : null;
 
   const syncBannerCropToMessages = React.useCallback(
@@ -130,157 +122,6 @@ export function useCapsuleCustomizerPreview({
     [setSelectedBanner, syncBannerCropToMessages],
   );
 
-  const clearMaskCanvas = React.useCallback(() => {
-    const canvas = maskCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }, []);
-
-  const applyMaskDataUrl = React.useCallback(
-    (dataUrl: string | null) => {
-      maskDataRef.current = dataUrl;
-      setMaskHasData(Boolean(dataUrl));
-      setSelectedBanner((previous) => {
-        if (!previous || previous.kind === "ai") return previous;
-        const current = previous.maskDataUrl ?? null;
-        if (current === dataUrl) return previous;
-        if (previous.kind === "upload" || previous.kind === "memory") {
-          return { ...previous, maskDataUrl: dataUrl ?? null };
-        }
-        return previous;
-      });
-    },
-    [setSelectedBanner],
-  );
-
-  const renderMaskFromStoredData = React.useCallback(() => {
-    const canvas = maskCanvasRef.current;
-    if (!canvas || canvas.width === 0 || canvas.height === 0) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const dataUrl = maskDataRef.current;
-    if (!dataUrl) {
-      setMaskHasData(false);
-      return;
-    }
-    const image = new Image();
-    image.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-      setMaskHasData(true);
-    };
-    image.onerror = () => {
-      setMaskHasData(false);
-    };
-    image.src = dataUrl;
-  }, []);
-
-  const clearMask = React.useCallback(() => {
-    clearMaskCanvas();
-    applyMaskDataUrl(null);
-  }, [applyMaskDataUrl, clearMaskCanvas]);
-
-  const toggleMaskEditing = React.useCallback(
-    (enabled?: boolean) => {
-      if (!maskEditable) {
-        setMaskEnabled(false);
-        return;
-      }
-      setMaskEnabled((previous) => {
-        const target = typeof enabled === "boolean" ? enabled : !previous;
-        return target;
-      });
-    },
-    [maskEditable],
-  );
-
-  const handleMaskPointerDown = React.useCallback(
-    (event: React.PointerEvent<HTMLCanvasElement>) => {
-      if (!maskEnabled || !maskEditable) return;
-      if (event.button !== 0) return;
-      const canvas = maskCanvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      event.preventDefault();
-
-      const drawAtPoint = (fromX: number, fromY: number, toX: number, toY: number) => {
-        ctx.beginPath();
-        ctx.moveTo(fromX, fromY);
-        ctx.lineTo(toX, toY);
-        ctx.stroke();
-      };
-
-      const updateBrushStyle = () => {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const brush = MASK_BRUSH_RADIUS * 2 * Math.max(scaleX, scaleY);
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.strokeStyle = MASK_STROKE_STYLE;
-        ctx.lineWidth = brush;
-      };
-
-      updateBrushStyle();
-
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      let lastX = (event.clientX - rect.left) * scaleX;
-      let lastY = (event.clientY - rect.top) * scaleY;
-
-      canvas.setPointerCapture?.(event.pointerId);
-
-      drawAtPoint(lastX, lastY, lastX, lastY);
-      setIsDrawingMask(true);
-
-      const pointerId = event.pointerId;
-
-      const move = (nativeEvent: PointerEvent) => {
-        if (nativeEvent.pointerId !== pointerId) return;
-        nativeEvent.preventDefault();
-        const nextRect = canvas.getBoundingClientRect();
-        const nextX = (nativeEvent.clientX - nextRect.left) * (canvas.width / nextRect.width);
-        const nextY = (nativeEvent.clientY - nextRect.top) * (canvas.height / nextRect.height);
-        drawAtPoint(lastX, lastY, nextX, nextY);
-        lastX = nextX;
-        lastY = nextY;
-      };
-
-      const finish = (nativeEvent: PointerEvent) => {
-        if (nativeEvent.pointerId !== pointerId) return;
-        cleanup();
-        requestAnimationFrame(() => {
-          const dataUrl = canvas.toDataURL("image/png");
-          applyMaskDataUrl(dataUrl);
-        });
-      };
-
-      const cancel = (nativeEvent: PointerEvent) => {
-        if (nativeEvent.pointerId !== pointerId) return;
-        cleanup();
-      };
-
-      const cleanup = () => {
-        window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", finish);
-        window.removeEventListener("pointercancel", cancel);
-        setIsDrawingMask(false);
-        canvas.releasePointerCapture?.(pointerId);
-      };
-
-      window.addEventListener("pointermove", move, { passive: false });
-      window.addEventListener("pointerup", finish);
-      window.addEventListener("pointercancel", cancel);
-    },
-    [applyMaskDataUrl, maskEditable, maskEnabled],
-  );
-
   const updateSelectedBanner = React.useCallback(
     (banner: SelectedBanner | null) => {
       if (dragStateRef.current) {
@@ -312,40 +153,28 @@ export function useCapsuleCustomizerPreview({
 
       previewOffsetRef.current = { x: 0, y: 0 };
       setPreviewOffset({ x: 0, y: 0 });
-      setMaskEnabled(false);
-      setIsDrawingMask(false);
-      const nextMaskData =
-        normalizedBanner && normalizedBanner.kind !== "ai"
-          ? normalizedBanner.maskDataUrl ?? null
-          : null;
-      maskDataRef.current = nextMaskData;
-      if (!nextMaskData) {
-        clearMaskCanvas();
-        setMaskHasData(false);
-      }
       setSelectedBanner(normalizedBanner ?? null);
     },
-    [clearMaskCanvas, resetSaveError, setSelectedBanner],
+    [resetSaveError, setSelectedBanner],
   );
 
-  const measurePreview = React.useCallback(() => {
+  const measurePreview = React.useCallback((): boolean => {
     const container = previewStageRef.current;
     const image = previewImageRef.current;
-    if (!container || !image) return;
+    if (!container || !image) return false;
 
     const containerRect = container.getBoundingClientRect();
     const naturalWidth = image.naturalWidth || image.width;
     const naturalHeight = image.naturalHeight || image.height;
     if (!containerRect.width || !containerRect.height || !naturalWidth || !naturalHeight) {
-      return;
+      return false;
     }
 
     const widthRatio = containerRect.width / naturalWidth;
     const heightRatio = containerRect.height / naturalHeight;
     const coverScale = Math.max(widthRatio, heightRatio);
-    const needsShrink =
-      naturalWidth > containerRect.width || naturalHeight > containerRect.height;
-    const baseScale = needsShrink ? coverScale * (1 + PREVIEW_SCALE_BUFFER) : 1;
+    const baseScale =
+      coverScale < 1 ? coverScale * (1 + PREVIEW_SCALE_BUFFER) : coverScale;
     const scaledWidth = naturalWidth * baseScale;
     const scaledHeight = naturalHeight * baseScale;
 
@@ -359,15 +188,6 @@ export function useCapsuleCustomizerPreview({
       scale: baseScale,
     };
 
-    const maskCanvas = maskCanvasRef.current;
-    if (maskCanvas) {
-      if (maskCanvas.width !== naturalWidth || maskCanvas.height !== naturalHeight) {
-        maskCanvas.width = naturalWidth;
-        maskCanvas.height = naturalHeight;
-      }
-      renderMaskFromStoredData();
-    }
-
     previewMetricsRef.current = metrics;
     setPreviewScale(baseScale);
     setPreviewCanPan(metrics.maxOffsetX > 0 || metrics.maxOffsetY > 0);
@@ -380,7 +200,9 @@ export function useCapsuleCustomizerPreview({
     } else {
       applyPreviewOffset(previewOffsetRef.current.x, previewOffsetRef.current.y, metrics);
     }
-  }, [applyPreviewOffset, renderMaskFromStoredData]);
+
+    return true;
+  }, [applyPreviewOffset]);
 
   const handlePreviewPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -446,39 +268,84 @@ export function useCapsuleCustomizerPreview({
     }
   }, [open]);
 
-  React.useEffect(() => {
-    if (!open) {
-      setMaskEnabled(false);
-      setIsDrawingMask(false);
-    }
-  }, [open]);
-
-  React.useEffect(() => {
-    if (!maskEditable) {
-      setMaskEnabled(false);
-      maskDataRef.current = null;
-      clearMaskCanvas();
-      setMaskHasData(false);
-      return;
-    }
-    const nextMask = selectedBanner?.maskDataUrl ?? null;
-    maskDataRef.current = nextMask;
-    if (nextMask) {
-      renderMaskFromStoredData();
-    } else if (maskCanvasRef.current) {
-      clearMaskCanvas();
-      setMaskHasData(false);
-    }
-  }, [
-    clearMaskCanvas,
-    maskEditable,
-    renderMaskFromStoredData,
-    selectedBanner?.maskDataUrl,
-  ]);
-
   React.useLayoutEffect(() => {
     if (!open) return;
     measurePreview();
+  }, [measurePreview, open, activeImageUrl]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const image = previewImageRef.current;
+    if (!image) return;
+
+    let cancelled = false;
+    let rafId: number | null = null;
+    let didAttachListener = false;
+
+    const scheduleMeasure = () => {
+      if (cancelled) return;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        if (!cancelled) {
+          const measured = measurePreview();
+          if (!measured && !cancelled) {
+            scheduleMeasure();
+          }
+        }
+      });
+    };
+
+    const cleanup = () => {
+      cancelled = true;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      if (didAttachListener) {
+        image.removeEventListener("load", scheduleMeasure);
+      }
+    };
+
+    if (image.complete) {
+      if (image.naturalWidth && image.naturalHeight) {
+        const measured = measurePreview();
+        if (!measured && !cancelled) {
+          scheduleMeasure();
+        }
+      } else if (typeof image.decode === "function") {
+        void image
+          .decode()
+          .then(() => {
+            if (!cancelled) {
+              const measured = measurePreview();
+              if (!measured && !cancelled) {
+                scheduleMeasure();
+              }
+            }
+          })
+          .catch(() => {
+            if (!cancelled) {
+              const measured = measurePreview();
+              if (!measured && !cancelled) {
+                scheduleMeasure();
+              }
+            }
+          });
+      } else {
+        const measured = measurePreview();
+        if (!measured && !cancelled) {
+          scheduleMeasure();
+        }
+      }
+      return cleanup;
+    }
+
+    didAttachListener = true;
+    image.addEventListener("load", scheduleMeasure);
+    return cleanup;
   }, [measurePreview, open, activeImageUrl]);
 
   React.useEffect(() => {
@@ -517,15 +384,8 @@ export function useCapsuleCustomizerPreview({
       stageRef: previewStageRef,
       imageRef: previewImageRef,
       onPointerDown: handlePreviewPointerDown,
-      onImageLoad: measurePreview,
-      mask: {
-        canvasRef: maskCanvasRef,
-        enabled: maskEditable && maskEnabled,
-        hasMask: maskHasData,
-        isDrawing: isDrawingMask,
-        toggle: toggleMaskEditing,
-        clear: clearMask,
-        onPointerDown: handleMaskPointerDown,
+      onImageLoad: () => {
+        void measurePreview();
       },
     },
     updateSelectedBanner,

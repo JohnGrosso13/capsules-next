@@ -585,30 +585,6 @@
   will-change: transform;
 }
 
-.previewMaskCanvas {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: auto;
-  height: auto;
-  max-width: none;
-  max-height: none;
-  min-width: 0;
-  min-height: 0;
-  transform: translate3d(-50%, -50%, 0);
-  transform-origin: center;
-  pointer-events: none;
-  touch-action: none;
-  user-select: none;
-  will-change: transform;
-  mix-blend-mode: normal;
-  transition: opacity 0.18s ease;
-}
-
-.previewMaskCanvas[data-enabled="true"] {
-  pointer-events: auto;
-}
-
 .tileOverlay {
   position: absolute;
   inset: 0;
@@ -1087,28 +1063,40 @@
 }
 
 .prompterWrap :global(.prompterStage) {
-  /* Expand the prompter width beyond the chat column only inside the customizer */
-  --customizer-prompt-expand: clamp(32px, 4vw, 96px);
   max-width: none;
-  width: calc(100% + (var(--customizer-prompt-expand) * 2));
-  margin-left: calc(var(--customizer-prompt-expand) * -1);
-  margin-right: calc(var(--customizer-prompt-expand) * -1);
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .prompterWrap :global(.prompterStage .prompter) {
-  gap: 0.9rem;
-}
-
-.prompterWrap :global(.prompterStage .prompter) {
-  gap: 0.5rem;
+  gap: clamp(0.4rem, 1.2vw, 0.65rem);
 }
 
 .prompterWrap :global(.prompterStage .promptBar) {
   width: 100%;
   max-width: none;
-  padding: 1.05rem 1.35rem;
+  padding: clamp(0.65rem, 1.6vw, 0.85rem) clamp(1rem, 2.4vw, 1.6rem);
   border-radius: 999px;
-  gap: clamp(0.75rem, 2vw, 1.15rem);
+  gap: clamp(0.45rem, 1.4vw, 0.75rem);
+  min-height: 0;
+}
+
+.prompterWrap :global(.prompterStage .promptBar::before) {
+  left: clamp(-12px, -2vw, -16px);
+  right: clamp(-12px, -2vw, -16px);
+  top: clamp(-10px, -1.8vw, -14px);
+  bottom: clamp(-10px, -1.8vw, -14px);
+  opacity: 0.42;
+}
+
+.prompterWrap :global(.prompterStage .input) {
+  padding: 0.35rem 0.4rem;
+  font-size: clamp(0.98rem, 1.2vw, 1.05rem);
+}
+
+.prompterWrap :global(.prompterStage .genSplitMain) {
+  padding: clamp(0.55rem, 1.4vw, 0.75rem) clamp(1rem, 2vw, 1.6rem);
 }
 
 .prompterWrap :global(.prompterStage .promptBar:focus-within) {

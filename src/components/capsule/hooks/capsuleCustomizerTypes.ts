@@ -11,23 +11,21 @@ export type BannerCrop = {
   offsetY: number;
 };
 
-type MaskableBanner = { maskDataUrl?: string | null };
-
 export type SelectedBanner =
   | ({
         kind: "upload";
         name: string;
         url: string;
         file: File | null;
-      } & { crop: BannerCrop } & MaskableBanner)
+      } & { crop: BannerCrop })
   | ({
         kind: "memory";
         id: string;
         title: string | null;
         url: string;
         fullUrl: string | null;
-      } & { crop: BannerCrop } & MaskableBanner)
-  | ({ kind: "ai"; prompt: string } & MaskableBanner);
+      } & { crop: BannerCrop })
+  | { kind: "ai"; prompt: string };
 
 export const capsuleVariantSchema = aiImageVariantSchema.pick({
   id: true,
@@ -54,7 +52,6 @@ export function cloneSelectedBanner(banner: SelectedBanner): SelectedBanner {
       url: banner.url,
       file: banner.file ?? null,
       crop: { ...banner.crop },
-      maskDataUrl: banner.maskDataUrl ?? null,
     };
   }
   if (banner.kind === "memory") {
@@ -65,7 +62,6 @@ export function cloneSelectedBanner(banner: SelectedBanner): SelectedBanner {
       url: banner.url,
       fullUrl: banner.fullUrl,
       crop: { ...banner.crop },
-      maskDataUrl: banner.maskDataUrl ?? null,
     };
   }
   return { ...banner };

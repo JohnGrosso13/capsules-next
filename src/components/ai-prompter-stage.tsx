@@ -158,7 +158,7 @@ export function AiPrompterStage({
         allowTools: false,
         allowNavigation: false,
         enableDragAndDrop: true,
-        multilineInput: true,
+        multilineInput: false,
         forceIntent: "generate",
         forceButtonLabel: "Generate",
       };

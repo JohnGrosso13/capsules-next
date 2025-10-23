@@ -99,16 +99,6 @@ export type CapsuleMemoryState = {
   buttonRef: MemoryHookReturn["memoryButtonRef"];
 };
 
-export type CapsulePreviewMaskState = {
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
-  enabled: boolean;
-  hasMask: boolean;
-  isDrawing: boolean;
-  toggle: (enabled?: boolean) => void;
-  clear: () => void;
-  onPointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => void;
-};
-
 export type CapsulePreviewState = {
   selected: SelectedBanner | null;
   previewOffset: { x: number; y: number };
@@ -121,7 +111,6 @@ export type CapsulePreviewState = {
   imageRef: React.RefObject<HTMLImageElement | null>;
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   onImageLoad: () => void;
-  mask: CapsulePreviewMaskState;
 };
 
 export type CapsuleUploadState = {
@@ -652,7 +641,6 @@ export function useCapsuleCustomizerState(
       imageRef: previewState.imageRef,
       onPointerDown: previewState.onPointerDown,
       onImageLoad: previewState.onImageLoad,
-      mask: previewState.mask,
     },
     uploads,
     personas: personaContextValue,
