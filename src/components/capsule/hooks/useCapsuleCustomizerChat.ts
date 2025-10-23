@@ -74,8 +74,16 @@ function sanitizeServerMessage(message?: string | null): string {
   if (!message) return "";
   const trimmed = message.trim();
   if (!trimmed.length) return "";
-  const withoutThanks = trimmed.replace(/^\s*thanks[^.!?]*[.!?]\s*/i, "").trim();
-  return withoutThanks;
+  let text = trimmed;
+  // Remove leading polite openers
+  text = text.replace(/^\s*thanks[^.!?]*[.!?]\s*/i, "").trim();
+  // Drop self-referential status lines ("I generated...", "I updated...", "OpenAI couldn't...")
+  text = text
+    .replace(/^\s*i\s+generated[^.!?]*[.!?]\s*/i, "")
+    .replace(/^\s*i\s+updated[^.!?]*[.!?]\s*/i, "")
+    .replace(/^\s*openai\s+couldn'?t[^.!?]*[.!?]\s*/i, "")
+    .trim();
+  return text;
 }
 
 // New, more natural assistant response builder that avoids echoing the user
