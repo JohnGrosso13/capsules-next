@@ -21,7 +21,12 @@ type AttachmentRow = {
   media_url: string | null;
   media_type: string | null;
   title: string | null;
+  description: string | null;
   meta: Record<string, unknown> | null;
+  version_index?: number | null;
+  version_group_id?: string | null;
+  view_count?: number | null;
+  uploaded_by?: string | null;
 };
 
 type PostIdentifierRow = {
@@ -198,8 +203,11 @@ export async function listAttachmentsForPosts(postIds: string[]): Promise<Attach
   if (!postIds.length) return [];
   const result = await db
     .from("memories")
-    .select<AttachmentRow>("id, post_id, media_url, media_type, title, meta")
+    .select<AttachmentRow>(
+      "id, post_id, media_url, media_type, title, description, meta, version_index, version_group_id, view_count, uploaded_by",
+    )
     .in("post_id", postIds)
+    .eq("is_latest", true)
     .contains("meta", { source: "post_attachment" })
     .fetch();
   if (result.error) throw decorateDatabaseError("posts.attachments", result.error);

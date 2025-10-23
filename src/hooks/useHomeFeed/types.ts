@@ -9,6 +9,7 @@ export type HomeFeedAttachment = {
   storageKey: string | null;
   uploadSessionId?: string | null;
   variants?: CloudflareImageVariantSet | null;
+  meta?: Record<string, unknown> | null;
 };
 
 export type HomeFeedPost = {

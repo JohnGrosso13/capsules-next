@@ -1729,67 +1729,6 @@
   }
 }
 
-.attachmentList {
-  margin: 12px 0 0;
-
-  padding: 0;
-
-  list-style: none;
-
-  display: flex;
-
-  flex-wrap: wrap;
-
-  gap: 10px;
-}
-
-.attachmentListItem {
-  margin: 0;
-}
-
-.attachmentLink {
-  display: inline-flex;
-
-  align-items: center;
-
-  gap: 6px;
-
-  padding: 6px 12px;
-
-  border-radius: 12px;
-
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 45%, transparent);
-
-  background: color-mix(in srgb, var(--surface-1) 80%, var(--surface-3) 20%);
-
-  color: inherit;
-
-  text-decoration: none;
-
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.attachmentLink:hover,
-.attachmentLink:focus-visible {
-  border-color: color-mix(in srgb, var(--surface-outline) 65%, transparent);
-
-  background: color-mix(in srgb, var(--surface-1) 70%, var(--surface-3) 30%);
-}
-
-.attachmentFileName {
-  max-width: 180px;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-
-  font-size: 0.85rem;
-}
-
 .lightboxOverlay {
   position: fixed;
 
@@ -3201,5 +3140,228 @@
     height: auto;
     max-height: none;
     overflow: visible;
+  }
+}
+
+.documentGrid {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.documentCard {
+  border-radius: var(--card-radius, 16px);
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow, 0 18px 32px rgba(5, 10, 30, 0.28));
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.documentCard:hover {
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.18));
+  transform: translateY(-1px);
+  box-shadow: var(--card-shadow-hover, 0 22px 40px rgba(5, 10, 30, 0.34));
+}
+
+.documentHeader {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.documentIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-3) 78%, transparent);
+  color: var(--text, rgba(255, 255, 255, 0.92));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.documentIcon svg {
+  width: 18px;
+  height: 18px;
+  margin-bottom: 2px;
+}
+
+.documentExt {
+  line-height: 1;
+}
+
+.documentHeading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.documentTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, rgba(255, 255, 255, 0.96));
+  text-decoration: none;
+}
+
+.documentTitle:hover,
+.documentTitle:focus-visible {
+  text-decoration: underline;
+}
+
+.documentTitle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.documentMetaRow {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-2, rgba(255, 255, 255, 0.68));
+  align-items: center;
+}
+
+.documentMetaRow span + span::before {
+  content: "•";
+  margin-right: 6px;
+  color: var(--text-3, rgba(255, 255, 255, 0.42));
+}
+
+.documentStatus {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 18%, transparent);
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+
+.documentStatus[data-status="failed"] {
+  background: color-mix(in srgb, var(--color-danger, #f87171) 32%, transparent);
+  color: var(--color-danger, #f87171);
+}
+
+.documentStatus[data-status="running"],
+.documentStatus[data-status="queued"] {
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent);
+}
+
+.documentSummary {
+  margin: 12px 0 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.documentSnippet {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-2, rgba(255, 255, 255, 0.68));
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.documentEmpty {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.42));
+}
+
+.documentActions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.documentActionPrimary,
+.documentActionSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.documentActionPrimary {
+  border: none;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 72%, transparent),
+    color-mix(in srgb, #21c3fe 62%, transparent)
+  );
+  color: var(--text, rgba(255, 255, 255, 0.98));
+  box-shadow: 0 12px 28px rgba(33, 105, 255, 0.32);
+}
+
+.documentActionPrimary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(33, 105, 255, 0.38);
+}
+
+.documentActionPrimary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.documentActionSecondary {
+  border: 1px solid color-mix(in srgb, var(--surface-outline) 52%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 65%, transparent);
+  color: var(--text, rgba(255, 255, 255, 0.9));
+  text-decoration: none;
+}
+
+.documentActionSecondary:hover {
+  border-color: color-mix(in srgb, var(--card-hover-border, rgba(255, 255, 255, 0.2)) 85%, transparent);
+  transform: translateY(-1px);
+}
+
+.documentActionSecondary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.documentActionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .documentGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .documentCard {
+    padding: 14px;
   }
 }

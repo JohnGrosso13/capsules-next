@@ -66,7 +66,8 @@ type HomeFeedStoreDependencies = {
 
 function cloneAttachment(value: HomeFeedAttachment): HomeFeedAttachment {
   const variants = value.variants ? { ...value.variants } : null;
-  return { ...value, variants };
+  const meta = value.meta ? { ...value.meta } : null;
+  return { ...value, variants, meta };
 }
 
 function clonePosts(posts: HomeFeedPost[]): HomeFeedPost[] {

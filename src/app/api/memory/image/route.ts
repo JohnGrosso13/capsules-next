@@ -18,9 +18,11 @@ const requestSchema = z.object({
 });
 
 type MemoryMediaRow = {
+  id: string | null;
   owner_user_id: string | null;
   media_url: string | null;
   media_type: string | null;
+  view_count: number | null;
 };
 
 export const runtime = "nodejs";
@@ -31,7 +33,7 @@ async function fetchModernMemory(
 ): Promise<MemoryMediaRow | null | undefined> {
   const result = await db
     .from("memories")
-    .select<MemoryMediaRow>("owner_user_id, media_url, media_type")
+    .select<MemoryMediaRow>("id, owner_user_id, media_url, media_type, view_count")
     .eq("id", memoryId)
     .maybeSingle();
 
@@ -44,7 +46,19 @@ async function fetchModernMemory(
 
   if (!result.data) return null;
   if (result.data.owner_user_id !== ownerId) return null;
-  return result.data;
+  if (!result.data) return null;
+  return {
+    id: typeof result.data.id === "string" ? result.data.id : null,
+    owner_user_id: result.data.owner_user_id,
+    media_url: result.data.media_url,
+    media_type: result.data.media_type,
+    view_count:
+      typeof result.data.view_count === "number"
+        ? result.data.view_count
+        : typeof (result.data as { view_count?: unknown }).view_count === "string"
+          ? Number((result.data as { view_count?: string }).view_count) || 0
+          : 0,
+  };
 }
 
 async function fetchLegacyMemory(
@@ -87,14 +101,16 @@ async function fetchLegacyMemory(
         continue;
       }
 
-      return {
-        owner_user_id: ownerId,
-        media_url: mediaUrl,
-        media_type:
-          typeof normalized.media_type === "string" && normalized.media_type.trim().length
-            ? normalized.media_type.trim()
-            : null,
-      };
+  return {
+    id: null,
+    owner_user_id: ownerId,
+    media_url: mediaUrl,
+    media_type:
+      typeof normalized.media_type === "string" && normalized.media_type.trim().length
+        ? normalized.media_type.trim()
+        : null,
+    view_count: null,
+  };
     } catch (error) {
       console.warn("memory legacy lookup error", column, error);
     }
@@ -150,7 +166,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Memory media unavailable." }, { status: 404 });
     }
 
-        const baseOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
+    const memoryIdForAudit = record.id;
+    if (memoryIdForAudit) {
+      try {
+        await db.rpc("mark_memory_view", {
+          p_memory_id: memoryIdForAudit,
+          p_viewer_id: ownerId,
+        });
+      } catch (auditError) {
+        console.warn("memory view audit failed", auditError);
+      }
+    }
+
+    const baseOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
     const absoluteUrl = resolveToAbsoluteUrl(mediaUrl, baseOrigin);
     if (!absoluteUrl) {
       return NextResponse.json({ error: "Memory media unavailable." }, { status: 400 });

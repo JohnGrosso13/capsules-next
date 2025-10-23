@@ -216,6 +216,12 @@ export function normalizePosts(rawPosts: unknown[]): HomeFeedPost[] {
         };
       })();
 
+      const metaRaw = (data as { meta?: unknown }).meta;
+      const meta =
+        metaRaw && typeof metaRaw === "object" && !Array.isArray(metaRaw)
+          ? { ...(metaRaw as Record<string, unknown>) }
+          : null;
+
       const identifierValue = data["id"];
       const id =
         typeof identifierValue === "string"
@@ -232,6 +238,7 @@ export function normalizePosts(rawPosts: unknown[]): HomeFeedPost[] {
         thumbnailUrl: thumbnailUrl ?? null,
         storageKey: storageKey ?? null,
         variants,
+        meta,
       });
     }
 

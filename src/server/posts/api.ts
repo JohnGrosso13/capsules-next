@@ -10,6 +10,7 @@ import {
   shouldUseCloudflareImagesForOrigin,
 } from "@/lib/cloudflare/runtime";
 import { createPostRecord } from "@/lib/supabase/posts";
+import { mergeUploadMetadata } from "@/lib/uploads/metadata";
 import { listUploadSessionsByIds, type UploadSessionRecord } from "@/server/memories/uploads";
 import {
   ensureAccessibleMediaUrl,
@@ -20,6 +21,7 @@ import {
   readContentType,
   type NormalizedAttachment,
 } from "@/server/posts/media";
+import { sanitizeMemoryMeta } from "@/server/memories/service";
 import {
   buildFallbackPosts,
   normalizePost,
@@ -420,6 +422,111 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                 mimeType = "image/jpeg";
               }
 
+              let sanitizedMeta: Record<string, unknown> | null = null;
+              try {
+                const sanitizedPrimaryRaw = await sanitizeMemoryMeta(meta, originForAssets);
+                const sanitizedSessionRaw = sessionMetadata
+                  ? await sanitizeMemoryMeta(sessionMetadata, originForAssets)
+                  : null;
+
+                const baseMeta =
+                  sanitizedSessionRaw &&
+                  typeof sanitizedSessionRaw === "object" &&
+                  !Array.isArray(sanitizedSessionRaw)
+                    ? (sanitizedSessionRaw as Record<string, unknown>)
+                    : sessionMetadata &&
+                        typeof sessionMetadata === "object" &&
+                        !Array.isArray(sessionMetadata)
+                      ? (sessionMetadata as Record<string, unknown>)
+                      : null;
+
+                const updateMeta =
+                  sanitizedPrimaryRaw &&
+                  typeof sanitizedPrimaryRaw === "object" &&
+                  !Array.isArray(sanitizedPrimaryRaw)
+                    ? (sanitizedPrimaryRaw as Record<string, unknown>)
+                    : meta && typeof meta === "object" && !Array.isArray(meta)
+                      ? (meta as Record<string, unknown>)
+                      : null;
+
+                sanitizedMeta =
+                  baseMeta || updateMeta ? mergeUploadMetadata(baseMeta, updateMeta ?? {}) : null;
+              } catch (metaError) {
+                console.warn("attachment meta sanitize failed", metaError);
+                sanitizedMeta =
+                  meta && typeof meta === "object" && !Array.isArray(meta)
+                    ? { ...meta }
+                    : null;
+              }
+
+              if (sessionRecord?.derived_assets && Array.isArray(sessionRecord.derived_assets)) {
+                try {
+                  const sanitizedDerivedAssets = await Promise.all(
+                    sessionRecord.derived_assets.map(async (asset) => {
+                      if (!asset || typeof asset !== "object" || Array.isArray(asset)) {
+                        return asset as Record<string, unknown>;
+                      }
+                      const assetRecord = { ...(asset as Record<string, unknown>) };
+                      if (typeof assetRecord.url === "string" && assetRecord.url.trim().length) {
+                        const safeUrl = await ensureAccessibleMediaUrl(assetRecord.url);
+                        if (safeUrl) {
+                          assetRecord.url = safeUrl;
+                        }
+                      }
+                      return assetRecord;
+                    }),
+                  );
+                  if (sanitizedDerivedAssets.length) {
+                    sanitizedMeta = mergeUploadMetadata(sanitizedMeta, {
+                      derived_assets: sanitizedDerivedAssets,
+                    });
+                  }
+                } catch (derivedError) {
+                  console.warn("attachment derived asset sanitize failed", derivedError);
+                }
+              }
+
+              const extraMeta: Record<string, unknown> = {};
+              const memoryIdRaw = row?.id;
+              if (typeof memoryIdRaw === "string" && memoryIdRaw.trim().length) {
+                extraMeta.memory_id = memoryIdRaw.trim();
+              } else if (typeof memoryIdRaw === "number") {
+                extraMeta.memory_id = String(memoryIdRaw);
+              }
+              if (typeof row?.description === "string" && row.description.trim().length) {
+                extraMeta.memory_description = row.description.trim();
+              }
+              const versionIndexRaw = (row as { version_index?: unknown }).version_index;
+              if (typeof versionIndexRaw === "number" && Number.isFinite(versionIndexRaw)) {
+                extraMeta.version_index = versionIndexRaw;
+              } else if (typeof versionIndexRaw === "string") {
+                const parsed = Number(versionIndexRaw);
+                if (Number.isFinite(parsed)) {
+                  extraMeta.version_index = parsed;
+                }
+              }
+              const versionGroupRaw = (row as { version_group_id?: unknown }).version_group_id;
+              if (typeof versionGroupRaw === "string" && versionGroupRaw.trim().length) {
+                extraMeta.version_group_id = versionGroupRaw.trim();
+              }
+              const viewCountRaw = (row as { view_count?: unknown }).view_count;
+              if (typeof viewCountRaw === "number" && Number.isFinite(viewCountRaw)) {
+                extraMeta.view_count = viewCountRaw;
+              } else if (typeof viewCountRaw === "string") {
+                const parsed = Number(viewCountRaw);
+                if (Number.isFinite(parsed)) {
+                  extraMeta.view_count = parsed;
+                }
+              }
+              const uploadedByRaw = (row as { uploaded_by?: unknown }).uploaded_by;
+              if (typeof uploadedByRaw === "string" && uploadedByRaw.trim().length) {
+                extraMeta.uploaded_by = uploadedByRaw.trim();
+              }
+
+              if (Object.keys(extraMeta).length) {
+                sanitizedMeta = mergeUploadMetadata(sanitizedMeta, extraMeta);
+              }
+
               let variants: CloudflareImageVariantSet | null = null;
               if (isLikelyImage(mimeType, url)) {
                 if (cloudflareEnabled && cloudflareOrigin) {
@@ -462,6 +569,7 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                 storageKey: storageKey ?? null,
                 uploadSessionId: uploadSessionId ?? null,
                 variants,
+                meta: sanitizedMeta ?? null,
               };
 
               return { postId, attachment };

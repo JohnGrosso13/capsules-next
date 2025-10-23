@@ -12,6 +12,7 @@ export type NormalizedAttachment = {
   storageKey: string | null;
   uploadSessionId?: string | null;
   variants?: CloudflareImageVariantSet | null;
+  meta?: Record<string, unknown> | null;
 };
 
 export function parsePublicStorageObject(url: string): { bucket: string; key: string } | null {

@@ -25,6 +25,10 @@ export type UploadSessionRecord = {
   total_parts: number | null;
   checksum: string | null;
   metadata: Record<string, unknown> | null;
+  uploaded_by: string | null;
+  last_accessed_by: string | null;
+  last_accessed_at: string | null;
+  access_count: number;
   derived_assets: Array<Record<string, unknown>> | null;
   status: UploadSessionStatus;
   client_ip: string | null;
@@ -67,6 +71,27 @@ function mapRow(row: Record<string, unknown>): UploadSessionRecord | null {
         metadataValue && typeof metadataValue === "object"
           ? (metadataValue as Record<string, unknown>)
           : null,
+      uploaded_by:
+        typeof (row as { uploaded_by?: unknown }).uploaded_by === "string"
+          ? ((row as { uploaded_by: string }).uploaded_by as string)
+          : null,
+      last_accessed_by:
+        typeof (row as { last_accessed_by?: unknown }).last_accessed_by === "string"
+          ? ((row as { last_accessed_by: string }).last_accessed_by as string)
+          : null,
+      last_accessed_at:
+        typeof (row as { last_accessed_at?: unknown }).last_accessed_at === "string"
+          ? ((row as { last_accessed_at: string }).last_accessed_at as string)
+          : null,
+      access_count: (() => {
+        const value = (row as { access_count?: unknown }).access_count;
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+        if (typeof value === "string") {
+          const parsed = Number(value);
+          if (Number.isFinite(parsed)) return parsed;
+        }
+        return 0;
+      })(),
       derived_assets: Array.isArray(derivedValue)
         ? (derivedValue as Array<Record<string, unknown>>)
         : null,
@@ -114,6 +139,7 @@ export async function createUploadSessionRecord(options: {
   turnstileAction?: string | null;
   turnstileCdata?: string | null;
   clientIp?: string | null;
+  uploadedBy?: string | null;
 }): Promise<UploadSessionRecord | null> {
   const result = await db
     .from("media_upload_sessions")
@@ -132,6 +158,7 @@ export async function createUploadSessionRecord(options: {
       turnstile_action: options.turnstileAction ?? null,
       turnstile_cdata: options.turnstileCdata ?? null,
       client_ip: options.clientIp ?? null,
+      uploaded_by: options.uploadedBy ?? options.ownerId,
       status: "initialized",
     })
     .select<Record<string, unknown>>("*")

@@ -17,7 +17,7 @@ import { ensureAccessibleMediaUrl } from "@/server/posts/media";
 const db = getDatabaseAdminClient();
 const DEFAULT_LIST_LIMIT = 200;
 const MEMORY_FIELDS =
-  "id, owner_user_id, kind, post_id, title, description, media_url, media_type, meta, created_at";
+  "id, owner_user_id, kind, post_id, title, description, media_url, media_type, meta, created_at, uploaded_by, last_viewed_by, last_viewed_at, view_count, version_group_id, version_of, version_index, is_latest";
 
 type MemoryRow = {
   id: string;
@@ -30,6 +30,14 @@ type MemoryRow = {
   media_type: string | null;
   meta: Record<string, unknown> | null;
   created_at: string | null;
+  uploaded_by?: string | null;
+  last_viewed_by?: string | null;
+  last_viewed_at?: string | null;
+  view_count?: number | null;
+  version_group_id?: string | null;
+  version_of?: string | null;
+  version_index?: number | null;
+  is_latest?: boolean | null;
 };
 
 type MemoryIdRow = {
@@ -92,7 +100,7 @@ async function rewritePotentialMediaUrl(
   return resolveToAbsoluteUrl(candidate, effectiveOrigin) ?? candidate;
 }
 
-async function sanitizeMemoryMeta(
+export async function sanitizeMemoryMeta(
   meta: unknown,
   origin: string | null | undefined,
 ): Promise<unknown> {
@@ -213,6 +221,69 @@ export async function indexMemory({
     delete meta.embedding;
   }
 
+  const versionKeyCandidates: Array<unknown> = [
+    (meta as { version_of?: unknown }).version_of,
+    (meta as { versionOf?: unknown }).versionOf,
+    (meta as { replace_memory_id?: unknown }).replace_memory_id,
+    (meta as { replaceMemoryId?: unknown }).replaceMemoryId,
+  ];
+
+  let versionOf: string | null = null;
+  let versionGroupIdOverride: string | null = null;
+  let versionIndexOverride: number | null = null;
+
+  const versionTargetRaw = versionKeyCandidates.find(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+
+  if (versionTargetRaw) {
+    const normalizedTarget = versionTargetRaw.trim();
+    try {
+      const base = await db
+        .from("memories")
+        .select<{
+          id: string;
+          owner_user_id: string | null;
+          version_group_id: string | null;
+          version_index: number | null;
+        }>("id, owner_user_id, version_group_id, version_index")
+        .eq("id", normalizedTarget)
+        .maybeSingle();
+
+      if (!base.error && base.data && base.data.owner_user_id === ownerId) {
+        versionOf = base.data.id;
+        versionGroupIdOverride = base.data.version_group_id ?? base.data.id;
+        versionIndexOverride = (base.data.version_index ?? 1) + 1;
+
+        if (versionGroupIdOverride) {
+          try {
+            const latest = await db
+              .from("memories")
+              .select<{ version_index: number | null }>("version_index")
+              .eq("version_group_id", versionGroupIdOverride)
+              .order("version_index", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (!latest.error && latest.data && typeof latest.data.version_index === "number") {
+              versionIndexOverride = latest.data.version_index + 1;
+            }
+          } catch (versionLookupError) {
+            console.warn("memory version index resolve failed", versionLookupError);
+          }
+        }
+      }
+    } catch (versionResolveError) {
+      console.warn("memory version resolve failed", versionResolveError);
+    }
+  }
+
+  ["version_of", "versionOf", "replace_memory_id", "replaceMemoryId"].forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(meta, key)) {
+      delete (meta as Record<string, unknown>)[key];
+    }
+  });
+
   const originalTitle = typeof title === "string" && title.trim().length ? title.trim() : null;
   const originalDescription =
     typeof description === "string" && description.trim().length ? description.trim() : null;
@@ -315,6 +386,8 @@ export async function indexMemory({
     meta.original_text = originalDescription;
   }
 
+  const versionGroupForUpdate = versionOf ? versionGroupIdOverride : null;
+
   const record: Record<string, unknown> = {
     owner_user_id: ownerId,
     kind,
@@ -324,7 +397,19 @@ export async function indexMemory({
     description: finalDescription ?? null,
     post_id: postId,
     meta,
+    uploaded_by: ownerId,
+    is_latest: true,
   };
+
+  if (versionOf) {
+    record.version_of = versionOf;
+  }
+  if (versionGroupIdOverride) {
+    record.version_group_id = versionGroupIdOverride;
+  }
+  if (typeof versionIndexOverride === "number") {
+    record.version_index = versionIndexOverride;
+  }
 
   const embeddingSource = [
     finalTitle,
@@ -376,6 +461,18 @@ export async function indexMemory({
     const inserted = result.data;
     const memoryId = toStringId(inserted?.id);
     if (!memoryId) return;
+
+    if (versionGroupForUpdate) {
+      try {
+        await db
+          .from("memories")
+          .update({ is_latest: false })
+          .eq("version_group_id", versionGroupForUpdate)
+          .neq("id", memoryId);
+      } catch (latestUpdateError) {
+        console.warn("memory latest flag update failed", latestUpdateError);
+      }
+    }
 
     if (embedding && embedding.length) {
       try {
@@ -583,10 +680,9 @@ export async function listMemories({
 
   let builder = db
     .from("memories")
-    .select<
-      Record<string, unknown>
-    >("id, kind, media_url, media_type, title, description, created_at, meta")
+    .select<Record<string, unknown>>(MEMORY_FIELDS)
     .eq("owner_user_id", ownerId)
+    .eq("is_latest", true)
     .order("created_at", { ascending: false })
     .limit(DEFAULT_LIST_LIMIT);
 
@@ -704,10 +800,9 @@ export async function searchMemories({
   try {
     const result = await db
       .from("memories")
-      .select<
-        Record<string, unknown>
-      >("id, kind, media_url, media_type, title, description, created_at, meta")
+      .select<Record<string, unknown>>(MEMORY_FIELDS)
       .in("id", ids)
+      .eq("is_latest", true)
       .fetch();
 
     const map = new Map<string, Record<string, unknown>>();
