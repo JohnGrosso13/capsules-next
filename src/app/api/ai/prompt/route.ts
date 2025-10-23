@@ -32,6 +32,9 @@ const attachmentSchema = z.object({
   thumbnailUrl: z.string().optional().nullable(),
   storageKey: z.string().optional().nullable(),
   sessionId: z.string().optional().nullable(),
+  role: z.enum(["reference", "output"]).optional(),
+  source: z.string().optional().nullable(),
+  excerpt: z.string().optional().nullable(),
 });
 
 const historyMessageSchema = z.object({
@@ -121,6 +124,9 @@ function buildAssistantAttachments(
       thumbnailUrl: thumbnail && thumbnail.length ? thumbnail : null,
       storageKey: null,
       sessionId: null,
+      role: "output",
+      source: "ai",
+      excerpt: null,
     },
   ];
 }
@@ -401,4 +407,3 @@ export async function POST(req: Request) {
 }
 
 export const runtime = "nodejs";
-

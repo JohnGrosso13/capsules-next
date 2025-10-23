@@ -21,6 +21,8 @@ const sampleAttachment: LocalAttachment = {
   status: "ready",
   url: "https://example.com/sunset.png",
   progress: 100,
+  role: "reference",
+  source: "user",
 };
 
 const suggestedTools: Array<{ key: PrompterToolKey; label: string }> = [

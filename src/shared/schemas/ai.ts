@@ -19,6 +19,9 @@ export const composerAttachmentSchema = z.object({
   thumbnailUrl: z.string().nullable().optional(),
   storageKey: z.string().nullable().optional(),
   sessionId: z.string().nullable().optional(),
+  role: z.enum(["reference", "output"]).optional(),
+  source: z.string().nullable().optional(),
+  excerpt: z.string().nullable().optional(),
 });
 
 export const composerChatMessageSchema = z.object({

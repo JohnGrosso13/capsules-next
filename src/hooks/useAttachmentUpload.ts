@@ -8,6 +8,8 @@ import { uploadFileDirect } from "@/lib/uploads/direct-client";
 const DEFAULT_MAX_SIZE = 50 * 1024 * 1024 * 1024; // 50 GB
 const BASE64_FALLBACK_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
+export type AttachmentRole = "reference" | "output";
+
 export type LocalAttachment = {
   id: string;
   name: string;
@@ -20,6 +22,8 @@ export type LocalAttachment = {
   progress: number;
   key?: string;
   sessionId?: string | null;
+  role: AttachmentRole;
+  source?: "upload" | "memory" | "user" | "ai";
 };
 
 type DirectUploadResult = Awaited<ReturnType<typeof uploadFileDirect>>;
@@ -226,6 +230,8 @@ function createErrorAttachment(
     url: null,
     error: message,
     progress: 0,
+    role: "reference",
+    source: "upload",
   };
 }
 
@@ -291,6 +297,8 @@ function useAttachmentProcessor(
         url: null,
         thumbUrl: null,
         progress: 0,
+        role: "reference",
+        source: "upload",
       });
 
       try {
@@ -552,6 +560,8 @@ export function useAttachmentUpload(maxSizeBytes = DEFAULT_MAX_SIZE) {
         url: null,
         thumbUrl: options.thumbUrl ?? null,
         progress: 0.05,
+        role: "reference",
+        source: "memory",
       });
 
       if (typeof window === "undefined") {

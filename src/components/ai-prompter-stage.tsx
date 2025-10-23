@@ -55,6 +55,9 @@ export type PrompterAttachment = {
   thumbnailUrl?: string | null | undefined;
   storageKey?: string | null;
   sessionId?: string | null;
+  role?: "reference" | "output";
+  source?: "user" | "memory" | "upload" | "ai";
+  excerpt?: string | null;
 };
 
 export type PrompterAction =
@@ -459,6 +462,8 @@ export function AiPrompterStage({
               thumbnailUrl: readyAttachment.thumbUrl ?? undefined,
               storageKey: readyAttachment.key ?? null,
               sessionId: readyAttachment.sessionId ?? null,
+              role: readyAttachment.role ?? "reference",
+              source: readyAttachment.source ?? "upload",
             },
           ]
         : null;

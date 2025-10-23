@@ -558,6 +558,8 @@ export function ComposerForm({
         url: workingDraft.mediaUrl,
         progress: 1,
         thumbUrl: null,
+        role: "reference",
+        source: "ai",
       };
     }
     return null;
@@ -1869,7 +1871,6 @@ export function ComposerForm({
     </div>
   );
 }
-
 
 
 

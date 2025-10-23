@@ -11,6 +11,9 @@ export type ComposerChatAttachment = {
   thumbnailUrl?: string | null;
   storageKey?: string | null;
   sessionId?: string | null;
+  role?: "reference" | "output";
+  source?: string | null;
+  excerpt?: string | null;
 };
 
 export type ComposerChatMessage = {
@@ -43,6 +46,14 @@ export function sanitizeComposerChatAttachment(
       : 0;
   const url = typeof record.url === "string" && record.url.trim().length ? record.url.trim() : null;
   if (!url) return null;
+  const role =
+    typeof record.role === "string" && (record.role === "reference" || record.role === "output")
+      ? (record.role as "reference" | "output")
+      : "reference";
+  const source =
+    typeof record.source === "string" && record.source.trim().length ? record.source.trim() : null;
+  const excerpt =
+    typeof record.excerpt === "string" && record.excerpt.trim().length ? record.excerpt.trim() : null;
   return {
     id: record.id,
     name: record.name.trim(),
@@ -61,6 +72,9 @@ export function sanitizeComposerChatAttachment(
       typeof record.sessionId === "string" && record.sessionId.trim().length
         ? record.sessionId.trim()
         : null,
+    role,
+    source,
+    excerpt,
   };
 }
 
@@ -101,4 +115,3 @@ export function sanitizeComposerChatHistory(value: unknown): ComposerChatMessage
   }
   return sanitized;
 }
-
