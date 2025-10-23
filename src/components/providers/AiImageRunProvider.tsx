@@ -348,13 +348,14 @@ export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
   );
 
   React.useEffect(() => {
+    const timers = timersRef.current;
     return () => {
-      timersRef.current.forEach((handle) => {
+      timers.forEach((handle) => {
         if (typeof handle === "number") {
           window.clearTimeout(handle);
         }
       });
-      timersRef.current.clear();
+      timers.clear();
     };
   }, []);
 

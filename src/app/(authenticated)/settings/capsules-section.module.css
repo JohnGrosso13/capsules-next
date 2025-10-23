@@ -3,8 +3,10 @@
   gap: 16px;
 }
 
-.warning {
-  margin: 4px 0 6px;
+.intro {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  color: color-mix(in srgb, var(--text-2, rgba(255, 255, 255, 0.72)) 85%, transparent);
 }
 
 .statusRow {
@@ -40,12 +42,19 @@
   -webkit-backdrop-filter: blur(6px) saturate(120%);
 }
 
-.info {
+.item:hover {
+  border-color: color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.45)) 80%, transparent);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.12) 38%, transparent);
+}
+
+.itemLink {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
   flex: 1 1 0;
+  text-decoration: none;
+  color: inherit;
 }
 
 .avatar {
@@ -152,6 +161,67 @@
   color: var(--color-danger, #f87171);
 }
 
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: color-mix(in srgb, rgba(8, 9, 20, 0.72) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modalPanel {
+  width: min(420px, 100%);
+  border-radius: 20px;
+  background: color-mix(in srgb, rgba(18, 20, 38, 0.92) 85%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.18)) 80%, transparent);
+  box-shadow: 0 24px 60px rgba(3, 6, 25, 0.35);
+  padding: 24px 26px 22px;
+  display: grid;
+  gap: 16px;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text, rgba(255, 255, 255, 0.95));
+}
+
+.modalDescription {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--text-2, rgba(255, 255, 255, 0.72)) 90%, transparent);
+}
+
+.modalDanger {
+  font-weight: 600;
+  color: var(--color-danger, #f87171);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.modalDeleteButton {
+  background: color-mix(in srgb, rgba(248, 113, 113, 0.92) 90%, rgba(0, 0, 0, 0));
+  color: rgba(24, 9, 12, 0.92);
+  border-color: transparent;
+}
+
+.modalDeleteButton:hover {
+  background: color-mix(in srgb, rgba(248, 113, 113, 0.98) 95%, rgba(0, 0, 0, 0));
+}
+
 @media (max-width: 640px) {
   .item {
     flex-direction: column;
@@ -161,5 +231,9 @@
 
   .actions {
     justify-content: flex-end;
+  }
+
+  .modalPanel {
+    padding: 22px 20px 20px;
   }
 }

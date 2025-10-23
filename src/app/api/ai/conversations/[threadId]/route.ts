@@ -1,10 +1,7 @@
 import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import {
-  sanitizeComposerChatHistory,
-  type ComposerChatMessage,
-} from "@/lib/composer/chat-types";
+import { sanitizeComposerChatHistory } from "@/lib/composer/chat-types";
 import { composerChatMessageSchema } from "@/shared/schemas/ai";
 import { returnError, validatedJson } from "@/server/validation/http";
 import { loadConversationSnapshot } from "@/server/ai/conversation-store";

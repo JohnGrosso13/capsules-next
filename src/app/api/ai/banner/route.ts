@@ -198,10 +198,12 @@ export async function POST(req: Request) {
     imageData,
     stylePreset,
     capsuleId: capsuleIdRaw,
-    variantId,
-    maskData,
-    stylePersonaId,
-  } = parsed.data;
+  variantId,
+  maskData,
+  stylePersonaId,
+  seed,
+  guidance,
+} = parsed.data;
   const capsuleId = typeof capsuleIdRaw === "string" ? capsuleIdRaw : undefined;
   const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
