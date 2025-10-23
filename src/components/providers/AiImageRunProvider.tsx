@@ -81,11 +81,8 @@ function formatAsset(kind: string, mode: RunMode): { title: string; action: stri
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
   const normalizedLabel = transformedLabel && transformedLabel.length ? transformedLabel : "Image";
-  const title = mode === "edit" ? `${normalizedLabel} edit` : `${normalizedLabel} generation`;
-  const action =
-    mode === "edit"
-      ? `editing the ${normalizedLabel.toLowerCase()}`
-      : `generating a ${normalizedLabel.toLowerCase()}`;
+  const title = mode === "edit" ? `Updating ${normalizedLabel}` : `Generating ${normalizedLabel}`;
+  const action = mode === "edit" ? `applying your changes` : `creating your ${normalizedLabel.toLowerCase()}`;
   return { title, action };
 }
 
@@ -331,15 +328,15 @@ export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
         if (event.status === "succeeded") {
           upsertNotification(event.runId, {
             status: "success",
-            message: "Image ready! Preview will refresh shortly.",
+            message: "Ready! Preview will refresh shortly.",
             detail: null,
           });
           scheduleRemoval(event.runId, REMOVE_DELAY_SUCCESS);
         } else {
-          const detail = truncate(event.errorMessage || event.errorCode || "Image generation failed.", 160);
+          const detail = truncate(event.errorMessage || event.errorCode || "Couldn't create the image.", 160);
           upsertNotification(event.runId, {
             status: "error",
-            message: "Image generation failed.",
+            message: "Couldn't create the image.",
             detail,
           });
           scheduleRemoval(event.runId, REMOVE_DELAY_ERROR);
@@ -474,7 +471,13 @@ export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
                     <span className={styles.dot} data-status={item.status} aria-hidden="true" />
                     <span className={styles.title}>{item.title}</span>
                   </div>
-                  <p className={styles.message}>{item.message}</p>
+                  <p className={styles.message}>
+                    {item.status === "running"
+                      ? item.mode === "edit"
+                        ? "Applying your changes..."
+                        : "Working..."
+                      : item.message}
+                  </p>
                   {item.detail ? <p className={styles.detail}>{item.detail}</p> : null}
                 </div>
               ))}
