@@ -1,7 +1,7 @@
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { hasOpenAIApiKey } from "@/adapters/ai/openai/server";
+import { safeRandomUUID } from "@/lib/random";
 import { createPollDraft, createPostDraft, refinePostDraft, type PromptClarifierInput } from "@/lib/ai/prompter";
 import {
   sanitizeComposerChatAttachment,
@@ -53,12 +53,7 @@ const requestSchema = z.object({
 });
 
 function generateThreadId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  const random = Math.random().toString(36).slice(2);
-  const timestamp = Date.now().toString(36);
-  return `thread-${timestamp}-${random}`;
+  return safeRandomUUID();
 }
 
 function coerceThreadId(value: unknown): string {
@@ -118,7 +113,7 @@ function buildAssistantAttachments(
         : null;
   return [
     {
-      id: randomUUID(),
+      id: safeRandomUUID(),
       name: kind === "video" ? "Generated clip" : "Generated visual",
       mimeType,
       size: 0,
@@ -269,7 +264,7 @@ export async function POST(req: Request) {
     }
 
     const userEntry: ComposerChatMessage = {
-      id: randomUUID(),
+      id: safeRandomUUID(),
       role: "user",
       content: message,
       createdAt: new Date().toISOString(),
@@ -312,7 +307,7 @@ export async function POST(req: Request) {
       const assistantMessage = assistantLines.join("\n").trim();
 
       const assistantEntry: ComposerChatMessage = {
-        id: randomUUID(),
+        id: safeRandomUUID(),
         role: "assistant",
         content: assistantMessage,
         createdAt: new Date().toISOString(),
@@ -363,7 +358,7 @@ export async function POST(req: Request) {
       validated.post ?? null,
     );
     const assistantEntry: ComposerChatMessage = {
-      id: randomUUID(),
+      id: safeRandomUUID(),
       role: "assistant",
       content: assistantMessage,
       createdAt: new Date().toISOString(),
@@ -405,5 +400,5 @@ export async function POST(req: Request) {
   }
 }
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 

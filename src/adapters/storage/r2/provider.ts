@@ -1,5 +1,7 @@
 import "server-only";
 
+import "@/lib/polyfills/dom-parser";
+
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,

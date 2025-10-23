@@ -1,19 +1,6 @@
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
-if (typeof (globalThis as { DOMParser?: unknown }).DOMParser !== "function") {
-  class BasicDOMParser {
-    parseFromString(markup: string) {
-      const textContent = String(markup ?? "");
-      const node = { textContent, innerHTML: textContent };
-      return {
-        textContent,
-        documentElement: node,
-        body: node,
-      } as unknown;
-    }
-  }
-  (globalThis as { DOMParser: unknown }).DOMParser = BasicDOMParser as unknown;
-}
+import "@/lib/polyfills/dom-parser";
 
 import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import {
@@ -22,7 +9,7 @@ import {
   type StabilityGenerateOptions,
 } from "@/adapters/ai/stability/server";
 import { serverEnv } from "../env/server";
-import { randomUUID } from "node:crypto";
+import { safeRandomUUID } from "@/lib/random";
 
 import { getDatabaseAdminClient } from "@/config/database";
 
@@ -732,7 +719,7 @@ async function maybeGenerateImageClarifier(
             .slice(0, 6)
         : [];
 
-    const questionId = clarifier?.questionId ?? randomUUID();
+    const questionId = clarifier?.questionId ?? safeRandomUUID();
 
     console.info("image_clarifier_question", {
       questionId,
