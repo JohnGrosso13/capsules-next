@@ -26,6 +26,12 @@ import {
   updateCapsulePromoTile,
   updateCapsuleLogo,
 } from "./repository";
+import {
+  isCapsuleMemberUiRole,
+  resolveViewerUiRole,
+  uiRoleToDbRole,
+  type CapsuleMemberUiRole,
+} from "./roles";
 import { indexMemory } from "@/server/memories/service";
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
@@ -40,7 +46,6 @@ export type {
 } from "@/types/capsules";
 
 const REQUEST_MESSAGE_MAX_LENGTH = 500;
-const CAPSULE_MEMBER_ROLES = new Set(["member", "leader", "admin", "founder"]);
 
 function normalizeId(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
@@ -64,12 +69,16 @@ function resolveCapsuleMediaUrl(
   return resolveToAbsoluteUrl(normalized, origin) ?? normalized;
 }
 
-function normalizeMemberRole(value: unknown): string {
-  const normalized = normalizeOptionalString(value)?.toLowerCase() ?? null;
-  if (!normalized || !CAPSULE_MEMBER_ROLES.has(normalized)) {
+function normalizeMemberRole(value: unknown): CapsuleMemberUiRole {
+  const normalized = normalizeOptionalString(value);
+  if (!normalized) {
     throw new CapsuleMembershipError("invalid", "Invalid capsule role.", 400);
   }
-  return normalized;
+  const lower = normalized.toLowerCase();
+  if (!isCapsuleMemberUiRole(lower)) {
+    throw new CapsuleMembershipError("invalid", "Invalid capsule role.", 400);
+  }
+  return lower as CapsuleMemberUiRole;
 }
 
 function normalizeRequestMessage(value: unknown): string | null {
@@ -666,7 +675,7 @@ export async function getCapsuleMembership(
       !isOwner &&
       !membershipRecord &&
       viewerRequest?.status !== "pending",
-    role: isOwner ? "owner" : normalizeOptionalString(membershipRecord?.role ?? null),
+    role: resolveViewerUiRole(membershipRecord?.role ?? null, isOwner),
     memberSince: membershipRecord?.joined_at ?? null,
     requestStatus: viewerRequest?.status ?? "none",
     requestId: viewerRequest?.id ?? null,
@@ -758,10 +767,14 @@ export async function approveCapsuleMemberRequest(
     );
   }
 
+  const uiRole: CapsuleMemberUiRole =
+    updated.role && isCapsuleMemberUiRole(updated.role) ? updated.role : "member";
+  const dbRole = uiRoleToDbRole(uiRole);
+
   await upsertCapsuleMember({
     capsuleId: capsuleIdValue,
     userId: updated.requesterId,
-    role: updated.role ?? "member",
+    role: dbRole,
   });
 
   return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
@@ -858,7 +871,7 @@ export async function setCapsuleMemberRole(
   const updated = await updateCapsuleMemberRole({
     capsuleId: capsuleIdValue,
     memberId: normalizedMemberId,
-    role: normalizedRole,
+    role: uiRoleToDbRole(normalizedRole),
   });
 
   if (!updated) {

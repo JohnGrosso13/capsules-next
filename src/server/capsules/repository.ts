@@ -6,6 +6,13 @@ import type {
   CapsuleMemberRequestSummary,
   CapsuleMemberSummary,
 } from "@/types/capsules";
+import {
+  dbRoleToUiRole,
+  isCapsuleMemberUiRole,
+  resolveMemberUiRole,
+  uiRoleToDbRole,
+  type CapsuleMemberDbRole,
+} from "./roles";
 
 const db = getDatabaseAdminClient();
 
@@ -155,14 +162,15 @@ function mapMemberRow(
   if (!userId) return null;
   const profile = mapProfile(row.user);
   const baseRole = normalizeString(row.role);
+  const isOwner = ownerId === userId || baseRole === "owner";
   return {
     userId,
-    role: baseRole,
+    role: resolveMemberUiRole(baseRole, isOwner),
     joinedAt: normalizeString(row.joined_at),
     name: profile?.name ?? normalizeString(row.user?.full_name ?? null),
     avatarUrl: profile?.avatarUrl ?? normalizeString(row.user?.avatar_url ?? null),
     userKey: profile?.userKey ?? normalizeString(row.user?.user_key ?? null),
-    isOwner: ownerId === userId || baseRole === "owner",
+    isOwner,
   };
 }
 
@@ -186,7 +194,7 @@ function mapRequestRow(row: CapsuleMemberRequestRow): CapsuleMemberRequestSummar
     requesterId,
     responderId: normalizeString(row.responded_by),
     status,
-    role: normalizeString(row.role),
+    role: dbRoleToUiRole(row.role),
     message: normalizeString(row.message),
     createdAt: normalizeString(row.created_at),
     respondedAt: normalizeString(row.responded_at),
@@ -207,6 +215,16 @@ function upsertSummary(
   if (!rawId) return;
   const id = String(rawId);
   const existing = map.get(id) ?? null;
+  const resolvedOwnership =
+    meta.ownership === "owner" || existing?.ownership === "owner" ? "owner" : "member";
+  const sourceRole = meta.role ?? existing?.role ?? null;
+  const normalizedSourceRole = normalizeString(sourceRole);
+  const resolvedRole =
+    resolvedOwnership === "owner"
+      ? "founder"
+      : normalizedSourceRole
+        ? dbRoleToUiRole(normalizedSourceRole) ?? normalizedSourceRole
+        : null;
 
   const baseSummary: CapsuleSummary = {
     id,
@@ -216,8 +234,8 @@ function upsertSummary(
     storeBannerUrl: normalizeString(capsule?.store_banner_url ?? null),
     promoTileUrl: normalizeString(capsule?.promo_tile_url ?? null),
     logoUrl: normalizeString(capsule?.logo_url ?? null),
-    role: normalizeString(meta.role ?? existing?.role ?? null),
-    ownership: meta.ownership === "owner" || existing?.ownership === "owner" ? "owner" : "member",
+    role: resolvedRole,
+    ownership: resolvedOwnership,
   };
 
   if (!existing) {
@@ -702,12 +720,29 @@ export async function upsertCapsuleMemberRequest(
     throw new Error("capsules.memberRequests.upsert: capsuleId and requesterId are required");
   }
 
+  const normalizedRoleInput = normalizeString(params.role ?? null);
+  let roleValue: CapsuleMemberDbRole = "member";
+  if (normalizedRoleInput) {
+    const lowerRole = normalizedRoleInput.toLowerCase();
+    if (isCapsuleMemberUiRole(lowerRole)) {
+      roleValue = uiRoleToDbRole(lowerRole);
+    } else if (
+      lowerRole === "owner" ||
+      lowerRole === "admin" ||
+      lowerRole === "moderator" ||
+      lowerRole === "member" ||
+      lowerRole === "guest"
+    ) {
+      roleValue = lowerRole as CapsuleMemberDbRole;
+    }
+  }
+
   const now = new Date().toISOString();
   const payload = {
     capsule_id: normalizedCapsuleId,
     requester_id: normalizedRequesterId,
     status: "pending",
-    role: params.role ?? "member",
+    role: roleValue,
     message: params.message ?? null,
     responded_by: null,
     responded_at: null,
