@@ -11,16 +11,23 @@ export type BannerCrop = {
   offsetY: number;
 };
 
+type MaskableBanner = { maskDataUrl?: string | null };
+
 export type SelectedBanner =
-  | ({ kind: "upload"; name: string; url: string; file: File | null } & { crop: BannerCrop })
   | ({
-      kind: "memory";
-      id: string;
-      title: string | null;
-      url: string;
-      fullUrl: string | null;
-    } & { crop: BannerCrop })
-  | { kind: "ai"; prompt: string };
+        kind: "upload";
+        name: string;
+        url: string;
+        file: File | null;
+      } & { crop: BannerCrop } & MaskableBanner)
+  | ({
+        kind: "memory";
+        id: string;
+        title: string | null;
+        url: string;
+        fullUrl: string | null;
+      } & { crop: BannerCrop } & MaskableBanner)
+  | ({ kind: "ai"; prompt: string } & MaskableBanner);
 
 export const capsuleVariantSchema = aiImageVariantSchema.pick({
   id: true,
@@ -47,6 +54,7 @@ export function cloneSelectedBanner(banner: SelectedBanner): SelectedBanner {
       url: banner.url,
       file: banner.file ?? null,
       crop: { ...banner.crop },
+      maskDataUrl: banner.maskDataUrl ?? null,
     };
   }
   if (banner.kind === "memory") {
@@ -57,6 +65,7 @@ export function cloneSelectedBanner(banner: SelectedBanner): SelectedBanner {
       url: banner.url,
       fullUrl: banner.fullUrl,
       crop: { ...banner.crop },
+      maskDataUrl: banner.maskDataUrl ?? null,
     };
   }
   return { ...banner };
@@ -89,6 +98,43 @@ export type CapsuleVariantState = {
   error: string | null;
   refresh: () => Promise<void>;
   select: (variant: CapsuleVariant) => void;
+};
+
+export type CapsuleStylePersona = {
+  id: string;
+  name: string;
+  palette: string | null;
+  medium: string | null;
+  camera: string | null;
+  notes: string | null;
+  capsuleId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CapsuleAdvancedOptionsState = {
+  seed: number | null;
+  guidance: number | null;
+  setSeed: (value: number | null) => void;
+  setGuidance: (value: number | null) => void;
+  clear: () => void;
+};
+
+export type CapsulePersonaState = {
+  items: CapsuleStylePersona[];
+  loading: boolean;
+  error: string | null;
+  selectedId: string | null;
+  refresh: () => Promise<void>;
+  select: (personaId: string | null) => void;
+  create: (input: {
+    name: string;
+    palette?: string | null;
+    medium?: string | null;
+    camera?: string | null;
+    notes?: string | null;
+  }) => Promise<void>;
+  remove: (personaId: string) => Promise<void>;
 };
 
 export type PromptHistorySnapshot = {

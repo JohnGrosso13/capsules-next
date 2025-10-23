@@ -3,6 +3,8 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
 import { composeUserLedPrompt } from "@/lib/ai/prompt-styles";
+import { mergePersonaCues, type StylePersonaPromptData } from "@/lib/ai/style-persona";
+import { getStylePersona, type CapsuleStylePersonaRecord } from "@/server/capsules/style-personas";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { aiImageVariantSchema } from "@/shared/schemas/ai";
 import { createAiImageVariant, type AiImageVariantRecord } from "@/server/ai/image-variants";
@@ -25,6 +27,10 @@ const requestSchema = z.object({
   stylePreset: z.string().min(1).optional(),
   capsuleId: z.string().uuid().optional(),
   variantId: z.string().uuid().optional(),
+  stylePersonaId: z.string().uuid().optional(),
+  maskData: z.string().min(1).optional(),
+  seed: z.coerce.number().int().min(0).optional(),
+  guidance: z.coerce.number().min(0).max(30).optional(),
 });
 
 const variantResponseSchema = aiImageVariantSchema.pick({
@@ -122,31 +128,38 @@ function toVariantResponse(record: AiImageVariantRecord | null): VariantResponse
   };
 }
 
-function buildGenerationPrompt(prompt: string, displayName: string, stylePreset?: string | null): string {
+function buildGenerationPrompt(
+  prompt: string,
+  displayName: string,
+  stylePreset?: string | null,
+  persona?: StylePersonaPromptData | null,
+): string {
   const safeName = displayName.trim().length ? displayName.trim() : "the profile owner";
+  const baseCues = {
+    composition: [
+      "Center the subject with a gentle edge fade so it fits cleanly inside a circular mask.",
+      "Keep the background understated to maintain clarity at profile-photo scale.",
+    ],
+    lighting: [
+      "Use flattering, diffused lighting that avoids harsh shadows and highlights facial features softly.",
+    ],
+    palette: [
+      "Choose balanced colors that stay readable on both light and dark UI themes.",
+    ],
+    medium: [
+      "Lean toward modern digital illustration or photoreal rendering depending on the user prompt.",
+    ],
+    mood: [
+      "Aim for confident, approachable energy unless the user suggests otherwise.",
+    ],
+  };
+  const mergedCues = mergePersonaCues(baseCues, persona ?? null);
   return composeUserLedPrompt({
     userPrompt: prompt,
     objective: `Create a polished avatar portrait that represents ${safeName}.`,
     subjectContext:
       "The avatar should remain legible when cropped inside a circle and displayed at small sizes.",
-    baseCues: {
-      composition: [
-        "Center the subject with a gentle edge fade so it fits cleanly inside a circular mask.",
-        "Keep the background understated to maintain clarity at profile-photo scale.",
-      ],
-      lighting: [
-        "Use flattering, diffused lighting that avoids harsh shadows and highlights facial features softly.",
-      ],
-      palette: [
-        "Choose balanced colors that stay readable on both light and dark UI themes.",
-      ],
-      medium: [
-        "Lean toward modern digital illustration or photoreal rendering depending on the user prompt.",
-      ],
-      mood: [
-        "Aim for confident, approachable energy unless the user suggests otherwise.",
-      ],
-    },
+    baseCues: mergedCues,
     baseConstraints: [
       "Avoid text, logos, or watermarks.",
       "Do not introduce heavy borders or distracting patterns.",
@@ -155,24 +168,30 @@ function buildGenerationPrompt(prompt: string, displayName: string, stylePreset?
   });
 }
 
-function buildEditInstruction(prompt: string, stylePreset?: string | null): string {
+function buildEditInstruction(
+  prompt: string,
+  stylePreset?: string | null,
+  persona?: StylePersonaPromptData | null,
+): string {
+  const baseCues = {
+    composition: [
+      "Preserve a centered layout with minimal background clutter.",
+      "Keep edges tidy for a clean circular crop.",
+    ],
+    lighting: [
+      "Stay close to the existing lighting, using soft adjustments to refine the mood.",
+    ],
+    mood: [
+      "Honor the current personality unless the user specifically requests a shift.",
+    ],
+  };
+  const mergedCues = mergePersonaCues(baseCues, persona ?? null);
   return composeUserLedPrompt({
     userPrompt: prompt,
     objective: "Update the existing avatar while keeping it circle-safe and instantly recognizable.",
     subjectContext:
       "Maintain the subject's proportions and framing so the refreshed avatar still represents the same profile.",
-    baseCues: {
-      composition: [
-        "Preserve a centered layout with minimal background clutter.",
-        "Keep edges tidy for a clean circular crop.",
-      ],
-      lighting: [
-        "Stay close to the existing lighting, using soft adjustments to refine the mood.",
-      ],
-      mood: [
-        "Honor the current personality unless the user specifically requests a shift.",
-      ],
-    },
+    baseCues: mergedCues,
     baseConstraints: [
       "Avoid adding text, logos, watermarks, or busy textures.",
       "Do not introduce heavy borders or elements that break the circular silhouette.",
@@ -212,14 +231,41 @@ export async function POST(req: Request) {
     stylePreset,
     capsuleId: capsuleIdRaw,
     variantId,
+    stylePersonaId,
+    maskData,
+    seed,
+    guidance,
   } = parsed.data;
   const capsuleId = typeof capsuleIdRaw === "string" ? capsuleIdRaw : undefined;
   const effectiveName = typeof displayName === "string" ? displayName : "";
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
+  let personaRecord: CapsuleStylePersonaRecord | null = null;
+  if (stylePersonaId) {
+    personaRecord = await getStylePersona(stylePersonaId, ownerId);
+    if (!personaRecord) {
+      return returnError(404, "style_persona_not_found", "The selected style persona is not available.");
+    }
+  }
+  const personaPrompt: StylePersonaPromptData | null = personaRecord
+    ? {
+        palette: personaRecord.palette,
+        medium: personaRecord.medium,
+        camera: personaRecord.camera,
+        notes: personaRecord.notes,
+      }
+    : null;
+
+  const seedValue =
+    typeof seed === "number" && Number.isFinite(seed) ? Math.max(0, Math.floor(seed)) : null;
+  const guidanceValue =
+    typeof guidance === "number" && Number.isFinite(guidance)
+      ? Math.max(0, Math.min(30, guidance))
+      : null;
+
   try {
     if (mode === "generate") {
-      const avatarPrompt = buildGenerationPrompt(prompt, effectiveName, stylePreset);
+      const avatarPrompt = buildGenerationPrompt(prompt, effectiveName, stylePreset, personaPrompt);
       const generated = await generateImageFromPrompt(
         avatarPrompt,
         {
@@ -233,7 +279,12 @@ export async function POST(req: Request) {
           userPrompt: prompt,
           resolvedPrompt: avatarPrompt,
           stylePreset: stylePreset ?? null,
-          options: { displayName: effectiveName || null },
+          options: {
+            displayName: effectiveName || null,
+            stylePersonaId: personaRecord?.id ?? null,
+            seed: seedValue,
+            guidance: guidanceValue,
+          },
         },
       );
       const stored = await persistAndDescribeImage(generated.url, "profile-avatar-generate", {
@@ -254,6 +305,9 @@ export async function POST(req: Request) {
             resolvedPrompt: avatarPrompt,
             stylePreset: stylePreset ?? null,
             provider: generated.provider,
+            stylePersonaId: personaRecord?.id ?? null,
+            seed: seedValue,
+            guidance: guidanceValue,
             responseMetadata: generated.metadata ?? null,
           },
         });
@@ -300,7 +354,21 @@ export async function POST(req: Request) {
       }
     })();
 
-    const instruction = buildEditInstruction(prompt, stylePreset);
+    const maskInput =
+      typeof maskData === "string" && maskData.trim().length ? maskData.trim() : null;
+    let storedMaskUrl: string | null = null;
+    if (maskInput) {
+      try {
+        const storedMask = await storeImageSrcToSupabase(maskInput, "profile-avatar-mask", {
+          baseUrl: requestOrigin,
+        });
+        storedMaskUrl = storedMask?.url ?? null;
+      } catch (maskError) {
+        console.warn("ai.avatar: failed to store mask", maskError);
+      }
+    }
+
+    const instruction = buildEditInstruction(prompt, stylePreset, personaPrompt);
     const edited = await editImageWithInstruction(
       normalizedSource,
       instruction,
@@ -315,8 +383,16 @@ export async function POST(req: Request) {
         userPrompt: prompt,
         resolvedPrompt: instruction,
         stylePreset: stylePreset ?? null,
-        options: { displayName: effectiveName || null },
+        options: {
+          displayName: effectiveName || null,
+          maskUrl: storedMaskUrl,
+          maskApplied: Boolean(maskInput),
+          stylePersonaId: personaRecord?.id ?? null,
+          seed: seedValue,
+          guidance: guidanceValue,
+        },
       },
+      maskInput,
     );
     const stored = await persistAndDescribeImage(edited.url, "profile-avatar-edit", {
       baseUrl: requestOrigin,
@@ -340,6 +416,10 @@ export async function POST(req: Request) {
           provider: edited.provider,
           baseVariantId: variantId ?? null,
           sourceImageUrl: normalizedSource,
+          maskUrl: storedMaskUrl,
+          stylePersonaId: personaRecord?.id ?? null,
+          seed: seedValue,
+          guidance: guidanceValue,
           responseMetadata: edited.metadata ?? null,
         },
       });

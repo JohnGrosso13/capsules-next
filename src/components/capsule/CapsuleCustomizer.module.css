@@ -148,6 +148,114 @@
   padding-right: 0.45rem;
 }
 
+
+.personaSection {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.personaForm {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.personaInput {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 80%, transparent);
+  background: color-mix(in srgb, rgba(18, 24, 44, 0.72) 92%, transparent);
+  color: rgba(226, 232, 255, 0.92);
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.personaInput:focus-visible {
+  outline: 2px solid rgba(140, 170, 255, 0.6);
+  outline-offset: 2px;
+  border-color: rgba(140, 170, 255, 0.6);
+}
+
+.personaFormActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.personaError {
+  color: rgba(255, 150, 150, 0.9);
+  font-size: 0.85rem;
+}
+
+.personaList {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.personaItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent);
+  background: color-mix(in srgb, rgba(18, 24, 44, 0.68) 90%, transparent);
+  text-align: left;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.personaItem:hover,
+.personaItem:focus-visible {
+  border-color: rgba(140, 170, 255, 0.55);
+  transform: translateY(-1px);
+}
+
+.personaItem[data-selected="true"] {
+  border-color: rgba(110, 150, 255, 0.85);
+  box-shadow: 0 12px 24px rgba(36, 48, 96, 0.45);
+}
+
+.personaItemDetails {
+  display: grid;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+}
+
+.personaName {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(236, 240, 255, 0.95);
+}
+
+.personaTrait {
+  font-size: 0.8rem;
+  color: rgba(210, 220, 255, 0.7);
+}
+
+.personaDeleteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(200, 210, 255, 0.75);
+  transition: background 0.2s ease, color 0.2s ease;
+  cursor: pointer;
+}
+
+.personaDeleteButton:hover,
+.personaDeleteButton:focus-visible {
+  background: rgba(255, 70, 70, 0.2);
+  color: rgba(255, 160, 160, 0.95);
+  outline: none;
+}
 .variantSection {
   display: grid;
   gap: 0.85rem;
@@ -336,6 +444,30 @@
   touch-action: none;
   transform: translate3d(-50%, -50%, 0);
   will-change: transform;
+}
+
+.previewMaskCanvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  min-width: 0;
+  min-height: 0;
+  transform: translate3d(-50%, -50%, 0);
+  transform-origin: center;
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  will-change: transform;
+  mix-blend-mode: normal;
+  transition: opacity 0.18s ease;
+}
+
+.previewMaskCanvas[data-enabled="true"] {
+  pointer-events: auto;
 }
 
 .tileOverlay {
@@ -1033,4 +1165,48 @@
 .chatBannerOption:focus-visible .chatBannerOptionOverlay {
   opacity: 1;
   transform: translateY(0);
+}
+
+.advancedSection {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.advancedForm {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.advancedField {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.advancedLabel {
+  font-size: 0.8rem;
+  color: rgba(205, 215, 255, 0.72);
+}
+
+.advancedInput {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent);
+  background: color-mix(in srgb, rgba(18, 24, 44, 0.72) 88%, transparent);
+  color: rgba(230, 236, 255, 0.92);
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.advancedInput:focus-visible {
+  outline: 2px solid rgba(140, 170, 255, 0.6);
+  outline-offset: 2px;
+  border-color: rgba(140, 170, 255, 0.6);
+}
+
+.advancedHint {
+  font-size: 0.78rem;
+  color: rgba(205, 215, 255, 0.6);
 }

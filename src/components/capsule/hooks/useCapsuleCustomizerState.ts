@@ -19,6 +19,9 @@ import {
   type SelectedBanner,
   type CapsuleVariantState,
   type CapsuleVariant,
+  type CapsuleStylePersona,
+  type CapsulePersonaState,
+  type CapsuleAdvancedOptionsState,
   capsuleVariantSchema,
 } from "./capsuleCustomizerTypes";
 
@@ -30,9 +33,28 @@ export type {
   CapsuleCustomizerSaveResult,
   CapsuleVariant,
   CapsuleVariantState,
+  CapsuleStylePersona,
+  CapsulePersonaState,
+  CapsuleAdvancedOptionsState,
 } from "./capsuleCustomizerTypes";
 
 type MemoryHookReturn = ReturnType<typeof useCapsuleCustomizerMemory>;
+
+const stylePersonaSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  palette: z.string().nullable(),
+  medium: z.string().nullable(),
+  camera: z.string().nullable(),
+  notes: z.string().nullable(),
+  capsuleId: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const stylePersonaListSchema = z.object({
+  personas: z.array(stylePersonaSchema),
+});
 
 function describeSource(source: SelectedBanner | null, label: string): string {
   if (!source) {
@@ -77,6 +99,16 @@ export type CapsuleMemoryState = {
   buttonRef: MemoryHookReturn["memoryButtonRef"];
 };
 
+export type CapsulePreviewMaskState = {
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  enabled: boolean;
+  hasMask: boolean;
+  isDrawing: boolean;
+  toggle: (enabled?: boolean) => void;
+  clear: () => void;
+  onPointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => void;
+};
+
 export type CapsulePreviewState = {
   selected: SelectedBanner | null;
   previewOffset: { x: number; y: number };
@@ -89,6 +121,7 @@ export type CapsulePreviewState = {
   imageRef: React.RefObject<HTMLImageElement | null>;
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   onImageLoad: () => void;
+  mask: CapsulePreviewMaskState;
 };
 
 export type CapsuleUploadState = {
@@ -132,6 +165,8 @@ export type CapsuleCustomizerCoordinator = {
   save: CapsuleSaveState;
   actions: CapsuleCustomizerActions;
   variants: CapsuleVariantState;
+  personas: CapsulePersonaState;
+  advanced: CapsuleAdvancedOptionsState;
 };
 
 export type UseCapsuleCustomizerStateReturn = CapsuleCustomizerCoordinator;
@@ -160,6 +195,120 @@ export function useCapsuleCustomizerState(
     if (customizerMode === "banner" || customizerMode === "storeBanner") return "banner";
     return null;
   }, [customizerMode]);
+
+  const [personas, setPersonas] = React.useState<CapsuleStylePersona[]>([]);
+  const [personasLoading, setPersonasLoading] = React.useState(false);
+  const [personasError, setPersonasError] = React.useState<string | null>(null);
+  const [selectedPersonaId, setSelectedPersonaId] = React.useState<string | null>(null);
+  const [advancedSeed, setAdvancedSeed] = React.useState<number | null>(null);
+  const [advancedGuidance, setAdvancedGuidance] = React.useState<number | null>(null);
+
+  const setAdvancedSeedValue = React.useCallback((value: number | null) => {
+    if (value === null || Number.isFinite(value)) {
+      const sanitized = value === null ? null : Math.max(0, Math.floor(value));
+      setAdvancedSeed(sanitized);
+    }
+  }, []);
+
+  const setAdvancedGuidanceValue = React.useCallback((value: number | null) => {
+    if (value === null || Number.isFinite(value)) {
+      const sanitized = value === null ? null : Math.max(0, Math.min(30, Number(value)));
+      setAdvancedGuidance(sanitized);
+    }
+  }, []);
+
+
+  const loadPersonas = React.useCallback(async () => {
+    setPersonasLoading(true);
+    setPersonasError(null);
+    try {
+      const params = new URLSearchParams();
+      if (capsuleId) params.set("capsuleId", capsuleId);
+      const query = params.toString();
+      const url = query.length ? `/api/ai/style-personas?${query}` : "/api/ai/style-personas";
+      const response = await fetch(url, { method: "GET", credentials: "include" });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json) {
+        throw new Error("Failed to load style personas.");
+      }
+      const parsed = stylePersonaListSchema.parse(json);
+      setPersonas(parsed.personas);
+      if (selectedPersonaId && !parsed.personas.some((persona) => persona.id === selectedPersonaId)) {
+        setSelectedPersonaId(null);
+      }
+    } catch (error) {
+      console.warn("capsule style personas load failed", error);
+      setPersonasError(error instanceof Error ? error.message : "Failed to load style personas.");
+    } finally {
+      setPersonasLoading(false);
+    }
+  }, [capsuleId, selectedPersonaId]);
+
+  const selectPersona = React.useCallback((personaId: string | null) => {
+    setSelectedPersonaId(personaId);
+  }, []);
+
+  const createPersona = React.useCallback(
+    async (input: {
+      name: string;
+      palette?: string | null;
+      medium?: string | null;
+      camera?: string | null;
+      notes?: string | null;
+    }) => {
+      setPersonasError(null);
+      setPersonasLoading(true);
+      try {
+        const payload = {
+          name: input.name.trim(),
+          palette: input.palette?.trim() || null,
+          medium: input.medium?.trim() || null,
+          camera: input.camera?.trim() || null,
+          notes: input.notes?.trim() || null,
+          ...(capsuleId ? { capsuleId } : {}),
+        };
+        const response = await fetch("/api/ai/style-personas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+        const json = await response.json().catch(() => null);
+        if (!response.ok || !json) {
+          throw new Error("Failed to save style persona.");
+        }
+        const persona = stylePersonaSchema.parse(json);
+        setPersonas((previous) => [persona, ...previous]);
+        setSelectedPersonaId(persona.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to save style persona.";
+        setPersonasError(message);
+        throw error;
+      } finally {
+        setPersonasLoading(false);
+      }
+    },
+    [capsuleId],
+  );
+
+  const removePersona = React.useCallback(async (personaId: string) => {
+    setPersonasError(null);
+    try {
+      const response = await fetch(`/api/ai/style-personas/${personaId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete style persona.");
+      }
+      setPersonas((previous) => previous.filter((persona) => persona.id !== personaId));
+      setSelectedPersonaId((current) => (current === personaId ? null : current));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete style persona.";
+      setPersonasError(message);
+      throw error;
+    }
+  }, []);
 
   const upsertVariant = React.useCallback((variant: CapsuleVariant | null) => {
     if (!variant) return;
@@ -208,6 +357,11 @@ export function useCapsuleCustomizerState(
     if (!open) return;
     void loadVariants();
   }, [open, loadVariants]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    void loadPersonas();
+  }, [loadPersonas, open]);
 
   const {
     assetLabel,
@@ -305,6 +459,9 @@ export function useCapsuleCustomizerState(
     fetchMemoryAssetUrl: resolveMemoryAssetUrl,
     onVariantReceived: upsertVariant,
     onVariantRefreshRequested: loadVariants,
+    stylePersonaId: selectedPersonaId,
+    seed: advancedSeed,
+    guidance: advancedGuidance,
   });
 
   cropUpdateRef.current = syncBannerCropToMessages;
@@ -347,6 +504,43 @@ export function useCapsuleCustomizerState(
       select: handleVariantSelect,
     }),
     [variants, variantLoading, variantError, loadVariants, handleVariantSelect],
+  );
+
+  const advancedContextValue = React.useMemo<CapsuleAdvancedOptionsState>(
+    () => ({
+      seed: advancedSeed,
+      guidance: advancedGuidance,
+      setSeed: setAdvancedSeedValue,
+      setGuidance: setAdvancedGuidanceValue,
+      clear: () => {
+        setAdvancedSeed(null);
+        setAdvancedGuidance(null);
+      },
+    }),
+    [advancedGuidance, advancedSeed, setAdvancedGuidanceValue, setAdvancedSeedValue],
+  );
+
+  const personaContextValue = React.useMemo<CapsulePersonaState>(
+    () => ({
+      items: personas,
+      loading: personasLoading,
+      error: personasError,
+      selectedId: selectedPersonaId,
+      refresh: loadPersonas,
+      select: selectPersona,
+      create: createPersona,
+      remove: removePersona,
+    }),
+    [
+      createPersona,
+      loadPersonas,
+      personas,
+      personasError,
+      personasLoading,
+      removePersona,
+      selectPersona,
+      selectedPersonaId,
+    ],
   );
 
   fetchMemoryAssetRef.current = memory.fetchMemoryAssetUrl;
@@ -447,7 +641,7 @@ export function useCapsuleCustomizerState(
       buttonRef: memoryButtonRef,
     },
     preview: {
-      selected: selectedBanner,
+      selected: previewState.selected,
       previewOffset: previewState.previewOffset,
       previewDraggable: previewState.previewDraggable,
       previewPannable: previewState.previewPannable,
@@ -458,8 +652,11 @@ export function useCapsuleCustomizerState(
       imageRef: previewState.imageRef,
       onPointerDown: previewState.onPointerDown,
       onImageLoad: previewState.onImageLoad,
+      mask: previewState.mask,
     },
     uploads,
+    personas: personaContextValue,
+    advanced: advancedContextValue,
     variants: variantContextValue,
     save: saveState,
     actions: {

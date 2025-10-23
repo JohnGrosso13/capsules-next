@@ -3,6 +3,8 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
 import { composeUserLedPrompt } from "@/lib/ai/prompt-styles";
+import { mergePersonaCues, type StylePersonaPromptData } from "@/lib/ai/style-persona";
+import { getStylePersona, type CapsuleStylePersonaRecord } from "@/server/capsules/style-personas";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
@@ -20,6 +22,10 @@ const requestSchema = z.object({
   stylePreset: z.string().min(1).optional(),
   capsuleId: z.string().uuid().optional(),
   variantId: z.string().uuid().optional(),
+  stylePersonaId: z.string().uuid().optional(),
+  maskData: z.string().min(1).optional(),
+  seed: z.coerce.number().int().min(0).optional(),
+  guidance: z.coerce.number().min(0).max(30).optional(),
 });
 
 const variantResponseSchema = aiImageVariantSchema.pick({
@@ -95,26 +101,33 @@ async function persistAndDescribeImage(
   };
 }
 
-function buildGenerationPrompt(prompt: string, capsuleName: string, stylePreset?: string | null): string {
+function buildGenerationPrompt(
+  prompt: string,
+  capsuleName: string,
+  stylePreset?: string | null,
+  persona?: StylePersonaPromptData | null,
+): string {
   const safeName = capsuleName.trim().length ? capsuleName.trim() : "the capsule";
+  const baseCues = {
+    composition: [
+      "Center the mark with a balanced silhouette that reads clearly at 48px.",
+    ],
+    palette: [
+      "Favor high-contrast color blocking so the icon stands out on varied backgrounds.",
+    ],
+    medium: [
+      "Polished vector or clean digital illustration with scalable geometry.",
+    ],
+    mood: [
+      "Confident and modern; align with the capsule's personality.",
+    ],
+  };
+  const mergedCues = mergePersonaCues(baseCues, persona ?? null);
   return composeUserLedPrompt({
     userPrompt: prompt,
     objective: `Create a distinctive square logo that represents ${safeName}.`,
     subjectContext: "The mark should remain crisp inside a rounded-square mask across Capsule surfaces.",
-    baseCues: {
-      composition: [
-        "Center the mark with a balanced silhouette that reads clearly at 48px.",
-      ],
-      palette: [
-        "Favor high-contrast color blocking so the icon stands out on varied backgrounds.",
-      ],
-      medium: [
-        "Polished vector or clean digital illustration with scalable geometry.",
-      ],
-      mood: [
-        "Confident and modern; align with the capsule's personality.",
-      ],
-    },
+    baseCues: mergedCues,
     baseConstraints: [
       "Avoid long text, taglines, or watermark elements.",
       "Keep shapes simple enough for small favicon usage.",
@@ -123,22 +136,28 @@ function buildGenerationPrompt(prompt: string, capsuleName: string, stylePreset?
   });
 }
 
-function buildEditInstruction(prompt: string, stylePreset?: string | null): string {
+function buildEditInstruction(
+  prompt: string,
+  stylePreset?: string | null,
+  persona?: StylePersonaPromptData | null,
+): string {
+  const baseCues = {
+    composition: [
+      "Maintain the current balance of positive and negative space.",
+    ],
+    palette: [
+      "Adjust colors thoughtfully so the mark retains contrast at smaller sizes.",
+    ],
+    mood: [
+      "Stay aligned with the existing personality unless the user requests a new tone.",
+    ],
+  };
+  const mergedCues = mergePersonaCues(baseCues, persona ?? null);
   return composeUserLedPrompt({
     userPrompt: prompt,
     objective: "Refresh the existing logo while preserving its core structure and recognizability.",
     subjectContext: "Keep the logo square-friendly so it continues to work inside Capsule's rounded mask.",
-    baseCues: {
-      composition: [
-        "Maintain the current balance of positive and negative space.",
-      ],
-      palette: [
-        "Adjust colors thoughtfully so the mark retains contrast at smaller sizes.",
-      ],
-      mood: [
-        "Stay aligned with the existing personality unless the user requests a new tone.",
-      ],
-    },
+    baseCues: mergedCues,
     baseConstraints: [
       "Avoid introducing dense typography, lengthy text, or watermark effects.",
       "Preserve clean edges suitable for vector export.",
@@ -174,14 +193,50 @@ export async function POST(req: Request) {
     return parsed.response;
   }
 
-  const { prompt, mode, capsuleName, imageUrl, imageData, stylePreset, capsuleId: capsuleIdRaw, variantId } = parsed.data;
+  const {
+    prompt,
+    mode,
+    capsuleName,
+    imageUrl,
+    imageData,
+    stylePreset,
+    capsuleId: capsuleIdRaw,
+    variantId,
+    stylePersonaId,
+    maskData,
+    seed,
+    guidance,
+  } = parsed.data;
   const capsuleId = typeof capsuleIdRaw === "string" ? capsuleIdRaw : undefined;
   const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
+  let personaRecord: CapsuleStylePersonaRecord | null = null;
+  if (stylePersonaId) {
+    personaRecord = await getStylePersona(stylePersonaId, ownerId);
+    if (!personaRecord) {
+      return returnError(404, "style_persona_not_found", "The selected style persona is not available.");
+    }
+  }
+  const personaPrompt: StylePersonaPromptData | null = personaRecord
+    ? {
+        palette: personaRecord.palette,
+        medium: personaRecord.medium,
+        camera: personaRecord.camera,
+        notes: personaRecord.notes,
+      }
+    : null;
+
+  const seedValue =
+    typeof seed === "number" && Number.isFinite(seed) ? Math.max(0, Math.floor(seed)) : null;
+  const guidanceValue =
+    typeof guidance === "number" && Number.isFinite(guidance)
+      ? Math.max(0, Math.min(30, guidance))
+      : null;
+
   try {
     if (mode === "generate") {
-      const logoPrompt = buildGenerationPrompt(prompt, effectiveName, stylePreset);
+      const logoPrompt = buildGenerationPrompt(prompt, effectiveName, stylePreset, personaPrompt);
       const generated = await generateImageFromPrompt(
         logoPrompt,
         {
@@ -195,7 +250,12 @@ export async function POST(req: Request) {
           userPrompt: prompt,
           resolvedPrompt: logoPrompt,
           stylePreset: stylePreset ?? null,
-          options: { capsuleName: effectiveName || null },
+          options: {
+            capsuleName: effectiveName || null,
+            stylePersonaId: personaRecord?.id ?? null,
+            seed: seedValue,
+            guidance: guidanceValue,
+          },
         },
       );
       const stored = await persistAndDescribeImage(generated.url, "capsule-logo-generate", {
@@ -217,6 +277,9 @@ export async function POST(req: Request) {
             capsuleName: effectiveName || null,
             stylePreset: stylePreset ?? null,
             provider: generated.provider,
+            stylePersonaId: personaRecord?.id ?? null,
+            seed: seedValue,
+            guidance: guidanceValue,
             responseMetadata: generated.metadata ?? null,
           },
         });
@@ -263,7 +326,21 @@ export async function POST(req: Request) {
       }
     })();
 
-    const instruction = buildEditInstruction(prompt, stylePreset);
+    const maskInput =
+      typeof maskData === "string" && maskData.trim().length ? maskData.trim() : null;
+    let storedMaskUrl: string | null = null;
+    if (maskInput) {
+      try {
+        const storedMask = await storeImageSrcToSupabase(maskInput, "capsule-logo-mask", {
+          baseUrl: requestOrigin,
+        });
+        storedMaskUrl = storedMask?.url ?? null;
+      } catch (maskError) {
+        console.warn("ai.logo: failed to store mask", maskError);
+      }
+    }
+
+    const instruction = buildEditInstruction(prompt, stylePreset, personaPrompt);
     const edited = await editImageWithInstruction(
       normalizedSource,
       instruction,
@@ -278,8 +355,17 @@ export async function POST(req: Request) {
         userPrompt: prompt,
         resolvedPrompt: instruction,
         stylePreset: stylePreset ?? null,
-        options: { capsuleName: effectiveName || null, sourceImageUrl: normalizedSource },
+        options: {
+          capsuleName: effectiveName || null,
+          sourceImageUrl: normalizedSource,
+          maskUrl: storedMaskUrl,
+          maskApplied: Boolean(maskInput),
+          stylePersonaId: personaRecord?.id ?? null,
+          seed: seedValue,
+          guidance: guidanceValue,
+        },
       },
+      maskInput,
     );
     const stored = await persistAndDescribeImage(edited.url, "capsule-logo-edit", {
       baseUrl: requestOrigin,
@@ -304,6 +390,10 @@ export async function POST(req: Request) {
           provider: edited.provider,
           baseVariantId: variantId ?? null,
           sourceImageUrl: normalizedSource,
+          maskUrl: storedMaskUrl,
+          stylePersonaId: personaRecord?.id ?? null,
+          seed: seedValue,
+          guidance: guidanceValue,
           responseMetadata: edited.metadata ?? null,
         },
       });

@@ -10,6 +10,8 @@ import { parseJsonBody, returnError, validatedJson } from "@/server/validation/h
 import { Buffer } from "node:buffer";
 import { aiImageVariantSchema } from "@/shared/schemas/ai";
 import { createAiImageVariant, type AiImageVariantRecord } from "@/server/ai/image-variants";
+import { mergePersonaCues, type StylePersonaPromptData } from "@/lib/ai/style-persona";
+import { getStylePersona, type CapsuleStylePersonaRecord } from "@/server/capsules/style-personas";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
@@ -20,6 +22,10 @@ const requestSchema = z.object({
   stylePreset: z.string().min(1).optional(),
   capsuleId: z.string().uuid().optional(),
   variantId: z.string().uuid().optional(),
+  stylePersonaId: z.string().uuid().optional(),
+  seed: z.coerce.number().int().min(0).optional(),
+  guidance: z.coerce.number().min(0).max(30).optional(),
+  maskData: z.string().min(1).optional(),
 });
 
 const variantResponseSchema = aiImageVariantSchema.pick({
@@ -111,30 +117,31 @@ function toVariantResponse(record: AiImageVariantRecord | null): VariantResponse
   };
 }
 
-function buildGenerationPrompt(prompt: string, capsuleName: string, stylePreset?: string | null): string {
+function buildGenerationPrompt(
+  prompt: string,
+  capsuleName: string,
+  stylePreset?: string | null,
+  persona?: StylePersonaPromptData | null,
+): string {
   const safeName = capsuleName.trim().length ? capsuleName.trim() : "the capsule";
+  const baseCues = {
+    composition: [
+      "Establish a clear focal point with layered foreground, midground, and background for depth.",
+      "Reserve gentle negative space near the edges for interface elements.",
+    ],
+    lighting: [
+      "Blend atmospheric lighting with subtle gradients to create depth without overpowering overlays.",
+    ],
+    palette: ["Use vibrant but balanced colors that work across light and dark themes."],
+    medium: ["High-resolution digital illustration or cinematic render that withstands scaling."],
+    mood: ["Immersive and inviting mood that captures the capsule's vibe."],
+  };
+  const mergedCues = mergePersonaCues(baseCues, persona ?? null);
   return composeUserLedPrompt({
     userPrompt: prompt,
     objective: `Compose a cinematic hero banner that represents ${safeName}.`,
     subjectContext: "The artwork should render cleanly in a wide 16:9 hero slot with room for UI overlays.",
-    baseCues: {
-      composition: [
-        "Establish a clear focal point with layered foreground, midground, and background for depth.",
-        "Reserve gentle negative space near the edges for interface elements.",
-      ],
-      lighting: [
-        "Blend atmospheric lighting with subtle gradients to create depth without overpowering overlays.",
-      ],
-      palette: [
-        "Use vibrant but balanced colors that work across light and dark themes.",
-      ],
-      medium: [
-        "High-resolution digital illustration or cinematic render that withstands scaling.",
-      ],
-      mood: [
-        "Immersive and inviting mood that captures the capsule's vibe.",
-      ],
-    },
+    baseCues: mergedCues,
     baseConstraints: [
       "Avoid text, logos, or watermarks within the art.",
       "Keep visual noise low near the top third so headlines remain legible.",
@@ -143,23 +150,27 @@ function buildGenerationPrompt(prompt: string, capsuleName: string, stylePreset?
   });
 }
 
-function buildEditInstruction(prompt: string, stylePreset?: string | null): string {
+function buildEditInstruction(
+  prompt: string,
+  stylePreset?: string | null,
+  persona?: StylePersonaPromptData | null,
+): string {
+  const baseCues = {
+    composition: [
+      "Protect the current focal hierarchy and keep key elements within the safe zones.",
+    ],
+    lighting: [
+      "Fine-tune lighting to reinforce depth without washing out important regions.",
+    ],
+    mood: ["Match the existing vibe unless the user asks for a change in tone."],
+  };
+  const mergedCues = mergePersonaCues(baseCues, persona ?? null);
   return composeUserLedPrompt({
     userPrompt: prompt,
     objective: "Refresh the existing hero banner while keeping it 16:9 and overlay-friendly.",
     subjectContext:
       "Preserve the primary focal point and overall composition so the update still feels like the same capsule.",
-    baseCues: {
-      composition: [
-        "Protect the current focal hierarchy and keep key elements within the safe zones.",
-      ],
-      lighting: [
-        "Fine-tune lighting to reinforce depth without washing out important regions.",
-      ],
-      mood: [
-        "Match the existing vibe unless the user asks for a change in tone.",
-      ],
-    },
+    baseCues: mergedCues,
     baseConstraints: [
       "Avoid adding text, logos, or watermark-like elements.",
       "Maintain clear space for UI overlays near the top and center.",
@@ -188,14 +199,39 @@ export async function POST(req: Request) {
     stylePreset,
     capsuleId: capsuleIdRaw,
     variantId,
+    maskData,
+    stylePersonaId,
   } = parsed.data;
   const capsuleId = typeof capsuleIdRaw === "string" ? capsuleIdRaw : undefined;
   const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
+  let personaRecord: CapsuleStylePersonaRecord | null = null;
+  if (stylePersonaId) {
+    personaRecord = await getStylePersona(stylePersonaId, ownerId);
+    if (!personaRecord) {
+      return returnError(404, "style_persona_not_found", "The selected style persona is not available.");
+    }
+  }
+  const personaPrompt: StylePersonaPromptData | null = personaRecord
+    ? {
+        palette: personaRecord.palette,
+        medium: personaRecord.medium,
+        camera: personaRecord.camera,
+        notes: personaRecord.notes,
+      }
+    : null;
+
+  const seedValue =
+    typeof seed === "number" && Number.isFinite(seed) ? Math.max(0, Math.floor(seed)) : null;
+  const guidanceValue =
+    typeof guidance === "number" && Number.isFinite(guidance)
+      ? Math.max(0, Math.min(30, guidance))
+      : null;
+
   try {
     if (mode === "generate") {
-      const bannerPrompt = buildGenerationPrompt(prompt, effectiveName, stylePreset);
+      const bannerPrompt = buildGenerationPrompt(prompt, effectiveName, stylePreset, personaPrompt);
       const generated = await generateImageFromPrompt(
         bannerPrompt,
         {
@@ -209,7 +245,12 @@ export async function POST(req: Request) {
           userPrompt: prompt,
           resolvedPrompt: bannerPrompt,
           stylePreset: stylePreset ?? null,
-          options: { capsuleName: effectiveName || null },
+          options: {
+            capsuleName: effectiveName || null,
+            stylePersonaId: personaRecord?.id ?? null,
+            seed: seedValue,
+            guidance: guidanceValue,
+          },
         },
       );
       const stored = await persistAndDescribeImage(generated.url, "capsule-banner-generate", {
@@ -231,6 +272,9 @@ export async function POST(req: Request) {
             capsuleName: effectiveName || null,
             stylePreset: stylePreset ?? null,
             provider: generated.provider,
+            stylePersonaId: personaRecord?.id ?? null,
+            seed: seedValue,
+            guidance: guidanceValue,
             responseMetadata: generated.metadata ?? null,
           },
         });
@@ -278,25 +322,48 @@ export async function POST(req: Request) {
       }
     })();
 
+    const maskInput =
+      typeof maskData === "string" && maskData.trim().length ? maskData.trim() : null;
+    let storedMaskUrl: string | null = null;
+    if (maskInput) {
+      try {
+        const storedMask = await storeImageSrcToSupabase(maskInput, "capsule-banner-mask", {
+          baseUrl: requestOrigin,
+        });
+        storedMaskUrl = storedMask?.url ?? null;
+      } catch (maskError) {
+        console.warn("ai.banner: failed to store mask", maskError);
+      }
+    }
+
     try {
-      const instruction = buildEditInstruction(prompt, stylePreset);
-      const edited = await editImageWithInstruction(
-        normalizedSource,
-        instruction,
-        {
-          quality: "high",
-          size: "1024x1024",
+    const instruction = buildEditInstruction(prompt, stylePreset, personaPrompt);
+    const edited = await editImageWithInstruction(
+      normalizedSource,
+      instruction,
+      {
+        quality: "high",
+        size: "1024x1024",
+      },
+      {
+        ownerId,
+        assetKind: "banner",
+        mode: "edit",
+        userPrompt: prompt,
+        resolvedPrompt: instruction,
+        stylePreset: stylePreset ?? null,
+        options: {
+          capsuleName: effectiveName || null,
+          sourceImageUrl: normalizedSource,
+          maskUrl: storedMaskUrl,
+          maskApplied: Boolean(maskInput),
+          stylePersonaId: personaRecord?.id ?? null,
+          seed: seedValue,
+          guidance: guidanceValue,
         },
-        {
-          ownerId,
-          assetKind: "banner",
-          mode: "edit",
-          userPrompt: prompt,
-          resolvedPrompt: instruction,
-          stylePreset: stylePreset ?? null,
-          options: { capsuleName: effectiveName || null, sourceImageUrl: normalizedSource },
-        },
-      );
+      },
+      maskInput,
+    );
       const stored = await persistAndDescribeImage(edited.url, "capsule-banner-edit", {
         baseUrl: requestOrigin,
       });
@@ -318,11 +385,15 @@ export async function POST(req: Request) {
             capsuleName: effectiveName || null,
             stylePreset: stylePreset ?? null,
             provider: edited.provider,
-            baseVariantId: variantId ?? null,
-            sourceImageUrl: normalizedSource,
-            responseMetadata: edited.metadata ?? null,
-          },
-        });
+          baseVariantId: variantId ?? null,
+          sourceImageUrl: normalizedSource,
+          maskUrl: storedMaskUrl,
+          stylePersonaId: personaRecord?.id ?? null,
+          seed: seedValue,
+          guidance: guidanceValue,
+          responseMetadata: edited.metadata ?? null,
+        },
+      });
       } catch (variantError) {
         console.warn("ai.banner: failed to record edited variant", variantError);
       }
@@ -359,7 +430,12 @@ export async function POST(req: Request) {
             userPrompt: prompt,
             resolvedPrompt: fallbackResolvedPrompt,
             stylePreset: stylePreset ?? null,
-            options: { capsuleName: effectiveName || null, reason: "edit-fallback" },
+          options: {
+            capsuleName: effectiveName || null,
+            reason: "edit-fallback",
+            seed: seedValue,
+            guidance: guidanceValue,
+          },
           },
         );
         const stored = await persistAndDescribeImage(fallback.url, "capsule-banner-edit-fallback", {

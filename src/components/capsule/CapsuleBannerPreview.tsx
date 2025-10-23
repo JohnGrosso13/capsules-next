@@ -28,6 +28,7 @@ export function CapsuleBannerPreview() {
   const meta = useCapsuleCustomizerMeta();
   const preview = useCapsuleCustomizerPreview();
   const { selected: selectedBanner, previewOffset, previewScale } = preview;
+  const mask = preview.mask;
 
   const mode = meta.mode;
   const stageRef = preview.stageRef;
@@ -39,6 +40,9 @@ export function CapsuleBannerPreview() {
   const stageAriaLabel = meta.stageAriaLabel;
   const onPointerDown = preview.onPointerDown;
   const onImageLoad = preview.onImageLoad;
+  const transformStyle = {
+    transform: `translate3d(-50%, -50%, 0) translate3d(${previewOffset.x}px, ${previewOffset.y}px, 0) scale(${previewScale})`,
+  };
 
   const logoInitial = normalizedName.trim().charAt(0).toUpperCase() || "C";
   const avatarInitial = buildInitials(normalizedName);
@@ -67,15 +71,28 @@ export function CapsuleBannerPreview() {
           src={selectedBanner.url}
           alt={previewAlt}
           className={styles.previewImage}
-          style={{
-            transform: `translate3d(-50%, -50%, 0) translate3d(${previewOffset.x}px, ${previewOffset.y}px, 0) scale(${previewScale})`,
-          }}
+          style={transformStyle}
           draggable={false}
           onDragStart={(event) => event.preventDefault()}
           onLoad={onImageLoad}
           onError={(event) => {
             (event.currentTarget as HTMLImageElement).style.visibility = "hidden";
           }}
+        />
+        <canvas
+          ref={mask.canvasRef}
+          className={styles.previewMaskCanvas}
+          style={{
+            ...transformStyle,
+            opacity: mask.enabled || mask.hasMask ? 0.55 : 0,
+            pointerEvents: mask.enabled ? "auto" : "none",
+            cursor: mask.enabled ? "crosshair" : "default",
+          }}
+          data-enabled={mask.enabled ? "true" : undefined}
+          data-has-mask={mask.hasMask ? "true" : undefined}
+          data-drawing={mask.isDrawing ? "true" : undefined}
+          aria-hidden="true"
+          onPointerDown={mask.onPointerDown}
         />
         {mode === "storeBanner" ? (
           <div className={styles.storeOverlay} aria-hidden="true">

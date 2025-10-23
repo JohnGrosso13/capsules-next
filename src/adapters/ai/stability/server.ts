@@ -7,6 +7,7 @@ export type StabilityGenerateOptions = {
   aspectRatio: string;
   stylePreset: string | null;
   seed?: number | null;
+  guidance?: number | null;
 };
 
 type StabilityResponse = {
@@ -66,6 +67,9 @@ export async function generateStabilityImage(options: StabilityGenerateOptions):
   }
   if (typeof options.seed === "number" && Number.isFinite(options.seed)) {
     payload.seed = Math.max(0, Math.floor(options.seed));
+  }
+  if (typeof options.guidance === "number" && Number.isFinite(options.guidance)) {
+    payload.cfg_scale = Math.max(0, Math.min(30, options.guidance));
   }
 
   const response = await fetch(`${STABILITY_BASE_URL}/v2beta/stable-image/generate/core`, {

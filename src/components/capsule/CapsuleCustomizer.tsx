@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X } from "@phosphor-icons/react/dist/ssr";
+import { X, ArrowsClockwise, TrashSimple } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./CapsuleCustomizer.module.css";
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
@@ -23,6 +23,8 @@ import {
   useCapsuleCustomizerPreview,
   useCapsuleCustomizerSave,
   useCapsuleCustomizerVariants,
+  useCapsuleCustomizerPersonas,
+  useCapsuleCustomizerAdvancedOptions,
 } from "./hooks/capsuleCustomizerContext";
 import { CapsuleBannerPreview } from "./CapsuleBannerPreview";
 import { CapsuleAssetActions } from "./CapsuleAssetActions";
@@ -101,7 +103,15 @@ function CapsuleCustomizerContent() {
   const save = useCapsuleCustomizerSave();
   const actions = useCapsuleCustomizerActions();
   const variants = useCapsuleCustomizerVariants();
+  const personas = useCapsuleCustomizerPersonas();
+  const advanced = useCapsuleCustomizerAdvancedOptions();
 
+  const [personaName, setPersonaName] = React.useState("");
+  const [personaPalette, setPersonaPalette] = React.useState("");
+  const [personaMedium, setPersonaMedium] = React.useState("");
+  const [personaCamera, setPersonaCamera] = React.useState("");
+  const [personaNotes, setPersonaNotes] = React.useState("");
+  const [personaSubmitting, setPersonaSubmitting] = React.useState(false);
   const variantsSupported =
     meta.mode === "banner" ||
     meta.mode === "storeBanner" ||
@@ -126,6 +136,52 @@ function CapsuleCustomizerContent() {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
   }, []);
+
+  const personaFormDisabled = personaSubmitting || personas.loading;
+
+  const handlePersonaSubmit = React.useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!personaName.trim()) {
+        return;
+      }
+      setPersonaSubmitting(true);
+      try {
+        await personas.create({
+          name: personaName,
+          palette: personaPalette,
+          medium: personaMedium,
+          camera: personaCamera,
+          notes: personaNotes,
+        });
+        setPersonaName("");
+        setPersonaPalette("");
+        setPersonaMedium("");
+        setPersonaCamera("");
+        setPersonaNotes("");
+      } catch {
+        // errors surface via personas.error
+      } finally {
+        setPersonaSubmitting(false);
+      }
+    },
+    [personaCamera, personaMedium, personaName, personaNotes, personaPalette, personas],
+  );
+
+  const handlePersonaRemove = React.useCallback(
+    async (personaId: string) => {
+      try {
+        await personas.remove(personaId);
+      } catch {
+        // ignore; personas.error handles feedback
+      }
+    },
+    [personas],
+  );
+
+  const clearPersonaSelection = React.useCallback(() => {
+    personas.select(null);
+  }, [personas]);
 
   const saveLabel =
     meta.mode === "tile"
@@ -318,6 +374,194 @@ function CapsuleCustomizerContent() {
               </div>
             </div>
           ) : null}
+            <div className={styles.personaSection} aria-labelledby="style-personas-heading">
+              <div className={styles.recentHeader}>
+                <h3 id="style-personas-heading">Style personas</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    void personas.refresh();
+                  }}
+                  disabled={personas.loading}
+                  leftIcon={<ArrowsClockwise size={16} weight="bold" />}
+                >
+                  Refresh
+                </Button>
+              </div>
+              <div className={styles.recentDescription}>
+                Save reusable palettes, mediums, and camera cues so prompts stay consistent.
+              </div>
+              <form className={styles.personaForm} onSubmit={handlePersonaSubmit}>
+                <input
+                  className={styles.personaInput}
+                  type="text"
+                  placeholder="Persona name"
+                  value={personaName}
+                  onChange={(event) => setPersonaName(event.target.value)}
+                  required
+                  disabled={personaFormDisabled}
+                />
+                <textarea
+                  className={styles.personaInput}
+                  placeholder="Palette (colors, lighting, mood)"
+                  value={personaPalette}
+                  onChange={(event) => setPersonaPalette(event.target.value)}
+                  disabled={personaFormDisabled}
+                />
+                <textarea
+                  className={styles.personaInput}
+                  placeholder="Medium or materials"
+                  value={personaMedium}
+                  onChange={(event) => setPersonaMedium(event.target.value)}
+                  disabled={personaFormDisabled}
+                />
+                <textarea
+                  className={styles.personaInput}
+                  placeholder="Camera or framing"
+                  value={personaCamera}
+                  onChange={(event) => setPersonaCamera(event.target.value)}
+                  disabled={personaFormDisabled}
+                />
+                <textarea
+                  className={styles.personaInput}
+                  placeholder="Notes (optional)"
+                  value={personaNotes}
+                  onChange={(event) => setPersonaNotes(event.target.value)}
+                  disabled={personaFormDisabled}
+                />
+                <div className={styles.personaFormActions}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="secondary"
+                    disabled={personaFormDisabled || !personaName.trim()}
+                    loading={personaSubmitting}
+                  >
+                    Save persona
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={clearPersonaSelection}
+                    disabled={!personas.selectedId}
+                  >
+                    Clear selection
+                  </Button>
+                </div>
+              </form>
+              {personas.error ? <p className={styles.personaError}>{personas.error}</p> : null}
+              <div className={styles.personaList} role="list">
+                {personas.loading && personas.items.length === 0 ? (
+                  <p className={styles.recentHint}>Loading personas…</p>
+                ) : personas.items.length ? (
+                  personas.items.map((persona) => {
+                    const selected = personas.selectedId === persona.id;
+                    return (
+                      <button
+                        key={persona.id}
+                        type="button"
+                        className={styles.personaItem}
+                        role="listitem"
+                        data-selected={selected ? "true" : undefined}
+                        onClick={() => personas.select(persona.id)}
+                      >
+                        <div className={styles.personaItemDetails}>
+                          <span className={styles.personaName}>{persona.name}</span>
+                          {persona.palette ? (
+                            <span className={styles.personaTrait}>Palette: {persona.palette}</span>
+                          ) : null}
+                          {persona.medium ? (
+                            <span className={styles.personaTrait}>Medium: {persona.medium}</span>
+                          ) : null}
+                          {persona.camera ? (
+                            <span className={styles.personaTrait}>Camera: {persona.camera}</span>
+                          ) : null}
+                          {persona.notes ? (
+                            <span className={styles.personaTrait}>Notes: {persona.notes}</span>
+                          ) : null}
+                        </div>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          className={styles.personaDeleteButton}
+                          aria-label="Remove persona"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handlePersonaRemove(persona.id);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              void handlePersonaRemove(persona.id);
+                            }
+                          }}
+                        >
+                          <TrashSimple size={14} weight="bold" />
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className={styles.recentHint}>Save a persona to reuse your aesthetic cues.</p>
+                )}
+              </div>
+            </div>
+            <div className={styles.advancedSection} aria-labelledby="advanced-controls-heading">
+              <div className={styles.recentHeader}>
+                <h3 id="advanced-controls-heading">Advanced controls</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={advanced.clear}
+                  disabled={advanced.seed === null && advanced.guidance === null}
+                >
+                  Reset
+                </Button>
+              </div>
+              <div className={styles.recentDescription}>
+                Set deterministic seeds or guidance strength for supported models.
+              </div>
+              <div className={styles.advancedForm}>
+                <label className={styles.advancedField}>
+                  <span className={styles.advancedLabel}>Seed</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={1}
+                    className={styles.advancedInput}
+                    placeholder="Random"
+                    value={advanced.seed ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      advanced.setSeed(value === "" ? null : Number(value));
+                    }}
+                  />
+                </label>
+                <label className={styles.advancedField}>
+                  <span className={styles.advancedLabel}>Guidance</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={30}
+                    step={0.5}
+                    className={styles.advancedInput}
+                    placeholder="Model default"
+                    value={advanced.guidance ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      advanced.setGuidance(value === "" ? null : Number(value));
+                    }}
+                  />
+                </label>
+              </div>
+              <p className={styles.advancedHint}>Seed and guidance apply when generating with Stability models.</p>
+            </div>
+
         </section>
 
           <section className={styles.chatColumn}>

@@ -54,6 +54,9 @@ type UseCustomizerChatOptions = {
   fetchMemoryAssetUrl: (memoryId: string) => Promise<string>;
   onVariantReceived?: (variant: CapsuleVariant | null) => void;
   onVariantRefreshRequested?: () => void;
+  stylePersonaId?: string | null;
+  seed?: number | null;
+  guidance?: number | null;
 };
 
 function randomId(): string {
@@ -131,6 +134,9 @@ export function useCapsuleCustomizerChat({
   fetchMemoryAssetUrl,
   onVariantReceived,
   onVariantRefreshRequested,
+  stylePersonaId,
+  seed,
+  guidance,
 }: UseCustomizerChatOptions) {
   const [messages, setMessages] = React.useState<ChatMessage[]>(() => [
     { id: randomId(), role: "assistant", content: assistantIntro },
@@ -585,6 +591,15 @@ export function useCapsuleCustomizerChat({
           };
           }
 
+          const currentBanner = selectedBannerRef.current;
+          const maskData =
+            aiMode === "edit" &&
+            currentBanner &&
+            currentBanner.kind !== "ai" &&
+            typeof currentBanner.maskDataUrl === "string"
+              ? currentBanner.maskDataUrl
+              : null;
+
           const body: Record<string, unknown> = {
             prompt: promptForRequest,
             capsuleName: normalizedName,
@@ -592,8 +607,17 @@ export function useCapsuleCustomizerChat({
           };
           if (source?.imageUrl) body.imageUrl = source.imageUrl;
           if (source?.imageData) body.imageData = source.imageData;
+          if (maskData) body.maskData = maskData;
+          if (stylePersonaId) body.stylePersonaId = stylePersonaId;
+          if (typeof seed === "number" && Number.isFinite(seed)) body.seed = Math.floor(seed);
+          if (typeof guidance === "number" && Number.isFinite(guidance)) body.guidance = guidance;
 
-          const aiEndpoint = customizerMode === "logo" ? "/api/ai/logo" : "/api/ai/banner";
+          const aiEndpoint =
+            customizerMode === "logo"
+              ? "/api/ai/logo"
+              : customizerMode === "avatar"
+                ? "/api/ai/avatar"
+                : "/api/ai/banner";
           const response = await fetch(aiEndpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -664,6 +688,7 @@ export function useCapsuleCustomizerChat({
             url: normalizedAsset.url,
             file: normalizedAsset.file ?? bannerFile,
             crop: normalizedAsset.crop,
+            maskDataUrl: currentBanner?.maskDataUrl ?? null,
           };
 
           updateSelectedBanner(generatedBanner);
@@ -748,6 +773,11 @@ export function useCapsuleCustomizerChat({
       setSaveError,
       setSelectedBanner,
       updateSelectedBanner,
+      guidance,
+      onVariantReceived,
+      onVariantRefreshRequested,
+      seed,
+      stylePersonaId,
     ],
   );
 

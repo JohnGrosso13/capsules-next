@@ -12,6 +12,8 @@ import type {
   CapsuleSaveState,
   CapsuleUploadState,
   CapsuleVariantState,
+  CapsulePersonaState,
+  CapsuleAdvancedOptionsState,
 } from "./useCapsuleCustomizerState";
 
 export type CapsuleCustomizerContextValue = Omit<CapsuleCustomizerCoordinator, "open">;
@@ -57,6 +59,14 @@ export function useCapsuleCustomizerPreview(): CapsulePreviewState {
 
 export function useCapsuleCustomizerUploads(): CapsuleUploadState {
   return useCapsuleCustomizerContext().uploads;
+}
+
+export function useCapsuleCustomizerPersonas(): CapsulePersonaState {
+  return useCapsuleCustomizerContext().personas;
+}
+
+export function useCapsuleCustomizerAdvancedOptions(): CapsuleAdvancedOptionsState {
+  return useCapsuleCustomizerContext().advanced;
 }
 
 export function useCapsuleCustomizerVariants(): CapsuleVariantState {

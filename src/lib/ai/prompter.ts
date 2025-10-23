@@ -1261,6 +1261,9 @@ async function generateWithStability(runtime: ProviderRuntimeParams): Promise<Pr
     if (typeof runtime.context?.options?.["seed"] === "number") {
       stabilityOptions.seed = Number(runtime.context?.options?.["seed"]);
     }
+    if (typeof runtime.context?.options?.["guidance"] === "number") {
+      stabilityOptions.guidance = Number(runtime.context?.options?.["guidance"]);
+    }
     const result = await generateStabilityImage(stabilityOptions);
 
     const finalUrl = `data:${result.mimeType};base64,${result.base64}`;
@@ -1391,6 +1394,7 @@ export async function editImageWithInstruction(
   instruction: string,
   options: ImageOptions = {},
   runContext?: ImageRunExecutionContext,
+  maskData?: string | null,
 ): Promise<ImageGenerationResult> {
   requireOpenAIKey();
 
@@ -1457,6 +1461,52 @@ export async function editImageWithInstruction(
 
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
   const baseBlob = new Blob([arrayBuffer as ArrayBuffer], { type: "image/png" });
+
+  let maskBlob: Blob | null = null;
+  if (maskData) {
+    try {
+      let maskBuffer: Buffer;
+      if (/^data:/i.test(maskData)) {
+        const match = maskData.match(/^data:([^;]+);base64,(.*)$/i);
+        if (!match) {
+          throw new Error("Invalid mask data URI");
+        }
+        const payload = match[2];
+        if (!payload) {
+          throw new Error("Invalid mask data URI");
+        }
+        maskBuffer = Buffer.from(payload, "base64");
+      } else {
+        const response = await fetch(maskData);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch mask image (${response.status})`);
+        }
+        maskBuffer = Buffer.from(await response.arrayBuffer());
+      }
+
+      const { default: Jimp } = await import("jimp");
+      const sourceMask = await Jimp.read(maskBuffer);
+      const processedMask = await new Jimp(
+        sourceMask.bitmap.width,
+        sourceMask.bitmap.height,
+        0xffffffff,
+      );
+      const targetData = processedMask.bitmap.data;
+      sourceMask.scan(0, 0, sourceMask.bitmap.width, sourceMask.bitmap.height, function (_x, _y, idx) {
+        const alpha = this.bitmap.data[idx + 3] ?? 0;
+        targetData[idx + 3] = alpha > 10 ? 0 : 255;
+      });
+      const processedBuffer = await processedMask.getBufferAsync(Jimp.MIME_PNG);
+      const processedArray = new Uint8Array(processedBuffer);
+      maskBlob = new Blob(
+        [processedArray.buffer.slice(processedArray.byteOffset, processedArray.byteOffset + processedArray.byteLength)],
+        { type: "image/png" },
+      );
+    } catch (maskError) {
+      console.warn("editImageWithInstruction mask processing failed", maskError);
+    }
+  }
+
   const promptText = instruction || "Make subtle improvements.";
 
   const allowedEditModelList = ["gpt-image-1", "dall-e-2", "gpt-image-0721-mini-alpha"];
@@ -1506,6 +1556,7 @@ export async function editImageWithInstruction(
         fd.append("image", baseBlob, "image.png");
         fd.append("prompt", promptText);
         if (params.size) fd.append("size", params.size);
+        if (maskBlob) fd.append("mask", maskBlob, "mask.png");
 
         const response = await fetchOpenAI("/images/edits", {
           method: "POST",
