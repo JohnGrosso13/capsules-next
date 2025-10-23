@@ -11,6 +11,7 @@ const requestSchema = z.object({
       size: z.string().optional(),
     })
     .optional(),
+  maskData: z.string().min(1).optional(),
 });
 
 const responseSchema = z.object({ url: z.string() });
@@ -18,7 +19,7 @@ const responseSchema = z.object({ url: z.string() });
 export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, requestSchema);
   if (!parsed.success) return parsed.response;
-  const { imageUrl, instruction, options } = parsed.data;
+  const { imageUrl, instruction, options, maskData } = parsed.data;
   const safeOptions = options
     ? {
         ...(typeof options.quality === "string" ? { quality: options.quality } : {}),
@@ -36,7 +37,11 @@ export async function POST(req: Request) {
       userPrompt: instruction,
       resolvedPrompt: instruction,
       stylePreset: null,
+      options: {
+        maskApplied: Boolean(maskData),
+      },
     },
+    maskData,
   );
   return validatedJson(responseSchema, { url: result.url });
 }
