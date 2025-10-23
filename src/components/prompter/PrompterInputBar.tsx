@@ -12,6 +12,7 @@ type Props = {
   value: string;
   placeholder?: string;
   onChange: (value: string) => void;
+  onPaste?: (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   buttonLabel: string;
   buttonClassName: string;
   buttonDisabled: boolean;
@@ -43,6 +44,7 @@ export function PrompterInputBar({
   value,
   placeholder,
   onChange,
+  onPaste,
   buttonLabel,
   buttonClassName,
   buttonDisabled,
@@ -104,12 +106,13 @@ export function PrompterInputBar({
           enterKeyHint="go"
           rows={2}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      ) : (
-        <input
-          className={styles.input}
-          placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        onPaste={onPaste}
+      />
+    ) : (
+      <input
+        className={styles.input}
+        placeholder={placeholder}
           ref={inputRef as React.RefObject<HTMLInputElement | null>}
           id="ai-prompter-input"
           // Prevent browser suggestions/auto-fill bubbles
@@ -117,11 +120,12 @@ export function PrompterInputBar({
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
-          enterKeyHint="go"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      )}
+        enterKeyHint="go"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onPaste={onPaste}
+      />
+    )}
       {showAttachmentButton ? (
         <input
           ref={fileInputRef}

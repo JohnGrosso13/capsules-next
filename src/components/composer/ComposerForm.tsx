@@ -40,6 +40,7 @@ import {
 } from "@/lib/cloudflare/images";
 import { buildLocalImageVariants, shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
+import { extractFileFromDataTransfer } from "@/lib/clipboard/files";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
@@ -455,8 +456,18 @@ export function ComposerForm({
     clearAttachment,
     handleAttachClick,
     handleAttachmentSelect,
+    handleAttachmentFile,
     attachRemoteAttachment,
   } = useAttachmentUpload();
+  const handlePromptPaste = React.useCallback(
+    (event: React.ClipboardEvent<HTMLInputElement>) => {
+      const file = extractFileFromDataTransfer(event.clipboardData);
+      if (!file) return;
+      event.preventDefault();
+      void handleAttachmentFile(file);
+    },
+    [handleAttachmentFile],
+  );
   const [memoryPickerOpen, setMemoryPickerOpen] = React.useState(false);
   const [memoryPickerTab, setMemoryPickerTab] = React.useState<MemoryPickerTab>("uploads");
   const memoryUploads = useMemoryUploads("upload");
@@ -1301,6 +1312,7 @@ export function ComposerForm({
             className={styles.promptInput}
             placeholder={currentPromptPlaceholder}
             value={workingDraft.content}
+            onPaste={handlePromptPaste}
             onChange={(e) => updateDraft({ content: e.target.value })}
             disabled={loading}
             onKeyDown={(event) => {
@@ -1871,9 +1883,5 @@ export function ComposerForm({
     </div>
   );
 }
-
-
-
-
 
 

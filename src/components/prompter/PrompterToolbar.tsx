@@ -19,6 +19,7 @@ type Props = {
   text: string;
   placeholder: string;
   onTextChange: (value: string) => void;
+  onPaste?: (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   buttonLabel: string;
   buttonClassName: string;
   buttonDisabled: boolean;
@@ -59,6 +60,7 @@ export function PrompterToolbar({
   text,
   placeholder,
   onTextChange,
+  onPaste,
   buttonLabel,
   buttonClassName,
   buttonDisabled,
@@ -100,6 +102,7 @@ export function PrompterToolbar({
         value={text}
         placeholder={placeholder}
         onChange={onTextChange}
+        {...(onPaste ? { onPaste } : {})}
         buttonLabel={buttonLabel}
         buttonClassName={buttonClassName}
         buttonDisabled={buttonDisabled}

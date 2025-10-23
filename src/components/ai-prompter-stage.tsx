@@ -45,6 +45,7 @@ import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import { useCurrentUser } from "@/services/auth/client";
 import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { intentResponseSchema } from "@/shared/schemas/ai";
+import { extractFileFromDataTransfer } from "@/lib/clipboard/files";
 
 export type PrompterAttachment = {
   id: string;
@@ -262,6 +263,16 @@ export function AiPrompterStage({
   const attachmentUploading = attachmentsEnabled ? rawAttachmentUploading : false;
   const handleAttachClickSafe = attachmentsEnabled ? handleAttachClick : noop;
   const handleAttachmentSelectSafe = attachmentsEnabled ? handleAttachmentSelect : noop;
+  const handlePasteAttachment = React.useCallback(
+    (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (!attachmentsEnabled) return;
+      const file = extractFileFromDataTransfer(event.clipboardData);
+      if (!file) return;
+      event.preventDefault();
+      void handleAttachmentFile(file);
+    },
+    [attachmentsEnabled, handleAttachmentFile],
+  );
 
   const saveVoiceTranscript = React.useCallback(
     async (textValue: string) => {
@@ -671,6 +682,7 @@ export function AiPrompterStage({
           uploading={attachmentUploading}
           onAttachClick={handleAttachClickSafe}
           onFileChange={handleAttachmentSelectSafe}
+          {...(attachmentsEnabled ? { onPaste: handlePasteAttachment } : {})}
           manualIntent={variantConfig.allowIntentMenu ? manualIntent : null}
           menuOpen={variantConfig.allowIntentMenu ? menuOpen : false}
           onToggleMenu={variantConfig.allowIntentMenu ? () => setMenuOpen((o) => !o) : noop}
