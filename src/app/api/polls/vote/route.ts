@@ -2,16 +2,12 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-import {
-  ensureUserFromRequest,
-  mergeUserPayloadFromRequest,
-  resolveUserKey,
-  type IncomingUserPayload,
-} from "@/lib/auth/payload";
+import { ensureUserFromRequest, type IncomingUserPayload } from "@/lib/auth/payload";
 import { resolvePostId } from "@/lib/supabase/posts";
 import {
   fetchPostCoreById,
   listPollVotesForPost,
+  fetchUserKeyById,
   upsertPollVote,
   updatePostPollJson,
 } from "@/server/posts/repository";
@@ -41,18 +37,15 @@ export async function POST(req: Request) {
 
   const baseUserPayload = (body?.user as IncomingUserPayload | undefined) ?? {};
 
-  const mergedUserPayload = mergeUserPayloadFromRequest(req, baseUserPayload);
-
-  const userKey = await resolveUserKey(mergedUserPayload);
-
-  if (!userKey) {
-    return NextResponse.json({ error: "auth required" }, { status: 401 });
-  }
-
   const userId = await ensureUserFromRequest(req, baseUserPayload);
 
   if (!userId) {
     return NextResponse.json({ error: "auth required" }, { status: 401 });
+  }
+
+  const userKey = await fetchUserKeyById(userId);
+  if (!userKey) {
+    return NextResponse.json({ error: "user key unavailable" }, { status: 403 });
   }
 
   const postId = await resolvePostId(postIdInput);

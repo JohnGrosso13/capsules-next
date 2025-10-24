@@ -323,6 +323,21 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileRow |
   return result.data ?? null;
 }
 
+export async function fetchUserKeyById(userId: string): Promise<string | null> {
+  const result = await db
+    .from("users")
+    .select<{ user_key: string | null }>("user_key")
+    .eq("id", userId)
+    .maybeSingle();
+  if (result.error) {
+    if (NOT_FOUND_CODES.has(result.error.code ?? "")) return null;
+    throw decorateDatabaseError("posts.userKey.fetch", result.error);
+  }
+  const key = result.data?.user_key;
+  if (typeof key === "string" && key.trim().length) return key.trim();
+  return null;
+}
+
 export async function listMemoriesByOwnerAndColumn(
   ownerId: string,
   column: string,
