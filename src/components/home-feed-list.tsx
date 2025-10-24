@@ -30,6 +30,7 @@ import {
   shouldBypassCloudflareImages,
 } from "@/lib/cloudflare/runtime";
 import { useComposer } from "@/components/composer/ComposerProvider";
+import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import {
   buildDocumentCardData,
   buildPrompterAttachment,
@@ -38,6 +39,7 @@ import {
 } from "@/components/documents/document-card";
 import { requestSummary, normalizeSummaryResponse } from "@/lib/ai/client-summary";
 import type { SummaryAttachmentInput } from "@/types/summary";
+import { useCurrentUser } from "@/services/auth/client";
 
 type LazyImageProps = React.ComponentProps<typeof Image>;
 
@@ -48,6 +50,26 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(
 );
 
 LazyImage.displayName = "LazyImage";
+
+function normalizeIdentifier(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    value = String(value);
+  }
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function buildIdentifierSet(...identifiers: Array<unknown>): Set<string> {
+  const result = new Set<string>();
+  for (const entry of identifiers) {
+    const normalized = normalizeIdentifier(entry);
+    if (normalized) {
+      result.add(normalized);
+    }
+  }
+  return result;
+}
 
 function shouldRebuildVariantsForEnvironment(
   variants: CloudflareImageVariantSet | null | undefined,
@@ -115,6 +137,22 @@ export function HomeFeedList({
   emptyMessage,
 }: HomeFeedListProps) {
   const composer = useComposer();
+  const { user: currentUser } = useCurrentUser();
+  const friendsData = useOptionalFriendsDataContext();
+  const viewerUserId =
+    typeof currentUser?.id === "string" && currentUser.id.trim().length ? currentUser.id.trim() : null;
+  const viewerUserKey =
+    typeof currentUser?.key === "string" && currentUser.key.trim().length
+      ? currentUser.key.trim()
+      : null;
+  const supabaseViewerId =
+    typeof friendsData?.viewerId === "string" && friendsData.viewerId.trim().length
+      ? friendsData.viewerId.trim()
+      : null;
+  const viewerIdentifierSet = React.useMemo(
+    () => buildIdentifierSet(viewerUserId, viewerUserKey, supabaseViewerId),
+    [viewerUserId, viewerUserKey, supabaseViewerId],
+  );
   const [lightbox, setLightbox] = React.useState<{
     postId: string;
     index: number;
@@ -496,6 +534,27 @@ export function HomeFeedList({
         const canTarget = Boolean(resolvedUserId ?? resolvedUserKey);
         const isFriendOptionOpen = activeFriendTarget === menuIdentifier;
         const isFriendActionPending = friendActionPending === menuIdentifier;
+        const ownerIdentifierSet = buildIdentifierSet(
+          resolvedUserId,
+          resolvedUserKey,
+          post.owner_user_id,
+          post.ownerUserId,
+          post.author_user_id,
+          post.authorUserId,
+          post.owner_user_key,
+          post.ownerKey,
+          post.author_user_key,
+          post.authorUserKey,
+        );
+        let viewerOwnsPost = false;
+        if (ownerIdentifierSet.size && viewerIdentifierSet.size) {
+          for (const identifier of viewerIdentifierSet.values()) {
+            if (ownerIdentifierSet.has(identifier)) {
+              viewerOwnsPost = true;
+              break;
+            }
+          }
+        }
         const likeCount = typeof post.likes === "number" ? Math.max(0, post.likes) : 0;
         const commentCount = typeof post.comments === "number" ? Math.max(0, post.comments) : 0;
         const shareCount = typeof post.shares === "number" ? Math.max(0, post.shares) : 0;
@@ -855,15 +914,17 @@ export function HomeFeedList({
                   )}
                 />
 
-                <button
-                  type="button"
-                  className={`${styles.iconBtn} ${styles.iconBtnDelete}`.trim()}
-                  onClick={() => onDelete(post.id)}
-                  aria-label="Delete post"
-                  title="Delete post"
-                >
-                  <Trash weight="duotone" />
-                </button>
+                {viewerOwnsPost ? (
+                  <button
+                    type="button"
+                    className={`${styles.iconBtn} ${styles.iconBtnDelete}`.trim()}
+                    onClick={() => onDelete(post.id)}
+                    aria-label="Delete post"
+                    title="Delete post"
+                  >
+                    <Trash weight="duotone" />
+                  </button>
+                ) : null}
               </div>
             </header>
 
