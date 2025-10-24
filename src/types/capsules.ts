@@ -72,3 +72,33 @@ export type CapsuleMembershipAction =
   | "decline_request"
   | "remove_member"
   | "set_role";
+
+export type CapsuleHistoryPeriod = "weekly" | "monthly" | "all_time";
+
+export type CapsuleHistoryTimelineEntry = {
+  label: string;
+  detail: string;
+  timestamp: string | null;
+};
+
+export type CapsuleHistorySection = {
+  period: CapsuleHistoryPeriod;
+  title: string;
+  summary: string;
+  highlights: string[];
+  nextFocus: string[];
+  timeline: CapsuleHistoryTimelineEntry[];
+  timeframe: {
+    start: string | null;
+    end: string | null;
+  };
+  postCount: number;
+  isEmpty: boolean;
+};
+
+export type CapsuleHistorySnapshot = {
+  capsuleId: string;
+  capsuleName: string | null;
+  generatedAt: string;
+  sections: CapsuleHistorySection[];
+};

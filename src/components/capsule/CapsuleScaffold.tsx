@@ -22,6 +22,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { AiPrompterStage, type PrompterAction } from "@/components/ai-prompter-stage";
 import { CapsuleMembersPanel } from "@/components/capsule/CapsuleMembersPanel";
+import { Button } from "@/components/ui/button";
 import { useComposer } from "@/components/composer/ComposerProvider";
 import { HomeFeedList } from "@/components/home-feed-list";
 import {
@@ -43,18 +44,20 @@ import {
   CapsuleTileCustomizer,
 } from "./CapsuleCustomizer";
 import { useCapsuleLibrary, type CapsuleLibraryItem } from "@/hooks/useCapsuleLibrary";
+import { useCapsuleHistory } from "@/hooks/useCapsuleHistory";
+import { formatRelativeTime } from "@/lib/composer/sidebar-types";
 
 type CapsuleTab = "live" | "feed" | "store";
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
 const FEED_TARGET_EVENT = "composer:feed-target";
-type CapsuleHeroSection = "featured" | "media" | "files";
+type CapsuleHeroSection = "featured" | "history" | "media" | "files";
 
 export type CapsuleContentProps = {
   capsuleId?: string | null;
   capsuleName?: string | null;
 };
 
-const HERO_LINKS = ["Featured", "Members", "Events", "Media", "Files"] as const;
+const HERO_LINKS = ["Featured", "Members", "History", "Events", "Media", "Files"] as const;
 
 // The banner now provides only the visual header. Tabs were moved below it.
 export function CapsuleContent({
@@ -159,6 +162,10 @@ export function CapsuleContent({
   const showFeatured = React.useCallback(() => {
     setMembersOpen(false);
     setHeroSection("featured");
+  }, []);
+  const showHistory = React.useCallback(() => {
+    setMembersOpen(false);
+    setHeroSection("history");
   }, []);
   const showMedia = React.useCallback(() => {
     setMembersOpen(false);
@@ -438,6 +445,7 @@ export function CapsuleContent({
             pendingCount={pendingCount}
             activeSection={heroSection}
             onSelectMembers={showMembers}
+            onSelectHistory={showHistory}
             onSelectFeatured={showFeatured}
             onSelectMedia={showMedia}
             onSelectFiles={showFiles}
@@ -473,6 +481,11 @@ export function CapsuleContent({
                   onRetry={refreshLibrary}
                   formatCount={formatFeedCount}
                   onAsk={handleAskDocument}
+                />
+              ) : heroSection === "history" ? (
+                <CapsuleHistorySection
+                  capsuleId={capsuleId}
+                  capsuleName={normalizedCapsuleName}
                 />
               ) : (
                 <div
@@ -582,6 +595,7 @@ type CapsuleHeroProps = {
   pendingCount: number;
   activeSection: CapsuleHeroSection;
   onSelectMembers: () => void;
+  onSelectHistory: () => void;
   onSelectFeatured: () => void;
   onSelectMedia: () => void;
   onSelectFiles: () => void;
@@ -601,6 +615,7 @@ function CapsuleHero({
   pendingCount,
   activeSection,
   onSelectMembers,
+  onSelectHistory,
   onSelectFeatured,
   onSelectMedia,
   onSelectFiles,
@@ -694,13 +709,16 @@ function CapsuleHero({
         {HERO_LINKS.map((label) => {
           const isMembersLink = label === "Members";
           const isFeaturedLink = label === "Featured";
+          const isHistoryLink = label === "History";
+          const isEventsLink = label === "Events";
           const isMediaLink = label === "Media";
           const isFilesLink = label === "Files";
           const isActive = (() => {
             if (isMembersLink) return membersOpen;
+            if (isHistoryLink) return !membersOpen && activeSection === "history";
             if (isMediaLink) return !membersOpen && activeSection === "media";
             if (isFilesLink) return !membersOpen && activeSection === "files";
-            if (isFeaturedLink) return !membersOpen && activeSection === "featured";
+            if (isFeaturedLink || isEventsLink) return !membersOpen && activeSection === "featured";
             return false;
           })();
           const className = isActive
@@ -709,10 +727,14 @@ function CapsuleHero({
           const handleClick = () => {
             if (isMembersLink) {
               onSelectMembers();
+            } else if (isHistoryLink) {
+              onSelectHistory();
             } else if (isMediaLink) {
               onSelectMedia();
             } else if (isFilesLink) {
               onSelectFiles();
+            } else if (isFeaturedLink || isEventsLink) {
+              onSelectFeatured();
             } else {
               onSelectFeatured();
             }
@@ -858,6 +880,162 @@ function CapsuleFilesSection({ items, loading, error, onRetry, formatCount, onAs
       </div>
     </section>
   );
+}
+
+function CapsuleHistorySection({
+  capsuleId,
+  capsuleName,
+}: {
+  capsuleId: string | null;
+  capsuleName: string | null;
+}) {
+  const { sections, generatedAt, loading, error, refresh } = useCapsuleHistory(capsuleId);
+
+  const handleRefresh = React.useCallback(() => {
+    void refresh(true);
+  }, [refresh]);
+
+  const handleRetry = React.useCallback(() => {
+    void refresh(true);
+  }, [refresh]);
+
+  if (!capsuleId) {
+    return <CapsuleLibraryState message="Select a capsule to see its history." />;
+  }
+
+  if (loading && !sections.length) {
+    return <CapsuleLibraryState message="Building capsule history..." />;
+  }
+
+  if (error) {
+    return <CapsuleLibraryState message={error} onRetry={handleRetry} />;
+  }
+
+  if (!sections.length) {
+    return (
+      <CapsuleLibraryState message="No activity yet. Post updates to start your capsule wiki." />
+    );
+  }
+
+  const subtitle = capsuleName
+    ? `Automations keep ${capsuleName} updated with weekly and monthly recaps.`
+    : "Automations keep this capsule updated with weekly and monthly recaps.";
+
+  const relativeUpdate =
+    generatedAt && formatRelativeTime(generatedAt)
+      ? `Updated ${formatRelativeTime(generatedAt)}`
+      : "Automation ready";
+
+  return (
+    <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
+      <div className={capTheme.historyWrap}>
+        <header className={capTheme.historyHeader}>
+          <div className={capTheme.historyTitleGroup}>
+            <h3 className={capTheme.historyTitle}>Capsule History</h3>
+            <p className={capTheme.historySubtitle}>{subtitle}</p>
+          </div>
+          <div className={capTheme.historyActions}>
+            <span className={capTheme.historyMeta}>{relativeUpdate}</span>
+            <Button type="button" size="sm" variant="outline" disabled={loading} onClick={handleRefresh}>
+              Refresh summary
+            </Button>
+          </div>
+        </header>
+        <div className={capTheme.historyGrid}>
+          {sections.map((section) => (
+            <article key={section.period} className={capTheme.historyCard}>
+              <header className={capTheme.historyCardHeader}>
+                <div>
+                  <span className={capTheme.historyBadge}>{section.title}</span>
+                  <span className={capTheme.historyRange}>
+                    {formatHistoryRange(section.timeframe.start, section.timeframe.end)}
+                  </span>
+                </div>
+                <span className={capTheme.historyCount}>
+                  {section.postCount} {section.postCount === 1 ? "post" : "posts"}
+                </span>
+              </header>
+              <p className={capTheme.historySummary}>{section.summary}</p>
+              {section.highlights.length ? (
+                <div className={capTheme.historyBlock}>
+                  <h4 className={capTheme.historyBlockTitle}>Highlights</h4>
+                  <ul className={capTheme.historyList}>
+                    {section.highlights.map((item, index) => (
+                      <li key={`${section.period}-highlight-${index}`} className={capTheme.historyListItem}>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {section.timeline.length ? (
+                <div className={capTheme.historyBlock}>
+                  <h4 className={capTheme.historyBlockTitle}>Timeline</h4>
+                  <ol className={capTheme.historyTimeline}>
+                    {section.timeline.map((item, index) => (
+                      <li key={`${section.period}-timeline-${index}`} className={capTheme.historyTimelineItem}>
+                        <div className={capTheme.historyTimelineLabel}>
+                          <span>{item.label}</span>
+                          {formatTimelineDate(item.timestamp) ? (
+                            <span className={capTheme.historyTimelineDate}>
+                              {formatTimelineDate(item.timestamp)}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className={capTheme.historyTimelineDetail}>{item.detail}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+              {section.nextFocus.length ? (
+                <div className={capTheme.historyBlock}>
+                  <h4 className={capTheme.historyBlockTitle}>Suggested next focus</h4>
+                  <ul className={capTheme.historyList}>
+                    {section.nextFocus.map((item, index) => (
+                      <li key={`${section.period}-next-${index}`} className={capTheme.historyListItem}>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {section.isEmpty ? (
+                <p className={capTheme.historyEmpty}>
+                  Automation didn&apos;t find new activity for this period yet.
+                </p>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function formatHistoryRange(start: string | null, end: string | null): string {
+  if (!start && !end) return "All time";
+  const startDate = start ? new Date(start) : null;
+  const endDate = end ? new Date(end) : null;
+  const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  const normalize = (date: Date | null) =>
+    date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString(undefined, options) : null;
+  const startText = normalize(startDate);
+  const endText = normalize(endDate);
+  if (startText && endText) {
+    if (startText === endText) return startText;
+    return `${startText} — ${endText}`;
+  }
+  if (startText) return `Since ${startText}`;
+  if (endText) return `Through ${endText}`;
+  return "All time";
+}
+
+function formatTimelineDate(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function LiveStreamCanvas() {

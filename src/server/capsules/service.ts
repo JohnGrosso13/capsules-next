@@ -1,4 +1,7 @@
 import type {
+  CapsuleHistoryPeriod,
+  CapsuleHistorySection,
+  CapsuleHistorySnapshot,
   CapsuleMemberRequestSummary,
   CapsuleMembershipState,
   CapsuleMembershipViewer,
@@ -38,6 +41,8 @@ import { indexMemory } from "@/server/memories/service";
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
+import { getDatabaseAdminClient } from "@/config/database";
+import { AIConfigError, callOpenAIChat, extractJSON } from "@/lib/ai/prompter";
 
 export type { CapsuleSummary, DiscoverCapsuleSummary } from "./repository";
 export type {
@@ -79,6 +84,39 @@ function normalizeOptionalString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+const HISTORY_CACHE_TTL_MS = 5 * 60 * 1000;
+const HISTORY_POST_LIMIT = 180;
+const HISTORY_MODEL_POST_LIMIT = 150;
+const HISTORY_HIGHLIGHT_LIMIT = 5;
+const HISTORY_TIMELINE_LIMIT = 6;
+const HISTORY_NEXT_FOCUS_LIMIT = 4;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+
+type CapsuleHistoryCacheEntry = {
+  expiresAt: number;
+  snapshot: CapsuleHistorySnapshot;
+};
+
+const capsuleHistoryCache = new Map<string, CapsuleHistoryCacheEntry>();
+
+function getCachedCapsuleHistory(capsuleId: string): CapsuleHistorySnapshot | null {
+  const entry = capsuleHistoryCache.get(capsuleId);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    capsuleHistoryCache.delete(capsuleId);
+    return null;
+  }
+  return entry.snapshot;
+}
+
+function setCachedCapsuleHistory(capsuleId: string, snapshot: CapsuleHistorySnapshot) {
+  capsuleHistoryCache.set(capsuleId, {
+    expiresAt: Date.now() + HISTORY_CACHE_TTL_MS,
+    snapshot,
+  });
 }
 
 function resolveCapsuleMediaUrl(
@@ -903,6 +941,593 @@ export async function setCapsuleMemberRole(
   return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
 }
 
+type CapsuleHistoryPostRow = {
+  id: string | number | null;
+  kind: string | null;
+  content: string | null;
+  media_url: string | null;
+  media_prompt: string | null;
+  user_name: string | null;
+  created_at: string | null;
+};
+
+type CapsuleHistoryPost = {
+  id: string;
+  kind: string | null;
+  content: string;
+  createdAt: string | null;
+  user: string | null;
+  hasMedia: boolean;
+};
+
+type CapsuleHistoryTimeframe = {
+  period: CapsuleHistoryPeriod;
+  label: string;
+  start: string | null;
+  end: string | null;
+  posts: CapsuleHistoryPost[];
+};
+
+type HistoryModelSection = {
+  period?: unknown;
+  title?: unknown;
+  summary?: unknown;
+  highlights?: unknown;
+  next_focus?: unknown;
+  timeline?: unknown;
+  empty?: unknown;
+};
+
+type HistoryModelTimelineEntry = {
+  label?: unknown;
+  detail?: unknown;
+  timestamp?: unknown;
+};
+
+const HISTORY_CONTENT_LIMIT = 320;
+const HISTORY_SUMMARY_LIMIT = 420;
+const HISTORY_LINE_LIMIT = 200;
+
+const CAPSULE_HISTORY_RESPONSE_SCHEMA = {
+  name: "CapsuleHistory",
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["generated_at", "sections"],
+    properties: {
+      generated_at: { type: "string" },
+      sections: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["period", "summary", "highlights", "timeline", "next_focus"],
+          properties: {
+            period: { type: "string", enum: ["weekly", "monthly", "all_time"] },
+            title: { type: "string" },
+            summary: { type: "string" },
+            highlights: { type: "array", items: { type: "string" } },
+            timeline: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["label", "detail"],
+                properties: {
+                  label: { type: "string" },
+                  detail: { type: "string" },
+                  timestamp: { type: ["string", "null"] },
+                },
+              },
+            },
+            next_focus: { type: "array", items: { type: "string" } },
+            empty: { type: "boolean" },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+function sanitizeHistoryContent(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  if (!trimmed.length) return "";
+  return trimmed.length > HISTORY_CONTENT_LIMIT ? trimmed.slice(0, HISTORY_CONTENT_LIMIT) : trimmed;
+}
+
+function sanitizeHistoryString(value: unknown, limit: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  if (!trimmed.length) return null;
+  return trimmed.length > limit ? trimmed.slice(0, limit) : trimmed;
+}
+
+function sanitizeHistoryArray(
+  value: unknown,
+  limit: number,
+  itemLimit = HISTORY_LINE_LIMIT,
+): string[] {
+  if (!Array.isArray(value)) return [];
+  const entries: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const trimmed = entry.replace(/\s+/g, " ").trim();
+    if (!trimmed.length) continue;
+    entries.push(trimmed.length > itemLimit ? trimmed.slice(0, itemLimit) : trimmed);
+    if (entries.length >= limit) break;
+  }
+  return entries;
+}
+
+function coerceTimelineEntries(value: unknown): CapsuleHistorySection["timeline"] {
+  if (!Array.isArray(value)) return [];
+  const entries: CapsuleHistorySection["timeline"] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as HistoryModelTimelineEntry;
+    const label = sanitizeHistoryString(record.label, 120);
+    const detail = sanitizeHistoryString(record.detail, HISTORY_LINE_LIMIT);
+    const timestamp =
+      typeof record.timestamp === "string" && record.timestamp.trim().length
+        ? record.timestamp.trim()
+        : null;
+    if (!label || !detail) continue;
+    entries.push({
+      label,
+      detail,
+      timestamp,
+    });
+    if (entries.length >= HISTORY_TIMELINE_LIMIT) break;
+  }
+  return entries;
+}
+
+function normalizeHistoryPeriod(value: unknown): CapsuleHistoryPeriod | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "weekly" || normalized === "monthly" || normalized === "all_time") {
+    return normalized;
+  }
+  return null;
+}
+
+function isOnOrAfterTimestamp(value: string | null, boundary: Date): boolean {
+  if (!value) return false;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return parsed.getTime() >= boundary.getTime();
+}
+
+function resolveEarliestTimestamp(current: string | null, candidate: string | null): string | null {
+  if (!candidate) return current;
+  const candidateDate = new Date(candidate);
+  if (Number.isNaN(candidateDate.getTime())) return current;
+  if (!current) return candidate;
+  const currentDate = new Date(current);
+  if (Number.isNaN(currentDate.getTime())) return candidate;
+  return candidateDate.getTime() < currentDate.getTime() ? candidate : current;
+}
+
+function mapHistoryPostRow(row: CapsuleHistoryPostRow): CapsuleHistoryPost | null {
+  const idSource = row.id;
+  let id: string | null = null;
+  if (typeof idSource === "string") {
+    id = idSource.trim();
+  } else if (typeof idSource === "number") {
+    id = String(idSource);
+  }
+  if (!id) return null;
+  const createdAt =
+    typeof row.created_at === "string" && row.created_at.trim().length
+      ? row.created_at.trim()
+      : null;
+  const kind = sanitizeHistoryString(row.kind, 48);
+  const hasMedia = typeof row.media_url === "string" && row.media_url.trim().length > 0;
+  const contentPrimary = sanitizeHistoryContent(row.content);
+  const contentFallback = sanitizeHistoryContent(row.media_prompt);
+  const user =
+    typeof row.user_name === "string" && row.user_name.trim().length
+      ? row.user_name.trim().slice(0, 80)
+      : null;
+  const content =
+    contentPrimary ||
+    contentFallback ||
+    (hasMedia ? "Shared new media." : "Shared an update.");
+  return {
+    id,
+    kind,
+    content,
+    createdAt,
+    user,
+    hasMedia,
+  };
+}
+
+async function loadCapsuleHistoryPosts(
+  capsuleId: string,
+  limit = HISTORY_POST_LIMIT,
+): Promise<CapsuleHistoryPost[]> {
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from("posts_view")
+    .select<CapsuleHistoryPostRow>(
+      "id, kind, content, media_url, media_prompt, user_name, created_at",
+    )
+    .eq("capsule_id", capsuleId)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .fetch();
+  if (result.error) {
+    throw new Error(`capsules.history.posts: ${result.error.message}`);
+  }
+  const rows = result.data ?? [];
+  return rows
+    .map(mapHistoryPostRow)
+    .filter((post): post is CapsuleHistoryPost => post !== null);
+}
+
+function buildHistoryTimeframes(
+  posts: CapsuleHistoryPost[],
+  now: Date,
+): CapsuleHistoryTimeframe[] {
+  const nowIso = now.toISOString();
+  const weeklyBoundary = new Date(now.getTime() - WEEK_MS);
+  const monthlyBoundary = new Date(now.getTime() - MONTH_MS);
+  const weeklyPosts = posts.filter((post) => isOnOrAfterTimestamp(post.createdAt, weeklyBoundary));
+  const monthlyPosts = posts.filter((post) => isOnOrAfterTimestamp(post.createdAt, monthlyBoundary));
+  const earliest = posts.reduce<string | null>(
+    (acc, post) => resolveEarliestTimestamp(acc, post.createdAt),
+    null,
+  );
+  return [
+    {
+      period: "weekly",
+      label: "This Week",
+      start: weeklyBoundary.toISOString(),
+      end: nowIso,
+      posts: weeklyPosts,
+    },
+    {
+      period: "monthly",
+      label: "This Month",
+      start: monthlyBoundary.toISOString(),
+      end: nowIso,
+      posts: monthlyPosts,
+    },
+    {
+      period: "all_time",
+      label: "All Time",
+      start: earliest,
+      end: nowIso,
+      posts,
+    },
+  ];
+}
+
+function collectAuthorStats(posts: CapsuleHistoryPost[]): Map<string, number> {
+  const stats = new Map<string, number>();
+  posts.forEach((post) => {
+    const name = post.user?.trim();
+    if (!name) return;
+    stats.set(name, (stats.get(name) ?? 0) + 1);
+  });
+  return stats;
+}
+
+function getTopAuthorName(stats: Map<string, number>): string | null {
+  let topName: string | null = null;
+  let topCount = 0;
+  for (const [name, count] of stats.entries()) {
+    if (count > topCount) {
+      topName = name;
+      topCount = count;
+    }
+  }
+  return topName;
+}
+
+function buildFallbackSummary(timeframe: CapsuleHistoryTimeframe): string {
+  if (!timeframe.posts.length) {
+    if (timeframe.period === "all_time") {
+      return "No posts have been shared in this capsule yet.";
+    }
+    return `No activity recorded for ${timeframe.label.toLowerCase()}.`;
+  }
+  const stats = collectAuthorStats(timeframe.posts);
+  const contributorCount = stats.size || (timeframe.posts[0]?.user ? 1 : 0);
+  const latestAuthor = timeframe.posts.find((post) => post.user)?.user ?? "a member";
+  if (contributorCount > 1) {
+    return `${timeframe.posts.length} posts from ${contributorCount} contributors. Latest update from ${latestAuthor}.`;
+  }
+  return `${timeframe.posts.length} ${timeframe.posts.length === 1 ? "post" : "posts"} from ${latestAuthor}.`;
+}
+
+function buildFallbackHighlights(timeframe: CapsuleHistoryTimeframe): string[] {
+  if (!timeframe.posts.length) return [];
+  const stats = collectAuthorStats(timeframe.posts);
+  const topAuthor = getTopAuthorName(stats);
+  const highlights: string[] = [];
+  const latest = timeframe.posts[0] ?? null;
+  if (latest?.content) {
+    highlights.push(latest.content);
+  } else if (topAuthor) {
+    highlights.push(`${topAuthor} shared an update.`);
+  } else {
+    highlights.push("Recent member update recorded.");
+  }
+  if (stats.size > 1) {
+    highlights.push(`${stats.size} members contributed updates.`);
+  } else if (stats.size === 1 && timeframe.posts.length > 1 && topAuthor) {
+    highlights.push(`${topAuthor} posted multiple updates.`);
+  }
+  return highlights;
+}
+
+function buildFallbackNextFocus(timeframe: CapsuleHistoryTimeframe): string[] {
+  if (!timeframe.posts.length) {
+    return [
+      "Post a kickoff recap to start the capsule wiki.",
+      "Invite members to share their wins for this period.",
+    ];
+  }
+  return [
+    "Pin a short recap highlighting the latest wins.",
+    "Ask members to add media or documents that support these updates.",
+  ];
+}
+
+function buildFallbackTimeline(
+  timeframe: CapsuleHistoryTimeframe,
+): CapsuleHistorySection["timeline"] {
+  if (!timeframe.posts.length) return [];
+  const timeline: CapsuleHistorySection["timeline"] = [];
+  for (const post of timeframe.posts.slice(0, HISTORY_TIMELINE_LIMIT)) {
+    const label =
+      sanitizeHistoryString(
+        post.user ? `Update from ${post.user}` : "New update",
+        120,
+      ) ?? "New update";
+    const detail =
+      sanitizeHistoryString(
+        post.content || (post.hasMedia ? "Shared new media." : "Shared an update."),
+        HISTORY_LINE_LIMIT,
+      ) ?? "Shared an update.";
+    timeline.push({
+      label,
+      detail,
+      timestamp: post.createdAt,
+    });
+  }
+  return timeline;
+}
+
+async function generateCapsuleHistoryFromModel(input: {
+  capsuleId: string;
+  capsuleName: string | null;
+  timeframes: CapsuleHistoryTimeframe[];
+  posts: CapsuleHistoryPost[];
+  nowIso: string;
+}): Promise<{ generatedAt: string | null; sections: HistoryModelSection[] }> {
+  const weekly = input.timeframes.find((tf) => tf.period === "weekly") ?? null;
+  const monthly = input.timeframes.find((tf) => tf.period === "monthly") ?? null;
+  const weeklyIds = new Set((weekly?.posts ?? []).map((post) => post.id));
+  const monthlyIds = new Set((monthly?.posts ?? []).map((post) => post.id));
+  const postsForModel = input.posts.slice(0, HISTORY_MODEL_POST_LIMIT).map((post) => ({
+    id: post.id,
+    created_at: post.createdAt,
+    author: post.user,
+    kind: post.kind,
+    has_media: post.hasMedia,
+    summary: post.content,
+    in_weekly: weeklyIds.has(post.id),
+    in_monthly: monthlyIds.has(post.id),
+  }));
+
+  const payload = {
+    capsule: {
+      id: input.capsuleId,
+      name: input.capsuleName,
+    },
+    generated_at: input.nowIso,
+    boundaries: input.timeframes.reduce<
+      Record<string, { start: string | null; end: string | null; post_count: number }>
+    >((acc, timeframe) => {
+      acc[timeframe.period] = {
+        start: timeframe.start,
+        end: timeframe.end,
+        post_count: timeframe.posts.length,
+      };
+      return acc;
+    }, {}),
+    posts: postsForModel,
+  };
+
+  const systemMessage = {
+    role: "system",
+    content:
+      "You are Capsules AI, maintaining a capsule history wiki. For each timeframe (weekly, monthly, all_time) produce concise factual recaps based only on the provided posts. Return JSON matching the schema. Summaries may be up to three sentences. Highlights should be short bullet-style points (<=140 chars) referencing actual activity. Timeline entries should mention specific updates with plain language. Provide 1-3 actionable next_focus suggestions when there is activity. If a timeframe has zero posts, set empty=true, summary like 'No new activity this period.', and provide one suggestion encouraging participation. Never invent names or events.",
+  };
+
+  const userMessage = {
+    role: "user",
+    content: JSON.stringify(payload),
+  };
+
+  const { content } = await callOpenAIChat(
+    [systemMessage, userMessage],
+    CAPSULE_HISTORY_RESPONSE_SCHEMA,
+    { temperature: 0.4 },
+  );
+
+  const parsed = extractJSON<Record<string, unknown>>(content) ?? {};
+  const sectionsRaw = Array.isArray(parsed.sections)
+    ? (parsed.sections as HistoryModelSection[])
+    : [];
+  const generatedAt =
+    typeof parsed.generated_at === "string" && parsed.generated_at.trim().length
+      ? parsed.generated_at.trim()
+      : null;
+  const sanitized = sectionsRaw.filter(
+    (entry): entry is HistoryModelSection => entry && typeof entry === "object",
+  );
+  return {
+    generatedAt,
+    sections: sanitized,
+  };
+}
+
+function buildHistorySections(
+  timeframes: CapsuleHistoryTimeframe[],
+  modelSections: HistoryModelSection[] | null,
+): CapsuleHistorySection[] {
+  return timeframes.map((timeframe) => {
+    const match =
+      modelSections?.find(
+        (section) => normalizeHistoryPeriod(section.period) === timeframe.period,
+      ) ?? null;
+    const title = sanitizeHistoryString(match?.title, 80) ?? timeframe.label;
+    const summary =
+      sanitizeHistoryString(match?.summary, HISTORY_SUMMARY_LIMIT) ??
+      buildFallbackSummary(timeframe);
+    const highlights = sanitizeHistoryArray(match?.highlights, HISTORY_HIGHLIGHT_LIMIT);
+    const nextFocus = sanitizeHistoryArray(match?.next_focus, HISTORY_NEXT_FOCUS_LIMIT, 160);
+    const timeline = coerceTimelineEntries(match?.timeline);
+
+    const resolvedHighlights = highlights.length
+      ? highlights
+      : sanitizeHistoryArray(buildFallbackHighlights(timeframe), HISTORY_HIGHLIGHT_LIMIT);
+    const resolvedNextFocus = nextFocus.length
+      ? nextFocus
+      : sanitizeHistoryArray(buildFallbackNextFocus(timeframe), HISTORY_NEXT_FOCUS_LIMIT, 160);
+    const resolvedTimeline = timeline.length ? timeline : buildFallbackTimeline(timeframe);
+
+    const isEmpty = Boolean(match?.empty) || timeframe.posts.length === 0;
+
+    return {
+      period: timeframe.period,
+      title,
+      summary,
+      highlights: resolvedHighlights,
+      nextFocus: resolvedNextFocus,
+      timeline: resolvedTimeline,
+      timeframe: { start: timeframe.start, end: timeframe.end },
+      postCount: timeframe.posts.length,
+      isEmpty,
+    };
+  });
+}
+
+async function buildCapsuleHistorySnapshot({
+  capsuleId,
+  capsuleName,
+}: {
+  capsuleId: string;
+  capsuleName: string | null;
+}): Promise<CapsuleHistorySnapshot> {
+  const posts = await loadCapsuleHistoryPosts(capsuleId, HISTORY_POST_LIMIT);
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const timeframes = buildHistoryTimeframes(posts, now);
+
+  if (!posts.length) {
+    const sections = timeframes.map<CapsuleHistorySection>((timeframe) => ({
+      period: timeframe.period,
+      title: timeframe.label,
+      summary: buildFallbackSummary(timeframe),
+      highlights: sanitizeHistoryArray(
+        buildFallbackHighlights(timeframe),
+        HISTORY_HIGHLIGHT_LIMIT,
+      ),
+      nextFocus: sanitizeHistoryArray(
+        buildFallbackNextFocus(timeframe),
+        HISTORY_NEXT_FOCUS_LIMIT,
+        160,
+      ),
+      timeline: buildFallbackTimeline(timeframe),
+      timeframe: { start: timeframe.start, end: timeframe.end },
+      postCount: 0,
+      isEmpty: true,
+    }));
+
+    return {
+      capsuleId,
+      capsuleName,
+      generatedAt: nowIso,
+      sections,
+    };
+  }
+
+  let modelSections: HistoryModelSection[] | null = null;
+  let generatedAt = nowIso;
+  try {
+    const model = await generateCapsuleHistoryFromModel({
+      capsuleId,
+      capsuleName,
+      timeframes,
+      posts,
+      nowIso,
+    });
+    modelSections = model.sections;
+    if (model.generatedAt) {
+      generatedAt = model.generatedAt;
+    }
+  } catch (error) {
+    if (error instanceof AIConfigError) {
+      throw error;
+    }
+    console.error("capsules.history.generate", error);
+  }
+
+  const sections = buildHistorySections(timeframes, modelSections);
+  return {
+    capsuleId,
+    capsuleName,
+    generatedAt,
+    sections,
+  };
+}
+
+export async function getCapsuleHistory(
+  capsuleId: string,
+  viewerId: string | null | undefined,
+  options: { forceRefresh?: boolean } = {},
+): Promise<CapsuleHistorySnapshot> {
+  const normalizedViewerId = normalizeId(viewerId ?? null);
+  if (!normalizedViewerId) {
+    throw new CapsuleMembershipError("forbidden", "Authentication required.", 403);
+  }
+
+  const { capsule, ownerId } = await requireCapsule(capsuleId);
+  const capsuleIdValue = normalizeId(capsule.id);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.history: capsule has invalid identifier");
+  }
+
+  if (normalizedViewerId !== ownerId) {
+    const membership = await getCapsuleMemberRecord(capsuleIdValue, normalizedViewerId);
+    if (!membership) {
+      throw new CapsuleMembershipError(
+        "forbidden",
+        "Join this capsule to view its history.",
+        403,
+      );
+    }
+  }
+
+  if (!options.forceRefresh) {
+    const cached = getCachedCapsuleHistory(capsuleIdValue);
+    if (cached) return cached;
+  }
+
+  const snapshot = await buildCapsuleHistorySnapshot({
+    capsuleId: capsuleIdValue,
+    capsuleName: normalizeOptionalString(capsule.name ?? null),
+  });
+  setCachedCapsuleHistory(capsuleIdValue, snapshot);
+  return snapshot;
+}
+
 function resolveAssetMimeType(
   row: CapsuleAssetRow,
   meta: Record<string, unknown> | null,
@@ -1020,7 +1645,7 @@ export async function getCapsuleLibrary(
 
   const rows = await listCapsuleAssets({
     capsuleId,
-    limit: options.limit,
+    ...(typeof options.limit === "number" ? { limit: options.limit } : {}),
   });
 
   const media: CapsuleLibraryItem[] = [];

@@ -2665,3 +2665,177 @@
   margin: 0;
   font-size: 0.95rem;
 }
+.historyWrap {
+  display: grid;
+  gap: clamp(20px, 2vw, 28px);
+  width: min(100%, 720px);
+  margin: 0 auto;
+}
+.historyHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.historyTitleGroup {
+  display: grid;
+  gap: 6px;
+}
+.historyTitle {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.6vw, 1.6rem);
+  font-weight: 900;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+.historySubtitle {
+  margin: 0;
+  color: var(--text-2, rgba(203, 213, 225, 0.8));
+  font-size: 0.95rem;
+}
+.historyActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  color: var(--text-2, rgba(203, 213, 225, 0.78));
+}
+.historyMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+}
+.historyGrid {
+  display: grid;
+  gap: 18px;
+}
+.historyCard {
+  padding: clamp(18px, 2.2vw, 28px);
+  border-radius: var(--radius-2xl, 20px);
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow);
+  display: grid;
+  gap: 18px;
+}
+.historyCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.historyBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-brand) 70%, transparent);
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+.historyRange {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--text-3, rgba(148, 163, 184, 0.75));
+}
+.historyCount {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-2, rgba(203, 213, 225, 0.78));
+  background: var(--surface-faint, rgba(255, 255, 255, 0.08));
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.historySummary {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+.historyBlock {
+  display: grid;
+  gap: 12px;
+}
+.historyBlockTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--text-2, rgba(203, 213, 225, 0.78));
+}
+.historyList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.historyListItem {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: var(--text, rgba(255, 255, 255, 0.9));
+}
+.historyListItem::before {
+  content: "•";
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--color-brand, rgba(79, 209, 197, 0.95));
+}
+.historyTimeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+.historyTimelineItem {
+  display: grid;
+  gap: 6px;
+}
+.historyTimelineLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-weight: 700;
+  color: var(--text, rgba(255, 255, 255, 0.9));
+}
+.historyTimelineDate {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-3, rgba(148, 163, 184, 0.76));
+}
+.historyTimelineDetail {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-2, rgba(203, 213, 225, 0.82));
+}
+.historyEmpty {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-3, rgba(148, 163, 184, 0.8));
+  font-style: italic;
+}
+@media (max-width: 640px) {
+  .historyActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .historyCard {
+    padding: 18px;
+  }
+  .historyListItem::before {
+    margin-top: 4px;
+  }
+}
