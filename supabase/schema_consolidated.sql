@@ -96,6 +96,7 @@ create table if not exists public.posts (
   content text not null default '',
   media_url text,
   media_prompt text,
+  poll jsonb,
   user_name text,
   user_avatar text,
   tags text[] default array[]::text[],
@@ -502,6 +503,7 @@ select
   p.content,
   p.media_url,
   p.media_prompt,
+  p.poll,
   p.user_name,
   p.user_avatar,
   p.tags,
@@ -655,6 +657,20 @@ begin
   from public.posts
   where created_at >= current_date;
 end;
+$$;
+
+create or replace function public.poll_vote_counts(post_ids uuid[])
+returns table (post_id uuid, option_index integer, vote_count bigint)
+language sql
+as $$
+  select
+    pv.post_id,
+    pv.option_index,
+    count(*)::bigint as vote_count
+  from public.poll_votes pv
+  where pv.post_id = any(post_ids)
+  group by pv.post_id, pv.option_index
+  order by pv.post_id, pv.option_index;
 $$;
 
 create or replace function analytics_overview_snapshot()

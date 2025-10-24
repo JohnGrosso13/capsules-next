@@ -2,9 +2,27 @@ import { normalizeMediaUrl } from "@/lib/media";
 
 import type { NormalizedAttachment } from "./media";
 
+function decodePollFromMediaPrompt(value: unknown): unknown | null {
+  if (typeof value !== "string") return null;
+  if (!value.startsWith("__POLL__")) return null;
+  const payload = value.slice(8);
+  try {
+    return JSON.parse(payload) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 export function normalizePost(row: Record<string, unknown>) {
   const dbId =
     typeof row.id === "string" || typeof row.id === "number" ? String(row.id) : undefined;
+  const pollValue =
+    Object.prototype.hasOwnProperty.call(row, "poll") && row.poll !== undefined
+      ? (row.poll as unknown)
+      : decodePollFromMediaPrompt(
+          (row as Record<string, unknown>)["media_prompt"] ??
+            (row as Record<string, unknown>)["mediaPrompt"],
+        );
 
   return {
     id: (row.client_id ?? row.id) as string,
@@ -33,6 +51,7 @@ export function normalizePost(row: Record<string, unknown>) {
       typeof row["viewer_liked"] === "boolean" ? (row["viewer_liked"] as boolean) : false,
     viewerRemembered:
       typeof row["viewer_remembered"] === "boolean" ? (row["viewer_remembered"] as boolean) : false,
+    poll: pollValue ?? null,
   };
 }
 
@@ -61,6 +80,7 @@ const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
     ownerUserId: null,
     viewerLiked: false,
     viewerRemembered: false,
+    poll: null,
     attachments: [],
   },
   {
@@ -83,6 +103,7 @@ const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
     ownerUserId: null,
     viewerLiked: false,
     viewerRemembered: false,
+    poll: null,
     attachments: [],
   },
 ];

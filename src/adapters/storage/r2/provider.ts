@@ -40,10 +40,47 @@ function sanitizeMetadata(
 ): Record<string, string> | undefined {
   if (!metadata) return undefined;
   const entries: Record<string, string> = {};
+  const sanitizeKey = (rawKey: string): string | null => {
+    const normalized = rawKey
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    return normalized.length ? normalized : null;
+  };
+  const sanitizeValue = (rawValue: unknown): string | null => {
+    if (rawValue === undefined || rawValue === null) return null;
+    const text = String(rawValue);
+    if (!text.length) return null;
+    let buffer = "";
+    for (const char of text) {
+      const code = char.charCodeAt(0);
+      if (code <= 31 || code === 127) {
+        continue;
+      }
+      if (code > 126) {
+        buffer += encodeURIComponent(char);
+      } else {
+        buffer += char;
+      }
+    }
+    buffer = buffer.trim();
+    if (!buffer.length) return null;
+    if (buffer.length > 1024) {
+      let truncated = buffer.slice(0, 1024);
+      const percentIndex = truncated.lastIndexOf("%");
+      if (percentIndex !== -1 && percentIndex > truncated.length - 3) {
+        truncated = truncated.slice(0, percentIndex);
+      }
+      buffer = truncated;
+    }
+    return buffer.length ? buffer : null;
+  };
   for (const [key, value] of Object.entries(metadata)) {
-    if (value === undefined || value === null) continue;
-    const normalizedKey = key.toLowerCase();
-    entries[normalizedKey] = String(value).slice(0, 1024);
+    const normalizedKey = sanitizeKey(key);
+    if (!normalizedKey) continue;
+    const sanitizedValue = sanitizeValue(value);
+    if (sanitizedValue === null) continue;
+    entries[normalizedKey] = sanitizedValue;
   }
   return Object.keys(entries).length ? entries : undefined;
 }
@@ -136,8 +173,18 @@ class R2StorageProvider implements StorageProvider {
       origins.add("null");
     }
 
-    origins.add("*");
-    const allowedOrigins = Array.from(origins);
+    const hasWildcard = origins.has("*");
+    if (hasWildcard) origins.delete("*");
+    let allowedOrigins = Array.from(origins).filter((origin) => {
+      if (!origin) return false;
+      if (origin === "null") return true;
+      return /^[a-z][a-z0-9+.-]*:\/\//i.test(origin);
+    });
+    if (!allowedOrigins.length && hasWildcard) {
+      allowedOrigins = ["*"];
+    } else if (!allowedOrigins.length) {
+      allowedOrigins = ["*"];
+    }
 
     const command = new PutBucketCorsCommand({
       Bucket: this.bucket,

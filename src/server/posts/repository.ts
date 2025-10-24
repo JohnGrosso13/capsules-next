@@ -1,5 +1,6 @@
 import { getDatabaseAdminClient } from "@/config/database";
 import { decorateDatabaseError, expectResult } from "@/lib/database/utils";
+import type { DatabaseError } from "@/ports/database";
 
 const db = getDatabaseAdminClient();
 
@@ -116,6 +117,25 @@ type PostLikesCountRow = {
 type PollVoteDbRow = {
   option_index: number | null;
 };
+
+type PollVoteAggregateRow = {
+  post_id: string | number | null;
+  option_index: number | null;
+  vote_count: number | null;
+};
+
+type PollVoteViewerRow = {
+  post_id: string | number | null;
+  option_index: number | null;
+};
+
+function isMissingPollVotesTable(error: DatabaseError | null): boolean {
+  if (!error) return false;
+  const code = (error.code ?? "").toUpperCase();
+  const message = (error.message ?? "").toLowerCase();
+  if (code === "PGRST205" || code === "42P01") return true;
+  return message.includes("poll_votes");
+}
 
 function decodePollFromMediaPrompt(raw: unknown): unknown | null {
   if (typeof raw !== "string") return null;
@@ -584,6 +604,7 @@ export async function upsertPollVote(
   postId: string,
   userKey: string,
   optionIndex: number,
+  userId?: string | null,
 ): Promise<void> {
   const result = await db
     .from("poll_votes")
@@ -592,6 +613,7 @@ export async function upsertPollVote(
         {
           post_id: postId,
           user_key: userKey,
+          user_id: userId ?? null,
           option_index: optionIndex,
         },
       ],
@@ -599,7 +621,13 @@ export async function upsertPollVote(
     )
     .select<PollVoteDbRow>("option_index")
     .fetch();
-  if (result.error) throw decorateDatabaseError("posts.polls.vote", result.error);
+  if (result.error) {
+    if (isMissingPollVotesTable(result.error)) {
+      console.warn("poll_votes table missing; skipping vote persistence");
+      return;
+    }
+    throw decorateDatabaseError("posts.polls.vote", result.error);
+  }
 }
 
 export async function listPollVotesForPost(postId: string, limit = 5000): Promise<PollVoteDbRow[]> {
@@ -609,6 +637,59 @@ export async function listPollVotesForPost(postId: string, limit = 5000): Promis
     .eq("post_id", postId)
     .limit(limit)
     .fetch();
-  if (result.error) throw decorateDatabaseError("posts.polls.votes", result.error);
+  if (result.error) {
+    if (isMissingPollVotesTable(result.error)) {
+      console.warn("poll_votes table missing; returning empty vote list");
+      return [];
+    }
+    throw decorateDatabaseError("posts.polls.votes", result.error);
+  }
+  return result.data ?? [];
+}
+
+export async function updatePostPollJson(postId: string, poll: unknown): Promise<void> {
+  const result = await db.from("posts").update({ poll }).eq("id", postId).fetch();
+  if (result.error) {
+    const code = (result.error.code ?? "").toUpperCase();
+    const message = result.error.message ?? "";
+    if (code === "42703" || message.includes("'poll'") || message.includes('column "poll"')) {
+      console.warn("posts.poll column missing; skipping poll update");
+      return;
+    }
+    throw decorateDatabaseError("posts.polls.update", result.error);
+  }
+}
+
+export async function listPollVoteAggregates(postIds: string[]): Promise<PollVoteAggregateRow[]> {
+  if (!postIds.length) return [];
+  const result = await db.rpc<PollVoteAggregateRow>("poll_vote_counts", { post_ids: postIds });
+  if (result.error) {
+    if (isMissingPollVotesTable(result.error)) {
+      console.warn("poll_votes table missing; returning empty aggregated vote list");
+      return [];
+    }
+    throw decorateDatabaseError("posts.polls.aggregate", result.error);
+  }
+  return result.data ?? [];
+}
+
+export async function listViewerPollVotes(
+  postIds: string[],
+  userId: string,
+): Promise<PollVoteViewerRow[]> {
+  if (!postIds.length) return [];
+  const result = await db
+    .from("poll_votes")
+    .select<PollVoteViewerRow>("post_id, option_index")
+    .eq("user_id", userId)
+    .in("post_id", postIds)
+    .fetch();
+  if (result.error) {
+    if (isMissingPollVotesTable(result.error)) {
+      console.warn("poll_votes table missing; returning empty viewer vote list");
+      return [];
+    }
+    throw decorateDatabaseError("posts.polls.viewerVotes", result.error);
+  }
   return result.data ?? [];
 }

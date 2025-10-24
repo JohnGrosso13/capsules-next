@@ -10,7 +10,7 @@ import type { PrompterAction, PrompterAttachment } from "@/components/ai-prompte
 import { applyThemeVars } from "@/lib/theme";
 import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
-import type { ComposerDraft } from "@/lib/composer/draft";
+import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
 import {
   sanitizeComposerChatHistory,
   type ComposerChatAttachment,
@@ -41,6 +41,7 @@ import {
   type PromptResponse,
   type StylerResponse,
 } from "@/shared/schemas/ai";
+import type { SummaryResult, SummaryTarget } from "@/types/summary";
 
 const ATTACHMENT_CONTEXT_LIMIT = 2;
 const ATTACHMENT_CONTEXT_CHAR_LIMIT = 2000;
@@ -92,6 +93,18 @@ async function buildAttachmentContext(
     const role = attachment.role ?? "reference";
     if (role !== "reference") continue;
     if (!attachment.url) continue;
+    const excerpt =
+      typeof attachment.excerpt === "string" && attachment.excerpt.trim().length
+        ? attachment.excerpt.trim()
+        : null;
+    if (excerpt) {
+      collected.push({
+        id: attachment.id,
+        name: attachment.name,
+        text: excerpt.slice(0, ATTACHMENT_CONTEXT_CHAR_LIMIT),
+      });
+      continue;
+    }
     if (!isLikelyTextAttachment(attachment)) continue;
     try {
       const response = await fetch(attachment.url);
@@ -110,6 +123,146 @@ async function buildAttachmentContext(
   }
 
   return collected;
+}
+
+function mergePollStructures(
+  prevDraft: ComposerDraft | null,
+  nextDraft: ComposerDraft | null,
+): { question: string; options: string[] } | null {
+  const prevPoll = prevDraft?.poll ? ensurePollStructure(prevDraft) : null;
+  const nextPoll = nextDraft?.poll ? ensurePollStructure(nextDraft) : null;
+  if (!prevPoll && !nextPoll) {
+    return null;
+  }
+  if (!prevPoll) {
+    return nextPoll ? { question: nextPoll.question, options: [...nextPoll.options] } : null;
+  }
+  if (!nextPoll) {
+    return { question: prevPoll.question, options: [...prevPoll.options] };
+  }
+  const question = nextPoll.question.trim().length > 0 ? nextPoll.question : prevPoll.question;
+  const length = Math.max(prevPoll.options.length, nextPoll.options.length, 2);
+  const options = Array.from({ length }, (_, index) => {
+    const nextValueRaw = nextPoll.options[index] ?? "";
+    const nextValue = nextValueRaw.trim();
+    if (nextValue.length > 0) {
+      return nextPoll.options[index]!;
+    }
+    return prevPoll.options[index] ?? "";
+  });
+  while (options.length < 2) {
+    options.push("");
+  }
+  return { question, options };
+}
+
+function mergeComposerDrafts(prevDraft: ComposerDraft | null, nextDraft: ComposerDraft): ComposerDraft {
+  if (!prevDraft) {
+    const poll = mergePollStructures(null, nextDraft);
+    return poll ? { ...nextDraft, poll } : nextDraft;
+  }
+
+  const prevKind = (prevDraft.kind ?? "").toLowerCase();
+  const nextKind = (nextDraft.kind ?? "").toLowerCase();
+  const mergedPoll = mergePollStructures(prevDraft, nextDraft);
+
+  if (nextKind === "poll" && prevKind !== "poll") {
+    const merged: ComposerDraft = {
+      ...prevDraft,
+      poll: mergedPoll ?? prevDraft.poll ?? nextDraft.poll ?? null,
+    };
+    if (Array.isArray(nextDraft.suggestions) && nextDraft.suggestions.length) {
+      merged.suggestions = nextDraft.suggestions;
+    }
+    return merged;
+  }
+
+  if (nextKind === "poll" && prevKind === "poll") {
+    return {
+      ...prevDraft,
+      ...nextDraft,
+      kind: "poll",
+      poll: mergedPoll ?? nextDraft.poll ?? prevDraft.poll ?? null,
+    };
+  }
+
+  const merged: ComposerDraft = {
+    ...prevDraft,
+    ...nextDraft,
+  };
+  merged.kind = nextDraft.kind ?? prevDraft.kind;
+  if (mergedPoll || prevDraft.poll || nextDraft.poll) {
+    merged.poll = mergedPoll ?? nextDraft.poll ?? prevDraft.poll ?? null;
+  }
+  return merged;
+}
+
+type SummaryPresentationOptions = {
+  title?: string | null;
+  sourceLabel?: string | null;
+  sourceType: SummaryTarget;
+};
+
+function formatSummaryMessage(result: SummaryResult, options: SummaryPresentationOptions): string {
+  const lines: string[] = [];
+  const heading = options.sourceLabel?.trim().length
+    ? `Summary: ${options.sourceLabel}`
+    : "Summary";
+  lines.push(heading);
+  lines.push("");
+  lines.push(result.summary);
+  if (result.highlights.length) {
+    lines.push("");
+    lines.push("Highlights:");
+    result.highlights.forEach((item) => lines.push(`• ${item}`));
+  }
+  if (result.insights.length) {
+    lines.push("");
+    lines.push("Insights:");
+    result.insights.forEach((item) => lines.push(`• ${item}`));
+  }
+  if (result.nextActions.length) {
+    lines.push("");
+    lines.push("Next steps:");
+    result.nextActions.forEach((item) => lines.push(`• ${item}`));
+  }
+  if (result.postPrompt || result.postTitle) {
+    lines.push("");
+    lines.push("Post idea:");
+    if (result.postTitle && result.postPrompt) {
+      lines.push(`• ${result.postTitle} — ${result.postPrompt}`);
+    } else if (result.postPrompt) {
+      lines.push(`• ${result.postPrompt}`);
+    } else if (result.postTitle) {
+      lines.push(`• ${result.postTitle}`);
+    }
+  }
+  if (result.hashtags.length) {
+    lines.push("");
+    lines.push(`Hashtags: ${result.hashtags.join(" ")}`);
+  }
+  return lines.join("\n").trim();
+}
+
+function buildSummaryDraftContent(result: SummaryResult): string {
+  const sections: string[] = [result.summary];
+  if (result.highlights.length) {
+    sections.push("");
+    result.highlights.forEach((item) => sections.push(`• ${item}`));
+  }
+  if (result.insights.length) {
+    sections.push("");
+    result.insights.forEach((item) => sections.push(`• ${item}`));
+  }
+  if (result.nextActions.length) {
+    sections.push("");
+    result.nextActions.forEach((item) => sections.push(`• ${item}`));
+  }
+  if (result.hashtags.length) {
+    sections.push("");
+    sections.push(result.hashtags.join(" "));
+  }
+  return sections.join("\n").trim();
 }
 
 async function callAiPrompt(
@@ -153,7 +306,12 @@ async function callAiPrompt(
     body.context = contextSnippets;
   }
   if (history && history.length) {
-    body.history = history;
+    body.history = history.map(({ attachments, ...rest }) => {
+      if (Array.isArray(attachments) && attachments.length) {
+        return { ...rest, attachments };
+      }
+      return rest;
+    });
   }
   if (threadId) {
     body.threadId = threadId;
@@ -319,6 +477,7 @@ type ComposerContextValue = {
   close(): void;
   post(): Promise<void>;
   submitPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void>;
+  showSummary(result: SummaryResult, options: SummaryPresentationOptions): void;
   answerClarifier(answer: string): void;
   forceChoice?(key: string): Promise<void>;
   updateDraft(draft: ComposerDraft): void;
@@ -349,6 +508,61 @@ function normalizeCapsuleId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return UUID_PATTERN.test(trimmed) ? trimmed : null;
+}
+
+function mergeComposerRawPost(
+  prevRaw: Record<string, unknown> | null,
+  nextRaw: Record<string, unknown> | null,
+  draft: ComposerDraft,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...(prevRaw ?? {}) };
+  if (nextRaw) {
+    for (const [key, value] of Object.entries(nextRaw)) {
+      if (value === undefined) continue;
+      merged[key] = value;
+    }
+  }
+
+  if (typeof draft.kind === "string" && draft.kind.trim().length) {
+    merged.kind = draft.kind;
+  }
+  if (typeof draft.title === "string") {
+    merged.title = draft.title;
+  } else if (draft.title === null) {
+    merged.title = null;
+  }
+
+  if (typeof draft.content === "string") {
+    merged.content = draft.content;
+  }
+
+  if (typeof draft.mediaUrl === "string" && draft.mediaUrl.trim().length) {
+    merged.mediaUrl = draft.mediaUrl;
+    merged.media_url = draft.mediaUrl;
+  } else if (draft.mediaUrl === null) {
+    delete merged.mediaUrl;
+    delete merged.media_url;
+  }
+
+  if (typeof draft.mediaPrompt === "string" && draft.mediaPrompt.trim().length) {
+    merged.mediaPrompt = draft.mediaPrompt;
+    merged.media_prompt = draft.mediaPrompt;
+  } else if (draft.mediaPrompt === null) {
+    delete merged.mediaPrompt;
+    delete merged.media_prompt;
+  }
+
+  if (draft.poll) {
+    const structured = ensurePollStructure(draft);
+    merged.poll = {
+      question: structured.question,
+      options: [...structured.options],
+    };
+  } else if (!draft.poll) {
+    delete merged.poll;
+  }
+
+  return merged;
 }
 
 function appendCapsuleContext(
@@ -794,12 +1008,13 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
       const rawSource = (payload.post ?? {}) as Record<string, unknown>;
       const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
-      const draft = normalizeDraftFromPost(rawPost);
       const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
       const messageText = payload.message ?? null;
       let recordedHistory: ComposerChatMessage[] = [];
       let recordedThreadId: string | null = null;
       let resolvedQuestionId: string | null = null;
+      let recordedDraft: ComposerDraft | null = null;
+      let recordedRawPost: Record<string, unknown> | null = null;
       setState((prev) => {
         const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
         const historyForState =
@@ -809,12 +1024,17 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         if (prev.clarifier?.questionId) {
           resolvedQuestionId = prev.clarifier.questionId;
         }
+        const baseDraft = normalizeDraftFromPost(rawPost);
+        const mergedDraft = mergeComposerDrafts(prev.draft, baseDraft);
+        recordedDraft = mergedDraft;
+        const mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, mergedDraft);
+        recordedRawPost = mergedRawPost;
         return {
           open: true,
           loading: false,
           prompt,
-          draft,
-          rawPost,
+          draft: mergedDraft,
+          rawPost: mergedRawPost,
           message: messageText,
           choices: payload.choices ?? null,
           history: historyForState,
@@ -831,8 +1051,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       recordRecentChat({
         prompt,
         message: messageText,
-        draft,
-        rawPost,
+        draft: recordedDraft ?? normalizeDraftFromPost(rawPost),
+        rawPost: recordedRawPost,
         history: recordedHistory,
         threadId: recordedThreadId,
       });
@@ -1130,6 +1350,61 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.draft, state.rawPost, author.name, author.avatar, activeCapsuleId, envelopePayload]);
 
+  const showSummary = React.useCallback(
+    (result: SummaryResult, options: SummaryPresentationOptions) => {
+      const draftTitle = result.postTitle ?? options.title ?? null;
+      const content = buildSummaryDraftContent(result);
+      const assistantMessage: ComposerChatMessage = {
+        id: safeRandomUUID(),
+        role: "assistant",
+        content: formatSummaryMessage(result, options),
+        createdAt: new Date().toISOString(),
+        attachments: null,
+      };
+      const suggestionList: string[] = [];
+      if (result.nextActions.length) {
+        suggestionList.push(...result.nextActions);
+      }
+      if (result.postPrompt) {
+        suggestionList.push(result.postPrompt);
+      }
+      const draft: ComposerDraft = {
+        kind: "text",
+        title: draftTitle,
+        content,
+        mediaUrl: null,
+        mediaPrompt: null,
+        poll: null,
+      };
+      if (suggestionList.length) {
+        draft.suggestions = suggestionList;
+      }
+      const rawPostPayload: Record<string, unknown> = {
+        kind: "text",
+        title: draftTitle,
+        content,
+        hashtags: result.hashtags.length ? result.hashtags : undefined,
+        summary_source: options.sourceType,
+        summary_title: options.sourceLabel ?? options.title ?? null,
+        tone: result.tone,
+      };
+      const rawPostWithContext = appendCapsuleContext(rawPostPayload, activeCapsuleId);
+      setState({
+        open: true,
+        loading: false,
+        prompt: "",
+        draft,
+        rawPost: rawPostWithContext,
+        message: assistantMessage.content,
+        choices: null,
+        history: [assistantMessage],
+        threadId: safeRandomUUID(),
+        clarifier: null,
+      });
+    },
+    [activeCapsuleId],
+  );
+
   const submitPrompt = React.useCallback(
     async (promptText: string, attachments?: PrompterAttachment[] | null) => {
       const trimmed = promptText.trim();
@@ -1287,6 +1562,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       close,
       post,
       submitPrompt,
+      showSummary,
       answerClarifier,
       updateDraft,
       sidebar: sidebarData,
@@ -1308,6 +1584,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     close,
     post,
     submitPrompt,
+    showSummary,
     answerClarifier,
     forceChoice,
     updateDraft,
@@ -1372,4 +1649,3 @@ export function AiComposerRoot() {
     />
   );
 }
-

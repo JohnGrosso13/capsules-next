@@ -3,11 +3,11 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { CaretLeft, CaretRight, ImageSquare, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight, ImageSquare, Play, Sparkle } from "@phosphor-icons/react/dist/ssr";
 
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
-import { normalizePosts, resolvePostMediaUrl } from "@/hooks/useHomeFeed/utils";
+import { normalizePosts } from "@/hooks/useHomeFeed/utils";
 import {
   resolveCapsuleHandle,
   resolveCapsuleHref,
@@ -19,7 +19,16 @@ import capsuleTileHostStyles from "@/components/capsule/capsule-tile-host.module
 import homeStyles from "./home.module.css";
 import styles from "./promo-row.module.css";
 
-type Post = { id: string; mediaUrl?: string | null; content?: string | null };
+type MediaKind = "image" | "video";
+
+type Post = {
+  id: string;
+  mediaUrl?: string | null;
+  mediaKind?: MediaKind | null;
+  posterUrl?: string | null;
+  mimeType?: string | null;
+  content?: string | null;
+};
 type Friend = { name: string; avatar?: string | null };
 type Capsule = {
   id?: string | null;
@@ -34,10 +43,10 @@ type Capsule = {
 };
 
 const fallbackMedia: Post[] = [
-  { id: "media-1", mediaUrl: null },
-  { id: "media-2", mediaUrl: null },
-  { id: "media-3", mediaUrl: null },
-  { id: "media-4", mediaUrl: null },
+  { id: "media-1", mediaUrl: null, mediaKind: null, posterUrl: null, mimeType: null },
+  { id: "media-2", mediaUrl: null, mediaKind: null, posterUrl: null, mimeType: null },
+  { id: "media-3", mediaUrl: null, mediaKind: null, posterUrl: null, mimeType: null },
+  { id: "media-4", mediaUrl: null, mediaKind: null, posterUrl: null, mimeType: null },
 ];
 
 const fallbackFriends: Friend[] = [
@@ -71,6 +80,104 @@ const fallbackCapsules: Capsule[] = [
   },
 ];
 
+const VIDEO_EXTENSION_PATTERN = /\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv|3gp|3g2)(\?|#|$)/i;
+const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/i;
+
+function inferMediaKind(
+  mimeType: string | null | undefined,
+  ...sources: Array<string | null | undefined>
+): MediaKind | null {
+  const lowered = typeof mimeType === "string" ? mimeType.trim().toLowerCase() : "";
+  if (lowered.startsWith("image/")) return "image";
+  if (lowered.startsWith("video/")) return "video";
+
+  for (const source of sources) {
+    if (!source || typeof source !== "string") continue;
+    const normalized = source.trim().toLowerCase();
+    if (!normalized.length) continue;
+    if (VIDEO_EXTENSION_PATTERN.test(normalized)) return "video";
+    if (IMAGE_EXTENSION_PATTERN.test(normalized)) return "image";
+  }
+
+  return null;
+}
+
+function extractPostMedia(
+  record: HomeFeedPost,
+): { mediaUrl: string | null; mediaKind: MediaKind | null; posterUrl: string | null; mimeType: string | null } {
+  const attachments = Array.isArray(record.attachments) ? record.attachments : [];
+
+  for (const attachment of attachments) {
+    if (!attachment || typeof attachment !== "object") continue;
+    const url = normalizeMediaUrl(attachment.url) ?? null;
+    if (!url) continue;
+    const kind = inferMediaKind(
+      attachment.mimeType ?? null,
+      url,
+      normalizeMediaUrl(attachment.thumbnailUrl),
+      normalizeMediaUrl(attachment.variants?.feed),
+      normalizeMediaUrl(attachment.variants?.thumb),
+      normalizeMediaUrl(attachment.variants?.original),
+    );
+    if (!kind) continue;
+
+    if (kind === "image") {
+      const displayUrl =
+        normalizeMediaUrl(attachment.variants?.feed) ??
+        normalizeMediaUrl(attachment.variants?.full) ??
+        url;
+      const posterUrl =
+        normalizeMediaUrl(attachment.variants?.thumb) ??
+        normalizeMediaUrl(attachment.thumbnailUrl) ??
+        displayUrl;
+      return {
+        mediaUrl: displayUrl ?? url,
+        mediaKind: "image",
+        posterUrl: posterUrl ?? null,
+        mimeType: attachment.mimeType ?? null,
+      };
+    }
+
+    if (kind === "video") {
+      const mediaUrl =
+        url ??
+        normalizeMediaUrl(attachment.variants?.original) ??
+        normalizeMediaUrl(attachment.variants?.feed);
+      if (!mediaUrl) continue;
+      const posterUrl =
+        normalizeMediaUrl(attachment.thumbnailUrl) ??
+        normalizeMediaUrl(attachment.variants?.thumb) ??
+        null;
+      return {
+        mediaUrl,
+        mediaKind: "video",
+        posterUrl,
+        mimeType: attachment.mimeType ?? null,
+      };
+    }
+  }
+
+  const fallbackUrl = normalizeMediaUrl(record.mediaUrl) ?? null;
+  if (fallbackUrl) {
+    const inferred = inferMediaKind(null, fallbackUrl);
+    if (inferred) {
+      return {
+        mediaUrl: fallbackUrl,
+        mediaKind: inferred,
+        posterUrl: null,
+        mimeType: null,
+      };
+    }
+  }
+
+  return {
+    mediaUrl: null,
+    mediaKind: null,
+    posterUrl: null,
+    mimeType: null,
+  };
+}
+
 type TileConfig =
   | { id: string; kind: "media"; postIndex: number }
   | { id: string; kind: "friend"; friendIndex: number }
@@ -84,7 +191,10 @@ type TileContext = {
 
 type PromoLightboxMediaItem = {
   id: string;
+  kind: MediaKind;
   mediaSrc: string | null;
+  posterSrc: string | null;
+  mimeType: string | null;
   caption: string | null;
   fallbackIndex: number;
 };
@@ -172,11 +282,24 @@ export function PromoRow() {
               return !(id && deletedSet.has(id)) && !(dbId && deletedSet.has(dbId));
             })
           : normalized;
-        const posts: Post[] = filtered.map((record: HomeFeedPost) => ({
-          id: record.id,
-          mediaUrl: resolvePostMediaUrl(record),
-          content: typeof record.content === "string" ? record.content : null,
-        }));
+        const posts: Post[] = filtered
+          .map((record: HomeFeedPost) => {
+            const media = extractPostMedia(record);
+            return {
+              id: record.id,
+              mediaUrl: media.mediaUrl,
+              mediaKind: media.mediaKind,
+              posterUrl: media.posterUrl,
+              mimeType: media.mimeType,
+              content: typeof record.content === "string" ? record.content : null,
+            };
+          })
+          .filter(
+            (entry): entry is Post & { mediaUrl: string; mediaKind: MediaKind } =>
+              typeof entry.mediaUrl === "string" &&
+              entry.mediaUrl.length > 0 &&
+              Boolean(entry.mediaKind),
+          );
 
         if (!cancelled) {
           setMediaPosts(posts);
@@ -268,12 +391,26 @@ export function PromoRow() {
         .map((tile) => {
           if (tile.kind !== "media") return null;
           const post = context.media[tile.postIndex] ?? null;
+          const mediaKind = post?.mediaKind ?? null;
+          if (!mediaKind) return null;
           const rawMediaSrc = normalizeMediaUrl(post?.mediaUrl);
-          const mediaSrc = resolveToAbsoluteUrl(rawMediaSrc);
+          const mediaSrc =
+            rawMediaSrc && typeof rawMediaSrc === "string"
+              ? resolveToAbsoluteUrl(rawMediaSrc) ?? rawMediaSrc
+              : null;
+          if (!mediaSrc) return null;
+          const rawPoster = normalizeMediaUrl(post?.posterUrl);
+          const posterSrc =
+            rawPoster && typeof rawPoster === "string"
+              ? resolveToAbsoluteUrl(rawPoster) ?? rawPoster
+              : null;
           const content = typeof post?.content === "string" ? post.content.trim() : "";
           return {
             id: tile.id,
+            kind: mediaKind,
             mediaSrc,
+            posterSrc,
+            mimeType: post?.mimeType ?? null,
             caption: content ? truncateText(content, 140) : null,
             fallbackIndex: tile.postIndex,
           };
@@ -414,8 +551,19 @@ export function PromoRow() {
             <div className={homeStyles.lightboxBody}>
               <div className={homeStyles.lightboxMedia}>
                 {currentItem.mediaSrc ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element -- preserve lightbox loading behaviour */}
+                  currentItem.kind === "video" ? (
+                    <video
+                      className={homeStyles.lightboxVideo}
+                      controls
+                      playsInline
+                      preload="auto"
+                      poster={currentItem.posterSrc ?? undefined}
+                    >
+                      <source src={currentItem.mediaSrc} type={currentItem.mimeType ?? undefined} />
+                      Your browser does not support embedded video.
+                    </video>
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element -- preserve lightbox loading behaviour */
                     <img
                       className={homeStyles.lightboxImage}
                       src={currentItem.mediaSrc}
@@ -423,7 +571,7 @@ export function PromoRow() {
                       loading="eager"
                       draggable={false}
                     />
-                  </>
+                  )
                 ) : (
                   <div className={styles.lightboxFallback} aria-hidden="true">
                     <FallbackIcon
@@ -459,11 +607,27 @@ function renderTile(tile: TileConfig, context: TileContext) {
 
 function MediaTile({ post, index }: { post: Post | null; index: number }) {
   const Icon = MEDIA_FALLBACK_ICONS[index % MEDIA_FALLBACK_ICONS.length] ?? ImageSquare;
-  const rawMediaSrc = normalizeMediaUrl(post?.mediaUrl);
-  const mediaSrc = resolveToAbsoluteUrl(rawMediaSrc);
-  return (
-    <div className={styles.short}>
-      {mediaSrc ? (
+  const mediaKind = post?.mediaKind ?? null;
+  const normalizedMedia = normalizeMediaUrl(post?.mediaUrl);
+  const mediaSrc =
+    normalizedMedia && typeof normalizedMedia === "string"
+      ? resolveToAbsoluteUrl(normalizedMedia) ?? normalizedMedia
+      : null;
+
+  if (mediaSrc && mediaKind === "video") {
+    const normalizedPoster = normalizeMediaUrl(post?.posterUrl);
+    const posterSrc =
+      normalizedPoster && typeof normalizedPoster === "string"
+        ? resolveToAbsoluteUrl(normalizedPoster) ?? normalizedPoster
+        : null;
+    return (
+      <PromoVideoTile src={mediaSrc} poster={posterSrc} mimeType={post?.mimeType ?? null} />
+    );
+  }
+
+  if (mediaSrc && mediaKind === "image") {
+    return (
+      <div className={styles.short} data-kind="image">
         <Image
           src={mediaSrc}
           alt="Feed media"
@@ -473,11 +637,15 @@ function MediaTile({ post, index }: { post: Post | null; index: number }) {
           loading="lazy"
           unoptimized
         />
-      ) : (
-        <div className={styles.fallback}>
-          <Icon className={styles.fallbackIcon} weight="duotone" />
-        </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.short}>
+      <div className={styles.fallback}>
+        <Icon className={styles.fallbackIcon} weight="duotone" />
+      </div>
     </div>
   );
 }
@@ -559,4 +727,80 @@ function CapsuleTile({ capsule }: { capsule: Capsule | null }) {
   }
 
   return <div className={styles.capsuleTile}>{tile}</div>;
+}
+
+type PromoVideoTileProps = {
+  src: string;
+  poster: string | null;
+  mimeType: string | null;
+};
+
+function PromoVideoTile({ src, poster, mimeType }: PromoVideoTileProps) {
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const [isPlaying, setIsPlaying] = React.useState(false);
+
+  const sanitizedPoster = poster && poster !== src ? poster : null;
+
+  const startPlayback = React.useCallback(() => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.muted = true;
+    const attempt = node.play();
+    if (attempt && typeof attempt.catch === "function") {
+      attempt.catch(() => {
+        /* silently ignore autoplay restrictions */
+      });
+    }
+  }, []);
+
+  const stopPlayback = React.useCallback(() => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.pause();
+    try {
+      node.currentTime = 0;
+    } catch {
+      /* ignore seek failures */
+    }
+    setIsPlaying(false);
+  }, []);
+
+  const handlePlay = React.useCallback(() => {
+    setIsPlaying(true);
+  }, []);
+
+  const handlePause = React.useCallback(() => {
+    setIsPlaying(false);
+  }, []);
+
+  return (
+    <div
+      className={styles.short}
+      data-kind="video"
+      data-playing={isPlaying ? "true" : undefined}
+      onMouseEnter={startPlayback}
+      onMouseLeave={stopPlayback}
+      onFocus={startPlayback}
+      onBlur={stopPlayback}
+      onClickCapture={stopPlayback}
+    >
+      <video
+        ref={videoRef}
+        className={styles.video}
+        playsInline
+        muted
+        loop
+        preload="metadata"
+        poster={sanitizedPoster ?? undefined}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onEnded={stopPlayback}
+      >
+        <source src={src} type={mimeType ?? undefined} />
+      </video>
+      <div className={styles.videoOverlay} aria-hidden="true">
+        <Play className={styles.videoIcon} weight="fill" />
+      </div>
+    </div>
+  );
 }

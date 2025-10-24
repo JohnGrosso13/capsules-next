@@ -109,8 +109,8 @@ function sanitizeStringArray(value: unknown, limit: number): string[] {
 export async function summarizeMemory(
   input: MemorySummaryInput,
 ): Promise<MemorySummaryResult | null> {
-  const devSummariesEnabled = process.env.ENABLE_MEMORY_SUMMARIES === "true";
-  if (process.env.NODE_ENV !== "production" && !devSummariesEnabled) {
+  const devSummariesFlag = process.env.ENABLE_MEMORY_SUMMARIES ?? null;
+  if (process.env.NODE_ENV !== "production" && devSummariesFlag === "false") {
     return null;
   }
   if (!hasOpenAIApiKey()) return null;
@@ -298,4 +298,18 @@ export async function captionImage(url: string): Promise<string | null> {
     console.error("captionImage error", error);
     return null;
   }
+}
+
+export async function captionVideo(
+  url: string | null | undefined,
+  thumbnailUrl?: string | null | undefined,
+): Promise<string | null> {
+  const thumb = typeof thumbnailUrl === "string" && thumbnailUrl.trim().length ? thumbnailUrl : null;
+  if (thumb) {
+    const caption = await captionImage(thumb);
+    if (caption) return caption;
+  }
+  const targetUrl = typeof url === "string" && url.trim().length ? url : null;
+  if (!targetUrl) return null;
+  return captionImage(targetUrl);
 }

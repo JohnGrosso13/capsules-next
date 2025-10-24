@@ -52,6 +52,14 @@ describe("resolvePostMediaUrl", () => {
     expect(resolvePostMediaUrl(post)).toBe("https://cdn.test/post.png");
   });
 
+  it("ignores non-media post urls", () => {
+    const post = {
+      mediaUrl: "https://cdn.test/archive.odt",
+    } as HomeFeedPost;
+
+    expect(resolvePostMediaUrl(post)).toBeNull();
+  });
+
   it("falls back to attachment variants", () => {
     const attachments: HomeFeedAttachment[] = [
       {
@@ -76,6 +84,41 @@ describe("resolvePostMediaUrl", () => {
     } as HomeFeedPost;
 
     expect(resolvePostMediaUrl(post)).toBe("https://cdn.test/feed.png");
+  });
+
+  it("skips unsupported attachment types", () => {
+    const attachments: HomeFeedAttachment[] = [
+      {
+        id: "att-file",
+        url: "https://cdn.test/document.odt",
+        mimeType: "application/vnd.oasis.opendocument.text",
+        name: "Document",
+        thumbnailUrl: null,
+        storageKey: null,
+        variants: null,
+      },
+      {
+        id: "att-video",
+        url: "https://cdn.test/clip.mp4",
+        mimeType: "video/mp4",
+        name: "Clip",
+        thumbnailUrl: "https://cdn.test/clip-thumb.jpg",
+        storageKey: null,
+        variants: {
+          original: "https://cdn.test/clip.mp4",
+          feed: null,
+          thumb: "https://cdn.test/clip-thumb.jpg",
+          full: null,
+        },
+      },
+    ];
+
+    const post = {
+      mediaUrl: null,
+      attachments,
+    } as HomeFeedPost;
+
+    expect(resolvePostMediaUrl(post)).toBe("https://cdn.test/clip.mp4");
   });
 });
 
@@ -148,6 +191,52 @@ describe("normalizePosts", () => {
     expect(post.ownerKey).toBe("key-007");
     expect(post.author_user_key).toBe("key-007");
     expect(post.authorUserKey).toBe("key-007");
+  });
+
+  it("parses poll metadata when available", () => {
+    const raw = [
+      {
+        id: "poll-1",
+        poll: {
+          question: "Which launch should we prioritize?",
+          options: ["Mobile app", "Desktop app", "Chrome extension"],
+          counts: [12, 8, 5],
+          userVote: 1,
+        },
+      },
+    ];
+
+    const post = normalizePosts(raw)[0]!;
+    expect(post.poll).toEqual({
+      question: "Which launch should we prioritize?",
+      options: ["Mobile app", "Desktop app", "Chrome extension"],
+      counts: [12, 8, 5],
+      totalVotes: 25,
+      userVote: 1,
+    });
+  });
+
+  it("decodes poll structure embedded in mediaPrompt", () => {
+    const pollPayload = {
+      question: "Choose your fighter",
+      options: ["Nova", "Vesper"],
+      counts: [4, 6],
+    };
+    const raw = [
+      {
+        id: "poll-2",
+        media_prompt: `__POLL__${JSON.stringify(pollPayload)}`,
+      },
+    ];
+
+    const post = normalizePosts(raw)[0]!;
+    expect(post.poll).toEqual({
+      question: "Choose your fighter",
+      options: ["Nova", "Vesper"],
+      counts: [4, 6],
+      totalVotes: 10,
+      userVote: null,
+    });
   });
 });
 

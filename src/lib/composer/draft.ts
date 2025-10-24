@@ -28,14 +28,19 @@ export function ensurePollStructure(input: ComposerDraft | null): {
 export function isComposerDraftReady(draft: ComposerDraft | null): boolean {
   if (!draft) return false;
   const kind = (draft.kind ?? "text").toLowerCase();
+  const pollStructure = draft.poll ? ensurePollStructure(draft) : null;
+  const pollReady =
+    pollStructure !== null &&
+    (pollStructure.question.trim().length > 0 ||
+      pollStructure.options.some((option) => option.trim().length > 0));
+
   if (kind === "poll") {
-    const poll = ensurePollStructure(draft);
-    return (
-      poll.question.trim().length > 0 && poll.options.some((option) => option.trim().length > 0)
-    );
+    return pollReady;
   }
   if (kind === "image" || kind === "video") {
-    return Boolean(draft.mediaUrl && draft.mediaUrl.trim().length > 0);
+    const mediaReady = Boolean(draft.mediaUrl && draft.mediaUrl.trim().length > 0);
+    return mediaReady || pollReady;
   }
-  return draft.content.trim().length > 0;
+  const contentReady = draft.content.trim().length > 0;
+  return contentReady || pollReady;
 }

@@ -1,7 +1,7 @@
 ﻿import { normalizeMediaUrl } from "@/lib/media";
 import { safeRandomUUID } from "@/lib/random";
 
-import type { HomeFeedAttachment, HomeFeedPost } from "./types";
+import type { HomeFeedAttachment, HomeFeedPoll, HomeFeedPost } from "./types";
 
 export type FriendTarget = Record<string, unknown> | null;
 
@@ -26,10 +26,162 @@ export function formatFeedCount(value?: number | null): string {
 
 export type PostMediaSource = Pick<HomeFeedPost, "mediaUrl" | "attachments">;
 
+const VIDEO_EXTENSION_PATTERN = /\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv|3gp|3g2)(\?|#|$)/i;
+const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/i;
+
+function inferMediaKindFromSource(
+  mimeType: string | null | undefined,
+  ...sources: Array<string | null | undefined>
+): "image" | "video" | null {
+  const loweredMime = typeof mimeType === "string" ? mimeType.trim().toLowerCase() : "";
+  if (loweredMime.startsWith("image/")) return "image";
+  if (loweredMime.startsWith("video/")) return "video";
+
+  for (const source of sources) {
+    if (!source || typeof source !== "string") continue;
+    const normalized = source.trim().toLowerCase();
+    if (!normalized.length) continue;
+    if (VIDEO_EXTENSION_PATTERN.test(normalized)) return "video";
+    if (IMAGE_EXTENSION_PATTERN.test(normalized)) return "image";
+  }
+
+  return null;
+}
+
+function decodePollFromMediaPrompt(raw: unknown): unknown | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("__POLL__")) return null;
+  const payload = trimmed.slice(8);
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
+function normalizePoll(rawPoll: unknown): HomeFeedPoll | null {
+  if (rawPoll === null || rawPoll === undefined) return null;
+
+  let source: Record<string, unknown> | null = null;
+  if (typeof rawPoll === "string") {
+    try {
+      const parsed = JSON.parse(rawPoll);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        source = { ...(parsed as Record<string, unknown>) };
+      }
+    } catch {
+      return null;
+    }
+  } else if (typeof rawPoll === "object" && !Array.isArray(rawPoll)) {
+    source = { ...(rawPoll as Record<string, unknown>) };
+  }
+
+  if (!source) return null;
+
+  const questionValue =
+    typeof source["question"] === "string"
+      ? (source["question"] as string).trim()
+      : typeof source["title"] === "string"
+        ? (source["title"] as string).trim()
+        : "";
+
+  const optionSources =
+    Array.isArray(source["options"])
+      ? (source["options"] as unknown[])
+      : Array.isArray(source["choices"])
+        ? (source["choices"] as unknown[])
+        : [];
+
+  const options = optionSources
+    .map((entry) => {
+      if (typeof entry === "string") return entry.trim();
+      if (typeof entry === "number" && Number.isFinite(entry)) return String(entry);
+      if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+        const record = entry as Record<string, unknown>;
+        if (typeof record["label"] === "string") return record["label"]!.trim();
+        if (typeof record["value"] === "string") return record["value"]!.trim();
+      }
+      return "";
+    })
+    .filter((value) => value.length > 0);
+
+  if (!options.length) {
+    return null;
+  }
+
+  const countCandidates = [
+    source["counts"],
+    source["voteCounts"],
+    source["vote_counts"],
+    source["votes"],
+  ];
+  let counts: number[] | null = null;
+  for (const candidate of countCandidates) {
+    if (!Array.isArray(candidate)) continue;
+    counts = (candidate as unknown[]).map((entry) => {
+      const numeric = typeof entry === "number" ? entry : Number(entry);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.trunc(numeric));
+    });
+    break;
+  }
+
+  const normalizedCounts =
+    counts && counts.length
+      ? Array.from({ length: options.length }, (_, index) => counts?.[index] ?? 0)
+      : null;
+
+  const userVoteCandidates = [
+    source["userVote"],
+    source["user_vote"],
+    source["selectedIndex"],
+    source["selected_index"],
+    source["choice"],
+  ];
+
+  let userVote: number | null = null;
+  for (const candidate of userVoteCandidates) {
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      userVote = Math.max(0, Math.trunc(candidate));
+      break;
+    }
+    if (typeof candidate === "string" && candidate.trim().length) {
+      const parsed = Number(candidate);
+      if (Number.isFinite(parsed)) {
+        userVote = Math.max(0, Math.trunc(parsed));
+        break;
+      }
+    }
+  }
+  if (userVote !== null && (userVote < 0 || userVote >= options.length)) {
+    userVote = null;
+  }
+
+  const totalVotesRaw = source["totalVotes"] ?? source["total_votes"];
+  const totalVotes =
+    typeof totalVotesRaw === "number" && Number.isFinite(totalVotesRaw)
+      ? Math.max(0, Math.trunc(totalVotesRaw))
+      : normalizedCounts
+        ? normalizedCounts.reduce((sum, value) => sum + value, 0)
+        : null;
+
+  return {
+    question: questionValue,
+    options,
+    counts: normalizedCounts,
+    totalVotes,
+    userVote,
+  };
+}
+
 export function resolvePostMediaUrl(post: PostMediaSource): string | null {
   const fromPost = normalizeMediaUrl(post.mediaUrl) ?? null;
   if (fromPost) {
-    return fromPost;
+    const inferred = inferMediaKindFromSource(null, fromPost);
+    if (inferred === "image" || inferred === "video") {
+      return fromPost;
+    }
   }
 
   if (!Array.isArray(post.attachments)) {
@@ -39,20 +191,42 @@ export function resolvePostMediaUrl(post: PostMediaSource): string | null {
   for (const attachment of post.attachments) {
     if (!attachment) continue;
 
+    const attachmentKind = inferMediaKindFromSource(
+      attachment.mimeType,
+      attachment.url,
+      attachment.thumbnailUrl,
+      attachment.variants?.feed,
+      attachment.variants?.thumb,
+      attachment.variants?.original,
+    );
+    if (attachmentKind !== "image" && attachmentKind !== "video") {
+      continue;
+    }
+
     const normalized =
-      normalizeMediaUrl(attachment.variants?.feed) ??
-      normalizeMediaUrl(attachment.variants?.thumb) ??
-      normalizeMediaUrl(attachment.thumbnailUrl) ??
-      normalizeMediaUrl(attachment.url);
+      attachmentKind === "image"
+        ? normalizeMediaUrl(attachment.variants?.feed) ??
+          normalizeMediaUrl(attachment.variants?.thumb) ??
+          normalizeMediaUrl(attachment.thumbnailUrl) ??
+          normalizeMediaUrl(attachment.url)
+        : normalizeMediaUrl(attachment.url) ??
+          normalizeMediaUrl(attachment.variants?.original) ??
+          normalizeMediaUrl(attachment.variants?.feed) ??
+          normalizeMediaUrl(attachment.thumbnailUrl);
     if (normalized) {
       return normalized;
     }
 
     const fallback =
-      attachment.variants?.feed ??
-      attachment.variants?.thumb ??
-      attachment.thumbnailUrl ??
-      attachment.url;
+      attachmentKind === "image"
+        ? attachment.variants?.feed ??
+          attachment.variants?.thumb ??
+          attachment.thumbnailUrl ??
+          attachment.url
+        : attachment.url ??
+          attachment.variants?.original ??
+          attachment.variants?.feed ??
+          attachment.thumbnailUrl;
     if (typeof fallback === "string" && fallback.trim().length > 0) {
       return fallback;
     }
@@ -247,6 +421,11 @@ export function normalizePosts(rawPosts: unknown[]): HomeFeedPost[] {
       attachments,
     });
 
+    const pollSource =
+      record["poll"] ??
+      decodePollFromMediaPrompt(record["mediaPrompt"]) ??
+      decodePollFromMediaPrompt(record["media_prompt"]);
+
     return {
       id: String(identifier),
       dbId:
@@ -286,6 +465,7 @@ export function normalizePosts(rawPosts: unknown[]): HomeFeedPost[] {
       viewer_remembered: viewerRemembered,
       viewerRemembered,
       attachments,
+      poll: normalizePoll(pollSource),
     };
   });
 }

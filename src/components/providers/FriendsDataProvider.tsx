@@ -13,6 +13,10 @@ export function FriendsDataProvider({ children }: { children: React.ReactNode })
   return <FriendsDataContext.Provider value={value}>{children}</FriendsDataContext.Provider>;
 }
 
+export function useOptionalFriendsDataContext(): FriendsDataValue | null {
+  return React.useContext(FriendsDataContext);
+}
+
 export function useFriendsDataContext(): FriendsDataValue {
   const context = React.useContext(FriendsDataContext);
   if (!context) {

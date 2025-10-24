@@ -12,6 +12,7 @@ import {
   DotsThreeCircleVertical,
   Trash,
   HourglassHigh,
+  Play,
 } from "@phosphor-icons/react/dist/ssr";
 import { PostMenu } from "@/components/posts/PostMenu";
 import { normalizeMediaUrl } from "@/lib/media";
@@ -29,12 +30,16 @@ import {
   shouldBypassCloudflareImages,
 } from "@/lib/cloudflare/runtime";
 import { useComposer } from "@/components/composer/ComposerProvider";
+import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import {
   buildDocumentCardData,
   buildPrompterAttachment,
   DocumentAttachmentCard,
   type DocumentCardData,
 } from "@/components/documents/document-card";
+import { requestSummary, normalizeSummaryResponse } from "@/lib/ai/client-summary";
+import type { SummaryAttachmentInput } from "@/types/summary";
+import { useCurrentUser } from "@/services/auth/client";
 
 type LazyImageProps = React.ComponentProps<typeof Image>;
 
@@ -46,6 +51,26 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(
 
 LazyImage.displayName = "LazyImage";
 
+function normalizeIdentifier(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    value = String(value);
+  }
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function buildIdentifierSet(...identifiers: Array<unknown>): Set<string> {
+  const result = new Set<string>();
+  for (const entry of identifiers) {
+    const normalized = normalizeIdentifier(entry);
+    if (normalized) {
+      result.add(normalized);
+    }
+  }
+  return result;
+}
+
 function shouldRebuildVariantsForEnvironment(
   variants: CloudflareImageVariantSet | null | undefined,
   cloudflareEnabled: boolean,
@@ -56,6 +81,16 @@ function shouldRebuildVariantsForEnvironment(
   if (containsCloudflareResize(variants.full)) return true;
   if (containsCloudflareResize(variants.thumb)) return true;
   return false;
+}
+
+function sanitizeCounts(source: unknown, length: number): number[] | null {
+  if (!Array.isArray(source)) return null;
+  const values = (source as unknown[]).map((entry) => {
+    const numeric = typeof entry === "number" ? entry : Number(entry);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(0, Math.trunc(numeric));
+  });
+  return Array.from({ length }, (_, index) => values[index] ?? 0);
 }
 
 type ActionKey = "like" | "comment" | "share";
@@ -102,6 +137,22 @@ export function HomeFeedList({
   emptyMessage,
 }: HomeFeedListProps) {
   const composer = useComposer();
+  const { user: currentUser } = useCurrentUser();
+  const friendsData = useOptionalFriendsDataContext();
+  const viewerUserId =
+    typeof currentUser?.id === "string" && currentUser.id.trim().length ? currentUser.id.trim() : null;
+  const viewerUserKey =
+    typeof currentUser?.key === "string" && currentUser.key.trim().length
+      ? currentUser.key.trim()
+      : null;
+  const supabaseViewerId =
+    typeof friendsData?.viewerId === "string" && friendsData.viewerId.trim().length
+      ? friendsData.viewerId.trim()
+      : null;
+  const viewerIdentifierSet = React.useMemo(
+    () => buildIdentifierSet(viewerUserId, viewerUserKey, supabaseViewerId),
+    [viewerUserId, viewerUserKey, supabaseViewerId],
+  );
   const [lightbox, setLightbox] = React.useState<{
     postId: string;
     index: number;
@@ -122,6 +173,10 @@ export function HomeFeedList({
   const BATCH_SIZE = 6;
   const [visibleCount, setVisibleCount] = React.useState(INITIAL_BATCH);
   const sentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const [documentSummaryPending, setDocumentSummaryPending] = React.useState<Record<string, boolean>>(
+    {},
+  );
+  const [feedSummaryPending, setFeedSummaryPending] = React.useState(false);
 
   const showSkeletons = !hasFetched;
 
@@ -164,7 +219,10 @@ export function HomeFeedList({
   }, [hasFetched, posts.length, visibleCount]);
 
   const visibleLimit = showSkeletons ? 0 : Math.min(visibleCount, posts.length);
-  const displayedPosts = showSkeletons ? [] : posts.slice(0, visibleLimit || posts.length);
+  const displayedPosts = React.useMemo(() => {
+    if (showSkeletons) return [];
+    return posts.slice(0, visibleLimit || posts.length);
+  }, [showSkeletons, posts, visibleLimit]);
   const skeletons = React.useMemo(
     () =>
       Array.from({ length: 4 }, (_, index) => (
@@ -277,6 +335,159 @@ export function HomeFeedList({
     [composer],
   );
 
+  const handleSummarizeDocument = React.useCallback(
+    async (doc: DocumentCardData) => {
+      const docMeta =
+        doc.meta && typeof doc.meta === "object" && !Array.isArray(doc.meta)
+          ? (doc.meta as Record<string, unknown>)
+          : null;
+      const docThumbnailUrl =
+        docMeta && typeof (docMeta as { thumbnail_url?: unknown }).thumbnail_url === "string"
+          ? ((docMeta as { thumbnail_url?: string }).thumbnail_url ?? null)
+          : docMeta && typeof (docMeta as { thumb?: unknown }).thumb === "string"
+            ? ((docMeta as { thumb?: string }).thumb ?? null)
+            : null;
+
+      setDocumentSummaryPending((prev) => ({ ...prev, [doc.id]: true }));
+      try {
+        const summaryPayload = await requestSummary({
+          target: "document",
+          attachments: [
+            {
+              id: doc.id,
+              name: doc.name,
+              excerpt: doc.summary ?? doc.snippet ?? null,
+              text: doc.summary ?? doc.snippet ?? null,
+              url: doc.openUrl ?? doc.url ?? null,
+              mimeType: doc.mimeType ?? null,
+              thumbnailUrl: docThumbnailUrl,
+            },
+          ],
+          meta: {
+            title: doc.name,
+          },
+        });
+        const summaryResult = normalizeSummaryResponse(summaryPayload);
+        composer.showSummary(summaryResult, {
+          title: doc.name,
+          sourceLabel: doc.name,
+          sourceType: summaryResult.source,
+        });
+      } catch (error) {
+        console.error("Document summary failed", error);
+      } finally {
+        setDocumentSummaryPending((prev) => {
+          const next = { ...prev };
+          delete next[doc.id];
+          return next;
+        });
+      }
+    },
+    [composer],
+  );
+
+  const handleSummarizeFeed = React.useCallback(async () => {
+    if (feedSummaryPending || !displayedPosts.length) return;
+    setFeedSummaryPending(true);
+    try {
+      const segmentSource = displayedPosts.slice(0, Math.min(8, displayedPosts.length));
+      const attachmentPayload: SummaryAttachmentInput[] = [];
+      const seenAttachmentUrls = new Set<string>();
+      const segments = segmentSource.map((post, index) => {
+        const author = post.user_name ?? (post as { userName?: string }).userName ?? "Someone";
+        const created =
+          post.created_at ??
+          (post as { createdAt?: string | null | undefined }).createdAt ??
+          null;
+        const relative = created ? timeAgo(created) : "";
+        const raw = typeof post.content === "string" ? post.content : "";
+        const normalized = raw.replace(/\s+/g, " ").trim();
+        const content =
+          normalized.length > 360 ? `${normalized.slice(0, 357).trimEnd()}…` : normalized;
+        const attachmentsList = Array.isArray(post.attachments) ? post.attachments : [];
+        const attachmentLabels = attachmentsList.map((attachment) => {
+          const mime = attachment.mimeType?.toLowerCase() ?? "";
+          if (mime.startsWith("image/")) return "image";
+          if (mime.startsWith("video/")) return "video";
+          return "file";
+        });
+        for (let attachmentIndex = 0; attachmentIndex < attachmentsList.length; attachmentIndex += 1) {
+          if (attachmentPayload.length >= 6) break;
+          const attachment = attachmentsList[attachmentIndex];
+          if (!attachment) continue;
+          const rawUrl = typeof attachment.url === "string" ? attachment.url : null;
+          if (!rawUrl) continue;
+          const absoluteUrl = resolveToAbsoluteUrl(rawUrl) ?? rawUrl;
+          const absoluteThumb =
+            typeof attachment.thumbnailUrl === "string" && attachment.thumbnailUrl.length
+              ? resolveToAbsoluteUrl(attachment.thumbnailUrl) ?? attachment.thumbnailUrl
+              : null;
+          if (!absoluteUrl.length || seenAttachmentUrls.has(absoluteUrl)) continue;
+          seenAttachmentUrls.add(absoluteUrl);
+          const attachmentId =
+            typeof attachment.id === "string" && attachment.id.trim().length
+              ? attachment.id.trim()
+              : `${post.id}-attachment-${attachmentIndex}`;
+          attachmentPayload.push({
+            id: attachmentId,
+            name: attachment.name ?? null,
+            url: absoluteUrl,
+            mimeType: attachment.mimeType ?? null,
+            excerpt: null,
+            text: null,
+            thumbnailUrl: absoluteThumb,
+          });
+        }
+        if (attachmentPayload.length < 6 && typeof post.mediaUrl === "string" && post.mediaUrl.trim().length) {
+          const primaryUrl = resolveToAbsoluteUrl(post.mediaUrl) ?? post.mediaUrl;
+          if (primaryUrl.length && !seenAttachmentUrls.has(primaryUrl)) {
+            seenAttachmentUrls.add(primaryUrl);
+            attachmentPayload.push({
+              id: `${post.id}-primary`,
+              name: null,
+              url: primaryUrl,
+              mimeType: null,
+              excerpt: null,
+              text: null,
+              thumbnailUrl: null,
+            });
+          }
+        }
+        const attachmentSnippet = attachmentLabels.length
+          ? `Attachments: ${attachmentLabels.join(", ")}.`
+          : "";
+        const labelPrefix = `#${index + 1}`;
+        const snippetParts = [
+          `${labelPrefix} ${author}${relative ? ` (${relative})` : ""}:`,
+          content || "No caption provided.",
+          attachmentSnippet,
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return snippetParts;
+      });
+      const summaryPayload = await requestSummary({
+        target: "feed",
+        segments,
+        attachments: attachmentPayload,
+        meta: {
+          title: "Recent activity",
+          timeframe: "latest updates",
+        },
+      });
+      const summaryResult = normalizeSummaryResponse(summaryPayload);
+      composer.showSummary(summaryResult, {
+        title: "Feed recap",
+        sourceLabel: "Current feed",
+        sourceType: summaryResult.source,
+      });
+    } catch (error) {
+      console.error("Feed summary failed", error);
+    } finally {
+      setFeedSummaryPending(false);
+    }
+  }, [composer, displayedPosts, feedSummaryPending, timeAgo]);
+
   return (
     <>
       {showSkeletons ? (
@@ -290,6 +501,18 @@ export function HomeFeedList({
           <p className={styles.feedEmptySubtitle}>
             {emptyMessage ?? "Be the first to share something in this space."}
           </p>
+        </div>
+      ) : null}
+      {!showSkeletons && displayedPosts.length ? (
+        <div className={styles.feedUtilities}>
+          <button
+            type="button"
+            className={styles.feedUtilityButton}
+            onClick={handleSummarizeFeed}
+            disabled={feedSummaryPending}
+          >
+            {feedSummaryPending ? "Summarizing..." : "Summarize feed"}
+          </button>
         </div>
       ) : null}
       {displayedPosts.map((post) => {
@@ -311,6 +534,27 @@ export function HomeFeedList({
         const canTarget = Boolean(resolvedUserId ?? resolvedUserKey);
         const isFriendOptionOpen = activeFriendTarget === menuIdentifier;
         const isFriendActionPending = friendActionPending === menuIdentifier;
+        const ownerIdentifierSet = buildIdentifierSet(
+          resolvedUserId,
+          resolvedUserKey,
+          post.owner_user_id,
+          post.ownerUserId,
+          post.author_user_id,
+          post.authorUserId,
+          post.owner_user_key,
+          post.ownerKey,
+          post.author_user_key,
+          post.authorUserKey,
+        );
+        let viewerOwnsPost = false;
+        if (ownerIdentifierSet.size && viewerIdentifierSet.size) {
+          for (const identifier of viewerIdentifierSet.values()) {
+            if (ownerIdentifierSet.has(identifier)) {
+              viewerOwnsPost = true;
+              break;
+            }
+          }
+        }
         const likeCount = typeof post.likes === "number" ? Math.max(0, post.likes) : 0;
         const commentCount = typeof post.comments === "number" ? Math.max(0, post.comments) : 0;
         const shareCount = typeof post.shares === "number" ? Math.max(0, post.shares) : 0;
@@ -447,23 +691,23 @@ export function HomeFeedList({
             inferred === "image" ? (pickBestFullVariant(variants) ?? absoluteMedia) : absoluteMedia;
           const displaySrcSet =
             cloudflareEnabled && inferred === "image" ? (variants?.feedSrcset ?? null) : null;
-          const fullSrcSet =
-            cloudflareEnabled && inferred === "image"
-              ? (variants?.fullSrcset ?? variants?.feedSrcset ?? null)
-              : null;
-          pushMedia({
-            id: `${post.id}-primary`,
-            originalUrl: variants?.original ?? absoluteMedia,
-            displayUrl,
-            displaySrcSet,
-            fullUrl,
-            fullSrcSet,
-            kind: inferred,
-            name: null,
-            thumbnailUrl: inferred === "image" ? (variants?.thumb ?? absoluteMedia) : absoluteMedia,
-            mimeType: null,
-          });
-        }
+        const fullSrcSet =
+          cloudflareEnabled && inferred === "image"
+            ? (variants?.fullSrcset ?? variants?.feedSrcset ?? null)
+            : null;
+        pushMedia({
+          id: `${post.id}-primary`,
+          originalUrl: variants?.original ?? absoluteMedia,
+          displayUrl,
+          displaySrcSet,
+          fullUrl,
+          fullSrcSet,
+          kind: inferred,
+          name: null,
+          thumbnailUrl: inferred === "image" ? (variants?.thumb ?? absoluteMedia) : null,
+          mimeType: null,
+        });
+      }
 
         attachmentsList.forEach((attachment, index) => {
           if (!attachment || !attachment.url) return;
@@ -503,6 +747,18 @@ export function HomeFeedList({
               cloudflareEnabled && kind === "image"
                 ? (variants?.fullSrcset ?? variants?.feedSrcset ?? null)
                 : null;
+            const thumbnailUrl =
+              kind === "image"
+                ? (variants?.thumb ?? absoluteThumb ?? absoluteOriginal)
+                : (() => {
+                    const candidate =
+                      absoluteThumb && absoluteThumb !== absoluteOriginal
+                        ? absoluteThumb
+                        : typeof attachment.thumbnailUrl === "string"
+                          ? attachment.thumbnailUrl
+                          : null;
+                    return candidate && candidate !== absoluteOriginal ? candidate : null;
+                  })();
             pushMedia({
               id: baseId,
               originalUrl: variants?.original ?? absoluteOriginal,
@@ -512,10 +768,7 @@ export function HomeFeedList({
               fullSrcSet,
               kind,
               name: attachment.name ?? null,
-              thumbnailUrl:
-                kind === "image"
-                  ? (variants?.thumb ?? absoluteThumb ?? absoluteOriginal)
-                  : (absoluteThumb ?? attachment.thumbnailUrl ?? null),
+              thumbnailUrl,
               mimeType: attachment.mimeType ?? null,
             });
           } else {
@@ -661,20 +914,25 @@ export function HomeFeedList({
                   )}
                 />
 
-                <button
-                  type="button"
-                  className={`${styles.iconBtn} ${styles.iconBtnDelete}`.trim()}
-                  onClick={() => onDelete(post.id)}
-                  aria-label="Delete post"
-                  title="Delete post"
-                >
-                  <Trash weight="duotone" />
-                </button>
+                {viewerOwnsPost ? (
+                  <button
+                    type="button"
+                    className={`${styles.iconBtn} ${styles.iconBtnDelete}`.trim()}
+                    onClick={() => onDelete(post.id)}
+                    aria-label="Delete post"
+                    title="Delete post"
+                  >
+                    <Trash weight="duotone" />
+                  </button>
+                ) : null}
               </div>
             </header>
 
             <div className={styles.cardBody}>
               {post.content ? <div className={styles.postText}>{post.content}</div> : null}
+              {post.poll ? (
+                <FeedPoll postId={post.id} poll={post.poll} formatCount={formatCount} />
+              ) : null}
             </div>
 
             {galleryItems.length ? (
@@ -698,20 +956,7 @@ export function HomeFeedList({
 
                   return galleryItems.map((item) => {
                     if (item.kind === "video") {
-                      return (
-                        <div key={item.id} className={styles.mediaWrapper} data-kind="video">
-                          <video
-                            className={`${styles.media} ${styles.mediaVideo}`.trim()}
-                            controls
-                            playsInline
-                            preload="metadata"
-                            poster={item.thumbnailUrl ?? undefined}
-                          >
-                            <source src={item.fullUrl} type={item.mimeType ?? undefined} />
-                            Your browser does not support the video tag.
-                          </video>
-                        </div>
-                      );
+                      return <FeedVideo key={item.id} item={item} />;
                     }
 
                     const imageIndex = lightboxLookup.get(item.id) ?? 0;
@@ -756,6 +1001,8 @@ export function HomeFeedList({
                     doc={doc}
                     formatCount={formatCount}
                     onAsk={() => handleAskDocument(doc)}
+                    onSummarize={() => handleSummarizeDocument(doc)}
+                    summarizePending={Boolean(documentSummaryPending[doc.id])}
                   />
                 ))}
               </div>
@@ -878,6 +1125,266 @@ export function HomeFeedList({
   );
 }
 
+type FeedPollProps = {
+  postId: string;
+  poll: NonNullable<HomeFeedPost["poll"]>;
+  formatCount: (value?: number | null) => string;
+};
 
+function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
+  const options = React.useMemo(
+    () => poll.options.map((option) => option.trim()).filter((option) => option.length > 0),
+    [poll.options],
+  );
 
+  if (!options.length) {
+    return null;
+  }
+
+  const [counts, setCounts] = React.useState<number[] | null>(() =>
+    sanitizeCounts(poll.counts ?? null, options.length),
+  );
+  const [selection, setSelection] = React.useState<number | null>(() => {
+    const vote =
+      typeof poll.userVote === "number" && Number.isFinite(poll.userVote)
+        ? Math.max(0, Math.trunc(poll.userVote))
+        : null;
+    return vote !== null && vote < options.length ? vote : null;
+  });
+  const [pendingIndex, setPendingIndex] = React.useState<number | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setCounts(sanitizeCounts(poll.counts ?? null, options.length));
+  }, [poll.counts, options.length]);
+
+  React.useEffect(() => {
+    const vote =
+      typeof poll.userVote === "number" && Number.isFinite(poll.userVote)
+        ? Math.max(0, Math.trunc(poll.userVote))
+        : null;
+    setSelection(vote !== null && vote < options.length ? vote : null);
+  }, [poll.userVote, options.length]);
+
+  const normalizedCounts = React.useMemo(
+    () =>
+      counts
+        ? Array.from({ length: options.length }, (_, index) => counts[index] ?? 0)
+        : Array(options.length).fill(0),
+    [counts, options.length],
+  );
+
+  const totalVotes = React.useMemo(
+    () => normalizedCounts.reduce((sum, value) => sum + value, 0),
+    [normalizedCounts],
+  );
+
+  const pending = pendingIndex !== null;
+  const question =
+    poll.question && poll.question.trim().length ? poll.question.trim() : "Community poll";
+  const showStats = totalVotes > 0 || selection !== null;
+  const footerLabel =
+    totalVotes > 0
+      ? `${formatCount(totalVotes)} vote${totalVotes === 1 ? "" : "s"}`
+      : "Be the first to vote";
+
+  const handleVote = React.useCallback(
+    async (optionIndex: number) => {
+      if (pending) return;
+      setPendingIndex(optionIndex);
+      setError(null);
+
+      try {
+        const response = await fetch("/api/polls/vote", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            postId,
+            optionIndex,
+          }),
+        });
+
+        let payload: Record<string, unknown> | null = null;
+        try {
+          payload = (await response.json()) as Record<string, unknown>;
+        } catch {
+          payload = null;
+        }
+
+        if (!response.ok) {
+          const rawError =
+            (payload && typeof payload.error === "string" && payload.error) || undefined;
+          const message =
+            response.status === 401
+              ? "Sign in to vote in polls."
+              : rawError ?? "Unable to submit your vote. Please try again.";
+          setError(message);
+          return;
+        }
+
+        const nextCounts = sanitizeCounts(payload?.counts ?? null, options.length);
+        if (nextCounts) {
+          setCounts(nextCounts);
+        } else {
+          setCounts((previous) => {
+            const base = Array.from({ length: options.length }, (_, idx) => previous?.[idx] ?? 0);
+            base[optionIndex] += 1;
+            return base;
+          });
+        }
+        setSelection(optionIndex);
+        setError(null);
+      } catch (voteError) {
+        console.error("Poll vote failed", voteError);
+        setError("Unable to submit your vote. Please try again.");
+      } finally {
+        setPendingIndex(null);
+      }
+    },
+    [pending, postId, options.length],
+  );
+
+  return (
+    <div className={styles.pollCard}>
+      <h3 className={styles.pollQuestion}>{question}</h3>
+      <div className={styles.pollOptions}>
+        {options.map((option, index) => {
+          const count = normalizedCounts[index] ?? 0;
+          const isSelected = selection === index;
+          const isPending = pending && pendingIndex === index;
+          const baseProgress =
+            showStats && totalVotes > 0 ? count / totalVotes : isSelected ? 0.6 : 0;
+          const progress = Math.max(0, Math.min(1, baseProgress));
+          const percent =
+            showStats && totalVotes > 0 ? Math.round(progress * 100) : isSelected ? 100 : null;
+
+          return (
+            <div
+              key={`${postId}-poll-option-${index}`}
+              className={styles.pollOption}
+              data-selected={isSelected ? "true" : undefined}
+            >
+              <div
+                className={styles.pollOptionBar}
+                style={{ transform: `scaleX(${progress})` }}
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                className={styles.pollOptionButton}
+                onClick={() => handleVote(index)}
+                disabled={pending}
+                data-pending={isPending ? "true" : undefined}
+                aria-pressed={isSelected}
+                aria-busy={isPending ? true : undefined}
+              >
+                <span className={styles.pollOptionLabel}>{option}</span>
+                <span className={styles.pollOptionMeta}>
+                  {showStats && percent !== null ? (
+                    <>
+                      <span className={styles.pollOptionPercent}>{percent}%</span>
+                      <span className={styles.pollOptionCount}>{formatCount(count)}</span>
+                    </>
+                  ) : (
+                    <span className={styles.pollOptionHint}>{isSelected ? "Selected" : "Vote"}</span>
+                  )}
+                </span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      {error ? (
+        <div className={styles.pollError} role="status">
+          {error}
+        </div>
+      ) : null}
+      <div className={styles.pollFooter}>{footerLabel}</div>
+    </div>
+  );
+}
+
+type FeedVideoItem = {
+  id: string;
+  fullUrl: string;
+  thumbnailUrl: string | null;
+  mimeType: string | null;
+};
+
+function FeedVideo({ item }: { item: FeedVideoItem }) {
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const [isPlaying, setIsPlaying] = React.useState(false);
+
+  const poster =
+    item.thumbnailUrl && item.thumbnailUrl !== item.fullUrl ? item.thumbnailUrl : null;
+
+  const startPlayback = React.useCallback(() => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.muted = true;
+    const playAttempt = node.play();
+    if (playAttempt && typeof playAttempt.catch === "function") {
+      playAttempt.catch(() => {
+        /* no-op: autoplay may be prevented */
+      });
+    }
+  }, []);
+
+  const stopPlayback = React.useCallback(() => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.pause();
+    try {
+      node.currentTime = 0;
+    } catch {
+      /* Safari may throw if the stream is not seekable yet */
+    }
+    setIsPlaying(false);
+  }, []);
+
+  const handlePlay = React.useCallback(() => {
+    setIsPlaying(true);
+  }, []);
+
+  const handlePause = React.useCallback(() => {
+    setIsPlaying(false);
+  }, []);
+
+  return (
+    <div
+      className={styles.mediaWrapper}
+      data-kind="video"
+      data-playing={isPlaying ? "true" : undefined}
+      onMouseEnter={startPlayback}
+      onMouseLeave={stopPlayback}
+    >
+      <video
+        ref={videoRef}
+        className={`${styles.media} ${styles.mediaVideo}`.trim()}
+        controls
+        playsInline
+        preload="metadata"
+        muted
+        loop
+        poster={poster ?? undefined}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onEnded={stopPlayback}
+        onFocus={startPlayback}
+        onBlur={stopPlayback}
+      >
+        <source src={item.fullUrl} type={item.mimeType ?? undefined} />
+        Your browser does not support the video tag.
+      </video>
+      <div
+        className={styles.mediaVideoOverlay}
+        data-hidden={isPlaying ? "true" : undefined}
+        aria-hidden="true"
+      >
+        <Play className={styles.mediaVideoIcon} weight="fill" />
+      </div>
+    </div>
+  );
+}
 

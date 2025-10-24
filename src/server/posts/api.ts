@@ -30,8 +30,10 @@ import {
 } from "@/server/posts/normalizers";
 import {
   listAttachmentsForPosts,
+  listPollVoteAggregates,
   listPostsView,
   listViewerLikedPostIds,
+  listViewerPollVotes,
   listViewerRememberedPostIds,
   type PostsViewRow,
 } from "@/server/posts/repository";
@@ -299,6 +301,143 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
   );
 
   if (posts.length) {
+    const pollEntries = posts
+      .map((post) => {
+        if (!post.dbId || !post.poll || typeof post.poll !== "object" || Array.isArray(post.poll)) {
+          return null;
+        }
+        return {
+          post,
+          dbId: post.dbId,
+          poll: post.poll as Record<string, unknown>,
+        };
+      })
+      .filter(
+        (
+          entry,
+        ): entry is { post: NormalizedPost; dbId: string; poll: Record<string, unknown> } =>
+          Boolean(entry),
+      );
+
+    if (pollEntries.length) {
+      const pollDbIds = Array.from(new Set(pollEntries.map((entry) => entry.dbId)));
+      const aggregateMap = new Map<string, Map<number, number>>();
+
+      try {
+        const aggregateRows = await listPollVoteAggregates(pollDbIds);
+        aggregateRows.forEach((row) => {
+          const postIdRaw = row.post_id;
+          if (postIdRaw === null || postIdRaw === undefined) return;
+          const postId = String(postIdRaw);
+          const indexRaw = row.option_index;
+          if (indexRaw === null || indexRaw === undefined) return;
+          const index = Number(indexRaw);
+          if (!Number.isFinite(index) || index < 0) return;
+          const countRaw = row.vote_count ?? 0;
+          const count =
+            typeof countRaw === "number"
+              ? countRaw
+              : typeof countRaw === "bigint"
+                ? Number(countRaw)
+                : Number(countRaw ?? 0);
+          if (!Number.isFinite(count) || count < 0) return;
+          const existing = aggregateMap.get(postId) ?? new Map<number, number>();
+          existing.set(index, Math.max(0, Math.trunc(count)));
+          aggregateMap.set(postId, existing);
+        });
+      } catch (aggregateError) {
+        console.warn("poll aggregate fetch failed", aggregateError);
+      }
+
+      const viewerVoteMap = new Map<string, number>();
+      if (viewerId) {
+        try {
+          const viewerVotes = await listViewerPollVotes(pollDbIds, viewerId);
+          viewerVotes.forEach((row) => {
+            const postIdRaw = row.post_id;
+            if (postIdRaw === null || postIdRaw === undefined) return;
+            const postId = String(postIdRaw);
+            const indexRaw = row.option_index;
+            if (indexRaw === null || indexRaw === undefined) return;
+            const index = Number(indexRaw);
+            if (!Number.isFinite(index) || index < 0) return;
+            viewerVoteMap.set(postId, Math.max(0, Math.trunc(index)));
+          });
+        } catch (viewerVoteError) {
+          console.warn("viewer poll vote fetch failed", viewerVoteError);
+        }
+      }
+
+      pollEntries.forEach(({ post, dbId, poll }) => {
+        const record: Record<string, unknown> = { ...poll };
+        const rawOptions = Array.isArray(record.options) ? record.options : [];
+        const normalizedOptions = rawOptions.map((option, index) => {
+          if (typeof option === "string") {
+            const trimmed = option.trim();
+            return trimmed.length ? trimmed : `Option ${index + 1}`;
+          }
+          if (typeof option === "number" && Number.isFinite(option)) {
+            return String(option);
+          }
+          return `Option ${index + 1}`;
+        });
+        const aggregateForPost = aggregateMap.get(dbId) ?? null;
+        let requiredLength = normalizedOptions.length;
+        if (aggregateForPost && aggregateForPost.size) {
+          aggregateForPost.forEach((_, key) => {
+            if (key + 1 > requiredLength) requiredLength = key + 1;
+          });
+        }
+
+        const existingCountsRaw = Array.isArray(record.counts) ? record.counts : null;
+        if (!requiredLength && existingCountsRaw && existingCountsRaw.length) {
+          requiredLength = existingCountsRaw.length;
+        }
+        while (normalizedOptions.length < requiredLength) {
+          normalizedOptions.push(`Option ${normalizedOptions.length + 1}`);
+        }
+
+        const normalizeCountValue = (value: unknown): number => {
+          if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.trunc(value));
+          if (typeof value === "bigint") return Number(value);
+          const numeric = Number(value ?? 0);
+          if (!Number.isFinite(numeric)) return 0;
+          return Math.max(0, Math.trunc(numeric));
+        };
+
+        let counts: number[] = [];
+        if (aggregateForPost && aggregateForPost.size) {
+          counts = Array.from({ length: normalizedOptions.length }, (_, index) =>
+            normalizeCountValue(aggregateForPost.get(index) ?? 0),
+          );
+        } else if (existingCountsRaw && existingCountsRaw.length) {
+          counts = Array.from({ length: normalizedOptions.length }, (_, index) =>
+            normalizeCountValue(existingCountsRaw[index] ?? 0),
+          );
+        } else if (normalizedOptions.length) {
+          counts = Array(normalizedOptions.length).fill(0);
+        }
+
+        const totalVotes = counts.length ? counts.reduce((sum, value) => sum + value, 0) : 0;
+
+        if (counts.length) {
+          record.counts = counts;
+          record.totalVotes = totalVotes;
+        } else {
+          delete record.counts;
+          delete record.totalVotes;
+        }
+
+        const viewerVote = viewerVoteMap.get(dbId);
+        if (viewerVote !== undefined) {
+          record.userVote = viewerVote;
+        }
+
+        record.options = normalizedOptions;
+        post.poll = record;
+      });
+    }
+
     const attachmentPostIds = posts
       .map((post) => post.id)
       .filter((value): value is string => Boolean(value));
