@@ -1716,7 +1716,17 @@
 }
 
 .mediaWrapper {
+  position: relative;
   display: block;
+  border-radius: 16px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-1) 55%, var(--surface-3) 45%);
+}
+
+.mediaWrapper[data-kind="video"] {
+  background: color-mix(in srgb, var(--surface-1) 62%, rgba(15, 23, 42, 0.66));
+  aspect-ratio: 16 / 9;
+  min-height: clamp(180px, 32vw, 320px);
 }
 
 .mediaImage {
@@ -1735,6 +1745,31 @@
   background: color-mix(in srgb, var(--surface-1) 55%, var(--surface-3) 45%);
 
   display: block;
+  object-fit: cover;
+  height: 100%;
+}
+
+.mediaVideoOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(11, 17, 36, 0.62), rgba(11, 17, 36, 0.18));
+  transition: opacity 0.2s ease;
+  opacity: 1;
+}
+
+.mediaWrapper[data-kind="video"][data-playing="true"] .mediaVideoOverlay {
+  opacity: 0;
+}
+
+.mediaVideoIcon {
+  width: 58px;
+  height: 58px;
+  color: rgba(255, 255, 255, 0.92);
+  filter: drop-shadow(0 10px 24px rgba(6, 8, 16, 0.45));
 }
 
 .mediaGallery {

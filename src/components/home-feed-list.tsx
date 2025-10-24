@@ -12,6 +12,7 @@ import {
   DotsThreeCircleVertical,
   Trash,
   HourglassHigh,
+  Play,
 } from "@phosphor-icons/react/dist/ssr";
 import { PostMenu } from "@/components/posts/PostMenu";
 import { normalizeMediaUrl } from "@/lib/media";
@@ -621,23 +622,23 @@ export function HomeFeedList({
             inferred === "image" ? (pickBestFullVariant(variants) ?? absoluteMedia) : absoluteMedia;
           const displaySrcSet =
             cloudflareEnabled && inferred === "image" ? (variants?.feedSrcset ?? null) : null;
-          const fullSrcSet =
-            cloudflareEnabled && inferred === "image"
-              ? (variants?.fullSrcset ?? variants?.feedSrcset ?? null)
-              : null;
-          pushMedia({
-            id: `${post.id}-primary`,
-            originalUrl: variants?.original ?? absoluteMedia,
-            displayUrl,
-            displaySrcSet,
-            fullUrl,
-            fullSrcSet,
-            kind: inferred,
-            name: null,
-            thumbnailUrl: inferred === "image" ? (variants?.thumb ?? absoluteMedia) : absoluteMedia,
-            mimeType: null,
-          });
-        }
+        const fullSrcSet =
+          cloudflareEnabled && inferred === "image"
+            ? (variants?.fullSrcset ?? variants?.feedSrcset ?? null)
+            : null;
+        pushMedia({
+          id: `${post.id}-primary`,
+          originalUrl: variants?.original ?? absoluteMedia,
+          displayUrl,
+          displaySrcSet,
+          fullUrl,
+          fullSrcSet,
+          kind: inferred,
+          name: null,
+          thumbnailUrl: inferred === "image" ? (variants?.thumb ?? absoluteMedia) : null,
+          mimeType: null,
+        });
+      }
 
         attachmentsList.forEach((attachment, index) => {
           if (!attachment || !attachment.url) return;
@@ -677,6 +678,18 @@ export function HomeFeedList({
               cloudflareEnabled && kind === "image"
                 ? (variants?.fullSrcset ?? variants?.feedSrcset ?? null)
                 : null;
+            const thumbnailUrl =
+              kind === "image"
+                ? (variants?.thumb ?? absoluteThumb ?? absoluteOriginal)
+                : (() => {
+                    const candidate =
+                      absoluteThumb && absoluteThumb !== absoluteOriginal
+                        ? absoluteThumb
+                        : typeof attachment.thumbnailUrl === "string"
+                          ? attachment.thumbnailUrl
+                          : null;
+                    return candidate && candidate !== absoluteOriginal ? candidate : null;
+                  })();
             pushMedia({
               id: baseId,
               originalUrl: variants?.original ?? absoluteOriginal,
@@ -686,10 +699,7 @@ export function HomeFeedList({
               fullSrcSet,
               kind,
               name: attachment.name ?? null,
-              thumbnailUrl:
-                kind === "image"
-                  ? (variants?.thumb ?? absoluteThumb ?? absoluteOriginal)
-                  : (absoluteThumb ?? attachment.thumbnailUrl ?? null),
+              thumbnailUrl,
               mimeType: attachment.mimeType ?? null,
             });
           } else {
@@ -872,20 +882,7 @@ export function HomeFeedList({
 
                   return galleryItems.map((item) => {
                     if (item.kind === "video") {
-                      return (
-                        <div key={item.id} className={styles.mediaWrapper} data-kind="video">
-                          <video
-                            className={`${styles.media} ${styles.mediaVideo}`.trim()}
-                            controls
-                            playsInline
-                            preload="metadata"
-                            poster={item.thumbnailUrl ?? undefined}
-                          >
-                            <source src={item.fullUrl} type={item.mimeType ?? undefined} />
-                            Your browser does not support the video tag.
-                          </video>
-                        </div>
-                      );
+                      return <FeedVideo key={item.id} item={item} />;
                     }
 
                     const imageIndex = lightboxLookup.get(item.id) ?? 0;
@@ -1051,6 +1048,89 @@ export function HomeFeedList({
           })()
         : null}
     </>
+  );
+}
+
+type FeedVideoItem = {
+  id: string;
+  fullUrl: string;
+  thumbnailUrl: string | null;
+  mimeType: string | null;
+};
+
+function FeedVideo({ item }: { item: FeedVideoItem }) {
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const [isPlaying, setIsPlaying] = React.useState(false);
+
+  const poster =
+    item.thumbnailUrl && item.thumbnailUrl !== item.fullUrl ? item.thumbnailUrl : null;
+
+  const startPlayback = React.useCallback(() => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.muted = true;
+    const playAttempt = node.play();
+    if (playAttempt && typeof playAttempt.catch === "function") {
+      playAttempt.catch(() => {
+        /* no-op: autoplay may be prevented */
+      });
+    }
+  }, []);
+
+  const stopPlayback = React.useCallback(() => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.pause();
+    try {
+      node.currentTime = 0;
+    } catch {
+      /* Safari may throw if the stream is not seekable yet */
+    }
+    setIsPlaying(false);
+  }, []);
+
+  const handlePlay = React.useCallback(() => {
+    setIsPlaying(true);
+  }, []);
+
+  const handlePause = React.useCallback(() => {
+    setIsPlaying(false);
+  }, []);
+
+  return (
+    <div
+      className={styles.mediaWrapper}
+      data-kind="video"
+      data-playing={isPlaying ? "true" : undefined}
+      onMouseEnter={startPlayback}
+      onMouseLeave={stopPlayback}
+    >
+      <video
+        ref={videoRef}
+        className={`${styles.media} ${styles.mediaVideo}`.trim()}
+        controls
+        playsInline
+        preload="metadata"
+        muted
+        loop
+        poster={poster ?? undefined}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onEnded={stopPlayback}
+        onFocus={startPlayback}
+        onBlur={stopPlayback}
+      >
+        <source src={item.fullUrl} type={item.mimeType ?? undefined} />
+        Your browser does not support the video tag.
+      </video>
+      <div
+        className={styles.mediaVideoOverlay}
+        data-hidden={isPlaying ? "true" : undefined}
+        aria-hidden="true"
+      >
+        <Play className={styles.mediaVideoIcon} weight="fill" />
+      </div>
+    </div>
   );
 }
 

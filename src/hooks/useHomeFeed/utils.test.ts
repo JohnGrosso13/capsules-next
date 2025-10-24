@@ -52,6 +52,14 @@ describe("resolvePostMediaUrl", () => {
     expect(resolvePostMediaUrl(post)).toBe("https://cdn.test/post.png");
   });
 
+  it("ignores non-media post urls", () => {
+    const post = {
+      mediaUrl: "https://cdn.test/archive.odt",
+    } as HomeFeedPost;
+
+    expect(resolvePostMediaUrl(post)).toBeNull();
+  });
+
   it("falls back to attachment variants", () => {
     const attachments: HomeFeedAttachment[] = [
       {
@@ -76,6 +84,41 @@ describe("resolvePostMediaUrl", () => {
     } as HomeFeedPost;
 
     expect(resolvePostMediaUrl(post)).toBe("https://cdn.test/feed.png");
+  });
+
+  it("skips unsupported attachment types", () => {
+    const attachments: HomeFeedAttachment[] = [
+      {
+        id: "att-file",
+        url: "https://cdn.test/document.odt",
+        mimeType: "application/vnd.oasis.opendocument.text",
+        name: "Document",
+        thumbnailUrl: null,
+        storageKey: null,
+        variants: null,
+      },
+      {
+        id: "att-video",
+        url: "https://cdn.test/clip.mp4",
+        mimeType: "video/mp4",
+        name: "Clip",
+        thumbnailUrl: "https://cdn.test/clip-thumb.jpg",
+        storageKey: null,
+        variants: {
+          original: "https://cdn.test/clip.mp4",
+          feed: null,
+          thumb: "https://cdn.test/clip-thumb.jpg",
+          full: null,
+        },
+      },
+    ];
+
+    const post = {
+      mediaUrl: null,
+      attachments,
+    } as HomeFeedPost;
+
+    expect(resolvePostMediaUrl(post)).toBe("https://cdn.test/clip.mp4");
   });
 });
 

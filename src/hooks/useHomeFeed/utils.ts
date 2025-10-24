@@ -26,10 +26,35 @@ export function formatFeedCount(value?: number | null): string {
 
 export type PostMediaSource = Pick<HomeFeedPost, "mediaUrl" | "attachments">;
 
+const VIDEO_EXTENSION_PATTERN = /\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv|3gp|3g2)(\?|#|$)/i;
+const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/i;
+
+function inferMediaKindFromSource(
+  mimeType: string | null | undefined,
+  ...sources: Array<string | null | undefined>
+): "image" | "video" | null {
+  const loweredMime = typeof mimeType === "string" ? mimeType.trim().toLowerCase() : "";
+  if (loweredMime.startsWith("image/")) return "image";
+  if (loweredMime.startsWith("video/")) return "video";
+
+  for (const source of sources) {
+    if (!source || typeof source !== "string") continue;
+    const normalized = source.trim().toLowerCase();
+    if (!normalized.length) continue;
+    if (VIDEO_EXTENSION_PATTERN.test(normalized)) return "video";
+    if (IMAGE_EXTENSION_PATTERN.test(normalized)) return "image";
+  }
+
+  return null;
+}
+
 export function resolvePostMediaUrl(post: PostMediaSource): string | null {
   const fromPost = normalizeMediaUrl(post.mediaUrl) ?? null;
   if (fromPost) {
-    return fromPost;
+    const inferred = inferMediaKindFromSource(null, fromPost);
+    if (inferred === "image" || inferred === "video") {
+      return fromPost;
+    }
   }
 
   if (!Array.isArray(post.attachments)) {
@@ -39,20 +64,42 @@ export function resolvePostMediaUrl(post: PostMediaSource): string | null {
   for (const attachment of post.attachments) {
     if (!attachment) continue;
 
+    const attachmentKind = inferMediaKindFromSource(
+      attachment.mimeType,
+      attachment.url,
+      attachment.thumbnailUrl,
+      attachment.variants?.feed,
+      attachment.variants?.thumb,
+      attachment.variants?.original,
+    );
+    if (attachmentKind !== "image" && attachmentKind !== "video") {
+      continue;
+    }
+
     const normalized =
-      normalizeMediaUrl(attachment.variants?.feed) ??
-      normalizeMediaUrl(attachment.variants?.thumb) ??
-      normalizeMediaUrl(attachment.thumbnailUrl) ??
-      normalizeMediaUrl(attachment.url);
+      attachmentKind === "image"
+        ? normalizeMediaUrl(attachment.variants?.feed) ??
+          normalizeMediaUrl(attachment.variants?.thumb) ??
+          normalizeMediaUrl(attachment.thumbnailUrl) ??
+          normalizeMediaUrl(attachment.url)
+        : normalizeMediaUrl(attachment.url) ??
+          normalizeMediaUrl(attachment.variants?.original) ??
+          normalizeMediaUrl(attachment.variants?.feed) ??
+          normalizeMediaUrl(attachment.thumbnailUrl);
     if (normalized) {
       return normalized;
     }
 
     const fallback =
-      attachment.variants?.feed ??
-      attachment.variants?.thumb ??
-      attachment.thumbnailUrl ??
-      attachment.url;
+      attachmentKind === "image"
+        ? attachment.variants?.feed ??
+          attachment.variants?.thumb ??
+          attachment.thumbnailUrl ??
+          attachment.url
+        : attachment.url ??
+          attachment.variants?.original ??
+          attachment.variants?.feed ??
+          attachment.thumbnailUrl;
     if (typeof fallback === "string" && fallback.trim().length > 0) {
       return fallback;
     }
