@@ -144,7 +144,6 @@ export async function summarizeText(input: SummarizeTextInput): Promise<Sanitize
             word_count: { type: "integer", minimum: 0, maximum: 2000 },
           },
         },
-        strict: true,
       },
     },
     messages: [
