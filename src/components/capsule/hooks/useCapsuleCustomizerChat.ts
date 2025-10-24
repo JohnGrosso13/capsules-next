@@ -88,7 +88,7 @@ function sanitizeServerMessage(message?: string | null): string {
 
 // New, more natural assistant response builder that avoids echoing the user
 // prompt and offers concise next-step suggestions.
-function buildAssistantResponseNatural({
+function _buildAssistantResponseNatural({
   prompt,
   capsuleName,
   mode,
@@ -153,7 +153,7 @@ function buildAssistantResponseNatural({
   return `${intro} ${detail} ${followUp}`;
 }
 
-function buildAssistantResponse({
+function _buildAssistantResponse({
   prompt,
   capsuleName,
   mode,
@@ -190,7 +190,7 @@ function buildAssistantResponse({
     : "The preview on the right shows how it came together.";
   const nextPrompt =
     mode === "generate"
-      ? "What should we explore next—tweak this vibe, spin a remix, or try something totally different?"
+      ? "What should we explore next? Tweak this vibe, spin a remix, or try something totally different?"
       : "Want me to keep iterating on it or pivot to a fresh direction?";
 
   return `${intro} ${detail} ${nextPrompt}`;
@@ -857,3 +857,5 @@ export function useCapsuleCustomizerChat({
     syncBannerCropToMessages,
   } as const;
 }
+
+

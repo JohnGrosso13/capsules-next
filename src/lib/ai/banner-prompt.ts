@@ -44,7 +44,7 @@ export function detectBrandTerm(input: string): string | null {
 }
 
 // Very small heuristic to decide if the prompt likely asks for characters/logos explicitly.
-function wantsCharactersOrLogos(input: string): boolean {
+function _wantsCharactersOrLogos(input: string): boolean {
   const lower = (input || "").toLowerCase();
   return /\b(character|mascot|logo|wordmark|emblem|badge|brand mark|front and center)\b/.test(lower);
 }
@@ -91,3 +91,4 @@ export function buildLiteralBannerPrompt(options: {
 
   return lines.join("\n");
 }
+

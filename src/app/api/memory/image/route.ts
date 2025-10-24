@@ -52,12 +52,7 @@ async function fetchModernMemory(
     owner_user_id: result.data.owner_user_id,
     media_url: result.data.media_url,
     media_type: result.data.media_type,
-    view_count:
-      typeof result.data.view_count === "number"
-        ? result.data.view_count
-        : typeof (result.data as { view_count?: unknown }).view_count === "string"
-          ? Number((result.data as { view_count?: string }).view_count) || 0
-          : 0,
+    view_count: typeof result.data.view_count === "number" ? result.data.view_count : null,
   };
 }
 

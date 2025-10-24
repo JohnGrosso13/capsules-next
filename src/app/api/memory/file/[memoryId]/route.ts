@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { getDatabaseAdminClient } from "@/config/database";
@@ -35,16 +35,17 @@ function readMetaString(meta: Record<string, unknown> | null, keys: string[]): s
 }
 
 export async function GET(
-  req: Request,
-  context: { params: { memoryId?: string } },
+  req: NextRequest,
+  context: { params: Promise<{ memoryId: string }> },
 ) {
-  const memoryIdParam = context.params?.memoryId ?? null;
+  const { memoryId } = await context.params;
+  const memoryIdParam = memoryId ?? null;
   if (!memoryIdParam) {
     return NextResponse.json({ error: "Memory id required." }, { status: 400 });
   }
 
-  const memoryId = decodeURIComponent(memoryIdParam).trim();
-  if (!memoryId.length) {
+  const decodedMemoryId = decodeURIComponent(memoryIdParam).trim();
+  if (!decodedMemoryId.length) {
     return NextResponse.json({ error: "Memory id required." }, { status: 400 });
   }
 
@@ -56,7 +57,7 @@ export async function GET(
   const result = await db
     .from("memories")
     .select<MemoryFileRow>("id, owner_user_id, media_url, media_type, title, meta")
-    .eq("id", memoryId)
+    .eq("id", decodedMemoryId)
     .maybeSingle();
 
   if (result.error) {
@@ -112,7 +113,7 @@ export async function GET(
   const preferredName =
     readMetaString(meta, ["file_original_name", "original_name", "fileName"]) ??
     record.title ??
-    `memory-${memoryId}`;
+    `memory-${decodedMemoryId}`;
   const safeName = sanitizeFilename(preferredName);
   const encodedName = encodeURIComponent(preferredName);
 
