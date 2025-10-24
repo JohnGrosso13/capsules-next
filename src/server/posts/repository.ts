@@ -118,6 +118,17 @@ type PollVoteDbRow = {
   option_index: number | null;
 };
 
+type PollVoteAggregateRow = {
+  post_id: string | number | null;
+  option_index: number | null;
+  vote_count: number | null;
+};
+
+type PollVoteViewerRow = {
+  post_id: string | number | null;
+  option_index: number | null;
+};
+
 function isMissingPollVotesTable(error: DatabaseError | null): boolean {
   if (!error) return false;
   const code = (error.code ?? "").toUpperCase();
@@ -647,4 +658,38 @@ export async function updatePostPollJson(postId: string, poll: unknown): Promise
     }
     throw decorateDatabaseError("posts.polls.update", result.error);
   }
+}
+
+export async function listPollVoteAggregates(postIds: string[]): Promise<PollVoteAggregateRow[]> {
+  if (!postIds.length) return [];
+  const result = await db.rpc<PollVoteAggregateRow>("poll_vote_counts", { post_ids: postIds });
+  if (result.error) {
+    if (isMissingPollVotesTable(result.error)) {
+      console.warn("poll_votes table missing; returning empty aggregated vote list");
+      return [];
+    }
+    throw decorateDatabaseError("posts.polls.aggregate", result.error);
+  }
+  return result.data ?? [];
+}
+
+export async function listViewerPollVotes(
+  postIds: string[],
+  userId: string,
+): Promise<PollVoteViewerRow[]> {
+  if (!postIds.length) return [];
+  const result = await db
+    .from("poll_votes")
+    .select<PollVoteViewerRow>("post_id, option_index")
+    .eq("user_id", userId)
+    .in("post_id", postIds)
+    .fetch();
+  if (result.error) {
+    if (isMissingPollVotesTable(result.error)) {
+      console.warn("poll_votes table missing; returning empty viewer vote list");
+      return [];
+    }
+    throw decorateDatabaseError("posts.polls.viewerVotes", result.error);
+  }
+  return result.data ?? [];
 }
