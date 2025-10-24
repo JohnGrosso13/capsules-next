@@ -1,7 +1,7 @@
 ﻿import { normalizeMediaUrl } from "@/lib/media";
 import { safeRandomUUID } from "@/lib/random";
 
-import type { HomeFeedAttachment, HomeFeedPost } from "./types";
+import type { HomeFeedAttachment, HomeFeedPoll, HomeFeedPost } from "./types";
 
 export type FriendTarget = Record<string, unknown> | null;
 
@@ -46,6 +46,133 @@ function inferMediaKindFromSource(
   }
 
   return null;
+}
+
+function decodePollFromMediaPrompt(raw: unknown): unknown | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("__POLL__")) return null;
+  const payload = trimmed.slice(8);
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
+function normalizePoll(rawPoll: unknown): HomeFeedPoll | null {
+  if (rawPoll === null || rawPoll === undefined) return null;
+
+  let source: Record<string, unknown> | null = null;
+  if (typeof rawPoll === "string") {
+    try {
+      const parsed = JSON.parse(rawPoll);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        source = { ...(parsed as Record<string, unknown>) };
+      }
+    } catch {
+      return null;
+    }
+  } else if (typeof rawPoll === "object" && !Array.isArray(rawPoll)) {
+    source = { ...(rawPoll as Record<string, unknown>) };
+  }
+
+  if (!source) return null;
+
+  const questionValue =
+    typeof source["question"] === "string"
+      ? (source["question"] as string).trim()
+      : typeof source["title"] === "string"
+        ? (source["title"] as string).trim()
+        : "";
+
+  const optionSources =
+    Array.isArray(source["options"])
+      ? (source["options"] as unknown[])
+      : Array.isArray(source["choices"])
+        ? (source["choices"] as unknown[])
+        : [];
+
+  const options = optionSources
+    .map((entry) => {
+      if (typeof entry === "string") return entry.trim();
+      if (typeof entry === "number" && Number.isFinite(entry)) return String(entry);
+      if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+        const record = entry as Record<string, unknown>;
+        if (typeof record["label"] === "string") return record["label"]!.trim();
+        if (typeof record["value"] === "string") return record["value"]!.trim();
+      }
+      return "";
+    })
+    .filter((value) => value.length > 0);
+
+  if (!options.length) {
+    return null;
+  }
+
+  const countCandidates = [
+    source["counts"],
+    source["voteCounts"],
+    source["vote_counts"],
+    source["votes"],
+  ];
+  let counts: number[] | null = null;
+  for (const candidate of countCandidates) {
+    if (!Array.isArray(candidate)) continue;
+    counts = (candidate as unknown[]).map((entry) => {
+      const numeric = typeof entry === "number" ? entry : Number(entry);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.trunc(numeric));
+    });
+    break;
+  }
+
+  const normalizedCounts =
+    counts && counts.length
+      ? Array.from({ length: options.length }, (_, index) => counts?.[index] ?? 0)
+      : null;
+
+  const userVoteCandidates = [
+    source["userVote"],
+    source["user_vote"],
+    source["selectedIndex"],
+    source["selected_index"],
+    source["choice"],
+  ];
+
+  let userVote: number | null = null;
+  for (const candidate of userVoteCandidates) {
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      userVote = Math.max(0, Math.trunc(candidate));
+      break;
+    }
+    if (typeof candidate === "string" && candidate.trim().length) {
+      const parsed = Number(candidate);
+      if (Number.isFinite(parsed)) {
+        userVote = Math.max(0, Math.trunc(parsed));
+        break;
+      }
+    }
+  }
+  if (userVote !== null && (userVote < 0 || userVote >= options.length)) {
+    userVote = null;
+  }
+
+  const totalVotesRaw = source["totalVotes"] ?? source["total_votes"];
+  const totalVotes =
+    typeof totalVotesRaw === "number" && Number.isFinite(totalVotesRaw)
+      ? Math.max(0, Math.trunc(totalVotesRaw))
+      : normalizedCounts
+        ? normalizedCounts.reduce((sum, value) => sum + value, 0)
+        : null;
+
+  return {
+    question: questionValue,
+    options,
+    counts: normalizedCounts,
+    totalVotes,
+    userVote,
+  };
 }
 
 export function resolvePostMediaUrl(post: PostMediaSource): string | null {
@@ -294,6 +421,11 @@ export function normalizePosts(rawPosts: unknown[]): HomeFeedPost[] {
       attachments,
     });
 
+    const pollSource =
+      record["poll"] ??
+      decodePollFromMediaPrompt(record["mediaPrompt"]) ??
+      decodePollFromMediaPrompt(record["media_prompt"]);
+
     return {
       id: String(identifier),
       dbId:
@@ -333,6 +465,7 @@ export function normalizePosts(rawPosts: unknown[]): HomeFeedPost[] {
       viewer_remembered: viewerRemembered,
       viewerRemembered,
       attachments,
+      poll: normalizePoll(pollSource),
     };
   });
 }

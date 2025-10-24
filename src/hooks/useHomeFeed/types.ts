@@ -12,6 +12,14 @@ export type HomeFeedAttachment = {
   meta?: Record<string, unknown> | null;
 };
 
+export type HomeFeedPoll = {
+  question: string;
+  options: string[];
+  counts?: number[] | null;
+  totalVotes?: number | null;
+  userVote?: number | null;
+};
+
 export type HomeFeedPost = {
   id: string;
   dbId?: string | null;
@@ -36,4 +44,5 @@ export type HomeFeedPost = {
   viewer_remembered?: boolean | null;
   viewerRemembered?: boolean | null;
   attachments?: HomeFeedAttachment[];
+  poll?: HomeFeedPoll | null;
 };

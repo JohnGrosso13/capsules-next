@@ -192,6 +192,52 @@ describe("normalizePosts", () => {
     expect(post.author_user_key).toBe("key-007");
     expect(post.authorUserKey).toBe("key-007");
   });
+
+  it("parses poll metadata when available", () => {
+    const raw = [
+      {
+        id: "poll-1",
+        poll: {
+          question: "Which launch should we prioritize?",
+          options: ["Mobile app", "Desktop app", "Chrome extension"],
+          counts: [12, 8, 5],
+          userVote: 1,
+        },
+      },
+    ];
+
+    const post = normalizePosts(raw)[0]!;
+    expect(post.poll).toEqual({
+      question: "Which launch should we prioritize?",
+      options: ["Mobile app", "Desktop app", "Chrome extension"],
+      counts: [12, 8, 5],
+      totalVotes: 25,
+      userVote: 1,
+    });
+  });
+
+  it("decodes poll structure embedded in mediaPrompt", () => {
+    const pollPayload = {
+      question: "Choose your fighter",
+      options: ["Nova", "Vesper"],
+      counts: [4, 6],
+    };
+    const raw = [
+      {
+        id: "poll-2",
+        media_prompt: `__POLL__${JSON.stringify(pollPayload)}`,
+      },
+    ];
+
+    const post = normalizePosts(raw)[0]!;
+    expect(post.poll).toEqual({
+      question: "Choose your fighter",
+      options: ["Nova", "Vesper"],
+      counts: [4, 6],
+      totalVotes: 10,
+      userVote: null,
+    });
+  });
 });
 
 describe("time helpers", () => {
