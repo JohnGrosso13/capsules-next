@@ -3,29 +3,34 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
-import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
+import { serverEnv } from "@/lib/env/server";
+import { parseJsonBody, returnError } from "@/server/validation/http";
+import {
+  buildCapsuleArtEditInstruction,
+  buildCapsuleArtGenerationPrompt,
+  deriveStyleDebugSummary,
+} from "@/server/ai/capsule-art/prompt-builders";
+import { capsuleStyleSelectionSchema } from "@/shared/capsule-style";
+import type { CapsuleImageEvent } from "@/shared/ai-image-events";
 import { Buffer } from "node:buffer";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
   mode: z.enum(["generate", "edit"]).default("generate"),
   capsuleName: z.string().optional().nullable(),
+  style: capsuleStyleSelectionSchema.optional().nullable(),
   imageUrl: z.string().url().optional(),
   imageData: z.string().min(1).optional(),
-});
-
-const responseSchema = z.object({
-  url: z.string(),
-  message: z.string().optional(),
-  imageData: z.string().optional(),
-  mimeType: z.string().optional(),
 });
 
 async function persistAndDescribeImage(
   source: string,
   filenameHint: string,
+  options: { baseUrl?: string | null } = {},
 ): Promise<{ url: string; imageData: string | null; mimeType: string | null }> {
-  let normalizedSource = source;
+  const absoluteSource = resolveToAbsoluteUrl(source, options.baseUrl) ?? source;
+  let normalizedSource = absoluteSource;
   let base64Data: string | null = null;
   let mimeType: string | null = null;
 
@@ -37,7 +42,7 @@ async function persistAndDescribeImage(
     }
   } else {
     try {
-      const response = await fetch(source);
+      const response = await fetch(absoluteSource);
       if (response.ok) {
         const contentType = response.headers.get("content-type") || "image/png";
         const arrayBuffer = await response.arrayBuffer();
@@ -51,9 +56,11 @@ async function persistAndDescribeImage(
     }
   }
 
-  let storedUrl = source;
+  let storedUrl = absoluteSource;
   try {
-    const stored = await storeImageSrcToSupabase(normalizedSource, filenameHint);
+    const stored = await storeImageSrcToSupabase(normalizedSource, filenameHint, {
+      baseUrl: options.baseUrl ?? null,
+    });
     if (stored?.url) {
       storedUrl = stored.url;
     }
@@ -68,24 +75,9 @@ async function persistAndDescribeImage(
   };
 }
 
-function buildGenerationPrompt(prompt: string, capsuleName: string): string {
-  const safeName = capsuleName.trim().length ? capsuleName.trim() : "your capsule";
-  const instructions = [
-    `Design a bold, memorable square logo for the Capsule community "${safeName}".`,
-    "Keep the mark centered, high-contrast, and readable inside a rounded-square mask.",
-    "Avoid dense typography or long phrases—favor initials, iconography, or abstract shapes.",
-    `Creative direction: ${prompt.trim()}`,
-  ];
-  return instructions.join(" ");
-}
-
-function buildEditInstruction(prompt: string): string {
-  const instructions = [
-    "Refine this logo while keeping a balanced square composition and clean silhouette.",
-    "Do not introduce lengthy text or watermarks. Preserve clarity at small sizes.",
-    `Apply the following direction: ${prompt.trim()}`,
-  ];
-  return instructions.join(" ");
+function writeEvent(controller: ReadableStreamDefaultController<Uint8Array>, event: CapsuleImageEvent) {
+  const encoder = new TextEncoder();
+  controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 }
 
 export async function POST(req: Request) {
@@ -100,67 +92,182 @@ export async function POST(req: Request) {
   }
 
   const { prompt, mode, capsuleName, imageUrl, imageData } = parsed.data;
-  const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
-
-  try {
-    if (mode === "generate") {
-      const logoPrompt = buildGenerationPrompt(prompt, effectiveName);
-      const generated = await generateImageFromPrompt(logoPrompt, {
-        quality: "high",
-        size: "768x768",
-      });
-      const stored = await persistAndDescribeImage(generated, "capsule-logo-generate");
-      return validatedJson(responseSchema, {
-        url: stored.url,
-        message:
-          "Thanks for the idea! I drafted a square logo that should feel great across tiles, rails, and settings.",
-        imageData: stored.imageData ?? undefined,
-        mimeType: stored.mimeType ?? undefined,
-      });
-    }
-
-    let sourceUrl = imageUrl ?? null;
-    if (!sourceUrl && imageData) {
-      const stored = await storeImageSrcToSupabase(imageData, "capsule-logo-source");
-      sourceUrl = stored?.url ?? null;
-    }
-
-    if (!sourceUrl) {
-      return returnError(
-        400,
-        "invalid_request",
-        "imageUrl or imageData is required to edit a logo.",
-      );
-    }
-
-    const normalizedSource = await (async () => {
-      try {
-        const stored = await storeImageSrcToSupabase(sourceUrl as string, "capsule-logo-source");
-        return stored?.url ?? sourceUrl!;
-      } catch {
-        return sourceUrl!;
-      }
-    })();
-
-    const instruction = buildEditInstruction(prompt);
-    const edited = await editImageWithInstruction(normalizedSource, instruction, {
-      quality: "high",
-      size: "768x768",
-    });
-    const stored = await persistAndDescribeImage(edited, "capsule-logo-edit");
-
-    return validatedJson(responseSchema, {
-      url: stored.url,
-      message:
-        "Appreciate the notes! I refreshed the logo with those changes so you can review it here.",
-      imageData: stored.imageData ?? undefined,
-      mimeType: stored.mimeType ?? undefined,
-    });
-  } catch (error) {
-    console.error("ai.logo error", error);
-    const message = error instanceof Error ? error.message : "Failed to update logo.";
-    return returnError(500, "logo_generation_failed", message);
+  if (mode === "edit" && !imageUrl && !imageData) {
+    return returnError(400, "invalid_request", "imageUrl or imageData is required to edit a logo.");
   }
+
+  const styleInput = parsed.data.style ?? null;
+  const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
+  const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const send = (event: CapsuleImageEvent) => writeEvent(controller, event);
+      const finalize = () => {
+        try {
+          controller.close();
+        } catch {
+          // ignore
+        }
+      };
+      const fail = (error: unknown) => {
+        const message = error instanceof Error ? error.message : "Failed to update logo.";
+        const status =
+          typeof (error as { status?: unknown })?.status === "number"
+            ? ((error as { status: number }).status ?? null)
+            : null;
+        const code =
+          typeof (error as { code?: unknown }).code === "string"
+            ? ((error as { code: string }).code ?? null)
+            : null;
+        send({
+          type: "error",
+          message,
+          status: status ?? undefined,
+          code: code ?? undefined,
+        });
+        finalize();
+      };
+
+      (async () => {
+        try {
+          if (mode === "generate") {
+            const built = buildCapsuleArtGenerationPrompt({
+              userPrompt: prompt,
+              asset: "logo",
+              subjectName: effectiveName,
+              style: styleInput ?? undefined,
+            });
+            const styleSummary = deriveStyleDebugSummary(built.style);
+
+            send({
+              type: "prompt",
+              prompt: built.prompt,
+              mode: "generate",
+              assetKind: "logo",
+              style: built.style,
+              styleSummary,
+            });
+
+            const generated = await generateImageFromPrompt(built.prompt, {
+              quality: "high",
+              size: "768x768",
+              retry: { attempts: 4, initialDelayMs: 700, multiplier: 1.6 },
+              meta: {
+                assetKind: "logo",
+                mode: "generate",
+                style: built.style,
+                styleSummary,
+                prompt: built.prompt,
+                userPrompt: prompt,
+                onEvent: send,
+              },
+            });
+
+            const stored = await persistAndDescribeImage(generated, "capsule-logo-generate", {
+              baseUrl: requestOrigin,
+            });
+
+            send({
+              type: "success",
+              url: stored.url,
+              imageData: stored.imageData ?? null,
+              mimeType: stored.mimeType ?? null,
+              message:
+                "Thanks for the idea! I drafted a square logo that should feel great across tiles, rails, and settings.",
+              mode: "generate",
+              assetKind: "logo",
+            });
+
+            finalize();
+            return;
+          }
+
+          let sourceUrl = imageUrl ?? null;
+          if (!sourceUrl && imageData) {
+            const stored = await storeImageSrcToSupabase(imageData, "capsule-logo-source", {
+              baseUrl: requestOrigin,
+            });
+            sourceUrl = stored?.url ?? null;
+          }
+
+          if (!sourceUrl) {
+            fail(new Error("imageUrl or imageData is required to edit a logo."));
+            return;
+          }
+
+          const normalizedSource = await (async () => {
+            try {
+              const stored = await storeImageSrcToSupabase(sourceUrl as string, "capsule-logo-source", {
+                baseUrl: requestOrigin,
+              });
+              return stored?.url ?? sourceUrl!;
+            } catch {
+              return sourceUrl!;
+            }
+          })();
+
+          const builtEdit = buildCapsuleArtEditInstruction({
+            userPrompt: prompt,
+            asset: "logo",
+            subjectName: effectiveName,
+            style: styleInput ?? undefined,
+          });
+          const editStyleSummary = deriveStyleDebugSummary(builtEdit.style);
+
+          send({
+            type: "prompt",
+            prompt: builtEdit.prompt,
+            mode: "edit",
+            assetKind: "logo",
+            style: builtEdit.style,
+            styleSummary: editStyleSummary,
+          });
+
+          const edited = await editImageWithInstruction(normalizedSource, builtEdit.prompt, {
+            quality: "high",
+            size: "768x768",
+            retry: { attempts: 3, initialDelayMs: 700, multiplier: 1.5 },
+            meta: {
+              assetKind: "logo",
+              mode: "edit",
+              style: builtEdit.style,
+              styleSummary: editStyleSummary,
+              prompt: builtEdit.prompt,
+              userPrompt: prompt,
+              onEvent: send,
+            },
+          });
+
+          const stored = await persistAndDescribeImage(edited, "capsule-logo-edit", {
+            baseUrl: requestOrigin,
+          });
+
+          send({
+            type: "success",
+            url: stored.url,
+            imageData: stored.imageData ?? null,
+            mimeType: stored.mimeType ?? null,
+            message:
+              "Appreciate the notes! I refreshed the logo with those changes so you can review it here.",
+            mode: "edit",
+            assetKind: "logo",
+          });
+
+          finalize();
+        } catch (error) {
+          fail(error);
+        }
+      })().catch(fail);
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 export const runtime = "nodejs";

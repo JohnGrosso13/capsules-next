@@ -7,8 +7,11 @@
   min-height: 0;
   border-radius: 20px;
   border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
-  background: var(--chats-panel-background);
-  box-shadow: var(--chats-panel-shadow);
+  background: var(
+    --chats-panel-background,
+    color-mix(in srgb, rgba(10, 12, 32, 0.78) 85%, rgba(6, 8, 24, 0.92))
+  );
+  box-shadow: var(--chats-panel-shadow, 0 18px 40px rgba(0, 0, 0, 0.35));
   overflow: hidden;
 }
 
@@ -53,7 +56,14 @@
   text-align: center;
   padding: 36px 32px;
   border-radius: 18px;
-  background: var(--chats-empty-background);
+  background: var(
+    --chats-empty-background,
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(18, 22, 48, 0.78) 70%, transparent),
+      color-mix(in srgb, rgba(6, 8, 24, 0.9) 75%, transparent)
+    )
+  );
   color: var(--text);
   border: 1px dashed color-mix(in srgb, var(--card-border) 85%, transparent);
 }
@@ -73,7 +83,17 @@
   padding: 12px 14px;
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--card-border) 82%, transparent);
-  background: var(--chats-thread-background);
+  background: var(
+    --chats-thread-background,
+    var(
+      --style-chats-bg,
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, rgba(32, 36, 64, 0.54) 70%, rgba(10, 12, 30, 0.65)),
+        color-mix(in srgb, rgba(8, 10, 24, 0.82) 70%, rgba(4, 6, 20, 0.9))
+      )
+    )
+  );
   transition:
     transform 160ms ease,
     border-color 160ms ease,
@@ -118,7 +138,10 @@
   border-radius: 16px;
   overflow: hidden;
   flex-shrink: 0;
-  background: var(--chats-avatar-background);
+  background: var(
+    --chats-avatar-background,
+    var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
+  );
   display: grid;
   place-items: center;
   font-size: 1rem;
@@ -151,7 +174,10 @@
   place-items: center;
   border: 2px solid
     color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.85)) 80%, transparent);
-  background: var(--chats-avatar-background);
+  background: var(
+    --chats-avatar-background,
+    var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
+  );
   margin-left: -18px;
   font-weight: 700;
   color: var(--text);
@@ -208,16 +234,21 @@
     color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 76%, transparent)
       0%,
     color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 84%, transparent) 50%,
-    color-mix(in srgb, var(--header-brand-accent-color, var(--color-accent)) 88%, transparent) 100%
+    color-mix(
+        in srgb,
+        var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%,
+        transparent
+      )
+      100%
   );
   border: 1px solid
     color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 62%, transparent);
   box-shadow: 0 10px 22px
     color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 28%, transparent);
-  color: var(--text-on-brand);
+  color: var(--text-on-brand, #041021);
   letter-spacing: 0.08em;
   white-space: nowrap;
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--text-on-brand) 22%, transparent);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--text-on-brand, #041021) 22%, transparent);
   transition:
     box-shadow var(--motion-duration-quick, 120ms)
       var(--motion-ease-standard, cubic-bezier(0.2, 0, 0.4, 1)),
@@ -266,7 +297,7 @@
   );
   color: var(
     --chats-thread-badge-text,
-    var(--style-chats-badge-color, var(--text-on-brand))
+    var(--style-chats-badge-color, var(--text-on-brand, #ffffff))
   );
   font-size: 0.75rem;
   font-weight: 700;
@@ -277,7 +308,14 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  background: var(--chats-conversation-background);
+  background: var(
+    --chats-conversation-background,
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(24, 28, 52, 0.76) 70%, transparent),
+      color-mix(in srgb, rgba(6, 8, 24, 0.9) 80%, transparent)
+    )
+  );
 }
 
 .conversationHeader {
@@ -312,7 +350,14 @@
   height: 38px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
-  background: var(--chats-control-background);
+  background: var(
+    --chats-control-background,
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.12) 65%, transparent),
+      color-mix(in srgb, rgba(8, 10, 30, 0.78) 80%, transparent)
+    )
+  );
   color: var(--text);
   transition:
     transform 160ms ease,
@@ -341,7 +386,10 @@
   border-radius: 16px;
   overflow: hidden;
   flex-shrink: 0;
-  background: var(--chats-avatar-background);
+  background: var(
+    --chats-avatar-background,
+    var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
+  );
   display: grid;
   place-items: center;
   font-size: 1rem;
@@ -372,7 +420,10 @@
   overflow: hidden;
   display: grid;
   place-items: center;
-  background: var(--chats-avatar-background);
+  background: var(
+    --chats-avatar-background,
+    var(--style-chats-icon-bg, color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, transparent))
+  );
   border: 2px solid
     color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.9)) 80%, transparent);
   margin-left: -18px;
@@ -434,6 +485,29 @@
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--text);
+  padding: 0;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.conversationParticipant:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+  box-shadow: 0 10px 22px color-mix(in srgb, rgba(76, 86, 212, 0.32) 40%, transparent);
+}
+
+.conversationParticipant:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 75%, transparent);
+  outline-offset: 3px;
+}
+.conversationParticipant:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
 }
 
 .conversationParticipantAvatar {
@@ -458,27 +532,27 @@
 
 .messageItem {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 12px;
   max-width: 100%;
-}
-
-.messageItemOther {
+  padding: 6px 0;
 }
 
 .messageItemSelf {
-  justify-content: flex-end;
+  align-items: flex-start;
 }
 
 .messageBubbleGroup {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   max-width: min(72ch, 78vw);
+  position: relative;
+  flex: 1;
 }
 
-.messageItemSelf .messageBubbleGroup {
-  align-items: flex-end;
+.messageItemGrouped .messageBubbleGroup {
+  margin-top: 2px;
 }
 
 .messageAvatar {
@@ -512,46 +586,45 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--text);
 }
 
-.messageItemSelf .messageHeader {
-  justify-content: flex-end;
+.messageItemGrouped .messageHeader {
+  display: none;
 }
 
 .messageAuthor {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text);
 }
 
 .messageItemSelf .messageAuthor {
-  display: none;
+  color: color-mix(in srgb, var(--color-brand) 82%, var(--text));
 }
 
 .messageTimestamp {
-  font-size: 0.75rem;
-  color: var(--text);
+  font-size: 0.72rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.55));
 }
 
 .messageBubble {
-  position: relative;
-  padding: 12px 16px;
-  border-radius: 18px 18px 18px 6px;
-  background: var(--chats-message-background);
+  padding: 0;
+  border-radius: 0;
+  background: none;
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.55;
   word-break: break-word;
-  box-shadow: var(--chats-message-shadow);
+  white-space: pre-wrap;
 }
 
 .messageItemSelf .messageBubble {
-  border-radius: 18px 18px 6px 18px;
+  color: var(--text);
 }
 
 .messageBubbleSelf {
-  background: var(--chats-message-self-background);
-  color: var(--chats-message-self-text);
+  background: none;
+  color: inherit;
 }
 
 .messageMeta {
@@ -566,11 +639,23 @@
   align-items: center;
   margin-top: 6px;
   position: relative;
+  transition:
+    opacity 140ms ease,
+    max-height 140ms ease,
+    margin-top 140ms ease;
 }
 
 .messageItemSelf .messageReactions {
-  justify-content: flex-end;
-  margin-left: auto;
+  justify-content: flex-start;
+  margin-left: 0;
+}
+
+.messageReactionsVisible {
+  opacity: 1;
+  max-height: 240px;
+  pointer-events: auto;
+  margin-top: 6px;
+  overflow: visible;
 }
 
 .messageItemOther .messageReactionPicker {
@@ -589,8 +674,11 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid var(--chats-reaction-border);
-  background: var(--chats-reaction-background);
+  border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
+  background: var(
+    --chats-reaction-background,
+    color-mix(in srgb, rgba(24, 26, 58, 0.88) 82%, transparent)
+  );
   color: var(--text);
   font-size: 0.78rem;
   letter-spacing: 0.01em;
@@ -615,9 +703,15 @@
 
 .messageReactionActive {
   border-color: color-mix(in srgb, var(--color-brand) 75%, transparent);
-  background: var(--chats-reaction-active-background);
+  background: var(
+    --chats-reaction-active-background,
+    color-mix(in srgb, rgba(76, 86, 212, 0.42) 85%, transparent)
+  );
   color: var(--text);
-  box-shadow: var(--chats-reaction-active-shadow);
+  box-shadow: var(
+    --chats-reaction-active-shadow,
+    0 8px 18px color-mix(in srgb, rgba(76, 86, 212, 0.35) 60%, transparent)
+  );
 }
 
 .messageReactionEmoji {
@@ -640,9 +734,12 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  border: 1px solid var(--chats-reaction-border);
-  background: var(--chats-reaction-add-background);
-  color: var(--text-2);
+  border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
+  background: var(
+    --chats-reaction-add-background,
+    color-mix(in srgb, rgba(28, 30, 62, 0.78) 80%, transparent)
+  );
+  color: var(--text-2, rgba(255, 255, 255, 0.7));
   cursor: pointer;
   transition:
     transform 160ms ease,
@@ -662,26 +759,34 @@
 }
 
 .messageReactionAddButton:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
-  box-shadow: none;
   transform: none;
+  box-shadow: none;
 }
 
 .messageReactionPicker {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
+  top: auto;
   right: 0;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  display: grid;
+  /* Ensure a horizontal, Discord-like grid that doesn't collapse to a thin column */
+  grid-template-columns: repeat(6, 32px);
+  grid-auto-rows: 32px;
+  gap: 4px;
   padding: 6px;
   border-radius: 12px;
-  border: 1px solid var(--chats-reaction-picker-border);
-  background: var(--chats-reaction-picker-background);
-  box-shadow: var(--chats-reaction-picker-shadow);
-  max-width: min(260px, calc(100vw - 72px));
+  border: 1px solid
+    var(--chats-reaction-picker-border, color-mix(in srgb, rgba(76, 86, 212, 0.4) 78%, transparent));
+  background: var(
+    --chats-reaction-picker-background,
+    color-mix(in srgb, rgba(18, 20, 46, 0.92) 80%, transparent)
+  );
+  box-shadow: var(--chats-reaction-picker-shadow, 0 16px 32px rgba(0, 0, 0, 0.28));
   z-index: 4;
+  /* Prevent overly narrow columns when the container is tiny */
+  min-width: 212px; /* 6 * 32px + 5 * 4px gap */
 }
 
 .messageReactionOption {
@@ -711,37 +816,185 @@
   outline-offset: 2px;
 }
 
+@media (hover: hover) {
+  .messageReactions {
+    opacity: 0;
+    max-height: 0;
+    margin-top: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .messageItem:hover .messageReactions,
+  .messageReactionsVisible,
+  .messageReactions:focus-within {
+    opacity: 1;
+    max-height: 240px;
+    pointer-events: auto;
+    margin-top: 6px;
+    overflow: visible;
+  }
+}
+
+.typingIndicatorRow {
+  margin: 4px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px 8px;
+  color: var(--text-2);
+}
+
+.typingIndicatorAvatar {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(
+    --chats-typing-avatar-background,
+    color-mix(in srgb, rgba(48, 52, 86, 0.65) 70%, rgba(8, 10, 30, 0.82))
+  );
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.messageAvatarHidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.typingIndicatorAvatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.typingIndicatorInitials {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.typingIndicatorBadge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  border-radius: 999px;
+  background: var(
+    --chats-typing-badge-background,
+    color-mix(in srgb, var(--color-brand) 65%, rgba(12, 16, 32, 0.92))
+  );
+  color: var(--text);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.typingIndicatorBubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 18px;
+  background: var(
+    --chats-typing-bubble-background,
+    color-mix(in srgb, rgba(42, 46, 82, 0.58) 70%, rgba(10, 12, 26, 0.78))
+  );
+  color: var(--text);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.typingIndicatorText {
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.typingIndicatorDots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.typingIndicatorDots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.6;
+  animation: typingBounce 1.2s infinite ease-in-out;
+}
+
+.typingIndicatorDots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typingIndicatorDots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.messageStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.messageStatusFailed {
+  color: color-mix(in srgb, var(--color-danger) 55%, var(--text));
+}
+
+.errorBanner {
+  margin: 0 22px 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--chats-error-border, rgba(248, 113, 113, 0.4));
+  background: var(--chats-error-background, rgba(248, 113, 113, 0.12));
+  color: var(--chats-error-text, rgba(254, 226, 226, 0.95));
+  font-size: 0.85rem;
+}
+
 .composer {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 14px 20px 16px;
   border-top: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
-  background: var(--chats-composer-background);
+  background: var(
+    --chats-composer-background,
+    color-mix(in srgb, rgba(10, 12, 30, 0.88) 80%, rgba(4, 6, 20, 0.92))
+  );
 }
 
 .messageInput {
   flex: 1;
-  padding: 10px 16px;
+  min-width: 0;
+  border: 1px solid
+    var(--chats-input-border, color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent));
+  background: var(
+    --chats-input-background,
+    color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75))
+  );
   border-radius: 999px;
-  border: 1px solid var(--chats-input-border);
-  background: var(--chats-input-background);
+  padding: 10px 16px;
   color: var(--text);
-  font-size: 0.9rem;
-  line-height: 1.4;
+  font-size: 0.95rem;
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease;
 }
 
 .messageInput::placeholder {
-  color: var(--text-3);
+  color: var(--text);
 }
 
 .messageInput:focus-visible {
   outline: none;
-  border-color: color-mix(in srgb, var(--color-brand) 78%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand) 32%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand) 80%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand) 25%, transparent);
 }
 
 .messageInput:disabled {
@@ -750,54 +1003,195 @@
 }
 
 .sendButton {
+  box-sizing: border-box;
+  max-width: 100%;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 10px 16px;
   border-radius: 999px;
-  border: 1px solid var(--chats-send-button-border);
-  font-weight: 700;
+  border: 1px solid
+    var(--chats-send-button-border, color-mix(in srgb, var(--color-brand) 80%, transparent));
+  background: var(
+    --chats-send-button-background,
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 80%, rgba(76, 81, 219, 0.95)),
+      color-mix(in srgb, rgba(66, 71, 194, 0.9) 70%, rgba(48, 52, 148, 0.9))
+    )
+  );
+  color: var(--chats-send-button-text, var(--text-on-brand, #ffffff));
+  font-weight: 600;
   font-size: 0.9rem;
-  color: var(--chats-send-button-text);
-  background: var(--chats-send-button-background);
-  cursor: pointer;
   transition:
     transform 160ms ease,
-    opacity 160ms ease,
-    box-shadow 160ms ease;
+    filter 160ms ease;
 }
 
-.sendButton:not(:disabled):hover {
+.sendButton:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 14px 24px color-mix(in srgb, rgba(120, 86, 255, 0.4) 65%, transparent);
-}
-
-.sendButton:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-brand) 82%, transparent);
-  outline-offset: 3px;
+  filter: brightness(1.05);
 }
 
 .sendButton:disabled {
-  opacity: 0.45;
+  opacity: 0.55;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 .sendButtonIcon {
+  flex-shrink: 0;
+}
+
+.chatMenuContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.chatMenuTrigger {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
+  background: var(
+    --chats-control-background,
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent),
+      color-mix(in srgb, rgba(8, 10, 30, 0.78) 80%, transparent)
+    )
+  );
+  color: var(--text);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+
+.chatMenuTrigger:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+}
+
+.chatMenuTrigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 82%, transparent);
+  outline-offset: 2px;
+}
+
+.chatMenuIcon {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.chatMenuIcon span {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.chatMenuPanel {
+  min-width: 140px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: var(
+    --chats-menu-panel-background,
+    color-mix(in srgb, rgba(8, 10, 30, 0.92) 85%, transparent)
+  );
+  display: grid;
+  gap: 4px;
+  z-index: 1400;
+  box-shadow: var(--chats-menu-panel-shadow, 0 12px 28px rgba(0, 0, 0, 0.32));
+}
+
+.chatMenuItem {
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.chatMenuItem:hover {
+  background: color-mix(in srgb, var(--color-brand) 45%, transparent);
+}
+
+.chatMenuDanger {
+  color: color-mix(in srgb, var(--color-danger) 55%, var(--text));
 }
 
 @media (max-width: 640px) {
-  .composer {
-    padding: 14px 16px;
+  .chatPanel {
+    border-radius: 16px;
   }
+
+  .chatThreads {
+    padding: 12px;
+  }
+
+  .chatThread {
+    padding: 10px 12px;
+  }
+
+  .conversationHeader {
+    padding: 16px;
+    gap: 10px;
+  }
+
+  .conversationHeaderLeft {
+    gap: 10px;
+  }
+
+  .conversationAvatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .messageList {
+    padding: 18px 14px 78px;
+    gap: 16px;
+  }
+
+  .messageBubbleGroup {
+    max-width: min(68ch, 84vw);
+  }
+
+  .composer {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px;
+  }
+
   .messageReactionPicker {
     right: auto;
     left: 0;
+    grid-template-columns: repeat(6, 32px);
+    min-width: 212px;
+  }
+
+  .sendButton {
+    width: 100%;
   }
 }
 
-
+@keyframes typingBounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
 

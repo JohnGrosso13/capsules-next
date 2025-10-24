@@ -1,21 +1,32 @@
+/* Panel spacing tightened to keep hero content above the fold */
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 22px;
 }
 
 .panelCompact {
-  gap: 20px;
+  gap: 16px;
 }
 
 .partyTile {
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  padding: 28px;
+  gap: 22px;
+  padding: 24px;
   border-radius: 28px;
   border: 1px solid var(--party-tile-border);
-  background: var(--party-tile-background);
+  background:
+    radial-gradient(
+      120% 140% at 0% 0%,
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 24%, transparent),
+      transparent 65%
+    ),
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, rgba(18, 49, 94, 0.9) 82%, transparent) 0%,
+      color-mix(in srgb, rgba(9, 24, 55, 0.92) 88%, transparent) 100%
+    );
   box-shadow: var(--party-tile-shadow);
 }
 
@@ -109,10 +120,10 @@
   border-radius: 999px;
   border: 1px solid
     color-mix(in srgb, var(--card-border) 70%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--card-bg-1, rgba(255, 255, 255, 0.98)) 92%,
-    transparent
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, rgba(27, 68, 128, 0.92) 92%, transparent) 0%,
+    color-mix(in srgb, rgba(15, 36, 76, 0.96) 95%, transparent) 100%
   );
   font-family: var(
     --font-mono,
@@ -134,14 +145,14 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding-top: 22px;
+  gap: 14px;
+  padding-top: 18px;
   border-top: 1px solid
     color-mix(in srgb, var(--card-border) 55%, transparent);
 }
 
 .section:first-of-type {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .sectionSplit {
@@ -153,27 +164,8 @@
 .sectionBody {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  flex: 1 1 320px;
-}
-
-.sectionAside {
-  flex: 1 1 220px;
-  min-width: 200px;
-  max-width: 320px;
-}
-
-.sectionAsideInner {
-  display: flex;
-  flex-direction: column;
   gap: 12px;
-  padding: 16px 18px;
-  border-radius: 20px;
-  border: 1px dashed var(--party-hint-border);
-  color: var(--party-hint-text);
-  background: var(--party-hint-background);
-  font-weight: 600;
-  line-height: 1.4;
+  flex: 1 1 320px;
 }
 
 .sectionNotice {
@@ -352,7 +344,13 @@
   padding: 28px 32px;
   border-radius: 28px;
   border: 1px solid var(--party-hero-border);
-  background: var(--party-hero-background);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 32%, transparent) 0%,
+      color-mix(in srgb, rgba(11, 34, 78, 0.92) 92%, transparent) 40%,
+      color-mix(in srgb, rgba(7, 20, 58, 0.98) 98%, transparent) 100%
+    );
   position: relative;
   overflow: hidden;
 }
@@ -362,7 +360,7 @@
   position: absolute;
   inset: 30% -60% -30% 40%;
   background: radial-gradient(circle at center, var(--party-hero-accent) 0%, transparent 70%);
-  opacity: 0.45;
+  opacity: 0.6;
   pointer-events: none;
 }
 
@@ -452,6 +450,112 @@
   color: var(--party-input-placeholder);
 }
 
+.privacyGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.privacyHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.privacyHint {
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--text) 60%, transparent);
+  line-height: 1.35;
+}
+
+.privacyOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.privacyOption {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  align-items: flex-start;
+  text-align: left;
+  width: 100%;
+  min-height: 64px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--party-panel-border);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, rgba(25, 64, 120, 0.86) 90%, transparent) 0%,
+      color-mix(in srgb, rgba(12, 28, 64, 0.9) 92%, transparent) 100%
+    );
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.35;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.35),
+    0 8px 20px rgba(5, 10, 30, 0.22);
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
+}
+
+.privacyOption:hover:not(:disabled) {
+  border-color: var(--party-control-hover-border);
+  transform: translateY(-1px);
+}
+
+.privacyOption:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.privacyOption:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.privacyOptionSelected {
+  border-color: color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 78%, transparent);
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 80%, transparent) 0%,
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 92%, transparent) 100%
+  );
+  color: var(--text-on-brand, #0b0b0b);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.4),
+    0 14px 28px
+      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 28%, rgba(15, 23, 42, 0.16));
+}
+
+.privacyOptionLabel {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.privacyOptionDescription {
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+  line-height: 1.35;
+}
+
+.privacyOptionSelected .privacyOptionDescription {
+  color: color-mix(in srgb, var(--text-on-brand, #0b0b0b) 82%, transparent);
+}
+
 .primaryButton,
 .secondaryButton {
   display: inline-flex;
@@ -467,17 +571,28 @@
     transform 150ms ease,
     filter 150ms ease,
     border-color 150ms ease;
+  min-height: 56px;
 }
 
 .primaryButton {
-  background: var(--party-primary-background);
-  border: 1px solid var(--party-primary-border);
-  color: var(--text-on-brand, #0b0b0b);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 65%, transparent) 0%,
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 85%, transparent) 100%
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 78%, transparent);
+  color: var(--text-on-brand, #041021);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.4),
+    0 16px 32px
+      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 32%, rgba(15, 23, 42, 0.16));
 }
 
 .primaryButton:hover:not(:disabled) {
   transform: translateY(-1px);
-  filter: brightness(1.05);
+  filter: brightness(1.02);
 }
 
 .primaryButton:disabled {
@@ -485,15 +600,29 @@
   cursor: not-allowed;
 }
 
+.primaryButtonFull {
+  width: 100%;
+}
+
 .secondaryButton {
-  background: var(--party-secondary-background);
-  border: 1px solid var(--party-secondary-border);
-  color: var(--text);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, rgba(24, 60, 116, 0.82) 90%, transparent) 0%,
+    color-mix(in srgb, rgba(15, 36, 78, 0.9) 92%, transparent) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 58%, transparent);
+  color: var(--text-on-brand, #041021);
+  min-width: 120px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.35),
+    0 10px 22px rgba(5, 10, 30, 0.28);
 }
 
 .secondaryButton:hover:not(:disabled) {
-  border-color: var(--party-secondary-hover-border);
+  border-color: color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 72%, transparent);
   transform: translateY(-1px);
+  filter: brightness(1.03);
 }
 
 .secondaryButton:disabled {
@@ -508,7 +637,12 @@
   padding: 22px 26px;
   border-radius: 24px;
   border: 1px solid var(--party-panel-border);
-  background: var(--party-panel-background);
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, rgba(16, 40, 82, 0.88) 92%, transparent) 0%,
+      color-mix(in srgb, rgba(13, 30, 70, 0.9) 90%, transparent) 100%
+    );
 }
 
 .sessionHeader {
@@ -663,7 +797,12 @@
   padding: 14px 16px;
   border-radius: 18px;
   border: 1px solid var(--party-participant-border);
-  background: var(--party-participant-background);
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, rgba(18, 46, 92, 0.88) 92%, transparent) 0%,
+      color-mix(in srgb, rgba(11, 26, 58, 0.94) 94%, transparent) 100%
+    );
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -857,7 +996,12 @@
   padding: 20px 22px;
   border-radius: 20px;
   border: 1px solid var(--party-panel-border);
-  background: var(--party-panel-background);
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, rgba(16, 40, 82, 0.88) 92%, transparent) 0%,
+      color-mix(in srgb, rgba(13, 30, 70, 0.9) 90%, transparent) 100%
+    );
 }
 
 .joinHeader {
@@ -885,7 +1029,12 @@
   padding: 22px 24px;
   border-radius: 22px;
   border: 1px solid var(--party-invite-border);
-  background: var(--party-invite-background);
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, rgba(18, 46, 92, 0.9) 92%, transparent) 0%,
+      color-mix(in srgb, rgba(11, 26, 58, 0.94) 94%, transparent) 100%
+    );
 }
 
 .inviteHeader {
@@ -933,7 +1082,12 @@
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid var(--party-invite-row-border);
-  background: var(--party-invite-row-background);
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, rgba(20, 52, 98, 0.9) 92%, transparent) 0%,
+      color-mix(in srgb, rgba(12, 28, 64, 0.95) 95%, transparent) 100%
+    );
 }
 
 .inviteMeta {
@@ -1045,4 +1199,53 @@
     padding: 22px;
     border-radius: 22px;
   }
+}
+
+/* Party Voice: style pass overrides for Fluent + Glassmorphic + Neumorphic */
+.partyTile {
+  box-shadow: var(--party-tile-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.35);
+  backdrop-filter: blur(var(--glass-blur, 12px))
+    saturate(var(--glass-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px))
+    saturate(var(--glass-saturate, 120%));
+}
+
+.heroCard {
+  box-shadow: var(--party-surface-shadow, 0 18px 40px rgba(5, 10, 30, 0.32));
+  backdrop-filter: blur(var(--glass-blur, 12px))
+    saturate(var(--glass-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px))
+    saturate(var(--glass-saturate, 120%));
+}
+
+.sessionCard,
+.stageCard,
+.joinCard,
+.inviteCard {
+  box-shadow: var(--party-surface-shadow, 0 12px 28px rgba(5, 10, 30, 0.26));
+  backdrop-filter: blur(var(--glass-blur, 12px))
+    saturate(var(--glass-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px))
+    saturate(var(--glass-saturate, 120%));
+}
+
+.participantCard,
+.inviteRow,
+.codeChip {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.34);
+  backdrop-filter: blur(var(--glass-blur, 12px))
+    saturate(var(--glass-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px))
+    saturate(var(--glass-saturate, 120%));
+}
+
+.controlButton {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.35),
+    0 8px 18px rgba(5, 10, 30, 0.24);
 }

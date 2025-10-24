@@ -77,12 +77,26 @@ type Props = {
   chips?: string[];
   statusMessage?: string | null;
   onAction?: (action: PrompterAction) => void;
+  variant?: "default" | "bannerCustomizer";
 };
 
 type PostPlan =
   | { mode: "none" }
   | { mode: "manual"; content: string }
   | { mode: "ai"; composeMode: ComposerMode };
+
+type VariantConfig = {
+  allowAttachments: boolean;
+  allowVoice: boolean;
+  allowIntentMenu: boolean;
+  allowIntentHints: boolean;
+  allowTools: boolean;
+  allowNavigation: boolean;
+  enableDragAndDrop: boolean;
+  multilineInput: boolean;
+  forceIntent: PromptIntent | null;
+  forceButtonLabel: string | null;
+};
 
 // Attachment upload behavior extracted to hook
 
@@ -127,11 +141,44 @@ export function AiPrompterStage({
   chips = defaultChips,
   statusMessage = null,
   onAction,
+  variant = "default",
 }: Props) {
   const router = useRouter();
 
   const { user: authUser } = useCurrentUser();
   const userEnvelope = React.useMemo(() => buildMemoryEnvelope(authUser), [authUser]);
+
+  const variantConfig = React.useMemo<VariantConfig>(() => {
+    if (variant === "bannerCustomizer") {
+      return {
+        allowAttachments: false,
+        allowVoice: false,
+        allowIntentMenu: false,
+        allowIntentHints: false,
+        allowTools: false,
+        allowNavigation: false,
+        enableDragAndDrop: false,
+        multilineInput: true,
+        forceIntent: "generate",
+        forceButtonLabel: "Generate",
+      };
+    }
+    return {
+      allowAttachments: true,
+      allowVoice: true,
+      allowIntentMenu: true,
+      allowIntentHints: true,
+      allowTools: true,
+      allowNavigation: true,
+      enableDragAndDrop: true,
+      multilineInput: false,
+      forceIntent: null,
+      forceButtonLabel: null,
+    };
+  }, [variant]);
+
+  const noop = React.useCallback(() => {}, []);
+  const noopSelectTool = React.useCallback((_tool: PrompterToolKey) => {}, []);
 
   const [text, setText] = React.useState("");
   const [autoIntent, setAutoIntent] = React.useState<IntentResolution>(() =>
@@ -143,10 +190,28 @@ export function AiPrompterStage({
   const menuRef = React.useRef<HTMLDivElement | null>(null);
   const anchorRef = React.useRef<HTMLButtonElement | null>(null);
   const requestRef = React.useRef(0);
-  const textRef = React.useRef<HTMLInputElement | null>(null);
+  const textRef = React.useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [manualTool, setManualTool] = React.useState<PrompterToolKey | null>(null);
   const closeMenu = React.useCallback(() => setMenuOpen(false), []);
   const [isCompactViewport, setIsCompactViewport] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!variantConfig.allowIntentMenu && manualIntent !== null) {
+      setManualIntent(null);
+    }
+  }, [variantConfig.allowIntentMenu, manualIntent]);
+
+  React.useEffect(() => {
+    if (!variantConfig.allowTools && manualTool !== null) {
+      setManualTool(null);
+    }
+  }, [variantConfig.allowTools, manualTool]);
+
+  React.useEffect(() => {
+    if (!variantConfig.allowIntentMenu && menuOpen) {
+      setMenuOpen(false);
+    }
+  }, [variantConfig.allowIntentMenu, menuOpen]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -173,9 +238,9 @@ export function AiPrompterStage({
 
   const {
     fileInputRef,
-    attachment,
-    readyAttachment,
-    uploading: attachmentUploading,
+    attachment: rawAttachment,
+    readyAttachment: rawReadyAttachment,
+    uploading: rawAttachmentUploading,
     clearAttachment,
     handleAttachClick,
     handleAttachmentSelect,
@@ -183,7 +248,17 @@ export function AiPrompterStage({
   } = useAttachmentUpload();
 
   const { isDraggingFile, handleDragEnter, handleDragOver, handleDragLeave, handleDrop } =
-    usePrompterDragAndDrop({ onFile: handleAttachmentFile });
+    usePrompterDragAndDrop({
+      onFile: handleAttachmentFile,
+      enabled: variantConfig.allowAttachments && variantConfig.enableDragAndDrop,
+    });
+
+  const attachmentsEnabled = variantConfig.allowAttachments;
+  const readyAttachment = attachmentsEnabled ? rawReadyAttachment : null;
+  const attachment = attachmentsEnabled ? rawAttachment : null;
+  const attachmentUploading = attachmentsEnabled ? rawAttachmentUploading : false;
+  const handleAttachClickSafe = attachmentsEnabled ? handleAttachClick : noop;
+  const handleAttachmentSelectSafe = attachmentsEnabled ? handleAttachmentSelect : noop;
 
   const saveVoiceTranscript = React.useCallback(
     async (textValue: string) => {
@@ -214,46 +289,61 @@ export function AiPrompterStage({
     placeholder === DEFAULT_PLACEHOLDER && isCompactViewport ? COMPACT_PLACEHOLDER : placeholder;
 
   const trimmed = text.trim();
-  const hasAttachment = Boolean(readyAttachment);
-  const attachmentMime = readyAttachment?.mimeType ?? null;
+  const hasAttachment = attachmentsEnabled && Boolean(readyAttachment);
+  const attachmentMime = hasAttachment ? readyAttachment?.mimeType ?? null : null;
   // Determine base intent without considering manual override
   const baseIntent = hasAttachment && trimmed.length === 0 ? "post" : autoIntent.intent;
-  const navTarget = React.useMemo(() => resolveNavigationTarget(trimmed), [trimmed]);
+  const navTarget = React.useMemo(
+    () => (variantConfig.allowNavigation ? resolveNavigationTarget(trimmed) : null),
+    [trimmed, variantConfig.allowNavigation],
+  );
   const postPlan = React.useMemo(() => resolvePostPlan(trimmed), [trimmed]);
   // Manual override takes precedence over heuristics/AI.
-  const effectiveIntent: PromptIntent =
+  const computedIntent: PromptIntent =
     manualIntent ?? (navTarget ? "navigate" : postPlan.mode !== "none" ? "post" : baseIntent);
+  const effectiveIntent: PromptIntent = variantConfig.forceIntent ?? computedIntent;
+
+  React.useEffect(() => {
+    if (!variantConfig.multilineInput) return;
+    const element = textRef.current;
+    if (element instanceof HTMLTextAreaElement) {
+      element.style.height = "auto";
+      const minHeight = 56;
+      const maxHeight = 220;
+      const nextHeight = Math.max(minHeight, Math.min(maxHeight, element.scrollHeight));
+      element.style.height = `${nextHeight}px`;
+    }
+  }, [variantConfig.multilineInput, trimmed]);
 
   const suggestedTools = React.useMemo(
     () =>
-      detectSuggestedTools(trimmed, { hasAttachment, attachmentMime }).filter((s) =>
-        // Limit to currently enabled tools
-        ["poll", "logo", "image_edit"].includes(s.key),
-      ),
-    [trimmed, hasAttachment, attachmentMime],
+      variantConfig.allowTools
+        ? detectSuggestedTools(trimmed, { hasAttachment, attachmentMime }).filter((s) =>
+            // Limit to currently enabled tools
+            ["poll", "logo", "image_edit"].includes(s.key),
+          )
+        : [],
+    [trimmed, hasAttachment, attachmentMime, variantConfig.allowTools],
   );
+  const activeTool = variantConfig.allowTools ? manualTool : null;
 
   const buttonBusy = isResolving && manualIntent === null;
   const navigateReady = effectiveIntent === "navigate" && navTarget !== null;
 
-  const buttonLabel = navigateReady
-    ? "Go"
-    : postPlan.mode === "manual"
-      ? "Post"
-      : postPlan.mode === "ai"
-        ? "Draft"
-        : buttonBusy
-          ? "Analyzing..."
-          : intentLabel(effectiveIntent);
+  const buttonLabel =
+    variantConfig.forceButtonLabel ??
+    (navigateReady
+      ? "Go"
+      : postPlan.mode === "manual"
+        ? "Post"
+        : postPlan.mode === "ai"
+          ? "Draft"
+          : buttonBusy
+            ? "Analyzing..."
+            : intentLabel(effectiveIntent));
 
   const buttonClassName: string =
-    effectiveIntent === "navigate"
-      ? cssClass("genBtn", "genBtnNavigate")
-      : effectiveIntent === "post"
-        ? cssClass("genBtn", "genBtnPost")
-        : effectiveIntent === "style"
-          ? cssClass("genBtn", "genBtnStyle")
-          : cssClass("genBtn");
+    effectiveIntent === "style" ? cssClass("genBtn", "genBtnStyle") : cssClass("genBtn");
 
   const buttonDisabled =
     attachmentUploading ||
@@ -262,7 +352,7 @@ export function AiPrompterStage({
     (postPlan.mode === "manual" && (!postPlan.content || !postPlan.content.trim()));
 
   React.useEffect(() => {
-    if (!menuOpen) return;
+    if (!variantConfig.allowIntentMenu || !menuOpen) return;
 
     function handleClick(event: MouseEvent) {
       const target = event.target as Node;
@@ -277,9 +367,15 @@ export function AiPrompterStage({
     return () => {
       document.removeEventListener("mousedown", handleClick);
     };
-  }, [menuOpen]);
+  }, [menuOpen, variantConfig.allowIntentMenu]);
 
   React.useEffect(() => {
+    if (variantConfig.forceIntent) {
+      setAutoIntent(detectIntentHeuristically(trimmed));
+      setIsResolving(false);
+      return;
+    }
+
     const currentText = trimmed;
     if (!currentText) {
       setAutoIntent(detectIntentHeuristically(""));
@@ -344,7 +440,7 @@ export function AiPrompterStage({
       controller.abort();
       clearTimeout(timeout);
     };
-  }, [trimmed]);
+  }, [trimmed, variantConfig.forceIntent]);
 
   // Attachment handlers provided by hook
 
@@ -403,7 +499,9 @@ export function AiPrompterStage({
     }
 
     // Tool routing
-    const selectedTool: PrompterToolKey | null = manualTool ?? suggestedTools[0]?.key ?? null;
+    const selectedTool: PrompterToolKey | null = variantConfig.allowTools
+      ? manualTool ?? suggestedTools[0]?.key ?? null
+      : null;
 
     if (selectedTool === "poll") {
       emitAction({
@@ -475,19 +573,28 @@ export function AiPrompterStage({
     router,
     manualTool,
     suggestedTools,
+    variantConfig.allowTools,
   ]);
 
-  const { voiceSupported, voiceStatus, voiceStatusMessage, voiceButtonLabel, handleVoiceToggle } =
-    usePrompterVoice({
-      currentText: trimmed,
-      buttonBusy,
-      onTranscript: setText,
-      onSubmit: handleGenerate,
-      onSaveTranscript: saveVoiceTranscript,
-      closeMenu,
-    });
+  const voiceControls = usePrompterVoice({
+    currentText: trimmed,
+    buttonBusy,
+    onTranscript: setText,
+    onSubmit: handleGenerate,
+    onSaveTranscript: saveVoiceTranscript,
+    closeMenu,
+  });
+
+  const voiceSupported = variantConfig.allowVoice ? voiceControls.voiceSupported : false;
+  const voiceStatus = variantConfig.allowVoice ? voiceControls.voiceStatus : "idle";
+  const voiceStatusMessage = variantConfig.allowVoice ? voiceControls.voiceStatusMessage : null;
+  const voiceButtonLabel = variantConfig.allowVoice
+    ? voiceControls.voiceButtonLabel
+    : "Voice input unavailable";
+  const handleVoiceToggle = variantConfig.allowVoice ? voiceControls.handleVoiceToggle : noop;
 
   function applyManualIntent(intent: PromptIntent | null) {
+    if (!variantConfig.allowIntentMenu) return;
     setManualIntent(intent);
     closeMenu();
   }
@@ -515,26 +622,29 @@ export function AiPrompterStage({
 
   const hint =
     statusMessage ??
-    voiceStatusMessage ??
-    manualNote ??
-    navMessage ??
-    postHint ??
-    styleHint ??
-    (attachment?.status === "error" ? attachment.error : null) ??
-    (buttonBusy ? "Analyzing intent..." : (autoIntent.reason ?? null));
+    (variantConfig.allowVoice ? voiceStatusMessage : null) ??
+    (variantConfig.allowIntentHints
+      ? manualNote ??
+        navMessage ??
+        postHint ??
+        styleHint ??
+        (attachment?.status === "error" ? attachment.error : null) ??
+        (buttonBusy ? "Analyzing intent..." : autoIntent.reason ?? null)
+      : null);
+  const showHint = Boolean(hint) && (variantConfig.allowIntentHints || Boolean(statusMessage));
 
   return (
     <section
       className={styles.prompterStage}
       aria-label="AI Prompter"
-      onDragEnter={handleDragEnter}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      data-dropping={isDraggingFile ? "true" : undefined}
+      onDragEnter={attachmentsEnabled ? handleDragEnter : undefined}
+      onDragOver={attachmentsEnabled ? handleDragOver : undefined}
+      onDragLeave={attachmentsEnabled ? handleDragLeave : undefined}
+      onDrop={attachmentsEnabled ? handleDrop : undefined}
+      data-dropping={attachmentsEnabled && isDraggingFile ? "true" : undefined}
     >
       <div className={styles.prompter}>
-        {isDraggingFile ? (
+        {attachmentsEnabled && isDraggingFile ? (
           <div className={styles.prompterDropOverlay} aria-hidden>
             <div className={styles.prompterDropCard}>
               <Paperclip size={28} weight="duotone" className={styles.prompterDropIcon} />
@@ -554,11 +664,11 @@ export function AiPrompterStage({
           dataIntent={String(effectiveIntent)}
           fileInputRef={fileInputRef}
           uploading={attachmentUploading}
-          onAttachClick={handleAttachClick}
-          onFileChange={handleAttachmentSelect}
-          manualIntent={manualIntent}
-          menuOpen={menuOpen}
-          onToggleMenu={() => setMenuOpen((o) => !o)}
+          onAttachClick={handleAttachClickSafe}
+          onFileChange={handleAttachmentSelectSafe}
+          manualIntent={variantConfig.allowIntentMenu ? manualIntent : null}
+          menuOpen={variantConfig.allowIntentMenu ? menuOpen : false}
+          onToggleMenu={variantConfig.allowIntentMenu ? () => setMenuOpen((o) => !o) : noop}
           onSelectIntent={applyManualIntent}
           anchorRef={anchorRef}
           menuRef={menuRef}
@@ -568,11 +678,18 @@ export function AiPrompterStage({
           voiceLabel={voiceButtonLabel}
           hint={hint}
           attachment={attachment}
-          onClearAttachment={clearAttachment}
+          onClearAttachment={attachmentsEnabled ? clearAttachment : noop}
           suggestedTools={suggestedTools}
-          activeTool={manualTool}
-          onSelectTool={setManualTool}
-          onClearTool={() => setManualTool(null)}
+          activeTool={activeTool}
+          onSelectTool={variantConfig.allowTools ? setManualTool : noopSelectTool}
+          onClearTool={variantConfig.allowTools ? () => setManualTool(null) : noop}
+          showHint={showHint}
+          showAttachmentStatus={attachmentsEnabled}
+          showIntentMenu={variantConfig.allowIntentMenu}
+          showVoiceButton={variantConfig.allowVoice}
+          showAttachmentButton={attachmentsEnabled}
+          multiline={variantConfig.multilineInput}
+          showTools={variantConfig.allowTools}
         />
 
         <PrompterSuggestedActions actions={chips} onSelect={setText} />

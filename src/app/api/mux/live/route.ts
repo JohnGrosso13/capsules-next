@@ -5,8 +5,13 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import {
   ensureCapsuleLiveStream,
   getCapsuleLiveStreamOverview,
+  getCapsuleStreamPreferences,
   rotateLiveStreamKeyForCapsule,
+  upsertCapsuleStreamPreferences,
+  type CapsuleStreamPreferences,
+  MuxPlanRestrictionError,
 } from "@/server/mux/service";
+import { CapsuleMembershipError, requireCapsuleOwnership } from "@/server/capsules/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 
 const getQuerySchema = z.object({
@@ -17,6 +22,71 @@ const postRequestSchema = z.object({
   capsuleId: z.string().uuid("capsuleId must be a valid UUID"),
   action: z.enum(["ensure", "rotate-key"]).default("ensure"),
   latencyMode: z.enum(["low", "reduced", "standard"]).optional(),
+});
+
+const updatePreferencesSchema = z.object({
+  capsuleId: z.string().uuid("capsuleId must be a valid UUID"),
+  preferences: z
+    .object({
+      latencyMode: z.enum(["low", "reduced", "standard"]).optional(),
+      disconnectProtection: z.boolean().optional(),
+      audioWarnings: z.boolean().optional(),
+      storePastBroadcasts: z.boolean().optional(),
+      alwaysPublishVods: z.boolean().optional(),
+      autoClips: z.boolean().optional(),
+      simulcastDestinations: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            label: z.string().optional(),
+            provider: z.string().optional(),
+            url: z.string().optional(),
+            streamKey: z.string().nullable().optional(),
+            enabled: z.boolean().optional(),
+            status: z.enum(["idle", "live", "error"]).optional(),
+            lastSyncedAt: z.string().nullable().optional(),
+          }),
+        )
+        .optional(),
+      webhookEndpoints: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            label: z.string().optional(),
+            url: z.string().optional(),
+            secret: z.string().nullable().optional(),
+            events: z.array(z.string()).optional(),
+            enabled: z.boolean().optional(),
+            lastDeliveredAt: z.string().nullable().optional(),
+          }),
+        )
+        .optional(),
+    })
+    .refine(
+      (prefs) => Object.values(prefs).some((value) => value !== undefined),
+      "At least one preference must be provided.",
+    ),
+});
+
+const simulcastDestinationSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  provider: z.string(),
+  url: z.string().url(),
+  streamKey: z.string().nullable(),
+  enabled: z.boolean(),
+  status: z.enum(["idle", "live", "error"]),
+  lastSyncedAt: z.string().nullable(),
+});
+
+const webhookEndpointSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  url: z.string().url(),
+  secret: z.string().nullable(),
+  events: z.array(z.string()),
+  enabled: z.boolean(),
+  lastDeliveredAt: z.string().nullable(),
 });
 
 const liveStreamResponseSchema = z.object({
@@ -32,9 +102,35 @@ const liveStreamResponseSchema = z.object({
     streamKey: z.string(),
     backupStreamKey: z.string().nullable(),
   }),
+  health: z.object({
+    status: z.string(),
+    latencyMode: z.string().nullable(),
+    reconnectWindowSeconds: z.number().nullable(),
+    lastSeenAt: z.string().nullable(),
+    lastActiveAt: z.string().nullable(),
+    lastIdleAt: z.string().nullable(),
+    lastErrorAt: z.string().nullable(),
+    recentError: z.string().nullable(),
+  }),
   sessions: z.array(z.unknown()),
   assets: z.array(z.unknown()),
   aiJobs: z.array(z.unknown()),
+});
+
+const streamPreferencesSchema = z.object({
+  latencyMode: z.enum(["low", "reduced", "standard"]),
+  disconnectProtection: z.boolean(),
+  audioWarnings: z.boolean(),
+  storePastBroadcasts: z.boolean(),
+  alwaysPublishVods: z.boolean(),
+  autoClips: z.boolean(),
+  simulcastDestinations: z.array(simulcastDestinationSchema),
+  webhookEndpoints: z.array(webhookEndpointSchema),
+});
+
+const streamOverviewPayloadSchema = z.object({
+  overview: liveStreamResponseSchema.nullable(),
+  preferences: streamPreferencesSchema,
 });
 
 function ensureOwnership(ownerId: string, liveStreamOwnerId: string): NextResponse | null {
@@ -67,16 +163,26 @@ export async function GET(req: Request) {
   }
 
   const overview = await getCapsuleLiveStreamOverview(parsed.data.capsuleId);
-  if (!overview) {
-    return returnError(404, "not_found", "No live stream found for this capsule.");
+
+  if (overview) {
+    const ownershipError = ensureOwnership(ownerId, overview.liveStream.ownerUserId);
+    if (ownershipError) {
+      return ownershipError;
+    }
+  } else {
+    try {
+      await requireCapsuleOwnership(parsed.data.capsuleId, ownerId);
+    } catch (error) {
+      if (error instanceof CapsuleMembershipError) {
+        return returnError(error.status, error.code, error.message);
+      }
+      throw error;
+    }
   }
 
-  const ownershipError = ensureOwnership(ownerId, overview.liveStream.ownerUserId);
-  if (ownershipError) {
-    return ownershipError;
-  }
+  const preferences = await getCapsuleStreamPreferences(parsed.data.capsuleId);
 
-  return validatedJson(liveStreamResponseSchema, overview);
+  return validatedJson(streamOverviewPayloadSchema, { overview: overview ?? null, preferences });
 }
 
 export async function POST(req: Request) {
@@ -91,21 +197,52 @@ export async function POST(req: Request) {
   }
 
   const data = bodyResult.data;
-  let overview = null;
-  if (data.action === "rotate-key") {
-    overview = await rotateLiveStreamKeyForCapsule({
-      capsuleId: data.capsuleId,
-      ownerUserId: ownerId,
-    });
-  } else {
-    const params: { capsuleId: string; ownerUserId: string; latencyMode?: "low" | "reduced" | "standard" } = {
-      capsuleId: data.capsuleId,
-      ownerUserId: ownerId,
-    };
-    if (data.latencyMode) {
-      params.latencyMode = data.latencyMode;
+  let capsuleOwnerId: string;
+  try {
+    const ownership = await requireCapsuleOwnership(data.capsuleId, ownerId);
+    capsuleOwnerId = ownership.ownerId;
+  } catch (error) {
+    if (error instanceof CapsuleMembershipError) {
+      return returnError(error.status, error.code, error.message);
     }
-    overview = await ensureCapsuleLiveStream(params);
+    throw error;
+  }
+
+  let overview = null;
+  try {
+    if (data.action === "rotate-key") {
+      overview = await rotateLiveStreamKeyForCapsule({
+        capsuleId: data.capsuleId,
+        ownerUserId: ownerId,
+      });
+    } else {
+      if (data.latencyMode) {
+        await upsertCapsuleStreamPreferences({
+          capsuleId: data.capsuleId,
+          ownerUserId: capsuleOwnerId,
+          preferences: { latencyMode: data.latencyMode },
+        });
+      }
+
+      const params: { capsuleId: string; ownerUserId: string; latencyMode?: "low" | "reduced" | "standard" } = {
+        capsuleId: data.capsuleId,
+        ownerUserId: capsuleOwnerId,
+      };
+      if (data.latencyMode) {
+        params.latencyMode = data.latencyMode;
+      }
+      overview = await ensureCapsuleLiveStream(params);
+    }
+  } catch (error) {
+    console.error("mux.live.post", error);
+    if (error instanceof MuxPlanRestrictionError) {
+      return returnError(error.status, error.code, error.message);
+    }
+    const message =
+      error && typeof error === "object" && "message" in error && typeof error.message === "string"
+        ? error.message
+        : "Failed to update streaming configuration.";
+    return returnError(500, "mux_error", message);
   }
 
   if (!overview) {
@@ -117,5 +254,56 @@ export async function POST(req: Request) {
     return ownershipError;
   }
 
-  return validatedJson(liveStreamResponseSchema, overview, { status: 200 });
+  const preferences = await getCapsuleStreamPreferences(data.capsuleId);
+
+  return validatedJson(streamOverviewPayloadSchema, { overview, preferences }, { status: 200 });
+}
+
+export async function PUT(req: Request) {
+  const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
+  if (!ownerId) {
+    return returnError(401, "auth_required", "Sign in to manage streaming.");
+  }
+
+  const bodyResult = await parseJsonBody(req, updatePreferencesSchema);
+  if (!bodyResult.success) {
+    return bodyResult.response;
+  }
+
+  const { capsuleId, preferences } = bodyResult.data;
+
+  const cleanedPreferences = Object.fromEntries(
+    Object.entries(preferences).filter(([, value]) => value !== undefined),
+  ) as Partial<CapsuleStreamPreferences>;
+
+  let capsuleOwnerId: string;
+  try {
+    const ownership = await requireCapsuleOwnership(capsuleId, ownerId);
+    capsuleOwnerId = ownership.ownerId;
+  } catch (error) {
+    if (error instanceof CapsuleMembershipError) {
+      return returnError(error.status, error.code, error.message);
+    }
+    throw error;
+  }
+
+  const updatedPreferences = await upsertCapsuleStreamPreferences({
+    capsuleId,
+    ownerUserId: capsuleOwnerId,
+    preferences: cleanedPreferences,
+  });
+
+  const overview = await getCapsuleLiveStreamOverview(capsuleId);
+  if (overview) {
+    const ownershipError = ensureOwnership(ownerId, overview.liveStream.ownerUserId);
+    if (ownershipError) {
+      return ownershipError;
+    }
+  }
+
+  return validatedJson(
+    streamOverviewPayloadSchema,
+    { overview: overview ?? null, preferences: updatedPreferences },
+    { status: 200 },
+  );
 }

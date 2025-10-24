@@ -11,10 +11,22 @@ import {
   type CapsuleCustomizerMode,
   type CapsuleCustomizerSaveResult,
   type ChatMessage,
+  type ChatBannerOption,
 } from "./hooks/useCapsuleCustomizerState";
+import {
+  CapsuleCustomizerProvider,
+  useCapsuleCustomizerActions,
+  useCapsuleCustomizerChat,
+  useCapsuleCustomizerMemory,
+  useCapsuleCustomizerMeta,
+  useCapsuleCustomizerPreview,
+  useCapsuleCustomizerSave,
+  useCapsuleCustomizerStylesState,
+} from "./hooks/capsuleCustomizerContext";
 import { CapsuleBannerPreview } from "./CapsuleBannerPreview";
 import { CapsuleAssetActions } from "./CapsuleAssetActions";
 import { CapsuleMemoryPicker } from "./CapsuleMemoryPicker";
+import { CAPSULE_STYLE_CATEGORIES, type CapsuleStyleCategory } from "@/shared/capsule-style";
 
 type CapsuleCustomizerProps = {
   open?: boolean;
@@ -25,58 +37,144 @@ type CapsuleCustomizerProps = {
   mode?: CapsuleCustomizerMode;
 };
 
-function ChatMessageBubble({ message }: { message: ChatMessage }) {
+
+function ChatMessageBubble({
+  message,
+  onBannerSelect,
+}: {
+  message: ChatMessage;
+  onBannerSelect: (option: ChatBannerOption) => void;
+}) {
   return (
     <div className={styles.chatMessage} data-role={message.role}>
       <span className={styles.chatAvatar} aria-hidden>
         {message.role === "assistant" ? "AI" : "You"}
       </span>
-      <div className={styles.chatBubble}>{message.content}</div>
+      <div className={styles.chatBubble}>
+        {message.content}
+        {message.bannerOptions && message.bannerOptions.length ? (
+          <div className={styles.chatBannerGallery} role="list">
+            {message.bannerOptions.map((option, index) => (
+              <button
+                key={option.id}
+                type="button"
+                className={styles.chatBannerOption}
+                onClick={() => onBannerSelect(option)}
+                role="listitem"
+                aria-label={`Add banner option ${index + 1} to selection`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={option.previewUrl}
+                  alt={`Banner concept ${index + 1}`}
+                  className={styles.chatBannerImage}
+                  loading="lazy"
+                />
+                <span className={styles.chatBannerOptionOverlay}>Add to banner</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
 
+
+const styleCategoryLabels: Record<CapsuleStyleCategory, string> = {
+  palette: "Palette",
+  lighting: "Lighting",
+  medium: "Medium",
+  mood: "Mood",
+};
+
+function CapsuleStyleControls() {
+  const styleState = useCapsuleCustomizerStylesState();
+  const { optionsByCategory, selection, setSelection, resetSelection, summary } = styleState;
+
+  const helperText =
+    summary.length > 0
+      ? summary
+      : "Defaults active — your prompt still leads. Adjust any row to enrich or quiet Capsule cues.";
+
+  return (
+    <section className={styles.styleControls} aria-label="Style modifiers">
+      <div className={styles.styleControlsHeader}>
+        <span className={styles.styleControlsTitle}>Style modifiers</span>
+        <Button variant="ghost" size="xs" onClick={resetSelection}>
+          Reset
+        </Button>
+      </div>
+      <p className={styles.styleControlsSummary}>{helperText}</p>
+      <div className={styles.styleControlsGrid}>
+        {(CAPSULE_STYLE_CATEGORIES as readonly CapsuleStyleCategory[]).map((category) => {
+          const options = optionsByCategory[category] ?? [];
+          if (!options.length) return null;
+          const label = styleCategoryLabels[category];
+          return (
+            <div key={category} className={styles.styleControlGroup}>
+              <span className={styles.styleControlLabel}>{label}</span>
+              <div className={styles.styleControlOptions} role="group" aria-label={`${label} options`}>
+                {options.map((option) => {
+                  const active = selection[category] === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={styles.styleControlOption}
+                      data-active={active ? "true" : undefined}
+                      aria-pressed={active}
+                      onClick={() => setSelection(category, option.id)}
+                    >
+                      <span className={styles.styleControlOptionLabel}>{option.label}</span>
+                      {option.description ? (
+                        <span className={styles.styleControlOptionHint}>{option.description}</span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function CapsuleCustomizer(props: CapsuleCustomizerProps) {
-  const state = useCapsuleCustomizerState(props);
-  const {
-    open,
-    mode,
-    promptChips,
-    assetLabel,
-    headerTitle,
-    headerSubtitle,
-    prompterPlaceholder,
-    stageAriaLabel,
-    footerDefaultHint,
-    recentDescription,
-    previewAlt,
-    normalizedName,
-    chat,
-    memory,
-    preview,
-    uploads,
-    save,
-    handleClose,
-    overlayClick,
-    describeSelection,
-  } = state;
+  const { open, ...contextValue } = useCapsuleCustomizerState(props);
 
   if (!open) return null;
 
-  const { messages, busy, prompterSession, onPrompterAction, logRef } = chat;
+  return (
+    <CapsuleCustomizerProvider value={contextValue}>
+      <CapsuleCustomizerContent />
+    </CapsuleCustomizerProvider>
+  );
+}
+
+function CapsuleCustomizerContent() {
+  const meta = useCapsuleCustomizerMeta();
+  const chat = useCapsuleCustomizerChat();
+  const memory = useCapsuleCustomizerMemory();
+  const preview = useCapsuleCustomizerPreview();
+  const save = useCapsuleCustomizerSave();
+  const actions = useCapsuleCustomizerActions();
+
   const saveLabel =
-    mode === "tile"
+    meta.mode === "tile"
       ? "Save tile"
-      : mode === "logo"
+      : meta.mode === "logo"
         ? "Save logo"
-        : mode === "avatar"
+        : meta.mode === "avatar"
           ? "Save avatar"
-          : mode === "storeBanner"
+          : meta.mode === "storeBanner"
             ? "Save store banner"
             : "Save banner";
 
   return (
-    <div className={styles.overlay} role="presentation" onClick={overlayClick}>
+    <div className={styles.overlay} role="presentation" onClick={actions.overlayClick}>
       <div
         className={styles.panel}
         role="dialog"
@@ -85,14 +183,14 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
       >
         <header className={styles.header}>
           <div className={styles.titleGroup}>
-            <h2 id="capsule-customizer-heading">{headerTitle}</h2>
-            <p>{headerSubtitle}</p>
+            <h2 id="capsule-customizer-heading">{meta.headerTitle}</h2>
+            <p>{meta.headerSubtitle}</p>
           </div>
           <button
             type="button"
             className={styles.closeButton}
-            onClick={handleClose}
-            aria-label={`Close ${assetLabel} customizer`}
+            onClick={actions.handleClose}
+            aria-label={`Close ${meta.assetLabel} customizer`}
           >
             <X size={18} weight="bold" />
           </button>
@@ -113,7 +211,7 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
                 View all memories
               </Button>
             </div>
-            <div className={styles.recentDescription}>{recentDescription}</div>
+            <div className={styles.recentDescription}>{meta.recentDescription}</div>
             <div className={styles.recentList} role="list">
               {!memory.user ? (
                 <p className={styles.recentHint}>Sign in to see recent memories.</p>
@@ -162,11 +260,15 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
           </section>
 
           <section className={styles.chatColumn}>
-            <div ref={logRef} className={styles.chatLog} aria-live="polite">
-              {messages.map((message) => (
-                <ChatMessageBubble key={message.id} message={message} />
+            <div ref={chat.logRef} className={styles.chatLog} aria-live="polite">
+              {chat.messages.map((message) => (
+                <ChatMessageBubble
+                  key={message.id}
+                  message={message}
+                  onBannerSelect={chat.onBannerSelect}
+                />
               ))}
-              {busy ? (
+              {chat.busy ? (
                 <div className={styles.chatTyping} aria-live="polite">
                   Capsule AI is thinking...
                 </div>
@@ -176,86 +278,40 @@ function CapsuleCustomizer(props: CapsuleCustomizerProps) {
             <div className={styles.prompterDock}>
               <div className={styles.prompterWrap}>
                 <AiPrompterStage
-                  key={prompterSession}
-                  placeholder={prompterPlaceholder}
+                  key={chat.prompterSession}
+                  placeholder={meta.prompterPlaceholder}
                   chips={[]}
                   statusMessage={null}
-                  onAction={onPrompterAction}
+                  onAction={chat.onPrompterAction}
+                  variant="bannerCustomizer"
                 />
-              </div>
-
-              <div className={styles.intentChips}>
-                {promptChips.map((chip) => (
-                  <button
-                    key={chip}
-                    type="button"
-                    className={styles.intentChip}
-                    onClick={() =>
-                      onPrompterAction({
-                        kind: "generate",
-                        text: chip,
-                        raw: chip,
-                      })
-                    }
-                  >
-                    {chip}
-                  </button>
-                ))}
+                <CapsuleStyleControls />
               </div>
             </div>
           </section>
+
           <section className={styles.previewColumn}>
             <div className={styles.previewPanel}>
-              <CapsuleBannerPreview
-                mode={mode}
-                stageRef={preview.stageRef}
-                imageRef={preview.imageRef}
-                selectedBanner={preview.selected}
-                previewOffset={preview.previewOffset}
-                previewScale={preview.previewScale}
-                previewAlt={previewAlt}
-                normalizedName={normalizedName}
-                isDragging={preview.isDragging}
-                previewPannable={preview.previewPannable}
-                stageAriaLabel={stageAriaLabel}
-                onPointerDown={preview.onPointerDown}
-                onImageLoad={preview.onImageLoad}
-              />
-              <CapsuleAssetActions
-                onUploadClick={uploads.onUploadClick}
-                onOpenMemoryPicker={memory.openPicker}
-                fileInputRef={uploads.fileInputRef}
-                memoryButtonRef={memory.buttonRef}
-                onFileChange={uploads.onFileChange}
-                memoryPickerOpen={memory.isPickerOpen}
-              />
+              <CapsuleBannerPreview />
+              <CapsuleAssetActions />
             </div>
           </section>
         </div>
 
-        <CapsuleMemoryPicker
-          open={memory.isPickerOpen}
-          processedMemories={memory.processedMemories}
-          selectedBanner={preview.selected}
-          state={{ loading: memory.loading, error: memory.error, user: memory.user }}
-          onClose={memory.closePicker}
-          onQuickPick={memory.onQuickPick}
-          onRefresh={memory.refresh}
-          onPick={memory.onPickMemory}
-        />
+        <CapsuleMemoryPicker />
 
         <footer className={styles.footer}>
           <div className={styles.footerStatus} role="status">
             {save.error ? (
               <span className={styles.footerError}>{save.error}</span>
             ) : preview.selected ? (
-              describeSelection(preview.selected)
+              actions.describeSelection(preview.selected)
             ) : (
-              footerDefaultHint
+              meta.footerDefaultHint
             )}
           </div>
           <div className={styles.footerActions}>
-            <Button variant="ghost" size="sm" onClick={handleClose}>
+            <Button variant="ghost" size="sm" onClick={actions.handleClose}>
               Cancel
             </Button>
             <Button
@@ -298,3 +354,4 @@ export function ProfileAvatarCustomizer(props: Omit<CapsuleCustomizerProps, "mod
 
 export { CapsuleCustomizer };
 export type { CapsuleCustomizerSaveResult, CapsuleCustomizerMode, CapsuleCustomizerProps };
+

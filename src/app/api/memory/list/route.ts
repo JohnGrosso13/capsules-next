@@ -3,6 +3,7 @@
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { listMemories } from "@/lib/supabase/memories";
 import { listThemeStyles } from "@/server/theme/service";
+import { deriveRequestOrigin } from "@/lib/url";
 
 export const runtime = "nodejs";
 
@@ -38,7 +39,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const items = await listMemories({ ownerId, kind });
+    const requestOrigin = deriveRequestOrigin(req);
+    const items = await listMemories({ ownerId, kind, origin: requestOrigin ?? null });
     return NextResponse.json({ items });
   } catch (error) {
     console.error("memory list error", error);

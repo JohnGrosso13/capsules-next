@@ -88,7 +88,7 @@ type ChatInboxConversation = {
   conversationId: string;
   participants: ChatParticipantDto[];
   session: {
-    type: "direct";
+    type: "direct" | "group";
     title: string;
     avatar: string | null;
     createdBy: string | null;
@@ -329,22 +329,73 @@ export class ChatEngine {
     }
     const conversationId = createGroupConversationId();
     const participantList = Array.from(unique.values());
-    const selfParticipant = this.buildSelfParticipant(selfId) ?? {
-      id: selfId,
-      name: this.userProfile.name ?? selfId,
-      avatar: this.userProfile.avatarUrl ?? null,
-    };
-    const descriptor = {
-      id: conversationId,
-      type: "group" as const,
-      title: name?.trim() ?? "",
-      avatar: null,
-      createdBy: selfId,
-      participants: [...participantList, selfParticipant],
-    };
-    this.store.startSession(descriptor, { activate: options?.activate ?? true });
-    await this.publishSessionUpdate(conversationId);
-    return { id: conversationId, created: true };
+    const participantIds = participantList.map((p) => p.id);
+
+    try {
+      const response = await fetch("/api/chat/groups", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          conversationId,
+          participantIds,
+          title: name?.trim() ?? "",
+        }),
+      });
+      if (!response.ok) {
+        let errorMessage = `Failed to create group (${response.status})`;
+        try {
+          const payload = (await response.json()) as { message?: string; error?: string };
+          errorMessage = payload.message ?? payload.error ?? errorMessage;
+        } catch {
+          const text = await response.text().catch(() => "");
+          if (text) errorMessage = text;
+        }
+        throw new Error(errorMessage);
+      }
+      const payload = (await response.json()) as {
+        success: true;
+        conversation: {
+          conversationId: string;
+          participants: ChatParticipantDto[];
+          session: { type: "group"; title: string; avatar: string | null; createdBy: string | null };
+        };
+      };
+      const descriptor = {
+        id: payload.conversation.conversationId,
+        type: payload.conversation.session.type,
+        title: payload.conversation.session.title,
+        avatar: payload.conversation.session.avatar,
+        createdBy: payload.conversation.session.createdBy,
+        participants: payload.conversation.participants.map((p) => ({
+          id: p.id,
+          name: p.name,
+          avatar: p.avatar ?? null,
+        })),
+      } as const;
+      this.store.startSession(descriptor, { activate: options?.activate ?? true });
+      await this.publishSessionUpdate(descriptor.id);
+      return { id: descriptor.id, created: true };
+    } catch (error) {
+      console.error("ChatEngine startGroupChat error", error);
+      // fall back to local-only session so the UI still proceeds
+      const selfParticipant = this.buildSelfParticipant(selfId) ?? {
+        id: selfId,
+        name: this.userProfile.name ?? selfId,
+        avatar: this.userProfile.avatarUrl ?? null,
+      };
+      const descriptor = {
+        id: conversationId,
+        type: "group" as const,
+        title: name?.trim() ?? "",
+        avatar: null,
+        createdBy: selfId,
+        participants: [...participantList, selfParticipant],
+      };
+      this.store.startSession(descriptor, { activate: options?.activate ?? true });
+      await this.publishSessionUpdate(conversationId);
+      return { id: conversationId, created: true };
+    }
   }
 
   async addParticipantsToGroup(conversationId: string, targets: ChatParticipant[]): Promise<void> {
@@ -356,18 +407,33 @@ export class ChatEngine {
     if (session.type !== "group") {
       throw new Error("Only group chats can accept additional participants.");
     }
-    const existingIds = new Set(session.participants.map((participant) => participant.id));
-    const incoming = targets.filter(
-      (participant) => participant?.id && !existingIds.has(participant.id),
-    );
-    if (!incoming.length) return;
+    const ids = targets.map((t) => t.id).filter(Boolean);
+    const response = await fetch("/api/chat/groups/participants", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ conversationId: session.id, participantIds: ids }),
+    });
+    if (!response.ok) {
+      let errorMessage = `Failed to add participants (${response.status})`;
+      try {
+        const payload = (await response.json()) as { message?: string; error?: string };
+        errorMessage = payload.message ?? payload.error ?? errorMessage;
+      } catch {
+        const text = await response.text().catch(() => "");
+        if (text) errorMessage = text;
+      }
+      throw new Error(errorMessage);
+    }
+    const payload = (await response.json()) as { success: true; participants: ChatParticipantDto[] };
+    const participants = payload.participants.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar ?? null }));
     const descriptor = {
       id: session.id,
       type: session.type,
       title: session.title,
       avatar: session.avatar,
       createdBy: session.createdBy ?? null,
-      participants: [...session.participants, ...incoming],
+      participants,
     };
     this.store.startSession(descriptor);
     await this.publishSessionUpdate(conversationId);
@@ -379,6 +445,23 @@ export class ChatEngine {
       throw new Error("Chat session not found.");
     }
     const trimmed = name.trim();
+    const response = await fetch("/api/chat/groups", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ conversationId, title: trimmed }),
+    });
+    if (!response.ok) {
+      let errorMessage = `Failed to rename group (${response.status})`;
+      try {
+        const payload = (await response.json()) as { message?: string; error?: string };
+        errorMessage = payload.message ?? payload.error ?? errorMessage;
+      } catch {
+        const text = await response.text().catch(() => "");
+        if (text) errorMessage = text;
+      }
+      throw new Error(errorMessage);
+    }
     const descriptor = {
       id: session.id,
       type: session.type,
@@ -891,9 +974,6 @@ export class ChatEngine {
   }
 
   private ensureConversationHistory(conversationId: string): Promise<void> {
-    if (isGroupConversationId(conversationId)) {
-      return Promise.resolve();
-    }
     if (this.conversationHistoryLoaded.has(conversationId)) {
       return Promise.resolve();
     }
@@ -1128,6 +1208,19 @@ export class ChatEngine {
     this.store.applyTypingEvent(payload);
     return;
   }
+  if (event.name === "chat.session.deleted") {
+    const payload = event.data as { type?: string; conversationId?: string };
+    const conversationId = payload?.conversationId;
+    if (typeof conversationId === "string" && conversationId.trim()) {
+      const trimmed = conversationId.trim();
+      const active = this.store.getSnapshot().activeSessionId;
+      this.deleteSession(trimmed);
+      if (active === trimmed) {
+        this.closeSession();
+      }
+    }
+    return;
+  }
   if (event.name === "chat.reaction") {
     const payload = event.data as ChatReactionEventPayload;
     if (!payload || payload.type !== "chat.reaction") return;
@@ -1176,5 +1269,32 @@ export class ChatEngine {
     const name = this.userProfile.name ?? this.userProfile.email ?? trimmed;
     const avatar = this.userProfile.avatarUrl ?? null;
     return { id: trimmed, name, avatar };
+  }
+
+  async deleteGroupConversation(conversationId: string): Promise<void> {
+    const trimmed = conversationId.trim();
+    if (!trimmed) return;
+    try {
+      const params = new URLSearchParams({ conversationId: trimmed });
+      const response = await fetch(`/api/chat/groups?${params.toString()}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        let errorMessage = `Failed to delete group (${response.status})`;
+        try {
+          const payload = (await response.json()) as { message?: string; error?: string };
+          errorMessage = payload.message ?? payload.error ?? errorMessage;
+        } catch {
+          const text = await response.text().catch(() => "");
+          if (text) errorMessage = text;
+        }
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error("ChatEngine deleteGroupConversation error", error);
+      throw error;
+    }
+    this.deleteSession(trimmed);
   }
 }

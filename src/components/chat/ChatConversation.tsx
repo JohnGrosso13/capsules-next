@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { ArrowLeft, PaperPlaneTilt, Trash, UserPlus, Smiley } from "@phosphor-icons/react/dist/ssr";
+import {
+  ArrowLeft,
+  PaperPlaneTilt,
+  Trash,
+  UserPlus,
+  Smiley,
+  NotePencil,
+} from "@phosphor-icons/react/dist/ssr";
 
 import type {
   ChatMessage,
@@ -61,7 +68,22 @@ function describeTypingParticipants(participants: ChatParticipant[]): string {
   return `${names[0]}, ${names[1]}, and ${names.length - 2} others are typing...`;
 }
 
+// Discord-like quick reactions. These were previously corrupted to "??"
+// which caused broken reactions to be saved and displayed.
+// Use literal emoji here so the picker and stored reactions are correct.
 const REACTION_OPTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"] as const;
+
+const MESSAGE_GROUP_WINDOW_MS = 5 * 60_000;
+
+function isContinuationOf(previous: ChatMessage | null | undefined, current: ChatMessage): boolean {
+  if (!previous) return false;
+  if ((previous.authorId ?? null) !== (current.authorId ?? null)) return false;
+  const previousTime = Date.parse(previous.sentAt);
+  const currentTime = Date.parse(current.sentAt);
+  if (!Number.isFinite(previousTime) || !Number.isFinite(currentTime)) return false;
+  return Math.abs(currentTime - previousTime) < MESSAGE_GROUP_WINDOW_MS;
+}
+
 
 type ChatConversationProps = {
   session: ChatSession;
@@ -71,6 +93,7 @@ type ChatConversationProps = {
   onBack?: () => void;
   onDelete?: () => void;
   onInviteParticipants?: () => void;
+  onRenameGroup?: () => void;
   onTypingChange?: (conversationId: string, typing: boolean) => void;
   onToggleReaction?: (conversationId: string, messageId: string, emoji: string) => Promise<void>;
 };
@@ -168,6 +191,7 @@ export function ChatConversation({
   onBack,
   onDelete,
   onInviteParticipants,
+  onRenameGroup,
   onToggleReaction,
   onTypingChange,
 }: ChatConversationProps) {
@@ -207,6 +231,22 @@ export function ChatConversation({
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [reactionTargetId]);
+
+  // Close the emoji picker if user clicks outside of it.
+  React.useEffect(() => {
+    if (!reactionTargetId) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const el = event.target as HTMLElement | null;
+      if (!el) return;
+      if (el.closest('[data-role="reaction-picker"]')) return;
+      if (el.closest('[data-role="reaction-button"]')) return;
+      setReactionTargetId(null);
+    };
+    window.addEventListener("mousedown", onPointerDown, { capture: true } as AddEventListenerOptions);
+    return () => {
+      window.removeEventListener("mousedown", onPointerDown, { capture: true } as AddEventListenerOptions);
     };
   }, [reactionTargetId]);
 
@@ -340,6 +380,16 @@ export function ChatConversation({
           </div>
         </div>
         <div className={styles.conversationHeaderActions}>
+          {session.type === "group" && onRenameGroup ? (
+            <button
+              type="button"
+              className={styles.conversationAction}
+              onClick={onRenameGroup}
+              aria-label="Rename group"
+            >
+              <NotePencil size={18} weight="duotone" />
+            </button>
+          ) : null}
           {session.type === "group" && onInviteParticipants ? (
             <button
               type="button"
@@ -365,12 +415,17 @@ export function ChatConversation({
 
       {session.type === "group" ? (
         <div className={styles.conversationParticipants}>
-          {session.participants.map((participant) => (
-            <span
-              key={participant.id}
-              className={styles.conversationParticipant}
-              title={participant.name}
-            >
+            {session.participants.map((participant) => (
+              <button
+                key={participant.id}
+                type="button"
+                className={styles.conversationParticipant}
+                title={participant.name}
+                onClick={() => onInviteParticipants?.()}
+                disabled={!onInviteParticipants}
+                aria-disabled={!onInviteParticipants}
+                aria-label={participant.name ? `View ${participant.name}` : "View participant"}
+              >
               {participant.avatar ? (
                 <Image
                   src={participant.avatar}
@@ -385,29 +440,47 @@ export function ChatConversation({
                   {initialsFrom(participant.name)}
                 </span>
               )}
-            </span>
+            </button>
           ))}
         </div>
       ) : null}
 
       <div ref={messagesRef} className={styles.messageList}>
-        {session.messages.map((message) => {
+        {session.messages.map((message, index) => {
+          const baseKey =
+            message.id && message.id.trim().length > 0
+              ? `${message.id}-${index}`
+              : `${message.authorId ?? "message"}-${message.sentAt}-${index}`;
+          const messageKey = baseKey.replace(/\s+/g, "_");
+          const previous = index > 0 ? session.messages[index - 1] : null;
           const isSelf = message.authorId ? selfIdentifiers.has(message.authorId) : false;
           const author = message.authorId ? participantMap.get(message.authorId) : null;
           const avatar = isSelf ? selfAvatar : (author?.avatar ?? null);
           const displayName = isSelf ? selfName : (author?.name ?? "Member");
           const statusNode = renderStatus(message);
+          const grouped = isContinuationOf(previous, message);
+          const showAvatar = !grouped;
+          const showHeader = !grouped;
+          const messageTimestamp = formatMessageTime(message.sentAt);
           const messageReactions = Array.isArray(message.reactions) ? message.reactions : [];
-          const showReactions = messageReactions.length > 0 || Boolean(onToggleReaction);
+          const hasReactions = messageReactions.length > 0;
+          const showReactions = Boolean(onToggleReaction) || hasReactions;
           const isPickerOpen = reactionTargetId === message.id;
+          const itemClassName = `${styles.messageItem} ${
+            isSelf ? styles.messageItemSelf : styles.messageItemOther
+          } ${grouped ? styles.messageItemGrouped : ""}`.trim();
+          const avatarClassName = `${styles.messageAvatar} ${
+            showAvatar ? "" : styles.messageAvatarHidden
+          }`.trim();
+          const reactionClassName = `${styles.messageReactions} ${
+            hasReactions || isPickerOpen ? styles.messageReactionsVisible : ""
+          }`.trim();
+          const messageTitle = showHeader ? undefined : messageTimestamp || undefined;
           return (
-            <div
-              key={message.id}
-              className={`${styles.messageItem} ${isSelf ? styles.messageItemSelf : styles.messageItemOther}`.trim()}
-            >
-              {!isSelf ? (
-                <span className={styles.messageAvatar} aria-hidden>
-                  {avatar ? (
+            <div key={messageKey} className={itemClassName}>
+              <span className={avatarClassName} aria-hidden>
+                {showAvatar ? (
+                  avatar ? (
                     <Image
                       src={avatar}
                       alt=""
@@ -420,26 +493,38 @@ export function ChatConversation({
                     <span className={styles.messageAvatarFallback}>
                       {initialsFrom(displayName)}
                     </span>
-                  )}
-                </span>
-              ) : null}
+                  )
+                ) : null}
+              </span>
               <div className={styles.messageBubbleGroup}>
-                <div className={styles.messageHeader}>
-                  {!isSelf ? <span className={styles.messageAuthor}>{displayName}</span> : null}
-                  <span className={styles.messageTimestamp}>
-                    {formatMessageTime(message.sentAt)}
-                  </span>
-                </div>
+                {showHeader ? (
+                  <div className={styles.messageHeader}>
+                    <span className={styles.messageAuthor}>{displayName}</span>
+                    <time className={styles.messageTimestamp} dateTime={message.sentAt}>
+                      {messageTimestamp}
+                    </time>
+                  </div>
+                ) : null}
                 <div
                   className={`${styles.messageBubble} ${isSelf ? styles.messageBubbleSelf : ""}`.trim()}
+                  title={messageTitle}
                 >
                   {message.body}
                 </div>
                 {showReactions ? (
-                  <div className={styles.messageReactions}>
-                    {messageReactions.map((reaction) => (
+                  <div className={reactionClassName}>
+                    {messageReactions.map((reaction, reactionIndex) => {
+                      const maxNames = 3;
+                      const shown = (Array.isArray(reaction.users) ? reaction.users : []).slice(0, maxNames);
+                      const nameList = shown.map((u) => (u?.name || u?.id || "").trim() || "Member").join(", ");
+                      const remainder = Math.max(0, reaction.count - shown.length);
+                      const tooltip =
+                        nameList.length > 0
+                          ? `${reaction.emoji} by ${nameList}${remainder > 0 ? ` and ${remainder} more` : ""}`
+                          : `${reaction.emoji} x${reaction.count}`;
+                      return (
                       <button
-                        key={reaction.emoji}
+                        key={`${messageKey}-reaction-${reactionIndex}`}
                         type="button"
                         className={`${styles.messageReaction} ${
                           reaction.selfReacted ? styles.messageReactionActive : ""
@@ -450,11 +535,13 @@ export function ChatConversation({
                         aria-label={`${reaction.emoji} reaction from ${reaction.count} ${
                           reaction.count === 1 ? "person" : "people"
                         }`}
+                        title={tooltip}
                       >
                         <span className={styles.messageReactionEmoji}>{reaction.emoji}</span>
                         <span className={styles.messageReactionCount}>{reaction.count}</span>
                       </button>
-                    ))}
+                    );
+                    })}
                     {onToggleReaction ? (
                       <div className={styles.messageReactionAdd}>
                         <button
@@ -463,14 +550,19 @@ export function ChatConversation({
                           onClick={() => handleReactionPickerToggle(message.id)}
                           aria-expanded={isPickerOpen}
                           aria-label="Add reaction"
+                          data-role="reaction-button"
                         >
                           <Smiley size={14} weight="duotone" />
                         </button>
                         {isPickerOpen ? (
-                          <div className={styles.messageReactionPicker} role="menu">
-                            {REACTION_OPTIONS.map((option) => (
+                          <div
+                            className={styles.messageReactionPicker}
+                            role="menu"
+                            data-role="reaction-picker"
+                          >
+                            {REACTION_OPTIONS.map((option, optionIndex) => (
                               <button
-                                key={`${message.id}-${option}`}
+                                key={`${messageKey}-picker-${optionIndex}`}
                                 type="button"
                                 className={styles.messageReactionOption}
                                 onClick={() => handleReactionSelect(message.id, option)}
@@ -543,3 +635,4 @@ export function ChatConversation({
     </div>
   );
 }
+

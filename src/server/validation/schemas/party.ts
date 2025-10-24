@@ -7,9 +7,19 @@ const displayNameSchema = z
   .max(80, "Display name is too long")
   .optional();
 
+export const partyPrivacyValues = ["public", "friends", "invite-only"] as const;
+export const partyPrivacySchema = z.enum(partyPrivacyValues);
+export type PartyPrivacy = z.infer<typeof partyPrivacySchema>;
+
 export const partyCreateRequestSchema = z.object({
   displayName: displayNameSchema,
-  topic: z.string().trim().min(1, "Topic cannot be empty").max(120, "Topic is too long").optional(),
+  topic: z
+    .string()
+    .trim()
+    .min(1, "Topic cannot be empty")
+    .max(120, "Topic is too long")
+    .optional(),
+  privacy: partyPrivacySchema.optional(),
 });
 
 export const partyTokenRequestSchema = z.object({
@@ -26,6 +36,7 @@ const partyMetadataSchema = z.object({
   ownerId: z.string(),
   ownerDisplayName: z.string().nullable(),
   topic: z.string().nullable().optional(),
+  privacy: partyPrivacySchema.default("friends"),
   createdAt: z.string(),
 });
 

@@ -1,6 +1,19 @@
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
-import { Buffer } from "node:buffer";
+if (typeof (globalThis as { DOMParser?: unknown }).DOMParser !== "function") {
+  class BasicDOMParser {
+    parseFromString(markup: string) {
+      const textContent = String(markup ?? "");
+      const node = { textContent, innerHTML: textContent };
+      return {
+        textContent,
+        documentElement: node,
+        body: node,
+      } as unknown;
+    }
+  }
+  (globalThis as { DOMParser: unknown }).DOMParser = BasicDOMParser as unknown;
+}
 
 import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { serverEnv } from "../env/server";
@@ -8,6 +21,9 @@ import { serverEnv } from "../env/server";
 import { getDatabaseAdminClient } from "@/config/database";
 
 import { storeImageSrcToSupabase } from "../supabase/storage";
+import type { ComposerChatAttachment, ComposerChatMessage } from "@/lib/composer/chat-types";
+import type { CapsuleImageEvent } from "@/shared/ai-image-events";
+import type { CapsuleStyleSelection } from "@/shared/capsule-style";
 
 export class AIConfigError extends Error {
   constructor(message: string) {
@@ -43,6 +59,46 @@ type FeedSummary = {
   suggestion: { title: string | null; prompt: string | null } | null;
 };
 
+const HISTORY_MESSAGE_LIMIT = 6;
+
+function summarizeAttachmentForConversation(attachment: ComposerChatAttachment): string {
+  const parts = [attachment.name];
+  if (attachment.mimeType) {
+    parts.push(`(${attachment.mimeType})`);
+  }
+  if (attachment.url) {
+    parts.push(`-> ${attachment.url}`);
+  }
+  return parts.join(" ");
+}
+
+function mapConversationToMessages(
+  history: ComposerChatMessage[] | undefined,
+  limit: number = HISTORY_MESSAGE_LIMIT,
+): ChatMessage[] {
+  if (!history || !Array.isArray(history) || history.length === 0) {
+    return [];
+  }
+  const recent = history.slice(-limit);
+  return recent.map((entry) => {
+    const role = entry.role === "user" ? "user" : "assistant";
+    const attachmentsNote = entry.attachments && entry.attachments.length
+      ? `\n\nAttachments referenced:\n${entry.attachments
+          .map((attachment) => `- ${summarizeAttachmentForConversation(attachment)}`)
+          .join("\n")}`
+      : "";
+    return {
+      role,
+      content: `${entry.content}${attachmentsNote}`.trim(),
+    };
+  });
+}
+type ComposeDraftOptions = {
+  history?: ComposerChatMessage[];
+  attachments?: ComposerChatAttachment[];
+  capsuleId?: string | null;
+  rawOptions?: Record<string, unknown>;
+};
 const nullableStringSchema = {
   anyOf: [{ type: "string" }, { type: "null" }],
 };
@@ -297,7 +353,34 @@ export async function callOpenAIChat(
   return { content, raw: json };
 }
 
-type ImageOptions = { quality?: string; size?: string };
+type CapsuleImageEventEmitter = (event: CapsuleImageEvent) => void;
+
+type ImageRetryOptions = {
+  attempts?: number;
+  initialDelayMs?: number;
+  multiplier?: number;
+  shouldRetry?: (error: unknown, attempt: number) => boolean;
+};
+
+type ImageInvocationMeta = {
+  ownerId?: string | null;
+  capsuleId?: string | null;
+  assetKind?: string | null;
+  mode?: "generate" | "edit" | "fallback";
+  style?: CapsuleStyleSelection | null;
+  styleSummary?: string | null;
+  prompt?: string | null;
+  userPrompt?: string | null;
+  requestId?: string | null;
+  onEvent?: CapsuleImageEventEmitter | null;
+};
+
+type ImageOptions = {
+  quality?: string;
+  size?: string;
+  retry?: ImageRetryOptions;
+  meta?: ImageInvocationMeta;
+};
 
 type ImageParams = { size: string; quality: string };
 
@@ -323,13 +406,128 @@ function resolveImageParams(options: ImageOptions = {}): ImageParams {
   return { size, quality };
 }
 
+const DEFAULT_IMAGE_RETRY = {
+  attempts: 3,
+  initialDelayMs: 800,
+  multiplier: 1.6,
+};
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function emitImageEvent(meta: ImageInvocationMeta | undefined | null, event: CapsuleImageEvent) {
+  if (!meta?.onEvent) return;
+  try {
+    meta.onEvent(event);
+  } catch (error) {
+    console.warn("image event listener threw", error);
+  }
+}
+
+type NormalizedRetryOptions = {
+  attempts: number;
+  initialDelayMs: number;
+  multiplier: number;
+  shouldRetry?: ImageRetryOptions["shouldRetry"];
+};
+
+function normalizeRetryOptions(retry?: ImageRetryOptions | null): NormalizedRetryOptions {
+  const normalizedAttempts = retry?.attempts ?? DEFAULT_IMAGE_RETRY.attempts;
+  const attempts = Number.isFinite(normalizedAttempts)
+    ? Math.max(1, Math.floor(normalizedAttempts as number))
+    : DEFAULT_IMAGE_RETRY.attempts;
+  return {
+    attempts,
+    initialDelayMs:
+      typeof retry?.initialDelayMs === "number"
+        ? Math.max(0, retry.initialDelayMs)
+        : DEFAULT_IMAGE_RETRY.initialDelayMs,
+    multiplier:
+      typeof retry?.multiplier === "number" && retry.multiplier > 0
+        ? retry.multiplier
+        : DEFAULT_IMAGE_RETRY.multiplier,
+    shouldRetry: retry?.shouldRetry,
+  };
+}
+
+function extractImageError(error: unknown): {
+  message: string;
+  status: number | null;
+  code: string | null;
+  type: string | null;
+} {
+  const baseMessage = error instanceof Error ? error.message : String(error ?? "Unknown error");
+  const status =
+    typeof (error as { status?: unknown })?.status === "number"
+      ? ((error as { status: number }).status ?? null)
+      : null;
+  const meta = (error as { meta?: unknown })?.meta;
+  if (!meta || typeof meta !== "object") {
+    return { message: baseMessage, status, code: null, type: null };
+  }
+  const rawError = (meta as { error?: unknown })?.error;
+  if (!rawError || typeof rawError !== "object") {
+    return { message: baseMessage, status, code: null, type: null };
+  }
+  const message =
+    typeof (rawError as { message?: unknown }).message === "string"
+      ? ((rawError as { message: string }).message ?? baseMessage)
+      : baseMessage;
+  const code =
+    typeof (rawError as { code?: unknown }).code === "string"
+      ? ((rawError as { code: string }).code ?? null)
+      : null;
+  const type =
+    typeof (rawError as { type?: unknown }).type === "string"
+      ? ((rawError as { type: string }).type ?? null)
+      : null;
+  return { message, status, code, type };
+}
+
+function shouldRetryImageError(
+  error: unknown,
+  attempt: number,
+  retry: NormalizedRetryOptions,
+): boolean {
+  if (attempt >= retry.attempts) return false;
+  if (typeof retry.shouldRetry === "function") {
+    try {
+      return Boolean(retry.shouldRetry(error, attempt));
+    } catch (decisionError) {
+      console.warn("image retry decider threw", decisionError);
+    }
+  }
+  const info = extractImageError(error);
+  if (info.status !== null) {
+    if ([401, 403, 404].includes(info.status)) return false;
+    if ([408, 409, 425, 429, 500, 502, 503, 504].includes(info.status)) return true;
+  }
+  return false;
+}
+
 export async function generateImageFromPrompt(
   prompt: string,
   options: ImageOptions = {},
 ): Promise<string> {
   requireOpenAIKey();
 
-  const attempt = async (modelName: string) => {
+  const meta = options.meta ?? null;
+  const retryOptions = normalizeRetryOptions(options.retry);
+  const isNonProd = (process.env.NODE_ENV ?? "").toLowerCase() !== "production";
+
+  const candidateModels = Array.from(
+    new Set(
+      [
+        isNonProd ? serverEnv.OPENAI_IMAGE_MODEL_DEV : null,
+        serverEnv.OPENAI_IMAGE_MODEL,
+        // Prefer the most affordable legacy model while testing.
+        isNonProd ? "dall-e-2" : null,
+        "gpt-image-1",
+        "dall-e-3",
+      ].filter((model): model is string => typeof model === "string" && model.length > 0),
+    ),
+  );
+
+  const attemptModel = async (modelName: string) => {
     const params = resolveImageParams(options);
 
     const body = { model: modelName, prompt, n: 1, size: params.size, quality: params.quality };
@@ -349,7 +547,10 @@ export async function generateImageFromPrompt(
     if (!response.ok) {
       const error = new Error(`OpenAI image error: ${response.status}`);
 
-      (error as Error & { meta?: Record<string, unknown> }).meta = json;
+      (error as Error & { meta?: Record<string, unknown>; status?: number; model?: string }).meta =
+        json;
+      (error as Error & { status?: number }).status = response.status;
+      (error as Error & { model?: string }).model = modelName;
 
       throw error;
     }
@@ -371,15 +572,56 @@ export async function generateImageFromPrompt(
     throw new Error("OpenAI image response missing url and b64_json.");
   };
 
-  try {
-    return await attempt(serverEnv.OPENAI_IMAGE_MODEL);
-  } catch (primaryError) {
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= retryOptions.attempts; attempt++) {
+    const model = candidateModels[(attempt - 1) % candidateModels.length];
+    emitImageEvent(meta, { type: "attempt", attempt, model });
     try {
-      return await attempt("dall-e-3");
-    } catch {
-      throw primaryError;
+      const url = await attemptModel(model);
+      return url;
+    } catch (error) {
+      lastError = error;
+      const shouldRetry = shouldRetryImageError(error, attempt, retryOptions);
+      if (!shouldRetry) {
+        const info = extractImageError(error);
+        emitImageEvent(meta, {
+          type: "error",
+          message: info.message,
+          status: info.status ?? undefined,
+          code: info.code ?? undefined,
+        });
+        throw error instanceof Error ? error : new Error(info.message);
+      }
+
+      const delay = Math.round(
+        retryOptions.initialDelayMs * Math.pow(retryOptions.multiplier, attempt - 1),
+      );
+      const info = extractImageError(error);
+      emitImageEvent(meta, {
+        type: "retry",
+        attempt,
+        model,
+        error: {
+          message: info.message,
+          code: info.code ?? undefined,
+          status: info.status ?? undefined,
+          type: info.type ?? undefined,
+        },
+        nextDelayMs: delay,
+      });
+
+      if (delay > 0) await sleep(delay);
     }
   }
+
+  const info = extractImageError(lastError);
+  emitImageEvent(meta, {
+    type: "error",
+    message: info.message,
+    status: info.status ?? undefined,
+    code: info.code ?? undefined,
+  });
+  throw lastError instanceof Error ? lastError : new Error(info.message);
 }
 
 export async function editImageWithInstruction(
@@ -390,6 +632,9 @@ export async function editImageWithInstruction(
   options: ImageOptions = {},
 ): Promise<string> {
   requireOpenAIKey();
+
+  const meta = options.meta ?? null;
+  const retryOptions = normalizeRetryOptions(options.retry);
 
   const imgResponse = await fetch(imageUrl);
 
@@ -416,57 +661,148 @@ export async function editImageWithInstruction(
 
   const blob = new Blob([arrayBuffer as ArrayBuffer], { type: "image/png" });
 
-  const fd = new FormData();
 
   const allowedEditModels = new Set(["gpt-image-1", "dall-e-2", "gpt-image-0721-mini-alpha"]);
 
+  const isNonProd = (process.env.NODE_ENV ?? "").toLowerCase() !== "production";
+
   const configured = serverEnv.OPENAI_IMAGE_MODEL.toLowerCase();
+  const devConfigured = serverEnv.OPENAI_IMAGE_MODEL_DEV?.toLowerCase() ?? null;
 
-  const model = allowedEditModels.has(configured) ? serverEnv.OPENAI_IMAGE_MODEL : "gpt-image-1";
+  const preferredEditModel = (
+    [
+      isNonProd && devConfigured && allowedEditModels.has(devConfigured)
+        ? serverEnv.OPENAI_IMAGE_MODEL_DEV
+        : null,
+      allowedEditModels.has(configured) ? serverEnv.OPENAI_IMAGE_MODEL : null,
+    ].find((entry): entry is string => typeof entry === "string" && entry.length > 0) ?? "gpt-image-1"
+  );
 
-  fd.append("model", model);
-
-  fd.append("image", blob, "image.png");
-
-  fd.append("prompt", instruction || "Make subtle improvements.");
+  const model = preferredEditModel;
 
   const params = resolveImageParams(options);
 
-  if (params.size) fd.append("size", params.size);
+  const createFormData = () => {
+    fd.append("model", model);
+    fd.append("image", blob, "image.png");
+    fd.append("prompt", instruction || "Make subtle improvements.");
+    if (params.size) fd.append("size", params.size);
+    return fd;
+  };
 
-  if (params.quality) fd.append("quality", params.quality);
+  const attemptEdit = async () => {
+    const response = await fetchOpenAI("/images/edits", {
+      method: "POST",
+      body: createFormData(),
+    });
 
-  const response = await fetchOpenAI("/images/edits", {
-    method: "POST",
+    const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 
-    body: fd,
-  });
+    if (!response.ok) {
+      const metaError = (() => {
+        const rawError = json?.error;
+        if (!rawError || typeof rawError !== "object") return null;
+        const message =
+          typeof (rawError as { message?: unknown }).message === "string"
+            ? ((rawError as { message: string }).message ?? "").trim()
+            : "";
+        const code =
+          typeof (rawError as { code?: unknown }).code === "string"
+            ? ((rawError as { code: string }).code ?? "").trim()
+            : "";
+        const type =
+          typeof (rawError as { type?: unknown }).type === "string"
+            ? ((rawError as { type: string }).type ?? "").trim()
+            : "";
+        const reason =
+          typeof (rawError as { param?: unknown }).param === "string"
+            ? ((rawError as { param: string }).param ?? "").trim()
+            : "";
+        return { message, code, type, param: reason };
+      })();
 
-  const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      const descriptiveMessage = metaError?.message
+        ? `${metaError.message} (OpenAI status ${response.status}${
+            metaError.code ? `, code ${metaError.code}` : ""
+          })`
+        : `OpenAI image edit error: ${response.status}`;
 
-  if (!response.ok) {
-    const error = new Error(`OpenAI image edit error: ${response.status}`);
+      const error = new Error(descriptiveMessage);
 
-    (error as Error & { meta?: Record<string, unknown> }).meta = json;
+      (error as Error & { meta?: Record<string, unknown>; status?: number; model?: string }).meta =
+        json;
+      (error as Error & { status?: number }).status = response.status;
+      (error as Error & { model?: string }).model = model;
 
-    throw error;
+      throw error;
+    }
+
+    const image = Array.isArray(json.data) ? (json.data as Array<Record<string, unknown>>)[0] : null;
+
+    if (!image) throw new Error("OpenAI image edit missing data");
+
+    const maybeUrl = typeof image.url === "string" ? image.url : null;
+
+    const maybeB64 = typeof image.b64_json === "string" ? image.b64_json : null;
+
+    const dataUri = maybeUrl ?? (maybeB64 ? `data:image/png;base64,${maybeB64}` : null);
+
+    if (!dataUri) throw new Error("OpenAI image edit missing url/b64");
+
+    const saved = await storeImageSrcToSupabase(dataUri, "edit");
+
+    return saved?.url ?? dataUri;
+  };
+
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= retryOptions.attempts; attempt++) {
+    emitImageEvent(meta, { type: "attempt", attempt, model });
+    try {
+      const url = await attemptEdit();
+      return url;
+    } catch (error) {
+      lastError = error;
+      const shouldRetry = shouldRetryImageError(error, attempt, retryOptions);
+      if (!shouldRetry) {
+        const info = extractImageError(error);
+        emitImageEvent(meta, {
+          type: "error",
+          message: info.message,
+          status: info.status ?? undefined,
+          code: info.code ?? undefined,
+        });
+        throw error instanceof Error ? error : new Error(info.message);
+      }
+
+      const delay = Math.round(
+        retryOptions.initialDelayMs * Math.pow(retryOptions.multiplier, attempt - 1),
+      );
+      const info = extractImageError(error);
+      emitImageEvent(meta, {
+        type: "retry",
+        attempt,
+        model,
+        error: {
+          message: info.message,
+          code: info.code ?? undefined,
+          status: info.status ?? undefined,
+          type: info.type ?? undefined,
+        },
+        nextDelayMs: delay,
+      });
+
+      if (delay > 0) await sleep(delay);
+    }
   }
 
-  const image = Array.isArray(json.data) ? (json.data as Array<Record<string, unknown>>)[0] : null;
-
-  if (!image) throw new Error("OpenAI image edit missing data");
-
-  const maybeUrl = typeof image.url === "string" ? image.url : null;
-
-  const maybeB64 = typeof image.b64_json === "string" ? image.b64_json : null;
-
-  const dataUri = maybeUrl ?? (maybeB64 ? `data:image/png;base64,${maybeB64}` : null);
-
-  if (!dataUri) throw new Error("OpenAI image edit missing url/b64");
-
-  const saved = await storeImageSrcToSupabase(dataUri, "edit");
-
-  return saved?.url ?? dataUri;
+  const info = extractImageError(lastError);
+  emitImageEvent(meta, {
+    type: "error",
+    message: info.message,
+    status: info.status ?? undefined,
+    code: info.code ?? undefined,
+  });
+  throw lastError instanceof Error ? lastError : new Error(info.message);
 }
 
 function buildBasePost(incoming: Record<string, unknown> = {}): DraftPost {
@@ -481,7 +817,12 @@ function buildBasePost(incoming: Record<string, unknown> = {}): DraftPost {
   };
 }
 
-export async function createPostDraft(userText: string): Promise<Record<string, unknown>> {
+export async function createPostDraft(
+  userText: string,
+  context: ComposeDraftOptions = {},
+): Promise<Record<string, unknown>> {
+  const { history, attachments, capsuleId, rawOptions } = context;
+  const historyMessages = mapConversationToMessages(history);
   const imageIntent =
     /(image|logo|banner|thumbnail|picture|photo|icon|cover|poster|graphic|illustration|art|avatar|background)\b/i.test(
       userText,
@@ -511,6 +852,22 @@ export async function createPostDraft(userText: string): Promise<Record<string, 
       .trim();
   }
 
+  const userPayload: Record<string, unknown> = { instruction: userText };
+  if (attachments && attachments.length) {
+    userPayload.attachments = attachments.map((attachment) => ({
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      url: attachment.url,
+      thumbnailUrl: attachment.thumbnailUrl ?? null,
+    }));
+  }
+  if (capsuleId) {
+    userPayload.capsuleId = capsuleId;
+  }
+  if (rawOptions && Object.keys(rawOptions).length) {
+    userPayload.options = rawOptions;
+  }
+
   const messages: ChatMessage[] = [
     {
       role: "system",
@@ -526,10 +883,12 @@ export async function createPostDraft(userText: string): Promise<Record<string, 
       ].join(" "),
     },
 
+    ...historyMessages,
+
     {
       role: "user",
 
-      content: JSON.stringify({ instruction: userText }),
+      content: JSON.stringify(userPayload),
     },
   ];
 
@@ -648,7 +1007,10 @@ export async function createPostDraft(userText: string): Promise<Record<string, 
 export async function createPollDraft(
   userText: string,
   hint: Record<string, unknown> = {},
+  context: ComposeDraftOptions = {},
 ): Promise<PollDraft> {
+  const { history, attachments, capsuleId, rawOptions } = context;
+  const historyMessages = mapConversationToMessages(history);
   const system = [
     "You are Capsules AI. Create a concise poll from the user instruction.",
 
@@ -659,10 +1021,27 @@ export async function createPollDraft(
     "Keep options succinct (1-3 words when possible).",
   ].join(" ");
 
+  const userPayload: Record<string, unknown> = { instruction: userText, seed: hint || {} };
+  if (attachments && attachments.length) {
+    userPayload.attachments = attachments.map((attachment) => ({
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      url: attachment.url,
+    }));
+  }
+  if (capsuleId) {
+    userPayload.capsuleId = capsuleId;
+  }
+  if (rawOptions && Object.keys(rawOptions).length) {
+    userPayload.options = rawOptions;
+  }
+
   const messages: ChatMessage[] = [
     { role: "system", content: system },
 
-    { role: "user", content: JSON.stringify({ instruction: userText, seed: hint || {} }) },
+    ...historyMessages,
+
+    { role: "user", content: JSON.stringify(userPayload) },
   ];
 
   const { content } = await callOpenAIChat(messages, pollSchema, { temperature: 0.5 });
@@ -705,8 +1084,30 @@ export async function refinePostDraft(
   userText: string,
 
   incomingPost: Record<string, unknown>,
+
+  context: ComposeDraftOptions = {},
 ): Promise<Record<string, unknown>> {
+  const { history, attachments, capsuleId, rawOptions } = context;
+  const historyMessages = mapConversationToMessages(history);
   const base = buildBasePost(incomingPost);
+
+  const userPayload: Record<string, unknown> = {
+    instruction: userText,
+    post: incomingPost,
+  };
+  if (attachments && attachments.length) {
+    userPayload.attachments = attachments.map((attachment) => ({
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      url: attachment.url,
+    }));
+  }
+  if (capsuleId) {
+    userPayload.capsuleId = capsuleId;
+  }
+  if (rawOptions && Object.keys(rawOptions).length) {
+    userPayload.options = rawOptions;
+  }
 
   const messages: ChatMessage[] = [
     {
@@ -725,10 +1126,12 @@ export async function refinePostDraft(
       ].join(" "),
     },
 
+    ...historyMessages,
+
     {
       role: "user",
 
-      content: JSON.stringify({ instruction: userText, post: incomingPost }),
+      content: JSON.stringify(userPayload),
     },
   ];
 
@@ -972,10 +1375,40 @@ export async function summarizeFeedFromDB({
   };
 }
 
+function decodeBase64ToUint8Array(base64: string): Uint8Array {
+  const normalized = base64
+    .replace(/[\r\n\s]+/g, "")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  const padLength = normalized.length % 4;
+  const padCount = ((4 - padLength) % 4 + 4) % 4;
+  const padded = padCount ? normalized + "=".repeat(padCount) : normalized;
+
+  if (typeof globalThis.atob === "function") {
+    const binary = globalThis.atob(padded);
+    const length = binary.length;
+    const bytes = new Uint8Array(length);
+    for (let index = 0; index < length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  }
+
+  const bufferConstructor = (globalThis as {
+    Buffer?: { from(input: string, encoding: string): Uint8Array };
+  }).Buffer;
+  if (bufferConstructor && typeof bufferConstructor.from === "function") {
+    const nodeBuffer = bufferConstructor.from(padded, "base64");
+    return new Uint8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.byteLength);
+  }
+
+  throw new Error("Base64 decoding is not supported in this runtime.");
+}
+
 function parseBase64Audio(
   input: string,
   fallbackMime: string | null,
-): { buffer: Buffer; mime: string | null } {
+): { bytes: Uint8Array; mime: string | null } {
   if (!input) {
     throw new Error("audio_base64 is required");
   }
@@ -995,11 +1428,11 @@ function parseBase64Audio(
     base64 = base64.slice(dataUrlMatch[0].length);
   }
 
-  const buffer = Buffer.from(base64, "base64");
+  const bytes = decodeBase64ToUint8Array(base64);
 
   const mime = detectedMime || fallbackMime || "audio/webm";
 
-  return { buffer, mime };
+  return { bytes, mime };
 }
 
 function audioExtensionFromMime(mime: string) {
@@ -1029,11 +1462,9 @@ export async function transcribeAudioFromBase64({
 }): Promise<{ text: string; model: string | null; raw: Json | null }> {
   requireOpenAIKey();
 
-  const { buffer, mime: resolvedMime } = parseBase64Audio(audioBase64, mime);
+  const { bytes, mime: resolvedMime } = parseBase64Audio(audioBase64, mime);
 
-  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-
-  const blob = new Blob([arrayBuffer as ArrayBuffer], { type: resolvedMime || "audio/webm" });
+  const blob = new Blob([bytes], { type: resolvedMime || "audio/webm" });
 
   const extension = audioExtensionFromMime(resolvedMime || "audio/webm");
 
@@ -1049,7 +1480,6 @@ export async function transcribeAudioFromBase64({
 
   for (const model of models) {
     try {
-      const fd = new FormData();
 
       fd.append("file", blob, filename);
 

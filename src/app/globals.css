@@ -529,8 +529,9 @@
       color-mix(in srgb, var(--color-brand) 28%, transparent);
     --home-railtab-accent: var(--color-brand-strong);
 
-    /* Party Voice tokens defaults (dark fallback to brand) */
-    --party-tile-background: color-mix(in srgb, var(--card-background, #101a33) 95%, transparent);
+    /* Party Voice tokens defaults (dark fallback to brand)
+       Style pass: favor acrylic glass + soft neu depth */
+    --party-tile-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-tile-border: color-mix(in srgb, var(--card-border) 68%, transparent);
     --party-tile-shadow: 0 24px 48px color-mix(in srgb, rgba(7, 11, 26, 0.9) 28%, transparent);
     --party-hero-background: linear-gradient(
@@ -554,11 +555,7 @@
     --party-control-danger-border: color-mix(in srgb, var(--color-danger) 60%, transparent);
     --party-control-danger-background: color-mix(in srgb, var(--color-danger) 18%, transparent);
     --party-control-danger-text: var(--text);
-    --party-hero-actions-background: color-mix(
-      in srgb,
-      var(--card-background, rgba(11, 17, 36, 0.94)) 75%,
-      transparent
-    );
+    --party-hero-actions-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-hero-actions-border: color-mix(in srgb, var(--card-border) 60%, transparent);
     --party-status-pill-background: color-mix(
       in srgb,
@@ -571,62 +568,26 @@
       transparent
     );
     --party-status-pill-text: var(--text);
-    --party-panel-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 92%, transparent) 0%,
-      color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 88%, transparent) 100%
-    );
+    --party-panel-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-panel-border: color-mix(in srgb, var(--card-border) 78%, transparent);
     --party-status-background: color-mix(in srgb, var(--color-brand) 25%, transparent);
     --party-status-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
-    --party-secondary-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 90%, transparent) 0%,
-      color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 85%, transparent) 100%
-    );
+    --party-secondary-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-secondary-border: color-mix(in srgb, var(--card-border) 72%, transparent);
     --party-secondary-hover-border: color-mix(in srgb, var(--color-brand) 62%, transparent);
     --party-input-border: color-mix(in srgb, var(--card-border) 70%, transparent);
-    --party-input-background: color-mix(
-      in srgb,
-      var(--surface-elevated, rgba(17, 22, 45, 0.86)) 88%,
-      var(--surface-muted, rgba(17, 22, 45, 0.8)) 12%
-    );
+    --party-input-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-input-focus-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
-    --party-input-focus-background: color-mix(
-      in srgb,
-      var(--party-input-background) 94%,
-      rgba(255, 255, 255, 0.08)
-    );
+    --party-input-focus-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-input-placeholder: var(--text-3, rgba(255, 255, 255, 0.56));
-    --party-code-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 95%, transparent) 0%,
-      color-mix(in srgb, rgba(255, 255, 255, 0.08) 24%, transparent) 100%
-    );
+    --party-code-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-code-border: color-mix(in srgb, var(--card-border) 80%, transparent);
-    --party-control-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--surface-elevated, rgba(17, 22, 45, 0.86)) 90%, transparent) 0%,
-      color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 86%, transparent) 100%
-    );
-    --party-invite-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(20, 28, 58, 0.92) 88%, transparent) 0%,
-      color-mix(in srgb, rgba(12, 18, 42, 0.92) 82%, transparent) 100%
-    );
+    --party-control-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+    --party-invite-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-invite-border: color-mix(in srgb, var(--card-border) 78%, transparent);
-    --party-invite-row-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(19, 26, 52, 0.92) 88%, transparent) 0%,
-      color-mix(in srgb, rgba(11, 16, 38, 0.92) 82%, transparent) 100%
-    );
+    --party-invite-row-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-invite-row-border: color-mix(in srgb, var(--card-border) 78%, transparent);
-    --party-participant-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(22, 30, 60, 0.92) 86%, transparent) 0%,
-      color-mix(in srgb, rgba(12, 17, 38, 0.88) 82%, transparent) 100%
-    );
+    --party-participant-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-participant-border: color-mix(in srgb, var(--card-border) 78%, transparent);
     --party-participant-avatar-background: linear-gradient(
       135deg,

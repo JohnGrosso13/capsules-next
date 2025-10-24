@@ -1,4 +1,6 @@
 import { ensureUserFromRequest } from "@/lib/auth/payload";
+import { deriveRequestOrigin } from "@/lib/url";
+import { shouldUseCloudflareImagesForOrigin } from "@/lib/cloudflare/runtime";
 import type { IncomingUserPayload } from "@/lib/auth/payload";
 import type { CreatePostInput } from "@/server/posts/types";
 import { createPostSlim, getPostsSlim } from "@/server/posts/api";
@@ -21,8 +23,12 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
+  const requestOrigin = deriveRequestOrigin(req);
+  const cloudflareEnabled = shouldUseCloudflareImagesForOrigin(requestOrigin);
   const result = await getPostsSlim({
     viewerId,
+    origin: requestOrigin ?? null,
+    cloudflareEnabled,
     query: {
       capsuleId: url.searchParams.get("capsuleId"),
       limit: url.searchParams.get("limit"),

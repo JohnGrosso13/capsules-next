@@ -7,9 +7,12 @@ import {
   upsertMemoryVector,
 } from "@/services/memories/vector-store";
 import { normalizeLegacyMemoryRow } from "@/lib/supabase/posts";
+import { normalizeMediaUrl } from "@/lib/media";
+import { resolveToAbsoluteUrl } from "@/lib/url";
 import { getSearchIndex } from "@/config/search-index";
 import type { SearchIndexRecord } from "@/ports/search-index";
 import { serverEnv } from "@/lib/env/server";
+import { ensureAccessibleMediaUrl } from "@/server/posts/media";
 
 const db = getDatabaseAdminClient();
 const DEFAULT_LIST_LIMIT = 200;
@@ -32,6 +35,132 @@ type MemoryRow = {
 type MemoryIdRow = {
   id: string | number | null;
 };
+
+const MEMORY_MEDIA_META_KEYS = [
+  "thumbnail_url",
+  "thumbnailUrl",
+  "thumb",
+  "preview_url",
+  "previewUrl",
+  "image_thumb",
+  "imageThumb",
+  "media_url",
+  "mediaUrl",
+  "url",
+  "asset_url",
+  "assetUrl",
+];
+
+function resolveEffectiveOrigin(origin: string | null | undefined): string {
+  const fallback = serverEnv.SITE_URL;
+  if (typeof origin !== "string") return fallback;
+  const trimmed = origin.trim();
+  if (!trimmed.length) return fallback;
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return fallback;
+  }
+}
+
+async function rewritePotentialMediaUrl(
+  value: unknown,
+  origin: string | null | undefined,
+): Promise<string | null> {
+  const normalized = normalizeMediaUrl(value);
+  if (!normalized) return null;
+  if (/^data:/i.test(normalized) || /^blob:/i.test(normalized)) {
+    return normalized;
+  }
+
+  let candidate = await ensureAccessibleMediaUrl(normalized);
+  if (!candidate) {
+    candidate = normalized;
+  }
+
+  try {
+    const parsedCandidate = new URL(candidate);
+    const siteOrigin = new URL(serverEnv.SITE_URL);
+    if (parsedCandidate.hostname === siteOrigin.hostname) {
+      candidate = `${parsedCandidate.pathname}${parsedCandidate.search}${parsedCandidate.hash}`;
+    }
+  } catch {
+    // candidate is likely relative already
+  }
+
+  const effectiveOrigin = resolveEffectiveOrigin(origin);
+  return resolveToAbsoluteUrl(candidate, effectiveOrigin) ?? candidate;
+}
+
+async function sanitizeMemoryMeta(
+  meta: unknown,
+  origin: string | null | undefined,
+): Promise<unknown> {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
+    return meta ?? null;
+  }
+
+  const source = meta as Record<string, unknown>;
+  const output: Record<string, unknown> = { ...source };
+
+  await Promise.all(
+    MEMORY_MEDIA_META_KEYS.map(async (key) => {
+      const current = output[key];
+      if (typeof current !== "string" || !current.trim().length) return;
+      const rewritten = await rewritePotentialMediaUrl(current, origin);
+      if (rewritten) {
+        output[key] = rewritten;
+      }
+    }),
+  );
+
+  if (Array.isArray(output.derived_assets)) {
+    output.derived_assets = await Promise.all(
+      output.derived_assets.map(async (entry) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+          return entry;
+        }
+        const asset = { ...(entry as Record<string, unknown>) };
+        if (typeof asset.url === "string" && asset.url.trim().length) {
+          const rewritten = await rewritePotentialMediaUrl(asset.url, origin);
+          if (rewritten) {
+            asset.url = rewritten;
+          }
+        }
+        return asset;
+      }),
+    );
+  }
+
+  return output;
+}
+
+async function sanitizeMemoryItem(
+  row: Record<string, unknown>,
+  origin: string | null | undefined,
+): Promise<Record<string, unknown>> {
+  const mediaUrl = await rewritePotentialMediaUrl(
+    (row["media_url"] ?? row["mediaUrl"]) as string | null | undefined,
+    origin,
+  );
+  const mediaTypeRaw =
+    typeof row["media_type"] === "string"
+      ? (row["media_type"] as string)
+      : typeof row["mediaType"] === "string"
+        ? (row["mediaType"] as string)
+        : null;
+  const mediaType = mediaTypeRaw ? mediaTypeRaw.trim() : null;
+  const sanitizedMeta = await sanitizeMemoryMeta(row["meta"], origin);
+
+  return {
+    ...row,
+    media_url: mediaUrl,
+    mediaUrl,
+    media_type: mediaType,
+    mediaType,
+    meta: sanitizedMeta ?? null,
+  };
+}
 
 function isMissingTable(error: DatabaseError | null): boolean {
   if (!error) return false;
@@ -400,6 +529,7 @@ async function fetchLegacyMemoryItems(
   ownerId: string,
   filters: MemoryKindFilter,
   limit = DEFAULT_LIST_LIMIT,
+  origin?: string | null,
 ) {
   const variants = [
     "id, kind, media_url, media_type, title, description, created_at",
@@ -429,15 +559,26 @@ async function fetchLegacyMemoryItems(
 
     const rows = result.data ?? [];
     const normalized = rows.map((row) => normalizeLegacyMemoryRow(row as Record<string, unknown>));
-    return normalized.filter((item) =>
+    const filtered = normalized.filter((item) =>
       matchesSourceRules(item.meta, filters.sourceIncludes, filters.sourceExcludes),
+    );
+    return Promise.all(
+      filtered.map((item) => sanitizeMemoryItem(item as Record<string, unknown>, origin)),
     );
   }
 
   return [];
 }
 
-export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: string | null }) {
+export async function listMemories({
+  ownerId,
+  kind,
+  origin,
+}: {
+  ownerId: string;
+  kind?: string | null;
+  origin?: string | null;
+}) {
   const filters = resolveMemoryKindFilters(kind);
 
   let builder = db
@@ -461,7 +602,7 @@ export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: 
 
   if (result.error) {
     if (isMissingTable(result.error)) {
-      return fetchLegacyMemoryItems(ownerId, filters, DEFAULT_LIST_LIMIT);
+      return fetchLegacyMemoryItems(ownerId, filters, DEFAULT_LIST_LIMIT, origin ?? null);
     }
     throw result.error;
   }
@@ -469,15 +610,16 @@ export async function listMemories({ ownerId, kind }: { ownerId: string; kind?: 
   const rows = result.data ?? [];
   const hasIncludes = Boolean(filters.sourceIncludes && filters.sourceIncludes.length);
   const hasExcludes = Boolean(filters.sourceExcludes && filters.sourceExcludes.length);
-  if (!hasIncludes && !hasExcludes) {
-    return rows;
-  }
-  return rows.filter((row) =>
+  const filteredRows = !hasIncludes && !hasExcludes ? rows : rows.filter((row) =>
     matchesSourceRules(
       (row as Record<string, unknown>).meta,
       filters.sourceIncludes,
       filters.sourceExcludes,
     ),
+  );
+
+  return Promise.all(
+    filteredRows.map((row) => sanitizeMemoryItem(row as Record<string, unknown>, origin ?? null)),
   );
 }
 
@@ -485,10 +627,12 @@ export async function searchMemories({
   ownerId,
   query,
   limit,
+  origin,
 }: {
   ownerId: string;
   query: string;
   limit: number;
+  origin?: string | null;
 }) {
   const trimmed = query.trim();
   if (!trimmed) return [];
@@ -553,7 +697,7 @@ export async function searchMemories({
 
   const ids = candidateOrder.slice(0, limit);
   if (!ids.length) {
-    const fallback = await listMemories({ ownerId });
+    const fallback = await listMemories({ ownerId, origin: origin ?? null });
     return fallback.slice(0, limit);
   }
 
@@ -617,13 +761,15 @@ export async function searchMemories({
     }
 
     if (ordered.length) {
-      return ordered;
+      return Promise.all(
+        ordered.map((row) => sanitizeMemoryItem(row as Record<string, unknown>, origin ?? null)),
+      );
     }
   } catch (error) {
     console.warn("memory search hydrate failed", error);
   }
 
-  const fallback = await listMemories({ ownerId });
+  const fallback = await listMemories({ ownerId, origin: origin ?? null });
   return fallback.slice(0, limit);
 }
 

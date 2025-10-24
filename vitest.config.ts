@@ -11,4 +11,8 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
   },
+  esbuild: {
+    jsx: "automatic",
+    jsxImportSource: "react",
+  },
 });

@@ -1,6 +1,10 @@
 "use client";
 
 import type { ComposerDraft } from "@/lib/composer/draft";
+import {
+  sanitizeComposerChatHistory,
+  type ComposerChatMessage,
+} from "@/lib/composer/chat-types";
 
 const STORAGE_PREFIX = "capsule:composer:sidebar";
 const STORAGE_VERSION = "v1";
@@ -13,6 +17,8 @@ export type ComposerStoredRecentChat = {
   rawPost: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
+  history: ComposerChatMessage[];
+  threadId: string | null;
 };
 
 export type ComposerStoredDraft = {
@@ -25,6 +31,8 @@ export type ComposerStoredDraft = {
   projectId: string | null;
   createdAt: string;
   updatedAt: string;
+  history: ComposerChatMessage[];
+  threadId: string | null;
 };
 
 export type ComposerStoredProject = {
@@ -83,6 +91,11 @@ function sanitizeRecentChats(items: unknown[]): ComposerStoredRecentChat[] {
       rawPost: (record.rawPost as Record<string, unknown>) ?? null,
       createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date().toISOString(),
       updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString(),
+      history: sanitizeComposerChatHistory(record.history ?? []),
+      threadId:
+        typeof record.threadId === "string" && record.threadId.trim().length
+          ? record.threadId.trim()
+          : null,
     });
   }
   return sanitized;
@@ -112,6 +125,11 @@ function sanitizeDrafts(items: unknown[]): ComposerStoredDraft[] {
       projectId: typeof record.projectId === "string" ? record.projectId : null,
       createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date().toISOString(),
       updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString(),
+      history: sanitizeComposerChatHistory(record.history ?? []),
+      threadId:
+        typeof record.threadId === "string" && record.threadId.trim().length
+          ? record.threadId.trim()
+          : null,
     });
   }
   return sanitized;

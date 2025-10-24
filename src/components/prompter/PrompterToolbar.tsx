@@ -15,7 +15,7 @@ type SuggestedTool = {
 };
 
 type Props = {
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
   text: string;
   placeholder: string;
   onTextChange: (value: string) => void;
@@ -45,6 +45,13 @@ type Props = {
   activeTool: PrompterToolKey | null;
   onSelectTool: (tool: PrompterToolKey) => void;
   onClearTool: () => void;
+  showHint?: boolean;
+  showAttachmentStatus?: boolean;
+  showIntentMenu?: boolean;
+  showVoiceButton?: boolean;
+  showAttachmentButton?: boolean;
+  multiline?: boolean;
+  showTools?: boolean;
 };
 
 export function PrompterToolbar({
@@ -78,6 +85,13 @@ export function PrompterToolbar({
   activeTool,
   onSelectTool,
   onClearTool,
+  showHint = true,
+  showAttachmentStatus = true,
+  showIntentMenu = true,
+  showVoiceButton = true,
+  showAttachmentButton = true,
+  multiline = false,
+  showTools = true,
 }: Props) {
   return (
     <>
@@ -105,11 +119,15 @@ export function PrompterToolbar({
         voiceStatus={voiceStatus}
         onVoiceToggle={onVoiceToggle}
         voiceLabel={voiceLabel}
+        showAttachmentButton={showAttachmentButton}
+        showVoiceButton={showVoiceButton}
+        showIntentMenu={showIntentMenu}
+        multiline={multiline}
       />
 
       <div className={styles.intentControls}>
-        {hint ? <span className={styles.intentHint}>{hint}</span> : null}
-        {attachment ? (
+        {showHint && hint ? <span className={styles.intentHint}>{hint}</span> : null}
+        {showAttachmentStatus && attachment ? (
           <span className={styles.attachmentChip} data-status={attachment.status}>
             <span className={styles.attachmentName}>{attachment.name}</span>
             {attachment.status === "uploading" ? (
@@ -133,7 +151,7 @@ export function PrompterToolbar({
         ) : null}
       </div>
 
-      {suggestedTools.length ? (
+      {showTools && suggestedTools.length ? (
         <div className={styles.chips}>
           {suggestedTools.map((tool) => (
             <button

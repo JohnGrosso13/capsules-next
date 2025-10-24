@@ -109,6 +109,10 @@ function sanitizeStringArray(value: unknown, limit: number): string[] {
 export async function summarizeMemory(
   input: MemorySummaryInput,
 ): Promise<MemorySummaryResult | null> {
+  const devSummariesEnabled = process.env.ENABLE_MEMORY_SUMMARIES === "true";
+  if (process.env.NODE_ENV !== "production" && !devSummariesEnabled) {
+    return null;
+  }
   if (!hasOpenAIApiKey()) return null;
   const text = input.text?.trim();
   if (!text) return null;

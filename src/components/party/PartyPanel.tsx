@@ -13,7 +13,6 @@ import {
   MicrophoneSlash,
   PaperPlaneTilt,
   SignOut,
-  Sparkle,
   SpeakerSimpleHigh,
   SpeakerSimpleSlash,
   UsersThree,
@@ -37,7 +36,11 @@ import {
 
 import type { FriendItem } from "@/hooks/useFriendsData";
 import { useChatContext, type ChatFriendTarget } from "@/components/providers/ChatProvider";
-import { usePartyContext, type PartySession } from "@/components/providers/PartyProvider";
+import {
+  usePartyContext,
+  type PartyPrivacy,
+  type PartySession,
+} from "@/components/providers/PartyProvider";
 import { useCurrentUser } from "@/services/auth/client";
 import { sendPartyInviteRequest } from "@/services/party-invite/client";
 
@@ -78,6 +81,32 @@ type InviteStatus = {
   message: string;
   tone: "success" | "warning" | "info";
 };
+
+type PrivacyOption = {
+  value: PartyPrivacy;
+  label: string;
+  description: string;
+};
+
+const DEFAULT_PRIVACY: PartyPrivacy = "friends";
+
+const PRIVACY_OPTIONS: PrivacyOption[] = [
+  {
+    value: "public",
+    label: "Open party",
+    description: "Anyone with the link can jump in.",
+  },
+  {
+    value: "friends",
+    label: "Friends only",
+    description: "Visible to your friends on Capsules.",
+  },
+  {
+    value: "invite-only",
+    label: "Invite only",
+    description: "Only people you invite can join.",
+  },
+];
 
 type LegacyGetUserMediaFn = (
   constraints: MediaStreamConstraints,
@@ -213,7 +242,7 @@ export function PartyPanel({
   const { user } = useCurrentUser();
 
   const [displayName, setDisplayName] = React.useState(() => user?.name ?? "");
-  const [topic, setTopic] = React.useState("");
+  const [privacy, setPrivacy] = React.useState<PartyPrivacy>(DEFAULT_PRIVACY);
   const [joinCode, setJoinCode] = React.useState("");
   const [inviteFeedback, setInviteFeedback] = React.useState<InviteStatus | null>(null);
   const [inviteBusyId, setInviteBusyId] = React.useState<string | null>(null);
@@ -245,6 +274,12 @@ export function PartyPanel({
       setDisplayName(user.name);
     }
   }, [user?.name, displayName]);
+
+  React.useEffect(() => {
+    if (session?.metadata?.privacy) {
+      setPrivacy(session.metadata.privacy);
+    }
+  }, [session?.metadata?.privacy]);
 
   React.useEffect(() => {
     if (partyQuery && !session) {
@@ -303,14 +338,28 @@ export function PartyPanel({
     [inviteBusyId],
   );
 
+  const handlePrivacyKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, optionIndex: number) => {
+      if (loading) return;
+      const { key } = event;
+      if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(key)) {
+        return;
+      }
+      event.preventDefault();
+      const delta = key === "ArrowRight" || key === "ArrowDown" ? 1 : -1;
+      const nextIndex = (optionIndex + delta + PRIVACY_OPTIONS.length) % PRIVACY_OPTIONS.length;
+      setPrivacy(PRIVACY_OPTIONS[nextIndex]!.value);
+    },
+    [loading],
+  );
+
   const handleCreateParty = React.useCallback(async () => {
     const trimmedName = displayName.trim();
-    const trimmedTopic = topic.trim();
     await createParty({
       displayName: trimmedName || null,
-      topic: trimmedTopic || null,
+      privacy,
     });
-  }, [createParty, displayName, topic]);
+  }, [createParty, displayName, privacy]);
 
   const handleJoinParty = React.useCallback(async () => {
     if (!joinCode.trim()) return;
@@ -439,11 +488,7 @@ export function PartyPanel({
     <>
       <header className={styles.tileHeader}>
         <div className={styles.tileHeading}>
-          <span className={styles.tileEyebrow}>Party voice</span>
           <h2 className={styles.tileTitle}>Host a party lobby</h2>
-          <p className={styles.tileSubtitle}>
-            Set a vibe, invite friends, and jump into voice together in seconds.
-          </p>
         </div>
       </header>
       <section className={`${styles.section} ${styles.sectionSplit}`.trim()}>
@@ -462,20 +507,40 @@ export function PartyPanel({
             onChange={(event) => setDisplayName(event.target.value)}
             disabled={loading}
           />
-          <label className={styles.label} htmlFor="party-topic">
-            Party vibe (optional)
-          </label>
-          <input
-            id="party-topic"
-            className={styles.input}
-            placeholder="Casual catch-up, raid prep, midnight build..."
-            value={topic}
-            onChange={(event) => setTopic(event.target.value)}
-            disabled={loading}
-          />
+          <div className={styles.privacyGroup} role="radiogroup" aria-label="Party privacy">
+            <div className={styles.privacyHeader}>
+              <span className={styles.label}>Party privacy</span>
+              <span className={styles.privacyHint}>Choose who can discover and join your lobby.</span>
+            </div>
+            <div className={styles.privacyOptions}>
+              {PRIVACY_OPTIONS.map((option, index) => {
+                const selected = privacy === option.value;
+                const optionClassName = selected
+                  ? `${styles.privacyOption} ${styles.privacyOptionSelected}`
+                  : styles.privacyOption;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={optionClassName}
+                    onClick={() => setPrivacy(option.value)}
+                    role="radio"
+                    aria-checked={selected}
+                    tabIndex={selected ? 0 : -1}
+                    aria-label={`${option.label}: ${option.description}`}
+                    disabled={loading}
+                    onKeyDown={(event) => handlePrivacyKeyDown(event, index)}
+                  >
+                    <span className={styles.privacyOptionLabel}>{option.label}</span>
+                    <span className={styles.privacyOptionDescription}>{option.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <button
             type="button"
-            className={styles.primaryButton}
+            className={`${styles.primaryButton} ${styles.primaryButtonFull}`}
             onClick={() => {
               void handleCreateParty();
             }}
@@ -491,12 +556,6 @@ export function PartyPanel({
               : "Start a party"}
           </button>
         </div>
-        <div className={styles.sectionAside}>
-          <div className={styles.sectionAsideInner}>
-            <Sparkle size={18} weight="duotone" />
-            <span>Parties run in the background so you can keep browsing Capsules.</span>
-          </div>
-        </div>
       </section>
       <section className={styles.section}>
         <div className={styles.sectionHeaderRow}>
@@ -506,7 +565,7 @@ export function PartyPanel({
         <div className={styles.inlineJoin}>
           <input
             className={styles.input}
-            placeholder="party code"
+            placeholder="Enter your party code"
             value={joinCode}
             onChange={(event) => setJoinCode(event.target.value)}
             disabled={loading}
@@ -636,12 +695,12 @@ export function PartyPanel({
       <section className={styles.section}>
         <div className={styles.sectionHeaderRow}>
           <LinkSimple size={18} weight="duotone" />
-          <span>Need to join manually?</span>
+          <span>Have a code? Jump into a party</span>
         </div>
         <div className={styles.inlineJoin}>
           <input
             className={styles.input}
-            placeholder="party code"
+            placeholder="Enter your party code"
             value={joinCode}
             onChange={(event) => setJoinCode(event.target.value)}
             disabled={loading}

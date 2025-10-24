@@ -77,6 +77,7 @@ describe("PartyProvider", () => {
       metadata: {
         ownerDisplayName: "Test User",
         topic: null,
+        privacy: "friends",
         createdAt: new Date().toISOString(),
       },
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -102,7 +103,7 @@ describe("PartyProvider", () => {
     const context = contextRef.current as PartyContextValue;
 
     await act(async () => {
-      await context.createParty({ displayName: "Tester", topic: null });
+      await context.createParty({ displayName: "Tester", privacy: "friends" });
     });
     await flushMicrotasks();
 

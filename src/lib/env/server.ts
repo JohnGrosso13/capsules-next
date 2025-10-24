@@ -13,6 +13,7 @@ export type ServerEnv = {
   OPENAI_EMBED_MODEL: string | null;
   OPENAI_EMBED_DIM: number | null;
   OPENAI_IMAGE_MODEL: string;
+  OPENAI_IMAGE_MODEL_DEV: string | null;
   OPENAI_TRANSCRIBE_MODEL: string;
   OPENAI_IMAGE_QUALITY: "low" | "standard" | "high" | null;
   OPENAI_IMAGE_SIZE: string;
@@ -48,6 +49,8 @@ export type ServerEnv = {
   MUX_TOKEN_SECRET: string | null;
   MUX_WEBHOOK_SECRET: string | null;
   MUX_ENVIRONMENT: string | null;
+  UPSTASH_REDIS_REST_URL: string | null;
+  UPSTASH_REDIS_REST_TOKEN: string | null;
 };
 
 function getEnv(name: string, fallbacks: string[] = [], options: { required?: boolean } = {}) {
@@ -64,6 +67,8 @@ const openAiModel = getEnv("OPENAI_MODEL", ["AI_MODEL", "GPT_MODEL"]) || "gpt-4o
 const openAiBaseUrlRaw = getEnv("OPENAI_BASE_URL", ["AI_BASE_URL"]);
 const openAiImageModel =
   getEnv("OPENAI_IMAGE_MODEL", ["AI_IMAGE_MODEL", "IMAGE_MODEL"]) || "gpt-image-1";
+const openAiImageModelDev =
+  getEnv("OPENAI_IMAGE_MODEL_DEV", ["AI_IMAGE_MODEL_DEV", "IMAGE_MODEL_DEV"]) || "dall-e-2";
 const openAiTranscribeModel =
   getEnv("OPENAI_TRANSCRIBE_MODEL", ["OPENAI_TRANSCRIBE", "OPENAI_MODEL_TRANSCRIBE"]) ||
   "gpt-4o-mini-transcribe";
@@ -118,6 +123,7 @@ export const serverEnv: ServerEnv = {
     return Number.isFinite(value) && value > 0 ? value : null;
   })(),
   OPENAI_IMAGE_MODEL: openAiImageModel,
+  OPENAI_IMAGE_MODEL_DEV: openAiImageModelDev,
   OPENAI_TRANSCRIBE_MODEL: openAiTranscribeModel,
   OPENAI_IMAGE_QUALITY:
     normalizedQuality === "low" || normalizedQuality === "standard" || normalizedQuality === "high"
@@ -167,4 +173,6 @@ export const serverEnv: ServerEnv = {
   MUX_TOKEN_SECRET: getEnv("MUX_TOKEN_SECRET", []),
   MUX_WEBHOOK_SECRET: getEnv("MUX_WEBHOOK_SECRET", ["MUX_SIGNING_SECRET"]),
   MUX_ENVIRONMENT: getEnv("MUX_ENVIRONMENT", []),
+  UPSTASH_REDIS_REST_URL: getEnv("UPSTASH_REDIS_REST_URL", []),
+  UPSTASH_REDIS_REST_TOKEN: getEnv("UPSTASH_REDIS_REST_TOKEN", []),
 };

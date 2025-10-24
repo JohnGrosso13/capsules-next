@@ -33,6 +33,17 @@ npm run db:migrate         # requires DATABASE_URL or SUPABASE_DB_URL
 npm run dev                # Starts Next.js with Turbopack
 ```
 
+### Chat development helpers
+
+- `npm run db:reset:chat` — truncate direct + group chat tables (uses `SUPABASE_MIGRATIONS_URL` / `DATABASE_URL` if set).
+- `npm run db:prune-chat -- --days 30` — delete chat messages older than the provided retention window (defaults to 30 days).
+- `npm run db:cleanup:reactions` — remove corrupted/invalid reaction rows (e.g., legacy `??` entries) if you ran the app before this fix.
+- Manual QA checklist lives in [`docs/chat-group-qa.md`](docs/chat-group-qa.md).
+
+Environment knobs:
+
+- `CHAT_GROUP_MAX_PARTICIPANTS` (default 50) — upper bound enforced when creating/inviting to group chats.
+
 ## Frontend architecture
 
 - Tailwind CSS 4.1 is enabled through `postcss.config.cjs` and `@import "tailwindcss";` in `src/app/globals.css`.

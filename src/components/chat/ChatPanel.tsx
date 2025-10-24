@@ -30,6 +30,7 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
     openSession,
     closeSession,
     deleteSession,
+    renameGroupChat,
     isReady,
   } = useChatContext();
 
@@ -49,7 +50,7 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
 
   const handleDelete = React.useCallback(
     (sessionId: string) => {
-      deleteSession(sessionId);
+      void deleteSession(sessionId);
     },
     [deleteSession],
   );
@@ -76,8 +77,22 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
           onTypingChange={notifyTyping}
           onBack={closeSession}
           onDelete={() => handleDelete(activeSession.id)}
-          {...(onInviteToGroup
+          {...(activeSession.type === "group" && onInviteToGroup
             ? { onInviteParticipants: () => onInviteToGroup(activeSession) }
+            : {})}
+          {...(activeSession.type === "group"
+            ? {
+                onRenameGroup: async () => {
+                  const nextName = window.prompt("Rename group", activeSession.title ?? "")?.trim();
+                  if (!nextName || nextName === activeSession.title) return;
+                  try {
+                    await renameGroupChat(activeSession.id, nextName);
+                  } catch (error) {
+                    console.error("Group rename error", error);
+                    window.alert("Unable to rename this group right now.");
+                  }
+                },
+              }
             : {})}
         />
       </div>

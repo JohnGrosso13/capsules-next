@@ -3,7 +3,8 @@
 import * as React from "react";
 import type { Room } from "livekit-client";
 
-import type { PartyTokenResponse } from "@/server/validation/schemas/party";
+import type { PartyTokenResponse, PartyPrivacy } from "@/server/validation/schemas/party";
+export type { PartyPrivacy } from "@/server/validation/schemas/party";
 import { useCurrentUser } from "@/services/auth/client";
 
 type PartyStatus = "idle" | "loading" | "connecting" | "connected";
@@ -22,6 +23,7 @@ export type PartySession = {
 type CreatePartyOptions = {
   displayName?: string | null;
   topic?: string | null;
+  privacy?: PartyPrivacy;
 };
 
 type JoinPartyOptions = {
@@ -48,6 +50,7 @@ const PartyContext = React.createContext<PartyContextValue | null>(null);
 
 const PARTY_STORAGE_KEY = "capsule:party:last-session";
 const PARTY_RESUME_MAX_AGE_MS = 10 * 60 * 1000;
+const DEFAULT_PARTY_PRIVACY: PartyPrivacy = "friends";
 
 type StoredSession = {
   partyId: string;
@@ -317,10 +320,12 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
       fallbackDisplayNameRef.current,
     );
     const topic = options.topic?.trim() || null;
+    const privacy = options.privacy ?? DEFAULT_PARTY_PRIVACY;
     try {
       const payload = await postJson<PartyTokenResponse>("/api/party", {
         displayName: resolvedDisplayName ?? undefined,
         topic: topic ?? undefined,
+        privacy,
       });
       const nextSession: PartySession = {
         partyId: payload.partyId,
