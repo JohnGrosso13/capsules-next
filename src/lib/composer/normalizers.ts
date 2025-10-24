@@ -1,9 +1,9 @@
 "use client";
 
-import type { ComposerDraft } from "@/lib/composer/draft";
+import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
 
 export function normalizeDraftFromPost(post: Record<string, unknown>): ComposerDraft {
-  const kind = typeof post.kind === "string" ? post.kind.toLowerCase() : "text";
+  const rawKind = typeof post.kind === "string" ? post.kind.toLowerCase() : "text";
   const content = typeof post.content === "string" ? post.content : "";
   const mediaUrl =
     typeof post.mediaUrl === "string"
@@ -21,11 +21,27 @@ export function normalizeDraftFromPost(post: Record<string, unknown>): ComposerD
   const pollValue = post.poll;
   if (pollValue && typeof pollValue === "object") {
     const pollRecord = pollValue as Record<string, unknown>;
-    const question = typeof pollRecord.question === "string" ? pollRecord.question : "";
+    const question =
+      typeof pollRecord.question === "string" ? pollRecord.question.trim() : "";
     const optionsRaw = Array.isArray(pollRecord.options) ? pollRecord.options : [];
-    const options = optionsRaw.map((option: unknown) => String(option ?? ""));
-    poll = { question, options: options.length ? options : ["", ""] };
+    const options = optionsRaw
+      .map((option: unknown) => String(option ?? ""))
+      .map((option) => option.trim());
+    const structured = ensurePollStructure({
+      kind: "poll",
+      content,
+      mediaUrl,
+      mediaPrompt,
+      poll: { question, options },
+      title: typeof post.title === "string" ? post.title : null,
+      suggestions:
+        Array.isArray(post.suggestions) && post.suggestions.length
+          ? (post.suggestions as string[])
+          : undefined,
+    });
+    poll = structured;
   }
+  const kind = poll ? "poll" : rawKind;
   const suggestionsValue = post.suggestions;
   const suggestions = Array.isArray(suggestionsValue)
     ? suggestionsValue

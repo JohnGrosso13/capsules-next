@@ -1,5 +1,6 @@
 import { getDatabaseAdminClient } from "@/config/database";
 import { decorateDatabaseError, expectResult } from "@/lib/database/utils";
+import type { DatabaseError } from "@/ports/database";
 
 const db = getDatabaseAdminClient();
 
@@ -116,6 +117,14 @@ type PostLikesCountRow = {
 type PollVoteDbRow = {
   option_index: number | null;
 };
+
+function isMissingPollVotesTable(error: DatabaseError | null): boolean {
+  if (!error) return false;
+  const code = (error.code ?? "").toUpperCase();
+  const message = (error.message ?? "").toLowerCase();
+  if (code === "PGRST205" || code === "42P01") return true;
+  return message.includes("poll_votes");
+}
 
 function decodePollFromMediaPrompt(raw: unknown): unknown | null {
   if (typeof raw !== "string") return null;
@@ -599,7 +608,13 @@ export async function upsertPollVote(
     )
     .select<PollVoteDbRow>("option_index")
     .fetch();
-  if (result.error) throw decorateDatabaseError("posts.polls.vote", result.error);
+  if (result.error) {
+    if (isMissingPollVotesTable(result.error)) {
+      console.warn("poll_votes table missing; skipping vote persistence");
+      return;
+    }
+    throw decorateDatabaseError("posts.polls.vote", result.error);
+  }
 }
 
 export async function listPollVotesForPost(postId: string, limit = 5000): Promise<PollVoteDbRow[]> {
@@ -609,6 +624,12 @@ export async function listPollVotesForPost(postId: string, limit = 5000): Promis
     .eq("post_id", postId)
     .limit(limit)
     .fetch();
-  if (result.error) throw decorateDatabaseError("posts.polls.votes", result.error);
+  if (result.error) {
+    if (isMissingPollVotesTable(result.error)) {
+      console.warn("poll_votes table missing; returning empty vote list");
+      return [];
+    }
+    throw decorateDatabaseError("posts.polls.votes", result.error);
+  }
   return result.data ?? [];
 }

@@ -10,7 +10,7 @@ import type { PrompterAction, PrompterAttachment } from "@/components/ai-prompte
 import { applyThemeVars } from "@/lib/theme";
 import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
-import type { ComposerDraft } from "@/lib/composer/draft";
+import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
 import {
   sanitizeComposerChatHistory,
   type ComposerChatAttachment,
@@ -123,6 +123,63 @@ async function buildAttachmentContext(
   }
 
   return collected;
+}
+
+function mergeComposerDrafts(prevDraft: ComposerDraft | null, nextDraft: ComposerDraft): ComposerDraft {
+  const prevKind = (prevDraft?.kind ?? "").toLowerCase();
+  const nextKind = (nextDraft.kind ?? "").toLowerCase();
+  const prevIsPoll = prevKind === "poll" || Boolean(prevDraft?.poll);
+  const nextIsPoll = nextKind === "poll" || Boolean(nextDraft.poll);
+
+  if (!prevIsPoll) {
+    return nextDraft;
+  }
+
+  const prevPoll = ensurePollStructure(prevDraft);
+
+  if (!nextIsPoll) {
+    return {
+      ...nextDraft,
+      kind: "poll",
+      poll: { ...prevPoll },
+    };
+  }
+
+  const nextPoll = ensurePollStructure(nextDraft);
+  const nextQuestionTrimmed = nextPoll.question.trim();
+  const nextHasQuestion = nextQuestionTrimmed.length > 0;
+  const nextHasOptions = nextPoll.options.some((option) => option.trim().length > 0);
+
+  const mergedQuestion = nextHasQuestion ? nextPoll.question : prevPoll.question;
+
+  let mergedOptions: string[];
+  if (nextHasOptions) {
+    const length = Math.max(2, nextPoll.options.length);
+    mergedOptions = Array.from({ length }, (_, index) => {
+      const nextValueRaw = nextPoll.options[index] ?? "";
+      const nextValue = nextValueRaw.trim();
+      if (nextValue.length > 0) {
+        return nextPoll.options[index]!;
+      }
+      const prevValue = prevPoll.options[index] ?? "";
+      return prevValue;
+    });
+  } else {
+    mergedOptions = [...prevPoll.options];
+  }
+
+  while (mergedOptions.length < 2) {
+    mergedOptions.push("");
+  }
+
+  return {
+    ...nextDraft,
+    kind: "poll",
+    poll: {
+      question: mergedQuestion,
+      options: mergedOptions,
+    },
+  };
 }
 
 type SummaryPresentationOptions = {
@@ -876,12 +933,13 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
       const rawSource = (payload.post ?? {}) as Record<string, unknown>;
       const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
-      const draft = normalizeDraftFromPost(rawPost);
       const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
       const messageText = payload.message ?? null;
       let recordedHistory: ComposerChatMessage[] = [];
       let recordedThreadId: string | null = null;
       let resolvedQuestionId: string | null = null;
+      let recordedDraft: ComposerDraft | null = null;
+      let recordedRawPost: Record<string, unknown> | null = null;
       setState((prev) => {
         const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
         const historyForState =
@@ -891,12 +949,20 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         if (prev.clarifier?.questionId) {
           resolvedQuestionId = prev.clarifier.questionId;
         }
+        const baseDraft = normalizeDraftFromPost(rawPost);
+        const mergedDraft = mergeComposerDrafts(prev.draft, baseDraft);
+        recordedDraft = mergedDraft;
+        const mergedRawPost =
+          mergedDraft.kind === "poll" && mergedDraft.poll
+            ? { ...rawPost, kind: "poll", poll: { ...mergedDraft.poll } }
+            : rawPost;
+        recordedRawPost = mergedRawPost;
         return {
           open: true,
           loading: false,
           prompt,
-          draft,
-          rawPost,
+          draft: mergedDraft,
+          rawPost: mergedRawPost,
           message: messageText,
           choices: payload.choices ?? null,
           history: historyForState,
@@ -913,8 +979,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       recordRecentChat({
         prompt,
         message: messageText,
-        draft,
-        rawPost,
+        draft: recordedDraft ?? normalizeDraftFromPost(rawPost),
+        rawPost: recordedRawPost,
         history: recordedHistory,
         threadId: recordedThreadId,
       });
