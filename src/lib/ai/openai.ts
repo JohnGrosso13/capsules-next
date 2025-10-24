@@ -299,3 +299,17 @@ export async function captionImage(url: string): Promise<string | null> {
     return null;
   }
 }
+
+export async function captionVideo(
+  url: string | null | undefined,
+  thumbnailUrl?: string | null | undefined,
+): Promise<string | null> {
+  const thumb = typeof thumbnailUrl === "string" && thumbnailUrl.trim().length ? thumbnailUrl : null;
+  if (thumb) {
+    const caption = await captionImage(thumb);
+    if (caption) return caption;
+  }
+  const targetUrl = typeof url === "string" && url.trim().length ? url : null;
+  if (!targetUrl) return null;
+  return captionImage(targetUrl);
+}

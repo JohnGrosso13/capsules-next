@@ -4,9 +4,9 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { summarizeFeedFromDB } from "@/lib/ai/prompter";
 import { summarizeText } from "@/lib/ai/summary";
-import { captionImage } from "@/lib/ai/openai";
 import { serverEnv } from "@/lib/env/server";
 import { resolveToAbsoluteUrl } from "@/lib/url";
+import { getOrCreateMemoryCaption } from "@/server/memories/caption-cache";
 import type { SummaryLengthHint, SummaryResult, SummaryTarget } from "@/types/summary";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 
@@ -17,6 +17,7 @@ const attachmentSchema = z.object({
   text: z.string().optional().nullable(),
   url: z.string().optional().nullable(),
   mimeType: z.string().optional().nullable(),
+  thumbnailUrl: z.string().optional().nullable(),
 });
 
 const metaSchema = z.object({
@@ -96,12 +97,15 @@ function mapSummaryResult(result: SummaryResult): z.infer<typeof summaryResponse
 
 const MAX_CAPTION_ATTACHMENTS = 6;
 const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|heic|heif|bmp|tiff)(\?|#|$)/i;
+const VIDEO_EXTENSION_PATTERN = /\.(mp4|m4v|mov|webm|ogv|ogg|mkv)(\?|#|$)/i;
 
 function isLikelyImageAttachment(mimeType: string | null | undefined, url: string): boolean {
   const normalized = (mimeType ?? "").toLowerCase();
-  if (normalized.startsWith("image/")) return true;
-  if (normalized.startsWith("video/")) return false;
-  return IMAGE_EXTENSION_PATTERN.test(url.toLowerCase());
+  if (normalized.startsWith("image/") || normalized.startsWith("video/")) return true;
+  const lowered = url.toLowerCase();
+  if (IMAGE_EXTENSION_PATTERN.test(lowered)) return true;
+  if (VIDEO_EXTENSION_PATTERN.test(lowered)) return true;
+  return false;
 }
 
 async function buildAttachmentCaptionSegments(
@@ -125,16 +129,32 @@ async function buildAttachmentCaptionSegments(
     const absoluteUrl = resolveToAbsoluteUrl(rawUrl, serverEnv.SITE_URL) ?? rawUrl;
     if (!absoluteUrl.length || seen.has(absoluteUrl)) continue;
 
+    const absoluteThumb =
+      typeof attachment.thumbnailUrl === "string" && attachment.thumbnailUrl.trim().length
+        ? resolveToAbsoluteUrl(attachment.thumbnailUrl.trim(), serverEnv.SITE_URL) ?? attachment.thumbnailUrl.trim()
+        : null;
+
     if (!isLikelyImageAttachment(attachment.mimeType, absoluteUrl)) continue;
 
     try {
-      const caption = await captionImage(absoluteUrl);
+      const caption = await getOrCreateMemoryCaption({
+        memoryId:
+          typeof attachment.id === "string" && attachment.id.trim().length
+            ? attachment.id.trim()
+            : null,
+        mediaUrl: absoluteUrl,
+        mimeType:
+          typeof attachment.mimeType === "string" && attachment.mimeType.trim().length
+            ? attachment.mimeType
+            : null,
+        thumbnailUrl: absoluteThumb,
+      });
       if (!caption) continue;
       seen.add(absoluteUrl);
       const label =
         typeof attachment.name === "string" && attachment.name.trim().length
           ? attachment.name.trim()
-          : "Feed image";
+          : "Feed attachment";
       segments.push(`Attachment "${label}": ${caption}`);
     } catch (error) {
       console.warn("attachment caption generation failed", absoluteUrl, error);
@@ -143,7 +163,6 @@ async function buildAttachmentCaptionSegments(
 
   return segments;
 }
-
 async function handleFeedSummary(
   body: ParsedBody,
 ): Promise<z.infer<typeof summaryResponseSchema> | NextResponse> {

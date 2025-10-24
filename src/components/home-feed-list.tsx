@@ -288,6 +288,17 @@ export function HomeFeedList({
 
   const handleSummarizeDocument = React.useCallback(
     async (doc: DocumentCardData) => {
+      const docMeta =
+        doc.meta && typeof doc.meta === "object" && !Array.isArray(doc.meta)
+          ? (doc.meta as Record<string, unknown>)
+          : null;
+      const docThumbnailUrl =
+        docMeta && typeof (docMeta as { thumbnail_url?: unknown }).thumbnail_url === "string"
+          ? ((docMeta as { thumbnail_url?: string }).thumbnail_url ?? null)
+          : docMeta && typeof (docMeta as { thumb?: unknown }).thumb === "string"
+            ? ((docMeta as { thumb?: string }).thumb ?? null)
+            : null;
+
       setDocumentSummaryPending((prev) => ({ ...prev, [doc.id]: true }));
       try {
         const summaryPayload = await requestSummary({
@@ -300,6 +311,7 @@ export function HomeFeedList({
               text: doc.summary ?? doc.snippet ?? null,
               url: doc.openUrl ?? doc.url ?? null,
               mimeType: doc.mimeType ?? null,
+              thumbnailUrl: docThumbnailUrl,
             },
           ],
           meta: {
@@ -357,6 +369,10 @@ export function HomeFeedList({
           const rawUrl = typeof attachment.url === "string" ? attachment.url : null;
           if (!rawUrl) continue;
           const absoluteUrl = resolveToAbsoluteUrl(rawUrl) ?? rawUrl;
+          const absoluteThumb =
+            typeof attachment.thumbnailUrl === "string" && attachment.thumbnailUrl.length
+              ? resolveToAbsoluteUrl(attachment.thumbnailUrl) ?? attachment.thumbnailUrl
+              : null;
           if (!absoluteUrl.length || seenAttachmentUrls.has(absoluteUrl)) continue;
           seenAttachmentUrls.add(absoluteUrl);
           const attachmentId =
@@ -370,7 +386,23 @@ export function HomeFeedList({
             mimeType: attachment.mimeType ?? null,
             excerpt: null,
             text: null,
+            thumbnailUrl: absoluteThumb,
           });
+        }
+        if (attachmentPayload.length < 6 && typeof post.mediaUrl === "string" && post.mediaUrl.trim().length) {
+          const primaryUrl = resolveToAbsoluteUrl(post.mediaUrl) ?? post.mediaUrl;
+          if (primaryUrl.length && !seenAttachmentUrls.has(primaryUrl)) {
+            seenAttachmentUrls.add(primaryUrl);
+            attachmentPayload.push({
+              id: `${post.id}-primary`,
+              name: null,
+              url: primaryUrl,
+              mimeType: null,
+              excerpt: null,
+              text: null,
+              thumbnailUrl: null,
+            });
+          }
         }
         const attachmentSnippet = attachmentLabels.length
           ? `Attachments: ${attachmentLabels.join(", ")}.`

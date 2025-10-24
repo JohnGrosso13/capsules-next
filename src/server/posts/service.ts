@@ -13,7 +13,7 @@ import {
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { getStorageObjectUrl } from "@/lib/storage/multipart";
 import { indexMemory } from "@/lib/supabase/memories";
-import { captionImage } from "@/lib/ai/openai";
+import { captionImage, captionVideo } from "@/lib/ai/openai";
 
 export { fetchPostRowByIdentifierFromRepository as fetchPostRowByIdentifier };
 
@@ -465,14 +465,41 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
       const memoryTitle =
         (typeof draft.title === "string" && draft.title.trim()) ||
         (memoryKind === "generated" ? "Generated media" : "Upload");
+      const draftKind =
+        typeof draft.kind === "string" && draft.kind.trim().length
+          ? draft.kind.trim().toLowerCase()
+          : "";
       let memoryDescription = prompt || (typeof draft.content === "string" ? draft.content : "");
+      let generatedCaption: string | null = null;
       if (!memoryDescription || memoryDescription.trim().length < 6) {
         try {
-          const cap = await captionImage(row.media_url as string);
-          if (cap) memoryDescription = memoryDescription ? `${memoryDescription} | ${cap}` : cap;
+          const targetUrl = typeof row.media_url === "string" ? row.media_url : null;
+          if (targetUrl) {
+            generatedCaption =
+              draftKind === "video"
+                ? await captionVideo(targetUrl, null)
+                : await captionImage(targetUrl);
+            if (generatedCaption) {
+              memoryDescription = memoryDescription
+                ? `${memoryDescription} | ${generatedCaption}`
+                : generatedCaption;
+            }
+          }
         } catch (err) {
           console.warn("caption main media failed", err);
         }
+      }
+      const memoryMetadata: Record<string, unknown> = {
+        source: "post",
+        kind: memoryKind,
+        post_author_name: typeof row.user_name === "string" ? row.user_name : null,
+        post_id: payload.client_id ?? null,
+        post_excerpt: typeof draft.content === "string" ? draft.content : null,
+      };
+      if (generatedCaption) {
+        memoryMetadata.ai_caption = generatedCaption;
+        memoryMetadata.ai_caption_source = draftKind === "video" ? "video" : "image";
+        memoryMetadata.ai_caption_generated_at = new Date().toISOString();
       }
       await indexMemory({
         ownerId,
@@ -482,13 +509,7 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
         title: memoryTitle,
         description: memoryDescription,
         postId: payload.client_id as string | null,
-        metadata: {
-          source: "post",
-          kind: memoryKind,
-          post_author_name: typeof row.user_name === "string" ? row.user_name : null,
-          post_id: payload.client_id ?? null,
-          post_excerpt: typeof draft.content === "string" ? draft.content : null,
-        },
+        metadata: memoryMetadata,
         rawText: [prompt, typeof draft.content === "string" ? draft.content : ""]
           .filter(Boolean)
           .join(" "),
@@ -558,22 +579,35 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
             : "";
       const content = typeof draft.content === "string" ? draft.content : "";
       description = [prompt, content].filter((s) => s && s.trim()).join(" ");
+      let generatedCaption: string | null = null;
       if (!description || description.trim().length < 6) {
         try {
-          let cap: string | null = null;
-          if (mime && mime.startsWith("image/")) {
-            cap = await captionImage(effectiveUrl);
-          } else if (mime && mime.startsWith("video/")) {
-            if (thumb) {
-              cap = await captionImage(thumb);
-            } else {
-              cap = null;
-            }
+          if (mime && mime.startsWith("video/")) {
+            generatedCaption = await captionVideo(effectiveUrl, thumb ?? null);
+          } else {
+            generatedCaption = await captionImage(effectiveUrl);
           }
-          if (cap) description = description ? `${description} | ${cap}` : cap;
+          if (generatedCaption) {
+            description = description ? `${description} | ${generatedCaption}` : generatedCaption;
+          }
         } catch (err) {
           console.warn("caption attachment failed", err);
         }
+      }
+      const attachmentMetadata: Record<string, unknown> = {
+        source: "post_attachment",
+        thumbnail_url: thumb ?? undefined,
+        storage_key: storageKey ?? undefined,
+        upload_session_id: uploadSessionId ?? undefined,
+        mime_type: mime ?? undefined,
+        content_type: mime ?? undefined,
+        capsule_id: capsuleId ?? undefined,
+      };
+      if (generatedCaption) {
+        attachmentMetadata.ai_caption = generatedCaption;
+        attachmentMetadata.ai_caption_source =
+          mime && mime.startsWith("video/") ? (thumb ? "video_thumbnail" : "video") : "image";
+        attachmentMetadata.ai_caption_generated_at = new Date().toISOString();
       }
       await indexMemory({
         ownerId,
@@ -583,15 +617,7 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
         title: name,
         description: description || null,
         postId: clientId,
-        metadata: {
-          source: "post_attachment",
-          thumbnail_url: thumb ?? undefined,
-          storage_key: storageKey ?? undefined,
-          upload_session_id: uploadSessionId ?? undefined,
-          mime_type: mime ?? undefined,
-          content_type: mime ?? undefined,
-          capsule_id: capsuleId ?? undefined,
-        },
+        metadata: attachmentMetadata,
         rawText: description,
         source: "post_attachment",
         tags: Array.isArray(draft.tags) ? (draft.tags as string[]) : null,

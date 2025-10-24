@@ -32,6 +32,7 @@ export type SummaryAttachmentInput = {
   text?: string | null;
   url?: string | null;
   mimeType?: string | null;
+  thumbnailUrl?: string | null;
 };
 
 export type SummaryRequestPayload = {
