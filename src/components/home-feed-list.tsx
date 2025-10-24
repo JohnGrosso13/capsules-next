@@ -35,6 +35,7 @@ import {
   DocumentAttachmentCard,
   type DocumentCardData,
 } from "@/components/documents/document-card";
+import { requestSummary, normalizeSummaryResponse } from "@/lib/ai/client-summary";
 
 type LazyImageProps = React.ComponentProps<typeof Image>;
 
@@ -122,6 +123,10 @@ export function HomeFeedList({
   const BATCH_SIZE = 6;
   const [visibleCount, setVisibleCount] = React.useState(INITIAL_BATCH);
   const sentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const [documentSummaryPending, setDocumentSummaryPending] = React.useState<Record<string, boolean>>(
+    {},
+  );
+  const [feedSummaryPending, setFeedSummaryPending] = React.useState(false);
 
   const showSkeletons = !hasFetched;
 
@@ -164,7 +169,10 @@ export function HomeFeedList({
   }, [hasFetched, posts.length, visibleCount]);
 
   const visibleLimit = showSkeletons ? 0 : Math.min(visibleCount, posts.length);
-  const displayedPosts = showSkeletons ? [] : posts.slice(0, visibleLimit || posts.length);
+  const displayedPosts = React.useMemo(() => {
+    if (showSkeletons) return [];
+    return posts.slice(0, visibleLimit || posts.length);
+  }, [showSkeletons, posts, visibleLimit]);
   const skeletons = React.useMemo(
     () =>
       Array.from({ length: 4 }, (_, index) => (
@@ -277,6 +285,100 @@ export function HomeFeedList({
     [composer],
   );
 
+  const handleSummarizeDocument = React.useCallback(
+    async (doc: DocumentCardData) => {
+      setDocumentSummaryPending((prev) => ({ ...prev, [doc.id]: true }));
+      try {
+        const summaryPayload = await requestSummary({
+          target: "document",
+          attachments: [
+            {
+              id: doc.id,
+              name: doc.name,
+              excerpt: doc.summary ?? doc.snippet ?? null,
+              text: doc.summary ?? doc.snippet ?? null,
+            },
+          ],
+          meta: {
+            title: doc.name,
+          },
+        });
+        const summaryResult = normalizeSummaryResponse(summaryPayload);
+        composer.showSummary(summaryResult, {
+          title: doc.name,
+          sourceLabel: doc.name,
+          sourceType: summaryResult.source,
+        });
+      } catch (error) {
+        console.error("Document summary failed", error);
+      } finally {
+        setDocumentSummaryPending((prev) => {
+          const next = { ...prev };
+          delete next[doc.id];
+          return next;
+        });
+      }
+    },
+    [composer],
+  );
+
+  const handleSummarizeFeed = React.useCallback(async () => {
+    if (feedSummaryPending || !displayedPosts.length) return;
+    setFeedSummaryPending(true);
+    try {
+      const segmentSource = displayedPosts.slice(0, Math.min(8, displayedPosts.length));
+      const segments = segmentSource.map((post, index) => {
+        const author = post.user_name ?? (post as { userName?: string }).userName ?? "Someone";
+        const created =
+          post.created_at ??
+          (post as { createdAt?: string | null | undefined }).createdAt ??
+          null;
+        const relative = created ? timeAgo(created) : "";
+        const raw = typeof post.content === "string" ? post.content : "";
+        const normalized = raw.replace(/\s+/g, " ").trim();
+        const content =
+          normalized.length > 360 ? `${normalized.slice(0, 357).trimEnd()}…` : normalized;
+        const attachmentsList = Array.isArray(post.attachments) ? post.attachments : [];
+        const attachmentLabels = attachmentsList.map((attachment) => {
+          const mime = attachment.mimeType?.toLowerCase() ?? "";
+          if (mime.startsWith("image/")) return "image";
+          if (mime.startsWith("video/")) return "video";
+          return "file";
+        });
+        const attachmentSnippet = attachmentLabels.length
+          ? `Attachments: ${attachmentLabels.join(", ")}.`
+          : "";
+        const labelPrefix = `#${index + 1}`;
+        const snippetParts = [
+          `${labelPrefix} ${author}${relative ? ` (${relative})` : ""}:`,
+          content || "No caption provided.",
+          attachmentSnippet,
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return snippetParts;
+      });
+      const summaryPayload = await requestSummary({
+        target: "feed",
+        segments,
+        meta: {
+          title: "Recent activity",
+          timeframe: "latest updates",
+        },
+      });
+      const summaryResult = normalizeSummaryResponse(summaryPayload);
+      composer.showSummary(summaryResult, {
+        title: "Feed recap",
+        sourceLabel: "Current feed",
+        sourceType: summaryResult.source,
+      });
+    } catch (error) {
+      console.error("Feed summary failed", error);
+    } finally {
+      setFeedSummaryPending(false);
+    }
+  }, [composer, displayedPosts, feedSummaryPending, timeAgo]);
+
   return (
     <>
       {showSkeletons ? (
@@ -290,6 +392,18 @@ export function HomeFeedList({
           <p className={styles.feedEmptySubtitle}>
             {emptyMessage ?? "Be the first to share something in this space."}
           </p>
+        </div>
+      ) : null}
+      {!showSkeletons && displayedPosts.length ? (
+        <div className={styles.feedUtilities}>
+          <button
+            type="button"
+            className={styles.feedUtilityButton}
+            onClick={handleSummarizeFeed}
+            disabled={feedSummaryPending}
+          >
+            {feedSummaryPending ? "Summarizing..." : "Summarize feed"}
+          </button>
         </div>
       ) : null}
       {displayedPosts.map((post) => {
@@ -756,6 +870,8 @@ export function HomeFeedList({
                     doc={doc}
                     formatCount={formatCount}
                     onAsk={() => handleAskDocument(doc)}
+                    onSummarize={() => handleSummarizeDocument(doc)}
+                    summarizePending={Boolean(documentSummaryPending[doc.id])}
                   />
                 ))}
               </div>
@@ -877,7 +993,4 @@ export function HomeFeedList({
     </>
   );
 }
-
-
-
 

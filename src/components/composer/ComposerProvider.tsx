@@ -41,6 +41,7 @@ import {
   type PromptResponse,
   type StylerResponse,
 } from "@/shared/schemas/ai";
+import type { SummaryResult, SummaryTarget } from "@/types/summary";
 
 const ATTACHMENT_CONTEXT_LIMIT = 2;
 const ATTACHMENT_CONTEXT_CHAR_LIMIT = 2000;
@@ -92,6 +93,18 @@ async function buildAttachmentContext(
     const role = attachment.role ?? "reference";
     if (role !== "reference") continue;
     if (!attachment.url) continue;
+    const excerpt =
+      typeof attachment.excerpt === "string" && attachment.excerpt.trim().length
+        ? attachment.excerpt.trim()
+        : null;
+    if (excerpt) {
+      collected.push({
+        id: attachment.id,
+        name: attachment.name,
+        text: excerpt.slice(0, ATTACHMENT_CONTEXT_CHAR_LIMIT),
+      });
+      continue;
+    }
     if (!isLikelyTextAttachment(attachment)) continue;
     try {
       const response = await fetch(attachment.url);
@@ -110,6 +123,74 @@ async function buildAttachmentContext(
   }
 
   return collected;
+}
+
+type SummaryPresentationOptions = {
+  title?: string | null;
+  sourceLabel?: string | null;
+  sourceType: SummaryTarget;
+};
+
+function formatSummaryMessage(result: SummaryResult, options: SummaryPresentationOptions): string {
+  const lines: string[] = [];
+  const heading = options.sourceLabel?.trim().length
+    ? `Summary: ${options.sourceLabel}`
+    : "Summary";
+  lines.push(heading);
+  lines.push("");
+  lines.push(result.summary);
+  if (result.highlights.length) {
+    lines.push("");
+    lines.push("Highlights:");
+    result.highlights.forEach((item) => lines.push(`• ${item}`));
+  }
+  if (result.insights.length) {
+    lines.push("");
+    lines.push("Insights:");
+    result.insights.forEach((item) => lines.push(`• ${item}`));
+  }
+  if (result.nextActions.length) {
+    lines.push("");
+    lines.push("Next steps:");
+    result.nextActions.forEach((item) => lines.push(`• ${item}`));
+  }
+  if (result.postPrompt || result.postTitle) {
+    lines.push("");
+    lines.push("Post idea:");
+    if (result.postTitle && result.postPrompt) {
+      lines.push(`• ${result.postTitle} — ${result.postPrompt}`);
+    } else if (result.postPrompt) {
+      lines.push(`• ${result.postPrompt}`);
+    } else if (result.postTitle) {
+      lines.push(`• ${result.postTitle}`);
+    }
+  }
+  if (result.hashtags.length) {
+    lines.push("");
+    lines.push(`Hashtags: ${result.hashtags.join(" ")}`);
+  }
+  return lines.join("\n").trim();
+}
+
+function buildSummaryDraftContent(result: SummaryResult): string {
+  const sections: string[] = [result.summary];
+  if (result.highlights.length) {
+    sections.push("");
+    result.highlights.forEach((item) => sections.push(`• ${item}`));
+  }
+  if (result.insights.length) {
+    sections.push("");
+    result.insights.forEach((item) => sections.push(`• ${item}`));
+  }
+  if (result.nextActions.length) {
+    sections.push("");
+    result.nextActions.forEach((item) => sections.push(`• ${item}`));
+  }
+  if (result.hashtags.length) {
+    sections.push("");
+    sections.push(result.hashtags.join(" "));
+  }
+  return sections.join("\n").trim();
 }
 
 async function callAiPrompt(
@@ -319,6 +400,7 @@ type ComposerContextValue = {
   close(): void;
   post(): Promise<void>;
   submitPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void>;
+  showSummary(result: SummaryResult, options: SummaryPresentationOptions): void;
   answerClarifier(answer: string): void;
   forceChoice?(key: string): Promise<void>;
   updateDraft(draft: ComposerDraft): void;
@@ -1130,6 +1212,61 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.draft, state.rawPost, author.name, author.avatar, activeCapsuleId, envelopePayload]);
 
+  const showSummary = React.useCallback(
+    (result: SummaryResult, options: SummaryPresentationOptions) => {
+      const draftTitle = result.postTitle ?? options.title ?? null;
+      const content = buildSummaryDraftContent(result);
+      const assistantMessage: ComposerChatMessage = {
+        id: safeRandomUUID(),
+        role: "assistant",
+        content: formatSummaryMessage(result, options),
+        createdAt: new Date().toISOString(),
+        attachments: null,
+      };
+      const suggestionList: string[] = [];
+      if (result.nextActions.length) {
+        suggestionList.push(...result.nextActions);
+      }
+      if (result.postPrompt) {
+        suggestionList.push(result.postPrompt);
+      }
+      const draft: ComposerDraft = {
+        kind: "text",
+        title: draftTitle,
+        content,
+        mediaUrl: null,
+        mediaPrompt: null,
+        poll: null,
+      };
+      if (suggestionList.length) {
+        draft.suggestions = suggestionList;
+      }
+      const rawPostPayload: Record<string, unknown> = {
+        kind: "text",
+        title: draftTitle,
+        content,
+        hashtags: result.hashtags.length ? result.hashtags : undefined,
+        summary_source: options.sourceType,
+        summary_title: options.sourceLabel ?? options.title ?? null,
+        tone: result.tone,
+      };
+      const rawPostWithContext = appendCapsuleContext(rawPostPayload, activeCapsuleId);
+      setState({
+        open: true,
+        loading: false,
+        prompt: "",
+        draft,
+        rawPost: rawPostWithContext,
+        message: assistantMessage.content,
+        choices: null,
+        history: [assistantMessage],
+        threadId: safeRandomUUID(),
+        clarifier: null,
+      });
+    },
+    [activeCapsuleId],
+  );
+
   const submitPrompt = React.useCallback(
     async (promptText: string, attachments?: PrompterAttachment[] | null) => {
       const trimmed = promptText.trim();
@@ -1287,6 +1424,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       close,
       post,
       submitPrompt,
+      showSummary,
       answerClarifier,
       updateDraft,
       sidebar: sidebarData,
@@ -1308,6 +1446,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     close,
     post,
     submitPrompt,
+    showSummary,
     answerClarifier,
     forceChoice,
     updateDraft,
@@ -1372,4 +1511,3 @@ export function AiComposerRoot() {
     />
   );
 }
-

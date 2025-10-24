@@ -6,6 +6,7 @@ import {
   DownloadSimple,
   FileText,
   Sparkle,
+  ListBullets,
 } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "@/components/home.module.css";
@@ -315,9 +316,17 @@ type DocumentAttachmentCardProps = {
   doc: DocumentCardData;
   formatCount(value?: number | null): string;
   onAsk(): void;
+  onSummarize?: () => void;
+  summarizePending?: boolean;
 };
 
-export function DocumentAttachmentCard({ doc, formatCount, onAsk }: DocumentAttachmentCardProps) {
+export function DocumentAttachmentCard({
+  doc,
+  formatCount,
+  onAsk,
+  onSummarize,
+  summarizePending,
+}: DocumentAttachmentCardProps) {
   const extensionLabel = doc.extension ? doc.extension.toUpperCase() : "FILE";
   const metaChips: string[] = [];
   if (doc.extension) metaChips.push(doc.extension.toUpperCase());
@@ -375,6 +384,20 @@ export function DocumentAttachmentCard({ doc, formatCount, onAsk }: DocumentAtta
         <p className={styles.documentEmpty}>No preview available yet.</p>
       ) : null}
       <div className={styles.documentActions}>
+        {onSummarize ? (
+          <button
+            type="button"
+            className={styles.documentActionSecondary}
+            onClick={onSummarize}
+            disabled={Boolean(summarizePending)}
+            aria-label={`Summarize ${doc.name}`}
+          >
+            <span className={styles.documentActionIcon} aria-hidden>
+              <ListBullets size={16} weight="duotone" />
+            </span>
+            <span>{summarizePending ? "Summarizing..." : "Summarize"}</span>
+          </button>
+        ) : null}
         <button
           type="button"
           className={styles.documentActionPrimary}

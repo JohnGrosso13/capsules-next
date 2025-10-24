@@ -43,6 +43,42 @@
   font-size: 1rem;
 }
 
+.feedUtilities {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.feedUtilityButton {
+  border: 1px solid var(--feed-action-border);
+  background: linear-gradient(180deg, var(--feed-action-bg-1), var(--feed-action-bg-2));
+  color: var(--feed-icon-text, var(--text));
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.feedUtilityButton:hover:not([disabled]) {
+  transform: translateY(-1px);
+  box-shadow: var(--feed-action-shadow-hover);
+}
+
+.feedUtilityButton:active:not([disabled]) {
+  transform: translateY(0);
+  box-shadow: var(--feed-action-shadow-active);
+}
+
+.feedUtilityButton[disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
 @media (max-width: 640px) {
   .page {
     padding: 12px 0 16px;
