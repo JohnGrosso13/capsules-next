@@ -593,6 +593,7 @@ export async function upsertPollVote(
   postId: string,
   userKey: string,
   optionIndex: number,
+  userId?: string | null,
 ): Promise<void> {
   const result = await db
     .from("poll_votes")
@@ -601,6 +602,7 @@ export async function upsertPollVote(
         {
           post_id: postId,
           user_key: userKey,
+          user_id: userId ?? null,
           option_index: optionIndex,
         },
       ],
@@ -632,4 +634,17 @@ export async function listPollVotesForPost(postId: string, limit = 5000): Promis
     throw decorateDatabaseError("posts.polls.votes", result.error);
   }
   return result.data ?? [];
+}
+
+export async function updatePostPollJson(postId: string, poll: unknown): Promise<void> {
+  const result = await db.from("posts").update({ poll }).eq("id", postId).fetch();
+  if (result.error) {
+    const code = (result.error.code ?? "").toUpperCase();
+    const message = result.error.message ?? "";
+    if (code === "42703" || message.includes("'poll'") || message.includes('column "poll"')) {
+      console.warn("posts.poll column missing; skipping poll update");
+      return;
+    }
+    throw decorateDatabaseError("posts.polls.update", result.error);
+  }
 }

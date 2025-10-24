@@ -156,6 +156,7 @@ type SidebarSectionProps = {
   thumbClassName?: string;
   actionLabel?: string;
   onAction?: () => void;
+  maxVisible?: number;
 };
 
 type SidebarTabKey = "recent" | "drafts" | "projects" | "memories";
@@ -198,7 +199,14 @@ function SidebarSection({
   thumbClassName = "",
   actionLabel,
   onAction,
+  maxVisible,
 }: SidebarSectionProps) {
+  const limit =
+    typeof maxVisible === "number" && Number.isFinite(maxVisible) && maxVisible > 0
+      ? Math.trunc(maxVisible)
+      : null;
+  const visibleItems = limit ? items.slice(0, limit) : items;
+
   return (
     <section className={styles.memorySection}>
       <header className={styles.memoryHeader}>
@@ -212,9 +220,9 @@ function SidebarSection({
         </div>
         {description ? <p className={styles.memorySubtitle}>{description}</p> : null}
       </header>
-      {items.length ? (
+      {visibleItems.length ? (
         <ol className={styles.memoryList}>
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const cardClass = `${styles.memoryCard}${item.active ? ` ${styles.memoryCardActive}` : ""}`;
             const thumbClass = `${styles.memoryThumb}${thumbClassName ? ` ${thumbClassName}` : ""}`;
             return (
@@ -449,6 +457,10 @@ export function ComposerForm({
   const columnsRef = React.useRef<HTMLDivElement | null>(null);
   const mainRef = React.useRef<HTMLDivElement | null>(null);
   const promptInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [promptValue, setPromptValue] = React.useState<string>(prompt ?? "");
+  const [recentModalOpen, setRecentModalOpen] = React.useState(false);
+  const [activeSidebarTab, setActiveSidebarTab] = React.useState<SidebarTabKey>("recent");
+  const lastSubmittedPromptRef = React.useRef<string | null>(null);
 
   const {
     fileInputRef,
@@ -463,6 +475,21 @@ export function ComposerForm({
   } = useAttachmentUpload(undefined, {
     metadata: () => (activeCapsuleId ? { capsule_id: activeCapsuleId } : null),
   });
+
+  React.useEffect(() => {
+    const normalized = prompt ?? "";
+    if (lastSubmittedPromptRef.current && normalized === lastSubmittedPromptRef.current) {
+      lastSubmittedPromptRef.current = null;
+      return;
+    }
+    setPromptValue(normalized);
+  }, [prompt]);
+
+  React.useEffect(() => {
+    if (activeSidebarTab !== "recent" && recentModalOpen) {
+      setRecentModalOpen(false);
+    }
+  }, [activeSidebarTab, recentModalOpen]);
   const handlePromptPaste = React.useCallback(
     (event: React.ClipboardEvent<HTMLInputElement>) => {
       const file = extractFileFromDataTransfer(event.clipboardData);
@@ -516,8 +543,8 @@ export function ComposerForm({
   const voiceControls = useComposerVoice({
     voiceState,
     voiceActions: actions.voice,
-    workingDraft,
-    updateDraft,
+    promptValue,
+    setPromptValue,
     promptInputRef,
     loading,
     attachmentUploading,
@@ -696,15 +723,12 @@ export function ComposerForm({
     ];
   }, [displayAttachment]);
 
-  const handleSuggestionSelect = React.useCallback(
-    (promptValue: string) => {
-      updateDraft({ content: promptValue });
-      window.requestAnimationFrame(() => {
-        promptInputRef.current?.focus();
-      });
-    },
-    [updateDraft],
-  );
+  const handleSuggestionSelect = React.useCallback((nextPrompt: string) => {
+    setPromptValue(nextPrompt);
+    window.requestAnimationFrame(() => {
+      promptInputRef.current?.focus();
+    });
+  }, []);
 
   const baseQuickPromptOptions = React.useMemo(
     () => resolveQuickPromptPreset(activeKind),
@@ -832,8 +856,9 @@ export function ComposerForm({
   const handlePromptSubmit = React.useCallback(() => {
     if (!onPrompt) return;
     if (loading || attachmentUploading) return;
-    const trimmed = (workingDraft.content ?? "").trim();
+    const trimmed = promptValue.trim();
     if (!trimmed) return;
+    lastSubmittedPromptRef.current = trimmed;
 
     let attachments: PrompterAttachment[] | null = null;
     if (readyAttachment?.url) {
@@ -851,8 +876,13 @@ export function ComposerForm({
       ];
     }
 
-    void onPrompt(trimmed, attachments);
-  }, [attachmentUploading, loading, onPrompt, readyAttachment, workingDraft.content]);
+    const result = onPrompt(trimmed, attachments);
+    if (result && typeof (result as Promise<unknown>).then === "function") {
+      void (result as Promise<unknown>).finally(() => setPromptValue(""));
+    } else {
+      setPromptValue("");
+    }
+  }, [attachmentUploading, loading, onPrompt, promptValue, readyAttachment]);
 
   const showVibePrompt = React.useMemo(
     () =>
@@ -940,15 +970,16 @@ export function ComposerForm({
   const hasConversation = conversationHistory.length > 0;
   const showWelcomeMessage = !hasConversation;
 
-  const [activeSidebarTab, setActiveSidebarTab] = React.useState<SidebarTabKey>("recent");
-
   const recentSidebarItems: SidebarListItem[] = React.useMemo(
     () =>
       sidebar.recentChats.map((item) => ({
         id: item.id,
         title: item.title,
         subtitle: item.caption,
-        onClick: () => onSelectRecentChat(item.id),
+        onClick: () => {
+          onSelectRecentChat(item.id);
+          setRecentModalOpen(false);
+        },
       })),
     [onSelectRecentChat, sidebar.recentChats],
   );
@@ -1021,6 +1052,10 @@ export function ComposerForm({
     [onSelectProject, sidebar.projects, sidebar.selectedProjectId],
   );
 
+  const recentItemIcon = <ChatsTeardrop size={18} weight="duotone" />;
+  const RECENT_VISIBLE_LIMIT = 6;
+  const recentHasOverflow = recentSidebarItems.length > RECENT_VISIBLE_LIMIT;
+
   const handleCreateProjectClick = React.useCallback(() => {
     if (typeof window === "undefined") return;
     const input = window.prompt("Name your project");
@@ -1039,8 +1074,11 @@ export function ComposerForm({
             description="Pick up where you and Capsule left off."
             items={recentSidebarItems}
             emptyMessage="No chats yet"
-            itemIcon={<ChatsTeardrop size={18} weight="duotone" />}
+            itemIcon={recentItemIcon}
             thumbClassName={styles.memoryThumbChat ?? ""}
+            maxVisible={RECENT_VISIBLE_LIMIT}
+            actionLabel={recentHasOverflow ? "See all" : undefined}
+            onAction={recentHasOverflow ? () => setRecentModalOpen(true) : undefined}
           />
         );
       case "drafts":
@@ -1095,6 +1133,7 @@ export function ComposerForm({
     handleCreateProjectClick,
     handleMemoryPickerOpen,
     projectSidebarItems,
+    recentHasOverflow,
     recentSidebarItems,
   ]);
 
@@ -1122,6 +1161,59 @@ export function ComposerForm({
         })}
       </div>
       <div className={styles.sidebarScroll}>{sidebarContent}</div>
+      {recentModalOpen ? (
+        <div
+          className={styles.sidebarOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label="All recent chats"
+          onClick={() => setRecentModalOpen(false)}
+        >
+          <div
+            className={styles.sidebarOverlayCard}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.sidebarOverlayHeader}>
+              <span className={styles.sidebarOverlayTitle}>Recent chats</span>
+              <button
+                type="button"
+                className={styles.sidebarOverlayClose}
+                onClick={() => setRecentModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className={styles.sidebarOverlayList}>
+              <ol className={styles.memoryList}>
+                {recentSidebarItems.map((item) => {
+                  const cardClass = `${styles.memoryCard}${
+                    item.active ? ` ${styles.memoryCardActive}` : ""
+                  }`;
+                  const thumbClass = `${styles.memoryThumb} ${styles.memoryThumbChat ?? ""}`;
+                  return (
+                    <li key={`recent-modal-${item.id}`}>
+                      <button
+                        type="button"
+                        className={cardClass}
+                        onClick={item.onClick}
+                        disabled={item.disabled}
+                      >
+                        <span className={thumbClass}>{item.icon ?? recentItemIcon}</span>
+                        <span className={styles.memoryMeta}>
+                          <span className={styles.memoryName}>{item.title}</span>
+                          {item.subtitle ? (
+                            <span className={styles.memoryType}>{item.subtitle}</span>
+                          ) : null}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 
@@ -1315,9 +1407,9 @@ export function ComposerForm({
             ref={promptInputRef}
             className={styles.promptInput}
             placeholder={currentPromptPlaceholder}
-            value={workingDraft.content}
+            value={promptValue}
             onPaste={handlePromptPaste}
-            onChange={(e) => updateDraft({ content: e.target.value })}
+            onChange={(event) => setPromptValue(event.target.value)}
             disabled={loading}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
@@ -1338,7 +1430,7 @@ export function ComposerForm({
             type="button"
             className={styles.promptGenerateBtn}
             onClick={handlePromptSubmit}
-            disabled={loading || attachmentUploading || !workingDraft.content.trim()}
+            disabled={loading || attachmentUploading || !promptValue.trim()}
           >
             <span className={styles.generateIcon}>
               <Sparkle size={16} weight="fill" />
@@ -1572,7 +1664,7 @@ export function ComposerForm({
         disabled: loading || attachmentUploading,
       };
     }
-    const trimmed = (workingDraft.content ?? "").trim();
+    const trimmed = promptValue.trim();
     const pollHasStructure =
       pollStructure.question.trim().length > 0 ||
       pollStructure.options.some((option) => option.trim().length > 0);
@@ -1590,7 +1682,7 @@ export function ComposerForm({
     handleAttachClick,
     handlePromptSubmit,
     loading,
-    workingDraft.content,
+    promptValue,
     pollStructure,
   ]);
 
@@ -1887,11 +1979,3 @@ export function ComposerForm({
     </div>
   );
 }
-
-
-
-
-
-
-
-

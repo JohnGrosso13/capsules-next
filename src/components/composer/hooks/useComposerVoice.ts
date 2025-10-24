@@ -4,15 +4,14 @@ import * as React from "react";
 
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { describeVoiceError, truncateVoiceText } from "../voice-utils";
-import type { ComposerDraft } from "@/lib/composer/draft";
 
 import type { ComposerFormActions, ComposerVoiceState } from "./useComposerFormReducer";
 
 type UseComposerVoiceParams = {
   voiceState: ComposerVoiceState;
   voiceActions: ComposerFormActions["voice"];
-  workingDraft: ComposerDraft;
-  updateDraft: (draft: Partial<ComposerDraft>) => void;
+  promptValue: string;
+  setPromptValue: (value: string) => void;
   promptInputRef: React.RefObject<HTMLInputElement | null>;
   loading: boolean;
   attachmentUploading: boolean;
@@ -36,8 +35,8 @@ export type ComposerVoiceResult = {
 export function useComposerVoice({
   voiceState,
   voiceActions,
-  workingDraft,
-  updateDraft,
+  promptValue,
+  setPromptValue,
   promptInputRef,
   loading,
   attachmentUploading,
@@ -109,10 +108,10 @@ export function useComposerVoice({
       voiceActions.setDraft(null);
       return;
     }
-    const existing = workingDraft.content ?? "";
+    const existing = promptValue ?? "";
     const needsSpace = existing.length > 0 && !/\s$/.test(existing);
     const nextContent = `${existing}${needsSpace ? " " : ""}${normalized}`;
-    updateDraft({ content: nextContent });
+    setPromptValue(nextContent);
     voiceActions.merge({
       lastResult: normalized,
       draft: null,
@@ -122,7 +121,7 @@ export function useComposerVoice({
     window.requestAnimationFrame(() => {
       promptInputRef.current?.focus();
     });
-  }, [promptInputRef, status, updateDraft, voiceActions, voiceState.draft, workingDraft.content]);
+  }, [promptInputRef, promptValue, setPromptValue, status, voiceActions, voiceState.draft]);
 
   React.useEffect(() => {
     if (status === "listening") return;

@@ -14,6 +14,7 @@ import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import { getStorageObjectUrl } from "@/lib/storage/multipart";
 import { indexMemory } from "@/lib/supabase/memories";
 import { captionImage, captionVideo } from "@/lib/ai/openai";
+import { ensurePollStructure } from "@/lib/composer/draft";
 
 export { fetchPostRowByIdentifierFromRepository as fetchPostRowByIdentifier };
 
@@ -37,6 +38,141 @@ function toPlainObject(value: unknown): Record<string, unknown> {
     return { ...(value as Record<string, unknown>) };
   }
   return {};
+}
+
+type PollMemorySnapshotInput = {
+  ownerId: string | null;
+  postClientId: string | null;
+  postRecordId: string | null;
+  poll: { question: string; options: string[] | null | undefined };
+  counts?: number[] | null;
+  tags?: string[] | null;
+  eventAt?: string | Date | null;
+};
+
+function normalizePollCounts(length: number, counts?: number[] | null): number[] {
+  const normalized: number[] = [];
+  for (let i = 0; i < length; i += 1) {
+    const raw = counts?.[i];
+    const numeric = typeof raw === "number" ? raw : Number(raw);
+    if (!Number.isFinite(numeric)) {
+      normalized.push(0);
+    } else {
+      normalized.push(Math.max(0, Math.trunc(numeric)));
+    }
+  }
+  return normalized;
+}
+
+export async function upsertPollMemorySnapshot({
+  ownerId,
+  postClientId,
+  postRecordId,
+  poll,
+  counts,
+  tags,
+  eventAt,
+}: PollMemorySnapshotInput): Promise<void> {
+  const normalizedOwner = typeof ownerId === "string" && ownerId.trim().length ? ownerId.trim() : null;
+  if (!normalizedOwner) return;
+  const question =
+    typeof poll?.question === "string" && poll.question.trim().length ? poll.question.trim() : "Community poll";
+  const rawOptions = Array.isArray(poll?.options) ? poll.options : [];
+  const options = rawOptions
+    .map((option, index) => {
+      if (typeof option === "string") {
+        const trimmed = option.trim();
+        return trimmed.length ? trimmed : `Option ${index + 1}`;
+      }
+      if (typeof option === "number" && Number.isFinite(option)) {
+        return String(option);
+      }
+      return `Option ${index + 1}`;
+    })
+    .filter((option) => option.trim().length > 0);
+  if (!options.length) return;
+  const normalizedCounts = normalizePollCounts(options.length, counts);
+  const totalVotes = normalizedCounts.reduce((sum, value) => sum + value, 0);
+  let replaceMemoryId: string | null = null;
+  let previousMeta: Record<string, unknown> | null = null;
+  const clientId = typeof postClientId === "string" && postClientId.trim().length ? postClientId.trim() : null;
+  if (clientId) {
+    try {
+      const rows = await listMemoriesByOwnerAndColumn(normalizedOwner, "post_id", clientId);
+      if (rows.length) {
+        const candidate = rows[0];
+        if (typeof candidate?.id === "string" && candidate.id.trim().length) {
+          replaceMemoryId = candidate.id.trim();
+        }
+        if (candidate?.meta && typeof candidate.meta === "object") {
+          previousMeta = { ...(candidate.meta as Record<string, unknown>) };
+        }
+      }
+    } catch (lookupError) {
+      console.warn("poll memory lookup failed", lookupError);
+    }
+  }
+  const summaryLines = options.map((option, index) => {
+    const voteCount = normalizedCounts[index] ?? 0;
+    const suffix = totalVotes > 0 ? ` (${voteCount} vote${voteCount === 1 ? "" : "s"})` : "";
+    return `${index + 1}. ${option}${suffix}`;
+  });
+  const description = summaryLines.join("\n");
+  const rawText = [question, ...options].join("\n");
+  const tagSet = new Set<string>(["poll"]);
+  (Array.isArray(tags) ? tags : []).forEach((tag) => {
+    if (typeof tag === "string" && tag.trim().length) {
+      tagSet.add(tag.trim());
+    }
+  });
+  if (previousMeta && Array.isArray(previousMeta.summary_tags)) {
+    for (const tag of previousMeta.summary_tags as unknown[]) {
+      if (typeof tag === "string" && tag.trim().length) {
+        tagSet.add(tag.trim());
+      }
+    }
+  }
+  const nowIso = new Date().toISOString();
+  const metadata: Record<string, unknown> = {
+    source: "post_poll",
+    poll_question: question,
+    poll_options: options,
+    poll_counts: normalizedCounts,
+    poll_total_votes: totalVotes,
+    poll_updated_at: nowIso,
+    post_client_id: clientId,
+    post_record_id:
+      typeof postRecordId === "string" && postRecordId.trim().length ? postRecordId.trim() : postRecordId ?? null,
+    poll_created_at:
+      (previousMeta && typeof previousMeta.poll_created_at === "string"
+        ? previousMeta.poll_created_at
+        : eventAt instanceof Date
+          ? eventAt.toISOString()
+          : typeof eventAt === "string" && eventAt.trim().length
+            ? eventAt.trim()
+            : nowIso) ?? nowIso,
+  };
+  if (replaceMemoryId) {
+    metadata.replace_memory_id = replaceMemoryId;
+  }
+  try {
+    await indexMemory({
+      ownerId: normalizedOwner,
+      kind: "poll",
+      mediaUrl: null,
+      mediaType: null,
+      title: question,
+      description: description || question,
+      postId: clientId,
+      metadata,
+      rawText,
+      source: "post_poll",
+      tags: Array.from(tagSet),
+      eventAt: eventAt ?? null,
+    });
+  } catch (error) {
+    console.warn("poll memory index failed", error);
+  }
 }
 
 function collectMetaSources(row: Record<string, unknown>): Array<Record<string, unknown>> {
@@ -643,6 +779,26 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
       postId = await upsertPostRow(fallback, { onConflict: "client_id" });
     } else {
       throw error;
+    }
+  }
+
+  if (String(draft.kind ?? "text").toLowerCase() === "poll") {
+    try {
+      const pollStructure = ensurePollStructure(draft);
+      const pollQuestion = pollStructure.question;
+      const pollOptions = pollStructure.options;
+      const initialCounts = Array.from({ length: pollOptions.length }, () => 0);
+      await upsertPollMemorySnapshot({
+        ownerId,
+        postClientId: typeof payload.client_id === "string" ? payload.client_id : null,
+        postRecordId: postId,
+        poll: { question: pollQuestion, options: pollOptions },
+        counts: initialCounts,
+        tags,
+        eventAt: typeof payload.created_at === "string" ? payload.created_at : null,
+      });
+    } catch (error) {
+      console.warn("Initial poll memory snapshot failed", error);
     }
   }
 

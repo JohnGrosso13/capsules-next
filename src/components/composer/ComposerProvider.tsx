@@ -291,7 +291,12 @@ async function callAiPrompt(
     body.context = contextSnippets;
   }
   if (history && history.length) {
-    body.history = history;
+    body.history = history.map(({ attachments, ...rest }) => {
+      if (Array.isArray(attachments) && attachments.length) {
+        return { ...rest, attachments };
+      }
+      return rest;
+    });
   }
   if (threadId) {
     body.threadId = threadId;
