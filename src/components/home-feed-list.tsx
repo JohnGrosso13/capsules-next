@@ -1137,10 +1137,6 @@ function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
     [poll.options],
   );
 
-  if (!options.length) {
-    return null;
-  }
-
   const [counts, setCounts] = React.useState<number[] | null>(() =>
     sanitizeCounts(poll.counts ?? null, options.length),
   );
@@ -1244,6 +1240,10 @@ function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
     },
     [pending, postId, options.length],
   );
+
+  if (!options.length) {
+    return null;
+  }
 
   return (
     <div className={styles.pollCard}>
@@ -1387,4 +1387,3 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
     </div>
   );
 }
-

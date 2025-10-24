@@ -1052,7 +1052,7 @@ export function ComposerForm({
     [onSelectProject, sidebar.projects, sidebar.selectedProjectId],
   );
 
-  const recentItemIcon = <ChatsTeardrop size={18} weight="duotone" />;
+  const recentItemIcon = React.useMemo(() => <ChatsTeardrop size={18} weight="duotone" />, []);
   const RECENT_VISIBLE_LIMIT = 6;
   const recentHasOverflow = recentSidebarItems.length > RECENT_VISIBLE_LIMIT;
 
@@ -1133,6 +1133,7 @@ export function ComposerForm({
     handleCreateProjectClick,
     handleMemoryPickerOpen,
     projectSidebarItems,
+    recentItemIcon,
     recentHasOverflow,
     recentSidebarItems,
   ]);
