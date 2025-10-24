@@ -43,6 +43,7 @@ const normalizedPostSchema = z.object({
   content: z.string(),
   mediaUrl: z.string().nullable(),
   mediaPrompt: z.string().nullable(),
+  poll: z.unknown().nullable().optional(),
   userName: z.string().nullable(),
   userAvatar: z.string().nullable(),
   capsuleId: z.string().nullable(),
