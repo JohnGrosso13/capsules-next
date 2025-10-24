@@ -1469,12 +1469,33 @@ export function ComposerForm({
 
   const previewState = React.useMemo(() => {
     const kind = activeKind;
-    const label = activeKindLabel;
+    let label = activeKindLabel;
     const content = (workingDraft.content ?? "").trim();
     const title = (workingDraft.title ?? "").trim();
     const mediaPrompt = (workingDraft.mediaPrompt ?? "").trim();
     const mediaUrl = attachmentDisplayUrl ?? attachmentFullUrl ?? workingDraft.mediaUrl ?? null;
     const attachmentName = displayAttachment?.name ?? null;
+    const pollQuestion = pollStructure.question.trim();
+    const pollOptions = pollStructure.options.map((option) => option.trim()).filter(Boolean);
+    const pollHasStructure = pollQuestion.length > 0 || pollOptions.length > 0;
+    const pollDisplayOptions =
+      pollOptions.length > 0 ? pollOptions : ["Option 1", "Option 2", "Option 3"];
+    const pollHelperText = `${pollDisplayOptions.length} option${
+      pollDisplayOptions.length === 1 ? "" : "s"
+    } ready`;
+    const pollPreviewCard = (
+      <div className={styles.previewPollCard}>
+        <h3 className={styles.previewPollQuestion}>{pollQuestion || "Untitled poll"}</h3>
+        <ul className={styles.previewPollOptions}>
+          {pollDisplayOptions.map((option, index) => (
+            <li key={`${option}-${index}`}>
+              <span className={styles.previewPollOptionBullet}>{index + 1}</span>
+              <span className={styles.previewPollOptionLabel}>{option}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
     const renderPlaceholder = (message: string) => (
       <div className={styles.previewPlaceholderCard}>
         <span className={styles.previewPlaceholderIcon}>
@@ -1488,158 +1509,167 @@ export function ComposerForm({
     let body: React.ReactNode;
     let empty = false;
 
-    switch (kind) {
-      case "poll": {
-        const poll = pollStructure;
-        const question = poll.question.trim();
-        const options = poll.options.map((option) => option.trim()).filter(Boolean);
-        empty = !question && options.length === 0;
-        if (empty) {
-          body = renderPlaceholder("Describe the poll you want and the live preview will appear.");
-        } else {
-          const displayOptions = options.length ? options : ["Option 1", "Option 2", "Option 3"];
-          helper = `${displayOptions.length} option${displayOptions.length === 1 ? "" : "s"} ready`;
-          body = (
-            <div className={styles.previewPollCard}>
-              <h3 className={styles.previewPollQuestion}>{question || "Untitled poll"}</h3>
-              <ul className={styles.previewPollOptions}>
-                {displayOptions.map((option, index) => (
-                  <li key={`${option}-${index}`}>
-                    <span className={styles.previewPollOptionBullet}>{index + 1}</span>
-                    <span className={styles.previewPollOptionLabel}>{option}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        }
-        break;
+    if (kind === "poll") {
+      if (!pollHasStructure) {
+        empty = true;
+        body = renderPlaceholder("Describe the poll you want and the live preview will appear.");
+      } else {
+        empty = false;
+        helper = pollHelperText;
+        body = pollPreviewCard;
       }
-      case "image": {
-        empty = !mediaUrl;
-        helper = mediaPrompt || attachmentName;
-        if (empty) {
-          body = renderPlaceholder("Upload or describe a visual to stage it here.");
-        } else {
-          body = (
-            <figure className={styles.previewMediaFrame} data-kind="image">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={mediaUrl ?? undefined}
-                alt={attachmentName ?? (mediaPrompt || "Generated visual preview")}
-              />
-              {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
-            </figure>
-          );
+    } else {
+      switch (kind) {
+        case "image": {
+          empty = !mediaUrl;
+          helper = mediaPrompt || attachmentName;
+          if (empty) {
+            body = renderPlaceholder("Upload or describe a visual to stage it here.");
+          } else {
+            body = (
+              <figure className={styles.previewMediaFrame} data-kind="image">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={mediaUrl ?? undefined}
+                  alt={attachmentName ?? (mediaPrompt || "Generated visual preview")}
+                />
+                {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
+              </figure>
+            );
+          }
+          break;
         }
-        break;
-      }
-      case "video": {
-        empty = !mediaUrl;
-        helper = mediaPrompt || attachmentName;
-        if (empty) {
-          body = renderPlaceholder("Drop a clip or describe scenes to preview them here.");
-        } else {
-          body = (
-            <figure className={styles.previewMediaFrame} data-kind="video">
-              <video src={mediaUrl ?? undefined} controls preload="metadata" />
-              {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
-            </figure>
-          );
+        case "video": {
+          empty = !mediaUrl;
+          helper = mediaPrompt || attachmentName;
+          if (empty) {
+            body = renderPlaceholder("Drop a clip or describe scenes to preview them here.");
+          } else {
+            body = (
+              <figure className={styles.previewMediaFrame} data-kind="video">
+                <video src={mediaUrl ?? undefined} controls preload="metadata" />
+                {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
+              </figure>
+            );
+          }
+          break;
         }
-        break;
-      }
-      case "document": {
-        const blocks = content
-          ? content.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean)
-          : [];
-        empty = blocks.length === 0 && !title;
-        if (empty) {
-          body = renderPlaceholder("Outline the sections you need and the document will render.");
-        } else {
-          const displayBlocks = blocks.length ? blocks : ["Overview", "Highlights", "Next steps"];
-          helper = `${displayBlocks.length} section${
-            displayBlocks.length === 1 ? "" : "s"
-          } in progress`;
-          body = (
-            <div className={styles.previewDocumentCard}>
-              <h3 className={styles.previewDocumentTitle}>{title || "Untitled document"}</h3>
-              <ol className={styles.previewDocumentSections}>
-                {displayBlocks.map((block, index) => {
-                  const [heading, ...rest] = block.split(/\n+/);
-                  const bodyText = rest.join(" ").trim();
-                  return (
-                    <li key={`${heading}-${index}`}>
-                      <span className={styles.previewDocumentSectionBadge}>
-                        {index + 1 < 10 ? `0${index + 1}` : index + 1}
-                      </span>
-                      <div className={styles.previewDocumentSectionContent}>
-                        <h4>{heading || `Section ${index + 1}`}</h4>
-                        {bodyText ? <p>{bodyText}</p> : null}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          );
-        }
-        break;
-      }
-      case "tournament": {
-        const rounds = content
-          ? content.split(/\n+/).map((value) => value.trim()).filter(Boolean)
-          : [];
-        empty = rounds.length === 0 && !title;
-        if (empty) {
-          body = renderPlaceholder(
-            "Tell Capsule AI about rounds, seeds, or teams to map the bracket.",
-          );
-        } else {
-          const displayRounds = rounds.length
-            ? rounds
-            : ["Round of 16", "Quarterfinals", "Semifinals", "Final"];
-          helper = `${displayRounds.length} stage${
-            displayRounds.length === 1 ? "" : "s"
-          } plotted`;
-          body = (
-            <div className={styles.previewTournamentCard}>
-              <h3 className={styles.previewTournamentTitle}>{title || "Tournament bracket"}</h3>
-              <div className={styles.previewTournamentGrid}>
-                {displayRounds.map((round, index) => (
-                  <div key={`${round}-${index}`} className={styles.previewTournamentColumn}>
-                    <span>{round}</span>
-                  </div>
-                ))}
+        case "document": {
+          const blocks = content
+            ? content.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean)
+            : [];
+          empty = blocks.length === 0 && !title;
+          if (empty) {
+            body = renderPlaceholder("Outline the sections you need and the document will render.");
+          } else {
+            const displayBlocks = blocks.length ? blocks : ["Overview", "Highlights", "Next steps"];
+            helper = `${displayBlocks.length} section${
+              displayBlocks.length === 1 ? "" : "s"
+            } in progress`;
+            body = (
+              <div className={styles.previewDocumentCard}>
+                <h3 className={styles.previewDocumentTitle}>{title || "Untitled document"}</h3>
+                <ol className={styles.previewDocumentSections}>
+                  {displayBlocks.map((block, index) => {
+                    const [heading, ...rest] = block.split(/\n+/);
+                    const bodyText = rest.join(" ").trim();
+                    return (
+                      <li key={`${heading}-${index}`}>
+                        <span className={styles.previewDocumentSectionBadge}>
+                          {index + 1 < 10 ? `0${index + 1}` : index + 1}
+                        </span>
+                        <div className={styles.previewDocumentSectionContent}>
+                          <h4>{heading || `Section ${index + 1}`}</h4>
+                          {bodyText ? <p>{bodyText}</p> : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
               </div>
-            </div>
-          );
+            );
+          }
+          break;
         }
-        break;
-      }
-      default: {
-        const paragraphs = content
-          ? content.split(/\n+/).map((block) => block.trim()).filter(Boolean)
-          : [];
-        empty = paragraphs.length === 0 && !title;
-        if (empty) {
-          body = renderPlaceholder(
-            `Give Capsule AI a prompt to see your ${label.toLowerCase()} take shape.`,
-          );
-        } else {
-          body = (
-            <div className={styles.previewPostCard}>
-              {title ? <h3 className={styles.previewPostTitle}>{title}</h3> : null}
-              <div className={styles.previewPostBody}>
-                {paragraphs.map((paragraph, index) => (
-                  <p key={`${paragraph}-${index}`}>{paragraph}</p>
-                ))}
+        case "tournament": {
+          const rounds = content
+            ? content.split(/\n+/).map((value) => value.trim()).filter(Boolean)
+            : [];
+          empty = rounds.length === 0 && !title;
+          if (empty) {
+            body = renderPlaceholder(
+              "Tell Capsule AI about rounds, seeds, or teams to map the bracket.",
+            );
+          } else {
+            const displayRounds = rounds.length
+              ? rounds
+              : ["Round of 16", "Quarterfinals", "Semifinals", "Final"];
+            helper = `${displayRounds.length} stage${
+              displayRounds.length === 1 ? "" : "s"
+            } plotted`;
+            body = (
+              <div className={styles.previewTournamentCard}>
+                <h3 className={styles.previewTournamentTitle}>{title || "Tournament bracket"}</h3>
+                <div className={styles.previewTournamentGrid}>
+                  {displayRounds.map((round, index) => (
+                    <div key={`${round}-${index}`} className={styles.previewTournamentColumn}>
+                      <span>{round}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          );
+            );
+          }
+          break;
         }
-        break;
+        default: {
+          const paragraphs = content
+            ? content.split(/\n+/).map((block) => block.trim()).filter(Boolean)
+            : [];
+          empty = paragraphs.length === 0 && !title;
+          if (empty) {
+            body = renderPlaceholder(
+              `Give Capsule AI a prompt to see your ${label.toLowerCase()} take shape.`,
+            );
+          } else {
+            body = (
+              <div className={styles.previewPostCard}>
+                {title ? <h3 className={styles.previewPostTitle}>{title}</h3> : null}
+                <div className={styles.previewPostBody}>
+                  {paragraphs.map((paragraph, index) => (
+                    <p key={`${paragraph}-${index}`}>{paragraph}</p>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+          break;
+        }
       }
+    }
+
+    if (kind !== "poll" && pollHasStructure) {
+      if (empty) {
+        body = pollPreviewCard;
+      } else {
+        const composite: React.ReactNode[] = [
+          <div key="base" className={styles.previewPrimary}>
+            {body}
+          </div>,
+        ];
+        composite.push(
+          <div key="divider" className={styles.previewDivider} aria-hidden="true" />,
+        );
+        composite.push(
+          <div key="poll" className={styles.previewSupplement}>
+            {pollPreviewCard}
+          </div>,
+        );
+        body = <div className={styles.previewComposite}>{composite}</div>;
+      }
+      helper = helper ?? pollHelperText;
+      empty = false;
+      label = `${activeKindLabel} + Poll`;
     }
 
     return { kind, label, body, empty, helper };

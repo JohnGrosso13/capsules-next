@@ -36,9 +36,11 @@ export function buildPostPayload(
     payload.mediaPrompt = prompt;
     payload.media_prompt = prompt;
   }
-  if (draft.kind?.toLowerCase() === "poll") {
-    const sanitized = sanitizePollFromDraft(draft);
-    if (sanitized) payload.poll = sanitized;
+  const sanitizedPoll = sanitizePollFromDraft(draft);
+  if (sanitizedPoll) {
+    payload.poll = sanitizedPoll;
+  } else {
+    delete payload.poll;
   }
   if (rawPost?.capsule_id) payload.capsule_id = rawPost.capsule_id;
   if (rawPost?.capsuleId) payload.capsuleId = rawPost.capsuleId;

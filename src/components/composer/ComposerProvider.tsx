@@ -125,61 +125,76 @@ async function buildAttachmentContext(
   return collected;
 }
 
-function mergeComposerDrafts(prevDraft: ComposerDraft | null, nextDraft: ComposerDraft): ComposerDraft {
-  const prevKind = (prevDraft?.kind ?? "").toLowerCase();
-  const nextKind = (nextDraft.kind ?? "").toLowerCase();
-  const prevIsPoll = prevKind === "poll" || Boolean(prevDraft?.poll);
-  const nextIsPoll = nextKind === "poll" || Boolean(nextDraft.poll);
+function mergePollStructures(
+  prevDraft: ComposerDraft | null,
+  nextDraft: ComposerDraft | null,
+): { question: string; options: string[] } | null {
+  const prevPoll = prevDraft?.poll ? ensurePollStructure(prevDraft) : null;
+  const nextPoll = nextDraft?.poll ? ensurePollStructure(nextDraft) : null;
+  if (!prevPoll && !nextPoll) {
+    return null;
+  }
+  if (!prevPoll) {
+    return nextPoll ? { question: nextPoll.question, options: [...nextPoll.options] } : null;
+  }
+  if (!nextPoll) {
+    return { question: prevPoll.question, options: [...prevPoll.options] };
+  }
+  const question = nextPoll.question.trim().length > 0 ? nextPoll.question : prevPoll.question;
+  const length = Math.max(prevPoll.options.length, nextPoll.options.length, 2);
+  const options = Array.from({ length }, (_, index) => {
+    const nextValueRaw = nextPoll.options[index] ?? "";
+    const nextValue = nextValueRaw.trim();
+    if (nextValue.length > 0) {
+      return nextPoll.options[index]!;
+    }
+    return prevPoll.options[index] ?? "";
+  });
+  while (options.length < 2) {
+    options.push("");
+  }
+  return { question, options };
+}
 
-  if (!prevIsPoll) {
-    return nextDraft;
+function mergeComposerDrafts(prevDraft: ComposerDraft | null, nextDraft: ComposerDraft): ComposerDraft {
+  if (!prevDraft) {
+    const poll = mergePollStructures(null, nextDraft);
+    return poll ? { ...nextDraft, poll } : nextDraft;
   }
 
-  const prevPoll = ensurePollStructure(prevDraft);
+  const prevKind = (prevDraft.kind ?? "").toLowerCase();
+  const nextKind = (nextDraft.kind ?? "").toLowerCase();
+  const mergedPoll = mergePollStructures(prevDraft, nextDraft);
 
-  if (!nextIsPoll) {
+  if (nextKind === "poll" && prevKind !== "poll") {
+    const merged: ComposerDraft = {
+      ...prevDraft,
+      poll: mergedPoll ?? prevDraft.poll ?? nextDraft.poll ?? null,
+    };
+    if (Array.isArray(nextDraft.suggestions) && nextDraft.suggestions.length) {
+      merged.suggestions = nextDraft.suggestions;
+    }
+    return merged;
+  }
+
+  if (nextKind === "poll" && prevKind === "poll") {
     return {
+      ...prevDraft,
       ...nextDraft,
       kind: "poll",
-      poll: { ...prevPoll },
+      poll: mergedPoll ?? nextDraft.poll ?? prevDraft.poll ?? null,
     };
   }
 
-  const nextPoll = ensurePollStructure(nextDraft);
-  const nextQuestionTrimmed = nextPoll.question.trim();
-  const nextHasQuestion = nextQuestionTrimmed.length > 0;
-  const nextHasOptions = nextPoll.options.some((option) => option.trim().length > 0);
-
-  const mergedQuestion = nextHasQuestion ? nextPoll.question : prevPoll.question;
-
-  let mergedOptions: string[];
-  if (nextHasOptions) {
-    const length = Math.max(2, nextPoll.options.length);
-    mergedOptions = Array.from({ length }, (_, index) => {
-      const nextValueRaw = nextPoll.options[index] ?? "";
-      const nextValue = nextValueRaw.trim();
-      if (nextValue.length > 0) {
-        return nextPoll.options[index]!;
-      }
-      const prevValue = prevPoll.options[index] ?? "";
-      return prevValue;
-    });
-  } else {
-    mergedOptions = [...prevPoll.options];
-  }
-
-  while (mergedOptions.length < 2) {
-    mergedOptions.push("");
-  }
-
-  return {
+  const merged: ComposerDraft = {
+    ...prevDraft,
     ...nextDraft,
-    kind: "poll",
-    poll: {
-      question: mergedQuestion,
-      options: mergedOptions,
-    },
   };
+  merged.kind = nextDraft.kind ?? prevDraft.kind;
+  if (mergedPoll || prevDraft.poll || nextDraft.poll) {
+    merged.poll = mergedPoll ?? nextDraft.poll ?? prevDraft.poll ?? null;
+  }
+  return merged;
 }
 
 type SummaryPresentationOptions = {
@@ -493,6 +508,61 @@ function normalizeCapsuleId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return UUID_PATTERN.test(trimmed) ? trimmed : null;
+}
+
+function mergeComposerRawPost(
+  prevRaw: Record<string, unknown> | null,
+  nextRaw: Record<string, unknown> | null,
+  draft: ComposerDraft,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...(prevRaw ?? {}) };
+  if (nextRaw) {
+    for (const [key, value] of Object.entries(nextRaw)) {
+      if (value === undefined) continue;
+      merged[key] = value;
+    }
+  }
+
+  if (typeof draft.kind === "string" && draft.kind.trim().length) {
+    merged.kind = draft.kind;
+  }
+  if (typeof draft.title === "string") {
+    merged.title = draft.title;
+  } else if (draft.title === null) {
+    merged.title = null;
+  }
+
+  if (typeof draft.content === "string") {
+    merged.content = draft.content;
+  }
+
+  if (typeof draft.mediaUrl === "string" && draft.mediaUrl.trim().length) {
+    merged.mediaUrl = draft.mediaUrl;
+    merged.media_url = draft.mediaUrl;
+  } else if (draft.mediaUrl === null) {
+    delete merged.mediaUrl;
+    delete merged.media_url;
+  }
+
+  if (typeof draft.mediaPrompt === "string" && draft.mediaPrompt.trim().length) {
+    merged.mediaPrompt = draft.mediaPrompt;
+    merged.media_prompt = draft.mediaPrompt;
+  } else if (draft.mediaPrompt === null) {
+    delete merged.mediaPrompt;
+    delete merged.media_prompt;
+  }
+
+  if (draft.poll) {
+    const structured = ensurePollStructure(draft);
+    merged.poll = {
+      question: structured.question,
+      options: [...structured.options],
+    };
+  } else if (!draft.poll) {
+    delete merged.poll;
+  }
+
+  return merged;
 }
 
 function appendCapsuleContext(
@@ -957,10 +1027,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         const baseDraft = normalizeDraftFromPost(rawPost);
         const mergedDraft = mergeComposerDrafts(prev.draft, baseDraft);
         recordedDraft = mergedDraft;
-        const mergedRawPost =
-          mergedDraft.kind === "poll" && mergedDraft.poll
-            ? { ...rawPost, kind: "poll", poll: { ...mergedDraft.poll } }
-            : rawPost;
+        const mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, mergedDraft);
         recordedRawPost = mergedRawPost;
         return {
           open: true,

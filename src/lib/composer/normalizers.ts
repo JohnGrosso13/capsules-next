@@ -41,7 +41,10 @@ export function normalizeDraftFromPost(post: Record<string, unknown>): ComposerD
     });
     poll = structured;
   }
-  const kind = poll ? "poll" : rawKind;
+  let kind = rawKind || "text";
+  if (!kind) {
+    kind = "text";
+  }
   const suggestionsValue = post.suggestions;
   const suggestions = Array.isArray(suggestionsValue)
     ? suggestionsValue
