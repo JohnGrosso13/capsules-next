@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-import { ensureUserFromRequest, type IncomingUserPayload } from "@/lib/auth/payload";
+import { ensureUserFromRequest, mergeUserPayloadFromRequest, type IncomingUserPayload } from "@/lib/auth/payload";
 import { resolvePostId } from "@/lib/supabase/posts";
 import {
   fetchPostCoreById,
   listPollVotesForPost,
   fetchUserKeyById,
+  updateUserKeyById,
   upsertPollVote,
   updatePostPollJson,
 } from "@/server/posts/repository";
@@ -36,14 +37,27 @@ export async function POST(req: Request) {
   }
 
   const baseUserPayload = (body?.user as IncomingUserPayload | undefined) ?? {};
+  const mergedUserPayload = mergeUserPayloadFromRequest(req, baseUserPayload);
 
-  const userId = await ensureUserFromRequest(req, baseUserPayload);
+  const userId = await ensureUserFromRequest(req, mergedUserPayload);
 
   if (!userId) {
     return NextResponse.json({ error: "auth required" }, { status: 401 });
   }
 
-  const userKey = await fetchUserKeyById(userId);
+  let userKey = await fetchUserKeyById(userId);
+  if (!userKey) {
+    const fallbackKey = typeof mergedUserPayload?.key === "string" ? mergedUserPayload.key.trim() : "";
+    if (fallbackKey.length) {
+      try {
+        await updateUserKeyById(userId, fallbackKey);
+        userKey = fallbackKey;
+      } catch (assignError) {
+        console.warn("Failed to assign user key for poll vote", assignError);
+      }
+    }
+  }
+
   if (!userKey) {
     return NextResponse.json({ error: "user key unavailable" }, { status: 403 });
   }

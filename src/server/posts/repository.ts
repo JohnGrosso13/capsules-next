@@ -338,6 +338,20 @@ export async function fetchUserKeyById(userId: string): Promise<string | null> {
   return null;
 }
 
+export async function updateUserKeyById(userId: string, userKey: string): Promise<void> {
+  const trimmedKey = userKey.trim();
+  if (!trimmedKey.length) return;
+  const result = await db
+    .from("users")
+    .update({ user_key: trimmedKey })
+    .eq("id", userId)
+    .select<{ id: string }>("id")
+    .maybeSingle();
+  if (result.error) {
+    throw decorateDatabaseError("posts.userKey.update", result.error);
+  }
+}
+
 export async function listMemoriesByOwnerAndColumn(
   ownerId: string,
   column: string,
