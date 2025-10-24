@@ -784,7 +784,38 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
 
   if (String(draft.kind ?? "text").toLowerCase() === "poll") {
     try {
-      const pollStructure = ensurePollStructure(draft);
+      const draftPoll =
+        draft.poll && typeof draft.poll === "object"
+          ? (() => {
+              const source = draft.poll as { question?: unknown; options?: unknown };
+              const question =
+                typeof source.question === "string" ? source.question : String(source.question ?? "");
+              const options = Array.isArray(source.options)
+                ? source.options.map((option) =>
+                    typeof option === "string" ? option : String(option ?? ""),
+                  )
+                : [];
+              return { question, options };
+            })()
+          : null;
+      const pollDraft = {
+        kind: String(draft.kind ?? "text"),
+        content: typeof draft.content === "string" ? draft.content : "",
+        mediaUrl:
+          typeof draft.mediaUrl === "string"
+            ? draft.mediaUrl
+            : typeof draft.media_url === "string"
+              ? (draft.media_url as string)
+              : null,
+        mediaPrompt:
+          typeof draft.mediaPrompt === "string"
+            ? draft.mediaPrompt
+            : typeof draft.media_prompt === "string"
+              ? (draft.media_prompt as string)
+              : null,
+        poll: draftPoll,
+      } as const;
+      const pollStructure = ensurePollStructure(pollDraft);
       const pollQuestion = pollStructure.question;
       const pollOptions = pollStructure.options;
       const initialCounts = Array.from({ length: pollOptions.length }, () => 0);

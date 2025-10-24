@@ -662,7 +662,7 @@ export async function updatePostPollJson(postId: string, poll: unknown): Promise
 
 export async function listPollVoteAggregates(postIds: string[]): Promise<PollVoteAggregateRow[]> {
   if (!postIds.length) return [];
-  const result = await db.rpc<PollVoteAggregateRow>("poll_vote_counts", { post_ids: postIds });
+  const result = await db.rpc("poll_vote_counts", { post_ids: postIds });
   if (result.error) {
     if (isMissingPollVotesTable(result.error)) {
       console.warn("poll_votes table missing; returning empty aggregated vote list");
@@ -670,7 +670,8 @@ export async function listPollVoteAggregates(postIds: string[]): Promise<PollVot
     }
     throw decorateDatabaseError("posts.polls.aggregate", result.error);
   }
-  return result.data ?? [];
+  const data = (result.data as PollVoteAggregateRow[] | null) ?? [];
+  return data;
 }
 
 export async function listViewerPollVotes(

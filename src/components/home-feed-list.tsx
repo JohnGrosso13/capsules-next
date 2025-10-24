@@ -1225,7 +1225,7 @@ function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
         } else {
           setCounts((previous) => {
             const base = Array.from({ length: options.length }, (_, idx) => previous?.[idx] ?? 0);
-            base[optionIndex] += 1;
+            base[optionIndex] = (base[optionIndex] ?? 0) + 1;
             return base;
           });
         }

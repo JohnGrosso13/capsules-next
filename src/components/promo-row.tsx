@@ -192,7 +192,7 @@ type TileContext = {
 type PromoLightboxMediaItem = {
   id: string;
   kind: MediaKind;
-  mediaSrc: string | null;
+  mediaSrc: string;
   posterSrc: string | null;
   mimeType: string | null;
   caption: string | null;
@@ -282,24 +282,21 @@ export function PromoRow() {
               return !(id && deletedSet.has(id)) && !(dbId && deletedSet.has(dbId));
             })
           : normalized;
-        const posts: Post[] = filtered
-          .map((record: HomeFeedPost) => {
-            const media = extractPostMedia(record);
-            return {
-              id: record.id,
-              mediaUrl: media.mediaUrl,
-              mediaKind: media.mediaKind,
-              posterUrl: media.posterUrl,
-              mimeType: media.mimeType,
-              content: typeof record.content === "string" ? record.content : null,
-            };
-          })
-          .filter(
-            (entry): entry is Post & { mediaUrl: string; mediaKind: MediaKind } =>
-              typeof entry.mediaUrl === "string" &&
-              entry.mediaUrl.length > 0 &&
-              Boolean(entry.mediaKind),
-          );
+        const posts: Post[] = [];
+        filtered.forEach((record: HomeFeedPost) => {
+          const media = extractPostMedia(record);
+          if (!media.mediaUrl || !media.mediaKind) {
+            return;
+          }
+          posts.push({
+            id: record.id,
+            mediaUrl: media.mediaUrl,
+            mediaKind: media.mediaKind,
+            posterUrl: media.posterUrl,
+            mimeType: media.mimeType,
+            content: typeof record.content === "string" ? record.content : null,
+          });
+        });
 
         if (!cancelled) {
           setMediaPosts(posts);
@@ -385,39 +382,37 @@ export function PromoRow() {
     [tileLayout, context],
   );
 
-  const lightboxItems = React.useMemo<PromoLightboxMediaItem[]>(
-    () =>
-      tileLayout
-        .map((tile) => {
-          if (tile.kind !== "media") return null;
-          const post = context.media[tile.postIndex] ?? null;
-          const mediaKind = post?.mediaKind ?? null;
-          if (!mediaKind) return null;
-          const rawMediaSrc = normalizeMediaUrl(post?.mediaUrl);
-          const mediaSrc =
-            rawMediaSrc && typeof rawMediaSrc === "string"
-              ? resolveToAbsoluteUrl(rawMediaSrc) ?? rawMediaSrc
-              : null;
-          if (!mediaSrc) return null;
-          const rawPoster = normalizeMediaUrl(post?.posterUrl);
-          const posterSrc =
-            rawPoster && typeof rawPoster === "string"
-              ? resolveToAbsoluteUrl(rawPoster) ?? rawPoster
-              : null;
-          const content = typeof post?.content === "string" ? post.content.trim() : "";
-          return {
-            id: tile.id,
-            kind: mediaKind,
-            mediaSrc,
-            posterSrc,
-            mimeType: post?.mimeType ?? null,
-            caption: content ? truncateText(content, 140) : null,
-            fallbackIndex: tile.postIndex,
-          };
-        })
-        .filter((item): item is PromoLightboxMediaItem => item !== null),
-    [context.media, tileLayout],
-  );
+  const lightboxItems = React.useMemo<PromoLightboxMediaItem[]>(() => {
+    const items: PromoLightboxMediaItem[] = [];
+    tileLayout.forEach((tile) => {
+      if (tile.kind !== "media") return;
+      const post = context.media[tile.postIndex] ?? null;
+      const mediaKind = post?.mediaKind ?? null;
+      if (!mediaKind) return;
+      const rawMediaSrc = normalizeMediaUrl(post?.mediaUrl);
+      const mediaSrcCandidate =
+        rawMediaSrc && typeof rawMediaSrc === "string"
+          ? resolveToAbsoluteUrl(rawMediaSrc) ?? rawMediaSrc
+          : null;
+      if (!mediaSrcCandidate) return;
+      const rawPoster = normalizeMediaUrl(post?.posterUrl);
+      const posterSrc =
+        rawPoster && typeof rawPoster === "string"
+          ? resolveToAbsoluteUrl(rawPoster) ?? rawPoster
+          : null;
+      const content = typeof post?.content === "string" ? post.content.trim() : "";
+      items.push({
+        id: tile.id,
+        kind: mediaKind,
+        mediaSrc: mediaSrcCandidate,
+        posterSrc,
+        mimeType: post?.mimeType ?? null,
+        caption: content ? truncateText(content, 140) : null,
+        fallbackIndex: tile.postIndex,
+      });
+    });
+    return items;
+  }, [context.media, tileLayout]);
 
   const openLightbox = React.useCallback(
     (tileId: string) => {

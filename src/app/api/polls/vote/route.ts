@@ -88,10 +88,10 @@ export async function POST(req: Request) {
           : null;
       pollClientId =
         typeof pollCore?.client_id === "string" && pollCore.client_id ? pollCore.client_id : null;
-      pollCreatedAt =
-        typeof (pollCore as { created_at?: string })?.created_at === "string"
-          ? ((pollCore as { created_at: string }).created_at ?? null)
-          : null;
+      if (pollCore && typeof pollCore === "object") {
+        const createdCandidate = (pollCore as { created_at?: unknown }).created_at;
+        pollCreatedAt = typeof createdCandidate === "string" ? createdCandidate : null;
+      }
     } catch (pollFetchError) {
       console.warn("Poll post fetch failed", pollFetchError);
     }

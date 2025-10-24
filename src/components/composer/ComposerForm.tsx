@@ -1055,6 +1055,19 @@ export function ComposerForm({
   const recentItemIcon = React.useMemo(() => <ChatsTeardrop size={18} weight="duotone" />, []);
   const RECENT_VISIBLE_LIMIT = 6;
   const recentHasOverflow = recentSidebarItems.length > RECENT_VISIBLE_LIMIT;
+  const handleShowRecentModal = React.useCallback(() => {
+    setRecentModalOpen(true);
+  }, []);
+  const recentActionProps = React.useMemo(
+    () =>
+      recentHasOverflow
+        ? {
+            actionLabel: "See all" as const,
+            onAction: handleShowRecentModal,
+          }
+        : null,
+    [recentHasOverflow, handleShowRecentModal],
+  );
 
   const handleCreateProjectClick = React.useCallback(() => {
     if (typeof window === "undefined") return;
@@ -1077,8 +1090,7 @@ export function ComposerForm({
             itemIcon={recentItemIcon}
             thumbClassName={styles.memoryThumbChat ?? ""}
             maxVisible={RECENT_VISIBLE_LIMIT}
-            actionLabel={recentHasOverflow ? "See all" : undefined}
-            onAction={recentHasOverflow ? () => setRecentModalOpen(true) : undefined}
+            {...(recentActionProps ?? {})}
           />
         );
       case "drafts":
@@ -1133,8 +1145,8 @@ export function ComposerForm({
     handleCreateProjectClick,
     handleMemoryPickerOpen,
     projectSidebarItems,
+    recentActionProps,
     recentItemIcon,
-    recentHasOverflow,
     recentSidebarItems,
   ]);
 

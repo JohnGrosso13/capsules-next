@@ -33,11 +33,6 @@ export function normalizeDraftFromPost(post: Record<string, unknown>): ComposerD
       mediaUrl,
       mediaPrompt,
       poll: { question, options },
-      title: typeof post.title === "string" ? post.title : null,
-      suggestions:
-        Array.isArray(post.suggestions) && post.suggestions.length
-          ? (post.suggestions as string[])
-          : undefined,
     });
     poll = structured;
   }
