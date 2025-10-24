@@ -760,7 +760,7 @@ export function useCapsuleCustomizerChat({
 
           const serverMessage =
             payload?.message && typeof payload.message === "string" ? payload.message : null;
-          const responseCopy = buildAssistantResponseNatural({
+          const responseCopy = _buildAssistantResponseNatural({
             prompt: trimmed,
             capsuleName: normalizedName,
             mode: aiMode,
