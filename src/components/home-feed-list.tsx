@@ -36,6 +36,7 @@ import {
   type DocumentCardData,
 } from "@/components/documents/document-card";
 import { requestSummary, normalizeSummaryResponse } from "@/lib/ai/client-summary";
+import type { SummaryAttachmentInput } from "@/types/summary";
 
 type LazyImageProps = React.ComponentProps<typeof Image>;
 
@@ -297,6 +298,8 @@ export function HomeFeedList({
               name: doc.name,
               excerpt: doc.summary ?? doc.snippet ?? null,
               text: doc.summary ?? doc.snippet ?? null,
+              url: doc.openUrl ?? doc.url ?? null,
+              mimeType: doc.mimeType ?? null,
             },
           ],
           meta: {
@@ -327,6 +330,8 @@ export function HomeFeedList({
     setFeedSummaryPending(true);
     try {
       const segmentSource = displayedPosts.slice(0, Math.min(8, displayedPosts.length));
+      const attachmentPayload: SummaryAttachmentInput[] = [];
+      const seenAttachmentUrls = new Set<string>();
       const segments = segmentSource.map((post, index) => {
         const author = post.user_name ?? (post as { userName?: string }).userName ?? "Someone";
         const created =
@@ -345,6 +350,28 @@ export function HomeFeedList({
           if (mime.startsWith("video/")) return "video";
           return "file";
         });
+        for (let attachmentIndex = 0; attachmentIndex < attachmentsList.length; attachmentIndex += 1) {
+          if (attachmentPayload.length >= 6) break;
+          const attachment = attachmentsList[attachmentIndex];
+          if (!attachment) continue;
+          const rawUrl = typeof attachment.url === "string" ? attachment.url : null;
+          if (!rawUrl) continue;
+          const absoluteUrl = resolveToAbsoluteUrl(rawUrl) ?? rawUrl;
+          if (!absoluteUrl.length || seenAttachmentUrls.has(absoluteUrl)) continue;
+          seenAttachmentUrls.add(absoluteUrl);
+          const attachmentId =
+            typeof attachment.id === "string" && attachment.id.trim().length
+              ? attachment.id.trim()
+              : `${post.id}-attachment-${attachmentIndex}`;
+          attachmentPayload.push({
+            id: attachmentId,
+            name: attachment.name ?? null,
+            url: absoluteUrl,
+            mimeType: attachment.mimeType ?? null,
+            excerpt: null,
+            text: null,
+          });
+        }
         const attachmentSnippet = attachmentLabels.length
           ? `Attachments: ${attachmentLabels.join(", ")}.`
           : "";
@@ -361,6 +388,7 @@ export function HomeFeedList({
       const summaryPayload = await requestSummary({
         target: "feed",
         segments,
+        attachments: attachmentPayload,
         meta: {
           title: "Recent activity",
           timeframe: "latest updates",

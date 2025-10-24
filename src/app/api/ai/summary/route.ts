@@ -4,14 +4,19 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { summarizeFeedFromDB } from "@/lib/ai/prompter";
 import { summarizeText } from "@/lib/ai/summary";
+import { captionImage } from "@/lib/ai/openai";
+import { serverEnv } from "@/lib/env/server";
+import { resolveToAbsoluteUrl } from "@/lib/url";
 import type { SummaryLengthHint, SummaryResult, SummaryTarget } from "@/types/summary";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 
 const attachmentSchema = z.object({
   id: z.string(),
   name: z.string().optional(),
-  excerpt: z.string().optional(),
-  text: z.string().optional(),
+  excerpt: z.string().optional().nullable(),
+  text: z.string().optional().nullable(),
+  url: z.string().optional().nullable(),
+  mimeType: z.string().optional().nullable(),
 });
 
 const metaSchema = z.object({
@@ -89,14 +94,67 @@ function mapSummaryResult(result: SummaryResult): z.infer<typeof summaryResponse
   };
 }
 
+const MAX_CAPTION_ATTACHMENTS = 6;
+const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|heic|heif|bmp|tiff)(\?|#|$)/i;
+
+function isLikelyImageAttachment(mimeType: string | null | undefined, url: string): boolean {
+  const normalized = (mimeType ?? "").toLowerCase();
+  if (normalized.startsWith("image/")) return true;
+  if (normalized.startsWith("video/")) return false;
+  return IMAGE_EXTENSION_PATTERN.test(url.toLowerCase());
+}
+
+async function buildAttachmentCaptionSegments(
+  attachments: Array<z.infer<typeof attachmentSchema>> | undefined,
+): Promise<string[]> {
+  if (!attachments?.length) return [];
+  const segments: string[] = [];
+  const seen = new Set<string>();
+
+  for (const attachment of attachments) {
+    if (segments.length >= MAX_CAPTION_ATTACHMENTS) break;
+
+    const providedText =
+      (typeof attachment.text === "string" && attachment.text.trim().length > 0) ||
+      (typeof attachment.excerpt === "string" && attachment.excerpt.trim().length > 0);
+    if (providedText) continue;
+
+    const rawUrl = typeof attachment.url === "string" ? attachment.url.trim() : "";
+    if (!rawUrl.length) continue;
+
+    const absoluteUrl = resolveToAbsoluteUrl(rawUrl, serverEnv.SITE_URL) ?? rawUrl;
+    if (!absoluteUrl.length || seen.has(absoluteUrl)) continue;
+
+    if (!isLikelyImageAttachment(attachment.mimeType, absoluteUrl)) continue;
+
+    try {
+      const caption = await captionImage(absoluteUrl);
+      if (!caption) continue;
+      seen.add(absoluteUrl);
+      const label =
+        typeof attachment.name === "string" && attachment.name.trim().length
+          ? attachment.name.trim()
+          : "Feed image";
+      segments.push(`Attachment "${label}": ${caption}`);
+    } catch (error) {
+      console.warn("attachment caption generation failed", absoluteUrl, error);
+    }
+  }
+
+  return segments;
+}
+
 async function handleFeedSummary(
   body: ParsedBody,
 ): Promise<z.infer<typeof summaryResponseSchema> | NextResponse> {
   const providedSegments = collectSegments(body);
-  if (providedSegments.length) {
+  const captionSegments = await buildAttachmentCaptionSegments(body.attachments);
+  const summarySegments = [...providedSegments, ...captionSegments];
+
+  if (summarySegments.length) {
     const summaryInput: Parameters<typeof summarizeText>[0] = {
       target: "feed",
-      segments: providedSegments,
+      segments: summarySegments,
       meta: {
         capsuleId: body.capsuleId ?? body.meta?.capsuleId ?? null,
         title: body.meta?.title ?? null,
@@ -147,13 +205,16 @@ async function handleGenericSummary(
   target: SummaryTarget,
 ): Promise<z.infer<typeof summaryResponseSchema> | NextResponse> {
   const segments = collectSegments(body);
-  if (!segments.length) {
+  const captionSegments = await buildAttachmentCaptionSegments(body.attachments);
+  const combinedSegments = [...segments, ...captionSegments];
+
+  if (!combinedSegments.length) {
     return returnError(400, "missing_content", "No content provided to summarize.");
   }
 
   const summaryInput: Parameters<typeof summarizeText>[0] = {
     target,
-    segments,
+    segments: combinedSegments,
     meta: {
       capsuleId: body.capsuleId ?? body.meta?.capsuleId ?? null,
       title: body.meta?.title ?? null,
