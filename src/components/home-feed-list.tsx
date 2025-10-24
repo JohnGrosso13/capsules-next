@@ -1136,6 +1136,7 @@ function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
       try {
         const response = await fetch("/api/polls/vote", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             postId,
