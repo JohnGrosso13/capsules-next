@@ -54,6 +54,10 @@ export type ServerEnv = {
   STABILITY_API_KEY: string | null;
   STABILITY_BASE_URL: string | null;
   STABILITY_IMAGE_MODEL: string | null;
+  GIPHY_API_KEY: string | null;
+  GIPHY_RATING: string | null;
+  TENOR_API_KEY: string | null;
+  TENOR_CLIENT_KEY: string | null;
 };
 
 function getEnv(name: string, fallbacks: string[] = [], options: { required?: boolean } = {}) {
@@ -105,6 +109,10 @@ const stabilityApiKey = getEnv("STABILITY_API_KEY", []);
 const stabilityBaseUrlRaw = getEnv("STABILITY_BASE_URL", []);
 const stabilityBaseUrl = stabilityBaseUrlRaw ? stabilityBaseUrlRaw.trim() : null;
 const stabilityImageModel = getEnv("STABILITY_IMAGE_MODEL", ["STABILITY_MODEL"]);
+const tenorApiKey = getEnv("TENOR_API_KEY", []);
+const tenorClientKey = getEnv("TENOR_CLIENT_KEY", ["NEXT_PUBLIC_TENOR_CLIENT_KEY"]);
+const giphyApiKey = getEnv("GIPHY_API_KEY", []);
+const giphyRating = getEnv("GIPHY_RATING", ["NEXT_PUBLIC_GIPHY_RATING"]);
 
 export const serverEnv: ServerEnv = {
   SUPABASE_URL: getEnv("SUPABASE_URL", ["NEXT_PUBLIC_SUPABASE_URL"], { required: true })!,
@@ -185,4 +193,8 @@ export const serverEnv: ServerEnv = {
   STABILITY_API_KEY: stabilityApiKey,
   STABILITY_BASE_URL: stabilityBaseUrl,
   STABILITY_IMAGE_MODEL: stabilityImageModel,
+  GIPHY_API_KEY: giphyApiKey,
+  GIPHY_RATING: giphyRating,
+  TENOR_API_KEY: tenorApiKey,
+  TENOR_CLIENT_KEY: tenorClientKey,
 };

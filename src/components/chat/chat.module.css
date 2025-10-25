@@ -831,76 +831,6 @@
   box-shadow: none;
 }
 
-.messageReactionPicker {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  top: auto;
-  right: 0;
-  display: grid;
-  /* Ensure a horizontal, Discord-like grid that doesn't collapse to a thin column */
-  grid-template-columns: repeat(6, 32px);
-  grid-auto-rows: 32px;
-  gap: 4px;
-  padding: 6px;
-  border-radius: 12px;
-  border: 1px solid
-    var(--chats-reaction-picker-border, color-mix(in srgb, rgba(76, 86, 212, 0.4) 78%, transparent));
-  background: var(
-    --chats-reaction-picker-background,
-    color-mix(in srgb, rgba(18, 20, 46, 0.92) 80%, transparent)
-  );
-  box-shadow: var(--chats-reaction-picker-shadow, 0 16px 32px rgba(0, 0, 0, 0.28));
-  z-index: 4;
-  /* Prevent overly narrow columns when the container is tiny */
-  min-width: 212px; /* 6 * 32px + 5 * 4px gap */
-}
-
-.messageReactionOption {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  font-size: 1.1rem;
-  cursor: pointer;
-  transition:
-    transform 140ms ease,
-    background 140ms ease,
-    box-shadow 140ms ease;
-}
-
-.messageReactionOption:hover {
-  transform: translateY(-1px);
-  background: color-mix(in srgb, rgba(78, 88, 210, 0.3) 80%, transparent);
-}
-
-.messageReactionOption:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-brand) 78%, transparent);
-  outline-offset: 2px;
-}
-
-@media (hover: hover) {
-  .messageReactions {
-    opacity: 0;
-    max-height: 0;
-    margin-top: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-
-  .messageItem:hover .messageReactions,
-  .messageReactionsVisible,
-  .messageReactions:focus-within {
-    opacity: 1;
-    max-height: 240px;
-    pointer-events: auto;
-    margin-top: 6px;
-    overflow: visible;
-  }
-}
 
 .typingIndicatorRow {
   margin: 4px 0 6px;
@@ -1024,6 +954,7 @@
 }
 
 .composer {
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: 12px;
@@ -1365,7 +1296,7 @@
     max-width: min(68ch, 84vw);
   }
 
-  .composer {
+  .composer {`n  position: relative;
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
@@ -1403,3 +1334,254 @@
     opacity: 1;
   }
 }
+.messageReactionPicker {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, rgba(76, 86, 212, 0.4) 78%, transparent);
+  background: color-mix(in srgb, rgba(18, 20, 46, 0.94) 82%, transparent);
+  box-shadow: var(--chats-reaction-picker-shadow, 0 16px 32px rgba(0, 0, 0, 0.28));
+  z-index: 4;
+  width: min(320px, 80vw);
+  max-height: 360px;
+  overflow: hidden;
+}
+
+.emojiPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emojiSearchInput {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 70%, transparent);
+  background: color-mix(in srgb, rgba(36, 40, 82, 0.55) 75%, rgba(12, 14, 32, 0.82));
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.emojiSearchInput::placeholder {
+  color: var(--text-3, rgba(255, 255, 255, 0.62));
+}
+
+.emojiPopularRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.emojiPopularButton {
+  min-width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 70%, transparent);
+  background: color-mix(in srgb, rgba(42, 54, 100, 0.55) 75%, rgba(14, 16, 38, 0.82));
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
+}
+
+.emojiPopularButton:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-brand) 26%, transparent);
+}
+
+.emojiGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  max-height: 210px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.emojiGridButton {
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, rgba(36, 40, 82, 0.32) 76%, transparent);
+  color: var(--text);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.emojiGridButton:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+}
+
+.emojiGridButtonActive {
+  background: color-mix(in srgb, var(--color-brand) 32%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand) 52%, transparent);
+}
+
+.emojiGlyph {
+  font-size: 1.4rem;
+}
+
+.emojiEmpty {
+  font-size: 0.85rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  text-align: center;
+  padding: 12px 4px;
+}
+.gifPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(360px, 90vw);
+  max-height: 420px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, rgba(78, 88, 210, 0.4) 78%, transparent);
+  background: color-mix(in srgb, rgba(12, 14, 36, 0.96) 82%, transparent);
+  box-shadow: var(--chats-reaction-picker-shadow, 0 16px 32px rgba(0, 0, 0, 0.32));
+}
+
+.gifSearchInput {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 70%, transparent);
+  background: color-mix(in srgb, rgba(36, 42, 78, 0.6) 75%, rgba(12, 14, 32, 0.82));
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.gifSearchInput::placeholder {
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
+}
+
+.gifError {
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--color-danger) 68%, var(--text));
+}
+
+.gifResults {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 260px;
+}
+
+.gifResultButton {
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.1) 60%, transparent);
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.gifResultButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.gifResultImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gifEmpty {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
+}
+
+.gifFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gifCloseButton,
+.gifLoadMore {
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 75%, transparent);
+  background: color-mix(in srgb, rgba(34, 40, 74, 0.6) 72%, rgba(10, 12, 30, 0.88));
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
+}
+
+.gifCloseButton:hover,
+.gifLoadMore:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-brand) 22%, transparent);
+}
+
+.gifLoadMore:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+.composerGifPanel {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: 12px;
+  z-index: 6;
+}
+
+.composerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.composerGifButton {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 65%, transparent);
+  background: color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75));
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.composerGifButton:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+}
+
+.composerGifButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 80%, transparent);
+  outline-offset: 2px;
+}
+
+.composerGifButtonActive {
+  border-color: color-mix(in srgb, var(--color-brand) 80%, transparent);
+  background: color-mix(in srgb, var(--color-brand) 26%, transparent);
+}
+
+

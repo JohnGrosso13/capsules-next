@@ -10,6 +10,7 @@ import {
   Smiley,
   NotePencil,
   Paperclip,
+  Gif,
 } from "@phosphor-icons/react/dist/ssr";
 
 import type {
@@ -21,6 +22,8 @@ import { useCurrentUser } from "@/services/auth/client";
 
 import type { ChatMessageSendInput } from "@/components/providers/ChatProvider";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
+import { EmojiPicker } from "./EmojiPicker";
+import { GifPicker } from "./GifPicker";
 
 import styles from "./chat.module.css";
 
@@ -72,12 +75,6 @@ function describeTypingParticipants(participants: ChatParticipant[]): string {
   return `${names[0]}, ${names[1]}, and ${names.length - 2} others are typing...`;
 }
 
-// Discord-like quick reactions. These were previously corrupted to "??"
-// which caused broken reactions to be saved and displayed.
-// Use literal emoji here so the picker and stored reactions are correct.
-const REACTION_OPTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"] as const;
-
-const MESSAGE_GROUP_WINDOW_MS = 5 * 60_000;
 
 function isContinuationOf(previous: ChatMessage | null | undefined, current: ChatMessage): boolean {
   if (!previous) return false;
@@ -98,6 +95,12 @@ type PendingAttachment = {
   storageKey: string | null;
   sessionId: string | null;
 };
+
+const MESSAGE_GROUP_WINDOW_MS = 5 * 60_000;
+const GIF_PROVIDER = (process.env.NEXT_PUBLIC_GIF_PROVIDER || "").trim().toLowerCase();
+const GIF_SUPPORT_ENABLED =
+  process.env.NEXT_PUBLIC_GIFS_ENABLED === "true" ||
+  (GIF_PROVIDER.length > 0 && GIF_PROVIDER !== "none");
 
 
 type ChatConversationProps = {
@@ -229,6 +232,7 @@ export function ChatConversation({
   const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [reactionTargetId, setReactionTargetId] = React.useState<string | null>(null);
+  const [isGifPickerOpen, setGifPickerOpen] = React.useState(false);
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
   const messageInputRef = React.useRef<HTMLTextAreaElement | null>(null);
 
@@ -240,6 +244,8 @@ export function ChatConversation({
     clearAttachment,
     handleAttachClick,
     handleAttachmentFile,
+    attachRemoteAttachment,
+
   } = useAttachmentUpload();
   const [queuedAttachments, setQueuedAttachments] = React.useState<PendingAttachment[]>([]);
   const pendingFilesRef = React.useRef<File[]>([]);
@@ -264,6 +270,12 @@ export function ChatConversation({
     },
     [processNextQueuedFile],
   );
+
+  React.useEffect(() => {
+    return () => {
+      pendingFilesRef.current = [];
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!readyAttachment || readyAttachment.status !== "ready" || !readyAttachment.url) return;
@@ -533,6 +545,31 @@ export function ChatConversation({
     handleAttachClick();
   }, [handleAttachClick]);
 
+  const handleGifButtonClick = React.useCallback(() => {
+    setGifPickerOpen((current) => !current);
+  }, []);
+
+  const handleGifSelect = React.useCallback(
+    (gif: { id: string; title: string; url: string; previewUrl: string; width: number | null; height: number | null; size: number | null }) => {
+      if (!GIF_SUPPORT_ENABLED) return;
+      attachRemoteAttachment({
+        url: gif.url,
+        thumbUrl: gif.previewUrl,
+        name: gif.title || "GIF",
+        mimeType: "image/gif",
+        size: typeof gif.size === "number" && Number.isFinite(gif.size) ? gif.size : 0,
+      });
+      setGifPickerOpen(false);
+    },
+    [attachRemoteAttachment],
+  );
+
+  React.useEffect(() => {
+    if (!GIF_SUPPORT_ENABLED && isGifPickerOpen) {
+      setGifPickerOpen(false);
+    }
+  }, [isGifPickerOpen]);
+
   const handleFileInputChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files ? Array.from(event.target.files) : [];
@@ -577,6 +614,7 @@ export function ChatConversation({
       clearAttachment();
       requestAnimationFrame(() => adjustTextareaHeight());
       onTypingChange?.(session.id, false);
+      setGifPickerOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message.";
       setError(message);
@@ -848,22 +886,12 @@ export function ChatConversation({
                           <Smiley size={14} weight="duotone" />
                         </button>
                         {isPickerOpen ? (
-                          <div
-                            className={styles.messageReactionPicker}
-                            role="menu"
-                            data-role="reaction-picker"
-                          >
-                            {REACTION_OPTIONS.map((option, optionIndex) => (
-                              <button
-                                key={`${messageKey}-picker-${optionIndex}`}
-                                type="button"
-                                className={styles.messageReactionOption}
-                                onClick={() => handleReactionSelect(message.id, option)}
-                                aria-label={`React with ${option}`}
-                              >
-                                {option}
-                              </button>
-                            ))}
+                          <div className={styles.messageReactionPicker} data-role="reaction-picker">
+                            <EmojiPicker
+                              onSelect={(emoji) => handleReactionSelect(message.id, emoji)}
+                              onClose={() => setReactionTargetId(null)}
+                              anchorLabel={displayName}
+                            />
                           </div>
                         ) : null}
                       </div>
@@ -1002,11 +1030,27 @@ export function ChatConversation({
           >
             <Paperclip size={18} weight="bold" />
           </button>
+          <button
+            type="button"
+            className={`${styles.composerGifButton} ${
+              isGifPickerOpen ? styles.composerGifButtonActive : ""
+            }`.trim()}
+            onClick={handleGifButtonClick}
+            aria-label="Add GIF"
+            aria-expanded={isGifPickerOpen}
+          >
+            <Gif size={18} weight="bold" />
+          </button>
           <button type="submit" className={styles.sendButton} disabled={disableSend}>
             <PaperPlaneTilt size={18} weight="fill" className={styles.sendButtonIcon} />
             <span>Send</span>
           </button>
         </div>
+        {isGifPickerOpen ? (
+          <div className={styles.composerGifPanel}>
+            <GifPicker onSelect={handleGifSelect} onClose={() => setGifPickerOpen(false)} />
+          </div>
+        ) : null}
         <input
           ref={fileInputRef}
           type="file"
@@ -1018,3 +1062,8 @@ export function ChatConversation({
     </div>
   );
 }
+
+
+
+
+
