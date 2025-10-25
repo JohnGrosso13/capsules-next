@@ -49,6 +49,10 @@
   gap: 20px;
 }
 
+.tileHeaderActive {
+  align-items: center;
+}
+
 .tileHeading {
   display: flex;
   flex-direction: column;
@@ -80,6 +84,12 @@
   line-height: 1.5;
 }
 
+.headerMetaGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
 .headerMeta {
   display: flex;
   flex-wrap: wrap;
@@ -108,6 +118,12 @@
   color: color-mix(in srgb, var(--text) 70%, transparent);
 }
 
+.headerStatus {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+}
+
 .headerActions {
   display: flex;
   flex-wrap: wrap;
@@ -115,6 +131,12 @@
   justify-content: flex-end;
   gap: 12px;
   margin-left: auto;
+}
+
+.headerActionsActive {
+  gap: 10px;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .codeChip {
@@ -638,6 +660,19 @@
   cursor: not-allowed;
 }
 
+.inviteButton {
+  min-width: 0;
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 28%, rgba(255, 255, 255, 0.1));
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 58%, transparent);
+  color: var(--text);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--color-brand, #6366f1) 18%, rgba(5, 10, 30, 0.28));
+}
+
+.inviteButton:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 68%, transparent);
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 36%, rgba(255, 255, 255, 0.12));
+}
+
 .sessionCard {
   display: flex;
   flex-direction: column;
@@ -952,6 +987,15 @@
 .controls {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.controlGroup {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
 }
 
@@ -974,6 +1018,21 @@
 .controlButton:hover:not(:disabled) {
   border-color: var(--party-control-hover-border);
   transform: translateY(-1px);
+}
+
+.controlCompact {
+  padding: 8px 14px;
+}
+
+.controlGhost {
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.04) 100%, transparent);
+  border-color: color-mix(in srgb, var(--party-panel-border) 68%, transparent);
+  color: color-mix(in srgb, var(--text) 82%, transparent);
+}
+
+.controlGhost:hover:not(:disabled) {
+  border-color: var(--party-control-hover-border);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.1) 100%, transparent);
 }
 
 .controlButton:disabled {
@@ -1084,6 +1143,103 @@
   color: color-mix(in srgb, var(--text) 70%, transparent);
 }
 
+.inviteOverlayBackdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, rgba(5, 10, 30, 0.78) 85%, transparent);
+  backdrop-filter: blur(6px);
+  z-index: 90;
+}
+
+.inviteOverlay {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(480px, calc(100vw - 40px));
+  max-height: min(560px, calc(100vh - 80px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  border: 1px solid var(--party-panel-border);
+  background: var(--party-panel-background);
+  box-shadow: 0 24px 80px rgba(5, 10, 30, 0.45);
+  z-index: 99;
+}
+
+.inviteOverlayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inviteOverlayHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.inviteOverlayClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--party-control-border, rgba(0, 0, 0, 0.08)) 78%, transparent);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.06) 100%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease;
+}
+
+.inviteOverlayClose:hover {
+  transform: translateY(-1px);
+  border-color: var(--party-control-hover-border);
+}
+
+.inviteOverlaySearch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--party-input-border);
+  background: var(--party-input-background);
+}
+
+.inviteOverlaySearch input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.inviteOverlayList {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.inviteOverlayEmpty {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+  padding: 30px 12px;
+  color: color-mix(in srgb, var(--text) 72%, transparent);
+}
+
+.inviteOverlayEmpty p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .inviteList {
   display: flex;
   flex-direction: column;
@@ -1186,6 +1342,7 @@
     justify-content: flex-start;
   }
 
+
   .inviteRow {
     flex-direction: column;
     align-items: stretch;
@@ -1216,6 +1373,17 @@
   .partyTile {
     padding: 22px;
     border-radius: 22px;
+  }
+
+  .headerActionsActive {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .inviteOverlay {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 32px);
+    padding: 18px 20px;
   }
 }
 

@@ -6,16 +6,18 @@ import Image from "next/image";
 import { createPortal } from "react-dom";
 
 import {
-  MicrophoneStage,
   CopySimple,
   LinkSimple,
+  MagnifyingGlass,
   Microphone,
   MicrophoneSlash,
+  MicrophoneStage,
   PaperPlaneTilt,
   SignOut,
   SpeakerSimpleHigh,
   SpeakerSimpleSlash,
   UsersThree,
+  X,
   XCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import {
@@ -248,6 +250,8 @@ export function PartyPanel({
   const [inviteBusyId, setInviteBusyId] = React.useState<string | null>(null);
   const [copyState, setCopyState] = React.useState<"idle" | "copied">("idle");
   const [showInviteDetails, setShowInviteDetails] = React.useState(false);
+  const [invitePickerOpen, setInvitePickerOpen] = React.useState(false);
+  const [inviteSearch, setInviteSearch] = React.useState("");
   const inviteRevealTimer = React.useRef<number | null>(null);
 
   const participantProfiles = React.useMemo(() => {
@@ -318,6 +322,12 @@ export function PartyPanel({
     }
   }, [session?.partyId, session]);
 
+  React.useEffect(() => {
+    if (!invitePickerOpen) {
+      setInviteSearch("");
+    }
+  }, [invitePickerOpen]);
+
   const isLoading = status === "loading";
   const isConnecting = status === "connecting";
   const loading = isLoading || isConnecting;
@@ -332,6 +342,13 @@ export function PartyPanel({
         return a.name.localeCompare(b.name);
       });
   }, [friends, friendTargets]);
+  const filteredInviteFriends = React.useMemo(() => {
+    const query = inviteSearch.trim().toLowerCase();
+    if (!query) return inviteableFriends;
+    return inviteableFriends.filter((friend) =>
+      (friend.name ?? "").toLowerCase().includes(query),
+    );
+  }, [inviteSearch, inviteableFriends]);
 
   const busyInviteIds = React.useMemo(
     () => new Set([inviteBusyId].filter(Boolean) as string[]),
@@ -400,6 +417,23 @@ export function PartyPanel({
       setCopyState("idle");
     }, 10000);
   }, [handleCopyInvite]);
+
+  const handleOpenInvitePicker = React.useCallback(() => {
+    setInvitePickerOpen(true);
+  }, []);
+
+  const handleCloseInvitePicker = React.useCallback(() => {
+    setInvitePickerOpen(false);
+  }, []);
+
+  const handleInviteSearchChange = React.useCallback((value: string) => {
+    setInviteSearch(value);
+  }, []);
+
+  const handleFindFriends = React.useCallback(() => {
+    setInvitePickerOpen(false);
+    onShowFriends();
+  }, [onShowFriends]);
 
   const handleInviteFriend = React.useCallback(
     async (friend: FriendItem) => {
@@ -591,140 +625,113 @@ export function PartyPanel({
     </>
   );
 
-  const renderActiveTile = (currentSession: PartySession) => (
-    <>
-      <header className={styles.tileHeader}>
-        <div className={styles.headerMeta}>
-          <span className={styles.statusPill}>
-            <MicrophoneStage size={16} weight="duotone" />
-            {partyStatusLabel}
-          </span>
-          <div className={styles.headerDetailRow}>
-            <span className={styles.metaLabel}>Host</span>
-            <span className={styles.metaValue}>
-              {currentSession.metadata.ownerDisplayName ?? "Unknown"}
-              {currentSession.isOwner ? <span className={styles.hostBadge}>you</span> : null}
-            </span>
-          </div>
-          <div className={styles.headerDetailRow}>
-            <span className={styles.metaLabel}>Created</span>
-            <span className={styles.metaValue}>{createdAtLabel || "Moments ago"}</span>
-          </div>
-        </div>
-        <div className={styles.headerActions}>
-          {showInviteDetails ? <code className={styles.codeChip}>{currentSession.partyId}</code> : null}
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={() => {
-              void handleGenerateInvite();
-            }}
-            disabled={loading}
-          >
-            <CopySimple size={16} weight="bold" />
-            {copyState === "copied" ? "Invite copied" : "Generate invite"}
-          </button>
-        </div>
-      </header>
-      <section className={styles.section}>
-        <PartyStage
-          session={currentSession}
-          canClose={currentSession.isOwner}
-          status={status}
-          participantProfiles={participantProfiles}
-          friendTargets={friendTargets}
-          onLeave={handleResetAndLeave}
-          onClose={handleResetAndClose}
-          onReconnecting={handleRoomReconnecting}
-          onReady={handleRoomConnected}
-          onDisconnected={handleRoomDisconnected}
-        />
-      </section>
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <span className={styles.sectionTitle}>Invite friends</span>
-          <p className={styles.sectionSubtitle}>
-            Drop an invite in chat and they&apos;ll join the voice lobby instantly.
-          </p>
-        </div>
-        <div className={styles.sectionBody}>
-          {inviteableFriends.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p>You don&apos;t have invite-ready friends yet.</p>
-              <button type="button" className={styles.secondaryButton} onClick={onShowFriends}>
-                Find friends
-              </button>
+  const renderActiveTile = (currentSession: PartySession) => {
+    const statusText = status === "connected" ? null : partyStatusLabel;
+    return (
+      <>
+        <header className={`${styles.tileHeader} ${styles.tileHeaderActive}`}>
+          <div className={styles.tileHeading}>
+            <h2 className={styles.tileTitle}>Party lobby</h2>
+            <div className={styles.headerMetaGrid}>
+              <div className={styles.headerDetailRow}>
+                <span className={styles.metaLabel}>Host</span>
+                <span className={styles.metaValue}>
+                  {currentSession.metadata.ownerDisplayName ?? "Unknown"}
+                  {currentSession.isOwner ? <span className={styles.hostBadge}>you</span> : null}
+                </span>
+              </div>
+              <div className={styles.headerDetailRow}>
+                <span className={styles.metaLabel}>Created</span>
+                <span className={styles.metaValue}>{createdAtLabel || "Moments ago"}</span>
+              </div>
             </div>
-          ) : (
-            <ul className={styles.inviteList}>
-              {inviteableFriends.map((friend) => {
-                const isBusy = busyInviteIds.has(friend.id);
-                return (
-                  <li key={friend.id} className={styles.inviteRow}>
-                    <div className={styles.inviteMeta}>
-                      <div className={styles.avatar}>{initialsFromName(friend.name)}</div>
-                      <div className={styles.inviteInfo}>
-                        <span className={styles.inviteName}>{friend.name}</span>
-                        <span
-                          className={`${styles.inviteStatus} ${
-                            friend.status === "online" ? styles.statusOnline : styles.statusIdle
-                          }`}
-                        >
-                          {friend.status === "online" ? "Online" : "Offline"}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className={styles.primaryButton}
-                      onClick={() => {
-                        void handleInviteFriend(friend);
-                      }}
-                      disabled={isBusy || loading}
-                    >
-                      <PaperPlaneTilt size={16} weight="bold" />
-                      {isBusy ? "Sending..." : "Invite"}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </section>
-      <section className={styles.section}>
-        <div className={styles.sectionHeaderRow}>
-          <LinkSimple size={18} weight="duotone" />
-          <span>Have a code? Jump into a party</span>
-        </div>
-        <div className={styles.inlineJoin}>
-          <input
-            className={styles.input}
-            placeholder="Enter your party code"
-            value={joinCode}
-            onChange={(event) => setJoinCode(event.target.value)}
-            disabled={loading}
+            {statusText ? <span className={styles.headerStatus}>{statusText}</span> : null}
+          </div>
+          <div className={`${styles.headerActions} ${styles.headerActionsActive}`}>
+            <button
+              type="button"
+              className={`${styles.secondaryButton} ${styles.inviteButton}`}
+              onClick={handleOpenInvitePicker}
+            >
+              <UsersThree size={16} weight="bold" />
+              Invite friends
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => {
+                void handleGenerateInvite();
+              }}
+              disabled={loading}
+            >
+              <CopySimple size={16} weight="bold" />
+              {copyState === "copied" ? "Invite copied" : "Generate invite"}
+            </button>
+            {showInviteDetails ? <code className={styles.codeChip}>{currentSession.partyId}</code> : null}
+          </div>
+        </header>
+        <section className={styles.section}>
+          <PartyStage
+            session={currentSession}
+            canClose={currentSession.isOwner}
+            status={status}
+            participantProfiles={participantProfiles}
+            friendTargets={friendTargets}
+            onLeave={handleResetAndLeave}
+            onClose={handleResetAndClose}
+            onReconnecting={handleRoomReconnecting}
+            onReady={handleRoomConnected}
+            onDisconnected={handleRoomDisconnected}
           />
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={() => {
-              void handleJoinParty();
-            }}
-            disabled={loading || !joinCode.trim()}
-          >
-            {loading
-              ? action === "join"
-                ? "Connecting..."
-                : action === "resume"
-                  ? "Reconnecting..."
-                  : "Join"
-              : "Join"}
-          </button>
-        </div>
-      </section>
-    </>
-  );
+        </section>
+        <section className={styles.section}>
+          <div className={styles.sectionHeaderRow}>
+            <LinkSimple size={18} weight="duotone" />
+            <span>Have a code? Jump into a party</span>
+          </div>
+          <div className={styles.inlineJoin}>
+            <input
+              className={styles.input}
+              placeholder="Enter your party code"
+              value={joinCode}
+              onChange={(event) => setJoinCode(event.target.value)}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => {
+                void handleJoinParty();
+              }}
+              disabled={loading || !joinCode.trim()}
+            >
+              {loading
+                ? action === "join"
+                  ? "Connecting..."
+                  : action === "resume"
+                    ? "Reconnecting..."
+                    : "Join"
+                : "Join"}
+            </button>
+          </div>
+        </section>
+        <PartyInviteOverlay
+          open={invitePickerOpen}
+          onClose={handleCloseInvitePicker}
+          friends={filteredInviteFriends}
+          totalFriends={inviteableFriends.length}
+          busyInviteIds={busyInviteIds}
+          loading={loading}
+          search={inviteSearch}
+          onSearchChange={handleInviteSearchChange}
+          onInvite={(friend) => {
+            void handleInviteFriend(friend);
+          }}
+          onFindFriends={handleFindFriends}
+        />
+      </>
+    );
+  };
 
   return (
     <div className={panelClassName}>
@@ -763,6 +770,178 @@ export function PartyPanel({
         {session ? renderActiveTile(session) : renderInactiveTile()}
       </div>
     </div>
+  );
+}
+
+type PartyInviteOverlayProps = {
+  open: boolean;
+  onClose(): void;
+  friends: FriendItem[];
+  totalFriends: number;
+  busyInviteIds: Set<string>;
+  loading: boolean;
+  search: string;
+  onSearchChange(value: string): void;
+  onInvite(friend: FriendItem): void;
+  onFindFriends(): void;
+};
+
+function PartyInviteOverlay({
+  open,
+  onClose,
+  friends,
+  totalFriends,
+  busyInviteIds,
+  loading,
+  search,
+  onSearchChange,
+  onInvite,
+  onFindFriends,
+}: PartyInviteOverlayProps) {
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  React.useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, onClose]);
+
+  React.useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const body = document.body;
+    const previousOverflow = body.style.overflow;
+    const previousCountAttr = body.getAttribute("data-hide-prompter-count");
+    const previousCount =
+      typeof previousCountAttr === "string" ? Number.parseInt(previousCountAttr, 10) || 0 : 0;
+    const nextCount = previousCount + 1;
+    body.setAttribute("data-hide-prompter-count", String(nextCount));
+    body.setAttribute("data-hide-prompter", "true");
+    body.style.overflow = "hidden";
+    const focusTimer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 0);
+    return () => {
+      window.clearTimeout(focusTimer);
+      body.style.overflow = previousOverflow;
+      const remaining = Math.max(0, nextCount - 1);
+      if (remaining > 0) {
+        body.setAttribute("data-hide-prompter-count", String(remaining));
+      } else {
+        body.removeAttribute("data-hide-prompter-count");
+        body.removeAttribute("data-hide-prompter");
+      }
+    };
+  }, [open]);
+
+  if (!open || typeof document === "undefined") {
+    return null;
+  }
+
+  const hasFriends = totalFriends > 0;
+  const hasResults = friends.length > 0;
+  const trimmedSearch = search.trim();
+
+  let bodyContent: React.ReactNode;
+  if (!hasFriends) {
+    bodyContent = (
+      <div className={styles.inviteOverlayEmpty}>
+        <p>You don&apos;t have invite-ready friends yet.</p>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          onClick={() => {
+            onClose();
+            onFindFriends();
+          }}
+        >
+          Find friends
+        </button>
+      </div>
+    );
+  } else if (!hasResults) {
+    bodyContent = (
+      <div className={styles.inviteOverlayEmpty}>
+        <p>
+          No friends match
+          {trimmedSearch ? ` “${trimmedSearch}”` : ""}.
+        </p>
+      </div>
+    );
+  } else {
+    bodyContent = (
+      <ul className={`${styles.inviteList} ${styles.inviteOverlayList}`}>
+        {friends.map((friend) => {
+          const isBusy = busyInviteIds.has(friend.id);
+          const inviteDisabled = isBusy || loading;
+          return (
+            <li key={friend.id} className={styles.inviteRow}>
+              <div className={styles.inviteMeta}>
+                <div className={styles.avatar}>{initialsFromName(friend.name)}</div>
+                <div className={styles.inviteInfo}>
+                  <span className={styles.inviteName}>{friend.name}</span>
+                  <span
+                    className={`${styles.inviteStatus} ${
+                      friend.status === "online" ? styles.statusOnline : styles.statusIdle
+                    }`}
+                  >
+                    {friend.status === "online" ? "Online" : "Offline"}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={() => {
+                  onInvite(friend);
+                }}
+                disabled={inviteDisabled}
+              >
+                <PaperPlaneTilt size={16} weight="bold" />
+                {isBusy ? "Sending..." : "Invite"}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  return createPortal(
+    <>
+      <div className={styles.inviteOverlayBackdrop} onClick={onClose} aria-hidden="true" />
+      <div className={styles.inviteOverlay} role="dialog" aria-modal="true" aria-label="Invite friends">
+        <header className={styles.inviteOverlayHeader}>
+          <h3>Invite friends</h3>
+          <button
+            type="button"
+            className={styles.inviteOverlayClose}
+            onClick={onClose}
+            aria-label="Close invite friends"
+          >
+            <X size={16} weight="bold" />
+          </button>
+        </header>
+        <div className={styles.inviteOverlaySearch}>
+          <MagnifyingGlass size={16} weight="bold" />
+          <input
+            ref={searchInputRef}
+            type="search"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search friends"
+          />
+        </div>
+        {bodyContent}
+      </div>
+    </>,
+    document.body,
   );
 }
 
@@ -1146,63 +1325,67 @@ function PartyStageScene({
         ) : null}
       </div>
       <div className={styles.controls}>
-        {!canPlayAudio ? (
-          <button {...startAudioButtonProps}>
-            <MicrophoneStage size={16} weight="bold" />
-            Tap to allow party audio
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={styles.controlButton}
-          onClick={() => {
-            void handleToggleMic();
-          }}
-          disabled={micBusy || !room}
-        >
-          {micEnabled ? (
-            <Microphone size={16} weight="bold" />
-          ) : (
-            <MicrophoneSlash size={16} weight="bold" />
-          )}
-          {micEnabled ? "Mute" : "Unmute"}
-        </button>
-        <button
-          type="button"
-          className={styles.controlButton}
-          onClick={handleToggleDeafen}
-          disabled={!room}
-          aria-pressed={isDeafened}
-        >
-          {isDeafened ? (
-            <SpeakerSimpleSlash size={16} weight="bold" />
-          ) : (
-            <SpeakerSimpleHigh size={16} weight="bold" />
-          )}
-          {isDeafened ? "Undeafen" : "Deafen"}
-        </button>
-        <button
-          type="button"
-          className={styles.controlButton}
-          onClick={() => {
-            void onLeave();
-          }}
-        >
-          <SignOut size={16} weight="bold" />
-          Leave party
-        </button>
-        {canClose ? (
+        <div className={styles.controlGroup}>
+          {!canPlayAudio ? (
+            <button {...startAudioButtonProps}>
+              <MicrophoneStage size={16} weight="bold" />
+              Tap to allow party audio
+            </button>
+          ) : null}
           <button
             type="button"
-            className={`${styles.controlButton} ${styles.controlDanger}`}
+            className={`${styles.controlButton} ${styles.controlCompact}`}
             onClick={() => {
-              void onClose();
+              void handleToggleMic();
+            }}
+            disabled={micBusy || !room}
+          >
+            {micEnabled ? (
+              <Microphone size={16} weight="bold" />
+            ) : (
+              <MicrophoneSlash size={16} weight="bold" />
+            )}
+            {micEnabled ? "Mute" : "Unmute"}
+          </button>
+          <button
+            type="button"
+            className={`${styles.controlButton} ${styles.controlCompact}`}
+            onClick={handleToggleDeafen}
+            disabled={!room}
+            aria-pressed={isDeafened}
+          >
+            {isDeafened ? (
+              <SpeakerSimpleSlash size={16} weight="bold" />
+            ) : (
+              <SpeakerSimpleHigh size={16} weight="bold" />
+            )}
+            {isDeafened ? "Undeafen" : "Deafen"}
+          </button>
+        </div>
+        <div className={styles.controlGroup}>
+          <button
+            type="button"
+            className={`${styles.controlButton} ${styles.controlGhost}`}
+            onClick={() => {
+              void onLeave();
             }}
           >
-            <XCircle size={16} weight="bold" />
-            End party for everyone
+            <SignOut size={16} weight="bold" />
+            Leave lobby
           </button>
-        ) : null}
+          {canClose ? (
+            <button
+              type="button"
+              className={`${styles.controlButton} ${styles.controlDanger}`}
+              onClick={() => {
+                void onClose();
+              }}
+            >
+              <XCircle size={16} weight="bold" />
+              End party
+            </button>
+          ) : null}
+        </div>
       </div>
       {status !== "connected" ? (
         <div className={styles.statusHint}>

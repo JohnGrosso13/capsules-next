@@ -109,6 +109,10 @@
   isolation: isolate;
 }
 
+:global(body[data-hide-prompter="true"]) .prompterStage {
+  display: none !important;
+}
+
 .prompterStage::before {
   content: none;
 }
