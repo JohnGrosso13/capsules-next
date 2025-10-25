@@ -10,8 +10,9 @@ import { ChatConversation } from "../ChatConversation";
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
-    // eslint-disable-next-line react/jsx-props-no-spreading
-    return <img {...props} />;
+    const { alt = "", ...rest } = props;
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img {...rest} alt={typeof alt === "string" ? alt : ""} />;
   },
 }));
 
@@ -142,17 +143,6 @@ describe("ChatConversation message context menu", () => {
         />,
       );
     });
-  }
-
-  function findElementContainingText(rootElement: HTMLElement, text: string): HTMLElement | null {
-    const walker = document.createTreeWalker(rootElement, NodeFilter.SHOW_ELEMENT);
-    while (walker.nextNode()) {
-      const element = walker.currentNode as HTMLElement;
-      if (element.textContent?.includes(text)) {
-        return element;
-      }
-    }
-    return null;
   }
 
   it("opens the message context menu and copies message text", async () => {

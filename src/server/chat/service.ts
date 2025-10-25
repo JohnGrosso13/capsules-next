@@ -1302,11 +1302,12 @@ async function updateGroupMessageAttachments(params: {
   const filteredAttachments = payload.attachments.filter(
     (attachment) => !params.removeSet.has(attachment.id),
   );
+  const memberSet = new Set(participantIds);
   if (filteredAttachments.length === payload.attachments.length) {
     const unchanged = toMessageRecord(messageRow);
     const participantSummaries = await buildGroupParticipantSummaries(
-      participantIds,
-      requesterResolved,
+      memberSet,
+      [requesterResolved],
     );
     return { message: unchanged, participants: participantSummaries };
   }
@@ -1327,8 +1328,8 @@ async function updateGroupMessageAttachments(params: {
     };
   const messageRecord = toMessageRecord(updatedRow);
   const participantSummaries = await buildGroupParticipantSummaries(
-    participantIds,
-    requesterResolved,
+    memberSet,
+    [requesterResolved],
   );
   const sessionTitle = buildGroupConversationTitle(participantSummaries, conversationRow.title);
   const sessionAvatar = conversationRow.avatar_url ?? null;
@@ -1353,27 +1354,6 @@ async function updateGroupMessageAttachments(params: {
     message: messageRecord,
     participants: participantSummaries,
   };
-}
-
-async function buildGroupParticipantSummaries(
-  participantIds: string[],
-  requesterResolved: ResolvedIdentity,
-): Promise<ChatParticipantSummary[]> {
-  const participantRows = await fetchUsersByIds(participantIds);
-  const participantMap = new Map<string, ChatParticipantRow>();
-  participantRows.forEach((row) => {
-    const id = normalizeId(row.id);
-    if (id && !participantMap.has(id)) {
-      participantMap.set(id, row);
-    }
-  });
-  mergeParticipantMaps(participantMap, [requesterResolved]);
-  return participantIds
-    .map((id) => toParticipantSummary(participantMap.get(id) ?? undefined, id))
-    .filter(
-      (participant, index, list) =>
-        list.findIndex((entry) => entry.id === participant.id) === index,
-    );
 }
 
 async function deleteDirectMessage(params: {
@@ -1487,9 +1467,10 @@ async function deleteGroupMessage(params: {
   }
 
   await deleteGroupMessageById(messageRow.id);
+  const memberSet = new Set(participantIds);
   const participantSummaries = await buildGroupParticipantSummaries(
-    participantIds,
-    requesterResolved,
+    memberSet,
+    [requesterResolved],
   );
 
   await publishMessageDeletedEvent({
