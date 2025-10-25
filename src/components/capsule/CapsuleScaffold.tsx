@@ -50,7 +50,7 @@ import { formatRelativeTime } from "@/lib/composer/sidebar-types";
 type CapsuleTab = "live" | "feed" | "store";
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
 const FEED_TARGET_EVENT = "composer:feed-target";
-type CapsuleHeroSection = "featured" | "history" | "media" | "files";
+type CapsuleHeroSection = "featured" | "events" | "history" | "media" | "files";
 
 export type CapsuleContentProps = {
   capsuleId?: string | null;
@@ -162,6 +162,10 @@ export function CapsuleContent({
   const showFeatured = React.useCallback(() => {
     setMembersOpen(false);
     setHeroSection("featured");
+  }, []);
+  const showEvents = React.useCallback(() => {
+    setMembersOpen(false);
+    setHeroSection("events");
   }, []);
   const showHistory = React.useCallback(() => {
     setMembersOpen(false);
@@ -445,6 +449,7 @@ export function CapsuleContent({
             pendingCount={pendingCount}
             activeSection={heroSection}
             onSelectMembers={showMembers}
+            onSelectEvents={showEvents}
             onSelectHistory={showHistory}
             onSelectFeatured={showFeatured}
             onSelectMedia={showMedia}
@@ -595,6 +600,7 @@ type CapsuleHeroProps = {
   pendingCount: number;
   activeSection: CapsuleHeroSection;
   onSelectMembers: () => void;
+  onSelectEvents: () => void;
   onSelectHistory: () => void;
   onSelectFeatured: () => void;
   onSelectMedia: () => void;
@@ -615,6 +621,7 @@ function CapsuleHero({
   pendingCount,
   activeSection,
   onSelectMembers,
+  onSelectEvents,
   onSelectHistory,
   onSelectFeatured,
   onSelectMedia,
@@ -716,9 +723,10 @@ function CapsuleHero({
           const isActive = (() => {
             if (isMembersLink) return membersOpen;
             if (isHistoryLink) return !membersOpen && activeSection === "history";
+            if (isEventsLink) return !membersOpen && activeSection === "events";
             if (isMediaLink) return !membersOpen && activeSection === "media";
             if (isFilesLink) return !membersOpen && activeSection === "files";
-            if (isFeaturedLink || isEventsLink) return !membersOpen && activeSection === "featured";
+            if (isFeaturedLink) return !membersOpen && activeSection === "featured";
             return false;
           })();
           const className = isActive
@@ -729,11 +737,13 @@ function CapsuleHero({
               onSelectMembers();
             } else if (isHistoryLink) {
               onSelectHistory();
+            } else if (isEventsLink) {
+              onSelectEvents();
             } else if (isMediaLink) {
               onSelectMedia();
             } else if (isFilesLink) {
               onSelectFiles();
-            } else if (isFeaturedLink || isEventsLink) {
+            } else if (isFeaturedLink) {
               onSelectFeatured();
             } else {
               onSelectFeatured();
@@ -1515,7 +1525,6 @@ function CapsuleFeed({
     </section>
   );
 }
-
 
 
 
