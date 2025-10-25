@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   PaperPlaneTilt,
@@ -100,7 +101,6 @@ function describeTypingParticipants(participants: ChatParticipant[]): string {
   return `${names[0]}, ${names[1]}, and ${names.length - 2} others are typing...`;
 }
 
-
 function isContinuationOf(previous: ChatMessage | null | undefined, current: ChatMessage): boolean {
   if (!previous) return false;
   if ((previous.authorId ?? null) !== (current.authorId ?? null)) return false;
@@ -108,6 +108,73 @@ function isContinuationOf(previous: ChatMessage | null | undefined, current: Cha
   const currentTime = Date.parse(current.sentAt);
   if (!Number.isFinite(previousTime) || !Number.isFinite(currentTime)) return false;
   return Math.abs(currentTime - previousTime) < MESSAGE_GROUP_WINDOW_MS;
+}
+
+type ReactionPickerFloatingProps = {
+  anchorRect: DOMRect;
+  anchorLabel: string | null;
+  onSelect: (emoji: string) => void;
+  onClose: () => void;
+};
+
+function ReactionPickerFloating({
+  anchorRect,
+  anchorLabel,
+  onSelect,
+  onClose,
+}: ReactionPickerFloatingProps) {
+  const portalRef = React.useRef<HTMLElement | null>(null);
+  const isBrowser = typeof document !== "undefined" && typeof window !== "undefined";
+
+  React.useEffect(() => {
+    if (!isBrowser) return;
+    if (!portalRef.current) return;
+    document.body.appendChild(portalRef.current);
+    return () => {
+      portalRef.current?.remove();
+    };
+  }, [isBrowser]);
+
+  if (!isBrowser) {
+    return null;
+  }
+
+  if (!portalRef.current) {
+    portalRef.current = document.createElement("div");
+  }
+
+  const node = portalRef.current;
+  if (!node) return null;
+
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const estimatedWidth = Math.min(320, viewportWidth - 24);
+  const halfWidth = estimatedWidth / 2;
+  let centerX = anchorRect.left + anchorRect.width / 2;
+  centerX = Math.max(halfWidth + 12, Math.min(viewportWidth - halfWidth - 12, centerX));
+  const estimatedHeight = 320;
+  const openAbove = anchorRect.top >= estimatedHeight + 24 || anchorRect.top > viewportHeight / 2;
+  const top = openAbove ? anchorRect.top : anchorRect.bottom;
+  const transform = openAbove
+    ? "translate(-50%, calc(-100% - 12px))"
+    : "translate(-50%, 12px)";
+
+  return createPortal(
+    <div
+      className={styles.reactionPickerFloating}
+      style={{ top, left: centerX, transform }}
+      data-role="reaction-picker"
+    >
+      <div className={styles.messageReactionPicker} data-role="reaction-picker">
+        <EmojiPicker
+          onSelect={onSelect}
+          onClose={onClose}
+          anchorLabel={anchorLabel ?? undefined}
+        />
+      </div>
+    </div>,
+    node,
+  );
 }
 
 type PendingAttachment = {
@@ -122,10 +189,16 @@ type PendingAttachment = {
 };
 
 const MESSAGE_GROUP_WINDOW_MS = 5 * 60_000;
+const GIF_FLAG = (process.env.NEXT_PUBLIC_GIFS_ENABLED || "").trim().toLowerCase();
 const GIF_PROVIDER = (process.env.NEXT_PUBLIC_GIF_PROVIDER || "").trim().toLowerCase();
 const GIF_SUPPORT_ENABLED =
-  process.env.NEXT_PUBLIC_GIFS_ENABLED === "true" ||
-  (GIF_PROVIDER.length > 0 && GIF_PROVIDER !== "none");
+  GIF_FLAG === "false"
+    ? false
+    : GIF_FLAG === "true"
+      ? true
+      : GIF_PROVIDER === "none"
+        ? false
+        : true;
 
 const GIF_SIZE_LIMIT_BYTES = 7 * 1024 * 1024;
 const REACTION_PICKER_LONG_PRESS_MS = 450;
@@ -268,6 +341,9 @@ export function ChatConversation({
   const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [reactionTargetId, setReactionTargetId] = React.useState<string | null>(null);
+  const [reactionAnchorEl, setReactionAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [reactionAnchorRect, setReactionAnchorRect] = React.useState<DOMRect | null>(null);
+  const [reactionAnchorLabel, setReactionAnchorLabel] = React.useState<string | null>(null);
   const [isGifPickerOpen, setGifPickerOpen] = React.useState(false);
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
   const messageInputRef = React.useRef<HTMLTextAreaElement | null>(null);
@@ -430,19 +506,18 @@ export function ChatConversation({
     return map;
   }, [session.participants]);
 
-  const openReactionPicker = React.useCallback((messageId: string) => {
-    setReactionTargetId(messageId);
-  }, []);
-
   const closeReactionPicker = React.useCallback(() => {
     setReactionTargetId(null);
+    setReactionAnchorEl(null);
+    setReactionAnchorRect(null);
+    setReactionAnchorLabel(null);
     reactionLongPressTriggeredRef.current = false;
     clearReactionLongPress();
   }, [clearReactionLongPress]);
 
   React.useEffect(() => {
-    setReactionTargetId(null);
-  }, [session.id]);
+    closeReactionPicker();
+  }, [closeReactionPicker, session.id]);
 
   React.useEffect(() => {
     if (!reactionTargetId) return;
@@ -472,6 +547,26 @@ export function ChatConversation({
       window.removeEventListener("mousedown", onPointerDown, { capture: true } as AddEventListenerOptions);
     };
   }, [closeReactionPicker, reactionTargetId]);
+
+  React.useEffect(() => {
+    if (!reactionAnchorEl) {
+      setReactionAnchorRect(null);
+      return;
+    }
+    const update = () => {
+      setReactionAnchorRect(reactionAnchorEl.getBoundingClientRect());
+    };
+    update();
+    const scrollContainer = messagesRef.current;
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, { passive: true });
+    scrollContainer?.addEventListener("scroll", update, { passive: true });
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update);
+      scrollContainer?.removeEventListener("scroll", update);
+    };
+  }, [reactionAnchorEl]);
 
   React.useEffect(() => {
     adjustTextareaHeight();
@@ -511,34 +606,49 @@ export function ChatConversation({
     [onToggleReaction, session.id],
   );
 
-  const handleReactionPickerToggle = React.useCallback((messageId: string) => {
-    setReactionTargetId((current) => (current === messageId ? null : messageId));
-  }, []);
+  const handleReactionPickerToggle = React.useCallback(
+    (messageId: string, anchor: HTMLElement | null, label: string) => {
+      if (reactionTargetId === messageId) {
+        closeReactionPicker();
+        return;
+      }
+      setReactionTargetId(messageId);
+      setReactionAnchorEl(anchor ?? null);
+      setReactionAnchorLabel(label);
+      if (anchor) {
+        setReactionAnchorRect(anchor.getBoundingClientRect());
+      } else {
+        setReactionAnchorRect(null);
+      }
+    },
+    [closeReactionPicker, reactionTargetId],
+  );
 
   const handleReactionAddClick = React.useCallback(
-    (messageId: string) => {
+    (messageId: string, anchor: HTMLButtonElement, label: string) => {
       if (reactionLongPressTriggeredRef.current) {
         reactionLongPressTriggeredRef.current = false;
         return;
       }
-      handleReactionPickerToggle(messageId);
+      handleReactionPickerToggle(messageId, anchor, label);
     },
     [handleReactionPickerToggle],
   );
 
   const handleReactionAddPointerDown = React.useCallback(
-    (messageId: string, event: React.PointerEvent<HTMLButtonElement>) => {
+    (messageId: string, label: string, event: React.PointerEvent<HTMLButtonElement>) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
       reactionLongPressTriggeredRef.current = false;
       clearReactionLongPress();
       if (typeof window === "undefined") return;
+      const anchor = event.currentTarget;
       reactionLongPressTimerRef.current = window.setTimeout(() => {
         reactionLongPressTimerRef.current = null;
         reactionLongPressTriggeredRef.current = true;
-        openReactionPicker(messageId);
+        handleReactionPickerToggle(messageId, anchor, label);
       }, REACTION_PICKER_LONG_PRESS_MS);
     },
-    [clearReactionLongPress, openReactionPicker],
+    [clearReactionLongPress, handleReactionPickerToggle],
   );
 
   const handleReactionAddPointerComplete = React.useCallback(() => {
@@ -546,20 +656,21 @@ export function ChatConversation({
   }, [clearReactionLongPress]);
 
   const handleReactionAddContextMenu = React.useCallback(
-    (messageId: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    (messageId: string, label: string, event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
       reactionLongPressTriggeredRef.current = true;
-      openReactionPicker(messageId);
+      handleReactionPickerToggle(messageId, event.currentTarget, label);
     },
-    [openReactionPicker],
+    [handleReactionPickerToggle],
   );
 
   const handleReactionSelect = React.useCallback(
-    (messageId: string, emoji: string) => {
-      handleToggleReaction(messageId, emoji);
+    (emoji: string) => {
+      if (!reactionTargetId) return;
+      handleToggleReaction(reactionTargetId, emoji);
       closeReactionPicker();
     },
-    [closeReactionPicker, handleToggleReaction],
+    [closeReactionPicker, handleToggleReaction, reactionTargetId],
   );
 
   React.useEffect(() => {
@@ -1024,32 +1135,23 @@ export function ChatConversation({
                       </button>
                     );
                     })}
-                        {onToggleReaction ? (
+                    {onToggleReaction ? (
                       <div className={styles.messageReactionAdd}>
                         <button
                           type="button"
                           className={styles.messageReactionAddButton}
-                          onClick={() => handleReactionAddClick(message.id)}
-                          onPointerDown={(event) => handleReactionAddPointerDown(message.id, event)}
+                          onClick={(event) => handleReactionAddClick(message.id, event.currentTarget, displayName)}
+                          onPointerDown={(event) => handleReactionAddPointerDown(message.id, displayName, event)}
                           onPointerUp={handleReactionAddPointerComplete}
                           onPointerLeave={handleReactionAddPointerComplete}
                           onPointerCancel={handleReactionAddPointerComplete}
-                          onContextMenu={(event) => handleReactionAddContextMenu(message.id, event)}
+                          onContextMenu={(event) => handleReactionAddContextMenu(message.id, displayName, event)}
                           aria-expanded={isPickerOpen}
                           aria-label="Add reaction"
                           data-role="reaction-button"
                         >
                           <Smiley size={14} weight="duotone" />
                         </button>
-                        {isPickerOpen ? (
-                          <div className={styles.messageReactionPicker} data-role="reaction-picker">
-                            <EmojiPicker
-                              onSelect={(emoji) => handleReactionSelect(message.id, emoji)}
-                              onClose={closeReactionPicker}
-                              anchorLabel={displayName}
-                            />
-                          </div>
-                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -1093,6 +1195,14 @@ export function ChatConversation({
           </div>
         ) : null}
       </div>
+      {reactionTargetId && reactionAnchorRect ? (
+        <ReactionPickerFloating
+          anchorRect={reactionAnchorRect}
+          anchorLabel={reactionAnchorLabel}
+          onSelect={handleReactionSelect}
+          onClose={closeReactionPicker}
+        />
+      ) : null}
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
       <form
         className={styles.composer}
