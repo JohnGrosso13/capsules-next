@@ -393,8 +393,12 @@ export async function markPostAttachmentsUnused(
 export async function resolvePostId(maybeId: string | null | undefined) {
   const value = String(maybeId ?? "").trim();
   if (!value) return null;
-  if (UUID_REGEX.test(value)) return value;
-  return resolvePostIdByClientId(value);
+  const resolved = await fetchPostRowByIdentifierFromRepository(value);
+  if (resolved?.id) {
+    return typeof resolved.id === "string" ? resolved.id : String(resolved.id);
+  }
+  const byClient = await resolvePostIdByClientId(value);
+  return byClient;
 }
 
 export async function persistCommentToDB(comment: Record<string, unknown>, userId: string | null) {

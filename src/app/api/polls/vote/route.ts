@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 import { ensureUserFromRequest, mergeUserPayloadFromRequest, type IncomingUserPayload } from "@/lib/auth/payload";
-import { resolvePostId } from "@/lib/supabase/posts";
+import { fetchPostRowByIdentifier } from "@/lib/supabase/posts";
 import {
   fetchPostCoreById,
   listPollVotesForPost,
@@ -45,6 +45,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "auth required" }, { status: 401 });
   }
 
+  console.info("[polls.vote] incoming", { postId: postIdInput, optionIndex, userId });
   let userKey = await fetchUserKeyById(userId);
   if (!userKey) {
     const fallbackKey = typeof mergedUserPayload?.key === "string" ? mergedUserPayload.key.trim() : "";
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
       try {
         await updateUserKeyById(userId, fallbackKey);
         userKey = fallbackKey;
+        console.info("[polls.vote] assigned fallback user key", { userId, userKey });
       } catch (assignError) {
         console.warn("Failed to assign user key for poll vote", assignError);
       }
@@ -59,19 +61,32 @@ export async function POST(req: Request) {
   }
 
   if (!userKey) {
+    console.warn("[polls.vote] missing user key", { userId });
     return NextResponse.json({ error: "user key unavailable" }, { status: 403 });
   }
 
-  const postId = await resolvePostId(postIdInput);
-
-  if (!postId) {
+  const targetPost = await fetchPostRowByIdentifier(postIdInput);
+  if (!targetPost) {
+    console.warn("[polls.vote] post not found", { postId: postIdInput });
+    return NextResponse.json({ error: "post not found" }, { status: 404 });
+  }
+  const postId =
+    typeof targetPost.id === "string"
+      ? targetPost.id
+      : typeof targetPost.id === "number"
+        ? String(targetPost.id)
+        : null;
+  if (!postId?.trim()) {
+    console.warn("[polls.vote] post missing identifier", { postId: postIdInput, targetPost });
     return NextResponse.json({ error: "post not found" }, { status: 404 });
   }
 
   try {
     await upsertPollVote(postId, userKey, optionIndex, userId);
+    console.info("[polls.vote] upsert success", { postId, userKey, optionIndex });
 
     const voteRows = await listPollVotesForPost(postId);
+    console.info("[polls.vote] vote rows", voteRows);
 
     const countsMap = new Map<number, number>();
     voteRows.forEach((row) => {

@@ -132,9 +132,9 @@ type PollVoteViewerRow = {
 function isMissingPollVotesTable(error: DatabaseError | null): boolean {
   if (!error) return false;
   const code = (error.code ?? "").toUpperCase();
+  if (code === "42P01") return true;
   const message = (error.message ?? "").toLowerCase();
-  if (code === "PGRST205" || code === "42P01") return true;
-  return message.includes("poll_votes");
+  return message.includes("poll_votes") && message.includes("does not exist");
 }
 
 function decodePollFromMediaPrompt(raw: unknown): unknown | null {
@@ -655,6 +655,7 @@ export async function upsertPollVote(
       console.warn("poll_votes table missing; skipping vote persistence");
       return;
     }
+    console.error("poll vote upsert failed", result.error);
     throw decorateDatabaseError("posts.polls.vote", result.error);
   }
 }
@@ -671,6 +672,7 @@ export async function listPollVotesForPost(postId: string, limit = 5000): Promis
       console.warn("poll_votes table missing; returning empty vote list");
       return [];
     }
+    console.error("poll vote list failed", result.error);
     throw decorateDatabaseError("posts.polls.votes", result.error);
   }
   return result.data ?? [];
@@ -697,6 +699,7 @@ export async function listPollVoteAggregates(postIds: string[]): Promise<PollVot
       console.warn("poll_votes table missing; returning empty aggregated vote list");
       return [];
     }
+    console.error("poll vote aggregate failed", result.error);
     throw decorateDatabaseError("posts.polls.aggregate", result.error);
   }
   const data = (result.data as PollVoteAggregateRow[] | null) ?? [];
@@ -719,6 +722,7 @@ export async function listViewerPollVotes(
       console.warn("poll_votes table missing; returning empty viewer vote list");
       return [];
     }
+    console.error("poll vote viewer list failed", result.error);
     throw decorateDatabaseError("posts.polls.viewerVotes", result.error);
   }
   return result.data ?? [];
