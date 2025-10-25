@@ -13,6 +13,14 @@
   );
   box-shadow: var(--chats-panel-shadow, 0 18px 40px rgba(0, 0, 0, 0.35));
   overflow: visible;
+  /* Ensure chat surfaces reference the same blue brand tokens as the appearance + settings UIs */
+  --color-brand: var(--header-brand-color, var(--color-brand));
+  --color-brand-strong: var(--header-brand-strong-color, var(--color-brand-strong));
+  --color-accent: var(--header-brand-accent-color, var(--color-accent));
+  --brand-gradient: var(--header-brand-gradient, var(--gradient-brand));
+  --gradient-brand: var(--header-brand-gradient, var(--gradient-brand));
+  --cta-button-gradient: var(--header-brand-gradient, var(--cta-button-gradient));
+  --cta-button-text: var(--text-on-brand, #041021);
 }
 
 .chatPanel[data-variant="rail"] {
@@ -678,8 +686,15 @@
   align-items: stretch;
   padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 70%, transparent);
-  background: color-mix(in srgb, rgba(36, 40, 70, 0.55) 75%, rgba(12, 14, 32, 0.85));
+  border: 1px solid
+    var(
+      --chats-message-attachment-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.14) 70%, transparent)
+    );
+  background: var(
+    --chats-message-attachment-background,
+    color-mix(in srgb, rgba(36, 40, 70, 0.55) 75%, rgba(12, 14, 32, 0.85))
+  );
   color: var(--text);
   position: relative;
   overflow: hidden;
@@ -687,13 +702,22 @@
 }
 
 .messageAttachment:hover {
-  border-color: color-mix(in srgb, var(--color-brand) 65%, transparent);
+  border-color: var(
+    --chats-message-attachment-hover-border,
+    color-mix(in srgb, var(--color-brand) 65%, transparent)
+  );
   transform: translateY(-1px);
 }
 
 .messageItemSelf .messageAttachment {
-  background: color-mix(in srgb, rgba(74, 78, 128, 0.55) 70%, rgba(24, 26, 60, 0.85));
-  border-color: color-mix(in srgb, rgba(255, 255, 255, 0.18) 60%, transparent);
+  background: var(
+    --chats-message-attachment-self-background,
+    color-mix(in srgb, rgba(74, 78, 128, 0.55) 70%, rgba(24, 26, 60, 0.85))
+  );
+  border-color: var(
+    --chats-message-attachment-self-border,
+    color-mix(in srgb, rgba(255, 255, 255, 0.18) 60%, transparent)
+  );
 }
 
 .messageAttachment[data-downloading="true"],
@@ -709,8 +733,15 @@
   width: 100%;
   height: 88px;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent);
-  background: color-mix(in srgb, rgba(16, 18, 36, 0.82) 72%, transparent);
+  border: 1px solid
+    var(
+      --chats-message-attachment-preview-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent)
+    );
+  background: var(
+    --chats-message-attachment-preview-background,
+    color-mix(in srgb, rgba(16, 18, 36, 0.82) 72%, transparent)
+  );
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -719,7 +750,10 @@
 }
 
 .messageAttachmentPreviewButton:not(:disabled):hover {
-  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+  border-color: var(
+    --chats-message-attachment-preview-hover-border,
+    color-mix(in srgb, var(--color-brand) 55%, transparent)
+  );
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
 }
 
@@ -786,9 +820,16 @@
 .messageAttachmentAction {
   padding: 6px 14px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.22) 70%, transparent);
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 68%, transparent);
-  color: var(--text);
+  border: 1px solid
+    var(
+      --chats-message-attachment-action-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.22) 70%, transparent)
+    );
+  background: var(
+    --chats-message-attachment-action-background,
+    color-mix(in srgb, rgba(255, 255, 255, 0.08) 68%, transparent)
+  );
+  color: var(--chats-message-attachment-action-text, var(--text));
   font-size: 0.78rem;
   letter-spacing: 0.01em;
   cursor: pointer;
@@ -796,8 +837,14 @@
 }
 
 .messageAttachmentAction:not(:disabled):hover {
-  border-color: color-mix(in srgb, var(--color-brand) 58%, transparent);
-  background: color-mix(in srgb, rgba(68, 76, 146, 0.32) 65%, transparent);
+  border-color: var(
+    --chats-message-attachment-action-hover-border,
+    color-mix(in srgb, var(--color-brand) 58%, transparent)
+  );
+  background: var(
+    --chats-message-attachment-action-hover-background,
+    color-mix(in srgb, rgba(68, 76, 146, 0.32) 65%, transparent)
+  );
 }
 
 .messageAttachmentAction:disabled {
@@ -806,12 +853,21 @@
 }
 
 .messageAttachmentDanger {
-  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
-  color: color-mix(in srgb, var(--color-danger) 65%, var(--text));
+  border-color: var(
+    --chats-message-attachment-danger-border,
+    color-mix(in srgb, var(--color-danger) 55%, transparent)
+  );
+  color: var(
+    --chats-message-attachment-danger-text,
+    color-mix(in srgb, var(--color-danger) 65%, var(--text))
+  );
 }
 
 .messageAttachmentDanger:not(:disabled):hover {
-  background: color-mix(in srgb, rgba(255, 92, 92, 0.24) 65%, transparent);
+  background: var(
+    --chats-message-attachment-danger-background,
+    color-mix(in srgb, rgba(255, 92, 92, 0.24) 65%, transparent)
+  );
 }
 
 .messageAttachmentPreviewFallback {
@@ -1167,9 +1223,16 @@
   width: 42px;
   height: 42px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 65%, transparent);
-  background: color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75));
-  color: var(--text);
+  border: 1px solid
+    var(
+      --chats-control-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.16) 65%, transparent)
+    );
+  background: var(
+    --chats-control-background,
+    color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75))
+  );
+  color: var(--chats-control-text, var(--text));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1181,7 +1244,10 @@
 
 .composerAttachButton:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+  border-color: var(
+    --chats-control-hover-border,
+    color-mix(in srgb, var(--color-brand) 70%, transparent)
+  );
 }
 
 .composerAttachButton:disabled {
@@ -1201,8 +1267,15 @@
   justify-content: space-between;
   gap: 14px;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent);
-  background: color-mix(in srgb, rgba(40, 46, 74, 0.72) 80%, rgba(14, 16, 36, 0.82));
+  border: 1px solid
+    var(
+      --chats-composer-attachment-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent)
+    );
+  background: var(
+    --chats-composer-attachment-background,
+    color-mix(in srgb, rgba(40, 46, 74, 0.72) 80%, rgba(14, 16, 36, 0.82))
+  );
   padding: 10px 14px;
 }
 
@@ -1229,7 +1302,10 @@
 .composerAttachmentRemove {
   border: none;
   background: none;
-  color: var(--text-3, rgba(255, 255, 255, 0.7));
+  color: var(
+    --chats-composer-attachment-remove,
+    var(--text-3, rgba(255, 255, 255, 0.7))
+  );
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1242,8 +1318,11 @@
 }
 
 .composerAttachmentRemove:hover {
-  color: var(--text);
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent);
+  color: var(--chats-composer-attachment-remove-hover, var(--text));
+  background: var(
+    --chats-composer-attachment-remove-background,
+    color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent)
+  );
 }
 
 .composerAttachmentError {
@@ -1726,9 +1805,16 @@
   width: 42px;
   height: 42px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 65%, transparent);
-  background: color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75));
-  color: var(--text);
+  border: 1px solid
+    var(
+      --chats-control-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.16) 65%, transparent)
+    );
+  background: var(
+    --chats-control-background,
+    color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75))
+  );
+  color: var(--chats-control-text, var(--text));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1740,7 +1826,10 @@
 
 .composerGifButton:hover {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+  border-color: var(
+    --chats-control-hover-border,
+    color-mix(in srgb, var(--color-brand) 70%, transparent)
+  );
 }
 
 .composerGifButton:focus-visible {
@@ -1749,8 +1838,14 @@
 }
 
 .composerGifButtonActive {
-  border-color: color-mix(in srgb, var(--color-brand) 80%, transparent);
-  background: color-mix(in srgb, var(--color-brand) 26%, transparent);
+  border-color: var(
+    --chats-control-active-border,
+    color-mix(in srgb, var(--color-brand) 80%, transparent)
+  );
+  background: var(
+    --chats-control-active-background,
+    color-mix(in srgb, var(--color-brand) 26%, transparent)
+  );
 }
 
 

@@ -195,7 +195,30 @@ const nullableStringSchema = {
 const CLARIFIER_HISTORY_LOOKBACK = 4;
 const CLARIFIER_RECENT_RUN_LIMIT = 12;
 
-const IMAGE_INTENT_REGEX = /(image|logo|banner|thumbnail|picture|photo|icon|cover|poster|graphic|illustration|art|avatar|background)\b/i;
+const IMAGE_INTENT_REGEX =
+  /(image|logo|banner|thumbnail|picture|photo|icon|cover|poster|graphic|illustration|art|avatar|background)\b/i;
+
+const VISUAL_KIND_HINTS = new Set([
+  "visual",
+  "image",
+  "media",
+  "graphic",
+  "graphics",
+  "photo",
+  "photograph",
+  "art",
+  "illustration",
+  "logo",
+  "banner",
+  "thumbnail",
+  "cover",
+  "poster",
+  "avatar",
+  "video",
+  "clip",
+]);
+
+const TEXT_KIND_HINTS = new Set(["text", "post", "caption", "copy", "write"]);
 
 const clarifierSchema: JsonSchema = {
   name: "CapsulesImageClarifier",
@@ -1659,6 +1682,18 @@ export async function createPostDraft(
   context: ComposeDraftOptions = {},
 ): Promise<ComposeDraftResult> {
   const { history, attachments, capsuleId, rawOptions, clarifier } = context;
+
+  const preferHints: string[] = [];
+  const preferRaw =
+    typeof rawOptions?.prefer === "string" ? rawOptions.prefer.trim().toLowerCase() : null;
+  const preferKind =
+    typeof rawOptions?.kind === "string" ? rawOptions.kind.trim().toLowerCase() : null;
+  if (preferRaw) preferHints.push(preferRaw);
+  if (preferKind) preferHints.push(preferKind);
+
+  const preferVisual = preferHints.some((hint) => VISUAL_KIND_HINTS.has(hint));
+  const preferText = preferHints.some((hint) => TEXT_KIND_HINTS.has(hint));
+
   const normalizedClarifier = normalizeClarifierInput(clarifier);
   const priorUserMessage =
     history && history.length
@@ -1670,6 +1705,11 @@ export async function createPostDraft(
   const intentSource = [userText, priorUserMessage].filter(Boolean).join(" ");
   const imageIntent = IMAGE_INTENT_REGEX.test(intentSource);
   const historyMessages = mapConversationToMessages(history);
+  const clarifierAnswered =
+    typeof normalizedClarifier?.answer === "string" && normalizedClarifier.answer.trim().length > 0;
+  const clarifierSkip = normalizedClarifier?.skip === true;
+  const allowGeneratedMedia =
+    !clarifierSkip && !preferText && (preferVisual || imageIntent || clarifierAnswered);
 
   if (imageIntent && !(normalizedClarifier?.answer || normalizedClarifier?.skip)) {
     const clarifierPlan = await maybeGenerateImageClarifier(
@@ -1803,13 +1843,18 @@ export async function createPostDraft(
 
   if (mediaUrl && !mediaUrl.trim()) mediaUrl = null;
 
-  if (mediaUrl) {
+  if (!allowGeneratedMedia) {
+    imagePrompt = null;
+    mediaUrl = null;
+  }
+
+  if (allowGeneratedMedia && mediaUrl) {
     result.mediaUrl = mediaUrl;
 
     result.mediaPrompt = imagePrompt || result.mediaPrompt;
 
     result.kind = requestedKind || "image";
-  } else if (imagePrompt) {
+  } else if (allowGeneratedMedia && imagePrompt) {
     try {
       const generatedImage = await generateImageFromPrompt(imagePrompt);
 
@@ -1825,7 +1870,7 @@ export async function createPostDraft(
 
       imagePrompt = null;
     }
-  } else if (!imagePrompt && imageIntent) {
+  } else if (allowGeneratedMedia && !imagePrompt && imageIntent) {
     try {
       imagePrompt = await inferImagePromptFromInstruction(instructionForModel);
     } catch {
@@ -1846,7 +1891,7 @@ export async function createPostDraft(
       }
     }
   } else if (requestedKind) {
-    result.kind = requestedKind;
+    result.kind = requestedKind === "image" && !allowGeneratedMedia ? "text" : requestedKind;
   } else {
     result.kind = result.mediaUrl ? "image" : "text";
   }
@@ -2413,5 +2458,3 @@ export async function transcribeAudioFromBase64({
 
   throw new Error("Transcription failed");
 }
-
-
