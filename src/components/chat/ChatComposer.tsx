@@ -7,6 +7,7 @@ import {
   Gif,
   PaperPlaneTilt,
   Trash,
+  Plus,
 } from "@phosphor-icons/react/dist/ssr";
 
 import type { ChatSessionType } from "@/components/providers/ChatProvider";
@@ -110,6 +111,21 @@ export function ChatComposer({
   onGifClose,
   onFileInputChange,
 }: ChatComposerProps) {
+  const [isPlusOpen, setIsPlusOpen] = React.useState(false);
+  const plusMenuRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    function handleDocumentClick(e: MouseEvent) {
+      if (!isPlusOpen) return;
+      const target = e.target as Node | null;
+      if (plusMenuRef.current && target && !plusMenuRef.current.contains(target)) {
+        setIsPlusOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleDocumentClick);
+    return () => document.removeEventListener("mousedown", handleDocumentClick);
+  }, [isPlusOpen]);
+
   return (
     <>
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
@@ -126,18 +142,71 @@ export function ChatComposer({
           className={styles.composerInputArea}
           data-has-attachment={hasAttachmentBlock ? "true" : undefined}
         >
-          <textarea
-            ref={messageInputRef}
-            className={styles.messageInput}
-            value={draft}
-            onChange={onDraftChange}
-            onBlur={onDraftBlur}
-            onPaste={onPaste}
-            placeholder={sessionType === "group" ? "Message the group" : "Type a message"}
-            disabled={sending}
-            aria-label="Message"
-            rows={1}
-          />
+          <div className={styles.composerField}>
+            <button
+              type="button"
+              className={styles.composerPlusButton}
+              aria-label="More options"
+              aria-expanded={isPlusOpen}
+              onClick={() => setIsPlusOpen((v) => !v)}
+            >
+              <Plus size={18} weight="bold" />
+            </button>
+            <textarea
+              ref={messageInputRef}
+              className={styles.messageInput}
+              value={draft}
+              onChange={onDraftChange}
+              onBlur={onDraftBlur}
+              onPaste={onPaste}
+              placeholder={sessionType === "group" ? "Message the group" : "Type a message"}
+              disabled={sending}
+              aria-label="Message"
+              rows={1}
+            />
+            <button
+              type="submit"
+              className={styles.composerSendAdornment}
+              aria-label="Send message"
+              disabled={disableSend}
+            >
+              <PaperPlaneTilt size={18} weight="fill" className={styles.sendButtonIcon} />
+            </button>
+            {isPlusOpen ? (
+              <div
+                ref={plusMenuRef}
+                className={`${styles.chatMenuPanel} ${styles.composerPlusMenu}`}
+                role="menu"
+              >
+                <button
+                  type="button"
+                  className={styles.chatMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setIsPlusOpen(false);
+                    onAttachmentButtonClick();
+                  }}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <Paperclip size={16} weight="bold" /> Attach file
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.chatMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setIsPlusOpen(false);
+                    onGifButtonClick();
+                  }}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <Gif size={16} weight="bold" /> Add GIF
+                  </span>
+                </button>
+              </div>
+            ) : null}
+          </div>
           {queuedAttachments.length > 0 ? (
             <div className={styles.composerAttachmentList}>
               {queuedAttachments.map((attachment) => (
@@ -198,31 +267,6 @@ export function ChatComposer({
           {isDraggingFile ? (
             <div className={styles.composerDropHint}>{chatCopy.composer.dropHint}</div>
           ) : null}
-        </div>
-        <div className={styles.composerActions}>
-          <button
-            type="button"
-            className={styles.composerAttachButton}
-            onClick={onAttachmentButtonClick}
-            aria-label="Attach file"
-          >
-            <Paperclip size={18} weight="bold" />
-          </button>
-          <button
-            type="button"
-            className={`${styles.composerGifButton} ${
-              isGifPickerOpen ? styles.composerGifButtonActive : ""
-            }`.trim()}
-            onClick={onGifButtonClick}
-            aria-label="Add GIF"
-            aria-expanded={isGifPickerOpen}
-          >
-            <Gif size={18} weight="bold" />
-          </button>
-          <button type="submit" className={styles.sendButton} disabled={disableSend}>
-            <PaperPlaneTilt size={18} weight="fill" className={styles.sendButtonIcon} />
-            <span>Send</span>
-          </button>
         </div>
         {isGifPickerOpen ? (
           <div className={styles.composerGifPanel}>

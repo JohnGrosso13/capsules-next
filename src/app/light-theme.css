@@ -835,6 +835,162 @@
       var(--color-danger, #f87171) 18%,
       rgba(254, 242, 242, 0.95)
     );
+    --chats-message-emoji-color: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 55%,
+      rgba(24, 32, 62, 0.92)
+    );
+    --chats-message-emoji-filter: drop-shadow(0 6px 12px rgba(37, 99, 235, 0.16));
+    --chats-send-button-hover-filter: brightness(1.03);
+    --chats-send-button-disabled-opacity: 0.45;
+    --chats-emoji-panel-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 28%,
+      rgba(148, 163, 184, 0.28)
+    );
+    --chats-emoji-panel-background: linear-gradient(
+      180deg,
+      rgba(249, 252, 255, 0.96),
+      rgba(232, 241, 255, 0.9)
+    );
+    --chats-emoji-search-border: color-mix(
+      in srgb,
+      rgba(148, 163, 184, 0.28) 72%,
+      transparent
+    );
+    --chats-emoji-search-background: color-mix(
+      in srgb,
+      rgba(244, 248, 255, 0.94) 85%,
+      rgba(217, 231, 255, 0.78)
+    );
+    --chats-emoji-search-text: color-mix(
+      in srgb,
+      rgba(24, 34, 64, 0.92) 88%,
+      transparent
+    );
+    --chats-emoji-search-placeholder: color-mix(
+      in srgb,
+      rgba(88, 94, 124, 0.65) 78%,
+      transparent
+    );
+    --chats-emoji-button-border: color-mix(
+      in srgb,
+      rgba(148, 163, 184, 0.26) 72%,
+      transparent
+    );
+    --chats-emoji-button-background: color-mix(
+      in srgb,
+      rgba(242, 248, 255, 0.94) 86%,
+      rgba(223, 236, 255, 0.76)
+    );
+    --chats-emoji-button-text: color-mix(
+      in srgb,
+      rgba(24, 34, 64, 0.92) 88%,
+      transparent
+    );
+    --chats-emoji-button-hover-background: color-mix(
+      in srgb,
+      rgba(210, 228, 255, 0.92) 85%,
+      color-mix(in srgb, var(--header-brand-color, #0ea5e9) 14%, transparent)
+    );
+    --chats-emoji-button-active-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 55%,
+      transparent
+    );
+    --chats-emoji-button-active-background: color-mix(
+      in srgb,
+      var(--header-brand-color, #0ea5e9) 32%,
+      rgba(237, 246, 255, 0.92)
+    );
+    --chats-emoji-button-glyph-filter: drop-shadow(0 6px 12px rgba(37, 99, 235, 0.18));
+    --chats-emoji-empty-text: color-mix(
+      in srgb,
+      rgba(88, 94, 124, 0.6) 76%,
+      transparent
+    );
+    --chats-gif-panel-border: color-mix(
+      in srgb,
+      var(--header-brand-strong-color, #2563eb) 28%,
+      rgba(148, 163, 184, 0.26)
+    );
+    --chats-gif-panel-background: linear-gradient(
+      180deg,
+      rgba(247, 251, 255, 0.98),
+      rgba(229, 240, 255, 0.94)
+    );
+    --chats-gif-search-border: color-mix(
+      in srgb,
+      rgba(148, 163, 184, 0.3) 70%,
+      transparent
+    );
+    --chats-gif-search-background: color-mix(
+      in srgb,
+      rgba(242, 248, 255, 0.95) 84%,
+      rgba(217, 229, 255, 0.76)
+    );
+    --chats-gif-search-text: color-mix(
+      in srgb,
+      rgba(24, 34, 64, 0.92) 88%,
+      transparent
+    );
+    --chats-gif-search-placeholder: color-mix(
+      in srgb,
+      rgba(88, 94, 124, 0.62) 76%,
+      transparent
+    );
+    --chats-gif-result-border: color-mix(
+      in srgb,
+      rgba(148, 163, 184, 0.24) 70%,
+      transparent
+    );
+    --chats-gif-result-background: color-mix(
+      in srgb,
+      rgba(244, 248, 255, 0.94) 84%,
+      rgba(223, 236, 255, 0.72)
+    );
+    --chats-gif-result-hover-shadow: 0 10px 22px rgba(37, 99, 235, 0.24);
+    --chats-gif-empty-text: color-mix(
+      in srgb,
+      rgba(88, 94, 124, 0.62) 76%,
+      transparent
+    );
+    --chats-gif-footer-border: color-mix(
+      in srgb,
+      rgba(148, 163, 184, 0.24) 70%,
+      transparent
+    );
+    --chats-gif-footer-background: color-mix(
+      in srgb,
+      rgba(244, 248, 255, 0.92) 84%,
+      rgba(220, 232, 255, 0.7)
+    );
+    --chats-gif-footer-text: color-mix(
+      in srgb,
+      rgba(24, 34, 64, 0.92) 85%,
+      transparent
+    );
+    --chats-gif-button-border: color-mix(
+      in srgb,
+      rgba(148, 163, 184, 0.24) 70%,
+      transparent
+    );
+    --chats-gif-button-background: color-mix(
+      in srgb,
+      rgba(235, 242, 255, 0.94) 82%,
+      rgba(211, 226, 255, 0.72)
+    );
+    --chats-gif-button-text: color-mix(
+      in srgb,
+      rgba(24, 34, 64, 0.92) 88%,
+      transparent
+    );
+    --chats-gif-button-hover-background: color-mix(
+      in srgb,
+      rgba(210, 224, 255, 0.95) 86%,
+      color-mix(in srgb, var(--header-brand-color, #0ea5e9) 18%, transparent)
+    );
+    --chats-gif-button-disabled-opacity: 0.45;
     --voice-select-border: color-mix(
       in srgb,
       rgba(148, 163, 184, 0.32) 72%,

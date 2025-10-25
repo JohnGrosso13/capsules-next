@@ -626,6 +626,10 @@
   white-space: pre-wrap;
   user-select: text;
 }
+.messageBubble :where(.emojiGlyph, .emoji, .twemoji, span[role="img"], img.emoji, img.twemoji) {
+  color: var(--chats-message-emoji-color, currentColor);
+  filter: var(--chats-message-emoji-filter, none);
+}
 
 .messageBubbleGroup[data-menu-open="true"] {
   outline: 1px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
@@ -958,6 +962,7 @@
 .messageReactionEmoji {
   font-size: 1rem;
   line-height: 1;
+  color: var(--chats-message-emoji-color, currentColor);
 }
 
 .messageReactionCount {
@@ -1189,6 +1194,99 @@
     background 160ms ease;
 }
 
+/* Inline input adornments: + and Send inside the bubble */
+.composerField {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+}
+
+.composerField .messageInput {
+  padding-left: 56px; /* space for + button */
+  padding-right: 56px; /* space for send button */
+}
+
+.composerPlusButton {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid
+    var(
+      --chats-control-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.16) 65%, transparent)
+    );
+  background: var(
+    --chats-control-background,
+    color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75))
+  );
+  color: var(--chats-control-text, var(--text));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.composerPlusButton:hover {
+  transform: translateY(-1px);
+  border-color: var(
+    --chats-control-hover-border,
+    color-mix(in srgb, var(--color-brand) 70%, transparent)
+  );
+}
+
+.composerSendAdornment {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid
+    var(--chats-send-button-border, color-mix(in srgb, var(--color-brand) 80%, transparent));
+  background: var(
+    --chats-send-button-background,
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 80%, rgba(76, 81, 219, 0.95)),
+      color-mix(in srgb, rgba(66, 71, 194, 0.9) 70%, rgba(48, 52, 148, 0.9))
+    )
+  );
+  color: var(--chats-send-button-text, var(--text-on-brand, #ffffff));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease;
+}
+
+.composerSendAdornment:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: var(--chats-send-button-hover-filter, brightness(1.05));
+}
+
+.composerSendAdornment:disabled {
+  opacity: var(--chats-send-button-disabled-opacity, 0.55);
+  cursor: not-allowed;
+}
+
+.composerPlusMenu {
+  position: absolute;
+  left: 4px;
+  bottom: calc(100% + 8px);
+  z-index: 8;
+  min-width: 160px;
+}
+
 .composerInputArea[data-has-attachment="true"] {
   gap: 14px;
 }
@@ -1382,11 +1480,11 @@
 
 .sendButton:hover:not(:disabled) {
   transform: translateY(-1px);
-  filter: brightness(1.05);
+  filter: var(--chats-send-button-hover-filter, brightness(1.05));
 }
 
 .sendButton:disabled {
-  opacity: 0.55;
+  opacity: var(--chats-send-button-disabled-opacity, 0.55);
   cursor: not-allowed;
 }
 
@@ -1564,8 +1662,15 @@
   gap: 12px;
   padding: 12px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, rgba(76, 86, 212, 0.4) 78%, transparent);
-  background: color-mix(in srgb, rgba(18, 20, 46, 0.94) 82%, transparent);
+  border: 1px solid
+    var(
+      --chats-emoji-panel-border,
+      color-mix(in srgb, rgba(76, 86, 212, 0.4) 78%, transparent)
+    );
+  background: var(
+    --chats-emoji-panel-background,
+    color-mix(in srgb, rgba(18, 20, 46, 0.94) 82%, transparent)
+  );
   box-shadow: var(--chats-reaction-picker-shadow, 0 16px 32px rgba(0, 0, 0, 0.28));
   z-index: 4;
   width: min(320px, 80vw);
@@ -1591,15 +1696,22 @@
 
 .emojiSearchInput {
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 70%, transparent);
-  background: color-mix(in srgb, rgba(36, 40, 82, 0.55) 75%, rgba(12, 14, 32, 0.82));
+  border: 1px solid
+    var(
+      --chats-emoji-search-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.18) 70%, transparent)
+    );
+  background: var(
+    --chats-emoji-search-background,
+    color-mix(in srgb, rgba(36, 40, 82, 0.55) 75%, rgba(12, 14, 32, 0.82))
+  );
   padding: 8px 12px;
-  color: var(--text);
+  color: var(--chats-emoji-search-text, var(--text));
   font-size: 0.9rem;
 }
 
 .emojiSearchInput::placeholder {
-  color: var(--text-3, rgba(255, 255, 255, 0.62));
+  color: var(--chats-emoji-search-placeholder, var(--text-3, rgba(255, 255, 255, 0.62)));
 }
 
 .emojiPopularRow {
@@ -1612,8 +1724,15 @@
   min-width: 38px;
   height: 38px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 70%, transparent);
-  background: color-mix(in srgb, rgba(42, 54, 100, 0.55) 75%, rgba(14, 16, 38, 0.82));
+  border: 1px solid
+    var(
+      --chats-emoji-button-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.18) 70%, transparent)
+    );
+  background: var(
+    --chats-emoji-button-background,
+    color-mix(in srgb, rgba(42, 54, 100, 0.55) 75%, rgba(14, 16, 38, 0.82))
+  );
   font-size: 1.25rem;
   cursor: pointer;
   transition:
@@ -1623,7 +1742,10 @@
 
 .emojiPopularButton:hover {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--color-brand) 26%, transparent);
+  background: var(
+    --chats-emoji-button-hover-background,
+    color-mix(in srgb, var(--color-brand) 26%, transparent)
+  );
 }
 
 .emojiGrid {
@@ -1640,8 +1762,11 @@
   place-items: center;
   border: none;
   border-radius: 10px;
-  background: color-mix(in srgb, rgba(36, 40, 82, 0.32) 76%, transparent);
-  color: var(--text);
+  background: var(
+    --chats-emoji-button-background,
+    color-mix(in srgb, rgba(36, 40, 82, 0.32) 76%, transparent)
+  );
+  color: var(--chats-emoji-button-text, var(--text));
   font-size: 1.25rem;
   cursor: pointer;
   transition:
@@ -1652,28 +1777,42 @@
 
 .emojiGridButton:hover {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+  background: var(
+    --chats-emoji-button-hover-background,
+    color-mix(in srgb, var(--color-brand) 18%, transparent)
+  );
 }
 
 .emojiGridButtonActive {
-  background: color-mix(in srgb, var(--color-brand) 32%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand) 52%, transparent);
+  background: var(
+    --chats-emoji-button-active-background,
+    color-mix(in srgb, var(--color-brand) 32%, transparent)
+  );
+  box-shadow: 0 0 0 2px
+    var(
+      --chats-emoji-button-active-border,
+      color-mix(in srgb, var(--color-brand) 52%, transparent)
+    );
 }
 
 .emojiGlyph {
   font-size: 1.4rem;
+  filter: var(
+    --chats-emoji-button-glyph-filter,
+    drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35))
+  );
 }
 
 .emojiEmpty {
   font-size: 0.85rem;
-  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  color: var(--chats-emoji-empty-text, var(--text-3, rgba(255, 255, 255, 0.6)));
   text-align: center;
   padding: 12px 4px;
 }
 
 .emojiPickerLoading {
   font-size: 0.85rem;
-  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  color: var(--chats-emoji-empty-text, var(--text-3, rgba(255, 255, 255, 0.6)));
   text-align: center;
   padding: 24px 8px;
 }
@@ -1686,22 +1825,36 @@
   max-height: 420px;
   padding: 16px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, rgba(78, 88, 210, 0.4) 78%, transparent);
-  background: color-mix(in srgb, rgba(12, 14, 36, 0.96) 82%, transparent);
+  border: 1px solid
+    var(
+      --chats-gif-panel-border,
+      color-mix(in srgb, rgba(78, 88, 210, 0.4) 78%, transparent)
+    );
+  background: var(
+    --chats-gif-panel-background,
+    color-mix(in srgb, rgba(12, 14, 36, 0.96) 82%, transparent)
+  );
   box-shadow: var(--chats-reaction-picker-shadow, 0 16px 32px rgba(0, 0, 0, 0.32));
 }
 
 .gifSearchInput {
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 70%, transparent);
-  background: color-mix(in srgb, rgba(36, 42, 78, 0.6) 75%, rgba(12, 14, 32, 0.82));
+  border: 1px solid
+    var(
+      --chats-gif-search-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.18) 70%, transparent)
+    );
+  background: var(
+    --chats-gif-search-background,
+    color-mix(in srgb, rgba(36, 42, 78, 0.6) 75%, rgba(12, 14, 32, 0.82))
+  );
   padding: 8px 12px;
-  color: var(--text);
+  color: var(--chats-gif-search-text, var(--text));
   font-size: 0.9rem;
 }
 
 .gifSearchInput::placeholder {
-  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  color: var(--chats-gif-search-placeholder, var(--text-3, rgba(255, 255, 255, 0.6)));
 }
 
 .gifError {
@@ -1718,12 +1871,19 @@
 }
 
 .gifResultButton {
-  border: none;
+  border: 1px solid
+    var(
+      --chats-gif-result-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.1) 65%, transparent)
+    );
   border-radius: 12px;
   overflow: hidden;
   position: relative;
   cursor: pointer;
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.1) 60%, transparent);
+  background: var(
+    --chats-gif-result-background,
+    color-mix(in srgb, rgba(255, 255, 255, 0.1) 60%, transparent)
+  );
   transition:
     transform 140ms ease,
     box-shadow 140ms ease;
@@ -1731,7 +1891,10 @@
 
 .gifResultButton:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  box-shadow: var(
+    --chats-gif-result-hover-shadow,
+    0 8px 18px rgba(0, 0, 0, 0.28)
+  );
 }
 
 .gifResultImage {
@@ -1744,7 +1907,7 @@
 .gifEmpty {
   text-align: center;
   font-size: 0.9rem;
-  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  color: var(--chats-gif-empty-text, var(--text-3, rgba(255, 255, 255, 0.6)));
 }
 
 .gifPickerFallback {
@@ -1752,7 +1915,7 @@
   place-items: center;
   min-height: 160px;
   font-size: 0.9rem;
-  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  color: var(--chats-gif-empty-text, var(--text-3, rgba(255, 255, 255, 0.6)));
   padding: 16px;
 }
 
@@ -1761,14 +1924,33 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  border-radius: 12px;
+  border: 1px solid
+    var(
+      --chats-gif-footer-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent)
+    );
+  background: var(
+    --chats-gif-footer-background,
+    color-mix(in srgb, rgba(26, 32, 58, 0.68) 72%, rgba(10, 12, 30, 0.88))
+  );
+  padding: 8px 10px;
+  color: var(--chats-gif-footer-text, var(--text));
 }
 
 .gifCloseButton,
 .gifLoadMore {
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 75%, transparent);
-  background: color-mix(in srgb, rgba(34, 40, 74, 0.6) 72%, rgba(10, 12, 30, 0.88));
-  color: var(--text);
+  border: 1px solid
+    var(
+      --chats-gif-button-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.12) 75%, transparent)
+    );
+  background: var(
+    --chats-gif-button-background,
+    color-mix(in srgb, rgba(34, 40, 74, 0.6) 72%, rgba(10, 12, 30, 0.88))
+  );
+  color: var(--chats-gif-button-text, var(--text));
   padding: 8px 12px;
   font-size: 0.85rem;
   cursor: pointer;
@@ -1780,11 +1962,14 @@
 .gifCloseButton:hover,
 .gifLoadMore:hover {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--color-brand) 22%, transparent);
+  background: var(
+    --chats-gif-button-hover-background,
+    color-mix(in srgb, var(--color-brand) 22%, transparent)
+  );
 }
 
 .gifLoadMore:disabled {
-  opacity: 0.5;
+  opacity: var(--chats-gif-button-disabled-opacity, 0.5);
   cursor: not-allowed;
   transform: none;
 }
