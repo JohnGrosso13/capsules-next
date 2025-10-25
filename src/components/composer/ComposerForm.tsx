@@ -252,6 +252,219 @@ function SidebarSection({
   );
 }
 
+type ComposerToolbarProps = {
+  activeKey: string;
+  onSelectKind: (key: string) => void;
+  onClose: () => void;
+  disabled: boolean;
+};
+
+function ComposerToolbar({ activeKey, onSelectKind, onClose, disabled }: ComposerToolbarProps) {
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.closeIcon}
+        onClick={onClose}
+        disabled={disabled}
+        aria-label="Close composer"
+      >
+        <X size={18} weight="bold" />
+      </button>
+
+      <header className={styles.panelToolbar}>
+        <div className={styles.toolbarHeading}>
+          <h2 className={styles.toolbarTitle}>Composer Studio</h2>
+        </div>
+        <div className={styles.toolbarModes} role="tablist" aria-label="Select what you want to create">
+          {ASSET_KIND_OPTIONS.map((option) => {
+            const selected = activeKey === option.key;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                className={`${styles.modeToggle} ${selected ? styles.modeToggleActive : ""}`}
+                data-selected={selected ? "true" : undefined}
+                onClick={() => onSelectKind(option.key)}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </header>
+    </>
+  );
+}
+
+type ComposerFooterProps = {
+  footerHint: string;
+  privacy: ComposerFormState["privacy"];
+  onPrivacyChange: (value: ComposerFormState["privacy"]) => void;
+  loading: boolean;
+  attachmentUploading: boolean;
+  onClose: () => void;
+  onSave: () => void;
+  onPreviewToggle: () => void;
+  previewOpen: boolean;
+  onPost: () => void;
+  canSave: boolean;
+  canPost: boolean;
+};
+
+function ComposerFooter({
+  footerHint,
+  privacy,
+  onPrivacyChange,
+  loading,
+  attachmentUploading,
+  onClose,
+  onSave,
+  onPreviewToggle,
+  previewOpen,
+  onPost,
+  canSave,
+  canPost,
+}: ComposerFooterProps) {
+  return (
+    <footer className={styles.panelFooter}>
+      <div className={styles.footerLeft}>
+        <p className={styles.footerHint}>{footerHint}</p>
+        <label className={styles.privacyGroup}>
+          <span className={styles.privacyLabel}>Visibility</span>
+          <select
+            aria-label="Visibility"
+            className={styles.privacySelect}
+            value={privacy}
+            onChange={(event) => {
+              const nextValue = (event.target.value || "public") as ComposerFormState["privacy"];
+              onPrivacyChange(nextValue);
+            }}
+            disabled={loading}
+          >
+            <option value="public">Public</option>
+            <option value="private">Private</option>
+          </select>
+        </label>
+      </div>
+      <div className={styles.footerActions}>
+        <button
+          type="button"
+          className={styles.cancelAction}
+          onClick={onClose}
+          disabled={loading || attachmentUploading}
+        >
+          Cancel
+        </button>
+        <button type="button" className={styles.secondaryAction} onClick={onSave} disabled={!canSave}>
+          Save
+        </button>
+        <button
+          type="button"
+          className={styles.previewToggle}
+          onClick={onPreviewToggle}
+          aria-pressed={previewOpen}
+          aria-controls="composer-preview-pane"
+        >
+          Preview
+        </button>
+        <button type="button" className={styles.primaryAction} onClick={onPost} disabled={!canPost}>
+          Post
+        </button>
+      </div>
+    </footer>
+  );
+}
+
+type ComposerViewerProps = {
+  open: boolean;
+  attachment: LocalAttachment | null;
+  attachmentKind: string | null;
+  attachmentFullUrl: string | null;
+  attachmentDisplayUrl: string | null;
+  attachmentPreviewUrl: string | null;
+  onClose: () => void;
+  onRemoveAttachment: () => void;
+  onSelectSuggestion: (prompt: string) => void;
+  vibeSuggestions: Array<{ label: string; prompt: string }>;
+};
+
+function ComposerViewer({
+  open,
+  attachment,
+  attachmentKind,
+  attachmentFullUrl,
+  attachmentDisplayUrl,
+  attachmentPreviewUrl,
+  onClose,
+  onRemoveAttachment,
+  onSelectSuggestion,
+  vibeSuggestions,
+}: ComposerViewerProps) {
+  if (!open || !attachment || attachment.status !== "ready") {
+    return null;
+  }
+
+  const isVideo = attachmentKind === "video";
+
+  return (
+    <div className={homeStyles.lightboxOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+      <div className={homeStyles.lightboxContent} onClick={(event) => event.stopPropagation()}>
+        <button
+          type="button"
+          className={homeStyles.lightboxClose}
+          aria-label="Close preview"
+          onClick={onClose}
+        >
+          <X size={18} weight="bold" />
+        </button>
+        <div className={homeStyles.lightboxBody}>
+          <div className={homeStyles.lightboxMedia}>
+            {isVideo ? (
+              <video className={homeStyles.lightboxVideo} src={attachmentFullUrl ?? undefined} controls autoPlay />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className={homeStyles.lightboxImage}
+                src={attachmentFullUrl ?? attachmentDisplayUrl ?? attachmentPreviewUrl ?? undefined}
+                alt={attachment.name}
+              />
+            )}
+          </div>
+          <div className={homeStyles.lightboxCaption}>{attachment.name}</div>
+        </div>
+        <div className={styles.viewerActions}>
+          {vibeSuggestions.map((suggestion) => (
+            <button
+              key={`viewer-${suggestion.prompt}`}
+              type="button"
+              className={styles.viewerActionBtn}
+              onClick={() => {
+                onSelectSuggestion(suggestion.prompt);
+                onClose();
+              }}
+            >
+              {suggestion.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className={styles.viewerRemoveBtn}
+            onClick={() => {
+              onRemoveAttachment();
+              onClose();
+            }}
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type MemoryPreset = {
   key: string;
   label: string;
@@ -852,6 +1065,13 @@ export function ComposerForm({
   const handlePreviewToggle = React.useCallback(() => {
     actions.setPreviewOpen(!previewOpen);
   }, [actions, previewOpen]);
+
+  const handlePrivacyChange = React.useCallback(
+    (value: ComposerFormState["privacy"]) => {
+      actions.setPrivacy(value);
+    },
+    [actions],
+  );
 
   const handlePromptSubmit = React.useCallback(() => {
     if (!onPrompt) return;
@@ -1820,43 +2040,12 @@ export function ComposerForm({
     <div className={styles.overlay}>
       <div className={styles.backdrop} />
       <aside className={styles.panel} role="dialog" aria-label="AI Composer">
-        <button
-          type="button"
-          className={styles.closeIcon}
-          onClick={onClose}
+        <ComposerToolbar
+          activeKey={toggleActiveKey}
+          onSelectKind={handleKindSelect}
+          onClose={onClose}
           disabled={loading}
-          aria-label="Close composer"
-        >
-          <X size={18} weight="bold" />
-        </button>
-
-        <header className={styles.panelToolbar}>
-          <div className={styles.toolbarHeading}>
-            <h2 className={styles.toolbarTitle}>Composer Studio</h2>
-          </div>
-          <div
-            className={styles.toolbarModes}
-            role="tablist"
-            aria-label="Select what you want to create"
-          >
-            {ASSET_KIND_OPTIONS.map((option) => {
-              const selected = toggleActiveKey === option.key;
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  className={`${styles.modeToggle} ${selected ? styles.modeToggleActive : ""}`}
-                  data-selected={selected ? "true" : undefined}
-                  onClick={() => handleKindSelect(option.key)}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-        </header>
+        />
 
         <div className={styles.panelBody}>
           <ComposerLayout
@@ -1876,61 +2065,20 @@ export function ComposerForm({
           />
         </div>
 
-        <footer className={styles.panelFooter}>
-          <div className={styles.footerLeft}>
-            <p className={styles.footerHint}>{footerHint}</p>
-            <label className={styles.privacyGroup}>
-              <span className={styles.privacyLabel}>Visibility</span>
-              <select
-                aria-label="Visibility"
-                className={styles.privacySelect}
-                value={privacy}
-                onChange={(e) =>
-                  actions.setPrivacy((e.target.value as ComposerFormState["privacy"]) ?? "public")
-                }
-                disabled={loading}
-              >
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-              </select>
-            </label>
-          </div>
-          <div className={styles.footerActions}>
-            <button
-              type="button"
-              className={styles.cancelAction}
-              onClick={onClose}
-              disabled={loading || attachmentUploading}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={styles.secondaryAction}
-              onClick={handleSave}
-              disabled={!canSave}
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              className={styles.previewToggle}
-              onClick={handlePreviewToggle}
-              aria-pressed={previewOpen}
-              aria-controls="composer-preview-pane"
-            >
-              Preview
-            </button>
-            <button
-              type="button"
-              className={styles.primaryAction}
-              onClick={onPost}
-              disabled={!canPost}
-            >
-              Post
-            </button>
-          </div>
-        </footer>
+        <ComposerFooter
+          footerHint={footerHint}
+          privacy={privacy}
+          onPrivacyChange={handlePrivacyChange}
+          loading={loading}
+          attachmentUploading={attachmentUploading}
+          onClose={onClose}
+          onSave={handleSave}
+          onPreviewToggle={handlePreviewToggle}
+          previewOpen={previewOpen}
+          onPost={onPost}
+          canSave={canSave}
+          canPost={canPost}
+        />
 
         <ComposerMemoryPicker
           open={memoryPickerOpen}
@@ -1946,78 +2094,18 @@ export function ComposerForm({
           onClose={handleMemoryPickerClose}
         />
 
-        {viewerOpen && displayAttachment && displayAttachment.status === "ready" ? (
-          <div
-            className={homeStyles.lightboxOverlay}
-            role="dialog"
-            aria-modal="true"
-            onClick={closeViewer}
-          >
-            <div
-              className={homeStyles.lightboxContent}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                className={homeStyles.lightboxClose}
-                aria-label="Close preview"
-                onClick={closeViewer}
-              >
-                <X size={18} weight="bold" />
-              </button>
-              <div className={homeStyles.lightboxBody}>
-                <div className={homeStyles.lightboxMedia}>
-                  {attachmentKind === "video" ? (
-                    <video
-                      className={homeStyles.lightboxVideo}
-                      src={attachmentFullUrl ?? undefined}
-                      controls
-                      autoPlay
-                    />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      className={homeStyles.lightboxImage}
-                      src={
-                        attachmentFullUrl ??
-                        attachmentDisplayUrl ??
-                        attachmentPreviewUrl ??
-                        undefined
-                      }
-                      alt={displayAttachment.name}
-                    />
-                  )}
-                </div>
-                <div className={homeStyles.lightboxCaption}>{displayAttachment.name}</div>
-              </div>
-              <div className={styles.viewerActions}>
-                {vibeSuggestions.map((suggestion) => (
-                  <button
-                    key={`viewer-${suggestion.prompt}`}
-                    type="button"
-                    className={styles.viewerActionBtn}
-                    onClick={() => {
-                      handleSuggestionSelect(suggestion.prompt);
-                      closeViewer();
-                    }}
-                  >
-                    {suggestion.label}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className={styles.viewerRemoveBtn}
-                  onClick={() => {
-                    handleRemoveAttachment();
-                    closeViewer();
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <ComposerViewer
+          open={viewerOpen}
+          attachment={displayAttachment}
+          attachmentKind={attachmentKind}
+          attachmentFullUrl={attachmentFullUrl}
+          attachmentDisplayUrl={attachmentDisplayUrl}
+          attachmentPreviewUrl={attachmentPreviewUrl}
+          onClose={closeViewer}
+          onRemoveAttachment={handleRemoveAttachment}
+          onSelectSuggestion={handleSuggestionSelect}
+          vibeSuggestions={vibeSuggestions}
+        />
       </aside>
     </div>
   );

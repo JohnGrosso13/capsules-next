@@ -4,16 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
-import {
-  ArrowLeft,
-  PaperPlaneTilt,
-  Trash,
-  UserPlus,
-  Smiley,
-  NotePencil,
-  Paperclip,
-  Gif,
-} from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, Trash, UserPlus, Smiley, NotePencil, Paperclip } from "@phosphor-icons/react/dist/ssr";
 
 import type {
   ChatMessage,
@@ -25,9 +16,11 @@ import { useCurrentUser } from "@/services/auth/client";
 import type { ChatMessageSendInput } from "@/components/providers/ChatProvider";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import type { EmojiPickerProps } from "./EmojiPicker";
-import type { GifPickerProps, GifPickerSelection } from "./GifPicker";
+import type { GifPickerSelection } from "./GifPicker";
 import contextMenuStyles from "@/components/ui/context-menu.module.css";
 import { chatCopy } from "./copy";
+import { ChatComposer, type PendingAttachment, type ComposerStatus } from "./ChatComposer";
+import { formatAttachmentSize } from "./utils";
 
 import styles from "./chat.module.css";
 
@@ -38,18 +31,6 @@ const EmojiPicker = dynamic<EmojiPickerProps>(
     loading: () => (
       <div className={styles.emojiPickerLoading} role="status" aria-live="polite">
         Loading emoji&hellip;
-      </div>
-    ),
-  },
-);
-
-const GifPicker = dynamic<GifPickerProps>(
-  () => import("./GifPicker").then((mod) => mod.GifPicker),
-  {
-    ssr: false,
-    loading: () => (
-      <div className={styles.gifPickerFallback} role="status" aria-live="polite">
-        Loading GIFs&hellip;
       </div>
     ),
   },
@@ -171,24 +152,13 @@ function ReactionPickerFloating({
         <EmojiPicker
           onSelect={onSelect}
           onClose={onClose}
-          anchorLabel={anchorLabel ?? undefined}
+          anchorLabel={anchorLabel ?? ""}
         />
       </div>
     </div>,
     node,
   );
 }
-
-type PendingAttachment = {
-  id: string;
-  name: string;
-  mimeType: string;
-  size: number;
-  url: string;
-  thumbnailUrl: string | null;
-  storageKey: string | null;
-  sessionId: string | null;
-};
 
 type AttachmentUiState = {
   previewFailed: boolean;
@@ -379,20 +349,6 @@ function renderConversationAvatar(
   );
 }
 
-function formatAttachmentSize(value: number | null | undefined): string {
-  const size = typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
-  if (size >= 1024 * 1024) {
-    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-  }
-  if (size >= 1024) {
-    return `${Math.round(size / 1024)} KB`;
-  }
-  if (size > 0) {
-    return `${size} B`;
-  }
-  return "";
-}
-
 function renderStatus(message: ChatMessage): React.ReactNode {
   if (message.status === "failed") {
     return (
@@ -430,6 +386,9 @@ export function ChatConversation({
   const [reactionAnchorRect, setReactionAnchorRect] = React.useState<DOMRect | null>(null);
   const [reactionAnchorLabel, setReactionAnchorLabel] = React.useState<string | null>(null);
   const [isGifPickerOpen, setGifPickerOpen] = React.useState(false);
+  const closeGifPicker = React.useCallback(() => {
+    setGifPickerOpen(false);
+  }, []);
   const [attachmentUiState, setAttachmentUiState] = React.useState<Record<string, AttachmentUiState>>({});
   const [contextMenu, setContextMenu] = React.useState<MessageContextMenuState | null>(null);
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
@@ -1160,7 +1119,7 @@ export function ChatConversation({
   const hasQueuedAttachments = queuedAttachments.length > 0;
   const isAttachmentBusy =
     Boolean(uploadingAttachment) || attachmentUploading || pendingFileCount > 0;
-  const composerStatus = React.useMemo(() => {
+  const composerStatus: ComposerStatus | null = React.useMemo(() => {
     if (attachmentError) return null;
     if (uploadingAttachment) {
       const percent = Math.max(0, Math.min(100, Math.round(attachmentProgress * 100)));
@@ -2091,138 +2050,38 @@ export function ChatConversation({
           onClose={closeReactionPicker}
         />
       ) : null}
-      {error ? <div className={styles.errorBanner}>{error}</div> : null}
-      <form
-        className={styles.composer}
+      <ChatComposer
+        error={error}
+        draft={draft}
+        sending={sending}
+        disableSend={disableSend}
+        hasAttachmentBlock={hasAttachmentBlock}
+        queuedAttachments={queuedAttachments}
+        uploadingAttachment={uploadingAttachment}
+        attachmentProgress={attachmentProgress}
+        composerStatus={composerStatus}
+        attachmentError={attachmentError}
+        isDraggingFile={isDraggingFile}
+        isGifPickerOpen={isGifPickerOpen}
+        sessionType={session.type}
+        messageInputRef={messageInputRef}
+        fileInputRef={fileInputRef}
         onSubmit={handleSubmit}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        data-dragging={isDraggingFile ? "true" : undefined}
-      >
-        <div
-          className={styles.composerInputArea}
-          data-has-attachment={hasAttachmentBlock ? "true" : undefined}
-        >
-          <textarea
-            ref={messageInputRef}
-            className={styles.messageInput}
-            value={draft}
-            onChange={handleDraftChange}
-            onBlur={handleDraftBlur}
-            onPaste={handlePaste}
-            placeholder={session.type === "group" ? "Message the group" : "Type a message"}
-            disabled={sending}
-            aria-label="Message"
-            rows={1}
-          />
-          {queuedAttachments.length > 0 ? (
-            <div className={styles.composerAttachmentList}>
-              {queuedAttachments.map((attachment) => (
-                <div
-                  key={attachment.id}
-                  className={styles.composerAttachment}
-                  data-status="ready"
-                >
-                  <div className={styles.composerAttachmentInfo}>
-                    <span className={styles.composerAttachmentName}>{attachment.name}</span>
-                    <span className={styles.composerAttachmentMeta}>
-                      {formatAttachmentSize(attachment.size)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.composerAttachmentRemove}
-                    onClick={() => handleRemoveQueuedAttachment(attachment.id)}
-                    aria-label="Remove attachment"
-                  >
-                    <Trash size={14} weight="duotone" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-          {uploadingAttachment ? (
-            <div
-              className={styles.composerAttachment}
-              data-status={uploadingAttachment.status}
-            >
-              <div className={styles.composerAttachmentInfo}>
-                <span className={styles.composerAttachmentName}>{uploadingAttachment.name}</span>
-                <span className={styles.composerAttachmentMeta}>
-                  {uploadingAttachment.status === "uploading"
-                    ? `Uploading ${Math.round(attachmentProgress * 100)}%`
-                    : formatAttachmentSize(uploadingAttachment.size)}
-                </span>
-              </div>
-              <button
-                type="button"
-                className={styles.composerAttachmentRemove}
-                onClick={handleRemoveUploadingAttachment}
-                aria-label="Remove attachment"
-              >
-                <Trash size={14} weight="duotone" />
-              </button>
-            </div>
-          ) : null}
-          {composerStatus ? (
-            <div
-              className={styles.composerStatus}
-              data-variant={composerStatus.variant}
-              role="status"
-              aria-live="polite"
-            >
-              {composerStatus.text}
-            </div>
-          ) : null}
-          {attachmentError ? (
-            <div className={styles.composerAttachmentError} role="alert">
-              {attachmentError}
-            </div>
-          ) : null}
-          {isDraggingFile ? (
-            <div className={styles.composerDropHint}>{chatCopy.composer.dropHint}</div>
-          ) : null}
-        </div>
-        <div className={styles.composerActions}>
-          <button
-            type="button"
-            className={styles.composerAttachButton}
-            onClick={handleAttachmentButtonClick}
-            aria-label="Attach file"
-          >
-            <Paperclip size={18} weight="bold" />
-          </button>
-          <button
-            type="button"
-            className={`${styles.composerGifButton} ${
-              isGifPickerOpen ? styles.composerGifButtonActive : ""
-            }`.trim()}
-            onClick={handleGifButtonClick}
-            aria-label="Add GIF"
-            aria-expanded={isGifPickerOpen}
-          >
-            <Gif size={18} weight="bold" />
-          </button>
-          <button type="submit" className={styles.sendButton} disabled={disableSend}>
-            <PaperPlaneTilt size={18} weight="fill" className={styles.sendButtonIcon} />
-            <span>Send</span>
-          </button>
-        </div>
-        {isGifPickerOpen ? (
-          <div className={styles.composerGifPanel}>
-            <GifPicker onSelect={handleGifSelect} onClose={() => setGifPickerOpen(false)} />
-          </div>
-        ) : null}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          hidden
-          onChange={handleFileInputChange}
-        />
-      </form>
+        onDraftChange={handleDraftChange}
+        onDraftBlur={handleDraftBlur}
+        onPaste={handlePaste}
+        onRemoveQueuedAttachment={handleRemoveQueuedAttachment}
+        onRemoveUploadingAttachment={handleRemoveUploadingAttachment}
+        onAttachmentButtonClick={handleAttachmentButtonClick}
+        onGifButtonClick={handleGifButtonClick}
+        onGifSelect={handleGifSelect}
+        onGifClose={closeGifPicker}
+        onFileInputChange={handleFileInputChange}
+      />
       {contextMenuNode}
     </div>
   );
