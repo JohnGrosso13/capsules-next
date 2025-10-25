@@ -1012,29 +1012,40 @@
       rgba(255, 255, 255, 0.96) 80%,
       rgba(210, 224, 255, 0.32)
     );
-    --chats-send-button-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
-    --chats-send-button-background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand) 65%, rgba(37, 99, 235, 0.25)),
-      color-mix(in srgb, rgba(96, 165, 250, 0.35) 70%, rgba(59, 130, 246, 0.3))
+    --chats-send-button-border: color-mix(
+      in srgb,
+      var(--color-brand) 70%,
+      rgba(59, 130, 246, 0.32)
     );
-    --chats-send-button-text: var(--text-on-brand);
+    --chats-send-button-background: var(
+      --cta-button-gradient,
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-brand) 92%, rgba(59, 130, 246, 0.25)),
+        color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 90%, rgba(14, 116, 230, 0.2))
+      )
+    );
+    --chats-send-button-text: var(--cta-button-text, var(--text-on-brand));
     --chats-reaction-background: color-mix(
       in srgb,
-      rgba(226, 232, 255, 0.86) 70%,
-      rgba(203, 213, 255, 0.42)
+      var(--color-brand) 22%,
+      rgba(240, 249, 255, 0.92)
     );
-    --chats-reaction-border: color-mix(in srgb, rgba(148, 163, 184, 0.32) 65%, transparent);
+    --chats-reaction-border: color-mix(
+      in srgb,
+      var(--color-brand) 32%,
+      rgba(148, 163, 184, 0.28)
+    );
     --chats-reaction-active-background: color-mix(
       in srgb,
-      var(--color-brand) 45%,
-      rgba(219, 234, 254, 0.6)
+      var(--color-brand) 48%,
+      rgba(219, 234, 254, 0.85)
     );
     --chats-reaction-active-shadow: 0 8px 18px
-      color-mix(in srgb, rgba(59, 130, 246, 0.28) 60%, transparent);
+      color-mix(in srgb, var(--color-brand) 30%, transparent);
     --chats-reaction-add-background: color-mix(
       in srgb,
-      rgba(221, 231, 255, 0.78) 70%,
+      var(--color-brand) 20%,
       rgba(255, 255, 255, 0.9)
     );
     --chats-reaction-picker-border: color-mix(in srgb, rgba(148, 163, 184, 0.24) 70%, transparent);
