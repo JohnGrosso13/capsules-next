@@ -72,7 +72,7 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
           session={activeSession}
           currentUserId={currentUserId}
           selfClientId={selfClientId}
-          onSend={(body) => sendMessage(activeSession.id, body)}
+          onSend={(input) => sendMessage(activeSession.id, input)}
           onToggleReaction={toggleMessageReaction}
           onTypingChange={notifyTyping}
           onBack={closeSession}

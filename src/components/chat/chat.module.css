@@ -616,6 +616,7 @@
   line-height: 1.55;
   word-break: break-word;
   white-space: pre-wrap;
+  user-select: text;
 }
 
 .messageItemSelf .messageBubble {
@@ -656,6 +657,71 @@
   pointer-events: auto;
   margin-top: 6px;
   overflow: visible;
+}
+
+.messageAttachments {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+  max-width: min(62ch, 80vw);
+}
+
+.messageAttachment {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 70%, transparent);
+  background: color-mix(in srgb, rgba(36, 40, 70, 0.55) 75%, rgba(12, 14, 32, 0.85));
+  color: var(--text);
+  text-decoration: none;
+}
+
+.messageAttachment:hover {
+  border-color: color-mix(in srgb, var(--color-brand) 65%, transparent);
+}
+
+.messageItemSelf .messageAttachment {
+  background: color-mix(in srgb, rgba(74, 78, 128, 0.55) 70%, rgba(24, 26, 60, 0.85));
+}
+
+.messageAttachmentImage {
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.messageAttachmentIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent);
+  display: grid;
+  place-items: center;
+}
+
+.messageAttachmentBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.messageAttachmentName {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.messageAttachmentMeta {
+  font-size: 0.78rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
 }
 
 .messageItemOther .messageReactionPicker {
@@ -959,7 +1025,7 @@
 
 .composer {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
   padding: 14px 20px 16px;
   border-top: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
@@ -972,19 +1038,15 @@
 .messageInput {
   flex: 1;
   min-width: 0;
-  border: 1px solid
-    var(--chats-input-border, color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent));
-  background: var(
-    --chats-input-background,
-    color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75))
-  );
-  border-radius: 999px;
-  padding: 10px 16px;
+  border: none;
+  background: transparent;
   color: var(--text);
   font-size: 0.95rem;
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+  line-height: 1.55;
+  resize: none;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 0;
 }
 
 .messageInput::placeholder {
@@ -993,13 +1055,144 @@
 
 .messageInput:focus-visible {
   outline: none;
-  border-color: color-mix(in srgb, var(--color-brand) 80%, transparent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand) 25%, transparent);
 }
 
 .messageInput:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.composerInputArea {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid
+    var(--chats-input-border, color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent));
+  background: var(
+    --chats-input-background,
+    color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75))
+  );
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.composerInputArea[data-has-attachment="true"] {
+  gap: 14px;
+}
+
+.composerInputArea[data-dragging="true"] {
+  border-color: color-mix(in srgb, var(--color-brand) 80%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand) 25%, transparent);
+  background: color-mix(in srgb, rgba(42, 46, 82, 0.75) 75%, rgba(20, 24, 54, 0.85));
+}
+
+.composerDropHint {
+  position: absolute;
+  inset: 8px;
+  border-radius: 16px;
+  border: 1px dashed color-mix(in srgb, var(--color-brand) 70%, transparent);
+  background: color-mix(in srgb, rgba(34, 38, 72, 0.75) 75%, transparent);
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  color: var(--text);
+  pointer-events: none;
+  text-align: center;
+}
+
+.composerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.composerAttachButton {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 65%, transparent);
+  background: color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75));
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.composerAttachButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+}
+
+.composerAttachButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.composerAttachment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent);
+  background: color-mix(in srgb, rgba(40, 46, 74, 0.72) 80%, rgba(14, 16, 36, 0.82));
+  padding: 10px 14px;
+}
+
+.composerAttachmentInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.composerAttachmentName {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.composerAttachmentMeta {
+  font-size: 0.8rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
+}
+
+.composerAttachmentRemove {
+  border: none;
+  background: none;
+  color: var(--text-3, rgba(255, 255, 255, 0.7));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background 160ms ease;
+}
+
+.composerAttachmentRemove:hover {
+  color: var(--text);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent);
+}
+
+.composerAttachmentError {
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--color-danger) 65%, var(--text));
 }
 
 .sendButton {
@@ -1167,9 +1360,19 @@
   }
 
   .composer {
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
     padding: 16px;
+  }
+
+  .composerActions {
+    justify-content: flex-end;
+  }
+
+  .composerAttachButton {
+    width: 40px;
+    height: 40px;
   }
 
   .messageReactionPicker {
@@ -1194,4 +1397,3 @@
     opacity: 1;
   }
 }
-

@@ -9,6 +9,7 @@ import {
   UserPlus,
   Smiley,
   NotePencil,
+  Paperclip,
 } from "@phosphor-icons/react/dist/ssr";
 
 import type {
@@ -17,6 +18,9 @@ import type {
   ChatSession,
 } from "@/components/providers/ChatProvider";
 import { useCurrentUser } from "@/services/auth/client";
+
+import type { ChatMessageSendInput } from "@/components/providers/ChatProvider";
+import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 
 import styles from "./chat.module.css";
 
@@ -89,7 +93,7 @@ type ChatConversationProps = {
   session: ChatSession;
   currentUserId: string | null;
   selfClientId: string | null;
-  onSend: (body: string) => Promise<void>;
+  onSend: (input: ChatMessageSendInput) => Promise<void>;
   onBack?: () => void;
   onDelete?: () => void;
   onInviteParticipants?: () => void;
@@ -169,6 +173,20 @@ function renderConversationAvatar(
   );
 }
 
+function formatAttachmentSize(value: number | null | undefined): string {
+  const size = typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
+  if (size >= 1024 * 1024) {
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  if (size >= 1024) {
+    return `${Math.round(size / 1024)} KB`;
+  }
+  if (size > 0) {
+    return `${size} B`;
+  }
+  return "";
+}
+
 function renderStatus(message: ChatMessage): React.ReactNode {
   if (message.status === "failed") {
     return (
@@ -201,6 +219,39 @@ export function ChatConversation({
   const [error, setError] = React.useState<string | null>(null);
   const [reactionTargetId, setReactionTargetId] = React.useState<string | null>(null);
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
+  const messageInputRef = React.useRef<HTMLTextAreaElement | null>(null);
+
+  const {
+    fileInputRef,
+    attachment,
+    readyAttachment,
+    uploading: attachmentUploading,
+    clearAttachment,
+    handleAttachClick,
+    handleAttachmentSelect,
+    handleAttachmentFile,
+  } = useAttachmentUpload();
+  const [isDraggingFile, setIsDraggingFile] = React.useState(false);
+
+  const adjustTextareaHeight = React.useCallback(() => {
+    const textarea = messageInputRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    const maxHeight = 220;
+    const nextHeight = Math.min(maxHeight, Math.max(56, textarea.scrollHeight));
+    textarea.style.height = `${nextHeight}px`;
+  }, []);
+
+  const attachmentError =
+    attachment?.status === "error" ? attachment.error ?? "Upload failed" : null;
+  const attachmentProgress =
+    typeof attachment?.progress === "number"
+      ? Math.max(0, Math.min(1, attachment.progress))
+      : 0;
+  const hasAttachmentReady = Boolean(readyAttachment && readyAttachment.url);
+  const hasAttachment = Boolean(attachment);
+  const trimmedDraft = React.useMemo(() => draft.replace(/\s+/g, " ").trim(), [draft]);
+  const hasTypedContent = trimmedDraft.length > 0;
 
   const selfIdentifiers = React.useMemo(() => {
     const ids = new Set<string>();
@@ -216,6 +267,13 @@ export function ChatConversation({
     });
     return map;
   }, [session.participants]);
+
+  const disableSend =
+    sending ||
+    attachmentUploading ||
+    (!hasTypedContent && !hasAttachmentReady) ||
+    Boolean(attachmentError);
+  const activeAttachment = readyAttachment ?? attachment ?? null;
 
   React.useEffect(() => {
     setReactionTargetId(null);
@@ -249,6 +307,10 @@ export function ChatConversation({
       window.removeEventListener("mousedown", onPointerDown, { capture: true } as AddEventListenerOptions);
     };
   }, [reactionTargetId]);
+
+  React.useEffect(() => {
+    adjustTextareaHeight();
+  }, [adjustTextareaHeight, draft.length, hasAttachment]);
 
   const typingParticipants = React.useMemo(() => {
     if (!Array.isArray(session.typing) || session.typing.length === 0) {
@@ -304,21 +366,84 @@ export function ChatConversation({
     });
   }, [session.messages.length]);
 
+  const acceptsFiles = React.useCallback((items: DataTransferItemList | null | undefined): boolean => {
+    if (!items || items.length === 0) return false;
+    return Array.from(items).some((item) => item.kind === "file");
+  }, []);
+
+  const handleDragEnter = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      if (!acceptsFiles(event.dataTransfer?.items)) return;
+      event.preventDefault();
+      setIsDraggingFile(true);
+    },
+    [acceptsFiles],
+  );
+
+  const handleDragOver = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      if (!acceptsFiles(event.dataTransfer?.items)) return;
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "copy";
+      }
+      setIsDraggingFile(true);
+    },
+    [acceptsFiles],
+  );
+
+  const handleDragLeave = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setIsDraggingFile(false);
+  }, []);
+
+  const handleDrop = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      if (!acceptsFiles(event.dataTransfer?.items)) return;
+      event.preventDefault();
+      setIsDraggingFile(false);
+      const file = event.dataTransfer?.files?.[0] ?? null;
+      if (file) {
+        void handleAttachmentFile(file);
+      }
+    },
+    [acceptsFiles, handleAttachmentFile],
+  );
+
   const handleDraftChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
+    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       const value = event.target.value;
       setDraft(value);
+      requestAnimationFrame(() => adjustTextareaHeight());
       if (onTypingChange) {
-        const hasContent = value.replace(/\s+/g, "").length > 0;
+        const hasContent = value.replace(/\s+/g, "").length > 0 || hasAttachmentReady;
         onTypingChange(session.id, hasContent);
       }
     },
-    [onTypingChange, session.id],
+    [adjustTextareaHeight, hasAttachmentReady, onTypingChange, session.id],
   );
 
   const handleDraftBlur = React.useCallback(() => {
     onTypingChange?.(session.id, false);
   }, [onTypingChange, session.id]);
+
+  const handlePaste = React.useCallback(
+    (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const clipboard = event.clipboardData;
+      if (!clipboard) return;
+      const items = Array.from(clipboard.items ?? []);
+      const fileItem = items.find((item) => item.kind === "file");
+      if (fileItem) {
+        const file = fileItem.getAsFile();
+        if (file) {
+          event.preventDefault();
+          void handleAttachmentFile(file);
+        }
+        return;
+      }
+    },
+    [handleAttachmentFile],
+  );
 
   React.useEffect(() => {
     return () => {
@@ -326,16 +451,49 @@ export function ChatConversation({
     };
   }, [onTypingChange, session.id]);
 
+  React.useEffect(() => {
+    if (!onTypingChange) return;
+    const hasText = draft.replace(/\s+/g, "").length > 0;
+    if (hasText) return;
+    onTypingChange(session.id, hasAttachmentReady && !attachmentError);
+  }, [attachmentError, draft, hasAttachmentReady, onTypingChange, session.id]);
+
+  const handleAttachmentButtonClick = React.useCallback(() => {
+    handleAttachClick();
+  }, [handleAttachClick]);
+
+  const handleRemoveAttachment = React.useCallback(() => {
+    clearAttachment();
+  }, [clearAttachment]);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const trimmed = draft.replace(/\s+/g, " ").trim();
-    if (!trimmed) return;
+    const attachmentsForSend =
+      readyAttachment && readyAttachment.url
+        ? [
+            {
+              id: readyAttachment.id,
+              name: readyAttachment.name,
+              mimeType: readyAttachment.mimeType,
+              size: readyAttachment.size,
+              url: readyAttachment.url,
+              thumbnailUrl: readyAttachment.thumbUrl ?? null,
+              storageKey: readyAttachment.key ?? null,
+              sessionId: readyAttachment.sessionId ?? null,
+            },
+          ]
+        : [];
+    if (!trimmed && attachmentsForSend.length === 0) return;
+    if (attachmentUploading || attachmentError) return;
     setSending(true);
     setError(null);
     try {
-      await onSend(trimmed);
+      await onSend({ body: trimmed, attachments: attachmentsForSend });
       setDraft("");
+      clearAttachment();
       onTypingChange?.(session.id, false);
+      requestAnimationFrame(() => adjustTextareaHeight());
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message.";
       setError(message);
@@ -466,6 +624,9 @@ export function ChatConversation({
           const hasReactions = messageReactions.length > 0;
           const showReactions = Boolean(onToggleReaction) || hasReactions;
           const isPickerOpen = reactionTargetId === message.id;
+          const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+          const hasAttachments = attachments.length > 0;
+          const showBody = Boolean(message.body);
           const itemClassName = `${styles.messageItem} ${
             isSelf ? styles.messageItemSelf : styles.messageItemOther
           } ${grouped ? styles.messageItemGrouped : ""}`.trim();
@@ -505,12 +666,61 @@ export function ChatConversation({
                     </time>
                   </div>
                 ) : null}
-                <div
-                  className={`${styles.messageBubble} ${isSelf ? styles.messageBubbleSelf : ""}`.trim()}
-                  title={messageTitle}
-                >
-                  {message.body}
-                </div>
+                {showBody ? (
+                  <div
+                    className={`${styles.messageBubble} ${isSelf ? styles.messageBubbleSelf : ""}`.trim()}
+                    title={messageTitle}
+                  >
+                    {message.body}
+                  </div>
+                ) : null}
+                {hasAttachments ? (
+                  <div className={styles.messageAttachments}>
+                    {attachments.map((attachmentEntry, attachmentIndex) => {
+                      const attachmentKey = `${messageKey}-attachment-${attachmentIndex}`;
+                      const isImage =
+                        typeof attachmentEntry.mimeType === "string" &&
+                        attachmentEntry.mimeType.toLowerCase().startsWith("image/");
+                      const href = attachmentEntry.url;
+                      const imageSrc =
+                        (typeof attachmentEntry.thumbnailUrl === "string" &&
+                          attachmentEntry.thumbnailUrl.trim().length
+                          ? attachmentEntry.thumbnailUrl.trim()
+                          : null) || href;
+                      const sizeLabel = formatAttachmentSize(attachmentEntry.size);
+                      return (
+                        <a
+                          key={attachmentKey}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.messageAttachment}
+                          aria-label={`Open attachment ${attachmentEntry.name}`}
+                        >
+                          {isImage ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={imageSrc}
+                              alt={attachmentEntry.name}
+                              className={styles.messageAttachmentImage}
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className={styles.messageAttachmentIcon}>
+                              <Paperclip size={16} weight="bold" />
+                            </span>
+                          )}
+                          <span className={styles.messageAttachmentBody}>
+                            <span className={styles.messageAttachmentName}>
+                              {attachmentEntry.name}
+                            </span>
+                            <span className={styles.messageAttachmentMeta}>{sizeLabel}</span>
+                          </span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                ) : null}
                 {showReactions ? (
                   <div className={reactionClassName}>
                     {messageReactions.map((reaction, reactionIndex) => {
@@ -617,22 +827,85 @@ export function ChatConversation({
         ) : null}
       </div>
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
-      <form className={styles.composer} onSubmit={handleSubmit}>
+      <form
+        className={styles.composer}
+        onSubmit={handleSubmit}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        data-dragging={isDraggingFile ? "true" : undefined}
+      >
+        <div
+          className={styles.composerInputArea}
+          data-has-attachment={hasAttachment ? "true" : undefined}
+        >
+          <textarea
+            ref={messageInputRef}
+            className={styles.messageInput}
+            value={draft}
+            onChange={handleDraftChange}
+            onBlur={handleDraftBlur}
+            onPaste={handlePaste}
+            placeholder={session.type === "group" ? "Message the group" : "Type a message"}
+            disabled={sending}
+            aria-label="Message"
+            rows={1}
+          />
+          {activeAttachment ? (
+            <div
+              className={styles.composerAttachment}
+              data-status={attachment?.status ?? (hasAttachmentReady ? "ready" : undefined)}
+            >
+              <div className={styles.composerAttachmentInfo}>
+                <span className={styles.composerAttachmentName}>{activeAttachment.name}</span>
+                <span className={styles.composerAttachmentMeta}>
+                  {attachmentUploading
+                    ? `Uploading ${Math.round(attachmentProgress * 100)}%`
+                    : formatAttachmentSize(activeAttachment.size)}
+                </span>
+              </div>
+              <button
+                type="button"
+                className={styles.composerAttachmentRemove}
+                onClick={handleRemoveAttachment}
+                aria-label="Remove attachment"
+              >
+                <Trash size={14} weight="duotone" />
+              </button>
+            </div>
+          ) : null}
+          {attachmentError ? (
+            <div className={styles.composerAttachmentError} role="alert">
+              {attachmentError}
+            </div>
+          ) : null}
+          {isDraggingFile ? (
+            <div className={styles.composerDropHint}>Drop file to attach</div>
+          ) : null}
+        </div>
+        <div className={styles.composerActions}>
+          <button
+            type="button"
+            className={styles.composerAttachButton}
+            onClick={handleAttachmentButtonClick}
+            aria-label="Attach file"
+            disabled={attachmentUploading}
+          >
+            <Paperclip size={18} weight="bold" />
+          </button>
+          <button type="submit" className={styles.sendButton} disabled={disableSend}>
+            <PaperPlaneTilt size={18} weight="fill" className={styles.sendButtonIcon} />
+            <span>Send</span>
+          </button>
+        </div>
         <input
-          className={styles.messageInput}
-          value={draft}
-          onChange={handleDraftChange}
-          onBlur={handleDraftBlur}
-          placeholder={session.type === "group" ? "Message the group" : "Type a message"}
-          disabled={sending}
-          aria-label="Message"
+          ref={fileInputRef}
+          type="file"
+          hidden
+          onChange={handleAttachmentSelect}
         />
-        <button type="submit" className={styles.sendButton} disabled={sending || !draft.trim()}>
-          <PaperPlaneTilt size={18} weight="fill" className={styles.sendButtonIcon} />
-          <span>Send</span>
-        </button>
       </form>
     </div>
   );
 }
-

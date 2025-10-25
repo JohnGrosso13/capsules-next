@@ -17,6 +17,17 @@ export type ChatMessageReaction = {
   selfReacted: boolean;
 };
 
+export type ChatMessageAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  thumbnailUrl: string | null;
+  storageKey: string | null;
+  sessionId: string | null;
+};
+
 export type ChatMessage = {
   id: string;
   authorId: string;
@@ -24,6 +35,7 @@ export type ChatMessage = {
   sentAt: string;
   status: "pending" | "sent" | "failed";
   reactions: ChatMessageReaction[];
+  attachments: ChatMessageAttachment[];
 };
 
 export type ChatTypingEventPayload = {
@@ -79,6 +91,16 @@ export type ChatMessageEventPayload = {
       count?: number;
       users?: ChatParticipant[];
     }>;
+    attachments?: Array<{
+      id: string;
+      name: string;
+      mimeType: string;
+      size?: number;
+      url: string;
+      thumbnailUrl?: string | null;
+      storageKey?: string | null;
+      sessionId?: string | null;
+    }>;
   };
 };
 
@@ -109,6 +131,7 @@ export type StoredMessage = {
   body: string;
   sentAt: string;
   reactions?: StoredMessageReaction[];
+  attachments?: StoredMessageAttachment[];
 };
 
 export type StoredParticipant = {
@@ -120,6 +143,17 @@ export type StoredParticipant = {
 export type StoredMessageReaction = {
   emoji: string;
   users: StoredParticipant[];
+};
+
+export type StoredMessageAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  thumbnailUrl?: string | null;
+  storageKey?: string | null;
+  sessionId?: string | null;
 };
 
 export type StoredSession = {
@@ -407,6 +441,167 @@ export function sanitizeMessageBody(body: string): string {
   return body.replace(/\s+/g, " ").trim();
 }
 
+function sanitizeStoredAttachment(value: unknown): StoredMessageAttachment | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Partial<StoredMessageAttachment>;
+  const id = typeof record.id === "string" && record.id.trim().length ? record.id.trim() : null;
+  const name = typeof record.name === "string" && record.name.trim().length ? record.name.trim() : null;
+  const mimeType =
+    typeof record.mimeType === "string" && record.mimeType.trim().length ? record.mimeType.trim() : null;
+  const url = typeof record.url === "string" && record.url.trim().length ? record.url.trim() : null;
+  if (!id || !name || !mimeType || !url) return null;
+  const size =
+    typeof record.size === "number" && Number.isFinite(record.size) && record.size >= 0
+      ? Math.floor(record.size)
+      : 0;
+  const thumbnailUrl =
+    typeof record.thumbnailUrl === "string" && record.thumbnailUrl.trim().length
+      ? record.thumbnailUrl.trim()
+      : null;
+  const storageKey =
+    typeof record.storageKey === "string" && record.storageKey.trim().length
+      ? record.storageKey.trim()
+      : null;
+  const sessionId =
+    typeof record.sessionId === "string" && record.sessionId.trim().length
+      ? record.sessionId.trim()
+      : null;
+  return {
+    id,
+    name,
+    mimeType,
+    size,
+    url,
+    thumbnailUrl,
+    storageKey,
+    sessionId,
+  };
+}
+
+function sanitizeStoredAttachments(value: unknown): StoredMessageAttachment[] {
+  if (!Array.isArray(value)) return [];
+  const merged = new Map<string, StoredMessageAttachment>();
+  value.forEach((entry) => {
+    const attachment = sanitizeStoredAttachment(entry);
+    if (attachment && !merged.has(attachment.id)) {
+      merged.set(attachment.id, attachment);
+    }
+  });
+  return Array.from(merged.values());
+}
+
+function hydrateMessageAttachments(
+  attachments: StoredMessageAttachment[] | undefined,
+): ChatMessageAttachment[] {
+  if (!attachments?.length) return [];
+  return attachments.map((attachment) => ({
+    id: attachment.id,
+    name: attachment.name,
+    mimeType: attachment.mimeType,
+    size: Number.isFinite(attachment.size) && attachment.size >= 0 ? attachment.size : 0,
+    url: attachment.url,
+    thumbnailUrl: attachment.thumbnailUrl ?? null,
+    storageKey: attachment.storageKey ?? null,
+    sessionId: attachment.sessionId ?? null,
+  }));
+}
+
+function persistMessageAttachments(
+  attachments: ChatMessageAttachment[] | undefined,
+): StoredMessageAttachment[] | undefined {
+  if (!attachments?.length) return undefined;
+  const merged = new Map<string, ChatMessageAttachment>();
+  attachments.forEach((attachment) => {
+    if (attachment && attachment.id && !merged.has(attachment.id)) {
+      merged.set(attachment.id, attachment);
+    }
+  });
+  if (!merged.size) return undefined;
+  return Array.from(merged.values()).map((attachment) => ({
+    id: attachment.id,
+    name: attachment.name,
+    mimeType: attachment.mimeType,
+    size: Number.isFinite(attachment.size) && attachment.size >= 0 ? Math.floor(attachment.size) : 0,
+    url: attachment.url,
+    thumbnailUrl: attachment.thumbnailUrl ?? null,
+    storageKey: attachment.storageKey ?? null,
+    sessionId: attachment.sessionId ?? null,
+  }));
+}
+
+function sanitizeIncomingAttachments(
+  attachments: ChatMessageEventPayload["message"]["attachments"],
+): ChatMessageAttachment[] {
+  if (!attachments?.length) return [];
+  const merged = new Map<string, ChatMessageAttachment>();
+  attachments.forEach((entry) => {
+    if (!entry || typeof entry !== "object") return;
+    const id = typeof entry.id === "string" && entry.id.trim().length ? entry.id.trim() : null;
+    const name =
+      typeof entry.name === "string" && entry.name.trim().length ? entry.name.trim() : null;
+    const mimeType =
+      typeof entry.mimeType === "string" && entry.mimeType.trim().length
+        ? entry.mimeType.trim()
+        : null;
+    const url = typeof entry.url === "string" && entry.url.trim().length ? entry.url.trim() : null;
+    if (!id || !name || !mimeType || !url) return;
+    const size =
+      typeof entry.size === "number" && Number.isFinite(entry.size) && entry.size >= 0
+        ? Math.floor(entry.size)
+        : 0;
+    const thumbnailUrl =
+      typeof entry.thumbnailUrl === "string" && entry.thumbnailUrl.trim().length
+        ? entry.thumbnailUrl.trim()
+        : null;
+    const storageKey =
+      typeof entry.storageKey === "string" && entry.storageKey.trim().length
+        ? entry.storageKey.trim()
+        : null;
+    const sessionId =
+      typeof entry.sessionId === "string" && entry.sessionId.trim().length
+        ? entry.sessionId.trim()
+        : null;
+    if (merged.has(id)) return;
+    merged.set(id, {
+      id,
+      name,
+      mimeType,
+      size,
+      url,
+      thumbnailUrl,
+      storageKey,
+      sessionId,
+    });
+  });
+  return Array.from(merged.values());
+}
+
+function normalizeLocalAttachments(
+  attachments: ChatMessageAttachment[] | undefined,
+): ChatMessageAttachment[] {
+  if (!attachments?.length) return [];
+  const merged = new Map<string, ChatMessageAttachment>();
+  attachments.forEach((attachment) => {
+    if (!attachment || typeof attachment.id !== "string") return;
+    const id = attachment.id.trim();
+    if (!id || merged.has(id)) return;
+    merged.set(id, {
+      id,
+      name: attachment.name?.trim() || id,
+      mimeType: attachment.mimeType?.trim() || "application/octet-stream",
+      size:
+        typeof attachment.size === "number" && Number.isFinite(attachment.size) && attachment.size >= 0
+          ? Math.floor(attachment.size)
+          : 0,
+      url: attachment.url?.trim() || "",
+      thumbnailUrl: attachment.thumbnailUrl ?? null,
+      storageKey: attachment.storageKey ?? null,
+      sessionId: attachment.sessionId ?? null,
+    });
+  });
+  return Array.from(merged.values()).filter((attachment) => attachment.url.length > 0);
+}
+
 function isValidStoredSession(value: unknown): value is StoredSession {
   if (!value || typeof value !== "object") return false;
   const session = value as StoredSession;
@@ -662,6 +857,9 @@ export class ChatStore {
             sentAt: storedMessage.sentAt,
             status: "sent",
             reactions,
+            attachments: hydrateMessageAttachments(
+              sanitizeStoredAttachments(storedMessage.attachments),
+            ),
           };
           session.messages.push(restoredMessage);
           session.messageIndex.set(restoredMessage.id, session.messages.length - 1);
@@ -710,6 +908,10 @@ export class ChatStore {
                 avatar: user.avatar,
               })),
             }));
+          }
+          const persistedAttachments = persistMessageAttachments(message.attachments);
+          if (persistedAttachments && persistedAttachments.length > 0) {
+            storedMessage.attachments = persistedAttachments;
           }
           return storedMessage;
         }),
@@ -843,6 +1045,7 @@ export class ChatStore {
     const session = this.sessions.get(sessionId);
     if (!session) return;
     let changed = false;
+    const attachments = normalizeLocalAttachments(message.attachments);
     const existingIndex = session.messageIndex.get(message.id);
     if (typeof existingIndex === "number") {
       const existing = session.messages[existingIndex];
@@ -850,12 +1053,19 @@ export class ChatStore {
         Array.isArray(message.reactions) && message.reactions.length >= 0
           ? message.reactions
           : existing?.reactions ?? [];
-      session.messages[existingIndex] = { ...existing, ...message, reactions };
+      const nextMessage = {
+        ...existing,
+        ...message,
+        reactions,
+        attachments: attachments.length > 0 ? attachments : existing?.attachments ?? [],
+      };
+      session.messages[existingIndex] = nextMessage;
       changed = true;
     } else {
       const nextMessage = {
         ...message,
         reactions: Array.isArray(message.reactions) ? message.reactions : [],
+        attachments,
       };
       session.messages.push(nextMessage);
       session.messageIndex.set(nextMessage.id, session.messages.length - 1);
@@ -893,13 +1103,15 @@ export class ChatStore {
       body: string;
       sentAt: string;
       reactions?: Array<{ emoji: string; users?: ChatParticipant[] }>;
+      attachments?: ChatMessageEventPayload["message"]["attachments"];
     },
   ) {
     const session = this.sessions.get(sessionId);
     if (!session) return;
     if (!serverPayload || typeof serverPayload.id !== "string") return;
     const sanitizedBody = sanitizeMessageBody(serverPayload.body ?? "");
-    if (!sanitizedBody) return;
+    const attachments = sanitizeIncomingAttachments(serverPayload.attachments);
+    if (!sanitizedBody && attachments.length === 0) return;
     const normalizedReactions = normalizeReactions(serverPayload.reactions, (id) => this.isSelfId(id));
     const baseMessage: ChatMessage = {
       id: serverPayload.id,
@@ -908,6 +1120,7 @@ export class ChatStore {
       sentAt: serverPayload.sentAt || new Date().toISOString(),
       status: "sent",
       reactions: normalizedReactions,
+      attachments,
     };
     const clientIndex = session.messageIndex.get(clientMessageId);
     const serverIndex = session.messageIndex.get(baseMessage.id);
@@ -1017,7 +1230,8 @@ export class ChatStore {
       return;
     }
     const messageBody = sanitizeMessageBody(payload.message.body);
-    if (!messageBody) return;
+    const attachments = sanitizeIncomingAttachments(payload.message.attachments);
+    if (!messageBody && attachments.length === 0) return;
     const authorId = payload.senderId || payload.message.id;
     const reactions = normalizeReactions(payload.message.reactions, (id) => this.isSelfId(id));
     const chatMessage: ChatMessage = {
@@ -1027,6 +1241,7 @@ export class ChatStore {
       sentAt: payload.message.sentAt ?? new Date().toISOString(),
       status: "sent",
       reactions,
+      attachments,
     };
     const isLocal = this.isSelfId(authorId);
     this.addMessage(session.id, chatMessage, { isLocal });
@@ -1245,7 +1460,7 @@ export class ChatStore {
   prepareLocalMessage(
     conversationId: string,
     body: string,
-    options?: { selfParticipant?: ChatParticipant | null },
+    options?: { selfParticipant?: ChatParticipant | null; attachments?: ChatMessageAttachment[] },
   ): {
     message: ChatMessage;
     session: {
@@ -1260,7 +1475,8 @@ export class ChatStore {
     const session = this.sessions.get(conversationId);
     if (!session) return null;
     const trimmed = sanitizeMessageBody(body);
-    if (!trimmed) return null;
+    const attachments = normalizeLocalAttachments(options?.attachments);
+    if (!trimmed && attachments.length === 0) return null;
     const selfIdentity = this.selfClientId ?? this.currentUserId;
     if (!selfIdentity) {
       throw new Error("Chat identity is not ready yet.");
@@ -1287,6 +1503,7 @@ export class ChatStore {
       sentAt,
       status: "pending",
       reactions: [],
+      attachments,
     };
     this.addMessage(session.id, localMessage, { isLocal: true });
     return {
@@ -1601,7 +1818,13 @@ export class ChatStore {
           messages,
           unreadCount: session.unreadCount,
           lastMessageAt: lastMessage?.sentAt ?? null,
-          lastMessagePreview: lastMessage?.body ?? null,
+          lastMessagePreview:
+            (lastMessage?.body && lastMessage.body.trim().length ? lastMessage.body : "") ||
+            (lastMessage && Array.isArray(lastMessage.attachments) && lastMessage.attachments.length
+              ? lastMessage.attachments.length === 1
+                ? `Attachment: ${lastMessage.attachments[0]?.name ?? "Attachment"}`
+                : `Attachments (${lastMessage.attachments.length})`
+              : null),
           typing: typingSnapshot.participants,
         },
       });

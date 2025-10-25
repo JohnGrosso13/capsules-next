@@ -21,6 +21,16 @@ export async function publishDirectMessageEvent(params: {
   messageId: string;
   senderId: string;
   body: string;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    mimeType: string;
+    size: number;
+    url: string;
+    thumbnailUrl: string | null;
+    storageKey: string | null;
+    sessionId: string | null;
+  }>;
   sentAt: string;
   participants: ChatParticipantSummary[];
   reactions?: Array<{ emoji: string; users: ChatParticipantSummary[] }>;
@@ -63,6 +73,19 @@ export async function publishDirectMessageEvent(params: {
       body: params.body,
       sentAt: params.sentAt,
       reactions: reactionEntries,
+      attachments:
+        Array.isArray(params.attachments) && params.attachments.length > 0
+          ? params.attachments.map((attachment) => ({
+              id: attachment.id,
+              name: attachment.name,
+              mimeType: attachment.mimeType,
+              size: attachment.size,
+              url: attachment.url,
+              thumbnailUrl: attachment.thumbnailUrl ?? null,
+              storageKey: attachment.storageKey ?? null,
+              sessionId: attachment.sessionId ?? null,
+            }))
+          : [],
     },
   };
 

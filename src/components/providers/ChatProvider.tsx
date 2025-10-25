@@ -9,9 +9,15 @@ import { requestRealtimeToken } from "@/lib/realtime/token";
 import { ChatEngine } from "@/lib/chat/chat-engine";
 import type { FriendItem } from "@/hooks/useFriendsData";
 import { useCurrentUser } from "@/services/auth/client";
-import type { ChatSession, ChatParticipant } from "./chat-store";
+import type { ChatSession, ChatParticipant, ChatMessageAttachment } from "./chat-store";
 
-export type { ChatSession, ChatSessionType, ChatParticipant, ChatMessage } from "./chat-store";
+export type {
+  ChatSession,
+  ChatSessionType,
+  ChatParticipant,
+  ChatMessage,
+  ChatMessageAttachment,
+} from "./chat-store";
 export { chatStoreTestUtils as __chatTestUtils } from "./chat-store";
 
 export type ChatFriendTarget = {
@@ -31,6 +37,11 @@ export type CreateGroupChatInput = {
   activate?: boolean;
 };
 
+export type ChatMessageSendInput = {
+  body: string;
+  attachments?: ChatMessageAttachment[];
+};
+
 export type ChatContextValue = {
   sessions: ChatSession[];
   activeSessionId: string | null;
@@ -46,7 +57,7 @@ export type ChatContextValue = {
   openSession: (sessionId: string) => void;
   closeSession: () => void;
   deleteSession: (sessionId: string) => Promise<void>;
-  sendMessage: (conversationId: string, body: string) => Promise<void>;
+  sendMessage: (conversationId: string, input: ChatMessageSendInput) => Promise<void>;
   toggleMessageReaction: (
     conversationId: string,
     messageId: string,
@@ -211,8 +222,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   );
 
   const sendMessage = React.useCallback(
-    async (conversationId: string, body: string) => {
-      await engine.sendMessage(conversationId, body);
+    async (conversationId: string, input: ChatMessageSendInput) => {
+      await engine.sendMessage(conversationId, input);
     },
     [engine],
   );

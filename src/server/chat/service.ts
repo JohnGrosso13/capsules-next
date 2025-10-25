@@ -44,6 +44,17 @@ import {
   publishSessionDeletedEvent,
 } from "@/services/realtime/chat";
 
+export type ChatMessageAttachmentRecord = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  thumbnailUrl: string | null;
+  storageKey: string | null;
+  sessionId: string | null;
+};
+
 export type ChatMessageRecord = {
   id: string;
   conversationId: string;
@@ -51,6 +62,7 @@ export type ChatMessageRecord = {
   body: string;
   sentAt: string;
   reactions: ChatMessageReactionRecord[];
+  attachments: ChatMessageAttachmentRecord[];
 };
 
 export type ChatMessageReactionRecord = {
@@ -113,6 +125,114 @@ function sanitizeBody(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+type RawChatMessagePayload = {
+  text?: string;
+  attachments?: unknown;
+};
+
+type RawChatMessageAttachment = {
+  id?: unknown;
+  name?: unknown;
+  mimeType?: unknown;
+  size?: unknown;
+  url?: unknown;
+  thumbnailUrl?: unknown;
+  storageKey?: unknown;
+  sessionId?: unknown;
+};
+
+function sanitizeAttachment(value: unknown): ChatMessageAttachmentRecord | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as RawChatMessageAttachment;
+  const id = typeof raw.id === "string" && raw.id.trim().length ? raw.id.trim() : null;
+  const name = typeof raw.name === "string" && raw.name.trim().length ? raw.name.trim() : null;
+  const mimeType =
+    typeof raw.mimeType === "string" && raw.mimeType.trim().length ? raw.mimeType.trim() : null;
+  const url = typeof raw.url === "string" && raw.url.trim().length ? raw.url.trim() : null;
+  if (!id || !name || !mimeType || !url) return null;
+  const size =
+    typeof raw.size === "number" && Number.isFinite(raw.size) && raw.size >= 0
+      ? Math.floor(raw.size)
+      : 0;
+  const thumbnailUrl =
+    typeof raw.thumbnailUrl === "string" && raw.thumbnailUrl.trim().length
+      ? raw.thumbnailUrl.trim()
+      : null;
+  const storageKey =
+    typeof raw.storageKey === "string" && raw.storageKey.trim().length
+      ? raw.storageKey.trim()
+      : null;
+  const sessionId =
+    typeof raw.sessionId === "string" && raw.sessionId.trim().length
+      ? raw.sessionId.trim()
+      : null;
+  return {
+    id,
+    name,
+    mimeType,
+    size,
+    url,
+    thumbnailUrl,
+    storageKey,
+    sessionId,
+  };
+}
+
+function sanitizeAttachments(value: unknown): ChatMessageAttachmentRecord[] {
+  if (!Array.isArray(value)) return [];
+  const sanitized = value
+    .map((entry) => sanitizeAttachment(entry))
+    .filter((entry): entry is ChatMessageAttachmentRecord => Boolean(entry));
+  if (!sanitized.length) return [];
+  const unique = new Map<string, ChatMessageAttachmentRecord>();
+  sanitized.forEach((attachment) => {
+    if (!unique.has(attachment.id)) {
+      unique.set(attachment.id, attachment);
+    }
+  });
+  return Array.from(unique.values());
+}
+
+function encodeMessagePayload(body: string, attachments: ChatMessageAttachmentRecord[]): string {
+  const text = sanitizeBody(body ?? "");
+  if (!attachments.length) return text;
+  try {
+    return JSON.stringify({
+      text,
+      attachments,
+    });
+  } catch {
+    return text;
+  }
+}
+
+function decodeMessagePayload(raw: string): {
+  text: string;
+  attachments: ChatMessageAttachmentRecord[];
+} {
+  if (!raw || typeof raw !== "string") {
+    return { text: "", attachments: [] };
+  }
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("{")) {
+    return { text: sanitizeBody(raw), attachments: [] };
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as RawChatMessagePayload;
+    const text =
+      typeof parsed?.text === "string" && parsed.text.trim().length
+        ? sanitizeBody(parsed.text)
+        : "";
+    const attachments = sanitizeAttachments(parsed?.attachments);
+    if (!attachments.length && !text) {
+      return { text: sanitizeBody(raw), attachments: [] };
+    }
+    return { text, attachments };
+  } catch {
+    return { text: sanitizeBody(raw), attachments: [] };
+  }
+}
+
 function sanitizeReactionEmoji(value: string): string {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
@@ -139,13 +259,15 @@ function toMessageRecord(
   row: ChatMessageRow | ChatGroupMessageRow,
   reactions: ChatMessageReactionRecord[] = [],
 ): ChatMessageRecord {
+  const payload = decodeMessagePayload(row.body ?? "");
   return {
     id: row.id,
     conversationId: row.conversation_id,
     senderId: row.sender_id,
-    body: row.body,
+    body: payload.text,
     sentAt: resolveSentAt(row),
     reactions,
+    attachments: payload.attachments,
   };
 }
 
@@ -669,6 +791,7 @@ export async function sendDirectMessage(params: {
   senderId: string;
   messageId: string;
   body: string;
+  attachments?: ChatMessageAttachmentRecord[];
   clientSentAt?: string | null;
 }): Promise<{
   message: ChatMessageRecord;
@@ -723,8 +846,15 @@ export async function sendDirectMessage(params: {
     canonicalSenderId === canonicalLeft ? rightResolved : leftResolved;
   const otherCanonicalId = otherResolved.canonicalId;
   const bodySanitized = sanitizeBody(params.body ?? "");
-  if (!bodySanitized) {
-    throw new ChatServiceError("invalid_body", 400, "Message text cannot be empty.");
+  const attachments = Array.isArray(params.attachments)
+    ? sanitizeAttachments(params.attachments)
+    : [];
+  if (!bodySanitized && attachments.length === 0) {
+    throw new ChatServiceError(
+      "invalid_body",
+      400,
+      "A message must include text or at least one attachment.",
+    );
   }
   if (bodySanitized.length > MAX_BODY_LENGTH) {
     throw new ChatServiceError(
@@ -755,11 +885,13 @@ export async function sendDirectMessage(params: {
     }
   }
 
+  const serializedBody = encodeMessagePayload(bodySanitized, attachments);
+
   const messageRow = await upsertChatMessage({
     id: canonicalMessageId,
     conversation_id: canonicalConversationId,
     sender_id: canonicalSenderId,
-    body: bodySanitized,
+    body: serializedBody,
     client_sent_at: clientSentAt,
   });
 
@@ -770,6 +902,7 @@ export async function sendDirectMessage(params: {
     messageId: messageRecord.id,
     senderId: messageRecord.senderId,
     body: messageRecord.body,
+    attachments: messageRecord.attachments,
     sentAt: messageRecord.sentAt,
     participants: participantSummaries,
     reactions: messageRecord.reactions.map((reaction) => ({
@@ -793,6 +926,7 @@ export async function sendGroupMessage(params: {
   senderId: string;
   messageId: string;
   body: string;
+  attachments?: ChatMessageAttachmentRecord[];
   clientSentAt?: string | null;
 }): Promise<{
   message: ChatMessageRecord;
@@ -843,8 +977,15 @@ export async function sendGroupMessage(params: {
   }
 
   const bodySanitized = sanitizeBody(params.body ?? "");
-  if (!bodySanitized) {
-    throw new ChatServiceError("invalid_body", 400, "Message text cannot be empty.");
+  const attachments = Array.isArray(params.attachments)
+    ? sanitizeAttachments(params.attachments)
+    : [];
+  if (!bodySanitized && attachments.length === 0) {
+    throw new ChatServiceError(
+      "invalid_body",
+      400,
+      "A message must include text or at least one attachment.",
+    );
   }
   if (bodySanitized.length > MAX_BODY_LENGTH) {
     throw new ChatServiceError(
@@ -863,11 +1004,12 @@ export async function sendGroupMessage(params: {
   }
 
   const canonicalMessageId = canonicalizeMessageId(params.messageId, trimmedConversationId);
+  const serializedBody = encodeMessagePayload(bodySanitized, attachments);
   const messageRow = await upsertGroupMessage({
     id: canonicalMessageId,
     conversation_id: trimmedConversationId,
     sender_id: senderId,
-    body: bodySanitized,
+    body: serializedBody,
     client_sent_at: clientSentAt,
   });
 
@@ -892,6 +1034,7 @@ export async function sendGroupMessage(params: {
     messageId: messageRecord.id,
     senderId: messageRecord.senderId,
     body: messageRecord.body,
+    attachments: messageRecord.attachments,
     sentAt: messageRecord.sentAt,
     participants: participantSummaries,
     reactions: [],

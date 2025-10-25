@@ -20,6 +20,33 @@ const reactionSchema = z.object({
   users: z.array(participantSchema),
 });
 
+const flexibleUrlSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => {
+      try {
+        if (value.startsWith("/")) return true;
+        const parsed = new URL(value);
+        return Boolean(parsed);
+      } catch {
+        return false;
+      }
+    },
+    { message: "Invalid URL" },
+  );
+
+const messageAttachmentSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  mimeType: z.string().min(1),
+  size: z.number().int().min(0).optional(),
+  url: flexibleUrlSchema,
+  thumbnailUrl: flexibleUrlSchema.optional().nullable(),
+  storageKey: z.string().min(1).optional().nullable(),
+  sessionId: z.string().min(1).optional().nullable(),
+});
+
 const messageSchema = z.object({
   id: z.string(),
   conversationId: z.string(),
@@ -27,14 +54,28 @@ const messageSchema = z.object({
   body: z.string(),
   sentAt: z.string(),
   reactions: z.array(reactionSchema),
+  attachments: z.array(messageAttachmentSchema).optional(),
 });
 
-const sendRequestSchema = z.object({
-  conversationId: z.string().min(1),
-  messageId: z.string().min(3),
-  body: z.string().min(1).max(4000),
-  sentAt: z.string().datetime().optional(),
-});
+const sendRequestSchema = z
+  .object({
+    conversationId: z.string().min(1),
+    messageId: z.string().min(3),
+    body: z.string().max(4000).optional(),
+    attachments: z.array(messageAttachmentSchema).optional(),
+    sentAt: z.string().datetime().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const body = typeof value.body === "string" ? value.body.replace(/\s+/g, " ").trim() : "";
+    const attachmentsCount = Array.isArray(value.attachments) ? value.attachments.length : 0;
+    if (!body && attachmentsCount === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "A message must include text or at least one attachment.",
+        path: ["body"],
+      });
+    }
+  });
 
 const sendResponseSchema = z.object({
   success: z.literal(true),
@@ -69,10 +110,35 @@ export async function POST(req: Request) {
   }
 
   try {
+    const normalizedAttachments =
+      parsed.data.attachments?.map((attachment) => ({
+        id: attachment.id,
+        name: attachment.name,
+        mimeType: attachment.mimeType,
+        url: attachment.url,
+        size:
+          typeof attachment.size === "number" && Number.isFinite(attachment.size) && attachment.size >= 0
+            ? Math.floor(attachment.size)
+            : 0,
+        thumbnailUrl:
+          typeof attachment.thumbnailUrl === "string" && attachment.thumbnailUrl.trim().length
+            ? attachment.thumbnailUrl.trim()
+            : null,
+        storageKey:
+          typeof attachment.storageKey === "string" && attachment.storageKey.trim().length
+            ? attachment.storageKey.trim()
+            : null,
+        sessionId:
+          typeof attachment.sessionId === "string" && attachment.sessionId.trim().length
+            ? attachment.sessionId.trim()
+            : null,
+      })) ?? [];
+
     const result = await sendDirectMessage({
       conversationId: parsed.data.conversationId,
       messageId: parsed.data.messageId,
-      body: parsed.data.body,
+      body: parsed.data.body ?? "",
+      attachments: normalizedAttachments,
       clientSentAt: parsed.data.sentAt ?? null,
       senderId: userId,
     });

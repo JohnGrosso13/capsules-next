@@ -29,6 +29,7 @@ describe("ChatStore reactions", () => {
         sentAt,
         status: "sent",
         reactions: [],
+        attachments: [],
       },
       { isLocal: false },
     );

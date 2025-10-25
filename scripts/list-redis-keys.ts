@@ -26,7 +26,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-async function listKeys(pattern) {
+async function listKeys(pattern: string) {
   let cursor = "0";
   const keys: string[] = [];
   do {

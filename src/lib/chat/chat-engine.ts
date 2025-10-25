@@ -23,6 +23,7 @@ import type {
   ChatTypingEventPayload,
   ChatReactionEventPayload,
   ChatMessageReaction,
+  ChatMessageAttachment,
 } from "@/components/providers/chat-store";
 import { ChatStore } from "@/components/providers/chat-store";
 
@@ -62,6 +63,17 @@ type ChatMessageReactionDto = {
   users: ChatParticipantDto[];
 };
 
+type ChatAttachmentDto = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: number;
+  url: string;
+  thumbnailUrl?: string | null;
+  storageKey?: string | null;
+  sessionId?: string | null;
+};
+
 type ChatMessageDto = {
   id: string;
   conversationId: string;
@@ -69,6 +81,7 @@ type ChatMessageDto = {
   body: string;
   sentAt: string;
   reactions?: ChatMessageReactionDto[];
+  attachments?: ChatAttachmentDto[];
 };
 
 type ChatHistoryResponse = {
@@ -490,9 +503,12 @@ export class ChatEngine {
     this.conversationHistoryLoading.delete(sessionId);
   }
 
-  async sendMessage(conversationId: string, body: string): Promise<void> {
-    const trimmed = body.replace(/\s+/g, " ").trim();
-    if (!trimmed) return;
+  async sendMessage(
+    conversationId: string,
+    input: { body: string; attachments?: ChatMessageAttachment[] },
+  ): Promise<void> {
+    const rawBody = typeof input?.body === "string" ? input.body : "";
+    const attachments = Array.isArray(input?.attachments) ? input.attachments : [];
     const selfIdentity = this.resolveSelfId();
     if (!selfIdentity) {
       throw new Error("Chat identity is not ready yet.");
@@ -504,8 +520,9 @@ export class ChatEngine {
         avatar: this.userProfile.avatarUrl ?? null,
       } satisfies ChatParticipant);
     let effectiveConversationId = conversationId;
-    const prepared = this.store.prepareLocalMessage(effectiveConversationId, trimmed, {
+    const prepared = this.store.prepareLocalMessage(effectiveConversationId, rawBody, {
       selfParticipant,
+      attachments,
     });
     if (!prepared) return;
     const { message } = prepared;
@@ -523,6 +540,19 @@ export class ChatEngine {
           messageId: message.id,
           body: message.body,
           sentAt: message.sentAt,
+          attachments:
+            message.attachments.length > 0
+              ? message.attachments.map((attachment) => ({
+                  id: attachment.id,
+                  name: attachment.name,
+                  mimeType: attachment.mimeType,
+                  size: attachment.size,
+                  url: attachment.url,
+                  thumbnailUrl: attachment.thumbnailUrl,
+                  storageKey: attachment.storageKey,
+                  sessionId: attachment.sessionId,
+                }))
+              : [],
         }),
       });
 
@@ -568,6 +598,7 @@ export class ChatEngine {
           body: payload.message.body,
           sentAt: payload.message.sentAt,
           reactions: reactionDescriptors,
+          attachments: payload.message.attachments,
         });
         this.recordDirectChannelWatermarkFromIso(payload.message.sentAt);
       } else {
@@ -946,10 +977,60 @@ export class ChatEngine {
     return normalized;
   }
 
+  private normalizeAttachmentsFromDto(
+    attachments: ChatAttachmentDto[] | undefined,
+  ): ChatMessageAttachment[] {
+    if (!Array.isArray(attachments) || attachments.length === 0) {
+      return [];
+    }
+    const merged = new Map<string, ChatMessageAttachment>();
+    attachments.forEach((attachment) => {
+      if (!attachment) return;
+      const id = typeof attachment.id === "string" ? attachment.id.trim() : "";
+      if (!id || merged.has(id)) return;
+      const name =
+        typeof attachment.name === "string" && attachment.name.trim().length
+          ? attachment.name.trim()
+          : id;
+      const mimeType =
+        typeof attachment.mimeType === "string" && attachment.mimeType.trim().length
+          ? attachment.mimeType.trim()
+          : "application/octet-stream";
+      const url = typeof attachment.url === "string" && attachment.url.trim().length ? attachment.url.trim() : "";
+      if (!url) return;
+      const size =
+        typeof attachment.size === "number" && Number.isFinite(attachment.size) && attachment.size >= 0
+          ? Math.floor(attachment.size)
+          : 0;
+      merged.set(id, {
+        id,
+        name,
+        mimeType,
+        size,
+        url,
+        thumbnailUrl:
+          typeof attachment.thumbnailUrl === "string" && attachment.thumbnailUrl.trim().length
+            ? attachment.thumbnailUrl.trim()
+            : null,
+        storageKey:
+          typeof attachment.storageKey === "string" && attachment.storageKey.trim().length
+            ? attachment.storageKey.trim()
+            : null,
+        sessionId:
+          typeof attachment.sessionId === "string" && attachment.sessionId.trim().length
+            ? attachment.sessionId.trim()
+            : null,
+      });
+    });
+    return Array.from(merged.values());
+  }
+
   private upsertMessageFromDto(conversationId: string, dto: ChatMessageDto): void {
-    if (!dto?.id || !dto.body) return;
-    const sanitized = dto.body.replace(/\s+/g, " ").trim();
-    if (!sanitized) return;
+    if (!dto?.id) return;
+    const sanitized =
+      typeof dto.body === "string" ? dto.body.replace(/\s+/g, " ").trim() : "";
+    const attachments = this.normalizeAttachmentsFromDto(dto.attachments);
+    if (!sanitized && attachments.length === 0) return;
     const reactions = this.normalizeReactionsFromDto(dto.reactions);
     const chatMessage = {
       id: dto.id,
@@ -958,6 +1039,7 @@ export class ChatEngine {
       sentAt: dto.sentAt,
       status: "sent" as const,
       reactions,
+      attachments,
     };
     const isLocal = this.isSelfUser(dto.senderId);
     this.store.addMessage(conversationId, chatMessage, { isLocal });
@@ -1050,14 +1132,11 @@ export class ChatEngine {
       };
       this.store.startSession(descriptor);
       const lastMessage = conversation.lastMessage;
-      if (
-        lastMessage &&
-        typeof lastMessage.id === "string" &&
-        typeof lastMessage.body === "string" &&
-        typeof lastMessage.sentAt === "string"
-      ) {
-        const sanitized = lastMessage.body.replace(/\s+/g, " ").trim();
-        if (sanitized) {
+      if (lastMessage && typeof lastMessage.id === "string" && typeof lastMessage.sentAt === "string") {
+        const sanitized =
+          typeof lastMessage.body === "string" ? lastMessage.body.replace(/\s+/g, " ").trim() : "";
+        const attachments = this.normalizeAttachmentsFromDto(lastMessage.attachments);
+        if (sanitized || attachments.length > 0) {
           const reactions = this.normalizeReactionsFromDto(lastMessage.reactions);
           const chatMessage = {
             id: lastMessage.id,
@@ -1066,6 +1145,7 @@ export class ChatEngine {
             sentAt: lastMessage.sentAt,
             status: "sent" as const,
             reactions,
+            attachments,
           };
           const isLocal = this.isSelfUser(chatMessage.authorId);
           this.store.addMessage(descriptor.id, chatMessage, { isLocal });
