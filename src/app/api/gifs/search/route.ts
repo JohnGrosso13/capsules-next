@@ -4,6 +4,7 @@ import { serverEnv } from "@/lib/env/server";
 
 const TENOR_BASE_URL = "https://tenor.googleapis.com/v2";
 const GIPHY_BASE_URL = "https://api.giphy.com/v1/gifs";
+const MAX_GIF_SIZE_BYTES = 7 * 1024 * 1024;
 
 type GifResult = {
   id: string;
@@ -55,6 +56,30 @@ type GiphyResponse = {
   data?: GiphyGif[];
   pagination?: { offset?: number; count?: number; total_count?: number };
 };
+
+function filterOversized(results: GifResult[], provider: "giphy" | "tenor"): GifResult[] {
+  if (!Array.isArray(results) || results.length === 0) {
+    return [];
+  }
+  let removed = 0;
+  const filtered = results.filter((gif) => {
+    const size = typeof gif.size === "number" && Number.isFinite(gif.size) ? gif.size : null;
+    if (size !== null && size > MAX_GIF_SIZE_BYTES) {
+      removed += 1;
+      return false;
+    }
+    return true;
+  });
+  if (removed > 0) {
+    console.info("gif.search.filterOversize", {
+      provider,
+      removed,
+      limit: MAX_GIF_SIZE_BYTES,
+      timestamp: new Date().toISOString(),
+    });
+  }
+  return filtered;
+}
 
 function parseDimension(value: string | undefined): number | null {
   const parsed = Number(value);
@@ -115,8 +140,10 @@ async function searchTenor(
     };
   });
 
+  const normalized = results.filter((gif) => gif.url.length > 0);
+
   return {
-    results: results.filter((gif) => gif.url.length > 0),
+    results: filterOversized(normalized, "tenor"),
     next: payload.next ?? null,
   };
 }
@@ -176,8 +203,10 @@ async function searchGiphy(
   const nextOffset =
     count > 0 && currentOffset + count < total ? String(currentOffset + count) : null;
 
+  const normalized = results.filter((gif) => gif.url.length > 0);
+
   return {
-    results: results.filter((gif) => gif.url.length > 0),
+    results: filterOversized(normalized, "giphy"),
     next: nextOffset,
   };
 }

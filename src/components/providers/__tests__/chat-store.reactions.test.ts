@@ -112,4 +112,40 @@ describe("ChatStore reactions", () => {
 
     expect(message?.reactions ?? []).toHaveLength(0);
   });
+
+  it("merges skin tone emoji reactions without duplication", () => {
+    const store = setupStore();
+
+    store.applyReactionEvent({
+      type: "chat.reaction",
+      conversationId,
+      messageId: "msg-1",
+      emoji: "👍🏻",
+      action: "added",
+      actor: { id: "user_a", name: "Alice", avatar: null },
+      reactions: [
+        {
+          emoji: "👍🏻",
+          users: [
+            { id: "user_a", name: "Alice", avatar: null },
+            { id: "user_b", name: "Bob", avatar: null },
+          ],
+        },
+      ],
+      participants: [
+        { id: "user_a", name: "Alice", avatar: null },
+        { id: "user_b", name: "Bob", avatar: null },
+      ],
+    });
+
+    const message = store
+      .getSnapshot()
+      .sessions.find((session) => session.id === conversationId)
+      ?.messages.find((m) => m.id === "msg-1");
+
+    expect(message?.reactions).toBeTruthy();
+    expect(message?.reactions[0]?.emoji).toBe("👍🏻");
+    expect(message?.reactions[0]?.count).toBe(2);
+    expect(message?.reactions[0]?.selfReacted).toBe(true);
+  });
 });

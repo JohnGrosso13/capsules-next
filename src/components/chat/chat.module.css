@@ -1296,7 +1296,8 @@
     max-width: min(68ch, 84vw);
   }
 
-  .composer {`n  position: relative;
+  .composer {
+    position: relative;
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
@@ -1439,6 +1440,14 @@
   text-align: center;
   padding: 12px 4px;
 }
+
+.emojiPickerLoading {
+  font-size: 0.85rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  text-align: center;
+  padding: 24px 8px;
+}
+
 .gifPicker {
   display: flex;
   flex-direction: column;
@@ -1506,6 +1515,15 @@
   text-align: center;
   font-size: 0.9rem;
   color: var(--text-3, rgba(255, 255, 255, 0.6));
+}
+
+.gifPickerFallback {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  font-size: 0.9rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
+  padding: 16px;
 }
 
 .gifFooter {

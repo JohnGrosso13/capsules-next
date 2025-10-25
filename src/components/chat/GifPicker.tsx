@@ -2,7 +2,7 @@ import * as React from "react";
 
 import styles from "./chat.module.css";
 
-type GifResult = {
+type GifSearchResult = {
   id: string;
   title: string;
   url: string;
@@ -12,13 +12,16 @@ type GifResult = {
   size: number | null;
 };
 
-type GifPickerProps = {
-  onSelect: (gif: GifResult) => void;
+export type GifPickerSelection = GifSearchResult & { provider: "giphy" | "tenor" };
+
+export type GifPickerProps = {
+  onSelect: (gif: GifPickerSelection) => void;
   onClose: () => void;
 };
 
 type ApiResponse = {
-  results: GifResult[];
+  provider: "giphy" | "tenor";
+  results: GifSearchResult[];
   next: string | null;
 };
 
@@ -42,7 +45,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
   useOutsideDismiss(containerRef, onClose);
 
   const [query, setQuery] = React.useState("");
-  const [results, setResults] = React.useState<GifResult[]>([]);
+  const [results, setResults] = React.useState<GifPickerSelection[]>([]);
   const [nextPos, setNextPos] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -73,8 +76,12 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
           throw new Error(message || "Failed to load GIFs");
         }
         const payload = (await response.json()) as ApiResponse;
+        const normalized = (payload.results ?? []).map((gif) => ({
+          ...gif,
+          provider: payload.provider,
+        }));
         setResults((current) =>
-          options.append ? [...current, ...payload.results] : payload.results,
+          options.append ? [...current, ...normalized] : normalized,
         );
         setNextPos(payload.next ?? null);
         setInitialLoaded(true);
@@ -115,7 +122,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
   }, [onClose]);
 
   const handleSelect = React.useCallback(
-    (gif: GifResult) => {
+    (gif: GifPickerSelection) => {
       onSelect(gif);
       onClose();
     },

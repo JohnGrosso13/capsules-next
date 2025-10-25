@@ -4,7 +4,7 @@ import styles from "./chat.module.css";
 import type { EmojiEntry } from "./emoji-data";
 import { EMOJI_DATA, POPULAR_REACTIONS } from "./emoji-data";
 
-type EmojiPickerProps = {
+export type EmojiPickerProps = {
   onSelect: (emoji: string) => void;
   onClose: () => void;
   anchorLabel?: string;

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft,
   PaperPlaneTilt,
@@ -22,10 +23,34 @@ import { useCurrentUser } from "@/services/auth/client";
 
 import type { ChatMessageSendInput } from "@/components/providers/ChatProvider";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
-import { EmojiPicker } from "./EmojiPicker";
-import { GifPicker } from "./GifPicker";
+import type { EmojiPickerProps } from "./EmojiPicker";
+import type { GifPickerProps, GifPickerSelection } from "./GifPicker";
 
 import styles from "./chat.module.css";
+
+const EmojiPicker = dynamic<EmojiPickerProps>(
+  () => import("./EmojiPicker").then((mod) => mod.EmojiPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className={styles.emojiPickerLoading} role="status" aria-live="polite">
+        Loading emoji&hellip;
+      </div>
+    ),
+  },
+);
+
+const GifPicker = dynamic<GifPickerProps>(
+  () => import("./GifPicker").then((mod) => mod.GifPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className={styles.gifPickerFallback} role="status" aria-live="polite">
+        Loading GIFs&hellip;
+      </div>
+    ),
+  },
+);
 
 function formatMessageTime(value: string): string {
   const timestamp = Date.parse(value);
@@ -101,6 +126,17 @@ const GIF_PROVIDER = (process.env.NEXT_PUBLIC_GIF_PROVIDER || "").trim().toLower
 const GIF_SUPPORT_ENABLED =
   process.env.NEXT_PUBLIC_GIFS_ENABLED === "true" ||
   (GIF_PROVIDER.length > 0 && GIF_PROVIDER !== "none");
+
+const GIF_SIZE_LIMIT_BYTES = 7 * 1024 * 1024;
+const REACTION_PICKER_LONG_PRESS_MS = 450;
+const GIF_TELEMETRY_ENDPOINT = "/api/telemetry/chat-gif";
+
+type GifTelemetryPayload = {
+  action: "select" | "oversize_rejected";
+  provider: string;
+  gifId: string;
+  size: number | null;
+};
 
 
 type ChatConversationProps = {
@@ -235,6 +271,8 @@ export function ChatConversation({
   const [isGifPickerOpen, setGifPickerOpen] = React.useState(false);
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
   const messageInputRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const reactionLongPressTimerRef = React.useRef<number | null>(null);
+  const reactionLongPressTriggeredRef = React.useRef(false);
 
   const {
     fileInputRef,
@@ -250,6 +288,49 @@ export function ChatConversation({
   const [queuedAttachments, setQueuedAttachments] = React.useState<PendingAttachment[]>([]);
   const pendingFilesRef = React.useRef<File[]>([]);
   const [isDraggingFile, setIsDraggingFile] = React.useState(false);
+
+  const clearReactionLongPress = React.useCallback(() => {
+    if (reactionLongPressTimerRef.current !== null) {
+      if (typeof window !== "undefined") {
+        window.clearTimeout(reactionLongPressTimerRef.current);
+      }
+      reactionLongPressTimerRef.current = null;
+    }
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      clearReactionLongPress();
+    };
+  }, [clearReactionLongPress]);
+
+  const sendGifTelemetry = React.useCallback(
+    (payload: GifTelemetryPayload) => {
+      const body = JSON.stringify({
+        ...payload,
+        conversationId: session.id,
+        timestamp: new Date().toISOString(),
+      });
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        try {
+          const blob = new Blob([body], { type: "application/json" });
+          navigator.sendBeacon(GIF_TELEMETRY_ENDPOINT, blob);
+          return;
+        } catch {
+          // Fallback to fetch below if sendBeacon fails.
+        }
+      }
+      if (typeof fetch === "function") {
+        void fetch(GIF_TELEMETRY_ENDPOINT, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    },
+    [session.id],
+  );
 
   const processNextQueuedFile = React.useCallback(async () => {
     if (attachmentUploading || attachment) return;
@@ -349,6 +430,16 @@ export function ChatConversation({
     return map;
   }, [session.participants]);
 
+  const openReactionPicker = React.useCallback((messageId: string) => {
+    setReactionTargetId(messageId);
+  }, []);
+
+  const closeReactionPicker = React.useCallback(() => {
+    setReactionTargetId(null);
+    reactionLongPressTriggeredRef.current = false;
+    clearReactionLongPress();
+  }, [clearReactionLongPress]);
+
   React.useEffect(() => {
     setReactionTargetId(null);
   }, [session.id]);
@@ -357,14 +448,14 @@ export function ChatConversation({
     if (!reactionTargetId) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setReactionTargetId(null);
+        closeReactionPicker();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [reactionTargetId]);
+  }, [closeReactionPicker, reactionTargetId]);
 
   // Close the emoji picker if user clicks outside of it.
   React.useEffect(() => {
@@ -374,13 +465,13 @@ export function ChatConversation({
       if (!el) return;
       if (el.closest('[data-role="reaction-picker"]')) return;
       if (el.closest('[data-role="reaction-button"]')) return;
-      setReactionTargetId(null);
+      closeReactionPicker();
     };
     window.addEventListener("mousedown", onPointerDown, { capture: true } as AddEventListenerOptions);
     return () => {
       window.removeEventListener("mousedown", onPointerDown, { capture: true } as AddEventListenerOptions);
     };
-  }, [reactionTargetId]);
+  }, [closeReactionPicker, reactionTargetId]);
 
   React.useEffect(() => {
     adjustTextareaHeight();
@@ -424,12 +515,51 @@ export function ChatConversation({
     setReactionTargetId((current) => (current === messageId ? null : messageId));
   }, []);
 
+  const handleReactionAddClick = React.useCallback(
+    (messageId: string) => {
+      if (reactionLongPressTriggeredRef.current) {
+        reactionLongPressTriggeredRef.current = false;
+        return;
+      }
+      handleReactionPickerToggle(messageId);
+    },
+    [handleReactionPickerToggle],
+  );
+
+  const handleReactionAddPointerDown = React.useCallback(
+    (messageId: string, event: React.PointerEvent<HTMLButtonElement>) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      reactionLongPressTriggeredRef.current = false;
+      clearReactionLongPress();
+      if (typeof window === "undefined") return;
+      reactionLongPressTimerRef.current = window.setTimeout(() => {
+        reactionLongPressTimerRef.current = null;
+        reactionLongPressTriggeredRef.current = true;
+        openReactionPicker(messageId);
+      }, REACTION_PICKER_LONG_PRESS_MS);
+    },
+    [clearReactionLongPress, openReactionPicker],
+  );
+
+  const handleReactionAddPointerComplete = React.useCallback(() => {
+    clearReactionLongPress();
+  }, [clearReactionLongPress]);
+
+  const handleReactionAddContextMenu = React.useCallback(
+    (messageId: string, event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      reactionLongPressTriggeredRef.current = true;
+      openReactionPicker(messageId);
+    },
+    [openReactionPicker],
+  );
+
   const handleReactionSelect = React.useCallback(
     (messageId: string, emoji: string) => {
       handleToggleReaction(messageId, emoji);
-      setReactionTargetId(null);
+      closeReactionPicker();
     },
-    [handleToggleReaction],
+    [closeReactionPicker, handleToggleReaction],
   );
 
   React.useEffect(() => {
@@ -550,18 +680,39 @@ export function ChatConversation({
   }, []);
 
   const handleGifSelect = React.useCallback(
-    (gif: { id: string; title: string; url: string; previewUrl: string; width: number | null; height: number | null; size: number | null }) => {
+    (gif: GifPickerSelection) => {
       if (!GIF_SUPPORT_ENABLED) return;
+      const size =
+        typeof gif.size === "number" && Number.isFinite(gif.size) && gif.size > 0 ? gif.size : null;
+      if (size !== null && size > GIF_SIZE_LIMIT_BYTES) {
+        setError(
+          `GIF is too large (${formatAttachmentSize(size)}). Limit is ${formatAttachmentSize(GIF_SIZE_LIMIT_BYTES)}.`,
+        );
+        sendGifTelemetry({
+          action: "oversize_rejected",
+          provider: gif.provider,
+          gifId: gif.id,
+          size,
+        });
+        return;
+      }
+      setError(null);
       attachRemoteAttachment({
         url: gif.url,
         thumbUrl: gif.previewUrl,
         name: gif.title || "GIF",
         mimeType: "image/gif",
-        size: typeof gif.size === "number" && Number.isFinite(gif.size) ? gif.size : 0,
+        size: size ?? 0,
       });
       setGifPickerOpen(false);
+      sendGifTelemetry({
+        action: "select",
+        provider: gif.provider,
+        gifId: gif.id,
+        size,
+      });
     },
-    [attachRemoteAttachment],
+    [attachRemoteAttachment, sendGifTelemetry],
   );
 
   React.useEffect(() => {
@@ -873,12 +1024,17 @@ export function ChatConversation({
                       </button>
                     );
                     })}
-                    {onToggleReaction ? (
+                        {onToggleReaction ? (
                       <div className={styles.messageReactionAdd}>
                         <button
                           type="button"
                           className={styles.messageReactionAddButton}
-                          onClick={() => handleReactionPickerToggle(message.id)}
+                          onClick={() => handleReactionAddClick(message.id)}
+                          onPointerDown={(event) => handleReactionAddPointerDown(message.id, event)}
+                          onPointerUp={handleReactionAddPointerComplete}
+                          onPointerLeave={handleReactionAddPointerComplete}
+                          onPointerCancel={handleReactionAddPointerComplete}
+                          onContextMenu={(event) => handleReactionAddContextMenu(message.id, event)}
                           aria-expanded={isPickerOpen}
                           aria-label="Add reaction"
                           data-role="reaction-button"
@@ -889,7 +1045,7 @@ export function ChatConversation({
                           <div className={styles.messageReactionPicker} data-role="reaction-picker">
                             <EmojiPicker
                               onSelect={(emoji) => handleReactionSelect(message.id, emoji)}
-                              onClose={() => setReactionTargetId(null)}
+                              onClose={closeReactionPicker}
                               anchorLabel={displayName}
                             />
                           </div>
