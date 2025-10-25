@@ -6,6 +6,8 @@ import type {
   ChatMessageEventPayload,
   ChatReactionEventPayload,
   ChatSessionEventPayload,
+  ChatMessageUpdatedEventPayload,
+  ChatMessageDeletedEventPayload,
 } from "@/components/providers/chat-store";
 import type { ChatParticipantSummary } from "@/server/chat/service";
 
@@ -102,6 +104,122 @@ export async function publishDirectMessageEvent(params: {
 
   await Promise.all(
     Array.from(channels).map((channel) => publisher.publish(channel, "chat.message", payload)),
+  );
+}
+
+export async function publishMessageUpdateEvent(params: {
+  conversationId: string;
+  messageId: string;
+  body: string;
+  attachments: Array<{
+    id: string;
+    name: string;
+    mimeType: string;
+    size: number;
+    url: string;
+    thumbnailUrl: string | null;
+    storageKey: string | null;
+    sessionId: string | null;
+  }>;
+  participants: ChatParticipantSummary[];
+  senderId: string;
+  sentAt: string;
+  session?: DirectChatSessionMeta;
+}): Promise<void> {
+  const publisher = getRealtimePublisher();
+  if (!publisher) return;
+  const participants = params.participants
+    .map((participant) => ({
+      id: participant.id,
+      name: participant.name,
+      avatar: participant.avatar ?? null,
+    }))
+    .filter((participant) => Boolean(participant.id));
+  if (!participants.length) return;
+
+  const payload: ChatMessageUpdatedEventPayload = {
+    type: "chat.message.update",
+    conversationId: params.conversationId,
+    messageId: params.messageId,
+    body: params.body,
+    attachments: params.attachments.map((attachment) => ({
+      id: attachment.id,
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      url: attachment.url,
+      thumbnailUrl: attachment.thumbnailUrl ?? null,
+      storageKey: attachment.storageKey ?? null,
+      sessionId: attachment.sessionId ?? null,
+    })),
+    participants,
+    senderId: params.senderId,
+    sentAt: params.sentAt,
+    session: {
+      type: params.session?.type ?? "direct",
+      title: params.session?.title ?? null,
+      avatar: params.session?.avatar ?? null,
+      createdBy: params.session?.createdBy ?? null,
+    },
+  };
+
+  const channels = new Set<string>();
+  participants.forEach((participant) => {
+    try {
+      channels.add(getChatDirectChannel(participant.id));
+    } catch {
+      // ignore invalid participant id
+    }
+  });
+  if (!channels.size) return;
+
+  await Promise.all(
+    Array.from(channels).map((channel) => publisher.publish(channel, "chat.message.update", payload)),
+  );
+}
+
+export async function publishMessageDeletedEvent(params: {
+  conversationId: string;
+  messageId: string;
+  participants: ChatParticipantSummary[];
+  session?: DirectChatSessionMeta;
+}): Promise<void> {
+  const publisher = getRealtimePublisher();
+  if (!publisher) return;
+  const participants = params.participants
+    .map((participant) => ({
+      id: participant.id,
+      name: participant.name,
+      avatar: participant.avatar ?? null,
+    }))
+    .filter((participant) => Boolean(participant.id));
+  if (!participants.length) return;
+
+  const payload: ChatMessageDeletedEventPayload = {
+    type: "chat.message.delete",
+    conversationId: params.conversationId,
+    messageId: params.messageId,
+    participants,
+    session: {
+      type: params.session?.type ?? "direct",
+      title: params.session?.title ?? null,
+      avatar: params.session?.avatar ?? null,
+      createdBy: params.session?.createdBy ?? null,
+    },
+  };
+
+  const channels = new Set<string>();
+  participants.forEach((participant) => {
+    try {
+      channels.add(getChatDirectChannel(participant.id));
+    } catch {
+      // ignore invalid participant id
+    }
+  });
+  if (!channels.size) return;
+
+  await Promise.all(
+    Array.from(channels).map((channel) => publisher.publish(channel, "chat.message.delete", payload)),
   );
 }
 

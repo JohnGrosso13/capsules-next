@@ -22,6 +22,8 @@ import type {
   ChatMessageEventPayload,
   ChatTypingEventPayload,
   ChatReactionEventPayload,
+  ChatMessageUpdatedEventPayload,
+  ChatMessageDeletedEventPayload,
   ChatMessageReaction,
   ChatMessageAttachment,
 } from "@/components/providers/chat-store";
@@ -1307,20 +1309,32 @@ export class ChatEngine {
     this.store.applyReactionEvent(payload);
     return;
   }
+  if (event.name === "chat.message.update") {
+    const payload = event.data as ChatMessageUpdatedEventPayload;
+    if (!payload || payload.type !== "chat.message.update") return;
+    this.store.applyMessageUpdateEvent(payload);
+    return;
+  }
+  if (event.name === "chat.message.delete") {
+    const payload = event.data as ChatMessageDeletedEventPayload;
+    if (!payload || payload.type !== "chat.message.delete") return;
+    this.store.applyMessageDeleteEvent(payload);
+    return;
+  }
   if (event.name !== "chat.message") return;
   const payload = event.data as ChatMessageEventPayload;
-    this.store.applyMessageEvent(payload);
-    if (payload?.message?.sentAt) {
-      this.recordDirectChannelWatermarkFromIso(payload.message.sentAt);
-    }
-    if (
-      payload &&
-      typeof payload.conversationId === "string" &&
-      !this.conversationHistoryLoaded.has(payload.conversationId)
-    ) {
-      void this.ensureConversationHistory(payload.conversationId);
-    }
+  this.store.applyMessageEvent(payload);
+  if (payload?.message?.sentAt) {
+    this.recordDirectChannelWatermarkFromIso(payload.message.sentAt);
   }
+  if (
+    payload &&
+    typeof payload.conversationId === "string" &&
+    !this.conversationHistoryLoaded.has(payload.conversationId)
+  ) {
+    void this.ensureConversationHistory(payload.conversationId);
+  }
+}
 
   private resolveSelfId(preferred?: string | null): string | null {
     const candidates = [
@@ -1376,5 +1390,117 @@ export class ChatEngine {
       throw error;
     }
     this.deleteSession(trimmed);
+  }
+
+  async updateMessageAttachments(
+    conversationId: string,
+    messageId: string,
+    attachmentIds: string[],
+  ): Promise<void> {
+    const trimmedMessageId = typeof messageId === "string" ? messageId.trim() : "";
+    if (!trimmedMessageId || !attachmentIds.length) return;
+    try {
+      const response = await fetch(`/api/chat/messages/${encodeURIComponent(trimmedMessageId)}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          conversationId,
+          removeAttachmentIds: attachmentIds,
+        }),
+      });
+      if (!response.ok) {
+        let errorMessage = `Failed to update attachments (${response.status})`;
+        try {
+          const payload = (await response.json()) as { message?: string; error?: string };
+          errorMessage = payload.message ?? payload.error ?? errorMessage;
+        } catch {
+          const text = await response.text().catch(() => "");
+          if (text) errorMessage = text;
+        }
+        throw new Error(errorMessage);
+      }
+      const payload = (await response.json()) as ChatSendResponse;
+      if (!payload?.success) return;
+      const participants = payload.participants.map((participant) => ({
+        id: participant.id,
+        name: participant.name,
+        avatar: participant.avatar ?? null,
+      }));
+      const attachments =
+        payload.message.attachments?.map((attachment) => ({
+          id: attachment.id,
+          name: attachment.name,
+          mimeType: attachment.mimeType,
+          size:
+            typeof attachment.size === "number" && Number.isFinite(attachment.size)
+              ? attachment.size
+              : 0,
+          url: attachment.url,
+          thumbnailUrl: attachment.thumbnailUrl ?? null,
+          storageKey: attachment.storageKey ?? null,
+          sessionId: attachment.sessionId ?? null,
+        })) ?? [];
+      this.store.applyMessageUpdateEvent({
+        type: "chat.message.update",
+        conversationId: payload.message.conversationId,
+        messageId: payload.message.id,
+        body: payload.message.body,
+        attachments,
+        participants,
+        senderId: payload.message.senderId,
+        sentAt: payload.message.sentAt,
+      });
+    } catch (error) {
+      console.error("ChatEngine updateMessageAttachments error", error);
+      throw error;
+    }
+  }
+
+  async deleteMessage(conversationId: string, messageId: string): Promise<void> {
+    const trimmedMessageId = typeof messageId === "string" ? messageId.trim() : "";
+    if (!trimmedMessageId) return;
+    try {
+      const params = new URLSearchParams({ conversationId });
+      const response = await fetch(
+        `/api/chat/messages/${encodeURIComponent(trimmedMessageId)}?${params.toString()}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
+      if (!response.ok) {
+        let errorMessage = `Failed to delete message (${response.status})`;
+        try {
+          const payload = (await response.json()) as { message?: string; error?: string };
+          errorMessage = payload.message ?? payload.error ?? errorMessage;
+        } catch {
+          const text = await response.text().catch(() => "");
+          if (text) errorMessage = text;
+        }
+        throw new Error(errorMessage);
+      }
+      const payload = (await response.json().catch(() => null)) as
+        | { success?: boolean; participants?: ChatParticipantDto[] }
+        | null;
+      const participants = Array.isArray(payload?.participants)
+        ? payload!.participants.map((participant) => ({
+            id: participant.id,
+            name: participant.name,
+            avatar: participant.avatar ?? null,
+          }))
+        : undefined;
+      this.store.applyMessageDeleteEvent({
+        type: "chat.message.delete",
+        conversationId,
+        messageId: trimmedMessageId,
+        participants,
+      });
+    } catch (error) {
+      console.error("ChatEngine deleteMessage error", error);
+      throw error;
+    }
   }
 }

@@ -619,6 +619,11 @@
   user-select: text;
 }
 
+.messageBubbleGroup[data-menu-open="true"] {
+  outline: 1px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
+  outline-offset: 6px;
+}
+
 .messageItemSelf .messageBubble {
   color: var(--text);
 }
@@ -661,45 +666,81 @@
 
 .messageAttachments {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin-top: 8px;
   max-width: min(62ch, 80vw);
 }
 
 .messageAttachment {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 14px;
+  grid-template-columns: minmax(104px, 122px) 1fr;
+  gap: 14px;
+  align-items: stretch;
+  padding: 12px 14px;
+  border-radius: 16px;
   border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 70%, transparent);
   background: color-mix(in srgb, rgba(36, 40, 70, 0.55) 75%, rgba(12, 14, 32, 0.85));
   color: var(--text);
-  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
 .messageAttachment:hover {
   border-color: color-mix(in srgb, var(--color-brand) 65%, transparent);
+  transform: translateY(-1px);
 }
 
 .messageItemSelf .messageAttachment {
   background: color-mix(in srgb, rgba(74, 78, 128, 0.55) 70%, rgba(24, 26, 60, 0.85));
+  border-color: color-mix(in srgb, rgba(255, 255, 255, 0.18) 60%, transparent);
 }
 
-.messageAttachmentImage {
-  width: 96px;
-  height: 72px;
+.messageAttachment[data-downloading="true"],
+.messageAttachment[data-deleting="true"] {
+  opacity: 0.82;
+}
+
+.messageAttachmentPreview {
+  position: relative;
+}
+
+.messageAttachmentPreviewButton {
+  width: 100%;
+  height: 88px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent);
+  background: color-mix(in srgb, rgba(16, 18, 36, 0.82) 72%, transparent);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: inherit;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.messageAttachmentPreviewButton:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+
+.messageAttachmentPreviewButton:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.messageAttachmentPreviewImage {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.06);
 }
 
 .messageAttachmentIcon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent);
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.12) 78%, transparent);
   display: grid;
   place-items: center;
 }
@@ -707,8 +748,15 @@
 .messageAttachmentBody {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
+}
+
+.messageAttachmentTitleRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .messageAttachmentName {
@@ -722,6 +770,77 @@
 .messageAttachmentMeta {
   font-size: 0.78rem;
   color: var(--text-3, rgba(255, 255, 255, 0.6));
+}
+
+.messageAttachmentError {
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--color-danger) 68%, var(--text));
+}
+
+.messageAttachmentActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.messageAttachmentAction {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.22) 70%, transparent);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 68%, transparent);
+  color: var(--text);
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.messageAttachmentAction:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--color-brand) 58%, transparent);
+  background: color-mix(in srgb, rgba(68, 76, 146, 0.32) 65%, transparent);
+}
+
+.messageAttachmentAction:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.messageAttachmentDanger {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
+  color: color-mix(in srgb, var(--color-danger) 65%, var(--text));
+}
+
+.messageAttachmentDanger:not(:disabled):hover {
+  background: color-mix(in srgb, rgba(255, 92, 92, 0.24) 65%, transparent);
+}
+
+.messageAttachmentPreviewFallback {
+  position: absolute;
+  inset: 6px;
+  border-radius: 12px;
+  background: color-mix(in srgb, rgba(18, 20, 42, 0.95) 80%, rgba(28, 30, 60, 0.86));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+}
+
+.messageAttachmentRetry {
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.messageAttachmentRetry:hover {
+  background: color-mix(in srgb, rgba(68, 76, 146, 0.24) 60%, transparent);
 }
 
 .messageItemOther .messageReactionPicker {
@@ -1130,6 +1249,28 @@
 .composerAttachmentError {
   font-size: 0.8rem;
   color: color-mix(in srgb, var(--color-danger) 65%, var(--text));
+}
+
+.composerStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.68));
+}
+
+.composerStatus::before {
+  content: "•";
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+
+.composerStatus[data-variant="uploading"] {
+  color: color-mix(in srgb, var(--color-brand) 70%, var(--text));
+}
+
+.composerStatus[data-variant="ready"] {
+  color: color-mix(in srgb, rgba(120, 220, 170, 0.75) 70%, var(--text));
 }
 
 .sendButton {

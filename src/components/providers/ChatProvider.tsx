@@ -64,6 +64,12 @@ export type ChatContextValue = {
     emoji: string,
   ) => Promise<void>;
   notifyTyping: (conversationId: string, typing: boolean) => void;
+  removeMessageAttachments: (
+    conversationId: string,
+    messageId: string,
+    attachmentIds: string[],
+  ) => Promise<void>;
+  deleteMessage: (conversationId: string, messageId: string) => Promise<void>;
 };
 
 const ChatContext = React.createContext<ChatContextValue | null>(null);
@@ -242,6 +248,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [engine],
   );
 
+  const removeMessageAttachments = React.useCallback(
+    async (conversationId: string, messageId: string, attachmentIds: string[]) => {
+      await engine.updateMessageAttachments(conversationId, messageId, attachmentIds);
+    },
+    [engine],
+  );
+
+  const deleteMessage = React.useCallback(
+    async (conversationId: string, messageId: string) => {
+      await engine.deleteMessage(conversationId, messageId);
+    },
+    [engine],
+  );
+
   const { sessions, activeSessionId, activeSession, unreadCount } = snapshot;
   const currentUserId = user?.id ?? null;
   const selfClientId = engine.getSelfClientId();
@@ -265,6 +285,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       sendMessage,
       toggleMessageReaction,
       notifyTyping,
+      removeMessageAttachments,
+      deleteMessage,
     }),
     [
       sessions,
@@ -284,6 +306,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       sendMessage,
       toggleMessageReaction,
       notifyTyping,
+      removeMessageAttachments,
+      deleteMessage,
     ],
   );
 

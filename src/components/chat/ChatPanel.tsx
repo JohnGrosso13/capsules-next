@@ -31,6 +31,8 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
     closeSession,
     deleteSession,
     renameGroupChat,
+    removeMessageAttachments,
+    deleteMessage,
     isReady,
   } = useChatContext();
 
@@ -77,6 +79,10 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
           onTypingChange={notifyTyping}
           onBack={closeSession}
           onDelete={() => handleDelete(activeSession.id)}
+          onRemoveAttachments={(messageId, attachmentIds) =>
+            removeMessageAttachments(activeSession.id, messageId, attachmentIds)
+          }
+          onDeleteMessage={(messageId) => deleteMessage(activeSession.id, messageId)}
           {...(activeSession.type === "group" && onInviteToGroup
             ? { onInviteParticipants: () => onInviteToGroup(activeSession) }
             : {})}

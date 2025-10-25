@@ -119,6 +119,45 @@ export type ChatReactionEventPayload = {
   participants?: ChatParticipant[];
 };
 
+export type ChatMessageUpdatedEventPayload = {
+  type: "chat.message.update";
+  conversationId: string;
+  messageId: string;
+  body: string;
+  attachments: Array<{
+    id: string;
+    name: string;
+    mimeType: string;
+    size?: number;
+    url: string;
+    thumbnailUrl?: string | null;
+    storageKey?: string | null;
+    sessionId?: string | null;
+  }>;
+  participants?: ChatParticipant[];
+  senderId?: string;
+  sentAt?: string;
+  session?: {
+    type?: ChatSessionType;
+    title?: string | null;
+    avatar?: string | null;
+    createdBy?: string | null;
+  };
+};
+
+export type ChatMessageDeletedEventPayload = {
+  type: "chat.message.delete";
+  conversationId: string;
+  messageId: string;
+  participants?: ChatParticipant[];
+  session?: {
+    type?: ChatSessionType;
+    title?: string | null;
+    avatar?: string | null;
+    createdBy?: string | null;
+  };
+};
+
 export type ChatSessionEventPayload = {
   type: "chat.session";
   conversationId: string;
@@ -1275,6 +1314,81 @@ export class ChatStore {
     const reactions = normalizeReactions(payload.reactions, (id) => this.isSelfId(id));
     if (reactionsEqual(existing.reactions, reactions)) return;
     session.messages[messageIndex] = { ...existing, reactions };
+    this.emit();
+  }
+
+  applyMessageUpdateEvent(payload: ChatMessageUpdatedEventPayload) {
+    if (!payload || payload.type !== "chat.message.update") return;
+    const conversationId =
+      typeof payload.conversationId === "string" ? payload.conversationId.trim() : "";
+    const messageId = typeof payload.messageId === "string" ? payload.messageId.trim() : "";
+    if (!conversationId || !messageId) return;
+    const session = this.sessions.get(conversationId);
+    if (!session) return;
+    if (Array.isArray(payload.participants) && payload.participants.length > 0) {
+      this.upsertParticipants(conversationId, payload.participants);
+    }
+    const attachments = sanitizeIncomingAttachments(payload.attachments);
+    const sanitizedBody = sanitizeMessageBody(payload.body ?? "");
+    const sentAt =
+      typeof payload.sentAt === "string" && payload.sentAt.trim().length
+        ? payload.sentAt.trim()
+        : undefined;
+    const messageIndex = session.messageIndex.get(messageId);
+    if (typeof messageIndex !== "number") {
+      const authorId =
+        typeof payload.senderId === "string" && payload.senderId.trim().length
+          ? payload.senderId.trim()
+          : messageId;
+      const message: ChatMessage = {
+        id: messageId,
+        authorId,
+        body: sanitizedBody,
+        sentAt: sentAt ?? new Date().toISOString(),
+        status: "sent",
+        reactions: [],
+        attachments,
+      };
+      this.addMessage(conversationId, message, { isLocal: false });
+      return;
+    }
+    const existing = session.messages[messageIndex];
+    if (!existing) return;
+    const updatedMessage: ChatMessage = {
+      ...existing,
+      body: sanitizedBody.length > 0 ? sanitizedBody : existing.body,
+      attachments,
+      sentAt: sentAt ?? existing.sentAt,
+    };
+    session.messages[messageIndex] = updatedMessage;
+    session.messageIndex.set(updatedMessage.id, messageIndex);
+    const timestamp = Date.parse(updatedMessage.sentAt);
+    if (Number.isFinite(timestamp)) {
+      session.lastMessageTimestamp = Math.max(session.lastMessageTimestamp, timestamp);
+    }
+    this.emit();
+  }
+
+  applyMessageDeleteEvent(payload: ChatMessageDeletedEventPayload) {
+    if (!payload || payload.type !== "chat.message.delete") return;
+    const conversationId =
+      typeof payload.conversationId === "string" ? payload.conversationId.trim() : "";
+    const messageId = typeof payload.messageId === "string" ? payload.messageId.trim() : "";
+    if (!conversationId || !messageId) return;
+    const session = this.sessions.get(conversationId);
+    if (!session) return;
+    if (Array.isArray(payload.participants) && payload.participants.length > 0) {
+      this.upsertParticipants(conversationId, payload.participants);
+    }
+    const messageIndex = session.messageIndex.get(messageId);
+    if (typeof messageIndex !== "number") return;
+    session.messages.splice(messageIndex, 1);
+    session.messageIndex.delete(messageId);
+    session.messages.forEach((message, index) => {
+      session.messageIndex.set(message.id, index);
+    });
+    const lastMessage = session.messages[session.messages.length - 1] ?? null;
+    session.lastMessageTimestamp = lastMessage ? Date.parse(lastMessage.sentAt) || 0 : 0;
     this.emit();
   }
 

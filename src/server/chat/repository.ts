@@ -162,6 +162,35 @@ export async function findChatMessageById(messageId: string): Promise<ChatMessag
   return result.data ?? null;
 }
 
+export async function updateChatMessageBody(row: {
+  id: string;
+  body: string;
+}): Promise<ChatMessageRow | null> {
+  const db = getDatabaseAdminClient();
+  const trimmedId = typeof row.id === "string" ? row.id.trim() : "";
+  if (!trimmedId) return null;
+  const result = await db
+    .from(TABLE)
+    .update({ body: row.body })
+    .eq("id", trimmedId)
+    .select<ChatMessageRow>(
+      "id, conversation_id, sender_id, body, client_sent_at, created_at, updated_at",
+    )
+    .maybeSingle();
+  if (result.error) {
+    throw wrapDatabaseError("chat_messages.update_body", result.error);
+  }
+  return result.data ?? null;
+}
+
+export async function deleteChatMessageById(messageId: string): Promise<void> {
+  const db = getDatabaseAdminClient();
+  const trimmed = typeof messageId === "string" ? messageId.trim() : "";
+  if (!trimmed) return;
+  const result = await db.from(TABLE).delete().eq("id", trimmed).select("id").fetch();
+  expectArrayResult(result, "chat_messages.delete");
+}
+
 export async function upsertChatMessageReaction(row: {
   message_id: string;
   user_id: string;
@@ -558,6 +587,40 @@ export async function findGroupMessageById(
     throw wrapDatabaseError("chat_group_messages.find_by_id", result.error);
   }
   return result.data ?? null;
+}
+
+export async function updateGroupMessageBody(row: {
+  id: string;
+  body: string;
+}): Promise<ChatGroupMessageRow | null> {
+  const db = getDatabaseAdminClient();
+  const trimmedId = typeof row.id === "string" ? row.id.trim() : "";
+  if (!trimmedId) return null;
+  const result = await db
+    .from(GROUP_MESSAGES_TABLE)
+    .update({ body: row.body })
+    .eq("id", trimmedId)
+    .select<ChatGroupMessageRow>(
+      "id, conversation_id, sender_id, body, client_sent_at, created_at, updated_at",
+    )
+    .maybeSingle();
+  if (result.error) {
+    throw wrapDatabaseError("chat_group_messages.update_body", result.error);
+  }
+  return result.data ?? null;
+}
+
+export async function deleteGroupMessageById(messageId: string): Promise<void> {
+  const db = getDatabaseAdminClient();
+  const trimmed = typeof messageId === "string" ? messageId.trim() : "";
+  if (!trimmed) return;
+  const result = await db
+    .from(GROUP_MESSAGES_TABLE)
+    .delete()
+    .eq("id", trimmed)
+    .select("id")
+    .fetch();
+  expectArrayResult(result, "chat_group_messages.delete");
 }
 
 export async function listRecentGroupMessagesForUser(

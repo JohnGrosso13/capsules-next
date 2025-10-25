@@ -31,6 +31,10 @@ import {
   upsertGroupMessageReaction,
   deleteGroupMessageReaction,
   listGroupMessageReactions,
+  updateChatMessageBody,
+  deleteChatMessageById,
+  updateGroupMessageBody,
+  deleteGroupMessageById,
   type ChatMessageRow,
   type ChatParticipantRow,
   type ChatMessageReactionRow,
@@ -42,6 +46,8 @@ import {
   publishReactionEvent,
   publishSessionEvent,
   publishSessionDeletedEvent,
+  publishMessageUpdateEvent,
+  publishMessageDeletedEvent,
 } from "@/services/realtime/chat";
 
 export type ChatMessageAttachmentRecord = {
@@ -1048,6 +1054,459 @@ export async function sendGroupMessage(params: {
 
   return {
     message: messageRecord,
+    participants: participantSummaries,
+  };
+}
+
+export async function updateMessageAttachments(params: {
+  conversationId: string;
+  messageId: string;
+  requesterId: string;
+  removeAttachmentIds: string[];
+}): Promise<{ message: ChatMessageRecord; participants: ChatParticipantSummary[] }> {
+  const trimmedConversationId = params.conversationId?.trim();
+  if (!trimmedConversationId) {
+    throw new ChatServiceError("invalid_conversation", 400, "A conversation id is required.");
+  }
+  const removeSet = new Set(
+    (Array.isArray(params.removeAttachmentIds) ? params.removeAttachmentIds : [])
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .filter((value): value is string => Boolean(value)),
+  );
+  if (!removeSet.size) {
+    throw new ChatServiceError("invalid_request", 400, "No attachments specified for removal.");
+  }
+
+  if (isGroupConversationId(trimmedConversationId)) {
+    return updateGroupMessageAttachments({
+      conversationId: trimmedConversationId,
+      messageId: params.messageId,
+      requesterId: params.requesterId,
+      removeSet,
+    });
+  }
+
+  return updateDirectMessageAttachments({
+    conversationId: trimmedConversationId,
+    messageId: params.messageId,
+    requesterId: params.requesterId,
+    removeSet,
+  });
+}
+
+export async function deleteMessage(params: {
+  conversationId: string;
+  messageId: string;
+  requesterId: string;
+}): Promise<{ conversationId: string; messageId: string; participants: ChatParticipantSummary[] }> {
+  const trimmedConversationId = params.conversationId?.trim();
+  if (!trimmedConversationId) {
+    throw new ChatServiceError("invalid_conversation", 400, "A conversation id is required.");
+  }
+  if (isGroupConversationId(trimmedConversationId)) {
+    return deleteGroupMessage({
+      conversationId: trimmedConversationId,
+      messageId: params.messageId,
+      requesterId: params.requesterId,
+    });
+  }
+  return deleteDirectMessage({
+    conversationId: trimmedConversationId,
+    messageId: params.messageId,
+    requesterId: params.requesterId,
+  });
+}
+
+async function buildDirectParticipantSummaries(
+  leftResolved: ResolvedIdentity,
+  rightResolved: ResolvedIdentity,
+): Promise<ChatParticipantSummary[]> {
+  const participantIds = Array.from(
+    new Set(
+      [leftResolved.canonicalId, rightResolved.canonicalId]
+        .map((value) => normalizeId(value))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+  if (!participantIds.length) return [];
+
+  const participantRows = await fetchUsersByIds(participantIds);
+  const participantMap = new Map<string, ChatParticipantRow>();
+  participantRows.forEach((row) => {
+    const id = normalizeId(row.id);
+    if (id && !participantMap.has(id)) {
+      participantMap.set(id, row);
+    }
+  });
+  mergeParticipantMaps(participantMap, [leftResolved, rightResolved]);
+
+  return participantIds
+    .map((id) => toParticipantSummary(participantMap.get(id) ?? undefined, id))
+    .filter(
+      (participant, index, list) =>
+        list.findIndex((entry) => entry.id === participant.id) === index,
+    );
+}
+
+async function updateDirectMessageAttachments(params: {
+  conversationId: string;
+  messageId: string;
+  requesterId: string;
+  removeSet: Set<string>;
+}): Promise<{ message: ChatMessageRecord; participants: ChatParticipantSummary[] }> {
+  const { left, right } = parseConversationId(params.conversationId);
+  const identityCache = new Map<string, ResolvedIdentity | null>();
+  const leftResolved = await resolveIdentity(identityCache, left, left);
+  const rightResolved = await resolveIdentity(identityCache, right, right);
+  const requesterResolved = await resolveIdentity(
+    identityCache,
+    params.requesterId,
+    params.requesterId,
+  );
+  if (!leftResolved || !rightResolved || !requesterResolved) {
+    throw new ChatServiceError("invalid_conversation", 404, "That conversation could not be found.");
+  }
+
+  const canonicalLeft = normalizeId(leftResolved.canonicalId);
+  const canonicalRight = normalizeId(rightResolved.canonicalId);
+  const canonicalRequester = normalizeId(requesterResolved.canonicalId);
+  if (!canonicalLeft || !canonicalRight || !canonicalRequester) {
+    throw new ChatServiceError("invalid_conversation", 404, "That conversation could not be found.");
+  }
+
+  const canonicalConversationId = getChatConversationId(canonicalLeft, canonicalRight);
+  const canonicalMessageId = canonicalizeMessageId(params.messageId, canonicalConversationId);
+
+  const messageRow = await findChatMessageById(canonicalMessageId);
+  if (!messageRow || normalizeId(messageRow.conversation_id) !== canonicalConversationId) {
+    throw new ChatServiceError("message_not_found", 404, "That message could not be found.");
+  }
+
+  if (normalizeId(messageRow.sender_id) !== canonicalRequester) {
+    throw new ChatServiceError(
+      "forbidden",
+      403,
+      "You can only modify attachments on messages you sent.",
+    );
+  }
+
+  const payload = decodeMessagePayload(messageRow.body ?? "");
+  if (!payload.attachments.length) {
+    throw new ChatServiceError("invalid_request", 400, "That message has no attachments.");
+  }
+
+  const filteredAttachments = payload.attachments.filter(
+    (attachment) => !params.removeSet.has(attachment.id),
+  );
+  if (filteredAttachments.length === payload.attachments.length) {
+    const unchangedRecord = toMessageRecord(messageRow);
+    const participants = await buildDirectParticipantSummaries(leftResolved, rightResolved);
+    return { message: unchangedRecord, participants };
+  }
+
+  if (!payload.text && filteredAttachments.length === 0) {
+    throw new ChatServiceError(
+      "invalid_request",
+      400,
+      "Remove the message instead of deleting all attachments.",
+    );
+  }
+
+  const serializedBody = encodeMessagePayload(payload.text, filteredAttachments);
+  const updatedRow =
+    (await updateChatMessageBody({ id: messageRow.id, body: serializedBody })) ?? {
+      ...messageRow,
+      body: serializedBody,
+    };
+  const messageRecord = toMessageRecord(updatedRow);
+  const participantSummaries = await buildDirectParticipantSummaries(leftResolved, rightResolved);
+
+  await publishMessageUpdateEvent({
+    conversationId: messageRecord.conversationId,
+    messageId: messageRecord.id,
+    body: messageRecord.body,
+    attachments: messageRecord.attachments,
+    participants: participantSummaries,
+    senderId: messageRecord.senderId,
+    sentAt: messageRecord.sentAt,
+    session: {
+      type: "direct",
+      title: buildConversationTitle(participantSummaries, messageRecord.senderId),
+    },
+  });
+
+  return {
+    message: messageRecord,
+    participants: participantSummaries,
+  };
+}
+
+async function updateGroupMessageAttachments(params: {
+  conversationId: string;
+  messageId: string;
+  requesterId: string;
+  removeSet: Set<string>;
+}): Promise<{ message: ChatMessageRecord; participants: ChatParticipantSummary[] }> {
+  const trimmedConversationId = params.conversationId.trim();
+  const requesterTrimmed = params.requesterId?.trim();
+  if (!requesterTrimmed) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to modify this message.");
+  }
+
+  const identityCache = new Map<string, ResolvedIdentity | null>();
+  const requesterResolved = await resolveIdentity(identityCache, requesterTrimmed, requesterTrimmed);
+  if (!requesterResolved) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to modify this message.");
+  }
+  const canonicalRequester = normalizeId(requesterResolved.canonicalId);
+  if (!canonicalRequester) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to modify this message.");
+  }
+
+  const [conversationRow] = await listGroupConversationsByIds([trimmedConversationId]);
+  if (!conversationRow) {
+    throw new ChatServiceError("invalid_conversation", 404, "That group could not be found.");
+  }
+  const membershipRows = await listGroupParticipants(trimmedConversationId);
+  if (!membershipRows.length) {
+    throw new ChatServiceError("invalid_conversation", 404, "That group has no participants.");
+  }
+  const participantIds = Array.from(
+    new Set(
+      membershipRows
+        .map((row) => normalizeId(row.user_id))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+  if (!participantIds.includes(canonicalRequester)) {
+    throw new ChatServiceError("forbidden", 403, "You do not have access to this conversation.");
+  }
+
+  const canonicalMessageId = canonicalizeMessageId(params.messageId, trimmedConversationId);
+  const messageRow = await findGroupMessageById(canonicalMessageId);
+  if (!messageRow || normalizeId(messageRow.conversation_id) !== trimmedConversationId) {
+    throw new ChatServiceError("message_not_found", 404, "That message could not be found.");
+  }
+  if (normalizeId(messageRow.sender_id) !== canonicalRequester) {
+    throw new ChatServiceError(
+      "forbidden",
+      403,
+      "You can only modify attachments on messages you sent.",
+    );
+  }
+
+  const payload = decodeMessagePayload(messageRow.body ?? "");
+  if (!payload.attachments.length) {
+    throw new ChatServiceError("invalid_request", 400, "That message has no attachments.");
+  }
+  const filteredAttachments = payload.attachments.filter(
+    (attachment) => !params.removeSet.has(attachment.id),
+  );
+  if (filteredAttachments.length === payload.attachments.length) {
+    const unchanged = toMessageRecord(messageRow);
+    const participantSummaries = await buildGroupParticipantSummaries(
+      participantIds,
+      requesterResolved,
+    );
+    return { message: unchanged, participants: participantSummaries };
+  }
+
+  if (!payload.text && filteredAttachments.length === 0) {
+    throw new ChatServiceError(
+      "invalid_request",
+      400,
+      "Remove the message instead of deleting all attachments.",
+    );
+  }
+
+  const serializedBody = encodeMessagePayload(payload.text, filteredAttachments);
+  const updatedRow =
+    (await updateGroupMessageBody({ id: messageRow.id, body: serializedBody })) ?? {
+      ...messageRow,
+      body: serializedBody,
+    };
+  const messageRecord = toMessageRecord(updatedRow);
+  const participantSummaries = await buildGroupParticipantSummaries(
+    participantIds,
+    requesterResolved,
+  );
+  const sessionTitle = buildGroupConversationTitle(participantSummaries, conversationRow.title);
+  const sessionAvatar = conversationRow.avatar_url ?? null;
+
+  await publishMessageUpdateEvent({
+    conversationId: messageRecord.conversationId,
+    messageId: messageRecord.id,
+    body: messageRecord.body,
+    attachments: messageRecord.attachments,
+    participants: participantSummaries,
+    senderId: messageRecord.senderId,
+    sentAt: messageRecord.sentAt,
+    session: {
+      type: "group",
+      title: sessionTitle,
+      avatar: sessionAvatar,
+      createdBy: conversationRow.created_by ?? null,
+    },
+  });
+
+  return {
+    message: messageRecord,
+    participants: participantSummaries,
+  };
+}
+
+async function buildGroupParticipantSummaries(
+  participantIds: string[],
+  requesterResolved: ResolvedIdentity,
+): Promise<ChatParticipantSummary[]> {
+  const participantRows = await fetchUsersByIds(participantIds);
+  const participantMap = new Map<string, ChatParticipantRow>();
+  participantRows.forEach((row) => {
+    const id = normalizeId(row.id);
+    if (id && !participantMap.has(id)) {
+      participantMap.set(id, row);
+    }
+  });
+  mergeParticipantMaps(participantMap, [requesterResolved]);
+  return participantIds
+    .map((id) => toParticipantSummary(participantMap.get(id) ?? undefined, id))
+    .filter(
+      (participant, index, list) =>
+        list.findIndex((entry) => entry.id === participant.id) === index,
+    );
+}
+
+async function deleteDirectMessage(params: {
+  conversationId: string;
+  messageId: string;
+  requesterId: string;
+}): Promise<{ conversationId: string; messageId: string; participants: ChatParticipantSummary[] }> {
+  const { left, right } = parseConversationId(params.conversationId);
+  const identityCache = new Map<string, ResolvedIdentity | null>();
+  const leftResolved = await resolveIdentity(identityCache, left, left);
+  const rightResolved = await resolveIdentity(identityCache, right, right);
+  const requesterResolved = await resolveIdentity(
+    identityCache,
+    params.requesterId,
+    params.requesterId,
+  );
+  if (!leftResolved || !rightResolved || !requesterResolved) {
+    throw new ChatServiceError("invalid_conversation", 404, "That conversation could not be found.");
+  }
+
+  const canonicalLeft = normalizeId(leftResolved.canonicalId);
+  const canonicalRight = normalizeId(rightResolved.canonicalId);
+  const canonicalRequester = normalizeId(requesterResolved.canonicalId);
+  if (!canonicalLeft || !canonicalRight || !canonicalRequester) {
+    throw new ChatServiceError("invalid_conversation", 404, "That conversation could not be found.");
+  }
+
+  const canonicalConversationId = getChatConversationId(canonicalLeft, canonicalRight);
+  const canonicalMessageId = canonicalizeMessageId(params.messageId, canonicalConversationId);
+  const messageRow = await findChatMessageById(canonicalMessageId);
+  if (!messageRow || normalizeId(messageRow.conversation_id) !== canonicalConversationId) {
+    throw new ChatServiceError("message_not_found", 404, "That message could not be found.");
+  }
+  if (normalizeId(messageRow.sender_id) !== canonicalRequester) {
+    throw new ChatServiceError(
+      "forbidden",
+      403,
+      "You can only delete messages you sent.",
+    );
+  }
+
+  await deleteChatMessageById(messageRow.id);
+  const participantSummaries = await buildDirectParticipantSummaries(leftResolved, rightResolved);
+
+  await publishMessageDeletedEvent({
+    conversationId: canonicalConversationId,
+    messageId: canonicalMessageId,
+    participants: participantSummaries,
+  });
+
+  return {
+    conversationId: canonicalConversationId,
+    messageId: canonicalMessageId,
+    participants: participantSummaries,
+  };
+}
+
+async function deleteGroupMessage(params: {
+  conversationId: string;
+  messageId: string;
+  requesterId: string;
+}): Promise<{ conversationId: string; messageId: string; participants: ChatParticipantSummary[] }> {
+  const trimmedConversationId = params.conversationId.trim();
+  const requesterTrimmed = params.requesterId?.trim();
+  if (!requesterTrimmed) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to delete that message.");
+  }
+
+  const identityCache = new Map<string, ResolvedIdentity | null>();
+  const requesterResolved = await resolveIdentity(identityCache, requesterTrimmed, requesterTrimmed);
+  if (!requesterResolved) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to delete that message.");
+  }
+  const canonicalRequester = normalizeId(requesterResolved.canonicalId);
+  if (!canonicalRequester) {
+    throw new ChatServiceError("auth_required", 401, "Sign in to delete that message.");
+  }
+
+  const [conversationRow] = await listGroupConversationsByIds([trimmedConversationId]);
+  if (!conversationRow) {
+    throw new ChatServiceError("invalid_conversation", 404, "That group could not be found.");
+  }
+
+  const membershipRows = await listGroupParticipants(trimmedConversationId);
+  if (!membershipRows.length) {
+    throw new ChatServiceError("invalid_conversation", 404, "That group has no participants.");
+  }
+
+  const participantIds = Array.from(
+    new Set(
+      membershipRows
+        .map((row) => normalizeId(row.user_id))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+  if (!participantIds.includes(canonicalRequester)) {
+    throw new ChatServiceError("forbidden", 403, "You do not have access to this conversation.");
+  }
+
+  const canonicalMessageId = canonicalizeMessageId(params.messageId, trimmedConversationId);
+  const messageRow = await findGroupMessageById(canonicalMessageId);
+  if (!messageRow || normalizeId(messageRow.conversation_id) !== trimmedConversationId) {
+    throw new ChatServiceError("message_not_found", 404, "That message could not be found.");
+  }
+  if (normalizeId(messageRow.sender_id) !== canonicalRequester) {
+    throw new ChatServiceError(
+      "forbidden",
+      403,
+      "You can only delete messages you sent.",
+    );
+  }
+
+  await deleteGroupMessageById(messageRow.id);
+  const participantSummaries = await buildGroupParticipantSummaries(
+    participantIds,
+    requesterResolved,
+  );
+
+  await publishMessageDeletedEvent({
+    conversationId: trimmedConversationId,
+    messageId: canonicalMessageId,
+    participants: participantSummaries,
+    session: {
+      type: "group",
+      title: buildGroupConversationTitle(participantSummaries, conversationRow.title),
+      avatar: conversationRow.avatar_url ?? null,
+      createdBy: conversationRow.created_by ?? null,
+    },
+  });
+
+  return {
+    conversationId: trimmedConversationId,
+    messageId: canonicalMessageId,
     participants: participantSummaries,
   };
 }

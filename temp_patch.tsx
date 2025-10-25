@@ -26,8 +26,6 @@ import type { ChatMessageSendInput } from "@/components/providers/ChatProvider";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import type { EmojiPickerProps } from "./EmojiPicker";
 import type { GifPickerProps, GifPickerSelection } from "./GifPicker";
-import contextMenuStyles from "@/components/ui/context-menu.module.css";
-import { chatCopy } from "./copy";
 
 import styles from "./chat.module.css";
 
@@ -190,35 +188,7 @@ type PendingAttachment = {
   sessionId: string | null;
 };
 
-type AttachmentUiState = {
-  previewFailed: boolean;
-  previewNonce: number;
-  downloading: boolean;
-  deleting: boolean;
-  deleteError: string | null;
-  downloadError: string | null;
-};
-
-type MessageAttachmentEntry = ChatMessage["attachments"][number];
-
-type MessageContextMenuState = {
-  messageId: string | null;
-  messageIndex: number;
-  messageKey: string;
-  x: number;
-  y: number;
-  isSelf: boolean;
-};
-
 const MESSAGE_GROUP_WINDOW_MS = 5 * 60_000;
-const DEFAULT_ATTACHMENT_UI_STATE: AttachmentUiState = {
-  previewFailed: false,
-  previewNonce: 0,
-  downloading: false,
-  deleting: false,
-  deleteError: null,
-  downloadError: null,
-};
 const GIF_FLAG = (process.env.NEXT_PUBLIC_GIFS_ENABLED || "").trim().toLowerCase();
 const GIF_PROVIDER = (process.env.NEXT_PUBLIC_GIF_PROVIDER || "").trim().toLowerCase();
 const GIF_SUPPORT_ENABLED =
@@ -229,57 +199,6 @@ const GIF_SUPPORT_ENABLED =
       : GIF_PROVIDER === "none"
         ? false
         : true;
-const CHAT_ACTION_TELEMETRY_ENDPOINT = "/api/telemetry/chat-action";
-
-type ChatActionTelemetryPayload = {
-  action: string;
-  conversationId?: string;
-  messageId?: string;
-  attachmentId?: string;
-  metadata?: Record<string, unknown>;
-};
-
-async function sendChatActionTelemetry(payload: ChatActionTelemetryPayload): Promise<void> {
-  if (typeof window === "undefined") return;
-  try {
-    await fetch(CHAT_ACTION_TELEMETRY_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-  } catch (error) {
-    console.warn("chat.action.telemetry.request_failed", error);
-  }
-}
-
-function buildMessageCopyText(message: ChatMessage): string {
-  const segments: string[] = [];
-  if (message.body?.trim()) {
-    segments.push(message.body.trim());
-  }
-  const attachments = Array.isArray(message.attachments) ? message.attachments : [];
-  if (attachments.length) {
-    attachments.forEach((attachment) => {
-      if (!attachment) return;
-      const sizeLabel = formatAttachmentSize(attachment.size);
-      const parts = [attachment.name?.trim() || "Attachment"];
-      if (sizeLabel) parts.push(`(${sizeLabel})`);
-      if (attachment.url) parts.push(attachment.url);
-      segments.push(parts.join(" "));
-    });
-  }
-  return segments.join("\n\n");
-}
-
-function buildMessageKey(message: ChatMessage, index: number): string {
-  const identifier =
-    message.id && message.id.trim().length > 0
-      ? `${message.id}-${index}`
-      : `${message.authorId ?? "message"}-${message.sentAt}-${index}`;
-  return identifier.replace(/\s+/g, "_");
-}
 
 const GIF_SIZE_LIMIT_BYTES = 7 * 1024 * 1024;
 const REACTION_PICKER_LONG_PRESS_MS = 450;
@@ -304,8 +223,6 @@ type ChatConversationProps = {
   onRenameGroup?: () => void;
   onTypingChange?: (conversationId: string, typing: boolean) => void;
   onToggleReaction?: (conversationId: string, messageId: string, emoji: string) => Promise<void>;
-  onRemoveAttachments?: (messageId: string, attachmentIds: string[]) => Promise<void>;
-  onDeleteMessage?: (messageId: string) => Promise<void>;
 };
 
 function renderConversationAvatar(
@@ -418,8 +335,6 @@ export function ChatConversation({
   onRenameGroup,
   onToggleReaction,
   onTypingChange,
-  onRemoveAttachments,
-  onDeleteMessage,
 }: ChatConversationProps) {
   const { user } = useCurrentUser();
   const [draft, setDraft] = React.useState("");
@@ -430,55 +345,11 @@ export function ChatConversation({
   const [reactionAnchorRect, setReactionAnchorRect] = React.useState<DOMRect | null>(null);
   const [reactionAnchorLabel, setReactionAnchorLabel] = React.useState<string | null>(null);
   const [isGifPickerOpen, setGifPickerOpen] = React.useState(false);
-  const [attachmentUiState, setAttachmentUiState] = React.useState<Record<string, AttachmentUiState>>({});
-  const [contextMenu, setContextMenu] = React.useState<MessageContextMenuState | null>(null);
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
   const messageInputRef = React.useRef<HTMLTextAreaElement | null>(null);
   const reactionLongPressTimerRef = React.useRef<number | null>(null);
   const reactionLongPressTriggeredRef = React.useRef(false);
-  const contextMenuRef = React.useRef<HTMLDivElement | null>(null);
-  const contextMenuFirstItemRef = React.useRef<HTMLButtonElement | null>(null);
 
-  const buildAttachmentStateKey = React.useCallback(
-    (message: ChatMessage, attachment: MessageAttachmentEntry, index: number) => {
-      const messageId =
-        typeof message.id === "string" && message.id.trim().length > 0
-          ? message.id.trim()
-          : `local-${message.sentAt}-${index}`;
-      const attachmentId =
-        typeof attachment.id === "string" && attachment.id.trim().length > 0
-          ? attachment.id.trim()
-          : `attachment-${index}`;
-      return `${messageId}:${attachmentId}`;
-    },
-    [],
-  );
-
-  const updateAttachmentUiState = React.useCallback(
-    (key: string, updater: (state: AttachmentUiState) => AttachmentUiState | null) => {
-      setAttachmentUiState((previous) => {
-        const current = previous[key] ?? DEFAULT_ATTACHMENT_UI_STATE;
-        const next = updater(current);
-        if (!next) {
-          if (!(key in previous)) return previous;
-          const { [key]: _removed, ...rest } = previous;
-          return rest;
-        }
-        if (
-          current.previewFailed === next.previewFailed &&
-          current.previewNonce === next.previewNonce &&
-          current.downloading === next.downloading &&
-          current.deleting === next.deleting &&
-          current.deleteError === next.deleteError &&
-          current.downloadError === next.downloadError
-        ) {
-          return previous;
-        }
-        return { ...previous, [key]: next };
-      });
-    },
-    [],
-  );
   const {
     fileInputRef,
     attachment,
@@ -488,564 +359,11 @@ export function ChatConversation({
     handleAttachClick,
     handleAttachmentFile,
     attachRemoteAttachment,
+
   } = useAttachmentUpload();
   const [queuedAttachments, setQueuedAttachments] = React.useState<PendingAttachment[]>([]);
   const pendingFilesRef = React.useRef<File[]>([]);
-  const [pendingFileCount, setPendingFileCount] = React.useState(0);
   const [isDraggingFile, setIsDraggingFile] = React.useState(false);
-  const adjustTextareaHeight = React.useCallback(() => {
-    const textarea = messageInputRef.current;
-    if (!textarea) return;
-    textarea.style.height = "auto";
-    const maxHeight = 220;
-    const nextHeight = Math.min(maxHeight, Math.max(56, textarea.scrollHeight));
-    textarea.style.height = `${nextHeight}px`;
-  }, []);
-
-  React.useEffect(() => {
-    const activeKeys = new Set<string>();
-    session.messages.forEach((message) => {
-      const attachments = Array.isArray(message.attachments) ? message.attachments : [];
-      attachments.forEach((attachment, index) => {
-        activeKeys.add(buildAttachmentStateKey(message, attachment, index));
-      });
-    });
-    setAttachmentUiState((previous) => {
-      const keys = Object.keys(previous);
-      if (!keys.length) return previous;
-      let mutated = false;
-      const next: Record<string, AttachmentUiState> = {};
-      keys.forEach((key) => {
-        if (activeKeys.has(key)) {
-          next[key] = previous[key]!;
-        } else {
-          mutated = true;
-        }
-      });
-      return mutated ? next : previous;
-    });
-  }, [buildAttachmentStateKey, session.messages]);
-
-  const handleAttachmentPreviewError = React.useCallback(
-    (key: string) => {
-      updateAttachmentUiState(key, (state) => ({
-        ...state,
-        previewFailed: true,
-      }));
-    },
-    [updateAttachmentUiState],
-  );
-
-  const handleAttachmentPreviewLoad = React.useCallback(
-    (key: string) => {
-      updateAttachmentUiState(key, (state) => {
-        if (!state.previewFailed && state.previewNonce === 0) return state;
-        return {
-          ...state,
-          previewFailed: false,
-        };
-      });
-    },
-    [updateAttachmentUiState],
-  );
-
-  const handleAttachmentPreviewRetry = React.useCallback(
-    (key: string) => {
-      updateAttachmentUiState(key, (state) => ({
-        ...state,
-        previewFailed: false,
-        previewNonce: state.previewNonce + 1,
-      }));
-    },
-    [updateAttachmentUiState],
-  );
-
-  const handleAttachmentOpen = React.useCallback(
-    (message: ChatMessage, attachment: MessageAttachmentEntry) => {
-      if (!attachment.url) return;
-      const messageId =
-        typeof message.id === "string" && message.id.trim().length > 0
-          ? message.id.trim()
-          : undefined;
-      const attachmentId =
-        typeof attachment.id === "string" && attachment.id.trim().length > 0
-          ? attachment.id.trim()
-          : undefined;
-      void sendChatActionTelemetry({
-        action: "attachment_open",
-        conversationId: session.id,
-        messageId,
-        attachmentId,
-        metadata: {
-          mimeType: attachment.mimeType,
-          size: attachment.size,
-        },
-      });
-      if (typeof window !== "undefined") {
-        window.open(attachment.url, "_blank", "noopener");
-      }
-    },
-    [session.id],
-  );
-
-  const handleAttachmentDownload = React.useCallback(
-    (message: ChatMessage, attachment: MessageAttachmentEntry, key: string) => {
-      if (!attachment.url) return;
-      const messageId =
-        typeof message.id === "string" && message.id.trim().length > 0
-          ? message.id.trim()
-          : undefined;
-      const attachmentId =
-        typeof attachment.id === "string" && attachment.id.trim().length > 0
-          ? attachment.id.trim()
-          : undefined;
-      updateAttachmentUiState(key, (state) => ({
-        ...state,
-        downloading: true,
-        downloadError: null,
-      }));
-      void sendChatActionTelemetry({
-        action: "attachment_download",
-        conversationId: session.id,
-        messageId,
-        attachmentId,
-        metadata: {
-          mimeType: attachment.mimeType,
-          size: attachment.size,
-        },
-      });
-      if (typeof document === "undefined" || typeof window === "undefined") {
-        updateAttachmentUiState(key, (state) => ({
-          ...state,
-          downloading: false,
-        }));
-        return;
-      }
-      try {
-        const anchor = document.createElement("a");
-        anchor.href = attachment.url;
-        anchor.target = "_blank";
-        anchor.rel = "noopener";
-        if (attachment.name && attachment.name.trim().length > 0) {
-          anchor.download = attachment.name;
-        }
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-        window.setTimeout(() => {
-          updateAttachmentUiState(key, (state) => ({
-            ...state,
-            downloading: false,
-          }));
-        }, 600);
-      } catch (error) {
-        let handled = false;
-        if (typeof window !== "undefined") {
-          const popup = window.open(attachment.url, "_blank", "noopener");
-          if (popup) {
-            handled = true;
-            window.setTimeout(() => {
-              updateAttachmentUiState(key, (state) => ({
-                ...state,
-                downloading: false,
-              }));
-            }, 600);
-          }
-        }
-        if (!handled) {
-          console.error("chat attachment download failed", error);
-          updateAttachmentUiState(key, (state) => ({
-            ...state,
-            downloading: false,
-            downloadError: chatCopy.errors.attachmentDownloadFailed,
-          }));
-          void sendChatActionTelemetry({
-            action: "attachment_download_failure",
-            conversationId: session.id,
-            messageId,
-            attachmentId,
-            metadata: {
-              error: error instanceof Error ? error.message : String(error),
-            },
-          });
-        }
-      }
-    },
-    [session.id, updateAttachmentUiState],
-  );
-
-  const handleAttachmentDelete = React.useCallback(
-    async (message: ChatMessage, attachment: MessageAttachmentEntry, key: string) => {
-      if (!onRemoveAttachments) return;
-      const messageId =
-        typeof message.id === "string" && message.id.trim().length > 0
-          ? message.id.trim()
-          : null;
-      const attachmentId =
-        typeof attachment.id === "string" && attachment.id.trim().length > 0
-          ? attachment.id.trim()
-          : null;
-      if (!messageId || !attachmentId) {
-        updateAttachmentUiState(key, (state) => ({
-          ...state,
-          deleting: false,
-          deleteError: chatCopy.errors.attachmentDeleteFailed,
-        }));
-        return;
-      }
-      updateAttachmentUiState(key, (state) => ({
-        ...state,
-        deleting: true,
-        deleteError: null,
-      }));
-      void sendChatActionTelemetry({
-        action: "attachment_delete_request",
-        conversationId: session.id,
-        messageId,
-        attachmentId,
-      });
-      try {
-        await onRemoveAttachments(messageId, [attachmentId]);
-        updateAttachmentUiState(key, (state) => ({
-          ...state,
-          deleting: false,
-          deleteError: null,
-        }));
-        void sendChatActionTelemetry({
-          action: "attachment_delete_success",
-          conversationId: session.id,
-          messageId,
-          attachmentId,
-        });
-      } catch (error) {
-        console.error("chat attachment delete failed", error);
-        updateAttachmentUiState(key, (state) => ({
-          ...state,
-          deleting: false,
-          deleteError: chatCopy.errors.attachmentDeleteFailed,
-        }));
-        void sendChatActionTelemetry({
-          action: "attachment_delete_failure",
-          conversationId: session.id,
-          messageId,
-          attachmentId,
-          metadata: {
-            error: error instanceof Error ? error.message : String(error),
-          },
-        });
-      }
-    },
-    [onRemoveAttachments, session.id, updateAttachmentUiState],
-  );
-
-  const closeContextMenu = React.useCallback(() => {
-    setContextMenu(null);
-  }, []);
-
-  const contextMenuMessage = React.useMemo<ChatMessage | null>(() => {
-    if (!contextMenu) return null;
-    const byId =
-      contextMenu.messageId === null
-        ? null
-        : session.messages.find(
-            (msg) => typeof msg.id === "string" && msg.id.trim() === contextMenu.messageId,
-          ) ?? null;
-    if (byId) return byId;
-    if (
-      contextMenu.messageIndex >= 0 &&
-      contextMenu.messageIndex < session.messages.length
-    ) {
-      const candidate = session.messages[contextMenu.messageIndex] ?? null;
-      if (
-        candidate &&
-        (!contextMenu.messageKey ||
-          buildMessageKey(candidate, contextMenu.messageIndex) === contextMenu.messageKey)
-      ) {
-        return candidate;
-      }
-    }
-    if (!contextMenu.messageKey) return null;
-    const byKey =
-      session.messages.find((msg, msgIndex) => buildMessageKey(msg, msgIndex) === contextMenu.messageKey) ?? null;
-    return byKey;
-  }, [contextMenu, session.messages]);
-
-  React.useEffect(() => {
-    if (contextMenu && !contextMenuMessage) {
-      closeContextMenu();
-    }
-  }, [closeContextMenu, contextMenu, contextMenuMessage]);
-
-  React.useEffect(() => {
-    if (!contextMenu) return;
-    if (typeof window === "undefined") return;
-    const pointerOptions: AddEventListenerOptions = { capture: true };
-    const handlePointerDown = (event: MouseEvent) => {
-      const menuEl = contextMenuRef.current;
-      if (menuEl && menuEl.contains(event.target as Node)) return;
-      closeContextMenu();
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeContextMenu();
-      }
-    };
-    const handleScroll = () => {
-      closeContextMenu();
-    };
-    const scrollOptions: AddEventListenerOptions = { passive: true };
-    window.addEventListener("pointerdown", handlePointerDown, pointerOptions);
-    window.addEventListener("keydown", handleKeyDown, pointerOptions);
-    window.addEventListener("scroll", handleScroll, true);
-    window.addEventListener("resize", handleScroll);
-    const container = messagesRef.current;
-    container?.addEventListener("scroll", handleScroll, scrollOptions);
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown, pointerOptions);
-      window.removeEventListener("keydown", handleKeyDown, pointerOptions);
-      window.removeEventListener("scroll", handleScroll, true);
-      window.removeEventListener("resize", handleScroll);
-      container?.removeEventListener("scroll", handleScroll, scrollOptions);
-    };
-  }, [closeContextMenu, contextMenu]);
-
-  React.useEffect(() => {
-    if (!contextMenu) {
-      contextMenuFirstItemRef.current = null;
-      return;
-    }
-    requestAnimationFrame(() => {
-      contextMenuFirstItemRef.current?.focus();
-    });
-  }, [contextMenu]);
-
-  const copyMessage = React.useCallback(
-    async (message: ChatMessage): Promise<boolean> => {
-      const text = buildMessageCopyText(message).trim();
-      if (!text) return false;
-      let success = false;
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        try {
-          await navigator.clipboard.writeText(text);
-          success = true;
-        } catch (clipboardError) {
-          console.warn("chat message copy via clipboard API failed", clipboardError);
-        }
-      }
-      if (!success && typeof document !== "undefined") {
-        let textarea: HTMLTextAreaElement | null = null;
-        try {
-          textarea = document.createElement("textarea");
-          textarea.value = text;
-          textarea.setAttribute("readonly", "true");
-          textarea.style.position = "fixed";
-          textarea.style.top = "-1000px";
-          textarea.style.left = "-1000px";
-          textarea.style.opacity = "0";
-          textarea.style.pointerEvents = "none";
-          document.body.appendChild(textarea);
-          textarea.focus();
-          textarea.select();
-          textarea.setSelectionRange(0, textarea.value.length);
-          success = document.execCommand("copy");
-        } catch (fallbackError) {
-          console.error("chat message copy fallback failed", fallbackError);
-        } finally {
-          if (textarea && textarea.parentNode) {
-            textarea.parentNode.removeChild(textarea);
-          }
-        }
-      }
-      void sendChatActionTelemetry({
-        action: success ? "message_copy" : "message_copy_failure",
-        conversationId: session.id,
-        messageId: typeof message.id === "string" ? message.id : undefined,
-        metadata: success
-          ? { length: text.length }
-          : {
-              length: text.length,
-            },
-      });
-      return success;
-    },
-    [session.id],
-  );
-
-  const handleMessageCopy = React.useCallback(
-    async (message: ChatMessage, options?: { fromMenu?: boolean }) => {
-      if (options?.fromMenu) {
-        closeContextMenu();
-      }
-      const success = await copyMessage(message);
-      if (!success) {
-        setError(chatCopy.errors.messageCopyFailed);
-      }
-    },
-    [closeContextMenu, copyMessage],
-  );
-
-  const handleMessageForward = React.useCallback(
-    (message: ChatMessage) => {
-      closeContextMenu();
-      const attachments = Array.isArray(message.attachments) ? message.attachments : [];
-      const attachmentLines = attachments
-        .map((attachment) => {
-          if (!attachment) return null;
-          const name = attachment.name?.trim() || "Attachment";
-          const parts = [`- ${name}`];
-          if (attachment.url) {
-            parts.push(attachment.url);
-          }
-          return parts.join(" ");
-        })
-        .filter((line): line is string => Boolean(line));
-      const segments = [chatCopy.messageMenu.forwardedPrefix];
-      if (message.body?.trim()) {
-        segments.push(message.body.trim());
-      }
-      if (attachmentLines.length) {
-        segments.push(...attachmentLines);
-      }
-      const forwardedBlock = segments.join("\n");
-      setDraft((previous) => {
-        const trimmed = previous.replace(/\s+$/, "");
-        const spacer = trimmed.length > 0 ? "\n\n" : "";
-        return `${trimmed}${spacer}${forwardedBlock}\n`;
-      });
-      requestAnimationFrame(() => {
-        adjustTextareaHeight();
-        messageInputRef.current?.focus();
-      });
-      onTypingChange?.(session.id, true);
-      void sendChatActionTelemetry({
-        action: "message_forward",
-        conversationId: session.id,
-        messageId: typeof message.id === "string" ? message.id : undefined,
-      });
-    },
-    [adjustTextareaHeight, closeContextMenu, onTypingChange, session.id, setDraft],
-  );
-
-  const handleMessageDelete = React.useCallback(
-    async (message: ChatMessage) => {
-      closeContextMenu();
-      if (!onDeleteMessage) return;
-      const messageId = typeof message.id === "string" ? message.id.trim() : "";
-      if (!messageId) {
-        setError(chatCopy.errors.messageDeleteFailed);
-        return;
-      }
-      void sendChatActionTelemetry({
-        action: "message_delete_request",
-        conversationId: session.id,
-        messageId,
-      });
-      try {
-        await onDeleteMessage(messageId);
-        void sendChatActionTelemetry({
-          action: "message_delete_success",
-          conversationId: session.id,
-          messageId,
-        });
-      } catch (deleteError) {
-        console.error("chat message delete failed", deleteError);
-        setError(chatCopy.errors.messageDeleteFailed);
-        void sendChatActionTelemetry({
-          action: "message_delete_failure",
-          conversationId: session.id,
-          messageId,
-          metadata: {
-            error: deleteError instanceof Error ? deleteError.message : String(deleteError),
-          },
-        });
-      }
-    },
-    [closeContextMenu, onDeleteMessage, session.id],
-  );
-
-  const openMessageContextMenu = React.useCallback(
-    (
-      clientX: number,
-      clientY: number,
-      message: ChatMessage,
-      messageKey: string,
-      messageIndex: number,
-      isSelf: boolean,
-    ) => {
-      if (typeof window === "undefined") return;
-      const menuWidth = 240;
-      const menuHeight = 164;
-      const clamp = (value: number, min: number, max: number) =>
-        Math.max(min, Math.min(max, value));
-      const x = clamp(clientX, 12, window.innerWidth - menuWidth - 12);
-      const y = clamp(clientY, 12, window.innerHeight - menuHeight - 12);
-      const messageId =
-        typeof message.id === "string" && message.id.trim().length > 0
-          ? message.id.trim()
-          : null;
-      setContextMenu({
-        messageId,
-        messageIndex,
-        messageKey,
-        x,
-        y,
-        isSelf,
-      });
-    },
-    [],
-  );
-
-  const handleMessageContextMenu = React.useCallback(
-    (
-      event: React.MouseEvent<HTMLDivElement>,
-      message: ChatMessage,
-      messageKey: string,
-      messageIndex: number,
-      isSelf: boolean,
-    ) => {
-      const anchor = event.target as HTMLElement | null;
-      if (anchor && anchor.closest("a")) {
-        return;
-      }
-      const selection = typeof window !== "undefined" ? window.getSelection() : null;
-      if (selection && selection.toString().trim().length > 0) {
-        return;
-      }
-      event.preventDefault();
-      openMessageContextMenu(event.clientX, event.clientY, message, messageKey, messageIndex, isSelf);
-    },
-    [openMessageContextMenu],
-  );
-
-  const handleMessageKeyDown = React.useCallback(
-    (
-      event: React.KeyboardEvent<HTMLDivElement>,
-      message: ChatMessage,
-      messageKey: string,
-      messageIndex: number,
-      isSelf: boolean,
-    ) => {
-      if (event.key === "ContextMenu" || (event.shiftKey && (event.key === "F10" || event.key === "f10"))) {
-        event.preventDefault();
-        const rect = event.currentTarget.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        openMessageContextMenu(centerX, centerY, message, messageKey, messageIndex, isSelf);
-        return;
-      }
-      const isCopy =
-        (event.key === "c" || event.key === "C") && (event.metaKey || event.ctrlKey);
-      if (isCopy) {
-        const selection = typeof window !== "undefined" ? window.getSelection() : null;
-        if (!selection || selection.toString().trim().length === 0) {
-          event.preventDefault();
-          void handleMessageCopy(message);
-        }
-      }
-    },
-    [handleMessageCopy, openMessageContextMenu],
-  );
 
   const clearReactionLongPress = React.useCallback(() => {
     if (reactionLongPressTimerRef.current !== null) {
@@ -1093,31 +411,28 @@ export function ChatConversation({
   const processNextQueuedFile = React.useCallback(async () => {
     if (attachmentUploading || attachment) return;
     const next = pendingFilesRef.current.shift();
-    setPendingFileCount(pendingFilesRef.current.length);
     if (!next) return;
     try {
       await handleAttachmentFile(next);
     } catch (uploadError) {
       console.error("attachment upload failed", uploadError);
     }
-  }, [attachment, attachmentUploading, handleAttachmentFile, setPendingFileCount]);
+  }, [attachment, attachmentUploading, handleAttachmentFile]);
 
   const enqueueFiles = React.useCallback(
     (files: File[]) => {
       if (!files.length) return;
       pendingFilesRef.current.push(...files);
-      setPendingFileCount(pendingFilesRef.current.length);
       void processNextQueuedFile();
     },
-    [processNextQueuedFile, setPendingFileCount],
+    [processNextQueuedFile],
   );
 
   React.useEffect(() => {
     return () => {
       pendingFilesRef.current = [];
-      setPendingFileCount(0);
     };
-  }, [setPendingFileCount]);
+  }, []);
 
   React.useEffect(() => {
     if (!readyAttachment || readyAttachment.status !== "ready" || !readyAttachment.url) return;
@@ -1149,6 +464,15 @@ export function ChatConversation({
     }
   }, [attachment, attachmentUploading, processNextQueuedFile]);
 
+  const adjustTextareaHeight = React.useCallback(() => {
+    const textarea = messageInputRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    const maxHeight = 220;
+    const nextHeight = Math.min(maxHeight, Math.max(56, textarea.scrollHeight));
+    textarea.style.height = `${nextHeight}px`;
+  }, []);
+
   const uploadingAttachment =
     attachment && attachment.status !== "ready" ? attachment : null;
   const attachmentError =
@@ -1158,32 +482,12 @@ export function ChatConversation({
       ? Math.max(0, Math.min(1, attachment.progress))
       : 0;
   const hasQueuedAttachments = queuedAttachments.length > 0;
-  const isAttachmentBusy =
-    Boolean(uploadingAttachment) || attachmentUploading || pendingFileCount > 0;
-  const composerStatus = React.useMemo(() => {
-    if (attachmentError) return null;
-    if (uploadingAttachment) {
-      const percent = Math.max(0, Math.min(100, Math.round(attachmentProgress * 100)));
-      return {
-        variant: "uploading" as const,
-        text: chatCopy.composer.uploading(uploadingAttachment.name, percent),
-      };
-    }
-    if (hasQueuedAttachments) {
-      return {
-        variant: "ready" as const,
-        text: chatCopy.composer.attachmentsReady(queuedAttachments.length),
-      };
-    }
-    return null;
-  }, [attachmentError, attachmentProgress, hasQueuedAttachments, queuedAttachments.length, uploadingAttachment]);
   const trimmedDraft = React.useMemo(() => draft.replace(/\s+/g, " ").trim(), [draft]);
   const hasTypedContent = trimmedDraft.length > 0;
-  const hasAttachmentBlock =
-    hasQueuedAttachments || Boolean(uploadingAttachment) || pendingFileCount > 0;
+  const hasAttachmentBlock = hasQueuedAttachments || Boolean(uploadingAttachment);
   const disableSend =
     sending ||
-    isAttachmentBusy ||
+    attachmentUploading ||
     (!hasTypedContent && !hasQueuedAttachments) ||
     Boolean(attachmentError);
 
@@ -1214,10 +518,6 @@ export function ChatConversation({
   React.useEffect(() => {
     closeReactionPicker();
   }, [closeReactionPicker, session.id]);
-
-  React.useEffect(() => {
-    closeContextMenu();
-  }, [closeContextMenu, session.id]);
 
   React.useEffect(() => {
     if (!reactionTargetId) return;
@@ -1308,7 +608,6 @@ export function ChatConversation({
 
   const handleReactionPickerToggle = React.useCallback(
     (messageId: string, anchor: HTMLElement | null, label: string) => {
-      closeContextMenu();
       if (reactionTargetId === messageId) {
         closeReactionPicker();
         return;
@@ -1322,7 +621,7 @@ export function ChatConversation({
         setReactionAnchorRect(null);
       }
     },
-    [closeContextMenu, closeReactionPicker, reactionTargetId],
+    [closeReactionPicker, reactionTargetId],
   );
 
   const handleReactionAddClick = React.useCallback(
@@ -1435,21 +734,11 @@ export function ChatConversation({
         const hasContent =
           value.replace(/\s+/g, "").length > 0 ||
           hasQueuedAttachments ||
-          attachmentUploading ||
-          pendingFileCount > 0 ||
-          Boolean(uploadingAttachment);
+          attachmentUploading;
         onTypingChange(session.id, hasContent);
       }
     },
-    [
-      adjustTextareaHeight,
-      attachmentUploading,
-      hasQueuedAttachments,
-      onTypingChange,
-      pendingFileCount,
-      session.id,
-      uploadingAttachment,
-    ],
+    [adjustTextareaHeight, attachmentUploading, hasQueuedAttachments, onTypingChange, session.id],
   );
 
   const handleDraftBlur = React.useCallback(() => {
@@ -1473,6 +762,12 @@ export function ChatConversation({
 
   React.useEffect(() => {
     return () => {
+      pendingFilesRef.current = [];
+    };
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
       onTypingChange?.(session.id, false);
     };
   }, [onTypingChange, session.id]);
@@ -1483,19 +778,9 @@ export function ChatConversation({
     if (hasText) return;
     onTypingChange(
       session.id,
-      (hasQueuedAttachments || attachmentUploading || pendingFileCount > 0 || Boolean(uploadingAttachment)) &&
-        !attachmentError,
+      (hasQueuedAttachments || attachmentUploading) && !attachmentError,
     );
-  }, [
-    attachmentError,
-    attachmentUploading,
-    draft,
-    hasQueuedAttachments,
-    onTypingChange,
-    pendingFileCount,
-    session.id,
-    uploadingAttachment,
-  ]);
+  }, [attachmentError, attachmentUploading, draft, hasQueuedAttachments, onTypingChange, session.id]);
 
   const handleAttachmentButtonClick = React.useCallback(() => {
     handleAttachClick();
@@ -1613,87 +898,6 @@ export function ChatConversation({
       : formatPresence(lastPresenceSource);
   const title = session.title?.trim() || (remoteParticipants[0]?.name ?? "Chat");
 
-  const contextMenuNode =
-    contextMenu && contextMenuMessage && typeof document !== "undefined"
-      ? createPortal(
-          <div
-            className={contextMenuStyles.backdrop}
-            role="presentation"
-            onClick={closeContextMenu}
-            data-role="message-context-menu-backdrop"
-          >
-            <div
-              ref={contextMenuRef}
-              className={contextMenuStyles.menu}
-              style={{ top: contextMenu.y, left: contextMenu.x }}
-              role="menu"
-              aria-label="Message actions"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {(() => {
-                const canCopy =
-                  buildMessageCopyText(contextMenuMessage).trim().length > 0;
-                const canForward =
-                  Boolean(contextMenuMessage.body?.trim()) ||
-                  (Array.isArray(contextMenuMessage.attachments) &&
-                    contextMenuMessage.attachments.length > 0);
-                const canDelete = contextMenu.isSelf && Boolean(onDeleteMessage);
-                return (
-                  <>
-                    <button
-                      ref={canCopy ? contextMenuFirstItemRef : undefined}
-                      type="button"
-                      className={contextMenuStyles.item}
-                      role="menuitem"
-                      onClick={() => {
-                        if (!canCopy) return;
-                        void handleMessageCopy(contextMenuMessage, { fromMenu: true });
-                      }}
-                      disabled={!canCopy}
-                      aria-disabled={!canCopy}
-                    >
-                      {chatCopy.messageMenu.copy}
-                    </button>
-                    <button
-                      ref={!canCopy && canForward ? contextMenuFirstItemRef : undefined}
-                      type="button"
-                      className={contextMenuStyles.item}
-                      role="menuitem"
-                      onClick={() => {
-                        if (!canForward) return;
-                        handleMessageForward(contextMenuMessage);
-                      }}
-                      disabled={!canForward}
-                      aria-disabled={!canForward}
-                    >
-                      {chatCopy.messageMenu.forward}
-                    </button>
-                    <div className={contextMenuStyles.separator} role="separator" />
-                    <button
-                      ref={
-                        !canCopy && !canForward && canDelete ? contextMenuFirstItemRef : undefined
-                      }
-                      type="button"
-                      className={`${contextMenuStyles.item} ${contextMenuStyles.danger}`.trim()}
-                      role="menuitem"
-                      onClick={() => {
-                        if (!canDelete) return;
-                        void handleMessageDelete(contextMenuMessage);
-                      }}
-                      disabled={!canDelete}
-                      aria-disabled={!canDelete}
-                    >
-                      {chatCopy.messageMenu.delete}
-                    </button>
-                  </>
-                );
-              })()}
-            </div>
-          </div>,
-          document.body,
-        )
-      : null;
-
   return (
     <div className={styles.conversation}>
       <div className={styles.conversationHeader}>
@@ -1784,7 +988,11 @@ export function ChatConversation({
 
       <div ref={messagesRef} className={styles.messageList}>
         {session.messages.map((message, index) => {
-          const messageKey = buildMessageKey(message, index);
+          const baseKey =
+            message.id && message.id.trim().length > 0
+              ? `${message.id}-${index}`
+              : `${message.authorId ?? "message"}-${message.sentAt}-${index}`;
+          const messageKey = baseKey.replace(/\s+/g, "_");
           const previous = index > 0 ? session.messages[index - 1] : null;
           const isSelf = message.authorId ? selfIdentifiers.has(message.authorId) : false;
           const author = message.authorId ? participantMap.get(message.authorId) : null;
@@ -1832,20 +1040,7 @@ export function ChatConversation({
                   )
                 ) : null}
               </span>
-              <div
-                className={styles.messageBubbleGroup}
-                tabIndex={0}
-                data-message-id={
-                  message.id && message.id.trim().length > 0 ? message.id.trim() : messageKey
-                }
-                data-menu-open={contextMenu?.messageKey === messageKey ? "true" : undefined}
-                onContextMenu={(event) =>
-                  handleMessageContextMenu(event, message, messageKey, index, isSelf)
-                }
-                onKeyDown={(event) =>
-                  handleMessageKeyDown(event, message, messageKey, index, isSelf)
-                }
-              >
+              <div className={styles.messageBubbleGroup}>
                 {showHeader ? (
                   <div className={styles.messageHeader}>
                     <span className={styles.messageAuthor}>{displayName}</span>
@@ -1863,131 +1058,48 @@ export function ChatConversation({
                   </div>
                 ) : null}
                 {hasAttachments ? (
-                  <div className={styles.messageAttachments} role="list">
+                  <div className={styles.messageAttachments}>
                     {attachments.map((attachmentEntry, attachmentIndex) => {
                       const attachmentKey = `${messageKey}-attachment-${attachmentIndex}`;
                       const isImage =
                         typeof attachmentEntry.mimeType === "string" &&
                         attachmentEntry.mimeType.toLowerCase().startsWith("image/");
                       const href = attachmentEntry.url;
-                      const basePreviewSrc =
+                      const imageSrc =
                         (typeof attachmentEntry.thumbnailUrl === "string" &&
                           attachmentEntry.thumbnailUrl.trim().length
                           ? attachmentEntry.thumbnailUrl.trim()
                           : null) || href;
-                      const stateKey = buildAttachmentStateKey(message, attachmentEntry, attachmentIndex);
-                      const uiState = attachmentUiState[stateKey] ?? DEFAULT_ATTACHMENT_UI_STATE;
-                      const previewSrc =
-                        basePreviewSrc && uiState.previewNonce > 0
-                          ? `${basePreviewSrc}${basePreviewSrc.includes("?") ? "&" : "?"}retry=${uiState.previewNonce}`
-                          : basePreviewSrc;
                       const sizeLabel = formatAttachmentSize(attachmentEntry.size);
-                      const downloadDisabled = uiState.downloading || uiState.deleting || !href;
-                      const deleteDisabled = uiState.deleting;
-                      const showDelete =
-                        Boolean(onRemoveAttachments) &&
-                        isSelf &&
-                        message.status !== "pending" &&
-                        typeof attachmentEntry.id === "string" &&
-                        attachmentEntry.id.trim().length > 0;
-                      const downloadLabel = uiState.downloading
-                        ? chatCopy.attachments.downloading
-                        : uiState.downloadError
-                          ? chatCopy.attachments.retry
-                          : chatCopy.attachments.download;
-                      const deleteLabel = uiState.deleting
-                        ? chatCopy.attachments.deleting
-                        : uiState.deleteError
-                          ? chatCopy.attachments.retry
-                          : chatCopy.attachments.delete;
                       return (
-                        <div
+                        <a
                           key={attachmentKey}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className={styles.messageAttachment}
-                          role="listitem"
-                          data-preview-failed={uiState.previewFailed ? "true" : undefined}
-                          data-downloading={uiState.downloading ? "true" : undefined}
-                          data-deleting={uiState.deleting ? "true" : undefined}
+                          aria-label={`Open attachment ${attachmentEntry.name}`}
                         >
-                          <div className={styles.messageAttachmentPreview}>
-                            <button
-                              type="button"
-                              className={styles.messageAttachmentPreviewButton}
-                              onClick={() => handleAttachmentOpen(message, attachmentEntry)}
-                              disabled={!href}
-                              aria-label={`Open attachment ${attachmentEntry.name}`}
-                            >
-                              {isImage && previewSrc && !uiState.previewFailed ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={previewSrc}
-                                  alt={attachmentEntry.name}
-                                  className={styles.messageAttachmentPreviewImage}
-                                  loading="lazy"
-                                  onLoad={() => handleAttachmentPreviewLoad(stateKey)}
-                                  onError={() => handleAttachmentPreviewError(stateKey)}
-                                />
-                              ) : (
-                                <span className={styles.messageAttachmentIcon} aria-hidden>
-                                  <Paperclip size={16} weight="bold" />
-                                </span>
-                              )}
-                            </button>
-                            {isImage && uiState.previewFailed ? (
-                              <div className={styles.messageAttachmentPreviewFallback}>
-                                <span>{chatCopy.attachments.previewFailed}</span>
-                                <button
-                                  type="button"
-                                  className={styles.messageAttachmentRetry}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    handleAttachmentPreviewRetry(stateKey);
-                                  }}
-                                >
-                                  {chatCopy.attachments.retry}
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-                          <div className={styles.messageAttachmentBody}>
-                            <div className={styles.messageAttachmentTitleRow}>
-                              <span className={styles.messageAttachmentName}>
-                                {attachmentEntry.name}
-                              </span>
-                              <span className={styles.messageAttachmentMeta}>{sizeLabel}</span>
-                            </div>
-                            {uiState.downloadError ? (
-                              <div className={styles.messageAttachmentError} role="alert">
-                                {uiState.downloadError}
-                              </div>
-                            ) : null}
-                            {uiState.deleteError ? (
-                              <div className={styles.messageAttachmentError} role="alert">
-                                {uiState.deleteError}
-                              </div>
-                            ) : null}
-                            <div className={styles.messageAttachmentActions}>
-                              <button
-                                type="button"
-                                className={styles.messageAttachmentAction}
-                                onClick={() => handleAttachmentDownload(message, attachmentEntry, stateKey)}
-                                disabled={downloadDisabled}
-                              >
-                                {downloadLabel}
-                              </button>
-                              {showDelete ? (
-                                <button
-                                  type="button"
-                                  className={`${styles.messageAttachmentAction} ${styles.messageAttachmentDanger}`.trim()}
-                                  onClick={() => handleAttachmentDelete(message, attachmentEntry, stateKey)}
-                                  disabled={deleteDisabled}
-                                >
-                                  {deleteLabel}
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
+                          {isImage ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={imageSrc}
+                              alt={attachmentEntry.name}
+                              className={styles.messageAttachmentImage}
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className={styles.messageAttachmentIcon}>
+                              <Paperclip size={16} weight="bold" />
+                            </span>
+                          )}
+                          <span className={styles.messageAttachmentBody}>
+                            <span className={styles.messageAttachmentName}>
+                              {attachmentEntry.name}
+                            </span>
+                            <span className={styles.messageAttachmentMeta}>{sizeLabel}</span>
+                          </span>
+                        </a>
                       );
                     })}
                   </div>
@@ -2166,23 +1278,13 @@ export function ChatConversation({
               </button>
             </div>
           ) : null}
-          {composerStatus ? (
-            <div
-              className={styles.composerStatus}
-              data-variant={composerStatus.variant}
-              role="status"
-              aria-live="polite"
-            >
-              {composerStatus.text}
-            </div>
-          ) : null}
           {attachmentError ? (
             <div className={styles.composerAttachmentError} role="alert">
               {attachmentError}
             </div>
           ) : null}
           {isDraggingFile ? (
-            <div className={styles.composerDropHint}>{chatCopy.composer.dropHint}</div>
+            <div className={styles.composerDropHint}>Drop file to attach</div>
           ) : null}
         </div>
         <div className={styles.composerActions}>
@@ -2223,10 +1325,10 @@ export function ChatConversation({
           onChange={handleFileInputChange}
         />
       </form>
-      {contextMenuNode}
     </div>
   );
 }
+
 
 
 
