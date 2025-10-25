@@ -1,6 +1,6 @@
 -- Consolidated schema snapshot (generated)
 -- Source: supabase/migrations/*.sql
--- Generated at: 2025-10-19T00:46:32.079Z
+-- Generated at: 2025-10-25T00:30:27.104Z
 -- Note: This file is for bootstrapping dev databases from scratch.
 --       It concatenates ordered migrations and relies on IF NOT EXISTS guards.
 
@@ -96,7 +96,6 @@ create table if not exists public.posts (
   content text not null default '',
   media_url text,
   media_prompt text,
-  poll jsonb,
   user_name text,
   user_avatar text,
   tags text[] default array[]::text[],
@@ -503,7 +502,6 @@ select
   p.content,
   p.media_url,
   p.media_prompt,
-  p.poll,
   p.user_name,
   p.user_avatar,
   p.tags,
@@ -657,20 +655,6 @@ begin
   from public.posts
   where created_at >= current_date;
 end;
-$$;
-
-create or replace function public.poll_vote_counts(post_ids uuid[])
-returns table (post_id uuid, option_index integer, vote_count bigint)
-language sql
-as $$
-  select
-    pv.post_id,
-    pv.option_index,
-    count(*)::bigint as vote_count
-  from public.poll_votes pv
-  where pv.post_id = any(post_ids)
-  group by pv.post_id, pv.option_index
-  order by pv.post_id, pv.option_index;
 $$;
 
 create or replace function analytics_overview_snapshot()
@@ -2025,8 +2009,188 @@ end $$;
 
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 -- END MIGRATION: 0008_mux_streaming.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 0009_group_chat.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- Persistent storage for group chat conversations, membership, messages, and reactions.
+
+create table if not exists public.chat_group_conversations (
+  id text not null,
+  created_by uuid references public.users(id) on delete set null,
+  title text,
+  avatar_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint chat_group_conversations_pkey primary key (id),
+  constraint chat_group_conversations_id_not_blank check (length(btrim(id)) > 0)
+);
+
+create table if not exists public.chat_group_participants (
+  conversation_id text not null references public.chat_group_conversations(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  role text not null default 'member',
+  joined_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint chat_group_participants_pkey primary key (conversation_id, user_id)
+);
+
+create table if not exists public.chat_group_messages (
+  id uuid not null,
+  conversation_id text not null references public.chat_group_conversations(id) on delete cascade,
+  sender_id uuid not null references public.users(id) on delete cascade,
+  body text not null,
+  client_sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint chat_group_messages_pkey primary key (id),
+  constraint chat_group_messages_body_not_blank check (length(btrim(body)) > 0)
+);
+
+create table if not exists public.chat_group_message_reactions (
+  message_id uuid not null references public.chat_group_messages(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  emoji text not null,
+  created_at timestamptz not null default now(),
+  constraint chat_group_message_reactions_pkey primary key (message_id, user_id, emoji),
+  constraint chat_group_message_reactions_emoji_not_blank check (length(btrim(emoji)) > 0)
+);
+
+create index if not exists idx_chat_group_participants_user
+  on public.chat_group_participants (user_id, conversation_id);
+
+create index if not exists idx_chat_group_messages_conversation_created_at
+  on public.chat_group_messages (conversation_id, created_at desc);
+
+create index if not exists idx_chat_group_messages_sender
+  on public.chat_group_messages (sender_id, created_at desc);
+
+create index if not exists idx_chat_group_reactions_message
+  on public.chat_group_message_reactions (message_id, created_at desc);
+
+alter table public.chat_group_conversations enable row level security;
+alter table public.chat_group_participants enable row level security;
+alter table public.chat_group_messages enable row level security;
+alter table public.chat_group_message_reactions enable row level security;
+
+do $$
+begin
+  begin
+    create policy "Service role full access chat_group_conversations"
+      on public.chat_group_conversations
+      to service_role
+      using (true)
+      with check (true);
+  exception
+    when others then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create policy "Service role full access chat_group_participants"
+      on public.chat_group_participants
+      to service_role
+      using (true)
+      with check (true);
+  exception
+    when others then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create policy "Service role full access chat_group_messages"
+      on public.chat_group_messages
+      to service_role
+      using (true)
+      with check (true);
+  exception
+    when others then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create policy "Service role full access chat_group_message_reactions"
+      on public.chat_group_message_reactions
+      to service_role
+      using (true)
+      with check (true);
+  exception
+    when others then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create trigger trg_chat_group_conversations_updated_at
+      before update on public.chat_group_conversations
+      for each row execute function public.set_updated_at();
+  exception
+    when duplicate_object then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create trigger trg_chat_group_participants_updated_at
+      before update on public.chat_group_participants
+      for each row execute function public.set_updated_at();
+  exception
+    when duplicate_object then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create trigger trg_chat_group_messages_updated_at
+      before update on public.chat_group_messages
+      for each row execute function public.set_updated_at();
+  exception
+    when duplicate_object then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create trigger trg_chat_group_message_reactions_updated_at
+      before update on public.chat_group_message_reactions
+      for each row execute function public.set_updated_at();
+  exception
+    when duplicate_object then null;
+  end;
+end
+$$;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 0009_group_chat.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 -- BEGIN MIGRATION: 202510190945_add_capsule_stream_settings.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- Capsule stream settings to persist encoder preferences for AI Stream Studio
 
 create table if not exists public.capsule_stream_settings (
   capsule_id uuid primary key references public.capsules(id) on delete cascade,
@@ -2047,7 +2211,8 @@ begin
   create trigger trg_capsule_stream_settings_updated_at
     before update on public.capsule_stream_settings
     for each row execute function public.set_updated_at();
-exception when duplicate_object then null; end;
+exception when duplicate_object then
+  null;
 end $$;
 
 alter table public.capsule_stream_settings enable row level security;
@@ -2059,7 +2224,8 @@ begin
     to service_role
     using (true)
     with check (true);
-exception when others then null; end;
+exception when others then
+  null;
 end $$;
 
 do $$
@@ -2084,8 +2250,414 @@ begin
           and c.created_by_id = auth.uid()
       )
     );
-exception when others then null; end;
+exception when others then
+  null;
 end $$;
 
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 -- END MIGRATION: 202510190945_add_capsule_stream_settings.sql
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202510221205_ai_image_runs.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+create table if not exists ai_image_runs (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid null,
+  capsule_id uuid null,
+  mode text not null check (mode in ('generate', 'edit')),
+  asset_kind text not null,
+  user_prompt text not null,
+  resolved_prompt text not null,
+  style_preset text null,
+  provider text not null default 'openai',
+  model text null,
+  options jsonb not null default '{}'::jsonb,
+  retry_count integer not null default 0,
+  status text not null default 'pending' check (status in ('pending', 'running', 'succeeded', 'failed')),
+  error_code text null,
+  error_message text null,
+  error_meta jsonb,
+  image_url text null,
+  response_metadata jsonb,
+  attempts jsonb not null default '[]'::jsonb,
+  started_at timestamptz not null default now(),
+  completed_at timestamptz null
+);
+
+create index if not exists idx_ai_image_runs_owner on ai_image_runs(owner_user_id);
+create index if not exists idx_ai_image_runs_capsule on ai_image_runs(capsule_id);
+create index if not exists idx_ai_image_runs_started_at on ai_image_runs(started_at desc);
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202510221205_ai_image_runs.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202510221430_ai_image_variants.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+create table if not exists ai_image_variants (
+  id uuid primary key default gen_random_uuid(),
+  run_id uuid null references ai_image_runs(id) on delete set null,
+  owner_user_id uuid null,
+  capsule_id uuid null,
+  asset_kind text not null,
+  branch_key text not null default 'main',
+  version integer not null,
+  image_url text not null,
+  thumb_url text null,
+  metadata jsonb not null default '{}'::jsonb,
+  parent_variant_id uuid null references ai_image_variants(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_ai_image_variants_owner_asset on ai_image_variants (
+  owner_user_id,
+  capsule_id,
+  asset_kind,
+  branch_key,
+  version desc
+);
+
+create index if not exists idx_ai_image_variants_run on ai_image_variants(run_id);
+
+create unique index if not exists uq_ai_image_variants_version on ai_image_variants (
+  asset_kind,
+  branch_key,
+  coalesce(owner_user_id::text, ''),
+  coalesce(capsule_id::text, ''),
+  version
+);
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202510221430_ai_image_variants.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202510221520_capsule_style_personas.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+create table if not exists capsule_style_personas (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null,
+  capsule_id uuid null,
+  name text not null,
+  palette text null,
+  medium text null,
+  camera text null,
+  notes text null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_capsule_style_personas_owner on capsule_style_personas(owner_user_id);
+create index if not exists idx_capsule_style_personas_capsule on capsule_style_personas(capsule_id);
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202510221520_capsule_style_personas.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202510231315_phase4_memories_audit_versioning.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- Phase 4: Memories audit trails and document versioning support
+-- 1. Extend media_upload_sessions with audit columns
+alter table if exists public.media_upload_sessions
+  add column if not exists uploaded_by uuid references public.users(id) on delete set null;
+
+alter table if exists public.media_upload_sessions
+  add column if not exists last_accessed_by uuid references public.users(id) on delete set null;
+
+alter table if exists public.media_upload_sessions
+  add column if not exists last_accessed_at timestamptz;
+
+alter table if exists public.media_upload_sessions
+  add column if not exists access_count bigint not null default 0;
+
+update public.media_upload_sessions
+  set uploaded_by = owner_user_id
+  where uploaded_by is null;
+
+create index if not exists idx_media_upload_sessions_uploaded_by
+  on public.media_upload_sessions(uploaded_by);
+
+create index if not exists idx_media_upload_sessions_last_accessed
+  on public.media_upload_sessions(last_accessed_at desc nulls last);
+
+-- 2. Extend memories with audit + versioning columns
+alter table if exists public.memories
+  add column if not exists uploaded_by uuid references public.users(id) on delete set null;
+
+alter table if exists public.memories
+  add column if not exists last_viewed_by uuid references public.users(id) on delete set null;
+
+alter table if exists public.memories
+  add column if not exists last_viewed_at timestamptz;
+
+alter table if exists public.memories
+  add column if not exists view_count bigint not null default 0;
+
+alter table if exists public.memories
+  add column if not exists version_group_id uuid;
+
+alter table if exists public.memories
+  add column if not exists version_of uuid references public.memories(id) on delete set null;
+
+alter table if exists public.memories
+  add column if not exists version_index integer;
+
+alter table if exists public.memories
+  add column if not exists is_latest boolean not null default true;
+
+update public.memories
+  set uploaded_by = owner_user_id
+  where uploaded_by is null;
+
+update public.memories
+  set version_group_id = id
+  where version_group_id is null;
+
+update public.memories
+  set version_index = 1
+  where version_index is null;
+
+update public.memories
+  set is_latest = true
+  where is_latest is null;
+
+alter table if exists public.memories
+  alter column version_group_id set not null;
+
+alter table if exists public.memories
+  alter column version_index set not null;
+
+alter table if exists public.memories
+  alter column version_group_id set default gen_random_uuid();
+
+alter table if exists public.memories
+  alter column version_index set default 1;
+
+create index if not exists idx_memories_uploaded_by
+  on public.memories(uploaded_by);
+
+create index if not exists idx_memories_last_viewed
+  on public.memories(last_viewed_at desc nulls last);
+
+create index if not exists idx_memories_version_group
+  on public.memories(version_group_id, version_index desc);
+
+create index if not exists idx_memories_is_latest
+  on public.memories(id)
+  where is_latest is true;
+
+-- 3. Helper RPCs for atomic audit updates
+create or replace function public.mark_memory_view(p_memory_id uuid, p_viewer_id uuid)
+returns void
+language sql
+security definer
+as $$
+  update public.memories
+  set
+    last_viewed_by = p_viewer_id,
+    last_viewed_at = now(),
+    view_count = coalesce(view_count, 0) + 1
+  where id = p_memory_id;
+$$;
+
+grant execute on function public.mark_memory_view(uuid, uuid) to service_role;
+
+create or replace function public.mark_upload_session_access(p_session_id uuid, p_user_id uuid)
+returns void
+language sql
+security definer
+as $$
+  update public.media_upload_sessions
+  set
+    last_accessed_by = p_user_id,
+    last_accessed_at = now(),
+    access_count = coalesce(access_count, 0) + 1
+  where id = p_session_id;
+$$;
+
+grant execute on function public.mark_upload_session_access(uuid, uuid) to service_role;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202510231315_phase4_memories_audit_versioning.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202510241950_add_poll_to_posts_view.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+-- Expose poll drafts in feed queries by surfacing the `poll` column through posts_view.
+alter table public.posts
+  add column if not exists poll jsonb;
+
+drop view if exists public.posts_ranked_global;
+drop function if exists public.rank_posts(uuid, uuid, text[], integer, integer);
+drop view if exists public.posts_view;
+
+create or replace view public.posts_view as
+select
+  p.id,
+  p.client_id,
+  p.capsule_id,
+  p.kind,
+  p.visibility,
+  p.content,
+  p.media_url,
+  p.media_prompt,
+  p.poll,
+  p.user_name,
+  p.user_avatar,
+  p.tags,
+  p.created_at,
+  p.updated_at,
+  p.deleted_at,
+  p.source,
+  p.author_user_id,
+  (select count(*) from public.post_likes pl where pl.post_id = p.id) as likes_count,
+  (select count(*) from public.comments c where c.post_id = p.id and c.deleted_at is null) as comments_count,
+  coalesce(
+    (select 1.0 * count(*) from public.post_likes pl where pl.post_id = p.id and pl.created_at > now() - interval '72 hours'),
+    0
+  ) * 0.4
+  + coalesce(
+      (select 1.0 * count(*) from public.comments c where c.post_id = p.id and c.created_at > now() - interval '72 hours'),
+      0
+    ) * 0.6
+    as hot_score
+from public.posts p;
+
+create or replace function public.rank_posts(
+  p_viewer_id uuid,
+  p_capsule_id uuid,
+  p_tags text[],
+  p_limit integer default 60,
+  p_offset integer default 0
+) returns setof public.posts_view language plpgsql as $$
+begin
+  return query
+  with affinity as (
+    select
+      f.friend_user_id as author_id,
+      count(*)::double precision as viewer_like_count
+    from public.friendships f
+    where f.user_id = p_viewer_id
+      and f.deleted_at is null
+    group by f.friend_user_id
+  ), affinity_comments as (
+    select
+      c.user_id as author_id,
+      count(*)::double precision as viewer_comment_count
+    from public.comments c
+    where p_viewer_id is not null
+      and c.user_id = p_viewer_id
+      and c.created_at > now() - interval '90 days'
+    group by c.user_id
+  ), base as (
+    select pv.*, a.viewer_like_count, ac.viewer_comment_count
+    from public.posts_view pv
+    left join affinity a on a.author_id = pv.author_user_id
+    left join affinity_comments ac on ac.author_id = pv.author_user_id
+    where pv.deleted_at is null
+      and (p_capsule_id is null or pv.capsule_id = p_capsule_id)
+  )
+  select * from base
+  order by
+    coalesce(
+      0.35 * (1.0 / pow(greatest(extract(epoch from (now() - created_at)) / 3600.0, 0.0) + 2.0, 1.25))
+      + 0.30 * least(1.0, coalesce(hot_score, 0.0) * 10.0)
+      + 0.25 * coalesce(
+          least(
+            1.0,
+            ln(1 + greatest(coalesce(viewer_like_count, 0) + 0.5 * coalesce(viewer_comment_count, 0), 0)) / ln(10)
+          ),
+          0.0
+        )
+      + 0.10 * (
+          case when p_capsule_id is not null and capsule_id = p_capsule_id then 0.7 else 0.0 end
+          + case when p_tags is not null and array_length(p_tags, 1) is not null then
+              least(0.3,
+                0.3 * coalesce((
+                  select count(*)::double precision
+                  from unnest(tags) t join unnest(p_tags) pt on pt = t
+                ), 0.0) / 3.0
+              )
+            else 0.0 end
+        ),
+      0.0
+    ) desc,
+    created_at desc
+  limit greatest(1, coalesce(p_limit, 60))
+  offset greatest(0, coalesce(p_offset, 0));
+end;
+$$;
+
+create or replace view public.posts_ranked_global as
+  select * from public.rank_posts(null, null, null, 200, 0);
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202510241950_add_poll_to_posts_view.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202510250020_allow_poll_memories.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+do $$
+begin
+  begin
+    alter table public.memories drop constraint if exists memories_kind_check;
+  exception
+    when undefined_table then
+      return;
+  end;
+
+  begin
+    alter table public.memories
+      add constraint memories_kind_check
+      check (kind in ('upload','generated','post','video','theme','text','poll'));
+  exception
+    when undefined_table then
+      null;
+  end;
+end
+$$;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202510250020_allow_poll_memories.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202510251030_add_poll_vote_counts_fn.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+create or replace function public.poll_vote_counts(post_ids uuid[])
+returns table (post_id uuid, option_index integer, vote_count bigint)
+language sql
+as $$
+  select
+    pv.post_id,
+    pv.option_index,
+    count(*)::bigint as vote_count
+  from public.poll_votes pv
+  where pv.post_id = any(post_ids)
+  group by pv.post_id, pv.option_index
+  order by pv.post_id, pv.option_index;
+$$;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202510251030_add_poll_vote_counts_fn.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
