@@ -1026,27 +1026,42 @@
       )
     );
     --chats-send-button-text: var(--cta-button-text, var(--text-on-brand));
-    --chats-reaction-background: color-mix(
+    --chats-send-button-icon-color: color-mix(
       in srgb,
-      var(--color-brand) 22%,
-      rgba(240, 249, 255, 0.92)
+      var(--color-brand-strong, var(--color-brand)) 90%,
+      rgba(59, 130, 246, 0.25)
+    );
+    --chats-reaction-background: var(
+      --cta-button-gradient,
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-brand) 85%, rgba(59, 130, 246, 0.2)),
+        color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 82%, rgba(14, 116, 230, 0.2))
+      )
     );
     --chats-reaction-border: color-mix(
       in srgb,
-      var(--color-brand) 32%,
-      rgba(148, 163, 184, 0.28)
+      var(--color-brand-strong, var(--color-brand)) 58%,
+      rgba(148, 163, 184, 0.24)
     );
-    --chats-reaction-active-background: color-mix(
-      in srgb,
-      var(--color-brand) 48%,
-      rgba(219, 234, 254, 0.85)
+    --chats-reaction-active-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 92%, rgba(37, 99, 235, 0.28)),
+      color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 92%, rgba(14, 116, 230, 0.24))
     );
     --chats-reaction-active-shadow: 0 8px 18px
       color-mix(in srgb, var(--color-brand) 30%, transparent);
-    --chats-reaction-add-background: color-mix(
-      in srgb,
-      var(--color-brand) 20%,
-      rgba(255, 255, 255, 0.9)
+    --chats-reaction-add-background: var(
+      --cta-button-gradient,
+      var(--gradient-brand)
+    );
+    --chats-reaction-add-icon-color: var(
+      --color-brand-strong,
+      var(--color-brand)
+    );
+    --poll-option-progress: var(
+      --cta-button-gradient,
+      var(--gradient-brand)
     );
     --chats-reaction-picker-border: color-mix(in srgb, rgba(148, 163, 184, 0.24) 70%, transparent);
     --chats-reaction-picker-background: color-mix(

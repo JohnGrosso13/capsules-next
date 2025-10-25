@@ -182,12 +182,6 @@ export function CapsuleMembersPanel({
     }
   }, [canViewPending, activeTab]);
 
-  React.useEffect(() => {
-    if (canViewPending && pendingCount === 0 && activeTab === "pending") {
-      setActiveTab("members");
-    }
-  }, [canViewPending, pendingCount, activeTab]);
-
   if (!open) return null;
 
   const hasMembers = members.length > 0;

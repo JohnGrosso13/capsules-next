@@ -1806,10 +1806,13 @@
 .pollOptionBar {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--color-brand) 48%, transparent),
-    color-mix(in srgb, var(--color-accent) 36%, transparent)
+  background: var(
+    --poll-option-progress,
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-brand) 55%, rgba(59, 130, 246, 0.2)),
+      color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 70%, rgba(14, 116, 230, 0.18))
+    )
   );
   opacity: 0.24;
   transform: scaleX(0);

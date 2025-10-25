@@ -919,7 +919,11 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
+  border: 1px solid
+    var(
+      --chats-reaction-border,
+      color-mix(in srgb, var(--pill-border) 78%, transparent)
+    );
   background: var(
     --chats-reaction-background,
     color-mix(in srgb, rgba(24, 26, 58, 0.88) 82%, transparent)
@@ -980,17 +984,46 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
+  border: 1px solid
+    var(
+      --chats-reaction-border,
+      color-mix(in srgb, var(--pill-border) 78%, transparent)
+    );
   background: var(
     --chats-reaction-add-background,
-    color-mix(in srgb, rgba(28, 30, 62, 0.78) 80%, transparent)
+    var(
+      --cta-button-gradient,
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-brand) 75%, rgba(59, 130, 246, 0.18)),
+        color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 70%, rgba(14, 116, 230, 0.16))
+      )
+    )
   );
-  color: var(--text-2, rgba(255, 255, 255, 0.7));
+  color: var(
+    --chats-reaction-add-icon-color,
+    var(--color-brand-strong, var(--color-brand))
+  );
   cursor: pointer;
   transition:
     transform 160ms ease,
     border-color 160ms ease,
     box-shadow 160ms ease;
+}
+
+.messageReactionAddButton svg {
+  width: 16px;
+  height: 16px;
+  color: inherit;
+}
+
+.messageReactionAddButton svg [stroke] {
+  stroke: currentColor;
+}
+
+.messageReactionAddButton svg [fill]:not([fill="none"]) {
+  fill: currentColor;
+  opacity: 0.28;
 }
 
 .messageReactionAddButton:not(:disabled):hover {
@@ -1155,7 +1188,8 @@
   font-size: 0.95rem;
   line-height: 1.55;
   text-align: left;
-  padding-block: 10px;
+  padding-block-start: 12px;
+  padding-block-end: 8px;
   padding-inline: 0;
   resize: none;
   max-height: 180px;
@@ -1444,7 +1478,7 @@
 }
 
 .composerStatus::before {
-  content: "•";
+  content: "\2022";
   font-size: 0.9em;
   opacity: 0.7;
 }
@@ -1498,8 +1532,8 @@
 .sendButtonIcon {
   flex-shrink: 0;
   color: var(
-    --chats-send-button-text,
-    var(--cta-button-text, var(--text-on-brand, currentColor))
+    --chats-send-button-icon-color,
+    var(--color-brand-strong, var(--color-brand))
   );
 }
 
@@ -2043,5 +2077,3 @@
     color-mix(in srgb, var(--color-brand) 26%, transparent)
   );
 }
-
-

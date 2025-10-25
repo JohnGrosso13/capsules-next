@@ -2294,12 +2294,9 @@
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 700;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-brand) 75%, transparent),
-    transparent
-  );
-  color: var(--text);
+  background: color-mix(in srgb, var(--color-info, #38bdf8) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-info, #38bdf8) 46%, transparent);
+  color: color-mix(in srgb, var(--color-info, #38bdf8) 90%, rgba(15, 23, 42, 0.98));
 }
 
 .membersEmpty {
@@ -2530,12 +2527,9 @@
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: var(--text);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-brand) 70%, transparent),
-    transparent
-  );
+  color: color-mix(in srgb, var(--color-info, #38bdf8) 88%, rgba(15, 23, 42, 0.98));
+  background: color-mix(in srgb, var(--color-info, #38bdf8) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-info, #38bdf8) 46%, transparent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
