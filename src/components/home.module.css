@@ -1,4 +1,4 @@
-.page {
+﻿.page {
   max-width: 1200px;
 
   margin: 0 auto;
@@ -164,7 +164,7 @@
 
   pointer-events: none;
 
-  background: var(--home-prompterdropoverlay-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   backdrop-filter: blur(var(--glass-blur-overlay, 20px)) saturate(var(--glass-saturate, 120%));
 
@@ -278,7 +278,7 @@
 
   pointer-events: none;
 
-  background: var(--home-promptbar--before-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   filter: blur(var(--prompt-glow-blur, 18px));
 
@@ -469,10 +469,7 @@
   gap: 8px;
   border-radius: var(--radius-pill, 999px);
   padding: 9px 16px;
-  background: var(
-    --ai-prompter-button-gradient,
-    var(--cta-chip-gradient, var(--cta-button-gradient, var(--cta-gradient)))
-  );
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
   color: var(
     --ai-prompter-button-text,
     var(--cta-chip-text, var(--cta-button-text, var(--text)))
@@ -634,10 +631,7 @@
 /* Keep Style intent distinct but not the full Launch CTA look */
 
 .genBtnStyle {
-  background: var(
-    --ai-prompter-button-gradient,
-    var(--cta-chip-gradient, var(--cta-button-gradient, var(--cta-gradient)))
-  );
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
   color: var(
     --ai-prompter-button-text,
     var(--cta-chip-text, var(--cta-button-text, var(--text)))
@@ -1035,7 +1029,7 @@
 .intentChipActive {
   border: none;
 
-  background: var(--home-intentchipactive-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   color: var(--home-intentchipactive-color);
 
@@ -1236,7 +1230,7 @@
 
     z-index: 0;
 
-    background: var(--home-skeletonbackdrop-background);
+    background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
     filter: blur(28px);
 
@@ -1323,7 +1317,7 @@
 
     overflow: hidden;
 
-    background: var(--home-skeletoniconbtn-background);
+    background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
   }
 
   .skeletonLine::after,
@@ -1337,7 +1331,7 @@
 
     inset: 0;
 
-    background: var(--home-skeletoniconbtn--after-background);
+    background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
     background-size: 240px 100%;
 
@@ -1415,7 +1409,7 @@
 
     z-index: 2;
 
-    background: var(--home-cardrefreshing--after-background);
+    background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
     backdrop-filter: blur(8px) saturate(120%);
 
@@ -1495,7 +1489,7 @@
 
   pointer-events: none;
 
-  background: var(--home-card--before-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   opacity: 0;
 
@@ -1666,7 +1660,7 @@
 
 .card:hover .cardHead,
 .card:focus-within .cardHead {
-  background: var(--home-cardhead-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   border-bottom-color: var(--home-cardhead-border-bottom-color);
 }
@@ -1806,11 +1800,7 @@
 .pollOptionBar {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--color-brand) 48%, transparent),
-    color-mix(in srgb, var(--color-accent) 36%, transparent)
-  );
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
   opacity: 0.24;
   transform: scaleX(0);
   transform-origin: left center;
@@ -1956,7 +1946,7 @@
 
   inset: 0;
 
-  background: var(--home-lightboxoverlay-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   z-index: 2200;
 
@@ -2002,7 +1992,7 @@
 
   border: none;
 
-  background: var(--home-lightboxclose-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   color: var(--home-lightboxclose-color);
 
@@ -2031,7 +2021,7 @@
 .lightboxClose:focus-visible {
   transform: scale(1.05);
 
-  background: var(--home-lightboxclose-focus-visible-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   outline: none;
 }
@@ -2051,7 +2041,7 @@
 
   border: none;
 
-  background: var(--home-lightboxnav-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   color: var(--home-lightboxnav-color);
 
@@ -2076,7 +2066,7 @@
 .lightboxNav:focus-visible {
   transform: translateY(-50%) scale(1.05);
 
-  background: var(--home-lightboxnav-focus-visible-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   outline: none;
 }
@@ -2148,7 +2138,7 @@
 
   max-height: calc(100vh - 160px);
 
-  background: var(--home-lightboxvideo-background);
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 }
 
 .lightboxCaption {
@@ -2690,7 +2680,7 @@
 
   border: 1px solid var(--tile-border-final, var(--tile-border-base));
 
-  background: var(--tile-bg-final, var(--tile-bg-base));
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
@@ -2757,7 +2747,7 @@
 
   justify-content: center;
 
-  background: var(--tile-icon-bg-final, var(--tile-icon-bg-base));
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   color: var(--tile-icon-color-final, var(--tile-icon-color-base));
 
@@ -2803,7 +2793,7 @@
 
   font-weight: 700;
 
-  background: var(--tile-badge-bg-final, var(--tile-badge-bg-base));
+  background: var(--poll-option-highlight, color-mix(in srgb, var(--color-brand) 42%, rgba(59,130,246,0.22)));
 
   color: var(--tile-badge-color-final, var(--tile-badge-color-base));
 }
@@ -3460,7 +3450,7 @@
 }
 
 .documentMetaRow span + span::before {
-  content: "•";
+  content: "â€¢";
   margin-right: 6px;
   color: var(--text-3, rgba(255, 255, 255, 0.42));
 }
@@ -3587,3 +3577,5 @@
     padding: 14px;
   }
 }
+
+

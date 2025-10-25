@@ -1,4 +1,4 @@
-.portalHost {
+﻿.portalHost {
   position: fixed;
   inset: 0;
   z-index: 10000;
@@ -11,14 +11,12 @@
   align-items: center;
   justify-content: center;
   padding: clamp(1.5rem, 4vw, 3rem);
-  background:
-    radial-gradient(1200px 600px at 50% 20%, rgba(58, 72, 160, 0.24), transparent),
-    linear-gradient(180deg, rgba(6, 10, 24, 0.84), rgba(6, 10, 24, 0.94));
+  background: var(--composer-overlay);
   color: rgba(251, 254, 255, 0.96);
   overscroll-behavior: contain;
   pointer-events: auto;
   box-sizing: border-box;
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(var(--glass-blur-overlay, 20px)) saturate(var(--glass-saturate, 120%));
   z-index: 1200;
 }
 
@@ -36,16 +34,9 @@
   gap: clamp(1rem, 2vw, 1.5rem);
   padding: clamp(1.75rem, 3vw, 2.5rem);
   border-radius: 28px;
-  border: 1px solid
-    color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.1)) 80%, transparent);
-  background:
-    linear-gradient(
-      195deg,
-      color-mix(in srgb, var(--surface-overlay, rgba(12, 18, 40, 0.92)) 92%, transparent),
-      rgba(16, 22, 46, 0.86)
-    ),
-    radial-gradient(800px 320px at 0% 0%, rgba(102, 126, 255, 0.22), transparent 70%);
-  box-shadow: 0 22px 70px rgba(6, 10, 26, 0.55);
+  border: 1px solid var(--composer-panel-border);
+  background: var(--composer-panel-background);
+  box-shadow: var(--card-shadow);
   color: var(--text, #f7f8ff);
   overflow: hidden;
 }
@@ -56,7 +47,7 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: radial-gradient(580px 240px at 85% 15%, rgba(92, 180, 255, 0.12), transparent 70%);
+  background: radial-gradient(580px 240px at 85% 15%, color-mix(in srgb, var(--color-brand) 14%, transparent), transparent 70%);
 }
 
 .closeIcon {
@@ -69,8 +60,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid rgba(129, 140, 248, 0.45);
-  background: linear-gradient(180deg, rgba(44, 52, 112, 0.65), rgba(33, 37, 82, 0.55));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(248, 250, 255, 0.92);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.32);
   transition:
@@ -101,7 +92,7 @@
   z-index: 1;
   width: 100%;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 60%, transparent);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .toolbarHeading {
@@ -117,8 +108,8 @@
   width: fit-content;
   border-radius: 999px;
   padding: 0.35rem 0.75rem;
-  border: 1px solid rgba(148, 163, 255, 0.35);
-  background: linear-gradient(180deg, rgba(36, 45, 112, 0.62), rgba(18, 24, 62, 0.78));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -150,9 +141,9 @@
 }
 
 .modeToggle {
-  border: 1px solid rgba(148, 163, 255, 0.3);
-  background: linear-gradient(180deg, rgba(24, 28, 64, 0.85), rgba(10, 14, 38, 0.88));
-  color: rgba(215, 222, 255, 0.86);
+  border: 1px solid var(--pill-border, var(--card-border));
+  background: linear-gradient(180deg, var(--pill-bg-1, rgba(255,255,255,0.08)), var(--pill-bg-2, rgba(255,255,255,0.04)));
+  color: var(--text-2, rgba(215, 222, 255, 0.86));
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   font-size: 0.82rem;
@@ -179,10 +170,10 @@
 }
 
 .modeToggle[data-selected='true'] {
-  border-color: rgba(112, 131, 255, 0.65);
-  background: linear-gradient(110deg, rgba(116, 130, 255, 0.9), rgba(52, 161, 255, 0.82));
-  color: rgba(252, 253, 255, 0.96);
-  box-shadow: 0 18px 38px rgba(40, 90, 255, 0.32);
+  border-color: color-mix(in srgb, var(--color-brand) 65%, transparent);
+  background: var(--cta-button-gradient, var(--gradient-brand));
+  color: var(--cta-button-text, var(--text-on-brand, #ffffff));
+  box-shadow: var(--cta-button-shadow, 0 18px 36px color-mix(in srgb, var(--color-brand) 28%, transparent));
 }
 
 .panelBody {
@@ -236,8 +227,8 @@
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 255, 0.45);
-  background: linear-gradient(180deg, rgba(36, 41, 86, 0.9), rgba(17, 21, 52, 0.92));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(244, 245, 255, 0.9);
   box-shadow: 0 10px 28px rgba(6, 11, 38, 0.42);
 }
@@ -339,9 +330,9 @@
   gap: 0.4rem;
   padding: 0.35rem 0.9rem;
   border-radius: 999px;
-  border: 1px solid rgba(112, 131, 255, 0.45);
-  background: linear-gradient(180deg, rgba(34, 42, 96, 0.78), rgba(18, 22, 58, 0.88));
-  color: rgba(226, 233, 255, 0.9);
+  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+  color: var(--text);
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -381,10 +372,10 @@
   text-align: center;
   padding: 32px;
   border-radius: 26px;
-  border: 1px dashed rgba(129, 140, 248, 0.38);
-  background: linear-gradient(145deg, rgba(32, 40, 86, 0.78), rgba(16, 22, 58, 0.88));
-  color: rgba(224, 229, 255, 0.9);
-  box-shadow: 0 22px 48px rgba(10, 14, 46, 0.45);
+  border: 1px dashed var(--card-border);
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  color: var(--text);
+  box-shadow: var(--card-shadow);
 }
 
 .previewPlaceholderIcon {
@@ -394,8 +385,8 @@
   width: 52px;
   height: 52px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.18);
-  color: rgba(244, 247, 255, 0.9);
+  background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
+  color: var(--text);
 }
 
 .previewPlaceholderCard p {
@@ -409,8 +400,8 @@
   gap: 12px;
   padding: 24px;
   border-radius: 22px;
-  border: 1px solid rgba(122, 132, 248, 0.28);
-  background: linear-gradient(180deg, rgba(24, 28, 68, 0.82), rgba(12, 16, 46, 0.9));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   box-shadow: 0 22px 40px rgba(7, 12, 40, 0.48);
 }
 
@@ -439,8 +430,8 @@
   gap: 16px;
   padding: 24px;
   border-radius: 22px;
-  border: 1px solid rgba(99, 102, 241, 0.4);
-  background: linear-gradient(180deg, rgba(34, 40, 88, 0.82), rgba(18, 22, 54, 0.9));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   box-shadow: 0 22px 40px rgba(10, 14, 42, 0.45);
 }
 
@@ -466,7 +457,7 @@
   padding: 10px 14px;
   border-radius: 14px;
   background: rgba(16, 20, 48, 0.72);
-  border: 1px solid rgba(129, 140, 248, 0.2);
+  border: 1px solid var(--composer-panel-border);
 }
 
 .previewPollOptionBullet {
@@ -516,7 +507,7 @@
   flex-direction: column;
   border-radius: 28px;
   overflow: hidden;
-  border: 1px solid rgba(99, 102, 241, 0.24);
+  border: 1px solid var(--composer-panel-border);
   background: rgba(10, 14, 30, 0.75);
   box-shadow: 0 20px 46px rgba(10, 14, 46, 0.5);
 }
@@ -547,8 +538,8 @@
   gap: 18px;
   padding: 24px;
   border-radius: 22px;
-  border: 1px solid rgba(122, 132, 248, 0.35);
-  background: linear-gradient(180deg, rgba(30, 36, 82, 0.85), rgba(12, 16, 50, 0.92));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   box-shadow: 0 24px 44px rgba(10, 14, 42, 0.48);
 }
 
@@ -605,8 +596,8 @@
   gap: 16px;
   padding: 24px;
   border-radius: 24px;
-  border: 1px solid rgba(96, 110, 255, 0.35);
-  background: linear-gradient(135deg, rgba(28, 34, 82, 0.9), rgba(18, 26, 68, 0.88));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   box-shadow: 0 24px 40px rgba(10, 14, 46, 0.5);
 }
 
@@ -627,7 +618,7 @@
   padding: 14px;
   border-radius: 16px;
   background: rgba(14, 18, 44, 0.8);
-  border: 1px solid rgba(120, 134, 255, 0.3);
+  border: 1px solid var(--composer-panel-border);
   color: rgba(217, 225, 255, 0.88);
   font-size: 0.85rem;
   text-align: center;
@@ -676,8 +667,8 @@
 }
 
 .previewActionSecondary {
-  border: 1px solid rgba(148, 163, 255, 0.28);
-  background: linear-gradient(180deg, rgba(32, 39, 94, 0.6), rgba(18, 22, 58, 0.7));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(217, 225, 255, 0.86);
   cursor: pointer;
 }
@@ -708,7 +699,7 @@
   gap: 0.5rem;
   padding: 0.35rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, rgba(148, 163, 255, 0.3) 70%, transparent);
+  border: 1px solid var(--composer-panel-border);
   background: color-mix(in srgb, rgba(20, 26, 60, 0.72) 85%, transparent);
   width: fit-content;
 }
@@ -787,7 +778,7 @@
   gap: 14px;
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(20, 28, 60, 0.86), rgba(12, 18, 38, 0.94));
-  border: 1px solid rgba(112, 131, 255, 0.28);
+  border: 1px solid var(--composer-panel-border);
   box-shadow: 0 18px 42px rgba(9, 12, 34, 0.55);
   padding: 18px;
   max-height: 100%;
@@ -809,8 +800,8 @@
 }
 
 .sidebarOverlayClose {
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: linear-gradient(180deg, rgba(28, 36, 82, 0.72), rgba(16, 22, 48, 0.78));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(238, 242, 255, 0.88);
   border-radius: 999px;
   padding: 0.35rem 0.85rem;
@@ -868,10 +859,8 @@
   gap: 1.5rem;
   padding: clamp(1.5rem, 3vw, 2.25rem);
   border-radius: 26px;
-  border: 1px solid color-mix(in srgb, rgba(148, 163, 255, 0.38) 70%, transparent);
-  background:
-    linear-gradient(200deg, rgba(22, 30, 68, 0.94), rgba(12, 16, 40, 0.92)),
-    radial-gradient(140% 140% at 0% 0%, rgba(96, 165, 250, 0.18), transparent 70%);
+  border: 1px solid var(--composer-panel-border);
+  background: var(--composer-panel-background);
   box-shadow: 0 28px 70px rgba(4, 12, 30, 0.58);
   color: rgba(247, 249, 255, 0.96);
   overflow: hidden;
@@ -904,8 +893,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 255, 0.38);
-  background: linear-gradient(180deg, rgba(38, 45, 92, 0.72), rgba(20, 26, 56, 0.78));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(237, 240, 255, 0.92);
   cursor: pointer;
   transition:
@@ -927,7 +916,7 @@
   gap: 0.6rem;
   padding: 0.4rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, rgba(148, 163, 255, 0.32) 70%, transparent);
+  border: 1px solid var(--composer-panel-border);
   background: color-mix(in srgb, rgba(18, 24, 52, 0.72) 85%, transparent);
   width: fit-content;
 }
@@ -1009,7 +998,7 @@
   align-items: stretch;
   border-radius: 20px;
   background: linear-gradient(180deg, rgba(31, 39, 88, 0.86), rgba(16, 20, 52, 0.88));
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.24) 60%, transparent);
+  border: 1px solid var(--composer-panel-border);
   box-shadow: 0 18px 34px rgba(10, 16, 38, 0.48);
   cursor: pointer;
   overflow: hidden;
@@ -1053,8 +1042,8 @@
   width: fit-content;
   padding: 0.25rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid rgba(186, 197, 255, 0.28);
-  background: linear-gradient(135deg, rgba(58, 78, 166, 0.68), rgba(36, 52, 118, 0.62));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1111,7 +1100,7 @@
   gap: 0.4rem;
   padding: 0.42rem 0.9rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.3) 70%, transparent);
+  border: 1px solid var(--composer-panel-border);
   background: color-mix(in srgb, rgba(14, 18, 36, 0.65) 90%, transparent);
   color: rgba(220, 228, 255, 0.86);
   font-size: 0.8rem;
@@ -1164,8 +1153,8 @@
   gap: 0.85rem;
   padding: 0.9rem 1rem;
   border-radius: 18px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 72%, transparent);
-  background: linear-gradient(180deg, rgba(28, 36, 88, 0.65), rgba(16, 20, 52, 0.78));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(236, 240, 255, 0.92);
   cursor: pointer;
   transition:
@@ -1262,8 +1251,8 @@
   gap: 0.85rem;
   padding: 0.9rem 1rem;
   border-radius: 18px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 72%, transparent);
-  background: linear-gradient(180deg, rgba(28, 36, 88, 0.65), rgba(16, 20, 52, 0.78));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(236, 240, 255, 0.92);
   cursor: pointer;
   transition:
@@ -1313,12 +1302,8 @@
   gap: 8px;
   padding: 10px 16px;
   border-radius: 999px;
-  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.22));
-  background: linear-gradient(
-    180deg,
-    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
-    var(--pill-bg-2, rgba(255, 255, 255, 0.06))
-  );
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   font-weight: 700;
   color: var(--text);
   box-shadow: var(--chip-shadow, 0 6px 14px rgba(5, 10, 30, 0.18));
@@ -1445,8 +1430,8 @@
   max-width: min(82%, 720px);
   padding: 16px 20px;
   border-radius: 18px;
-  border: 1px solid rgba(129, 140, 248, 0.25);
-  background: linear-gradient(160deg, rgba(33, 39, 94, 0.8), rgba(14, 16, 40, 0.9));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(236, 239, 255, 0.96);
   font-size: 0.98rem;
   line-height: 1.65;
@@ -1474,7 +1459,7 @@
   gap: 0.4rem;
   padding: 0.55rem 0.75rem;
   border-radius: 12px;
-  border: 1px solid rgba(123, 135, 255, 0.18);
+  border: 1px solid var(--composer-panel-border);
   background: rgba(123, 135, 255, 0.08);
   color: inherit;
   text-decoration: none;
@@ -1566,7 +1551,7 @@
   height: 28px;
   pointer-events: none;
   border-radius: 28px;
-  background: radial-gradient(60% 100% at 50% 0%, rgba(120, 140, 255, 0.08), transparent 70%);
+  background: radial-gradient(580px 240px at 85% 15%, color-mix(in srgb, var(--color-brand) 14%, transparent), transparent 70%);
   filter: blur(8px);
 }
 
@@ -1652,8 +1637,8 @@
   gap: 12px;
   padding: 12px 16px;
   border-radius: 999px;
-  border: 1px solid var(--pill-border);
-  background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   box-shadow: var(--home-promptbar-focus-within-box-shadow, 0 16px 28px rgba(5, 10, 30, 0.22));
   width: 100%;
   max-width: 720px;
@@ -1665,10 +1650,8 @@
   gap: 14px;
   padding: 14px 18px 14px 24px;
   border-radius: 999px;
-  border: 1px solid rgba(129, 140, 248, 0.32);
-  background:
-    radial-gradient(circle at 0% 50%, rgba(129, 140, 248, 0.35), transparent 55%),
-    linear-gradient(180deg, rgba(23, 28, 72, 0.82), rgba(12, 14, 42, 0.9));
+  border: 1px solid var(--composer-panel-border);
+  background: var(--composer-overlay);
   box-shadow: 0 22px 48px rgba(5, 12, 42, 0.45);
   width: 100%;
 }
@@ -1680,8 +1663,8 @@
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  border: 1px solid rgba(129, 140, 248, 0.3);
-  background: linear-gradient(180deg, rgba(38, 45, 112, 0.85), rgba(22, 28, 68, 0.9));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(226, 232, 255, 0.9);
   transition:
     transform 120ms ease,
@@ -1722,8 +1705,8 @@
   gap: 10px;
   padding: 12px 20px;
   border-radius: 999px;
-  border: 1px solid rgba(167, 139, 250, 0.45);
-  background: linear-gradient(110deg, rgba(129, 140, 248, 0.95), rgba(56, 189, 248, 0.85));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(248, 250, 255, 0.98);
   font-weight: 700;
   font-size: 0.95rem;
@@ -1777,8 +1760,8 @@
   gap: 6px;
   padding: 10px 16px;
   border-radius: 999px;
-  border: 1px solid rgba(129, 140, 248, 0.2);
-  background: linear-gradient(180deg, rgba(37, 47, 102, 0.55), rgba(18, 22, 54, 0.75));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(220, 225, 255, 0.88);
   font-size: 0.86rem;
   font-weight: 600;
@@ -1834,7 +1817,7 @@
   gap: 12px;
   padding: 10px 14px;
   border-radius: 14px;
-  border: 1px solid var(--composer-footer-border, rgba(15, 23, 42, 0.08));
+  border: 1px solid var(--composer-panel-border);
   background: var(
     --composer-footer-background,
     color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 92%, transparent)
@@ -1876,7 +1859,7 @@
 }
 
 .attachmentRemove {
-  border: 1px solid var(--composer-rail-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--composer-panel-border);
   background: transparent;
   color: var(--text-2, rgba(255, 255, 255, 0.72));
   border-radius: 999px;
@@ -1909,12 +1892,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
-  background: linear-gradient(
-    180deg,
-    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
-    var(--pill-bg-2, rgba(255, 255, 255, 0.06))
-  );
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: var(--text, rgba(255, 255, 255, 0.94));
   box-shadow: var(--chip-shadow, 0 6px 14px rgba(5, 10, 30, 0.18));
   z-index: 4;
@@ -2043,13 +2022,8 @@
 }
 
 .vibeAction {
-  border: 1px solid
-    color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 45%, transparent);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.35)) 35%, transparent),
-    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.2)) 20%, transparent)
-  );
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: var(--text, rgba(255, 255, 255, 0.94));
   border-radius: 999px;
   padding: 6px 14px;
@@ -2108,7 +2082,7 @@
   font-size: 0.78rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--composer-panel-border);
   color: var(--caps-text-secondary);
 }
 
@@ -2119,7 +2093,7 @@
 }
 
 .clarifierSuggestion {
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--composer-panel-border);
   background: rgba(255, 255, 255, 0.05);
   color: inherit;
   font-size: 0.85rem;
@@ -2153,13 +2127,8 @@
 }
 
 .viewerActionBtn {
-  border: 1px solid
-    color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 45%, transparent);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.35)) 35%, transparent),
-    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.2)) 20%, transparent)
-  );
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: var(--text, rgba(255, 255, 255, 0.94));
   border-radius: 999px;
   padding: 6px 14px;
@@ -2168,7 +2137,7 @@
 }
 
 .viewerRemoveBtn {
-  border: 1px solid var(--composer-rail-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--composer-panel-border);
   background: transparent;
   color: var(--text-2, rgba(255, 255, 255, 0.72));
   border-radius: 999px;
@@ -2193,7 +2162,7 @@
   border-radius: 16px;
   overflow: hidden;
   background: color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 86%, transparent);
-  border: 1px solid var(--composer-rail-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--composer-panel-border);
   box-shadow: 0 28px 60px rgba(5, 10, 30, 0.35);
 }
 
@@ -2312,7 +2281,7 @@
   align-items: center;
   justify-content: center;
   cursor: zoom-in;
-  background: radial-gradient(circle at 50% 50%, rgba(12, 18, 36, 0.5), rgba(4, 6, 16, 0.92));
+  background: radial-gradient(580px 240px at 85% 15%, color-mix(in srgb, var(--color-brand) 14%, transparent), transparent 70%);
   z-index: 0;
 }
 
@@ -2346,7 +2315,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--composer-panel-border);
   background: rgba(4, 6, 16, 0.64);
   color: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(14px) saturate(160%);
@@ -2449,8 +2418,8 @@
   gap: 10px;
   padding: 8px 12px;
   border-radius: 14px;
-  border: 1px solid rgba(129, 140, 248, 0.18);
-  background: linear-gradient(180deg, rgba(25, 30, 72, 0.58), rgba(12, 15, 40, 0.72));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
 }
 
 .privacyLabel {
@@ -2479,8 +2448,8 @@
 }
 
 .cancelAction {
-  border: 1px solid rgba(148, 163, 255, 0.3);
-  background: linear-gradient(180deg, rgba(30, 38, 86, 0.6), rgba(16, 22, 54, 0.7));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(217, 225, 255, 0.88);
   padding: 10px 20px;
   border-radius: 999px;
@@ -2504,8 +2473,8 @@
 }
 
 .secondaryAction {
-  border: 1px solid rgba(148, 163, 255, 0.35);
-  background: linear-gradient(180deg, rgba(30, 36, 86, 0.82), rgba(14, 18, 48, 0.92));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(230, 236, 255, 0.92);
   padding: 10px 24px;
   border-radius: 999px;
@@ -2537,8 +2506,8 @@
   justify-content: center;
   padding: 10px 20px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 255, 0.3);
-  background: linear-gradient(180deg, rgba(30, 36, 82, 0.7), rgba(14, 18, 48, 0.84));
+  border: 1px solid var(--composer-close-border);
+  background: var(--composer-close-background);
   color: rgba(222, 229, 255, 0.92);
   font-size: 0.85rem;
   font-weight: 600;
@@ -2592,6 +2561,9 @@
   transform: translateY(-2px);
   box-shadow: 0 24px 46px rgba(45, 93, 255, 0.58);
 }
+
+
+
 
 
 

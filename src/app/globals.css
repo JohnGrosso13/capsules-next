@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @config "../../tailwind.config.ts";
 @layer base {
   *,
@@ -782,7 +782,15 @@
     --chats-reaction-active-background: color-mix(in srgb, rgba(76, 86, 212, 0.42) 85%, transparent);
     --chats-reaction-active-shadow: 0 8px 18px
       color-mix(in srgb, rgba(76, 86, 212, 0.35) 60%, transparent);
-    --chats-reaction-add-background: color-mix(in srgb, rgba(28, 30, 62, 0.78) 80%, transparent);
+    --chats-reaction-add-background: var(
+      --cta-button-gradient,
+      var(--gradient-brand)
+    );
+    --chats-reaction-add-icon-color: var(
+      --color-brand-strong,
+      var(--color-brand)
+    );
+    --poll-option-highlight: color-mix(in srgb, var(--color-brand) 45%, rgba(59, 130, 246, 0.2));
     --chats-reaction-picker-border: color-mix(in srgb, var(--card-border) 78%, transparent);
     --chats-reaction-picker-background: color-mix(
       in srgb,
@@ -1273,3 +1281,5 @@
     animation: marquee 60s linear infinite;
   }
 }
+
+
