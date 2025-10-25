@@ -57,34 +57,67 @@ function sanitizeFriendIds(ids: string[]): string[] {
   return normalized.length ? Array.from(new Set(normalized)) : [];
 }
 
-function normalizeRedisValue(raw: string | null): string[] | null {
-  if (raw === null) return null;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return null;
-    const normalized = parsed
-      .map((value) => {
-        if (typeof value === "string") {
-          const trimmed = value.trim();
-          return trimmed.length ? trimmed : null;
-        }
-        if (typeof value === "number" && Number.isFinite(value)) {
-          return String(value);
-        }
-        return null;
-      })
-      .filter((value): value is string => Boolean(value));
-    return normalized.length ? Array.from(new Set(normalized)) : [];
-  } catch (error) {
-    console.warn("Friend realtime cache parse error", error);
-    return null;
+function normalizeFriendValues(values: unknown[]): string[] {
+  const strings: string[] = [];
+  values.forEach((value) => {
+    if (typeof value === "string") {
+      strings.push(value);
+    } else if (typeof value === "number" && Number.isFinite(value)) {
+      strings.push(String(value));
+    }
+  });
+  return sanitizeFriendIds(strings);
+}
+
+function normalizeRedisValue(raw: unknown): string[] | null {
+  if (raw === null || typeof raw === "undefined") return null;
+
+  if (Array.isArray(raw)) {
+    return normalizeFriendValues(raw);
   }
+
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (Array.isArray(parsed)) {
+        return normalizeFriendValues(parsed);
+      }
+      if (typeof parsed === "string" || typeof parsed === "number") {
+        return normalizeFriendValues([parsed]);
+      }
+      console.warn("Friend realtime cache unsupported parsed value", { raw });
+      return null;
+    } catch (error) {
+      const fallbackCandidates = trimmed
+        .replace(/^\[|\]$/g, "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+
+      if (fallbackCandidates.length > 0) {
+        console.warn("Friend realtime cache recovered unparsable value", { raw });
+        return sanitizeFriendIds(fallbackCandidates);
+      }
+
+      console.warn("Friend realtime cache parse error", { raw, error });
+      return null;
+    }
+  }
+
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return sanitizeFriendIds([String(raw)]);
+  }
+
+  console.warn("Friend realtime cache unsupported value", { rawType: typeof raw });
+  return null;
 }
 
 async function readFriendIdsFromRedis(redis: Redis, userId: string): Promise<string[] | null> {
   try {
-    const raw = await redis.get<string>(buildFriendIdsCacheKey(userId));
-    return normalizeRedisValue(raw ?? null);
+    const raw = await redis.get<unknown>(buildFriendIdsCacheKey(userId));
+    return normalizeRedisValue(raw);
   } catch (error) {
     console.warn("Friend realtime cache read failed", { userId, error });
     return null;
