@@ -1139,6 +1139,12 @@
   cursor: not-allowed;
 }
 
+.composerAttachmentList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .composerAttachment {
   display: flex;
   align-items: center;

@@ -166,23 +166,16 @@ class R2StorageProvider implements StorageProvider {
       });
 
     if (process.env.NODE_ENV !== "production") {
-      origins.add("http://localhost:3000");
-      origins.add("http://127.0.0.1:3000");
-      origins.add("https://localhost:3000");
-      origins.add("https://127.0.0.1:3000");
-      origins.add("null");
+      origins.add("*");
     }
 
     const hasWildcard = origins.has("*");
     if (hasWildcard) origins.delete("*");
     let allowedOrigins = Array.from(origins).filter((origin) => {
       if (!origin) return false;
-      if (origin === "null") return true;
-      return /^[a-z][a-z0-9+.-]*:\/\//i.test(origin);
+      return /^[a-z][a-z0-9+.-]*:\/\//i.test(origin) || origin === "*";
     });
-    if (!allowedOrigins.length && hasWildcard) {
-      allowedOrigins = ["*"];
-    } else if (!allowedOrigins.length) {
+    if (!allowedOrigins.length || hasWildcard) {
       allowedOrigins = ["*"];
     }
 
@@ -192,9 +185,9 @@ class R2StorageProvider implements StorageProvider {
         CORSRules: [
           {
             AllowedOrigins: allowedOrigins,
-            AllowedMethods: ["GET", "PUT", "POST", "HEAD", "DELETE", "OPTIONS"],
+            AllowedMethods: ["GET", "PUT", "POST"],
             AllowedHeaders: ["*"],
-            ExposeHeaders: ["ETag"],
+            ExposeHeaders: [],
             MaxAgeSeconds: 60 * 60,
           },
         ],

@@ -88,6 +88,17 @@ function isContinuationOf(previous: ChatMessage | null | undefined, current: Cha
   return Math.abs(currentTime - previousTime) < MESSAGE_GROUP_WINDOW_MS;
 }
 
+type PendingAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  thumbnailUrl: string | null;
+  storageKey: string | null;
+  sessionId: string | null;
+};
+
 
 type ChatConversationProps = {
   session: ChatSession;
@@ -228,10 +239,61 @@ export function ChatConversation({
     uploading: attachmentUploading,
     clearAttachment,
     handleAttachClick,
-    handleAttachmentSelect,
     handleAttachmentFile,
   } = useAttachmentUpload();
+  const [queuedAttachments, setQueuedAttachments] = React.useState<PendingAttachment[]>([]);
+  const pendingFilesRef = React.useRef<File[]>([]);
   const [isDraggingFile, setIsDraggingFile] = React.useState(false);
+
+  const processNextQueuedFile = React.useCallback(async () => {
+    if (attachmentUploading || attachment) return;
+    const next = pendingFilesRef.current.shift();
+    if (!next) return;
+    try {
+      await handleAttachmentFile(next);
+    } catch (uploadError) {
+      console.error("attachment upload failed", uploadError);
+    }
+  }, [attachment, attachmentUploading, handleAttachmentFile]);
+
+  const enqueueFiles = React.useCallback(
+    (files: File[]) => {
+      if (!files.length) return;
+      pendingFilesRef.current.push(...files);
+      void processNextQueuedFile();
+    },
+    [processNextQueuedFile],
+  );
+
+  React.useEffect(() => {
+    if (!readyAttachment || readyAttachment.status !== "ready" || !readyAttachment.url) return;
+    setQueuedAttachments((previous) => {
+      if (previous.some((item) => item.id === readyAttachment.id)) {
+        return previous;
+      }
+      const normalized: PendingAttachment = {
+        id: readyAttachment.id,
+        name: readyAttachment.name,
+        mimeType: readyAttachment.mimeType,
+        size:
+          typeof readyAttachment.size === "number" && Number.isFinite(readyAttachment.size)
+            ? readyAttachment.size
+            : 0,
+        url: readyAttachment.url!,
+        thumbnailUrl: readyAttachment.thumbUrl ?? null,
+        storageKey: readyAttachment.key ?? null,
+        sessionId: readyAttachment.sessionId ?? null,
+      };
+      return [...previous, normalized];
+    });
+    clearAttachment();
+  }, [readyAttachment, clearAttachment]);
+
+  React.useEffect(() => {
+    if (!attachment && !attachmentUploading) {
+      void processNextQueuedFile();
+    }
+  }, [attachment, attachmentUploading, processNextQueuedFile]);
 
   const adjustTextareaHeight = React.useCallback(() => {
     const textarea = messageInputRef.current;
@@ -242,16 +304,23 @@ export function ChatConversation({
     textarea.style.height = `${nextHeight}px`;
   }, []);
 
+  const uploadingAttachment =
+    attachment && attachment.status !== "ready" ? attachment : null;
   const attachmentError =
     attachment?.status === "error" ? attachment.error ?? "Upload failed" : null;
   const attachmentProgress =
     typeof attachment?.progress === "number"
       ? Math.max(0, Math.min(1, attachment.progress))
       : 0;
-  const hasAttachmentReady = Boolean(readyAttachment && readyAttachment.url);
-  const hasAttachment = Boolean(attachment);
+  const hasQueuedAttachments = queuedAttachments.length > 0;
   const trimmedDraft = React.useMemo(() => draft.replace(/\s+/g, " ").trim(), [draft]);
   const hasTypedContent = trimmedDraft.length > 0;
+  const hasAttachmentBlock = hasQueuedAttachments || Boolean(uploadingAttachment);
+  const disableSend =
+    sending ||
+    attachmentUploading ||
+    (!hasTypedContent && !hasQueuedAttachments) ||
+    Boolean(attachmentError);
 
   const selfIdentifiers = React.useMemo(() => {
     const ids = new Set<string>();
@@ -267,13 +336,6 @@ export function ChatConversation({
     });
     return map;
   }, [session.participants]);
-
-  const disableSend =
-    sending ||
-    attachmentUploading ||
-    (!hasTypedContent && !hasAttachmentReady) ||
-    Boolean(attachmentError);
-  const activeAttachment = readyAttachment ?? attachment ?? null;
 
   React.useEffect(() => {
     setReactionTargetId(null);
@@ -310,7 +372,7 @@ export function ChatConversation({
 
   React.useEffect(() => {
     adjustTextareaHeight();
-  }, [adjustTextareaHeight, draft.length, hasAttachment]);
+  }, [adjustTextareaHeight, draft.length, hasAttachmentBlock]);
 
   const typingParticipants = React.useMemo(() => {
     if (!Array.isArray(session.typing) || session.typing.length === 0) {
@@ -402,12 +464,12 @@ export function ChatConversation({
       if (!acceptsFiles(event.dataTransfer?.items)) return;
       event.preventDefault();
       setIsDraggingFile(false);
-      const file = event.dataTransfer?.files?.[0] ?? null;
-      if (file) {
-        void handleAttachmentFile(file);
+      const files = event.dataTransfer?.files ? Array.from(event.dataTransfer.files) : [];
+      if (files.length) {
+        enqueueFiles(files);
       }
     },
-    [acceptsFiles, handleAttachmentFile],
+    [acceptsFiles, enqueueFiles],
   );
 
   const handleDraftChange = React.useCallback(
@@ -416,11 +478,14 @@ export function ChatConversation({
       setDraft(value);
       requestAnimationFrame(() => adjustTextareaHeight());
       if (onTypingChange) {
-        const hasContent = value.replace(/\s+/g, "").length > 0 || hasAttachmentReady;
+        const hasContent =
+          value.replace(/\s+/g, "").length > 0 ||
+          hasQueuedAttachments ||
+          attachmentUploading;
         onTypingChange(session.id, hasContent);
       }
     },
-    [adjustTextareaHeight, hasAttachmentReady, onTypingChange, session.id],
+    [adjustTextareaHeight, attachmentUploading, hasQueuedAttachments, onTypingChange, session.id],
   );
 
   const handleDraftBlur = React.useCallback(() => {
@@ -431,19 +496,22 @@ export function ChatConversation({
     (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const clipboard = event.clipboardData;
       if (!clipboard) return;
-      const items = Array.from(clipboard.items ?? []);
-      const fileItem = items.find((item) => item.kind === "file");
-      if (fileItem) {
-        const file = fileItem.getAsFile();
-        if (file) {
-          event.preventDefault();
-          void handleAttachmentFile(file);
-        }
-        return;
-      }
+      const files = Array.from(clipboard.items ?? [])
+        .filter((item) => item.kind === "file")
+        .map((item) => item.getAsFile())
+        .filter((file): file is File => Boolean(file));
+      if (!files.length) return;
+      event.preventDefault();
+      enqueueFiles(files);
     },
-    [handleAttachmentFile],
+    [enqueueFiles],
   );
+
+  React.useEffect(() => {
+    return () => {
+      pendingFilesRef.current = [];
+    };
+  }, []);
 
   React.useEffect(() => {
     return () => {
@@ -455,35 +523,48 @@ export function ChatConversation({
     if (!onTypingChange) return;
     const hasText = draft.replace(/\s+/g, "").length > 0;
     if (hasText) return;
-    onTypingChange(session.id, hasAttachmentReady && !attachmentError);
-  }, [attachmentError, draft, hasAttachmentReady, onTypingChange, session.id]);
+    onTypingChange(
+      session.id,
+      (hasQueuedAttachments || attachmentUploading) && !attachmentError,
+    );
+  }, [attachmentError, attachmentUploading, draft, hasQueuedAttachments, onTypingChange, session.id]);
 
   const handleAttachmentButtonClick = React.useCallback(() => {
     handleAttachClick();
   }, [handleAttachClick]);
 
-  const handleRemoveAttachment = React.useCallback(() => {
+  const handleFileInputChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files ? Array.from(event.target.files) : [];
+      if (event.target.value) event.target.value = "";
+      if (!files.length) return;
+      enqueueFiles(files);
+    },
+    [enqueueFiles],
+  );
+
+  const handleRemoveQueuedAttachment = React.useCallback((attachmentId: string) => {
+    setQueuedAttachments((previous) => previous.filter((item) => item.id !== attachmentId));
+  }, []);
+
+  const handleRemoveUploadingAttachment = React.useCallback(() => {
+    pendingFilesRef.current = [];
     clearAttachment();
   }, [clearAttachment]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const trimmed = draft.replace(/\s+/g, " ").trim();
-    const attachmentsForSend =
-      readyAttachment && readyAttachment.url
-        ? [
-            {
-              id: readyAttachment.id,
-              name: readyAttachment.name,
-              mimeType: readyAttachment.mimeType,
-              size: readyAttachment.size,
-              url: readyAttachment.url,
-              thumbnailUrl: readyAttachment.thumbUrl ?? null,
-              storageKey: readyAttachment.key ?? null,
-              sessionId: readyAttachment.sessionId ?? null,
-            },
-          ]
-        : [];
+    const attachmentsForSend = queuedAttachments.map((attachment) => ({
+      id: attachment.id,
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      url: attachment.url,
+      thumbnailUrl: attachment.thumbnailUrl,
+      storageKey: attachment.storageKey,
+      sessionId: attachment.sessionId,
+    }));
     if (!trimmed && attachmentsForSend.length === 0) return;
     if (attachmentUploading || attachmentError) return;
     setSending(true);
@@ -491,9 +572,11 @@ export function ChatConversation({
     try {
       await onSend({ body: trimmed, attachments: attachmentsForSend });
       setDraft("");
+      setQueuedAttachments([]);
+      pendingFilesRef.current = [];
       clearAttachment();
-      onTypingChange?.(session.id, false);
       requestAnimationFrame(() => adjustTextareaHeight());
+      onTypingChange?.(session.id, false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message.";
       setError(message);
@@ -838,7 +921,7 @@ export function ChatConversation({
       >
         <div
           className={styles.composerInputArea}
-          data-has-attachment={hasAttachment ? "true" : undefined}
+          data-has-attachment={hasAttachmentBlock ? "true" : undefined}
         >
           <textarea
             ref={messageInputRef}
@@ -852,23 +935,49 @@ export function ChatConversation({
             aria-label="Message"
             rows={1}
           />
-          {activeAttachment ? (
+          {queuedAttachments.length > 0 ? (
+            <div className={styles.composerAttachmentList}>
+              {queuedAttachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className={styles.composerAttachment}
+                  data-status="ready"
+                >
+                  <div className={styles.composerAttachmentInfo}>
+                    <span className={styles.composerAttachmentName}>{attachment.name}</span>
+                    <span className={styles.composerAttachmentMeta}>
+                      {formatAttachmentSize(attachment.size)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.composerAttachmentRemove}
+                    onClick={() => handleRemoveQueuedAttachment(attachment.id)}
+                    aria-label="Remove attachment"
+                  >
+                    <Trash size={14} weight="duotone" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {uploadingAttachment ? (
             <div
               className={styles.composerAttachment}
-              data-status={attachment?.status ?? (hasAttachmentReady ? "ready" : undefined)}
+              data-status={uploadingAttachment.status}
             >
               <div className={styles.composerAttachmentInfo}>
-                <span className={styles.composerAttachmentName}>{activeAttachment.name}</span>
+                <span className={styles.composerAttachmentName}>{uploadingAttachment.name}</span>
                 <span className={styles.composerAttachmentMeta}>
-                  {attachmentUploading
+                  {uploadingAttachment.status === "uploading"
                     ? `Uploading ${Math.round(attachmentProgress * 100)}%`
-                    : formatAttachmentSize(activeAttachment.size)}
+                    : formatAttachmentSize(uploadingAttachment.size)}
                 </span>
               </div>
               <button
                 type="button"
                 className={styles.composerAttachmentRemove}
-                onClick={handleRemoveAttachment}
+                onClick={handleRemoveUploadingAttachment}
                 aria-label="Remove attachment"
               >
                 <Trash size={14} weight="duotone" />
@@ -890,7 +999,6 @@ export function ChatConversation({
             className={styles.composerAttachButton}
             onClick={handleAttachmentButtonClick}
             aria-label="Attach file"
-            disabled={attachmentUploading}
           >
             <Paperclip size={18} weight="bold" />
           </button>
@@ -902,8 +1010,9 @@ export function ChatConversation({
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           hidden
-          onChange={handleAttachmentSelect}
+          onChange={handleFileInputChange}
         />
       </form>
     </div>

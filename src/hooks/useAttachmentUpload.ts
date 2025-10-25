@@ -555,11 +555,13 @@ export function useAttachmentUpload(
 
   const handleAttachmentSelect = React.useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0] ?? null;
+      const files = event.target.files ? Array.from(event.target.files) : [];
       if (event.target.value) event.target.value = "";
-      if (!file) return;
+      if (!files.length) return;
 
-      await processFile(file);
+      for (const file of files) {
+        await processFile(file);
+      }
     },
     [processFile],
   );

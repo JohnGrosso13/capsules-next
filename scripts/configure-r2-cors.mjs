@@ -45,6 +45,21 @@ function loadEnvLocal() {
   }
 }
 
+async function readResponseBody(stream) {
+  if (!stream) return "";
+  return new Promise((resolve, reject) => {
+    let data = "";
+    if (typeof stream.setEncoding === "function") {
+      stream.setEncoding("utf8");
+    }
+    stream.on("data", (chunk) => {
+      data += chunk;
+    });
+    stream.on("end", () => resolve(data));
+    stream.on("error", reject);
+  });
+}
+
 function originOf(urlLike) {
   if (!urlLike) return null;
   try {
@@ -79,26 +94,24 @@ function buildCorsRule() {
   }
 
   if ((process.env.NODE_ENV || "development") !== "production") {
-    [
-      "http://localhost:3000",
-      "https://localhost:3000",
-      "http://127.0.0.1:3000",
-      "https://127.0.0.1:3000",
-    ].forEach((o) => origins.add(o));
+    origins.add("*");
   }
 
-  // Note: Cloudflare API rejects mixed wildcard + origin lists, so no '*' by default.
-
   // Always ensure OPTIONS is permitted and ETag is exposed for multipart uploads
-  const allowedOrigins = Array.from(origins);
+  const hasWildcard = origins.has("*");
+  if (hasWildcard) origins.delete("*");
+  let allowedOrigins = Array.from(origins);
+  if (!allowedOrigins.length || hasWildcard) {
+    allowedOrigins = ["*"];
+  }
 
   return {
     bucket,
     corsRule: {
       allowedOrigins,
-      allowedMethods: ["GET", "PUT", "POST", "HEAD", "DELETE"],
+      allowedMethods: ["GET", "PUT", "POST"],
       allowedHeaders: ["*"],
-      exposeHeaders: ["ETag"],
+      exposeHeaders: [],
       maxAgeSeconds: 60 * 60,
     },
   };
@@ -127,9 +140,18 @@ async function applyViaCloudflareApi(accountId, token, bucket, rule) {
     body: JSON.stringify(payload),
   });
 
-  const json = await response.json().catch(() => null);
+  const responseText = await response.text();
+  let json = null;
+  try {
+    json = responseText ? JSON.parse(responseText) : null;
+  } catch {
+    json = null;
+  }
   if (!response.ok || json?.success === false) {
-    const message = json?.errors?.[0]?.message || response.statusText;
+    if (responseText) {
+      console.warn("Cloudflare API response:", responseText);
+    }
+    const message = json?.errors?.[0]?.message || response.statusText || responseText;
     throw new Error(message || "Cloudflare API request failed");
   }
   console.log("Updated CORS via Cloudflare API.");
@@ -194,6 +216,19 @@ async function main() {
     console.log("Allowed origins:", corsRule.allowedOrigins);
   } catch (error) {
     console.error("Failed to update CORS via S3-compatible API:", error?.message || error);
+    if (error) {
+      console.error("S3 error details:", error);
+      if (error?.$response?.body) {
+        try {
+          const bodyText = await readResponseBody(error.$response.body);
+          if (bodyText) {
+            console.error("S3 error body:", bodyText);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
     process.exit(1);
   }
 }
