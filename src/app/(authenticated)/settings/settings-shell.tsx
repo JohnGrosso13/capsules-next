@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import cards from "@/components/home-feed.module.css";
+import cards from "@/components/home.module.css";
 import { ThemeStyleCarousel } from "@/components/theme-style-carousel";
 
 import layout from "./settings.module.css";
@@ -248,4 +248,3 @@ export function SettingsShell({
     </div>
   );
 }
-

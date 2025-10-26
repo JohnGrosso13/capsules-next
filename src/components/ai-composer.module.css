@@ -439,7 +439,7 @@
   gap: 16px;
   padding: 24px;
   border-radius: 22px;
-  border: 1px solid rgba(99, 102, 241, 0.4);
+  border: 1px solid rgba(37, 99, 235, 0.4);
   background: linear-gradient(180deg, rgba(34, 40, 88, 0.82), rgba(18, 22, 54, 0.9));
   box-shadow: 0 22px 40px rgba(10, 14, 42, 0.45);
 }
@@ -516,7 +516,7 @@
   flex-direction: column;
   border-radius: 28px;
   overflow: hidden;
-  border: 1px solid rgba(99, 102, 241, 0.24);
+  border: 1px solid rgba(37, 99, 235, 0.24);
   background: rgba(10, 14, 30, 0.75);
   box-shadow: 0 20px 46px rgba(10, 14, 46, 0.5);
 }
@@ -739,7 +739,7 @@
 }
 
 .sidebarTab:focus-visible {
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.45);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.45);
 }
 
 .sidebarTabActive {
@@ -1841,7 +1841,7 @@
   );
   color: var(--text, rgba(255, 255, 255, 0.94));
   box-shadow: 0 18px 32px
-    color-mix(in srgb, var(--composer-accent-soft, rgba(99, 102, 241, 0.22)) 48%, transparent);
+    color-mix(in srgb, var(--composer-accent-soft, rgba(37, 99, 235, 0.22)) 48%, transparent);
   width: 100%;
 }
 
@@ -1890,7 +1890,7 @@
 
 .attachmentRemove:hover:not(:disabled),
 .attachmentRemove:focus-visible:not(:disabled) {
-  border-color: var(--composer-accent, var(--color-brand, #6366f1));
+  border-color: var(--composer-accent, var(--color-brand, #2563eb));
   color: var(--text, rgba(255, 255, 255, 0.94));
 }
 
@@ -2015,7 +2015,7 @@
 .attachmentChip[data-status="uploading"] {
   border-color: color-mix(
     in srgb,
-    var(--composer-accent, rgba(99, 102, 241, 0.4)) 42%,
+    var(--composer-accent, rgba(37, 99, 235, 0.4)) 42%,
     transparent
   );
   background: color-mix(
@@ -2044,11 +2044,11 @@
 
 .vibeAction {
   border: 1px solid
-    color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 45%, transparent);
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #2563eb)) 45%, transparent);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.35)) 35%, transparent),
-    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.2)) 20%, transparent)
+    color-mix(in srgb, var(--composer-accent, rgba(37, 99, 235, 0.35)) 35%, transparent),
+    color-mix(in srgb, var(--composer-accent, rgba(37, 99, 235, 0.2)) 20%, transparent)
   );
   color: var(--text, rgba(255, 255, 255, 0.94));
   border-radius: 999px;
@@ -2064,9 +2064,9 @@
 .vibeAction:hover,
 .vibeAction:focus-visible {
   transform: translateY(-1px);
-  border-color: var(--composer-accent, var(--color-brand, #6366f1));
+  border-color: var(--composer-accent, var(--color-brand, #2563eb));
   box-shadow: 0 10px 28px
-    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.28)) 60%, rgba(0, 0, 0, 0.18));
+    color-mix(in srgb, var(--composer-accent, rgba(37, 99, 235, 0.28)) 60%, rgba(0, 0, 0, 0.18));
 }
 
 .vibeAction:active {
@@ -2154,11 +2154,11 @@
 
 .viewerActionBtn {
   border: 1px solid
-    color-mix(in srgb, var(--composer-accent, var(--color-brand, #6366f1)) 45%, transparent);
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #2563eb)) 45%, transparent);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.35)) 35%, transparent),
-    color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.2)) 20%, transparent)
+    color-mix(in srgb, var(--composer-accent, rgba(37, 99, 235, 0.35)) 35%, transparent),
+    color-mix(in srgb, var(--composer-accent, rgba(37, 99, 235, 0.2)) 20%, transparent)
   );
   color: var(--text, rgba(255, 255, 255, 0.94));
   border-radius: 999px;
@@ -2226,7 +2226,7 @@
 .attachmentLoading {
   background: var(
     --home-skeletonbackdrop-background,
-    radial-gradient(120% 120% at 50% 0%, rgba(99, 102, 241, 0.18), transparent 70%)
+    radial-gradient(120% 120% at 50% 0%, rgba(37, 99, 235, 0.18), transparent 70%)
   );
   overflow: hidden;
 }
@@ -2279,10 +2279,10 @@
   position: absolute;
   inset: 0;
   margin: auto;
-  color: var(--composer-accent, var(--color-brand, #6366f1));
+  color: var(--composer-accent, var(--color-brand, #2563eb));
   filter: drop-shadow(
     0 18px 28px
-      color-mix(in srgb, var(--composer-accent, rgba(99, 102, 241, 0.45)) 70%, transparent)
+      color-mix(in srgb, var(--composer-accent, rgba(37, 99, 235, 0.45)) 70%, transparent)
   );
 }
 
@@ -2317,7 +2317,7 @@
 }
 
 .attachmentMedia:focus-visible {
-  outline: 2px solid var(--composer-accent, var(--color-brand, #6366f1));
+  outline: 2px solid var(--composer-accent, var(--color-brand, #2563eb));
   outline-offset: -4px;
 }
 
@@ -2361,7 +2361,7 @@
 .attachmentRemoveLarge:hover:not(:disabled),
 .attachmentRemoveLarge:focus-visible:not(:disabled) {
   transform: translateY(-1px);
-  border-color: var(--composer-accent, var(--color-brand, #6366f1));
+  border-color: var(--composer-accent, var(--color-brand, #2563eb));
 }
 
 .attachmentRemoveLarge:disabled {
@@ -2438,7 +2438,7 @@
   width: 44px;
   height: 44px;
   border-radius: 16px;
-  background: linear-gradient(140deg, rgba(99, 102, 241, 0.45), rgba(49, 46, 129, 0.6));
+  background: linear-gradient(140deg, rgba(37, 99, 235, 0.45), rgba(49, 46, 129, 0.6));
   color: rgba(226, 232, 255, 0.92);
   box-shadow: 0 12px 26px rgba(14, 16, 42, 0.45);
 }

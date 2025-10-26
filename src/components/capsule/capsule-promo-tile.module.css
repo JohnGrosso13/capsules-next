@@ -40,7 +40,7 @@
   transform: translateY(-2px);
   border-color: var(
     --capsule-tile-border-hover,
-    color-mix(in srgb, var(--color-brand, #6366f1) 38%, transparent)
+    color-mix(in srgb, var(--color-brand, #2563eb) 38%, transparent)
   );
   box-shadow: var(
     --capsule-tile-shadow-hover,
@@ -72,7 +72,7 @@
     --capsule-tile-fallback,
     linear-gradient(
       135deg,
-      color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent),
+      color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent),
       color-mix(in srgb, var(--color-accent, #22d3ee) 18%, transparent) 60%,
       color-mix(in srgb, var(--color-brand-strong, #4338ca) 42%, transparent) 100%
     )

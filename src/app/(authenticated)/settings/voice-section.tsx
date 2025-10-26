@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
-import cards from "@/components/home-feed.module.css";
+import cards from "@/components/home.module.css";
 
 import layout from "./settings.module.css";
 import styles from "./voice-section.module.css";
@@ -546,4 +546,3 @@ export function VoiceSettingsSection(): React.JSX.Element {
     </article>
   );
 }
-

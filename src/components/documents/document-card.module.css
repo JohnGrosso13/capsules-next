@@ -79,7 +79,7 @@
   }
 
   .documentTitle:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
     outline-offset: 3px;
   }
 
@@ -115,8 +115,8 @@
 
   .documentStatus[data-status="running"],
   .documentStatus[data-status="queued"] {
-    border-color: color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent);
-    background: color-mix(in srgb, var(--color-brand, #6366f1) 26%, transparent);
+    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent);
+    background: color-mix(in srgb, var(--color-brand, #2563eb) 26%, transparent);
   }
 
   .documentSummary {
@@ -166,7 +166,7 @@
     border: none;
     background: linear-gradient(
       125deg,
-      color-mix(in srgb, var(--color-brand, #6366f1) 85%, transparent),
+      color-mix(in srgb, var(--color-brand, #2563eb) 85%, transparent),
       color-mix(in srgb, var(--color-accent, #22d3ee) 80%, transparent)
     );
     color: rgba(248, 250, 255, 0.96);
@@ -179,7 +179,7 @@
   }
 
   .documentActionPrimary:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
     outline-offset: 3px;
   }
 
@@ -195,7 +195,7 @@
   }
 
   .documentActionSecondary:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
     outline-offset: 3px;
   }
 

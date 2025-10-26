@@ -213,7 +213,7 @@
 }
 
 .railTab:focus-visible {
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.45);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.45);
 }
 
 .railTabActive {
@@ -484,7 +484,7 @@
     135deg,
     color-mix(in srgb, var(--color-brand) 82%, transparent) 0%,
     color-mix(in srgb, var(--color-accent) 68%, var(--color-brand)) 54%,
-    color-mix(in srgb, var(--color-brand-strong, #6366f1) 88%, transparent) 100%
+    color-mix(in srgb, var(--color-brand-strong, #2563eb) 88%, transparent) 100%
   );
   display: grid;
   place-items: center;

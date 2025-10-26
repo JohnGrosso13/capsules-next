@@ -139,8 +139,8 @@
 }
 
 .nameInput:focus-visible {
-  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 65%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 65%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent);
   background: color-mix(in srgb, var(--surface-overlay, rgba(32, 38, 70, 0.8)) 96%, transparent);
   outline: none;
 }
@@ -189,11 +189,11 @@
 }
 
 .chatBubble {
-  background: color-mix(in srgb, var(--color-brand, #6366f1) 20%, transparent);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 20%, transparent);
   border: 1px solid
     color-mix(
       in srgb,
-      var(--color-brand, #6366f1) 28%,
+      var(--color-brand, #2563eb) 28%,
       var(--color-border, rgba(255, 255, 255, 0.12))
     );
   border-radius: 16px;
@@ -307,7 +307,7 @@
 .voiceButton:hover {
   transform: translateY(-1px);
   box-shadow: 0 16px 32px
-    color-mix(in srgb, var(--color-brand, #6366f1) 26%, rgba(10, 12, 30, 0.55));
+    color-mix(in srgb, var(--color-brand, #2563eb) 26%, rgba(10, 12, 30, 0.55));
 }
 
 .voiceButton:active {
@@ -322,13 +322,13 @@
 }
 
 .voiceButton[data-active="true"] {
-  background: color-mix(in srgb, var(--color-brand, #6366f1) 28%, transparent);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 28%, transparent);
   color: var(--text-on-brand, rgba(248, 249, 255, 0.92));
-  box-shadow: 0 20px 36px color-mix(in srgb, var(--color-brand, #6366f1) 32%, rgba(10, 12, 30, 0.6));
+  box-shadow: 0 20px 36px color-mix(in srgb, var(--color-brand, #2563eb) 32%, rgba(10, 12, 30, 0.6));
 }
 
 .voiceButton:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 50%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 50%, transparent);
   outline-offset: 2px;
 }
 
@@ -366,13 +366,13 @@
     --prompter-primary-button-background,
     var(
       --cta-chip-gradient,
-      var(--cta-gradient, linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%))
+      var(--cta-gradient, linear-gradient(120deg, #3b82f6 0%, #2563eb 55%, #22d3ee 100%))
     )
   );
   color: var(--prompter-primary-button-text, var(--cta-button-text, #ffffff));
   box-shadow: var(
     --cta-chip-shadow,
-    0 20px 40px color-mix(in srgb, var(--color-brand, #6366f1) 28%, rgba(10, 12, 30, 0.6))
+    0 20px 40px color-mix(in srgb, var(--color-brand, #2563eb) 28%, rgba(10, 12, 30, 0.6))
   );
   transition:
     transform 160ms ease,
@@ -382,20 +382,20 @@
 
 .prompterSend:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 24px 48px color-mix(in srgb, var(--color-brand, #6366f1) 32%, rgba(10, 12, 30, 0.6));
+  box-shadow: 0 24px 48px color-mix(in srgb, var(--color-brand, #2563eb) 32%, rgba(10, 12, 30, 0.6));
 }
 
 .prompterSend:not(:disabled):active {
   transform: scale(0.96);
   box-shadow: 0 16px 32px
-    color-mix(in srgb, var(--color-brand, #6366f1) 28%, rgba(10, 12, 30, 0.65));
+    color-mix(in srgb, var(--color-brand, #2563eb) 28%, rgba(10, 12, 30, 0.65));
 }
 
 .prompterSend:disabled {
   opacity: 0.55;
   cursor: default;
   transform: none;
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--color-brand, #6366f1) 18%, rgba(10, 12, 30, 0.5));
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--color-brand, #2563eb) 18%, rgba(10, 12, 30, 0.5));
 }
 
 .prompterMeta {

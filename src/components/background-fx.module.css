@@ -24,7 +24,7 @@
 .indigo {
   background: var(
     --background-fx-indigo,
-    radial-gradient(closest-side at 50% 50%, rgba(99, 102, 241, 0.34), rgba(99, 102, 241, 0) 70%)
+    radial-gradient(closest-side at 50% 50%, rgba(37, 99, 235, 0.34), rgba(37, 99, 235, 0) 70%)
   );
 }
 .pink {

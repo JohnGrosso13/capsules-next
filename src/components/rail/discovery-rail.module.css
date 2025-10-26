@@ -97,7 +97,7 @@
   width: var(--capsule-logo-size);
   height: var(--capsule-logo-size);
   border-radius: var(--capsule-logo-radius);
-  background: var(--gradient-brand, linear-gradient(135deg, #8b5cf6, #06b6d4));
+  background: var(--gradient-brand, linear-gradient(135deg, #60a5fa, #06b6d4));
   overflow: hidden;
   display: flex;
   align-items: center;

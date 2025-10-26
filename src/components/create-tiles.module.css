@@ -72,7 +72,7 @@
   border-radius: inherit;
   background:
     radial-gradient(600px 160px at 10% 0%, rgba(255, 255, 255, 0.24), transparent 60%),
-    radial-gradient(800px 200px at 90% -20%, rgba(99, 102, 241, 0.2), transparent 70%);
+    radial-gradient(800px 200px at 90% -20%, rgba(37, 99, 235, 0.2), transparent 70%);
   mix-blend-mode: screen;
   pointer-events: none;
   opacity: 0.58;
@@ -91,7 +91,7 @@
   border-color: color-mix(in srgb, var(--color-brand) 50%, var(--surface-outline) 50%);
   background:
     radial-gradient(1200px 60% at 0% -20%, rgba(255, 255, 255, 0.12), transparent 55%),
-    radial-gradient(800px 40% at 100% 0%, rgba(99, 102, 241, 0.18), transparent 60%),
+    radial-gradient(800px 40% at 100% 0%, rgba(37, 99, 235, 0.18), transparent 60%),
     linear-gradient(
       180deg,
       var(--card-hover-bg-1, color-mix(in srgb, var(--surface-elevated) 98%, transparent)),
@@ -171,7 +171,7 @@
   border: 1px solid var(--card-border, var(--surface-outline));
   background:
     radial-gradient(1400px 70% at -10% -10%, rgba(255, 255, 255, 0.1), transparent 60%),
-    radial-gradient(1200px 60% at 110% -10%, rgba(99, 102, 241, 0.18), transparent 70%),
+    radial-gradient(1200px 60% at 110% -10%, rgba(37, 99, 235, 0.18), transparent 70%),
     linear-gradient(
       180deg,
       var(--card-hover-bg-1, color-mix(in srgb, var(--surface-elevated) 98%, transparent)),

@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { Button, ButtonLink } from "@/components/ui/button";
 
-import cards from "@/components/home-feed.module.css";
+import cards from "@/components/home.module.css";
 
 import layout from "./settings.module.css";
 import styles from "./capsules-section.module.css";
@@ -313,4 +313,3 @@ function ConfirmDeleteDialog({ capsule, busy, onCancel, onConfirm }: ConfirmDele
     </div>
   );
 }
-

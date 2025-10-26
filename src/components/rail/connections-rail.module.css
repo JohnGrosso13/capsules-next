@@ -275,7 +275,7 @@
       linear-gradient(
         160deg,
         color-mix(in srgb, #38bdf8 28%, rgba(255, 255, 255, 0.14)),
-        color-mix(in srgb, #a855f7 26%, rgba(255, 255, 255, 0.12))
+        color-mix(in srgb, #0ea5e9 26%, rgba(255, 255, 255, 0.12))
       ),
       var(--tile-bg-base)
     );

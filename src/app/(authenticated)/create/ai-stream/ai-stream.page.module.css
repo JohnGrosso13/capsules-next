@@ -211,8 +211,8 @@
   border-radius: 999px;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent),
-    color-mix(in srgb, var(--color-brand, #6366f1) 38%, transparent)
+    color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent),
+    color-mix(in srgb, var(--color-brand, #2563eb) 38%, transparent)
   );
   opacity: 0.42; /* subtle default */
   box-shadow: var(--studio-glow-soft);
@@ -301,7 +301,7 @@
       color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 55%, transparent),
       color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 65%, transparent)
     ),
-    radial-gradient(280px 340px at 24% 18%, color-mix(in srgb, var(--color-brand, #6366f1) 28%, transparent), transparent 72%),
+    radial-gradient(280px 340px at 24% 18%, color-mix(in srgb, var(--color-brand, #2563eb) 28%, transparent), transparent 72%),
     var(--surface-base, rgba(10, 12, 32, 0.92));
   color: var(--studio-text-secondary);
   font-size: 0.95rem;
@@ -547,7 +547,7 @@
 }
 
 .stageManagerMessageSelf {
-  border: 1px solid color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand, #2563eb) 42%, transparent);
   background: color-mix(in srgb, var(--surface-overlay, rgba(40, 46, 102, 0.92)) 74%, transparent);
   color: var(--studio-text-primary);
 }
@@ -601,7 +601,7 @@
     color-mix(in srgb, var(--studio-surface-highlight) 78%, transparent)
   );
   box-shadow:
-    0 24px 48px color-mix(in srgb, var(--color-brand, #6366f1) 28%, transparent),
+    0 24px 48px color-mix(in srgb, var(--color-brand, #2563eb) 28%, transparent),
     inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 22%, transparent);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
@@ -659,14 +659,14 @@
   border: none;
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--color-brand, #6366f1) 80%, transparent),
+    color-mix(in srgb, var(--color-brand, #2563eb) 80%, transparent),
     color-mix(in srgb, var(--color-accent, #22d3ee) 70%, transparent)
   );
   color: var(--text-on-brand, #0a0c24);
   font-weight: 700;
   letter-spacing: 0.015em;
   box-shadow:
-    0 18px 36px color-mix(in srgb, var(--color-brand, #6366f1) 36%, transparent),
+    0 18px 36px color-mix(in srgb, var(--color-brand, #2563eb) 36%, transparent),
     inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 45%, transparent);
 }
 
@@ -801,8 +801,8 @@
 }
 
 .collaboratorStatusIdle {
-  background: color-mix(in srgb, var(--color-brand, #6366f1) 18%, transparent);
-  color: color-mix(in srgb, var(--color-brand, #6366f1) 78%, var(--studio-text-primary));
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent);
+  color: color-mix(in srgb, var(--color-brand, #2563eb) 78%, var(--studio-text-primary));
 }
 
 .collaboratorStatusAway {
@@ -939,10 +939,10 @@
   border-radius: 12px;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent),
+    color-mix(in srgb, var(--color-brand, #2563eb) 42%, transparent),
     color-mix(in srgb, var(--color-accent, #22d3ee) 18%, transparent)
   );
-  border: 1px solid color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent);
   position: relative;
   overflow: hidden;
 }

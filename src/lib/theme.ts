@@ -969,7 +969,7 @@ const LIGHT_TEXT_HEX = "#f8fafc";
 const DARK_TEXT_HEX = "#0f172a";
 const LIGHT_TEXT_COLOR = parseHexColor(LIGHT_TEXT_HEX) ?? WHITE;
 const DARK_TEXT_COLOR = parseHexColor(DARK_TEXT_HEX) ?? BLACK;
-const DEFAULT_ACCENT = parseHexColor("#6366f1") ?? { r: 99, g: 102, b: 241, a: 1 };
+const DEFAULT_ACCENT = parseHexColor("#2563eb") ?? { r: 99, g: 102, b: 241, a: 1 };
 const FALLBACK_ERROR_COLOR = parseHexColor("#ef4444") ?? ({ r: 239, g: 68, b: 68, a: 1 } as RGBA);
 const FALLBACK_WARNING_COLOR =
   parseHexColor("#f59e0b") ?? ({ r: 245, g: 158, b: 11, a: 1 } as RGBA);

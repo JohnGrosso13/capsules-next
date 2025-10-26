@@ -32,7 +32,7 @@
   );
   --studio-surface-accent: linear-gradient(
     120deg,
-    color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent),
+    color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent),
     color-mix(in srgb, var(--color-accent, #22d3ee) 18%, transparent)
   );
   --studio-border-soft: color-mix(
@@ -41,7 +41,7 @@
     transparent
   );
   --studio-border-strong: var(--card-border, rgba(132, 148, 255, 0.2));
-  --studio-border-focus: color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
+  --studio-border-focus: color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
   --studio-border-dashed: color-mix(
     in srgb,
     var(--card-border, rgba(146, 156, 255, 0.2)) 65%,
@@ -52,8 +52,8 @@
   --studio-text-tertiary: var(--text-3, rgba(186, 196, 255, 0.72));
   --studio-shadow-soft: var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34));
   --studio-shadow-strong: var(--shadow-xl, 0 32px 68px rgba(5, 10, 30, 0.46));
-  --studio-glow-soft: 0 0 10px color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
-  --studio-glow-strong: 0 0 18px color-mix(in srgb, var(--color-brand, #6366f1) 68%, transparent);
+  --studio-glow-soft: 0 0 10px color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
+  --studio-glow-strong: 0 0 18px color-mix(in srgb, var(--color-brand, #2563eb) 68%, transparent);
   --studio-pill-bg: color-mix(
     in srgb,
     var(--surface-muted, rgba(24, 28, 68, 0.8)) 70%,
@@ -88,7 +88,7 @@
   );
   --studio-scroll-thumb: color-mix(
     in srgb,
-    var(--color-brand, #6366f1) 38%,
+    var(--color-brand, #2563eb) 38%,
     transparent
   );
   --studio-prompter-ring: color-mix(
@@ -104,7 +104,7 @@
   --live-stage-shadow: var(--shadow-lg, 0 16px 40px rgba(5, 10, 30, 0.38));
   --live-stage-bg-top: color-mix(
     in srgb,
-    var(--color-brand, #6366f1) 18%,
+    var(--color-brand, #2563eb) 18%,
     var(--surface-overlay, rgba(10, 14, 30, 0.72))
   );
   --live-stage-bg-bottom: color-mix(
@@ -134,17 +134,17 @@
     transparent
   );
   --live-stage-message-shadow: 0 18px 36px
-    color-mix(in srgb, var(--color-brand, #6366f1) 14%, rgba(5, 10, 30, 0.32));
+    color-mix(in srgb, var(--color-brand, #2563eb) 14%, rgba(5, 10, 30, 0.32));
   --live-stage-message-highlight: color-mix(
     in srgb,
     var(--text, rgba(255, 255, 255, 0.92)) 18%,
     transparent
   );
-  --store-hero-border: color-mix(in srgb, var(--color-brand, #6366f1) 40%, transparent);
+  --store-hero-border: color-mix(in srgb, var(--color-brand, #2563eb) 40%, transparent);
   --store-hero-bg:
     radial-gradient(
       1400px 60% at -10% 0%,
-      color-mix(in srgb, var(--color-brand, #6366f1) 22%, transparent),
+      color-mix(in srgb, var(--color-brand, #2563eb) 22%, transparent),
       transparent 70%
     ),
     radial-gradient(
@@ -159,7 +159,7 @@
     );
   --store-hero-shadow: var(--shadow-xl, 0 32px 60px rgba(9, 13, 28, 0.45));
   --store-hero-glare: color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 18%, transparent);
-  --store-banner-frame-border: color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent);
+  --store-banner-frame-border: color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent);
   --store-banner-frame-bg: color-mix(
     in srgb,
     var(--surface-overlay, rgba(10, 14, 30, 0.72)) 88%,
@@ -175,16 +175,16 @@
     var(--text-3, rgba(148, 163, 184, 0.56)) 65%,
     transparent
   );
-  --store-ghost-bg: color-mix(in srgb, var(--color-brand, #6366f1) 16%, transparent);
-  --store-ghost-bg-hover: color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent);
-  --store-ghost-border-hover: color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
-  --store-filter-border: color-mix(in srgb, var(--color-brand, #6366f1) 38%, transparent);
+  --store-ghost-bg: color-mix(in srgb, var(--color-brand, #2563eb) 16%, transparent);
+  --store-ghost-bg-hover: color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent);
+  --store-ghost-border-hover: color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
+  --store-filter-border: color-mix(in srgb, var(--color-brand, #2563eb) 38%, transparent);
   --store-filter-bg: color-mix(
     in srgb,
     var(--surface-elevated, rgba(17, 22, 45, 0.86)) 82%,
     var(--surface-muted, rgba(17, 22, 45, 0.8)) 56%
   );
-  --store-filter-highlight: color-mix(in srgb, var(--color-brand, #6366f1) 24%, transparent);
+  --store-filter-highlight: color-mix(in srgb, var(--color-brand, #2563eb) 24%, transparent);
   --store-filter-pill-border: color-mix(
     in srgb,
     var(--card-border, rgba(255, 255, 255, 0.16)) 85%,
@@ -197,10 +197,10 @@
   );
   --store-filter-pill-border-active: color-mix(
     in srgb,
-    var(--color-brand, #6366f1) 68%,
+    var(--color-brand, #2563eb) 68%,
     transparent
   );
-  --store-filter-pill-bg-active: color-mix(in srgb, var(--color-brand, #6366f1) 45%, transparent);
+  --store-filter-pill-bg-active: color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent);
   --store-search-border: color-mix(
     in srgb,
     var(--card-border, rgba(255, 255, 255, 0.16)) 85%,
@@ -221,7 +221,7 @@
     var(--surface-elevated, rgba(17, 22, 45, 0.86)) 82%,
     var(--surface-muted, rgba(17, 22, 45, 0.8)) 48%
   );
-  --store-control-highlight: color-mix(in srgb, var(--color-brand, #6366f1) 26%, transparent);
+  --store-control-highlight: color-mix(in srgb, var(--color-brand, #2563eb) 26%, transparent);
   --store-product-card-border: color-mix(
     in srgb,
     var(--card-border, rgba(255, 255, 255, 0.16)) 80%,
@@ -244,11 +244,11 @@
     var(--surface-elevated, rgba(17, 22, 45, 0.86)) 82%,
     var(--surface-muted, rgba(17, 22, 45, 0.8)) 52%
   );
-  --store-panel-highlight-border: color-mix(in srgb, var(--color-brand, #6366f1) 58%, transparent);
+  --store-panel-highlight-border: color-mix(in srgb, var(--color-brand, #2563eb) 58%, transparent);
   --store-panel-highlight-bg:
     linear-gradient(
       160deg,
-      color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent),
+      color-mix(in srgb, var(--color-brand, #2563eb) 42%, transparent),
       transparent
     ),
     color-mix(
@@ -256,20 +256,20 @@
       var(--surface-elevated, rgba(17, 22, 45, 0.86)) 85%,
       var(--surface-overlay, rgba(10, 14, 30, 0.72)) 52%
     );
-  --store-action-border: color-mix(in srgb, var(--color-brand, #6366f1) 75%, transparent);
-  --store-action-bg: color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
+  --store-action-border: color-mix(in srgb, var(--color-brand, #2563eb) 75%, transparent);
+  --store-action-bg: color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent);
   --store-action-shadow-hover: 0 10px 28px
-    color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
+    color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent);
   --store-primary-bg: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--color-brand, #6366f1) 95%, transparent),
+    color-mix(in srgb, var(--color-brand, #2563eb) 95%, transparent),
     color-mix(in srgb, var(--color-accent, #22d3ee) 85%, transparent)
   );
   --store-primary-shadow: 0 16px 32px
-    color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
+    color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent);
   --store-primary-shadow-hover: 0 20px 38px
-    color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent);
-  --store-step-badge-bg: color-mix(in srgb, var(--color-brand, #6366f1) 60%, transparent);
+    color-mix(in srgb, var(--color-brand, #2563eb) 42%, transparent);
+  --store-step-badge-bg: color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent);
 }
 
 /* Banner + Tiles (hosting tabs inside a large customizable banner) */
@@ -348,7 +348,7 @@
     135deg,
     color-mix(in srgb, var(--color-brand) 82%, transparent) 0%,
     color-mix(in srgb, var(--color-accent) 68%, var(--color-brand)) 54%,
-    color-mix(in srgb, var(--color-brand-strong, #6366f1) 88%, transparent) 100%
+    color-mix(in srgb, var(--color-brand-strong, #2563eb) 88%, transparent) 100%
   );
 }
 
@@ -864,7 +864,7 @@
     var(--store-banner-image, none),
     radial-gradient(
       120% 120% at 100% 0%,
-      color-mix(in srgb, var(--color-brand, #6366f1) 45%, transparent),
+      color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent),
       transparent 62%
     ),
     radial-gradient(
@@ -1018,7 +1018,7 @@
   border-radius: 16px;
   border: 1px solid var(--store-filter-pill-border);
   background:
-    linear-gradient(140deg, color-mix(in srgb, var(--color-brand, #6366f1) 12%, transparent), transparent),
+    linear-gradient(140deg, color-mix(in srgb, var(--color-brand, #2563eb) 12%, transparent), transparent),
     var(--store-filter-pill-bg);
   color: var(--text-2, rgba(203, 213, 225, 0.78));
   font-size: 0.86rem;
@@ -1034,18 +1034,18 @@
   color: var(--text, rgba(255, 255, 255, 0.95));
   border-color: var(--store-filter-pill-border-active);
   background:
-    linear-gradient(140deg, color-mix(in srgb, var(--color-brand, #6366f1) 38%, transparent), transparent),
+    linear-gradient(140deg, color-mix(in srgb, var(--color-brand, #2563eb) 38%, transparent), transparent),
     var(--store-filter-pill-bg-active);
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-brand, #6366f1) 14%, transparent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-brand, #2563eb) 14%, transparent);
 }
 .storeFilterOption[data-active="true"] .storeFilterBadge {
-  background: color-mix(in srgb, var(--color-brand, #6366f1) 28%, transparent);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 28%, transparent);
   color: var(--text, rgba(255, 255, 255, 0.92));
 }
 .storeFilterOption input {
   width: 18px;
   height: 18px;
-  accent-color: var(--color-brand, #6366f1);
+  accent-color: var(--color-brand, #2563eb);
   flex-shrink: 0;
 }
 .storeFilterLabelText {
@@ -1059,7 +1059,7 @@
   padding: 0 10px;
   height: 22px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-brand, #6366f1) 18%, transparent);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent);
   color: var(--text-2, rgba(203, 213, 225, 0.85));
   font-size: 0.72rem;
   font-weight: 700;
@@ -1115,7 +1115,7 @@
   border-radius: 18px;
   border: 1px solid var(--store-filter-pill-border);
   background:
-    linear-gradient(155deg, color-mix(in srgb, var(--color-brand, #6366f1) 10%, transparent), transparent),
+    linear-gradient(155deg, color-mix(in srgb, var(--color-brand, #2563eb) 10%, transparent), transparent),
     var(--store-filter-pill-bg);
 }
 .storeQuickSortPreview {
@@ -1174,7 +1174,7 @@
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  accent-color: var(--color-brand, #6366f1);
+  accent-color: var(--color-brand, #2563eb);
   cursor: not-allowed;
 }
 .storeMainColumn {
@@ -1307,25 +1307,25 @@
   height: 54px;
   border-radius: 16px;
   color: var(--text, rgba(255, 255, 255, 0.95));
-  background: color-mix(in srgb, var(--color-brand, #6366f1) 45%, transparent);
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-brand, #6366f1) 30%, transparent);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-brand, #2563eb) 30%, transparent);
 }
 .storeMediaBlue {
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--color-info, var(--color-brand, #6366f1)) 75%, transparent),
-    color-mix(in srgb, var(--color-info, var(--color-brand, #6366f1)) 35%, transparent)
+    color-mix(in srgb, var(--color-info, var(--color-brand, #2563eb)) 75%, transparent),
+    color-mix(in srgb, var(--color-info, var(--color-brand, #2563eb)) 35%, transparent)
   );
   box-shadow: 0 12px 28px
-    color-mix(in srgb, var(--color-info, var(--color-brand, #6366f1)) 30%, transparent);
+    color-mix(in srgb, var(--color-info, var(--color-brand, #2563eb)) 30%, transparent);
 }
 .storeMediaPurple {
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--color-brand, #6366f1) 72%, transparent),
+    color-mix(in srgb, var(--color-brand, #2563eb) 72%, transparent),
     color-mix(in srgb, var(--color-accent, #22d3ee) 35%, transparent)
   );
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent);
 }
 .storeMediaAmber {
   background: linear-gradient(
@@ -1452,7 +1452,7 @@
   gap: 8px;
 }
 .storeAssistantList li span[aria-hidden="true"] {
-  color: color-mix(in srgb, var(--color-brand, #6366f1) 75%, transparent);
+  color: color-mix(in srgb, var(--color-brand, #2563eb) 75%, transparent);
 }
 .storeCartList {
   margin: 0;
@@ -1732,7 +1732,7 @@
   justify-self: center;
   /* Force the desired gradient + text color while still using Button variant=gradient */
   /* Purple → Indigo → Cyan */
-  --cta-button-gradient: linear-gradient(120deg, #a855f7 0%, #6366f1 50%, #06b6d4 100%);
+  --cta-button-gradient: linear-gradient(120deg, #0ea5e9 0%, #2563eb 50%, #06b6d4 100%);
   --cta-button-text: #ffffff;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -2093,7 +2093,7 @@
 }
 
 .selectorTileButton:focus-visible .selectorTile {
-  outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 65%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 65%, transparent);
   outline-offset: 3px;
 }
 

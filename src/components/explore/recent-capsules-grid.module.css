@@ -39,7 +39,7 @@
 }
 
 .tile:focus-visible {
-  outline: 2px solid var(--focus-ring, rgba(99, 102, 241, 0.66));
+  outline: 2px solid var(--focus-ring, rgba(37, 99, 235, 0.66));
   outline-offset: 4px;
 }
 

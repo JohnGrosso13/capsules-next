@@ -243,11 +243,11 @@ function buildContractPayload(prompt: string) {
     theme: {
       snapshot: DEFAULT_THEME_SNAPSHOT,
       brand: {
-        primary: DEFAULT_THEME_VARS["--color-brand"] ?? "#6366f1",
-        strong: DEFAULT_THEME_VARS["--color-brand-strong"] ?? "#4f46e5",
+        primary: DEFAULT_THEME_VARS["--color-brand"] ?? "#2563eb",
+        strong: DEFAULT_THEME_VARS["--color-brand-strong"] ?? "#1d4ed8",
         gradient:
           DEFAULT_THEME_VARS["--brand-gradient"] ??
-          "linear-gradient(120deg, #7b5cff, #6366f1, #22d3ee)",
+          "linear-gradient(120deg, #3b82f6, #2563eb, #22d3ee)",
         textOnBrand: DEFAULT_THEME_VARS["--text-on-brand"] ?? "#ffffff",
       },
     },

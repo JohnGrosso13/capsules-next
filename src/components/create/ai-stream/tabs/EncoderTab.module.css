@@ -117,7 +117,7 @@
 
 .encoderActionButton:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--studio-surface-muted) 60%, var(--color-brand, #6366f1) 12%);
+  background: color-mix(in srgb, var(--studio-surface-muted) 60%, var(--color-brand, #2563eb) 12%);
 }
 
 .encoderActionButton:disabled {
@@ -284,9 +284,9 @@
 }
 
 .encoderWebhookStatusEnabled {
-  background: color-mix(in srgb, var(--color-brand, #6366f1) 18%, transparent);
-  color: color-mix(in srgb, var(--color-brand, #6366f1) 80%, var(--studio-text-primary));
-  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 44%, transparent);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent);
+  color: color-mix(in srgb, var(--color-brand, #2563eb) 80%, var(--studio-text-primary));
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 44%, transparent);
 }
 
 .encoderDestinationUrl,
