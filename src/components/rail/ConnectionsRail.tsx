@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import homeStyles from "@/components/home.module.css";
+import styles from "./connections-rail.module.css";
 import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import { FriendsRail } from "@/components/rail/FriendsRail";
 import { RequestsList } from "@/components/friends/RequestsList";
@@ -684,72 +684,74 @@ export function ConnectionsRail() {
 
   return (
     <div
-      className={`${homeStyles.railConnections} ${homeStyles.railConnectionsOuter}`.trim()}
+      className={`${styles.railConnections} ${styles.railConnectionsOuter}`.trim()}
       data-mode={railMode}
     >
       {railMode === "tiles" ? (
-        <div className={homeStyles.connectionTiles}>
-          {connectionTiles.map((tile) => (
-            <button
-              key={tile.key}
-              type="button"
-              data-tile={tile.key}
-              className={homeStyles.connectionTile}
-              onClick={() => {
-                setActiveRailTab(tile.key);
-                setRailMode("connections");
-              }}
-            >
-              <div className={homeStyles.connectionTileHeader}>
-                <div className={homeStyles.connectionTileMeta}>
-                  <span className={homeStyles.connectionTileIcon} aria-hidden>
-                    {tile.icon}
-                  </span>
-                  <span className={homeStyles.connectionTileTitle}>{tile.title}</span>
+        <div className={styles.connectionTilesShell}>
+          <div className={styles.connectionTiles}>
+            {connectionTiles.map((tile) => (
+              <button
+                key={tile.key}
+                type="button"
+                data-tile={tile.key}
+                className={styles.connectionTile}
+                onClick={() => {
+                  setActiveRailTab(tile.key);
+                  setRailMode("connections");
+                }}
+              >
+                <div className={styles.connectionTileHeader}>
+                  <div className={styles.connectionTileMeta}>
+                    <span className={styles.connectionTileIcon} aria-hidden>
+                      {tile.icon}
+                    </span>
+                    <span className={styles.connectionTileTitle}>{tile.title}</span>
+                  </div>
+                  {tile.badge !== null ? (
+                    <span
+                      className={`${styles.connectionTileBadge} ${
+                        tile.badgeIcon ? styles.connectionTileBadgeToken : ""
+                      }`.trim()}
+                    >
+                      {tile.badgeIcon ? (
+                        <span className={styles.connectionTileBadgeIcon} aria-hidden>
+                          {React.cloneElement(tile.badgeIcon, {
+                            className: `${styles.connectionTileBadgeGlyph} ${
+                              tile.badgeIcon.props.className ?? ""
+                            }`.trim(),
+                            focusable: "false",
+                            "aria-hidden": true,
+                          })}
+                        </span>
+                      ) : null}
+                      <span className={styles.connectionTileBadgeCount}>{tile.badge}</span>
+                    </span>
+                  ) : null}
                 </div>
-                {tile.badge !== null ? (
-                  <span
-                    className={`${homeStyles.connectionTileBadge} ${
-                      tile.badgeIcon ? homeStyles.connectionTileBadgeToken : ""
-                    }`.trim()}
-                  >
-                    {tile.badgeIcon ? (
-                      <span className={homeStyles.connectionTileBadgeIcon} aria-hidden>
-                        {React.cloneElement(tile.badgeIcon, {
-                          className: `${homeStyles.connectionTileBadgeGlyph} ${
-                            tile.badgeIcon.props.className ?? ""
-                          }`.trim(),
-                          focusable: "false",
-                          "aria-hidden": true,
-                        })}
-                      </span>
-                    ) : null}
-                    <span className={homeStyles.connectionTileBadgeCount}>{tile.badge}</span>
-                  </span>
-                ) : null}
-              </div>
-              <p className={homeStyles.connectionTileDescription}>{tile.description}</p>
-            </button>
-          ))}
+                <p className={styles.connectionTileDescription}>{tile.description}</p>
+              </button>
+            ))}
+          </div>
         </div>
       ) : (
         <div
           ref={connectionsContainerRef}
-          className={homeStyles.railConnections}
+          className={styles.railViewport}
           data-mode="connections"
           style={connectionsStyle}
         >
-          <div className={homeStyles.railHeaderRow}>
+          <div className={styles.railHeaderRow}>
             <button
               type="button"
-              className={homeStyles.railBackBtn}
+              className={styles.railBackBtn}
               aria-label="Back to tiles"
               onClick={() => setRailMode("tiles")}
             >
               &lt;
             </button>
             {/* Quick actions on the right when viewing connections */}
-            <div className={homeStyles.railHeaderAction}>
+            <div className={styles.railHeaderAction}>
               <button
                 type="button"
                 className={`${friendsStyles.chatActionButton} ${friendsStyles.groupActionButton}`}
@@ -775,19 +777,19 @@ export function ConnectionsRail() {
               </button>
             </div>
           </div>
-          <div className={homeStyles.railTabs} role="tablist" aria-label="Connections">
+          <div className={styles.railTabs} role="tablist" aria-label="Connections">
             {CONNECTION_TILE_DEFS.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
                 role="tab"
                 aria-selected={activeRailTab === tab.key}
-                className={`${homeStyles.railTab} ${
-                  activeRailTab === tab.key ? homeStyles.railTabActive : ""
+                className={`${styles.railTab} ${
+                  activeRailTab === tab.key ? styles.railTabActive : ""
                 }`.trim()}
                 onClick={() => setActiveRailTab(tab.key)}
               >
-                <span className={homeStyles.railTabIcon} aria-hidden>
+                <span className={styles.railTabIcon} aria-hidden>
                   {tab.icon}
                 </span>
                 <span>{tab.title}</span>
@@ -795,7 +797,7 @@ export function ConnectionsRail() {
             ))}
           </div>
           <div
-            className={homeStyles.railPanel}
+            className={styles.railPanel}
             hidden={activeRailTab !== "friends"}
             data-tab="friends"
           >
@@ -811,7 +813,7 @@ export function ConnectionsRail() {
             />
           </div>
           <div
-            className={homeStyles.railPanel}
+            className={styles.railPanel}
             hidden={activeRailTab !== "party"}
             data-tab="party"
           >
@@ -823,7 +825,7 @@ export function ConnectionsRail() {
             />
           </div>
           <div
-            className={homeStyles.railPanel}
+            className={styles.railPanel}
             hidden={activeRailTab !== "chats"}
             data-tab="chats"
           >
@@ -834,7 +836,7 @@ export function ConnectionsRail() {
             />
           </div>
           <div
-            className={homeStyles.railPanel}
+            className={styles.railPanel}
             hidden={activeRailTab !== "requests"}
             data-tab="requests"
           >
