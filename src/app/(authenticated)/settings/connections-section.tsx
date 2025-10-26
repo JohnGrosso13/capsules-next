@@ -13,7 +13,7 @@ import {
 import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { useCurrentUser } from "@/services/auth/client";
 
-import cards from "@/components/home.module.css";
+import cards from "@/components/cards.module.css";
 
 import layout from "./settings.module.css";
 import styles from "./connections-section.module.css";
