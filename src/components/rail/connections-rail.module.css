@@ -8,6 +8,46 @@
     gap: var(--space-lg, 20px);
   }
 
+  .railViewport {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 12px;
+    padding: 18px;
+    border-radius: clamp(20px, 2.4vw, 28px);
+    border: 1px solid
+      var(
+        --home-railviewport-border,
+        color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.14)) 90%, transparent)
+      );
+    background: var(
+      --home-railviewport-background,
+      radial-gradient(140% 120% at 50% 0%, rgba(102, 126, 255, 0.18), transparent 56%),
+      linear-gradient(180deg, rgba(26, 32, 68, 0.86), rgba(10, 14, 32, 0.92))
+    );
+    box-shadow: var(--home-railviewport-shadow, 0 32px 64px rgba(4, 10, 34, 0.5));
+    backdrop-filter: blur(var(--glass-blur, 16px)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--glass-blur, 16px)) saturate(140%);
+    position: relative;
+    isolation: isolate;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  .railViewport::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(
+      --home-railviewport-highlight,
+      linear-gradient(120deg, rgba(255, 255, 255, 0.12), transparent 55%)
+    );
+    opacity: var(--home-railviewport-highlight-opacity, 0.38);
+    pointer-events: none;
+  }
+
   @media (max-width: 1024px) {
     .railConnectionsOuter {
       margin-left: var(--connections-rail-offset-md, -50px);
@@ -50,10 +90,10 @@
   }
 
   .connectionTile {
-    --tile-border-hover-base: var(--home-connectiontile-tile-border-hover-base, rgba(126, 148, 255, 0.45));
+    --tile-border-hover-base: var(--home-connectiontile-tile-border-hover-base, rgba(96, 165, 255, 0.45));
     --tile-shadow-hover-base: var(--home-connectiontile-tile-shadow-hover-base, 0 18px 36px rgba(32, 38, 70, 0.38));
-    --tile-accent-a: color-mix(in srgb, var(--color-brand, #6366f1) 60%, var(--color-accent, #22d3ee));
-    --tile-accent-b: color-mix(in srgb, var(--color-accent, #22d3ee) 55%, #8b5cf6);
+    --tile-accent-a: color-mix(in srgb, var(--color-brand, #2563eb) 60%, var(--color-accent, #22d3ee));
+    --tile-accent-b: color-mix(in srgb, var(--color-accent, #22d3ee) 55%, #60a5fa);
     --tile-accent-c: color-mix(in srgb, var(--color-info, #38bdf8) 40%, transparent);
     --tile-glow-opacity: 0.34;
     --tile-glow-opacity-hover: 0.5;
@@ -63,7 +103,7 @@
     width: 100%;
     padding: 20px 22px;
     border-radius: 20px;
-    border: 1px solid var(--tile-border-final, var(--tile-border-base, rgba(142, 154, 255, 0.22)));
+    border: 1px solid var(--tile-border-final, var(--tile-border-base, rgba(148, 197, 255, 0.22)));
     background: var(--tile-bg-final, var(--tile-bg-base, rgba(14, 18, 36, 0.68)));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
@@ -196,7 +236,7 @@
       linear-gradient(
         160deg,
         color-mix(in srgb, var(--color-accent, #22d3ee) 28%, rgba(255, 255, 255, 0.12)),
-        color-mix(in srgb, var(--color-brand, #6366f1) 12%, rgba(255, 255, 255, 0.08))
+        color-mix(in srgb, var(--color-brand, #2563eb) 12%, rgba(255, 255, 255, 0.08))
       ),
       var(--tile-bg-base)
     );
@@ -220,7 +260,7 @@
     );
     --tile-accent-b: var(
       --style-friends-accent-b,
-      color-mix(in srgb, var(--color-brand, #6366f1) 48%, rgba(4, 10, 24, 0.74))
+      color-mix(in srgb, var(--color-brand, #2563eb) 48%, rgba(4, 10, 24, 0.74))
     );
     --tile-accent-c: var(
       --style-friends-accent-c,
@@ -241,7 +281,7 @@
     );
     --tile-border-final: var(
       --style-party-border,
-      color-mix(in srgb, #4f46e5 38%, rgba(132, 148, 255, 0.22))
+      color-mix(in srgb, #1d4ed8 38%, rgba(132, 148, 255, 0.22))
     );
     --tile-icon-bg-final: var(
       --style-party-icon-bg,
@@ -274,7 +314,7 @@
       linear-gradient(
         160deg,
         color-mix(in srgb, var(--color-info, #38bdf8) 26%, transparent),
-        color-mix(in srgb, var(--color-brand, #6366f1) 12%, transparent)
+        color-mix(in srgb, var(--color-brand, #2563eb) 12%, transparent)
       ),
       var(--tile-bg-base)
     );
@@ -292,9 +332,9 @@
     --tile-badge-color-final: var(--style-chats-badge-color, rgba(246, 248, 255, 0.94));
     --tile-border-hover: var(--style-chats-border-hover, rgba(118, 184, 255, 0.56));
     --tile-shadow-hover: var(--style-chats-shadow-hover, 0 22px 48px rgba(18, 28, 62, 0.4));
-    --tile-accent-a: color-mix(in srgb, var(--color-brand, #6366f1) 65%, #0ea5e9);
-    --tile-accent-b: color-mix(in srgb, var(--color-info, #38bdf8) 48%, #4f46e5);
-    --tile-accent-c: color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent);
+    --tile-accent-a: color-mix(in srgb, var(--color-brand, #2563eb) 65%, #0ea5e9);
+    --tile-accent-b: color-mix(in srgb, var(--color-info, #38bdf8) 48%, #1d4ed8);
+    --tile-accent-c: color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent);
     --tile-glow-opacity: 0.32;
   }
 
@@ -332,32 +372,144 @@
     align-items: center;
     gap: var(--space-sm);
     justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: clamp(16px, 2vw, 20px);
+    border: 1px solid
+      color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.18)) 85%, transparent);
+    background: linear-gradient(
+      180deg,
+      rgba(42, 52, 96, 0.58),
+      rgba(18, 22, 48, 0.62)
+    );
+    box-shadow: var(--home-railheader-shadow, 0 18px 38px rgba(6, 12, 34, 0.45));
+    position: relative;
+    isolation: isolate;
+  }
+
+  .railHeaderRow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 60%);
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: -1;
   }
 
   .railHeaderAction {
     margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    row-gap: 8px;
+    flex-wrap: wrap;
+    max-width: 100%;
+    --friends-action-text: rgba(246, 248, 255, 0.96);
+    --friends-action-border: color-mix(in srgb, var(--color-brand, #2563eb) 58%, transparent);
+    --friends-action-background: linear-gradient(
+      170deg,
+      rgba(66, 78, 148, 0.82),
+      rgba(22, 28, 60, 0.74)
+    );
+    --friends-action-hover-border: color-mix(
+      in srgb,
+      var(--color-brand, #2563eb) 78%,
+      transparent
+    );
+    --friends-action-active-border: color-mix(
+      in srgb,
+      var(--color-brand, #2563eb) 84%,
+      transparent
+    );
+    --friends-action-active-shadow: 0 18px 38px
+      color-mix(in srgb, var(--color-brand, #2563eb) 30%, transparent);
+    --friends-action-hover-filter: brightness(1.05);
+    --friends-group-action-text: rgba(246, 248, 255, 0.96);
+    --friends-group-action-border: color-mix(in srgb, var(--color-accent, #22d3ee) 68%, transparent);
+    --friends-group-action-background: linear-gradient(
+      150deg,
+      rgba(46, 164, 255, 0.84),
+      rgba(24, 44, 86, 0.7)
+    );
+    --friends-group-action-hover-border: color-mix(
+      in srgb,
+      var(--color-accent, #22d3ee) 82%,
+      transparent
+    );
+    --friends-group-action-active-shadow: 0 18px 40px
+      color-mix(in srgb, var(--color-accent, #22d3ee) 32%, transparent);
+    --friends-party-action-text: rgba(246, 248, 255, 0.96);
+    --friends-party-action-border: color-mix(in srgb, var(--color-brand, #2563eb) 70%, transparent);
+    --friends-party-action-background: linear-gradient(
+      150deg,
+      rgba(108, 84, 255, 0.88),
+      rgba(32, 20, 84, 0.74)
+    );
+    --friends-party-action-hover-border: color-mix(
+      in srgb,
+      var(--color-brand, #2563eb) 86%,
+      transparent
+    );
+    --friends-party-action-active-shadow: 0 20px 42px
+      color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent);
+  }
+
+  .railHeaderAction :global(.chatActionButton) {
+    padding: 10px 20px;
+    min-height: 42px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    transition:
+      transform 0.18s ease,
+      filter 0.18s ease,
+      border-color 0.18s ease;
+  }
+
+  .railHeaderAction :global(.chatActionButton:disabled) {
+    cursor: not-allowed;
+  }
+
+  .railHeaderAction :global(.livePill) {
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.9), rgba(96, 165, 250, 0.9));
+    color: rgba(10, 16, 32, 0.9);
+    font-weight: 800;
   }
 
   .railBackBtn {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    background: linear-gradient(180deg, rgba(22, 28, 48, 0.78), rgba(12, 18, 36, 0.64));
+    border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 85%, transparent);
+    background: linear-gradient(160deg, rgba(34, 44, 84, 0.82), rgba(14, 20, 44, 0.7));
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.88);
-    transition: transform 0.16s ease, border-color 0.16s ease;
-    box-shadow: var(--home-railbackbtn-box-shadow, 0 14px 28px rgba(4, 8, 24, 0.42));
+    color: rgba(255, 255, 255, 0.92);
+    line-height: 0;
+    transition:
+      transform 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease;
+    box-shadow: var(--home-railbackbtn-box-shadow, 0 16px 36px rgba(4, 8, 24, 0.42));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
   .railBackBtn:hover {
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.02);
+    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 70%, transparent);
+    box-shadow: 0 20px 40px rgba(8, 12, 32, 0.48);
   }
 
   .railBackBtn:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
     outline-offset: 2px;
   }
 
@@ -410,7 +562,7 @@
   }
 
   .railTab:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
     outline-offset: 2px;
   }
 
@@ -418,7 +570,7 @@
     color: var(--color-fg, rgba(255, 255, 255, 0.95));
     border-color: color-mix(
       in srgb,
-      var(--home-railtab-accent, var(--color-brand, #6366f1)) 45%,
+      var(--home-railtab-accent, var(--color-brand, #2563eb)) 45%,
       var(--pill-border, rgba(255, 255, 255, 0.18))
     );
     background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
@@ -428,7 +580,7 @@
       0 8px 18px
         color-mix(
           in srgb,
-          var(--home-railtab-accent, var(--color-brand, #6366f1)) 18%,
+          var(--home-railtab-accent, var(--color-brand, #2563eb)) 18%,
           rgba(5, 10, 30, 0.28)
         );
   }
@@ -482,6 +634,40 @@
       height: auto;
       max-height: none;
       overflow: visible;
+    }
+  }
+
+  @media (max-width: 820px) {
+    .railViewport {
+      padding: 16px;
+      border-radius: clamp(18px, 3vw, 24px);
+      gap: 10px;
+    }
+
+    .railHeaderRow {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+    }
+
+    .railHeaderAction {
+      justify-content: stretch;
+    }
+
+    .railHeaderAction :global(.chatActionButton) {
+      flex: 1 1 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .railViewport {
+      padding: 14px;
+    }
+
+    .railHeaderAction {
+      gap: 8px;
+      row-gap: 6px;
     }
   }
 }
