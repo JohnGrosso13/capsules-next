@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "note": "Mapping of Capsules UI surfaces to semantic theme tokens for AI guidance and manual preset authoring. tokenIds reference entries in src/lib/theme/token-registry.ts.",
+  "surfaces": [
+    {
+      "id": "app-shell",
+      "description": "Global backdrop and default surfaces seen behind cards, rails, and dialogs.",
+      "tokenIds": ["surface.app", "surface.muted", "surface.elevated", "surface.overlay", "surface.background-fx.purple", "surface.background-fx.indigo", "surface.background-fx.pink", "surface.background-fx.mist", "surface.background-fx.stars", "surface.background-fx.snow", "surface.background-fx.confetti", "surface.background-fx.scanlines"],
+      "cssVars": ["--app-bg", "--surface-app", "--surface-muted", "--surface-elevated", "--surface-overlay", "--background-fx-purple", "--background-fx-indigo", "--background-fx-pink", "--background-fx-mist", "--background-fx-stars", "--background-fx-snow", "--background-fx-confetti", "--background-fx-scanlines"]
+    },
+    {
+      "id": "cards-and-tiles",
+      "description": "Feed cards, profile tiles, and general elevated panels.",
+      "tokenIds": ["card.bg-1", "card.bg-2", "card.border", "card.shadow", "card.hover-bg-1", "card.hover-bg-2", "card.hover-border", "card.hover-shadow", "radius.card", "shadow.md", "shadow.lg"],
+      "cssVars": ["--card-bg-1", "--card-bg-2", "--card-border", "--card-shadow", "--card-hover-bg-1", "--card-hover-bg-2", "--card-hover-border", "--card-hover-shadow", "--card-radius", "--shadow-md", "--shadow-lg"]
+    },
+    {
+      "id": "cta-and-chips",
+      "description": "Primary call-to-action buttons, hero chips, prompt chips, and CTA gradients.",
+      "tokenIds": ["brand.cta-gradient", "brand.cta-text", "brand.cta-chip-gradient", "brand.cta-chip-text", "border.cta-chip", "border.cta-chip-hover", "shadow.cta-chip", "shadow.cta-chip-hover", "radius.cta"],
+      "cssVars": ["--cta-gradient", "--cta-button-text", "--cta-chip-gradient", "--cta-chip-text", "--cta-chip-border", "--cta-chip-border-hover", "--cta-chip-shadow", "--cta-chip-shadow-hover", "--cta-radius"]
+    },
+    {
+      "id": "header",
+      "description": "Global navigation header, including launch CTA and glass treatment.",
+      "tokenIds": ["glass.header.top", "glass.header.bottom", "brand.header.accent", "brand.header.primary", "brand.header.strong", "brand.header.shadow-color", "border.header.base", "border.header.launch", "surface.header.button-bg", "surface.header.button-hover-bg", "surface.header.button-active-bg", "shadow.header.base", "shadow.header.lg", "shadow.header.launch", "shadow.header.launch-hover"],
+      "cssVars": ["--header-glass-top", "--header-glass-bottom", "--header-accent", "--header-brand", "--header-brand-strong", "--header-shadow-color", "--header-border-color", "--header-launch-border", "--header-button-bg", "--header-button-hover-bg", "--header-button-active-bg", "--header-shadow", "--header-shadow-lg", "--header-launch-shadow", "--header-launch-shadow-hover"]
+    },
+    {
+      "id": "dock",
+      "description": "Bottom dock, floating dock sheet, and dock buttons.",
+      "tokenIds": ["dock.bg-1", "dock.bg-2", "dock.border", "dock.shadow", "dock.btn-bg-1", "dock.btn-bg-2", "dock.btn-border", "dock.btn-border-hover", "dock.active-shadow", "dock.active-glow", "dock.sheet-bg-1", "dock.sheet-bg-2", "dock.sheet-border", "dock.sheet-shadow"],
+      "cssVars": ["--dock-bg-1", "--dock-bg-2", "--dock-border", "--dock-shadow", "--dock-btn-bg-1", "--dock-btn-bg-2", "--dock-btn-border", "--dock-btn-hover-border", "--dock-active-shadow", "--dock-active-glow", "--dock-sheet-bg-1", "--dock-sheet-bg-2", "--dock-sheet-border", "--dock-sheet-shadow"]
+    },
+    {
+      "id": "text-system",
+      "description": "Primary text system including brand-on-color.",
+      "tokenIds": ["text.default", "text.muted", "text.subtle", "text.on-brand", "text.link"],
+      "cssVars": ["--color-fg", "--color-fg-muted", "--color-fg-subtle", "--text-on-brand", "--link-color"]
+    },
+    {
+      "id": "borders-and-rings",
+      "description": "Neutral borders and focus rings for interactive elements.",
+      "tokenIds": ["border.default", "border.strong", "ring.primary", "ring.offset"],
+      "cssVars": ["--color-border", "--color-border-strong", "--ring-primary", "--ring-offset"]
+    },
+    {
+      "id": "feedback",
+      "description": "Semantic status indicators used across alerts, presence, and system messaging.",
+      "tokenIds": ["feedback.info", "feedback.success", "feedback.warning", "feedback.danger", "presence.online-dot", "presence.online-ring", "feedback.alert.bg", "feedback.alert.border", "feedback.alert.fg", "feedback.alert.accent"],
+      "cssVars": ["--color-info", "--color-success", "--color-warning", "--color-danger", "--presence-online-dot", "--presence-online-ring", "--alert-bg", "--alert-border", "--alert-fg", "--alert-accent"]
+    },
+    {
+      "id": "layout",
+      "description": "Global spacing and layout rhythm tokens consumed in CSS and Tailwind.",
+      "tokenIds": ["layout.header-offset", "layout.page-gap", "layout.column-gap", "layout.desktop-bottom-padding", "layout.mobile-top-offset", "layout.mobile-bottom-offset", "layout.mobile-section-gap", "layout.mobile-page-gutter"],
+      "cssVars": ["--layout-header-offset", "--layout-page-gap", "--layout-column-gap", "--layout-desktop-bottom-padding", "--layout-mobile-top-offset", "--layout-mobile-bottom-offset", "--layout-mobile-section-gap", "--mobile-page-gutter"]
+    }
+  ]
+}

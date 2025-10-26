@@ -2776,6 +2776,38 @@ export const themeTokenRegistry = [
     tags: ["background", "fx", "mist"],
   },
   {
+    id: "surface.background-fx.stars",
+    label: "Background FX / Stars",
+    cssVar: "--background-fx-stars",
+    category: "surface",
+    valueKind: "gradient",
+    tags: ["background", "fx", "stars", "night", "sparkle"],
+  },
+  {
+    id: "surface.background-fx.snow",
+    label: "Background FX / Snow",
+    cssVar: "--background-fx-snow",
+    category: "surface",
+    valueKind: "gradient",
+    tags: ["background", "fx", "snow", "winter", "flakes"],
+  },
+  {
+    id: "surface.background-fx.confetti",
+    label: "Background FX / Confetti",
+    cssVar: "--background-fx-confetti",
+    category: "surface",
+    valueKind: "gradient",
+    tags: ["background", "fx", "confetti", "celebration"],
+  },
+  {
+    id: "surface.background-fx.scanlines",
+    label: "Background FX / Scanlines",
+    cssVar: "--background-fx-scanlines",
+    category: "surface",
+    valueKind: "gradient",
+    tags: ["background", "fx", "scanlines", "retro"],
+  },
+  {
     id: "gradient.cta.launch-dark",
     label: "CTA / Launch Gradient Dark",
     cssVar: "--cta-gradient-launch-dark",
@@ -3699,3 +3731,69 @@ export function asCssVar(value: ThemeTokenCssVar): string {
 }
 
 export const tailwindThemeExtension = buildTailwindThemeExtension();
+
+const CORE_THEME_CATEGORIES: readonly ThemeTokenCategory[] = [
+  "surface",
+  "text",
+  "border",
+  "brand",
+  "card",
+  "dock",
+  "glass",
+  "ring",
+  "feedback",
+  "presence",
+  "layout",
+  "utility",
+  "motion",
+] as const;
+
+const CONTEXTUAL_TOKEN_PREFIXES: readonly string[] = [
+  "home.",
+  "friends.",
+  "chats.",
+  "requests.",
+  "party.",
+  "prompter.",
+  "surface.style.",
+  "text.style.",
+  "shadow.style.",
+  "border.style.",
+  "surface.friends.",
+  "text.friends.",
+  "border.friends.",
+  "shadow.friends.",
+  "surface.chats.",
+  "text.chats.",
+  "border.chats.",
+  "shadow.chats.",
+  "surface.party.",
+  "text.party.",
+  "border.party.",
+  "shadow.party.",
+  "surface.create.",
+  "text.create.",
+  "border.create.",
+  "shadow.create.",
+  "surface.settings.",
+  "text.settings.",
+  "border.settings.",
+  "shadow.settings.",
+  "surface.tile.",
+  "text.tile.",
+  "border.tile.",
+  "shadow.tile.",
+] as const;
+
+const isContextualToken = (token: ThemeTokenDefinition): boolean =>
+  CONTEXTUAL_TOKEN_PREFIXES.some((prefix) => token.id.startsWith(prefix));
+
+export const coreSiteThemeTokens = themeTokenRegistry.filter(
+  (token) => CORE_THEME_CATEGORIES.includes(token.category) && !isContextualToken(token),
+);
+
+export const CORE_SITE_THEME_TOKEN_IDS = coreSiteThemeTokens.map(
+  (token) => token.id as ThemeTokenId,
+);
+
+export const CORE_SITE_THEME_TOKEN_SET = new Set<ThemeTokenId>(CORE_SITE_THEME_TOKEN_IDS);
