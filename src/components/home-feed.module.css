@@ -280,25 +280,81 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    border: 1px solid var(--border-default, rgba(255, 255, 255, 0.14));
-    background: linear-gradient(180deg, rgba(32, 38, 70, 0.85), rgba(20, 26, 48, 0.72));
-    color: var(--color-fg, rgba(255, 255, 255, 0.88));
-    transition: transform 120ms var(--motion-ease-standard, ease);
+    border: 1px solid
+      var(
+        --home-card-icon-border,
+        color-mix(in srgb, var(--color-brand, #2563eb) 52%, rgba(255, 255, 255, 0.12))
+      );
+    background: linear-gradient(
+      180deg,
+      var(
+        --home-card-icon-bg-1,
+        color-mix(in srgb, var(--color-brand, #2563eb) 22%, rgba(12, 18, 46, 0.94))
+      ),
+      var(
+        --home-card-icon-bg-2,
+        color-mix(in srgb, var(--color-brand, #2563eb) 18%, rgba(8, 12, 32, 0.78))
+      )
+    );
+    color: var(
+      --home-card-icon-color,
+      color-mix(in srgb, var(--color-brand, #2563eb) 85%, rgba(248, 251, 255, 0.98))
+    );
+    box-shadow: var(
+      --home-card-icon-shadow,
+      inset 0 1px 0 color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, var(--color-brand, #2563eb) 30%),
+      inset 0 -1px 0 color-mix(in srgb, rgba(10, 15, 36, 0.52) 80%, var(--color-brand, #2563eb) 20%)
+    );
+    transition:
+      transform 120ms var(--motion-ease-standard, ease),
+      border-color 140ms var(--motion-ease-standard, ease),
+      box-shadow 160ms var(--motion-ease-standard, ease),
+      background 160ms var(--motion-ease-standard, ease),
+      color 140ms var(--motion-ease-standard, ease);
   }
 
   .iconBtn:hover:not(:disabled),
   .iconBtn:focus-visible {
     transform: translateY(-1px);
-    border-color: var(--border-brand-strong, rgba(37, 99, 235, 0.45));
+    border-color: var(
+      --home-card-icon-border-hover,
+      color-mix(in srgb, var(--color-brand, #2563eb) 68%, rgba(59, 130, 246, 0.32))
+    );
+    box-shadow: var(
+      --home-card-icon-shadow-hover,
+      0 16px 30px color-mix(in srgb, var(--color-brand, #2563eb) 28%, rgba(3, 10, 30, 0.48))
+    );
+  }
+
+  .iconBtn:disabled {
+    opacity: 0.62;
+    cursor: not-allowed;
   }
 
   .iconBtn[data-variant="memory"][data-active="true"] {
-    color: var(--color-brand, #2563eb);
-    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent);
+    background: linear-gradient(
+      180deg,
+      var(
+        --home-card-icon-active-bg-1,
+        color-mix(in srgb, var(--color-brand, #2563eb) 28%, rgba(18, 28, 64, 0.92))
+      ),
+      var(
+        --home-card-icon-active-bg-2,
+        color-mix(in srgb, var(--color-brand, #2563eb) 24%, rgba(12, 20, 52, 0.78))
+      )
+    );
+    border-color: var(
+      --home-card-icon-active-border,
+      color-mix(in srgb, var(--color-brand, #2563eb) 72%, rgba(59, 130, 246, 0.36))
+    );
+    color: var(
+      --home-card-icon-active-color,
+      color-mix(in srgb, var(--color-brand, #2563eb) 92%, rgba(240, 246, 255, 0.95))
+    );
   }
 
   .iconBtn[data-variant="danger"] {
-    color: var(--color-danger, #f87171);
+    color: var(--home-card-icon-danger, var(--color-danger, #f87171));
   }
 
   .cardBody {
@@ -472,7 +528,7 @@
 
   .actionCount {
     font-variant-numeric: tabular-nums;
-    color: var(--text, rgba(255, 255, 255, 0.94));
+    color: var(--text-2, var(--color-fg-muted, rgba(255, 255, 255, 0.78)));
     text-align: right;
     min-width: 28px;
     font-size: 0.85rem;
@@ -491,22 +547,19 @@
     color: var(--color-danger, #f87171);
   }
 
-  .actionBtn[data-variant="comment"]:hover:not(:disabled) .actionIcon {
-    color: var(--color-info, #38bdf8);
-  }
-
+  .actionBtn[data-variant="comment"]:hover:not(:disabled) .actionIcon,
   .actionBtn[data-variant="share"]:hover:not(:disabled) .actionIcon {
-    color: var(--color-warning, #fbbf24);
+    color: var(--color-brand, #2563eb);
   }
 
   .actionBtn[data-variant="like"][data-active="true"] {
-    border-color: color-mix(in srgb, var(--color-danger, #f87171) 55%, transparent);
+    border-color: color-mix(in srgb, var(--color-danger, #ef4444) 45%, transparent);
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-danger, #f87171) 20%, transparent),
-      color-mix(in srgb, var(--color-danger, #f87171) 6%, transparent)
+      color-mix(in srgb, var(--color-danger, #ef4444) 10%, transparent),
+      color-mix(in srgb, var(--color-danger, #ef4444) 4%, transparent)
     );
-    box-shadow: var(--shadow-md, 0 14px 32px rgba(248, 113, 113, 0.26));
+    box-shadow: 0 10px 22px rgba(239, 68, 68, 0.18);
   }
 
   .actionBtn[data-variant="like"][data-active="true"] .actionLabel {
@@ -600,8 +653,18 @@
   .pollCard {
     border-radius: var(--radius-lg, 18px);
     border: 1px solid
-      var(--home-poll-card-border, var(--border-default, rgba(255, 255, 255, 0.12)));
-    background: var(--home-poll-card-background, var(--surface-muted, rgba(18, 22, 48, 0.85)));
+      var(
+        --home-poll-card-border,
+        color-mix(in srgb, var(--color-brand, #2563eb) 38%, rgba(12, 16, 40, 0.48))
+      );
+    background: var(
+      --home-poll-card-background,
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--color-brand, #2563eb) 22%, rgba(10, 14, 32, 0.9)),
+        color-mix(in srgb, var(--color-brand, #2563eb) 16%, rgba(6, 10, 26, 0.82))
+      )
+    );
     padding: var(--space-lg);
     display: grid;
     gap: var(--space-md);
@@ -611,7 +674,10 @@
     margin: 0;
     font-size: 1rem;
     font-weight: 700;
-    color: var(--home-poll-question, var(--color-fg, rgba(255, 255, 255, 0.92)));
+    color: var(
+      --home-poll-question,
+      color-mix(in srgb, var(--color-brand, #2563eb) 36%, rgba(255, 255, 255, 0.92))
+    );
   }
 
   .pollOptions {
@@ -623,8 +689,18 @@
     position: relative;
     border-radius: var(--radius-lg, 14px);
     border: 1px solid
-      var(--home-poll-option-border, var(--border-default, rgba(255, 255, 255, 0.12)));
-    background: var(--home-poll-option-background, rgba(5, 8, 20, 0.55));
+      var(
+        --home-poll-option-border,
+        color-mix(in srgb, var(--color-brand, #2563eb) 34%, rgba(12, 16, 40, 0.42))
+      );
+    background: var(
+      --home-poll-option-background,
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--color-brand, #2563eb) 18%, rgba(8, 12, 30, 0.82)),
+        color-mix(in srgb, var(--color-brand, #2563eb) 14%, rgba(6, 10, 24, 0.75))
+      )
+    );
     overflow: hidden;
   }
 
@@ -671,7 +747,10 @@
 
   .pollOptionLabel {
     font-weight: 600;
-    color: var(--home-poll-option-label, var(--color-fg, rgba(255, 255, 255, 0.9)));
+    color: var(
+      --home-poll-option-label,
+      color-mix(in srgb, var(--color-brand, #2563eb) 28%, rgba(255, 255, 255, 0.9))
+    );
   }
 
   .pollOptionMeta {
@@ -679,7 +758,14 @@
     align-items: center;
     gap: var(--space-xs);
     font-size: 0.85rem;
-    color: var(--home-poll-option-meta, var(--color-fg-subtle, rgba(255, 255, 255, 0.68)));
+    color: var(
+      --home-poll-option-meta,
+      color-mix(
+        in srgb,
+        var(--color-brand, #2563eb) 24%,
+        color-mix(in srgb, rgba(175, 195, 230, 0.72) 80%, rgba(22, 28, 50, 0.72))
+      )
+    );
   }
 
   .pollOptionPercent,
@@ -698,7 +784,10 @@
 
   .pollFooter {
     font-size: 0.85rem;
-    color: var(--home-poll-footer, var(--color-fg-subtle, rgba(255, 255, 255, 0.62)));
+    color: var(
+      --home-poll-footer,
+      color-mix(in srgb, var(--color-brand, #2563eb) 22%, rgba(184, 200, 232, 0.68))
+    );
   }
 
   .documentGrid {

@@ -70,68 +70,42 @@
     --card-hover-border: rgba(37, 99, 235, 0.26);
     --card-hover-shadow: 0 22px 48px rgba(37, 99, 235, 0.18);
 
-    /* Quiet action plates in posts */
-    --feed-action-bg-1: rgba(246, 249, 255, 0.96);
-    --feed-action-bg-2: rgba(228, 237, 255, 0.86);
-    --feed-action-border: color-mix(in srgb, rgba(37, 99, 235, 0.4) 70%, rgba(148, 163, 184, 0.18));
-    --feed-action-border-hover: color-mix(
-      in srgb,
-      rgba(59, 130, 246, 0.45) 75%,
-      rgba(148, 163, 184, 0.2)
-    );
-    --feed-action-shadow-hover: 0 16px 36px rgba(59, 130, 246, 0.22);
-    --feed-icon-text: color-mix(in srgb, var(--color-brand, #2563eb) 38%, var(--color-fg));
+    /* Quiet action plates in posts (clean, neutral, brand on hover) */
+    --feed-action-bg-1: #ffffff;
+    --feed-action-bg-2: #fbfdff;
+    --feed-action-border: color-mix(in srgb, var(--color-border) 85%, transparent);
+    --feed-action-border-hover: color-mix(in srgb, var(--color-brand) 45%, var(--feed-action-border));
+    --feed-action-shadow-hover: 0 14px 28px rgba(15, 23, 42, 0.12);
+    --feed-icon-text: color-mix(in srgb, var(--color-fg) 80%, var(--color-brand) 20%);
 
-    --home-poll-card-border: color-mix(
-      in srgb,
-      rgba(37, 99, 235, 0.38) 70%,
-      rgba(148, 163, 184, 0.18)
+    /* Header icon buttons (neutral plate with subtle brand tint) */
+    --home-card-icon-bg-1: #ffffff;
+    --home-card-icon-bg-2: #f6f9ff;
+    --home-card-icon-border: color-mix(in srgb, var(--color-border) 70%, rgba(59, 130, 246, 0.18));
+    --home-card-icon-border-hover: color-mix(in srgb, var(--color-brand) 40%, var(--home-card-icon-border));
+    --home-card-icon-active-border: color-mix(in srgb, var(--color-brand) 52%, var(--home-card-icon-border));
+    --home-card-icon-color: color-mix(in srgb, var(--color-fg) 70%, var(--color-brand) 30%);
+    --home-card-icon-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+    --home-card-icon-shadow-hover: 0 12px 22px rgba(59, 130, 246, 0.18);
+    --home-card-icon-active-bg-1: #f3f7ff;
+    --home-card-icon-active-bg-2: #e8f0ff;
+    --home-card-icon-active-color: color-mix(in srgb, var(--color-brand) 65%, #1e3a8a);
+    --home-card-icon-danger: #ef4444;
+
+    /* Poll surfaces (neutral shells + brand progress fill) */
+    --home-poll-card-border: color-mix(in srgb, var(--color-border) 92%, transparent);
+    --home-poll-card-background: linear-gradient(180deg, #ffffff, #f7faff);
+    --home-poll-question: color-mix(in srgb, var(--color-fg) 92%, #0a162b);
+    --home-poll-option-border: color-mix(in srgb, var(--color-border) 90%, transparent);
+    --home-poll-option-background: linear-gradient(180deg, #ffffff, #f5f8ff);
+    --home-poll-option-selected-border: color-mix(in srgb, var(--color-brand) 52%, var(--color-border));
+    --home-poll-option-fill: linear-gradient(180deg,
+      color-mix(in srgb, var(--color-brand) 22%, #eaf2ff),
+      color-mix(in srgb, var(--color-brand) 12%, #eef2ff)
     );
-    --home-poll-card-background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.98),
-      rgba(233, 240, 255, 0.9)
-    );
-    --home-poll-question: color-mix(
-      in srgb,
-      var(--header-brand-strong-color, #2563eb) 55%,
-      rgba(14, 23, 42, 0.88)
-    );
-    --home-poll-option-border: color-mix(
-      in srgb,
-      rgba(148, 197, 255, 0.45) 75%,
-      rgba(148, 163, 184, 0.16)
-    );
-    --home-poll-option-background: linear-gradient(
-      180deg,
-      rgba(241, 246, 255, 0.92),
-      rgba(225, 235, 255, 0.85)
-    );
-    --home-poll-option-selected-border: color-mix(
-      in srgb,
-      var(--header-brand-strong-color, #2563eb) 55%,
-      rgba(148, 163, 184, 0.24)
-    );
-    --home-poll-option-fill: linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(37, 99, 235, 0.28) 85%, rgba(255, 255, 255, 0.2)),
-      color-mix(in srgb, rgba(59, 130, 246, 0.24) 85%, rgba(255, 255, 255, 0.18))
-    );
-    --home-poll-option-label: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 32%,
-      var(--color-fg)
-    );
-    --home-poll-option-meta: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 28%,
-      rgba(14, 23, 42, 0.64)
-    );
-    --home-poll-footer: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 24%,
-      rgba(14, 23, 42, 0.58)
-    );
+    --home-poll-option-label: var(--color-fg);
+    --home-poll-option-meta: var(--color-fg-subtle);
+    --home-poll-footer: var(--color-fg-subtle);
 
     /* Icon plate tokens */
     --icon-plate-bg-1: rgba(255, 255, 255, 0.9);

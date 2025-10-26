@@ -203,6 +203,92 @@
     --feed-action-border-hover: rgba(255, 255, 255, 0.2);
     --feed-action-shadow-hover: 0 12px 28px rgba(5, 10, 30, 0.28);
     --feed-icon-text: var(--text, var(--color-fg, rgba(255, 255, 255, 0.94)));
+    --home-card-icon-bg-1: color-mix(in srgb, rgba(60, 102, 188, 0.42) 70%, rgba(12, 18, 46, 0.94));
+    --home-card-icon-bg-2: color-mix(in srgb, rgba(38, 72, 154, 0.38) 72%, rgba(8, 12, 32, 0.84));
+    --home-card-icon-border: color-mix(in srgb, rgba(84, 134, 228, 0.5) 70%, rgba(12, 18, 44, 0.5));
+    --home-card-icon-border-hover: color-mix(
+      in srgb,
+      rgba(120, 170, 255, 0.58) 78%,
+      rgba(18, 26, 58, 0.42)
+    );
+    --home-card-icon-active-border: color-mix(
+      in srgb,
+      rgba(140, 188, 255, 0.66) 80%,
+      rgba(14, 22, 52, 0.36)
+    );
+    --home-card-icon-color: color-mix(
+      in srgb,
+      rgba(190, 210, 255, 0.96) 76%,
+      rgba(244, 248, 255, 0.98)
+    );
+    --home-card-icon-active-color: color-mix(
+      in srgb,
+      rgba(214, 228, 255, 0.98) 88%,
+      rgba(242, 247, 255, 1)
+    );
+    --home-card-icon-shadow: 0 16px 34px rgba(6, 12, 32, 0.52);
+    --home-card-icon-shadow-hover: 0 20px 42px rgba(10, 18, 40, 0.6);
+    --home-card-icon-active-bg-1: color-mix(
+      in srgb,
+      rgba(70, 116, 206, 0.5) 78%,
+      rgba(16, 24, 52, 0.92)
+    );
+    --home-card-icon-active-bg-2: color-mix(
+      in srgb,
+      rgba(52, 94, 184, 0.44) 76%,
+      rgba(12, 20, 46, 0.86)
+    );
+    --home-card-icon-danger: var(--color-danger, #f87171);
+    --home-poll-card-border: color-mix(
+      in srgb,
+      rgba(94, 142, 230, 0.46) 72%,
+      rgba(12, 18, 44, 0.48)
+    );
+    --home-poll-card-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(42, 76, 150, 0.36) 82%, rgba(16, 24, 52, 0.95)),
+      color-mix(in srgb, rgba(30, 60, 128, 0.34) 82%, rgba(12, 20, 46, 0.9))
+    );
+    --home-poll-question: color-mix(
+      in srgb,
+      rgba(218, 230, 255, 0.96) 86%,
+      rgba(236, 243, 255, 0.98)
+    );
+    --home-poll-option-border: color-mix(
+      in srgb,
+      rgba(80, 124, 210, 0.4) 72%,
+      rgba(12, 18, 44, 0.42)
+    );
+    --home-poll-option-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(36, 66, 140, 0.34) 82%, rgba(14, 22, 50, 0.86)),
+      color-mix(in srgb, rgba(26, 54, 120, 0.32) 82%, rgba(12, 20, 46, 0.82))
+    );
+    --home-poll-option-selected-border: color-mix(
+      in srgb,
+      rgba(132, 182, 255, 0.62) 80%,
+      rgba(16, 26, 56, 0.34)
+    );
+    --home-poll-option-fill: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(82, 136, 230, 0.36) 86%, rgba(32, 56, 120, 0.24)),
+      color-mix(in srgb, rgba(64, 116, 210, 0.34) 86%, rgba(28, 48, 110, 0.2))
+    );
+    --home-poll-option-label: color-mix(
+      in srgb,
+      rgba(218, 232, 255, 0.98) 92%,
+      rgba(240, 246, 255, 1)
+    );
+    --home-poll-option-meta: color-mix(
+      in srgb,
+      rgba(174, 194, 230, 0.8) 86%,
+      rgba(200, 214, 240, 0.82)
+    );
+    --home-poll-footer: color-mix(
+      in srgb,
+      rgba(162, 184, 224, 0.72) 82%,
+      rgba(192, 208, 238, 0.78)
+    );
     /* Prompt halo */
     --prompt-glow-blur: 18px;
     --prompt-glow-opacity: 0.54;
