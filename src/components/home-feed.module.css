@@ -279,7 +279,8 @@
     justify-content: center;
     width: 36px;
     height: 36px;
-    border-radius: 50%;
+    /* Rounded square shape (not circle) */
+    border-radius: var(--radius-md, 12px);
     border: 1px solid
       var(
         --home-card-icon-border,
@@ -547,9 +548,13 @@
     color: var(--color-danger, #f87171);
   }
 
-  .actionBtn[data-variant="comment"]:hover:not(:disabled) .actionIcon,
-  .actionBtn[data-variant="share"]:hover:not(:disabled) .actionIcon {
+  .actionBtn[data-variant="comment"]:hover:not(:disabled) .actionIcon {
     color: var(--color-brand, #2563eb);
+  }
+
+  /* Share icon returns to yellow on hover */
+  .actionBtn[data-variant="share"]:hover:not(:disabled) .actionIcon {
+    color: var(--color-warning, #fbbf24);
   }
 
   .actionBtn[data-variant="like"][data-active="true"] {
