@@ -13,6 +13,9 @@ import {
   Trash,
   HourglassHigh,
   Play,
+  CaretLeft,
+  CaretRight,
+  X,
 } from "@phosphor-icons/react/dist/ssr";
 import { PostMenu } from "@/components/posts/PostMenu";
 import { normalizeMediaUrl } from "@/lib/media";
@@ -93,6 +96,79 @@ function sanitizeCounts(source: unknown, length: number): number[] | null {
   return Array.from({ length }, (_, index) => values[index] ?? 0);
 }
 
+type MediaDimensions = { width: number; height: number };
+
+const MEDIA_DIMENSION_KEY_PAIRS: Array<[string, string]> = [
+  ["width", "height"],
+  ["w", "h"],
+  ["naturalWidth", "naturalHeight"],
+  ["natural_width", "natural_height"],
+  ["imageWidth", "imageHeight"],
+  ["image_width", "image_height"],
+  ["originalWidth", "originalHeight"],
+  ["original_width", "original_height"],
+  ["previewWidth", "previewHeight"],
+  ["preview_width", "preview_height"],
+  ["pixelWidth", "pixelHeight"],
+  ["pixel_width", "pixel_height"],
+];
+
+function coerceDimension(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+function extractMediaDimensions(source: unknown, depthLimit = 4): MediaDimensions | null {
+  if (!source || typeof source !== "object") return null;
+
+  const queue: Array<{ value: unknown; depth: number }> = [{ value: source, depth: 0 }];
+  const seen = new WeakSet<object>();
+
+  while (queue.length) {
+    const entry = queue.shift();
+    if (!entry) continue;
+    const { value, depth } = entry;
+    if (!value || typeof value !== "object") continue;
+
+    if (seen.has(value as object)) continue;
+    seen.add(value as object);
+
+    if (Array.isArray(value)) {
+      if (depth >= depthLimit) continue;
+      for (const child of value) {
+        queue.push({ value: child, depth: depth + 1 });
+      }
+      continue;
+    }
+
+    const record = value as Record<string, unknown>;
+    for (const [widthKey, heightKey] of MEDIA_DIMENSION_KEY_PAIRS) {
+      const width = coerceDimension(record[widthKey]);
+      const height = coerceDimension(record[heightKey]);
+      if (width && height) {
+        return { width, height };
+      }
+    }
+
+    if (depth >= depthLimit) continue;
+    for (const child of Object.values(record)) {
+      if (child && typeof child === "object") {
+        queue.push({ value: child, depth: depth + 1 });
+      }
+    }
+  }
+
+  return null;
+}
+
 type ActionKey = "like" | "comment" | "share";
 
 type HomeFeedListProps = {
@@ -156,18 +232,21 @@ export function HomeFeedList({
   const [lightbox, setLightbox] = React.useState<{
     postId: string;
     index: number;
-    items: Array<{
-      id: string;
-      kind: "image" | "video";
-      fullUrl: string;
-      fullSrcSet?: string | null;
-      displayUrl: string;
-      displaySrcSet?: string | null;
-      name: string | null;
-      alt: string;
-      mimeType: string | null;
-    }>;
-  } | null>(null);
+  items: Array<{
+    id: string;
+    kind: "image" | "video";
+    fullUrl: string;
+    fullSrcSet?: string | null;
+    displayUrl: string;
+    displaySrcSet?: string | null;
+    name: string | null;
+    alt: string;
+    mimeType: string | null;
+    width: number | null;
+    height: number | null;
+    aspectRatio: number | null;
+  }>;
+} | null>(null);
 
   const INITIAL_BATCH = 6;
   const BATCH_SIZE = 6;
@@ -640,6 +719,9 @@ export function HomeFeedList({
           name: string | null;
           thumbnailUrl: string | null;
           mimeType: string | null;
+          width: number | null;
+          height: number | null;
+          aspectRatio: number | null;
         }> = [];
         const fileAttachments: Array<{
           id: string;
@@ -660,10 +742,32 @@ export function HomeFeedList({
           name: string | null;
           thumbnailUrl: string | null;
           mimeType: string | null;
+          metadata?: unknown;
         }) => {
           if (!item.originalUrl || seenMedia.has(item.originalUrl)) return;
           seenMedia.add(item.originalUrl);
-          galleryItems.push(item);
+          const dimensions = extractMediaDimensions(item.metadata);
+          const width = dimensions?.width ?? null;
+          const height = dimensions?.height ?? null;
+          const aspectRatio =
+            width && height && height > 0
+              ? Math.min(Math.max(Number((width / height).toFixed(4)), 0.05), 20)
+              : null;
+          galleryItems.push({
+            id: item.id,
+            originalUrl: item.originalUrl,
+            displayUrl: item.displayUrl,
+            displaySrcSet: item.displaySrcSet,
+            fullUrl: item.fullUrl,
+            fullSrcSet: item.fullSrcSet,
+            kind: item.kind,
+            name: item.name,
+            thumbnailUrl: item.thumbnailUrl,
+            mimeType: item.mimeType,
+            width: width && Number.isFinite(width) ? width : null,
+            height: height && Number.isFinite(height) ? height : null,
+            aspectRatio,
+          });
         };
 
         if (media) {
@@ -701,6 +805,7 @@ export function HomeFeedList({
           name: null,
           thumbnailUrl: inferred === "image" ? (variants?.thumb ?? absoluteMedia) : null,
           mimeType: null,
+          metadata: null,
         });
       }
 
@@ -765,6 +870,7 @@ export function HomeFeedList({
               name: attachment.name ?? null,
               thumbnailUrl,
               mimeType: attachment.mimeType ?? null,
+              metadata: attachment.meta ?? null,
             });
           } else {
             if (fileAttachments.some((file) => file.url === attachment.url)) return;
@@ -931,9 +1037,8 @@ export function HomeFeedList({
               ) : null}
             </div>
 
-            {galleryItems.length ? (
-              <div className={styles.mediaGallery} data-count={galleryItems.length}>
-                {(() => {
+            {galleryItems.length
+              ? (() => {
                   const imageItems = galleryItems.filter((entry) => entry.kind === "image");
                   const lightboxLookup = new Map<string, number>(
                     imageItems.map((entry, idx) => [entry.id, idx]),
@@ -948,48 +1053,122 @@ export function HomeFeedList({
                     name: entry.name,
                     alt: entry.name ?? "Post attachment",
                     mimeType: entry.mimeType,
+                    width: entry.width,
+                    height: entry.height,
+                    aspectRatio: entry.aspectRatio,
                   }));
+                  const isSingleImageLayout =
+                    galleryItems.length === 1 && galleryItems[0]?.kind === "image";
 
-                  return galleryItems.map((item) => {
-                    if (item.kind === "video") {
-                      return <FeedVideo key={item.id} item={item} />;
-                    }
+                  return (
+                    <div
+                      className={styles.mediaGallery}
+                      data-count={galleryItems.length}
+                      data-layout={isSingleImageLayout ? "single" : "grid"}
+                    >
+                      {galleryItems.map((item) => {
+                        if (item.kind === "video") {
+                          return <FeedVideo key={item.id} item={item} />;
+                        }
 
-                    const imageIndex = lightboxLookup.get(item.id) ?? 0;
+                        const imageIndex = lightboxLookup.get(item.id) ?? 0;
+                        const rawAspectRatio =
+                          typeof item.aspectRatio === "number" && Number.isFinite(item.aspectRatio)
+                            ? item.aspectRatio
+                            : null;
+                        const aspectRatio =
+                          rawAspectRatio && rawAspectRatio > 0
+                            ? Number(rawAspectRatio.toFixed(4))
+                            : null;
+                        const orientation =
+                          aspectRatio && aspectRatio > 0
+                            ? aspectRatio > 1.05
+                              ? "landscape"
+                              : aspectRatio < 0.95
+                                ? "portrait"
+                                : "square"
+                            : null;
+                        const singleImageStyles: React.CSSProperties | undefined =
+                          isSingleImageLayout
+                            ? {
+                                aspectRatio: aspectRatio ?? "auto",
+                                minHeight:
+                                  orientation === "portrait"
+                                    ? "clamp(320px, 52vh, 820px)"
+                                    : orientation === "landscape"
+                                      ? "clamp(220px, 42vh, 620px)"
+                                      : "clamp(260px, 48vh, 720px)",
+                                maxHeight:
+                                  orientation === "portrait"
+                                    ? "min(92vh, 1040px)"
+                                    : orientation === "landscape"
+                                      ? "min(78vh, 880px)"
+                                      : "min(86vh, 960px)",
+                              }
+                            : undefined;
+                        const singleImageMediaStyles: React.CSSProperties | undefined =
+                          isSingleImageLayout
+                            ? {
+                                objectFit: "contain",
+                                objectPosition: "center",
+                                width: "100%",
+                                height: "100%",
+                              }
+                            : undefined;
+                        const hasDimensions =
+                          typeof item.width === "number" &&
+                          Number.isFinite(item.width) &&
+                          typeof item.height === "number" &&
+                          Number.isFinite(item.height) &&
+                          item.width > 0 &&
+                          item.height > 0;
+                        const imageWidth = hasDimensions
+                          ? Math.max(1, Math.round(item.width as number))
+                          : 1080;
+                        const imageHeight = hasDimensions
+                          ? Math.max(1, Math.round(item.height as number))
+                          : 1080;
+                        const imageSizes = isSingleImageLayout
+                          ? "(max-width: 640px) 100vw, 960px"
+                          : "(max-width: 640px) 100vw, 720px";
 
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={styles.mediaButton}
-                        data-kind="image"
-                        onClick={() => {
-                          if (!mappedLightboxItems.length) return;
-                          setLightbox({
-                            postId: post.id,
-                            index: imageIndex,
-                            items: mappedLightboxItems,
-                          });
-                        }}
-                        aria-label={item.name ? `View ${item.name}` : "View attachment"}
-                      >
-                        <LazyImage
-                          className={styles.media}
-                          data-kind="image"
-                          src={item.displayUrl}
-                          alt={item.name ?? "Post attachment"}
-                          width={1080}
-                          height={1080}
-                          sizes="(max-width: 640px) 100vw, 720px"
-                          loading="lazy"
-                          unoptimized
-                        />
-                      </button>
-                    );
-                  });
-                })()}
-              </div>
-            ) : null}
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={styles.mediaButton}
+                            data-kind="image"
+                            data-orientation={orientation ?? undefined}
+                            style={singleImageStyles}
+                            onClick={() => {
+                              if (!mappedLightboxItems.length) return;
+                              setLightbox({
+                                postId: post.id,
+                                index: imageIndex,
+                                items: mappedLightboxItems,
+                              });
+                            }}
+                            aria-label={item.name ? `View ${item.name}` : "View attachment"}
+                          >
+                            <LazyImage
+                              className={styles.media}
+                              data-kind="image"
+                              src={item.displayUrl}
+                              alt={item.name ?? "Post attachment"}
+                              width={imageWidth}
+                              height={imageHeight}
+                              sizes={imageSizes}
+                              loading="lazy"
+                              unoptimized
+                              style={singleImageMediaStyles}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
+              : null}
 
             {documentCards.length ? (
               <div className={styles.documentGrid}>
@@ -1050,6 +1229,73 @@ export function HomeFeedList({
             const current = lightbox.items[lightbox.index] ?? null;
             if (!current) return null;
             const hasMultiple = lightbox.items.length > 1;
+            const hasDimensions =
+              typeof current.width === "number" &&
+              Number.isFinite(current.width) &&
+              current.width > 0 &&
+              typeof current.height === "number" &&
+              Number.isFinite(current.height) &&
+              current.height > 0;
+            const widthValue = hasDimensions ? (current.width as number) : null;
+            const heightValue = hasDimensions ? (current.height as number) : null;
+            const rawLightboxAspect =
+              typeof current.aspectRatio === "number" && Number.isFinite(current.aspectRatio)
+                ? current.aspectRatio
+                : widthValue && heightValue
+                  ? widthValue / heightValue
+                  : null;
+            const lightboxAspectRatio =
+              rawLightboxAspect && rawLightboxAspect > 0
+                ? Number(rawLightboxAspect.toFixed(4))
+                : null;
+            const lightboxOrientation =
+              lightboxAspectRatio && lightboxAspectRatio > 0
+                ? lightboxAspectRatio > 1.05
+                  ? "landscape"
+                  : lightboxAspectRatio < 0.95
+                    ? "portrait"
+                    : "square"
+                : null;
+            const mediaMaxHeight =
+              lightboxOrientation === "portrait"
+                ? "min(92vh, 1040px)"
+                : lightboxOrientation === "landscape"
+                  ? "min(84vh, 900px)"
+                  : "min(88vh, 960px)";
+            const mediaMaxWidth =
+              lightboxOrientation === "portrait"
+                ? "min(70vw, 780px)"
+                : "min(94vw, 1320px)";
+            const contentMaxWidth =
+              lightboxOrientation === "portrait"
+                ? "min(78vw, 840px)"
+                : "min(96vw, 1400px)";
+            const lightboxContentStyles: React.CSSProperties = {
+              maxWidth: contentMaxWidth,
+            };
+            const lightboxBodyStyles: React.CSSProperties = {
+              maxWidth: mediaMaxWidth,
+            };
+            const lightboxMediaStyles: React.CSSProperties = {
+              aspectRatio: lightboxAspectRatio ?? undefined,
+              maxHeight: mediaMaxHeight,
+              width: "100%",
+              maxWidth: "100%",
+            };
+            const lightboxImageStyles: React.CSSProperties = {
+              width: "100%",
+              height: "100%",
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+            };
+            const lightboxVideoStyles: React.CSSProperties = {
+              width: "100%",
+              height: "100%",
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+            };
             return (
               <div
                 className={styles.lightboxOverlay}
@@ -1060,6 +1306,7 @@ export function HomeFeedList({
               >
                 <div
                   className={styles.lightboxContent}
+                  style={lightboxContentStyles}
                   onClick={(event) => event.stopPropagation()}
                 >
                   <button
@@ -1068,34 +1315,48 @@ export function HomeFeedList({
                     onClick={handleCloseButtonClick}
                     aria-label="Close attachment viewer"
                   >
-                    {"\u00d7"}
+                    <X weight="bold" size={22} />
                   </button>
-                  {hasMultiple ? (
-                    <>
-                      <button
-                        type="button"
-                        className={styles.lightboxNav}
-                        data-direction="prev"
-                        onClick={() => navigateLightbox(-1)}
-                        aria-label="Previous attachment"
-                      >
-                        â€¹
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.lightboxNav}
-                        data-direction="next"
-                        onClick={() => navigateLightbox(1)}
-                        aria-label="Next attachment"
-                      >
-                        â€º
-                      </button>
-                    </>
-                  ) : null}
-                  <div className={styles.lightboxBody}>
-                    <div className={styles.lightboxMedia}>
+                  <div
+                    className={styles.lightboxBody}
+                    data-has-nav={hasMultiple ? "true" : undefined}
+                    style={lightboxBodyStyles}
+                  >
+                    {hasMultiple ? (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.lightboxNav}
+                          data-direction="prev"
+                          onClick={() => navigateLightbox(-1)}
+                          aria-label="Previous attachment"
+                        >
+                          <CaretLeft weight="bold" size={26} />
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.lightboxNav}
+                          data-direction="next"
+                          onClick={() => navigateLightbox(1)}
+                          aria-label="Next attachment"
+                        >
+                          <CaretRight weight="bold" size={26} />
+                        </button>
+                      </>
+                    ) : null}
+                    <div
+                      className={styles.lightboxMedia}
+                      data-orientation={lightboxOrientation ?? undefined}
+                      style={lightboxMediaStyles}
+                    >
                       {current.kind === "video" ? (
-                        <video className={styles.lightboxVideo} controls playsInline preload="auto">
+                        <video
+                          className={styles.lightboxVideo}
+                          controls
+                          playsInline
+                          preload="auto"
+                          style={lightboxVideoStyles}
+                        >
                           <source src={current.fullUrl} type={current.mimeType ?? undefined} />
                           Your browser does not support embedded video.
                         </video>
@@ -1109,6 +1370,7 @@ export function HomeFeedList({
                           alt={current.alt}
                           loading="eager"
                           draggable={false}
+                          style={lightboxImageStyles}
                         />
                       )}
                     </div>

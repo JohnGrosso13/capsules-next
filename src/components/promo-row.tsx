@@ -3,7 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { CaretLeft, CaretRight, ImageSquare, Play, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight, ImageSquare, Play, Sparkle, X } from "@phosphor-icons/react/dist/ssr";
 
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
@@ -521,31 +521,34 @@ export function PromoRow() {
               onClick={closeLightbox}
               aria-label="Close promo media viewer"
             >
-              {"\u00d7"}
+              <X weight="bold" size={22} />
             </button>
-            {tileCount > 1 ? (
-              <>
+            <div
+              className={lightboxStyles.lightboxBody}
+              data-has-nav={tileCount > 1 ? "true" : undefined}
+            >
+              {tileCount > 1 ? (
+                <>
                   <button
                     type="button"
                     className={lightboxStyles.lightboxNav}
                     data-direction="prev"
-                  onClick={() => navigateLightbox(-1)}
-                  aria-label="Previous promo media"
-                >
-                  <CaretLeft size={28} weight="bold" />
-                </button>
+                    onClick={() => navigateLightbox(-1)}
+                    aria-label="Previous promo media"
+                  >
+                    <CaretLeft size={28} weight="bold" />
+                  </button>
                   <button
                     type="button"
                     className={lightboxStyles.lightboxNav}
                     data-direction="next"
-                  onClick={() => navigateLightbox(1)}
-                  aria-label="Next promo media"
-                >
-                  <CaretRight size={28} weight="bold" />
-                </button>
-              </>
-            ) : null}
-            <div className={lightboxStyles.lightboxBody}>
+                    onClick={() => navigateLightbox(1)}
+                    aria-label="Next promo media"
+                  >
+                    <CaretRight size={28} weight="bold" />
+                  </button>
+                </>
+              ) : null}
               <div className={lightboxStyles.lightboxMedia}>
                 {currentItem.mediaSrc ? (
                   currentItem.kind === "video" ? (
