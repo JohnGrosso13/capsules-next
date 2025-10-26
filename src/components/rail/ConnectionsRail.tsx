@@ -687,7 +687,7 @@ export function ConnectionsRail() {
       className={`${styles.railConnections} ${styles.railConnectionsOuter}`.trim()}
       data-mode={railMode}
     >
-      {railMode === "tiles" ? (
+      {false ? (
         <div className={styles.connectionTilesShell}>
           <div className={styles.connectionTiles}>
             {connectionTiles.map((tile) => (
@@ -744,12 +744,7 @@ export function ConnectionsRail() {
           <div className={styles.railHeaderRow}>
             <button
               type="button"
-              className={styles.railBackBtn}
-              aria-label="Back to tiles"
-              onClick={() => setRailMode("tiles")}
-            >
-              &lt;
-            </button>
+              {/* Back button removed to keep tabbed buttons consistent */}
             {/* Quick actions on the right when viewing connections */}
             <div className={styles.railHeaderAction}>
               <button
@@ -870,5 +865,6 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
+
 
 
