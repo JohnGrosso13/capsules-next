@@ -687,11 +687,7 @@ export function ConnectionsRail() {
       className={`${styles.railConnections} ${styles.railConnectionsOuter}`.trim()}
       data-mode={railMode}
     >
-<<<<<<< HEAD
       {railMode === "tiles" ? (
-=======
-      {railMode === "tiles" ? (
->>>>>>> fix/connections-rail-ui
         <div className={styles.connectionTilesShell}>
           <div className={styles.connectionTiles}>
             {connectionTiles.map((tile) => (
@@ -874,5 +870,4 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
-
 
