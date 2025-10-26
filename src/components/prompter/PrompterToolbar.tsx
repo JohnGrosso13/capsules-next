@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import styles from "@/components/home.module.css";
+import styles from "./prompter.module.css";
 import type { PromptIntent } from "@/lib/ai/intent";
 import type { RecognitionStatus } from "@/hooks/useSpeechRecognition";
 

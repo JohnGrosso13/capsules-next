@@ -2,7 +2,7 @@
 
 export const MAX_THEME_VAR_KEY_LENGTH = 80;
 export const MAX_THEME_VAR_VALUE_LENGTH = 400;
-export const MAX_THEME_VAR_ENTRIES = 72;
+export const MAX_THEME_VAR_ENTRIES = 256;
 
 const ALLOWED_THEME_VAR_KEYS_ARRAY = Object.freeze(Array.from(THEME_TOKEN_CSS_VARS));
 const ALLOWED_THEME_VAR_SET = new Set<string>(ALLOWED_THEME_VAR_KEYS_ARRAY);

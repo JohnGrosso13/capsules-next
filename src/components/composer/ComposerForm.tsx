@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import styles from "../ai-composer.module.css";
-import homeStyles from "@/components/home.module.css";
+import lightboxStyles from "@/components/home-feed.module.css";
 import contextMenuStyles from "@/components/ui/context-menu.module.css";
 import {
   X,
@@ -410,30 +410,30 @@ function ComposerViewer({
   const isVideo = attachmentKind === "video";
 
   return (
-    <div className={homeStyles.lightboxOverlay} role="dialog" aria-modal="true" onClick={onClose}>
-      <div className={homeStyles.lightboxContent} onClick={(event) => event.stopPropagation()}>
+    <div className={lightboxStyles.lightboxOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+      <div className={lightboxStyles.lightboxContent} onClick={(event) => event.stopPropagation()}>
         <button
           type="button"
-          className={homeStyles.lightboxClose}
+          className={lightboxStyles.lightboxClose}
           aria-label="Close preview"
           onClick={onClose}
         >
           <X size={18} weight="bold" />
         </button>
-        <div className={homeStyles.lightboxBody}>
-          <div className={homeStyles.lightboxMedia}>
+        <div className={lightboxStyles.lightboxBody}>
+          <div className={lightboxStyles.lightboxMedia}>
             {isVideo ? (
-              <video className={homeStyles.lightboxVideo} src={attachmentFullUrl ?? undefined} controls autoPlay />
+              <video className={lightboxStyles.lightboxVideo} src={attachmentFullUrl ?? undefined} controls autoPlay />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                className={homeStyles.lightboxImage}
+                className={lightboxStyles.lightboxImage}
                 src={attachmentFullUrl ?? attachmentDisplayUrl ?? attachmentPreviewUrl ?? undefined}
                 alt={attachment.name}
               />
             )}
           </div>
-          <div className={homeStyles.lightboxCaption}>{attachment.name}</div>
+          <div className={lightboxStyles.lightboxCaption}>{attachment.name}</div>
         </div>
         <div className={styles.viewerActions}>
           {vibeSuggestions.map((suggestion) => (

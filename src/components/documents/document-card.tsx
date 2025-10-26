@@ -9,7 +9,7 @@ import {
   ListBullets,
 } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "@/components/home.module.css";
+import styles from "./document-card.module.css";
 
 export type DocumentAttachmentSource = {
   id: string;

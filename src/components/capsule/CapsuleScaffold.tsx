@@ -32,7 +32,7 @@ import {
   type DocumentAttachmentSource,
   type DocumentCardData,
 } from "@/components/documents/document-card";
-import homeStyles from "@/components/home.module.css";
+import feedStyles from "@/components/home-feed.module.css";
 import { useCapsuleFeed, formatFeedCount } from "@/hooks/useHomeFeed";
 import { useCapsuleMembership } from "@/hooks/useCapsuleMembership";
 import { useCurrentUser } from "@/services/auth/client";
@@ -783,7 +783,7 @@ function CapsuleLibraryState({
   onRetry?: () => void;
 }) {
   return (
-    <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
+    <section className={`${feedStyles.feed} ${capTheme.feedWrap}`.trim()}>
       <div className={capTheme.libraryState}>
         <p>{message}</p>
         {onRetry ? (
@@ -802,18 +802,19 @@ function CapsuleMediaSection({ items, loading, error, onRetry }: CapsuleLibraryS
   if (!items.length) return <CapsuleLibraryState message="No media shared yet." />;
 
   return (
-    <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
-      <div className={homeStyles.mediaGallery} data-count={items.length}>
+    <section className={`${feedStyles.feed} ${capTheme.feedWrap}`.trim()}>
+      <div className={feedStyles.mediaGallery} data-count={items.length}>
         {items.map((item) => {
           const mime = item.mimeType?.toLowerCase() ?? "";
           const isVideo = mime.startsWith("video/");
           const isImage = mime.startsWith("image/");
           const thumbnail = item.thumbnailUrl ?? (isImage ? item.url : null);
           return (
-            <div key={item.id} className={homeStyles.mediaWrapper} data-kind={isVideo ? "video" : "image"}>
+            <div key={item.id} className={feedStyles.mediaWrapper} data-kind={isVideo ? "video" : "image"}>
               {isVideo ? (
                 <video
-                  className={`${homeStyles.media} ${homeStyles.mediaVideo}`.trim()}
+                  className={feedStyles.media}
+                  data-kind="video"
                   controls
                   playsInline
                   preload="metadata"
@@ -827,10 +828,11 @@ function CapsuleMediaSection({ items, loading, error, onRetry }: CapsuleLibraryS
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`${homeStyles.mediaButton} ${homeStyles.mediaImageButton}`.trim()}
+                  className={feedStyles.mediaButton}
+                  data-kind="image"
                 >
                   <Image
-                    className={`${homeStyles.media} ${homeStyles.mediaImage}`.trim()}
+                    className={feedStyles.media}
                     src={thumbnail ?? item.url}
                     alt={item.title ?? "Capsule media"}
                     width={1080}
@@ -877,8 +879,8 @@ function CapsuleFilesSection({ items, loading, error, onRetry, formatCount, onAs
   });
 
   return (
-    <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
-      <div className={homeStyles.documentGrid}>
+    <section className={`${feedStyles.feed} ${capTheme.feedWrap}`.trim()}>
+      <div className={feedStyles.documentGrid}>
         {documents.map((doc) => (
           <DocumentAttachmentCard
             key={doc.id}
@@ -937,7 +939,7 @@ function CapsuleHistorySection({
       : "Automation ready";
 
   return (
-    <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
+    <section className={`${feedStyles.feed} ${capTheme.feedWrap}`.trim()}>
       <div className={capTheme.historyWrap}>
         <header className={capTheme.historyHeader}>
           <div className={capTheme.historyTitleGroup}>
@@ -1498,9 +1500,9 @@ function CapsuleFeed({
     : "No posts in this capsule yet. Be the first to share an update.";
 
   return (
-    <section className={`${homeStyles.feed} ${capTheme.feedWrap}`.trim()}>
+    <section className={`${feedStyles.feed} ${capTheme.feedWrap}`.trim()}>
       {friendMessage && hasFetched ? (
-        <div className={homeStyles.postFriendNotice}>{friendMessage}</div>
+        <div className={feedStyles.postFriendNotice}>{friendMessage}</div>
       ) : null}
       <HomeFeedList
         posts={posts}
@@ -1525,8 +1527,6 @@ function CapsuleFeed({
     </section>
   );
 }
-
-
 
 
 

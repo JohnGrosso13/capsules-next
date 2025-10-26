@@ -262,6 +262,11 @@ export function clearThemeVars(keys?: string[]) {
         normalizedKeys.forEach((key) => root.style.removeProperty(key));
       }
       applyStoredTheme();
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => {
+          applyStoredTheme();
+        });
+      }
       return;
     }
     if (typeof document !== "undefined") {
@@ -270,6 +275,11 @@ export function clearThemeVars(keys?: string[]) {
     }
     writeThemeVariants({});
     applyStoredTheme();
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        applyStoredTheme();
+      });
+    }
   } catch {}
 }
 

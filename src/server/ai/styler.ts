@@ -2,6 +2,10 @@ import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { z } from "zod";
 import { ALLOWED_THEME_VAR_KEYS } from "@/lib/theme/shared";
 import {
+  CORE_SITE_THEME_TOKEN_CSS_VARS,
+  type ThemeTokenCssVar,
+} from "@/lib/theme/token-registry";
+import {
   buildPlanDetails,
   getDefaultStylerThemeVars,
   resolveStylerHeuristicPlan,
@@ -187,19 +191,40 @@ const STYLER_RESPONSE_SCHEMA = z
 
 const MAX_SUMMARY_LENGTH = 160;
 const MAX_DESCRIPTION_LENGTH = 320;
-const MAX_RETURNED_VARS = 64;
+export const MAX_RETURNED_VARS = 220;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function limitThemeVariants(variants: ThemeVariants, limit: number): ThemeVariants {
+export function limitThemeVariants(
+  variants: ThemeVariants,
+  limit: number,
+): ThemeVariants {
   if (limit <= 0) return {};
+
+  const prioritizeEntries = (entries: Array<[string, string]>) => {
+    if (entries.length <= limit) return entries;
+    const prioritized: Array<[string, string]> = [];
+    const fallback: Array<[string, string]> = [];
+    for (const entry of entries) {
+      const [key] = entry;
+      if (CORE_SITE_THEME_TOKEN_CSS_VARS.has(key as ThemeTokenCssVar)) {
+        prioritized.push(entry);
+      } else {
+        fallback.push(entry);
+      }
+    }
+    return [...prioritized, ...fallback].slice(0, limit);
+  };
+
   const limited: ThemeVariants = {};
   (["light", "dark"] as const).forEach((mode) => {
     const map = variants[mode];
     if (!map) return;
     const entries = Object.entries(map);
     if (!entries.length) return;
-    limited[mode] = Object.fromEntries(entries.slice(0, limit));
+    const trimmedEntries = prioritizeEntries(entries);
+    if (!trimmedEntries.length) return;
+    limited[mode] = Object.fromEntries(trimmedEntries);
   });
   return limited;
 }

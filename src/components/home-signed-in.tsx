@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import styles from "./home.module.css";
+import styles from "./home-feed.module.css";
 
 import { AppShell } from "./app-shell";
 import { PromoRow } from "./promo-row";

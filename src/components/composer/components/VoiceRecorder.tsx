@@ -4,7 +4,7 @@ import * as React from "react";
 import { Microphone, MicrophoneSlash } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "../../ai-composer.module.css";
-import homeStyles from "@/components/home.module.css";
+import prompterStyles from "@/components/prompter/prompter.module.css";
 
 type VoiceRecorderProps = {
   isActive: boolean;
@@ -28,7 +28,7 @@ export function VoiceRecorder({
   return (
     <button
       type="button"
-      className={`${styles.promptIconBtn} ${homeStyles.voiceBtn}`}
+      className={`${styles.promptIconBtn} ${prompterStyles.voiceBtn}`}
       aria-label={buttonLabel}
       title={buttonLabel}
       aria-pressed={isActive}
@@ -37,7 +37,7 @@ export function VoiceRecorder({
       onClick={onToggle}
       disabled={buttonDisabled}
     >
-      <span className={homeStyles.voicePulse} aria-hidden />
+      <span className={prompterStyles.voicePulse} aria-hidden />
       {isActive ? (
         <MicrophoneSlash size={18} weight="fill" />
       ) : (
@@ -46,3 +46,6 @@ export function VoiceRecorder({
     </button>
   );
 }
+
+
+

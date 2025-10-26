@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import styles from "@/components/home.module.css";
+import styles from "./prompter.module.css";
 import cm from "@/components/ui/context-menu.module.css";
 import { intentLabel } from "@/lib/ai/intent";
 import type { PromptIntent } from "@/lib/ai/intent";

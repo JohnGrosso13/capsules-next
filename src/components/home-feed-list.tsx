@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 
-import styles from "./home.module.css";
+import styles from "./home-feed.module.css";
 import {
   Brain,
   Heart,
@@ -226,34 +226,29 @@ export function HomeFeedList({
   const skeletons = React.useMemo(
     () =>
       Array.from({ length: 4 }, (_, index) => (
-        <article
-          key={`skeleton-${index}`}
-          className={`${styles.card} ${styles.skeletonCard}`.trim()}
-          aria-hidden="true"
-        >
-          <div className={styles.skeletonBackdrop} />
-          <header className={`${styles.cardHead} ${styles.skeletonHead}`.trim()}>
-            <span className={`${styles.avatarWrap} ${styles.skeletonAvatar}`.trim()} />
-            <div className={styles.skeletonHeaderMeta}>
-              <span className={`${styles.skeletonLine} ${styles.skeletonLineWide}`.trim()} />
-              <span className={`${styles.skeletonLine} ${styles.skeletonLineShort}`.trim()} />
+        <article key={`skeleton-${index}`} className={styles.card} data-skeleton="true" aria-hidden>
+          <header className={styles.cardHead}>
+            <span className={styles.avatarWrap} data-skeleton-block />
+            <div data-skeleton-stack>
+              <span data-skeleton-line />
+              <span data-skeleton-line />
             </div>
-            <span className={`${styles.iconBtn} ${styles.skeletonIconBtn}`.trim()} />
+            <span className={styles.iconBtn} data-skeleton-block />
           </header>
-          <div className={`${styles.cardBody} ${styles.skeletonBody}`.trim()}>
-            <span className={`${styles.skeletonLine} ${styles.skeletonLineWide}`.trim()} />
-            <span className={`${styles.skeletonLine} ${styles.skeletonLineMedium}`.trim()} />
-            <span className={`${styles.skeletonLine} ${styles.skeletonLineShort}`.trim()} />
+          <div className={styles.cardBody} data-skeleton-stack>
+            <span data-skeleton-line />
+            <span data-skeleton-line />
+            <span data-skeleton-line />
           </div>
-          <div className={`${styles.mediaGallery} ${styles.skeletonMedia}`.trim()}>
-            <span className={styles.skeletonTile} />
-            <span className={styles.skeletonTile} />
-            <span className={styles.skeletonTile} />
+          <div className={styles.mediaGallery} data-skeleton-gallery>
+            <span data-skeleton-tile />
+            <span data-skeleton-tile />
+            <span data-skeleton-tile />
           </div>
-          <footer className={`${styles.actionBar} ${styles.skeletonActions}`.trim()}>
-            <span className={`${styles.skeletonPill} ${styles.skeletonPillWide}`.trim()} />
-            <span className={`${styles.skeletonPill} ${styles.skeletonPillMedium}`.trim()} />
-            <span className={`${styles.skeletonPill} ${styles.skeletonPillMedium}`.trim()} />
+          <footer className={styles.actionBar}>
+            <span data-skeleton-pill />
+            <span data-skeleton-pill />
+            <span data-skeleton-pill />
           </footer>
         </article>
       )),
@@ -815,7 +810,7 @@ export function HomeFeedList({
         return (
           <article
             key={post.id}
-            className={`${styles.card}${isCardRefreshing ? " " + styles.cardRefreshing : ""}`}
+            className={styles.card}
             data-refreshing={isCardRefreshing ? "true" : undefined}
             aria-busy={isCardRefreshing ? true : undefined}
           >
@@ -917,7 +912,8 @@ export function HomeFeedList({
                 {viewerOwnsPost ? (
                   <button
                     type="button"
-                    className={`${styles.iconBtn} ${styles.iconBtnDelete}`.trim()}
+                    className={styles.iconBtn}
+                    data-variant="danger"
                     onClick={() => onDelete(post.id)}
                     aria-label="Delete post"
                     title="Delete post"
@@ -965,7 +961,8 @@ export function HomeFeedList({
                       <button
                         key={item.id}
                         type="button"
-                        className={`${styles.mediaButton} ${styles.mediaImageButton}`.trim()}
+                        className={styles.mediaButton}
+                        data-kind="image"
                         onClick={() => {
                           if (!mappedLightboxItems.length) return;
                           setLightbox({
@@ -977,7 +974,8 @@ export function HomeFeedList({
                         aria-label={item.name ? `View ${item.name}` : "View attachment"}
                       >
                         <LazyImage
-                          className={`${styles.media} ${styles.mediaImage}`.trim()}
+                          className={styles.media}
+                          data-kind="image"
                           src={item.displayUrl}
                           alt={item.name ?? "Post attachment"}
                           width={1080}
@@ -1076,7 +1074,8 @@ export function HomeFeedList({
                     <>
                       <button
                         type="button"
-                        className={`${styles.lightboxNav} ${styles.lightboxNavPrev}`.trim()}
+                        className={styles.lightboxNav}
+                        data-direction="prev"
                         onClick={() => navigateLightbox(-1)}
                         aria-label="Previous attachment"
                       >
@@ -1084,7 +1083,8 @@ export function HomeFeedList({
                       </button>
                       <button
                         type="button"
-                        className={`${styles.lightboxNav} ${styles.lightboxNavNext}`.trim()}
+                        className={styles.lightboxNav}
+                        data-direction="next"
                         onClick={() => navigateLightbox(1)}
                         aria-label="Next attachment"
                       >
@@ -1361,7 +1361,8 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
     >
       <video
         ref={videoRef}
-        className={`${styles.media} ${styles.mediaVideo}`.trim()}
+        className={styles.media}
+        data-kind="video"
         controls
         playsInline
         preload="metadata"

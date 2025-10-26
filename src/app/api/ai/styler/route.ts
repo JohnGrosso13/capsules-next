@@ -1,12 +1,7 @@
 import { z } from "zod";
 import { groupUsageFromVars, summarizeGroupLabels } from "@/lib/theme/token-groups";
-import {
-  normalizeThemeVariantsInput,
-  isVariantEmpty,
-  THEME_MODES,
-  type ThemeVariants,
-} from "@/lib/theme/variants";
-import { resolveStylerPlan } from "@/server/ai/styler";
+import { normalizeThemeVariantsInput, isVariantEmpty } from "@/lib/theme/variants";
+import { limitThemeVariants, MAX_RETURNED_VARS, resolveStylerPlan } from "@/server/ai/styler";
 import { returnError, validatedJson } from "@/server/validation/http";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 
@@ -23,19 +18,6 @@ const responseSchema = z.object({
   variants: VARIANTS_SCHEMA,
   details: z.string().optional(),
 });
-
-function limitThemeVariants(variants: ThemeVariants, limit: number): ThemeVariants {
-  const output: ThemeVariants = {};
-  for (const mode of THEME_MODES) {
-    const map = variants[mode];
-    if (!map) continue;
-    output[mode] = Object.fromEntries(Object.entries(map).slice(0, limit)) as Record<
-      string,
-      string
-    >;
-  }
-  return output;
-}
 
 async function tryIndexStylerMemory(payload: {
   ownerId: string;
@@ -90,7 +72,10 @@ export async function POST(req: Request) {
       return returnError(422, "styler_unavailable", "I couldn't figure out how to style that yet.");
     }
 
-    const limitedVariants = limitThemeVariants(normalizeThemeVariantsInput(plan.variants), 64);
+    const limitedVariants = limitThemeVariants(
+      normalizeThemeVariantsInput(plan.variants),
+      MAX_RETURNED_VARS,
+    );
     if (isVariantEmpty(limitedVariants)) {
       return returnError(
         422,

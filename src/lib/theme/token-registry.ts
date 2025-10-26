@@ -3743,6 +3743,7 @@ const CORE_THEME_CATEGORIES: readonly ThemeTokenCategory[] = [
   "ring",
   "feedback",
   "presence",
+  "shadow",
   "layout",
   "utility",
   "motion",
@@ -3797,3 +3798,7 @@ export const CORE_SITE_THEME_TOKEN_IDS = coreSiteThemeTokens.map(
 );
 
 export const CORE_SITE_THEME_TOKEN_SET = new Set<ThemeTokenId>(CORE_SITE_THEME_TOKEN_IDS);
+
+export const CORE_SITE_THEME_TOKEN_CSS_VARS = new Set<ThemeTokenCssVar>(
+  coreSiteThemeTokens.map((token) => token.cssVar as ThemeTokenCssVar),
+);

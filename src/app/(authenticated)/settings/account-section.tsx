@@ -8,7 +8,7 @@ import {
   ProfileAvatarCustomizer,
   type CapsuleCustomizerSaveResult,
 } from "@/components/capsule/CapsuleCustomizer";
-import cards from "@/components/home.module.css";
+import cards from "@/components/home-feed.module.css";
 
 import layout from "./settings.module.css";
 import styles from "./account-section.module.css";
@@ -326,3 +326,4 @@ export function AccountSettingsSection({
     </>
   );
 }
+

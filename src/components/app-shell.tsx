@@ -56,22 +56,23 @@ export function AppShell({
   const isCapsule = derivedActive === "capsule";
   const usesCapsuleLayout = isCapsule || layoutVariant === "capsule";
   const [capsuleTab, setCapsuleTab] = React.useState<CapsuleTab>("feed");
-  const layoutClassName = isHome ? `${styles.layout} ${styles.layoutHome}` : styles.layout;
-  const contentClassName = isHome ? `${styles.content} ${styles.contentHome}` : styles.content;
-  const leftRailClassName = isHome
-    ? `${styles.rail} ${styles.leftRail} ${styles.leftRailHome}`
-    : `${styles.rail} ${styles.leftRail}`;
-  const rightRailClassName = isHome
-    ? `${styles.rail} ${styles.rightRail} ${styles.rightRailHome}`
-    : `${styles.rail} ${styles.rightRail}`;
   const isCapsuleFeedView = isCapsule && capsuleTab === "feed";
   const isCapsuleStoreView = isCapsule && capsuleTab === "store";
   const shouldShowDiscoveryRail = showDiscoveryRightRail || isCapsuleFeedView;
   const allowLiveChatRail = showLiveChatRightRail && !isCapsuleStoreView;
   const capsuleHasRightRail = shouldShowDiscoveryRail || allowLiveChatRail;
-  const capsuleLayoutClassName = capsuleHasRightRail
-    ? `${styles.layout} ${styles.layoutCapsule}`
-    : `${styles.layout} ${styles.layoutCapsule} ${styles.layoutCapsuleNoRight}`;
+  const effectiveLayout: "default" | "home" | "capsule" = usesCapsuleLayout
+    ? "capsule"
+    : isHome
+      ? "home"
+      : "default";
+  const nonCapsuleHasRightRail = !usesCapsuleLayout && (isHome || showDiscoveryRightRail);
+  const layoutColumns =
+    usesCapsuleLayout && !capsuleHasRightRail
+      ? "two"
+      : capsuleHasRightRail || nonCapsuleHasRightRail
+        ? "with-right"
+        : "two";
 
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
   React.useEffect(() => {
@@ -107,10 +108,17 @@ export function AppShell({
     return null;
   }, [shouldShowDiscoveryRail, allowLiveChatRail, liveChatRailProps]);
 
+  const standardRightRailContent = !usesCapsuleLayout
+    ? isHome || showDiscoveryRightRail
+      ? <DiscoveryRail />
+      : null
+    : null;
+  const rightRailContent = usesCapsuleLayout ? capsuleRightRailContent : standardRightRailContent;
+
   return (
-    <div className={usesCapsuleLayout ? `${styles.outer} ${styles.outerCapsule}` : styles.outer}>
+    <div className={styles.outer} data-layout={effectiveLayout}>
       <PrimaryHeader activeKey={derivedActive} />
-      <div className={usesCapsuleLayout ? `${styles.page} ${styles.pageCapsule}` : styles.page}>
+      <div className={styles.page} data-layout={effectiveLayout}>
         <main className={styles.main}>
           {showPrompter ? (
             <div className={styles.prompterStage}>
@@ -121,75 +129,43 @@ export function AppShell({
             </div>
           ) : null}
 
-          {usesCapsuleLayout ? (
-            <>
-              <div
-                className={capsuleLayoutClassName}
-                data-capsule-tab={isCapsule ? capsuleTab : undefined}
-              >
-                <aside className={`${styles.rail} ${styles.leftRail} ${styles.leftRailCapsule}`}>
-                  <ConnectionsRail />
-                </aside>
-                <section
-                  className={`${styles.content} ${styles.contentCapsule}`}
-                  data-capsule-tab={isCapsule ? capsuleTab : undefined}
-                >
+          <div
+            className={styles.layout}
+            data-layout={effectiveLayout}
+            data-columns={layoutColumns}
+            data-has-right={usesCapsuleLayout ? String(capsuleHasRightRail) : undefined}
+            data-capsule-tab={usesCapsuleLayout ? capsuleTab : undefined}
+          >
+            <aside className={styles.rail} data-side="left" data-layout={effectiveLayout}>
+              <ConnectionsRail />
+            </aside>
+
+            <section
+              className={styles.content}
+              data-layout={effectiveLayout}
+              data-capsule-tab={usesCapsuleLayout ? capsuleTab : undefined}
+            >
+              {usesCapsuleLayout ? (
+                <>
                   {capsuleBanner ? (
                     <div className={styles.capsuleBanner}>{capsuleBanner}</div>
                   ) : null}
                   {children}
-                </section>
-                {capsuleHasRightRail && capsuleRightRailContent ? (
-                  <aside
-                    className={`${styles.rail} ${styles.rightRail} ${styles.rightRailCapsule}`}
-                  >
-                    {capsuleRightRailContent}
-                  </aside>
-                ) : null}
-              </div>
-            </>
-          ) : (
-            <div
-              className={
-                !isHome && showDiscoveryRightRail
-                  ? `${styles.layout} ${styles.layoutWithRight}`
-                  : layoutClassName
-              }
-            >
-              {isHome ? (
-                <>
-                  {/* Left rail: move connections (friends/chats/requests) here */}
-                  <aside className={leftRailClassName}>
-                    <ConnectionsRail />
-                  </aside>
-                  <section className={contentClassName}>
-                    {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
-                    {children}
-                  </section>
-                  {/* Right rail: placeholder recommendations + live-feed-like UI */}
-                  <aside className={rightRailClassName}>
-                    <DiscoveryRail />
-                  </aside>
                 </>
               ) : (
                 <>
-                  {/* Non-home pages: place connections rail on the left to match app */}
-                  <aside className={leftRailClassName}>
-                    <ConnectionsRail />
-                  </aside>
-                  <section className={contentClassName}>
-                    {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
-                    {children}
-                  </section>
-                  {!isHome && showDiscoveryRightRail ? (
-                    <aside className={rightRailClassName}>
-                      <DiscoveryRail />
-                    </aside>
-                  ) : null}
+                  {promoSlot ? <div className={styles.promoRowSpace}>{promoSlot}</div> : null}
+                  {children}
                 </>
               )}
-            </div>
-          )}
+            </section>
+
+            {rightRailContent ? (
+              <aside className={styles.rail} data-side="right" data-layout={effectiveLayout}>
+                {rightRailContent}
+              </aside>
+            ) : null}
+          </div>
         </main>
       </div>
       {/* Composer is mounted globally via AiComposerRoot */}

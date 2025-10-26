@@ -16,7 +16,7 @@ import {
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import capsuleTileHostStyles from "@/components/capsule/capsule-tile-host.module.css";
-import homeStyles from "./home.module.css";
+import lightboxStyles from "@/components/home-feed.module.css";
 import styles from "./promo-row.module.css";
 
 type MediaKind = "image" | "video";
@@ -508,16 +508,16 @@ export function PromoRow() {
       </div>
       {currentItem ? (
         <div
-          className={homeStyles.lightboxOverlay}
+          className={lightboxStyles.lightboxOverlay}
           role="dialog"
           aria-modal="true"
           aria-label={currentItem.caption ?? "Promo media viewer"}
           onClick={closeLightbox}
         >
-          <div className={homeStyles.lightboxContent} onClick={(event) => event.stopPropagation()}>
+          <div className={lightboxStyles.lightboxContent} onClick={(event) => event.stopPropagation()}>
             <button
               type="button"
-              className={homeStyles.lightboxClose}
+              className={lightboxStyles.lightboxClose}
               onClick={closeLightbox}
               aria-label="Close promo media viewer"
             >
@@ -525,17 +525,19 @@ export function PromoRow() {
             </button>
             {tileCount > 1 ? (
               <>
-                <button
-                  type="button"
-                  className={`${homeStyles.lightboxNav} ${homeStyles.lightboxNavPrev}`.trim()}
+                  <button
+                    type="button"
+                    className={lightboxStyles.lightboxNav}
+                    data-direction="prev"
                   onClick={() => navigateLightbox(-1)}
                   aria-label="Previous promo media"
                 >
                   <CaretLeft size={28} weight="bold" />
                 </button>
-                <button
-                  type="button"
-                  className={`${homeStyles.lightboxNav} ${homeStyles.lightboxNavNext}`.trim()}
+                  <button
+                    type="button"
+                    className={lightboxStyles.lightboxNav}
+                    data-direction="next"
                   onClick={() => navigateLightbox(1)}
                   aria-label="Next promo media"
                 >
@@ -543,12 +545,12 @@ export function PromoRow() {
                 </button>
               </>
             ) : null}
-            <div className={homeStyles.lightboxBody}>
-              <div className={homeStyles.lightboxMedia}>
+            <div className={lightboxStyles.lightboxBody}>
+              <div className={lightboxStyles.lightboxMedia}>
                 {currentItem.mediaSrc ? (
                   currentItem.kind === "video" ? (
                     <video
-                      className={homeStyles.lightboxVideo}
+                      className={lightboxStyles.lightboxVideo}
                       controls
                       playsInline
                       preload="auto"
@@ -560,7 +562,7 @@ export function PromoRow() {
                   ) : (
                     /* eslint-disable-next-line @next/next/no-img-element -- preserve lightbox loading behaviour */
                     <img
-                      className={homeStyles.lightboxImage}
+                      className={lightboxStyles.lightboxImage}
                       src={currentItem.mediaSrc}
                       alt={currentItem.caption ?? "Promo media"}
                       loading="eager"
@@ -578,7 +580,7 @@ export function PromoRow() {
               </div>
             </div>
             {currentItem.caption ? (
-              <div className={homeStyles.lightboxCaption}>{currentItem.caption}</div>
+              <div className={lightboxStyles.lightboxCaption}>{currentItem.caption}</div>
             ) : null}
           </div>
         </div>

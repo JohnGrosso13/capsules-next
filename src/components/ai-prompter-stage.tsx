@@ -14,7 +14,7 @@ import { setTheme } from "@/lib/theme";
 import { detectComposerMode, resolveNavigationTarget, navHint } from "@/lib/ai/nav";
 import type { ComposerMode } from "@/lib/ai/nav";
 
-import styles from "./home.module.css";
+import styles from "./prompter/prompter.module.css";
 import { PrompterSuggestedActions } from "@/components/prompter/PrompterSuggestedActions";
 import { PrompterToolbar } from "@/components/prompter/PrompterToolbar";
 import { usePrompterDragAndDrop } from "@/components/prompter/usePrompterDragAndDrop";
@@ -719,7 +719,6 @@ export function AiPrompterStage({
     </section>
   );
 }
-
 
 
 

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import styles from "@/components/home.module.css";
+import styles from "./prompter.module.css";
 import { Paperclip, Microphone, MicrophoneSlash } from "@phosphor-icons/react/dist/ssr";
 import { IntentOverrideMenu } from "@/components/prompter/IntentOverrideMenu";
 import type { PromptIntent } from "@/lib/ai/intent";
