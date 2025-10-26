@@ -48,7 +48,7 @@
 
   .feedUtilityButton:hover:not(:disabled) {
     transform: translateY(-1px);
-    border-color: var(--border-brand-strong, rgba(99, 102, 241, 0.45));
+    border-color: var(--border-brand-strong, rgba(37, 99, 235, 0.45));
     box-shadow: var(--shadow-sm, 0 10px 24px rgba(10, 14, 35, 0.32));
   }
 
@@ -59,13 +59,13 @@
 
   .feedEmpty {
     border-radius: var(--radius-xl, 20px);
-    border: 1px dashed color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent);
     padding: clamp(32px, 5vw, 56px);
     text-align: center;
     background:
       linear-gradient(
         180deg,
-        color-mix(in srgb, var(--color-brand, #6366f1) 14%, transparent),
+        color-mix(in srgb, var(--color-brand, #2563eb) 14%, transparent),
         transparent
       ),
       var(--surface-elevated, rgba(16, 22, 46, 0.86));
@@ -126,7 +126,7 @@
   }
 
   .card:hover,
-  .card:has(:focus-visible) {
+  .card:focus-within {
     border-color: var(--card-hover-border, rgba(255, 255, 255, 0.22));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.14),
@@ -140,13 +140,13 @@
     transform: translateY(-1px);
   }
 
-  .card:has(:focus-visible) {
-    outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 50%, transparent);
+  .card:focus-within {
+    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 50%, transparent);
     outline-offset: -1px;
   }
 
   .card:hover::before,
-  .card:has(:focus-visible)::before {
+  .card:focus-within::before {
     opacity: 1;
   }
 
@@ -168,7 +168,7 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(135deg, transparent, color-mix(in srgb, var(--color-brand, #6366f1) 20%, transparent), transparent);
+    background: linear-gradient(135deg, transparent, color-mix(in srgb, var(--color-brand, #2563eb) 20%, transparent), transparent);
     animation: sweep 1.4s linear infinite;
     opacity: 0.65;
     pointer-events: none;
@@ -198,7 +198,7 @@
   }
 
   .card:hover .cardHead,
-  .card:has(:focus-visible) .cardHead {
+  .card:focus-within .cardHead {
     background: var(--home-cardhead-background, linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.04)));
     border-bottom-color: var(--home-cardhead-border-bottom-color, rgba(255, 255, 255, 0.12));
   }
@@ -253,7 +253,7 @@
   .userNameButton:hover,
   .userNameButton:focus-visible {
     text-decoration: underline;
-    text-decoration-color: var(--color-brand, #6366f1);
+    text-decoration-color: var(--color-brand, #2563eb);
     text-decoration-thickness: 2px;
   }
 
@@ -289,12 +289,12 @@
   .iconBtn:hover:not(:disabled),
   .iconBtn:focus-visible {
     transform: translateY(-1px);
-    border-color: var(--border-brand-strong, rgba(99, 102, 241, 0.45));
+    border-color: var(--border-brand-strong, rgba(37, 99, 235, 0.45));
   }
 
   .iconBtn[data-variant="memory"][data-active="true"] {
-    color: var(--color-brand, #6366f1);
-    border-color: color-mix(in srgb, var(--color-brand, #6366f1) 60%, transparent);
+    color: var(--color-brand, #2563eb);
+    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent);
   }
 
   .iconBtn[data-variant="danger"] {
@@ -357,26 +357,6 @@
     border-radius: var(--radius-lg, 18px);
     overflow: hidden;
     border: 1px solid var(--border-default, rgba(255, 255, 255, 0.12));
-    background: color-mix(in srgb, rgba(20, 26, 48, 0.78) 55%, rgba(6, 10, 24, 0.82) 45%);
-    transition:
-      border-color 160ms var(--motion-ease-standard, ease),
-      box-shadow 160ms var(--motion-ease-standard, ease);
-  }
-
-  .mediaWrapper[data-kind="video"] {
-    aspect-ratio: 16 / 9;
-    min-height: max(180px, min(32vw, 320px));
-    background: color-mix(in srgb, rgba(20, 26, 48, 0.82) 62%, rgba(15, 23, 42, 0.66));
-  }
-
-  .mediaWrapper[data-kind="video"] video {
-    width: 100%;
-    height: 100%;
-    display: block;
-    outline: none;
-    border: none;
-    border-radius: inherit;
-    background: transparent;
   }
 
   .mediaVideoOverlay {
@@ -388,20 +368,12 @@
     justify-content: center;
     color: var(--color-fg, rgba(255, 255, 255, 0.92));
     pointer-events: none;
-    transition: opacity 200ms var(--motion-ease-standard, ease);
   }
 
   .mediaVideoIcon {
     width: 48px;
     height: 48px;
     opacity: 0.85;
-    filter: drop-shadow(0 10px 24px rgba(6, 8, 16, 0.45));
-  }
-
-  .mediaVideoOverlay[data-hidden="true"],
-  .mediaWrapper[data-kind="video"][data-playing="true"] .mediaVideoOverlay {
-    opacity: 0;
-    visibility: hidden;
   }
 
   .actionBar {
@@ -414,7 +386,7 @@
   }
 
   .card:hover .actionBar,
-  .card:has(:focus-visible) .actionBar {
+  .card:focus-within .actionBar {
     border-top-color: var(--card-hover-border, rgba(255, 255, 255, 0.12));
   }
 
@@ -627,8 +599,9 @@
 
   .pollCard {
     border-radius: var(--radius-lg, 18px);
-    border: 1px solid var(--border-default, rgba(255, 255, 255, 0.12));
-    background: var(--surface-muted, rgba(18, 22, 48, 0.85));
+    border: 1px solid
+      var(--home-poll-card-border, var(--border-default, rgba(255, 255, 255, 0.12)));
+    background: var(--home-poll-card-background, var(--surface-muted, rgba(18, 22, 48, 0.85)));
     padding: var(--space-lg);
     display: grid;
     gap: var(--space-md);
@@ -638,7 +611,7 @@
     margin: 0;
     font-size: 1rem;
     font-weight: 700;
-    color: var(--color-fg, rgba(255, 255, 255, 0.92));
+    color: var(--home-poll-question, var(--color-fg, rgba(255, 255, 255, 0.92)));
   }
 
   .pollOptions {
@@ -649,21 +622,32 @@
   .pollOption {
     position: relative;
     border-radius: var(--radius-lg, 14px);
-    border: 1px solid var(--border-default, rgba(255, 255, 255, 0.12));
-    background: rgba(5, 8, 20, 0.55);
+    border: 1px solid
+      var(--home-poll-option-border, var(--border-default, rgba(255, 255, 255, 0.12)));
+    background: var(--home-poll-option-background, rgba(5, 8, 20, 0.55));
     overflow: hidden;
   }
 
   .pollOption[data-selected="true"] {
-    border-color: color-mix(in srgb, var(--color-brand, #6366f1) 45%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand, #6366f1) 45%, transparent);
+    border-color: var(
+      --home-poll-option-selected-border,
+      color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent)
+    );
+    box-shadow: inset 0 0 0 1px
+      var(
+        --home-poll-option-selected-border,
+        color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent)
+      );
   }
 
   .pollOptionBar {
     position: absolute;
     inset: 0;
     transform-origin: left;
-    background: color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent);
+    background: var(
+      --home-poll-option-fill,
+      color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent)
+    );
     transition: transform 200ms var(--motion-ease-standard, ease);
     pointer-events: none;
   }
@@ -687,7 +671,7 @@
 
   .pollOptionLabel {
     font-weight: 600;
-    color: var(--color-fg, rgba(255, 255, 255, 0.9));
+    color: var(--home-poll-option-label, var(--color-fg, rgba(255, 255, 255, 0.9)));
   }
 
   .pollOptionMeta {
@@ -695,7 +679,7 @@
     align-items: center;
     gap: var(--space-xs);
     font-size: 0.85rem;
-    color: var(--color-fg-subtle, rgba(255, 255, 255, 0.68));
+    color: var(--home-poll-option-meta, var(--color-fg-subtle, rgba(255, 255, 255, 0.68)));
   }
 
   .pollOptionPercent,
@@ -714,7 +698,7 @@
 
   .pollFooter {
     font-size: 0.85rem;
-    color: var(--color-fg-subtle, rgba(255, 255, 255, 0.62));
+    color: var(--home-poll-footer, var(--color-fg-subtle, rgba(255, 255, 255, 0.62)));
   }
 
   .documentGrid {
