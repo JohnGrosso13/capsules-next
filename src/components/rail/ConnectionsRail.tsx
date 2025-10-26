@@ -177,7 +177,7 @@ export function ConnectionsRail() {
     declinePartyInvite,
   } = useFriendsDataContext();
 
-  const [railMode, setRailMode] = React.useState<"tiles" | "connections">("connections");
+  const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
 
   // Chat / group chat integration
@@ -655,7 +655,7 @@ export function ConnectionsRail() {
   );
 
   React.useEffect(() => {
-    setRailMode("connections");
+    setRailMode("tiles");
     setActiveRailTab("friends");
     setActiveFriendTarget(null);
     setFriendActionPendingId(null);
@@ -687,7 +687,7 @@ export function ConnectionsRail() {
       className={`${styles.railConnections} ${styles.railConnectionsOuter}`.trim()}
       data-mode={railMode}
     >
-      {false ? (
+      {railMode === "tiles" ? (
         <div className={styles.connectionTilesShell}>
           <div className={styles.connectionTiles}>
             {connectionTiles.map((tile) => (
@@ -737,11 +737,19 @@ export function ConnectionsRail() {
       ) : (
         <div
           ref={connectionsContainerRef}
-          className={styles.railConnections}
+          className={styles.railViewport}
           data-mode="connections"
           style={connectionsStyle}
         >
           <div className={styles.railHeaderRow}>
+            <button
+              type="button"
+              className={styles.railBackBtn}
+              aria-label="Back to tiles"
+              onClick={() => setRailMode("tiles")}
+            >
+              &lt;
+            </button>
             {/* Quick actions on the right when viewing connections */}
             <div className={styles.railHeaderAction}>
               <button
@@ -862,6 +870,3 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
-
-
-
