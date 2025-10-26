@@ -742,9 +742,6 @@ export function ConnectionsRail() {
           style={connectionsStyle}
         >
           <div className={styles.railHeaderRow}>
-            <button
-              type="button"
-              {/* Back button removed to keep tabbed buttons consistent */}
             {/* Quick actions on the right when viewing connections */}
             <div className={styles.railHeaderAction}>
               <button
