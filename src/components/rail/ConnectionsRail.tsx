@@ -177,7 +177,7 @@ export function ConnectionsRail() {
     declinePartyInvite,
   } = useFriendsDataContext();
 
-  const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
+  const [railMode, setRailMode] = React.useState<"tiles" | "connections">("connections");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
 
   // Chat / group chat integration
@@ -655,7 +655,7 @@ export function ConnectionsRail() {
   );
 
   React.useEffect(() => {
-    setRailMode("tiles");
+    setRailMode("connections");
     setActiveRailTab("friends");
     setActiveFriendTarget(null);
     setFriendActionPendingId(null);
@@ -687,7 +687,7 @@ export function ConnectionsRail() {
       className={`${styles.railConnections} ${styles.railConnectionsOuter}`.trim()}
       data-mode={railMode}
     >
-      {railMode === "tiles" ? (
+      {false ? (
         <div className={styles.connectionTilesShell}>
           <div className={styles.connectionTiles}>
             {connectionTiles.map((tile) => (
@@ -870,3 +870,4 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
+
