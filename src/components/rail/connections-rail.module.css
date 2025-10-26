@@ -374,14 +374,16 @@
     justify-content: space-between;
     padding: 10px 12px;
     border-radius: clamp(16px, 2vw, 20px);
-    border: 1px solid
-      color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.18)) 85%, transparent);
+    border: 1px solid var(--rail-border, var(--card-border, rgba(255, 255, 255, 0.14)));
+    /* Use neutral rail shell so actions sit on a clean plate in light/dark */
     background: linear-gradient(
       180deg,
-      rgba(42, 52, 96, 0.58),
-      rgba(18, 22, 48, 0.62)
+      var(--rail-bg-1, var(--card-bg-1)),
+      var(--rail-bg-2, var(--card-bg-2))
     );
-    box-shadow: var(--home-railheader-shadow, 0 18px 38px rgba(6, 12, 34, 0.45));
+    box-shadow: var(--home-railheader-shadow, 0 18px 38px rgba(6, 12, 34, 0.18));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     position: relative;
     isolation: isolate;
   }
@@ -406,54 +408,25 @@
     row-gap: 8px;
     flex-wrap: wrap;
     max-width: 100%;
-    --friends-action-text: rgba(246, 248, 255, 0.96);
-    --friends-action-border: color-mix(in srgb, var(--color-brand, #2563eb) 58%, transparent);
-    --friends-action-background: linear-gradient(
-      170deg,
-      rgba(66, 78, 148, 0.82),
-      rgba(22, 28, 60, 0.74)
-    );
-    --friends-action-hover-border: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 78%,
-      transparent
-    );
-    --friends-action-active-border: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 84%,
-      transparent
-    );
-    --friends-action-active-shadow: 0 18px 38px
-      color-mix(in srgb, var(--color-brand, #2563eb) 30%, transparent);
-    --friends-action-hover-filter: brightness(1.05);
-    --friends-group-action-text: rgba(246, 248, 255, 0.96);
-    --friends-group-action-border: color-mix(in srgb, var(--color-accent, #22d3ee) 68%, transparent);
-    --friends-group-action-background: linear-gradient(
-      150deg,
-      rgba(46, 164, 255, 0.84),
-      rgba(24, 44, 86, 0.7)
-    );
-    --friends-group-action-hover-border: color-mix(
-      in srgb,
-      var(--color-accent, #22d3ee) 82%,
-      transparent
-    );
-    --friends-group-action-active-shadow: 0 18px 40px
-      color-mix(in srgb, var(--color-accent, #22d3ee) 32%, transparent);
-    --friends-party-action-text: rgba(246, 248, 255, 0.96);
-    --friends-party-action-border: color-mix(in srgb, var(--color-brand, #2563eb) 70%, transparent);
-    --friends-party-action-background: linear-gradient(
-      150deg,
-      rgba(108, 84, 255, 0.88),
-      rgba(32, 20, 84, 0.74)
-    );
-    --friends-party-action-hover-border: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 86%,
-      transparent
-    );
-    --friends-party-action-active-shadow: 0 20px 42px
-      color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent);
+    /* Unify action buttons: same brand gradient for Group + Party */
+    --friends-action-text: var(--cta-button-text, var(--text-on-brand, #041021));
+    --friends-action-border: color-mix(in srgb, var(--color-brand, #2563eb) 55%, var(--rail-border, var(--card-border)));
+    --friends-action-background: var(--cta-button-gradient, var(--gradient-brand));
+    --friends-action-hover-border: color-mix(in srgb, var(--color-brand, #2563eb) 68%, var(--friends-action-border));
+    --friends-action-active-border: color-mix(in srgb, var(--color-brand, #2563eb) 75%, var(--friends-action-border));
+    --friends-action-active-shadow: 0 14px 34px color-mix(in srgb, var(--color-brand, #2563eb) 22%, rgba(15,23,42,0.18));
+    --friends-action-hover-filter: brightness(1.04);
+    /* Map per-button tokens to the unified action style */
+    --friends-group-action-text: var(--friends-action-text);
+    --friends-group-action-border: var(--friends-action-border);
+    --friends-group-action-background: var(--friends-action-background);
+    --friends-group-action-hover-border: var(--friends-action-hover-border);
+    --friends-group-action-active-shadow: var(--friends-action-active-shadow);
+    --friends-party-action-text: var(--friends-action-text);
+    --friends-party-action-border: var(--friends-action-border);
+    --friends-party-action-background: var(--friends-action-background);
+    --friends-party-action-hover-border: var(--friends-action-hover-border);
+    --friends-party-action-active-shadow: var(--friends-action-active-shadow);
   }
 
   .railHeaderAction :global(.chatActionButton) {
