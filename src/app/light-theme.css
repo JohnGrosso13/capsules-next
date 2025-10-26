@@ -715,72 +715,32 @@
     --prompter-primary-button-text: var(--cta-button-text, var(--text-on-brand, var(--text)));
 
     /* Chats surface tokens */
-    --chats-panel-background: color-mix(
-      in srgb,
-      var(--surface-elevated, rgba(255, 255, 255, 0.92)) 96%,
-      rgba(148, 197, 255, 0.2)
-    );
+    --chats-panel-background: linear-gradient(180deg, #ffffff, #f7faff);
     --chats-panel-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
-    --chats-empty-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(226, 232, 255, 0.86) 70%, transparent),
-      color-mix(in srgb, rgba(203, 213, 255, 0.6) 70%, transparent)
-    );
+    --chats-empty-background: linear-gradient(180deg, #fbfdff, #eef4ff);
     --chats-thread-background: var(
       --style-chats-bg,
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, rgba(221, 229, 255, 0.75) 70%, transparent),
-        color-mix(in srgb, rgba(195, 210, 255, 0.55) 70%, transparent)
-      )
+      linear-gradient(180deg, #ffffff, #f5f8ff)
     );
     --chats-thread-active-shadow: 0 16px 36px
       color-mix(in srgb, var(--color-brand) 24%, transparent);
     --chats-avatar-background: var(
       --style-chats-icon-bg,
-      color-mix(in srgb, var(--color-brand) 28%, rgba(255, 255, 255, 0.94))
+      color-mix(in srgb, var(--color-brand) 20%, #edf2ff)
     );
     --chats-thread-badge-background: var(
       --style-chats-badge-bg,
       color-mix(in srgb, var(--color-brand) 62%, rgba(59, 130, 246, 0.28))
     );
     --chats-thread-badge-text: var(--style-chats-badge-color, var(--text-on-brand));
-    --chats-conversation-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(224, 231, 255, 0.78) 70%, transparent),
-      color-mix(in srgb, rgba(210, 224, 255, 0.52) 70%, transparent)
-    );
-    --chats-control-border: color-mix(
-      in srgb,
-      var(--header-brand-strong-color, #2563eb) 32%,
-      rgba(148, 163, 184, 0.28)
-    );
-    --chats-control-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(255, 255, 255, 0.96) 80%, transparent),
-      color-mix(in srgb, rgba(210, 224, 255, 0.34) 70%, transparent)
-    );
-    --chats-control-hover-border: color-mix(
-      in srgb,
-      var(--header-brand-strong-color, #2563eb) 55%,
-      rgba(148, 163, 184, 0.2)
-    );
-    --chats-control-active-border: color-mix(
-      in srgb,
-      var(--header-brand-strong-color, #2563eb) 65%,
-      rgba(148, 163, 184, 0.18)
-    );
-    --chats-control-active-background: color-mix(
-      in srgb,
-      var(--header-brand-color, #0ea5e9) 18%,
-      rgba(255, 255, 255, 0.94)
-    );
+    --chats-conversation-background: linear-gradient(180deg, #ffffff, #f7faff);
+    --chats-control-border: color-mix(in srgb, var(--color-border) 90%, transparent);
+    --chats-control-background: linear-gradient(180deg, #ffffff, #f5f8ff);
+    --chats-control-hover-border: color-mix(in srgb, var(--color-brand) 45%, var(--chats-control-border));
+    --chats-control-active-border: color-mix(in srgb, var(--color-brand) 55%, var(--chats-control-border));
+    --chats-control-active-background: color-mix(in srgb, var(--color-brand) 12%, #ffffff);
     --chats-control-text: var(--text-on-brand, #041021);
-    --chats-message-background: color-mix(
-      in srgb,
-      rgba(221, 229, 255, 0.82) 70%,
-      rgba(199, 210, 255, 0.65)
-    );
+    --chats-message-background: linear-gradient(180deg, #ffffff, #f6f9ff);
     --chats-message-shadow: 0 12px 22px rgba(15, 23, 42, 0.18);
     --chats-message-self-background: linear-gradient(
       135deg,
@@ -795,21 +755,9 @@
       rgba(255, 255, 255, 0.94)
     );
     --chats-error-text: color-mix(in srgb, var(--color-danger) 65%, rgba(14, 23, 42, 0.85));
-    --chats-composer-background: color-mix(
-      in srgb,
-      var(--surface-muted, rgba(255, 255, 255, 0.86)) 96%,
-      rgba(203, 213, 255, 0.26)
-    );
-    --chats-composer-attachment-border: color-mix(
-      in srgb,
-      rgba(148, 163, 184, 0.32) 68%,
-      transparent
-    );
-    --chats-composer-attachment-background: color-mix(
-      in srgb,
-      rgba(242, 248, 255, 0.95) 82%,
-      color-mix(in srgb, var(--header-brand-color, #0ea5e9) 10%, transparent)
-    );
+    --chats-composer-background: linear-gradient(180deg, #ffffff, #f7faff);
+    --chats-composer-attachment-border: color-mix(in srgb, var(--color-border) 90%, transparent);
+    --chats-composer-attachment-background: linear-gradient(180deg, #ffffff, #f5f8ff);
     --chats-composer-attachment-remove: color-mix(
       in srgb,
       rgba(88, 94, 128, 0.62) 70%,
@@ -825,41 +773,17 @@
       var(--header-brand-color, #0ea5e9) 18%,
       rgba(241, 247, 255, 0.8)
     );
-    --chats-message-attachment-border: color-mix(
-      in srgb,
-      rgba(148, 163, 184, 0.32) 65%,
-      transparent
-    );
+    --chats-message-attachment-border: color-mix(in srgb, var(--color-border) 88%, transparent);
     --chats-message-attachment-hover-border: color-mix(
       in srgb,
       var(--header-brand-strong-color, #2563eb) 52%,
       transparent
     );
-    --chats-message-attachment-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(242, 248, 255, 0.95) 88%, transparent),
-      color-mix(in srgb, rgba(228, 238, 255, 0.92) 95%, transparent)
-    );
-    --chats-message-attachment-self-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(220, 235, 255, 0.98) 88%, transparent),
-      color-mix(in srgb, rgba(204, 225, 255, 0.95) 96%, transparent)
-    );
-    --chats-message-attachment-self-border: color-mix(
-      in srgb,
-      var(--header-brand-color, #0ea5e9) 35%,
-      rgba(148, 163, 184, 0.28)
-    );
-    --chats-message-attachment-preview-border: color-mix(
-      in srgb,
-      rgba(148, 163, 184, 0.32) 65%,
-      transparent
-    );
-    --chats-message-attachment-preview-background: color-mix(
-      in srgb,
-      rgba(241, 247, 255, 0.92) 85%,
-      rgba(217, 231, 255, 0.82)
-    );
+    --chats-message-attachment-background: linear-gradient(180deg, #ffffff, #eef4ff);
+    --chats-message-attachment-self-background: linear-gradient(180deg, #f7fbff, #eaf2ff);
+    --chats-message-attachment-self-border: color-mix(in srgb, var(--color-border) 88%, transparent);
+    --chats-message-attachment-preview-border: color-mix(in srgb, var(--color-border) 88%, transparent);
+    --chats-message-attachment-preview-background: color-mix(in srgb, #ffffff 92%, #eef2ff);
     --chats-message-attachment-preview-hover-border: color-mix(
       in srgb,
       var(--header-brand-strong-color, #2563eb) 52%,
