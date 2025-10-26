@@ -687,11 +687,7 @@ export function ConnectionsRail() {
       className={`${styles.railConnections} ${styles.railConnectionsOuter}`.trim()}
       data-mode={railMode}
     >
-<<<<<<< HEAD
-      {railMode === "tiles" ? (
-=======
-      {railMode === "tiles" ? (
->>>>>>> fix/connections-rail-ui
+      {false ? (
         <div className={styles.connectionTilesShell}>
           <div className={styles.connectionTiles}>
             {connectionTiles.map((tile) => (
@@ -741,19 +737,11 @@ export function ConnectionsRail() {
       ) : (
         <div
           ref={connectionsContainerRef}
-          className={styles.railViewport}
+          className={styles.railConnections}
           data-mode="connections"
           style={connectionsStyle}
         >
           <div className={styles.railHeaderRow}>
-            <button
-              type="button"
-              className={styles.railBackBtn}
-              aria-label="Back to tiles"
-              onClick={() => setRailMode("tiles")}
-            >
-              &lt;
-            </button>
             {/* Quick actions on the right when viewing connections */}
             <div className={styles.railHeaderAction}>
               <button
@@ -874,5 +862,6 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
+
 
 

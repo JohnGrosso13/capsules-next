@@ -6,13 +6,6 @@
     --color-fg-subtle: rgba(14, 16, 36, 0.6);
     --color-border: rgba(14, 23, 42, 0.12);
     --color-border-strong: rgba(14, 23, 42, 0.22);
-    --color-brand: #2563eb;
-    --color-brand-strong: #1d4ed8;
-    --color-brand-foreground: #041021;
-    --color-brand-muted: rgba(37, 99, 235, 0.16);
-    --gradient-brand: linear-gradient(120deg, #60a5fa 0%, #2563eb 55%, #1d4ed8 100%);
-    --cta-gradient: linear-gradient(120deg, #60a5fa 0%, #2563eb 55%, #0ea5e9 100%);
-    --cta-chip-gradient: linear-gradient(95deg, #60a5fa 0%, #2563eb 48%, #0ea5e9 100%);
     /* Readable text tokens for components expecting --text/--text-2 */
     --text: var(--color-fg);
     --text-2: var(--color-fg-muted);
@@ -67,71 +60,16 @@
     /* On light theme, keep hover background essentially the same to avoid washout */
     --card-hover-bg-1: var(--card-bg-1);
     --card-hover-bg-2: var(--card-bg-2);
-    --card-hover-border: rgba(37, 99, 235, 0.26);
-    --card-hover-shadow: 0 22px 48px rgba(37, 99, 235, 0.18);
+    --card-hover-border: rgba(99, 102, 241, 0.26);
+    --card-hover-shadow: 0 22px 48px rgba(99, 102, 241, 0.18);
 
     /* Quiet action plates in posts */
-    --feed-action-bg-1: rgba(246, 249, 255, 0.96);
-    --feed-action-bg-2: rgba(228, 237, 255, 0.86);
-    --feed-action-border: color-mix(in srgb, rgba(37, 99, 235, 0.4) 70%, rgba(148, 163, 184, 0.18));
-    --feed-action-border-hover: color-mix(
-      in srgb,
-      rgba(59, 130, 246, 0.45) 75%,
-      rgba(148, 163, 184, 0.2)
-    );
-    --feed-action-shadow-hover: 0 16px 36px rgba(59, 130, 246, 0.22);
-    --feed-icon-text: color-mix(in srgb, var(--color-brand, #2563eb) 38%, var(--color-fg));
-
-    --home-poll-card-border: color-mix(
-      in srgb,
-      rgba(37, 99, 235, 0.38) 70%,
-      rgba(148, 163, 184, 0.18)
-    );
-    --home-poll-card-background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.98),
-      rgba(233, 240, 255, 0.9)
-    );
-    --home-poll-question: color-mix(
-      in srgb,
-      var(--header-brand-strong-color, #2563eb) 55%,
-      rgba(14, 23, 42, 0.88)
-    );
-    --home-poll-option-border: color-mix(
-      in srgb,
-      rgba(148, 197, 255, 0.45) 75%,
-      rgba(148, 163, 184, 0.16)
-    );
-    --home-poll-option-background: linear-gradient(
-      180deg,
-      rgba(241, 246, 255, 0.92),
-      rgba(225, 235, 255, 0.85)
-    );
-    --home-poll-option-selected-border: color-mix(
-      in srgb,
-      var(--header-brand-strong-color, #2563eb) 55%,
-      rgba(148, 163, 184, 0.24)
-    );
-    --home-poll-option-fill: linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(37, 99, 235, 0.28) 85%, rgba(255, 255, 255, 0.2)),
-      color-mix(in srgb, rgba(59, 130, 246, 0.24) 85%, rgba(255, 255, 255, 0.18))
-    );
-    --home-poll-option-label: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 32%,
-      var(--color-fg)
-    );
-    --home-poll-option-meta: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 28%,
-      rgba(14, 23, 42, 0.64)
-    );
-    --home-poll-footer: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 24%,
-      rgba(14, 23, 42, 0.58)
-    );
+    --feed-action-bg-1: rgba(255, 255, 255, 0.86);
+    --feed-action-bg-2: rgba(255, 255, 255, 0.76);
+    --feed-action-border: rgba(14, 23, 42, 0.12);
+    --feed-action-border-hover: rgba(14, 23, 42, 0.2);
+    --feed-action-shadow-hover: 0 12px 28px rgba(15, 23, 42, 0.18);
+    --feed-icon-text: var(--text, var(--color-fg, rgba(14, 16, 36, 0.96)));
 
     /* Icon plate tokens */
     --icon-plate-bg-1: rgba(255, 255, 255, 0.9);
@@ -147,11 +85,11 @@
     --app-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 247, 255, 0.92));
 
     --text-3: var(--color-fg-subtle, rgba(14, 16, 36, 0.6));
-    --accent-glow: rgba(37, 99, 235, 0.18);
-    --alert-bg: color-mix(in srgb, rgba(37, 99, 235, 0.12), rgba(255, 255, 255, 0.9));
-    --alert-border: color-mix(in srgb, rgba(37, 99, 235, 0.26), transparent);
+    --accent-glow: rgba(15, 23, 42, 0.14);
+    --alert-bg: rgba(14, 23, 42, 0.04);
+    --alert-border: rgba(14, 23, 42, 0.18);
     --alert-fg: rgba(14, 16, 36, 0.96);
-    --alert-accent: var(--color-brand);
+    --alert-accent: rgba(14, 16, 36, 0.96);
     --brand-gradient: var(--gradient-brand);
     --cta-button-gradient: var(--cta-chip-gradient, var(--cta-gradient));
     --cta-chip-gradient: var(--cta-gradient);
@@ -280,17 +218,17 @@
     --live-chat-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
     --live-chat-header-icon-bg: linear-gradient(
       180deg,
-      color-mix(in srgb, rgba(37, 99, 235, 0.2) 70%, rgba(255, 255, 255, 0.96)),
+      color-mix(in srgb, rgba(99, 102, 241, 0.2) 70%, rgba(255, 255, 255, 0.96)),
       color-mix(in srgb, rgba(37, 99, 235, 0.18) 65%, rgba(255, 255, 255, 0.9))
     );
     --live-chat-status-bg: color-mix(
       in srgb,
-      rgba(37, 99, 235, 0.08) 70%,
+      rgba(99, 102, 241, 0.08) 70%,
       rgba(255, 255, 255, 0.95)
     );
     --live-chat-status-border: color-mix(
       in srgb,
-      rgba(37, 99, 235, 0.24) 70%,
+      rgba(99, 102, 241, 0.24) 70%,
       rgba(148, 163, 184, 0.26)
     );
     --live-chat-status-live-bg: color-mix(
@@ -316,7 +254,7 @@
     --live-chat-participant-row-bg: rgba(255, 255, 255, 0.9);
     --live-chat-participant-bg: color-mix(
       in srgb,
-      rgba(37, 99, 235, 0.14) 70%,
+      rgba(99, 102, 241, 0.14) 70%,
       rgba(255, 255, 255, 0.94)
     );
     --live-chat-participant-fg: color-mix(in srgb, rgba(14, 16, 36, 0.76) 90%, transparent);
@@ -337,12 +275,12 @@
     --live-chat-input-border: rgba(148, 163, 184, 0.28);
     --live-chat-send-bg: linear-gradient(
       135deg,
-      rgba(37, 99, 235, 0.92),
+      rgba(99, 102, 241, 0.92),
       rgba(56, 189, 248, 0.88)
     );
     --live-chat-send-bg-disabled: linear-gradient(
       135deg,
-      rgba(37, 99, 235, 0.4),
+      rgba(99, 102, 241, 0.4),
       rgba(56, 189, 248, 0.32)
     );
     --live-chat-send-fg: var(--text-on-brand, #0e1024);
@@ -479,30 +417,6 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.82), inset 0 -1px 0 rgba(14, 23, 42, 0.12),
       0 2px 8px rgba(15, 23, 42, 0.12);
     --home-railtab-accent: var(--header-brand-strong-color, #2563eb);
-    --home-railviewport-border: color-mix(
-      in srgb,
-      rgba(148, 197, 255, 0.5) 75%,
-      rgba(148, 163, 184, 0.18)
-    );
-    --home-railviewport-background:
-      radial-gradient(
-        140% 120% at 50% 0%,
-        color-mix(
-          in srgb,
-          var(--header-brand-color, #0ea5e9) 28%,
-          rgba(255, 255, 255, 0.92)
-        )
-          0%,
-        transparent 58%
-      ),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(232, 240, 255, 0.9));
-    --home-railviewport-shadow: 0 26px 48px rgba(59, 130, 246, 0.18);
-    --home-railviewport-highlight: linear-gradient(
-      120deg,
-      rgba(255, 255, 255, 0.75),
-      transparent 55%
-    );
-    --home-railviewport-highlight-opacity: 0.55;
 
     /* Friends surface tokens */
     --friends-tabs-scrim: color-mix(
@@ -1214,7 +1128,7 @@
       radial-gradient(45% 55% at 50% 80%, rgba(210, 224, 255, 0.12), transparent 70%);
 
     /* CTA override tokens: exact purple→cyan gradient for light mode */
-    --cta-gradient-launch-light: linear-gradient(120deg, #60a5fa 0%, #22d3ee 100%);
+    --cta-gradient-launch-light: linear-gradient(120deg, #8b5cf6 0%, #22d3ee 100%);
     --cta-button-shadow: 0 16px 32px rgba(37, 99, 235, 0.24);
 
     /* Create page tokens */
