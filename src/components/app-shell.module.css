@@ -61,7 +61,7 @@
   /* Match feed column width so rails can sit beside it cleanly */
   max-width: var(--app-feed-width, clamp(640px, 52vw, 760px));
   width: 100%;
-  margin: 0 auto var(--layout-prompter-margin-bottom);
+  margin: 0 auto calc(var(--layout-prompter-margin-bottom) + var(--mobile-dock-height, 0px));
   position: relative;
   z-index: 300;
   isolation: isolate;
@@ -72,7 +72,9 @@
 
 @media (max-width: 640px) {
   .prompterStage {
-    margin-bottom: var(--layout-prompter-margin-bottom-mobile);
+    margin-bottom: calc(
+      var(--layout-prompter-margin-bottom-mobile) + var(--mobile-dock-height, 0px)
+    );
   }
   /* Ensure center content is never clamped on small screens */
   .content,
