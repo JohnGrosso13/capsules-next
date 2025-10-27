@@ -342,11 +342,19 @@ export function ConnectionsRail() {
     if (typeof window === "undefined") return;
     const node = connectionsContainerRef.current;
     if (!node) return;
-    const rect = node.getBoundingClientRect();
-    const viewportHeight = window.innerHeight || 0;
-    const topOffset = Number.isFinite(rect.top) ? rect.top : 0;
+
+    // Prefer a stable sticky top offset from the containing aside so height
+    // does not change depending on current scroll position. Measuring the
+    // element's bounding rect would cause the rail to resize when opened at
+    // different scroll offsets.
+    const railAside = node.closest("aside[data-side]") as HTMLElement | null;
+    const stickyTopPx = railAside ? window.getComputedStyle(railAside).top : "0px";
+    const stickyTop = Number.parseFloat(stickyTopPx || "0");
+
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    // Keep a small visual breathing room at the bottom so shadows aren't clipped.
     const bottomInset = 24;
-    const available = viewportHeight - topOffset - bottomInset;
+    const available = viewportHeight - (Number.isFinite(stickyTop) ? stickyTop : 0) - bottomInset;
     if (!Number.isFinite(available)) return;
     const nextHeight = Math.max(360, Math.round(available));
     setConnectionsViewportHeight((prev) => (prev === nextHeight ? prev : nextHeight));

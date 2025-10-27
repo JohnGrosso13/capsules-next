@@ -75,11 +75,41 @@ export function AppShell({
         : "two";
 
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
+  const prompterRef = React.useRef<HTMLDivElement | null>(null);
+  const layoutRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
     if (!statusMessage) return;
     const timer = window.setTimeout(() => setStatusMessage(null), 4000);
     return () => window.clearTimeout(timer);
   }, [statusMessage]);
+
+  // Keep a CSS var with the actual rendered prompter height so we can lift
+  // the rails upward without letting them affect grid sizing.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const layoutEl = layoutRef.current;
+    if (!layoutEl) return;
+    let frame = 0;
+    const update = () => {
+      const prompterEl = prompterRef.current;
+      const rect = prompterEl ? prompterEl.getBoundingClientRect() : null;
+      const height = rect ? Math.max(0, Math.round(rect.height)) : 0;
+      layoutEl.style.setProperty("--prompter-height", `${height}px`);
+    };
+    const onResize = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        update();
+      });
+    };
+    update();
+    window.addEventListener("resize", onResize);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [showPrompter]);
 
   React.useEffect(() => {
     if (!isCapsule) {
@@ -121,7 +151,7 @@ export function AppShell({
       <div className={styles.page} data-layout={effectiveLayout}>
         <main className={styles.main}>
           {showPrompter ? (
-            <div className={styles.prompterStage}>
+            <div ref={prompterRef} className={styles.prompterStage}>
               <AiPrompterStage
                 onAction={composer.handlePrompterAction}
                 statusMessage={statusMessage}
@@ -131,9 +161,11 @@ export function AppShell({
 
           <div
             className={styles.layout}
+            ref={layoutRef}
             data-layout={effectiveLayout}
             data-columns={layoutColumns}
             data-has-right={usesCapsuleLayout ? String(capsuleHasRightRail) : undefined}
+            data-has-prompter={showPrompter ? "true" : undefined}
             data-capsule-tab={usesCapsuleLayout ? capsuleTab : undefined}
           >
             <aside className={styles.rail} data-side="left" data-layout={effectiveLayout}>

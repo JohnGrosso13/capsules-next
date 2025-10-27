@@ -34,6 +34,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--layout-page-gap);
+  /* Share column width tokens with the prompter so it can align with feed */
+  --app-feed-width: clamp(640px, 52vw, 760px);
+  --app-rail-width: clamp(320px, 24vw, 380px);
+  --app-column-gap: clamp(20px, 2.5vw, 40px);
 }
 
 .page[data-layout="capsule"] {
@@ -50,13 +54,17 @@
 }
 
 .prompterStage {
-  max-width: 860px;
+  /* Match feed column width so rails can sit beside it cleanly */
+  max-width: var(--app-feed-width, clamp(640px, 52vw, 760px));
   width: 100%;
   margin: 0 auto var(--layout-prompter-margin-bottom);
   position: relative;
   z-index: 300;
   isolation: isolate;
 }
+
+/* When rendered inside the grid, anchor the prompter to the center column */
+/* no .prompterInGrid: prompter sits above the grid for better flow */
 
 @media (max-width: 640px) {
   .prompterStage {
@@ -65,9 +73,6 @@
 }
 
 .layout {
-  --app-feed-width: clamp(640px, 52vw, 760px);
-  --app-rail-width: clamp(320px, 24vw, 380px);
-  --app-column-gap: clamp(20px, 2.5vw, 40px);
   display: grid;
   grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width));
   gap: var(--layout-column-gap);
@@ -81,6 +86,9 @@
     minmax(0, var(--app-rail-width));
   column-gap: var(--app-column-gap);
 }
+
+/* Reduce vertical gap between the prompter row and content row */
+/* spacing controlled by prompter's own margin; keep grid gap normal */
 
 .layout[data-layout="home"] {
   grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width))
@@ -140,6 +148,14 @@
   position: sticky;
   top: calc(var(--header-height, var(--space-8xl)) + var(--layout-header-offset));
   display: block;
+}
+
+/* Lift rails up to visually align with the prompter when present */
+/* With a prompter in grid, flow content to row 2 center column */
+/* Visually lift both rails so their top aligns with the prompter above */
+.layout[data-has-prompter="true"] .rail {
+  /* Lift equals prompter's rendered height + its bottom margin */
+  margin-top: calc((var(--prompter-height, 0px) + var(--layout-prompter-margin-bottom)) * -1);
 }
 
 .rail[data-side="left"],
@@ -227,6 +243,11 @@
   }
   .rail {
     position: static;
+    margin-top: 0; /* ensure no lift on small layouts */
+  }
+  /* reset any desktop-only rail lift on small layouts */
+  .layout[data-has-prompter="true"] .rail {
+    margin-top: 0;
   }
   .rail[data-side="left"],
   .rail[data-side="right"] {
