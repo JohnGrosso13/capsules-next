@@ -12,13 +12,34 @@ type Props = {
 };
 
 export function PrompterPreviewModal({ open, url, mime, name, onClose }: Props) {
-  if (!open || !url) return null;
+  const isOpen = Boolean(open && url);
   const isImage = typeof mime === "string" && mime.startsWith("image/");
   const isVideo = typeof mime === "string" && mime.startsWith("video/");
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !url) return null;
+
   return (
-    <div className={styles.previewModal} role="dialog" aria-modal="true" aria-label={name ?? "Attachment preview"}>
-      <button className={styles.previewClose} aria-label="Close preview" onClick={onClose}>
-        ×
+    <div
+      className={styles.previewModal}
+      role="dialog"
+      aria-modal="true"
+      aria-label={name ?? "Attachment preview"}
+      onClick={(event) => {
+        if (event.currentTarget === event.target) onClose();
+      }}
+    >
+      <button className={styles.previewClose} onClick={onClose}>
+        <span aria-hidden>&times;</span>
+        <span className={styles.previewCloseLabel}>Close</span>
       </button>
       <div className={styles.previewInner}>
         {isImage ? (

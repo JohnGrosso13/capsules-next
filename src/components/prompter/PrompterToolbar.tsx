@@ -229,23 +229,47 @@ export function PrompterToolbar({
                       {att.name}
                     </span>
                   )}
-                  <span className={att.status === "error" ? styles.attachmentStatusError : styles.attachmentStatus}>
-                    {att.status === "uploading"
-                      ? `Uploading ${Math.round(Math.min(Math.max(att.progress ?? 0, 0), 1) * 100)}%`
-                      : att.status === "error"
-                        ? att.error ?? "Upload failed"
-                        : "Attached"}
-                  </span>
-                  {att.status === "error" && att.originalFile && onRetryAttachment ? (
+                <span className={att.status === "error" ? styles.attachmentStatusError : styles.attachmentStatus}>
+                  {att.status === "uploading"
+                    ? `Uploading ${Math.round(Math.min(Math.max(att.progress ?? 0, 0), 1) * 100)}%`
+                    : att.status === "error"
+                      ? att.error ?? "Upload failed"
+                      : "Attached"}
+                </span>
+                  {att.status === "error" ? (
+                    <span className={styles.attachmentActions}>
+                      {att.originalFile && onRetryAttachment ? (
+                        <button
+                          type="button"
+                          className={styles.attachmentActionButton}
+                          onClick={() => onRetryAttachment(att)}
+                          aria-label={`Retry upload for ${att.name}`}
+                          title="Retry upload"
+                        >
+                          Retry
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className={styles.attachmentActionButton}
+                        onClick={() => onRemoveAttachment(att.id)}
+                        aria-label={`Remove ${att.name}`}
+                        title="Remove attachment"
+                      >
+                        Remove
+                      </button>
+                    </span>
+                  ) : null}
+                  {att.status === "ready" ? (
                     <span className={styles.attachmentActions}>
                       <button
                         type="button"
                         className={styles.attachmentActionButton}
-                        onClick={() => onRetryAttachment(att)}
-                        aria-label={`Retry upload for ${att.name}`}
-                        title="Retry upload"
+                        onClick={() => onRemoveAttachment(att.id)}
+                        aria-label={`Remove ${att.name}`}
+                        title="Remove attachment"
                       >
-                        Retry
+                        Remove
                       </button>
                     </span>
                   ) : null}
@@ -260,15 +284,6 @@ export function PrompterToolbar({
                     </span>
                   ) : null}
                 </span>
-                <button
-                  type="button"
-                  className={styles.attachmentRemove}
-                  onClick={() => onRemoveAttachment(att.id)}
-                  aria-label="Remove attachment"
-                  title="Remove attachment"
-                >
-                  &times;
-                </button>
               </span>
             ))}
           </div>
