@@ -234,9 +234,13 @@
 
 @media (max-width: 1000px) {
   .layout {
-    grid-template-columns: 1fr;
-    justify-content: stretch;
-    column-gap: var(--layout-column-gap);
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--layout-mobile-section-gap);
+    column-gap: 0;
   }
   .page {
     /* Tablet and small-desktop widths should not clamp the feed; use full width */
