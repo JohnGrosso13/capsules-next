@@ -689,7 +689,8 @@ export function AiPrompterStage({
       : postPlan.mode === "ai"
         ? "AI will draft this for you."
         : null;
-  const styleHint = effectiveIntent === "style" ? "AI Styler is ready." : null;  const [uploadCompleteHint, setUploadCompleteHint] = React.useState<string | null>(null);
+  const styleHint = effectiveIntent === "style" ? "AI Styler is ready." : null;
+  const [uploadCompleteHint, setUploadCompleteHint] = React.useState<string | null>(null);
   const lastCompletedIdRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!attachmentsEnabled) return;
@@ -697,11 +698,16 @@ export function AiPrompterStage({
     if (attachment.status === "ready" && attachment.id && attachment.id !== lastCompletedIdRef.current) {
       lastCompletedIdRef.current = attachment.id;
       setUploadCompleteHint("Upload complete.");
-      const id = window.setTimeout(() => setUploadCompleteHint(null), 1800);
-      return () => window.clearTimeout(id);
+      const id = typeof window !== "undefined" ? window.setTimeout(() => setUploadCompleteHint(null), 1800) : null;
+      return () => {
+        if (typeof window !== "undefined" && id !== null) {
+          window.clearTimeout(id);
+        }
+      };
     }
     return undefined;
   }, [attachmentsEnabled, attachment]);
+
   const rawHint =
     statusMessage ??
     uploadCompleteHint ??
@@ -713,9 +719,7 @@ export function AiPrompterStage({
         styleHint ??
         (attachment?.status === "error" ? attachment.error : null) ??
         (buttonBusy ? "Analyzing intent..." : autoIntent.reason ?? null)
-      : null);\n
-  
-  
+      : null);
 
   function humanizeHint(input: string | null): string | null {
     if (!input) return null;
@@ -729,12 +733,12 @@ export function AiPrompterStage({
   const aiBusy = Boolean(composerContext.state?.loading);
   const crumbs = React.useRef(
     [
-      "Analyzing your prompt…",
-      "Scanning attachments…",
-      "Looking up context…",
-      "Drafting ideas…",
-      "Polishing phrasing…",
-      "Almost there…",
+      "Analyzing your prompt...",
+      "Scanning attachments...",
+      "Looking up context...",
+      "Drafting ideas...",
+      "Polishing phrasing...",
+      "Almost there...",
     ] as const,
   );
   const [crumbIndex, setCrumbIndex] = React.useState(0);
