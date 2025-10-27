@@ -757,7 +757,7 @@ export function HomeFeedList({
             width && height && height > 0
               ? Math.min(Math.max(Number((width / height).toFixed(4)), 0.05), 20)
               : null;
-          const { metadata, ...rest } = item;
+          const { metadata: _metadata, ...rest } = item;
           galleryItems.push({
             ...rest,
             width: width && Number.isFinite(width) ? width : null,
@@ -1054,15 +1054,6 @@ export function HomeFeedList({
                   const lightboxLookup = new Map<string, number>(
                     imageLightboxItems.map((entry, idx) => [entry.id, idx]),
                   );
-                  const openLightboxForId = (targetId: string) => {
-                    if (!imageLightboxItems.length) return;
-                    const targetIndex = lightboxLookup.get(targetId) ?? 0;
-                    setLightbox({
-                      postId: post.id,
-                      index: targetIndex,
-                      items: imageLightboxItems,
-                    });
-                  };
                   const isSingleImageLayout =
                     galleryItems.length === 1 && galleryItems[0]?.kind === "image";
 
@@ -1074,7 +1065,7 @@ export function HomeFeedList({
                     >
                       {galleryItems.map((item) => {
                         if (item.kind === "video") {
-                          return <FeedVideo key={item.id} item={item} />;
+                          return <FeedVideo key={item.id} item={item as FeedVideoItem} />;
                         }
 
                         const imageIndex = lightboxLookup.get(item.id) ?? 0;
@@ -1530,9 +1521,8 @@ function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
 
 type FeedVideoItem = FeedGalleryItem & { kind: "video" };
 
-function FeedVideo({ item }: { item: FeedGalleryItem }) {
-  if (item.kind !== "video") return null;
-  const videoItem = item as FeedVideoItem;
+function FeedVideo({ item }: { item: FeedVideoItem }) {
+  const videoItem = item;
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [isPlaying, setIsPlaying] = React.useState(false);
