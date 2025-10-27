@@ -436,10 +436,14 @@
     row-gap: 8px;
     flex-wrap: wrap;
     max-width: 100%;
-    /* Use solid, matte actions to match screenshot */
-    --friends-action-text: var(--text);
-    --friends-action-border: color-mix(in srgb, var(--color-brand, #2563eb) 55%, var(--rail-border, var(--card-border)));
-    --friends-action-background: color-mix(in srgb, rgba(255, 255, 255, 0.085) 100%, transparent);
+    /* Bring back branded gradient actions like screenshot */
+    --friends-action-text: var(--cta-button-text, var(--text-on-brand, #ffffff));
+    --friends-action-border: color-mix(
+      in srgb,
+      var(--color-brand, #6366f1) 60%,
+      var(--rail-border, var(--card-border))
+    );
+    --friends-action-background: var(--cta-button-gradient, var(--gradient-brand));
     --friends-action-hover-border: color-mix(in srgb, var(--color-brand, #2563eb) 68%, var(--friends-action-border));
     --friends-action-active-border: color-mix(in srgb, var(--color-brand, #2563eb) 75%, var(--friends-action-border));
     --friends-action-active-shadow: 0 14px 34px color-mix(in srgb, var(--color-brand, #2563eb) 22%, rgba(15,23,42,0.18));
