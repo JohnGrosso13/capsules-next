@@ -641,31 +641,19 @@
 
     /* Party Voice tokens defaults (dark fallback to brand)
        Style pass: favor acrylic glass + soft neu depth */
-    --party-tile-background: linear-gradient(
-      155deg,
-      color-mix(in srgb, var(--color-brand) 22%, rgba(22, 30, 60, 0.94)) 0%,
-      color-mix(in srgb, var(--color-brand-strong) 18%, rgba(12, 18, 40, 0.92)) 45%,
-      color-mix(in srgb, rgba(8, 12, 34, 0.9) 86%, rgba(4, 6, 22, 0.96)) 100%
-    );
+    --party-tile-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-tile-border: color-mix(
       in srgb,
       var(--card-border, rgba(255, 255, 255, 0.16)) 78%,
       color-mix(in srgb, var(--color-brand) 30%, transparent)
     );
     --party-tile-shadow: 0 20px 44px color-mix(in srgb, rgba(5, 10, 30, 0.5) 70%, transparent);
-    --party-hero-background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand) 35%, transparent) 0%,
-      color-mix(in srgb, var(--color-brand) 10%, transparent) 100%
-    );
+    --party-hero-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-hero-border: color-mix(in srgb, var(--card-border) 70%, transparent);
-    --party-hero-accent: color-mix(in srgb, var(--color-brand) 55%, transparent);
-    --party-primary-background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand) 68%, transparent),
-      color-mix(in srgb, var(--color-accent) 42%, transparent)
-    );
-    --party-primary-border: color-mix(in srgb, var(--color-brand) 85%, transparent);
+    --party-hero-accent: color-mix(in srgb, var(--color-brand) 35%, transparent);
+    /* Matte primary action for dark mode */
+    --party-primary-background: color-mix(in srgb, var(--color-brand) 28%, transparent);
+    --party-primary-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
     --party-status-background: color-mix(in srgb, var(--color-accent) 20%, transparent);
     --party-status-border: color-mix(in srgb, var(--color-brand) 52%, transparent);
     --party-startaudio-border: color-mix(in srgb, var(--color-brand) 65%, transparent);

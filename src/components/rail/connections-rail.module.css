@@ -44,7 +44,7 @@
       --home-railviewport-highlight,
       linear-gradient(120deg, rgba(255, 255, 255, 0.12), transparent 55%)
     );
-    opacity: var(--home-railviewport-highlight-opacity, 0.38);
+    opacity: var(--home-railviewport-highlight-opacity, 0.22);
     pointer-events: none;
   }
 
@@ -421,8 +421,8 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 60%);
-    opacity: 0.5;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 60%);
+    opacity: 0.32;
     pointer-events: none;
     z-index: -1;
   }
@@ -436,10 +436,10 @@
     row-gap: 8px;
     flex-wrap: wrap;
     max-width: 100%;
-    /* Unify action buttons: same brand gradient for Group + Party */
-    --friends-action-text: var(--cta-button-text, var(--text-on-brand, #041021));
+    /* Use solid, matte actions to match screenshot */
+    --friends-action-text: var(--text);
     --friends-action-border: color-mix(in srgb, var(--color-brand, #2563eb) 55%, var(--rail-border, var(--card-border)));
-    --friends-action-background: var(--cta-button-gradient, var(--gradient-brand));
+    --friends-action-background: color-mix(in srgb, rgba(255, 255, 255, 0.085) 100%, transparent);
     --friends-action-hover-border: color-mix(in srgb, var(--color-brand, #2563eb) 68%, var(--friends-action-border));
     --friends-action-active-border: color-mix(in srgb, var(--color-brand, #2563eb) 75%, var(--friends-action-border));
     --friends-action-active-shadow: 0 14px 34px color-mix(in srgb, var(--color-brand, #2563eb) 22%, rgba(15,23,42,0.18));
@@ -544,11 +544,12 @@
     padding: 9px 12px;
     border-radius: var(--pill-radius, 999px);
     border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
-    background: linear-gradient(180deg, var(--pill-bg-1, rgba(32, 38, 70, 0.82)), var(--pill-bg-2, rgba(20, 26, 48, 0.7)));
+    /* Subtler pill surface for dark mode */
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.035));
     color: var(--color-fg, rgba(255, 255, 255, 0.92));
     font-weight: 800;
     letter-spacing: 0.01em;
-    box-shadow: var(--home-railtab-box-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.16));
+    box-shadow: var(--home-railtab-box-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.1));
     width: 100%;
     transition:
       transform 0.16s ease,
