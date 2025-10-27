@@ -291,42 +291,49 @@
   }
 
   .connectionTile[data-tile="party"] {
+    /* Cohesive light theme: use site brand blues instead of purple */
     --tile-bg-final: var(
       --style-party-bg,
       linear-gradient(
         160deg,
-        color-mix(in srgb, #38bdf8 28%, rgba(255, 255, 255, 0.14)),
-        color-mix(in srgb, #0ea5e9 26%, rgba(255, 255, 255, 0.12))
+        color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 22%, rgba(255, 255, 255, 0.18)),
+        color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 16%, rgba(255, 255, 255, 0.12))
       ),
       var(--tile-bg-base)
     );
     --tile-border-final: var(
       --style-party-border,
-      color-mix(in srgb, #1d4ed8 38%, rgba(132, 148, 255, 0.22))
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 45%, var(--tile-border-base, rgba(132, 148, 255, 0.22)))
     );
     --tile-icon-bg-final: var(
       --style-party-icon-bg,
-      color-mix(in srgb, #7c3aed 34%, rgba(255, 255, 255, 0.16))
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 32%, rgba(255, 255, 255, 0.16))
     );
-    --tile-icon-color-final: var(--style-party-icon-color, rgba(15, 18, 30, 0.92));
-    --tile-desc-final: var(--style-party-desc, rgba(232, 236, 255, 0.88));
-    --tile-badge-bg-final: var(--style-party-badge-bg, rgba(12, 18, 36, 0.85));
-    --tile-badge-color-final: var(--style-party-badge-color, rgba(246, 248, 255, 0.94));
-    --tile-border-hover: var(--style-party-border-hover, rgba(151, 102, 255, 0.55));
-    --tile-shadow-hover: var(--style-party-shadow-hover, 0 22px 46px rgba(28, 24, 72, 0.42));
+    --tile-icon-color-final: var(
+      --style-party-icon-color,
+      var(--tile-icon-color-base, rgba(18, 24, 42, 0.86))
+    );
+    --tile-desc-final: var(--style-party-desc, rgba(24, 34, 64, 0.8));
+    --tile-badge-bg-final: var(--style-party-badge-bg, rgba(16, 22, 52, 0.86));
+    --tile-badge-color-final: var(--style-party-badge-color, rgba(246, 248, 255, 0.96));
+    --tile-border-hover: var(
+      --style-party-border-hover,
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 62%, rgba(148, 163, 184, 0.28))
+    );
+    --tile-shadow-hover: var(--style-party-shadow-hover, 0 22px 48px rgba(18, 28, 62, 0.4));
     --tile-accent-a: var(
       --style-party-accent-a,
-      color-mix(in srgb, var(--header-brand-color, #38bdf8) 58%, #3b82f6)
+      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 58%, #38bdf8)
     );
     --tile-accent-b: var(
       --style-party-accent-b,
-      color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 46%, #0ea5e9)
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 48%, #60a5fa)
     );
     --tile-accent-c: var(
       --style-party-accent-c,
-      color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 28%, rgba(15, 23, 42, 0.72))
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 36%, transparent)
     );
-    --tile-glow-opacity: 0.28;
+    --tile-glow-opacity: 0.32;
   }
 
   .connectionTile[data-tile="chats"] {

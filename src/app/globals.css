@@ -628,17 +628,17 @@
     /* Party Voice tokens defaults (dark fallback to brand)
        Style pass: favor acrylic glass + soft neu depth */
     --party-tile-background: linear-gradient(
-      140deg,
-      color-mix(in srgb, var(--color-brand) 42%, rgba(16, 22, 48, 0.95)) 0%,
-      color-mix(in srgb, var(--color-brand-strong) 28%, rgba(12, 18, 44, 0.9)) 42%,
-      color-mix(in srgb, var(--color-accent) 32%, rgba(10, 16, 40, 0.88)) 100%
+      155deg,
+      color-mix(in srgb, var(--color-brand) 22%, rgba(22, 30, 60, 0.94)) 0%,
+      color-mix(in srgb, var(--color-brand-strong) 18%, rgba(12, 18, 40, 0.92)) 45%,
+      color-mix(in srgb, rgba(8, 12, 34, 0.9) 86%, rgba(4, 6, 22, 0.96)) 100%
     );
     --party-tile-border: color-mix(
       in srgb,
-      var(--color-brand) 48%,
-      var(--card-border, rgba(255, 255, 255, 0.16))
+      var(--card-border, rgba(255, 255, 255, 0.16)) 78%,
+      color-mix(in srgb, var(--color-brand) 30%, transparent)
     );
-    --party-tile-shadow: 0 22px 46px color-mix(in srgb, var(--color-brand) 22%, rgba(5, 10, 30, 0.46));
+    --party-tile-shadow: 0 20px 44px color-mix(in srgb, rgba(5, 10, 30, 0.5) 70%, transparent);
     --party-hero-background: linear-gradient(
       135deg,
       color-mix(in srgb, var(--color-brand) 35%, transparent) 0%,
@@ -1035,6 +1035,14 @@
     --settings-nav-item-active-shadow:
       0 0 18px var(--accent-glow, rgba(99, 102, 241, 0.34)), 0 6px 12px rgba(2, 6, 23, 0.38),
       inset 0 1px 0 rgba(255, 255, 255, 0.45);
+
+    /* Voice controls (dark theme) */
+    --voice-select-border: color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.16)) 70%, transparent);
+    --voice-select-background: linear-gradient(180deg, var(--glass-bg-1, rgba(255, 255, 255, 0.06)), var(--glass-bg-2, rgba(255, 255, 255, 0.035)));
+    --voice-select-text: var(--text, var(--color-fg, rgba(255, 255, 255, 0.94)));
+    --voice-slider-track: color-mix(in srgb, rgba(24, 30, 60, 0.86) 84%, rgba(10, 16, 38, 0.86));
+    --voice-slider-fill: linear-gradient(90deg, var(--color-brand, #6366f1) 0%, color-mix(in srgb, var(--color-accent, #22d3ee) 60%, var(--color-brand, #6366f1)) 100%);
+    --voice-slider-thumb: var(--color-brand-strong, #4f46e5);
 
     /* Surface layering */
     --surface-1: rgba(21, 26, 48, 0.82);

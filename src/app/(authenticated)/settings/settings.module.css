@@ -1,7 +1,7 @@
 .main {
   /* Fill the AppShell content column so spacing is driven by shared gaps */
   width: 100%;
-  max-width: none;
+  max-width: 100%;
   margin: 0;
   padding: 0;
   /* Align brand accents with the blue header palette for a cohesive settings experience */
@@ -17,6 +17,7 @@
 /* Outer container reminiscent of the previous glass/neumorphic shell */
 .shell {
   display: grid;
+  /* Use container-based sizing so we don't overflow into the right rail */
   grid-template-columns: minmax(200px, 220px) minmax(0, 1fr);
   gap: 24px; /* match AppShell gap for left column vs rail */
   align-items: start;
@@ -101,6 +102,8 @@
   display: grid;
   gap: 16px;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 .contentHead {
   display: flex;
