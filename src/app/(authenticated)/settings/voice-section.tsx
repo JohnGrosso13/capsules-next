@@ -352,7 +352,7 @@ export function VoiceSettingsSection(): React.JSX.Element {
   const outputDeviceAvailable = outputDevices.length > 0;
 
   return (
-    <article className={`${cards.card} ${layout.card}`}>
+    <article className={`${cards.card} ${layout.card} ${styles.sectionCard}`}>
       <header className={cards.cardHead}>
         <h3 className={layout.sectionTitle}>Voice</h3>
       </header>

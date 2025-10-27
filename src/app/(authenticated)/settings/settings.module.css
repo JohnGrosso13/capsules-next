@@ -17,7 +17,7 @@
 /* Outer container reminiscent of the previous glass/neumorphic shell */
 .shell {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: minmax(200px, 220px) minmax(0, 1fr);
   gap: 24px; /* match AppShell gap for left column vs rail */
   align-items: start;
 }
@@ -100,6 +100,7 @@
 .content {
   display: grid;
   gap: 16px;
+  min-width: 0;
 }
 .contentHead {
   display: flex;
@@ -118,6 +119,7 @@
 .section {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 .sectionTitle {
   margin: 0;
