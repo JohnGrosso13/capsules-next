@@ -523,6 +523,13 @@
     justify-content: center;
     color: var(--color-fg, rgba(255, 255, 255, 0.92));
     pointer-events: none;
+    opacity: 1;
+    transition: opacity 160ms var(--motion-ease-standard, ease);
+  }
+
+  .mediaVideoOverlay[data-hidden="true"] {
+    opacity: 0;
+    visibility: hidden;
   }
 
   .mediaVideoIcon {
@@ -681,23 +688,25 @@
     z-index: 1000;
     display: grid;
     place-items: center;
-    padding: clamp(var(--space-lg), 4vw, var(--space-4xl, 2.5rem));
-    background: var(--home-lightboxoverlay-background, rgba(3, 6, 18, 0.88));
+    --lightbox-pad: clamp(var(--space-lg), 4vw, var(--space-4xl, 2.75rem));
+    padding: var(--lightbox-pad);
+    background: var(--home-lightboxoverlay-background, rgba(3, 6, 18, 0.9));
     backdrop-filter: blur(26px);
   }
 
   .lightboxContent {
     position: relative;
     display: grid;
-    gap: clamp(var(--space-md), 2vw, var(--space-xl));
-    width: auto;
-    max-width: min(96vw, 1400px);
-    max-height: min(96vh, 980px);
-    padding: clamp(var(--space-md), 2vw, var(--space-lg));
+    gap: clamp(var(--space-md), 1.6vw, var(--space-xl));
+    width: min(100%, calc(100vw - var(--lightbox-pad) * 2));
+    max-width: min(1200px, calc(100vw - var(--lightbox-pad) * 2));
+    max-height: calc(100vh - var(--lightbox-pad) * 2);
+    padding: 0;
     background: transparent;
     border: none;
     box-shadow: none;
     justify-items: center;
+    align-items: center;
   }
 
   .lightboxClose {
@@ -720,6 +729,7 @@
     transition:
       transform 160ms var(--motion-ease-standard, ease),
       background 160ms var(--motion-ease-standard, ease);
+    z-index: 3;
   }
 
   .lightboxClose:hover {
@@ -742,14 +752,14 @@
 
   .lightboxBody {
     position: relative;
-    display: grid;
-    gap: clamp(var(--space-md), 1.8vw, var(--space-xl));
-    width: fit-content;
-    max-width: 100%;
-    margin: 0 auto;
-    justify-items: center;
+    display: flex;
     align-items: center;
-    padding: clamp(var(--space-xs), 1.4vw, var(--space-md));
+    justify-content: center;
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - var(--lightbox-pad) * 2 - clamp(72px, 10vh, 128px));
+    margin: 0 auto;
+    padding: clamp(var(--space-xs), 1.2vw, var(--space-md));
   }
 
   .lightboxNav {
@@ -808,15 +818,16 @@
   }
 
   .lightboxMedia {
+    --lightbox-media-max-width: min(1000px, calc(100vw - var(--lightbox-pad) * 2));
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    max-width: min(94vw, 1320px);
+    width: min(100%, var(--lightbox-media-max-width));
+    max-width: min(100%, var(--lightbox-media-max-width));
     height: auto;
-    max-height: min(92vh, 960px);
-    padding: clamp(var(--space-sm), 1.8vw, var(--space-lg));
+    max-height: 100%;
+    padding: clamp(var(--space-sm), 1.6vw, var(--space-lg));
     border-radius: var(--radius-2xl, 32px);
     background: var(--home-lightboxvideo-background, rgba(15, 23, 42, 0.92));
     overflow: hidden;
@@ -826,13 +837,21 @@
   }
 
   .lightboxMedia[data-orientation="portrait"] {
-    align-items: flex-start;
+    --lightbox-media-max-width: min(78vw, 860px);
+  }
+
+  .lightboxMedia[data-orientation="landscape"] {
+    --lightbox-media-max-width: min(94vw, 1400px);
+  }
+
+  .lightboxMedia[data-orientation="square"] {
+    --lightbox-media-max-width: min(88vw, 1200px);
   }
 
   .lightboxImage,
   .lightboxVideo {
-    width: 100%;
-    height: 100%;
+    width: auto;
+    height: auto;
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
@@ -856,19 +875,17 @@
     }
 
     .lightboxContent {
-      width: 100%;
-      max-width: 100%;
-      padding: clamp(var(--space-md), 6vw, var(--space-xl));
-      max-height: min(96vh, 760px);
+      max-width: calc(100vw - var(--lightbox-pad) * 2);
+      max-height: calc(100vh - var(--lightbox-pad) * 2);
     }
 
     .lightboxBody {
-      padding: clamp(var(--space-xs), 4vw, var(--space-sm));
+      max-height: calc(100vh - var(--lightbox-pad) * 2 - clamp(84px, 14vh, 148px));
+      padding: clamp(var(--space-xs), 3vw, var(--space-md));
     }
 
     .lightboxMedia {
-      padding: clamp(var(--space-xs), 4vw, var(--space-md));
-      max-height: min(90vh, 720px);
+      padding: clamp(var(--space-xs), 3.5vw, var(--space-md));
     }
 
     .lightboxNav {

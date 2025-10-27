@@ -126,6 +126,22 @@ function coerceDimension(value: unknown): number | null {
   return null;
 }
 
+type FeedGalleryItem = {
+  id: string;
+  originalUrl: string;
+  displayUrl: string;
+  displaySrcSet: string | null;
+  fullUrl: string;
+  fullSrcSet: string | null;
+  kind: "image" | "video";
+  name: string | null;
+  thumbnailUrl: string | null;
+  mimeType: string | null;
+  width: number | null;
+  height: number | null;
+  aspectRatio: number | null;
+};
+
 function extractMediaDimensions(source: unknown, depthLimit = 4): MediaDimensions | null {
   if (!source || typeof source !== "object") return null;
 
@@ -708,21 +724,7 @@ export function HomeFeedList({
           return "file";
         };
         const seenMedia = new Set<string>();
-        const galleryItems: Array<{
-          id: string;
-          originalUrl: string;
-          displayUrl: string;
-          displaySrcSet: string | null;
-          fullUrl: string;
-          fullSrcSet: string | null;
-          kind: "image" | "video";
-          name: string | null;
-          thumbnailUrl: string | null;
-          mimeType: string | null;
-          width: number | null;
-          height: number | null;
-          aspectRatio: number | null;
-        }> = [];
+        const galleryItems: FeedGalleryItem[] = [];
         const fileAttachments: Array<{
           id: string;
           url: string;
@@ -731,19 +733,21 @@ export function HomeFeedList({
           meta: Record<string, unknown> | null;
           uploadSessionId: string | null;
         }> = [];
-        const pushMedia = (item: {
-          id: string;
-          originalUrl: string;
-          displayUrl: string;
-          displaySrcSet: string | null;
-          fullUrl: string;
-          fullSrcSet: string | null;
-          kind: "image" | "video";
-          name: string | null;
-          thumbnailUrl: string | null;
-          mimeType: string | null;
-          metadata?: unknown;
-        }) => {
+        const pushMedia = (
+          item: {
+            id: string;
+            originalUrl: string;
+            displayUrl: string;
+            displaySrcSet: string | null;
+            fullUrl: string;
+            fullSrcSet: string | null;
+            kind: "image" | "video";
+            name: string | null;
+            thumbnailUrl: string | null;
+            mimeType: string | null;
+            metadata?: unknown;
+          },
+        ) => {
           if (!item.originalUrl || seenMedia.has(item.originalUrl)) return;
           seenMedia.add(item.originalUrl);
           const dimensions = extractMediaDimensions(item.metadata);
@@ -753,17 +757,9 @@ export function HomeFeedList({
             width && height && height > 0
               ? Math.min(Math.max(Number((width / height).toFixed(4)), 0.05), 20)
               : null;
+          const { metadata, ...rest } = item;
           galleryItems.push({
-            id: item.id,
-            originalUrl: item.originalUrl,
-            displayUrl: item.displayUrl,
-            displaySrcSet: item.displaySrcSet,
-            fullUrl: item.fullUrl,
-            fullSrcSet: item.fullSrcSet,
-            kind: item.kind,
-            name: item.name,
-            thumbnailUrl: item.thumbnailUrl,
-            mimeType: item.mimeType,
+            ...rest,
             width: width && Number.isFinite(width) ? width : null,
             height: height && Number.isFinite(height) ? height : null,
             aspectRatio,
@@ -1039,24 +1035,34 @@ export function HomeFeedList({
 
             {galleryItems.length
               ? (() => {
-                  const imageItems = galleryItems.filter((entry) => entry.kind === "image");
+                  const imageLightboxItems = galleryItems
+                    .filter((entry) => entry.kind === "image")
+                    .map((entry) => ({
+                      id: entry.id,
+                      kind: entry.kind,
+                      fullUrl: entry.fullUrl,
+                      fullSrcSet: entry.fullSrcSet,
+                      displayUrl: entry.displayUrl,
+                      displaySrcSet: entry.displaySrcSet,
+                      name: entry.name,
+                      alt: entry.name ?? "Post attachment",
+                      mimeType: entry.mimeType,
+                      width: entry.width,
+                      height: entry.height,
+                      aspectRatio: entry.aspectRatio,
+                    }));
                   const lightboxLookup = new Map<string, number>(
-                    imageItems.map((entry, idx) => [entry.id, idx]),
+                    imageLightboxItems.map((entry, idx) => [entry.id, idx]),
                   );
-                  const mappedLightboxItems = imageItems.map((entry) => ({
-                    id: entry.id,
-                    kind: entry.kind,
-                    fullUrl: entry.fullUrl,
-                    fullSrcSet: entry.fullSrcSet,
-                    displayUrl: entry.displayUrl,
-                    displaySrcSet: entry.displaySrcSet,
-                    name: entry.name,
-                    alt: entry.name ?? "Post attachment",
-                    mimeType: entry.mimeType,
-                    width: entry.width,
-                    height: entry.height,
-                    aspectRatio: entry.aspectRatio,
-                  }));
+                  const openLightboxForId = (targetId: string) => {
+                    if (!imageLightboxItems.length) return;
+                    const targetIndex = lightboxLookup.get(targetId) ?? 0;
+                    setLightbox({
+                      postId: post.id,
+                      index: targetIndex,
+                      items: imageLightboxItems,
+                    });
+                  };
                   const isSingleImageLayout =
                     galleryItems.length === 1 && galleryItems[0]?.kind === "image";
 
@@ -1141,11 +1147,11 @@ export function HomeFeedList({
                             data-orientation={orientation ?? undefined}
                             style={singleImageStyles}
                             onClick={() => {
-                              if (!mappedLightboxItems.length) return;
+                              if (!imageLightboxItems.length) return;
                               setLightbox({
                                 postId: post.id,
                                 index: imageIndex,
-                                items: mappedLightboxItems,
+                                items: imageLightboxItems,
                               });
                             }}
                             aria-label={item.name ? `View ${item.name}` : "View attachment"}
@@ -1256,46 +1262,6 @@ export function HomeFeedList({
                     ? "portrait"
                     : "square"
                 : null;
-            const mediaMaxHeight =
-              lightboxOrientation === "portrait"
-                ? "min(92vh, 1040px)"
-                : lightboxOrientation === "landscape"
-                  ? "min(84vh, 900px)"
-                  : "min(88vh, 960px)";
-            const mediaMaxWidth =
-              lightboxOrientation === "portrait"
-                ? "min(70vw, 780px)"
-                : "min(94vw, 1320px)";
-            const contentMaxWidth =
-              lightboxOrientation === "portrait"
-                ? "min(78vw, 840px)"
-                : "min(96vw, 1400px)";
-            const lightboxContentStyles: React.CSSProperties = {
-              maxWidth: contentMaxWidth,
-            };
-            const lightboxBodyStyles: React.CSSProperties = {
-              maxWidth: mediaMaxWidth,
-            };
-            const lightboxMediaStyles: React.CSSProperties = {
-              aspectRatio: lightboxAspectRatio ?? undefined,
-              maxHeight: mediaMaxHeight,
-              width: "100%",
-              maxWidth: "100%",
-            };
-            const lightboxImageStyles: React.CSSProperties = {
-              width: "100%",
-              height: "100%",
-              maxWidth: "100%",
-              maxHeight: "100%",
-              objectFit: "contain",
-            };
-            const lightboxVideoStyles: React.CSSProperties = {
-              width: "100%",
-              height: "100%",
-              maxWidth: "100%",
-              maxHeight: "100%",
-              objectFit: "contain",
-            };
             return (
               <div
                 className={styles.lightboxOverlay}
@@ -1306,7 +1272,6 @@ export function HomeFeedList({
               >
                 <div
                   className={styles.lightboxContent}
-                  style={lightboxContentStyles}
                   onClick={(event) => event.stopPropagation()}
                 >
                   <button
@@ -1320,7 +1285,6 @@ export function HomeFeedList({
                   <div
                     className={styles.lightboxBody}
                     data-has-nav={hasMultiple ? "true" : undefined}
-                    style={lightboxBodyStyles}
                   >
                     {hasMultiple ? (
                       <>
@@ -1347,7 +1311,6 @@ export function HomeFeedList({
                     <div
                       className={styles.lightboxMedia}
                       data-orientation={lightboxOrientation ?? undefined}
-                      style={lightboxMediaStyles}
                     >
                       {current.kind === "video" ? (
                         <video
@@ -1355,7 +1318,6 @@ export function HomeFeedList({
                           controls
                           playsInline
                           preload="auto"
-                          style={lightboxVideoStyles}
                         >
                           <source src={current.fullUrl} type={current.mimeType ?? undefined} />
                           Your browser does not support embedded video.
@@ -1370,7 +1332,6 @@ export function HomeFeedList({
                           alt={current.alt}
                           loading="eager"
                           draggable={false}
-                          style={lightboxImageStyles}
                         />
                       )}
                     </div>
@@ -1567,43 +1528,69 @@ function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
   );
 }
 
-type FeedVideoItem = {
-  id: string;
-  fullUrl: string;
-  thumbnailUrl: string | null;
-  mimeType: string | null;
-};
+type FeedVideoItem = FeedGalleryItem & { kind: "video" };
 
-function FeedVideo({ item }: { item: FeedVideoItem }) {
+function FeedVideo({ item }: { item: FeedGalleryItem }) {
+  if (item.kind !== "video") return null;
+  const videoItem = item as FeedVideoItem;
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [isPlaying, setIsPlaying] = React.useState(false);
 
   const poster =
-    item.thumbnailUrl && item.thumbnailUrl !== item.fullUrl ? item.thumbnailUrl : null;
+    videoItem.thumbnailUrl && videoItem.thumbnailUrl !== videoItem.fullUrl
+      ? videoItem.thumbnailUrl
+      : null;
 
-  const startPlayback = React.useCallback(() => {
+  const playVideo = React.useCallback(() => {
     const node = videoRef.current;
     if (!node) return;
     node.muted = true;
     const playAttempt = node.play();
     if (playAttempt && typeof playAttempt.catch === "function") {
       playAttempt.catch(() => {
-        /* no-op: autoplay may be prevented */
+        /* autoplay may be prevented on some browsers; ignore */
       });
     }
   }, []);
 
-  const stopPlayback = React.useCallback(() => {
+  const pauseVideo = React.useCallback((reset = false) => {
     const node = videoRef.current;
     if (!node) return;
     node.pause();
-    try {
-      node.currentTime = 0;
-    } catch {
-      /* Safari may throw if the stream is not seekable yet */
+    if (reset) {
+      try {
+        node.currentTime = 0;
+      } catch {
+        /* Safari may throw if the stream is not seekable yet */
+      }
     }
-    setIsPlaying(false);
   }, []);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (!entry) return;
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.55) {
+          playVideo();
+        } else {
+          pauseVideo(true);
+        }
+      },
+      {
+        threshold: [0, 0.35, 0.55, 0.75],
+      },
+    );
+
+    observer.observe(container);
+    return () => {
+      observer.disconnect();
+    };
+  }, [pauseVideo, playVideo]);
 
   const handlePlay = React.useCallback(() => {
     setIsPlaying(true);
@@ -1615,11 +1602,12 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
 
   return (
     <div
+      ref={containerRef}
       className={styles.mediaWrapper}
       data-kind="video"
       data-playing={isPlaying ? "true" : undefined}
-      onMouseEnter={startPlayback}
-      onMouseLeave={stopPlayback}
+      onMouseEnter={playVideo}
+      onFocus={playVideo}
     >
       <video
         ref={videoRef}
@@ -1628,16 +1616,13 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
         controls
         playsInline
         preload="metadata"
-        muted
         loop
         poster={poster ?? undefined}
         onPlay={handlePlay}
         onPause={handlePause}
-        onEnded={stopPlayback}
-        onFocus={startPlayback}
-        onBlur={stopPlayback}
+        onEnded={() => pauseVideo(true)}
       >
-        <source src={item.fullUrl} type={item.mimeType ?? undefined} />
+        <source src={videoItem.fullUrl} type={videoItem.mimeType ?? undefined} />
         Your browser does not support the video tag.
       </video>
       <div
