@@ -91,6 +91,7 @@
     align-items: center;
     gap: 10px;
     width: 100%;
+    box-sizing: border-box;
     padding: 12px 14px;
     border-radius: var(--pill-radius, 999px);
     border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.14));
@@ -373,11 +374,57 @@
     justify-content: flex-start;
     gap: 10px;
     padding-left: 6px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   @media (max-width: 640px) {
     .chips {
       padding-left: 0;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .promptBar {
+      gap: 8px;
+      padding: 0.8rem clamp(0.75rem, 3vw, 1rem);
+    }
+
+    .promptBar > .input {
+      font-size: 0.98rem;
+    }
+
+    .genSplitMain {
+      padding: 0.6rem 1.05rem;
+      min-width: 0;
+    }
+
+    .genSplit {
+      flex-shrink: 1;
+      min-width: auto;
+      max-width: 100%;
+    }
+
+    .genSplitCaret {
+      padding: 0 0.65rem;
+    }
+
+    .genBtn {
+      width: 100%;
+      justify-content: center;
+      padding-inline: 1.1rem;
+    }
+
+    .chips {
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .chip {
+      flex: 1 1 calc(50% - 8px);
+      min-width: 140px;
+      justify-content: center;
+      text-align: center;
     }
   }
 

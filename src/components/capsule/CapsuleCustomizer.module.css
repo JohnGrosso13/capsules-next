@@ -55,6 +55,38 @@
   z-index: 1;
 }
 
+.headerActions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.headerIconBtn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.28) 70%, transparent);
+  background: linear-gradient(180deg, rgba(34, 42, 94, 0.8), rgba(20, 26, 58, 0.86));
+  color: rgba(240, 245, 255, 0.92);
+}
+
+.previewToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, rgba(148, 163, 255, 0.35) 70%, transparent);
+  background: linear-gradient(180deg, rgba(30, 36, 82, 0.7), rgba(14, 18, 48, 0.84));
+  color: rgba(222, 229, 255, 0.92);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .titleGroup {
   display: grid;
   gap: 0.5rem;
@@ -1000,30 +1032,53 @@
 .prompterDock {
   margin-top: auto;
   display: grid;
-  gap: 0.5rem;
+  gap: clamp(0.4rem, 1.8vw, 0.7rem);
   align-content: end;
+  justify-items: center;
   position: relative;
-  padding-top: 0.35rem;
+  padding: clamp(0.6rem, 2.2vw, 1rem) clamp(0.8rem, 3vw, 1.4rem) clamp(1.2rem, 4vw, 1.8rem);
 }
 
 .prompterDock::before {
-  /* Subtle top fade/glow to make the dock feel attached */
-  content: "";
-  position: absolute;
-  left: -8px;
-  right: -8px;
-  top: -12px;
-  height: 28px;
-  pointer-events: none;
-  border-radius: 28px;
-  background: radial-gradient(60% 100% at 50% 0%, rgba(120, 140, 255, 0.08), transparent 70%);
-  filter: blur(8px);
+  content: none;
 }
 
 .prompterWrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
+  max-width: clamp(320px, 92vw, 640px);
+  margin: 0 auto;
+  padding: clamp(0.9rem, 2.6vw, 1.35rem);
+  border-radius: clamp(22px, 8vw, 30px);
+  box-sizing: border-box;
+  background: linear-gradient(155deg, rgba(18, 28, 62, 0.9), rgba(8, 12, 28, 0.72));
+  border: 1px solid rgba(124, 152, 255, 0.28);
+  box-shadow:
+    0 28px 72px rgba(4, 8, 22, 0.55),
+    0 0 0 1px rgba(86, 120, 255, 0.15) inset;
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  backdrop-filter: blur(22px) saturate(140%);
+  overflow: hidden;
+}
+
+.prompterWrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 120% at 18% 5%, rgba(138, 180, 255, 0.25), transparent 60%),
+    radial-gradient(90% 90% at 85% 90%, rgba(66, 225, 255, 0.18), transparent 70%);
+  mix-blend-mode: screen;
+  opacity: 0.85;
+}
+
+.prompterWrap > * {
+  position: relative;
+  z-index: 1;
 }
 
 .prompterWrap :global(.prompterStage) {
@@ -1031,6 +1086,7 @@
   width: 100%;
   margin-left: 0;
   margin-right: 0;
+  box-sizing: border-box;
 }
 
 .prompterWrap :global(.prompterStage .prompter) {
@@ -1040,18 +1096,18 @@
 .prompterWrap :global(.prompterStage .promptBar) {
   width: 100%;
   max-width: none;
-  padding: clamp(0.65rem, 1.6vw, 0.85rem) clamp(1rem, 2.4vw, 1.6rem);
+  padding: clamp(0.7rem, 1.8vw, 0.95rem) clamp(0.9rem, 2.4vw, 1.4rem);
   border-radius: 999px;
   gap: clamp(0.45rem, 1.4vw, 0.75rem);
   min-height: 0;
 }
 
 .prompterWrap :global(.prompterStage .promptBar::before) {
-  left: clamp(-12px, -2vw, -16px);
-  right: clamp(-12px, -2vw, -16px);
-  top: clamp(-10px, -1.8vw, -14px);
-  bottom: clamp(-10px, -1.8vw, -14px);
-  opacity: 0.42;
+  left: clamp(-10px, -2.4vw, -14px);
+  right: clamp(-10px, -2.4vw, -14px);
+  top: clamp(-10px, -2.2vw, -14px);
+  bottom: clamp(-10px, -2.2vw, -14px);
+  opacity: 0.38;
 }
 
 .prompterWrap :global(.prompterStage .input) {
@@ -1060,11 +1116,48 @@
 }
 
 .prompterWrap :global(.prompterStage .genSplitMain) {
-  padding: clamp(0.55rem, 1.4vw, 0.75rem) clamp(1rem, 2vw, 1.6rem);
+  padding: clamp(0.55rem, 1.4vw, 0.75rem) clamp(1rem, 2vw, 1.4rem);
+}
+
+.prompterWrap :global(.prompterStage .genBtn) {
+  padding: clamp(0.6rem, 1.5vw, 0.85rem) clamp(1.1rem, 2.4vw, 1.6rem);
 }
 
 .prompterWrap :global(.prompterStage .promptBar:focus-within) {
   box-shadow: var(--home-promptbar-focus-within-box-shadow);
+}
+
+.prompterWrap :global(.chips) {
+  width: 100%;
+  justify-content: center;
+  gap: clamp(0.5rem, 2vw, 0.75rem);
+}
+
+.prompterWrap :global(.chip) {
+  justify-content: center;
+}
+
+@media (max-width: 560px) {
+  .prompterDock {
+    padding: clamp(0.45rem, 4vw, 0.85rem) clamp(0.55rem, 6vw, 1.05rem) clamp(1rem, 6.4vw, 1.5rem);
+    gap: clamp(0.4rem, 4vw, 0.9rem);
+  }
+
+  .prompterWrap {
+    padding: clamp(0.75rem, 6vw, 1.1rem);
+    border-radius: clamp(24px, 12vw, 30px);
+    max-width: min(100%, 520px);
+  }
+
+  .prompterWrap :global(.prompterStage .promptBar) {
+    padding: clamp(0.6rem, 4.8vw, 0.85rem) clamp(0.65rem, 6vw, 1rem);
+    gap: clamp(0.4rem, 4vw, 0.65rem);
+  }
+
+  .prompterWrap :global(.chips) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
 }
 
 .prompterWrap :global(.prompterStage .intentControls) {
@@ -1196,6 +1289,122 @@
     border-left: none;
     padding-left: 0;
   }
+}
+
+/* Mobile sheets and preview overlay */
+.mobileSheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mobileSheetBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 15, 0.58);
+  backdrop-filter: blur(6px);
+}
+
+.mobileSheetPanel {
+  position: relative;
+  width: min(520px, 96vw);
+  max-height: min(80vh, 640px);
+  margin: 0 auto;
+  border-radius: 22px 22px 0 0;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent);
+  background:
+    linear-gradient(190deg, rgba(18, 24, 52, 0.88), rgba(12, 18, 42, 0.94)),
+    radial-gradient(640px 260px at 50% 0%, rgba(92, 142, 255, 0.18), transparent 70%);
+  box-shadow: 0 -18px 42px rgba(8, 12, 30, 0.48);
+  padding: 1.25rem clamp(1.25rem, 4vw, 1.75rem)
+    calc(clamp(1.5rem, 4vw, 2rem) + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow-y: auto;
+  color: rgba(241, 246, 255, 0.96);
+}
+
+.mobileSheetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mobileSheetTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.mobileSheetClose {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(160, 172, 255, 0.3);
+  background: linear-gradient(180deg, rgba(34, 42, 94, 0.8), rgba(20, 26, 58, 0.86));
+  color: rgba(240, 245, 255, 0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobileSheetBody {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.mobilePreviewOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1450;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobilePreviewDialog {
+  position: relative;
+  width: min(520px, 94vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px;
+  padding: clamp(1.2rem, 4vw, 1.8rem);
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent);
+  background:
+    linear-gradient(200deg, rgba(18, 22, 52, 0.95), rgba(14, 18, 40, 0.96)),
+    radial-gradient(520px 240px at 50% 0%, rgba(96, 142, 255, 0.18), transparent 70%);
+  box-shadow: 0 28px 70px rgba(6, 10, 28, 0.46);
+  overflow: hidden;
+  padding-bottom: calc(clamp(1rem, 4vw, 1.5rem) + env(safe-area-inset-bottom));
+}
+
+.mobilePreviewClose {
+  position: absolute;
+  top: clamp(0.9rem, 4vw, 1.25rem);
+  right: clamp(0.9rem, 4vw, 1.25rem);
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(160, 172, 255, 0.3);
+  background: linear-gradient(180deg, rgba(34, 42, 94, 0.82), rgba(20, 26, 58, 0.9));
+  color: rgba(244, 247, 255, 0.96);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobilePreviewBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 15, 0.62);
+  backdrop-filter: blur(8px);
+  z-index: 1440;
 }
 
 @media (max-width: 640px) {
