@@ -24,6 +24,7 @@ export type LocalAttachment = {
   sessionId?: string | null;
   role: AttachmentRole;
   source?: "upload" | "memory" | "user" | "ai";
+  originalFile?: File | null;
 };
 
 type DirectUploadResult = Awaited<ReturnType<typeof uploadFileDirect>>;
@@ -242,6 +243,7 @@ function createErrorAttachment(
     progress: 0,
     role: "reference",
     source: "upload",
+    originalFile: file,
   };
 }
 
@@ -287,6 +289,7 @@ function useAttachmentProcessor(
   maxSizeBytes: number,
   setAttachment: React.Dispatch<React.SetStateAction<LocalAttachment | null>>,
   options: UseAttachmentUploadOptions | undefined,
+  uploadAbortRef: React.MutableRefObject<AbortController | null>,
 ): (file: File) => Promise<void> {
   return React.useCallback(
     async (file: File) => {
@@ -299,6 +302,10 @@ function useAttachmentProcessor(
         return;
       }
 
+      uploadAbortRef.current?.abort();
+      const controller = new AbortController();
+      uploadAbortRef.current = controller;
+
       setAttachment({
         id,
         name: file.name,
@@ -310,11 +317,12 @@ function useAttachmentProcessor(
         progress: 0,
         role: "reference",
         source: "upload",
+        originalFile: file,
       });
 
       try {
-        const result = await uploadWithFallback(file, mimeType, id, setAttachment, options);
-        const thumbUrl = await maybeCaptureAndUploadThumb(file, mimeType);
+        const result = await uploadWithFallback(file, mimeType, id, setAttachment, options, controller.signal);
+        const thumbUrl = await maybeCaptureAndUploadThumb(file, mimeType, controller.signal);
 
         setAttachment((prev) =>
           prev && prev.id === id
@@ -326,10 +334,20 @@ function useAttachmentProcessor(
                 progress: 1,
                 key: result.key,
                 sessionId: result.sessionId,
+                originalFile: null,
               }
             : prev,
         );
+        if (uploadAbortRef.current === controller) {
+          uploadAbortRef.current = null;
+        }
       } catch (error) {
+        if ((error as DOMException)?.name === "AbortError") {
+          if (uploadAbortRef.current === controller) {
+            uploadAbortRef.current = null;
+          }
+          return;
+        }
         console.error("Attachment upload failed", error);
         const message = error instanceof Error ? error.message : "Upload failed";
         setAttachment((prev) =>
@@ -337,9 +355,12 @@ function useAttachmentProcessor(
             ? { ...prev, status: "error", url: null, error: message, progress: 0 }
             : prev,
         );
+        if (uploadAbortRef.current === controller) {
+          uploadAbortRef.current = null;
+        }
       }
     },
-    [maxSizeBytes, options, setAttachment],
+    [maxSizeBytes, options, setAttachment, uploadAbortRef],
   );
 }
 
@@ -410,6 +431,7 @@ async function uploadWithFallback(
   id: string,
   setAttachment: React.Dispatch<React.SetStateAction<LocalAttachment | null>>,
   options: UseAttachmentUploadOptions | undefined,
+  signal?: AbortSignal,
 ): Promise<DirectUploadResult> {
   let directError: Error | null = null;
   let result: DirectUploadResult | null = null;
@@ -432,6 +454,7 @@ async function uploadWithFallback(
     result = await uploadFileDirect(file, {
       kind: uploadKind,
       metadata,
+      signal,
       onProgress: ({ uploadedBytes, totalBytes }) => {
         updateUploadProgress(setAttachment, id, uploadedBytes, totalBytes);
       },
@@ -444,8 +467,12 @@ async function uploadWithFallback(
     console.warn(message, directError);
   }
 
+  if (signal?.aborted) {
+    throw new DOMException("Upload aborted", "AbortError");
+  }
+
   if (!result && canUseBase64) {
-    result = await uploadViaBase64(file, mimeType, id, directError);
+    result = await uploadViaBase64(file, mimeType, id, directError, signal);
   }
 
   if (!result) {
@@ -460,12 +487,16 @@ async function uploadViaBase64(
   mimeType: string,
   id: string,
   directError: Error | null,
+  signal?: AbortSignal,
 ): Promise<DirectUploadResult> {
   if (!mimeType.startsWith("image/")) {
     throw directError ?? new Error("This file type requires the direct uploader. Please try again.");
   }
   if (file.size > BASE64_FALLBACK_MAX_SIZE) {
     throw directError ?? new Error("File is too large for fallback upload. Please retry the upload.");
+  }
+  if (signal?.aborted) {
+    throw new DOMException("Upload aborted", "AbortError");
   }
   const dataUrl = await readFileAsDataUrl(file);
   const base64 = dataUrl.split(",").pop() ?? "";
@@ -477,6 +508,7 @@ async function uploadViaBase64(
       content_type: mimeType,
       data_base64: base64,
     }),
+    signal,
   });
   if (!fallbackResponse.ok) {
     const msg = await fallbackResponse.text().catch(() => "");
@@ -494,11 +526,21 @@ async function uploadViaBase64(
   };
 }
 
-async function maybeCaptureAndUploadThumb(file: File, mimeType: string): Promise<string | null> {
+async function maybeCaptureAndUploadThumb(
+  file: File,
+  mimeType: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
   if (!mimeType.startsWith("video/")) return null;
 
   try {
+    if (signal?.aborted) {
+      throw new DOMException("Upload aborted", "AbortError");
+    }
     const thumbDataUrl = await captureVideoThumbnail(file, 0.3);
+    if (signal?.aborted) {
+      throw new DOMException("Upload aborted", "AbortError");
+    }
     const thumbBase64 = thumbDataUrl.split(",").pop() ?? "";
     if (!thumbBase64) return thumbDataUrl;
 
@@ -510,6 +552,7 @@ async function maybeCaptureAndUploadThumb(file: File, mimeType: string): Promise
         content_type: "image/jpeg",
         data_base64: thumbBase64,
       }),
+      signal,
     });
 
     if (thumbRes.ok) {
@@ -536,6 +579,7 @@ export function useAttachmentUpload(
     uploading,
     clearAttachment: resetAttachment,
   } = useAttachmentState(fileInputRef);
+  const uploadAbortRef = React.useRef<AbortController | null>(null);
   const remoteTimersRef = React.useRef<number[]>([]);
   const cancelRemoteTimers = React.useCallback(() => {
     if (typeof window === "undefined") {
@@ -548,10 +592,12 @@ export function useAttachmentUpload(
     remoteTimersRef.current = [];
   }, []);
   const clearAttachment = React.useCallback(() => {
+    uploadAbortRef.current?.abort();
+    uploadAbortRef.current = null;
     cancelRemoteTimers();
     resetAttachment();
   }, [cancelRemoteTimers, resetAttachment]);
-  const processFile = useAttachmentProcessor(maxSizeBytes, setAttachment, options);
+  const processFile = useAttachmentProcessor(maxSizeBytes, setAttachment, options, uploadAbortRef);
 
   const handleAttachmentSelect = React.useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -599,6 +645,7 @@ export function useAttachmentUpload(
         progress: 0.05,
         role: "reference",
         source: "memory",
+        originalFile: null,
       });
 
       if (typeof window === "undefined") {

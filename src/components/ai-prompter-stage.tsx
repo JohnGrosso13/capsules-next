@@ -42,7 +42,7 @@ const COMPACT_PLACEHOLDER = "Ask Capsule AI for ideas...";
 const COMPACT_VIEWPORT_QUERY = "(max-width: 480px)";
 
 import { useComposer } from "@/components/composer/ComposerProvider";
-import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
+import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
 import { useCurrentUser } from "@/services/auth/client";
 import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { intentResponseSchema } from "@/shared/schemas/ai";
@@ -304,6 +304,15 @@ export function AiPrompterStage({
       setAttachmentList((prev) => prev.filter((a) => a?.id !== id));
     },
     [attachment?.id, clearAttachment],
+  );
+
+  const handleRetryAttachment = React.useCallback(
+    (target: LocalAttachment) => {
+      if (!target?.id || !target.originalFile) return;
+      removeAttachment(target.id);
+      void handleAttachmentFile(target.originalFile);
+    },
+    [handleAttachmentFile, removeAttachment],
   );
 
   const handlePreviewAttachment = React.useCallback(
@@ -682,8 +691,19 @@ export function AiPrompterStage({
         : null;
   const styleHint = effectiveIntent === "style" ? "AI Styler is ready." : null;
 
+  const uploadingHint = React.useMemo(() => {
+    if (!attachmentUploading || !attachment) return null;
+    const percent = Number.isFinite(attachment.progress)
+      ? Math.round(Math.min(Math.max(attachment.progress, 0), 1) * 100)
+      : null;
+    const safeName = truncate(attachment.name || "attachment", 36);
+    const progressLabel = percent !== null ? ` (${percent}%)` : "";
+    return `Uploading ${safeName}${progressLabel}`;
+  }, [attachmentUploading, attachment]);
+
   const rawHint =
     statusMessage ??
+    uploadingHint ??
     (variantConfig.allowVoice ? voiceStatusMessage : null) ??
     (variantConfig.allowIntentHints
       ? manualNote ??
@@ -729,7 +749,9 @@ export function AiPrompterStage({
   const crumbHint = aiBusy ? crumbs.current[crumbIndex] : null;
 
   const hint = humanizeHint(crumbHint ?? rawHint);
-  const showHint = Boolean(hint) && (variantConfig.allowIntentHints || Boolean(statusMessage));
+  const showHint =
+    Boolean(hint) &&
+    (variantConfig.allowIntentHints || Boolean(statusMessage) || attachmentUploading || attachment?.status === "error");
 
   return (
     <section
@@ -779,6 +801,7 @@ export function AiPrompterStage({
           attachments={attachmentList.filter((a): a is NonNullable<typeof a> => Boolean(a))}
           uploadingAttachment={attachmentUploading && attachment ? attachment : null}
           onRemoveAttachment={attachmentsEnabled ? removeAttachment : noop}
+          {...(attachmentsEnabled ? { onRetryAttachment: handleRetryAttachment } : {})}
           {...(attachmentsEnabled ? { onPreviewAttachment: handlePreviewAttachment } : {})}
           suggestedTools={suggestedTools}
           activeTool={activeTool}

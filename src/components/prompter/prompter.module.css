@@ -577,7 +577,7 @@
     backdrop-filter: blur(6px);
     display: grid;
     place-items: center;
-    z-index: 1000;
+    z-index: 3000; /* above mobile dock and headers */
   }
 
   .previewInner {
@@ -619,6 +619,37 @@
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Brain loader for attachments (compact) */
+  .brainWrap {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+  }
+  .brainBase {
+    opacity: 0.8;
+    animation: brainPulse 1.4s ease-in-out infinite;
+  }
+  .brainFillClip {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    height: 0%;
+    border-bottom-left-radius: 2px;
+    border-bottom-right-radius: 2px;
+  }
+  .brainFill {
+    color: color-mix(in srgb, var(--color-brand, #2563eb) 85%, white);
+  }
+  @keyframes brainPulse {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-1px); }
+    100% { transform: translateY(0); }
   }
 
   @media (max-width: 769px) {
@@ -779,15 +810,54 @@
     color: var(--color-danger, #f87171);
   }
 
+  .attachmentActions {
+    display: inline-flex;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .attachmentActionButton {
+    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 0.74rem;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  .attachmentActionButton:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .attachmentActionButton:focus-visible {
+    outline: 2px solid rgba(132, 148, 255, 0.6);
+    outline-offset: 2px;
+  }
+
   .attachmentRemove {
     border: none;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.78);
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
     cursor: pointer;
     padding: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
   }
 
   .attachmentRemove:hover {
-    opacity: 0.7;
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .attachmentRemove:focus-visible {
+    outline: 2px solid rgba(132, 148, 255, 0.6);
+    outline-offset: 2px;
   }
 }

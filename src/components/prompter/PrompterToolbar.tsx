@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import styles from "./prompter.module.css";
+import { Brain, Paperclip } from "@phosphor-icons/react/dist/ssr";
 import type { PromptIntent } from "@/lib/ai/intent";
 import type { RecognitionStatus } from "@/hooks/useSpeechRecognition";
 
@@ -44,6 +45,7 @@ type Props = {
   uploadingAttachment?: LocalAttachment | null;
   onRemoveAttachment: (id: string) => void;
   onPreviewAttachment?: (id: string) => void;
+  onRetryAttachment?: (attachment: LocalAttachment) => void;
   suggestedTools: SuggestedTool[];
   activeTool: PrompterToolKey | null;
   onSelectTool: (tool: PrompterToolKey) => void;
@@ -87,6 +89,7 @@ export function PrompterToolbar({
   uploadingAttachment,
   onRemoveAttachment,
   onPreviewAttachment,
+  onRetryAttachment,
   suggestedTools,
   activeTool,
   onSelectTool,
@@ -147,30 +150,42 @@ export function PrompterToolbar({
           <div className={styles.attachmentStrip} aria-label="Attachments">
             {attachments.map((att) => (
               <span key={att.id} className={styles.attachmentCard} data-status={att.status}>
-              {att.url && att.status === "ready" ? (
-                <button
-                  type="button"
-                  className={styles.attachThumb}
-                  onClick={() => onPreviewAttachment?.(att.id)}
-                  aria-label={`Preview ${att.name}`}
-                >
-                  {att.thumbUrl || att.mimeType.startsWith("image/") ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={(att.thumbUrl ?? undefined) || undefined} alt="" className={styles.attachThumbImg} />
-                  ) : (
-                    <span className={styles.attachThumbIcon}>📎</span>
-                  )}
-                </button>
-              ) : (
-                <span className={styles.attachThumb} aria-hidden>
-                  {att.thumbUrl || att.mimeType.startsWith("image/") ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={(att.thumbUrl ?? undefined) || undefined} alt="" className={styles.attachThumbImg} />
-                  ) : (
-                    <span className={styles.attachThumbIcon}>📎</span>
-                  )}
-                </span>
-              )}
+                {att.status === "uploading" ? (
+                  <span className={styles.attachThumb} aria-hidden>
+                    <span className={styles.brainWrap}>
+                      <Brain className={styles.brainBase} size={20} weight="duotone" />
+                      <span
+                        className={styles.brainFillClip}
+                        style={{ height: `${Math.round((att.progress || 0) * 100)}%` }}
+                      >
+                        <Brain className={styles.brainFill} size={20} weight="fill" />
+                      </span>
+                    </span>
+                  </span>
+                ) : att.url && att.status === "ready" ? (
+                  <button
+                    type="button"
+                    className={styles.attachThumb}
+                    onClick={() => onPreviewAttachment?.(att.id)}
+                    aria-label={`Preview ${att.name}`}
+                  >
+                    {att.thumbUrl || att.mimeType.startsWith("image/") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={(att.thumbUrl ?? undefined) || undefined} alt="" className={styles.attachThumbImg} />
+                    ) : (
+                      <Paperclip className={styles.attachThumbIcon} size={18} weight="duotone" />
+                    )}
+                  </button>
+                ) : (
+                  <span className={styles.attachThumb} aria-hidden>
+                    {att.thumbUrl || att.mimeType.startsWith("image/") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={(att.thumbUrl ?? undefined) || undefined} alt="" className={styles.attachThumbImg} />
+                    ) : (
+                      <Paperclip className={styles.attachThumbIcon} size={18} weight="duotone" />
+                    )}
+                  </span>
+                )}
                 <span className={styles.attachMeta}>
                   {att.url && att.status === "ready" ? (
                     <button
@@ -188,14 +203,32 @@ export function PrompterToolbar({
                   )}
                   <span className={att.status === "error" ? styles.attachmentStatusError : styles.attachmentStatus}>
                     {att.status === "uploading"
-                      ? `Uploading ${Math.round((att.progress || 0) * 100)}%`
+                      ? `Uploading ${Math.round(Math.min(Math.max(att.progress ?? 0, 0), 1) * 100)}%`
                       : att.status === "error"
                         ? att.error ?? "Upload failed"
                         : "Attached"}
                   </span>
+                  {att.status === "error" && att.originalFile && onRetryAttachment ? (
+                    <span className={styles.attachmentActions}>
+                      <button
+                        type="button"
+                        className={styles.attachmentActionButton}
+                        onClick={() => onRetryAttachment(att)}
+                        aria-label={`Retry upload for ${att.name}`}
+                        title="Retry upload"
+                      >
+                        Retry
+                      </button>
+                    </span>
+                  ) : null}
                   {att.status === "uploading" ? (
                     <span className={styles.progressTrack} aria-hidden>
-                      <span className={styles.progressBar} style={{ width: `${Math.round((att.progress || 0) * 100)}%` }} />
+                      <span
+                        className={styles.progressBar}
+                        style={{
+                          width: `${Math.round(Math.min(Math.max(att.progress ?? 0, 0), 1) * 100)}%`,
+                        }}
+                      />
                     </span>
                   ) : null}
                 </span>
@@ -206,44 +239,57 @@ export function PrompterToolbar({
                   aria-label="Remove attachment"
                   title="Remove attachment"
                 >
-                  ×
+                  &times;
                 </button>
               </span>
             ))}
             {uploadingAttachment && attachments.every((a) => a.id !== uploadingAttachment.id) ? (
               <span className={styles.attachmentCard} data-status={uploadingAttachment.status}>
                 <span className={styles.attachThumb} aria-hidden>
-                  {uploadingAttachment.thumbUrl || uploadingAttachment.mimeType.startsWith("image/") ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={(uploadingAttachment.thumbUrl ?? undefined) || undefined}
-                      alt=""
-                      className={styles.attachThumbImg}
-                    />
-                  ) : (
-                    <span className={styles.attachThumbIcon}>📎</span>
-                  )}
+                  <span className={styles.brainWrap}>
+                    <Brain className={styles.brainBase} size={20} weight="duotone" />
+                    <span
+                      className={styles.brainFillClip}
+                      style={{ height: `${Math.round((uploadingAttachment.progress || 0) * 100)}%` }}
+                    >
+                      <Brain className={styles.brainFill} size={20} weight="fill" />
+                    </span>
+                  </span>
                 </span>
                 <span className={styles.attachMeta}>
                   <span className={styles.attachmentName} title={uploadingAttachment.name}>
                     {uploadingAttachment.name}
                   </span>
                   <span className={styles.attachmentStatus}>
-                    Uploading {Math.round((uploadingAttachment.progress || 0) * 100)}%
+                    {`Uploading ${Math.round(
+                      Math.min(Math.max(uploadingAttachment.progress ?? 0, 0), 1) * 100,
+                    )}%`}
                   </span>
                   <span className={styles.progressTrack} aria-hidden>
                     <span
                       className={styles.progressBar}
-                      style={{ width: `${Math.round((uploadingAttachment.progress || 0) * 100)}%` }}
+                      style={{
+                        width: `${Math.round(
+                          Math.min(Math.max(uploadingAttachment.progress ?? 0, 0), 1) * 100,
+                        )}%`,
+                      }}
                     />
                   </span>
                 </span>
+                <button
+                  type="button"
+                  className={styles.attachmentRemove}
+                  onClick={() => onRemoveAttachment(uploadingAttachment.id)}
+                  aria-label="Cancel upload"
+                  title="Cancel upload"
+                >
+                  &times;
+                </button>
               </span>
             ) : null}
           </div>
         ) : null}
       </div>
-
       {showTools && suggestedTools.length ? (
         <div className={styles.chips}>
           {suggestedTools.map((tool) => (
