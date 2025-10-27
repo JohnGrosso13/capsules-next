@@ -104,6 +104,30 @@
   border-bottom: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 60%, transparent);
 }
 
+.headerActions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.headerIconBtn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.06))
+  );
+  color: var(--text, rgba(255, 255, 255, 0.94));
+  box-shadow: var(--chip-shadow, 0 6px 14px rgba(5, 10, 30, 0.18));
+}
+
 .toolbarHeading {
   display: grid;
   gap: 0.35rem;
@@ -1946,6 +1970,16 @@
     grid-template-columns: 1fr;
     gap: 1.75rem;
   }
+  .panelFooter {
+    display: none;
+  }
+  .toolbarModes {
+    display: none;
+  }
+  .columns[data-preview='open'],
+  .columns[data-preview='closed'] {
+    grid-template-columns: 1fr;
+  }
   .panelToolbar {
     flex-direction: column;
     align-items: stretch;
@@ -1954,14 +1988,36 @@
   .toolbarHeading {
     max-width: 100%;
   }
-  .toolbarModes {
+  /* Move header actions to the top-left on mobile */
+  .headerActions {
+    order: -1;
+    align-self: flex-start;
+    margin-left: 0;
     justify-content: flex-start;
+    gap: 0.6rem;
   }
+  /* Ensure the menu (hamburger) appears first */
+  .headerIconBtn { order: -1; }
+  .previewToggle { order: 0; }
+  .mainColumn { gap: 0.75rem; }
+  .chatArea { gap: 0.75rem; }
+  .chatScroll { gap: 0.75rem; }
+  .chatList { gap: 0.75rem; }
+  .chatBadge { width: 30px; height: 30px; border-radius: 10px; font-size: 0.72rem; }
+  .msgBubble { padding: 12px 14px; font-size: 0.95rem; line-height: 1.5; box-shadow: 0 10px 24px rgba(6, 12, 40, 0.28); }
   .previewToggle {
     display: inline-flex;
   }
   .footerActions {
     justify-content: space-between;
+  }
+  .rail,
+  .previewRail {
+    display: none;
+  }
+  .colResizer,
+  .rowResizer {
+    display: none;
   }
   .rail {
     border-right: none;
@@ -1979,25 +2035,291 @@
     padding: 0;
   }
 }
+
+.mobileSheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mobileSheetBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 15, 0.58);
+  backdrop-filter: blur(6px);
+}
+
+.mobileSheetPanel {
+  position: relative;
+  width: min(520px, 96vw);
+  max-height: min(80vh, 640px);
+  margin: 0 auto;
+  border-radius: 22px 22px 0 0;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent);
+  background:
+    linear-gradient(190deg, rgba(18, 24, 52, 0.88), rgba(12, 18, 42, 0.94)),
+    radial-gradient(640px 260px at 50% 0%, rgba(92, 142, 255, 0.18), transparent 70%);
+  box-shadow: 0 -18px 42px rgba(8, 12, 30, 0.48);
+  padding: 1.25rem clamp(1.25rem, 4vw, 1.75rem)
+    calc(clamp(1.5rem, 4vw, 2rem) + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow-y: auto;
+  color: rgba(241, 246, 255, 0.96);
+}
+
+.mobileSheetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mobileSheetTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.mobileSheetClose {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(160, 172, 255, 0.3);
+  background: linear-gradient(180deg, rgba(34, 42, 94, 0.8), rgba(20, 26, 58, 0.86));
+  color: rgba(240, 245, 255, 0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.mobileSheetClose:hover,
+.mobileSheetClose:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(186, 198, 255, 0.56);
+}
+
+.mobileSheetBody {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.mobileSheetSection {
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 70%, transparent);
+  padding: 1rem;
+  background: linear-gradient(180deg, rgba(30, 36, 82, 0.38), rgba(16, 20, 48, 0.46));
+  display: grid;
+  gap: 0.75rem;
+}
+
+.mobileSheetSection header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mobileSheetSectionTitle {
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.mobileSheetSectionAction {
+  background: none;
+  border: none;
+  color: rgba(186, 198, 255, 0.9);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.mobileSheetSectionAction:hover,
+.mobileSheetSectionAction:focus-visible {
+  opacity: 0.85;
+}
+
+.mobileSheetList {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobileSheetList button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: 14px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 18, 42, 0.42);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.mobileSheetList button:hover,
+.mobileSheetList button:focus-visible {
+  border-color: rgba(160, 172, 255, 0.7);
+  transform: translateY(-1px);
+}
+
+.mobileSheetList button[data-active='true'] {
+  border-color: rgba(129, 140, 248, 0.7);
+  background: linear-gradient(180deg, rgba(52, 72, 170, 0.58), rgba(30, 38, 92, 0.48));
+}
+
+.mobileSheetListIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(233, 238, 255, 0.92);
+}
+
+.mobileSheetListMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.mobileSheetListTitle {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: rgba(244, 247, 255, 0.96);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobileSheetListCaption {
+  font-size: 0.76rem;
+  color: rgba(192, 202, 240, 0.8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobilePreviewOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1450;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobilePreviewDialog {
+  position: relative;
+  width: min(520px, 94vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px;
+  padding: clamp(1.2rem, 4vw, 1.8rem);
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent);
+  background:
+    linear-gradient(200deg, rgba(18, 22, 52, 0.95), rgba(14, 18, 40, 0.96)),
+    radial-gradient(520px 240px at 50% 0%, rgba(96, 142, 255, 0.18), transparent 70%);
+  box-shadow: 0 28px 70px rgba(6, 10, 28, 0.46);
+  overflow: hidden;
+  padding-bottom: calc(clamp(1rem, 4vw, 1.5rem) + env(safe-area-inset-bottom));
+}
+
+.mobilePreviewClose {
+  position: absolute;
+  top: clamp(0.9rem, 4vw, 1.25rem);
+  right: clamp(0.9rem, 4vw, 1.25rem);
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(160, 172, 255, 0.3);
+  background: linear-gradient(180deg, rgba(34, 42, 94, 0.82), rgba(20, 26, 58, 0.9));
+  color: rgba(244, 247, 255, 0.96);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease;
+  z-index: 2;
+}
+
+.mobilePreviewClose:hover,
+.mobilePreviewClose:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(186, 198, 255, 0.6);
+}
+
+.mobilePreviewContent {
+  position: relative;
+  z-index: 1;
+  overflow-y: auto;
+  padding-top: 0.5rem;
+}
+
+.mobilePreviewBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 15, 0.62);
+  backdrop-filter: blur(8px);
+  z-index: 1440;
+}
 @media (max-width: 640px) {
   .panel {
+    width: 100vw;
     height: 100vh;
     height: 100dvh;
     border-radius: 0;
-    padding: clamp(1.25rem, 4vw, 1.75rem);
+    padding: clamp(1.1rem, 3.5vw, 1.5rem);
+    padding-top: calc(env(safe-area-inset-top) + clamp(0.9rem, 3vw, 1.25rem));
   }
+  /* Prevent side clipping by removing outer overlay padding on very small screens */
+  .overlay { padding: 0; }
   .columns {
     gap: 1.25rem;
   }
   .chatScroll {
     padding: 0 12px 12px;
   }
+  /* Give a bit more room to the composer on small screens */
+  .chatArea {
+    min-height: clamp(180px, 32vh, 320px);
+  }
+  .promptSurface {
+    gap: 12px;
+    padding: 12px 14px 12px 16px;
+  }
+  .promptPresets { padding-inline: 12px; }
   .composerBottom {
     background: var(
       --composer-footer-background,
       color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 92%, transparent)
     );
     border-top: 1px solid var(--composer-footer-border, rgba(255, 255, 255, 0.12));
+    padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
   }
   .attachmentSurface {
     height: clamp(220px, 52vh, 360px);
