@@ -243,56 +243,30 @@
       rgba(12, 20, 46, 0.86)
     );
     --home-card-icon-danger: var(--color-danger, #f87171);
-    --home-poll-card-border: color-mix(
-      in srgb,
-      var(--color-brand) 62%,
-      rgba(12, 18, 44, 0.48)
-    );
+    /* Poll UI (dark): neutral shells using card/surface tones */
+    --home-poll-card-border: color-mix(in srgb, var(--card-border) 90%, transparent);
     --home-poll-card-background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-brand) 32%, rgba(16, 24, 52, 0.95)),
-      color-mix(in srgb, var(--color-brand-strong) 30%, rgba(12, 20, 46, 0.9))
+      var(--card-bg-1),
+      var(--card-bg-2)
     );
-    --home-poll-question: color-mix(
-      in srgb,
-      rgba(218, 230, 255, 0.96) 86%,
-      rgba(236, 243, 255, 0.98)
-    );
-    --home-poll-option-border: color-mix(
-      in srgb,
-      var(--color-brand) 58%,
-      rgba(12, 18, 44, 0.42)
-    );
+    --home-poll-question: var(--text);
+    --home-poll-option-border: color-mix(in srgb, var(--card-border) 82%, transparent);
     --home-poll-option-background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-brand) 26%, rgba(14, 22, 50, 0.86)),
-      color-mix(in srgb, var(--color-brand-strong) 24%, rgba(12, 20, 46, 0.82))
+      color-mix(in srgb, var(--surface-overlay) 88%, transparent),
+      color-mix(in srgb, var(--surface-muted) 80%, transparent)
     );
-    --home-poll-option-selected-border: color-mix(
-      in srgb,
-      var(--color-brand) 72%,
-      rgba(16, 26, 56, 0.34)
-    );
+    --home-poll-option-selected-border: color-mix(in srgb, var(--color-brand) 48%, var(--card-border));
+    /* Progress fill: subtle brand-tinted band to avoid overpowering */
     --home-poll-option-fill: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-brand) 30%, rgba(32, 56, 120, 0.24)),
-      color-mix(in srgb, var(--color-brand-strong) 28%, rgba(28, 48, 110, 0.2))
+      90deg,
+      color-mix(in srgb, var(--color-brand) 38%, rgba(76, 86, 212, 0.25)),
+      color-mix(in srgb, var(--color-accent) 30%, rgba(46, 196, 255, 0.18))
     );
-    --home-poll-option-label: color-mix(
-      in srgb,
-      rgba(218, 232, 255, 0.98) 92%,
-      rgba(240, 246, 255, 1)
-    );
-    --home-poll-option-meta: color-mix(
-      in srgb,
-      rgba(174, 194, 230, 0.8) 86%,
-      rgba(200, 214, 240, 0.82)
-    );
-    --home-poll-footer: color-mix(
-      in srgb,
-      rgba(162, 184, 224, 0.72) 82%,
-      rgba(192, 208, 238, 0.78)
-    );
+    --home-poll-option-label: var(--text);
+    --home-poll-option-meta: var(--text-3);
+    --home-poll-footer: var(--text-3);
     /* Prompt halo */
     --prompt-glow-blur: 18px;
     --prompt-glow-opacity: 0.54;
@@ -390,6 +364,47 @@
     --style-friends-badge-bg: var(--tile-badge-bg-base);
     --style-friends-badge-color: var(--tile-badge-color-base);
     --style-friends-border-hover: var(--tile-border-hover-base);
+    /* Party tile tokens (dark mode): blue-leaning to match screenshot */
+    --style-party-bg:
+      linear-gradient(
+        150deg,
+        color-mix(in srgb, #5b73ff 30%, transparent),
+        color-mix(in srgb, #3fa4ff 24%, transparent)
+      ),
+      var(--tile-bg-base);
+    --style-party-border: color-mix(
+      in srgb,
+      rgba(102, 147, 255, 0.45) 78%,
+      var(--tile-border-base)
+    );
+    --style-party-text: var(--tile-text-base);
+    --style-party-desc: var(--tile-desc-base);
+    --style-party-shadow: 0 16px 36px rgba(33, 68, 210, 0.25);
+    --style-party-shadow-hover: 0 22px 48px rgba(59, 114, 255, 0.36);
+    --style-party-icon-bg: color-mix(
+      in srgb,
+      rgba(88, 126, 255, 0.42) 60%,
+      rgba(255, 255, 255, 0.18)
+    );
+    --style-party-icon-color: var(--tile-icon-color-base);
+    --style-party-badge-bg: color-mix(
+      in srgb,
+      rgba(74, 114, 255, 0.86) 80%,
+      rgba(14, 18, 36, 0.88)
+    );
+    --style-party-badge-color: var(--text-on-brand, #ffffff);
+    --style-party-border-hover: color-mix(
+      in srgb,
+      rgba(120, 170, 255, 0.66) 86%,
+      var(--tile-border-hover-base)
+    );
+    --style-party-accent-a: color-mix(in srgb, #5f7eff 60%, #3db7ff);
+    --style-party-accent-b: color-mix(in srgb, #4a66ff 55%, #32a7ff);
+    --style-party-accent-c: color-mix(
+      in srgb,
+      rgba(67, 94, 210, 0.66) 68%,
+      rgba(24, 38, 92, 0.66)
+    );
     --style-chats-bg: var(--tile-bg-base);
     --style-chats-border: var(--tile-border-base);
     --style-chats-text: var(--tile-text-base);
