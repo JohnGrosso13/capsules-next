@@ -1,6 +1,7 @@
 .bar {
   position: fixed;
-  z-index: 120;
+  /* Ensure the dock always sits above page content, prompter, and rails */
+  z-index: 2100;
   left: 0;
   right: 0;
   bottom: 0;
