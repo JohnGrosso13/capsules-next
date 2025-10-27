@@ -3,7 +3,6 @@
 import * as React from "react";
 import styles from "../ai-composer.module.css";
 import lightboxStyles from "@/components/home-feed.module.css";
-import contextMenuStyles from "@/components/ui/context-menu.module.css";
 import {
   X,
   Paperclip,
@@ -13,6 +12,7 @@ import {
   FileText,
   FolderSimple,
   Brain,
+  List,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
@@ -257,9 +257,24 @@ type ComposerToolbarProps = {
   onSelectKind: (key: string) => void;
   onClose: () => void;
   disabled: boolean;
+  onMenuToggle?: () => void;
+  mobileRailOpen?: boolean;
+  onPreviewToggle?: () => void;
+  previewOpen?: boolean;
+  isMobile?: boolean;
 };
 
-function ComposerToolbar({ activeKey, onSelectKind, onClose, disabled }: ComposerToolbarProps) {
+function ComposerToolbar({
+  activeKey,
+  onSelectKind,
+  onClose,
+  disabled,
+  onMenuToggle,
+  mobileRailOpen,
+  onPreviewToggle,
+  previewOpen,
+  isMobile,
+}: ComposerToolbarProps) {
   return (
     <>
       <button
@@ -274,7 +289,25 @@ function ComposerToolbar({ activeKey, onSelectKind, onClose, disabled }: Compose
 
       <header className={styles.panelToolbar}>
         <div className={styles.toolbarHeading}>
-          <h2 className={styles.toolbarTitle}>Composer Studio</h2>
+          {isMobile ? (
+            <div className={styles.mobileHeadingRow}>
+              {onMenuToggle ? (
+                <button
+                  type="button"
+                  className={styles.headerIconBtn}
+                  onClick={onMenuToggle}
+                  aria-haspopup="menu"
+                  aria-expanded={mobileRailOpen}
+                  aria-label="Open composer menu"
+                >
+                  <List size={18} weight="bold" />
+                </button>
+              ) : null}
+              <h2 className={styles.toolbarTitle}>Composer Studio</h2>
+            </div>
+          ) : (
+            <h2 className={styles.toolbarTitle}>Composer Studio</h2>
+          )}
         </div>
         <div className={styles.toolbarModes} role="tablist" aria-label="Select what you want to create">
           {ASSET_KIND_OPTIONS.map((option) => {
@@ -294,6 +327,21 @@ function ComposerToolbar({ activeKey, onSelectKind, onClose, disabled }: Compose
             );
           })}
         </div>
+        {isMobile ? (
+          <div className={styles.headerActions}>
+            {onPreviewToggle ? (
+              <button
+                type="button"
+                className={styles.previewToggle}
+                onClick={onPreviewToggle}
+                aria-pressed={previewOpen}
+                aria-label="Toggle preview"
+              >
+                Preview
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </header>
     </>
   );
@@ -673,7 +721,10 @@ export function ComposerForm({
   const [promptValue, setPromptValue] = React.useState<string>(prompt ?? "");
   const [recentModalOpen, setRecentModalOpen] = React.useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = React.useState<SidebarTabKey>("recent");
+  const [isMobileLayout, setIsMobileLayout] = React.useState(false);
   const lastSubmittedPromptRef = React.useRef<string | null>(null);
+  const mobileMenuCloseRef = React.useRef<HTMLButtonElement | null>(null);
+  const mobilePreviewCloseRef = React.useRef<HTMLButtonElement | null>(null);
 
   const {
     fileInputRef,
@@ -768,6 +819,29 @@ export function ComposerForm({
   useResponsiveRail({ open: mobileRailOpen, onClose: closeMobileRail });
 
   React.useEffect(() => {
+    if (!mobileRailOpen || !isMobileLayout) return;
+    const closeButton = mobileMenuCloseRef.current;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButton?.focus();
+    return () => {
+      previouslyFocused?.focus?.();
+    };
+  }, [isMobileLayout, mobileRailOpen]);
+
+  React.useEffect(() => {
+    if (!mobileRailOpen) return undefined;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMobileRail();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeMobileRail, mobileRailOpen]);
+
+  React.useEffect(() => {
     if (!memoryPickerOpen) return;
     void refreshUploads();
     void refreshAssets();
@@ -777,6 +851,7 @@ export function ComposerForm({
     if (typeof window === "undefined") return undefined;
     const media = window.matchMedia("(max-width: 900px)");
     const apply = (matches: boolean) => {
+      setIsMobileLayout(matches);
       actions.setPreviewOpen(matches ? false : true);
     };
     apply(media.matches);
@@ -788,6 +863,29 @@ export function ComposerForm({
     media.addListener(handleChange);
     return () => media.removeListener(handleChange);
   }, [actions]);
+
+  React.useEffect(() => {
+    if (!isMobileLayout || !previewOpen) return;
+    const closeButton = mobilePreviewCloseRef.current;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButton?.focus();
+    return () => {
+      previouslyFocused?.focus?.();
+    };
+  }, [isMobileLayout, previewOpen]);
+
+  React.useEffect(() => {
+    if (!isMobileLayout || !previewOpen) return undefined;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        actions.setPreviewOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [actions, isMobileLayout, previewOpen]);
 
   const displayAttachment = React.useMemo<LocalAttachment | null>(() => {
     if (attachment) return attachment;
@@ -2001,19 +2099,186 @@ export function ComposerForm({
     </PreviewColumn>
   );
 
-  const mobileMenu = (
-    <div className={`${contextMenuStyles.menu} ${styles.mobileRailMenu}`} role="menu">
-      <button type="button" className={contextMenuStyles.item}>
-        New Chat
-      </button>
-      <div className={contextMenuStyles.separator} />
-      <div className={contextMenuStyles.sectionLabel}>Active Drafts</div>
-      <div className={styles.menuEmpty}>No active drafts</div>
-      <div className={contextMenuStyles.separator} />
-      <div className={contextMenuStyles.sectionLabel}>Projects</div>
-      <div className={styles.menuEmpty}>No projects yet</div>
-    </div>
+  const renderMobileListItem = React.useCallback(
+    (item: SidebarListItem, fallbackIcon?: React.ReactNode) => (
+      <li key={item.id}>
+        <button
+          type="button"
+          onClick={() => {
+            item.onClick();
+            closeMobileRail();
+          }}
+          disabled={item.disabled}
+          data-active={item.active ? "true" : undefined}
+        >
+          <span className={styles.mobileSheetListIcon}>{item.icon ?? fallbackIcon ?? null}</span>
+          <span className={styles.mobileSheetListMeta}>
+            <span className={styles.mobileSheetListTitle}>{item.title}</span>
+            {item.subtitle ? (
+              <span className={styles.mobileSheetListCaption}>{item.subtitle}</span>
+            ) : null}
+          </span>
+        </button>
+      </li>
+    ),
+    [closeMobileRail],
   );
+
+  const mobileMenu =
+    !isMobileLayout || !mobileRailOpen
+      ? null
+      : (
+          <div className={styles.mobileSheet} role="presentation">
+            <div className={styles.mobileSheetBackdrop} onClick={closeMobileRail} />
+            <div
+              className={styles.mobileSheetPanel}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="composer-mobile-menu-title"
+            >
+              <div className={styles.mobileSheetHeader}>
+                <span id="composer-mobile-menu-title" className={styles.mobileSheetTitle}>
+                  Composer menu
+                </span>
+                <button
+                  type="button"
+                  className={styles.mobileSheetClose}
+                  onClick={closeMobileRail}
+                  ref={mobileMenuCloseRef}
+                  aria-label="Close composer menu"
+                >
+                  <X size={16} weight="bold" />
+                </button>
+              </div>
+              <div className={styles.mobileSheetBody}>
+                <section className={styles.mobileSheetSection}>
+                  <header>
+                    <span className={styles.mobileSheetSectionTitle}>Recent chats</span>
+                    {recentActionProps ? (
+                      <button
+                        type="button"
+                        className={styles.mobileSheetSectionAction}
+                        onClick={() => {
+                          closeMobileRail();
+                          recentActionProps.onAction();
+                        }}
+                      >
+                        {recentActionProps.actionLabel ?? "See all"}
+                      </button>
+                    ) : null}
+                  </header>
+                  {recentSidebarItems.length ? (
+                    <ul className={styles.mobileSheetList} role="list">
+                      {recentSidebarItems.map((item) =>
+                        renderMobileListItem(item, recentItemIcon),
+                      )}
+                    </ul>
+                  ) : (
+                    <div className={styles.memoryEmpty}>No chats yet</div>
+                  )}
+                </section>
+
+                <section className={styles.mobileSheetSection}>
+                  <header>
+                    <span className={styles.mobileSheetSectionTitle}>Saved drafts</span>
+                  </header>
+                  {draftSidebarItems.length ? (
+                    <ul className={styles.mobileSheetList} role="list">
+                      {draftSidebarItems.map((item) => renderMobileListItem(item))}
+                    </ul>
+                  ) : (
+                    <div className={styles.memoryEmpty}>No drafts saved yet</div>
+                  )}
+                </section>
+
+                <section className={styles.mobileSheetSection}>
+                  <header>
+                    <span className={styles.mobileSheetSectionTitle}>Projects</span>
+                    <button
+                      type="button"
+                      className={styles.mobileSheetSectionAction}
+                      onClick={() => {
+                        closeMobileRail();
+                        handleCreateProjectClick();
+                      }}
+                    >
+                      New project
+                    </button>
+                  </header>
+                  {projectSidebarItems.length ? (
+                    <ul className={styles.mobileSheetList} role="list">
+                      {projectSidebarItems.map((item) => renderMobileListItem(item))}
+                    </ul>
+                  ) : (
+                    <div className={styles.memoryEmpty}>Create a project to organize drafts</div>
+                  )}
+                </section>
+
+                <section className={styles.mobileSheetSection}>
+                  <header>
+                    <span className={styles.mobileSheetSectionTitle}>Memories</span>
+                  </header>
+                  <ul className={styles.mobileSheetList} role="list">
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeMobileRail();
+                          handleMemoryPickerOpen("uploads");
+                        }}
+                      >
+                        <span className={styles.mobileSheetListIcon}>
+                          <Brain size={18} weight="fill" />
+                        </span>
+                        <span className={styles.mobileSheetListMeta}>
+                          <span className={styles.mobileSheetListTitle}>Browse memories</span>
+                          <span className={styles.mobileSheetListCaption}>
+                            Open your stored assets and brand visuals.
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  </ul>
+                </section>
+
+                <section className={styles.mobileSheetSection}>
+                  <header>
+                    <span className={styles.mobileSheetSectionTitle}>Settings</span>
+                  </header>
+                  <div className={styles.privacyGroup}>
+                    <span className={styles.privacyLabel}>Visibility</span>
+                    <select
+                      aria-label="Visibility"
+                      className={styles.privacySelect}
+                      value={privacy}
+                      onChange={(event) => {
+                        const nextValue = (event.target.value || "public") as ComposerFormState["privacy"];
+                        actions.setPrivacy(nextValue);
+                      }}
+                      disabled={loading}
+                    >
+                      <option value="public">Public</option>
+                      <option value="private">Private</option>
+                    </select>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      onClick={() => {
+                        handleSave();
+                        closeMobileRail();
+                      }}
+                      disabled={!canSave}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        );
 
   const startLeftResize = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -2045,6 +2310,11 @@ export function ComposerForm({
           onSelectKind={handleKindSelect}
           onClose={onClose}
           disabled={loading}
+          onMenuToggle={() => actions.setMobileRailOpen(!mobileRailOpen)}
+          mobileRailOpen={mobileRailOpen}
+          onPreviewToggle={handlePreviewToggle}
+          previewOpen={previewOpen}
+          isMobile={isMobileLayout}
         />
 
         <div className={styles.panelBody}>
@@ -2052,10 +2322,10 @@ export function ComposerForm({
             columnsRef={columnsRef}
             mainRef={mainRef}
             layout={layout}
-            previewOpen={previewOpen}
+            previewOpen={isMobileLayout ? false : previewOpen}
             leftRail={leftRail}
             mainContent={mainContent}
-            previewContent={previewContent}
+            previewContent={isMobileLayout ? null : previewContent}
             mobileRailOpen={mobileRailOpen}
             onToggleMobileRail={() => actions.setMobileRailOpen(!mobileRailOpen)}
             mobileMenu={mobileMenu}
@@ -2063,6 +2333,34 @@ export function ComposerForm({
             onRightResizeStart={startRightResize}
             onBottomResizeStart={startBottomResize}
           />
+
+          {isMobileLayout && previewOpen ? (
+            <>
+              <div
+                className={styles.mobilePreviewBackdrop}
+                onClick={() => actions.setPreviewOpen(false)}
+              />
+              <div className={styles.mobilePreviewOverlay} role="presentation">
+                <div
+                  className={styles.mobilePreviewDialog}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Post preview"
+                >
+                  <button
+                    type="button"
+                    className={styles.mobilePreviewClose}
+                    onClick={() => actions.setPreviewOpen(false)}
+                    ref={mobilePreviewCloseRef}
+                    aria-label="Close preview"
+                  >
+                    <X size={16} weight="bold" />
+                  </button>
+                  <div className={styles.mobilePreviewContent}>{previewContent}</div>
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
 
         <ComposerFooter
