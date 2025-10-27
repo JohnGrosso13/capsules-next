@@ -689,21 +689,22 @@ export function AiPrompterStage({
       : postPlan.mode === "ai"
         ? "AI will draft this for you."
         : null;
-  const styleHint = effectiveIntent === "style" ? "AI Styler is ready." : null;
-
-  const uploadingHint = React.useMemo(() => {
-    if (!attachmentUploading || !attachment) return null;
-    const percent = Number.isFinite(attachment.progress)
-      ? Math.round(Math.min(Math.max(attachment.progress, 0), 1) * 100)
-      : null;
-    const safeName = truncate(attachment.name || "attachment", 36);
-    const progressLabel = percent !== null ? ` (${percent}%)` : "";
-    return `Uploading ${safeName}${progressLabel}`;
-  }, [attachmentUploading, attachment]);
-
+  const styleHint = effectiveIntent === "style" ? "AI Styler is ready." : null;  const [uploadCompleteHint, setUploadCompleteHint] = React.useState<string | null>(null);
+  const lastCompletedIdRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!attachmentsEnabled) return;
+    if (!attachment) return;
+    if (attachment.status === "ready" && attachment.id && attachment.id !== lastCompletedIdRef.current) {
+      lastCompletedIdRef.current = attachment.id;
+      setUploadCompleteHint("Upload complete.");
+      const id = window.setTimeout(() => setUploadCompleteHint(null), 1800);
+      return () => window.clearTimeout(id);
+    }
+    return undefined;
+  }, [attachmentsEnabled, attachment]);
   const rawHint =
     statusMessage ??
-    uploadingHint ??
+    uploadCompleteHint ??
     (variantConfig.allowVoice ? voiceStatusMessage : null) ??
     (variantConfig.allowIntentHints
       ? manualNote ??
@@ -712,7 +713,9 @@ export function AiPrompterStage({
         styleHint ??
         (attachment?.status === "error" ? attachment.error : null) ??
         (buttonBusy ? "Analyzing intent..." : autoIntent.reason ?? null)
-      : null);
+      : null);\n
+  
+  
 
   function humanizeHint(input: string | null): string | null {
     if (!input) return null;
@@ -751,7 +754,7 @@ export function AiPrompterStage({
   const hint = humanizeHint(crumbHint ?? rawHint);
   const showHint =
     Boolean(hint) &&
-    (variantConfig.allowIntentHints || Boolean(statusMessage) || attachmentUploading || attachment?.status === "error");
+    (variantConfig.allowIntentHints || Boolean(statusMessage) || Boolean(uploadCompleteHint) || attachment?.status === "error") && !attachmentUploading;
 
   return (
     <section
@@ -829,3 +832,6 @@ export function AiPrompterStage({
     </section>
   );
 }
+
+
+
