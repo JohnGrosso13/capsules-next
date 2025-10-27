@@ -553,11 +553,18 @@
 }
 
 .privacyOptionSelected {
-  border-color: var(--party-input-focus-border);
-  /* Subtle brand tint over neutral background */
-  background: color-mix(in srgb, var(--color-brand, #2563eb) 10%, var(--party-input-background));
+  /* Selected state: clearer edge + soft brand wash suitable for dark mode */
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 65%, transparent);
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand, #2563eb) 10%, var(--party-input-background)) 0%,
+      color-mix(in srgb, var(--color-brand-strong, #4f46e5) 6%, var(--party-input-background)) 100%
+    );
   color: var(--text);
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--color-brand, #2563eb) 14%, transparent);
+  box-shadow:
+    0 10px 22px color-mix(in srgb, var(--color-brand, #2563eb) 16%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent) inset,
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .privacyOptionLabel {
@@ -572,7 +579,17 @@
 }
 
 .privacyOptionSelected .privacyOptionDescription {
-  color: color-mix(in srgb, var(--text) 78%, transparent);
+  color: color-mix(in srgb, var(--text) 86%, transparent);
+}
+
+/* Keep selected emphasis on hover without excessive brightness */
+.privacyOptionSelected:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 70%, transparent);
+  box-shadow:
+    0 12px 24px color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-brand, #2563eb) 38%, transparent) inset,
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .primaryButton,
