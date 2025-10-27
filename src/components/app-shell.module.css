@@ -74,6 +74,12 @@
   .prompterStage {
     margin-bottom: var(--layout-prompter-margin-bottom-mobile);
   }
+  /* Ensure center content is never clamped on small screens */
+  .content,
+  .content[data-layout="home"] {
+    max-width: none;
+    width: 100%;
+  }
 }
 
 .layout {

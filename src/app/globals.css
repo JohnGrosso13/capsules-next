@@ -1097,6 +1097,16 @@
     --mobile-page-gutter: 0px;
     --mobile-dock-height: 0px;
   }
+
+  /* Global mobile layout overrides so all modules sharing --app-feed-width
+     expand to the full device width, regardless of where they are mounted. */
+  @media (max-width: 640px) {
+    :root {
+      --app-feed-width: 100%;
+      --app-rail-width: 100%;
+      --layout-page-width-offset: 0px;
+    }
+  }
   :root[data-theme="light"] {
     color-scheme: light;
     /* Symmetric, visible light background to mirror dark */
