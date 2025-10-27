@@ -138,9 +138,37 @@ export function PrompterToolbar({
 
       <div className={styles.statusRow} role="status" aria-live="polite">
         {showHint && hint ? (
-          <span className={styles.statusHint} data-active={uploading || isVoiceActive || undefined}>
-            <span className={styles.statusDot} aria-hidden />
-            <span className={styles.statusText}>{hint}</span>
+          <span
+            className={styles.statusHint}
+            data-active={uploading || isVoiceActive || (uploadingAttachment ? "true" : undefined)}
+          >
+            <span className={styles.statusLine}>
+              <span className={styles.statusDot} aria-hidden />
+              <span className={styles.statusText}>{hint}</span>
+            </span>
+            {uploadingAttachment ? (
+              <span className={styles.statusUploadExtras}>
+                <span className={styles.progressTrack} aria-hidden>
+                  <span
+                    className={styles.progressBar}
+                    style={{
+                      width: `${Math.round(
+                        Math.min(Math.max(uploadingAttachment.progress ?? 0, 0), 1) * 100,
+                      )}%`,
+                    }}
+                  />
+                </span>
+                <button
+                  type="button"
+                  className={styles.attachmentActionButton}
+                  onClick={() => onRemoveAttachment(uploadingAttachment.id)}
+                  aria-label="Cancel upload"
+                  title="Cancel upload"
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : null}
           </span>
         ) : (
           <span />
@@ -243,50 +271,6 @@ export function PrompterToolbar({
                 </button>
               </span>
             ))}
-            {uploadingAttachment && attachments.every((a) => a.id !== uploadingAttachment.id) ? (
-              <span className={styles.attachmentCard} data-status={uploadingAttachment.status}>
-                <span className={styles.attachThumb} aria-hidden>
-                  <span className={styles.brainWrap}>
-                    <Brain className={styles.brainBase} size={20} weight="duotone" />
-                    <span
-                      className={styles.brainFillClip}
-                      style={{ height: `${Math.round((uploadingAttachment.progress || 0) * 100)}%` }}
-                    >
-                      <Brain className={styles.brainFill} size={20} weight="fill" />
-                    </span>
-                  </span>
-                </span>
-                <span className={styles.attachMeta}>
-                  <span className={styles.attachmentName} title={uploadingAttachment.name}>
-                    {uploadingAttachment.name}
-                  </span>
-                  <span className={styles.attachmentStatus}>
-                    {`Uploading ${Math.round(
-                      Math.min(Math.max(uploadingAttachment.progress ?? 0, 0), 1) * 100,
-                    )}%`}
-                  </span>
-                  <span className={styles.progressTrack} aria-hidden>
-                    <span
-                      className={styles.progressBar}
-                      style={{
-                        width: `${Math.round(
-                          Math.min(Math.max(uploadingAttachment.progress ?? 0, 0), 1) * 100,
-                        )}%`,
-                      }}
-                    />
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className={styles.attachmentRemove}
-                  onClick={() => onRemoveAttachment(uploadingAttachment.id)}
-                  aria-label="Cancel upload"
-                  title="Cancel upload"
-                >
-                  &times;
-                </button>
-              </span>
-            ) : null}
           </div>
         ) : null}
       </div>
