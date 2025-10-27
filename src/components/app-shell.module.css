@@ -16,6 +16,10 @@
   .page {
     width: 100%;
     margin: 0;
+    /* On mobile, feed/rail tokens should expand to full width */
+    --app-feed-width: 100%;
+    --app-rail-width: 100%;
+    --app-column-gap: var(--layout-mobile-section-gap);
     padding: var(--layout-mobile-top-offset) 0 var(--layout-mobile-outer-padding-bottom);
     padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
     padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
@@ -227,6 +231,13 @@
     grid-template-columns: 1fr;
     justify-content: stretch;
     column-gap: var(--layout-column-gap);
+  }
+  .page {
+    /* Tablet and small-desktop widths should not clamp the feed; use full width */
+    --app-feed-width: 100%;
+    --app-rail-width: 100%;
+    --app-column-gap: var(--layout-mobile-section-gap);
+    width: 100%;
   }
   .page[data-layout="capsule"] {
     padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
