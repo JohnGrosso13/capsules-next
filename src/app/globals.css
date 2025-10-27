@@ -165,10 +165,14 @@
     --cta-radius: var(--radius-pill, 999px);
     /* Card surfaces */
     --card-radius: var(--radius-lg, 1rem);
+    /* Base card tones tuned darker to avoid always-on highlight */
+    --card-bg-1: rgba(13, 17, 36, 0.9);
+    --card-bg-2: rgba(8, 12, 28, 0.82);
+    --card-border: rgba(255, 255, 255, 0.1);
     /* Unify elevation across surfaces */
-    --card-shadow: var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34));
+    --card-shadow: var(--shadow-md, 0 10px 26px rgba(5, 10, 30, 0.34));
     --card-hover-bg-1: rgba(14, 18, 42, 0.94);
-    --card-hover-bg-2: rgba(9, 12, 30, 0.82);
+    --card-hover-bg-2: rgba(9, 12, 30, 0.84);
     --card-hover-border: color-mix(in srgb, var(--color-border) 70%, transparent);
     --card-hover-shadow: 0 18px 40px rgba(5, 10, 30, 0.4);
     /* Rail surfaces */
@@ -196,8 +200,8 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
       0 10px 20px color-mix(in srgb, var(--color-brand) 18%, rgba(5, 10, 30, 0.2));
     --pill-radius: var(--radius-pill, 999px);
-    /* Feed action buttons */
-    --feed-action-bg-1: rgba(255, 255, 255, 0.06);
+    /* Feed action buttons (slightly dimmer in dark) */
+    --feed-action-bg-1: rgba(255, 255, 255, 0.045);
     --feed-action-bg-2: rgba(255, 255, 255, 0.02);
     --feed-action-border: rgba(255, 255, 255, 0.08);
     --feed-action-border-hover: rgba(255, 255, 255, 0.2);
@@ -610,7 +614,12 @@
     /* Friends party action tokens */
     --friends-party-action-text: var(--text);
     --friends-party-action-border: color-mix(in srgb, var(--color-brand) 65%, transparent);
-    --friends-party-action-background: color-mix(in srgb, var(--color-brand) 30%, transparent);
+    /* Solid, non-gradient feel for Party Voice button */
+    --friends-party-action-background: color-mix(
+      in srgb,
+      rgba(255, 255, 255, 0.085) 100%,
+      transparent
+    );
     --friends-party-action-hover-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
     --friends-party-action-active-border: color-mix(in srgb, var(--color-brand) 85%, transparent);
     --friends-party-action-active-shadow: 0 12px 26px
@@ -618,7 +627,12 @@
     /* Friends group action tokens (dark: fallback to brand) */
     --friends-group-action-text: var(--text);
     --friends-group-action-border: color-mix(in srgb, var(--color-brand) 65%, transparent);
-    --friends-group-action-background: color-mix(in srgb, var(--color-brand) 30%, transparent);
+    /* Solid, non-gradient feel for Group Chat button */
+    --friends-group-action-background: color-mix(
+      in srgb,
+      rgba(255, 255, 255, 0.085) 100%,
+      transparent
+    );
     --friends-group-action-hover-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
     --friends-group-action-active-border: color-mix(in srgb, var(--color-brand) 85%, transparent);
     --friends-group-action-active-shadow: 0 12px 26px
