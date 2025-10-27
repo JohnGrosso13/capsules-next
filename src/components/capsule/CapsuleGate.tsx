@@ -12,7 +12,7 @@ import capsuleTileHostStyles from "@/components/capsule/capsule-tile-host.module
 import { resolveCapsuleTileMedia } from "@/lib/capsules/promo-tile";
 import type { CapsuleSummary } from "@/server/capsules/service";
 
-import styles from "@/app/(authenticated)/capsule/capsule.module.css";
+import styles from "./CapsuleGate.module.css";
 
 type CapsuleGateProps = {
   capsules: CapsuleSummary[];
@@ -84,7 +84,7 @@ function PromoCarouselRow({ items, rowLabel }: { items: PlaceholderCapsule[]; ro
   return (
     <div className={styles.carouselRow}>
       <div className={styles.carouselViewport} ref={emblaRef}>
-        <div className={styles.carouselContainer}>
+        <div className={styles.carouselTrack}>
           {items.map((item) => (
             <div key={item.name} className={styles.carouselSlide}>
               <div className={`tile-neu ${styles.promoTile}`} aria-label={item.name}>
@@ -146,11 +146,11 @@ function CapsuleSelectorTile({
     bannerUrl: capsule.bannerUrl,
     logoUrl: capsule.logoUrl,
   });
-  const tileClass = `${capsuleTileHostStyles.tileHost} ${styles.selectorTile ?? ""}`.trim();
+  const tileClass = `${capsuleTileHostStyles.tileHost} ${styles.tile ?? ""}`.trim();
   return (
     <button
       type="button"
-      className={styles.selectorTileButton}
+      className={styles.tileButton}
       onClick={() => onSelect(capsule.id)}
       aria-label={`Open ${capsule.name}`}
     >
@@ -161,9 +161,9 @@ function CapsuleSelectorTile({
         className={tileClass}
         showSlug={false}
       />
-      <div className={styles.selectorTileMeta}>
-        <span className={styles.selectorTileBadge}>{badgeLabel}</span>
-        <span className={styles.selectorTileRole}>{roleDescription}</span>
+      <div className={styles.tileMeta}>
+        <span className={styles.tileBadge}>{badgeLabel}</span>
+        <span className={styles.tileRole}>{roleDescription}</span>
       </div>
     </button>
   );
@@ -318,7 +318,7 @@ export function CapsuleGate({
       const detail = (event as CustomEvent<{ focus?: boolean }>).detail;
       setActiveId(null);
       if (detail?.focus) {
-        const selectorRoot = document.querySelector<HTMLElement>(`.${styles.selectorWrap}`);
+        const selectorRoot = document.querySelector<HTMLElement>(`.${styles.selector}`);
         selectorRoot?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     };
@@ -351,52 +351,52 @@ export function CapsuleGate({
 
   if (!capsuleList.length) {
     return (
-      <div className={styles.gateWrap}>
-        <div className={styles.gateCard}>
-          <h2 className={styles.gateTitle}>Create a New Capsule!</h2>
-          <p className={styles.gateSubtitle}>
-            Your Capsule is your space for live sessions, posts, and community. Create one to get
-            started.
-          </p>
-          <ButtonLink
-            href="/capsule/onboarding"
-            variant="gradient"
-            size="lg"
-            className={styles.gateCta}
-          >
-            Create a Capsule
-          </ButtonLink>
-        </div>
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <h2 className={styles.cardTitle}>Create a New Capsule!</h2>
+        <p className={styles.cardSubtitle}>
+          Your Capsule is your space for live sessions, posts, and community. Create one to get
+          started.
+        </p>
+        <ButtonLink
+          href="/capsule/onboarding"
+          variant="gradient"
+          size="lg"
+          className={styles.cta}
+        >
+          Create a Capsule
+        </ButtonLink>
+      </div>
 
-        <section className={styles.recommendSection} aria-label="Recommended Capsules">
-          <header className={styles.recommendHeader}>
-            <h3 className={styles.recommendTitle}>Recommended Capsules</h3>
-          </header>
-          <div className={styles.carouselGroup}>
-            {PLACEHOLDER_ROWS.map((row, index) => (
-              <PromoCarouselRow key={index} items={row} rowLabel={`row ${index + 1}`} />
-            ))}
-          </div>
-        </section>
+      <section className={styles.recommended} aria-label="Recommended Capsules">
+        <header className={styles.recommendedHeader}>
+          <h3 className={styles.recommendedTitle}>Recommended Capsules</h3>
+        </header>
+        <div className={styles.carousel}>
+          {PLACEHOLDER_ROWS.map((row, index) => (
+            <PromoCarouselRow key={index} items={row} rowLabel={`row ${index + 1}`} />
+          ))}
+        </div>
+      </section>
       </div>
     );
   }
 
   if (activeCapsule) {
     return (
-      <div className={styles.gateActive}>
+      <div className={styles.active}>
         <CapsuleContent capsuleId={activeCapsule.id} capsuleName={activeCapsule.name} />
       </div>
     );
   }
 
   return (
-    <div className={styles.selectorWrap}>
+    <div className={styles.selector}>
       {!hasOwnedCapsule ? (
-        <div className={styles.selectorCreateCard}>
-          <div className={styles.selectorCreateBody}>
-            <h2 className={styles.selectorCreateTitle}>Launch your own Capsule</h2>
-            <p className={styles.selectorCreateSubtitle}>
+        <div className={styles.createCard}>
+          <div className={styles.createCardBody}>
+            <h2 className={styles.createCardTitle}>Launch your own Capsule</h2>
+            <p className={styles.createCardSubtitle}>
               Explore spaces you&rsquo;re a member of below, or start your own to unlock full
               customization.
             </p>
@@ -405,7 +405,7 @@ export function CapsuleGate({
             href="/capsule/onboarding"
             variant="gradient"
             size="sm"
-            className={styles.selectorCreateAction}
+            className={styles.createCardAction}
           >
             Create a Capsule
           </ButtonLink>
@@ -417,45 +417,45 @@ export function CapsuleGate({
           <p className={styles.selectorSubtitle}>{selectorSubtitle}</p>
         ) : null}
       </div>
-      <div className={styles.selectorSections}>
-        <section className={styles.selectorSection} aria-label="User Created Capsules">
-          <header className={styles.selectorSectionHeader}>
-            <h3 className={styles.selectorSectionTitle}>Your Capsules</h3>
-            <span className={styles.selectorSectionBadge}>{ownedCapsules.length}</span>
+      <div className={styles.sections}>
+        <section className={styles.section} aria-label="User Created Capsules">
+          <header className={styles.sectionHeader}>
+            <h3 className={styles.sectionTitle}>Your Capsules</h3>
+            <span className={styles.sectionBadge}>{ownedCapsules.length}</span>
           </header>
           {hasOwnedCapsule ? (
-            <div className={styles.selectorGrid}>
+            <div className={styles.grid}>
               {ownedCapsules.map((capsule) => (
                 <CapsuleSelectorTile key={capsule.id} capsule={capsule} onSelect={handleSelect} />
               ))}
             </div>
           ) : (
-            <p className={styles.selectorSectionEmpty}>
+            <p className={styles.sectionMessage}>
               You haven&apos;t created a capsule yet. Spin one up to unlock full customization.
             </p>
           )}
         </section>
-        <section className={styles.selectorSection} aria-label="Memberships">
-          <header className={styles.selectorSectionHeader}>
-            <h3 className={styles.selectorSectionTitle}>Memberships</h3>
-            <span className={styles.selectorSectionBadge}>{memberCapsules.length}</span>
+        <section className={styles.section} aria-label="Memberships">
+          <header className={styles.sectionHeader}>
+            <h3 className={styles.sectionTitle}>Memberships</h3>
+            <span className={styles.sectionBadge}>{memberCapsules.length}</span>
           </header>
           {hasMemberCapsules ? (
-            <div className={styles.selectorGrid}>
+            <div className={styles.grid}>
               {memberCapsules.map((capsule) => (
                 <CapsuleSelectorTile key={capsule.id} capsule={capsule} onSelect={handleSelect} />
               ))}
             </div>
           ) : (
-            <p className={styles.selectorSectionEmpty}>
+            <p className={styles.sectionMessage}>
               You&apos;re not a member of any capsules yet. Accept an invite or request to join to
               see them here.
             </p>
           )}
         </section>
       </div>
-      <div className={styles.selectorFooter}>
-        <span className={styles.selectorFooterText}>Need another space?</span>
+      <div className={styles.footer}>
+        <span className={styles.footerText}>Need another space?</span>
         <Button variant="outline" size="sm" asChild>
           <Link href="/create">Create a new Capsule</Link>
         </Button>

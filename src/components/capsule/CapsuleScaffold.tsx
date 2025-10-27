@@ -37,6 +37,7 @@ import { useCapsuleFeed, formatFeedCount } from "@/hooks/useHomeFeed";
 import { useCapsuleMembership } from "@/hooks/useCapsuleMembership";
 import { useCurrentUser } from "@/services/auth/client";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
+import memberStyles from "./CapsuleMembersPanel.module.css";
 import {
   CapsuleBannerCustomizer,
   CapsuleLogoCustomizer,
@@ -706,7 +707,7 @@ function CapsuleHero({
           </button>
         </div>
         {errorMessage ? (
-          <div className={capTheme.membersNotice}>
+          <div className={memberStyles.notice}>
             <WarningCircle size={16} weight="bold" />
             <span>{errorMessage}</span>
           </div>
@@ -1527,10 +1528,5 @@ function CapsuleFeed({
     </section>
   );
 }
-
-
-
-
-
 
 

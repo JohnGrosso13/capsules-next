@@ -1,0 +1,399 @@
+@layer components {
+  .container {
+    width: 100%;
+    min-height: clamp(260px, 60vh, 540px);
+    display: grid;
+    gap: clamp(24px, 5vw, 48px);
+    place-items: center;
+    padding: clamp(24px, 5vw, 48px);
+  }
+
+  .card {
+    width: min(100%, 420px);
+    padding: clamp(24px, 5vw, 36px);
+    display: grid;
+    gap: clamp(16px, 3vw, 24px);
+    text-align: center;
+    border-radius: var(--radius-2xl, 20px);
+    border: 1px solid var(--card-border);
+    background:
+      radial-gradient(600px 200px at 20% -10%, rgba(255, 255, 255, 0.08), transparent 60%),
+      radial-gradient(600px 200px at 80% -10%, rgba(255, 255, 255, 0.08), transparent 60%),
+      linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+    box-shadow: var(--card-shadow);
+  }
+
+  .cardTitle {
+    margin: 0;
+    font-size: clamp(1.4rem, 3vw, 1.8rem);
+    font-weight: 900;
+  }
+
+  .cardSubtitle {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  .cta {
+    justify-self: center;
+    --cta-button-gradient: linear-gradient(120deg, #0ea5e9 0%, #2563eb 50%, #06b6d4 100%);
+    --cta-button-text: #ffffff;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    padding-inline: 1.25rem;
+  }
+
+  .active {
+    display: grid;
+    gap: var(--layout-page-gap);
+  }
+
+  .recommended {
+    margin-top: clamp(16px, 2vw, 24px);
+    --carousel-gap: 12px;
+    --carousel-cols: 4;
+    width: min(100%, clamp(640px, 52vw, 760px));
+    display: grid;
+    gap: 16px;
+    justify-items: center;
+  }
+
+  .recommendedHeader {
+    text-align: center;
+  }
+
+  .recommendedTitle {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+    color: var(--text, rgba(255, 255, 255, 0.92));
+  }
+
+  .carousel {
+    display: grid;
+    gap: 18px;
+    width: 100%;
+  }
+
+  .carouselRow {
+    position: relative;
+    padding: 4px 62px 4px 2px;
+  }
+
+  .carouselViewport {
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .carouselTrack {
+    display: flex;
+    gap: var(--carousel-gap);
+    align-items: stretch;
+  }
+
+  .carouselSlide {
+    flex: 0 0
+      calc((100% - (var(--carousel-gap) * (var(--carousel-cols) - 1))) / var(--carousel-cols));
+    max-width: calc((100% - (var(--carousel-gap) * (var(--carousel-cols) - 1))) / var(--carousel-cols));
+  }
+
+  .carouselControls {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    display: flex;
+    gap: 8px;
+    transform: translateY(-50%);
+  }
+
+  .promoTile {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 9 / 16;
+    border-radius: 16px;
+    overflow: hidden;
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .promoTile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 36px rgba(5, 10, 30, 0.35);
+  }
+
+  .promoOverlay {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 12px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6));
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .promoLogo {
+    --capsule-logo-size: var(--capsule-logo-size-xs);
+    --capsule-logo-radius: var(--capsule-logo-radius-xs);
+    --capsule-logo-shadow: 0 12px 28px rgba(6, 10, 28, 0.35);
+    width: var(--capsule-logo-size);
+    height: var(--capsule-logo-size);
+    border-radius: var(--capsule-logo-radius);
+    border: 1px solid var(--capsule-logo-border, var(--pill-border));
+    background:
+      radial-gradient(220px 120px at 20% -20%, rgba(255, 255, 255, 0.16), transparent 60%),
+      linear-gradient(
+        135deg,
+        var(--color-brand-strong),
+        color-mix(in srgb, var(--color-brand) 65%, var(--color-accent))
+      );
+    box-shadow: var(--capsule-logo-shadow);
+    flex-shrink: 0;
+  }
+
+  .promoMeta {
+    display: grid;
+    gap: 2px;
+  }
+
+  .promoName {
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .promoDesc {
+    font-size: 0.9rem;
+    color: var(--text-2);
+  }
+
+  .selector {
+    display: grid;
+    gap: clamp(20px, 4vw, 36px);
+    padding: clamp(16px, 4vw, 32px);
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .createCard {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(12px, 3vw, 24px);
+    padding: clamp(18px, 4vw, 28px);
+    border-radius: var(--radius-2xl, 20px);
+    border: 1px solid var(--card-border);
+    background:
+      radial-gradient(600px 220px at 20% -20%, rgba(255, 255, 255, 0.06), transparent 65%),
+      radial-gradient(620px 260px at 80% -24%, rgba(255, 255, 255, 0.04), transparent 70%),
+      linear-gradient(
+        180deg,
+        var(--card-bg-1, rgba(22, 30, 58, 0.62)),
+        var(--card-bg-2, rgba(18, 24, 48, 0.78))
+      );
+    box-shadow: var(--card-shadow);
+  }
+
+  .createCardBody {
+    display: grid;
+    gap: 8px;
+    max-width: 520px;
+  }
+
+  .createCardTitle {
+    margin: 0;
+    font-size: clamp(1.25rem, 2.6vw, 1.6rem);
+    font-weight: 800;
+  }
+
+  .createCardSubtitle {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .createCardAction {
+    white-space: nowrap;
+  }
+
+  .selectorHeader {
+    display: grid;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .selectorTitle {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    font-weight: 900;
+  }
+
+  .selectorSubtitle {
+    color: var(--text-2);
+    font-size: 1rem;
+  }
+
+  .sections {
+    display: grid;
+    gap: clamp(24px, 4vw, 32px);
+  }
+
+  .section {
+    display: grid;
+    gap: clamp(16px, 3vw, 24px);
+  }
+
+  .sectionHeader {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .sectionTitle {
+    margin: 0;
+    font-size: clamp(1.1rem, 2.2vw, 1.35rem);
+    font-weight: 800;
+    letter-spacing: 0.01em;
+  }
+
+  .sectionBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.24));
+    background: linear-gradient(
+      180deg,
+      var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
+      var(--pill-bg-2, rgba(255, 255, 255, 0.08))
+    );
+    color: var(--text, #ffffff);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  .sectionMessage {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .grid {
+    --tile-width: 166px;
+    --tile-gap: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tile-gap);
+    justify-content: center;
+    max-width: calc(var(--tile-width) * 4 + var(--tile-gap) * 3);
+    margin: 0 auto;
+    padding-inline: 4px;
+  }
+
+  .tileButton {
+    width: var(--tile-width);
+    flex: 0 0 var(--tile-width);
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    display: block;
+    text-align: center;
+  }
+
+  .tileButton:focus-visible {
+    outline: none;
+  }
+
+  .tileButton:focus-visible .tile {
+    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 65%, transparent);
+    outline-offset: 3px;
+  }
+
+  .tile {
+    width: 100%;
+    height: 100%;
+  }
+
+  .tileMeta {
+    margin-top: 6px;
+    display: grid;
+    gap: 5px;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .tileBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.18)) 78%, transparent);
+    color: var(--text);
+  }
+
+  .tileRole {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+
+  .footer {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    justify-self: center;
+  }
+
+  .footerText {
+    color: var(--text-2);
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 880px) {
+    .carouselRow {
+      padding-right: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .carouselControls {
+      position: static;
+      justify-content: flex-end;
+      margin-top: 10px;
+      transform: none;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .createCard {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .createCardAction {
+      width: 100%;
+      display: inline-flex;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .grid {
+      --tile-width: 148px;
+      --tile-gap: 10px;
+    }
+  }
+}

@@ -9,7 +9,7 @@ import type {
   CapsuleMemberRequestSummary,
 } from "@/types/capsules";
 
-import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
+import styles from "./CapsuleMembersPanel.module.css";
 
 type CapsuleMembersPanelProps = {
   open: boolean;
@@ -57,10 +57,10 @@ function resolveMemberRole(member: { role: string | null; isOwner: boolean }): M
 function MemberAvatar({ name, avatarUrl }: { name: string | null; avatarUrl: string | null }) {
   if (avatarUrl) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img className={capTheme.memberAvatarImage} src={avatarUrl} alt="" />;
+    return <img className={styles.avatarImage} src={avatarUrl} alt="" />;
   }
   const initial = (name ?? "?").trim().charAt(0).toUpperCase() || "?";
-  return <span className={capTheme.memberAvatarFallback}>{initial}</span>;
+  return <span className={styles.avatarFallback}>{initial}</span>;
 }
 
 function formatTimestamp(value: string | null): string | null {
@@ -88,19 +88,20 @@ function PendingRequestRow({
       : null;
   const name = request.requester?.name ?? "Member";
   return (
-    <li className={capTheme.pendingRow} key={request.id}>
-      <div className={capTheme.memberAvatar}>
+    <li className={styles.row} data-kind="pending" key={request.id}>
+      <div className={styles.avatar}>
         <MemberAvatar name={name} avatarUrl={request.requester?.avatarUrl ?? null} />
       </div>
-      <div className={capTheme.pendingInfo}>
-        <div className={capTheme.pendingName}>{name}</div>
-        {createdAt ? <div className={capTheme.pendingMeta}>Requested {createdAt}</div> : null}
-        {message ? <p className={capTheme.pendingMessage}>{message}</p> : null}
+      <div className={styles.info}>
+        <div className={styles.name}>{name}</div>
+        {createdAt ? <div className={styles.meta}>Requested {createdAt}</div> : null}
+        {message ? <p className={styles.message}>{message}</p> : null}
       </div>
-      <div className={capTheme.pendingActions}>
+      <div className={styles.actionsInline}>
         <button
           type="button"
-          className={capTheme.pendingApprove}
+          className={styles.button}
+          data-tone="positive"
           onClick={() => onApprove(request.id)}
           disabled={disabled}
         >
@@ -109,7 +110,8 @@ function PendingRequestRow({
         </button>
         <button
           type="button"
-          className={capTheme.pendingDecline}
+          className={styles.button}
+          data-tone="decline"
           onClick={() => onDecline(request.id)}
           disabled={disabled}
         >
@@ -188,78 +190,74 @@ export function CapsuleMembersPanel({
   const hasPending = pendingRequests.length > 0;
 
   return (
-    <aside className={capTheme.membersPanel} aria-live="polite">
-      <div className={capTheme.membersHeader}>
-        <div>
-          <h3 className={capTheme.membersTitle}>Members</h3>
-          <p className={capTheme.membersSubtitle}>
+    <aside className={styles.panel} aria-live="polite">
+      <div className={styles.header}>
+        <div className={styles.titleGroup}>
+          <h3 className={styles.title}>Members</h3>
+          <p className={styles.subtitle}>
             Manage who has access to this capsule. Pending requests appear here.
           </p>
         </div>
       </div>
 
-      {loading ? <div className={capTheme.membersNotice}>Loading membership details...</div> : null}
+      {loading ? <div className={styles.notice}>Loading membership details...</div> : null}
+
       {error ? (
-        <div className={capTheme.membersError}>
+        <div className={styles.notice} data-tone="error">
           <WarningCircle size={16} weight="bold" />
           <span>{error}</span>
         </div>
       ) : null}
 
       {!isOwner && requestStatus === "pending" ? (
-        <div className={capTheme.membersNotice}>
+        <div className={styles.notice}>
           <WarningCircle size={16} weight="bold" />
           Your request to join is pending approval.
         </div>
       ) : null}
+
       {!isOwner && requestStatus === "declined" ? (
-        <div className={capTheme.membersNotice}>
+        <div className={styles.notice}>
           <WarningCircle size={16} weight="bold" />
           Your previous request was declined. You can request again at any time.
         </div>
       ) : null}
 
       {canViewPending ? (
-        <div className={capTheme.membersTabs} role="tablist" aria-label="Member management views">
+        <div className={styles.tabs} role="tablist" aria-label="Member management views">
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === "members"}
-            className={
-              activeTab === "members"
-                ? `${capTheme.membersTab} ${capTheme.membersTabActive}`
-                : capTheme.membersTab
-            }
+            className={styles.tab}
+            data-active={activeTab === "members"}
             onClick={() => setActiveTab("members")}
           >
             Members
-            <span className={capTheme.membersTabBadge}>{membersCount}</span>
+            <span className={styles.tabBadge}>{membersCount}</span>
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === "pending"}
-            className={
-              activeTab === "pending"
-                ? `${capTheme.membersTab} ${capTheme.membersTabActive}`
-                : capTheme.membersTab
-            }
+            className={styles.tab}
+            data-active={activeTab === "pending"}
             onClick={() => setActiveTab("pending")}
           >
             Pending
-            <span className={capTheme.membersTabBadge}>{pendingCount}</span>
+            <span className={styles.tabBadge}>{pendingCount}</span>
           </button>
         </div>
       ) : null}
 
       {!canViewPending || activeTab === "members" ? (
-        <section className={capTheme.membersSection} aria-label="Capsule members">
-          <header className={capTheme.membersSectionHeader}>
-            <h4 className={capTheme.membersSectionTitle}>Members</h4>
-            <span className={capTheme.membersSectionBadge}>{membersCount}</span>
+        <section className={styles.section} aria-label="Capsule members">
+          <header className={styles.sectionHeader}>
+            <h4 className={styles.sectionTitle}>Members</h4>
+            <span className={styles.sectionBadge}>{membersCount}</span>
           </header>
           {hasMembers ? (
-            <ul className={capTheme.membersList}>
+            <ul className={styles.list}>
               {members.map((member) => {
                 const roleValue = resolveMemberRole(member);
                 const roleLabel = MEMBER_ROLE_LABELS[roleValue];
@@ -275,13 +273,13 @@ export function CapsuleMembersPanel({
                 };
 
                 return (
-                  <li key={member.userId} className={capTheme.memberRow}>
-                    <div className={capTheme.memberAvatar}>
+                  <li key={member.userId} className={styles.row} data-kind="member">
+                    <div className={styles.avatar}>
                       <MemberAvatar name={member.name} avatarUrl={member.avatarUrl} />
                     </div>
-                    <div className={capTheme.memberInfo}>
-                      <div className={capTheme.memberName}>{member.name ?? "Member"}</div>
-                      <div className={capTheme.memberMeta}>
+                    <div className={styles.info}>
+                      <div className={styles.name}>{member.name ?? "Member"}</div>
+                      <div className={styles.meta}>
                         {showRoleInMeta ? <span>{roleLabel}</span> : null}
                         {member.joinedAt ? (
                           <span>Joined {formatTimestamp(member.joinedAt)}</span>
@@ -289,10 +287,10 @@ export function CapsuleMembersPanel({
                       </div>
                     </div>
                     {hasActions ? (
-                      <div className={capTheme.memberActions}>
+                      <div className={styles.actionsInline}>
                         {canEditRole ? (
                           <select
-                            className={capTheme.memberRoleSelect}
+                            className={styles.roleSelect}
                             value={roleValue}
                             onChange={handleSelectChange}
                             disabled={isMutating}
@@ -308,7 +306,8 @@ export function CapsuleMembersPanel({
                         {canRemove ? (
                           <button
                             type="button"
-                            className={capTheme.memberRemove}
+                            className={styles.button}
+                            data-tone="danger"
                             onClick={() => handleRemove(member.userId)}
                             disabled={isMutating}
                           >
@@ -323,19 +322,19 @@ export function CapsuleMembersPanel({
               })}
             </ul>
           ) : (
-            <p className={capTheme.membersEmpty}>No members have joined yet.</p>
+            <p className={styles.empty}>No members have joined yet.</p>
           )}
         </section>
       ) : null}
 
       {canViewPending && activeTab === "pending" ? (
-        <section className={capTheme.membersSection} aria-label="Pending member requests">
-          <header className={capTheme.membersSectionHeader}>
-            <h4 className={capTheme.membersSectionTitle}>Pending Requests</h4>
-            <span className={capTheme.membersSectionBadge}>{pendingCount}</span>
+        <section className={styles.section} aria-label="Pending member requests">
+          <header className={styles.sectionHeader}>
+            <h4 className={styles.sectionTitle}>Pending Requests</h4>
+            <span className={styles.sectionBadge}>{pendingCount}</span>
           </header>
           {hasPending ? (
-            <ul className={capTheme.pendingList}>
+            <ul className={styles.list}>
               {pendingRequests.map((request) => (
                 <PendingRequestRow
                   key={request.id}
@@ -347,7 +346,7 @@ export function CapsuleMembersPanel({
               ))}
             </ul>
           ) : (
-            <p className={capTheme.membersEmpty}>No pending requests at the moment.</p>
+            <p className={styles.empty}>No pending requests at the moment.</p>
           )}
         </section>
       ) : null}
