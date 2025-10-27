@@ -25,8 +25,12 @@ export function PrompterPreviewModal({ open, url, mime, name, onClose }: Props) 
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt={name ?? "Attachment"} className={styles.previewMedia} />
         ) : isVideo ? (
-          // eslint-disable-next-line jsx-a11y/media-has-caption
-          <video src={url} controls className={styles.previewMedia} />
+          <video
+            src={url}
+            controls
+            className={styles.previewMedia}
+            aria-label={name ? `${name} preview` : "Attachment preview"}
+          />
         ) : (
           <a href={url} target="_blank" rel="noreferrer" className={styles.previewDownload}>
             Open {name ?? "attachment"}
@@ -36,4 +40,3 @@ export function PrompterPreviewModal({ open, url, mime, name, onClose }: Props) 
     </div>
   );
 }
-

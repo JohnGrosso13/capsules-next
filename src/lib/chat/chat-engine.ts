@@ -1492,12 +1492,13 @@ export class ChatEngine {
             avatar: participant.avatar ?? null,
           }))
         : undefined;
-      this.store.applyMessageDeleteEvent({
-        type: "chat.message.delete",
+      const eventPayload = {
+        type: "chat.message.delete" as const,
         conversationId,
         messageId: trimmedMessageId,
-        participants,
-      });
+        ...(participants ? { participants } : {}),
+      };
+      this.store.applyMessageDeleteEvent(eventPayload);
     } catch (error) {
       console.error("ChatEngine deleteMessage error", error);
       throw error;

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const payloadSchema = z.object({
@@ -6,10 +6,13 @@ const payloadSchema = z.object({
   conversationId: z.string().optional(),
   messageId: z.string().optional(),
   attachmentId: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
-export async function POST(req: Request) {
+export async function POST(
+  req: NextRequest,
+  _context: { params: Promise<Record<string, never>> },
+) {
   try {
     const body = await req.json();
     const payload = payloadSchema.parse(body);

@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
@@ -54,8 +55,8 @@ const deleteResponseSchema = z.object({
 export const runtime = "nodejs";
 
 export async function PATCH(
-  req: Request,
-  context: { params: { messageId: string } },
+  req: NextRequest,
+  context: { params: Promise<{ messageId: string }> },
 ) {
   const userId = await ensureUserFromRequest(req, null, { allowGuests: false });
   if (!userId) {
@@ -67,7 +68,8 @@ export async function PATCH(
     return payload.response;
   }
 
-  const messageId = context.params?.messageId?.trim();
+  const resolvedParams = await context.params;
+  const messageId = resolvedParams?.messageId?.trim();
   if (!messageId) {
     return returnError(400, "invalid_request", "A message id is required.");
   }
@@ -111,8 +113,8 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: Request,
-  context: { params: { messageId: string } },
+  req: NextRequest,
+  context: { params: Promise<{ messageId: string }> },
 ) {
   const userId = await ensureUserFromRequest(req, null, { allowGuests: false });
   if (!userId) {
@@ -125,7 +127,8 @@ export async function DELETE(
     return returnError(400, "invalid_request", "A conversation id is required.");
   }
 
-  const messageId = context.params?.messageId?.trim();
+  const resolvedParams = await context.params;
+  const messageId = resolvedParams?.messageId?.trim();
   if (!messageId) {
     return returnError(400, "invalid_request", "A message id is required.");
   }

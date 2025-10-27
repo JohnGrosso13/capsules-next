@@ -620,6 +620,7 @@ export function AiPrompterStage({
     resetAfterSubmit();
   }, [
     attachmentUploading,
+    attachmentList,
     readyAttachment,
     onAction,
     trimmed,

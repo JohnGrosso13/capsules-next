@@ -209,15 +209,32 @@ type ChatActionTelemetryPayload = {
   metadata?: Record<string, unknown>;
 };
 
-async function sendChatActionTelemetry(payload: ChatActionTelemetryPayload): Promise<void> {
+type ChatActionTelemetryInput = {
+  action: string;
+  conversationId?: string | null | undefined;
+  messageId?: string | null | undefined;
+  attachmentId?: string | null | undefined;
+  metadata?: Record<string, unknown> | null | undefined;
+};
+
+async function sendChatActionTelemetry(payload: ChatActionTelemetryInput): Promise<void> {
   if (typeof window === "undefined") return;
   try {
+    const normalizedPayload: ChatActionTelemetryPayload = {
+      action: payload.action,
+      ...(payload.conversationId ? { conversationId: payload.conversationId } : {}),
+      ...(payload.messageId ? { messageId: payload.messageId } : {}),
+      ...(payload.attachmentId ? { attachmentId: payload.attachmentId } : {}),
+      ...(payload.metadata && Object.keys(payload.metadata).length > 0
+        ? { metadata: payload.metadata }
+        : {}),
+    };
     await fetch(CHAT_ACTION_TELEMETRY_ENDPOINT, {
       method: "POST",
       headers: {
         "content-type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(normalizedPayload),
     });
   } catch (error) {
     console.warn("chat.action.telemetry.request_failed", error);

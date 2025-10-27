@@ -3,6 +3,7 @@
 import * as React from "react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MockInstance } from "vitest";
 import { createRoot, type Root } from "react-dom/client";
 
 import type { ChatSession } from "@/components/providers/ChatProvider";
@@ -88,7 +89,7 @@ describe("ChatConversation message context menu", () => {
   let root: Root;
   let clipboardWrite: ReturnType<typeof vi.fn>;
   let selectionSpy: ReturnType<typeof vi.spyOn>;
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: MockInstance<typeof globalThis.fetch>;
 
   beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -96,12 +97,15 @@ describe("ChatConversation message context menu", () => {
     document.body.appendChild(container);
     root = createRoot(container);
 
-    if (!window.requestAnimationFrame) {
-      (window as { requestAnimationFrame?: typeof window.requestAnimationFrame }).requestAnimationFrame =
-        (callback: FrameRequestCallback) => {
+    if (!("requestAnimationFrame" in window)) {
+      Object.defineProperty(window, "requestAnimationFrame", {
+        configurable: true,
+        writable: true,
+        value: (callback: FrameRequestCallback) => {
           callback(0);
           return 0;
-        };
+        },
+      });
     }
 
     clipboardWrite = vi.fn().mockResolvedValue(undefined);
