@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
-import cards from "@/components/home.module.css";
+import cards from "@/components/cards.module.css";
 
 import layout from "./settings.module.css";
 import styles from "./voice-section.module.css";
@@ -352,7 +352,7 @@ export function VoiceSettingsSection(): React.JSX.Element {
   const outputDeviceAvailable = outputDevices.length > 0;
 
   return (
-    <article className={`${cards.card} ${layout.card}`}>
+    <article className={`${cards.card} ${layout.card} ${styles.sectionCard}`}>
       <header className={cards.cardHead}>
         <h3 className={layout.sectionTitle}>Voice</h3>
       </header>

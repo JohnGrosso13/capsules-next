@@ -44,7 +44,7 @@
       --home-railviewport-highlight,
       linear-gradient(120deg, rgba(255, 255, 255, 0.12), transparent 55%)
     );
-    opacity: var(--home-railviewport-highlight-opacity, 0.38);
+    opacity: var(--home-railviewport-highlight-opacity, 0.22);
     pointer-events: none;
   }
 
@@ -168,9 +168,30 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    position: relative;
+    isolation: isolate;
     background: var(--tile-icon-bg-final, rgba(104, 120, 255, 0.2));
     color: var(--tile-icon-color-final, rgba(248, 250, 255, 0.92));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 8px 18px color-mix(in srgb, var(--tile-accent-a) 35%, transparent);
+  }
+
+  .connectionTileIcon::before {
+    content: "";
+    position: absolute;
+    inset: -30%;
+    border-radius: inherit;
+    background: radial-gradient(
+      70% 70% at 50% 35%,
+      color-mix(in srgb, var(--tile-accent-a) 58%, transparent) 0%,
+      color-mix(in srgb, var(--tile-accent-b) 48%, transparent) 45%,
+      transparent 80%
+    );
+    filter: blur(12px);
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: -1;
   }
 
   .connectionTileIcon svg {
@@ -270,42 +291,49 @@
   }
 
   .connectionTile[data-tile="party"] {
+    /* Cohesive light theme: use site brand blues instead of purple */
     --tile-bg-final: var(
       --style-party-bg,
       linear-gradient(
         160deg,
-        color-mix(in srgb, #38bdf8 28%, rgba(255, 255, 255, 0.14)),
-        color-mix(in srgb, #0ea5e9 26%, rgba(255, 255, 255, 0.12))
+        color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 22%, rgba(255, 255, 255, 0.18)),
+        color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 16%, rgba(255, 255, 255, 0.12))
       ),
       var(--tile-bg-base)
     );
     --tile-border-final: var(
       --style-party-border,
-      color-mix(in srgb, #1d4ed8 38%, rgba(132, 148, 255, 0.22))
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 45%, var(--tile-border-base, rgba(132, 148, 255, 0.22)))
     );
     --tile-icon-bg-final: var(
       --style-party-icon-bg,
-      color-mix(in srgb, #7c3aed 34%, rgba(255, 255, 255, 0.16))
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 32%, rgba(255, 255, 255, 0.16))
     );
-    --tile-icon-color-final: var(--style-party-icon-color, rgba(15, 18, 30, 0.92));
-    --tile-desc-final: var(--style-party-desc, rgba(232, 236, 255, 0.88));
-    --tile-badge-bg-final: var(--style-party-badge-bg, rgba(12, 18, 36, 0.85));
-    --tile-badge-color-final: var(--style-party-badge-color, rgba(246, 248, 255, 0.94));
-    --tile-border-hover: var(--style-party-border-hover, rgba(151, 102, 255, 0.55));
-    --tile-shadow-hover: var(--style-party-shadow-hover, 0 22px 46px rgba(28, 24, 72, 0.42));
+    --tile-icon-color-final: var(
+      --style-party-icon-color,
+      var(--tile-icon-color-base, rgba(18, 24, 42, 0.86))
+    );
+    --tile-desc-final: var(--style-party-desc, rgba(24, 34, 64, 0.8));
+    --tile-badge-bg-final: var(--style-party-badge-bg, rgba(16, 22, 52, 0.86));
+    --tile-badge-color-final: var(--style-party-badge-color, rgba(246, 248, 255, 0.96));
+    --tile-border-hover: var(
+      --style-party-border-hover,
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 62%, rgba(148, 163, 184, 0.28))
+    );
+    --tile-shadow-hover: var(--style-party-shadow-hover, 0 22px 48px rgba(18, 28, 62, 0.4));
     --tile-accent-a: var(
       --style-party-accent-a,
-      color-mix(in srgb, var(--header-brand-color, #38bdf8) 58%, #3b82f6)
+      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 58%, #38bdf8)
     );
     --tile-accent-b: var(
       --style-party-accent-b,
-      color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 46%, #0ea5e9)
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 48%, #60a5fa)
     );
     --tile-accent-c: var(
       --style-party-accent-c,
-      color-mix(in srgb, var(--header-brand-strong-color, #2563eb) 28%, rgba(15, 23, 42, 0.72))
+      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 36%, transparent)
     );
-    --tile-glow-opacity: 0.28;
+    --tile-glow-opacity: 0.32;
   }
 
   .connectionTile[data-tile="chats"] {
@@ -374,14 +402,16 @@
     justify-content: space-between;
     padding: 10px 12px;
     border-radius: clamp(16px, 2vw, 20px);
-    border: 1px solid
-      color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.18)) 85%, transparent);
+    border: 1px solid var(--rail-border, var(--card-border, rgba(255, 255, 255, 0.14)));
+    /* Use neutral rail shell so actions sit on a clean plate in light/dark */
     background: linear-gradient(
       180deg,
-      rgba(42, 52, 96, 0.58),
-      rgba(18, 22, 48, 0.62)
+      var(--rail-bg-1, var(--card-bg-1)),
+      var(--rail-bg-2, var(--card-bg-2))
     );
-    box-shadow: var(--home-railheader-shadow, 0 18px 38px rgba(6, 12, 34, 0.45));
+    box-shadow: var(--home-railheader-shadow, 0 18px 38px rgba(6, 12, 34, 0.18));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     position: relative;
     isolation: isolate;
   }
@@ -391,8 +421,8 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 60%);
-    opacity: 0.5;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 60%);
+    opacity: 0.32;
     pointer-events: none;
     z-index: -1;
   }
@@ -406,54 +436,29 @@
     row-gap: 8px;
     flex-wrap: wrap;
     max-width: 100%;
-    --friends-action-text: rgba(246, 248, 255, 0.96);
-    --friends-action-border: color-mix(in srgb, var(--color-brand, #2563eb) 58%, transparent);
-    --friends-action-background: linear-gradient(
-      170deg,
-      rgba(66, 78, 148, 0.82),
-      rgba(22, 28, 60, 0.74)
-    );
-    --friends-action-hover-border: color-mix(
+    /* Bring back branded gradient actions like screenshot */
+    --friends-action-text: var(--cta-button-text, var(--text-on-brand, #ffffff));
+    --friends-action-border: color-mix(
       in srgb,
-      var(--color-brand, #2563eb) 78%,
-      transparent
+      var(--color-brand, #6366f1) 60%,
+      var(--rail-border, var(--card-border))
     );
-    --friends-action-active-border: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 84%,
-      transparent
-    );
-    --friends-action-active-shadow: 0 18px 38px
-      color-mix(in srgb, var(--color-brand, #2563eb) 30%, transparent);
-    --friends-action-hover-filter: brightness(1.05);
-    --friends-group-action-text: rgba(246, 248, 255, 0.96);
-    --friends-group-action-border: color-mix(in srgb, var(--color-accent, #22d3ee) 68%, transparent);
-    --friends-group-action-background: linear-gradient(
-      150deg,
-      rgba(46, 164, 255, 0.84),
-      rgba(24, 44, 86, 0.7)
-    );
-    --friends-group-action-hover-border: color-mix(
-      in srgb,
-      var(--color-accent, #22d3ee) 82%,
-      transparent
-    );
-    --friends-group-action-active-shadow: 0 18px 40px
-      color-mix(in srgb, var(--color-accent, #22d3ee) 32%, transparent);
-    --friends-party-action-text: rgba(246, 248, 255, 0.96);
-    --friends-party-action-border: color-mix(in srgb, var(--color-brand, #2563eb) 70%, transparent);
-    --friends-party-action-background: linear-gradient(
-      150deg,
-      rgba(108, 84, 255, 0.88),
-      rgba(32, 20, 84, 0.74)
-    );
-    --friends-party-action-hover-border: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 86%,
-      transparent
-    );
-    --friends-party-action-active-shadow: 0 20px 42px
-      color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent);
+    --friends-action-background: var(--cta-button-gradient, var(--gradient-brand));
+    --friends-action-hover-border: color-mix(in srgb, var(--color-brand, #2563eb) 68%, var(--friends-action-border));
+    --friends-action-active-border: color-mix(in srgb, var(--color-brand, #2563eb) 75%, var(--friends-action-border));
+    --friends-action-active-shadow: 0 14px 34px color-mix(in srgb, var(--color-brand, #2563eb) 22%, rgba(15,23,42,0.18));
+    --friends-action-hover-filter: brightness(1.04);
+    /* Map per-button tokens to the unified action style */
+    --friends-group-action-text: var(--friends-action-text);
+    --friends-group-action-border: var(--friends-action-border);
+    --friends-group-action-background: var(--friends-action-background);
+    --friends-group-action-hover-border: var(--friends-action-hover-border);
+    --friends-group-action-active-shadow: var(--friends-action-active-shadow);
+    --friends-party-action-text: var(--friends-action-text);
+    --friends-party-action-border: var(--friends-action-border);
+    --friends-party-action-background: var(--friends-action-background);
+    --friends-party-action-hover-border: var(--friends-action-hover-border);
+    --friends-party-action-active-shadow: var(--friends-action-active-shadow);
   }
 
   .railHeaderAction :global(.chatActionButton) {
@@ -543,11 +548,12 @@
     padding: 9px 12px;
     border-radius: var(--pill-radius, 999px);
     border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
-    background: linear-gradient(180deg, var(--pill-bg-1, rgba(32, 38, 70, 0.82)), var(--pill-bg-2, rgba(20, 26, 48, 0.7)));
+    /* Subtler pill surface for dark mode */
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.035));
     color: var(--color-fg, rgba(255, 255, 255, 0.92));
     font-weight: 800;
     letter-spacing: 0.01em;
-    box-shadow: var(--home-railtab-box-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.16));
+    box-shadow: var(--home-railtab-box-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.1));
     width: 100%;
     transition:
       transform 0.16s ease,

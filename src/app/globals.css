@@ -85,14 +85,14 @@
     --color-fg-subtle: rgba(255, 255, 255, 0.56);
     --color-border: rgba(255, 255, 255, 0.12);
     --color-border-strong: rgba(255, 255, 255, 0.24);
-    --color-brand: #2563eb;
-    --color-brand-strong: #1d4ed8;
+    --color-brand: #6366f1;
+    --color-brand-strong: #4f46e5;
     --color-brand-foreground: #f8fafc;
-    --color-brand-muted: rgba(37, 99, 235, 0.14);
-    --gradient-brand: linear-gradient(120deg, #60a5fa 0%, #2563eb 55%, #22d3ee 100%);
-    --cta-gradient: linear-gradient(120deg, #3b82f6 0%, #2563eb 55%, #22d3ee 100%);
+    --color-brand-muted: rgba(99, 102, 241, 0.14);
+    --gradient-brand: linear-gradient(120deg, #8b5cf6 0%, #6366f1 55%, #22d3ee 100%);
+    --cta-gradient: linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%);
     --cta-button-text: #ffffff;
-    --cta-chip-gradient: linear-gradient(95deg, #0ea5e9 0%, #2563eb 48%, #22d3ee 100%);
+    --cta-chip-gradient: linear-gradient(95deg, #a855f7 0%, #6366f1 48%, #22d3ee 100%);
     --cta-chip-text: var(--cta-button-text, #ffffff);
     --cta-chip-border: rgba(180, 175, 255, 0.65);
     --cta-chip-shadow: 0 18px 36px rgba(88, 74, 204, 0.38);
@@ -145,16 +145,16 @@
     --shadow-md: 0 12px 32px rgba(5, 10, 30, 0.34);
     --shadow-lg: 0 20px 48px rgba(5, 10, 30, 0.42);
     --shadow-xl: 0 32px 68px rgba(5, 10, 30, 0.46);
-    --shadow-glow: 0 0 42px rgba(37, 99, 235, 0.4);
-    --ring-primary: 0 0 0 1px rgba(37, 99, 235, 0.6);
-    --ring-offset: 0 0 0 4px rgba(37, 99, 235, 0.16);
+    --shadow-glow: 0 0 42px rgba(99, 102, 241, 0.4);
+    --ring-primary: 0 0 0 1px rgba(99, 102, 241, 0.6);
+    --ring-offset: 0 0 0 4px rgba(99, 102, 241, 0.16);
     /* Shared typography tokens */
     --text: var(--color-fg, rgba(255, 255, 255, 0.94));
     --text-2: var(--color-fg-muted, rgba(255, 255, 255, 0.72));
     --text-3: var(--color-fg-subtle, rgba(255, 255, 255, 0.56));
     --text-on-brand: var(--color-brand-foreground, #f8fafc);
     /* Accent glows & alerts */
-    --accent-glow: rgba(37, 99, 235, 0.34);
+    --accent-glow: rgba(99, 102, 241, 0.34);
     --alert-bg: color-mix(in srgb, var(--color-brand) 12%, var(--surface-muted));
     --alert-border: color-mix(in srgb, var(--color-brand) 30%, transparent);
     --alert-fg: var(--color-brand);
@@ -165,10 +165,14 @@
     --cta-radius: var(--radius-pill, 999px);
     /* Card surfaces */
     --card-radius: var(--radius-lg, 1rem);
+    /* Base card tones tuned darker to avoid always-on highlight */
+    --card-bg-1: rgba(13, 17, 36, 0.9);
+    --card-bg-2: rgba(8, 12, 28, 0.82);
+    --card-border: rgba(255, 255, 255, 0.1);
     /* Unify elevation across surfaces */
-    --card-shadow: var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34));
+    --card-shadow: var(--shadow-md, 0 10px 26px rgba(5, 10, 30, 0.34));
     --card-hover-bg-1: rgba(14, 18, 42, 0.94);
-    --card-hover-bg-2: rgba(9, 12, 30, 0.82);
+    --card-hover-bg-2: rgba(9, 12, 30, 0.84);
     --card-hover-border: color-mix(in srgb, var(--color-border) 70%, transparent);
     --card-hover-shadow: 0 18px 40px rgba(5, 10, 30, 0.4);
     /* Rail surfaces */
@@ -196,13 +200,73 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
       0 10px 20px color-mix(in srgb, var(--color-brand) 18%, rgba(5, 10, 30, 0.2));
     --pill-radius: var(--radius-pill, 999px);
-    /* Feed action buttons */
-    --feed-action-bg-1: rgba(255, 255, 255, 0.06);
+    /* Feed action buttons (slightly dimmer in dark) */
+    --feed-action-bg-1: rgba(255, 255, 255, 0.045);
     --feed-action-bg-2: rgba(255, 255, 255, 0.02);
     --feed-action-border: rgba(255, 255, 255, 0.08);
     --feed-action-border-hover: rgba(255, 255, 255, 0.2);
     --feed-action-shadow-hover: 0 12px 28px rgba(5, 10, 30, 0.28);
     --feed-icon-text: var(--text, var(--color-fg, rgba(255, 255, 255, 0.94)));
+    --home-card-icon-bg-1: color-mix(in srgb, var(--color-brand) 55%, rgba(12, 18, 46, 0.94));
+    --home-card-icon-bg-2: color-mix(in srgb, var(--color-brand-strong) 52%, rgba(8, 12, 32, 0.84));
+    --home-card-icon-border: color-mix(in srgb, var(--color-brand) 60%, rgba(12, 18, 44, 0.5));
+    --home-card-icon-border-hover: color-mix(
+      in srgb,
+      var(--color-brand) 75%,
+      rgba(18, 26, 58, 0.42)
+    );
+    --home-card-icon-active-border: color-mix(
+      in srgb,
+      var(--color-brand) 78%,
+      rgba(14, 22, 52, 0.36)
+    );
+    --home-card-icon-color: color-mix(
+      in srgb,
+      var(--color-brand-foreground, #f8fafc) 80%,
+      rgba(244, 248, 255, 0.98)
+    );
+    --home-card-icon-active-color: color-mix(
+      in srgb,
+      var(--color-brand-foreground, #f8fafc) 88%,
+      rgba(242, 247, 255, 1)
+    );
+    --home-card-icon-shadow: 0 16px 34px rgba(6, 12, 32, 0.52);
+    --home-card-icon-shadow-hover: 0 20px 42px rgba(10, 18, 40, 0.6);
+    --home-card-icon-active-bg-1: color-mix(
+      in srgb,
+      var(--color-brand) 72%,
+      rgba(16, 24, 52, 0.92)
+    );
+    --home-card-icon-active-bg-2: color-mix(
+      in srgb,
+      var(--color-brand-strong) 68%,
+      rgba(12, 20, 46, 0.86)
+    );
+    --home-card-icon-danger: var(--color-danger, #f87171);
+    /* Poll UI (dark): neutral shells using card/surface tones */
+    --home-poll-card-border: color-mix(in srgb, var(--card-border) 90%, transparent);
+    --home-poll-card-background: linear-gradient(
+      180deg,
+      var(--card-bg-1),
+      var(--card-bg-2)
+    );
+    --home-poll-question: var(--text);
+    --home-poll-option-border: color-mix(in srgb, var(--card-border) 82%, transparent);
+    --home-poll-option-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-overlay) 88%, transparent),
+      color-mix(in srgb, var(--surface-muted) 80%, transparent)
+    );
+    --home-poll-option-selected-border: color-mix(in srgb, var(--color-brand) 48%, var(--card-border));
+    /* Progress fill: subtle brand-tinted band to avoid overpowering */
+    --home-poll-option-fill: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-brand) 38%, rgba(76, 86, 212, 0.25)),
+      color-mix(in srgb, var(--color-accent) 30%, rgba(46, 196, 255, 0.18))
+    );
+    --home-poll-option-label: var(--text);
+    --home-poll-option-meta: var(--text-3);
+    --home-poll-footer: var(--text-3);
     /* Prompt halo */
     --prompt-glow-blur: 18px;
     --prompt-glow-opacity: 0.54;
@@ -235,7 +299,7 @@
     --tile-badge-bg-final: var(--tile-badge-bg-base);
     --tile-badge-color-base: var(--text-on-brand);
     --tile-badge-color-final: var(--tile-badge-color-base);
-    --tile-accent-a: color-mix(in srgb, var(--color-brand) 48%, rgba(37, 99, 235, 0.32));
+    --tile-accent-a: color-mix(in srgb, var(--color-brand) 48%, rgba(99, 102, 241, 0.32));
     /* Live chat rail */
     --live-chat-bg:
       linear-gradient(
@@ -300,6 +364,47 @@
     --style-friends-badge-bg: var(--tile-badge-bg-base);
     --style-friends-badge-color: var(--tile-badge-color-base);
     --style-friends-border-hover: var(--tile-border-hover-base);
+    /* Party tile tokens (dark mode): blue-leaning to match screenshot */
+    --style-party-bg:
+      linear-gradient(
+        150deg,
+        color-mix(in srgb, #5b73ff 30%, transparent),
+        color-mix(in srgb, #3fa4ff 24%, transparent)
+      ),
+      var(--tile-bg-base);
+    --style-party-border: color-mix(
+      in srgb,
+      rgba(102, 147, 255, 0.45) 78%,
+      var(--tile-border-base)
+    );
+    --style-party-text: var(--tile-text-base);
+    --style-party-desc: var(--tile-desc-base);
+    --style-party-shadow: 0 16px 36px rgba(33, 68, 210, 0.25);
+    --style-party-shadow-hover: 0 22px 48px rgba(59, 114, 255, 0.36);
+    --style-party-icon-bg: color-mix(
+      in srgb,
+      rgba(88, 126, 255, 0.42) 60%,
+      rgba(255, 255, 255, 0.18)
+    );
+    --style-party-icon-color: var(--tile-icon-color-base);
+    --style-party-badge-bg: color-mix(
+      in srgb,
+      rgba(74, 114, 255, 0.86) 80%,
+      rgba(14, 18, 36, 0.88)
+    );
+    --style-party-badge-color: var(--text-on-brand, #ffffff);
+    --style-party-border-hover: color-mix(
+      in srgb,
+      rgba(120, 170, 255, 0.66) 86%,
+      var(--tile-border-hover-base)
+    );
+    --style-party-accent-a: color-mix(in srgb, #5f7eff 60%, #3db7ff);
+    --style-party-accent-b: color-mix(in srgb, #4a66ff 55%, #32a7ff);
+    --style-party-accent-c: color-mix(
+      in srgb,
+      rgba(67, 94, 210, 0.66) 68%,
+      rgba(24, 38, 92, 0.66)
+    );
     --style-chats-bg: var(--tile-bg-base);
     --style-chats-border: var(--tile-border-base);
     --style-chats-text: var(--tile-text-base);
@@ -325,7 +430,7 @@
 
     /* Home surface tokens */
     --home-prompterdropoverlay-background:
-      radial-gradient(120% 120% at 50% 50%, rgba(37, 99, 235, 0.22), transparent 70%),
+      radial-gradient(120% 120% at 50% 50%, rgba(99, 102, 241, 0.22), transparent 70%),
       linear-gradient(180deg, rgba(8, 12, 34, 0.86), rgba(8, 10, 26, 0.62));
     --home-prompterdropoverlay-box-shadow: 0 28px 60px rgba(5, 10, 30, 0.42);
     --home-prompterdropcard-border: 1px solid rgba(255, 255, 255, 0.28);
@@ -344,7 +449,7 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 rgba(2, 6, 23, 0.4),
       0 8px 18px rgba(5, 10, 30, 0.28);
     --home-promptbar--before-background:
-      radial-gradient(120% 160% at 10% 50%, rgba(37, 99, 235, 0.3), transparent 65%),
+      radial-gradient(120% 160% at 10% 50%, rgba(99, 102, 241, 0.3), transparent 65%),
       radial-gradient(120% 160% at 90% 50%, rgba(124, 58, 237, 0.26), transparent 65%),
       radial-gradient(160% 160% at 50% 50%, rgba(56, 189, 248, 0.2), transparent 70%);
     --home-promptbar-focus-within-border-color: rgba(147, 197, 253, 0.5);
@@ -363,8 +468,8 @@
       10px 14px 24px rgba(5, 10, 30, 0.34);
     --home-intentchipactive-background: linear-gradient(
       155deg,
-      rgba(37, 99, 235, 0.46),
-      rgba(37, 99, 235, 0.38)
+      rgba(99, 102, 241, 0.46),
+      rgba(99, 102, 241, 0.38)
     );
     --home-intentchipactive-color: #ffffff;
     --home-intentchipactive-box-shadow:
@@ -372,9 +477,9 @@
       14px 22px 36px rgba(53, 96, 255, 0.32);
     --home-intentchipactive-box-shadow-2:
       inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 rgba(5, 8, 28, 0.48),
-      0 16px 30px rgba(37, 99, 235, 0.28);
+      0 16px 30px rgba(99, 102, 241, 0.28);
     --home-skeletonbackdrop-background:
-      radial-gradient(120% 120% at 50% 0%, rgba(37, 99, 235, 0.18), transparent 70%),
+      radial-gradient(120% 120% at 50% 0%, rgba(99, 102, 241, 0.18), transparent 70%),
       linear-gradient(180deg, rgba(12, 16, 38, 0.82), rgba(10, 14, 34, 0.62));
     --home-skeletoniconbtn-background: linear-gradient(
       135deg,
@@ -412,7 +517,7 @@
     --home-lightboxclose-color: #ffffff;
     --home-lightboxclose-focus-visible-background: color-mix(
       in srgb,
-      rgba(37, 99, 235, 0.5) 70%,
+      rgba(99, 102, 241, 0.5) 70%,
       rgba(255, 255, 255, 0.2)
     );
     --home-lightboxnav-background: color-mix(
@@ -423,7 +528,7 @@
     --home-lightboxnav-color: #ffffff;
     --home-lightboxnav-focus-visible-background: color-mix(
       in srgb,
-      rgba(37, 99, 235, 0.55) 70%,
+      rgba(99, 102, 241, 0.55) 70%,
       rgba(255, 255, 255, 0.2)
     );
     --home-lightboxvideo-background: #000;
@@ -524,7 +629,12 @@
     /* Friends party action tokens */
     --friends-party-action-text: var(--text);
     --friends-party-action-border: color-mix(in srgb, var(--color-brand) 65%, transparent);
-    --friends-party-action-background: color-mix(in srgb, var(--color-brand) 30%, transparent);
+    /* Solid, non-gradient feel for Party Voice button */
+    --friends-party-action-background: color-mix(
+      in srgb,
+      rgba(255, 255, 255, 0.085) 100%,
+      transparent
+    );
     --friends-party-action-hover-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
     --friends-party-action-active-border: color-mix(in srgb, var(--color-brand) 85%, transparent);
     --friends-party-action-active-shadow: 0 12px 26px
@@ -532,7 +642,12 @@
     /* Friends group action tokens (dark: fallback to brand) */
     --friends-group-action-text: var(--text);
     --friends-group-action-border: color-mix(in srgb, var(--color-brand) 65%, transparent);
-    --friends-group-action-background: color-mix(in srgb, var(--color-brand) 30%, transparent);
+    /* Solid, non-gradient feel for Group Chat button */
+    --friends-group-action-background: color-mix(
+      in srgb,
+      rgba(255, 255, 255, 0.085) 100%,
+      transparent
+    );
     --friends-group-action-hover-border: color-mix(in srgb, var(--color-brand) 75%, transparent);
     --friends-group-action-active-border: color-mix(in srgb, var(--color-brand) 85%, transparent);
     --friends-group-action-active-shadow: 0 12px 26px
@@ -542,23 +657,20 @@
     /* Party Voice tokens defaults (dark fallback to brand)
        Style pass: favor acrylic glass + soft neu depth */
     --party-tile-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
-    --party-tile-border: color-mix(in srgb, var(--card-border) 68%, transparent);
-    --party-tile-shadow: 0 24px 48px color-mix(in srgb, rgba(7, 11, 26, 0.9) 28%, transparent);
-    --party-hero-background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand) 35%, transparent) 0%,
-      color-mix(in srgb, var(--color-brand) 10%, transparent) 100%
+    --party-tile-border: color-mix(
+      in srgb,
+      var(--card-border, rgba(255, 255, 255, 0.16)) 78%,
+      color-mix(in srgb, var(--color-brand) 30%, transparent)
     );
+    --party-tile-shadow: 0 20px 44px color-mix(in srgb, rgba(5, 10, 30, 0.5) 70%, transparent);
+    --party-hero-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-hero-border: color-mix(in srgb, var(--card-border) 70%, transparent);
-    --party-hero-accent: color-mix(in srgb, var(--color-brand) 55%, transparent);
-    --party-primary-background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand) 75%, transparent),
-      color-mix(in srgb, var(--color-brand) 45%, transparent)
-    );
-    --party-primary-border: color-mix(in srgb, var(--color-brand) 85%, transparent);
-    --party-status-background: color-mix(in srgb, var(--color-brand) 25%, transparent);
-    --party-status-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
+    --party-hero-accent: color-mix(in srgb, var(--color-brand) 35%, transparent);
+    /* Matte primary action for dark mode */
+    --party-primary-background: color-mix(in srgb, var(--color-brand) 28%, transparent);
+    --party-primary-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
+    --party-status-background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+    --party-status-border: color-mix(in srgb, var(--color-brand) 52%, transparent);
     --party-startaudio-border: color-mix(in srgb, var(--color-brand) 65%, transparent);
     --party-startaudio-background: color-mix(in srgb, var(--color-brand) 20%, transparent);
     --party-control-hover-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
@@ -580,8 +692,8 @@
     --party-status-pill-text: var(--text);
     --party-panel-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-panel-border: color-mix(in srgb, var(--card-border) 78%, transparent);
-    --party-status-background: color-mix(in srgb, var(--color-brand) 25%, transparent);
-    --party-status-border: color-mix(in srgb, var(--color-brand) 60%, transparent);
+    --party-status-background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+    --party-status-border: color-mix(in srgb, var(--color-brand) 52%, transparent);
     --party-secondary-background: linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2));
     --party-secondary-border: color-mix(in srgb, var(--card-border) 72%, transparent);
     --party-secondary-hover-border: color-mix(in srgb, var(--color-brand) 62%, transparent);
@@ -743,7 +855,7 @@
     );
     --composer-rail-border: color-mix(
       in srgb,
-      var(--composer-accent, var(--color-brand, #2563eb)) 28%,
+      var(--composer-accent, var(--color-brand, #6366f1)) 28%,
       transparent
     );
     --composer-footer-background: color-mix(
@@ -766,11 +878,11 @@
     );
     --composer-chat-ai-background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-brand, #2563eb) 16%, transparent),
-      color-mix(in srgb, var(--color-brand, #2563eb) 6%, transparent)
+      color-mix(in srgb, var(--color-brand, #6366f1) 16%, transparent),
+      color-mix(in srgb, var(--color-brand, #6366f1) 6%, transparent)
     );
-    --composer-accent: var(--color-brand, #2563eb);
-    --composer-accent-soft: color-mix(in srgb, var(--composer-accent, #2563eb) 40%, transparent);
+    --composer-accent: var(--color-brand, #6366f1);
+    --composer-accent-soft: color-mix(in srgb, var(--composer-accent, #6366f1) 40%, transparent);
     --composer-status-error: var(--color-danger, #f87171);
     --composer-status-warning: var(--color-warning, #fbbf24);
     --composer-status-success: var(--color-success, #34d399);
@@ -840,8 +952,8 @@
     );
     --background-fx-indigo: radial-gradient(
       closest-side at 50% 50%,
-      rgba(37, 99, 235, 0.34),
-      rgba(37, 99, 235, 0) 70%
+      rgba(99, 102, 241, 0.34),
+      rgba(99, 102, 241, 0) 70%
     );
     --background-fx-pink: radial-gradient(
       closest-side at 50% 50%,
@@ -938,8 +1050,16 @@
     --settings-nav-item-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(2, 6, 23, 0.45);
     --settings-nav-item-active-shadow:
-      0 0 18px var(--accent-glow, rgba(37, 99, 235, 0.34)), 0 6px 12px rgba(2, 6, 23, 0.38),
+      0 0 18px var(--accent-glow, rgba(99, 102, 241, 0.34)), 0 6px 12px rgba(2, 6, 23, 0.38),
       inset 0 1px 0 rgba(255, 255, 255, 0.45);
+
+    /* Voice controls (dark theme) */
+    --voice-select-border: color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.16)) 70%, transparent);
+    --voice-select-background: linear-gradient(180deg, var(--glass-bg-1, rgba(255, 255, 255, 0.06)), var(--glass-bg-2, rgba(255, 255, 255, 0.035)));
+    --voice-select-text: var(--text, var(--color-fg, rgba(255, 255, 255, 0.94)));
+    --voice-slider-track: color-mix(in srgb, rgba(24, 30, 60, 0.86) 84%, rgba(10, 16, 38, 0.86));
+    --voice-slider-fill: linear-gradient(90deg, var(--color-brand, #6366f1) 0%, color-mix(in srgb, var(--color-accent, #22d3ee) 60%, var(--color-brand, #6366f1)) 100%);
+    --voice-slider-thumb: var(--color-brand-strong, #4f46e5);
 
     /* Surface layering */
     --surface-1: rgba(21, 26, 48, 0.82);
@@ -967,7 +1087,7 @@
     --dock-btn-border: rgba(255, 255, 255, 0.16);
     --dock-btn-hover-border: rgba(255, 255, 255, 0.28);
     --dock-active-shadow: 0 12px 24px rgba(3, 7, 18, 0.45);
-    --dock-active-glow: rgba(37, 99, 235, 0.32);
+    --dock-active-glow: rgba(99, 102, 241, 0.32);
     --dock-text-muted: var(--color-fg-muted);
     --dock-sheet-bg-1: rgba(18, 24, 49, 0.95);
     --dock-sheet-bg-2: rgba(9, 14, 33, 0.92);
@@ -1197,7 +1317,7 @@
     width: 24px;
     height: 24px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--color-brand) 85%, #3b82f6);
+    background: color-mix(in srgb, var(--color-brand) 85%, var(--color-brand-strong, #4f46e5));
     color: var(--text-on-brand, #0e1024);
     font-weight: 800;
     font-size: 12px;

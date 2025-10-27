@@ -3,7 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { CaretLeft, CaretRight, ImageSquare, Play, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight, ImageSquare, Play, Sparkle, X } from "@phosphor-icons/react/dist/ssr";
 
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
@@ -245,6 +245,7 @@ export function PromoRow() {
   const [friends, setFriends] = React.useState<Friend[]>([]);
   const [capsules] = React.useState<Capsule[]>(fallbackCapsules);
   const [activeLightboxIndex, setActiveLightboxIndex] = React.useState<number | null>(null);
+  const [activeVideoItem, setActiveVideoItem] = React.useState<PromoLightboxMediaItem | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -414,61 +415,112 @@ export function PromoRow() {
     return items;
   }, [context.media, tileLayout]);
 
-  const openLightbox = React.useCallback(
-    (tileId: string) => {
-      const index = lightboxItems.findIndex((item) => item.id === tileId);
-      if (index >= 0) {
-        setActiveLightboxIndex(index);
-      }
-    },
+  const imageLightboxItems = React.useMemo(
+    () => lightboxItems.filter((item) => item.kind === "image"),
     [lightboxItems],
+  );
+
+  const imageIndexLookup = React.useMemo(() => {
+    const lookup = new Map<string, number>();
+    imageLightboxItems.forEach((item, index) => {
+      lookup.set(item.id, index);
+    });
+    return lookup;
+  }, [imageLightboxItems]);
+
+  const mediaLookup = React.useMemo(() => {
+    const lookup = new Map<string, PromoLightboxMediaItem>();
+    lightboxItems.forEach((item) => {
+      lookup.set(item.id, item);
+    });
+    return lookup;
+  }, [lightboxItems]);
+
+  const openMediaViewer = React.useCallback(
+    (tileId: string) => {
+      const item = mediaLookup.get(tileId);
+      if (!item) return;
+      if (item.kind === "video") {
+        setActiveVideoItem(item);
+        setActiveLightboxIndex(null);
+        return;
+      }
+      const imageIndex = imageIndexLookup.get(tileId);
+      if (imageIndex === undefined) return;
+      setActiveVideoItem(null);
+      setActiveLightboxIndex(imageIndex);
+    },
+    [imageIndexLookup, mediaLookup],
   );
 
   const closeLightbox = React.useCallback(() => {
     setActiveLightboxIndex(null);
   }, []);
 
-  const tileCount = lightboxItems.length;
+  const closeVideoOverlay = React.useCallback(() => {
+    setActiveVideoItem(null);
+  }, []);
+
+  const imageCount = imageLightboxItems.length;
 
   const navigateLightbox = React.useCallback(
     (direction: number) => {
-      if (tileCount === 0) return;
+      if (imageCount === 0) return;
       setActiveLightboxIndex((previous) => {
         if (previous === null) return previous;
-        const nextIndex = (previous + direction + tileCount) % tileCount;
+        const nextIndex = (previous + direction + imageCount) % imageCount;
         return nextIndex;
       });
     },
-    [tileCount],
+    [imageCount],
   );
 
   React.useEffect(() => {
     if (activeLightboxIndex === null) return;
-    if (activeLightboxIndex >= tileCount) {
-      setActiveLightboxIndex(tileCount ? Math.min(tileCount - 1, activeLightboxIndex) : null);
+    if (activeLightboxIndex >= imageCount) {
+      setActiveLightboxIndex(imageCount ? Math.min(imageCount - 1, activeLightboxIndex) : null);
     }
-  }, [activeLightboxIndex, tileCount]);
+  }, [activeLightboxIndex, imageCount]);
 
   React.useEffect(() => {
-    if (activeLightboxIndex === null) return;
+    if (activeLightboxIndex === null && !activeVideoItem) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        closeLightbox();
-      } else if ((event.key === "ArrowRight" || event.key === "ArrowDown") && tileCount > 1) {
+        if (activeVideoItem) {
+          closeVideoOverlay();
+        } else {
+          closeLightbox();
+        }
+      } else if (
+        activeLightboxIndex !== null &&
+        (event.key === "ArrowRight" || event.key === "ArrowDown") &&
+        imageCount > 1
+      ) {
         event.preventDefault();
         navigateLightbox(1);
-      } else if ((event.key === "ArrowLeft" || event.key === "ArrowUp") && tileCount > 1) {
+      } else if (
+        activeLightboxIndex !== null &&
+        (event.key === "ArrowLeft" || event.key === "ArrowUp") &&
+        imageCount > 1
+      ) {
         event.preventDefault();
         navigateLightbox(-1);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeLightboxIndex, closeLightbox, navigateLightbox, tileCount]);
+  }, [
+    activeLightboxIndex,
+    activeVideoItem,
+    closeLightbox,
+    closeVideoOverlay,
+    imageCount,
+    navigateLightbox,
+  ]);
 
   const currentItem =
-    activeLightboxIndex === null ? null : (lightboxItems[activeLightboxIndex] ?? null);
+    activeLightboxIndex === null ? null : (imageLightboxItems[activeLightboxIndex] ?? null);
   const fallbackIconIndex = currentItem
     ? currentItem.fallbackIndex % MEDIA_FALLBACK_ICONS.length
     : 0;
@@ -483,11 +535,11 @@ export function PromoRow() {
             ? {
                 role: "button",
                 tabIndex: 0,
-                onClick: () => openLightbox(tile.id),
+                onClick: () => openMediaViewer(tile.id),
                 onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    openLightbox(tile.id);
+                    openMediaViewer(tile.id);
                   }
                 },
                 "aria-label": label,
@@ -521,31 +573,34 @@ export function PromoRow() {
               onClick={closeLightbox}
               aria-label="Close promo media viewer"
             >
-              {"\u00d7"}
+              <X weight="bold" size={22} />
             </button>
-            {tileCount > 1 ? (
-              <>
+            <div
+              className={lightboxStyles.lightboxBody}
+              data-has-nav={imageCount > 1 ? "true" : undefined}
+            >
+              {imageCount > 1 ? (
+                <>
                   <button
                     type="button"
                     className={lightboxStyles.lightboxNav}
                     data-direction="prev"
-                  onClick={() => navigateLightbox(-1)}
-                  aria-label="Previous promo media"
-                >
-                  <CaretLeft size={28} weight="bold" />
-                </button>
+                    onClick={() => navigateLightbox(-1)}
+                    aria-label="Previous promo media"
+                  >
+                    <CaretLeft size={28} weight="bold" />
+                  </button>
                   <button
                     type="button"
                     className={lightboxStyles.lightboxNav}
                     data-direction="next"
-                  onClick={() => navigateLightbox(1)}
-                  aria-label="Next promo media"
-                >
-                  <CaretRight size={28} weight="bold" />
-                </button>
-              </>
-            ) : null}
-            <div className={lightboxStyles.lightboxBody}>
+                    onClick={() => navigateLightbox(1)}
+                    aria-label="Next promo media"
+                  >
+                    <CaretRight size={28} weight="bold" />
+                  </button>
+                </>
+              ) : null}
               <div className={lightboxStyles.lightboxMedia}>
                 {currentItem.mediaSrc ? (
                   currentItem.kind === "video" ? (
@@ -581,6 +636,46 @@ export function PromoRow() {
             </div>
             {currentItem.caption ? (
               <div className={lightboxStyles.lightboxCaption}>{currentItem.caption}</div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      {activeVideoItem ? (
+        <div
+          className={styles.videoViewerOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label={activeVideoItem.caption ?? "Promo video viewer"}
+          onClick={closeVideoOverlay}
+        >
+          <div className={styles.videoViewerContainer} onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className={styles.videoViewerClose}
+              onClick={closeVideoOverlay}
+              aria-label="Close promo video"
+            >
+              <X weight="bold" size={22} />
+            </button>
+            {activeVideoItem.mediaSrc ? (
+              <video
+                key={activeVideoItem.mediaSrc}
+                className={styles.videoViewerPlayer}
+                controls
+                playsInline
+                preload="auto"
+                poster={activeVideoItem.posterSrc ?? undefined}
+              >
+                <source src={activeVideoItem.mediaSrc} type={activeVideoItem.mimeType ?? undefined} />
+                Your browser does not support embedded video.
+              </video>
+            ) : (
+              <div className={styles.videoViewerFallback} aria-hidden="true">
+                <Play className={styles.videoViewerFallbackIcon} weight="fill" />
+              </div>
+            )}
+            {activeVideoItem.caption ? (
+              <div className={styles.videoViewerCaption}>{activeVideoItem.caption}</div>
             ) : null}
           </div>
         </div>

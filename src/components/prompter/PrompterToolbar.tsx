@@ -40,8 +40,10 @@ type Props = {
   onVoiceToggle: () => void;
   voiceLabel: string;
   hint: string | null;
-  attachment: LocalAttachment | null;
-  onClearAttachment: () => void;
+  attachments: LocalAttachment[];
+  uploadingAttachment?: LocalAttachment | null;
+  onRemoveAttachment: (id: string) => void;
+  onPreviewAttachment?: (id: string) => void;
   suggestedTools: SuggestedTool[];
   activeTool: PrompterToolKey | null;
   onSelectTool: (tool: PrompterToolKey) => void;
@@ -81,8 +83,10 @@ export function PrompterToolbar({
   onVoiceToggle,
   voiceLabel,
   hint,
-  attachment,
-  onClearAttachment,
+  attachments,
+  uploadingAttachment,
+  onRemoveAttachment,
+  onPreviewAttachment,
   suggestedTools,
   activeTool,
   onSelectTool,
@@ -95,6 +99,7 @@ export function PrompterToolbar({
   multiline = false,
   showTools = true,
 }: Props) {
+  const isVoiceActive = voiceStatus === "listening" || voiceStatus === "stopping";
   return (
     <>
       <PrompterInputBar
@@ -128,29 +133,114 @@ export function PrompterToolbar({
         multiline={multiline}
       />
 
-      <div className={styles.intentControls}>
-        {showHint && hint ? <span className={styles.intentHint}>{hint}</span> : null}
-        {showAttachmentStatus && attachment ? (
-          <span className={styles.attachmentChip} data-status={attachment.status}>
-            <span className={styles.attachmentName}>{attachment.name}</span>
-            {attachment.status === "uploading" ? (
-              <span className={styles.attachmentStatus}>Uploading...</span>
-            ) : attachment.status === "error" ? (
-              <span className={styles.attachmentStatusError}>
-                {attachment.error ?? "Upload failed"}
-              </span>
-            ) : (
-              <span className={styles.attachmentStatus}>Attached</span>
-            )}
-            <button
-              type="button"
-              className={styles.attachmentRemove}
-              onClick={onClearAttachment}
-              aria-label="Remove attachment"
-            >
-              x
-            </button>
+      <div className={styles.statusRow} role="status" aria-live="polite">
+        {showHint && hint ? (
+          <span className={styles.statusHint} data-active={uploading || isVoiceActive || undefined}>
+            <span className={styles.statusDot} aria-hidden />
+            <span className={styles.statusText}>{hint}</span>
           </span>
+        ) : (
+          <span />
+        )}
+
+        {showAttachmentStatus ? (
+          <div className={styles.attachmentStrip} aria-label="Attachments">
+            {attachments.map((att) => (
+              <span key={att.id} className={styles.attachmentCard} data-status={att.status}>
+              {att.url && att.status === "ready" ? (
+                <button
+                  type="button"
+                  className={styles.attachThumb}
+                  onClick={() => onPreviewAttachment?.(att.id)}
+                  aria-label={`Preview ${att.name}`}
+                >
+                  {att.thumbUrl || att.mimeType.startsWith("image/") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={(att.thumbUrl ?? undefined) || undefined} alt="" className={styles.attachThumbImg} />
+                  ) : (
+                    <span className={styles.attachThumbIcon}>📎</span>
+                  )}
+                </button>
+              ) : (
+                <span className={styles.attachThumb} aria-hidden>
+                  {att.thumbUrl || att.mimeType.startsWith("image/") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={(att.thumbUrl ?? undefined) || undefined} alt="" className={styles.attachThumbImg} />
+                  ) : (
+                    <span className={styles.attachThumbIcon}>📎</span>
+                  )}
+                </span>
+              )}
+                <span className={styles.attachMeta}>
+                  {att.url && att.status === "ready" ? (
+                    <button
+                      type="button"
+                      className={styles.attachmentName}
+                      title={att.name}
+                      onClick={() => onPreviewAttachment?.(att.id)}
+                    >
+                      {att.name}
+                    </button>
+                  ) : (
+                    <span className={styles.attachmentName} title={att.name}>
+                      {att.name}
+                    </span>
+                  )}
+                  <span className={att.status === "error" ? styles.attachmentStatusError : styles.attachmentStatus}>
+                    {att.status === "uploading"
+                      ? `Uploading ${Math.round((att.progress || 0) * 100)}%`
+                      : att.status === "error"
+                        ? att.error ?? "Upload failed"
+                        : "Attached"}
+                  </span>
+                  {att.status === "uploading" ? (
+                    <span className={styles.progressTrack} aria-hidden>
+                      <span className={styles.progressBar} style={{ width: `${Math.round((att.progress || 0) * 100)}%` }} />
+                    </span>
+                  ) : null}
+                </span>
+                <button
+                  type="button"
+                  className={styles.attachmentRemove}
+                  onClick={() => onRemoveAttachment(att.id)}
+                  aria-label="Remove attachment"
+                  title="Remove attachment"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {uploadingAttachment && attachments.every((a) => a.id !== uploadingAttachment.id) ? (
+              <span className={styles.attachmentCard} data-status={uploadingAttachment.status}>
+                <span className={styles.attachThumb} aria-hidden>
+                  {uploadingAttachment.thumbUrl || uploadingAttachment.mimeType.startsWith("image/") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={(uploadingAttachment.thumbUrl ?? undefined) || undefined}
+                      alt=""
+                      className={styles.attachThumbImg}
+                    />
+                  ) : (
+                    <span className={styles.attachThumbIcon}>📎</span>
+                  )}
+                </span>
+                <span className={styles.attachMeta}>
+                  <span className={styles.attachmentName} title={uploadingAttachment.name}>
+                    {uploadingAttachment.name}
+                  </span>
+                  <span className={styles.attachmentStatus}>
+                    Uploading {Math.round((uploadingAttachment.progress || 0) * 100)}%
+                  </span>
+                  <span className={styles.progressTrack} aria-hidden>
+                    <span
+                      className={styles.progressBar}
+                      style={{ width: `${Math.round((uploadingAttachment.progress || 0) * 100)}%` }}
+                    />
+                  </span>
+                </span>
+              </span>
+            ) : null}
+          </div>
         ) : null}
       </div>
 

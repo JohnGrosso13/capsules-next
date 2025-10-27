@@ -1,0 +1,66 @@
+@layer components {
+  .card {
+    position: relative;
+    display: grid;
+    gap: 0;
+    border-radius: var(--card-radius, 20px);
+    border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+    background: linear-gradient(
+      180deg,
+      var(--card-bg-1, rgba(28, 32, 60, 0.9)),
+      var(--card-bg-2, rgba(16, 20, 46, 0.82))
+    );
+    box-shadow: var(
+      --card-shadow,
+      0 18px 40px rgba(5, 10, 30, 0.32)
+    );
+    overflow: hidden;
+    transition:
+      transform 160ms var(--motion-ease-standard, ease),
+      border-color 160ms var(--motion-ease-standard, ease),
+      box-shadow 160ms var(--motion-ease-standard, ease),
+      background 160ms var(--motion-ease-standard, ease);
+  }
+
+  .card:hover,
+  .card:focus-visible,
+  .card:focus-within {
+    transform: translateY(-1px);
+    border-color: var(--card-hover-border, rgba(255, 255, 255, 0.22));
+    box-shadow: var(--card-shadow-hover, 0 22px 46px rgba(5, 10, 30, 0.38));
+    background: linear-gradient(
+      180deg,
+      var(--card-hover-bg-1, rgba(24, 30, 58, 0.94)),
+      var(--card-hover-bg-2, rgba(14, 20, 44, 0.86))
+    );
+  }
+
+  .card:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
+    outline-offset: 4px;
+  }
+
+  .cardHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm, 12px);
+    padding: 16px 20px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--text, rgba(255, 255, 255, 0.92));
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.12) 80%, transparent),
+      color-mix(in srgb, rgba(8, 12, 30, 0.72) 85%, transparent)
+    );
+    border-bottom: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+  }
+
+  .cardBody {
+    display: grid;
+    gap: var(--space-lg, 16px);
+    padding: 18px 20px 20px;
+    color: var(--text-2, rgba(255, 255, 255, 0.78));
+  }
+}

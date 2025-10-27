@@ -9,20 +9,21 @@
   --header-accent: var(--color-accent);
   --header-foreground-strong: var(--color-brand-foreground, #f8fafc);
   --brand-gradient: var(--header-brand-gradient, var(--gradient-brand));
+  /* Tone down header buttons for darker, less highlighty look */
   --header-button-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-elevated) 96%, var(--header-brand) 4%),
+    color-mix(in srgb, var(--surface-muted) 94%, var(--header-brand-strong) 6%)
+  );
+  --header-button-hover-bg: linear-gradient(
     180deg,
     color-mix(in srgb, var(--surface-elevated) 92%, var(--header-brand) 8%),
     color-mix(in srgb, var(--surface-muted) 90%, var(--header-brand-strong) 10%)
   );
-  --header-button-hover-bg: linear-gradient(
+  --header-button-active-bg: linear-gradient(
     180deg,
     color-mix(in srgb, var(--surface-elevated) 86%, var(--header-brand) 14%),
     color-mix(in srgb, var(--surface-muted) 84%, var(--header-brand-strong) 16%)
-  );
-  --header-button-active-bg: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--surface-elevated) 78%, var(--header-brand) 22%),
-    color-mix(in srgb, var(--surface-muted) 76%, var(--header-brand-strong) 24%)
   );
   --header-button-border: color-mix(in srgb, var(--header-brand) 35%, var(--color-border) 65%);
   --header-button-hover-border: color-mix(
@@ -37,7 +38,7 @@
   );
   --header-button-text: color-mix(in srgb, var(--color-fg) 96%, transparent);
   --header-button-hover-text: color-mix(in srgb, var(--color-fg) 98%, transparent);
-  --header-shadow-color: color-mix(in srgb, var(--header-brand-strong) 28%, transparent);
+  --header-shadow-color: color-mix(in srgb, var(--header-brand-strong) 18%, transparent);
   --header-shadow-lg: 0 18px 42px var(--header-shadow-color);
   --header-shadow-md: 0 12px 28px var(--header-shadow-color);
   --header-shadow-sm: 0 10px 22px var(--header-shadow-color);
@@ -60,22 +61,21 @@
   display: block;
   overflow: hidden;
   --blur-amount: 14px;
-  --header-glass-top: color-mix(in srgb, var(--surface-elevated) 92%, var(--header-brand) 8%);
+  --header-glass-top: color-mix(in srgb, var(--surface-elevated) 97%, var(--header-brand) 3%);
   --header-glass-bottom: color-mix(
     in srgb,
-    var(--surface-muted) 88%,
-    var(--header-brand-strong) 12%
+    var(--surface-muted) 94%,
+    var(--header-brand-strong) 6%
   );
+  /* Remove extra color tint layer by default for a truer dark glass */
+  --header-tint-from: transparent;
+  --header-tint-to: transparent;
   background:
     linear-gradient(180deg, var(--header-glass-top), var(--header-glass-bottom)),
-    linear-gradient(
-      180deg,
-      var(--header-tint-from, color-mix(in srgb, var(--header-accent) 18%, transparent)),
-      var(--header-tint-to, color-mix(in srgb, var(--header-brand) 12%, transparent))
-    );
+    linear-gradient(180deg, var(--header-tint-from), var(--header-tint-to));
   background-color: var(--header-glass-top);
-  backdrop-filter: blur(var(--blur-amount)) saturate(160%);
-  -webkit-backdrop-filter: blur(var(--blur-amount)) saturate(160%);
+  backdrop-filter: blur(var(--blur-amount)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--blur-amount)) saturate(140%);
   border-bottom: 1px solid
     var(--header-border-color, color-mix(in srgb, var(--header-brand) 24%, var(--color-border) 76%));
   box-shadow: var(--header-shadow, var(--header-shadow-lg));

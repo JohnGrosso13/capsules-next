@@ -446,6 +446,181 @@
     color: var(--color-fg-subtle, rgba(255, 255, 255, 0.65));
   }
 
+  /* Enhanced status row */
+  .statusRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .statusHint {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    color: var(--color-fg-subtle, rgba(255, 255, 255, 0.7));
+  }
+
+  .statusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-brand, #2563eb) 62%, rgba(255, 255, 255, 0.8));
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.3);
+    transform: translateZ(0);
+  }
+
+  .statusHint[data-active] .statusDot {
+    animation: statusPulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes statusPulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35);
+    }
+    70% {
+      box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    }
+  }
+
+  .statusText {
+    line-height: 1.2;
+  }
+
+  /* Attachment card with preview + progress */
+  .attachmentCard {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 14px;
+    border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+    background: linear-gradient(
+      150deg,
+      var(--glass-bg-1, rgba(24, 32, 58, 0.9)),
+      var(--glass-bg-2, rgba(12, 18, 36, 0.78))
+    );
+    color: var(--color-fg, rgba(255, 255, 255, 0.92));
+    box-shadow: var(--shadow-sm, 0 8px 18px rgba(5, 10, 30, 0.22));
+    max-width: 60%;
+  }
+
+  .attachThumb {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .attachThumbImg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .attachThumbIcon {
+    font-size: 0.9rem;
+    opacity: 0.85;
+  }
+
+  .attachMeta {
+    display: grid;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .progressTrack {
+    position: relative;
+    margin-top: 2px;
+    width: 140px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    overflow: hidden;
+  }
+
+  .progressBar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: linear-gradient(120deg, #7c5cff, #21c3fe);
+    border-radius: 999px;
+  }
+
+  .attachmentStrip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    max-width: 70%;
+    padding-bottom: 4px;
+  }
+
+  /* Preview modal */
+  .previewModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 6, 18, 0.7);
+    backdrop-filter: blur(6px);
+    display: grid;
+    place-items: center;
+    z-index: 1000;
+  }
+
+  .previewInner {
+    position: relative;
+    max-width: min(90vw, 960px);
+    max-height: min(82vh, 720px);
+    display: grid;
+    place-items: center;
+    padding: 12px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(18, 22, 40, 0.92), rgba(8, 12, 24, 0.9));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 24px 60px rgba(4, 10, 24, 0.5);
+  }
+
+  .previewMedia {
+    max-width: 100%;
+    max-height: 72vh;
+    border-radius: 12px;
+  }
+
+  .previewClose {
+    position: fixed;
+    top: 18px;
+    right: 22px;
+    border: none;
+    background: rgba(255, 255, 255, 0.14);
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  .previewDownload {
+    color: var(--color-fg, white);
+    font-weight: 700;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
   @media (max-width: 769px) {
     .intentControls {
       flex-direction: column;
@@ -588,6 +763,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
   }
 
   .attachmentStatus {
