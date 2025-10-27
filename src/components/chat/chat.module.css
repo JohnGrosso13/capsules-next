@@ -1646,6 +1646,13 @@
   .conversationHeader {
     padding: 16px;
     gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    background: var(
+      --chats-conversation-header-background,
+      color-mix(in srgb, rgba(8, 12, 34, 0.92) 90%, transparent)
+    );
   }
 
   .conversationHeaderLeft {

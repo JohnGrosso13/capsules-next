@@ -414,6 +414,32 @@ export function ChatConversation({
   const reactionLongPressTriggeredRef = React.useRef(false);
   const contextMenuRef = React.useRef<HTMLDivElement | null>(null);
   const contextMenuFirstItemRef = React.useRef<HTMLButtonElement | null>(null);
+  const scrollToLatestMessage = React.useCallback(
+    (behavior: ScrollBehavior = "auto") => {
+      if (typeof window === "undefined") return;
+      window.requestAnimationFrame(() => {
+        const container = messagesRef.current;
+        if (container) {
+          const maxScrollTop = container.scrollHeight - container.clientHeight;
+          if (maxScrollTop > 0) {
+            container.scrollTo({ top: maxScrollTop, behavior });
+            return;
+          }
+        }
+        const input = messageInputRef.current;
+        if (input) {
+          input.scrollIntoView({ block: "end", behavior });
+          return;
+        }
+        const scrollTarget =
+          document.scrollingElement ?? document.documentElement ?? document.body;
+        const maxWindowTop = scrollTarget.scrollHeight - window.innerHeight;
+        const nextTop = maxWindowTop > 0 ? maxWindowTop : scrollTarget.scrollHeight;
+        window.scrollTo({ top: nextTop, behavior });
+      });
+    },
+    [],
+  );
 
   const buildAttachmentStateKey = React.useCallback(
     (message: ChatMessage, attachment: MessageAttachmentEntry, index: number) => {
@@ -1351,12 +1377,12 @@ export function ChatConversation({
   );
 
   React.useEffect(() => {
-    const container = messagesRef.current;
-    if (!container) return;
-    requestAnimationFrame(() => {
-      container.scrollTop = container.scrollHeight;
-    });
-  }, [session.messages.length]);
+    scrollToLatestMessage("auto");
+  }, [scrollToLatestMessage, session.messages.length]);
+
+  React.useEffect(() => {
+    scrollToLatestMessage("auto");
+  }, [scrollToLatestMessage, session.id]);
 
   const acceptsFiles = React.useCallback((items: DataTransferItemList | null | undefined): boolean => {
     if (!items || items.length === 0) return false;
