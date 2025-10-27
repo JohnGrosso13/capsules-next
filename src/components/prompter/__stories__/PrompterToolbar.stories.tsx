@@ -66,8 +66,9 @@ export function Default() {
         onVoiceToggle={() => console.log("voice-toggle")}
         voiceLabel="Start voice capture"
         hint="AI will draft this for you."
-        attachment={sampleAttachment}
-        onClearAttachment={() => console.log("clear attachment")}
+        attachments={[sampleAttachment]}
+        uploadingAttachment={null}
+        onRemoveAttachment={(id) => console.log("remove attachment", id)}
         suggestedTools={suggestedTools}
         activeTool={activeTool}
         onSelectTool={setActiveTool}

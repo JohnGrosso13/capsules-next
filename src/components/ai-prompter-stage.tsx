@@ -47,6 +47,7 @@ import { useCurrentUser } from "@/services/auth/client";
 import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { intentResponseSchema } from "@/shared/schemas/ai";
 import { extractFileFromDataTransfer } from "@/lib/clipboard/files";
+import { PrompterPreviewModal } from "@/components/prompter/PrompterPreviewModal";
 
 export type PrompterAttachment = {
   id: string;
@@ -201,6 +202,13 @@ export function AiPrompterStage({
   const [manualTool, setManualTool] = React.useState<PrompterToolKey | null>(null);
   const closeMenu = React.useCallback(() => setMenuOpen(false), []);
   const [isCompactViewport, setIsCompactViewport] = React.useState(false);
+  // Multi-attachment: maintain a list separate from the active upload
+  const [attachmentList, setAttachmentList] = React.useState<
+    Array<ReturnType<typeof useAttachmentUpload>["attachment"]>
+  >([]);
+  const [preview, setPreview] = React.useState<{ url: string; mime: string; name: string } | null>(
+    null,
+  );
 
   React.useEffect(() => {
     if (!variantConfig.allowIntentMenu && manualIntent !== null) {
@@ -277,6 +285,34 @@ export function AiPrompterStage({
       void handleAttachmentFile(file);
     },
     [attachmentsEnabled, handleAttachmentFile],
+  );
+
+  // When a single upload reaches a terminal state, merge into the list
+  React.useEffect(() => {
+    if (!attachmentsEnabled) return;
+    if (!attachment) return;
+    if (attachment.status !== "ready" && attachment.status !== "error") return;
+    setAttachmentList((prev) => {
+      const exists = prev.find((a) => a?.id === attachment.id);
+      return exists ? prev.map((a) => (a?.id === attachment.id ? attachment : a)) : [...prev, attachment];
+    });
+  }, [attachmentsEnabled, attachment]);
+
+  const removeAttachment = React.useCallback(
+    (id: string) => {
+      if (attachment?.id === id) clearAttachment();
+      setAttachmentList((prev) => prev.filter((a) => a?.id !== id));
+    },
+    [attachment?.id, clearAttachment],
+  );
+
+  const handlePreviewAttachment = React.useCallback(
+    (id: string) => {
+      const att = (attachmentList || []).find((a) => a?.id === id) ?? (attachment?.id === id ? attachment : null);
+      if (!att || att.status !== "ready" || !att.url) return;
+      setPreview({ url: att.url, mime: att.mimeType, name: att.name });
+    },
+    [attachmentList, attachment],
   );
 
   const saveVoiceTranscript = React.useCallback(
@@ -466,23 +502,26 @@ export function AiPrompterStage({
   const handleGenerate = React.useCallback(() => {
     if (attachmentUploading) return;
 
-    const readyAttachments: PrompterAttachment[] | null =
-      readyAttachment && readyAttachment.url
-        ? [
-            {
-              id: readyAttachment.id,
-              name: readyAttachment.name,
-              mimeType: readyAttachment.mimeType,
-              size: readyAttachment.size,
-              url: readyAttachment.url,
-              thumbnailUrl: readyAttachment.thumbUrl ?? undefined,
-              storageKey: readyAttachment.key ?? null,
-              sessionId: readyAttachment.sessionId ?? null,
-              role: readyAttachment.role ?? "reference",
-              source: readyAttachment.source ?? "upload",
-            },
-          ]
-        : null;
+    const listReady = (attachmentList || []).filter((a) => a && a.status === "ready");
+    const includeActiveReady =
+      readyAttachment && readyAttachment.url && !listReady.find((a) => a?.id === readyAttachment.id)
+        ? [readyAttachment]
+        : [];
+    const allReady = [...listReady, ...includeActiveReady];
+    const readyAttachments: PrompterAttachment[] | null = allReady.length
+      ? allReady.map((att) => ({
+          id: att!.id,
+          name: att!.name,
+          mimeType: att!.mimeType,
+          size: att!.size,
+          url: att!.url!,
+          thumbnailUrl: att!.thumbUrl ?? undefined,
+          storageKey: att!.key ?? null,
+          sessionId: att!.sessionId ?? null,
+          role: att!.role ?? "reference",
+          source: att!.source ?? "upload",
+        }))
+      : null;
     const hasAttachmentPayload = Boolean(readyAttachments?.length);
     const emitAction = (action: PrompterAction) => {
       if (!onAction) return;
@@ -505,6 +544,7 @@ export function AiPrompterStage({
       setManualIntent(null);
       closeMenu();
       clearAttachment();
+      setAttachmentList([]);
       textRef.current?.focus();
     };
 
@@ -641,7 +681,7 @@ export function AiPrompterStage({
         : null;
   const styleHint = effectiveIntent === "style" ? "AI Styler is ready." : null;
 
-  const hint =
+  const rawHint =
     statusMessage ??
     (variantConfig.allowVoice ? voiceStatusMessage : null) ??
     (variantConfig.allowIntentHints
@@ -652,6 +692,42 @@ export function AiPrompterStage({
         (attachment?.status === "error" ? attachment.error : null) ??
         (buttonBusy ? "Analyzing intent..." : autoIntent.reason ?? null)
       : null);
+
+  function humanizeHint(input: string | null): string | null {
+    if (!input) return null;
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+    if (trimmed === "Defaulting to post intent.") return "Ready when you are.";
+    return trimmed;
+  }
+
+  // Stream-like breadcrumbs while AI is working
+  const aiBusy = Boolean(composerContext.state?.loading);
+  const crumbs = React.useRef(
+    [
+      "Analyzing your prompt…",
+      "Scanning attachments…",
+      "Looking up context…",
+      "Drafting ideas…",
+      "Polishing phrasing…",
+      "Almost there…",
+    ] as const,
+  );
+  const [crumbIndex, setCrumbIndex] = React.useState(0);
+  React.useEffect(() => {
+    if (!aiBusy) {
+      setCrumbIndex(0);
+      return;
+    }
+    const id = window.setInterval(() => {
+      setCrumbIndex((i) => (i + 1) % crumbs.current.length);
+    }, 900);
+    return () => window.clearInterval(id);
+  }, [aiBusy]);
+
+  const crumbHint = aiBusy ? crumbs.current[crumbIndex] : null;
+
+  const hint = humanizeHint(crumbHint ?? rawHint);
   const showHint = Boolean(hint) && (variantConfig.allowIntentHints || Boolean(statusMessage));
 
   return (
@@ -699,8 +775,10 @@ export function AiPrompterStage({
           onVoiceToggle={handleVoiceToggle}
           voiceLabel={voiceButtonLabel}
           hint={hint}
-          attachment={attachment}
-          onClearAttachment={attachmentsEnabled ? clearAttachment : noop}
+          attachments={attachmentList.filter((a): a is NonNullable<typeof a> => Boolean(a))}
+          uploadingAttachment={attachmentUploading && attachment ? attachment : null}
+          onRemoveAttachment={attachmentsEnabled ? removeAttachment : noop}
+          {...(attachmentsEnabled ? { onPreviewAttachment: handlePreviewAttachment } : {})}
           suggestedTools={suggestedTools}
           activeTool={activeTool}
           onSelectTool={variantConfig.allowTools ? setManualTool : noopSelectTool}
@@ -714,11 +792,16 @@ export function AiPrompterStage({
           showTools={variantConfig.allowTools}
         />
 
+        <PrompterPreviewModal
+          open={Boolean(preview)}
+          url={preview?.url ?? null}
+          mime={preview?.mime ?? null}
+          name={preview?.name ?? null}
+          onClose={() => setPreview(null)}
+        />
+
         <PrompterSuggestedActions actions={chips} onSelect={setText} />
       </div>
     </section>
   );
 }
-
-
-
