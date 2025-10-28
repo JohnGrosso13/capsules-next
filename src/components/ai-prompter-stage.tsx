@@ -780,31 +780,8 @@ export function AiPrompterStage({
     return trimmed;
   }
 
-  // Stream-like breadcrumbs while AI is working
   const aiBusy = Boolean(composerContext.state?.loading);
-  const crumbs = React.useRef(
-    [
-      "Analyzing your prompt...",
-      "Scanning attachments...",
-      "Looking up context...",
-      "Drafting ideas...",
-      "Polishing phrasing...",
-      "Almost there...",
-    ] as const,
-  );
-  const [crumbIndex, setCrumbIndex] = React.useState(0);
-  React.useEffect(() => {
-    if (!aiBusy) {
-      setCrumbIndex(0);
-      return;
-    }
-    const id = window.setInterval(() => {
-      setCrumbIndex((i) => (i + 1) % crumbs.current.length);
-    }, 900);
-    return () => window.clearInterval(id);
-  }, [aiBusy]);
-
-  const crumbHint = aiBusy ? crumbs.current[crumbIndex] : null;
+  const crumbHint = aiBusy && attachmentUploading ? "Scanning attachments..." : null;
 
   const hint = humanizeHint(crumbHint ?? rawHint);
   const showHint =

@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CaretLeft, CaretRight, ImageSquare, Play, Sparkle, X } from "@phosphor-icons/react/dist/ssr";
+import type Hls from "hls.js";
 
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
@@ -82,6 +83,164 @@ const fallbackCapsules: Capsule[] = [
 
 const VIDEO_EXTENSION_PATTERN = /\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv|3gp|3g2)(\?|#|$)/i;
 const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/i;
+
+const HLS_MIME_HINTS = [
+  "application/vnd.apple.mpegurl",
+  "application/x-mpegurl",
+  "application/mpegurl",
+];
+
+function isHlsMimeType(value: string | null | undefined): boolean {
+  if (typeof value !== "string") return false;
+  const lowered = value.toLowerCase();
+  return HLS_MIME_HINTS.some((pattern) => lowered.includes(pattern));
+}
+
+function isHlsUrl(value: string | null | undefined): boolean {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  const lowered = trimmed.toLowerCase();
+  if (lowered.includes(".m3u8")) return true;
+  const withoutHash = lowered.split("#")[0] ?? lowered;
+  const withoutQuery = withoutHash.split("?")[0] ?? withoutHash;
+  if (withoutQuery.endsWith(".m3u8")) return true;
+  try {
+    const base = typeof window !== "undefined" ? window.location.href : "http://localhost";
+    const url = new URL(trimmed, base);
+    if (url.pathname.toLowerCase().includes(".m3u8")) return true;
+    const formatParam = url.searchParams.get("format");
+    if (formatParam && formatParam.toLowerCase() === "m3u8") return true;
+  } catch {
+    /* ignore malformed URLs */
+  }
+  return false;
+}
+
+function looksLikeHlsSource(
+  mimeType: string | null | undefined,
+  url: string | null | undefined,
+): boolean {
+  return isHlsMimeType(mimeType) || isHlsUrl(url);
+}
+
+function useHlsVideo(
+  ref: React.RefObject<HTMLVideoElement>,
+  src: string | null | undefined,
+  mimeType: string | null | undefined,
+): { isHlsSource: boolean } {
+  const hlsRef = React.useRef<Hls | null>(null);
+  const normalizedSrc = React.useMemo(() => {
+    if (typeof src !== "string") return "";
+    const trimmed = src.trim();
+    return trimmed.length ? trimmed : "";
+  }, [src]);
+  const isHlsSource = React.useMemo(
+    () => (normalizedSrc ? looksLikeHlsSource(mimeType ?? null, normalizedSrc) : false),
+    [mimeType, normalizedSrc],
+  );
+
+  React.useEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+
+    const teardown = () => {
+      const existing = hlsRef.current;
+      if (existing) {
+        existing.destroy();
+        hlsRef.current = null;
+      }
+    };
+
+    if (!normalizedSrc) {
+      teardown();
+      return undefined;
+    }
+
+    if (!isHlsSource) {
+      teardown();
+      return undefined;
+    }
+
+    const nativeSupport =
+      node.canPlayType("application/vnd.apple.mpegurl") ||
+      node.canPlayType("application/x-mpegurl");
+    if (nativeSupport === "probably" || nativeSupport === "maybe") {
+      teardown();
+      node.src = normalizedSrc;
+      node.load();
+      return () => {
+        if (node.src === normalizedSrc) {
+          node.removeAttribute("src");
+          node.load();
+        }
+      };
+    }
+
+    teardown();
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const mod = await import("hls.js");
+        if (cancelled) return;
+        const HlsCtor = mod.default;
+        if (!HlsCtor || !HlsCtor.isSupported()) {
+          node.src = normalizedSrc;
+          node.load();
+          return;
+        }
+        const instance = new HlsCtor({
+          enableWorker: true,
+          backBufferLength: 90,
+        });
+        hlsRef.current = instance;
+        instance.attachMedia(node);
+        instance.on(HlsCtor.Events.MEDIA_ATTACHED, () => {
+          if (!cancelled) {
+            instance.loadSource(normalizedSrc);
+          }
+        });
+        instance.on(HlsCtor.Events.ERROR, (_event, data) => {
+          if (!data || !data.fatal) return;
+          if (data.type === HlsCtor.ErrorTypes.NETWORK_ERROR) {
+            instance.startLoad();
+          } else if (data.type === HlsCtor.ErrorTypes.MEDIA_ERROR) {
+            instance.recoverMediaError();
+          } else {
+            instance.destroy();
+            if (hlsRef.current === instance) {
+              hlsRef.current = null;
+            }
+          }
+        });
+      } catch {
+        if (!cancelled) {
+          node.src = normalizedSrc;
+          node.load();
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      teardown();
+    };
+  }, [isHlsSource, normalizedSrc, ref]);
+
+  React.useEffect(
+    () => () => {
+      const existing = hlsRef.current;
+      if (existing) {
+        existing.destroy();
+        hlsRef.current = null;
+      }
+    },
+    [],
+  );
+
+  return { isHlsSource };
+}
 
 function inferMediaKind(
   mimeType: string | null | undefined,
@@ -246,6 +405,8 @@ export function PromoRow() {
   const [capsules] = React.useState<Capsule[]>(fallbackCapsules);
   const [activeLightboxIndex, setActiveLightboxIndex] = React.useState<number | null>(null);
   const [activeVideoItem, setActiveVideoItem] = React.useState<PromoLightboxMediaItem | null>(null);
+  const lightboxVideoRef = React.useRef<HTMLVideoElement | null>(null);
+  const videoViewerRef = React.useRef<HTMLVideoElement | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -521,6 +682,16 @@ export function PromoRow() {
 
   const currentItem =
     activeLightboxIndex === null ? null : (imageLightboxItems[activeLightboxIndex] ?? null);
+  const { isHlsSource: isLightboxHls } = useHlsVideo(
+    lightboxVideoRef,
+    currentItem && currentItem.kind === "video" ? currentItem.mediaSrc ?? null : null,
+    currentItem && currentItem.kind === "video" ? currentItem.mimeType ?? null : null,
+  );
+  const { isHlsSource: isOverlayHls } = useHlsVideo(
+    videoViewerRef,
+    activeVideoItem?.mediaSrc ?? null,
+    activeVideoItem?.mimeType ?? null,
+  );
   const fallbackIconIndex = currentItem
     ? currentItem.fallbackIndex % MEDIA_FALLBACK_ICONS.length
     : 0;
@@ -605,13 +776,25 @@ export function PromoRow() {
                 {currentItem.mediaSrc ? (
                   currentItem.kind === "video" ? (
                     <video
+                      ref={lightboxVideoRef}
                       className={lightboxStyles.lightboxVideo}
+                      data-hls={isLightboxHls ? "true" : undefined}
+                      src={
+                        !isLightboxHls
+                          ? currentItem.mediaSrc ?? undefined
+                          : undefined
+                      }
                       controls
                       playsInline
                       preload="auto"
                       poster={currentItem.posterSrc ?? undefined}
                     >
-                      <source src={currentItem.mediaSrc} type={currentItem.mimeType ?? undefined} />
+                      {!isLightboxHls ? (
+                        <source
+                          src={currentItem.mediaSrc ?? undefined}
+                          type={currentItem.mimeType ?? undefined}
+                        />
+                      ) : null}
                       Your browser does not support embedded video.
                     </video>
                   ) : (
@@ -660,13 +843,21 @@ export function PromoRow() {
             {activeVideoItem.mediaSrc ? (
               <video
                 key={activeVideoItem.mediaSrc}
+                ref={videoViewerRef}
                 className={styles.videoViewerPlayer}
+                data-hls={isOverlayHls ? "true" : undefined}
+                src={!isOverlayHls ? activeVideoItem.mediaSrc ?? undefined : undefined}
                 controls
                 playsInline
                 preload="auto"
                 poster={activeVideoItem.posterSrc ?? undefined}
               >
-                <source src={activeVideoItem.mediaSrc} type={activeVideoItem.mimeType ?? undefined} />
+                {!isOverlayHls ? (
+                  <source
+                    src={activeVideoItem.mediaSrc ?? undefined}
+                    type={activeVideoItem.mimeType ?? undefined}
+                  />
+                ) : null}
                 Your browser does not support embedded video.
               </video>
             ) : (
@@ -830,7 +1021,7 @@ type PromoVideoTileProps = {
 function PromoVideoTile({ src, poster, mimeType }: PromoVideoTileProps) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [isPlaying, setIsPlaying] = React.useState(false);
-
+  const { isHlsSource } = useHlsVideo(videoRef, src, mimeType);
   const sanitizedPoster = poster && poster !== src ? poster : null;
 
   const startPlayback = React.useCallback(() => {
@@ -879,6 +1070,8 @@ function PromoVideoTile({ src, poster, mimeType }: PromoVideoTileProps) {
       <video
         ref={videoRef}
         className={styles.video}
+        data-hls={isHlsSource ? "true" : undefined}
+        src={!isHlsSource ? src : undefined}
         playsInline
         muted
         loop
@@ -888,7 +1081,7 @@ function PromoVideoTile({ src, poster, mimeType }: PromoVideoTileProps) {
         onPause={handlePause}
         onEnded={stopPlayback}
       >
-        <source src={src} type={mimeType ?? undefined} />
+        {!isHlsSource ? <source src={src} type={mimeType ?? undefined} /> : null}
       </video>
       <div className={styles.videoOverlay} aria-hidden="true">
         <Play className={styles.videoIcon} weight="fill" />

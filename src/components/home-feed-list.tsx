@@ -1935,6 +1935,7 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
   const hlsRef = React.useRef<Hls | null>(null);
   const [isPlaying, setIsPlaying] = React.useState(false);
   const userInteractedRef = React.useRef(false);
+  const videoId = videoItem.id;
 
   const poster =
     videoItem.thumbnailUrl && videoItem.thumbnailUrl !== videoItem.fullUrl
@@ -2064,6 +2065,20 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
   }, []);
 
   React.useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleRemotePlay = (event: Event) => {
+      const custom = event as CustomEvent<{ id?: string }>;
+      const requester = custom.detail?.id ?? null;
+      if (!requester || requester === videoId) return;
+      pauseVideo(true, true);
+    };
+    window.addEventListener("feedvideo:play", handleRemotePlay as EventListener);
+    return () => {
+      window.removeEventListener("feedvideo:play", handleRemotePlay as EventListener);
+    };
+  }, [pauseVideo, videoId]);
+
+  React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
 
@@ -2075,14 +2090,14 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
           pauseVideo(true, true);
           return;
         }
-        if (entry.intersectionRatio >= 0.35) {
+        if (entry.intersectionRatio >= 0.6) {
           playVideo();
         } else {
           pauseVideo(false);
         }
       },
       {
-        threshold: [0, 0.2, 0.35, 0.55, 0.75],
+        threshold: [0, 0.3, 0.45, 0.6, 0.8],
       },
     );
 
@@ -2094,7 +2109,10 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
 
   const handlePlay = React.useCallback(() => {
     setIsPlaying(true);
-  }, []);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("feedvideo:play", { detail: { id: videoId } }));
+    }
+  }, [videoId]);
 
   const handlePause = React.useCallback(() => {
     setIsPlaying(false);
