@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import type Hls from "hls.js";
 
 import styles from "./home-feed.module.css";
 import {
@@ -1888,10 +1889,50 @@ function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
 
 type FeedVideoItem = FeedGalleryItem & { kind: "video" };
 
+const HLS_MIME_HINTS = [
+  "application/vnd.apple.mpegurl",
+  "application/x-mpegurl",
+  "application/mpegurl",
+];
+
+function isHlsMimeType(value: string | null | undefined): boolean {
+  if (typeof value !== "string") return false;
+  const lowered = value.toLowerCase();
+  return HLS_MIME_HINTS.some((pattern) => lowered.includes(pattern));
+}
+
+function isHlsUrl(value: string | null | undefined): boolean {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  const lowered = trimmed.toLowerCase();
+  if (lowered.includes(".m3u8")) return true;
+  const withoutHash = lowered.split("#")[0] ?? lowered;
+  const withoutQuery = withoutHash.split("?")[0] ?? withoutHash;
+  if (withoutQuery.endsWith(".m3u8")) return true;
+  try {
+    const url = new URL(trimmed, typeof window === "undefined" ? "http://localhost" : window.location.href);
+    if (url.pathname.toLowerCase().includes(".m3u8")) return true;
+    const formatParam = url.searchParams.get("format");
+    if (formatParam && formatParam.toLowerCase() === "m3u8") return true;
+  } catch {
+    /* Relative URLs without protocol may fail URL parsing; ignore. */
+  }
+  return false;
+}
+
+function looksLikeHlsSource(
+  mimeType: string | null | undefined,
+  url: string | null | undefined,
+): boolean {
+  return isHlsMimeType(mimeType) || isHlsUrl(url);
+}
+
 function FeedVideo({ item }: { item: FeedVideoItem }) {
   const videoItem = item;
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const hlsRef = React.useRef<Hls | null>(null);
   const [isPlaying, setIsPlaying] = React.useState(false);
   const userInteractedRef = React.useRef(false);
 
@@ -1899,6 +1940,94 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
     videoItem.thumbnailUrl && videoItem.thumbnailUrl !== videoItem.fullUrl
       ? videoItem.thumbnailUrl
       : null;
+  const videoUrl = videoItem.fullUrl;
+  const isHlsSource = React.useMemo(
+    () => looksLikeHlsSource(videoItem.mimeType, videoUrl),
+    [videoItem.mimeType, videoUrl],
+  );
+
+  React.useEffect(() => {
+    const node = videoRef.current;
+    if (!node) return undefined;
+
+    const teardown = () => {
+      const existing = hlsRef.current;
+      if (existing) {
+        existing.destroy();
+        hlsRef.current = null;
+      }
+    };
+
+    if (!isHlsSource || !videoUrl) {
+      teardown();
+      return undefined;
+    }
+
+    const nativeSupport =
+      node.canPlayType("application/vnd.apple.mpegurl") ||
+      node.canPlayType("application/x-mpegurl");
+    if (nativeSupport === "probably" || nativeSupport === "maybe") {
+      teardown();
+      node.src = videoUrl;
+      node.load();
+      return () => {
+        if (node.src === videoUrl) {
+          node.removeAttribute("src");
+          node.load();
+        }
+      };
+    }
+
+    teardown();
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const mod = await import("hls.js");
+        if (cancelled) return;
+        const HlsConstructor = mod.default;
+        if (!HlsConstructor || !HlsConstructor.isSupported()) {
+          node.src = videoUrl;
+          node.load();
+          return;
+        }
+        const instance = new HlsConstructor({
+          enableWorker: true,
+          backBufferLength: 90,
+        });
+        hlsRef.current = instance;
+        instance.attachMedia(node);
+        instance.on(HlsConstructor.Events.MEDIA_ATTACHED, () => {
+          if (!cancelled) {
+            instance.loadSource(videoUrl);
+          }
+        });
+        instance.on(HlsConstructor.Events.ERROR, (_event, data) => {
+          if (!data || !data.fatal) return;
+          if (data.type === HlsConstructor.ErrorTypes.NETWORK_ERROR) {
+            instance.startLoad();
+          } else if (data.type === HlsConstructor.ErrorTypes.MEDIA_ERROR) {
+            instance.recoverMediaError();
+          } else {
+            instance.destroy();
+            if (hlsRef.current === instance) {
+              hlsRef.current = null;
+            }
+          }
+        });
+      } catch {
+        if (!cancelled) {
+          node.src = videoUrl;
+          node.load();
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      teardown();
+    };
+  }, [isHlsSource, videoUrl]);
 
   const playVideo = React.useCallback(() => {
     const node = videoRef.current;
@@ -1985,6 +2114,8 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
         ref={videoRef}
         className={styles.media}
         data-kind="video"
+        data-hls={isHlsSource ? "true" : undefined}
+        src={!isHlsSource ? videoUrl : undefined}
         controls
         playsInline
         preload="metadata"
@@ -1996,7 +2127,9 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
         onEnded={() => pauseVideo(true, true)}
         onPointerDown={handlePointerDown}
       >
-        <source src={videoItem.fullUrl} type={videoItem.mimeType ?? undefined} />
+        {!isHlsSource ? (
+          <source src={videoUrl} type={videoItem.mimeType ?? undefined} />
+        ) : null}
         Your browser does not support the video tag.
       </video>
       <div
