@@ -2,9 +2,132 @@ import { NextResponse } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { persistCommentToDB, resolvePostId } from "@/lib/supabase/posts";
-import { listCommentsForPost } from "@/server/posts/repository";
+import { listCommentsForPost, fetchCommentById } from "@/server/posts/repository";
 
 export const runtime = "nodejs";
+
+type CommentAttachmentResponse = {
+  id: string;
+  url: string;
+  name: string | null;
+  mimeType: string | null;
+  thumbnailUrl: string | null;
+  size: number | null;
+  storageKey: string | null;
+  sessionId: string | null;
+  source: string | null;
+};
+
+type CommentRow = Record<string, unknown>;
+
+function coerceString(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return null;
+}
+
+function parseAttachments(value: unknown): CommentAttachmentResponse[] {
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parseAttachments(parsed);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(value)) return [];
+  const attachments: CommentAttachmentResponse[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const url = coerceString(record.url ?? record.href);
+    if (!url) continue;
+    const id = coerceString(record.id ?? record.client_id ?? record.clientId) ?? url;
+    const mime =
+      coerceString(record.mime_type) ?? coerceString(record.mimeType) ?? null;
+    const thumb =
+      coerceString(record.thumbnail_url) ?? coerceString(record.thumbnailUrl) ?? null;
+    const name =
+      coerceString(record.name) ?? coerceString(record.title) ?? null;
+    let size: number | null = null;
+    if (typeof record.size === "number" && Number.isFinite(record.size)) {
+      size = Math.max(0, Math.trunc(record.size));
+    } else if (typeof record.size === "string" && record.size.trim().length) {
+      const parsed = Number.parseInt(record.size.trim(), 10);
+      size = Number.isFinite(parsed) ? Math.max(0, parsed) : null;
+    }
+    const storageKey =
+      coerceString(record.storage_key) ?? coerceString(record.storageKey);
+    const sessionId =
+      coerceString(record.session_id) ?? coerceString(record.sessionId);
+    const source = coerceString(record.source);
+    attachments.push({
+      id,
+      url,
+      name,
+      mimeType: mime,
+      thumbnailUrl: thumb,
+      size,
+      storageKey,
+      sessionId,
+      source,
+    });
+  }
+  return attachments;
+}
+
+function formatCommentRow(
+  row: CommentRow,
+  rawPostId: string | null,
+  resolvedPostId: string | null,
+) {
+  const identifier =
+    coerceString(row.client_id) ??
+    coerceString(row.clientId) ??
+    coerceString(row.id) ??
+    coerceString(rawPostId) ??
+    coerceString(resolvedPostId) ??
+    null;
+  const postId =
+    coerceString(rawPostId) ??
+    coerceString(row.post_id) ??
+    coerceString(resolvedPostId);
+  return {
+    id: identifier,
+    postId,
+    content: typeof row.content === "string" ? row.content : null,
+    userName:
+      typeof row.user_name === "string"
+        ? row.user_name
+        : typeof row.userName === "string"
+          ? row.userName
+          : null,
+    userAvatar:
+      typeof row.user_avatar === "string"
+        ? row.user_avatar
+        : typeof row.userAvatar === "string"
+          ? row.userAvatar
+          : null,
+    capsuleId:
+      typeof row.capsule_id === "string"
+        ? row.capsule_id
+        : typeof row.capsuleId === "string"
+          ? row.capsuleId
+          : null,
+    ts:
+      typeof row.created_at === "string"
+        ? row.created_at
+        : typeof row.ts === "string"
+          ? row.ts
+          : new Date().toISOString(),
+    attachments: parseAttachments((row as { attachments?: unknown }).attachments ?? null),
+  };
+}
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -22,30 +145,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });
   }
 
-  const comments = rows.map((row) => {
-    const identifierCandidate =
-      (typeof row.client_id === "string" && row.client_id.length
-        ? row.client_id
-        : typeof row.client_id === "number"
-          ? String(row.client_id)
-          : typeof row.id === "string"
-            ? row.id
-            : typeof row.id === "number"
-              ? String(row.id)
-              : null) ??
-      rawPostId ??
-      resolved;
-
-    return {
-      id: identifierCandidate,
-      postId: rawPostId,
-      content: row.content,
-      userName: row.user_name,
-      userAvatar: row.user_avatar,
-      capsuleId: row.capsule_id,
-      ts: row.created_at,
-    };
-  });
+  const comments = rows.map((row) => formatCommentRow(row as CommentRow, rawPostId, resolved));
 
   return NextResponse.json({ success: true, comments });
 }
@@ -64,11 +164,14 @@ export async function POST(req: Request) {
   }
 
   try {
-    await persistCommentToDB(comment, userId);
+    const commentId = await persistCommentToDB(comment, userId);
+    const persisted = commentId ? await fetchCommentById(commentId) : null;
+    const responseComment = persisted
+      ? formatCommentRow(persisted as CommentRow, (comment.postId as string) ?? null, null)
+      : formatCommentRow(comment, (comment.postId as string) ?? null, null);
+    return NextResponse.json({ success: true, comment: responseComment });
   } catch (error) {
     console.error("Persist comment error", error);
     return NextResponse.json({ error: "Failed to save comment" }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true });
 }

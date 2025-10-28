@@ -123,6 +123,7 @@ create table if not exists public.comments (
   user_id uuid references public.users(id) on delete set null,
   user_name text,
   user_avatar text,
+  attachments jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
@@ -2660,4 +2661,3 @@ $$;
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 -- END MIGRATION: 202510251030_add_poll_vote_counts_fn.sql
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-

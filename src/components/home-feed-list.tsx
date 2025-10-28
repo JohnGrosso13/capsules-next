@@ -43,6 +43,14 @@ import {
 import { requestSummary, normalizeSummaryResponse } from "@/lib/ai/client-summary";
 import type { SummaryAttachmentInput } from "@/types/summary";
 import { useCurrentUser } from "@/services/auth/client";
+import { CommentPanel } from "@/components/comments/CommentPanel";
+import type {
+  CommentModel,
+  CommentThreadState,
+  CommentSubmitPayload,
+} from "@/components/comments/types";
+import { EMPTY_THREAD_STATE } from "@/components/comments/types";
+import { safeRandomUUID } from "@/lib/random";
 
 type LazyImageProps = React.ComponentProps<typeof Image>;
 
@@ -124,6 +132,130 @@ function coerceDimension(value: unknown): number | null {
     }
   }
   return null;
+}
+
+function createEmptyThreadState(): CommentThreadState {
+  return { status: "idle", comments: [], error: null };
+}
+
+function normalizeCommentFromApi(
+  raw: Record<string, unknown>,
+  fallbackPostId: string,
+): CommentModel {
+  const rawId = raw.id;
+  const id =
+    typeof rawId === "string" && rawId.trim().length ? rawId.trim() : safeRandomUUID();
+  const postIdValue = raw.postId ?? raw.post_id ?? fallbackPostId;
+  const postId =
+    typeof postIdValue === "string" && postIdValue.trim().length
+      ? postIdValue.trim()
+      : fallbackPostId;
+  const content =
+    typeof raw.content === "string" ? raw.content : typeof raw.body === "string" ? raw.body : "";
+  const userName =
+    typeof raw.userName === "string"
+      ? raw.userName
+      : typeof raw.user_name === "string"
+        ? raw.user_name
+        : null;
+  const userAvatar =
+    typeof raw.userAvatar === "string"
+      ? raw.userAvatar
+      : typeof raw.user_avatar === "string"
+        ? raw.user_avatar
+        : null;
+  const capsuleId =
+    typeof raw.capsuleId === "string"
+      ? raw.capsuleId
+      : typeof raw.capsule_id === "string"
+        ? raw.capsule_id
+        : null;
+  const tsValue = raw.ts ?? raw.created_at ?? new Date().toISOString();
+  const ts = typeof tsValue === "string" && tsValue.trim().length ? tsValue : new Date().toISOString();
+
+  const attachmentsRaw = Array.isArray((raw as { attachments?: unknown }).attachments)
+    ? ((raw as { attachments?: unknown[] }).attachments as unknown[])
+    : [];
+  const attachments = attachmentsRaw
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const record = entry as Record<string, unknown>;
+      const attachmentId =
+        typeof record.id === "string" && record.id.trim().length ? record.id.trim() : safeRandomUUID();
+      const url =
+        typeof record.url === "string" && record.url.trim().length ? record.url.trim() : null;
+      if (!url) return null;
+      const name =
+        typeof record.name === "string" && record.name.trim().length
+          ? record.name.trim()
+          : null;
+      const mimeType =
+        typeof record.mimeType === "string"
+          ? record.mimeType
+          : typeof record.mime_type === "string"
+            ? record.mime_type
+            : null;
+      const thumbnail =
+        typeof record.thumbnailUrl === "string"
+          ? record.thumbnailUrl
+          : typeof record.thumbnail_url === "string"
+            ? record.thumbnail_url
+            : null;
+      const sizeValue = record.size;
+      const size =
+        typeof sizeValue === "number" && Number.isFinite(sizeValue)
+          ? sizeValue
+          : typeof sizeValue === "string"
+            ? Number.parseInt(sizeValue, 10) || null
+            : null;
+      const storageKey =
+        typeof record.storageKey === "string"
+          ? record.storageKey
+          : typeof record.storage_key === "string"
+            ? record.storage_key
+            : null;
+      const sessionId =
+        typeof record.sessionId === "string"
+          ? record.sessionId
+          : typeof record.session_id === "string"
+            ? record.session_id
+            : null;
+      const source =
+        typeof record.source === "string" && record.source.trim().length
+          ? record.source.trim()
+          : null;
+      return {
+        id: attachmentId,
+        url,
+        name,
+        mimeType,
+        thumbnailUrl: thumbnail,
+        size,
+        storageKey,
+        sessionId,
+        source,
+      };
+    })
+    .filter((attachment): attachment is CommentModel["attachments"][number] => Boolean(attachment));
+
+  return {
+    id,
+    postId,
+    content,
+    userName,
+    userAvatar,
+    capsuleId,
+    ts,
+    attachments,
+    userId:
+      typeof raw.userId === "string"
+        ? raw.userId
+        : typeof raw.user_id === "string"
+          ? raw.user_id
+          : null,
+    pending: false,
+    error: null,
+  };
 }
 
 type FeedGalleryItem = {
@@ -272,6 +404,10 @@ export function HomeFeedList({
     {},
   );
   const [feedSummaryPending, setFeedSummaryPending] = React.useState(false);
+  const [commentThreads, setCommentThreads] = React.useState<Record<string, CommentThreadState>>({});
+  const [commentSubmitting, setCommentSubmitting] = React.useState<Record<string, boolean>>({});
+  const [activeComment, setActiveComment] = React.useState<{ postId: string } | null>(null);
+  const commentAnchorRef = React.useRef<HTMLElement | null>(null);
 
   const showSkeletons = !hasFetched;
 
@@ -318,6 +454,24 @@ export function HomeFeedList({
     if (showSkeletons) return [];
     return posts.slice(0, visibleLimit || posts.length);
   }, [showSkeletons, posts, visibleLimit]);
+  const viewerEnvelope = React.useMemo(() => {
+    if (!currentUser) return null;
+    const provider = currentUser.provider ?? "guest";
+    const envelope: Record<string, unknown> = {
+      provider,
+      email: currentUser.email ?? null,
+      full_name: currentUser.name ?? null,
+      avatar_url: currentUser.avatarUrl ?? null,
+    };
+    if (currentUser.provider === "clerk") {
+      envelope.clerk_id = currentUser.id ?? null;
+    } else {
+      envelope.clerk_id = null;
+    }
+    envelope.key =
+      currentUser.key ?? (currentUser.provider === "clerk" ? `clerk:${currentUser.id}` : currentUser.id);
+    return envelope;
+  }, [currentUser]);
   const skeletons = React.useMemo(
     () =>
       Array.from({ length: 4 }, (_, index) => (
@@ -578,6 +732,189 @@ export function HomeFeedList({
     }
   }, [composer, displayedPosts, feedSummaryPending, timeAgo]);
 
+  const loadComments = React.useCallback(
+    async (postId: string) => {
+      setCommentThreads((previous) => {
+        const prevState = previous[postId] ?? createEmptyThreadState();
+        return {
+          ...previous,
+          [postId]: { ...prevState, status: "loading", error: null },
+        };
+      });
+      try {
+        const response = await fetch(`/api/comments?postId=${encodeURIComponent(postId)}`, {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          throw new Error(text || "Failed to load comments.");
+        }
+        const payload = (await response.json().catch(() => null)) as {
+          comments?: unknown[];
+        } | null;
+        const comments = Array.isArray(payload?.comments)
+          ? payload!.comments
+              .map((entry) =>
+                entry && typeof entry === "object"
+                  ? normalizeCommentFromApi(entry as Record<string, unknown>, postId)
+                  : null,
+              )
+              .filter((entry): entry is CommentModel => Boolean(entry))
+          : [];
+        setCommentThreads((previous) => ({
+          ...previous,
+          [postId]: { status: "loaded", comments, error: null },
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to load comments.";
+        setCommentThreads((previous) => {
+          const prevState = previous[postId] ?? createEmptyThreadState();
+          if (prevState.comments.length) {
+            return {
+              ...previous,
+              [postId]: { status: "loaded", comments: prevState.comments, error: message },
+            };
+          }
+          return {
+            ...previous,
+            [postId]: { status: "error", comments: [], error: message },
+          };
+        });
+        throw error;
+      }
+    },
+    [],
+  );
+
+  const submitComment = React.useCallback(
+    async (payload: CommentSubmitPayload) => {
+      const optimistic: CommentModel = {
+        id: payload.clientId,
+        postId: payload.postId,
+        content: payload.content,
+        userName:
+          payload.userName ??
+          currentUser?.name ??
+          currentUser?.email ??
+          "You",
+        userAvatar: payload.userAvatar ?? currentUser?.avatarUrl ?? null,
+        capsuleId: payload.capsuleId ?? null,
+        ts: payload.ts,
+        attachments: payload.attachments,
+        userId: viewerUserId,
+        pending: true,
+        error: null,
+      };
+      setCommentThreads((previous) => {
+        const prevState = previous[payload.postId] ?? createEmptyThreadState();
+        return {
+          ...previous,
+          [payload.postId]: {
+            status: "loaded",
+            comments: [...prevState.comments, optimistic],
+            error: null,
+          },
+        };
+      });
+      setCommentSubmitting((previous) => ({ ...previous, [payload.postId]: true }));
+      try {
+        const response = await fetch("/api/comments", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            comment: {
+              id: payload.clientId,
+              postId: payload.postId,
+              content: payload.content,
+              attachments: payload.attachments,
+              capsuleId: payload.capsuleId ?? null,
+              capsule_id: payload.capsuleId ?? null,
+              ts: payload.ts,
+              userName:
+                payload.userName ??
+                currentUser?.name ??
+                currentUser?.email ??
+                null,
+              userAvatar: payload.userAvatar ?? currentUser?.avatarUrl ?? null,
+              source: "web",
+            },
+            user: viewerEnvelope,
+          }),
+        });
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          throw new Error(text || "Failed to submit comment.");
+        }
+        const json = (await response.json().catch(() => null)) as { comment?: unknown } | null;
+        const persisted =
+          json?.comment && typeof json.comment === "object"
+            ? normalizeCommentFromApi(json.comment as Record<string, unknown>, payload.postId)
+            : { ...optimistic, pending: false };
+        setCommentThreads((previous) => {
+          const prevState = previous[payload.postId] ?? createEmptyThreadState();
+          const comments = prevState.comments.map((entry) =>
+            entry.id === payload.clientId ? { ...persisted, pending: false } : entry,
+          );
+          return {
+            ...previous,
+            [payload.postId]: { status: "loaded", comments, error: null },
+          };
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to submit comment.";
+        setCommentThreads((previous) => {
+          const prevState = previous[payload.postId] ?? createEmptyThreadState();
+          const comments = prevState.comments.filter((entry) => entry.id !== payload.clientId);
+          return {
+            ...previous,
+            [payload.postId]: {
+              status: "error",
+              comments,
+              error: message,
+            },
+          };
+        });
+        throw error;
+      } finally {
+        setCommentSubmitting((previous) => {
+          const next = { ...previous };
+          delete next[payload.postId];
+          return next;
+        });
+      }
+    },
+    [currentUser?.avatarUrl, currentUser?.email, currentUser?.name, viewerEnvelope, viewerUserId],
+  );
+
+  const handleCommentButtonClick = React.useCallback((post: HomeFeedPost, target: HTMLElement) => {
+    setActiveComment((previous) => {
+      const next = previous?.postId === post.id ? null : { postId: post.id };
+      commentAnchorRef.current = next ? target : null;
+      return next;
+    });
+  }, []);
+
+  const closeComments = React.useCallback(() => {
+    setActiveComment(null);
+    commentAnchorRef.current = null;
+  }, []);
+
+  React.useEffect(() => {
+    if (!activeComment) return;
+    if (posts.some((post) => post.id === activeComment.postId)) return;
+    closeComments();
+  }, [activeComment, closeComments, posts]);
+
+  const activeCommentPost = React.useMemo(
+    () =>
+      activeComment
+        ? posts.find((post) => post.id === activeComment.postId) ?? null
+        : null,
+    [activeComment, posts],
+  );
+
   return (
     <>
       {showSkeletons ? (
@@ -646,7 +983,8 @@ export function HomeFeedList({
           }
         }
         const likeCount = typeof post.likes === "number" ? Math.max(0, post.likes) : 0;
-        const commentCount = typeof post.comments === "number" ? Math.max(0, post.comments) : 0;
+        const baseCommentCount =
+          typeof post.comments === "number" ? Math.max(0, post.comments) : 0;
         const shareCount = typeof post.shares === "number" ? Math.max(0, post.shares) : 0;
         const viewerLiked = Boolean(post.viewerLiked ?? post.viewer_liked ?? false);
         const remembered = Boolean(post.viewerRemembered ?? post.viewer_remembered ?? false);
@@ -666,6 +1004,8 @@ export function HomeFeedList({
             console.error("Memory toggle error", error);
           }
         };
+        const threadForPost = commentThreads[post.id] ?? null;
+        const commentCount = threadForPost ? threadForPost.comments.length : baseCommentCount;
         const actionItems: Array<{
           key: ActionKey;
           label: string;
@@ -673,7 +1013,7 @@ export function HomeFeedList({
           count: number;
           active?: boolean;
           pending?: boolean;
-          handler?: () => void;
+          handler?: (event: React.MouseEvent<HTMLButtonElement>) => void;
         }> = [
           {
             key: "like",
@@ -682,13 +1022,22 @@ export function HomeFeedList({
             count: likeCount,
             active: viewerLiked,
             pending: isLikePending,
-            handler: () => onToggleLike(post.id),
+            handler: (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onToggleLike(post.id);
+            },
           },
           {
             key: "comment",
             label: "Comment",
             icon: <ChatCircle weight="duotone" />,
             count: commentCount,
+            handler: (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleCommentButtonClick(post, event.currentTarget);
+            },
           },
           {
             key: "share",
@@ -1185,6 +1534,7 @@ export function HomeFeedList({
             <footer className={styles.actionBar}>
               {actionItems.map((action) => {
                 const isLike = action.key === "like";
+                const handleClick = action.handler ?? undefined;
                 return (
                   <button
                     key={action.key}
@@ -1193,7 +1543,7 @@ export function HomeFeedList({
                     data-variant={action.key}
                     data-active={action.active ? "true" : "false"}
                     aria-label={`${action.label} (${formatCount(action.count)} so far)`}
-                    onClick={isLike ? action.handler : undefined}
+                    onClick={handleClick}
                     disabled={isLike ? action.pending : false}
                     aria-pressed={isLike ? action.active : undefined}
                     aria-busy={isLike && action.pending ? true : undefined}
@@ -1335,6 +1685,21 @@ export function HomeFeedList({
             );
           })()
         : null}
+      {activeCommentPost ? (
+        <CommentPanel
+          post={activeCommentPost}
+          anchorEl={commentAnchorRef.current}
+          visible={Boolean(activeComment)}
+          thread={commentThreads[activeCommentPost.id] ?? EMPTY_THREAD_STATE}
+          submitting={Boolean(commentSubmitting[activeCommentPost.id])}
+          onClose={closeComments}
+          onLoad={loadComments}
+          onReload={loadComments}
+          onSubmit={submitComment}
+          timeAgo={timeAgo}
+          exactTime={exactTime}
+        />
+      ) : null}
     </>
   );
 }

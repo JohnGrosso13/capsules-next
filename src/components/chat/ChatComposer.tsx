@@ -77,6 +77,16 @@ type ChatComposerProps = {
   onGifSelect: (gif: GifPickerSelection) => void;
   onGifClose: () => void;
   onFileInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  plusMenuItems?: PlusMenuItem[];
+};
+
+type PlusMenuItem = {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  onSelect: () => void;
+  disabled?: boolean;
 };
 
 export function ChatComposer({
@@ -110,6 +120,8 @@ export function ChatComposer({
   onGifSelect,
   onGifClose,
   onFileInputChange,
+  placeholder,
+  plusMenuItems,
 }: ChatComposerProps) {
   const [isPlusOpen, setIsPlusOpen] = React.useState(false);
   const plusMenuRef = React.useRef<HTMLDivElement | null>(null);
@@ -125,6 +137,38 @@ export function ChatComposer({
     document.addEventListener("mousedown", handleDocumentClick);
     return () => document.removeEventListener("mousedown", handleDocumentClick);
   }, [isPlusOpen]);
+
+  const menuItems = React.useMemo(() => {
+    const items: PlusMenuItem[] = [
+      {
+        key: "attachment",
+        label: "Attach file",
+        icon: <Paperclip size={16} weight="bold" />,
+        onSelect: onAttachmentButtonClick,
+      },
+      {
+        key: "gif",
+        label: "Add GIF",
+        icon: <Gif size={16} weight="bold" />,
+        onSelect: onGifButtonClick,
+      },
+    ];
+    if (Array.isArray(plusMenuItems) && plusMenuItems.length) {
+      for (const item of plusMenuItems) {
+        if (!item) continue;
+        const existing = items.find((entry) => entry.key === item.key);
+        if (existing) {
+          items.push({ ...item, key: `${item.key}-extra` });
+        } else {
+          items.push(item);
+        }
+      }
+    }
+    return items;
+  }, [onAttachmentButtonClick, onGifButtonClick, plusMenuItems]);
+
+  const resolvedPlaceholder =
+    placeholder ?? (sessionType === "group" ? "Message the group" : "Type a message");
 
   return (
     <>
@@ -159,7 +203,7 @@ export function ChatComposer({
               onChange={onDraftChange}
               onBlur={onDraftBlur}
               onPaste={onPaste}
-              placeholder={sessionType === "group" ? "Message the group" : "Type a message"}
+              placeholder={resolvedPlaceholder}
               disabled={sending}
               aria-label="Message"
               rows={1}
@@ -178,32 +222,25 @@ export function ChatComposer({
                 className={`${styles.chatMenuPanel} ${styles.composerPlusMenu}`}
                 role="menu"
               >
-                <button
-                  type="button"
-                  className={styles.chatMenuItem}
-                  role="menuitem"
-                  onClick={() => {
-                    setIsPlusOpen(false);
-                    onAttachmentButtonClick();
-                  }}
-                >
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    <Paperclip size={16} weight="bold" /> Attach file
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className={styles.chatMenuItem}
-                  role="menuitem"
-                  onClick={() => {
-                    setIsPlusOpen(false);
-                    onGifButtonClick();
-                  }}
-                >
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    <Gif size={16} weight="bold" /> Add GIF
-                  </span>
-                </button>
+                {menuItems.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={styles.chatMenuItem}
+                    role="menuitem"
+                    onClick={() => {
+                      if (item.disabled) return;
+                      setIsPlusOpen(false);
+                      item.onSelect();
+                    }}
+                    disabled={item.disabled}
+                    aria-disabled={item.disabled}
+                  >
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      {item.icon} {item.label}
+                    </span>
+                  </button>
+                ))}
               </div>
             ) : null}
           </div>

@@ -76,6 +76,7 @@ type CommentDbRow = {
   user_avatar: string | null;
   capsule_id: string | null;
   created_at: string | null;
+  attachments: unknown;
 };
 
 type PostCoreDbRow = {
@@ -399,7 +400,7 @@ export async function listCommentsForPost(postId: string, limit = 200): Promise<
   const result = await db
     .from("comments")
     .select<CommentDbRow>(
-      "id, client_id, post_id, content, user_name, user_avatar, capsule_id, created_at",
+      "id, client_id, post_id, content, user_name, user_avatar, capsule_id, created_at, attachments",
     )
     .eq("post_id", postId)
     .order("created_at", { ascending: true })
@@ -407,6 +408,21 @@ export async function listCommentsForPost(postId: string, limit = 200): Promise<
     .fetch();
   if (result.error) throw decorateDatabaseError("posts.comments.list", result.error);
   return result.data ?? [];
+}
+
+export async function fetchCommentById(id: string): Promise<CommentDbRow | null> {
+  const result = await db
+    .from("comments")
+    .select<CommentDbRow>(
+      "id, client_id, post_id, content, user_name, user_avatar, capsule_id, created_at, attachments",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (result.error) {
+    if (NOT_FOUND_CODES.has(result.error.code ?? "")) return null;
+    throw decorateDatabaseError("posts.comments.fetch", result.error);
+  }
+  return result.data ?? null;
 }
 
 export async function fetchPostCoreById(postId: string): Promise<PostCoreDbRow | null> {
