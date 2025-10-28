@@ -64,14 +64,14 @@ function initialsFrom(name: string | null | undefined): string {
 function sanitizeAttachmentForSend(attachment: PendingAttachment): CommentAttachment {
   return {
     id: attachment.id,
-    name: attachment.name,
-    mimeType: attachment.mimeType,
+    name: attachment.name ?? null,
+    mimeType: attachment.mimeType ?? null,
     size: attachment.size ?? null,
     url: attachment.url,
     thumbnailUrl: attachment.thumbnailUrl ?? null,
     storageKey: attachment.storageKey ?? null,
     sessionId: attachment.sessionId ?? null,
-    source: undefined,
+    source: null,
   };
 }
 
@@ -79,7 +79,7 @@ function sanitizeAttachmentForSend(attachment: PendingAttachment): CommentAttach
 
 export function CommentPanel({
   post,
-  anchorEl,
+  anchorEl: _anchorEl,
   visible,
   thread,
   submitting,
@@ -92,7 +92,6 @@ export function CommentPanel({
 }: CommentPanelProps) {
   const { user } = useCurrentUser();
   const [portalEl, setPortalEl] = React.useState<HTMLElement | null>(null);
-  const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null);
   const [draft, setDraft] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [isGifPickerOpen, setGifPickerOpen] = React.useState(false);
@@ -128,27 +127,6 @@ export function CommentPanel({
       document.body.removeChild(el);
     };
   }, []);
-
-  const updateAnchorRect = React.useCallback(() => {
-    if (!anchorEl || typeof anchorEl.getBoundingClientRect !== "function") {
-      setAnchorRect(null);
-      return;
-    }
-    setAnchorRect(anchorEl.getBoundingClientRect());
-  }, [anchorEl]);
-
-  React.useEffect(() => {
-    if (!visible) return;
-    updateAnchorRect();
-    if (typeof window === "undefined") return;
-    const handle = () => updateAnchorRect();
-    window.addEventListener("resize", handle);
-    window.addEventListener("scroll", handle, true);
-    return () => {
-      window.removeEventListener("resize", handle);
-      window.removeEventListener("scroll", handle, true);
-    };
-  }, [visible, updateAnchorRect]);
 
   React.useEffect(() => {
     if (!visible) {
@@ -213,7 +191,9 @@ export function CommentPanel({
   }, []);
 
   React.useEffect(() => {
-    if (!readyAttachment || readyAttachment.status !== "ready" || !readyAttachment.url) return;
+    if (!readyAttachment || readyAttachment.status !== "ready") return;
+    const readyUrl = readyAttachment.url;
+    if (!readyUrl) return;
     setQueuedAttachments((previous) => {
       if (previous.some((item) => item.id === readyAttachment.id)) {
         return previous;
@@ -226,7 +206,7 @@ export function CommentPanel({
           typeof readyAttachment.size === "number" && Number.isFinite(readyAttachment.size)
             ? readyAttachment.size
             : 0,
-        url: readyAttachment.url,
+        url: readyUrl,
         thumbnailUrl: readyAttachment.thumbUrl ?? null,
         storageKey: readyAttachment.key ?? null,
         sessionId: readyAttachment.sessionId ?? null,
@@ -506,15 +486,15 @@ export function CommentPanel({
   );
 
   const commentCount = thread.comments.length;
-  const promptForComposer = React.useMemo(() => {
-    const segments = [
-      "Help me craft a thoughtful, concise comment I can post in reply.",
-      post.content && post.content.trim().length
-        ? `Post content:\n${post.content.trim()}`
-        : "The post has no text content, only media.",
-      "Offer two or three short suggestions I can send back, and keep them on-brand and friendly.",
-    ];
-    return segments.join("\n\n");
+  const postMediaUrl = React.useMemo(() => {
+    if (typeof post.mediaUrl !== "string") return null;
+    const trimmed = post.mediaUrl.trim();
+    return trimmed.length ? trimmed : null;
+  }, [post.mediaUrl]);
+  const postContentText = React.useMemo(() => {
+    if (typeof post.content !== "string") return null;
+    const trimmed = post.content.trim();
+    return trimmed.length ? trimmed : null;
   }, [post.content]);
 
   const memoryOrigin = React.useMemo(
@@ -619,14 +599,14 @@ export function CommentPanel({
           </div>
         </header>
         <div className={styles.commentScroll}>
-          {(post.mediaUrl || (post.content && post.content.trim().length)) ? (
+          {(postMediaUrl || postContentText) ? (
             <div className={styles.postPreview}>
-              {post.mediaUrl ? (
+              {postMediaUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img className={styles.postMedia} src={post.mediaUrl} alt="Post media" />
+                <img className={styles.postMedia} src={postMediaUrl} alt="Post media" />
               ) : null}
-              {post.content && post.content.trim().length ? (
-                <p className={styles.postText}>{post.content.trim()}</p>
+              {postContentText ? (
+                <p className={styles.postText}>{postContentText}</p>
               ) : null}
             </div>
           ) : null}

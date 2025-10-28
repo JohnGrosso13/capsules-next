@@ -45,6 +45,7 @@ import type { SummaryAttachmentInput } from "@/types/summary";
 import { useCurrentUser } from "@/services/auth/client";
 import { CommentPanel } from "@/components/comments/CommentPanel";
 import type {
+  CommentAttachment,
   CommentModel,
   CommentThreadState,
   CommentSubmitPayload,
@@ -224,19 +225,20 @@ function normalizeCommentFromApi(
         typeof record.source === "string" && record.source.trim().length
           ? record.source.trim()
           : null;
-      return {
+      const attachmentRecord: CommentAttachment = {
         id: attachmentId,
         url,
         name,
         mimeType,
         thumbnailUrl: thumbnail,
-        size,
+        size: size ?? null,
         storageKey,
         sessionId,
         source,
       };
+      return attachmentRecord;
     })
-    .filter((attachment): attachment is CommentModel["attachments"][number] => Boolean(attachment));
+    .filter((attachment): attachment is CommentAttachment => attachment !== null);
 
   return {
     id,

@@ -451,14 +451,17 @@ async function uploadWithFallback(
   mergeAttachmentMetadata(metadata, options?.metadata, { file, mimeType, uploadKind });
 
   try {
-    result = await uploadFileDirect(file, {
+    const uploadOptions: Parameters<typeof uploadFileDirect>[1] = {
       kind: uploadKind,
       metadata,
-      signal,
       onProgress: ({ uploadedBytes, totalBytes }) => {
         updateUploadProgress(setAttachment, id, uploadedBytes, totalBytes);
       },
-    });
+    };
+    if (signal) {
+      uploadOptions.signal = signal;
+    }
+    result = await uploadFileDirect(file, uploadOptions);
   } catch (error) {
     directError = error instanceof Error ? error : new Error(String(error));
     const message = canUseBase64
@@ -500,7 +503,7 @@ async function uploadViaBase64(
   }
   const dataUrl = await readFileAsDataUrl(file);
   const base64 = dataUrl.split(",").pop() ?? "";
-  const fallbackResponse = await fetch("/api/upload_base64", {
+  const fallbackRequest: RequestInit = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -508,8 +511,11 @@ async function uploadViaBase64(
       content_type: mimeType,
       data_base64: base64,
     }),
-    signal,
-  });
+  };
+  if (signal) {
+    fallbackRequest.signal = signal;
+  }
+  const fallbackResponse = await fetch("/api/upload_base64", fallbackRequest);
   if (!fallbackResponse.ok) {
     const msg = await fallbackResponse.text().catch(() => "");
     throw new Error(msg || directError?.message || "Upload failed");
@@ -544,7 +550,7 @@ async function maybeCaptureAndUploadThumb(
     const thumbBase64 = thumbDataUrl.split(",").pop() ?? "";
     if (!thumbBase64) return thumbDataUrl;
 
-    const thumbRes = await fetch("/api/upload_base64", {
+    const thumbRequest: RequestInit = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -552,8 +558,11 @@ async function maybeCaptureAndUploadThumb(
         content_type: "image/jpeg",
         data_base64: thumbBase64,
       }),
-      signal,
-    });
+    };
+    if (signal) {
+      thumbRequest.signal = signal;
+    }
+    const thumbRes = await fetch("/api/upload_base64", thumbRequest);
 
     if (thumbRes.ok) {
       const json = (await thumbRes.json()) as { url?: string };
