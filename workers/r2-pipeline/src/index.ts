@@ -1,4 +1,4 @@
-import type { DurableObjectStub, MessageBatch } from "@cloudflare/workers-types";
+import type { DurableObjectStub, MessageBatch, R2ObjectBody } from "@cloudflare/workers-types";
 
 import { UploadCoordinator } from "./upload-coordinator";
 import {
@@ -163,7 +163,7 @@ async function runTask(
     case "image.preview":
       return processImageVariant(env, message, task);
     case "video.transcode":
-      return processVideoTranscode(env, message);
+      return processVideoTranscode(env, message, stub);
     case "video.thumbnail":
       return processVideoThumbnail(env, message);
     case "video.audio":
@@ -373,6 +373,97 @@ function extractExtension(key: string): string | null {
 async function processVideoTranscode(
   env: Env,
   message: ProcessingTaskMessage,
+  stub: DurableObjectStub,
+): Promise<DerivedAssetRecord> {
+  const state = await getCoordinatorState(stub);
+  const existingDerived =
+    state?.derived?.find((entry) => entry.type === "video.transcode") ?? null;
+  if (existingDerived) {
+    const provider =
+      existingDerived.metadata && typeof existingDerived.metadata === "object"
+        ? ((existingDerived.metadata as { provider?: unknown }).provider as string | undefined)
+        : undefined;
+    if (provider === "mux") {
+      return existingDerived;
+    }
+  }
+
+  const muxCredentials = readMuxCredentials(env);
+  if (!muxCredentials) {
+    return legacyProcessVideoTranscode(env, message);
+  }
+
+  try {
+    const object = await env.R2_BUCKET.get(message.key);
+    if (!object) {
+      throw new Error("Source video not found in R2");
+    }
+
+    const directUpload = await createMuxDirectUpload(env, muxCredentials, message);
+    const contentType =
+      normalizeContentType(message.contentType) ??
+      object.httpMetadata?.contentType ??
+      guessMimeFromKey(message.key) ??
+      "application/octet-stream";
+
+    await uploadObjectToMux(directUpload.url, object, contentType);
+    const assetId = await waitForMuxUploadAssetId(muxCredentials, directUpload.id);
+    const asset = await waitForMuxAssetReady(muxCredentials, assetId);
+    const derived = buildMuxDerivedAsset(env, message, asset);
+    return derived;
+  } catch (error) {
+    console.warn("mux transcode job failed, using passthrough video", error);
+    return legacyProcessVideoTranscode(env, message);
+  }
+}
+
+type MuxCredentials = { tokenId: string; tokenSecret: string };
+
+type MuxPlaybackId = {
+  id: string;
+  policy: string;
+};
+
+type MuxAsset = {
+  id: string;
+  status: string;
+  playback_ids?: MuxPlaybackId[];
+  mp4_support?: "none" | "standard" | "capped-1080p";
+  duration?: number;
+  aspect_ratio?: string | null;
+  max_stored_resolution?: string | null;
+  max_stored_frame_rate?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  passthrough?: string | null;
+};
+
+type MuxDirectUpload = {
+  id: string;
+  status: string;
+  url: string;
+  asset_id?: string | null;
+};
+
+type MuxUploadResponse = { data: MuxDirectUpload };
+type MuxAssetResponse = { data: MuxAsset };
+
+const MUX_API_BASE_URL = "https://api.mux.com";
+const DEFAULT_MUX_POLL_INTERVAL_MS = 3_000;
+const DEFAULT_MUX_POLL_TIMEOUT_MS = 5 * 60 * 1_000;
+
+function readMuxCredentials(env: Env): MuxCredentials | null {
+  const tokenId = (env.MUX_TOKEN_ID ?? "").trim();
+  const tokenSecret = (env.MUX_TOKEN_SECRET ?? "").trim();
+  if (!tokenId || !tokenSecret) {
+    return null;
+  }
+  return { tokenId, tokenSecret };
+}
+
+async function legacyProcessVideoTranscode(
+  env: Env,
+  message: ProcessingTaskMessage,
 ): Promise<DerivedAssetRecord> {
   const object = await env.R2_BUCKET.get(message.key);
   if (!object) {
@@ -382,7 +473,7 @@ async function processVideoTranscode(
   const derivedKey = `${stripExtension(message.key)}__stream.mp4`;
   await env.R2_BUCKET.put(derivedKey, buffer, {
     httpMetadata: {
-      contentType: message.contentType ?? "video/mp4",
+      contentType: normalizeContentType(message.contentType) ?? "video/mp4",
     },
   });
   return {
@@ -390,9 +481,210 @@ async function processVideoTranscode(
     key: derivedKey,
     url: buildPublicUrl(env, derivedKey),
     metadata: {
-      note: "Placeholder transcode. Replace with Cloudflare Stream integration.",
+      provider: "passthrough",
+      note: "Video copied without transcoding. Configure Mux credentials to enable adaptive playback.",
+      mime_type: normalizeContentType(message.contentType) ?? "video/mp4",
     },
   };
+}
+
+async function createMuxDirectUpload(
+  env: Env,
+  credentials: MuxCredentials,
+  message: ProcessingTaskMessage,
+): Promise<MuxDirectUpload> {
+  const response = await muxApiRequest<MuxUploadResponse>(credentials, "/video/v1/uploads", {
+    method: "POST",
+    body: JSON.stringify({
+      new_asset_settings: {
+        playback_policy: ["public"],
+        mp4_support: "capped-1080p",
+        passthrough: message.uploadId ?? message.key ?? null,
+      },
+      test: (env.MUX_ENVIRONMENT ?? "").toLowerCase() === "test",
+    }),
+  });
+  return response.data;
+}
+
+async function uploadObjectToMux(
+  url: string,
+  object: R2ObjectBody,
+  contentType: string,
+): Promise<void> {
+  const headers: Record<string, string> = {
+    "Content-Type": contentType,
+  };
+  if (typeof object.size === "number") {
+    headers["Content-Length"] = String(object.size);
+  }
+  const response = await fetch(url, {
+    method: "PUT",
+    headers,
+    body: object.body,
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(
+      `Mux upload failed (${response.status})${text ? `: ${text.slice(0, 200)}` : ""}`,
+    );
+  }
+}
+
+async function waitForMuxUploadAssetId(
+  credentials: MuxCredentials,
+  uploadId: string,
+  timeoutMs = DEFAULT_MUX_POLL_TIMEOUT_MS,
+  intervalMs = DEFAULT_MUX_POLL_INTERVAL_MS,
+): Promise<string> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const upload = await fetchMuxUpload(credentials, uploadId);
+    if (upload.asset_id && upload.asset_id.trim().length) {
+      return upload.asset_id;
+    }
+    if (upload.status === "errored") {
+      throw new Error(`Mux direct upload ${uploadId} reported an error`);
+    }
+    await sleep(intervalMs);
+  }
+  throw new Error(`Mux direct upload ${uploadId} timed out waiting for asset creation`);
+}
+
+async function waitForMuxAssetReady(
+  credentials: MuxCredentials,
+  assetId: string,
+  timeoutMs = DEFAULT_MUX_POLL_TIMEOUT_MS,
+  intervalMs = DEFAULT_MUX_POLL_INTERVAL_MS,
+): Promise<MuxAsset> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const asset = await fetchMuxAsset(credentials, assetId);
+    if (asset.status === "ready") {
+      return asset;
+    }
+    if (asset.status === "errored") {
+      throw new Error(`Mux asset ${assetId} failed during processing`);
+    }
+    await sleep(intervalMs);
+  }
+  throw new Error(`Mux asset ${assetId} was not ready before timeout`);
+}
+
+async function fetchMuxUpload(
+  credentials: MuxCredentials,
+  uploadId: string,
+): Promise<MuxDirectUpload> {
+  const response = await muxApiRequest<MuxUploadResponse>(
+    credentials,
+    `/video/v1/uploads/${encodeURIComponent(uploadId)}`,
+  );
+  return response.data;
+}
+
+async function fetchMuxAsset(
+  credentials: MuxCredentials,
+  assetId: string,
+): Promise<MuxAsset> {
+  const response = await muxApiRequest<MuxAssetResponse>(
+    credentials,
+    `/video/v1/assets/${encodeURIComponent(assetId)}`,
+  );
+  return response.data;
+}
+
+async function muxApiRequest<T>(
+  credentials: MuxCredentials,
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const headers = new Headers(init.headers ?? {});
+  headers.set("Authorization", buildMuxAuthHeader(credentials));
+  if (init.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const response = await fetch(`${MUX_API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(
+      `Mux request to ${path} failed (${response.status})${
+        text ? `: ${text.slice(0, 200)}` : ""
+      }`,
+    );
+  }
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  return (await response.json()) as T;
+}
+
+function buildMuxAuthHeader(credentials: MuxCredentials): string {
+  return `Basic ${btoa(`${credentials.tokenId}:${credentials.tokenSecret}`)}`;
+}
+
+function buildMuxDerivedAsset(
+  env: Env,
+  message: ProcessingTaskMessage,
+  asset: MuxAsset,
+): DerivedAssetRecord {
+  const playback = asset.playback_ids?.find((entry) => typeof entry?.id === "string");
+  if (!playback) {
+    throw new Error(`Mux asset ${asset.id} missing playback ID`);
+  }
+  const base = buildMuxPlaybackBase(env, playback.id);
+  const hlsUrl = `${base}.m3u8`;
+  const mp4Url =
+    asset.mp4_support && asset.mp4_support !== "none" ? `${base}/medium.mp4` : null;
+  const posterUrl = buildMuxPosterUrl(base);
+  const mimeType = mp4Url ? "video/mp4" : "application/x-mpegURL";
+  return {
+    type: "video.transcode",
+    key: `mux:${asset.id}`,
+    url: mp4Url ?? hlsUrl,
+    metadata: {
+      provider: "mux",
+      asset_id: asset.id,
+      playback_id: playback.id,
+      playback_ids: asset.playback_ids ?? null,
+      status: asset.status ?? null,
+      duration: typeof asset.duration === "number" ? asset.duration : null,
+      aspect_ratio: asset.aspect_ratio ?? null,
+      mp4_support: asset.mp4_support ?? null,
+      mp4_url: mp4Url,
+      hls_url: hlsUrl,
+      poster_url: posterUrl,
+      created_at: asset.created_at ?? null,
+      updated_at: asset.updated_at ?? null,
+      passthrough: asset.passthrough ?? null,
+      source_key: message.key,
+      source_bucket: message.bucket,
+      mime_type: mimeType,
+    },
+  };
+}
+
+function buildMuxPlaybackBase(env: Env, playbackId: string): string {
+  const configured = (env.MUX_PLAYBACK_DOMAIN ?? "").trim();
+  if (!configured) {
+    return `https://stream.mux.com/${playbackId}`;
+  }
+  const normalized = configured.startsWith("http://") || configured.startsWith("https://")
+    ? configured
+    : `https://${configured}`;
+  return `${normalized.replace(/\/$/, "")}/${playbackId}`;
+}
+
+function buildMuxPosterUrl(basePlaybackUrl: string): string {
+  return `${basePlaybackUrl}/thumbnail.jpg?time=1&fit_mode=preserve&width=1280`;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 async function processVideoThumbnail(

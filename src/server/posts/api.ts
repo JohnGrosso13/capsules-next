@@ -604,7 +604,7 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                   : null;
               if (!postId) return null;
 
-              const url = await ensureAccessibleMediaUrl(
+              let url = await ensureAccessibleMediaUrl(
                 typeof row?.media_url === "string" ? row.media_url : null,
               );
               if (!url) return null;
@@ -634,6 +634,11 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
 
               let derivedThumbUrl: string | null = null;
               let derivedPreviewUrl: string | null = null;
+              let derivedVideoUrl: string | null = null;
+              let derivedVideoMimeType: string | null = null;
+              let derivedVideoPoster: string | null = null;
+              let derivedVideoMeta: Record<string, unknown> | null = null;
+              let derivedVideoProvider: string | null = null;
 
               if (sessionRecord?.derived_assets && Array.isArray(sessionRecord.derived_assets)) {
                 for (const asset of sessionRecord.derived_assets) {
@@ -643,37 +648,103 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                       ? (asset as { type: string }).type
                       : null;
                   if (!assetType) continue;
-                  if (assetType !== "image.thumbnail" && assetType !== "image.preview") {
+
+                  if (assetType === "image.thumbnail" || assetType === "image.preview") {
+                    const rawAssetUrl =
+                      typeof (asset as { url?: unknown }).url === "string"
+                        ? (asset as { url: string }).url
+                        : null;
+                    if (!rawAssetUrl) continue;
+
+                    const safeAssetUrl = await ensureAccessibleMediaUrl(rawAssetUrl);
+                    if (!safeAssetUrl) continue;
+
+                    if (assetType === "image.thumbnail" && !derivedThumbUrl) {
+                      derivedThumbUrl = safeAssetUrl;
+                    } else if (assetType === "image.preview" && !derivedPreviewUrl) {
+                      derivedPreviewUrl = safeAssetUrl;
+                    }
+
+                    if (derivedThumbUrl && derivedPreviewUrl && derivedVideoUrl) {
+                      break;
+                    }
                     continue;
                   }
 
-                  const rawAssetUrl =
-                    typeof (asset as { url?: unknown }).url === "string"
-                      ? (asset as { url: string }).url
-                      : null;
-                  if (!rawAssetUrl) continue;
+                  if (assetType === "video.transcode") {
+                    const rawAssetUrl =
+                      typeof (asset as { url?: unknown }).url === "string"
+                        ? (asset as { url: string }).url
+                        : null;
+                    const safeAssetUrl = rawAssetUrl ? await ensureAccessibleMediaUrl(rawAssetUrl) : null;
+                    const assetMetaRaw =
+                      asset && typeof (asset as { metadata?: unknown }).metadata === "object"
+                        ? ((asset as { metadata: Record<string, unknown> }).metadata as Record<
+                            string,
+                            unknown
+                          >)
+                        : null;
+                    const provider =
+                      assetMetaRaw && typeof assetMetaRaw.provider === "string"
+                        ? assetMetaRaw.provider
+                        : null;
+                    const status =
+                      assetMetaRaw && typeof assetMetaRaw.status === "string"
+                        ? assetMetaRaw.status
+                        : null;
+                    if (status && status !== "ready") {
+                      continue;
+                    }
+                    const mp4Url =
+                      assetMetaRaw && typeof assetMetaRaw.mp4_url === "string"
+                        ? assetMetaRaw.mp4_url
+                        : null;
+                    const hlsUrl =
+                      assetMetaRaw && typeof assetMetaRaw.hls_url === "string"
+                        ? assetMetaRaw.hls_url
+                        : null;
+                    const posterUrl =
+                      assetMetaRaw && typeof assetMetaRaw.poster_url === "string"
+                        ? assetMetaRaw.poster_url
+                        : null;
+                    const mimeCandidate =
+                      assetMetaRaw && typeof assetMetaRaw.mime_type === "string"
+                        ? assetMetaRaw.mime_type
+                        : mp4Url
+                          ? "video/mp4"
+                          : hlsUrl
+                            ? "application/x-mpegURL"
+                            : null;
 
-                  const safeAssetUrl = await ensureAccessibleMediaUrl(rawAssetUrl);
-                  if (!safeAssetUrl) continue;
-
-                  if (assetType === "image.thumbnail" && !derivedThumbUrl) {
-                    derivedThumbUrl = safeAssetUrl;
-                  } else if (assetType === "image.preview" && !derivedPreviewUrl) {
-                    derivedPreviewUrl = safeAssetUrl;
-                  }
-
-                  if (derivedThumbUrl && derivedPreviewUrl) {
-                    break;
+                    if (!derivedVideoUrl) {
+                      derivedVideoUrl = mp4Url ?? safeAssetUrl ?? hlsUrl ?? rawAssetUrl;
+                    }
+                    if (!derivedVideoMimeType && mimeCandidate) {
+                      derivedVideoMimeType = mimeCandidate;
+                    }
+                    if (!derivedVideoPoster && posterUrl) {
+                      const safePoster = await ensureAccessibleMediaUrl(posterUrl);
+                      derivedVideoPoster = safePoster ?? posterUrl;
+                    }
+                    if (assetMetaRaw) {
+                      derivedVideoMeta = derivedVideoMeta
+                        ? mergeUploadMetadata(derivedVideoMeta, assetMetaRaw)
+                        : { ...assetMetaRaw };
+                    }
+                    if (provider && !derivedVideoProvider) {
+                      derivedVideoProvider = provider;
+                    }
                   }
                 }
               }
 
-              let thumbnailUrl = derivedThumbUrl ?? null;
+              let thumbnailUrl = derivedVideoPoster ?? derivedThumbUrl ?? null;
               if (!thumbnailUrl) {
                 thumbnailUrl = await ensureAccessibleMediaUrl(thumbCandidate);
               }
 
               let mimeType =
+                derivedVideoMimeType ??
                 normalizeContentType(row?.media_type) ??
                 readContentType(meta) ??
                 normalizeContentType(sessionRecord?.content_type) ??
@@ -681,14 +752,22 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
 
               if (!mimeType) {
                 mimeType =
-                  guessMimeFromUrl(url) ??
+                  guessMimeFromUrl(derivedVideoUrl ?? url) ??
                   guessMimeFromUrl(derivedPreviewUrl) ??
                   guessMimeFromUrl(derivedThumbUrl) ??
                   guessMimeFromUrl(storageKey);
               }
 
-              if (!mimeType && (derivedThumbUrl || derivedPreviewUrl)) {
-                mimeType = "image/jpeg";
+              if (!mimeType) {
+                if (derivedVideoUrl) {
+                  mimeType = derivedVideoMimeType ?? "video/mp4";
+                } else if (derivedThumbUrl || derivedPreviewUrl) {
+                  mimeType = "image/jpeg";
+                }
+              }
+
+              if (derivedVideoUrl) {
+                url = derivedVideoUrl;
               }
 
               let sanitizedMeta: Record<string, unknown> | null = null;
@@ -753,6 +832,22 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                 } catch (derivedError) {
                   console.warn("attachment derived asset sanitize failed", derivedError);
                 }
+              }
+
+              if (derivedVideoMeta || derivedVideoProvider) {
+                const videoMeta: Record<string, unknown> = derivedVideoMeta
+                  ? { ...derivedVideoMeta }
+                  : {};
+                if (derivedVideoProvider && !("provider" in videoMeta)) {
+                  videoMeta.provider = derivedVideoProvider;
+                } else if (
+                  derivedVideoProvider &&
+                  typeof videoMeta.provider === "string" &&
+                  !videoMeta.provider.trim().length
+                ) {
+                  videoMeta.provider = derivedVideoProvider;
+                }
+                sanitizedMeta = mergeUploadMetadata(sanitizedMeta ?? {}, { video: videoMeta });
               }
 
               const extraMeta: Record<string, unknown> = {};

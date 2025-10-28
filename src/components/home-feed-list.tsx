@@ -1893,6 +1893,7 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [isPlaying, setIsPlaying] = React.useState(false);
+  const userInteractedRef = React.useRef(false);
 
   const poster =
     videoItem.thumbnailUrl && videoItem.thumbnailUrl !== videoItem.fullUrl
@@ -1911,9 +1912,10 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
     }
   }, []);
 
-  const pauseVideo = React.useCallback((reset = false) => {
+  const pauseVideo = React.useCallback((reset = false, force = false) => {
     const node = videoRef.current;
     if (!node) return;
+    if (!force && userInteractedRef.current) return;
     node.pause();
     if (reset) {
       try {
@@ -1922,6 +1924,14 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
         /* Safari may throw if the stream is not seekable yet */
       }
     }
+    if (force) {
+      userInteractedRef.current = false;
+    }
+    setIsPlaying(false);
+  }, []);
+
+  const handlePointerDown = React.useCallback(() => {
+    userInteractedRef.current = true;
   }, []);
 
   React.useEffect(() => {
@@ -1932,14 +1942,18 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
       (entries) => {
         const [entry] = entries;
         if (!entry) return;
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.55) {
+        if (!entry.isIntersecting) {
+          pauseVideo(true, true);
+          return;
+        }
+        if (entry.intersectionRatio >= 0.35) {
           playVideo();
         } else {
-          pauseVideo(true);
+          pauseVideo(false);
         }
       },
       {
-        threshold: [0, 0.35, 0.55, 0.75],
+        threshold: [0, 0.2, 0.35, 0.55, 0.75],
       },
     );
 
@@ -1955,6 +1969,7 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
 
   const handlePause = React.useCallback(() => {
     setIsPlaying(false);
+    userInteractedRef.current = false;
   }, []);
 
   return (
@@ -1974,10 +1989,12 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
         playsInline
         preload="metadata"
         loop
+        muted
         poster={poster ?? undefined}
         onPlay={handlePlay}
         onPause={handlePause}
-        onEnded={() => pauseVideo(true)}
+        onEnded={() => pauseVideo(true, true)}
+        onPointerDown={handlePointerDown}
       >
         <source src={videoItem.fullUrl} type={videoItem.mimeType ?? undefined} />
         Your browser does not support the video tag.

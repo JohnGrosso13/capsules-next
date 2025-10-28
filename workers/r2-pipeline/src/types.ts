@@ -71,6 +71,10 @@ export interface Env {
   CF_ACCOUNT_ID: string;
   CF_STREAM_API_TOKEN?: string;
   CF_AI_TOKEN?: string;
+  MUX_TOKEN_ID?: string;
+  MUX_TOKEN_SECRET?: string;
+  MUX_ENVIRONMENT?: string;
+  MUX_PLAYBACK_DOMAIN?: string;
 }
 
 export type CoordinatorState = {
