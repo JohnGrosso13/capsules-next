@@ -235,6 +235,8 @@ function SidebarSection({
                   className={cardClass}
                   onClick={item.onClick}
                   disabled={item.disabled}
+                  title={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
+                  aria-label={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
                 >
                   <span className={thumbClass}>{item.icon ?? itemIcon ?? null}</span>
                   <span className={styles.memoryMeta}>
@@ -1638,6 +1640,8 @@ export function ComposerForm({
                         className={cardClass}
                         onClick={item.onClick}
                         disabled={item.disabled}
+                        title={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
+                        aria-label={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
                       >
                         <span className={thumbClass}>{item.icon ?? recentItemIcon}</span>
                         <span className={styles.memoryMeta}>

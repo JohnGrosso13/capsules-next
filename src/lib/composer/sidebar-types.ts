@@ -38,6 +38,7 @@ export type ComposerSidebarData = {
 export function truncateLabel(label: string, max = 72): string {
   const trimmed = label.trim();
   if (!trimmed) return "Untitled";
+  // Use a clean ellipsis to avoid mojibake/replacement characters
   return trimmed.length > max ? `${trimmed.slice(0, max - 1)}…` : trimmed;
 }
 
@@ -64,3 +65,4 @@ export function formatRelativeTime(isoDate: string): string {
   }
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+

@@ -20,7 +20,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { PostMenu } from "@/components/posts/PostMenu";
 import { normalizeMediaUrl } from "@/lib/media";
-import type { HomeFeedPost } from "@/hooks/useHomeFeed";
+import type { HomeFeedAttachment, HomeFeedPost } from "@/hooks/useHomeFeed";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import {
   buildImageVariants,
@@ -53,6 +53,12 @@ import type {
 } from "@/components/comments/types";
 import { EMPTY_THREAD_STATE } from "@/components/comments/types";
 import { safeRandomUUID } from "@/lib/random";
+import {
+  SUMMARIZE_FEED_REQUEST_EVENT,
+  SUMMARIZE_FEED_STATUS_EVENT,
+  type SummarizeFeedRequestDetail,
+  type SummarizeFeedRequestOrigin,
+} from "@/lib/events";
 
 type LazyImageProps = React.ComponentProps<typeof Image>;
 
@@ -63,6 +69,152 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(
 );
 
 LazyImage.displayName = "LazyImage";
+
+const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|heic|heif|bmp|tiff)(\?|#|$)/i;
+const VIDEO_EXTENSION_PATTERN = /\.(mp4|m4v|mov|webm|ogv|ogg|mkv)(\?|#|$)/i;
+const GENERIC_ATTACHMENT_NAMES = new Set([
+  "image",
+  "photo",
+  "picture",
+  "screenshot",
+  "video",
+  "file",
+  "document",
+  "attachment",
+]);
+
+function detectAttachmentKind(
+  mimeType: string | null | undefined,
+  url: string | null | undefined,
+): "image" | "video" | "file" {
+  const normalized = (mimeType ?? "").toLowerCase();
+  if (normalized.startsWith("image/")) return "image";
+  if (normalized.startsWith("video/")) return "video";
+  const lowered = (url ?? "").toLowerCase();
+  if (VIDEO_EXTENSION_PATTERN.test(lowered)) return "video";
+  if (IMAGE_EXTENSION_PATTERN.test(lowered)) return "image";
+  return "file";
+}
+
+function stripExtension(value: string): string {
+  const lastDot = value.lastIndexOf(".");
+  if (lastDot === -1) return value;
+  return value.slice(0, lastDot);
+}
+
+function normalizeAttachmentName(name: string | null | undefined): string | null {
+  if (typeof name !== "string") return null;
+  const trimmed = name.trim();
+  if (!trimmed.length) return null;
+  const base = stripExtension(trimmed).trim();
+  if (!base.length) return null;
+  if (GENERIC_ATTACHMENT_NAMES.has(base.toLowerCase())) return null;
+  return base;
+}
+
+function extractAttachmentMeta(meta: unknown): string | null {
+  if (!meta || typeof meta !== "object") return null;
+  const candidateKeys = [
+    "description",
+    "caption",
+    "alt",
+    "altText",
+    "title",
+    "label",
+    "summary",
+    "prompt",
+    "keywords",
+  ];
+  for (const key of candidateKeys) {
+    const raw = (meta as Record<string, unknown>)[key];
+    if (typeof raw === "string") {
+      const trimmed = raw.trim();
+      if (trimmed.length) {
+        return trimmed;
+      }
+    }
+    if (Array.isArray(raw)) {
+      const joined = raw
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter((entry) => entry.length)
+        .join(", ");
+      if (joined.length) return joined;
+    }
+  }
+  return null;
+}
+
+function formatHintList(items: string[], limit: number): string {
+  if (!items.length) return "";
+  const slice = items.slice(0, limit);
+  if (slice.length === 1) return slice[0];
+  if (slice.length === 2) return `${slice[0]} and ${slice[1]}`;
+  const head = slice.slice(0, -1).join(", ");
+  const tail = slice[slice.length - 1];
+  const ellipsis = items.length > limit ? "..." : "";
+  return `${head}, and ${tail}${ellipsis}`;
+}
+
+function describeAttachmentSet(
+  attachments: HomeFeedAttachment[],
+  fallbackMediaUrl: string | null | undefined,
+): { summary: string | null; hints: string[] } {
+  const counts: Record<"image" | "video" | "file", number> = {
+    image: 0,
+    video: 0,
+    file: 0,
+  };
+  const hints: string[] = [];
+  attachments.forEach((attachment) => {
+    const kind = detectAttachmentKind(attachment.mimeType, attachment.url);
+    counts[kind] += 1;
+    const metaHint = extractAttachmentMeta(attachment.meta);
+    if (metaHint) {
+      hints.push(metaHint);
+    } else {
+      const nameHint = normalizeAttachmentName(attachment.name);
+      if (nameHint) {
+        hints.push(nameHint);
+      }
+    }
+  });
+
+  if (!attachments.length && typeof fallbackMediaUrl === "string" && fallbackMediaUrl.trim().length) {
+    const kind = detectAttachmentKind(null, fallbackMediaUrl);
+    counts[kind] += 1;
+  }
+
+  const pieces: string[] = [];
+  if (counts.image) {
+    pieces.push(`${counts.image} image${counts.image > 1 ? "s" : ""}`);
+  }
+  if (counts.video) {
+    pieces.push(`${counts.video} video${counts.video > 1 ? "s" : ""}`);
+  }
+  if (counts.file) {
+    pieces.push(`${counts.file} file${counts.file > 1 ? "s" : ""}`);
+  }
+
+  const summary =
+    pieces.length > 0 ? `Shared ${pieces.join(" and ")}.` : attachments.length ? "Shared new files." : null;
+  const uniqueHints = Array.from(
+    new Set(
+      hints
+        .map((hint) => hint.trim())
+        .filter((hint) => hint.length)
+        .slice(0, 6),
+    ),
+  );
+
+  return { summary, hints: uniqueHints };
+}
+
+function describePoll(question: unknown): string | null {
+  if (typeof question !== "string") return null;
+  const trimmed = question.trim();
+  if (!trimmed.length) return null;
+  return `Running a poll: "${trimmed}".`;
+}
 
 function normalizeIdentifier(value: unknown): string | null {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -411,6 +563,7 @@ export function HomeFeedList({
   const [commentSubmitting, setCommentSubmitting] = React.useState<Record<string, boolean>>({});
   const [activeComment, setActiveComment] = React.useState<{ postId: string } | null>(null);
   const commentAnchorRef = React.useRef<HTMLElement | null>(null);
+  const summaryOriginRef = React.useRef<SummarizeFeedRequestOrigin>("external");
 
   const showSkeletons = !hasFetched;
 
@@ -635,6 +788,13 @@ export function HomeFeedList({
 
   const handleSummarizeFeed = React.useCallback(async () => {
     if (feedSummaryPending || !displayedPosts.length) return;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(SUMMARIZE_FEED_STATUS_EVENT, {
+          detail: { status: "started", origin: summaryOriginRef.current },
+        }),
+      );
+    }
     setFeedSummaryPending(true);
     try {
       const segmentSource = displayedPosts.slice(0, Math.min(8, displayedPosts.length));
@@ -650,14 +810,24 @@ export function HomeFeedList({
         const raw = typeof post.content === "string" ? post.content : "";
         const normalized = raw.replace(/\s+/g, " ").trim();
         const content =
-          normalized.length > 360 ? `${normalized.slice(0, 357).trimEnd()}…` : normalized;
+          normalized.length > 360 ? `${normalized.slice(0, 357).trimEnd()}...` : normalized;
         const attachmentsList = Array.isArray(post.attachments) ? post.attachments : [];
-        const attachmentLabels = attachmentsList.map((attachment) => {
-          const mime = attachment.mimeType?.toLowerCase() ?? "";
-          if (mime.startsWith("image/")) return "image";
-          if (mime.startsWith("video/")) return "video";
-          return "file";
-        });
+        const { summary: attachmentSummary, hints: attachmentHints } = describeAttachmentSet(
+          attachmentsList,
+          typeof post.mediaUrl === "string" ? post.mediaUrl : null,
+        );
+        const mediaPrompt =
+          ((post as { media_prompt?: string | null }).media_prompt ??
+            (post as { mediaPrompt?: string | null }).mediaPrompt ??
+            null) ?? null;
+        const trimmedPrompt =
+          typeof mediaPrompt === "string" && mediaPrompt.trim().length ? mediaPrompt.trim() : "";
+        const pollQuestion =
+          (post.poll && typeof post.poll.question === "string" ? post.poll.question : null) ??
+          (post as { poll_question?: string | null }).poll_question ??
+          (post as { pollQuestion?: string | null }).pollQuestion ??
+          null;
+        const pollSummary = describePoll(pollQuestion);
         for (let attachmentIndex = 0; attachmentIndex < attachmentsList.length; attachmentIndex += 1) {
           if (attachmentPayload.length >= 6) break;
           const attachment = attachmentsList[attachmentIndex];
@@ -675,13 +845,15 @@ export function HomeFeedList({
             typeof attachment.id === "string" && attachment.id.trim().length
               ? attachment.id.trim()
               : `${post.id}-attachment-${attachmentIndex}`;
+          const attachmentDescription =
+            extractAttachmentMeta(attachment.meta) ?? normalizeAttachmentName(attachment.name);
           attachmentPayload.push({
             id: attachmentId,
             name: attachment.name ?? null,
             url: absoluteUrl,
             mimeType: attachment.mimeType ?? null,
-            excerpt: null,
-            text: null,
+            excerpt: attachmentDescription ?? null,
+            text: attachmentDescription ?? null,
             thumbnailUrl: absoluteThumb,
           });
         }
@@ -700,18 +872,31 @@ export function HomeFeedList({
             });
           }
         }
-        const attachmentSnippet = attachmentLabels.length
-          ? `Attachments: ${attachmentLabels.join(", ")}.`
-          : "";
         const labelPrefix = `#${index + 1}`;
-        const snippetParts = [
+        const narrativeParts: string[] = [];
+        if (content.length) {
+          narrativeParts.push(content);
+        } else if (trimmedPrompt.length) {
+          narrativeParts.push(trimmedPrompt);
+        }
+        if (attachmentSummary) {
+          narrativeParts.push(attachmentSummary);
+        }
+        const themedHints = attachmentHints.filter((hint) => hint.length <= 200);
+        if (themedHints.length) {
+          narrativeParts.push(`Themes noted: ${formatHintList(themedHints, 3)}.`);
+        }
+        if (pollSummary) {
+          narrativeParts.push(pollSummary);
+        }
+        if (!narrativeParts.length) {
+          narrativeParts.push("Shared a fresh update with new media.");
+        }
+        const snippetSegments = [
           `${labelPrefix} ${author}${relative ? ` (${relative})` : ""}:`,
-          content || "No caption provided.",
-          attachmentSnippet,
-        ]
-          .filter(Boolean)
-          .join(" ");
-        return snippetParts;
+          ...narrativeParts,
+        ];
+        return snippetSegments.join(" ");
       });
       const summaryPayload = await requestSummary({
         target: "feed",
@@ -728,12 +913,61 @@ export function HomeFeedList({
         sourceLabel: "Current feed",
         sourceType: summaryResult.source,
       });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent(SUMMARIZE_FEED_STATUS_EVENT, {
+            detail: { status: "success", origin: summaryOriginRef.current },
+          }),
+        );
+      }
     } catch (error) {
       console.error("Feed summary failed", error);
+      if (typeof window !== "undefined") {
+        const reason =
+          error && typeof error === "object" && "message" in error && typeof error.message === "string"
+            ? error.message
+            : null;
+        window.dispatchEvent(
+          new CustomEvent(SUMMARIZE_FEED_STATUS_EVENT, {
+            detail: { status: "error", origin: summaryOriginRef.current, reason },
+          }),
+        );
+      }
     } finally {
       setFeedSummaryPending(false);
+      summaryOriginRef.current = "external";
     }
   }, [composer, displayedPosts, feedSummaryPending, timeAgo]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleRequest = (event: Event) => {
+      const detail = (event as CustomEvent<SummarizeFeedRequestDetail> | null)?.detail ?? null;
+      const origin: SummarizeFeedRequestOrigin = detail?.origin ?? "external";
+      if (feedSummaryPending) {
+        window.dispatchEvent(
+          new CustomEvent(SUMMARIZE_FEED_STATUS_EVENT, {
+            detail: { status: "busy", origin },
+          }),
+        );
+        return;
+      }
+      if (!displayedPosts.length) {
+        window.dispatchEvent(
+          new CustomEvent(SUMMARIZE_FEED_STATUS_EVENT, {
+            detail: { status: "empty", origin },
+          }),
+        );
+        return;
+      }
+      summaryOriginRef.current = origin;
+      void handleSummarizeFeed();
+    };
+    window.addEventListener(SUMMARIZE_FEED_REQUEST_EVENT, handleRequest);
+    return () => {
+      window.removeEventListener(SUMMARIZE_FEED_REQUEST_EVENT, handleRequest);
+    };
+  }, [displayedPosts.length, feedSummaryPending, handleSummarizeFeed]);
 
   const loadComments = React.useCallback(
     async (postId: string) => {
@@ -931,18 +1165,6 @@ export function HomeFeedList({
           <p className={styles.feedEmptySubtitle}>
             {emptyMessage ?? "Be the first to share something in this space."}
           </p>
-        </div>
-      ) : null}
-      {!showSkeletons && displayedPosts.length ? (
-        <div className={styles.feedUtilities}>
-          <button
-            type="button"
-            className={styles.feedUtilityButton}
-            onClick={handleSummarizeFeed}
-            disabled={feedSummaryPending}
-          >
-            {feedSummaryPending ? "Summarizing..." : "Summarize feed"}
-          </button>
         </div>
       ) : null}
       {displayedPosts.map((post) => {
@@ -2160,3 +2382,4 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
     </div>
   );
 }
+

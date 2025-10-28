@@ -16,7 +16,10 @@
     linear-gradient(180deg, rgba(6, 10, 24, 0.84), rgba(6, 10, 24, 0.94));
   color: rgba(251, 254, 255, 0.96);
   overscroll-behavior: contain;
+  /* Ensure the drawer never clips top/bottom and can scroll when needed */
   pointer-events: auto;
+  height: 100dvh;
+  overflow: auto;
   box-sizing: border-box;
   backdrop-filter: blur(14px);
   z-index: 1200;
@@ -30,7 +33,9 @@
 .panel {
   position: relative;
   width: min(1600px, 96vw);
-  min-height: clamp(620px, 82vh, 880px);
+  /* Fill most of the viewport like original, but never overflow overlay */
+  min-height: clamp(620px, 86vh, 940px);
+  max-height: calc(100dvh - 6rem);
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: clamp(1rem, 2vw, 1.5rem);
@@ -1387,6 +1392,12 @@
   font-size: 0.98rem;
   font-weight: 600;
   color: rgba(244, 245, 255, 0.96);
+  /* Clamp to two lines for consistent card height */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .memoryType {
@@ -1394,6 +1405,12 @@
   text-transform: uppercase;
   letter-spacing: 0.18em;
   color: rgba(171, 185, 255, 0.64);
+  /* Keep subtitle to a single line for clarity */
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .memoryEmpty {
@@ -3063,8 +3080,6 @@
   transform: translateY(-2px);
   box-shadow: 0 24px 46px rgba(45, 93, 255, 0.58);
 }
-
-
 
 
 

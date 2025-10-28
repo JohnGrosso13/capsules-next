@@ -2199,7 +2199,7 @@ export async function summarizeFeedFromDB({
         role: "system",
 
         content:
-          "You are Capsules AI. Summarize a feed of user posts concisely and helpfully. Keep it friendly, specific, and short. Mention image themes briefly. Also provide one relevant post idea for the user to publish next.",
+          "You are Capsules AI. Summarize a feed of user posts in a friendly conversational tone. Focus on notable activity, what the visuals convey, and the community's energy. If captions are missing, infer intent from attachment context instead of dwelling on the absence. Mention image or video themes briefly and provide one relevant post idea the user could publish next.",
       },
 
       { role: "user", content: JSON.stringify({ capsule_id: capsuleId || null, posts }) },

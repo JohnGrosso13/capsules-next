@@ -273,68 +273,57 @@ type SummaryPresentationOptions = {
   sourceType: SummaryTarget;
 };
 
+function softenSummaryLine(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed.length) return trimmed;
+  const lower = trimmed.toLowerCase();
+  if (lower.includes("no caption") || lower.includes("lack captions") || lower.includes("without captions")) {
+    return "These updates lean on the visuals themselves, so consider pairing them with a quick note when you share them onward.";
+  }
+  return trimmed;
+}
+
 function formatSummaryMessage(result: SummaryResult, options: SummaryPresentationOptions): string {
-  const lines: string[] = [];
-  const heading = options.sourceLabel?.trim().length
-    ? `Summary: ${options.sourceLabel}`
-    : "Summary";
-  lines.push(heading);
-  lines.push("");
-  lines.push(result.summary);
+  const sections: string[] = [];
+  const summaryText = result.summary.trim();
+  const areaLabel = options.sourceLabel?.trim().length ? options.sourceLabel!.trim() : "your feed";
+  const intro = options.sourceLabel?.trim().length
+    ? `Here is what is happening in ${areaLabel}:`
+    : "Here is what I am seeing right now:";
+  if (summaryText.length) {
+    sections.push(`${intro}\n${summaryText}`);
+  } else {
+    sections.push(intro);
+  }
+
   if (result.highlights.length) {
-    lines.push("");
-    lines.push("Highlights:");
-    result.highlights.forEach((item) => lines.push(`• ${item}`));
+    const highlightLines = result.highlights.map((item) => `- ${softenSummaryLine(item)}`);
+    sections.push(["Highlights I noticed:", ...highlightLines].join("\n"));
   }
   if (result.insights.length) {
-    lines.push("");
-    lines.push("Insights:");
-    result.insights.forEach((item) => lines.push(`• ${item}`));
+    const insightLines = result.insights.map((item) => `- ${softenSummaryLine(item)}`);
+    sections.push(["What it could mean:", ...insightLines].join("\n"));
   }
   if (result.nextActions.length) {
-    lines.push("");
-    lines.push("Next steps:");
-    result.nextActions.forEach((item) => lines.push(`• ${item}`));
+    const actionLines = result.nextActions.map((item) => `- ${softenSummaryLine(item)}`);
+    sections.push(["Next steps to try:", ...actionLines].join("\n"));
   }
   if (result.postPrompt || result.postTitle) {
-    lines.push("");
-    lines.push("Post idea:");
-    if (result.postTitle && result.postPrompt) {
-      lines.push(`• ${result.postTitle} — ${result.postPrompt}`);
-    } else if (result.postPrompt) {
-      lines.push(`• ${result.postPrompt}`);
-    } else if (result.postTitle) {
-      lines.push(`• ${result.postTitle}`);
+    const ideaLines: string[] = ["Want to publish something next?"];
+    if (result.postTitle) {
+      ideaLines.push(`Title: ${result.postTitle}`);
     }
+    if (result.postPrompt) {
+      ideaLines.push(`Prompt: ${result.postPrompt}`);
+    }
+    sections.push(ideaLines.join("\n"));
   }
   if (result.hashtags.length) {
-    lines.push("");
-    lines.push(`Hashtags: ${result.hashtags.join(" ")}`);
+    sections.push(`Hashtags: ${result.hashtags.join(" ")}`);
   }
-  return lines.join("\n").trim();
-}
 
-function buildSummaryDraftContent(result: SummaryResult): string {
-  const sections: string[] = [result.summary];
-  if (result.highlights.length) {
-    sections.push("");
-    result.highlights.forEach((item) => sections.push(`• ${item}`));
-  }
-  if (result.insights.length) {
-    sections.push("");
-    result.insights.forEach((item) => sections.push(`• ${item}`));
-  }
-  if (result.nextActions.length) {
-    sections.push("");
-    result.nextActions.forEach((item) => sections.push(`• ${item}`));
-  }
-  if (result.hashtags.length) {
-    sections.push("");
-    sections.push(result.hashtags.join(" "));
-  }
-  return sections.join("\n").trim();
+  return sections.join("\n\n").trim();
 }
-
 async function callAiPrompt(
   message: string,
   options?: Record<string, unknown>,
@@ -1480,8 +1469,6 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const showSummary = React.useCallback(
     (result: SummaryResult, options: SummaryPresentationOptions) => {
-      const draftTitle = result.postTitle ?? options.title ?? null;
-      const content = buildSummaryDraftContent(result);
       const assistantMessage: ComposerChatMessage = {
         id: safeRandomUUID(),
         role: "assistant",
@@ -1489,48 +1476,19 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date().toISOString(),
         attachments: null,
       };
-      const suggestionList: string[] = [];
-      if (result.nextActions.length) {
-        suggestionList.push(...result.nextActions);
-      }
-      if (result.postPrompt) {
-        suggestionList.push(result.postPrompt);
-      }
-      const draft: ComposerDraft = {
-        kind: "text",
-        title: draftTitle,
-        content,
-        mediaUrl: null,
-        mediaPrompt: null,
-        poll: null,
-      };
-      if (suggestionList.length) {
-        draft.suggestions = suggestionList;
-      }
-      const rawPostPayload: Record<string, unknown> = {
-        kind: "text",
-        title: draftTitle,
-        content,
-        hashtags: result.hashtags.length ? result.hashtags : undefined,
-        summary_source: options.sourceType,
-        summary_title: options.sourceLabel ?? options.title ?? null,
-        tone: result.tone,
-      };
-      const rawPostWithContext = appendCapsuleContext(rawPostPayload, activeCapsuleId);
-      setState({
+      setState((prev) => ({
+        ...prev,
         open: true,
         loading: false,
         prompt: "",
-        draft,
-        rawPost: rawPostWithContext,
-        message: assistantMessage.content,
+        message: null,
         choices: null,
         history: [assistantMessage],
         threadId: safeRandomUUID(),
         clarifier: null,
-      });
+      }));
     },
-    [activeCapsuleId],
+    [],
   );
 
   const submitPrompt = React.useCallback(
@@ -1782,3 +1740,4 @@ export function AiComposerRoot() {
     />
   );
 }
+

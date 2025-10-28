@@ -21,6 +21,13 @@ import { usePrompterDragAndDrop } from "@/components/prompter/usePrompterDragAnd
 import { usePrompterVoice } from "@/components/prompter/usePrompterVoice";
 import { detectSuggestedTools, type PrompterToolKey } from "@/components/prompter/tools";
 import { Paperclip } from "@phosphor-icons/react/dist/ssr";
+import {
+  SUMMARIZE_FEED_REQUEST_EVENT,
+  SUMMARIZE_FEED_STATUS_EVENT,
+  type SummarizeFeedRequestDetail,
+  type SummarizeFeedRequestOrigin,
+  type SummarizeFeedStatusDetail,
+} from "@/lib/events";
 
 const cssClass = (...keys: Array<keyof typeof styles>): string =>
   keys
@@ -29,13 +36,25 @@ const cssClass = (...keys: Array<keyof typeof styles>): string =>
     .join(" ")
     .trim();
 
+const SUMMARIZE_FEED_LABEL = "Summarize my feed";
+
 const defaultChips = [
   "Post an update",
   "Share a photo",
   "Bring feed image",
-  "Summarize my feed",
+  SUMMARIZE_FEED_LABEL,
   "Style my capsule",
 ];
+
+function isFeedSummaryRequest(raw: string): boolean {
+  const text = raw.trim().toLowerCase();
+  if (!text.length) return false;
+  const summaryTerms = ["summarize", "summarise", "summary", "recap", "tl;dr", "tldr", "digest"];
+  const mentionsSummary = summaryTerms.some((term) => text.includes(term));
+  if (!mentionsSummary) return false;
+  const feedTerms = ["feed", "capsule", "timeline", "updates", "activity"];
+  return feedTerms.some((term) => text.includes(term));
+}
 
 const DEFAULT_PLACEHOLDER = "Ask your Capsule AI to create anything...";
 const COMPACT_PLACEHOLDER = "Ask Capsule AI for ideas...";
@@ -209,6 +228,36 @@ export function AiPrompterStage({
   const [preview, setPreview] = React.useState<{ url: string; mime: string; name: string } | null>(
     null,
   );
+  const [localStatus, setLocalStatus] = React.useState<string | null>(null);
+  const localStatusTimerRef = React.useRef<number | null>(null);
+
+  const clearLocalStatusTimer = React.useCallback(() => {
+    if (localStatusTimerRef.current !== null && typeof window !== "undefined") {
+      window.clearTimeout(localStatusTimerRef.current);
+      localStatusTimerRef.current = null;
+    }
+  }, []);
+
+  const showLocalStatus = React.useCallback(
+    (message: string | null, ttl = 4000) => {
+      clearLocalStatusTimer();
+      setLocalStatus(message);
+      if (message && typeof window !== "undefined") {
+        localStatusTimerRef.current = window.setTimeout(() => {
+          setLocalStatus(null);
+          localStatusTimerRef.current = null;
+        }, ttl);
+      }
+    },
+    [clearLocalStatusTimer],
+  );
+
+  React.useEffect(
+    () => () => {
+      clearLocalStatusTimer();
+    },
+    [clearLocalStatusTimer],
+  );
 
   React.useEffect(() => {
     if (!variantConfig.allowIntentMenu && manualIntent !== null) {
@@ -250,6 +299,49 @@ export function AiPrompterStage({
 
     return undefined;
   }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleStatus = (event: Event) => {
+      const detail = (event as CustomEvent<SummarizeFeedStatusDetail> | null)?.detail ?? null;
+      if (!detail) return;
+      switch (detail.status) {
+        case "started":
+          showLocalStatus("Summarizing your feed...", 2200);
+          break;
+        case "busy":
+          showLocalStatus("Already working on a feed summary...", 2400);
+          break;
+        case "empty":
+          showLocalStatus("No feed posts to summarize yet.", 2600);
+          break;
+        case "success":
+          showLocalStatus("Feed summary ready in Composer.", 3800);
+          break;
+        case "error":
+          showLocalStatus("Couldn't summarize the feed. Try again.", 3600);
+          break;
+        default:
+          break;
+      }
+    };
+    window.addEventListener(SUMMARIZE_FEED_STATUS_EVENT, handleStatus);
+    return () => {
+      window.removeEventListener(SUMMARIZE_FEED_STATUS_EVENT, handleStatus);
+    };
+  }, [showLocalStatus]);
+
+  const triggerFeedSummary = React.useCallback(
+    (origin: SummarizeFeedRequestOrigin) => {
+      if (typeof window === "undefined") return;
+      const detail: SummarizeFeedRequestDetail = { origin };
+      window.dispatchEvent(
+        new CustomEvent<SummarizeFeedRequestDetail>(SUMMARIZE_FEED_REQUEST_EVENT, { detail }),
+      );
+      showLocalStatus("Summarizing your feed...", 2200);
+    },
+    [showLocalStatus],
+  );
 
   const {
     fileInputRef,
@@ -625,6 +717,12 @@ export function AiPrompterStage({
       return;
     }
 
+    if (isFeedSummaryRequest(value)) {
+      triggerFeedSummary("prompt");
+      resetAfterSubmit();
+      return;
+    }
+
     emitAction({ kind: "generate", text: value, raw: value });
     resetAfterSubmit();
   }, [
@@ -645,6 +743,7 @@ export function AiPrompterStage({
     manualTool,
     suggestedTools,
     variantConfig.allowTools,
+    triggerFeedSummary,
   ]);
 
   const voiceControls = usePrompterVoice({
@@ -669,6 +768,24 @@ export function AiPrompterStage({
     setManualIntent(intent);
     closeMenu();
   }
+
+  const handleSuggestedAction = React.useCallback(
+    (value: string) => {
+      if (value === SUMMARIZE_FEED_LABEL) {
+        triggerFeedSummary("chip");
+        setText("");
+        setManualIntent(null);
+        closeMenu();
+        clearAttachment();
+        setAttachmentList([]);
+        textRef.current?.focus();
+        return;
+      }
+      setText(value);
+      textRef.current?.focus();
+    },
+    [triggerFeedSummary, setText, setManualIntent, closeMenu, clearAttachment, setAttachmentList],
+  );
 
   const manualNote = manualIntent
     ? manualIntent === "navigate"
@@ -759,6 +876,7 @@ export function AiPrompterStage({
   );
 
   const rawHint =
+    localStatus ??
     statusMessage ??
     uploadingHint ??
     uploadCompleteHint ??
@@ -788,6 +906,7 @@ export function AiPrompterStage({
     Boolean(hint) &&
     (variantConfig.allowIntentHints ||
       Boolean(statusMessage) ||
+      Boolean(localStatus) ||
       attachmentUploading ||
       Boolean(uploadCompleteHint) ||
       attachment?.status === "error");
@@ -863,7 +982,7 @@ export function AiPrompterStage({
           onClose={() => setPreview(null)}
         />
 
-        <PrompterSuggestedActions actions={chips} onSelect={setText} />
+        <PrompterSuggestedActions actions={chips} onSelect={handleSuggestedAction} />
       </div>
     </section>
   );
