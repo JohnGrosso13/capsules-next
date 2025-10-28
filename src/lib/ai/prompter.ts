@@ -1933,6 +1933,8 @@ export async function createPollDraft(
 
     "Derive specific options from the topic (e.g., days of the week, product names); do not default to Yes/No unless explicitly requested.",
 
+    "Only include options you are confident are accurate. If the request references brand-new or uncertain releases, use broad but relevant categories instead of inventing specific items.",
+
     "Keep options succinct (1-3 words when possible).",
   ].join(" ");
 

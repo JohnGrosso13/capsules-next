@@ -7,7 +7,7 @@ import {
   MagicWand,
   ShieldCheck,
   GameController,
-  Robot,
+  Trophy,
   ArrowLeft,
 } from "@phosphor-icons/react/dist/ssr";
 import { useRouter } from "next/navigation";
@@ -19,7 +19,7 @@ export type CreateTileKey =
   | "content"
   | "moderation"
   | "insights"
-  | "automations";
+  | "ladders";
 
 // Intent chips removed: shown beneath the AI prompter
 
@@ -78,15 +78,16 @@ const TILE_META: Record<
       "Build coaching plan",
     ],
   },
-  automations: {
-    icon: <Robot weight="fill" />,
-    title: "Platform Automations",
+  ladders: {
+    icon: <Trophy weight="fill" />,
+    title: "Ladders & Tournaments",
     bullets: [
-      "Set weekly digest schedule",
-      "Autopost to socials",
-      "Workflow: New VOD ? Post",
-      "Detect highlights ~ Post",
+      "AI builds ladder rules & copy",
+      "ELO-ready scoring presets",
+      "Weekly challenges & shoutouts",
+      "Publish to Capsule Events tab",
     ],
+    ctaLabel: "Launch builder",
   },
 };
 
@@ -98,6 +99,10 @@ export function CreateTiles() {
     (key: CreateTileKey) => {
       if (key === "events") {
         router.push("/create/ai-stream");
+        return;
+      }
+      if (key === "ladders") {
+        router.push("/create/ladders");
         return;
       }
       setActive(key);

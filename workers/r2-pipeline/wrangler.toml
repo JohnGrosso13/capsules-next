@@ -2,12 +2,16 @@ name = "r2-pipeline"
 main = "src/index.ts"
 compatibility_date = "2024-09-01"
 
-# Queues: upload events -> processed by worker; processing tasks -> internal fan-out
+# Queues
+# - Consumers deliver messages to this worker (no bindings needed)
 [[queues.consumers]]
 queue = "r2-upload-events"
-binding = "UPLOAD_EVENTS_QUEUE"
 
 [[queues.consumers]]
+queue = "r2-processing-tasks"
+
+# - Producer binding used by this worker to send tasks to the processing queue
+[[queues.producers]]
 queue = "r2-processing-tasks"
 binding = "PROCESSING_QUEUE"
 
@@ -31,7 +35,7 @@ bucket_name = "capsules-next"
 
 [vars]
 # Public base for objects in your R2 bucket. Works without a custom domain.
-PUBLIC_MEDIA_BASE_URL = "https://example.r2.cloudflarestorage.com/capsules-next"
+PUBLIC_MEDIA_BASE_URL = "https://media.local.example"
 # Cloudflare Image Resizing endpoint. If you don't have a zone yet, leave as-is and we will fall back.
 # For production, point this at a domain you control on Cloudflare with Image Resizing enabled, e.g. https://media.example.com/cdn-cgi/image
 IMAGE_RESIZE_BASE_URL = "https://media.local.example/cdn-cgi/image"
@@ -39,5 +43,5 @@ IMAGE_RESIZE_BASE_URL = "https://media.local.example/cdn-cgi/image"
 # Supabase service creds (fill with your project values)
 SUPABASE_URL = "https://YOUR-PROJECT.supabase.co"
 # Account context for diagnostics
-CF_ACCOUNT_ID = ""
+CF_ACCOUNT_ID = "173291b59bbb656d3287ca191b6d2189"
 CF_WAF_RULE_ID = ""

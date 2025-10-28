@@ -1,0 +1,117 @@
+.stateCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(16, 20, 36, 0.75);
+}
+
+.stateHeading {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.stateBody {
+  opacity: 0.75;
+  font-size: 14px;
+}
+
+.skeletonRow {
+  height: 12px;
+  width: 60%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.05)
+  );
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -120px 0;
+  }
+  100% {
+    background-position: 120px 0;
+  }
+}
+
+.listWrap {
+  display: grid;
+  gap: 20px;
+}
+
+.ladderCard {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 17, 30, 0.8);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.cardMeta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  opacity: 0.75;
+  flex-wrap: wrap;
+}
+
+.cardSummary {
+  font-size: 14px;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.statusBadge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.toneSuccess {
+  background: rgba(72, 217, 135, 0.18);
+  color: #48d987;
+}
+
+.toneNeutral {
+  background: rgba(124, 132, 169, 0.18);
+  color: #b9c3ff;
+}
+
+.toneWarn {
+  background: rgba(255, 134, 95, 0.18);
+  color: #ffa571;
+}

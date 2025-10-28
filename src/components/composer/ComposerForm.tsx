@@ -13,6 +13,7 @@ import {
   FolderSimple,
   Brain,
   List,
+  Plus,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
@@ -45,6 +46,8 @@ import { extractFileFromDataTransfer } from "@/lib/clipboard/files";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
+
+const MAX_POLL_OPTIONS = 6;
 
 type QuickPromptOption = { label: string; prompt: string };
 
@@ -711,6 +714,88 @@ export function ComposerForm({
     [onChange, workingDraft],
   );
 
+  const pollQuestionRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const pollOptionRefs = React.useRef<Record<number, HTMLInputElement | null>>({});
+  const [pendingPollFocusIndex, setPendingPollFocusIndex] = React.useState<number | null>(null);
+
+  const handlePollQuestionInput = React.useCallback(
+    (value: string) => {
+      updateDraft({
+        poll: {
+          question: value,
+          options: [...pollStructure.options],
+        },
+      });
+    },
+    [pollStructure.options, updateDraft],
+  );
+
+  const handlePollOptionInput = React.useCallback(
+    (index: number, value: string) => {
+      const nextOptions = pollStructure.options.map((option, idx) =>
+        idx === index ? value : option,
+      );
+      updateDraft({
+        poll: {
+          question: pollStructure.question,
+          options: nextOptions,
+        },
+      });
+    },
+    [pollStructure.options, pollStructure.question, updateDraft],
+  );
+
+  const handleAddPollOption = React.useCallback(
+    (afterIndex?: number) => {
+      if (pollStructure.options.length >= MAX_POLL_OPTIONS) return;
+      const nextOptions = [...pollStructure.options];
+      const insertAt =
+        typeof afterIndex === "number" && afterIndex >= -1 && afterIndex < nextOptions.length
+          ? afterIndex + 1
+          : nextOptions.length;
+      nextOptions.splice(insertAt, 0, "");
+      updateDraft({
+        poll: {
+          question: pollStructure.question,
+          options: nextOptions,
+        },
+      });
+      setPendingPollFocusIndex(insertAt);
+    },
+    [pollStructure.options, pollStructure.question, setPendingPollFocusIndex, updateDraft],
+  );
+
+  const handleRemovePollOption = React.useCallback(
+    (index: number) => {
+      if (index < 0 || index >= pollStructure.options.length) return;
+      if (pollStructure.options.length <= 2) {
+        const nextOptions = pollStructure.options.map((option, idx) =>
+          idx === index ? "" : option,
+        );
+        updateDraft({
+          poll: {
+            question: pollStructure.question,
+            options: nextOptions,
+          },
+        });
+        setPendingPollFocusIndex(index);
+        return;
+      }
+      const nextOptions = pollStructure.options.filter((_, idx) => idx !== index);
+      if (nextOptions.length < 2) {
+        nextOptions.push("");
+      }
+      updateDraft({
+        poll: {
+          question: pollStructure.question,
+          options: nextOptions,
+        },
+      });
+      setPendingPollFocusIndex(Math.min(index, nextOptions.length - 1));
+    },
+    [pollStructure.options, pollStructure.question, setPendingPollFocusIndex, updateDraft],
+  );
+
   const { activeCapsuleId } = useComposer();
   const { state, actions } = useComposerFormReducer();
   const { privacy, mobileRailOpen, previewOpen, layout, viewerOpen, voice: voiceState } = state;
@@ -748,6 +833,30 @@ export function ComposerForm({
     }
     setPromptValue(normalized);
   }, [prompt]);
+
+  React.useEffect(() => {
+    if (pendingPollFocusIndex === null) return;
+    if (pendingPollFocusIndex === -1) {
+      const questionElement = pollQuestionRef.current;
+      if (questionElement) {
+        questionElement.focus();
+        const length = questionElement.value.length;
+        try {
+          questionElement.setSelectionRange(length, length);
+        } catch {
+          // Ignore selection errors on browsers that do not support setSelectionRange on textarea.
+        }
+        setPendingPollFocusIndex(null);
+      }
+      return;
+    }
+    const optionElement = pollOptionRefs.current[pendingPollFocusIndex];
+    if (optionElement) {
+      optionElement.focus();
+      optionElement.select();
+      setPendingPollFocusIndex(null);
+    }
+  }, [pendingPollFocusIndex, pollStructure.options.length]);
 
   React.useEffect(() => {
     if (activeSidebarTab !== "recent" && recentModalOpen) {
@@ -1809,25 +1918,93 @@ export function ComposerForm({
     const mediaPrompt = (workingDraft.mediaPrompt ?? "").trim();
     const mediaUrl = attachmentDisplayUrl ?? attachmentFullUrl ?? workingDraft.mediaUrl ?? null;
     const attachmentName = displayAttachment?.name ?? null;
-    const pollQuestion = pollStructure.question.trim();
-    const pollOptions = pollStructure.options.map((option) => option.trim()).filter(Boolean);
-    const pollHasStructure = pollQuestion.length > 0 || pollOptions.length > 0;
-    const pollDisplayOptions =
-      pollOptions.length > 0 ? pollOptions : ["Option 1", "Option 2", "Option 3"];
-    const pollHelperText = `${pollDisplayOptions.length} option${
-      pollDisplayOptions.length === 1 ? "" : "s"
-    } ready`;
+    const pollQuestionValue = pollStructure.question ?? "";
+    const trimmedPollQuestion = pollQuestionValue.trim();
+    const trimmedPollOptions = pollStructure.options.map((option) => option.trim()).filter(Boolean);
+    const pollHasStructure = trimmedPollQuestion.length > 0 || trimmedPollOptions.length > 0;
+    const pollOptionCount = trimmedPollOptions.length || pollStructure.options.length;
+    const pollHelperText = `${pollOptionCount} option${pollOptionCount === 1 ? "" : "s"} ready`;
     const pollPreviewCard = (
-      <div className={styles.previewPollCard}>
-        <h3 className={styles.previewPollQuestion}>{pollQuestion || "Untitled poll"}</h3>
-        <ul className={styles.previewPollOptions}>
-          {pollDisplayOptions.map((option, index) => (
-            <li key={`${option}-${index}`}>
-              <span className={styles.previewPollOptionBullet}>{index + 1}</span>
-              <span className={styles.previewPollOptionLabel}>{option}</span>
-            </li>
-          ))}
-        </ul>
+      <div className={styles.previewPollCard} data-editable="true">
+        <div className={styles.pollEditorField}>
+          <label className={styles.pollEditorLabel} htmlFor="composer-poll-question">
+            Poll title
+          </label>
+          <textarea
+            id="composer-poll-question"
+            ref={pollQuestionRef}
+            className={`${styles.previewPollQuestion} ${styles.pollEditorQuestion}`}
+            value={pollQuestionValue}
+            placeholder="Untitled poll"
+            rows={2}
+            onChange={(event) => handlePollQuestionInput(event.target.value)}
+          />
+        </div>
+        <div className={styles.pollEditorField}>
+          <span className={styles.pollEditorLabel}>Poll options</span>
+          <ul className={`${styles.previewPollOptions} ${styles.pollEditorOptions}`} role="list">
+            {pollStructure.options.map((option, index) => {
+              const allowRemoval = pollStructure.options.length > 2;
+              return (
+                <li key={`poll-option-${index}`} className={styles.pollEditorOptionRow}>
+                  <span className={styles.previewPollOptionBullet}>{index + 1}</span>
+                  <input
+                    ref={(element) => {
+                      if (element) {
+                        pollOptionRefs.current[index] = element;
+                      } else {
+                        delete pollOptionRefs.current[index];
+                      }
+                    }}
+                    className={`${styles.previewPollOptionLabel} ${styles.pollEditorOptionInput}`}
+                    value={option}
+                    placeholder={`Option ${index + 1}`}
+                    type="text"
+                    autoComplete="off"
+                    onChange={(event) => handlePollOptionInput(index, event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        handleAddPollOption(index);
+                      } else if (
+                        (event.key === "Backspace" || event.key === "Delete") &&
+                        !event.currentTarget.value.trim() &&
+                        pollStructure.options.length > 2
+                      ) {
+                        event.preventDefault();
+                        handleRemovePollOption(index);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className={styles.pollEditorRemove}
+                    onClick={() => handleRemovePollOption(index)}
+                    aria-label={
+                      allowRemoval
+                        ? `Remove option ${index + 1}`
+                        : `Clear option ${index + 1}`
+                    }
+                  >
+                    <X size={12} weight="bold" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {pollStructure.options.length < MAX_POLL_OPTIONS ? (
+            <button
+              type="button"
+              className={styles.pollEditorAdd}
+              onClick={() => handleAddPollOption()}
+            >
+              <span className={styles.pollEditorAddIcon}>
+                <Plus size={14} weight="bold" />
+              </span>
+              <span>Add option</span>
+            </button>
+          ) : null}
+        </div>
       </div>
     );
     const renderPlaceholder = (message: string) => (
@@ -2013,6 +2190,10 @@ export function ComposerForm({
     attachmentDisplayUrl,
     attachmentFullUrl,
     displayAttachment?.name,
+    handleAddPollOption,
+    handlePollOptionInput,
+    handlePollQuestionInput,
+    handleRemovePollOption,
     pollStructure,
     workingDraft.content,
     workingDraft.mediaPrompt,

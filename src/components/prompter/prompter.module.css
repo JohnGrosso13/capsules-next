@@ -508,6 +508,7 @@
     gap: 6px;
     font-size: 0.88rem;
     color: var(--color-fg-subtle, rgba(255, 255, 255, 0.7));
+    padding-left: var(--space-lg, 16px);
   }
 
   .statusLine {

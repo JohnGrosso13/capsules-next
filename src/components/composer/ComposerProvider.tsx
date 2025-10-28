@@ -125,9 +125,14 @@ async function buildAttachmentContext(
   return collected;
 }
 
+type PollMergeOptions = {
+  preserveOptions?: boolean;
+};
+
 function mergePollStructures(
   prevDraft: ComposerDraft | null,
   nextDraft: ComposerDraft | null,
+  options?: PollMergeOptions,
 ): { question: string; options: string[] } | null {
   const prevPoll = prevDraft?.poll ? ensurePollStructure(prevDraft) : null;
   const nextPoll = nextDraft?.poll ? ensurePollStructure(nextDraft) : null;
@@ -140,9 +145,18 @@ function mergePollStructures(
   if (!nextPoll) {
     return { question: prevPoll.question, options: [...prevPoll.options] };
   }
+  if (options?.preserveOptions && prevPoll) {
+    const question =
+      nextPoll.question.trim().length > 0 ? nextPoll.question : prevPoll.question;
+    const preserved = [...prevPoll.options];
+    while (preserved.length < 2) {
+      preserved.push("");
+    }
+    return { question, options: preserved };
+  }
   const question = nextPoll.question.trim().length > 0 ? nextPoll.question : prevPoll.question;
   const length = Math.max(prevPoll.options.length, nextPoll.options.length, 2);
-  const options = Array.from({ length }, (_, index) => {
+  const mergedOptions = Array.from({ length }, (_, index) => {
     const nextValueRaw = nextPoll.options[index] ?? "";
     const nextValue = nextValueRaw.trim();
     if (nextValue.length > 0) {
@@ -150,21 +164,32 @@ function mergePollStructures(
     }
     return prevPoll.options[index] ?? "";
   });
-  while (options.length < 2) {
-    options.push("");
+  while (mergedOptions.length < 2) {
+    mergedOptions.push("");
   }
-  return { question, options };
+  return { question, options: mergedOptions };
 }
 
-function mergeComposerDrafts(prevDraft: ComposerDraft | null, nextDraft: ComposerDraft): ComposerDraft {
+type DraftMergeOptions = {
+  preservePollOptions?: boolean;
+};
+
+function mergeComposerDrafts(
+  prevDraft: ComposerDraft | null,
+  nextDraft: ComposerDraft,
+  options?: DraftMergeOptions,
+): ComposerDraft {
+  const preservePollOptions = options?.preservePollOptions ?? false;
   if (!prevDraft) {
-    const poll = mergePollStructures(null, nextDraft);
+    const poll = mergePollStructures(null, nextDraft, { preserveOptions: preservePollOptions });
     return poll ? { ...nextDraft, poll } : nextDraft;
   }
 
   const prevKind = (prevDraft.kind ?? "").toLowerCase();
   const nextKind = (nextDraft.kind ?? "").toLowerCase();
-  const mergedPoll = mergePollStructures(prevDraft, nextDraft);
+  const mergedPoll = mergePollStructures(prevDraft, nextDraft, {
+    preserveOptions: preservePollOptions,
+  });
 
   if (nextKind === "poll" && prevKind !== "poll") {
     const merged: ComposerDraft = {
@@ -195,6 +220,51 @@ function mergeComposerDrafts(prevDraft: ComposerDraft | null, nextDraft: Compose
     merged.poll = mergedPoll ?? nextDraft.poll ?? prevDraft.poll ?? null;
   }
   return merged;
+}
+
+const POLL_OPTION_KEYWORDS = ["option", "options", "choice", "choices", "answer", "answers", "selection", "selections"];
+const POLL_TITLE_KEYWORDS = [
+  "title",
+  "headline",
+  "rename",
+  "retitle",
+  "call it",
+  "name it",
+];
+const POLL_QUESTION_PATTERNS = [
+  /poll question/,
+  /question to/,
+  /question as/,
+  /question be/,
+  /question should/,
+  /question is/,
+];
+
+function shouldPreservePollOptions(prompt: string, prevDraft: ComposerDraft | null): boolean {
+  if (!prevDraft?.poll) return false;
+  const structure = ensurePollStructure(prevDraft);
+  const meaningfulOptions = structure.options.map((option) => option.trim()).filter(Boolean);
+  if (!meaningfulOptions.length) return false;
+  const normalized = prompt.toLowerCase().trim();
+  if (!normalized.length) return false;
+  if (
+    normalized.includes("keep the options") ||
+    normalized.includes("keep options") ||
+    normalized.includes("don't change the options") ||
+    normalized.includes("dont change the options")
+  ) {
+    return true;
+  }
+  if (POLL_OPTION_KEYWORDS.some((keyword) => normalized.includes(keyword))) {
+    return false;
+  }
+  if (POLL_TITLE_KEYWORDS.some((keyword) => normalized.includes(keyword))) {
+    return true;
+  }
+  if (POLL_QUESTION_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return true;
+  }
+  return false;
 }
 
 type SummaryPresentationOptions = {
@@ -372,7 +442,20 @@ function pickFirstMeaningfulText(...values: Array<string | null | undefined>): s
 }
 
 function describeRecentTitle(entry: ComposerStoredRecentChat): string {
-  const primary = pickFirstMeaningfulText(entry.message, entry.prompt, entry.draft.content ?? "");
+  const pollQuestion = entry.draft.poll?.question?.trim();
+  if (pollQuestion?.length) {
+    return truncateLabel(pollQuestion, 70);
+  }
+  const firstUserMessage = (entry.history ?? []).find(
+    (message) => message.role === "user" && message.content?.trim().length,
+  );
+  const primary = pickFirstMeaningfulText(
+    firstUserMessage?.content ?? null,
+    entry.draft.title ?? null,
+    entry.message,
+    entry.prompt,
+    entry.draft.content ?? "",
+  );
   return truncateLabel(primary ?? "Recent chat", 70);
 }
 
@@ -419,7 +502,35 @@ type RemoteConversationSummary = {
 };
 
 function describeRecentCaption(entry: ComposerStoredRecentChat): string {
-  return formatRelativeTime(entry.updatedAt);
+  const historyCount = Array.isArray(entry.history) ? entry.history.length : 0;
+  let totalMessages = historyCount;
+  if (totalMessages === 0 && (entry.message?.trim().length ?? 0) > 0) {
+    totalMessages = 1;
+  }
+  if (totalMessages === 0 && (entry.prompt?.trim().length ?? 0) > 0) {
+    totalMessages = 1;
+  }
+  const safeCount = Math.max(totalMessages, 1);
+  const countLabel = safeCount === 1 ? "1 message" : `${safeCount} messages`;
+  const relative = formatRelativeTime(entry.updatedAt);
+  return `${countLabel} · ${relative}`;
+}
+
+function describeRecentSnippet(entry: ComposerStoredRecentChat): string | null {
+  const history = Array.isArray(entry.history) ? entry.history : [];
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const message = history[index];
+    if (message.role !== "assistant") continue;
+    const content = message.content?.trim();
+    if (content?.length) {
+      return truncateLabel(content, 80);
+    }
+  }
+  const fallback = entry.message?.trim();
+  if (fallback?.length) {
+    return truncateLabel(fallback, 80);
+  }
+  return null;
 }
 
 function describeProjectCaption(project: ComposerStoredProject): string {
@@ -715,7 +826,21 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     }) => {
       updateSidebarStore((prev) => {
         const now = new Date().toISOString();
-        const entryId = input.threadId ?? safeRandomUUID();
+        const normalizedThreadId =
+          typeof input.threadId === "string" && input.threadId.trim().length
+            ? input.threadId.trim()
+            : null;
+        const existing =
+          normalizedThreadId != null
+            ? prev.recentChats.find(
+                (item) =>
+                  item.threadId === normalizedThreadId ||
+                  (!item.threadId && item.id === normalizedThreadId),
+              )
+            : null;
+        const entryId = existing?.id ?? normalizedThreadId ?? safeRandomUUID();
+        const resolvedThreadId = normalizedThreadId ?? existing?.threadId ?? entryId;
+        const createdAt = existing?.createdAt ?? now;
         const historySlice = input.history.slice(-20);
         const entry: ComposerStoredRecentChat = {
           id: entryId,
@@ -723,15 +848,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           message: input.message ?? null,
           draft: cloneData(input.draft),
           rawPost: input.rawPost ? cloneData(input.rawPost) : null,
-          createdAt: now,
+          createdAt,
           updatedAt: now,
           history: cloneData(historySlice),
-          threadId: input.threadId,
+          threadId: resolvedThreadId,
         };
         const filtered = prev.recentChats.filter(
           (item) =>
             item.id !== entryId &&
-            (item.threadId ? item.threadId !== entry.threadId : true),
+            (resolvedThreadId ? (item.threadId ?? item.id) !== resolvedThreadId : true),
         );
         return {
           ...prev,
@@ -1024,8 +1149,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         if (prev.clarifier?.questionId) {
           resolvedQuestionId = prev.clarifier.questionId;
         }
+        const preserveOptions = shouldPreservePollOptions(prompt, prev.draft ?? null);
         const baseDraft = normalizeDraftFromPost(rawPost);
-        const mergedDraft = mergeComposerDrafts(prev.draft, baseDraft);
+        const mergedDraft = mergeComposerDrafts(prev.draft, baseDraft, {
+          preservePollOptions: preserveOptions,
+        });
         recordedDraft = mergedDraft;
         const mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, mergedDraft);
         recordedRawPost = mergedRawPost;
@@ -1515,11 +1643,16 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const sidebarData = React.useMemo<ComposerSidebarData>(() => {
-    const recentChats = sidebarStore.recentChats.map((entry) => ({
-      id: entry.id,
-      title: describeRecentTitle(entry),
-      caption: describeRecentCaption(entry),
-    }));
+    const recentChats = sidebarStore.recentChats.map((entry) => {
+      const caption = describeRecentCaption(entry);
+      const snippet = describeRecentSnippet(entry);
+      const combined = snippet ? `${caption} · ${snippet}` : caption;
+      return {
+        id: entry.id,
+        title: describeRecentTitle(entry),
+        caption: truncateLabel(combined, 120),
+      };
+    });
 
     const savedDraftItems: SidebarDraftListItem[] = sidebarStore.drafts.map((entry) => ({
       kind: "draft",

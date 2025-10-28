@@ -95,7 +95,7 @@ function sanitizeRecentChats(items: unknown[]): ComposerStoredRecentChat[] {
       threadId:
         typeof record.threadId === "string" && record.threadId.trim().length
           ? record.threadId.trim()
-          : null,
+          : record.id,
     });
   }
   return sanitized;

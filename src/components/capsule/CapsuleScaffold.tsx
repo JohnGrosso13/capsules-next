@@ -22,6 +22,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { AiPrompterStage, type PrompterAction } from "@/components/ai-prompter-stage";
 import { CapsuleMembersPanel } from "@/components/capsule/CapsuleMembersPanel";
+import { CapsuleEventsSection } from "@/components/capsule/CapsuleEventsSection";
 import { Button } from "@/components/ui/button";
 import { useComposer } from "@/components/composer/ComposerProvider";
 import { HomeFeedList } from "@/components/home-feed-list";
@@ -34,6 +35,7 @@ import {
 } from "@/components/documents/document-card";
 import feedStyles from "@/components/home-feed.module.css";
 import { useCapsuleFeed, formatFeedCount } from "@/hooks/useHomeFeed";
+import { useCapsuleLadders } from "@/hooks/useCapsuleLadders";
 import { useCapsuleMembership } from "@/hooks/useCapsuleMembership";
 import { useCurrentUser } from "@/services/auth/client";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
@@ -101,6 +103,12 @@ export function CapsuleContent({
     error: libraryError,
     refresh: refreshLibrary,
   } = useCapsuleLibrary(capsuleId);
+  const {
+    ladders: capsuleLadders,
+    loading: laddersLoading,
+    error: laddersError,
+    refresh: refreshLadders,
+  } = useCapsuleLadders(capsuleId);
 
   React.useEffect(() => {
     const initialEvent = new CustomEvent("capsule:tab", { detail: { tab: "feed" as CapsuleTab } });
@@ -378,6 +386,11 @@ export function CapsuleContent({
       setHeroSection("featured");
     }
   }, [tab]);
+  React.useEffect(() => {
+    if (heroSection === "events") {
+      refreshLadders();
+    }
+  }, [heroSection, refreshLadders]);
 
   // Render chips only on the Feed tab. Hide on Live/Store.
   const prompter = (
@@ -472,7 +485,15 @@ export function CapsuleContent({
           ) : (
             <>
               <div className={capTheme.prompterTop}>{prompter}</div>
-              {heroSection === "media" ? (
+              {heroSection === "events" ? (
+                <CapsuleEventsSection
+                  capsuleId={capsuleId ?? null}
+                  ladders={capsuleLadders}
+                  loading={laddersLoading}
+                  error={laddersError}
+                  onRetry={refreshLadders}
+                />
+              ) : heroSection === "media" ? (
                 <CapsuleMediaSection
                   items={capsuleMedia}
                   loading={libraryLoading}
@@ -1528,5 +1549,9 @@ function CapsuleFeed({
     </section>
   );
 }
+
+
+
+
 
 

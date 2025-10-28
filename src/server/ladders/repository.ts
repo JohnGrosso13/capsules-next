@@ -1,0 +1,542 @@
+"use server";
+
+import { getDatabaseAdminClient } from "@/config/database";
+import { decorateDatabaseError, ensureResult, expectResult, maybeResult } from "@/lib/database/utils";
+import type { DatabaseError } from "@/ports/database";
+import type {
+  CapsuleLadderDetail,
+  CapsuleLadderMember,
+  CapsuleLadderMemberInput,
+  CapsuleLadderSummary,
+  LadderAiPlan,
+  LadderConfig,
+  LadderGameConfig,
+  LadderSections,
+  LadderStatus,
+  LadderVisibility,
+} from "@/types/ladders";
+
+const db = getDatabaseAdminClient();
+
+type LadderRow = {
+  id: string | null;
+  capsule_id: string | null;
+  created_by_id: string | null;
+  published_by_id: string | null;
+  name: string | null;
+  slug: string | null;
+  summary: string | null;
+  status: string | null;
+  visibility: string | null;
+  game: unknown;
+  config: unknown;
+  sections: unknown;
+  ai_plan: unknown;
+  meta: unknown;
+  published_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+type LadderMemberRow = {
+  id: string | null;
+  ladder_id: string | null;
+  user_id: string | null;
+  display_name: string | null;
+  handle: string | null;
+  seed: number | string | null;
+  rank: number | string | null;
+  rating: number | string | null;
+  wins: number | string | null;
+  losses: number | string | null;
+  draws: number | string | null;
+  streak: number | string | null;
+  metadata: unknown;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type InsertCapsuleLadderParams = {
+  capsuleId: string;
+  createdById: string;
+  name: string;
+  slug?: string | null;
+  summary?: string | null;
+  status?: LadderStatus;
+  visibility?: LadderVisibility;
+  game?: LadderGameConfig | null;
+  config?: LadderConfig | null;
+  sections?: LadderSections | null;
+  aiPlan?: LadderAiPlan | null;
+  meta?: Record<string, unknown> | null;
+  publishedById?: string | null;
+  publishedAt?: string | null;
+};
+
+export type UpdateCapsuleLadderParams = Partial<Omit<InsertCapsuleLadderParams, "capsuleId" | "createdById">> & {
+  status?: LadderStatus;
+  visibility?: LadderVisibility;
+};
+
+function normalizeString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function normalizeTimestamp(value: unknown): string | null {
+  const normalized = normalizeString(
+    typeof value === "string" || value instanceof Date ? String(value) : null,
+  );
+  if (!normalized) return null;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
+function normalizeNumber(value: unknown, fallback: number | null = null): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+function parseJsonRecord<T extends Record<string, unknown>>(value: unknown, fallback: T): T {
+  if (!value) return fallback;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (parsed && typeof parsed === "object") {
+        return { ...fallback, ...(parsed as Record<string, unknown>) } as T;
+      }
+      return fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  if (typeof value === "object") {
+    return { ...fallback, ...(value as Record<string, unknown>) } as T;
+  }
+  return fallback;
+}
+
+function parseJsonNullable<T>(value: unknown): T | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (parsed && typeof parsed === "object") {
+        return parsed as T;
+      }
+      return parsed as T;
+    } catch {
+      return null;
+    }
+  }
+  return value as T;
+}
+
+function mapStatus(value: unknown): LadderStatus {
+  const normalized = normalizeString(value);
+  if (normalized === "active" || normalized === "archived") {
+    return normalized;
+  }
+  return "draft";
+}
+
+function mapVisibility(value: unknown): LadderVisibility {
+  const normalized = normalizeString(value);
+  if (normalized === "private" || normalized === "public") {
+    return normalized;
+  }
+  return "capsule";
+}
+
+function mapGame(value: unknown): LadderGameConfig {
+  const raw = parseJsonRecord<Record<string, unknown>>(value, {});
+  return {
+    title: normalizeString(raw.title) ?? null,
+    franchise: normalizeString(raw.franchise) ?? null,
+    mode: normalizeString(raw.mode) ?? null,
+    platform: normalizeString(raw.platform) ?? null,
+    region: normalizeString(raw.region) ?? null,
+    summary: normalizeString(raw.summary) ?? null,
+  };
+}
+
+function mapSections(value: unknown): LadderSections {
+  const raw = parseJsonRecord<Record<string, unknown>>(value, {});
+  const sections: LadderSections = {};
+  const entries: Array<keyof LadderSections> = [
+    "overview",
+    "rules",
+    "shoutouts",
+    "upcoming",
+    "results",
+    "custom",
+  ];
+  for (const key of entries) {
+    if (!(key in raw)) continue;
+    const payload = raw[key];
+    if (key === "custom" && Array.isArray(payload)) {
+      sections.custom = payload
+        .map((entry) => parseJsonNullable(entry))
+        .filter((entry): entry is NonNullable<LadderSections["custom"]>[number] => Boolean(entry));
+      continue;
+    }
+    if (payload && typeof payload === "object") {
+      sections[key] = payload as LadderSections[typeof key];
+    } else if (typeof payload === "string") {
+      sections[key] = {
+        id: `${key}-${Date.now()}`,
+        title: key.charAt(0).toUpperCase() + key.slice(1),
+        body: payload,
+      };
+    }
+  }
+  return sections;
+}
+
+function mapConfig(value: unknown): LadderConfig {
+  return parseJsonRecord<LadderConfig>(value, {}) as LadderConfig;
+}
+
+function mapAiPlan(value: unknown): LadderAiPlan | null {
+  const parsed = parseJsonNullable<Record<string, unknown>>(value);
+  if (!parsed) return null;
+  const generatedAt = normalizeTimestamp(parsed.generatedAt) ?? new Date().toISOString();
+  const plan: LadderAiPlan = {
+    generatedAt,
+    prompt: normalizeString(parsed.prompt),
+    reasoning: normalizeString(parsed.reasoning),
+    version: normalizeString(parsed.version),
+    metadata: parseJsonRecord<Record<string, unknown>>(parsed.metadata, {}),
+    suggestions: Array.isArray(parsed.suggestions)
+      ? parsed.suggestions
+          .map((entry) => {
+            if (!entry || typeof entry !== "object") return null;
+            const id = normalizeString((entry as Record<string, unknown>).id);
+            const title = normalizeString((entry as Record<string, unknown>).title);
+            const summary = normalizeString((entry as Record<string, unknown>).summary);
+            if (!id || !title || !summary) return null;
+            const section = normalizeString((entry as Record<string, unknown>).section) as
+              | keyof LadderSections
+              | null;
+            return {
+              id,
+              title,
+              summary,
+              section: section ?? null,
+            };
+          })
+          .filter((entry): entry is NonNullable<LadderAiPlan["suggestions"]>[number] => Boolean(entry))
+      : undefined,
+  };
+  if (!plan.suggestions?.length) {
+    delete plan.suggestions;
+  }
+  if (!Object.keys(plan.metadata ?? {}).length) {
+    plan.metadata = null;
+  }
+  return plan;
+}
+
+function mapLadderSummaryRow(row: LadderRow | null): CapsuleLadderSummary | null {
+  if (!row) return null;
+  const id = normalizeString(row.id);
+  const capsuleId = normalizeString(row.capsule_id);
+  const name = normalizeString(row.name);
+  if (!id || !capsuleId) return null;
+  const createdById = normalizeString(row.created_by_id);
+  if (!createdById) return null;
+  const createdAt = normalizeTimestamp(row.created_at) ?? new Date().toISOString();
+  const updatedAt = normalizeTimestamp(row.updated_at) ?? createdAt;
+  return {
+    id,
+    capsuleId,
+    name: name ?? "Untitled Ladder",
+    slug: normalizeString(row.slug),
+    summary: normalizeString(row.summary),
+    status: mapStatus(row.status),
+    visibility: mapVisibility(row.visibility),
+    createdById,
+    game: mapGame(row.game),
+    createdAt,
+    updatedAt,
+    publishedAt: normalizeTimestamp(row.published_at),
+  };
+}
+
+function mapLadderDetailRow(row: LadderRow | null): CapsuleLadderDetail | null {
+  if (!row) return null;
+  const summary = mapLadderSummaryRow(row);
+  if (!summary) return null;
+  return {
+    ...summary,
+    publishedById: normalizeString(row.published_by_id),
+    config: mapConfig(row.config),
+    sections: mapSections(row.sections),
+    aiPlan: mapAiPlan(row.ai_plan),
+    meta: parseJsonNullable<Record<string, unknown>>(row.meta),
+  };
+}
+
+function mapLadderMemberRow(row: LadderMemberRow | null): CapsuleLadderMember | null {
+  if (!row) return null;
+  const id = normalizeString(row.id);
+  const ladderId = normalizeString(row.ladder_id);
+  const displayName = normalizeString(row.display_name);
+  if (!id || !ladderId || !displayName) return null;
+  const createdAt = normalizeTimestamp(row.created_at) ?? new Date().toISOString();
+  const updatedAt = normalizeTimestamp(row.updated_at) ?? createdAt;
+  return {
+    id,
+    ladderId,
+    userId: normalizeString(row.user_id),
+    displayName,
+    handle: normalizeString(row.handle),
+    seed: normalizeNumber(row.seed),
+    rank: normalizeNumber(row.rank),
+    rating: normalizeNumber(row.rating, 0) ?? 0,
+    wins: normalizeNumber(row.wins, 0) ?? 0,
+    losses: normalizeNumber(row.losses, 0) ?? 0,
+    draws: normalizeNumber(row.draws, 0) ?? 0,
+    streak: normalizeNumber(row.streak, 0) ?? 0,
+    metadata: parseJsonNullable<Record<string, unknown>>(row.metadata),
+    createdAt,
+    updatedAt,
+  };
+}
+
+function ensureLadder(row: LadderRow | null, context: string): CapsuleLadderDetail {
+  const ladder = mapLadderDetailRow(row);
+  if (!ladder) {
+    throw new Error(`${context}: failed to map ladder record`);
+  }
+  return ladder;
+}
+
+export async function insertCapsuleLadderRecord(
+  params: InsertCapsuleLadderParams,
+): Promise<CapsuleLadderDetail> {
+  try {
+    const result = await db
+      .from<LadderRow>("capsule_ladders")
+      .insert({
+        capsule_id: params.capsuleId,
+        created_by_id: params.createdById,
+        published_by_id: params.publishedById ?? null,
+        name: params.name,
+        slug: params.slug ?? null,
+        summary: params.summary ?? null,
+        status: params.status ?? "draft",
+        visibility: params.visibility ?? "capsule",
+        game: params.game ?? {},
+        config: params.config ?? {},
+        sections: params.sections ?? {},
+        ai_plan: params.aiPlan ?? null,
+        meta: params.meta ?? null,
+        published_at: params.publishedAt ?? null,
+      })
+      .select("*")
+      .single();
+
+    const row = expectResult(result, "insert capsule_ladder record");
+    return ensureLadder(row, "insert capsule_ladder record");
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("insert capsule_ladder record", error);
+    }
+    throw error;
+  }
+}
+
+export async function updateCapsuleLadderRecord(
+  ladderId: string,
+  patch: UpdateCapsuleLadderParams,
+): Promise<CapsuleLadderDetail | null> {
+  const payload: Record<string, unknown> = {};
+  if (patch.name !== undefined) payload.name = patch.name;
+  if (patch.slug !== undefined) payload.slug = patch.slug ?? null;
+  if (patch.summary !== undefined) payload.summary = patch.summary ?? null;
+  if (patch.status !== undefined) payload.status = patch.status;
+  if (patch.visibility !== undefined) payload.visibility = patch.visibility;
+  if (patch.game !== undefined) payload.game = patch.game ?? {};
+  if (patch.config !== undefined) payload.config = patch.config ?? {};
+  if (patch.sections !== undefined) payload.sections = patch.sections ?? {};
+  if (patch.aiPlan !== undefined) payload.ai_plan = patch.aiPlan ?? null;
+  if (patch.meta !== undefined) payload.meta = patch.meta ?? null;
+  if (patch.publishedAt !== undefined) payload.published_at = patch.publishedAt ?? null;
+  if (patch.publishedById !== undefined) payload.published_by_id = patch.publishedById ?? null;
+
+  if (Object.keys(payload).length === 0) {
+    return getCapsuleLadderRecordById(ladderId);
+  }
+
+  try {
+    const result = await db
+      .from<LadderRow>("capsule_ladders")
+      .update(payload)
+      .eq("id", ladderId)
+      .select("*")
+      .single();
+
+    const row = maybeResult(result, "update capsule_ladder record");
+    return mapLadderDetailRow(row);
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("update capsule_ladder record", error);
+    }
+    throw error;
+  }
+}
+
+export async function getCapsuleLadderRecordById(
+  ladderId: string,
+): Promise<CapsuleLadderDetail | null> {
+  try {
+    const result = await db
+      .from<LadderRow>("capsule_ladders")
+      .select("*")
+      .eq("id", ladderId)
+      .single();
+    const row = maybeResult(result, "get capsule_ladder record");
+    return mapLadderDetailRow(row);
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("get capsule_ladder record", error);
+    }
+    throw error;
+  }
+}
+
+export async function getCapsuleLadderBySlug(
+  capsuleId: string,
+  slug: string,
+): Promise<CapsuleLadderDetail | null> {
+  try {
+    const result = await db
+      .from<LadderRow>("capsule_ladders")
+      .select("*")
+      .eq("capsule_id", capsuleId)
+      .eq("slug", slug)
+      .single();
+    const row = maybeResult(result, "get capsule_ladder by slug");
+    return mapLadderDetailRow(row);
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("get capsule_ladder by slug", error);
+    }
+    throw error;
+  }
+}
+
+export async function listCapsuleLaddersByCapsule(
+  capsuleId: string,
+): Promise<CapsuleLadderSummary[]> {
+  try {
+    const result = await db
+      .from<LadderRow>("capsule_ladders")
+      .select("*")
+      .eq("capsule_id", capsuleId)
+      .order("created_at", { ascending: false });
+
+    const rows = expectResult(result, "list capsule_ladder records");
+    return rows
+      .map((row) => mapLadderSummaryRow(row))
+      .filter((item): item is CapsuleLadderSummary => Boolean(item));
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("list capsule_ladder records", error);
+    }
+    throw error;
+  }
+}
+
+export async function deleteCapsuleLadderRecord(ladderId: string): Promise<void> {
+  try {
+    const result = await db.from("capsule_ladders").delete().eq("id", ladderId);
+    ensureResult(result, "delete capsule_ladder record");
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("delete capsule_ladder record", error);
+    }
+    throw error;
+  }
+}
+
+export async function listCapsuleLadderMemberRecords(
+  ladderId: string,
+): Promise<CapsuleLadderMember[]> {
+  try {
+    const result = await db
+      .from<LadderMemberRow>("capsule_ladder_members")
+      .select("*")
+      .eq("ladder_id", ladderId)
+      .order("rating", { ascending: false })
+      .order("created_at", { ascending: true });
+
+    const rows = expectResult(result, "list capsule_ladder_member records");
+    return rows
+      .map((row) => mapLadderMemberRow(row))
+      .filter((member): member is CapsuleLadderMember => Boolean(member));
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("list capsule_ladder_member records", error);
+    }
+    throw error;
+  }
+}
+
+export async function replaceCapsuleLadderMemberRecords(
+  ladderId: string,
+  members: CapsuleLadderMemberInput[],
+): Promise<CapsuleLadderMember[]> {
+  try {
+    const deleteResult = await db
+      .from("capsule_ladder_members")
+      .delete()
+      .eq("ladder_id", ladderId);
+    ensureResult(deleteResult, "clear capsule_ladder_members");
+
+    if (!members.length) {
+      return [];
+    }
+
+    const payload = members.map((member) => ({
+      ladder_id: ladderId,
+      user_id: member.userId ?? null,
+      display_name: member.displayName,
+      handle: member.handle ?? null,
+      seed: member.seed ?? null,
+      rank: member.rank ?? null,
+      rating: member.rating ?? 1200,
+      wins: member.wins ?? 0,
+      losses: member.losses ?? 0,
+      draws: member.draws ?? 0,
+      streak: member.streak ?? 0,
+      metadata: member.metadata ?? null,
+    }));
+
+    const insertResult = await db
+      .from<LadderMemberRow>("capsule_ladder_members")
+      .insert(payload)
+      .select("*");
+
+    const rows = expectResult(insertResult, "insert capsule_ladder_members");
+    return rows
+      .map((row) => mapLadderMemberRow(row))
+      .filter((member): member is CapsuleLadderMember => Boolean(member));
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("replace capsule_ladder_members", error);
+    }
+    throw error;
+  }
+}
+
+function isDatabaseError(error: unknown): error is DatabaseError {
+  return Boolean(error && typeof error === "object" && "message" in error && "code" in error);
+}
