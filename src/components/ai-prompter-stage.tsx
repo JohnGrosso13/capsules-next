@@ -41,8 +41,7 @@ const SUMMARIZE_FEED_LABEL = "Summarize my feed";
 const defaultChips = [
   "Post an update",
   "Share a photo",
-  "Bring feed image",
-  SUMMARIZE_FEED_LABEL,
+    SUMMARIZE_FEED_LABEL,
   "Style my capsule",
 ];
 
@@ -987,6 +986,7 @@ export function AiPrompterStage({
     </section>
   );
 }
+
 
 
 
