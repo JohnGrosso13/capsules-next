@@ -1989,10 +1989,15 @@ export async function createPollDraft(
 
   options = deduped.length >= 2 ? deduped.slice(0, 6) : options.slice(0, 6);
 
-  const message =
+  const rawMessage =
     typeof parsed.message === "string" && parsed.message.trim()
-      ? parsed.message
-      : "I drafted a poll. Tweak anything you like.";
+      ? parsed.message.trim()
+      : "Here's a poll draft to start with.";
+  const followUp =
+    "Want me to tweak the question, add more options, or craft the intro copy?";
+  const message = /add more options|tweak the question|anything else/i.test(rawMessage)
+    ? rawMessage
+    : `${rawMessage}${/[.!?]$/.test(rawMessage) ? "" : "."} ${followUp}`;
 
   return { message, poll: { question, options } };
 }

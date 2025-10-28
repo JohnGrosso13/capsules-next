@@ -268,8 +268,8 @@ type ComposerToolbarProps = {
 };
 
 function ComposerToolbar({
-  activeKey,
-  onSelectKind,
+  activeKey: _activeKey,
+  onSelectKind: _onSelectKind,
   onClose,
   disabled,
   onMenuToggle,
@@ -311,24 +311,6 @@ function ComposerToolbar({
           ) : (
             <h2 className={styles.toolbarTitle}>Composer Studio</h2>
           )}
-        </div>
-        <div className={styles.toolbarModes} role="tablist" aria-label="Select what you want to create">
-          {ASSET_KIND_OPTIONS.map((option) => {
-            const selected = activeKey === option.key;
-            return (
-              <button
-                key={option.key}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                className={`${styles.modeToggle} ${selected ? styles.modeToggleActive : ""}`}
-                data-selected={selected ? "true" : undefined}
-                onClick={() => onSelectKind(option.key)}
-              >
-                {option.label}
-              </button>
-            );
-          })}
         </div>
         {isMobile ? (
           <div className={styles.headerActions}>
@@ -796,6 +778,13 @@ export function ComposerForm({
     [pollStructure.options, pollStructure.question, setPendingPollFocusIndex, updateDraft],
   );
 
+  const handlePollBodyInput = React.useCallback(
+    (value: string) => {
+      updateDraft({ content: value });
+    },
+    [updateDraft],
+  );
+
   const { activeCapsuleId } = useComposer();
   const { state, actions } = useComposerFormReducer();
   const { privacy, mobileRailOpen, previewOpen, layout, viewerOpen, voice: voiceState } = state;
@@ -803,7 +792,9 @@ export function ComposerForm({
   const columnsRef = React.useRef<HTMLDivElement | null>(null);
   const mainRef = React.useRef<HTMLDivElement | null>(null);
   const promptInputRef = React.useRef<HTMLInputElement | null>(null);
-  const [promptValue, setPromptValue] = React.useState<string>(prompt ?? "");
+  const [promptValue, setPromptValue] = React.useState<string>(() =>
+    conversationHistory.length > 0 ? "" : prompt ?? "",
+  );
   const [recentModalOpen, setRecentModalOpen] = React.useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = React.useState<SidebarTabKey>("recent");
   const [isMobileLayout, setIsMobileLayout] = React.useState(false);
@@ -827,12 +818,19 @@ export function ComposerForm({
 
   React.useEffect(() => {
     const normalized = prompt ?? "";
+    if (conversationHistory.length > 0) {
+      if (!normalized && promptValue) {
+        setPromptValue("");
+      }
+      lastSubmittedPromptRef.current = null;
+      return;
+    }
     if (lastSubmittedPromptRef.current && normalized === lastSubmittedPromptRef.current) {
       lastSubmittedPromptRef.current = null;
       return;
     }
     setPromptValue(normalized);
-  }, [prompt]);
+  }, [conversationHistory.length, prompt, promptValue]);
 
   React.useEffect(() => {
     if (pendingPollFocusIndex === null) return;
@@ -1663,9 +1661,6 @@ export function ComposerForm({
   const mainContent = (
     <>
       <div className={styles.chatArea}>
-        <div className={styles.chatIntro}>
-          <span className={styles.chatBadge}>AI</span>
-        </div>
         <div className={styles.chatScroll}>
           <ol className={styles.chatList}>
             {showWelcomeMessage ? (
@@ -1918,14 +1913,32 @@ export function ComposerForm({
     const mediaPrompt = (workingDraft.mediaPrompt ?? "").trim();
     const mediaUrl = attachmentDisplayUrl ?? attachmentFullUrl ?? workingDraft.mediaUrl ?? null;
     const attachmentName = displayAttachment?.name ?? null;
+    const pollBodyValue = workingDraft.content ?? "";
+    const trimmedPollBody = pollBodyValue.trim();
     const pollQuestionValue = pollStructure.question ?? "";
     const trimmedPollQuestion = pollQuestionValue.trim();
     const trimmedPollOptions = pollStructure.options.map((option) => option.trim()).filter(Boolean);
-    const pollHasStructure = trimmedPollQuestion.length > 0 || trimmedPollOptions.length > 0;
+    const pollHasStructure =
+      trimmedPollBody.length > 0 ||
+      trimmedPollQuestion.length > 0 ||
+      trimmedPollOptions.length > 0;
     const pollOptionCount = trimmedPollOptions.length || pollStructure.options.length;
     const pollHelperText = `${pollOptionCount} option${pollOptionCount === 1 ? "" : "s"} ready`;
     const pollPreviewCard = (
       <div className={styles.previewPollCard} data-editable="true">
+        <div className={styles.pollEditorField}>
+          <label className={styles.pollEditorLabel} htmlFor="composer-poll-intro">
+            Poll intro
+          </label>
+          <textarea
+            id="composer-poll-intro"
+            className={`${styles.previewPollBody} ${styles.pollEditorQuestion}`}
+            value={pollBodyValue}
+            placeholder="Prep the community with a short vibe check..."
+            rows={3}
+            onChange={(event) => handlePollBodyInput(event.target.value)}
+          />
+        </div>
         <div className={styles.pollEditorField}>
           <label className={styles.pollEditorLabel} htmlFor="composer-poll-question">
             Poll title
@@ -2023,7 +2036,9 @@ export function ComposerForm({
     if (kind === "poll") {
       if (!pollHasStructure) {
         empty = true;
-        body = renderPlaceholder("Describe the poll you want and the live preview will appear.");
+        body = renderPlaceholder(
+          "Describe the poll or start drafting your intro and the live preview will appear.",
+        );
       } else {
         empty = false;
         helper = pollHelperText;
@@ -2191,6 +2206,7 @@ export function ComposerForm({
     attachmentFullUrl,
     displayAttachment?.name,
     handleAddPollOption,
+    handlePollBodyInput,
     handlePollOptionInput,
     handlePollQuestionInput,
     handleRemovePollOption,

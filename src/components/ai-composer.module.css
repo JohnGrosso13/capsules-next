@@ -475,6 +475,14 @@
   box-shadow: 0 22px 40px rgba(10, 14, 42, 0.45);
 }
 
+.previewPollBody {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: rgba(217, 220, 255, 0.82);
+  line-height: 1.55;
+}
+
 .previewPollQuestion {
   margin: 0;
   font-size: 1.05rem;
@@ -539,9 +547,6 @@
   border-radius: 16px;
   border: 1px solid rgba(129, 140, 248, 0.24);
   background: rgba(16, 20, 48, 0.55);
-  color: rgba(236, 239, 255, 0.94);
-  font-size: 1.05rem;
-  font-weight: 700;
   line-height: 1.5;
   font-family: inherit;
   resize: none;
@@ -3058,8 +3063,6 @@
   transform: translateY(-2px);
   box-shadow: 0 24px 46px rgba(45, 93, 255, 0.58);
 }
-
-
 
 
 
