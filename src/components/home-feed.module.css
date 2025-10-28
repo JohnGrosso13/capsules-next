@@ -175,12 +175,28 @@
     pointer-events: none;
   }
 
+  .card[data-summary-flash="true"] {
+    animation: summaryHighlight 1.3s ease-out;
+  }
+
   @keyframes sweep {
     from {
       transform: translateX(-120%);
     }
     to {
       transform: translateX(120%);
+    }
+  }
+
+  @keyframes summaryHighlight {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand, #2563eb) 65%, transparent);
+    }
+    35% {
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
     }
   }
 

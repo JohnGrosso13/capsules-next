@@ -9,6 +9,8 @@ import type { ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
 import { usePortalHost } from "@/hooks/usePortalHost";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
+import type { SummaryConversationContext, SummaryPresentationOptions } from "@/lib/composer/summary-context";
+import type { SummaryResult } from "@/types/summary";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 
 export type { ComposerDraft } from "@/lib/composer/draft";
@@ -22,6 +24,13 @@ type AiComposerDrawerProps = {
   choices?: ComposerChoice[] | null;
   history?: ComposerChatMessage[] | null;
   clarifier?: ClarifierPrompt | null;
+  summaryContext?: SummaryConversationContext | null;
+  summaryResult?: SummaryResult | null;
+  summaryOptions?: SummaryPresentationOptions | null;
+  summaryMessageId?: string | null;
+  summaryResult?: SummaryResult | null;
+  summaryOptions?: SummaryPresentationOptions | null;
+  summaryMessageId?: string | null;
   sidebar: ComposerSidebarData;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
@@ -46,6 +55,10 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
   choices,
   history,
   clarifier,
+  summaryContext,
+  summaryResult,
+  summaryOptions,
+  summaryMessageId,
   sidebar,
   onChange,
   onClose,
@@ -96,6 +109,10 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       history={history ?? []}
       choices={choices ?? null}
       clarifier={clarifier ?? null}
+      summaryContext={summaryContext ?? null}
+      summaryResult={summaryResult ?? null}
+      summaryOptions={summaryOptions ?? null}
+      summaryMessageId={summaryMessageId ?? null}
       sidebar={sidebar}
       onChange={onChange}
       onClose={onClose}

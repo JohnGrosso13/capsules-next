@@ -41,7 +41,8 @@ import {
   type PromptResponse,
   type StylerResponse,
 } from "@/shared/schemas/ai";
-import type { SummaryResult, SummaryTarget } from "@/types/summary";
+import type { SummaryResult } from "@/types/summary";
+import type { SummaryConversationContext, SummaryPresentationOptions } from "@/lib/composer/summary-context";
 
 const ATTACHMENT_CONTEXT_LIMIT = 2;
 const ATTACHMENT_CONTEXT_CHAR_LIMIT = 2000;
@@ -267,10 +268,9 @@ function shouldPreservePollOptions(prompt: string, prevDraft: ComposerDraft | nu
   return false;
 }
 
-type SummaryPresentationOptions = {
-  title?: string | null;
-  sourceLabel?: string | null;
-  sourceType: SummaryTarget;
+type SummaryConversationExtras = {
+  context?: SummaryConversationContext | null;
+  attachments?: PrompterAttachment[] | null;
 };
 
 function softenSummaryLine(text: string): string {
@@ -559,6 +559,10 @@ type ComposerState = {
   history: ComposerChatMessage[];
   threadId: string | null;
   clarifier: ClarifierState | null;
+  summaryContext: SummaryConversationContext | null;
+  summaryResult: SummaryResult | null;
+  summaryOptions: SummaryPresentationOptions | null;
+  summaryMessageId: string | null;
 };
 
 type ClarifierState = {
@@ -577,7 +581,11 @@ type ComposerContextValue = {
   close(): void;
   post(): Promise<void>;
   submitPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void>;
-  showSummary(result: SummaryResult, options: SummaryPresentationOptions): void;
+  showSummary(
+    result: SummaryResult,
+    options: SummaryPresentationOptions,
+    extras?: SummaryConversationExtras,
+  ): void;
   answerClarifier(answer: string): void;
   forceChoice?(key: string): Promise<void>;
   updateDraft(draft: ComposerDraft): void;
@@ -600,6 +608,10 @@ const initialState: ComposerState = {
   history: [],
   threadId: null,
   clarifier: null,
+  summaryContext: null,
+  summaryResult: null,
+  summaryOptions: null,
+  summaryMessageId: null,
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1257,6 +1269,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           history: [...existingHistory, pendingMessage],
           threadId: resolvedThreadId,
           clarifier: null,
+          summaryContext: null,
+          summaryResult: null,
+          summaryOptions: null,
+          summaryMessageId: null,
         };
       });
       try {
@@ -1426,6 +1442,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           history: [...existingHistory, pendingMessage],
           threadId: resolvedThreadId,
           clarifier: null,
+          summaryContext: null,
+          summaryResult: null,
+          summaryOptions: null,
+          summaryMessageId: null,
         };
       });
       try {
@@ -1468,13 +1488,20 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, [state.draft, state.rawPost, author.name, author.avatar, activeCapsuleId, envelopePayload]);
 
   const showSummary = React.useCallback(
-    (result: SummaryResult, options: SummaryPresentationOptions) => {
+    (
+      result: SummaryResult,
+      options: SummaryPresentationOptions,
+      extras?: SummaryConversationExtras,
+    ) => {
+      const attachmentsForChat =
+        extras?.attachments?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? null;
+      const messageId = safeRandomUUID();
       const assistantMessage: ComposerChatMessage = {
-        id: safeRandomUUID(),
+        id: messageId,
         role: "assistant",
         content: formatSummaryMessage(result, options),
         createdAt: new Date().toISOString(),
-        attachments: null,
+        attachments: attachmentsForChat && attachmentsForChat.length ? attachmentsForChat : null,
       };
       setState((prev) => ({
         ...prev,
@@ -1486,6 +1513,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         history: [assistantMessage],
         threadId: safeRandomUUID(),
         clarifier: null,
+        summaryContext: extras?.context ?? null,
+        summaryResult: result,
+        summaryOptions: options,
+        summaryMessageId: messageId,
       }));
     },
     [],
@@ -1520,6 +1551,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           choices: null,
           history: [...existingHistory, pendingMessage],
           threadId: resolvedThreadId,
+          summaryContext: null,
+          summaryResult: null,
+          summaryOptions: null,
+          summaryMessageId: null,
         };
       });
       try {
@@ -1725,6 +1760,10 @@ export function AiComposerRoot() {
       choices={state.choices}
       history={state.history}
       clarifier={state.clarifier}
+      summaryContext={state.summaryContext}
+      summaryResult={state.summaryResult}
+      summaryOptions={state.summaryOptions}
+      summaryMessageId={state.summaryMessageId}
       onChange={updateDraft}
       onClose={close}
       onPost={post}

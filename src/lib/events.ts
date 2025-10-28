@@ -14,3 +14,10 @@ export type SummarizeFeedStatusDetail = {
   origin?: SummarizeFeedRequestOrigin;
   reason?: string | null;
 };
+
+export const COMPOSER_SUMMARY_ACTION_EVENT = "composer:summary-action";
+
+export type ComposerSummaryActionDetail = {
+  action: "view" | "comment";
+  postId: string;
+};

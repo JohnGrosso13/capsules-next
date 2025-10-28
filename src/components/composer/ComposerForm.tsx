@@ -43,6 +43,15 @@ import {
 import { buildLocalImageVariants, shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 import { extractFileFromDataTransfer } from "@/lib/clipboard/files";
+import type {
+  SummaryConversationContext,
+  SummaryConversationEntry,
+  SummaryPresentationOptions,
+} from "@/lib/composer/summary-context";
+import type { SummaryResult } from "@/types/summary";
+import { COMPOSER_SUMMARY_ACTION_EVENT } from "@/lib/events";
+import { SummaryContextPanel } from "./components/SummaryContextPanel";
+import { SummaryNarrativeCard } from "./components/SummaryNarrativeCard";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
@@ -130,6 +139,12 @@ function resolveQuickPromptPreset(kind: string): QuickPromptOption[] {
     return fallback;
   }
   return DEFAULT_QUICK_PROMPTS;
+}
+
+function truncateText(value: string, limit: number): string {
+  if (!value) return "";
+  if (value.length <= limit) return value;
+  return `${value.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
 }
 
 export type ClarifierPrompt = {
@@ -624,6 +639,10 @@ type ComposerFormProps = {
   history?: ComposerChatMessage[] | null | undefined;
   choices?: ComposerChoice[] | null | undefined;
   clarifier?: ClarifierPrompt | null | undefined;
+  summaryContext?: SummaryConversationContext | null;
+  summaryResult?: SummaryResult | null;
+  summaryOptions?: SummaryPresentationOptions | null;
+  summaryMessageId?: string | null;
   sidebar: ComposerSidebarData;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
@@ -646,6 +665,10 @@ export function ComposerForm({
   history: historyInput,
   choices: _choices,
   clarifier: clarifierInput,
+  summaryContext: summaryContextInput,
+  summaryResult: summaryResultInput,
+  summaryOptions: summaryOptionsInput,
+  summaryMessageId: summaryMessageIdInput,
   sidebar,
   onChange,
   onClose,
@@ -677,6 +700,18 @@ export function ComposerForm({
     if (!historyInput) return [];
     return Array.isArray(historyInput) ? historyInput : [];
   }, [historyInput]);
+  const summaryContext = summaryContextInput ?? null;
+  const summaryEntries = React.useMemo(
+    () => summaryContext?.entries ?? [],
+    [summaryContext],
+  );
+  const summaryResult = summaryResultInput ?? null;
+  const summaryOptions = summaryOptionsInput ?? null;
+  const summaryMessageId = summaryMessageIdInput ?? null;
+  const renderedHistory = React.useMemo(() => {
+    if (!summaryResult || !summaryMessageId) return conversationHistory;
+    return conversationHistory.filter((entry) => entry.id !== summaryMessageId);
+  }, [conversationHistory, summaryMessageId, summaryResult]);
 
   const clarifier = React.useMemo<ClarifierPrompt | null>(() => {
     if (!clarifierInput) return null;
@@ -801,6 +836,9 @@ export function ComposerForm({
   const [activeSidebarTab, setActiveSidebarTab] = React.useState<SidebarTabKey>("recent");
   const [isMobileLayout, setIsMobileLayout] = React.useState(false);
   const lastSubmittedPromptRef = React.useRef<string | null>(null);
+  const previousHistoryCountRef = React.useRef(conversationHistory.length);
+  const [summaryPanelOpen, setSummaryPanelOpen] = React.useState(false);
+  const summarySignatureRef = React.useRef<string | null>(null);
   const mobileMenuCloseRef = React.useRef<HTMLButtonElement | null>(null);
   const mobilePreviewCloseRef = React.useRef<HTMLButtonElement | null>(null);
 
@@ -820,19 +858,35 @@ export function ComposerForm({
 
   React.useEffect(() => {
     const normalized = prompt ?? "";
-    if (conversationHistory.length > 0) {
-      if (!normalized && promptValue) {
-        setPromptValue("");
+    const historyCount = conversationHistory.length;
+    const previousCount = previousHistoryCountRef.current;
+
+    if (historyCount > 0) {
+      if (previousCount === 0) {
+        setPromptValue(() => "");
       }
       lastSubmittedPromptRef.current = null;
-      return;
-    }
-    if (lastSubmittedPromptRef.current && normalized === lastSubmittedPromptRef.current) {
+    } else if (lastSubmittedPromptRef.current && normalized === lastSubmittedPromptRef.current) {
       lastSubmittedPromptRef.current = null;
+    } else {
+      setPromptValue(normalized);
+    }
+
+    previousHistoryCountRef.current = historyCount;
+  }, [conversationHistory.length, prompt]);
+
+  React.useEffect(() => {
+    const signature = summaryEntries.map((entry) => entry.id).join("|");
+    if (!summaryEntries.length) {
+      summarySignatureRef.current = null;
+      setSummaryPanelOpen(false);
       return;
     }
-    setPromptValue(normalized);
-  }, [conversationHistory.length, prompt, promptValue]);
+    if (summarySignatureRef.current !== signature) {
+      summarySignatureRef.current = signature;
+      setSummaryPanelOpen(false);
+    }
+  }, [summaryEntries]);
 
   React.useEffect(() => {
     if (pendingPollFocusIndex === null) return;
@@ -1153,17 +1207,84 @@ export function ComposerForm({
     });
   }, []);
 
+  const handleSummaryAsk = React.useCallback(
+    (entry: SummaryConversationEntry) => {
+      const snippet = truncateText(entry.summary ?? "", 220);
+      const parts: string[] = [
+        entry.author ? `Tell me more about ${entry.author}'s update.` : "Tell me more about this update.",
+      ];
+      if (snippet) {
+        parts.push(`Context: ${snippet}`);
+      }
+      handleSuggestionSelect(parts.join(" "));
+    },
+    [handleSuggestionSelect],
+  );
+
+  const handleSummaryView = React.useCallback((entry: SummaryConversationEntry) => {
+    if (typeof window === "undefined") return;
+    if (!entry.postId) return;
+    window.dispatchEvent(
+      new CustomEvent(COMPOSER_SUMMARY_ACTION_EVENT, {
+        detail: { action: "view", postId: entry.postId },
+      }),
+    );
+  }, []);
+
+  const handleSummaryComment = React.useCallback(
+    (entry: SummaryConversationEntry) => {
+      const snippet = truncateText(entry.summary ?? "", 220);
+      const promptSegments: string[] = [
+        entry.author
+          ? `Draft a short, friendly comment I can post on ${entry.author}'s update.`
+          : "Draft a short, friendly comment I can post on this update.",
+      ];
+      if (snippet) {
+        promptSegments.push(`Use this context: ${snippet}`);
+      }
+      handleSuggestionSelect(promptSegments.join(" "));
+      if (typeof window !== "undefined" && entry.postId) {
+        window.dispatchEvent(
+          new CustomEvent(COMPOSER_SUMMARY_ACTION_EVENT, {
+            detail: { action: "comment", postId: entry.postId },
+          }),
+        );
+      }
+    },
+    [handleSuggestionSelect],
+  );
+
   const baseQuickPromptOptions = React.useMemo(
     () => resolveQuickPromptPreset(activeKind),
     [activeKind],
   );
 
+  const summaryQuickPromptOptions = React.useMemo<QuickPromptOption[]>(() => {
+    if (!summaryEntries.length) return [];
+    return summaryEntries.slice(0, 3).map((entry, index) => {
+      const snippet = truncateText(entry.summary ?? "", 180);
+      const promptSegments: string[] = [
+        entry.author ? `Tell me more about ${entry.author}'s update.` : `Tell me more about this update.`,
+      ];
+      if (snippet) {
+        promptSegments.push(`What else should I know about it? Context: ${snippet}`);
+      }
+      return {
+        label: entry.author ? `Ask about ${entry.author}` : `Ask about update ${index + 1}`,
+        prompt: promptSegments.join(" "),
+      };
+    });
+  }, [summaryEntries]);
+
   const quickPromptOptions = React.useMemo<QuickPromptOption[]>(() => {
     if (vibeSuggestions.length) {
       return vibeSuggestions;
     }
+    if (summaryQuickPromptOptions.length) {
+      return [...summaryQuickPromptOptions, ...baseQuickPromptOptions];
+    }
     return baseQuickPromptOptions;
-  }, [baseQuickPromptOptions, vibeSuggestions]);
+  }, [baseQuickPromptOptions, summaryQuickPromptOptions, vibeSuggestions]);
 
   const memoryItems = React.useMemo<MemoryItem[]>(() => {
     if (_choices?.length) {
@@ -1397,7 +1518,7 @@ export function ComposerForm({
   const canSave = hasDraftContent && !attachmentUploading && !loading;
   const canPost = draftReady && !attachmentUploading && !loading;
 
-  const hasConversation = conversationHistory.length > 0;
+  const hasConversation = renderedHistory.length > 0;
   const showWelcomeMessage = !hasConversation;
 
   const recentSidebarItems: SidebarListItem[] = React.useMemo(
@@ -1665,7 +1786,42 @@ export function ComposerForm({
   const mainContent = (
     <>
       <div className={styles.chatArea}>
+        {summaryEntries.length ? (
+          <>
+            <div className={styles.summaryContextToggleRow}>
+              <button
+                type="button"
+                className={styles.summaryContextToggleBtn}
+                data-active={summaryPanelOpen ? "true" : undefined}
+                aria-expanded={summaryPanelOpen}
+                onClick={() => setSummaryPanelOpen((open) => !open)}
+              >
+                {summaryPanelOpen
+                  ? "Hide referenced updates"
+                  : `View referenced updates (${summaryEntries.length})`}
+              </button>
+            </div>
+            {summaryPanelOpen ? (
+              <SummaryContextPanel
+                entries={summaryEntries}
+                onAsk={handleSummaryAsk}
+                onComment={handleSummaryComment}
+                onView={handleSummaryView}
+              />
+            ) : null}
+          </>
+        ) : null}
         <div className={styles.chatScroll}>
+          {summaryResult ? (
+            <SummaryNarrativeCard
+              result={summaryResult}
+              options={summaryOptions}
+              entries={summaryEntries}
+              onAsk={handleSummaryAsk}
+              onComment={handleSummaryComment}
+              onView={handleSummaryView}
+            />
+          ) : null}
           <ol className={styles.chatList}>
             {showWelcomeMessage ? (
               <li className={styles.msgRow} data-role="ai">
@@ -1673,8 +1829,8 @@ export function ComposerForm({
               </li>
             ) : null}
 
-            {conversationHistory.length
-              ? conversationHistory.map((entry, index) => {
+            {renderedHistory.length
+              ? renderedHistory.map((entry, index) => {
                   const role = entry.role === "user" ? "user" : "ai";
                   const bubbleClass =
                     role === "user"
@@ -1724,7 +1880,7 @@ export function ComposerForm({
                 })
               : null}
 
-            {!conversationHistory.length && prompt ? (
+            {!renderedHistory.length && prompt ? (
               <li className={styles.msgRow} data-role="user">
                 <div className={`${styles.msgBubble} ${styles.userBubble}`}>{prompt}</div>
               </li>
@@ -1804,7 +1960,7 @@ export function ComposerForm({
               </li>
             ) : null}
 
-            {!conversationHistory.length && message && !clarifier ? (
+            {!renderedHistory.length && message && !clarifier ? (
               <li className={styles.msgRow} data-role="ai">
                 <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{message}</div>
               </li>
@@ -1893,18 +2049,20 @@ export function ComposerForm({
           </div>
         ) : null}
 
-        <div className={styles.promptPresets}>
-          {quickPromptOptions.map((option) => (
-            <button
-              key={option.prompt}
-              type="button"
-              className={styles.promptPresetBtn}
-              onClick={() => handleSuggestionSelect(option.prompt)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        {!summaryResult ? (
+          <div className={styles.promptPresets}>
+            {quickPromptOptions.map((option) => (
+              <button
+                key={option.prompt}
+                type="button"
+                className={styles.promptPresetBtn}
+                onClick={() => handleSuggestionSelect(option.prompt)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     </>
   );

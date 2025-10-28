@@ -42,7 +42,12 @@ import {
   type DocumentCardData,
 } from "@/components/documents/document-card";
 import { requestSummary, normalizeSummaryResponse } from "@/lib/ai/client-summary";
+import type { PrompterAttachment } from "@/components/ai-prompter-stage";
 import type { SummaryAttachmentInput } from "@/types/summary";
+import type {
+  SummaryConversationContext,
+  SummaryConversationEntry,
+} from "@/lib/composer/summary-context";
 import { useCurrentUser } from "@/services/auth/client";
 import { CommentPanel } from "@/components/comments/CommentPanel";
 import type {
@@ -56,8 +61,10 @@ import { safeRandomUUID } from "@/lib/random";
 import {
   SUMMARIZE_FEED_REQUEST_EVENT,
   SUMMARIZE_FEED_STATUS_EVENT,
+  COMPOSER_SUMMARY_ACTION_EVENT,
   type SummarizeFeedRequestDetail,
   type SummarizeFeedRequestOrigin,
+  type ComposerSummaryActionDetail,
 } from "@/lib/events";
 
 type LazyImageProps = React.ComponentProps<typeof Image>;
@@ -768,11 +775,49 @@ export function HomeFeedList({
           },
         });
         const summaryResult = normalizeSummaryResponse(summaryPayload);
-        composer.showSummary(summaryResult, {
+        const docSummaryText =
+          (doc.summary ?? doc.snippet ?? "").trim().length > 0
+            ? (doc.summary ?? doc.snippet ?? "").trim()
+            : `Key takeaways from "${doc.name}".`;
+        const attachmentId = `document-summary-${doc.id}`;
+        const documentContext: SummaryConversationContext = {
+          source: summaryResult.source,
           title: doc.name,
-          sourceLabel: doc.name,
-          sourceType: summaryResult.source,
-        });
+          entries: [
+            {
+              id: attachmentId,
+              postId: null,
+              title: doc.name,
+              author: null,
+              summary: docSummaryText,
+              attachmentId,
+            },
+          ],
+        };
+        const documentAttachments: PrompterAttachment[] = [
+          {
+            id: attachmentId,
+            name: doc.name,
+            mimeType: "text/plain",
+            size: docSummaryText.length,
+            url: doc.openUrl ?? doc.url ?? `https://capsule.local/documents/${doc.id}`,
+            role: "reference",
+            source: "ai",
+            excerpt: docSummaryText,
+          },
+        ];
+        composer.showSummary(
+          summaryResult,
+          {
+            title: doc.name,
+            sourceLabel: doc.name,
+            sourceType: summaryResult.source,
+          },
+          {
+            context: documentContext,
+            attachments: documentAttachments,
+          },
+        );
       } catch (error) {
         console.error("Document summary failed", error);
       } finally {
@@ -800,6 +845,8 @@ export function HomeFeedList({
       const segmentSource = displayedPosts.slice(0, Math.min(8, displayedPosts.length));
       const attachmentPayload: SummaryAttachmentInput[] = [];
       const seenAttachmentUrls = new Set<string>();
+      const summaryEntries: SummaryConversationEntry[] = [];
+      const conversationAttachments: PrompterAttachment[] = [];
       const segments = segmentSource.map((post, index) => {
         const author = post.user_name ?? (post as { userName?: string }).userName ?? "Someone";
         const created =
@@ -896,7 +943,64 @@ export function HomeFeedList({
           `${labelPrefix} ${author}${relative ? ` (${relative})` : ""}:`,
           ...narrativeParts,
         ];
-        return snippetSegments.join(" ");
+        const segmentText = snippetSegments.join(" ");
+
+        const attachmentId =
+          typeof post.id === "string" && post.id.trim().length
+            ? `feed-summary-${post.id}`
+            : `feed-summary-${index}`;
+        const entryHighlights = [
+          ...themedHints,
+          ...(pollSummary ? [pollSummary] : []),
+        ];
+        const entryTitleSource =
+          trimmedPrompt.length > 0
+            ? trimmedPrompt
+            : content.length > 0
+              ? content
+              : narrativeParts[0] ?? "";
+        const entryTitle =
+          entryTitleSource.length > 140
+            ? `${entryTitleSource.slice(0, 137).trimEnd()}...`
+            : entryTitleSource || null;
+        summaryEntries.push({
+          id: attachmentId,
+          postId: typeof post.id === "string" ? post.id : null,
+          title: entryTitle,
+          author,
+          summary: segmentText,
+          highlights: entryHighlights.length ? entryHighlights : undefined,
+          relativeTime: relative || null,
+          attachmentId,
+        });
+
+        const contextLines = [
+          `Post ID: ${typeof post.id === "string" ? post.id : `feed-${index}`}`,
+          `Author: ${author}`,
+        ];
+        if (relative) {
+          contextLines.push(`When: ${relative}`);
+        }
+        contextLines.push(`Details: ${narrativeParts.join(" ")}`);
+        if (themedHints.length) {
+          contextLines.push(`Themes: ${themedHints.join(", ")}`);
+        }
+        if (pollSummary) {
+          contextLines.push(`Poll: ${pollSummary}`);
+        }
+        const contextText = contextLines.join("\n");
+        conversationAttachments.push({
+          id: attachmentId,
+          name: author ? `${author}'s update` : `Feed update ${index + 1}`,
+          mimeType: "text/plain",
+          size: contextText.length,
+          url: `https://capsule.local/feed/${typeof post.id === "string" ? post.id : index}`,
+          role: "reference",
+          source: "ai",
+          excerpt: contextText,
+        });
+
+        return segmentText;
       });
       const summaryPayload = await requestSummary({
         target: "feed",
@@ -908,11 +1012,23 @@ export function HomeFeedList({
         },
       });
       const summaryResult = normalizeSummaryResponse(summaryPayload);
-      composer.showSummary(summaryResult, {
+      const summaryContext: SummaryConversationContext = {
+        source: summaryResult.source,
         title: "Feed recap",
-        sourceLabel: "Current feed",
-        sourceType: summaryResult.source,
-      });
+        entries: summaryEntries,
+      };
+      composer.showSummary(
+        summaryResult,
+        {
+          title: "Feed recap",
+          sourceLabel: "Current feed",
+          sourceType: summaryResult.source,
+        },
+        {
+          context: summaryContext,
+          attachments: conversationAttachments,
+        },
+      );
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent(SUMMARIZE_FEED_STATUS_EVENT, {
@@ -1137,6 +1253,37 @@ export function HomeFeedList({
     setActiveComment(null);
     commentAnchorRef.current = null;
   }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleSummaryAction = (event: Event) => {
+      const detail = (event as CustomEvent<ComposerSummaryActionDetail> | null)?.detail ?? null;
+      if (!detail?.postId) return;
+      const targetPost = displayedPosts.find((entry) => entry.id === detail.postId);
+      if (!targetPost) return;
+
+      const card = document.querySelector<HTMLElement>(`[data-post-id="${detail.postId}"]`);
+      if (card) {
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.setAttribute("data-summary-flash", "true");
+        window.setTimeout(() => {
+          card.removeAttribute("data-summary-flash");
+        }, 2400);
+      }
+
+      if (detail.action === "comment") {
+        const anchor =
+          (card?.querySelector<HTMLElement>('[data-action-key="comment"]') ?? card) ?? null;
+        commentAnchorRef.current = anchor;
+        setActiveComment({ postId: detail.postId });
+        void loadComments(detail.postId);
+      }
+    };
+    window.addEventListener(COMPOSER_SUMMARY_ACTION_EVENT, handleSummaryAction);
+    return () => {
+      window.removeEventListener(COMPOSER_SUMMARY_ACTION_EVENT, handleSummaryAction);
+    };
+  }, [displayedPosts, loadComments, setActiveComment]);
 
   React.useEffect(() => {
     if (!activeComment) return;
@@ -1487,6 +1634,7 @@ export function HomeFeedList({
           <article
             key={post.id}
             className={styles.card}
+            data-post-id={post.id}
             data-refreshing={isCardRefreshing ? "true" : undefined}
             aria-busy={isCardRefreshing ? true : undefined}
           >
@@ -1765,6 +1913,7 @@ export function HomeFeedList({
                     key={action.key}
                     className={styles.actionBtn}
                     type="button"
+                    data-action-key={action.key}
                     data-variant={action.key}
                     data-active={action.active ? "true" : "false"}
                     aria-label={`${action.label} (${formatCount(action.count)} so far)`}
