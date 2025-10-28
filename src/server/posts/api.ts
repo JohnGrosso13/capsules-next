@@ -1,7 +1,11 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 
-import { buildImageVariants, pickBestDisplayVariant } from "@/lib/cloudflare/images";
+import {
+  buildCloudflareImageUrl,
+  buildImageVariants,
+  pickBestDisplayVariant,
+} from "@/lib/cloudflare/images";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import type { CloudflareImageVariantSet } from "@/lib/cloudflare/images";
 import { serverEnv } from "@/lib/env/server";
@@ -52,6 +56,31 @@ type SlimSuccess<T> = { ok: true; status: number; body: T };
 type SlimError = { ok: false; status: number; body: ErrorResponse };
 export type SlimResponse<T> = SlimSuccess<T> | SlimError;
 
+const RAW_LIKE_MIME_TYPES = new Set([
+  "image/heic",
+  "image/heif",
+  "image/x-adobe-dng",
+  "image/x-dng",
+  "image/x-raw",
+  "image/x-canon-cr2",
+  "image/x-nikon-nef",
+  "image/x-sony-arw",
+  "image/x-fuji-raf",
+  "image/x-panasonic-rw2",
+]);
+
+const RAW_LIKE_EXTENSIONS = new Set([
+  "heic",
+  "heif",
+  "dng",
+  "nef",
+  "cr2",
+  "arw",
+  "raf",
+  "rw2",
+  "raw",
+]);
+
 function slimSuccess<T extends z.ZodTypeAny>(
   schema: T,
   payload: z.infer<T>,
@@ -82,6 +111,107 @@ export type PostsQueryInput = {
     after?: string | null;
   };
 };
+
+function extractExtensionFromSource(source: string | null | undefined): string | null {
+  if (!source || typeof source !== "string") return null;
+  const trimmed = source.trim();
+  if (!trimmed.length) return null;
+  const withoutQuery = trimmed.split(/[?#]/)[0] ?? "";
+  const lastDot = withoutQuery.lastIndexOf(".");
+  if (lastDot === -1) return null;
+  const ext = withoutQuery.slice(lastDot + 1).toLowerCase();
+  return ext || null;
+}
+
+function isRawLikeAttachment(
+  mimeType: string | null | undefined,
+  url: string | null | undefined,
+  storageKey: string | null | undefined,
+): boolean {
+  const normalizedMime = normalizeContentType(mimeType);
+  if (normalizedMime && RAW_LIKE_MIME_TYPES.has(normalizedMime)) {
+    return true;
+  }
+  const candidates = [
+    extractExtensionFromSource(url),
+    extractExtensionFromSource(storageKey),
+  ].filter(Boolean) as string[];
+  return candidates.some((ext) => RAW_LIKE_EXTENSIONS.has(ext));
+}
+
+function buildRawLikeFallbackVariants(
+  originalUrl: string,
+  {
+    base,
+    origin,
+    storageKey,
+    cloudflareEnabled,
+  }: {
+    base: string | null;
+    origin: string | null;
+    storageKey: string | null;
+    cloudflareEnabled: boolean;
+  },
+): {
+  thumb: string | null;
+  feed: string | null;
+  full: string | null;
+} {
+  if (cloudflareEnabled) {
+    const thumb = buildCloudflareImageUrl(
+      originalUrl,
+      {
+        width: 640,
+        height: 640,
+        fit: "cover",
+        gravity: "faces",
+        quality: 88,
+        format: "jpeg",
+        sharpen: 1,
+      },
+      base ?? undefined,
+      origin ?? undefined,
+    );
+    const feed = buildCloudflareImageUrl(
+      originalUrl,
+      {
+        width: 1600,
+        height: 1600,
+        fit: "cover",
+        gravity: "faces",
+        quality: 90,
+        format: "jpeg",
+        sharpen: 1,
+      },
+      base ?? undefined,
+      origin ?? undefined,
+    );
+    const full = buildCloudflareImageUrl(
+      originalUrl,
+      {
+        width: 2400,
+        fit: "contain",
+        quality: 92,
+        format: "jpeg",
+      },
+      base ?? undefined,
+      origin ?? undefined,
+    );
+    return { thumb: thumb ?? null, feed: feed ?? null, full: full ?? null };
+  }
+
+  if (!storageKey) {
+    return { thumb: null, feed: null, full: null };
+  }
+
+  const encoded = encodeURIComponent(storageKey);
+  const basePath = `/api/uploads/raw-preview?key=${encoded}`;
+  return {
+    thumb: `${basePath}&size=thumb`,
+    feed: `${basePath}&size=feed`,
+    full: `${basePath}&size=full`,
+  };
+}
 
 export async function getPostsSlim(options: PostsQueryInput): Promise<SlimResponse<PostsResponse>> {
   const parsedQuery = postsQuerySchema.safeParse({
@@ -690,6 +820,41 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                   variants.feed = derivedPreviewUrl;
                   if (!variants.full) {
                     variants.full = derivedPreviewUrl;
+                  }
+                }
+              }
+
+              const rawLike =
+                isRawLikeAttachment(mimeType, url, storageKey) ||
+                isRawLikeAttachment(mimeType, derivedPreviewUrl, storageKey);
+              if (rawLike) {
+                const fallback = buildRawLikeFallbackVariants(url, {
+                  base: serverEnv.CLOUDFLARE_IMAGE_RESIZE_BASE_URL ?? null,
+                  origin: cloudflareOrigin,
+                  storageKey: storageKey ?? null,
+                  cloudflareEnabled,
+                });
+                if (fallback.thumb && (!thumbnailUrl || thumbnailUrl === url)) {
+                  thumbnailUrl = fallback.thumb;
+                }
+                if (fallback.thumb || fallback.feed || fallback.full) {
+                  variants = variants
+                    ? { ...variants }
+                    : ({ original: url } as CloudflareImageVariantSet);
+                  if (fallback.thumb && !variants.thumb) {
+                    variants.thumb = fallback.thumb;
+                  }
+                  if (fallback.feed && !variants.feed) {
+                    variants.feed = fallback.feed;
+                  }
+                  if (fallback.full && !variants.full) {
+                    variants.full = fallback.full;
+                  }
+                  if (fallback.feed && !variants.feedSrcset) {
+                    variants.feedSrcset = null;
+                  }
+                  if (fallback.full && !variants.fullSrcset) {
+                    variants.fullSrcset = null;
                   }
                 }
               }

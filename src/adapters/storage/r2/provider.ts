@@ -187,7 +187,8 @@ class R2StorageProvider implements StorageProvider {
             AllowedOrigins: allowedOrigins,
             AllowedMethods: ["GET", "PUT", "POST"],
             AllowedHeaders: ["*"],
-            ExposeHeaders: [],
+            // Expose ETag so browsers can read it after multipart uploads.
+            ExposeHeaders: ["ETag"],
             MaxAgeSeconds: 60 * 60,
           },
         ],
