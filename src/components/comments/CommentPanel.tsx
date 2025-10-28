@@ -3,13 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
-import {
-  X,
-  Sparkle,
-  StackSimple,
-  Smiley,
-  Paperclip,
-} from "@phosphor-icons/react/dist/ssr";
+import { X, StackSimple, Smiley, Paperclip } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./comment-panel.module.css";
 import { ChatComposer, type PendingAttachment, type ComposerStatus } from "@/components/chat/ChatComposer";
@@ -19,8 +13,7 @@ import { chatCopy } from "@/components/chat/copy";
 import { formatAttachmentSize } from "@/components/chat/utils";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import { safeRandomUUID } from "@/lib/random";
-import { useComposer } from "@/components/composer/ComposerProvider";
-import type { PrompterAttachment } from "@/components/ai-prompter-stage";
+// AI composer not used in the redesigned UI
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { useCurrentUser } from "@/services/auth/client";
 import { useMemoryUploads } from "@/components/memory/use-memory-uploads";
@@ -82,47 +75,7 @@ function sanitizeAttachmentForSend(attachment: PendingAttachment): CommentAttach
   };
 }
 
-function buildPrompterAttachmentsFromPost(post: HomeFeedPost): PrompterAttachment[] {
-  const attachments: PrompterAttachment[] = [];
-  if (Array.isArray(post.attachments)) {
-    for (const attachment of post.attachments) {
-      if (!attachment || typeof attachment.url !== "string") continue;
-      const trimmedUrl = attachment.url.trim();
-      if (!trimmedUrl.length) continue;
-      attachments.push({
-        id: attachment.id ?? safeRandomUUID(),
-        name: attachment.name ?? "Attachment",
-        mimeType: attachment.mimeType ?? "application/octet-stream",
-        size:
-          typeof attachment.meta === "object" && attachment.meta && "size" in attachment.meta
-            ? Number((attachment.meta as { size?: unknown }).size) || 0
-            : 0,
-        url: trimmedUrl,
-        thumbnailUrl: attachment.thumbnailUrl ?? null,
-        storageKey: attachment.storageKey ?? null,
-        sessionId: attachment.uploadSessionId ?? null,
-        source: "upload",
-      });
-    }
-  }
-  if (typeof post.mediaUrl === "string" && post.mediaUrl.trim().length) {
-    const alreadyIncluded = attachments.some((entry) => entry.url === post.mediaUrl);
-    if (!alreadyIncluded) {
-      attachments.push({
-        id: safeRandomUUID(),
-        name: "Post media",
-        mimeType: undefined,
-        size: 0,
-        url: post.mediaUrl,
-        thumbnailUrl: null,
-        storageKey: null,
-        sessionId: null,
-        source: "upload",
-      });
-    }
-  }
-  return attachments;
-}
+// Removed attachment builder used only by the old AI compose header button.
 
 export function CommentPanel({
   post,
@@ -138,7 +91,6 @@ export function CommentPanel({
   exactTime,
 }: CommentPanelProps) {
   const { user } = useCurrentUser();
-  const composer = useComposer();
   const [portalEl, setPortalEl] = React.useState<HTMLElement | null>(null);
   const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null);
   const [draft, setDraft] = React.useState("");
@@ -608,33 +560,23 @@ export function CommentPanel({
   );
 
   const panelWidth = React.useMemo(() => {
-    if (typeof window === "undefined") return 400;
-    return Math.min(420, Math.max(320, window.innerWidth - 32));
+    if (typeof window === "undefined") return 720;
+    // Match CSS width: clamp(680px, 72vw, 960px)
+    const vwWidth = Math.round(window.innerWidth * 0.72);
+    return Math.min(960, Math.max(680, vwWidth));
   }, []);
 
   const panelPosition = React.useMemo(() => {
     if (typeof window === "undefined") {
-      return { top: 80, left: 0, width: panelWidth };
+      return { top: 48, left: 0, width: panelWidth };
     }
-    const margin = 18;
+    const margin = 24;
     const availableWidth = window.innerWidth;
     const width = Math.min(panelWidth, availableWidth - margin * 2);
-    if (!anchorRect) {
-      const left = Math.max(margin, (availableWidth - width) / 2);
-      const top = Math.max(margin, window.innerHeight - 360 - margin);
-      return { top, left, width };
-    }
-    const centerX = anchorRect.left + anchorRect.width / 2;
-    let left = centerX - width / 2;
-    if (left < margin) left = margin;
-    if (left + width > availableWidth - margin) left = availableWidth - margin - width;
-    let top = anchorRect.bottom + 12;
-    if (top > window.innerHeight - margin) {
-      top = window.innerHeight - margin;
-    }
-    if (top < margin) top = margin;
+    const left = Math.max(margin, Math.round((availableWidth - width) / 2));
+    const top = Math.max(margin, Math.round(window.innerHeight * 0.06));
     return { top, left, width };
-  }, [anchorRect, panelWidth]);
+  }, [panelWidth]);
 
   const commentList = React.useMemo(() => {
     if (!Array.isArray(thread.comments)) return [];
@@ -646,13 +588,6 @@ export function CommentPanel({
       onClose();
     }
   };
-
-  const handleAiCompose = React.useCallback(() => {
-    const attachments = buildPrompterAttachmentsFromPost(post);
-    composer
-      .submitPrompt(promptForComposer, attachments)
-      .catch((err) => console.error("AI composer prompt failed", err));
-  }, [composer, promptForComposer, post]);
 
   if (!portalEl) return null;
 
@@ -669,42 +604,52 @@ export function CommentPanel({
       >
         <header className={styles.header}>
           <div className={styles.titleGroup}>
-            <h2 className={styles.title}>Comments</h2>
-            <p className={styles.subtitle}>{commentCount === 1 ? "1 reply so far" : `${commentCount} replies so far`}</p>
+            <h2 className={styles.title}>{post.user_name?.trim() || "Post"}</h2>
+            <p className={styles.subtitle}>{commentCount === 1 ? "1 comment" : `${commentCount} comments`}</p>
           </div>
           <div className={styles.headerActions}>
             <button
               type="button"
-              className={styles.headerButton}
-              onClick={handleAiCompose}
-              aria-label="Open AI Composer"
-            >
-              <Sparkle size={16} weight="bold" />
-              <span>Ask AI</span>
-            </button>
-            <button
-              type="button"
-              className={styles.headerButton}
-              onClick={() => {
-                setMemoryPickerOpen(true);
-                setEmojiPickerOpen(false);
-              }}
-              aria-label="Browse memories"
-            >
-              <StackSimple size={16} weight="bold" />
-              <span>Memories</span>
-            </button>
-            <button
-              type="button"
               className={styles.closeButton}
               onClick={onClose}
-              aria-label="Close comments"
+              aria-label="Close"
             >
               <X size={16} weight="bold" />
             </button>
           </div>
         </header>
         <div className={styles.commentScroll}>
+          {(post.mediaUrl || (post.content && post.content.trim().length)) ? (
+            <div className={styles.postPreview}>
+              {post.mediaUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className={styles.postMedia} src={post.mediaUrl} alt="Post media" />
+              ) : null}
+              {post.content && post.content.trim().length ? (
+                <p className={styles.postText}>{post.content.trim()}</p>
+              ) : null}
+            </div>
+          ) : null}
+          {(() => {
+            const likeCount = typeof post.likes === "number" ? Math.max(0, post.likes) : 0;
+            const baseCommentCount = typeof post.comments === "number" ? Math.max(0, post.comments) : 0;
+            const shareCount = typeof post.shares === "number" ? Math.max(0, post.shares) : 0;
+            const totalComments = Math.max(commentCount, baseCommentCount);
+            return (
+              <div className={styles.engagementBar}>
+                <div className={styles.engagementCounts}>
+                  <span>{likeCount} Likes</span>
+                  <span>{totalComments} Comments</span>
+                  <span>{shareCount} Shares</span>
+                </div>
+                <div className={styles.engagementActions}>
+                  <button type="button" className={styles.engageBtn}>Like</button>
+                  <button type="button" className={styles.engageBtn}>Comment</button>
+                  <button type="button" className={styles.engageBtn}>Share</button>
+                </div>
+              </div>
+            );
+          })()}
           {thread.status === "loading" && !commentList.length ? (
             <p className={styles.loadingState}>Loading comments…</p>
           ) : null}
