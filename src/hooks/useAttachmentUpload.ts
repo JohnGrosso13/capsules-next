@@ -3,7 +3,7 @@
 import * as React from "react";
 import { safeRandomUUID } from "@/lib/random";
 
-import { uploadFileDirect } from "@/lib/uploads/direct-client";
+import { uploadFileDirect, type DirectUploadProgressEvent } from "@/lib/uploads/direct-client";
 
 const DEFAULT_MAX_SIZE = 50 * 1024 * 1024 * 1024; // 50 GB
 const BASE64_FALLBACK_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -25,6 +25,7 @@ export type LocalAttachment = {
   role: AttachmentRole;
   source?: "upload" | "memory" | "user" | "ai";
   originalFile?: File | null;
+  phase?: "uploading" | "finalizing" | "completed";
 };
 
 type DirectUploadResult = Awaited<ReturnType<typeof uploadFileDirect>>;
@@ -244,6 +245,7 @@ function createErrorAttachment(
     role: "reference",
     source: "upload",
     originalFile: file,
+    phase: "uploading",
   };
 }
 
@@ -318,11 +320,33 @@ function useAttachmentProcessor(
         role: "reference",
         source: "upload",
         originalFile: file,
+        phase: "uploading",
       });
 
       try {
-        const result = await uploadWithFallback(file, mimeType, id, setAttachment, options, controller.signal);
-        const thumbUrl = await maybeCaptureAndUploadThumb(file, mimeType, controller.signal);
+        const result = await uploadWithFallback(
+          file,
+          mimeType,
+          id,
+          setAttachment,
+          options,
+          controller.signal,
+        );
+
+        if (mimeType.startsWith("video/")) {
+          void maybeCaptureAndUploadThumb(file, mimeType, controller.signal)
+            .then((thumbUrl) => {
+              if (!thumbUrl) return;
+              setAttachment((prev) =>
+                prev && prev.id === id && prev.status === "ready"
+                  ? { ...prev, thumbUrl: thumbUrl ?? prev.thumbUrl ?? null }
+                  : prev,
+              );
+            })
+            .catch(() => {
+              // Errors are already logged inside maybeCaptureAndUploadThumb.
+            });
+        }
 
         setAttachment((prev) =>
           prev && prev.id === id
@@ -330,11 +354,12 @@ function useAttachmentProcessor(
                 ...prev,
                 status: "ready",
                 url: result.url,
-                thumbUrl: thumbUrl ?? prev.thumbUrl ?? null,
                 progress: 1,
                 key: result.key,
                 sessionId: result.sessionId,
+                thumbUrl: prev.thumbUrl ?? null,
                 originalFile: null,
+                phase: "completed",
               }
             : prev,
         );
@@ -352,7 +377,14 @@ function useAttachmentProcessor(
         const message = error instanceof Error ? error.message : "Upload failed";
         setAttachment((prev) =>
           prev && prev.id === id
-            ? { ...prev, status: "error", url: null, error: message, progress: 0 }
+            ? {
+                ...prev,
+                status: "error",
+                url: null,
+                error: message,
+                progress: 0,
+                phase: prev.phase === "completed" ? "completed" : "uploading",
+              }
             : prev,
         );
         if (uploadAbortRef.current === controller) {
@@ -369,10 +401,31 @@ function updateUploadProgress(
   id: string,
   uploadedBytes: number,
   totalBytes: number,
+  phase?: DirectUploadProgressEvent["phase"],
 ) {
   setAttachment((prev) =>
     prev && prev.id === id
-      ? { ...prev, progress: totalBytes ? uploadedBytes / totalBytes : 0 }
+      ? {
+          ...prev,
+          progress: (() => {
+            const base = totalBytes ? uploadedBytes / totalBytes : 0;
+            if (phase === "completed") {
+              return 1;
+            }
+            if (phase === "finalizing" || phase === "retrying") {
+              const floor = prev.progress > 0.95 ? prev.progress : 0.95;
+              const clamped = Math.max(base, floor);
+              return Math.min(clamped, 0.999);
+            }
+            return Math.max(0, Math.min(1, base));
+          })(),
+          phase:
+            phase === "completed"
+              ? "completed"
+              : phase === "finalizing" || phase === "retrying"
+                ? "finalizing"
+                : prev.phase ?? "uploading",
+        }
       : prev,
   );
 }
@@ -454,8 +507,8 @@ async function uploadWithFallback(
     const uploadOptions: Parameters<typeof uploadFileDirect>[1] = {
       kind: uploadKind,
       metadata,
-      onProgress: ({ uploadedBytes, totalBytes }) => {
-        updateUploadProgress(setAttachment, id, uploadedBytes, totalBytes);
+      onProgress: ({ uploadedBytes, totalBytes, phase }) => {
+        updateUploadProgress(setAttachment, id, uploadedBytes, totalBytes, phase);
       },
     };
     if (signal) {
@@ -655,6 +708,7 @@ export function useAttachmentUpload(
         role: "reference",
         source: "memory",
         originalFile: null,
+        phase: "uploading",
       });
 
       if (typeof window === "undefined") {
@@ -666,6 +720,7 @@ export function useAttachmentUpload(
                 url: trimmedUrl,
                 progress: 1,
                 mimeType: resolvedMime,
+                phase: "completed",
               }
             : previous,
         );
@@ -680,7 +735,11 @@ export function useAttachmentUpload(
       schedule(() => {
         setAttachment((previous) =>
           previous && previous.id === generatedId
-            ? { ...previous, progress: Math.max(previous.progress, 0.42) }
+            ? {
+                ...previous,
+                progress: Math.max(previous.progress, 0.42),
+                phase: previous.phase === "completed" ? previous.phase : "uploading",
+              }
             : previous,
         );
       }, 220);
@@ -688,7 +747,11 @@ export function useAttachmentUpload(
       schedule(() => {
         setAttachment((previous) =>
           previous && previous.id === generatedId
-            ? { ...previous, progress: Math.max(previous.progress, 0.76) }
+            ? {
+                ...previous,
+                progress: Math.max(previous.progress, 0.76),
+                phase: previous.phase === "completed" ? previous.phase : "uploading",
+              }
             : previous,
         );
       }, 420);
@@ -707,6 +770,7 @@ export function useAttachmentUpload(
                   typeof options.size === "number" && options.size > 0
                     ? options.size
                     : previous.size,
+                phase: "completed",
               }
             : previous,
         );

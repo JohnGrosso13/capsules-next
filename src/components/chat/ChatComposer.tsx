@@ -272,7 +272,9 @@ export function ChatComposer({
                 <span className={styles.composerAttachmentName}>{uploadingAttachment.name}</span>
                 <span className={styles.composerAttachmentMeta}>
                   {uploadingAttachment.status === "uploading"
-                    ? `Uploading ${Math.round(attachmentProgress * 100)}%`
+                    ? uploadingAttachment.phase === "finalizing"
+                      ? "Finishing upload..."
+                      : `Uploading ${Math.round(attachmentProgress * 100)}%`
                     : formatAttachmentSize(uploadingAttachment.size)}
                 </span>
               </div>

@@ -1117,7 +1117,7 @@ export function HomeFeedList({
           });
         };
 
-        if (media) {
+        if (media && !attachmentsList.length) {
           const inferred = inferAttachmentKind(null, media) === "video" ? "video" : "image";
           const absoluteMedia = resolveToAbsoluteUrl(media) ?? media;
           const variants =

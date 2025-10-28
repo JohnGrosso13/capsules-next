@@ -42,7 +42,11 @@ export function AttachmentPanel({
             <div
               className={styles.attachmentLoading}
               role="progressbar"
-              aria-label={`Uploading ${progressPct}%`}
+              aria-label={
+                attachment.phase === "finalizing"
+                  ? "Finishing upload"
+                  : `Uploading ${progressPct}%`
+              }
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={progressPct}
@@ -53,7 +57,7 @@ export function AttachmentPanel({
                   <Brain className={styles.brainFillLarge} size={56} weight="fill" />
                 </div>
               </div>
-              <span className={styles.attachmentLoadingLabel}>{statusLabel ?? "Uploading..."}</span>
+              <span className={styles.attachmentLoadingLabel}>{statusLabel ?? (attachment.phase === "finalizing" ? "Finishing upload..." : "Uploading...")}</span>
             </div>
           ) : null}
 

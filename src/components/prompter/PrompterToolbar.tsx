@@ -229,13 +229,21 @@ export function PrompterToolbar({
                       {att.name}
                     </span>
                   )}
-                <span className={att.status === "error" ? styles.attachmentStatusError : styles.attachmentStatus}>
-                  {att.status === "uploading"
-                    ? `Uploading ${Math.round(Math.min(Math.max(att.progress ?? 0, 0), 1) * 100)}%`
-                    : att.status === "error"
-                      ? att.error ?? "Upload failed"
-                      : "Attached"}
-                </span>
+                  <span className={att.status === "error" ? styles.attachmentStatusError : styles.attachmentStatus}>
+                    {(() => {
+                      if (att.status === "error") {
+                        return att.error ?? "Upload failed";
+                      }
+                      if (att.status === "uploading") {
+                        if (att.phase === "finalizing") {
+                          return "Finishing upload...";
+                        }
+                        const pct = Math.round(Math.min(Math.max(att.progress ?? 0, 0), 1) * 100);
+                        return `Uploading ${pct}%`;
+                      }
+                      return "Attached";
+                    })()}
+                  </span>
                   {att.status === "error" ? (
                     <span className={styles.attachmentActions}>
                       {att.originalFile && onRetryAttachment ? (

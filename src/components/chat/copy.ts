@@ -6,6 +6,7 @@ export const chatCopy = {
     dropHint: "Drop file to attach",
     uploading: ((name: string, progress: number) =>
       `Uploading "${name}" (${progress}%)`) as UploadingFormatter,
+    finishing: (name: string) => `Finishing upload "${name}"...`,
     attachmentsReady: ((count: number) =>
       count === 1 ? "Attachment ready to send" : `${count} attachments ready`) as AttachmentReadyFormatter,
   },

@@ -50,7 +50,9 @@ export function AttachmentControls({
         >
           <span className={styles.attachmentName}>{attachment.name}</span>
           {attachment.status === "uploading" ? (
-            <span className={styles.attachmentStatus}>Uploading...</span>
+            <span className={styles.attachmentStatus}>
+              {attachment.phase === "finalizing" ? "Finishing upload..." : "Uploading..."}
+            </span>
           ) : attachment.status === "error" ? (
             <span className={styles.attachmentStatusError}>
               {attachment.error ?? "Upload failed"}

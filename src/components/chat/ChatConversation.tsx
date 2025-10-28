@@ -1165,6 +1165,12 @@ export function ChatConversation({
   const composerStatus: ComposerStatus | null = React.useMemo(() => {
     if (attachmentError) return null;
     if (uploadingAttachment) {
+      if (uploadingAttachment.phase === "finalizing") {
+        return {
+          variant: "uploading" as const,
+          text: chatCopy.composer.finishing(uploadingAttachment.name),
+        };
+      }
       const percent = Math.max(0, Math.min(100, Math.round(attachmentProgress * 100)));
       return {
         variant: "uploading" as const,
@@ -1178,7 +1184,13 @@ export function ChatConversation({
       };
     }
     return null;
-  }, [attachmentError, attachmentProgress, hasQueuedAttachments, queuedAttachments.length, uploadingAttachment]);
+  }, [
+    attachmentError,
+    attachmentProgress,
+    hasQueuedAttachments,
+    queuedAttachments.length,
+    uploadingAttachment,
+  ]);
   const trimmedDraft = React.useMemo(() => draft.replace(/\s+/g, " ").trim(), [draft]);
   const hasTypedContent = trimmedDraft.length > 0;
   const hasAttachmentBlock =

@@ -927,6 +927,9 @@ export function ComposerForm({
   const attachmentStatusLabel = React.useMemo(() => {
     if (!displayAttachment) return null;
     if (displayAttachment.status === "uploading") {
+      if (displayAttachment.phase === "finalizing") {
+        return "Finishing upload...";
+      }
       const pct = Math.round((displayAttachment.progress ?? 0) * 100);
       return pct > 0 ? `Uploading ${pct}%` : "Uploading...";
     }

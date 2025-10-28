@@ -697,6 +697,9 @@ export function AiPrompterStage({
       ? Math.round(Math.min(Math.max(attachment.progress, 0), 1) * 100)
       : null;
     const safeName = truncate(attachment.name || "attachment", 36);
+    if (attachment.phase === "finalizing") {
+      return `Finishing upload "${safeName}"...`;
+    }
     const progressLabel = percent !== null ? ` (${percent}%)` : "";
     return `Uploading ${safeName}${progressLabel}`;
   }, [attachmentUploading, attachment]);
