@@ -120,6 +120,7 @@ export type CapsuleLadderSummary = {
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
+  meta: Record<string, unknown> | null;
 };
 
 export type CapsuleLadderDetail = CapsuleLadderSummary & {

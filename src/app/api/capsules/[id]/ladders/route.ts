@@ -32,6 +32,7 @@ const ladderSummarySchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   publishedAt: z.string().nullable(),
+  meta: jsonValueSchema.nullable(),
 });
 
 const ladderDetailSchema = ladderSummarySchema.extend({
@@ -39,7 +40,6 @@ const ladderDetailSchema = ladderSummarySchema.extend({
   config: jsonValueSchema,
   sections: jsonValueSchema,
   aiPlan: jsonValueSchema.nullable(),
-  meta: jsonValueSchema.nullable(),
 });
 
 const ladderMemberSchema = z.object({

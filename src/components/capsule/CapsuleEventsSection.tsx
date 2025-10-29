@@ -10,6 +10,7 @@ import styles from "./CapsuleEventsSection.module.css";
 type CapsuleEventsSectionProps = {
   capsuleId: string | null;
   ladders: CapsuleLadderSummary[];
+  tournaments: CapsuleLadderSummary[];
   loading: boolean;
   error: string | null;
   onRetry: () => void;
@@ -32,6 +33,7 @@ function statusTone(status: CapsuleLadderSummary["status"]): StatusTone {
 export function CapsuleEventsSection({
   capsuleId,
   ladders,
+  tournaments,
   loading,
   error,
   onRetry,
@@ -58,23 +60,39 @@ export function CapsuleEventsSection({
     );
   }
 
-  if (!ladders.length) {
-    const href = capsuleId ? `/create/ladders?capsuleId=${capsuleId}` : "/create/ladders";
+  if (!ladders.length && !tournaments.length) {
+    const baseHref = "/create/ladders";
+    const ladderHref = capsuleId ? `${baseHref}?capsuleId=${capsuleId}` : baseHref;
+    const tournamentHref = capsuleId
+      ? `${baseHref}?capsuleId=${capsuleId}&variant=tournament`
+      : `${baseHref}?variant=tournament`;
     return (
       <div className={styles.stateCard}>
-        <div className={styles.stateHeading}>No ladders yet</div>
+        <div className={styles.stateHeading}>No ladders or tournaments yet</div>
         <p className={styles.stateBody}>
-          {"Launch an AI-powered ladder to activate your community. We'll surface it here once it's published."}
+          {
+            "Spin up a ladder or bracketed tournament with Capsule AI. We'll surface active events here so members can join and follow along."
+          }
         </p>
-        <Button asChild>
-          <Link href={href}>Create a ladder</Link>
-        </Button>
+        <div className={styles.emptyActions}>
+          <Button asChild>
+            <Link href={ladderHref}>Create a ladder</Link>
+          </Button>
+          <Button asChild variant="secondary">
+            <Link href={tournamentHref}>Launch a tournament</Link>
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className={styles.listWrap}>
+      {ladders.length ? (
+        <section className={styles.sectionGroup}>
+          <div className={styles.sectionHeading}>
+            Ladders <span>{ladders.length}</span>
+          </div>
       {ladders.map((ladder) => {
         const updatedLabel = ladder.updatedAt
           ? formatRelativeTime(ladder.updatedAt)
@@ -103,7 +121,70 @@ export function CapsuleEventsSection({
           </article>
         );
       })}
+        </section>
+      ) : null}
+
+      {tournaments.length ? (
+        <section className={styles.sectionGroup}>
+          <div className={styles.sectionHeading}>
+            Tournaments <span>{tournaments.length}</span>
+          </div>
+          {tournaments.map((tournament) => {
+            const updatedLabel = tournament.updatedAt
+              ? formatRelativeTime(tournament.updatedAt)
+              : formatRelativeTime(tournament.createdAt);
+            const manageHref = `/create/ladders?capsuleId=${tournament.capsuleId ?? capsuleId ?? ""}&variant=tournament&focus=${tournament.id}`;
+            const tournamentMeta =
+              tournament.meta && typeof tournament.meta === "object"
+                ? (tournament.meta as Record<string, unknown>)
+                : {};
+            const formatRaw =
+              typeof tournamentMeta.formatLabel === "string"
+                ? tournamentMeta.formatLabel
+                : typeof tournamentMeta.format === "string"
+                  ? tournamentMeta.format
+                  : null;
+            const formatLabel = formatRaw ? formatRaw.replace(/_/g, " ") : "Bracket";
+            const scheduleInfo =
+              tournamentMeta.schedule && typeof tournamentMeta.schedule === "object"
+                ? (tournamentMeta.schedule as Record<string, unknown>)
+                : null;
+            const startsAt =
+              typeof tournamentMeta.startsAt === "string"
+                ? tournamentMeta.startsAt
+                : scheduleInfo && typeof scheduleInfo["start"] === "string"
+                  ? (scheduleInfo["start"] as string)
+                  : null;
+            return (
+              <article key={tournament.id} className={styles.ladderCard}>
+                <header className={styles.cardHeader}>
+                  <div className={styles.cardTitleRow}>
+                    <h3 className={styles.cardTitle}>{tournament.name}</h3>
+                    <span className={`${styles.statusBadge} ${styles[`tone${statusTone(tournament.status)}`]}`}>
+                      {formatStatus(tournament.status)}
+                    </span>
+                    <span className={styles.tagBadge}>{formatLabel}</span>
+                  </div>
+                  <div className={styles.cardMeta}>
+                    <span>
+                      Visibility: {tournament.visibility === "capsule" ? "Capsule" : tournament.visibility}
+                    </span>
+                    <span>
+                      {startsAt ? `Starts ${startsAt}` : `Updated ${updatedLabel}`}
+                    </span>
+                  </div>
+                </header>
+                {tournament.summary ? <p className={styles.cardSummary}>{tournament.summary}</p> : null}
+                <footer className={styles.cardFooter}>
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href={manageHref}>Manage tournament</Link>
+                  </Button>
+                </footer>
+              </article>
+            );
+          })}
+        </section>
+      ) : null}
     </div>
   );
 }
-

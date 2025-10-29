@@ -105,6 +105,7 @@ export function CapsuleContent({
   } = useCapsuleLibrary(capsuleId);
   const {
     ladders: capsuleLadders,
+    tournaments: capsuleTournaments,
     loading: laddersLoading,
     error: laddersError,
     refresh: refreshLadders,
@@ -489,6 +490,7 @@ export function CapsuleContent({
                 <CapsuleEventsSection
                   capsuleId={capsuleId ?? null}
                   ladders={capsuleLadders}
+                  tournaments={capsuleTournaments}
                   loading={laddersLoading}
                   error={laddersError}
                   onRetry={refreshLadders}

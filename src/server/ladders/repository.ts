@@ -305,6 +305,7 @@ function mapLadderSummaryRow(row: LadderRow | null): CapsuleLadderSummary | null
     createdAt,
     updatedAt,
     publishedAt: normalizeTimestamp(row.published_at),
+    meta: parseJsonNullable<Record<string, unknown>>(row.meta),
   };
 }
 

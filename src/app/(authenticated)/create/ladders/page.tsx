@@ -4,15 +4,15 @@ import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
 import { AppPage } from "@/components/app-page";
-import { LadderBuilder } from "@/components/create/ladders/LadderBuilder";
+import { CompetitiveStudioLayout } from "@/components/create/competitive/CompetitiveStudioLayout";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
 import { deriveRequestOrigin } from "@/lib/url";
 import { resolveCapsuleGate, getCapsuleSummaryForViewer } from "@/server/capsules/service";
 
 export const metadata: Metadata = {
-  title: "AI Ladder Builder - Capsules",
+  title: "Ladders & Tournaments - Capsules",
   description:
-    "Design an AI-assisted gaming ladder with automated rules, ELO scoring, and Capsule-ready sections.",
+    "Build ladders and tournament brackets with Capsule AI handling copy, schedules, and community updates.",
 };
 
 type LadderCreateSearchParams = Record<string, string | string[] | undefined>;
@@ -92,9 +92,24 @@ export default async function LadderCreatePage({
       ? requestedCapsuleId
       : null;
 
+  const variantParam = resolvedSearchParams.variant;
+  const requestedVariant = Array.isArray(variantParam)
+    ? variantParam[0] ?? null
+    : typeof variantParam === "string"
+      ? variantParam
+      : null;
+  const initialTab: "ladders" | "tournaments" =
+    requestedVariant && requestedVariant.toLowerCase() === "tournament"
+      ? "tournaments"
+      : "ladders";
+
   return (
     <AppPage activeNav="create" showPrompter={false} showDiscoveryRightRail={false}>
-      <LadderBuilder capsules={dedupedCapsules} initialCapsuleId={initialCapsuleId} />
+      <CompetitiveStudioLayout
+        capsules={dedupedCapsules}
+        initialCapsuleId={initialCapsuleId}
+        initialTab={initialTab}
+      />
     </AppPage>
   );
 }
