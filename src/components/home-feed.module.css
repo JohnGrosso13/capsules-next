@@ -500,7 +500,8 @@
   }
 
   .mediaWrapper[data-kind="video"] .media {
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center;
     background: #000;
   }
 

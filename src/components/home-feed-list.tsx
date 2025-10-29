@@ -2321,6 +2321,56 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
     () => looksLikeHlsSource(videoItem.mimeType, videoUrl),
     [videoItem.mimeType, videoUrl],
   );
+  const { aspectRatio, orientation } = React.useMemo(() => {
+    const isValidDimension = (value: number | null | undefined): value is number =>
+      typeof value === "number" && Number.isFinite(value) && value > 0;
+    const width = isValidDimension(videoItem.width) ? videoItem.width : null;
+    const height = isValidDimension(videoItem.height) ? videoItem.height : null;
+    const rawRatio = isValidDimension(videoItem.aspectRatio)
+      ? videoItem.aspectRatio
+      : width && height
+        ? width / height
+        : null;
+    const normalizedRatio = rawRatio && rawRatio > 0 ? rawRatio : null;
+    const orientation =
+      normalizedRatio && normalizedRatio > 0
+        ? normalizedRatio > 1.05
+          ? "landscape"
+          : normalizedRatio < 0.95
+            ? "portrait"
+            : "square"
+        : null;
+    return { aspectRatio: normalizedRatio, orientation };
+  }, [videoItem.aspectRatio, videoItem.height, videoItem.width]);
+  const containerStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    if (!aspectRatio) return undefined;
+    if (orientation === "portrait") {
+      return {
+        aspectRatio,
+        minHeight: "clamp(320px, 52vh, 820px)",
+        maxHeight: "min(92vh, 1040px)",
+      };
+    }
+    if (orientation === "landscape") {
+      return {
+        aspectRatio,
+        minHeight: "clamp(220px, 42vh, 620px)",
+        maxHeight: "min(78vh, 880px)",
+      };
+    }
+    return {
+      aspectRatio,
+      minHeight: "clamp(260px, 48vh, 720px)",
+      maxHeight: "min(86vh, 960px)",
+    };
+  }, [aspectRatio, orientation]);
+  const videoStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      objectFit: "contain",
+      objectPosition: "center",
+    }),
+    [],
+  );
 
   React.useEffect(() => {
     const node = videoRef.current;
@@ -2499,9 +2549,11 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
       ref={containerRef}
       className={styles.mediaWrapper}
       data-kind="video"
+      data-orientation={orientation ?? undefined}
       data-playing={isPlaying ? "true" : undefined}
       onMouseEnter={playVideo}
       onFocus={playVideo}
+      style={containerStyle}
     >
       <video
         ref={videoRef}
@@ -2519,6 +2571,7 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
         onPause={handlePause}
         onEnded={() => pauseVideo(true, true)}
         onPointerDown={handlePointerDown}
+        style={videoStyle}
       >
         {!isHlsSource ? (
           <source src={videoUrl} type={videoItem.mimeType ?? undefined} />
