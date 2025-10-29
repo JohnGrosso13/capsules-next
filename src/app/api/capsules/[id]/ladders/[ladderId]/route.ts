@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { NextRequest } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
@@ -8,6 +9,14 @@ import {
   getCapsuleLadderForViewer,
   updateCapsuleLadder,
 } from "@/server/ladders/service";
+import type { UpdateCapsuleLadderInput } from "@/server/ladders/service";
+import type {
+  CapsuleLadderMemberInput,
+  LadderAiPlan,
+  LadderConfig,
+  LadderGameConfig,
+  LadderSections,
+} from "@/types/ladders";
 
 const jsonValueSchema = z.any();
 
@@ -62,13 +71,13 @@ const updateResponseSchema = z.object({
 const ladderMemberInputSchema = z.object({
   displayName: z.string().min(1).max(80),
   handle: z.string().max(40).nullable().optional(),
-  seed: z.number().int().min(1).max(999).optional(),
-  rank: z.number().int().min(1).max(999).optional(),
-  rating: z.number().int().min(100).max(4000).optional(),
-  wins: z.number().int().min(0).max(500).optional(),
-  losses: z.number().int().min(0).max(500).optional(),
-  draws: z.number().int().min(0).max(500).optional(),
-  streak: z.number().int().min(-20).max(20).optional(),
+  seed: z.number().int().min(1).max(999).nullable().optional(),
+  rank: z.number().int().min(1).max(999).nullable().optional(),
+  rating: z.number().int().min(100).max(4000).nullable().optional(),
+  wins: z.number().int().min(0).max(500).nullable().optional(),
+  losses: z.number().int().min(0).max(500).nullable().optional(),
+  draws: z.number().int().min(0).max(500).nullable().optional(),
+  streak: z.number().int().min(-20).max(20).nullable().optional(),
   metadata: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
 });
 
@@ -93,10 +102,61 @@ const updateRequestSchema = z.object({
   members: z.array(ladderMemberInputSchema).max(32).optional(),
 });
 
+type UpdateRequestPayload = z.infer<typeof updateRequestSchema>;
+
+type RawMemberPayload = z.infer<typeof ladderMemberInputSchema>;
+
+function normalizeMemberInput(member: RawMemberPayload): CapsuleLadderMemberInput {
+  const normalized: CapsuleLadderMemberInput = {
+    displayName: member.displayName,
+  };
+  if (member.handle !== undefined) normalized.handle = member.handle;
+  if (member.seed !== undefined) normalized.seed = member.seed;
+  if (member.rank !== undefined) normalized.rank = member.rank;
+  if (member.rating !== undefined) normalized.rating = member.rating;
+  if (member.wins !== undefined) normalized.wins = member.wins;
+  if (member.losses !== undefined) normalized.losses = member.losses;
+  if (member.draws !== undefined) normalized.draws = member.draws;
+  if (member.streak !== undefined) normalized.streak = member.streak;
+  if (member.metadata !== undefined) normalized.metadata = member.metadata ?? null;
+  return normalized;
+}
+
+function buildUpdateInput(data: UpdateRequestPayload): UpdateCapsuleLadderInput {
+  const input: UpdateCapsuleLadderInput = {};
+  if (data.name !== undefined) input.name = data.name;
+  if (data.summary !== undefined) input.summary = data.summary;
+  if (data.visibility !== undefined) input.visibility = data.visibility;
+  if (data.status !== undefined) input.status = data.status;
+  if (data.slug !== undefined) input.slug = data.slug;
+  if (data.game !== undefined) {
+    input.game = (data.game ?? null) as LadderGameConfig | null;
+  }
+  if (data.config !== undefined) {
+    input.config = (data.config ?? null) as LadderConfig | null;
+  }
+  if (data.sections !== undefined) {
+    input.sections = (data.sections ?? null) as LadderSections | null;
+  }
+  if (data.aiPlan !== undefined) {
+    input.aiPlan = (data.aiPlan ?? null) as LadderAiPlan | null;
+  }
+  if (data.meta !== undefined) {
+    input.meta = data.meta ?? null;
+  }
+  if (data.publish !== undefined) input.publish = data.publish;
+  if (data.archive !== undefined) input.archive = data.archive;
+  if (data.members !== undefined) {
+    input.members = data.members.map(normalizeMemberInput);
+  }
+  return input;
+}
+
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string; ladderId: string } },
+  req: NextRequest,
+  context: { params: Promise<{ id: string; ladderId: string }> },
 ) {
+  const params = await context.params;
   const viewerId = await ensureUserFromRequest(req, {}, { allowGuests: true });
 
   const url = new URL(req.url);
@@ -121,9 +181,10 @@ export async function GET(
 }
 
 export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string; ladderId: string } },
+  req: NextRequest,
+  context: { params: Promise<{ id: string; ladderId: string }> },
 ) {
+  const params = await context.params;
   const actorId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!actorId) {
     return returnError(401, "auth_required", "Sign in to update this ladder.");
@@ -135,17 +196,18 @@ export async function PATCH(
   }
 
   try {
-    const result = await updateCapsuleLadder(actorId, params.ladderId, parsed.data);
+    const updateInput = buildUpdateInput(parsed.data);
+    const result = await updateCapsuleLadder(actorId, params.ladderId, updateInput);
     if (!result.ladder) {
       return returnError(404, "ladder_not_found", "Ladder not found.");
     }
-    return validatedJson(updateResponseSchema, {
+    const payload: { ladder: typeof result.ladder; members?: typeof result.members } = {
       ladder: result.ladder,
-      members:
-        parsed.data.members !== undefined
-          ? result.members ?? []
-          : undefined,
-    });
+    };
+    if (parsed.data.members !== undefined) {
+      payload.members = result.members ?? [];
+    }
+    return validatedJson(updateResponseSchema, payload);
   } catch (error) {
     if (error instanceof CapsuleLadderAccessError) {
       return returnError(error.status, error.code, error.message);
@@ -156,9 +218,10 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string; ladderId: string } },
+  req: NextRequest,
+  context: { params: Promise<{ id: string; ladderId: string }> },
 ) {
+  const params = await context.params;
   const actorId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!actorId) {
     return returnError(401, "auth_required", "Sign in to remove this ladder.");

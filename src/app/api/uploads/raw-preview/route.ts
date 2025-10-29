@@ -100,10 +100,11 @@ export async function GET(request: Request): Promise<Response> {
     headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     headers.set("X-Raw-Preview-Size", size);
 
-    return new Response(output, { status: 200, headers });
+    const body = new Uint8Array(output);
+
+    return new Response(body, { status: 200, headers });
   } catch (error) {
     console.error("raw preview transform failed", error);
     return new Response("Preview unavailable", { status: 500 });
   }
 }
-

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { NextRequest } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
@@ -7,6 +8,14 @@ import {
   createCapsuleLadder,
   listCapsuleLaddersForViewer,
 } from "@/server/ladders/service";
+import type { CreateCapsuleLadderInput } from "@/server/ladders/service";
+import type {
+  CapsuleLadderMemberInput,
+  LadderAiPlan,
+  LadderConfig,
+  LadderGameConfig,
+  LadderSections,
+} from "@/types/ladders";
 
 const jsonValueSchema = z.any();
 
@@ -68,13 +77,13 @@ const jsonObjectSchema = z
 const ladderMemberInputSchema = z.object({
   displayName: z.string().min(1).max(80),
   handle: z.string().max(40).nullable().optional(),
-  seed: z.number().int().min(1).max(999).optional(),
-  rank: z.number().int().min(1).max(999).optional(),
-  rating: z.number().int().min(100).max(4000).optional(),
-  wins: z.number().int().min(0).max(500).optional(),
-  losses: z.number().int().min(0).max(500).optional(),
-  draws: z.number().int().min(0).max(500).optional(),
-  streak: z.number().int().min(-20).max(20).optional(),
+  seed: z.number().int().min(1).max(999).nullable().optional(),
+  rank: z.number().int().min(1).max(999).nullable().optional(),
+  rating: z.number().int().min(100).max(4000).nullable().optional(),
+  wins: z.number().int().min(0).max(500).nullable().optional(),
+  losses: z.number().int().min(0).max(500).nullable().optional(),
+  draws: z.number().int().min(0).max(500).nullable().optional(),
+  streak: z.number().int().min(-20).max(20).nullable().optional(),
   metadata: jsonObjectSchema,
 });
 
@@ -92,10 +101,48 @@ const createRequestSchema = z.object({
   publish: z.boolean().optional(),
 });
 
+type CreateRequestPayload = z.infer<typeof createRequestSchema>;
+
+type RawMemberPayload = z.infer<typeof ladderMemberInputSchema>;
+
+function normalizeMemberInput(member: RawMemberPayload): CapsuleLadderMemberInput {
+  const normalized: CapsuleLadderMemberInput = {
+    displayName: member.displayName,
+  };
+  if (member.handle !== undefined) normalized.handle = member.handle;
+  if (member.seed !== undefined) normalized.seed = member.seed;
+  if (member.rank !== undefined) normalized.rank = member.rank;
+  if (member.rating !== undefined) normalized.rating = member.rating;
+  if (member.wins !== undefined) normalized.wins = member.wins;
+  if (member.losses !== undefined) normalized.losses = member.losses;
+  if (member.draws !== undefined) normalized.draws = member.draws;
+  if (member.streak !== undefined) normalized.streak = member.streak;
+  if (member.metadata !== undefined) normalized.metadata = member.metadata ?? null;
+  return normalized;
+}
+
+function buildCreateInput(capsuleId: string, data: CreateRequestPayload): CreateCapsuleLadderInput {
+  const input: CreateCapsuleLadderInput = {
+    capsuleId,
+    name: data.name,
+  };
+  if (data.summary !== undefined) input.summary = data.summary;
+  if (data.visibility !== undefined) input.visibility = data.visibility;
+  if (data.status !== undefined) input.status = data.status;
+  input.game = (data.game ?? null) as LadderGameConfig | null;
+  input.config = (data.config ?? null) as LadderConfig | null;
+  input.sections = (data.sections ?? null) as LadderSections | null;
+  input.aiPlan = (data.aiPlan ?? null) as LadderAiPlan | null;
+  input.meta = data.meta ?? null;
+  if (data.publish !== undefined) input.publish = data.publish;
+  return input;
+}
+
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } },
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
+  const params = await context.params;
   const viewerId = await ensureUserFromRequest(req, {}, { allowGuests: true });
 
   try {
@@ -111,9 +158,10 @@ export async function GET(
 }
 
 export async function POST(
-  req: Request,
-  { params }: { params: { id: string } },
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
+  const params = await context.params;
   const actorId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!actorId) {
     return returnError(401, "auth_required", "Sign in to create a ladder.");
@@ -124,23 +172,12 @@ export async function POST(
     return parsed.response;
   }
 
-  const members = parsed.data.members ?? [];
+  const members = (parsed.data.members ?? []).map(normalizeMemberInput);
 
   try {
-    const { ladder, members: storedMembers } = await createCapsuleLadder(actorId, {
-      capsuleId: params.id,
-      name: parsed.data.name,
-      summary: parsed.data.summary ?? null,
-      visibility: parsed.data.visibility,
-      status: parsed.data.status,
-      game: (parsed.data.game ?? undefined) as Record<string, unknown> | null,
-      config: (parsed.data.config ?? undefined) as Record<string, unknown> | null,
-      sections: (parsed.data.sections ?? undefined) as Record<string, unknown> | null,
-      aiPlan: (parsed.data.aiPlan ?? undefined) as Record<string, unknown> | null,
-      meta: (parsed.data.meta ?? undefined) as Record<string, unknown> | null,
-      members,
-      publish: parsed.data.publish ?? false,
-    });
+    const createInput = buildCreateInput(params.id, parsed.data);
+    createInput.members = members;
+    const { ladder, members: storedMembers } = await createCapsuleLadder(actorId, createInput);
 
     return validatedJson(createResponseSchema, { ladder, members: storedMembers }, { status: 201 });
   } catch (error) {

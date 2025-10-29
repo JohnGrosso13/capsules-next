@@ -15,8 +15,12 @@ import type {
   CapsuleLadderMemberInput,
   CapsuleLadderSummary,
   LadderAiPlan,
+  LadderAiSuggestion,
   LadderConfig,
   LadderGameConfig,
+  LadderRegistrationConfig,
+  LadderScheduleConfig,
+  LadderScoringConfig,
   LadderSectionBlock,
   LadderSections,
   LadderStatus,
@@ -502,12 +506,15 @@ function sanitizeSectionBlock(raw: unknown, fallbackTitle: string): LadderSectio
   const body = sanitizeText(source.body, 1200, null);
   const bullets =
     sanitizeStringList(source.bulletPoints ?? source.bullets ?? source.highlights, 160, 6);
-  return {
+  const block: LadderSectionBlock = {
     id: generateSectionId(title),
     title,
     body,
-    bulletPoints: bullets.length ? bullets : undefined,
   };
+  if (bullets.length) {
+    block.bulletPoints = bullets;
+  }
+  return block;
 }
 
 function sanitizeSections(raw: unknown): LadderSections {
@@ -539,14 +546,17 @@ function sanitizeSections(raw: unknown): LadderSections {
         .filter((block) => block.title.trim().length)
     : [];
 
-  return {
+  const sections: LadderSections = {
     overview,
     rules,
     shoutouts,
     upcoming,
     results,
-    custom: customSections.length ? customSections : undefined,
   };
+  if (customSections.length) {
+    sections.custom = customSections;
+  }
+  return sections;
 }
 
 function sanitizeMembers(raw: unknown): CapsuleLadderMemberInput[] {
@@ -568,7 +578,7 @@ function sanitizeMembers(raw: unknown): CapsuleLadderMemberInput[] {
     const draws = sanitizeNumber(source.draws, 0, 0, 500) ?? 0;
     const streak = sanitizeNumber(source.streak, 0, -20, 20) ?? 0;
     const metadata = isPlainObject(source.metadata) ? (source.metadata as Record<string, unknown>) : null;
-    out.push({
+    const memberInput: CapsuleLadderMemberInput = {
       displayName,
       handle,
       seed,
@@ -578,15 +588,18 @@ function sanitizeMembers(raw: unknown): CapsuleLadderMemberInput[] {
       losses,
       draws,
       streak,
-      metadata: metadata ?? undefined,
-    });
+    };
+    if (metadata) {
+      memberInput.metadata = metadata;
+    }
+    out.push(memberInput);
   });
   return out;
 }
 
 function sanitizeGame(raw: unknown, seed: LadderDraftSeed): LadderGameConfig {
   const source = isPlainObject(raw) ? raw : {};
-  const seedGame = seed.game ?? {};
+  const seedGame = (seed.game ?? {}) as Record<string, unknown>;
   return {
     title:
       sanitizeText(source.title, 80, null) ??
@@ -600,69 +613,66 @@ function sanitizeGame(raw: unknown, seed: LadderDraftSeed): LadderGameConfig {
   };
 }
 
-function sanitizeScheduleConfig(
-  config: LadderConfig,
-  seed: LadderDraftSeed,
-): LadderConfig["schedule"] {
-  const schedule: LadderConfig["schedule"] = isPlainObject(config.schedule)
-    ? (config.schedule as LadderConfig["schedule"])
+function sanitizeScheduleConfig(config: LadderConfig, seed: LadderDraftSeed): LadderScheduleConfig {
+  const schedule: LadderScheduleConfig = isPlainObject(config.schedule)
+    ? { ...(config.schedule as LadderScheduleConfig) }
     : {};
-  if (seed.timezone && !schedule?.timezone) {
-    schedule!.timezone = sanitizeText(seed.timezone, 60, null);
+  if (seed.timezone && !schedule.timezone) {
+    schedule.timezone = sanitizeText(seed.timezone, 60, null) ?? schedule.timezone ?? null;
   }
-  if (seed.seasonLengthWeeks && !schedule?.cadence) {
-    schedule!.cadence = `${seed.seasonLengthWeeks}-week sprint`;
+  if (seed.seasonLengthWeeks && !schedule.cadence) {
+    schedule.cadence = `${seed.seasonLengthWeeks}-week sprint`;
   }
-  if (!schedule?.kickoff) {
-    schedule!.kickoff = "Next Monday 7pm local";
+  if (!schedule.kickoff) {
+    schedule.kickoff = "Next Monday 7pm local";
   }
   return schedule;
 }
 
 function sanitizeConfig(raw: unknown, seed: LadderDraftSeed): LadderConfig {
   const config: LadderConfig = isPlainObject(raw) ? ({ ...raw } as LadderConfig) : {};
-  config.scoring = isPlainObject(config.scoring)
-    ? (config.scoring as LadderConfig["scoring"])
+  const scoring: LadderScoringConfig = isPlainObject(config.scoring)
+    ? { ...(config.scoring as LadderScoringConfig) }
     : {};
-  if (!config.scoring) config.scoring = {};
-  const scoring = config.scoring!;
   scoring.system = "elo";
   if (scoring.initialRating == null) scoring.initialRating = 1200;
   if (scoring.kFactor == null) scoring.kFactor = 32;
   if (scoring.placementMatches == null) scoring.placementMatches = 3;
+  config.scoring = scoring;
 
   config.schedule = sanitizeScheduleConfig(config, seed);
 
-  config.registration = isPlainObject(config.registration)
-    ? (config.registration as LadderConfig["registration"])
+  const registration: LadderRegistrationConfig = isPlainObject(config.registration)
+    ? { ...(config.registration as LadderRegistrationConfig) }
     : {};
-  if (!config.registration) config.registration = {};
-  if (seed.participants && !config.registration!.maxTeams) {
-    config.registration!.maxTeams = seed.participants;
+  if (seed.participants && !registration.maxTeams) {
+    registration.maxTeams = seed.participants;
   }
   if (seed.registrationNotes) {
     const note = sanitizeText(seed.registrationNotes, 160, null);
     if (note) {
-      const requirements = Array.isArray(config.registration!.requirements)
-        ? [...config.registration!.requirements!]
+      const requirements = Array.isArray(registration.requirements)
+        ? [...registration.requirements]
         : [];
       if (!requirements.includes(note)) {
         requirements.push(note);
       }
-      config.registration!.requirements = requirements;
+      registration.requirements = requirements;
     }
   }
+  config.registration = registration;
 
   if (!config.objectives && seed.goal) {
     config.objectives = [sanitizeText(seed.goal, 140, "Grow weekly activity")!];
   }
 
-  if (!config.communications) {
-    config.communications = {};
+  const communications = isPlainObject(config.communications)
+    ? { ...(config.communications as LadderConfig["communications"]) }
+    : {};
+  if (!communications?.announcementsCadence) {
+    communications.announcementsCadence = "Weekly recap + midweek AI shoutouts";
   }
-  if (!config.communications?.announcementsCadence) {
-    config.communications!.announcementsCadence = "Weekly recap + midweek AI shoutouts";
-  }
+  config.communications = communications;
 
   return config;
 }
@@ -692,7 +702,7 @@ function sanitizeAiPlan(
     ? (source.suggestions as unknown[])
     : [];
   const suggestions = suggestionsRaw
-    .map((entry) => {
+    .map((entry): LadderAiSuggestion | null => {
       if (!isPlainObject(entry)) return null;
       const suggestion = entry as Record<string, unknown>;
       const title = sanitizeText(suggestion.title ?? suggestion.name, 60, null);
@@ -700,26 +710,36 @@ function sanitizeAiPlan(
         sanitizeText(suggestion.summary ?? suggestion.body ?? suggestion.detail, 200, null) ?? null;
       if (!title || !detail) return null;
       const section = sanitizeText(suggestion.section, 24, null) as keyof LadderSections | null;
-      return {
+      const result: LadderAiSuggestion = {
         id: sanitizeText(suggestion.id, 40, null) ?? randomSlugSuffix(),
         title,
         summary: detail,
-        section: section ?? null,
       };
+      if (section !== null) {
+        result.section = section;
+      }
+      return result;
     })
-    .filter((entry): entry is NonNullable<LadderAiPlan["suggestions"]>[number] => Boolean(entry));
+    .filter((entry): entry is LadderAiSuggestion => entry !== null);
 
   const metadata = isPlainObject(source.metadata)
     ? { ...source.metadata, seed }
     : { seed };
 
-  return {
+  const plan: LadderAiPlan = {
     generatedAt: new Date().toISOString(),
-    reasoning: reasoning ?? undefined,
-    prompt: prompt ?? undefined,
-    suggestions: suggestions.length ? suggestions : undefined,
     metadata,
   };
+  if (reasoning) {
+    plan.reasoning = reasoning;
+  }
+  if (prompt) {
+    plan.prompt = prompt;
+  }
+  if (suggestions.length) {
+    plan.suggestions = suggestions;
+  }
+  return plan;
 }
 
 function sanitizeMeta(raw: unknown, seed: LadderDraftSeed): Record<string, unknown> | null {
@@ -956,14 +976,12 @@ export async function updateCapsuleLadder(
   const updated = await updateCapsuleLadderRecord(ladderId, patch);
 
   let members: CapsuleLadderMember[] | undefined;
-  if (input.members) {
-    members = await replaceCapsuleLadderMemberRecords(
-      ladderId,
-      input.members ?? ([] as CapsuleLadderMemberInput[]),
-    );
+  if (input.members !== undefined) {
+    const nextMembers = input.members ?? [];
+    members = await replaceCapsuleLadderMemberRecords(ladderId, nextMembers);
   }
 
-  return { ladder: updated, members };
+  return members !== undefined ? { ladder: updated, members } : { ladder: updated };
 }
 
 export async function deleteCapsuleLadder(actorId: string, ladderId: string): Promise<void> {
@@ -1000,7 +1018,7 @@ export async function getCapsuleLadderForViewer(
     members = await listCapsuleLadderMemberRecords(ladder.id);
   }
 
-  return { ladder, members };
+  return members !== undefined ? { ladder, members } : { ladder };
 }
 
 export async function listCapsuleLaddersForViewer(
@@ -1011,9 +1029,10 @@ export async function listCapsuleLaddersForViewer(
   const viewer = await resolveCapsuleViewer(capsuleId, viewerId);
   const ladders = await listCapsuleLaddersByCapsule(viewer.capsuleId);
 
-  const includeDrafts = options.includeDrafts ?? viewer.isOwner || MANAGER_ROLES.has(viewer.role ?? "");
+  const includeDrafts =
+    options.includeDrafts ?? (viewer.isOwner || MANAGER_ROLES.has(viewer.role ?? ""));
   const includeArchived =
-    options.includeArchived ?? viewer.isOwner || MANAGER_ROLES.has(viewer.role ?? "");
+    options.includeArchived ?? (viewer.isOwner || MANAGER_ROLES.has(viewer.role ?? ""));
 
   return ladders.filter((ladder) => {
     if (!includeArchived && ladder.status === "archived") {

@@ -141,7 +141,7 @@ type VideoPresentationState = {
 };
 
 function useVideoPresentation(
-  ref: React.RefObject<HTMLVideoElement>,
+  ref: React.RefObject<HTMLVideoElement | null>,
   src: string | null | undefined,
   mimeType: string | null | undefined,
   presetLetterbox?: boolean,
@@ -204,11 +204,22 @@ function useVideoPresentation(
   };
 }
 
-function composeVideoClasses(baseClass: string, presentation: VideoPresentationState): string {
-  const classes = [baseClass];
-  if (presentation.letterbox) classes.push(styles.videoLetterbox);
-  if (presentation.rotation === "clockwise") classes.push(styles.videoRotateFullscreenClockwise);
-  else if (presentation.rotation === "counterclockwise") classes.push(styles.videoRotateFullscreenCounterclockwise);
+function composeVideoClasses(
+  baseClass: string | undefined,
+  presentation: VideoPresentationState,
+): string {
+  const classes = baseClass ? [baseClass] : [];
+  if (presentation.letterbox && styles.videoLetterbox) {
+    classes.push(styles.videoLetterbox);
+  }
+  if (presentation.rotation === "clockwise" && styles.videoRotateFullscreenClockwise) {
+    classes.push(styles.videoRotateFullscreenClockwise);
+  } else if (
+    presentation.rotation === "counterclockwise" &&
+    styles.videoRotateFullscreenCounterclockwise
+  ) {
+    classes.push(styles.videoRotateFullscreenCounterclockwise);
+  }
   return classes.filter(Boolean).join(" ");
 }
 function isHlsMimeType(value: string | null | undefined): boolean {
@@ -247,7 +258,7 @@ function looksLikeHlsSource(
 }
 
 function useHlsVideo(
-  ref: React.RefObject<HTMLVideoElement>,
+  ref: React.RefObject<HTMLVideoElement | null>,
   src: string | null | undefined,
   mimeType: string | null | undefined,
 ): { isHlsSource: boolean } {

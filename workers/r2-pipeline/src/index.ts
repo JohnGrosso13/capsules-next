@@ -518,10 +518,11 @@ async function uploadObjectToMux(
   if (typeof object.size === "number") {
     headers["Content-Length"] = String(object.size);
   }
+  const stream = object.body ? ((object.body as unknown) as BodyInit) : null;
   const response = await fetch(url, {
     method: "PUT",
     headers,
-    body: object.body,
+    body: stream ?? null,
   });
   if (!response.ok) {
     const text = await response.text().catch(() => "");

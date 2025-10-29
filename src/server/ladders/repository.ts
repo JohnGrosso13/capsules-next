@@ -11,6 +11,7 @@ import type {
   LadderAiPlan,
   LadderConfig,
   LadderGameConfig,
+  LadderSectionBlock,
   LadderSections,
   LadderStatus,
   LadderVisibility,
@@ -168,35 +169,66 @@ function mapGame(value: unknown): LadderGameConfig {
 
 function mapSections(value: unknown): LadderSections {
   const raw = parseJsonRecord<Record<string, unknown>>(value, {});
-  const sections: LadderSections = {};
-  const entries: Array<keyof LadderSections> = [
-    "overview",
-    "rules",
-    "shoutouts",
-    "upcoming",
-    "results",
-    "custom",
-  ];
-  for (const key of entries) {
-    if (!(key in raw)) continue;
-    const payload = raw[key];
-    if (key === "custom" && Array.isArray(payload)) {
-      sections.custom = payload
-        .map((entry) => parseJsonNullable(entry))
-        .filter((entry): entry is NonNullable<LadderSections["custom"]>[number] => Boolean(entry));
-      continue;
-    }
-    if (payload && typeof payload === "object") {
-      sections[key] = payload as LadderSections[typeof key];
-    } else if (typeof payload === "string") {
-      sections[key] = {
-        id: `${key}-${Date.now()}`,
-        title: key.charAt(0).toUpperCase() + key.slice(1),
+
+  const toBlock = (payload: unknown, fallbackTitle: string): LadderSectionBlock | null => {
+    if (!payload) return null;
+    if (typeof payload === "string") {
+      return {
+        id: `${fallbackTitle.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+        title: fallbackTitle,
         body: payload,
       };
     }
+    if (typeof payload !== "object") return null;
+    const record = payload as Record<string, unknown>;
+    const title = normalizeString(record.title) ?? fallbackTitle;
+    const body = normalizeString(record.body) ?? null;
+    const rawBullets = Array.isArray(record.bulletPoints)
+      ? record.bulletPoints
+      : Array.isArray(record.bullets)
+        ? record.bullets
+        : Array.isArray(record.highlights)
+          ? record.highlights
+          : [];
+    const bulletPoints = Array.isArray(rawBullets)
+      ? rawBullets
+          .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+          .filter((entry) => entry.length)
+      : undefined;
+    const block: LadderSectionBlock = {
+      id: normalizeString(record.id) ?? `${title.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+      title,
+      body,
+    };
+    if (bulletPoints && bulletPoints.length) {
+      block.bulletPoints = bulletPoints;
+    }
+    return block;
+  };
+
+  const result: LadderSections = {};
+
+  const overview = toBlock(raw.overview, "Ladder Overview");
+  if (overview) result.overview = overview;
+  const rules = toBlock(raw.rules, "Core Rules");
+  if (rules) result.rules = rules;
+  const shoutouts = toBlock(raw.shoutouts, "Spotlight & Shoutouts");
+  if (shoutouts) result.shoutouts = shoutouts;
+  const upcoming = toBlock(raw.upcoming, "Upcoming Challenges");
+  if (upcoming) result.upcoming = upcoming;
+  const resultsBlock = toBlock(raw.results, "Recent Results");
+  if (resultsBlock) result.results = resultsBlock;
+
+  if (Array.isArray(raw.custom)) {
+    const customBlocks = raw.custom
+      .map((entry, index) => toBlock(entry, `Feature Block ${index + 1}`))
+      .filter((block): block is LadderSectionBlock => Boolean(block));
+    if (customBlocks.length) {
+      result.custom = customBlocks;
+    }
   }
-  return sections;
+
+  return result;
 }
 
 function mapConfig(value: unknown): LadderConfig {
@@ -207,39 +239,46 @@ function mapAiPlan(value: unknown): LadderAiPlan | null {
   const parsed = parseJsonNullable<Record<string, unknown>>(value);
   if (!parsed) return null;
   const generatedAt = normalizeTimestamp(parsed.generatedAt) ?? new Date().toISOString();
-  const plan: LadderAiPlan = {
-    generatedAt,
-    prompt: normalizeString(parsed.prompt),
-    reasoning: normalizeString(parsed.reasoning),
-    version: normalizeString(parsed.version),
-    metadata: parseJsonRecord<Record<string, unknown>>(parsed.metadata, {}),
-    suggestions: Array.isArray(parsed.suggestions)
-      ? parsed.suggestions
-          .map((entry) => {
-            if (!entry || typeof entry !== "object") return null;
-            const id = normalizeString((entry as Record<string, unknown>).id);
-            const title = normalizeString((entry as Record<string, unknown>).title);
-            const summary = normalizeString((entry as Record<string, unknown>).summary);
-            if (!id || !title || !summary) return null;
-            const section = normalizeString((entry as Record<string, unknown>).section) as
-              | keyof LadderSections
-              | null;
-            return {
-              id,
-              title,
-              summary,
-              section: section ?? null,
-            };
-          })
-          .filter((entry): entry is NonNullable<LadderAiPlan["suggestions"]>[number] => Boolean(entry))
-      : undefined,
-  };
-  if (!plan.suggestions?.length) {
-    delete plan.suggestions;
+  const plan: LadderAiPlan = { generatedAt };
+
+  const prompt = normalizeString(parsed.prompt);
+  if (prompt) plan.prompt = prompt;
+  const reasoning = normalizeString(parsed.reasoning);
+  if (reasoning) plan.reasoning = reasoning;
+  const version = normalizeString(parsed.version);
+  if (version) plan.version = version;
+
+  const metadataRecord = parseJsonRecord<Record<string, unknown>>(parsed.metadata, {});
+  plan.metadata = Object.keys(metadataRecord).length ? metadataRecord : null;
+
+  if (Array.isArray(parsed.suggestions)) {
+    const suggestions = parsed.suggestions
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const record = entry as Record<string, unknown>;
+        const id = normalizeString(record.id);
+        const title = normalizeString(record.title);
+        const summary = normalizeString(record.summary);
+        if (!id || !title || !summary) return null;
+        const section = normalizeString(record.section) as keyof LadderSections | null;
+        const suggestion: NonNullable<LadderAiPlan["suggestions"]>[number] = {
+          id,
+          title,
+          summary,
+        };
+        if (section) {
+          suggestion.section = section;
+        }
+        return suggestion;
+      })
+      .filter(
+        (entry): entry is NonNullable<LadderAiPlan["suggestions"]>[number] => Boolean(entry),
+      );
+    if (suggestions.length) {
+      plan.suggestions = suggestions;
+    }
   }
-  if (!Object.keys(plan.metadata ?? {}).length) {
-    plan.metadata = null;
-  }
+
   return plan;
 }
 
@@ -323,7 +362,7 @@ export async function insertCapsuleLadderRecord(
 ): Promise<CapsuleLadderDetail> {
   try {
     const result = await db
-      .from<LadderRow>("capsule_ladders")
+      .from("capsule_ladders")
       .insert({
         capsule_id: params.capsuleId,
         created_by_id: params.createdById,
@@ -340,7 +379,7 @@ export async function insertCapsuleLadderRecord(
         meta: params.meta ?? null,
         published_at: params.publishedAt ?? null,
       })
-      .select("*")
+      .select<LadderRow>("*")
       .single();
 
     const row = expectResult(result, "insert capsule_ladder record");
@@ -377,11 +416,11 @@ export async function updateCapsuleLadderRecord(
 
   try {
     const result = await db
-      .from<LadderRow>("capsule_ladders")
+      .from("capsule_ladders")
       .update(payload)
       .eq("id", ladderId)
-      .select("*")
-      .single();
+      .select<LadderRow>("*")
+      .maybeSingle();
 
     const row = maybeResult(result, "update capsule_ladder record");
     return mapLadderDetailRow(row);
@@ -398,10 +437,10 @@ export async function getCapsuleLadderRecordById(
 ): Promise<CapsuleLadderDetail | null> {
   try {
     const result = await db
-      .from<LadderRow>("capsule_ladders")
-      .select("*")
+      .from("capsule_ladders")
+      .select<LadderRow>("*")
       .eq("id", ladderId)
-      .single();
+      .maybeSingle();
     const row = maybeResult(result, "get capsule_ladder record");
     return mapLadderDetailRow(row);
   } catch (error) {
@@ -418,11 +457,11 @@ export async function getCapsuleLadderBySlug(
 ): Promise<CapsuleLadderDetail | null> {
   try {
     const result = await db
-      .from<LadderRow>("capsule_ladders")
-      .select("*")
+      .from("capsule_ladders")
+      .select<LadderRow>("*")
       .eq("capsule_id", capsuleId)
       .eq("slug", slug)
-      .single();
+      .maybeSingle();
     const row = maybeResult(result, "get capsule_ladder by slug");
     return mapLadderDetailRow(row);
   } catch (error) {
@@ -438,10 +477,11 @@ export async function listCapsuleLaddersByCapsule(
 ): Promise<CapsuleLadderSummary[]> {
   try {
     const result = await db
-      .from<LadderRow>("capsule_ladders")
-      .select("*")
+      .from("capsule_ladders")
+      .select<LadderRow>("*")
       .eq("capsule_id", capsuleId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .fetch();
 
     const rows = expectResult(result, "list capsule_ladder records");
     return rows
@@ -457,7 +497,7 @@ export async function listCapsuleLaddersByCapsule(
 
 export async function deleteCapsuleLadderRecord(ladderId: string): Promise<void> {
   try {
-    const result = await db.from("capsule_ladders").delete().eq("id", ladderId);
+    const result = await db.from("capsule_ladders").delete().eq("id", ladderId).fetch();
     ensureResult(result, "delete capsule_ladder record");
   } catch (error) {
     if (isDatabaseError(error)) {
@@ -472,11 +512,12 @@ export async function listCapsuleLadderMemberRecords(
 ): Promise<CapsuleLadderMember[]> {
   try {
     const result = await db
-      .from<LadderMemberRow>("capsule_ladder_members")
-      .select("*")
+      .from("capsule_ladder_members")
+      .select<LadderMemberRow>("*")
       .eq("ladder_id", ladderId)
       .order("rating", { ascending: false })
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: true })
+      .fetch();
 
     const rows = expectResult(result, "list capsule_ladder_member records");
     return rows
@@ -498,7 +539,8 @@ export async function replaceCapsuleLadderMemberRecords(
     const deleteResult = await db
       .from("capsule_ladder_members")
       .delete()
-      .eq("ladder_id", ladderId);
+      .eq("ladder_id", ladderId)
+      .fetch();
     ensureResult(deleteResult, "clear capsule_ladder_members");
 
     if (!members.length) {
@@ -521,9 +563,10 @@ export async function replaceCapsuleLadderMemberRecords(
     }));
 
     const insertResult = await db
-      .from<LadderMemberRow>("capsule_ladder_members")
+      .from("capsule_ladder_members")
       .insert(payload)
-      .select("*");
+      .select<LadderMemberRow>("*")
+      .fetch();
 
     const rows = expectResult(insertResult, "insert capsule_ladder_members");
     return rows

@@ -57,6 +57,17 @@ type MemberFormState = {
   streak: string;
 };
 
+type MemberPayload = {
+  displayName: string;
+  handle?: string | null;
+  seed?: number | null;
+  rating: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  streak: number;
+};
+
 type AiPlanState = {
   reasoning?: string | null;
   prompt?: string | null;
@@ -80,6 +91,70 @@ type LadderBlueprint = {
 };
 
 const SECTION_KEYS: SectionKey[] = ["overview", "rules", "shoutouts", "upcoming", "results"];
+
+function trimOrNull(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function clampInteger(value: number, { min, max }: { min?: number; max?: number } = {}): number {
+  let result = value;
+  if (typeof min === "number") {
+    result = Math.max(min, result);
+  }
+  if (typeof max === "number") {
+    result = Math.min(max, result);
+  }
+  return result;
+}
+
+function parseIntegerInput(
+  value: string,
+  fallback: number,
+  options: { min?: number; max?: number } = {},
+): number {
+  const parsed = Number.parseInt(value.trim(), 10);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return clampInteger(parsed, options);
+}
+
+function parseOptionalIntegerInput(
+  value: string,
+  options: { min?: number; max?: number } = {},
+): number | null {
+  const trimmed = value.trim();
+  if (!trimmed.length) return null;
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(parsed)) return null;
+  return clampInteger(parsed, options);
+}
+
+function createEmptyMember(index: number): MemberFormState {
+  return {
+    displayName: "",
+    handle: "",
+    seed: String(index + 1),
+    rating: "1200",
+    wins: "0",
+    losses: "0",
+    draws: "0",
+    streak: "0",
+  };
+}
+
+function normalizeMemberList(list: MemberFormState[]): MemberFormState[] {
+  return list.map((member, index) => ({
+    ...member,
+    seed: member.seed.trim().length ? member.seed : String(index + 1),
+    rating: member.rating.trim().length ? member.rating : "1200",
+    wins: member.wins.trim().length ? member.wins : "0",
+    losses: member.losses.trim().length ? member.losses : "0",
+    draws: member.draws.trim().length ? member.draws : "0",
+    streak: member.streak.trim().length ? member.streak : "0",
+  }));
+}
 
 function createDefaultSections(): Record<SectionKey, SectionFormState> {
   return {
@@ -133,7 +208,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     } satisfies RegistrationFormState,
   }));
 
-  const [members, setMembers] = React.useState<MemberFormState[]>([]);
+  const [members, setMembers] = React.useState<MemberFormState[]>(() => [createEmptyMember(0)]);
   const [aiPlan, setAiPlan] = React.useState<AiPlanState | null>(null);
   const [meta, setMeta] = React.useState<Record<string, unknown> | null>(null);
 
@@ -251,31 +326,29 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     (index: number, field: keyof MemberFormState, value: string) => {
       setMembers((prev) => {
         const next = [...prev];
-        next[index] = { ...next[index], [field]: value };
-        return next;
+        const current = next[index];
+        if (!current) {
+          return prev;
+        }
+        next[index] = { ...current, [field]: value };
+        return normalizeMemberList(next);
       });
     },
     [],
   );
 
   const addMember = React.useCallback(() => {
-    setMembers((prev) => [
-      ...prev,
-      {
-        displayName: "",
-        handle: "",
-        seed: String(prev.length + 1),
-        rating: "1200",
-        wins: "0",
-        losses: "0",
-        draws: "0",
-        streak: "0",
-      },
-    ]);
+    setMembers((prev) => normalizeMemberList([...prev, createEmptyMember(prev.length)]));
   }, []);
 
   const removeMember = React.useCallback((index: number) => {
-    setMembers((prev) => prev.filter((_, i) => i !== index));
+    setMembers((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) {
+        return [createEmptyMember(0)];
+      }
+      return normalizeMemberList(next);
+    });
   }, []);
 
   const resetMessages = React.useCallback(() => {
@@ -418,61 +491,82 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       return next;
     });
 
+    const blueprintMembers: MemberFormState[] = [];
+    data.members.forEach((entry, index) => {
+      const record = entry as Record<string, unknown>;
+      const displayName =
+        typeof record.displayName === "string"
+          ? record.displayName.trim()
+          : typeof record.name === "string"
+            ? record.name.trim()
+            : "";
+      if (!displayName.length) {
+        return;
+      }
+      const handleValue =
+        typeof record.handle === "string"
+          ? record.handle
+          : typeof record.gamertag === "string"
+            ? record.gamertag
+            : "";
+      const seedRaw =
+        typeof record.seed === "string"
+          ? record.seed
+          : typeof record.seed === "number"
+            ? String(record.seed)
+            : "";
+      const ratingRaw =
+        typeof record.rating === "string"
+          ? record.rating
+          : typeof record.rating === "number"
+            ? String(record.rating)
+            : "";
+      const winsRaw =
+        typeof record.wins === "string"
+          ? record.wins
+          : typeof record.wins === "number"
+            ? String(record.wins)
+            : "";
+      const lossesRaw =
+        typeof record.losses === "string"
+          ? record.losses
+          : typeof record.losses === "number"
+            ? String(record.losses)
+            : "";
+      const drawsRaw =
+        typeof record.draws === "string"
+          ? record.draws
+          : typeof record.draws === "number"
+            ? String(record.draws)
+            : "";
+      const streakRaw =
+        typeof record.streak === "string"
+          ? record.streak
+          : typeof record.streak === "number"
+            ? String(record.streak)
+            : "";
+
+      const seedValue =
+        parseOptionalIntegerInput(seedRaw, { min: 1, max: 999 }) ?? index + 1;
+      const member: MemberFormState = {
+        displayName,
+        handle: handleValue.trim(),
+        seed: String(seedValue),
+        rating: String(parseIntegerInput(ratingRaw, 1200, { min: 100, max: 4000 })),
+        wins: String(parseIntegerInput(winsRaw, 0, { min: 0, max: 500 })),
+        losses: String(parseIntegerInput(lossesRaw, 0, { min: 0, max: 500 })),
+        draws: String(parseIntegerInput(drawsRaw, 0, { min: 0, max: 500 })),
+        streak: String(parseIntegerInput(streakRaw, 0, { min: -20, max: 20 })),
+      };
+      if (typeof record.id === "string" && record.id.trim().length) {
+        member.id = record.id.trim();
+      }
+      blueprintMembers.push(member);
+    });
     setMembers(
-      data.members.map((entry, index) => {
-        const record = entry as Record<string, unknown>;
-        return {
-          id: typeof record.id === "string" ? record.id : undefined,
-          displayName:
-            typeof record.displayName === "string"
-              ? record.displayName
-              : typeof record.name === "string"
-                ? record.name
-                : "",
-          handle:
-            typeof record.handle === "string"
-              ? record.handle
-              : typeof record.gamertag === "string"
-                ? record.gamertag
-                : "",
-          seed:
-            typeof record.seed === "number"
-              ? String(record.seed)
-              : typeof record.seed === "string"
-                ? record.seed
-                : String(index + 1),
-          rating:
-            typeof record.rating === "number"
-              ? String(record.rating)
-              : typeof record.rating === "string"
-                ? record.rating
-                : "1200",
-          wins:
-            typeof record.wins === "number"
-              ? String(record.wins)
-              : typeof record.wins === "string"
-                ? record.wins
-                : "0",
-          losses:
-            typeof record.losses === "number"
-              ? String(record.losses)
-              : typeof record.losses === "string"
-                ? record.losses
-                : "0",
-          draws:
-            typeof record.draws === "number"
-              ? String(record.draws)
-              : typeof record.draws === "string"
-                ? record.draws
-                : "0",
-          streak:
-            typeof record.streak === "number"
-              ? String(record.streak)
-              : typeof record.streak === "string"
-                ? record.streak
-                : "0",
-        };
-      }),
+      normalizeMemberList(
+        blueprintMembers.length ? blueprintMembers : [createEmptyMember(0)],
+      ),
     );
 
     const plan = ladder.aiPlan && typeof ladder.aiPlan === "object" ? (ladder.aiPlan as Record<string, unknown>) : null;
@@ -503,7 +597,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       setAiPlan({
         reasoning: typeof plan.reasoning === "string" ? plan.reasoning : null,
         prompt: typeof plan.prompt === "string" ? plan.prompt : null,
-        suggestions,
+        ...(suggestions ? { suggestions } : {}),
       });
     } else {
       setAiPlan(null);
@@ -522,68 +616,114 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     const sections: Record<string, unknown> = {};
     SECTION_KEYS.forEach((key) => {
       const section = form.sections[key];
-      sections[key] = {
-        title: section.title || key,
-        body: section.body || null,
-        bulletPoints: section.bullets
-          .split("\n")
-          .map((entry) => entry.trim())
-          .filter(Boolean),
+      const title = section.title.trim().length ? section.title.trim() : key;
+      const body = trimOrNull(section.body);
+      const bulletPoints = section.bullets
+        .split("\n")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length);
+      const payload: Record<string, unknown> = {
+        title,
+        body,
       };
+      if (bulletPoints.length) {
+        payload.bulletPoints = bulletPoints;
+      }
+      sections[key] = payload;
     });
     if (form.customSections.length) {
-      sections.custom = form.customSections.map((section) => ({
-        id: section.id,
-        title: section.title || "Custom Section",
-        body: section.body || null,
-        bulletPoints: section.bullets
-          .split("\n")
-          .map((entry) => entry.trim())
-          .filter(Boolean),
-      }));
+      const customPayload = form.customSections
+        .map((section) => {
+          const title = section.title.trim().length ? section.title.trim() : "Custom Section";
+          const body = trimOrNull(section.body);
+          const bulletPoints = section.bullets
+            .split("\n")
+            .map((entry) => entry.trim())
+            .filter((entry) => entry.length);
+          const payload: Record<string, unknown> = {
+            id: section.id,
+            title,
+            body,
+          };
+          if (bulletPoints.length) {
+            payload.bulletPoints = bulletPoints;
+          }
+          return payload;
+        })
+        .filter(Boolean);
+      if (customPayload.length) {
+        sections.custom = customPayload;
+      }
     }
     return sections;
   }, [form.customSections, form.sections]);
 
-  const convertMembersToPayload = React.useCallback(() => {
-    return members
-      .map((member) => {
-        const rating = Number(member.rating) || 1200;
-        const seedValue = Number(member.seed) || undefined;
-        const wins = Number(member.wins) || 0;
-        const losses = Number(member.losses) || 0;
-        const draws = Number(member.draws) || 0;
-        const streak = Number(member.streak) || 0;
-        const displayName = member.displayName.trim();
-        if (!displayName.length) {
-          return null;
-        }
-        return {
-          displayName,
-          handle: member.handle.trim() || null,
-          seed: seedValue,
-          rating,
-          wins,
-          losses,
-          draws,
-          streak,
-        };
-      })
-      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  const convertMembersToPayload = React.useCallback((): MemberPayload[] => {
+    const payload: MemberPayload[] = [];
+    members.forEach((member) => {
+      const displayName = member.displayName.trim();
+      if (!displayName.length) {
+        return;
+      }
+      const handle = trimOrNull(member.handle);
+      const seedValue = parseOptionalIntegerInput(member.seed, { min: 1, max: 999 });
+      const rating = parseIntegerInput(member.rating, 1200, { min: 100, max: 4000 });
+      const wins = parseIntegerInput(member.wins, 0, { min: 0, max: 500 });
+      const losses = parseIntegerInput(member.losses, 0, { min: 0, max: 500 });
+      const draws = parseIntegerInput(member.draws, 0, { min: 0, max: 500 });
+      const streak = parseIntegerInput(member.streak, 0, { min: -20, max: 20 });
+
+      const entry: MemberPayload = {
+        displayName,
+        rating,
+        wins,
+        losses,
+        draws,
+        streak,
+      };
+      if (handle) {
+        entry.handle = handle;
+      }
+      if (seedValue !== null) {
+        entry.seed = seedValue;
+      }
+      payload.push(entry);
+    });
+    return payload;
   }, [members]);
 
   const convertConfigToPayload = React.useCallback(() => {
-    const initialRating = Number(form.scoring.initialRating) || 1200;
-    const kFactor = Number(form.scoring.kFactor) || 32;
-    const placementMatches = Number(form.scoring.placementMatches) || 3;
-    const maxTeams =
-      form.registration.maxTeams.trim().length > 0 ? Number(form.registration.maxTeams) : null;
+    const initialRating = parseIntegerInput(form.scoring.initialRating, 1200, {
+      min: 100,
+      max: 4000,
+    });
+    const kFactor = parseIntegerInput(form.scoring.kFactor, 32, { min: 1, max: 128 });
+    const placementMatches = parseIntegerInput(form.scoring.placementMatches, 3, {
+      min: 0,
+      max: 20,
+    });
+    const maxTeams = parseOptionalIntegerInput(form.registration.maxTeams, {
+      min: 2,
+      max: 999,
+    });
     const requirements = form.registration.requirements
       .split("\n")
       .map((entry) => entry.trim())
-      .filter(Boolean);
+      .filter((entry) => entry.length);
 
-    return {
+    const registration: Record<string, unknown> = {
+      type: form.registration.type,
+      maxTeams: maxTeams ?? null,
+    };
+    if (requirements.length) {
+      registration.requirements = requirements;
+    }
+
+    const cadence = form.schedule.cadence.trim();
+    const kickoff = form.schedule.kickoff.trim();
+    const summary = form.summary.trim();
+
+    const config: Record<string, unknown> = {
       scoring: {
         system: "elo",
         initialRating,
@@ -591,29 +731,31 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
         placementMatches,
       },
       schedule: {
-        cadence: form.schedule.cadence || "Weekly cadence",
-        kickoff: form.schedule.kickoff || "TBD",
-        timezone: form.schedule.timezone || null,
+        cadence: cadence.length ? cadence : "Weekly cadence",
+        kickoff: kickoff.length ? kickoff : "TBD",
+        timezone: trimOrNull(form.schedule.timezone),
       },
-      registration: {
-        type: form.registration.type,
-        maxTeams,
-        requirements,
-      },
+      registration,
       communications: {
         announcementsCadence: "Weekly recap + midweek AI shoutouts",
       },
-      objectives: form.summary ? [form.summary] : undefined,
     };
+
+    if (summary.length) {
+      config.objectives = [summary];
+    }
+
+    return config;
   }, [form.registration, form.schedule, form.scoring, form.summary]);
 
   const convertGameToPayload = React.useCallback(() => {
     const { title, mode, platform, region } = form.game;
+    const trimmedTitle = title.trim();
     return {
-      title: title || "Featured Game",
-      mode: mode || null,
-      platform: platform || null,
-      region: region || null,
+      title: trimmedTitle.length ? trimmedTitle : "Featured Game",
+      mode: trimOrNull(mode),
+      platform: trimOrNull(platform),
+      region: trimOrNull(region),
     };
   }, [form.game]);
 

@@ -28,9 +28,6 @@ type AiComposerDrawerProps = {
   summaryResult?: SummaryResult | null;
   summaryOptions?: SummaryPresentationOptions | null;
   summaryMessageId?: string | null;
-  summaryResult?: SummaryResult | null;
-  summaryOptions?: SummaryPresentationOptions | null;
-  summaryMessageId?: string | null;
   sidebar: ComposerSidebarData;
   onChange(draft: ComposerDraft): void;
   onClose(): void;

@@ -154,10 +154,14 @@ function extractAttachmentMeta(meta: unknown): string | null {
 function formatHintList(items: string[], limit: number): string {
   if (!items.length) return "";
   const slice = items.slice(0, limit);
-  if (slice.length === 1) return slice[0];
-  if (slice.length === 2) return `${slice[0]} and ${slice[1]}`;
-  const head = slice.slice(0, -1).join(", ");
-  const tail = slice[slice.length - 1];
+  const [first, second] = slice;
+  if (slice.length === 1) return first ?? "";
+  if (slice.length === 2) return `${first ?? ""} and ${second ?? ""}`;
+  const head = slice
+    .slice(0, -1)
+    .filter((entry) => Boolean(entry && entry.trim().length))
+    .join(", ");
+  const tail = slice[slice.length - 1] ?? "";
   const ellipsis = items.length > limit ? "..." : "";
   return `${head}, and ${tail}${ellipsis}`;
 }
@@ -969,7 +973,7 @@ export function HomeFeedList({
           title: entryTitle,
           author,
           summary: segmentText,
-          highlights: entryHighlights.length ? entryHighlights : undefined,
+          highlights: entryHighlights.length ? entryHighlights : [],
           relativeTime: relative || null,
           attachmentId,
         });

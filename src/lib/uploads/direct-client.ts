@@ -18,6 +18,28 @@ export type DirectUploadResult = {
   uploadId: string;
 };
 
+type ProgressPayload = DirectUploadProgressEvent;
+
+function emitProgress(
+  callback: ((event: DirectUploadProgressEvent) => void) | undefined,
+  payload: ProgressPayload,
+): void {
+  if (!callback) return;
+  const event: DirectUploadProgressEvent = {
+    uploadedBytes: payload.uploadedBytes,
+    totalBytes: payload.totalBytes,
+    partNumber: payload.partNumber,
+    totalParts: payload.totalParts,
+  };
+  if (payload.phase) {
+    event.phase = payload.phase;
+  }
+  if (typeof payload.attempt === "number") {
+    event.attempt = payload.attempt;
+  }
+  callback(event);
+}
+
 type CreateUploadResponse = {
   sessionId: string;
   uploadId: string;
@@ -160,7 +182,7 @@ async function finalizeUpload(
   { sessionId, uploadId, key, parts, metadata }: FinalizeUploadParams,
   options: FinalizeUploadOptions = {},
 ): Promise<DirectUploadResult> {
-  const response = await fetch("/api/uploads/r2/complete", {
+  const requestInit: RequestInit = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -170,8 +192,11 @@ async function finalizeUpload(
       parts,
       metadata,
     }),
-    signal: options.signal,
-  });
+  };
+  if (options.signal) {
+    requestInit.signal = options.signal;
+  }
+  const response = await fetch("/api/uploads/r2/complete", requestInit);
   if (!response.ok) {
     const message = await response.text().catch(() => "");
     throw new Error(message || "Failed to finalize upload");
@@ -218,16 +243,14 @@ async function finalizeUploadWithRetry(
 
     attempt += 1;
 
-    if (onProgress) {
-      onProgress({
-        uploadedBytes: params.totalBytes,
-        totalBytes: params.totalBytes,
-        partNumber: params.totalParts,
-        totalParts: params.totalParts,
-        phase: attempt === 1 ? "finalizing" : "retrying",
-        attempt,
-      });
-    }
+    emitProgress(onProgress, {
+      uploadedBytes: params.totalBytes,
+      totalBytes: params.totalBytes,
+      partNumber: params.totalParts,
+      totalParts: params.totalParts,
+      phase: attempt === 1 ? "finalizing" : "retrying",
+      attempt,
+    });
 
     const { signal: attemptSignal, dispose } = createTimeoutSignal(attemptTimeoutMs, signal);
 
@@ -310,13 +333,24 @@ export async function uploadFileDirect(
       throw new Error(`Missing ETag for part ${part.partNumber}`);
     }
     etags.push({ partNumber: part.partNumber, etag });
-    onProgress?.({
+    emitProgress(onProgress, {
       uploadedBytes: Math.min(end, totalBytes),
       totalBytes,
       partNumber: part.partNumber,
       totalParts,
       phase: "uploading",
     });
+  }
+
+  const finalizeOptions: {
+    signal?: AbortSignal;
+    onProgress?: (event: DirectUploadProgressEvent) => void;
+  } = {};
+  if (signal) {
+    finalizeOptions.signal = signal;
+  }
+  if (onProgress) {
+    finalizeOptions.onProgress = onProgress;
   }
 
   const result = await finalizeUploadWithRetry(
@@ -329,19 +363,15 @@ export async function uploadFileDirect(
       totalBytes,
       totalParts,
     },
-    {
-      signal,
-      onProgress,
-    },
+    finalizeOptions,
   );
 
-  onProgress?.({
+  emitProgress(onProgress, {
     uploadedBytes: totalBytes,
     totalBytes,
     partNumber: totalParts,
     totalParts,
     phase: "completed",
-    attempt: undefined,
   });
 
   return result;

@@ -509,6 +509,7 @@ function describeRecentSnippet(entry: ComposerStoredRecentChat): string | null {
   const history = Array.isArray(entry.history) ? entry.history : [];
   for (let index = history.length - 1; index >= 0; index -= 1) {
     const message = history[index];
+    if (!message) continue;
     if (message.role !== "assistant") continue;
     const content = message.content?.trim();
     if (content?.length) {
@@ -991,13 +992,14 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     if (!entry) return;
     const draftClone = cloneData(entry.draft);
     const rawPostClone = entry.rawPost ? cloneData(entry.rawPost) : null;
-    setState(() => ({
+    setState((prev) => ({
+      ...prev,
       open: true,
       loading: false,
       prompt: entry.prompt,
       draft: draftClone,
       rawPost: rawPostClone,
-      message: entry.message,
+      message: entry.message ?? null,
       choices: null,
       history: cloneData(entry.history ?? []),
       threadId: entry.threadId ?? null,
@@ -1034,13 +1036,14 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     if (!entry) return;
     const draftClone = cloneData(entry.draft);
     const rawPostClone = entry.rawPost ? cloneData(entry.rawPost) : null;
-    setState(() => ({
+    setState((prev) => ({
+      ...prev,
       open: true,
       loading: false,
       prompt: entry.prompt,
       draft: draftClone,
       rawPost: rawPostClone,
-      message: entry.message,
+      message: entry.message ?? null,
       choices: null,
       history: cloneData(entry.history ?? []),
       threadId: entry.threadId ?? entry.id ?? null,
@@ -1159,6 +1162,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         const mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, mergedDraft);
         recordedRawPost = mergedRawPost;
         return {
+          ...prev,
           open: true,
           loading: false,
           prompt,
@@ -1332,7 +1336,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             createdAt: new Date().toISOString(),
             attachments: null,
           };
-          setState(() => ({
+          setState((prev) => ({
+            ...prev,
             open: true,
             loading: false,
             prompt,
@@ -1391,7 +1396,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             createdAt: new Date().toISOString(),
             attachments: null,
           };
-          setState(() => ({
+          setState((prev) => ({
+            ...prev,
             open: true,
             loading: false,
             prompt,

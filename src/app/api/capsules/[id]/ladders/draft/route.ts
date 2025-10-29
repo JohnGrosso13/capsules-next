@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { NextRequest } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
@@ -7,6 +8,7 @@ import {
   generateLadderDraftForCapsule,
 } from "@/server/ladders/service";
 import { AIConfigError } from "@/lib/ai/prompter";
+import type { LadderDraftSeed } from "@/server/ladders/service";
 
 const jsonValueSchema = z.any();
 
@@ -15,11 +17,11 @@ const ladderMemberInputSchema = z.object({
   handle: z.string().max(40).nullable().optional(),
   seed: z.number().int().min(1).max(999).nullable().optional(),
   rank: z.number().int().min(1).max(999).nullable().optional(),
-  rating: z.number().int().min(100).max(4000).optional(),
-  wins: z.number().int().min(0).max(500).optional(),
-  losses: z.number().int().min(0).max(500).optional(),
-  draws: z.number().int().min(0).max(500).optional(),
-  streak: z.number().int().min(-20).max(20).optional(),
+  rating: z.number().int().min(100).max(4000).nullable().optional(),
+  wins: z.number().int().min(0).max(500).nullable().optional(),
+  losses: z.number().int().min(0).max(500).nullable().optional(),
+  draws: z.number().int().min(0).max(500).nullable().optional(),
+  streak: z.number().int().min(-20).max(20).nullable().optional(),
   metadata: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
 });
 
@@ -69,10 +71,39 @@ const draftRequestSchema = z.object({
     .optional(),
 });
 
+type DraftRequestPayload = z.infer<typeof draftRequestSchema>;
+
+function buildDraftSeed(data: DraftRequestPayload): LadderDraftSeed {
+  const seed: LadderDraftSeed = {};
+  if (data.goal !== undefined) seed.goal = data.goal;
+  if (data.audience !== undefined) seed.audience = data.audience;
+  if (data.tone !== undefined) seed.tone = data.tone;
+  if (data.capsuleBrief !== undefined) seed.capsuleBrief = data.capsuleBrief;
+  if (data.existingRules !== undefined) seed.existingRules = data.existingRules;
+  if (data.timezone !== undefined) seed.timezone = data.timezone;
+  if (data.seasonLengthWeeks !== undefined) seed.seasonLengthWeeks = data.seasonLengthWeeks;
+  if (data.participants !== undefined) seed.participants = data.participants;
+  if (data.registrationNotes !== undefined) seed.registrationNotes = data.registrationNotes;
+  if (data.notes !== undefined) seed.notes = data.notes;
+  seed.prizeIdeas = data.prizeIdeas;
+  seed.announcementsFocus = data.announcementsFocus;
+  seed.shoutouts = data.shoutouts;
+  if (data.game !== undefined) {
+    seed.game = {
+      title: data.game.title ?? null,
+      mode: data.game.mode ?? null,
+      platform: data.game.platform ?? null,
+      region: data.game.region ?? null,
+    };
+  }
+  return seed;
+}
+
 export async function POST(
-  req: Request,
-  { params }: { params: { id: string } },
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
+  const params = await context.params;
   const actorId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!actorId) {
     return returnError(401, "auth_required", "Sign in to generate a ladder draft.");
@@ -84,12 +115,8 @@ export async function POST(
   }
 
   try {
-    const blueprint = await generateLadderDraftForCapsule(actorId, params.id, {
-      ...parsed.data,
-      prizeIdeas: parsed.data.prizeIdeas,
-      announcementsFocus: parsed.data.announcementsFocus,
-      shoutouts: parsed.data.shoutouts,
-    });
+    const seed = buildDraftSeed(parsed.data);
+    const blueprint = await generateLadderDraftForCapsule(actorId, params.id, seed);
 
     return validatedJson(draftResponseSchema, {
       ladder: {
