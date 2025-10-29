@@ -27,7 +27,11 @@ import { useComposerVoice } from "./hooks/useComposerVoice";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
 import { useComposer } from "./ComposerProvider";
 
+import { HomeFeedList } from "@/components/home-feed-list";
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
+import { formatFeedCount, type HomeFeedPost } from "@/hooks/useHomeFeed";
+import { homeFeedStore } from "@/hooks/useHomeFeed/homeFeedStore";
+import { formatExactTime, formatTimeAgo } from "@/hooks/useHomeFeed/time";
 import { computeDisplayUploads } from "@/components/memory/process-uploads";
 import { useMemoryUploads } from "@/components/memory/use-memory-uploads";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
@@ -50,6 +54,7 @@ import type {
 } from "@/lib/composer/summary-context";
 import type { SummaryResult } from "@/types/summary";
 import { COMPOSER_SUMMARY_ACTION_EVENT } from "@/lib/events";
+import { useCurrentUser } from "@/services/auth/client";
 import { SummaryContextPanel } from "./components/SummaryContextPanel";
 import { SummaryNarrativeCard } from "./components/SummaryNarrativeCard";
 
@@ -145,6 +150,14 @@ function truncateText(value: string, limit: number): string {
   if (!value) return "";
   if (value.length <= limit) return value;
   return `${value.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
+}
+
+function useHomeFeedSnapshot() {
+  return React.useSyncExternalStore(
+    homeFeedStore.subscribe,
+    homeFeedStore.getState,
+    homeFeedStore.getState,
+  );
 }
 
 export type ClarifierPrompt = {
@@ -712,6 +725,60 @@ export function ComposerForm({
     if (!summaryResult || !summaryMessageId) return conversationHistory;
     return conversationHistory.filter((entry) => entry.id !== summaryMessageId);
   }, [conversationHistory, summaryMessageId, summaryResult]);
+  const [summaryPreviewEntry, setSummaryPreviewEntry] = React.useState<SummaryConversationEntry | null>(null);
+  const feedState = useHomeFeedSnapshot();
+  const { user: currentUser } = useCurrentUser();
+  const canRemember = Boolean(currentUser);
+  const summaryPreviewPost = React.useMemo<HomeFeedPost | null>(() => {
+    if (!summaryPreviewEntry?.postId) return null;
+    const target = summaryPreviewEntry.postId.trim();
+    if (!target.length) return null;
+    for (const post of feedState.posts) {
+      if (post.id === target) return post;
+      const dbId =
+        typeof post.dbId === "string" && post.dbId.trim().length
+          ? post.dbId.trim()
+          : null;
+      if (dbId === target) return post;
+    }
+    return null;
+  }, [feedState.posts, summaryPreviewEntry?.postId]);
+  const previewPosts = React.useMemo(
+    () => (summaryPreviewPost ? [summaryPreviewPost] : []),
+    [summaryPreviewPost],
+  );
+  const previewHasFetched = feedState.hasFetched || Boolean(summaryPreviewPost);
+  const { likePending, memoryPending, activeFriendTarget, friendActionPending, isRefreshing } = feedState;
+
+  const handlePreviewToggleLike = React.useCallback((postId: string) => {
+    void homeFeedStore.actions.toggleLike(postId);
+  }, []);
+
+  const handlePreviewToggleMemory = React.useCallback(
+    (post: HomeFeedPost, desired: boolean) =>
+      homeFeedStore.actions.toggleMemory(post.id, { desired, canRemember }),
+    [canRemember],
+  );
+
+  const handlePreviewFriendRequest = React.useCallback(
+    (post: HomeFeedPost, identifier: string) =>
+      homeFeedStore.actions.requestFriend(post.id, identifier),
+    [],
+  );
+
+  const handlePreviewFriendRemove = React.useCallback(
+    (post: HomeFeedPost, identifier: string) =>
+      homeFeedStore.actions.removeFriend(post.id, identifier),
+    [],
+  );
+
+  const handlePreviewToggleFriendTarget = React.useCallback((identifier: string | null) => {
+    homeFeedStore.actions.setActiveFriendTarget(identifier);
+  }, []);
+
+  const handlePreviewDeletePost = React.useCallback((postId: string) => {
+    void homeFeedStore.actions.deletePost(postId);
+  }, []);
 
   const clarifier = React.useMemo<ClarifierPrompt | null>(() => {
     if (!clarifierInput) return null;
@@ -880,11 +947,13 @@ export function ComposerForm({
     if (!summaryEntries.length) {
       summarySignatureRef.current = null;
       setSummaryPanelOpen(false);
+      setSummaryPreviewEntry(null);
       return;
     }
     if (summarySignatureRef.current !== signature) {
       summarySignatureRef.current = signature;
       setSummaryPanelOpen(false);
+      setSummaryPreviewEntry(null);
     }
   }, [summaryEntries]);
 
@@ -1217,11 +1286,13 @@ export function ComposerForm({
         parts.push(`Context: ${snippet}`);
       }
       handleSuggestionSelect(parts.join(" "));
+      setSummaryPreviewEntry(entry);
     },
     [handleSuggestionSelect],
   );
 
   const handleSummaryView = React.useCallback((entry: SummaryConversationEntry) => {
+    setSummaryPreviewEntry(entry);
     if (typeof window === "undefined") return;
     if (!entry.postId) return;
     window.dispatchEvent(
@@ -1243,6 +1314,7 @@ export function ComposerForm({
         promptSegments.push(`Use this context: ${snippet}`);
       }
       handleSuggestionSelect(promptSegments.join(" "));
+      setSummaryPreviewEntry(entry);
       if (typeof window !== "undefined" && entry.postId) {
         window.dispatchEvent(
           new CustomEvent(COMPOSER_SUMMARY_ACTION_EVENT, {
@@ -2424,7 +2496,140 @@ export function ComposerForm({
     };
   }, [activeKind, handleBlueprintShortcut, handleMemoryPickerOpen, memoryItems.length, memoryPickerTab]);
 
-  const previewContent = (
+  const summaryPreviewContent = React.useMemo(() => {
+    if (!summaryPreviewEntry) return null;
+    const hasPost = Boolean(summaryPreviewEntry.postId);
+    const highlightChips =
+      summaryPreviewEntry.highlights && summaryPreviewEntry.highlights.length ? (
+        <div className={styles.summaryPreviewHighlights}>
+          {summaryPreviewEntry.highlights.map((highlight, index) => (
+            <span key={`${summaryPreviewEntry.id}-highlight-${index}`} className={styles.summaryPreviewHighlight}>
+              {highlight}
+            </span>
+          ))}
+        </div>
+      ) : null;
+
+    const actions = (
+      <div className={styles.summaryPreviewActions}>
+        <button
+          type="button"
+          className={styles.summaryPreviewActionBtn}
+          onClick={() => handleSummaryView(summaryPreviewEntry)}
+        >
+          Open in feed
+        </button>
+        <button
+          type="button"
+          className={styles.summaryPreviewActionBtn}
+          onClick={() => handleSummaryComment(summaryPreviewEntry)}
+          disabled={!hasPost}
+          data-disabled={!hasPost ? "true" : undefined}
+        >
+          Open comments
+        </button>
+      </div>
+    );
+
+    if (summaryPreviewPost) {
+      return (
+        <PreviewColumn
+          title="Referenced update"
+          subtitle={summaryPreviewEntry.author ?? "Feed activity"}
+          meta={summaryPreviewEntry.relativeTime ? <span>{summaryPreviewEntry.relativeTime}</span> : null}
+          actions={
+            <button
+              type="button"
+              className={styles.summaryPreviewBackBtn}
+              onClick={() => setSummaryPreviewEntry(null)}
+            >
+              Back to composer
+            </button>
+          }
+        >
+          <div className={styles.summaryPreviewPost}>
+            {summaryPreviewEntry.summary ? (
+              <p className={styles.summaryPreviewText}>{summaryPreviewEntry.summary}</p>
+            ) : null}
+            {highlightChips}
+            <div className={styles.summaryPreviewPostFeed}>
+              <HomeFeedList
+                posts={previewPosts}
+                likePending={likePending}
+                memoryPending={memoryPending}
+                activeFriendTarget={activeFriendTarget}
+                friendActionPending={friendActionPending}
+                onToggleLike={handlePreviewToggleLike}
+                onToggleMemory={handlePreviewToggleMemory}
+                onFriendRequest={handlePreviewFriendRequest}
+                onDelete={handlePreviewDeletePost}
+                onRemoveFriend={handlePreviewFriendRemove}
+                onToggleFriendTarget={handlePreviewToggleFriendTarget}
+                formatCount={formatFeedCount}
+                timeAgo={formatTimeAgo}
+                exactTime={formatExactTime}
+                canRemember={canRemember}
+                hasFetched={previewHasFetched}
+                isRefreshing={isRefreshing}
+              />
+            </div>
+            {actions}
+          </div>
+        </PreviewColumn>
+      );
+    }
+
+    return (
+      <PreviewColumn
+        title="Referenced update"
+        subtitle={summaryPreviewEntry.author ?? "Feed activity"}
+        meta={summaryPreviewEntry.relativeTime ? <span>{summaryPreviewEntry.relativeTime}</span> : null}
+        actions={
+          <button
+            type="button"
+            className={styles.summaryPreviewBackBtn}
+            onClick={() => setSummaryPreviewEntry(null)}
+          >
+            Back to composer
+          </button>
+        }
+      >
+        <div className={styles.summaryPreviewCard}>
+          {summaryPreviewEntry.summary ? (
+            <p className={styles.summaryPreviewText}>{summaryPreviewEntry.summary}</p>
+          ) : null}
+          {highlightChips}
+          {!summaryPreviewPost && hasPost ? (
+            <p className={styles.summaryPreviewHint}>
+              We couldn&apos;t load this post in the preview. Use Open in feed to view it in the timeline.
+            </p>
+          ) : null}
+          {actions}
+        </div>
+      </PreviewColumn>
+    );
+  }, [
+    activeFriendTarget,
+    canRemember,
+    friendActionPending,
+    handlePreviewDeletePost,
+    handlePreviewFriendRemove,
+    handlePreviewFriendRequest,
+    handlePreviewToggleFriendTarget,
+    handlePreviewToggleLike,
+    handlePreviewToggleMemory,
+    handleSummaryComment,
+    handleSummaryView,
+    isRefreshing,
+    likePending,
+    memoryPending,
+    previewHasFetched,
+    previewPosts,
+    summaryPreviewEntry,
+    summaryPreviewPost,
+  ]);
+
+  const previewContent = summaryPreviewContent ?? (
     <PreviewColumn
       title="Preview"
       meta={<span className={styles.previewTypeBadge}>{previewState.label}</span>}

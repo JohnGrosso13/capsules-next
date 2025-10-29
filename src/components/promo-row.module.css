@@ -154,6 +154,37 @@
   background: color-mix(in srgb, var(--surface-overlay) 85%, rgba(15, 23, 42, 0.54));
 }
 
+.short[data-kind="video"][data-letterbox="true"] {
+  background: #000;
+}
+
+.videoLetterbox {
+  object-fit: contain;
+  background: #000;
+}
+
+.videoLetterbox:fullscreen,
+.videoLetterbox:-webkit-full-screen {
+  object-fit: contain;
+  background: #000;
+}
+
+.videoRotateFullscreenClockwise:fullscreen,
+.videoRotateFullscreenClockwise:-webkit-full-screen {
+  transform: rotate(90deg);
+  transform-origin: center center;
+  object-fit: contain;
+  background: #000;
+}
+
+.videoRotateFullscreenCounterclockwise:fullscreen,
+.videoRotateFullscreenCounterclockwise:-webkit-full-screen {
+  transform: rotate(-90deg);
+  transform-origin: center center;
+  object-fit: contain;
+  background: #000;
+}
+
 .videoOverlay {
   position: absolute;
   inset: 0;
@@ -329,12 +360,241 @@
   z-index: 1;
   width: 100%;
   height: auto;
-  max-height: calc(100vh - clamp(176px, 24vh, 320px));
+  max-height: 100%;
   border-radius: 22px;
   background: #000;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     inset 0 -1px 0 rgba(3, 6, 18, 0.45);
+}
+
+.videoViewerProgressGroup {
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 1.4vw, 10px);
+  width: 100%;
+  padding: clamp(4px, 1.4vw, 12px) clamp(36px, 5vw, 56px) 0;
+  margin-top: clamp(20px, 2.8vw, 32px);
+}
+
+.videoViewerProgressBar {
+  position: relative;
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.videoViewerProgressFill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(129, 140, 248, 0.92), rgba(59, 130, 246, 0.92));
+  width: 0%;
+  transform-origin: left;
+  transition: width 120ms linear;
+}
+
+.videoViewerStage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: clamp(12px, 2.4vw, 22px);
+  border-radius: 28px;
+  background: color-mix(in srgb, rgba(15, 23, 42, 0.92) 90%, rgba(9, 13, 28, 0.9));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(4, 6, 18, 0.32);
+  overflow: hidden;
+  max-height: calc(100vh - clamp(176px, 24vh, 320px));
+}
+
+.videoViewerStage[data-playing="true"] {
+  background: color-mix(in srgb, rgba(15, 23, 42, 0.9) 78%, rgba(8, 13, 32, 0.9));
+}
+
+.videoViewerNav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(46px, 4.2vw, 60px);
+  height: clamp(46px, 4.2vw, 60px);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: color-mix(in srgb, rgba(15, 23, 42, 0.84) 82%, rgba(99, 102, 241, 0.32));
+  color: rgba(255, 255, 255, 0.94);
+  cursor: pointer;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 140ms var(--motion-ease-standard, ease),
+    background 140ms var(--motion-ease-standard, ease),
+    border-color 140ms var(--motion-ease-standard, ease),
+    box-shadow 140ms var(--motion-ease-standard, ease);
+  z-index: 2;
+}
+
+.videoViewerStage[data-has-nav="true"] .videoViewerNav {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.videoViewerNav[data-direction="prev"] {
+  left: clamp(14px, 2.6vw, 28px);
+}
+
+.videoViewerNav[data-direction="next"] {
+  right: clamp(14px, 2.6vw, 28px);
+}
+
+.videoViewerNav:hover,
+.videoViewerNav:focus-visible {
+  transform: translateY(-50%) scale(1.05);
+  border-color: rgba(255, 255, 255, 0.36);
+  background: color-mix(in srgb, rgba(99, 102, 241, 0.42) 58%, rgba(15, 23, 42, 0.82));
+  box-shadow: 0 16px 34px rgba(5, 10, 30, 0.32);
+  outline: none;
+}
+
+.videoViewerPlayHint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(60px, 6vw, 72px);
+  height: clamp(60px, 6vw, 72px);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: color-mix(in srgb, rgba(15, 23, 42, 0.85) 80%, rgba(99, 102, 241, 0.28));
+  color: rgba(255, 255, 255, 0.94);
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.2s ease;
+  z-index: 3;
+}
+
+.videoViewerPlayHint:hover,
+.videoViewerPlayHint:focus-visible {
+  transform: translate(-50%, -50%) scale(1.05);
+  border-color: rgba(255, 255, 255, 0.38);
+  background: color-mix(in srgb, rgba(99, 102, 241, 0.46) 60%, rgba(15, 23, 42, 0.8));
+  box-shadow: 0 16px 32px rgba(6, 10, 28, 0.42);
+  outline: none;
+}
+
+.videoViewerControls {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2.4vw, 20px);
+  width: 100%;
+  padding: clamp(12px, 2.4vw, 18px);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(37, 99, 235, 0.2) 28%, transparent),
+      transparent 68%
+    ),
+    color-mix(in srgb, rgba(15, 23, 42, 0.9) 88%, rgba(8, 12, 32, 0.9));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(6, 10, 26, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.videoViewerControlButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(42px, 4vw, 48px);
+  height: clamp(42px, 4vw, 48px);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 60%, rgba(15, 23, 42, 0.82));
+  color: inherit;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.2s ease;
+}
+
+.videoViewerControlButton:hover,
+.videoViewerControlButton:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.38);
+  background: color-mix(in srgb, rgba(99, 102, 241, 0.55) 58%, rgba(15, 23, 42, 0.82));
+  box-shadow: 0 16px 32px rgba(6, 10, 28, 0.36);
+  outline: none;
+}
+
+.videoViewerControlButton svg {
+  width: clamp(18px, 2.4vw, 22px);
+  height: clamp(18px, 2.4vw, 22px);
+}
+
+.videoViewerTimeline {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.videoViewerTimelineBar {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.videoViewerTimelineProgress {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.92), rgba(129, 140, 248, 0.92));
+  width: 0%;
+  transform-origin: left;
+  transition: width 120ms linear;
+}
+
+.videoViewerTimelineInput {
+  position: absolute;
+  inset: -8px 0;
+  width: 100%;
+  height: calc(100% + 16px);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.videoViewerTimecode {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.videoViewerStepper {
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .videoViewerCaption {
@@ -368,6 +628,7 @@
     width: min(100%, 96vw);
     padding: clamp(14px, 4vw, 24px);
     border-radius: 22px;
+    gap: clamp(10px, 4vw, 18px);
   }
 
   .videoViewerClose {
@@ -377,5 +638,56 @@
 
   .videoViewerCaption {
     font-size: 0.9rem;
+  }
+
+  .videoViewerProgressGroup {
+    padding: clamp(2px, 2vw, 8px) clamp(20px, 6vw, 30px) 0;
+    gap: clamp(4px, 2vw, 8px);
+    margin-top: clamp(14px, 4vw, 20px);
+  }
+
+  .videoViewerProgressBar {
+    height: 4px;
+  }
+
+  .videoViewerStage {
+    padding: clamp(10px, 4vw, 18px);
+    border-radius: 22px;
+  }
+
+  .videoViewerNav {
+    width: clamp(40px, 5vw, 48px);
+    height: clamp(40px, 5vw, 48px);
+  }
+
+  .videoViewerPlayHint {
+    width: clamp(54px, 8vw, 64px);
+    height: clamp(54px, 8vw, 64px);
+  }
+
+  .videoViewerControls {
+    flex-wrap: wrap;
+    padding: clamp(10px, 4vw, 16px);
+    gap: clamp(10px, 3vw, 16px);
+  }
+
+  .videoViewerControlButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  .videoViewerTimeline {
+    order: 2;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .videoViewerTimecode {
+    font-size: 0.8rem;
+  }
+
+  .videoViewerStepper {
+    margin-left: 0;
+    margin-top: 4px;
   }
 }

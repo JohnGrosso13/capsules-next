@@ -41,6 +41,7 @@ function buildEntryResolver(entries: SummaryConversationEntry[]) {
     };
     register(entry.title);
     register(entry.summary);
+    register(entry.author);
     (entry.highlights ?? []).forEach((highlight) => register(highlight));
     if (entry.summary) {
       entry.summary.split(/[\n.?!]/).forEach((segment) => register(segment));
