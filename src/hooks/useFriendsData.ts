@@ -26,6 +26,12 @@ import type {
   SocialGraphSnapshot,
 } from "@/lib/supabase/friends";
 import type { PartyInviteSummary } from "@/types/party";
+import {
+  ASSISTANT_USER_ID,
+  ASSISTANT_USER_KEY,
+  ASSISTANT_DISPLAY_NAME,
+  ASSISTANT_DEFAULT_AVATAR,
+} from "@/shared/assistant/constants";
 
 export type FriendItem = {
   id: string;
@@ -62,6 +68,15 @@ export type FriendsCounters = {
 };
 const FALLBACK_DISPLAY_FRIENDS: FriendItem[] = [
   {
+    id: `assistant-${ASSISTANT_USER_ID}`,
+    userId: ASSISTANT_USER_ID,
+    key: ASSISTANT_USER_KEY,
+    name: ASSISTANT_DISPLAY_NAME,
+    avatar: ASSISTANT_DEFAULT_AVATAR,
+    since: null,
+    status: "online" as const,
+  },
+  {
     id: "capsules",
     userId: "capsules",
     key: null,
@@ -94,7 +109,8 @@ function mapFriendSummaries(summaries: FriendSummary[], presence: PresenceMap): 
   return summaries.map((summary, index) => {
     const presenceKey = summary.friendUserId || summary.user?.key || summary.user?.id || summary.id;
     const presenceEntry = presenceKey ? presence[presenceKey] : undefined;
-    const status = presenceEntry?.status ?? "offline";
+    const isAssistant = summary.friendUserId === ASSISTANT_USER_ID;
+    const status = isAssistant ? "online" : presenceEntry?.status ?? "offline";
 
     const fallbackName = "Friend";
     const fallbackId = summary.id || summary.friendUserId || summary.user?.key || `friend-${index}`;
@@ -250,11 +266,26 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     scheduleRefresh,
   );
 
-  const hasRealFriends = friendSummaries.length > 0;
+  const friendCount = React.useMemo(
+    () =>
+      friendSummaries.filter((summary) => summary.friendUserId !== ASSISTANT_USER_ID).length,
+    [friendSummaries],
+  );
+  const hasRealFriends = friendCount > 0;
 
   const friends: FriendItem[] = React.useMemo(() => {
     const mapped = mapFriendSummaries(friendSummaries, presenceState);
-    if (mapped.length > 0) return mapped;
+    if (mapped.length > 0) {
+      const assistantIndex = mapped.findIndex((friend) => friend.userId === ASSISTANT_USER_ID);
+      if (assistantIndex > 0) {
+        const assistantFriend = mapped[assistantIndex];
+        if (assistantFriend) {
+          mapped.splice(assistantIndex, 1);
+          mapped.unshift(assistantFriend);
+        }
+      }
+      return mapped;
+    }
     return FALLBACK_DISPLAY_FRIENDS;
   }, [friendSummaries, presenceState]);
 
@@ -273,11 +304,11 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
 
   const counters: FriendsCounters = React.useMemo(
     () => ({
-      friends: hasRealFriends ? friendSummaries.length : 0,
+      friends: hasRealFriends ? friendCount : 0,
       chats: 0,
       requests: incomingSummaries.length + partyInvites.length,
     }),
-    [hasRealFriends, friendSummaries.length, incomingSummaries.length, partyInvites.length],
+    [hasRealFriends, friendCount, incomingSummaries.length, partyInvites.length],
   );
 
   const mutate = React.useCallback(

@@ -661,16 +661,36 @@ export function PartyPanel({
     setSummaryError(null);
     try {
       const recentSegments = transcriptSegments.slice(-160);
-      const segmentsPayload = recentSegments.map((segment) => ({
-        id: segment.id,
-        text: segment.text,
-        speakerId: segment.speakerId,
-        speakerName: segment.speakerName,
-        startTime: segment.startTime,
-        endTime: segment.endTime,
-        language: segment.language,
-        final: segment.final,
-      }));
+      const segmentsPayload = recentSegments.map((segment) => {
+        const payload: {
+          id: string;
+          text: string;
+          speakerId: string | null;
+          speakerName: string | null;
+          startTime?: number;
+          endTime?: number;
+          language?: string | null;
+          final?: boolean;
+        } = {
+          id: segment.id,
+          text: segment.text,
+          speakerId: segment.speakerId,
+          speakerName: segment.speakerName,
+        };
+        if (typeof segment.startTime === "number") {
+          payload.startTime = segment.startTime;
+        }
+        if (typeof segment.endTime === "number") {
+          payload.endTime = segment.endTime;
+        }
+        if (segment.language !== undefined) {
+          payload.language = segment.language ?? null;
+        }
+        if (typeof segment.final === "boolean") {
+          payload.final = segment.final;
+        }
+        return payload;
+      });
       const participantMap = new Map<string, string | null>();
       for (const segment of recentSegments) {
         if (segment.speakerId && !participantMap.has(segment.speakerId)) {
@@ -723,6 +743,8 @@ export function PartyPanel({
         hashtags: summaryPayload.hashtags,
         tone: summaryPayload.tone,
         sentiment: summaryPayload.sentiment,
+        postTitle: null,
+        postPrompt: null,
         wordCount: summaryPayload.wordCount,
         model: summaryPayload.model,
         source: "party",
@@ -1619,16 +1641,25 @@ function PartyStageScene({
         if (!segment?.id) continue;
         const text = typeof segment.text === "string" ? segment.text.trim() : "";
         if (!text.length) continue;
-        transcriptBufferRef.current.set(segment.id, {
+        const entry: PartyTranscriptSegment = {
           id: segment.id,
           text,
           speakerId: identity,
           speakerName: speakerName ?? null,
-          startTime: typeof segment.startTime === "number" ? segment.startTime : undefined,
-          endTime: typeof segment.endTime === "number" ? segment.endTime : undefined,
-          language: typeof segment.language === "string" ? segment.language : null,
-          final: typeof segment.final === "boolean" ? segment.final : undefined,
-        });
+        };
+        if (typeof segment.startTime === "number") {
+          entry.startTime = segment.startTime;
+        }
+        if (typeof segment.endTime === "number") {
+          entry.endTime = segment.endTime;
+        }
+        if (segment.language !== undefined) {
+          entry.language = typeof segment.language === "string" ? segment.language : null;
+        }
+        if (typeof segment.final === "boolean") {
+          entry.final = segment.final;
+        }
+        transcriptBufferRef.current.set(segment.id, entry);
       }
 
       if (transcriptBufferRef.current.size > MAX_TRANSCRIPT_SEGMENTS * 2) {

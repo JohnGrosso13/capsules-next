@@ -6,6 +6,7 @@ import styles from "@/app/(authenticated)/friends/friends.module.css";
 import { FriendRow } from "@/components/friends/FriendRow";
 import { FriendMenu } from "@/components/friends/FriendMenu";
 import type { FriendItem } from "@/hooks/useFriendsData";
+import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
 
 type FriendsListProps = {
   items: FriendItem[];
@@ -37,6 +38,7 @@ export function FriendsList({
         const identifier =
           friend.userId ?? friend.key ?? (friend.id ? String(friend.id) : `friend-${index}`);
         const isPending = pendingId === identifier;
+        const isAssistant = friend.userId === ASSISTANT_USER_ID;
         const canTarget = Boolean(friend.userId || friend.key || friend.id);
 
         return (
@@ -50,8 +52,13 @@ export function FriendsList({
               <FriendMenu
                 canTarget={canTarget}
                 pending={isPending}
-                onDelete={() => onDelete(friend, identifier)}
-                onBlock={onBlock ? () => onBlock(friend, identifier) : null}
+                immutable={isAssistant}
+                onDelete={
+                  isAssistant ? () => undefined : () => onDelete(friend, identifier)
+                }
+                onBlock={
+                  !isAssistant && onBlock ? () => onBlock(friend, identifier) : null
+                }
                 onView={onView ? () => onView(friend, identifier) : null}
                 onStartChat={onStartChat ? () => onStartChat(friend, identifier) : null}
               />

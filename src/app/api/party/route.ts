@@ -46,12 +46,18 @@ export async function POST(req: Request) {
       ownerDisplayName: displayName,
       topic,
       privacy,
-      summary: summaryInput
-        ? {
-            enabled: summaryInput.enabled ?? undefined,
-            verbosity: coerceVerbosity(summaryInput.verbosity),
-          }
-        : null,
+      summary: (() => {
+        if (!summaryInput) return null;
+        const summaryConfig: { enabled?: boolean; verbosity?: SummaryLengthHint } = {};
+        if (typeof summaryInput.enabled === "boolean") {
+          summaryConfig.enabled = summaryInput.enabled;
+        }
+        const verbosity = coerceVerbosity(summaryInput.verbosity);
+        if (verbosity) {
+          summaryConfig.verbosity = verbosity;
+        }
+        return summaryConfig;
+      })(),
     });
 
     await ensurePartyRoom(metadata);

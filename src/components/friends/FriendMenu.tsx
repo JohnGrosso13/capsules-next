@@ -8,6 +8,7 @@ import styles from "@/app/(authenticated)/friends/friends.module.css";
 type FriendMenuProps = {
   canTarget: boolean;
   pending?: boolean;
+  immutable?: boolean;
   onDelete: () => void;
   onBlock?: (() => void) | null;
   onView?: (() => void) | null;
@@ -17,6 +18,7 @@ type FriendMenuProps = {
 export function FriendMenu({
   canTarget,
   pending,
+  immutable,
   onDelete,
   onBlock,
   onView,
@@ -74,6 +76,7 @@ export function FriendMenu({
   }, [open, updateCoords]);
 
   const disableActions = !canTarget || Boolean(pending);
+  const hideDestructive = immutable === true;
 
   const handleAction = React.useCallback(
     (fn?: (() => void) | null) => {
@@ -135,29 +138,33 @@ export function FriendMenu({
               >
                 Start chat
               </button>
-              <div className={styles.friendMenuSeparator} aria-hidden />
-              <button
-                type="button"
-                className={styles.friendMenuItem}
-                role="menuitem"
-                onClick={() => handleAction(onBlock ?? null)}
-                disabled={disableActions}
-              >
-                Block
-              </button>
-              <button
-                type="button"
-                className={`${styles.friendMenuItem} ${styles.friendMenuDanger}`.trim()}
-                role="menuitem"
-                onClick={() => {
-                  if (disableActions) return;
-                  onDelete();
-                  setOpen(false);
-                }}
-                disabled={disableActions}
-              >
-                {pending ? "Removing..." : "Remove"}
-              </button>
+              {hideDestructive ? null : (
+                <>
+                  <div className={styles.friendMenuSeparator} aria-hidden />
+                  <button
+                    type="button"
+                    className={styles.friendMenuItem}
+                    role="menuitem"
+                    onClick={() => handleAction(onBlock ?? null)}
+                    disabled={disableActions}
+                  >
+                    Block
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.friendMenuItem} ${styles.friendMenuDanger}`.trim()}
+                    role="menuitem"
+                    onClick={() => {
+                      if (disableActions) return;
+                      onDelete();
+                      setOpen(false);
+                    }}
+                    disabled={disableActions}
+                  >
+                    {pending ? "Removing..." : "Remove"}
+                  </button>
+                </>
+              )}
             </div>,
             document.body,
           )
