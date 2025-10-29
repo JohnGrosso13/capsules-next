@@ -10,6 +10,12 @@ import {
   type SocialGraphSnapshot,
   type RawRow,
 } from "./types";
+import {
+  ASSISTANT_USER_ID,
+  ASSISTANT_USER_KEY,
+  ASSISTANT_DISPLAY_NAME,
+  ASSISTANT_DEFAULT_AVATAR,
+} from "@/shared/assistant/constants";
 
 import {
   closePendingRequest,
@@ -60,8 +66,28 @@ export async function listSocialGraph(userId: string): Promise<SocialGraphSnapsh
   const { friends, incoming, outgoing, followers, following, blocked } =
     await fetchSocialGraphRows(userId);
 
+  const friendSummaries = friends.map((row) => mapFriendRow(row));
+  const hasAssistant = friendSummaries.some(
+    (friend) => friend.friendUserId === ASSISTANT_USER_ID,
+  );
+  if (!hasAssistant) {
+    const assistantFriend: FriendSummary = {
+      id: `assistant-${ASSISTANT_USER_ID}`,
+      friendUserId: ASSISTANT_USER_ID,
+      requestId: null,
+      since: null,
+      user: {
+        id: ASSISTANT_USER_ID,
+        key: ASSISTANT_USER_KEY,
+        name: ASSISTANT_DISPLAY_NAME,
+        avatarUrl: ASSISTANT_DEFAULT_AVATAR,
+      },
+    };
+    friendSummaries.unshift(assistantFriend);
+  }
+
   return {
-    friends: friends.map((row) => mapFriendRow(row)),
+    friends: friendSummaries,
     incomingRequests: incoming.map((row) => mapRequestRow(row, "incoming")),
     outgoingRequests: outgoing.map((row) => mapRequestRow(row, "outgoing")),
     followers: followers.map((row) => mapFollowRow(row, "follower")),

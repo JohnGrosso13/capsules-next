@@ -142,6 +142,15 @@ export async function ensureLivekitRoom(options: LivekitRoomOptions): Promise<vo
   await client.createRoom(roomConfig);
 }
 
+export async function updateLivekitRoomMetadata(name: string, metadata: unknown): Promise<void> {
+  const client = getRoomServiceClient();
+  const serialized = serializeMetadata(metadata);
+  if (serialized === undefined) {
+    throw new Error("Unable to serialize LiveKit room metadata for update.");
+  }
+  await client.updateRoomMetadata(name, serialized);
+}
+
 export async function fetchLivekitRoom(name: string): Promise<LivekitRoomSnapshot | null> {
   const client = getRoomServiceClient();
   const [room] = await client.listRooms([name]);

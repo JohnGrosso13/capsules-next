@@ -5,13 +5,9 @@ import { serverEnv } from "@/lib/env/server";
 import { getOAuthProviderConfig } from "@/lib/oauth/providers";
 import { decodeState } from "@/lib/oauth/state";
 import { upsertSocialLink } from "@/lib/supabase/social";
-import { appendQueryParams, resolveRedirectUrl } from "@/lib/url";
+import { appendQueryParams, deriveRequestOrigin, resolveRedirectUrl } from "@/lib/url";
 
 export const runtime = "nodejs";
-
-function toAbsolute(url: string | null | undefined) {
-  return resolveRedirectUrl(url ?? null, serverEnv.SITE_URL);
-}
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -20,8 +16,10 @@ export async function GET(req: Request) {
     stateRaw,
   );
   const provider = (url.searchParams.get("provider") || state?.v || "").trim().toLowerCase();
-  const fallbackRedirect = `${serverEnv.SITE_URL}/settings.html?tab=connections`;
-  const redirectBase = toAbsolute(state?.r ?? fallbackRedirect);
+  const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
+  const normalizedOrigin = requestOrigin.replace(/\/$/, "");
+  const fallbackRedirect = `${normalizedOrigin}/settings.html?tab=connections`;
+  const redirectBase = resolveRedirectUrl(state?.r ?? fallbackRedirect, normalizedOrigin);
 
   const fail = (reason: string) =>
     NextResponse.redirect(
@@ -48,7 +46,7 @@ export async function GET(req: Request) {
 
   try {
     const config = getOAuthProviderConfig(provider);
-    const redirectUri = `${serverEnv.SITE_URL}/api/oauth/callback`;
+    const redirectUri = `${normalizedOrigin}/api/oauth/callback`;
     const tokenParams = new URLSearchParams({
       client_id: config.clientId,
       redirect_uri: redirectUri,

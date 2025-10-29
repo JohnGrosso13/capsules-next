@@ -46,6 +46,31 @@
   gap: 20px;
 }
 
+.sectionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionHeading {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.86;
+}
+
+.sectionHeading span {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .ladderCard {
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -114,4 +139,24 @@
 .toneWarn {
   background: rgba(255, 134, 95, 0.18);
   color: #ffa571;
+}
+
+.tagBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(90, 118, 255, 0.16);
+  color: #9eb8ff;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.emptyActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }

@@ -34,6 +34,7 @@ import {
   type RemoteTrackPublication,
   type Room,
   type TrackPublication,
+  type TranscriptionSegment,
 } from "livekit-client";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
@@ -45,6 +46,8 @@ import {
 } from "@/components/providers/PartyProvider";
 import { useCurrentUser } from "@/services/auth/client";
 import { sendPartyInviteRequest } from "@/services/party-invite/client";
+import type { SummaryLengthHint, SummaryResult } from "@/types/summary";
+import { partySummarySettingsSchema, type PartySummarySettings } from "@/server/validation/schemas/party";
 
 import cm from "@/components/ui/context-menu.module.css";
 import styles from "./party-panel.module.css";
@@ -77,6 +80,8 @@ type PartyStageProps = {
   onReconnecting(): void;
   onReady(room: Room): void;
   onDisconnected(): void;
+  summaryEnabled: boolean;
+  onTranscriptsChange(segments: PartyTranscriptSegment[]): void;
 };
 
 type InviteStatus = {
@@ -109,6 +114,47 @@ const PRIVACY_OPTIONS: PrivacyOption[] = [
     description: "Only people you invite can join.",
   },
 ];
+
+const SUMMARY_VERBOSITY_OPTIONS: SummaryLengthHint[] = ["brief", "medium", "detailed"];
+const SUMMARY_LABELS: Record<SummaryLengthHint, string> = {
+  brief: "Brief",
+  medium: "Balanced",
+  detailed: "Detailed",
+};
+const SUMMARY_DESCRIPTIONS: Record<SummaryLengthHint, string> = {
+  brief: "Quick snapshot",
+  medium: "Every key moment",
+  detailed: "Rich context",
+};
+const MAX_TRANSCRIPT_SEGMENTS = 240;
+
+type PartyTranscriptSegment = {
+  id: string;
+  text: string;
+  speakerId: string | null;
+  speakerName: string | null;
+  startTime?: number;
+  endTime?: number;
+  language?: string | null;
+  final?: boolean;
+};
+
+type PartySummaryResponse = {
+  status: "ok";
+  summary: string;
+  highlights: string[];
+  nextActions: string[];
+  insights: string[];
+  hashtags: string[];
+  tone: string | null;
+  sentiment: string | null;
+  wordCount: number | null;
+  model: string | null;
+  memoryId: string;
+  metadata: {
+    summary: PartySummarySettings;
+  };
+};
 
 type LegacyGetUserMediaFn = (
   constraints: MediaStreamConstraints,
@@ -240,11 +286,20 @@ export function PartyPanel({
     handleRoomReconnecting,
     handleRoomConnected,
     handleRoomDisconnected,
+    updateMetadata,
   } = usePartyContext();
   const { user } = useCurrentUser();
 
   const [displayName, setDisplayName] = React.useState(() => user?.name ?? "");
   const [privacy, setPrivacy] = React.useState<PartyPrivacy>(DEFAULT_PRIVACY);
+  const [createSummaryEnabled, setCreateSummaryEnabled] = React.useState(false);
+  const [createSummaryVerbosity, setCreateSummaryVerbosity] =
+    React.useState<SummaryLengthHint>("medium");
+  const [summaryError, setSummaryError] = React.useState<string | null>(null);
+  const [summaryUpdating, setSummaryUpdating] = React.useState(false);
+  const [summaryGenerating, setSummaryGenerating] = React.useState(false);
+  const [summaryResult, setSummaryResult] = React.useState<SummaryResult | null>(null);
+  const [transcriptSegments, setTranscriptSegments] = React.useState<PartyTranscriptSegment[]>([]);
   const [joinCode, setJoinCode] = React.useState("");
   const [inviteFeedback, setInviteFeedback] = React.useState<InviteStatus | null>(null);
   const [inviteBusyId, setInviteBusyId] = React.useState<string | null>(null);
@@ -349,11 +404,45 @@ export function PartyPanel({
       (friend.name ?? "").toLowerCase().includes(query),
     );
   }, [inviteSearch, inviteableFriends]);
+  const summarySettings = React.useMemo<PartySummarySettings>(() => {
+    const raw = session?.metadata.summary;
+    const enabled = typeof raw?.enabled === "boolean" ? raw.enabled : false;
+    const verbosity: SummaryLengthHint =
+      raw?.verbosity === "brief" || raw?.verbosity === "detailed" || raw?.verbosity === "medium"
+        ? raw.verbosity
+        : "medium";
+    const lastGeneratedAt =
+      typeof raw?.lastGeneratedAt === "string" ? raw.lastGeneratedAt : undefined;
+    const memoryId = typeof raw?.memoryId === "string" ? raw.memoryId : undefined;
+    const lastGeneratedBy =
+      typeof raw?.lastGeneratedBy === "string" ? raw.lastGeneratedBy : undefined;
+    return {
+      enabled,
+      verbosity,
+      lastGeneratedAt,
+      memoryId,
+      lastGeneratedBy,
+    };
+  }, [session?.metadata.summary]);
 
   const busyInviteIds = React.useMemo(
     () => new Set([inviteBusyId].filter(Boolean) as string[]),
     [inviteBusyId],
   );
+
+  React.useEffect(() => {
+    if (!session) {
+      setSummaryResult(null);
+      setSummaryError(null);
+      setTranscriptSegments([]);
+    }
+  }, [session?.partyId, session]);
+
+  React.useEffect(() => {
+    if (!summarySettings.enabled) {
+      setSummaryResult(null);
+    }
+  }, [summarySettings.enabled]);
 
   const handlePrivacyKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>, optionIndex: number) => {
@@ -375,8 +464,12 @@ export function PartyPanel({
     await createParty({
       displayName: trimmedName || null,
       privacy,
+      summary: {
+        enabled: createSummaryEnabled,
+        verbosity: createSummaryVerbosity,
+      },
     });
-  }, [createParty, displayName, privacy]);
+  }, [createParty, createSummaryEnabled, createSummaryVerbosity, displayName, privacy]);
 
   const handleJoinParty = React.useCallback(async () => {
     if (!joinCode.trim()) return;
@@ -482,6 +575,189 @@ export function PartyPanel({
     [friendTargets, session],
   );
 
+  const applySummarySettings = React.useCallback(
+    async (patch: { enabled?: boolean; verbosity?: SummaryLengthHint; reset?: boolean }) => {
+      if (!session) {
+        setSummaryError("Start a party to configure summaries.");
+        return;
+      }
+      setSummaryUpdating(true);
+      setSummaryError(null);
+      try {
+        const response = await fetch(`/api/party/${session.partyId}/summary`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          const message =
+            (payload &&
+              typeof payload === "object" &&
+              "message" in payload &&
+              typeof (payload as { message?: unknown }).message === "string"
+              ? (payload as { message?: string }).message
+              : null) ?? "Unable to update summary settings.";
+          throw new Error(message);
+        }
+        const parsed = partySummarySettingsSchema.safeParse(payload);
+        const nextSummary = parsed.success ? parsed.data : summarySettings;
+        updateMetadata((metadata) => ({
+          ...metadata,
+          summary: nextSummary,
+        }));
+        if (patch.enabled === false || patch.reset) {
+          setTranscriptSegments([]);
+          setSummaryResult(null);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unable to update summary settings.";
+        setSummaryError(message);
+      } finally {
+        setSummaryUpdating(false);
+      }
+    },
+    [session, summarySettings, updateMetadata],
+  );
+
+  const handleSummaryToggle = React.useCallback(() => {
+    void applySummarySettings({ enabled: !summarySettings.enabled });
+  }, [applySummarySettings, summarySettings.enabled]);
+
+  const handleSummaryVerbosityChange = React.useCallback(
+    (value: SummaryLengthHint) => {
+      if (value === summarySettings.verbosity) return;
+      void applySummarySettings({ verbosity: value });
+    },
+    [applySummarySettings, summarySettings.verbosity],
+  );
+
+  const handleSummaryReset = React.useCallback(() => {
+    void applySummarySettings({ reset: true });
+  }, [applySummarySettings]);
+
+  const handleTranscriptsChange = React.useCallback(
+    (segments: PartyTranscriptSegment[]) => {
+      setTranscriptSegments(segments);
+    },
+    [],
+  );
+
+  const handleGenerateSummary = React.useCallback(async () => {
+    if (!session) {
+      setSummaryError("Start a party to generate a summary.");
+      return;
+    }
+    if (!summarySettings.enabled) {
+      setSummaryError("Turn on summaries before generating a recap.");
+      return;
+    }
+    if (!transcriptSegments.length) {
+      setSummaryError("We're still capturing the conversation. Try again in a moment.");
+      return;
+    }
+    setSummaryGenerating(true);
+    setSummaryError(null);
+    try {
+      const recentSegments = transcriptSegments.slice(-160);
+      const segmentsPayload = recentSegments.map((segment) => {
+        const payload: {
+          id: string;
+          text: string;
+          speakerId: string | null;
+          speakerName: string | null;
+          startTime?: number;
+          endTime?: number;
+          language?: string | null;
+          final?: boolean;
+        } = {
+          id: segment.id,
+          text: segment.text,
+          speakerId: segment.speakerId,
+          speakerName: segment.speakerName,
+        };
+        if (typeof segment.startTime === "number") {
+          payload.startTime = segment.startTime;
+        }
+        if (typeof segment.endTime === "number") {
+          payload.endTime = segment.endTime;
+        }
+        if (segment.language !== undefined) {
+          payload.language = segment.language ?? null;
+        }
+        if (typeof segment.final === "boolean") {
+          payload.final = segment.final;
+        }
+        return payload;
+      });
+      const participantMap = new Map<string, string | null>();
+      for (const segment of recentSegments) {
+        if (segment.speakerId && !participantMap.has(segment.speakerId)) {
+          participantMap.set(segment.speakerId, segment.speakerName ?? null);
+        }
+      }
+      const participants =
+        participantMap.size > 0
+          ? Array.from(participantMap.entries()).map(([id, name]) => ({
+              id,
+              name,
+            }))
+          : undefined;
+
+      const response = await fetch(`/api/party/${session.partyId}/summary`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          verbosity: summarySettings.verbosity,
+          segments: segmentsPayload,
+          participants,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (
+        !response.ok ||
+        !payload ||
+        typeof payload !== "object" ||
+        (payload as PartySummaryResponse).status !== "ok"
+      ) {
+        const message =
+          payload &&
+          typeof payload === "object" &&
+          "message" in payload &&
+          typeof (payload as { message?: unknown }).message === "string"
+            ? (payload as { message?: string }).message
+            : "Unable to generate a party summary.";
+        throw new Error(message);
+      }
+      const summaryPayload = payload as PartySummaryResponse;
+      updateMetadata((metadata) => ({
+        ...metadata,
+        summary: summaryPayload.metadata.summary,
+      }));
+      setSummaryResult({
+        summary: summaryPayload.summary,
+        highlights: summaryPayload.highlights,
+        nextActions: summaryPayload.nextActions,
+        insights: summaryPayload.insights,
+        hashtags: summaryPayload.hashtags,
+        tone: summaryPayload.tone,
+        sentiment: summaryPayload.sentiment,
+        postTitle: null,
+        postPrompt: null,
+        wordCount: summaryPayload.wordCount,
+        model: summaryPayload.model,
+        source: "party",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to generate a party summary.";
+      setSummaryError(message);
+    } finally {
+      setSummaryGenerating(false);
+    }
+  }, [session, summarySettings, transcriptSegments, updateMetadata]);
+
   const handleResetAndLeave = React.useCallback(async () => {
     await leaveParty();
   }, [leaveParty]);
@@ -546,11 +822,11 @@ export function PartyPanel({
               <span className={styles.label}>Party privacy</span>
               <span className={styles.privacyHint}>Choose who can discover and join your lobby.</span>
             </div>
-            <div className={styles.privacyOptions}>
-              {PRIVACY_OPTIONS.map((option, index) => {
-                const selected = privacy === option.value;
-                const optionClassName = selected
-                  ? `${styles.privacyOption} ${styles.privacyOptionSelected}`
+          <div className={styles.privacyOptions}>
+            {PRIVACY_OPTIONS.map((option, index) => {
+              const selected = privacy === option.value;
+              const optionClassName = selected
+                ? `${styles.privacyOption} ${styles.privacyOptionSelected}`
                   : styles.privacyOption;
                 return (
                   <button
@@ -567,6 +843,46 @@ export function PartyPanel({
                   >
                     <span className={styles.privacyOptionLabel}>{option.label}</span>
                     <span className={styles.privacyOptionDescription}>{option.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className={styles.summarySetup}>
+            <div className={styles.summarySetupHeader}>
+              <div className={styles.summarySetupLabels}>
+                <span className={styles.label}>Conversation summaries</span>
+                <p className={styles.summarySetupHint}>
+                  Save an AI recap of your voice chat to Memory for later reference.
+                </p>
+              </div>
+              <button
+                type="button"
+                className={`${styles.summaryToggle} ${
+                  createSummaryEnabled ? styles.summaryToggleActive : ""
+                }`.trim()}
+                onClick={() => setCreateSummaryEnabled((prev) => !prev)}
+                aria-pressed={createSummaryEnabled}
+              >
+                {createSummaryEnabled ? "Enabled" : "Disabled"}
+              </button>
+            </div>
+            <div className={styles.summaryVerbosityRow}>
+              {SUMMARY_VERBOSITY_OPTIONS.map((option) => {
+                const active = createSummaryVerbosity === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    className={`${styles.summaryVerbosityButton} ${
+                      active ? styles.summaryVerbosityButtonActive : ""
+                    }`.trim()}
+                    onClick={() => setCreateSummaryVerbosity(option)}
+                    disabled={!createSummaryEnabled}
+                    aria-pressed={active}
+                  >
+                    <span>{SUMMARY_LABELS[option]}</span>
+                    <small>{SUMMARY_DESCRIPTIONS[option]}</small>
                   </button>
                 );
               })}
@@ -627,6 +943,23 @@ export function PartyPanel({
 
   const renderActiveTile = (currentSession: PartySession) => {
     const statusText = status === "connected" ? null : partyStatusLabel;
+    const summaryEnabled = summarySettings.enabled;
+    const summaryVerbosity = summarySettings.verbosity;
+    const summaryLastSavedLabel = summarySettings.lastGeneratedAt
+      ? formatRelativeTime(summarySettings.lastGeneratedAt)
+      : null;
+    const summaryMemoryId = summarySettings.memoryId ?? null;
+    const canManageSummary = currentSession.isOwner;
+    const transcriptsReady = transcriptSegments.length > 0;
+    const summaryButtonDisabled =
+      summaryGenerating || summaryUpdating || !summaryEnabled || !transcriptsReady;
+    const summaryGenerateLabel = summaryGenerating ? "Summarizing..." : "Generate summary";
+    const summaryStatusLabel = summaryUpdating
+      ? "Updating..."
+      : summaryEnabled
+        ? "Enabled"
+        : "Disabled";
+
     return (
       <>
         <header className={`${styles.tileHeader} ${styles.tileHeaderActive}`}>
@@ -682,7 +1015,134 @@ export function PartyPanel({
             onReconnecting={handleRoomReconnecting}
             onReady={handleRoomConnected}
             onDisconnected={handleRoomDisconnected}
+            summaryEnabled={summaryEnabled}
+            onTranscriptsChange={handleTranscriptsChange}
           />
+        </section>
+        <section className={styles.section}>
+          <div className={styles.summaryPanel}>
+            <div className={styles.summaryHeaderRow}>
+              <div className={styles.summaryHeaderText}>
+                <span className={styles.label}>Conversation summary</span>
+                <p className={styles.summaryDescription}>
+                  {summaryEnabled
+                    ? "Generate a recap and Capsule will file it under Memory."
+                    : "Enable summaries to capture a recap of this voice party."}
+                </p>
+              </div>
+              {canManageSummary ? (
+                <button
+                  type="button"
+                  className={`${styles.summaryToggle} ${
+                    summaryEnabled ? styles.summaryToggleActive : ""
+                  }`.trim()}
+                  onClick={handleSummaryToggle}
+                  disabled={summaryUpdating}
+                  aria-pressed={summaryEnabled}
+                >
+                  {summaryStatusLabel}
+                </button>
+              ) : (
+                <span
+                  className={`${styles.summaryStatusBadge} ${
+                    summaryEnabled ? styles.summaryStatusBadgeActive : ""
+                  }`.trim()}
+                >
+                  {summaryEnabled ? "Enabled" : "Disabled"}
+                </span>
+              )}
+            </div>
+            <div className={styles.summaryControls}>
+              <div className={styles.summaryVerbosityRow}>
+                {SUMMARY_VERBOSITY_OPTIONS.map((option) => {
+                  const active = summaryVerbosity === option;
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      className={`${styles.summaryVerbosityButton} ${
+                        active ? styles.summaryVerbosityButtonActive : ""
+                      }`.trim()}
+                      onClick={() => handleSummaryVerbosityChange(option)}
+                      disabled={!canManageSummary || summaryUpdating || !summaryEnabled}
+                      aria-pressed={active}
+                    >
+                      <span>{SUMMARY_LABELS[option]}</span>
+                      <small>{SUMMARY_DESCRIPTIONS[option]}</small>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className={styles.summaryActionRow}>
+                <button
+                  type="button"
+                  className={styles.summaryPrimaryButton}
+                  onClick={() => {
+                    void handleGenerateSummary();
+                  }}
+                  disabled={summaryButtonDisabled}
+                >
+                  {summaryGenerateLabel}
+                </button>
+                {canManageSummary && summarySettings.lastGeneratedAt ? (
+                  <button
+                    type="button"
+                    className={styles.summaryResetButton}
+                    onClick={() => {
+                      void handleSummaryReset();
+                    }}
+                    disabled={summaryUpdating || summaryGenerating}
+                  >
+                    Reset summary
+                  </button>
+                ) : null}
+              </div>
+              <div className={styles.summaryMetaRow}>
+                <span>
+                  {summaryEnabled
+                    ? transcriptsReady
+                      ? "Live captions are rolling."
+                      : "Listening for voices…"
+                    : "Summaries are off for this party."}
+                </span>
+                {summaryLastSavedLabel ? (
+                  <span>
+                    Last saved {summaryLastSavedLabel}
+                    {summaryMemoryId ? (
+                      <span className={styles.summaryMemoryTag}>Memory #{summaryMemoryId.slice(0, 8)}</span>
+                    ) : null}
+                  </span>
+                ) : null}
+              </div>
+              {summaryError ? (
+                <div className={styles.summaryError} role="status">
+                  {summaryError}
+                </div>
+              ) : null}
+            </div>
+            {summaryResult ? (
+              <div className={styles.summaryResultCard}>
+                <p className={styles.summaryResultText}>{summaryResult.summary}</p>
+                {summaryResult.highlights.length ? (
+                  <ul className={styles.summaryHighlights}>
+                    {summaryResult.highlights.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {summaryResult.nextActions.length ? (
+                  <div className={styles.summaryNextActions}>
+                    <span>Next steps</span>
+                    <ul>
+                      {summaryResult.nextActions.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </section>
         <section className={styles.section}>
           <div className={styles.sectionHeaderRow}>
@@ -956,6 +1416,8 @@ function PartyStage({
   onReconnecting,
   onReady,
   onDisconnected,
+  summaryEnabled,
+  onTranscriptsChange,
 }: PartyStageProps) {
   return (
     <LiveKitRoom
@@ -979,6 +1441,8 @@ function PartyStage({
         onReconnecting={onReconnecting}
         onReady={onReady}
         onDisconnected={onDisconnected}
+        summaryEnabled={summaryEnabled}
+        onTranscriptsChange={onTranscriptsChange}
       />
     </LiveKitRoom>
   );
@@ -995,6 +1459,8 @@ type PartyStageSceneProps = {
   onReconnecting(): void;
   onReady(room: Room): void;
   onDisconnected(): void;
+  summaryEnabled: boolean;
+  onTranscriptsChange(segments: PartyTranscriptSegment[]): void;
 };
 
 type ParticipantMenuState = {
@@ -1015,10 +1481,13 @@ function PartyStageScene({
   onReconnecting,
   onReady,
   onDisconnected,
+  summaryEnabled,
+  onTranscriptsChange,
 }: PartyStageSceneProps) {
   const room = useRoomContext();
   const participants = useParticipants();
   const chat = useChatContext();
+  const transcriptBufferRef = React.useRef<Map<string, PartyTranscriptSegment>>(new Map());
   const [micEnabled, setMicEnabled] = React.useState<boolean>(true);
   const [micBusy, setMicBusy] = React.useState(false);
   const [micNotice, setMicNotice] = React.useState<string | null>(null);
@@ -1064,6 +1533,25 @@ function PartyStageScene({
     },
     [room],
   );
+
+  const flushTranscripts = React.useCallback(() => {
+    const entries = Array.from(transcriptBufferRef.current.values());
+    if (!entries.length) {
+      onTranscriptsChange([]);
+      return;
+    }
+    entries.sort((a, b) => {
+      const aStart = a.startTime ?? Number.POSITIVE_INFINITY;
+      const bStart = b.startTime ?? Number.POSITIVE_INFINITY;
+      if (Number.isFinite(aStart) && Number.isFinite(bStart)) {
+        return aStart - bStart;
+      }
+      if (Number.isFinite(aStart)) return -1;
+      if (Number.isFinite(bStart)) return 1;
+      return a.id.localeCompare(b.id);
+    });
+    onTranscriptsChange(entries.slice(-MAX_TRANSCRIPT_SEGMENTS));
+  }, [onTranscriptsChange]);
 
   const applyParticipantAudioState = React.useCallback(() => {
     if (!room) return;
@@ -1133,6 +1621,72 @@ function PartyStageScene({
   React.useEffect(() => {
     applyParticipantAudioState();
   }, [applyParticipantAudioState]);
+
+  React.useEffect(() => {
+    if (!room || !summaryEnabled) {
+      transcriptBufferRef.current.clear();
+      if (!summaryEnabled) {
+        onTranscriptsChange([]);
+      }
+      return;
+    }
+
+    const handleTranscription = (segments: TranscriptionSegment[], participant?: Participant) => {
+      const identity = participant?.identity ?? null;
+      const profile = identity ? participantProfiles.get(identity) ?? null : null;
+      const speakerName =
+        profile?.name ?? participant?.name ?? (identity && identity.trim().length ? identity : "Guest");
+
+      for (const segment of segments) {
+        if (!segment?.id) continue;
+        const text = typeof segment.text === "string" ? segment.text.trim() : "";
+        if (!text.length) continue;
+        const entry: PartyTranscriptSegment = {
+          id: segment.id,
+          text,
+          speakerId: identity,
+          speakerName: speakerName ?? null,
+        };
+        if (typeof segment.startTime === "number") {
+          entry.startTime = segment.startTime;
+        }
+        if (typeof segment.endTime === "number") {
+          entry.endTime = segment.endTime;
+        }
+        if (segment.language !== undefined) {
+          entry.language = typeof segment.language === "string" ? segment.language : null;
+        }
+        if (typeof segment.final === "boolean") {
+          entry.final = segment.final;
+        }
+        transcriptBufferRef.current.set(segment.id, entry);
+      }
+
+      if (transcriptBufferRef.current.size > MAX_TRANSCRIPT_SEGMENTS * 2) {
+        const trimmedEntries = Array.from(transcriptBufferRef.current.entries())
+          .sort((a, b) => {
+            const aStart = a[1].startTime ?? Number.POSITIVE_INFINITY;
+            const bStart = b[1].startTime ?? Number.POSITIVE_INFINITY;
+            if (Number.isFinite(aStart) && Number.isFinite(bStart)) {
+              return aStart - bStart;
+            }
+            if (Number.isFinite(aStart)) return -1;
+            if (Number.isFinite(bStart)) return 1;
+            return a[0].localeCompare(b[0]);
+          })
+          .slice(-MAX_TRANSCRIPT_SEGMENTS);
+        transcriptBufferRef.current = new Map(trimmedEntries);
+      }
+
+      flushTranscripts();
+    };
+
+    room.on(RoomEvent.TranscriptionReceived, handleTranscription);
+
+    return () => {
+      room.off(RoomEvent.TranscriptionReceived, handleTranscription);
+    };
+  }, [flushTranscripts, onTranscriptsChange, participantProfiles, room, summaryEnabled]);
 
   React.useEffect(() => {
     if (!room) return;

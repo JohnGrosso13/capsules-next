@@ -1,0 +1,87 @@
+.shellWrap {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(20px, 3vw, 32px);
+  width: 100%;
+}
+
+.navBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.navTabs {
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 999px;
+  background: rgba(22, 26, 44, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 18px rgba(10, 12, 24, 0.25);
+  backdrop-filter: blur(20px);
+}
+
+.navButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(12, 16, 30, 0.82);
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+}
+
+.navButtonActive {
+  background: linear-gradient(
+      145deg,
+      rgba(94, 118, 255, 0.25),
+      rgba(34, 202, 180, 0.2)
+    ),
+    rgba(12, 16, 30, 0.85);
+  border-color: rgba(102, 130, 255, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 12px 20px rgba(18, 22, 46, 0.45);
+  color: #ffffff;
+}
+
+.navButton:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.navButtonLabel {
+  font-size: 0.96rem;
+}
+
+.contentArea {
+  width: 100%;
+  display: flex;
+}
+
+.contentArea > * {
+  flex: 1 1 100%;
+}
+
+@media (max-width: 960px) {
+  .navTabs {
+    flex-wrap: wrap;
+  }
+
+  .navButton {
+    flex: 1 1 200px;
+  }
+}

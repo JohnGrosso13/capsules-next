@@ -210,7 +210,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
 
   const [members, setMembers] = React.useState<MemberFormState[]>(() => [createEmptyMember(0)]);
   const [aiPlan, setAiPlan] = React.useState<AiPlanState | null>(null);
-  const [meta, setMeta] = React.useState<Record<string, unknown> | null>(null);
+  const [meta, setMeta] = React.useState<Record<string, unknown>>({ variant: "ladder" });
 
   const [seed, setSeed] = React.useState({
     goal: "",
@@ -605,7 +605,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
 
     const metaRecord =
       ladder.meta && typeof ladder.meta === "object" ? (ladder.meta as Record<string, unknown>) : null;
-    setMeta(metaRecord);
+    setMeta(metaRecord ?? { variant: "ladder" });
   }, []);
 
   React.useEffect(() => {

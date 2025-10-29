@@ -14,23 +14,25 @@ export type CapsuleLadderSummary = {
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
+  meta: Record<string, unknown> | null;
 };
 
 type UseCapsuleLaddersResult = {
   ladders: CapsuleLadderSummary[];
+  tournaments: CapsuleLadderSummary[];
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
 };
 
 export function useCapsuleLadders(capsuleId: string | null): UseCapsuleLaddersResult {
-  const [ladders, setLadders] = React.useState<CapsuleLadderSummary[]>([]);
+  const [items, setItems] = React.useState<CapsuleLadderSummary[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const fetchLadders = React.useCallback(async () => {
     if (!capsuleId) {
-      setLadders([]);
+      setItems([]);
       return;
     }
 
@@ -50,7 +52,7 @@ export function useCapsuleLadders(capsuleId: string | null): UseCapsuleLaddersRe
       }
 
       const data = (await response.json()) as { ladders?: CapsuleLadderSummary[] };
-      setLadders(Array.isArray(data.ladders) ? data.ladders : []);
+      setItems(Array.isArray(data.ladders) ? data.ladders : []);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -62,8 +64,29 @@ export function useCapsuleLadders(capsuleId: string | null): UseCapsuleLaddersRe
     void fetchLadders();
   }, [fetchLadders]);
 
+  const ladders = React.useMemo(() => {
+    return items.filter((entry) => {
+      const variant =
+        entry.meta && typeof entry.meta === "object"
+          ? ((entry.meta as Record<string, unknown>).variant as string | undefined)
+          : undefined;
+      return !variant || variant === "ladder";
+    });
+  }, [items]);
+
+  const tournaments = React.useMemo(() => {
+    return items.filter((entry) => {
+      const variant =
+        entry.meta && typeof entry.meta === "object"
+          ? ((entry.meta as Record<string, unknown>).variant as string | undefined)
+          : undefined;
+      return variant === "tournament";
+    });
+  }, [items]);
+
   return {
     ladders,
+    tournaments,
     loading,
     error,
     refresh: fetchLadders,

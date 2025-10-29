@@ -4,6 +4,7 @@ import * as React from "react";
 import type { Room } from "livekit-client";
 
 import type { PartyTokenResponse, PartyPrivacy } from "@/server/validation/schemas/party";
+import type { SummaryLengthHint } from "@/types/summary";
 export type { PartyPrivacy } from "@/server/validation/schemas/party";
 import { useCurrentUser } from "@/services/auth/client";
 
@@ -24,6 +25,10 @@ type CreatePartyOptions = {
   displayName?: string | null;
   topic?: string | null;
   privacy?: PartyPrivacy;
+  summary?: {
+    enabled?: boolean | null;
+    verbosity?: SummaryLengthHint | null;
+  } | null;
 };
 
 type JoinPartyOptions = {
@@ -44,6 +49,9 @@ type PartyContextValue = {
   handleRoomReconnecting(): void;
   handleRoomConnected(room: Room): void;
   handleRoomDisconnected(): void;
+  updateMetadata(
+    updater: (metadata: PartySession["metadata"]) => PartySession["metadata"],
+  ): void;
 };
 
 const PartyContext = React.createContext<PartyContextValue | null>(null);
@@ -321,11 +329,27 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     );
     const topic = options.topic?.trim() || null;
     const privacy = options.privacy ?? DEFAULT_PARTY_PRIVACY;
+    const summaryOptions = options.summary ?? null;
+    const summaryEnabledProvided = typeof summaryOptions?.enabled === "boolean";
+    const summaryVerbosityProvided =
+      summaryOptions?.verbosity === "brief" ||
+      summaryOptions?.verbosity === "medium" ||
+      summaryOptions?.verbosity === "detailed";
+    const summaryPayload =
+      summaryOptions && (summaryEnabledProvided || summaryVerbosityProvided)
+        ? {
+            summary: {
+              enabled: summaryEnabledProvided ? summaryOptions.enabled ?? undefined : undefined,
+              verbosity: summaryVerbosityProvided ? summaryOptions.verbosity ?? undefined : undefined,
+            },
+          }
+        : {};
     try {
       const payload = await postJson<PartyTokenResponse>("/api/party", {
         displayName: resolvedDisplayName ?? undefined,
         topic: topic ?? undefined,
         privacy,
+        ...summaryPayload,
       });
       const nextSession: PartySession = {
         partyId: payload.partyId,
@@ -429,6 +453,22 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session]);
 
+  const updateMetadata = React.useCallback(
+    (updater: (metadata: PartySession["metadata"]) => PartySession["metadata"]) => {
+      setSession((current) => {
+        if (!current) {
+          return current;
+        }
+        const nextMetadata = updater(current.metadata);
+        if (nextMetadata === current.metadata) {
+          return current;
+        }
+        return { ...current, metadata: nextMetadata };
+      });
+    },
+    [],
+  );
+
   const value = React.useMemo<PartyContextValue>(
     () => ({
       status,
@@ -444,6 +484,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
       handleRoomReconnecting,
       handleRoomConnected,
       handleRoomDisconnected,
+      updateMetadata,
     }),
     [
       status,
@@ -459,6 +500,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
       handleRoomReconnecting,
       handleRoomConnected,
       handleRoomDisconnected,
+      updateMetadata,
     ],
   );
 

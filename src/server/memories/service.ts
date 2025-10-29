@@ -214,7 +214,7 @@ export async function indexMemory({
   source?: string | null;
   tags?: string[] | null;
   eventAt?: string | Date | null;
-}) {
+}): Promise<string | null> {
   const meta: Record<string, unknown> =
     metadata && typeof metadata === "object" ? { ...metadata } : {};
   if (Object.prototype.hasOwnProperty.call(meta, "embedding")) {
@@ -455,12 +455,12 @@ export async function indexMemory({
 
     if (result.error) {
       console.warn("memories insert error", result.error);
-      return;
+      return null;
     }
 
     const inserted = result.data;
     const memoryId = toStringId(inserted?.id);
-    if (!memoryId) return;
+    if (!memoryId) return null;
 
     if (versionGroupForUpdate) {
       try {
@@ -526,8 +526,11 @@ export async function indexMemory({
     } catch (error) {
       console.warn("memory search index upsert failed", error);
     }
+
+    return memoryId;
   } catch (error) {
     console.warn("memories insert error", error);
+    return null;
   }
 }
 

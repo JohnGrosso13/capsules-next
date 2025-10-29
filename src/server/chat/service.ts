@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
   getChatConversationId,
@@ -49,6 +49,15 @@ import {
   publishMessageUpdateEvent,
   publishMessageDeletedEvent,
 } from "@/services/realtime/chat";
+import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { handleAssistantMessage, handleAssistantTaskResponse } from "./assistant/service";
+import type { AssistantDependencies } from "./assistant/service";
+import { listSocialGraph } from "@/server/friends/service";
+import { listCapsulesForUser } from "@/server/capsules/repository";
+import {
+  listCapsuleLaddersByCapsule,
+  listCapsuleLadderMemberRecords,
+} from "@/server/ladders/repository";
 
 export type ChatMessageAttachmentRecord = {
   id: string;
@@ -584,6 +593,47 @@ function mergeParticipantMaps(
   }
 }
 
+function createAssistantDependenciesForUser(ownerUserId: string): AssistantDependencies {
+  return {
+    getConversationHistory: ({ conversationId, limit }) =>
+      getDirectConversationHistory({
+        conversationId,
+        requesterId: ownerUserId,
+        ...(typeof limit === "number" ? { limit } : {}),
+      }),
+    sendAssistantMessage: async ({ conversationId, body }) => {
+      try {
+        await sendDirectMessage({
+          conversationId,
+          senderId: ASSISTANT_USER_ID,
+          messageId: randomUUID(),
+          body,
+          attachments: [],
+        });
+      } catch (error) {
+        console.error("assistant send message error", error);
+      }
+    },
+    sendUserMessage: async ({ conversationId, senderId, body, messageId }) => {
+      const result = await sendDirectMessage({
+        conversationId,
+        senderId,
+        messageId: messageId ?? randomUUID(),
+        body,
+        attachments: [],
+      });
+      return { messageId: result.message.id };
+    },
+    listFriends: async (userId: string) => {
+      const snapshot = await listSocialGraph(userId);
+      return snapshot.friends;
+    },
+    listCapsules: (userId: string) => listCapsulesForUser(userId),
+    listCapsuleLadders: (capsuleId: string) => listCapsuleLaddersByCapsule(capsuleId),
+    listLadderMembers: (ladderId: string) => listCapsuleLadderMemberRecords(ladderId),
+  };
+}
+
 type ReactionContext = {
   messageRow: ChatMessageRow | ChatGroupMessageRow;
   participantMap: Map<string, ChatParticipantRow>;
@@ -920,6 +970,49 @@ export async function sendDirectMessage(params: {
       title: buildConversationTitle(participantSummaries, messageRecord.senderId),
     },
   });
+
+  const isAssistantSender = canonicalSenderId === ASSISTANT_USER_ID;
+  const involvesAssistant =
+    canonicalLeft === ASSISTANT_USER_ID || canonicalRight === ASSISTANT_USER_ID;
+
+  if (!isAssistantSender && otherCanonicalId === ASSISTANT_USER_ID) {
+    const deps = createAssistantDependenciesForUser(canonicalSenderId);
+    void (async () => {
+      try {
+        await handleAssistantMessage(
+          {
+            ownerUserId: canonicalSenderId,
+            conversationId: canonicalConversationId,
+            latestMessage: messageRecord,
+          },
+          deps,
+        );
+      } catch (error) {
+        console.error("assistant conversation error", error);
+      }
+    })();
+  } else if (!involvesAssistant || (involvesAssistant && !isAssistantSender)) {
+    const owners = new Set<string>();
+    if (canonicalSenderId !== ASSISTANT_USER_ID) owners.add(canonicalSenderId);
+    if (otherCanonicalId !== ASSISTANT_USER_ID) owners.add(otherCanonicalId);
+    owners.forEach((ownerId) => {
+      const deps = createAssistantDependenciesForUser(ownerId);
+      void (async () => {
+        try {
+          await handleAssistantTaskResponse(
+            {
+              ownerUserId: ownerId,
+              conversationId: canonicalConversationId,
+              message: messageRecord,
+            },
+            deps,
+          );
+        } catch (error) {
+          console.error("assistant task response error", error);
+        }
+      })();
+    });
+  }
 
   return {
     message: messageRecord,
