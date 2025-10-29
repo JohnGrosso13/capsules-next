@@ -29,7 +29,7 @@ const metaSchema = z.object({
 });
 
 const requestSchema = z.object({
-  target: z.enum(["document", "feed", "text", "memory"]).default("text"),
+  target: z.enum(["document", "feed", "text", "memory", "party"]).default("text"),
   text: z.string().optional(),
   segments: z.array(z.string()).optional(),
   attachments: z.array(attachmentSchema).optional(),
@@ -52,7 +52,7 @@ const summaryResponseSchema = z.object({
   postPrompt: z.string().nullable(),
   wordCount: z.number().nullable(),
   model: z.string().nullable(),
-  source: z.enum(["document", "feed", "text", "memory"]),
+  source: z.enum(["document", "feed", "text", "memory", "party"]),
 });
 
 type ParsedBody = z.infer<typeof requestSchema>;

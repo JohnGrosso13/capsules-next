@@ -11,6 +11,7 @@ import {
   partyTokenResponseSchema,
   type PartyPrivacy,
 } from "@/server/validation/schemas/party";
+import type { SummaryLengthHint } from "@/types/summary";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,14 @@ export async function POST(req: Request) {
   const displayName = parsed.data.displayName?.trim() || null;
   const topic = parsed.data.topic?.trim() || null;
   const privacy: PartyPrivacy = parsed.data.privacy ?? "friends";
+  const summaryInput = parsed.data.summary ?? null;
+
+  const coerceVerbosity = (value: unknown): SummaryLengthHint | undefined => {
+    if (value === "brief" || value === "medium" || value === "detailed") {
+      return value;
+    }
+    return undefined;
+  };
 
   try {
     const partyId = createPartyId();
@@ -37,6 +46,12 @@ export async function POST(req: Request) {
       ownerDisplayName: displayName,
       topic,
       privacy,
+      summary: summaryInput
+        ? {
+            enabled: summaryInput.enabled ?? undefined,
+            verbosity: coerceVerbosity(summaryInput.verbosity),
+          }
+        : null,
     });
 
     await ensurePartyRoom(metadata);

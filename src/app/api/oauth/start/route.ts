@@ -10,7 +10,7 @@ import { getOAuthProviderConfig } from "@/lib/oauth/providers";
 
 import { encodeState } from "@/lib/oauth/state";
 
-import { resolveRedirectUrl } from "@/lib/url";
+import { deriveRequestOrigin, resolveRedirectUrl } from "@/lib/url";
 
 export const runtime = "nodejs";
 
@@ -25,11 +25,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "provider required" }, { status: 400 });
   }
 
-  const fallbackRedirect = `${serverEnv.SITE_URL}/settings.html?tab=connections`;
+  const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
+  const normalizedOrigin = requestOrigin.replace(/\/$/, "");
+  const fallbackRedirect = `${normalizedOrigin}/settings.html?tab=connections`;
 
   const targetRedirect = typeof body?.redirect === "string" ? body.redirect : null;
 
-  const redirectUrl = resolveRedirectUrl(targetRedirect, serverEnv.SITE_URL) || fallbackRedirect;
+  const redirectUrl = resolveRedirectUrl(targetRedirect, normalizedOrigin) || fallbackRedirect;
 
   const userPayload = (body?.user as Record<string, unknown>) ?? {};
 
@@ -48,7 +50,7 @@ export async function POST(req: Request) {
   try {
     const config = getOAuthProviderConfig(provider);
 
-    const callbackUrl = `${serverEnv.SITE_URL}/api/oauth/callback`;
+    const callbackUrl = `${normalizedOrigin}/api/oauth/callback`;
 
     const stateObj: Record<string, unknown> = {
       k: userKey,

@@ -11,6 +11,18 @@ export const partyPrivacyValues = ["public", "friends", "invite-only"] as const;
 export const partyPrivacySchema = z.enum(partyPrivacyValues);
 export type PartyPrivacy = z.infer<typeof partyPrivacySchema>;
 
+const partySummaryVerbosityValues = ["brief", "medium", "detailed"] as const;
+
+export const partySummarySettingsSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    verbosity: z.enum(partySummaryVerbosityValues).default("medium"),
+    lastGeneratedAt: z.string().nullable().optional(),
+    memoryId: z.string().nullable().optional(),
+    lastGeneratedBy: z.string().nullable().optional(),
+  })
+  .strict();
+
 export const partyCreateRequestSchema = z.object({
   displayName: displayNameSchema,
   topic: z
@@ -20,6 +32,12 @@ export const partyCreateRequestSchema = z.object({
     .max(120, "Topic is too long")
     .optional(),
   privacy: partyPrivacySchema.optional(),
+  summary: z
+    .object({
+      enabled: z.boolean().optional(),
+      verbosity: z.enum(partySummaryVerbosityValues).optional(),
+    })
+    .optional(),
 });
 
 export const partyTokenRequestSchema = z.object({
@@ -38,9 +56,11 @@ const partyMetadataSchema = z.object({
   topic: z.string().nullable().optional(),
   privacy: partyPrivacySchema.default("friends"),
   createdAt: z.string(),
+  summary: partySummarySettingsSchema.optional(),
 });
 
 export type PartyMetadata = z.infer<typeof partyMetadataSchema>;
+export type PartySummarySettings = z.infer<typeof partySummarySettingsSchema>;
 
 export const partyTokenResponseSchema = z.object({
   success: z.literal(true),

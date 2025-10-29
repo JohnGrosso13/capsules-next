@@ -1,4 +1,4 @@
-export type SummaryTarget = "document" | "feed" | "text" | "memory";
+export type SummaryTarget = "document" | "feed" | "text" | "memory" | "party";
 
 export type SummaryLengthHint = "brief" | "medium" | "detailed";
 
