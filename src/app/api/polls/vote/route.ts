@@ -6,6 +6,7 @@ import { ensureUserFromRequest, mergeUserPayloadFromRequest, type IncomingUserPa
 import { fetchPostRowByIdentifier } from "@/lib/supabase/posts";
 import {
   fetchPostCoreById,
+  listPollVoteAggregates,
   listPollVotesForPost,
   fetchUserKeyById,
   updateUserKeyById,
@@ -85,37 +86,71 @@ export async function POST(req: Request) {
     await upsertPollVote(postId, userKey, optionIndex, userId);
     console.info("[polls.vote] upsert success", { postId, userKey, optionIndex });
 
-    const voteRows = await listPollVotesForPost(postId);
-    console.info("[polls.vote] vote rows", voteRows);
-
-    const countsMap = new Map<number, number>();
-    voteRows.forEach((row) => {
-      const index = Number(row.option_index) || 0;
-      countsMap.set(index, (countsMap.get(index) ?? 0) + 1);
+    const pollCorePromise = fetchPostCoreById(postId).catch((pollFetchError) => {
+      console.warn("Poll post fetch failed", pollFetchError);
+      return null;
     });
 
-    let poll: unknown = null;
-    let mediaPrompt: string | null = null;
-    let pollAuthorId: string | null = null;
-    let pollClientId: string | null = null;
-    let pollCreatedAt: string | null = null;
-
+    const countsMap = new Map<number, number>();
     try {
-      const pollCore = await fetchPostCoreById(postId);
-      poll = pollCore?.poll ?? null;
-      mediaPrompt = typeof pollCore?.media_prompt === "string" ? pollCore.media_prompt : null;
-      pollAuthorId =
-        typeof pollCore?.author_user_id === "string" && pollCore.author_user_id
-          ? pollCore.author_user_id
-          : null;
-      pollClientId =
-        typeof pollCore?.client_id === "string" && pollCore.client_id ? pollCore.client_id : null;
-      if (pollCore && typeof pollCore === "object") {
-        const createdCandidate = (pollCore as { created_at?: unknown }).created_at;
-        pollCreatedAt = typeof createdCandidate === "string" ? createdCandidate : null;
-      }
-    } catch (pollFetchError) {
-      console.warn("Poll post fetch failed", pollFetchError);
+      const aggregateRows = await listPollVoteAggregates([postId]);
+      aggregateRows
+        .filter((row) => {
+          const rowPostId =
+            typeof row.post_id === "string"
+              ? row.post_id
+              : typeof row.post_id === "number"
+                ? String(row.post_id)
+                : null;
+          return rowPostId === postId;
+        })
+        .forEach((row) => {
+          const indexRaw =
+            typeof row.option_index === "number"
+              ? row.option_index
+              : Number(row.option_index ?? 0);
+          const countRaw =
+            typeof row.vote_count === "number"
+              ? row.vote_count
+              : Number(row.vote_count ?? 0);
+          if (!Number.isFinite(indexRaw)) return;
+          const normalizedIndex = Math.max(0, Math.trunc(indexRaw));
+          const normalizedCount = Number.isFinite(countRaw)
+            ? Math.max(0, Math.trunc(countRaw))
+            : 0;
+          countsMap.set(normalizedIndex, normalizedCount);
+        });
+    } catch (aggregateError) {
+      console.warn("poll vote aggregate query failed; falling back to row scan", aggregateError);
+    }
+
+    if (countsMap.size === 0) {
+      const voteRows = await listPollVotesForPost(postId);
+      voteRows.forEach((row) => {
+        const indexRaw =
+          typeof row.option_index === "number"
+            ? row.option_index
+            : Number(row.option_index ?? 0);
+        if (!Number.isFinite(indexRaw)) return;
+        const normalizedIndex = Math.max(0, Math.trunc(indexRaw));
+        countsMap.set(normalizedIndex, (countsMap.get(normalizedIndex) ?? 0) + 1);
+      });
+    }
+
+    const pollCore = await pollCorePromise;
+    let poll: unknown = pollCore?.poll ?? null;
+    let mediaPrompt: string | null =
+      typeof pollCore?.media_prompt === "string" ? pollCore.media_prompt : null;
+    let pollAuthorId: string | null =
+      typeof pollCore?.author_user_id === "string" && pollCore.author_user_id
+        ? pollCore.author_user_id
+        : null;
+    let pollClientId: string | null =
+      typeof pollCore?.client_id === "string" && pollCore.client_id ? pollCore.client_id : null;
+    let pollCreatedAt: string | null = null;
+    if (pollCore && typeof pollCore === "object") {
+      const createdCandidate = (pollCore as { created_at?: unknown }).created_at;
+      pollCreatedAt = typeof createdCandidate === "string" ? createdCandidate : null;
     }
 
     if (!poll && typeof mediaPrompt === "string" && mediaPrompt.startsWith("__POLL__")) {
@@ -135,7 +170,12 @@ export async function POST(req: Request) {
     const computedLength = Math.max(maxIndex + 1, optionsLength);
     const finalLength = computedLength > 0 ? computedLength : optionsLength;
 
-    const counts = Array.from({ length: finalLength }, (_, idx) => countsMap.get(idx) ?? 0);
+    const counts = Array.from({ length: finalLength }, (_, idx) => {
+      const value = countsMap.get(idx) ?? 0;
+      const numeric = typeof value === "number" ? value : Number(value);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.trunc(numeric));
+    });
 
     if (poll && typeof poll === "object" && !Array.isArray(poll)) {
       const record = { ...(poll as Record<string, unknown>) };
@@ -154,12 +194,7 @@ export async function POST(req: Request) {
         typeof record.question === "string" && record.question.trim().length
           ? record.question.trim()
           : "Community poll";
-      const normalizedCounts = normalizedOptions.map((_, index) => {
-        const value = counts[index] ?? 0;
-        const numeric = typeof value === "number" ? value : Number(value);
-        if (!Number.isFinite(numeric)) return 0;
-        return Math.max(0, Math.trunc(numeric));
-      });
+      const normalizedCounts = normalizedOptions.map((_, index) => counts[index] ?? 0);
       const totalVotes = normalizedCounts.reduce((sum, value) => sum + value, 0);
       record.question = normalizedQuestion;
       record.options = normalizedOptions;
@@ -167,24 +202,36 @@ export async function POST(req: Request) {
       record.totalVotes = totalVotes;
       record.updatedAt = new Date().toISOString();
 
-      try {
-        await updatePostPollJson(postId, record);
-      } catch (pollUpdateError) {
-        console.warn("Poll JSON update failed", pollUpdateError);
-      }
+      void (async () => {
+        try {
+          await updatePostPollJson(postId, record);
+        } catch (pollUpdateError) {
+          console.warn("Poll JSON update failed", pollUpdateError);
+        }
+      })();
 
       if (pollAuthorId && pollClientId) {
-        await upsertPollMemorySnapshot({
-          ownerId: pollAuthorId,
-          postClientId: pollClientId,
-          postRecordId: postId,
-          poll: { question: normalizedQuestion, options: normalizedOptions },
-          counts: normalizedCounts,
-          eventAt: pollCreatedAt,
-        });
+        const snapshotCounts = normalizedCounts.slice();
+        const ownerId = pollAuthorId;
+        const clientId = pollClientId;
+        void (async () => {
+          try {
+            await upsertPollMemorySnapshot({
+              ownerId,
+              postClientId: clientId,
+              postRecordId: postId,
+              poll: { question: normalizedQuestion, options: normalizedOptions },
+              counts: snapshotCounts,
+              eventAt: pollCreatedAt,
+            });
+          } catch (memoryError) {
+            console.warn("poll memory snapshot background failed", memoryError);
+          }
+        })();
       }
     }
 
+    console.info("[polls.vote] tally", { postId, counts });
     return NextResponse.json({ success: true, counts });
   } catch (error) {
     console.error("Poll vote error", error);

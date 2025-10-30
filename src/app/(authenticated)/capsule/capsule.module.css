@@ -1744,6 +1744,21 @@
   line-height: 1.5;
   color: var(--text-2, rgba(203, 213, 225, 0.82));
 }
+.historyTimelineActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.historyTimelineLink {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-brand, rgba(79, 209, 197, 0.95));
+  text-decoration: none;
+}
+.historyTimelineLink:hover,
+.historyTimelineLink:focus {
+  text-decoration: underline;
+}
 .historyEmpty {
   margin: 0;
   font-size: 0.95rem;

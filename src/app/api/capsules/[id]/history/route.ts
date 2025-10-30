@@ -13,6 +13,8 @@ const timelineItemSchema = z.object({
   label: z.string(),
   detail: z.string(),
   timestamp: z.string().nullable(),
+  postId: z.string().optional().nullable(),
+  permalink: z.string().optional().nullable(),
 });
 
 const sectionSchema = z.object({

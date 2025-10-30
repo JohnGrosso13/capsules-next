@@ -79,6 +79,8 @@ export type CapsuleHistoryTimelineEntry = {
   label: string;
   detail: string;
   timestamp: string | null;
+  postId?: string | null;
+  permalink?: string | null;
 };
 
 export type CapsuleHistorySection = {

@@ -64,6 +64,16 @@ const PANEL_WELCOME =
 
 const MAX_POLL_OPTIONS = 6;
 
+function formatClipDuration(totalSeconds: number | null | undefined): string | null {
+  if (typeof totalSeconds !== "number" || !Number.isFinite(totalSeconds) || totalSeconds <= 0) {
+    return null;
+  }
+  const rounded = Math.max(0, Math.round(totalSeconds));
+  const minutes = Math.floor(rounded / 60);
+  const seconds = rounded % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
 type QuickPromptOption = { label: string; prompt: string };
 
 const DEFAULT_QUICK_PROMPTS: QuickPromptOption[] = [
@@ -1138,9 +1148,9 @@ export function ComposerForm({
         size: 0,
         mimeType: inferredMime,
         status: "ready",
-        url: workingDraft.mediaUrl,
+        url: workingDraft.mediaUrl ?? workingDraft.mediaPlaybackUrl ?? null,
         progress: 1,
-        thumbUrl: null,
+        thumbUrl: workingDraft.mediaThumbnailUrl ?? null,
         role: "reference",
         source: "ai",
       };
@@ -1151,6 +1161,8 @@ export function ComposerForm({
     workingDraft.kind,
     workingDraft.mediaPrompt,
     workingDraft.mediaUrl,
+    workingDraft.mediaPlaybackUrl,
+    workingDraft.mediaThumbnailUrl,
     workingDraft.title,
   ]);
 
@@ -1254,6 +1266,14 @@ export function ComposerForm({
           prompt: "Summarize this video and call out the key beats.",
         },
         { label: "Suggest edits", prompt: "Suggest ways we could edit or enhance this video." },
+        {
+          label: "Remove distractions",
+          prompt: "Remove background distractions and keep the focus on the key people in this clip.",
+        },
+        {
+          label: "Tighten the cut",
+          prompt: "Trim this video to the most impactful 20 seconds and smooth the transitions.",
+        },
         { label: "Prep a post", prompt: "Draft a social post that spotlights this video." },
       ];
     }
@@ -1525,6 +1545,11 @@ export function ComposerForm({
     const partial: Partial<ComposerDraft> = {
       mediaUrl: readyAttachment.url,
       mediaPrompt: null,
+      mediaThumbnailUrl: readyAttachment.thumbUrl ?? null,
+      mediaPlaybackUrl: readyAttachment.url,
+      mediaDurationSeconds: null,
+      muxPlaybackId: null,
+      muxAssetId: null,
     };
     if (
       currentKind === "text" ||
@@ -1543,6 +1568,11 @@ export function ComposerForm({
       const partial: Partial<ComposerDraft> = {
         mediaUrl: null,
         mediaPrompt: null,
+        mediaThumbnailUrl: null,
+        mediaPlaybackUrl: null,
+        mediaDurationSeconds: null,
+        muxPlaybackId: null,
+        muxAssetId: null,
       };
       if (currentKind === "image" || currentKind === "video") {
         partial.kind = "text";
@@ -1556,6 +1586,11 @@ export function ComposerForm({
     const partial: Partial<ComposerDraft> = {
       mediaUrl: null,
       mediaPrompt: null,
+      mediaThumbnailUrl: null,
+      mediaPlaybackUrl: null,
+      mediaDurationSeconds: null,
+      muxPlaybackId: null,
+      muxAssetId: null,
     };
     if (currentKind === "image" || currentKind === "video") {
       partial.kind = "text";
@@ -2143,8 +2178,16 @@ export function ComposerForm({
     const content = (workingDraft.content ?? "").trim();
     const title = (workingDraft.title ?? "").trim();
     const mediaPrompt = (workingDraft.mediaPrompt ?? "").trim();
-    const mediaUrl = attachmentDisplayUrl ?? attachmentFullUrl ?? workingDraft.mediaUrl ?? null;
+    const mediaUrl =
+      attachmentDisplayUrl ??
+      attachmentFullUrl ??
+      workingDraft.mediaUrl ??
+      workingDraft.mediaPlaybackUrl ??
+      null;
     const attachmentName = displayAttachment?.name ?? null;
+    const attachmentThumb =
+      displayAttachment?.thumbUrl ?? workingDraft.mediaThumbnailUrl ?? null;
+    const clipDurationSeconds = workingDraft.mediaDurationSeconds ?? null;
     const pollBodyValue = workingDraft.content ?? "";
     const trimmedPollBody = pollBodyValue.trim();
     const pollQuestionValue = pollStructure.question ?? "";
@@ -2299,14 +2342,23 @@ export function ComposerForm({
         }
         case "video": {
           empty = !mediaUrl;
-          helper = mediaPrompt || attachmentName;
+          const durationLabel = formatClipDuration(clipDurationSeconds);
+          helper = [mediaPrompt || attachmentName, durationLabel].filter(Boolean).join(" • ");
           if (empty) {
             body = renderPlaceholder("Drop a clip or describe scenes to preview them here.");
           } else {
+            const captionParts = [];
+            if (mediaPrompt) captionParts.push(mediaPrompt);
+            if (durationLabel) captionParts.push(durationLabel);
             body = (
               <figure className={styles.previewMediaFrame} data-kind="video">
-                <video src={mediaUrl ?? undefined} controls preload="metadata" />
-                {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
+                <video
+                  src={mediaUrl ?? undefined}
+                  controls
+                  preload="metadata"
+                  poster={attachmentThumb ?? undefined}
+                />
+                {captionParts.length ? <figcaption>{captionParts.join(" • ")}</figcaption> : null}
               </figure>
             );
           }
@@ -2437,6 +2489,7 @@ export function ComposerForm({
     attachmentDisplayUrl,
     attachmentFullUrl,
     displayAttachment?.name,
+    displayAttachment?.thumbUrl,
     handleAddPollOption,
     handlePollBodyInput,
     handlePollOptionInput,
@@ -2446,6 +2499,9 @@ export function ComposerForm({
     workingDraft.content,
     workingDraft.mediaPrompt,
     workingDraft.mediaUrl,
+    workingDraft.mediaPlaybackUrl,
+    workingDraft.mediaThumbnailUrl,
+    workingDraft.mediaDurationSeconds,
     workingDraft.title,
   ]);
 

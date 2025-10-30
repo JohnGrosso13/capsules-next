@@ -8,6 +8,11 @@ import {
   hasStabilityApiKey,
   type StabilityGenerateOptions,
 } from "@/adapters/ai/stability/server";
+import {
+  generateVideoFromPrompt,
+  editVideoWithInstruction,
+  type VideoGenerationResult,
+} from "@/lib/ai/video";
 import { serverEnv } from "../env/server";
 import { safeRandomUUID } from "@/lib/random";
 
@@ -44,6 +49,11 @@ type DraftPost = {
   mediaUrl: string | null;
 
   mediaPrompt: string | null;
+  thumbnailUrl?: string | null;
+  playbackUrl?: string | null;
+  muxPlaybackId?: string | null;
+  muxAssetId?: string | null;
+  durationSeconds?: number | null;
 };
 
 type PollDraft = { message: string; poll: { question: string; options: string[] } };
@@ -197,6 +207,8 @@ const CLARIFIER_RECENT_RUN_LIMIT = 12;
 
 const IMAGE_INTENT_REGEX =
   /(image|logo|banner|thumbnail|picture|photo|icon|cover|poster|graphic|illustration|art|avatar|background)\b/i;
+const VIDEO_INTENT_REGEX =
+  /(video|clip|reel|short|story|highlight|montage|edit|b-roll|broll|promo|trailer)\b/i;
 
 const VISUAL_KIND_HINTS = new Set([
   "visual",
@@ -216,6 +228,19 @@ const VISUAL_KIND_HINTS = new Set([
   "avatar",
   "video",
   "clip",
+]);
+
+const VIDEO_KIND_HINTS = new Set([
+  "video",
+  "clip",
+  "reel",
+  "story",
+  "short",
+  "highlight",
+  "montage",
+  "edit",
+  "b-roll",
+  "broll",
 ]);
 
 const TEXT_KIND_HINTS = new Set(["text", "post", "caption", "copy", "write"]);
@@ -1674,6 +1699,36 @@ function buildBasePost(incoming: Record<string, unknown> = {}): DraftPost {
     mediaUrl: typeof incoming.mediaUrl === "string" ? incoming.mediaUrl : null,
 
     mediaPrompt: typeof incoming.mediaPrompt === "string" ? incoming.mediaPrompt : null,
+    thumbnailUrl:
+      typeof incoming.thumbnailUrl === "string"
+        ? incoming.thumbnailUrl
+        : typeof incoming.thumbnail_url === "string"
+          ? incoming.thumbnail_url
+          : null,
+    playbackUrl:
+      typeof incoming.playbackUrl === "string"
+        ? incoming.playbackUrl
+        : typeof incoming.playback_url === "string"
+          ? incoming.playback_url
+          : null,
+    muxPlaybackId:
+      typeof incoming.muxPlaybackId === "string"
+        ? incoming.muxPlaybackId
+        : typeof incoming.mux_playback_id === "string"
+          ? incoming.mux_playback_id
+          : null,
+    muxAssetId:
+      typeof incoming.muxAssetId === "string"
+        ? incoming.muxAssetId
+        : typeof incoming.mux_asset_id === "string"
+          ? incoming.mux_asset_id
+          : null,
+    durationSeconds:
+      typeof incoming.durationSeconds === "number"
+        ? Number(incoming.durationSeconds)
+        : typeof incoming.duration_seconds === "number"
+          ? Number(incoming.duration_seconds)
+          : null,
   };
 }
 
@@ -1682,6 +1737,10 @@ export async function createPostDraft(
   context: ComposeDraftOptions = {},
 ): Promise<ComposeDraftResult> {
   const { history, attachments, capsuleId, rawOptions, clarifier } = context;
+  const ownerUserId =
+    typeof rawOptions?.ownerUserId === "string" && rawOptions.ownerUserId.trim().length
+      ? rawOptions.ownerUserId.trim()
+      : null;
 
   const preferHints: string[] = [];
   const preferRaw =
@@ -1693,6 +1752,7 @@ export async function createPostDraft(
 
   const preferVisual = preferHints.some((hint) => VISUAL_KIND_HINTS.has(hint));
   const preferText = preferHints.some((hint) => TEXT_KIND_HINTS.has(hint));
+  const preferVideo = preferHints.some((hint) => VIDEO_KIND_HINTS.has(hint));
 
   const normalizedClarifier = normalizeClarifierInput(clarifier);
   const priorUserMessage =
@@ -1704,12 +1764,15 @@ export async function createPostDraft(
       : null;
   const intentSource = [userText, priorUserMessage].filter(Boolean).join(" ");
   const imageIntent = IMAGE_INTENT_REGEX.test(intentSource);
+  const videoIntent = VIDEO_INTENT_REGEX.test(intentSource);
   const historyMessages = mapConversationToMessages(history);
   const clarifierAnswered =
     typeof normalizedClarifier?.answer === "string" && normalizedClarifier.answer.trim().length > 0;
   const clarifierSkip = normalizedClarifier?.skip === true;
   const allowGeneratedMedia =
-    !clarifierSkip && !preferText && (preferVisual || imageIntent || clarifierAnswered);
+    !clarifierSkip &&
+    !preferText &&
+    (preferVisual || preferVideo || imageIntent || videoIntent || clarifierAnswered);
 
   if (imageIntent && !(normalizedClarifier?.answer || normalizedClarifier?.skip)) {
     const clarifierPlan = await maybeGenerateImageClarifier(
@@ -1823,7 +1886,7 @@ export async function createPostDraft(
 
   const postResponse = (parsed.post as Record<string, unknown>) ?? {};
 
-  const statusMessage =
+  let statusMessage =
     typeof parsed.message === "string" && parsed.message.trim().length
       ? parsed.message.trim()
       : "Here's a draft.";
@@ -1832,68 +1895,175 @@ export async function createPostDraft(
 
   result.content = typeof postResponse.content === "string" ? postResponse.content.trim() : "";
 
-  const requestedKind = typeof postResponse.kind === "string" ? postResponse.kind : null;
+  const requestedKindRaw = typeof postResponse.kind === "string" ? postResponse.kind : null;
+  const requestedKind =
+    requestedKindRaw && requestedKindRaw.trim().length
+      ? requestedKindRaw.trim().toLowerCase()
+      : null;
 
-  let imagePrompt =
+  let mediaPrompt =
     typeof postResponse.media_prompt === "string" ? postResponse.media_prompt : null;
 
   let mediaUrl = typeof postResponse.media_url === "string" ? postResponse.media_url : null;
 
-  if (imagePrompt && !imagePrompt.trim()) imagePrompt = null;
-
+  if (mediaPrompt && !mediaPrompt.trim()) mediaPrompt = null;
   if (mediaUrl && !mediaUrl.trim()) mediaUrl = null;
 
   if (!allowGeneratedMedia) {
-    imagePrompt = null;
+    mediaPrompt = null;
     mediaUrl = null;
   }
 
-  if (allowGeneratedMedia && mediaUrl) {
-    result.mediaUrl = mediaUrl;
+  const videoAttachment =
+    attachments?.find(
+      (attachment) =>
+        attachment?.url &&
+        typeof attachment.url === "string" &&
+        attachment.url.trim().length > 0 &&
+        typeof attachment.mimeType === "string" &&
+        attachment.mimeType.toLowerCase().startsWith("video/"),
+    ) ?? null;
 
-    result.mediaPrompt = imagePrompt || result.mediaPrompt;
+  let videoResult: VideoGenerationResult | null = null;
+  const shouldGenerateVideo =
+    allowGeneratedMedia &&
+    (requestedKind === "video" || videoIntent || preferVideo || Boolean(videoAttachment));
 
-    result.kind = requestedKind || "image";
-  } else if (allowGeneratedMedia && imagePrompt) {
-    try {
-      const generatedImage = await generateImageFromPrompt(imagePrompt);
-
-      result.mediaUrl = generatedImage.url;
-
-      result.kind = "image";
-
-      result.mediaPrompt = imagePrompt;
-    } catch (error) {
-      console.error("Image generation failed for composer prompt:", error);
-
-      result.kind = requestedKind || "text";
-
-      imagePrompt = null;
-    }
-  } else if (allowGeneratedMedia && !imagePrompt && imageIntent) {
-    try {
-      imagePrompt = await inferImagePromptFromInstruction(instructionForModel);
-    } catch {
-      // ignore inference failure
-    }
-
-    if (imagePrompt) {
+  if (shouldGenerateVideo) {
+    if (mediaUrl) {
+      result.kind = "video";
+      result.mediaUrl = mediaUrl;
+      result.mediaPrompt = mediaPrompt ?? instructionForModel;
+      const thumbnailFromResponse =
+        typeof postResponse.thumbnail_url === "string"
+          ? postResponse.thumbnail_url
+          : typeof postResponse.thumbnailUrl === "string"
+            ? postResponse.thumbnailUrl
+            : null;
+      if (thumbnailFromResponse) {
+        result.thumbnailUrl = thumbnailFromResponse;
+      }
+      const playbackFromResponse =
+        typeof postResponse.playback_url === "string"
+          ? postResponse.playback_url
+          : typeof postResponse.playbackUrl === "string"
+            ? postResponse.playbackUrl
+            : null;
+      if (playbackFromResponse) {
+        result.playbackUrl = playbackFromResponse;
+      }
+      const muxPlaybackId =
+        typeof postResponse.mux_playback_id === "string"
+          ? postResponse.mux_playback_id
+          : typeof postResponse.muxPlaybackId === "string"
+            ? postResponse.muxPlaybackId
+            : null;
+      if (muxPlaybackId) {
+        result.muxPlaybackId = muxPlaybackId;
+      }
+      const muxAssetId =
+        typeof postResponse.mux_asset_id === "string"
+          ? postResponse.mux_asset_id
+          : typeof postResponse.muxAssetId === "string"
+            ? postResponse.muxAssetId
+            : null;
+      if (muxAssetId) {
+        result.muxAssetId = muxAssetId;
+      }
+      if (typeof postResponse.duration_seconds === "number") {
+        result.durationSeconds = Number(postResponse.duration_seconds);
+      }
+    } else {
       try {
-        const fallbackImage = await generateImageFromPrompt(imagePrompt);
+        const videoInstruction = mediaPrompt ?? instructionForModel;
+        if (videoAttachment?.url) {
+          videoResult = await editVideoWithInstruction(videoAttachment.url, videoInstruction, {
+            capsuleId: capsuleId ?? null,
+            ownerUserId,
+            mode: "edit",
+          });
+        } else {
+          videoResult = await generateVideoFromPrompt(videoInstruction, {
+            capsuleId: capsuleId ?? null,
+            ownerUserId,
+            mode: "generate",
+          });
+        }
+      } catch (error) {
+        console.error("Video generation failed for composer prompt:", error);
+      }
+    }
+  }
 
-        result.mediaUrl = fallbackImage.url;
+  if (videoResult) {
+    result.kind = "video";
+    result.mediaUrl = videoResult.url;
+    result.mediaPrompt = mediaPrompt ?? instructionForModel;
+    result.thumbnailUrl =
+      videoResult.posterUrl ?? videoResult.thumbnailUrl ?? result.thumbnailUrl ?? null;
+    result.playbackUrl = videoResult.playbackUrl ?? videoResult.url;
+    result.muxPlaybackId = videoResult.muxPlaybackId ?? null;
+    result.muxAssetId = videoResult.muxAssetId ?? null;
+    result.durationSeconds = videoResult.durationSeconds ?? null;
+  }
+
+  if (
+    (videoResult || result.kind === "video") &&
+    (!statusMessage || statusMessage === "Here's a draft.")
+  ) {
+    statusMessage = "Rendered a new clip. Tap play to preview and let me know any tweaks.";
+  }
+
+  if (result.kind !== "video") {
+    if (allowGeneratedMedia && mediaUrl) {
+      result.mediaUrl = mediaUrl;
+
+      result.mediaPrompt = mediaPrompt || result.mediaPrompt;
+
+      result.kind = requestedKind || "image";
+    } else if (allowGeneratedMedia && mediaPrompt) {
+      try {
+        const generatedImage = await generateImageFromPrompt(mediaPrompt);
+
+        result.mediaUrl = generatedImage.url;
 
         result.kind = "image";
 
-        result.mediaPrompt = imagePrompt;
+        result.mediaPrompt = mediaPrompt;
       } catch (error) {
-        console.error("Image generation failed (intent path):", error);
+        console.error("Image generation failed for composer prompt:", error);
+
+        result.kind = requestedKind || "text";
+
+        mediaPrompt = null;
       }
+    } else if (allowGeneratedMedia && !mediaPrompt && imageIntent) {
+      try {
+        mediaPrompt = await inferImagePromptFromInstruction(instructionForModel);
+      } catch {
+        // ignore inference failure
+      }
+
+      if (mediaPrompt) {
+        try {
+          const fallbackImage = await generateImageFromPrompt(mediaPrompt);
+
+          result.mediaUrl = fallbackImage.url;
+
+          result.kind = "image";
+
+          result.mediaPrompt = mediaPrompt;
+        } catch (error) {
+          console.error("Image generation failed (intent path):", error);
+        }
+      }
+    } else if (requestedKind && requestedKind !== "video") {
+      result.kind = requestedKind === "image" && !allowGeneratedMedia ? "text" : requestedKind;
+    } else {
+      result.kind = result.mediaUrl ? "image" : "text";
     }
-  } else if (requestedKind) {
-    result.kind = requestedKind === "image" && !allowGeneratedMedia ? "text" : requestedKind;
-  } else {
-    result.kind = result.mediaUrl ? "image" : "text";
+  } else if (!result.mediaUrl && mediaUrl) {
+    result.mediaUrl = mediaUrl;
   }
 
   if (!result.mediaUrl) {
@@ -1905,7 +2075,11 @@ export async function createPostDraft(
   }
 
   try {
-    if (result.mediaUrl && /^(?:https?:|data:)/i.test(result.mediaUrl)) {
+    if (
+      result.kind === "image" &&
+      result.mediaUrl &&
+      /^(?:https?:|data:)/i.test(result.mediaUrl)
+    ) {
       const saved = await storeImageSrcToSupabase(result.mediaUrl, "generate");
 
       if (saved?.url) {
@@ -1916,7 +2090,28 @@ export async function createPostDraft(
     console.warn("Supabase store (create) failed:", (error as Error)?.message);
   }
 
-  return { action: "draft_post", message: statusMessage, post: result };
+  const postPayload: Record<string, unknown> = { ...result };
+  if (result.thumbnailUrl) {
+    postPayload.thumbnailUrl = result.thumbnailUrl;
+    postPayload.thumbnail_url = result.thumbnailUrl;
+  }
+  if (result.playbackUrl) {
+    postPayload.playbackUrl = result.playbackUrl;
+    postPayload.playback_url = result.playbackUrl;
+  }
+  if (result.muxPlaybackId) {
+    postPayload.muxPlaybackId = result.muxPlaybackId;
+    postPayload.mux_playback_id = result.muxPlaybackId;
+  }
+  if (result.muxAssetId) {
+    postPayload.muxAssetId = result.muxAssetId;
+    postPayload.mux_asset_id = result.muxAssetId;
+  }
+  if (typeof result.durationSeconds === "number") {
+    postPayload.duration_seconds = result.durationSeconds;
+  }
+
+  return { action: "draft_post", message: statusMessage, post: postPayload };
 }
 
 export async function createPollDraft(

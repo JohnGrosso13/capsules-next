@@ -18,6 +18,9 @@ export type ServerEnv = {
   OPENAI_IMAGE_QUALITY: "low" | "standard" | "high" | null;
   OPENAI_IMAGE_SIZE: string;
   OPENAI_IMAGE_SIZE_LOW: string;
+  OPENAI_VIDEO_MODEL: string | null;
+  OPENAI_VIDEO_RESOLUTION: string | null;
+  OPENAI_VIDEO_MAX_DURATION: number | null;
   SITE_URL: string;
   ADMIN_USERNAME: string | null;
   ADMIN_PASSWORD: string | null;
@@ -79,6 +82,14 @@ const openAiImageModelDev =
 const openAiTranscribeModel =
   getEnv("OPENAI_TRANSCRIBE_MODEL", ["OPENAI_TRANSCRIBE", "OPENAI_MODEL_TRANSCRIBE"]) ||
   "gpt-4o-mini-transcribe";
+const openAiVideoModel = getEnv("OPENAI_VIDEO_MODEL", ["AI_VIDEO_MODEL", "VIDEO_MODEL"]);
+const openAiVideoResolution = getEnv("OPENAI_VIDEO_RESOLUTION", ["AI_VIDEO_RESOLUTION"]);
+const openAiVideoDurationRaw =
+  getEnv("OPENAI_VIDEO_MAX_DURATION", ["AI_VIDEO_MAX_DURATION", "VIDEO_MAX_DURATION"]) ?? null;
+const openAiVideoDuration =
+  openAiVideoDurationRaw && Number.isFinite(Number(openAiVideoDurationRaw))
+    ? Number(openAiVideoDurationRaw)
+    : null;
 const openAiQualityRaw =
   getEnv("OPENAI_IMAGE_QUALITY", [
     "IMAGE_QUALITY_OVERRIDE",
@@ -146,6 +157,12 @@ export const serverEnv: ServerEnv = {
       : null,
   OPENAI_IMAGE_SIZE: getEnv("OPENAI_IMAGE_SIZE", []) || "1024x1024",
   OPENAI_IMAGE_SIZE_LOW: getEnv("OPENAI_IMAGE_SIZE_LOW", []) || "512x512",
+  OPENAI_VIDEO_MODEL: openAiVideoModel ? openAiVideoModel.trim() : null,
+  OPENAI_VIDEO_RESOLUTION: openAiVideoResolution ? openAiVideoResolution.trim() : null,
+  OPENAI_VIDEO_MAX_DURATION:
+    openAiVideoDuration !== null && Number.isFinite(openAiVideoDuration)
+      ? Math.max(5, Math.min(120, Math.floor(openAiVideoDuration)))
+      : null,
   SITE_URL: siteUrl.replace(/\/$/, ""),
   ADMIN_USERNAME: getEnv("ADMIN_USERNAME", ["CAPSULES_ADMIN_USERNAME", "ADMIN_USER"]),
   ADMIN_PASSWORD: getEnv("ADMIN_PASSWORD", ["CAPSULES_ADMIN_PASSWORD"]),

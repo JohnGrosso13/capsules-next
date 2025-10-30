@@ -24,6 +24,9 @@ import {
   type CapsuleSummary,
   type DiscoverCapsuleSummary,
   type CapsuleAssetRow,
+  getCapsuleHistorySnapshotRecord,
+  upsertCapsuleHistorySnapshotRecord,
+  getCapsuleHistoryActivity,
   updateCapsuleMemberRole,
   updateCapsuleBanner,
   updateCapsuleStoreBanner,
@@ -86,6 +89,12 @@ function normalizeOptionalString(value: unknown): string | null {
   return trimmed.length ? trimmed : null;
 }
 
+function toTimestamp(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 const HISTORY_CACHE_TTL_MS = 5 * 60 * 1000;
 const HISTORY_POST_LIMIT = 180;
 const HISTORY_MODEL_POST_LIMIT = 150;
@@ -94,29 +103,79 @@ const HISTORY_TIMELINE_LIMIT = 6;
 const HISTORY_NEXT_FOCUS_LIMIT = 4;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+const HISTORY_PERSIST_REFRESH_MS = WEEK_MS;
 
 type CapsuleHistoryCacheEntry = {
   expiresAt: number;
   snapshot: CapsuleHistorySnapshot;
+  latestPostAt: string | null;
+  generatedAtMs: number;
 };
 
 const capsuleHistoryCache = new Map<string, CapsuleHistoryCacheEntry>();
 
-function getCachedCapsuleHistory(capsuleId: string): CapsuleHistorySnapshot | null {
+function getCachedCapsuleHistory(capsuleId: string): CapsuleHistoryCacheEntry | null {
   const entry = capsuleHistoryCache.get(capsuleId);
   if (!entry) return null;
   if (entry.expiresAt <= Date.now()) {
     capsuleHistoryCache.delete(capsuleId);
     return null;
   }
-  return entry.snapshot;
+  return entry;
 }
 
-function setCachedCapsuleHistory(capsuleId: string, snapshot: CapsuleHistorySnapshot) {
+function setCachedCapsuleHistory(
+  capsuleId: string,
+  snapshot: CapsuleHistorySnapshot,
+  meta: { latestPostAt: string | null },
+) {
+  const generatedAtMs = Date.parse(snapshot.generatedAt);
   capsuleHistoryCache.set(capsuleId, {
     expiresAt: Date.now() + HISTORY_CACHE_TTL_MS,
     snapshot,
+    latestPostAt: meta.latestPostAt ?? null,
+    generatedAtMs: Number.isNaN(generatedAtMs) ? Date.now() : generatedAtMs,
   });
+}
+
+function historySnapshotIsStale(params: {
+  generatedAtMs: number;
+  storedLatestPostAt: string | null;
+  activityLatestPostAt: string | null;
+}): boolean {
+  const { generatedAtMs, storedLatestPostAt, activityLatestPostAt } = params;
+  const snapshotLatestMs = toTimestamp(storedLatestPostAt);
+  const activityLatestMs = toTimestamp(activityLatestPostAt);
+
+  if (activityLatestMs !== null) {
+    if (snapshotLatestMs === null || activityLatestMs > snapshotLatestMs) {
+      return true;
+    }
+  } else if (snapshotLatestMs !== null) {
+    return true;
+  }
+
+  if (Date.now() - generatedAtMs > HISTORY_PERSIST_REFRESH_MS) {
+    return true;
+  }
+
+  return false;
+}
+
+function extractLatestTimelineTimestamp(snapshot: CapsuleHistorySnapshot): string | null {
+  let latestMs: number | null = null;
+  let latestIso: string | null = null;
+  snapshot.sections.forEach((section) => {
+    section.timeline.forEach((entry) => {
+      const timestamp = entry.timestamp ?? null;
+      const ms = toTimestamp(timestamp);
+      if (ms !== null && (latestMs === null || ms > latestMs)) {
+        latestMs = ms;
+        latestIso = timestamp;
+      }
+    });
+  });
+  return latestIso;
 }
 
 function resolveCapsuleMediaUrl(
@@ -127,6 +186,11 @@ function resolveCapsuleMediaUrl(
   if (!normalized) return null;
   const origin = originOverride ?? serverEnv.SITE_URL;
   return resolveToAbsoluteUrl(normalized, origin) ?? normalized;
+}
+
+function buildCapsulePostPermalink(capsuleId: string, postId: string): string {
+  const base = `/capsule?capsuleId=${encodeURIComponent(capsuleId)}`;
+  return `${base}&postId=${encodeURIComponent(postId)}`;
 }
 
 function normalizeMemberRole(value: unknown): CapsuleMemberUiRole {
@@ -982,6 +1046,7 @@ type HistoryModelTimelineEntry = {
   label?: unknown;
   detail?: unknown;
   timestamp?: unknown;
+  post_id?: unknown;
 };
 
 const HISTORY_CONTENT_LIMIT = 320;
@@ -1017,6 +1082,7 @@ const CAPSULE_HISTORY_RESPONSE_SCHEMA = {
                   label: { type: "string" },
                   detail: { type: "string" },
                   timestamp: { type: ["string", "null"] },
+                  post_id: { type: ["string", "null"] },
                 },
               },
             },
@@ -1060,7 +1126,10 @@ function sanitizeHistoryArray(
   return entries;
 }
 
-function coerceTimelineEntries(value: unknown): CapsuleHistorySection["timeline"] {
+function coerceTimelineEntries(
+  value: unknown,
+  capsuleId: string,
+): CapsuleHistorySection["timeline"] {
   if (!Array.isArray(value)) return [];
   const entries: CapsuleHistorySection["timeline"] = [];
   for (const entry of value) {
@@ -1073,10 +1142,23 @@ function coerceTimelineEntries(value: unknown): CapsuleHistorySection["timeline"
         ? record.timestamp.trim()
         : null;
     if (!label || !detail) continue;
+    const postIdRaw = record.post_id;
+    let postId: string | null = null;
+    if (typeof postIdRaw === "string") {
+      postId = normalizeOptionalString(postIdRaw);
+    } else if (typeof postIdRaw === "number" && Number.isFinite(postIdRaw)) {
+      postId = normalizeOptionalString(String(postIdRaw));
+    }
     entries.push({
       label,
       detail,
       timestamp,
+      ...(postId
+        ? {
+            postId,
+            permalink: buildCapsulePostPermalink(capsuleId, postId),
+          }
+        : {}),
     });
     if (entries.length >= HISTORY_TIMELINE_LIMIT) break;
   }
@@ -1278,6 +1360,7 @@ function buildFallbackNextFocus(timeframe: CapsuleHistoryTimeframe): string[] {
 }
 
 function buildFallbackTimeline(
+  capsuleId: string,
   timeframe: CapsuleHistoryTimeframe,
 ): CapsuleHistorySection["timeline"] {
   if (!timeframe.posts.length) return [];
@@ -1293,10 +1376,17 @@ function buildFallbackTimeline(
         post.content || (post.hasMedia ? "Shared new media." : "Shared an update."),
         HISTORY_LINE_LIMIT,
       ) ?? "Shared an update.";
+    const postId = normalizeOptionalString(post.id);
     timeline.push({
       label,
       detail,
       timestamp: post.createdAt,
+      ...(postId
+        ? {
+            postId,
+            permalink: buildCapsulePostPermalink(capsuleId, postId),
+          }
+        : {}),
     });
   }
   return timeline;
@@ -1346,7 +1436,7 @@ async function generateCapsuleHistoryFromModel(input: {
   const systemMessage = {
     role: "system",
     content:
-      "You are Capsules AI, maintaining a capsule history wiki. For each timeframe (weekly, monthly, all_time) produce concise factual recaps based only on the provided posts. Return JSON matching the schema. Summaries may be up to three sentences. Highlights should be short bullet-style points (<=140 chars) referencing actual activity. Timeline entries should mention specific updates with plain language. Provide 1-3 actionable next_focus suggestions when there is activity. If a timeframe has zero posts, set empty=true, summary like 'No new activity this period.', and provide one suggestion encouraging participation. Never invent names or events.",
+      "You are Capsules AI, maintaining a capsule history wiki. For each timeframe (weekly, monthly, all_time) produce concise factual recaps based only on the provided posts. Return JSON matching the schema. Summaries may be up to three sentences. Highlights should be short bullet-style points (<=140 chars) referencing actual activity. Timeline entries should mention specific updates with plain language and include the related post_id when the post exists in the provided list. Provide 1-3 actionable next_focus suggestions when there is activity. If a timeframe has zero posts, set empty=true, summary like 'No new activity this period.', and provide one suggestion encouraging participation. Never invent names or events.",
   };
 
   const userMessage = {
@@ -1378,6 +1468,7 @@ async function generateCapsuleHistoryFromModel(input: {
 }
 
 function buildHistorySections(
+  capsuleId: string,
   timeframes: CapsuleHistoryTimeframe[],
   modelSections: HistoryModelSection[] | null,
 ): CapsuleHistorySection[] {
@@ -1392,7 +1483,7 @@ function buildHistorySections(
       buildFallbackSummary(timeframe);
     const highlights = sanitizeHistoryArray(match?.highlights, HISTORY_HIGHLIGHT_LIMIT);
     const nextFocus = sanitizeHistoryArray(match?.next_focus, HISTORY_NEXT_FOCUS_LIMIT, 160);
-    const timeline = coerceTimelineEntries(match?.timeline);
+    const timeline = coerceTimelineEntries(match?.timeline, capsuleId);
 
     const resolvedHighlights = highlights.length
       ? highlights
@@ -1400,7 +1491,7 @@ function buildHistorySections(
     const resolvedNextFocus = nextFocus.length
       ? nextFocus
       : sanitizeHistoryArray(buildFallbackNextFocus(timeframe), HISTORY_NEXT_FOCUS_LIMIT, 160);
-    const resolvedTimeline = timeline.length ? timeline : buildFallbackTimeline(timeframe);
+    const resolvedTimeline = timeline.length ? timeline : buildFallbackTimeline(capsuleId, timeframe);
 
     const isEmpty = Boolean(match?.empty) || timeframe.posts.length === 0;
 
@@ -1444,7 +1535,7 @@ async function buildCapsuleHistorySnapshot({
         HISTORY_NEXT_FOCUS_LIMIT,
         160,
       ),
-      timeline: buildFallbackTimeline(timeframe),
+      timeline: buildFallbackTimeline(capsuleId, timeframe),
       timeframe: { start: timeframe.start, end: timeframe.end },
       postCount: 0,
       isEmpty: true,
@@ -1479,7 +1570,7 @@ async function buildCapsuleHistorySnapshot({
     console.error("capsules.history.generate", error);
   }
 
-  const sections = buildHistorySections(timeframes, modelSections);
+  const sections = buildHistorySections(capsuleId, timeframes, modelSections);
   return {
     capsuleId,
     capsuleName,
@@ -1515,16 +1606,61 @@ export async function getCapsuleHistory(
     }
   }
 
+  const activity = await getCapsuleHistoryActivity(capsuleIdValue);
+
   if (!options.forceRefresh) {
-    const cached = getCachedCapsuleHistory(capsuleIdValue);
-    if (cached) return cached;
+    const cachedEntry = getCachedCapsuleHistory(capsuleIdValue);
+    if (
+      cachedEntry &&
+      !historySnapshotIsStale({
+        generatedAtMs: cachedEntry.generatedAtMs,
+        storedLatestPostAt: cachedEntry.latestPostAt,
+        activityLatestPostAt: activity.latestPostAt,
+      })
+    ) {
+      return cachedEntry.snapshot;
+    }
+  }
+
+  if (!options.forceRefresh) {
+    const persisted = await getCapsuleHistorySnapshotRecord(capsuleIdValue);
+    if (persisted) {
+      const generatedAtMs = toTimestamp(persisted.generatedAt) ?? Date.now();
+      if (
+        !historySnapshotIsStale({
+          generatedAtMs,
+          storedLatestPostAt: persisted.latestPostAt,
+          activityLatestPostAt: activity.latestPostAt,
+        })
+      ) {
+        setCachedCapsuleHistory(capsuleIdValue, persisted.snapshot, {
+          latestPostAt: persisted.latestPostAt,
+        });
+        return persisted.snapshot;
+      }
+    }
   }
 
   const snapshot = await buildCapsuleHistorySnapshot({
     capsuleId: capsuleIdValue,
     capsuleName: normalizeOptionalString(capsule.name ?? null),
   });
-  setCachedCapsuleHistory(capsuleIdValue, snapshot);
+  const latestFromSnapshot =
+    activity.latestPostAt ?? extractLatestTimelineTimestamp(snapshot) ?? null;
+  setCachedCapsuleHistory(capsuleIdValue, snapshot, { latestPostAt: latestFromSnapshot });
+
+  try {
+    await upsertCapsuleHistorySnapshotRecord({
+      capsuleId: capsuleIdValue,
+      snapshot,
+      generatedAt: snapshot.generatedAt,
+      latestPostAt: latestFromSnapshot,
+      postCount: activity.postCount,
+    });
+  } catch (error) {
+    console.warn("capsules.history snapshot persistence failed", error);
+  }
+
   return snapshot;
 }
 

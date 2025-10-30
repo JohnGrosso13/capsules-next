@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Broadcast,
@@ -38,6 +39,7 @@ import { useCapsuleFeed, formatFeedCount } from "@/hooks/useHomeFeed";
 import { useCapsuleLadders } from "@/hooks/useCapsuleLadders";
 import { useCapsuleMembership } from "@/hooks/useCapsuleMembership";
 import { useCurrentUser } from "@/services/auth/client";
+import type { CapsuleHistorySection as CapsuleHistorySectionModel } from "@/types/capsules";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
 import memberStyles from "./CapsuleMembersPanel.module.css";
 import {
@@ -935,6 +937,20 @@ function CapsuleHistorySection({
     void refresh(true);
   }, [refresh]);
 
+  const buildTimelineHref = React.useCallback(
+    (entry: CapsuleHistorySectionModel["timeline"][number]) => {
+      const direct = typeof entry.permalink === "string" ? entry.permalink.trim() : "";
+      if (direct) return direct;
+      const rawPostId = typeof entry.postId === "string" ? entry.postId.trim() : "";
+      if (!capsuleId || !rawPostId) return null;
+      const params = new URLSearchParams();
+      params.set("capsuleId", capsuleId);
+      params.set("postId", rawPostId);
+      return `/capsule?${params.toString()}`;
+    },
+    [capsuleId],
+  );
+
   if (!capsuleId) {
     return <CapsuleLibraryState message="Select a capsule to see its history." />;
   }
@@ -1008,19 +1024,32 @@ function CapsuleHistorySection({
                 <div className={capTheme.historyBlock}>
                   <h4 className={capTheme.historyBlockTitle}>Timeline</h4>
                   <ol className={capTheme.historyTimeline}>
-                    {section.timeline.map((item, index) => (
-                      <li key={`${section.period}-timeline-${index}`} className={capTheme.historyTimelineItem}>
-                        <div className={capTheme.historyTimelineLabel}>
-                          <span>{item.label}</span>
-                          {formatTimelineDate(item.timestamp) ? (
-                            <span className={capTheme.historyTimelineDate}>
-                              {formatTimelineDate(item.timestamp)}
-                            </span>
+                    {section.timeline.map((item, index) => {
+                      const href = buildTimelineHref(item);
+                      return (
+                        <li
+                          key={`${section.period}-timeline-${index}`}
+                          className={capTheme.historyTimelineItem}
+                        >
+                          <div className={capTheme.historyTimelineLabel}>
+                            <span>{item.label}</span>
+                            {formatTimelineDate(item.timestamp) ? (
+                              <span className={capTheme.historyTimelineDate}>
+                                {formatTimelineDate(item.timestamp)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className={capTheme.historyTimelineDetail}>{item.detail}</p>
+                          {href ? (
+                            <div className={capTheme.historyTimelineActions}>
+                              <Link href={href} className={capTheme.historyTimelineLink}>
+                                View post
+                              </Link>
+                            </div>
                           ) : null}
-                        </div>
-                        <p className={capTheme.historyTimelineDetail}>{item.detail}</p>
-                      </li>
-                    ))}
+                        </li>
+                      );
+                    })}
                   </ol>
                 </div>
               ) : null}
@@ -1551,9 +1580,4 @@ function CapsuleFeed({
     </section>
   );
 }
-
-
-
-
-
 

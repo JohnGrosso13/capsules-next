@@ -4,6 +4,11 @@ export type ComposerDraft = {
   content: string;
   mediaUrl: string | null;
   mediaPrompt: string | null;
+  mediaThumbnailUrl?: string | null;
+  mediaPlaybackUrl?: string | null;
+  mediaDurationSeconds?: number | null;
+  muxPlaybackId?: string | null;
+  muxAssetId?: string | null;
   poll?: { question: string; options: string[] } | null;
   suggestions?: string[];
 };

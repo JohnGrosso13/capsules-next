@@ -229,21 +229,46 @@ async function runTool(
       });
 
       const targetMap = new Map(task.targets.map((target) => [target.target_user_id, target]));
+      let anonymousCounter = 0;
+      const resolveRecipientLabel = (recipient: MessagingRecipient): string => {
+        if (recipient.name && recipient.name.trim().length > 0) {
+          return recipient.name.trim();
+        }
+        if (recipient.context && typeof recipient.context === "object") {
+          const contextObject = recipient.context as Record<string, unknown>;
+          const labelCandidates = [
+            contextObject.label,
+            contextObject.display_name,
+            contextObject.displayName,
+            contextObject.name,
+            contextObject.title,
+          ];
+          for (const candidate of labelCandidates) {
+            if (typeof candidate === "string" && candidate.trim().length > 0) {
+              return candidate.trim();
+            }
+          }
+        }
+        anonymousCounter += 1;
+        return `Contact ${anonymousCounter}`;
+      };
+
       const resultEntries: Array<{
-        user_id: string;
-        status: string;
-        conversation_id: string;
-        error?: string;
+        recipient: string;
+        status: "sent" | "awaiting_response" | "failed" | "skipped";
+        awaiting_response: boolean;
+        note?: string;
       }> = [];
 
       for (const recipient of recipients) {
         const target = targetMap.get(recipient.userId);
+        const recipientLabel = resolveRecipientLabel(recipient);
         if (!target) {
           resultEntries.push({
-            user_id: recipient.userId,
+            recipient: recipientLabel,
             status: "skipped",
-            conversation_id: getConversationId(ctx.ownerUserId, recipient.userId),
-            error: "Target mapping not found.",
+            awaiting_response: false,
+            note: "Target mapping not found.",
           });
           continue;
         }
@@ -263,21 +288,21 @@ async function runTool(
             target,
             messageId: persistedMessageId,
           });
-          const statusLabel =
-            updatedTarget.status === "awaiting_response" ? "awaiting_response" : "sent";
+          const awaitingResponse = updatedTarget.status === "awaiting_response";
+          const statusLabel = awaitingResponse ? "awaiting_response" : "sent";
           resultEntries.push({
-            user_id: recipient.userId,
+            recipient: recipientLabel,
             status: statusLabel,
-            conversation_id: conversationId,
+            awaiting_response: awaitingResponse,
           });
         } catch (error) {
           const reason = error instanceof Error ? error.message : "Unknown error";
           await markRecipientFailed({ target, error: reason });
           resultEntries.push({
-            user_id: recipient.userId,
+            recipient: recipientLabel,
             status: "failed",
-            conversation_id: conversationId,
-            error: reason,
+            awaiting_response: false,
+            note: reason,
           });
         }
       }
@@ -305,7 +330,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: "list_contacts",
       description:
-        "Return the user's friends and capsule summaries to help plan outreach.",
+        "Return the user's friends and capsule summaries to help plan outreach. Treat any user_id fields as private metadata that should never be echoed to the member.",
       parameters: {
         type: "object",
         properties: {},
@@ -348,7 +373,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: "send_messages",
       description:
-        "Send a direct message to one or many recipients on behalf of the user. Call this only when you know the exact targets and final message copy.",
+        "Send a direct message to one or many recipients on behalf of the user. Call this only when you know the exact targets and final message copy, and confirm outcomes using human-readable recipient names only.",
       parameters: {
         type: "object",
         properties: {
@@ -381,11 +406,12 @@ function buildSystemPrompt(): string {
   return [
     `You are ${ASSISTANT_DISPLAY_NAME}, a proactive operations AI integrated into player messaging.`,
     "You can coordinate outreach, gather responses, schedule follow-ups, and report back clearly with citations (quotes from messages).",
-    "Always confirm the actions you intend to take before executing them.",
+    "Confirm your plan once when needed, then carry it out after approval without repeating the same question unless new information changes the request.",
     "Use the available tools to inspect contacts, ladder rosters, and send messages.",
-    "When you send outreach, be explicit about who received it.",
+    "When you send outreach, be explicit about who received it using human-readable names or roles only.",
     "When summarizing updates, cite the sender and quote key phrases from their replies.",
-    "If information is missing or ambiguous, ask follow-up questions before acting.",
+    "Treat user_id values and other tool metadata as private context; never surface raw identifiers, UUIDs, or tokens to the member.",
+    "If information is missing or ambiguous, ask follow-up questions before acting, but avoid redundant confirmations once the member has signed off.",
   ].join(" ");
 }
 

@@ -5,6 +5,7 @@ import type {
   CapsuleMemberProfile,
   CapsuleMemberRequestSummary,
   CapsuleMemberSummary,
+  CapsuleHistorySnapshot,
 } from "@/types/capsules";
 import {
   dbRoleToUiRole,
@@ -91,6 +92,20 @@ export type CapsuleAssetRow = {
 type PostCapsuleRow = {
   client_id: string | null;
   capsule_id: string | null;
+};
+
+type CapsuleHistorySnapshotRow = {
+  capsule_id: string | null;
+  generated_at: string | null;
+  latest_post_at: string | null;
+  post_count: number | null;
+  snapshot: Record<string, unknown> | null;
+  updated_at: string | null;
+};
+
+type CapsuleHistoryActivityRow = {
+  id: string | null;
+  created_at: string | null;
 };
 
 export type CapsuleSummary = {
@@ -1005,4 +1020,108 @@ export async function listCapsuleAssets(params: {
   }
 
   return matched;
+}
+
+export type CapsuleHistorySnapshotRecord = {
+  capsuleId: string;
+  generatedAt: string;
+  latestPostAt: string | null;
+  postCount: number;
+  snapshot: CapsuleHistorySnapshot;
+  updatedAt: string | null;
+};
+
+export async function getCapsuleHistorySnapshotRecord(
+  capsuleId: string,
+): Promise<CapsuleHistorySnapshotRecord | null> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  if (!normalizedCapsuleId) return null;
+
+  const result = await db
+    .from("capsule_history_snapshots")
+    .select<CapsuleHistorySnapshotRow>(
+      "capsule_id, generated_at, latest_post_at, post_count, snapshot, updated_at",
+    )
+    .eq("capsule_id", normalizedCapsuleId)
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.historySnapshots.get", result.error);
+  }
+
+  const row = result.data ?? null;
+  if (!row) return null;
+
+  const snapshotPayload =
+    row.snapshot && typeof row.snapshot === "object" ? (row.snapshot as CapsuleHistorySnapshot) : null;
+  const generatedAt = normalizeString(row.generated_at);
+  if (!snapshotPayload || !generatedAt) return null;
+
+  return {
+    capsuleId: normalizedCapsuleId,
+    generatedAt,
+    latestPostAt: normalizeString(row.latest_post_at),
+    postCount: typeof row.post_count === "number" && Number.isFinite(row.post_count) ? row.post_count : 0,
+    snapshot: snapshotPayload,
+    updatedAt: normalizeString(row.updated_at),
+  };
+}
+
+export async function upsertCapsuleHistorySnapshotRecord(params: {
+  capsuleId: string;
+  snapshot: CapsuleHistorySnapshot;
+  generatedAt: string;
+  latestPostAt: string | null;
+  postCount: number;
+}): Promise<void> {
+  const normalizedCapsuleId = normalizeString(params.capsuleId);
+  const generatedAt = normalizeString(params.generatedAt);
+  if (!normalizedCapsuleId || !generatedAt) {
+    throw new Error("capsules.historySnapshots.upsert: capsuleId and generatedAt are required");
+  }
+
+  const payload = {
+    capsule_id: normalizedCapsuleId,
+    generated_at: generatedAt,
+    latest_post_at: params.latestPostAt ? normalizeString(params.latestPostAt) : null,
+    post_count: Number.isFinite(params.postCount) ? Math.max(0, Math.trunc(params.postCount)) : 0,
+    snapshot: params.snapshot as unknown as Record<string, unknown>,
+  };
+
+  const result = await db
+    .from("capsule_history_snapshots")
+    .upsert(payload, { onConflict: "capsule_id" })
+    .select("capsule_id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.historySnapshots.upsert", result.error);
+  }
+}
+
+export async function getCapsuleHistoryActivity(
+  capsuleId: string,
+): Promise<{ latestPostAt: string | null; postCount: number }> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  if (!normalizedCapsuleId) {
+    return { latestPostAt: null, postCount: 0 };
+  }
+
+  const result = await db
+    .from("posts_view")
+    .select<CapsuleHistoryActivityRow>("id, created_at", { count: "exact" })
+    .eq("capsule_id", normalizedCapsuleId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.history.activity", result.error);
+  }
+
+  const rows = result.data ?? [];
+  const latestPostAt = rows.length ? normalizeString(rows[0]?.created_at ?? null) : null;
+  const postCount = typeof result.count === "number" && Number.isFinite(result.count) ? result.count : 0;
+
+  return { latestPostAt, postCount };
 }

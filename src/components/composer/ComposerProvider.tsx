@@ -665,6 +665,54 @@ function mergeComposerRawPost(
     delete merged.media_prompt;
   }
 
+  if (typeof draft.mediaThumbnailUrl === "string" && draft.mediaThumbnailUrl.trim().length) {
+    const thumb = draft.mediaThumbnailUrl.trim();
+    merged.thumbnailUrl = thumb;
+    merged.thumbnail_url = thumb;
+  } else if (draft.mediaThumbnailUrl === null) {
+    delete merged.thumbnailUrl;
+    delete merged.thumbnail_url;
+  }
+
+  if (typeof draft.mediaPlaybackUrl === "string" && draft.mediaPlaybackUrl.trim().length) {
+    const playback = draft.mediaPlaybackUrl.trim();
+    merged.playbackUrl = playback;
+    merged.playback_url = playback;
+  } else if (draft.mediaPlaybackUrl === null) {
+    delete merged.playbackUrl;
+    delete merged.playback_url;
+  }
+
+  if (typeof draft.muxPlaybackId === "string" && draft.muxPlaybackId.trim().length) {
+    const playbackId = draft.muxPlaybackId.trim();
+    merged.muxPlaybackId = playbackId;
+    merged.mux_playback_id = playbackId;
+  } else if (draft.muxPlaybackId === null) {
+    delete merged.muxPlaybackId;
+    delete merged.mux_playback_id;
+  }
+
+  if (typeof draft.muxAssetId === "string" && draft.muxAssetId.trim().length) {
+    const assetId = draft.muxAssetId.trim();
+    merged.muxAssetId = assetId;
+    merged.mux_asset_id = assetId;
+  } else if (draft.muxAssetId === null) {
+    delete merged.muxAssetId;
+    delete merged.mux_asset_id;
+  }
+
+  if (
+    typeof draft.mediaDurationSeconds === "number" &&
+    Number.isFinite(draft.mediaDurationSeconds)
+  ) {
+    const duration = Number(draft.mediaDurationSeconds);
+    merged.mediaDurationSeconds = duration;
+    merged.duration_seconds = duration;
+  } else if (draft.mediaDurationSeconds === null) {
+    delete merged.mediaDurationSeconds;
+    delete merged.duration_seconds;
+  }
+
   if (draft.poll) {
     const structured = ensurePollStructure(draft);
     merged.poll = {
