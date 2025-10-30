@@ -20,7 +20,7 @@ import { PrompterToolbar } from "@/components/prompter/PrompterToolbar";
 import { usePrompterDragAndDrop } from "@/components/prompter/usePrompterDragAndDrop";
 import { usePrompterVoice } from "@/components/prompter/usePrompterVoice";
 import { detectSuggestedTools, type PrompterToolKey } from "@/components/prompter/tools";
-import { Paperclip } from "@phosphor-icons/react/dist/ssr";
+// import { Paperclip } from "@phosphor-icons/react/dist/ssr";
 import {
   SUMMARIZE_FEED_REQUEST_EVENT,
   SUMMARIZE_FEED_STATUS_EVENT,
@@ -66,6 +66,7 @@ import { buildMemoryEnvelope } from "@/lib/memory/envelope";
 import { intentResponseSchema } from "@/shared/schemas/ai";
 import { extractFileFromDataTransfer } from "@/lib/clipboard/files";
 import { PrompterPreviewModal } from "@/components/prompter/PrompterPreviewModal";
+import { Plus } from "@phosphor-icons/react/dist/ssr";
 
 export type PrompterAttachment = {
   id: string;
@@ -924,7 +925,7 @@ export function AiPrompterStage({
         {attachmentsEnabled && isDraggingFile ? (
           <div className={styles.prompterDropOverlay} aria-hidden>
             <div className={styles.prompterDropCard}>
-              <Paperclip size={28} weight="duotone" className={styles.prompterDropIcon} />
+              <Plus size={28} weight="bold" className={styles.prompterDropIcon} />
               <span className={styles.prompterDropLabel}>Drop to attach</span>
             </div>
           </div>

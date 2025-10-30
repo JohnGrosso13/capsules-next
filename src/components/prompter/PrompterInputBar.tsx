@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import styles from "./prompter.module.css";
-import { Paperclip, Microphone, MicrophoneSlash } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Microphone, MicrophoneSlash, ArrowUp } from "@phosphor-icons/react/dist/ssr";
 import { IntentOverrideMenu } from "@/components/prompter/IntentOverrideMenu";
 import type { PromptIntent } from "@/lib/ai/intent";
 import type { RecognitionStatus } from "@/hooks/useSpeechRecognition";
@@ -71,6 +71,20 @@ export function PrompterInputBar({
   multiline = false,
 }: Props) {
   const isListening = voiceStatus === "listening" || voiceStatus === "stopping";
+  const [isCompact, setIsCompact] = React.useState(false);
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 480px)");
+    const handle = () => setIsCompact(mq.matches);
+    handle();
+    if (typeof mq.addEventListener === "function") mq.addEventListener("change", handle);
+    else mq.addListener(handle);
+    return () => {
+      if (typeof mq.removeEventListener === "function") mq.removeEventListener("change", handle);
+      else mq.removeListener(handle);
+    };
+  }, []);
+
   const computedLabel =
     voiceLabel ??
     (!voiceSupported
@@ -79,6 +93,7 @@ export function PrompterInputBar({
         ? "Stop voice capture"
         : "Start voice capture");
   const voiceButtonDisabled = voiceDisabled || !voiceSupported || voiceStatus === "stopping";
+  const showSend = isCompact && value.trim().length > 0;
 
   return (
     <div className={styles.promptBar}>
@@ -90,7 +105,7 @@ export function PrompterInputBar({
           onClick={onAttachClick}
           disabled={uploading}
         >
-          <Paperclip size={20} weight="duotone" className={styles.promptAttachIcon} />
+          <Plus size={20} weight="bold" className={styles.promptAttachIcon} />
         </button>
       ) : null}
       {multiline ? (
@@ -136,26 +151,39 @@ export function PrompterInputBar({
         />
       ) : null}
       {showVoiceButton ? (
-        <button
-          type="button"
-          className={`${styles.promptAttachBtn} ${styles.voiceBtn}`.trim()}
-          aria-label={computedLabel}
-          title={computedLabel}
-          aria-pressed={isListening}
-          onClick={onVoiceToggle}
-          disabled={voiceButtonDisabled}
-          data-status={voiceStatus}
-          data-active={isListening || undefined}
-        >
-          <span className={styles.voicePulse} aria-hidden />
-          {isListening ? (
-            <MicrophoneSlash size={18} weight="fill" className={styles.voiceIcon} />
-          ) : (
-            <Microphone size={18} weight="duotone" className={styles.voiceIcon} />
-          )}
-        </button>
+        showSend ? (
+          <button
+            type="button"
+            className={`${styles.promptAttachBtn} ${styles.voiceBtn}`.trim()}
+            aria-label="Send"
+            title="Send"
+            onClick={onGenerate}
+            data-status={voiceStatus}
+          >
+            <ArrowUp size={18} weight="bold" className={styles.voiceIcon} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`${styles.promptAttachBtn} ${styles.voiceBtn}`.trim()}
+            aria-label={computedLabel}
+            title={computedLabel}
+            aria-pressed={isListening}
+            onClick={onVoiceToggle}
+            disabled={voiceButtonDisabled}
+            data-status={voiceStatus}
+            data-active={isListening || undefined}
+          >
+            <span className={styles.voicePulse} aria-hidden />
+            {isListening ? (
+              <MicrophoneSlash size={18} weight="fill" className={styles.voiceIcon} />
+            ) : (
+              <Microphone size={18} weight="duotone" className={styles.voiceIcon} />
+            )}
+          </button>
+        )
       ) : null}
-      {showIntentMenu ? (
+      {!isCompact && showIntentMenu ? (
         <div className={styles.genSplit} role="group">
           <button
             className={`${buttonClassName} ${styles.genSplitMain}`.trim()}
@@ -190,7 +218,7 @@ export function PrompterInputBar({
             renderTrigger={false}
           />
         </div>
-      ) : (
+      ) : !isCompact ? (
         <button
           className={buttonClassName}
           type="button"
@@ -200,7 +228,7 @@ export function PrompterInputBar({
         >
           <span className={styles.genLabel}>{buttonLabel}</span>
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

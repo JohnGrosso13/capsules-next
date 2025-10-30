@@ -9,6 +9,8 @@ import {
   UsersThree,
   SlidersHorizontal,
   Brain,
+  List,
+  SidebarSimple,
 } from "@phosphor-icons/react/dist/ssr";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 
@@ -141,6 +143,100 @@ function CapsuleCustomizerContent() {
   const variants = useCapsuleCustomizerVariants();
   const personas = useCapsuleCustomizerPersonas();
   const advanced = useCapsuleCustomizerAdvancedOptions();
+  const [isMobile, setIsMobile] = React.useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = React.useState(false);
+  const mobileNavCloseRef = React.useRef<HTMLButtonElement | null>(null);
+  const mobilePreviewCloseRef = React.useRef<HTMLButtonElement | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mediaQuery = window.matchMedia("(max-width: 960px)");
+    const update = () => setIsMobile(mediaQuery.matches);
+    update();
+    const listener = () => update();
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", listener);
+      return () => {
+        mediaQuery.removeEventListener("change", listener);
+      };
+    }
+    mediaQuery.addListener(listener);
+    return () => {
+      mediaQuery.removeListener(listener);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (isMobile) return;
+    setMobileNavOpen(false);
+    setMobilePreviewOpen(false);
+  }, [isMobile]);
+
+  React.useEffect(() => {
+    if (!mobileNavOpen && !mobilePreviewOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileNavOpen(false);
+        setMobilePreviewOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileNavOpen, mobilePreviewOpen]);
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (!mobileNavOpen && !mobilePreviewOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileNavOpen, mobilePreviewOpen]);
+
+  React.useEffect(() => {
+    if (!mobileNavOpen) return;
+    const timer = window.setTimeout(() => {
+      mobileNavCloseRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [mobileNavOpen]);
+
+  React.useEffect(() => {
+    if (!mobilePreviewOpen) return;
+    const timer = window.setTimeout(() => {
+      mobilePreviewCloseRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [mobilePreviewOpen]);
+
+  const closeMobilePanels = React.useCallback(() => {
+    setMobileNavOpen(false);
+    setMobilePreviewOpen(false);
+  }, []);
+
+  const handleToggleMobileNav = React.useCallback(() => {
+    setMobileNavOpen((open) => {
+      const next = !open;
+      if (next) {
+        setMobilePreviewOpen(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleMobilePreview = React.useCallback(() => {
+    setMobilePreviewOpen((open) => {
+      const next = !open;
+      if (next) {
+        setMobileNavOpen(false);
+      }
+      return next;
+    });
+  }, []);
 
   const [personaName, setPersonaName] = React.useState("");
   const [personaPalette, setPersonaPalette] = React.useState("");
@@ -264,6 +360,447 @@ function CapsuleCustomizerContent() {
             ? "Save store banner"
             : "Save banner";
 
+  const NavigationSection = () => (
+    <section className={styles.recentColumn} aria-label="Customizer navigation">
+    <div className={styles.railTabs} role="tablist" aria-label="Customizer sections">
+    {railTabs.map((tab) => {
+      const selected = tab.key === activeRailTab;
+      const buttonId = LEFT_TAB_BUTTON_IDS[tab.key];
+      const panelId = LEFT_TAB_PANEL_IDS[tab.key];
+      return (
+        <button
+          key={tab.key}
+          id={buttonId}
+          type="button"
+          role="tab"
+          aria-selected={selected}
+          aria-controls={panelId}
+          tabIndex={selected ? 0 : -1}
+          className={`${styles.railTab}${selected ? ` ${styles.railTabActive}` : ""}`}
+          data-selected={selected ? "true" : undefined}
+          onClick={() => setActiveRailTab(tab.key)}
+          title={tab.label}
+        >
+          {tab.renderIcon(selected)}
+          <span className={styles.srOnly}>{tab.label}</span>
+        </button>
+      );
+    })}
+    </div>
+    <div
+    className={styles.railScroll}
+    role="tabpanel"
+    id={LEFT_TAB_PANEL_IDS[activeRailTab]}
+    aria-labelledby={LEFT_TAB_BUTTON_IDS[activeRailTab]}
+    tabIndex={0}
+    >
+    {activeRailTab === "memory" ? (
+      <div className={styles.railSection}>
+        <div className={styles.recentHeader}>
+          <h3 id="customizer-memory-heading">Memories</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={memory.openPicker}
+            aria-haspopup="dialog"
+            aria-expanded={memory.isPickerOpen}
+            aria-controls="memory-picker-dialog"
+          >
+            View all memories
+          </Button>
+        </div>
+        <div className={styles.recentDescription}>{meta.recentDescription}</div>
+        <div className={styles.recentList} role="list">
+          {!memory.user ? (
+            <p className={styles.recentHint}>Sign in to see recent memories.</p>
+          ) : memory.loading ? (
+            <p className={styles.recentHint}>Loading your recent memories...</p>
+          ) : memory.error ? (
+            <p className={styles.recentHint}>{memory.error}</p>
+          ) : memory.recentMemories.length ? (
+            memory.recentMemories.map((memoryItem, index) => {
+              const alt =
+                memoryItem.title?.trim() ||
+                memoryItem.description?.trim() ||
+                "Capsule memory preview";
+              const selected =
+                preview.selected?.kind === "memory" && preview.selected.id === memoryItem.id;
+              const memoryKey = memoryItem.id ? `${memoryItem.id}-${index}` : `memory-${index}`;
+              return (
+                <button
+                  key={memoryKey}
+                  type="button"
+                  role="listitem"
+                  className={styles.recentItem}
+                  data-selected={selected ? "true" : undefined}
+                  onClick={() => memory.onSelectMemory(memoryItem)}
+                  aria-label={`Use memory ${alt}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={memoryItem.displayUrl}
+                    alt={alt}
+                    className={styles.recentImage}
+                    loading="lazy"
+                  />
+                  <div className={styles.recentMeta}>
+                    <span className={styles.recentTitle}>{alt}</span>
+                    <span className={styles.recentSubtle}>Memory</span>
+                  </div>
+                </button>
+              );
+            })
+          ) : (
+            <p className={styles.recentHint}>
+              Generate, upload, or pick a memory to see it surface here.
+            </p>
+          )}
+        </div>
+      </div>
+    ) : null}
+    {activeRailTab === "versions" ? (
+      variantsSupported ? (
+        <div className={styles.railSection} aria-labelledby="customizer-versions-heading">
+          <div className={styles.recentHeader}>
+            <h3 id="customizer-versions-heading">AI versions</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void variants.refresh();
+              }}
+              disabled={variants.loading}
+            >
+              Refresh
+            </Button>
+          </div>
+          <div className={styles.recentDescription}>{variantDescription}</div>
+          <div className={styles.recentList} role="list">
+            {variants.loading ? (
+              <p className={styles.recentHint}>Loading your saved versions...</p>
+            ) : variants.error ? (
+              <p className={styles.recentHint}>{variants.error}</p>
+            ) : variants.items.length ? (
+              variants.items.map((variant: CapsuleVariant) => {
+                const metadata = (variant.metadata ?? {}) as Record<string, unknown>;
+                const mode =
+                  typeof metadata.mode === "string" && metadata.mode.trim().length
+                    ? metadata.mode.trim().toLowerCase()
+                    : "generate";
+                const stylePreset =
+                  typeof metadata.stylePreset === "string" && metadata.stylePreset.trim().length
+                    ? humanize(metadata.stylePreset.trim())
+                    : null;
+                const providerRaw =
+                  typeof metadata.provider === "string" && metadata.provider.trim().length
+                    ? metadata.provider.trim().toLowerCase()
+                    : null;
+                const provider =
+                  providerRaw === "openai"
+                    ? "OpenAI"
+                    : providerRaw === "stability"
+                      ? "Stability"
+                      : providerRaw
+                        ? humanize(providerRaw)
+                        : null;
+                const resolvedPrompt =
+                  typeof metadata.resolvedPrompt === "string" && metadata.resolvedPrompt.trim().length
+                    ? metadata.resolvedPrompt.trim()
+                    : null;
+                const userPrompt =
+                  typeof metadata.userPrompt === "string" && metadata.userPrompt.trim().length
+                    ? metadata.userPrompt.trim()
+                    : null;
+                const snippetSource = resolvedPrompt || userPrompt || "";
+                const snippet = snippetSource.length ? `“${truncate(snippetSource, 68)}”` : null;
+                const detailParts = [
+                  mode === "edit" ? "Edit" : "Generate",
+                  stylePreset,
+                  provider,
+                ].filter(Boolean) as string[];
+                const detail = detailParts.join(" • ");
+                const thumbUrl = variant.thumbUrl ?? variant.imageUrl;
+                const selected =
+                  preview.selected?.kind === "memory" && preview.selected.id === variant.id;
+                return (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    role="listitem"
+                    className={styles.recentItem}
+                    data-selected={selected ? "true" : undefined}
+                    onClick={() => variants.select(variant)}
+                    aria-label={`Switch to AI version ${variant.version}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={thumbUrl}
+                      alt={`AI version ${variant.version}`}
+                      className={styles.recentImage}
+                      loading="lazy"
+                    />
+                    <div className={styles.recentMeta}>
+                      <span className={styles.recentTitle}>Version v{variant.version}</span>
+                      {snippet ? <span className={styles.recentSnippet}>{snippet}</span> : null}
+                      {detail ? <span className={styles.recentSubtle}>{detail}</span> : null}
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <p className={styles.recentHint}>
+                Versions appear here after you generate or edit with Capsule AI.
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className={styles.railSection} aria-labelledby="customizer-versions-heading">
+          <h3 id="customizer-versions-heading">AI versions</h3>
+          <p className={styles.recentHint}>
+            Switch to a banner, store banner, logo, or avatar to work with AI versions.
+          </p>
+        </div>
+      )
+    ) : null}
+    {activeRailTab === "personas" ? (
+      <div className={styles.railSection} aria-labelledby="style-personas-heading">
+        <div className={styles.recentHeader}>
+          <h3 id="style-personas-heading">Style personas</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              void personas.refresh();
+            }}
+            disabled={personas.loading}
+            leftIcon={<ArrowsClockwise size={16} weight="bold" />}
+          >
+            Refresh
+          </Button>
+        </div>
+        <div className={styles.recentDescription}>
+          Save reusable palettes, mediums, and camera cues so prompts stay consistent.
+        </div>
+        <form className={styles.personaForm} onSubmit={handlePersonaSubmit}>
+          <input
+            className={styles.personaInput}
+            type="text"
+            placeholder="Persona name"
+            value={personaName}
+            onChange={(event) => setPersonaName(event.target.value)}
+            required
+            disabled={personaFormDisabled}
+          />
+          <textarea
+            className={styles.personaInput}
+            placeholder="Palette (colors, lighting, mood)"
+            value={personaPalette}
+            onChange={(event) => setPersonaPalette(event.target.value)}
+            disabled={personaFormDisabled}
+          />
+          <textarea
+            className={styles.personaInput}
+            placeholder="Medium or materials"
+            value={personaMedium}
+            onChange={(event) => setPersonaMedium(event.target.value)}
+            disabled={personaFormDisabled}
+          />
+          <textarea
+            className={styles.personaInput}
+            placeholder="Camera or framing"
+            value={personaCamera}
+            onChange={(event) => setPersonaCamera(event.target.value)}
+            disabled={personaFormDisabled}
+          />
+          <textarea
+            className={styles.personaInput}
+            placeholder="Notes (optional)"
+            value={personaNotes}
+            onChange={(event) => setPersonaNotes(event.target.value)}
+            disabled={personaFormDisabled}
+          />
+          <div className={styles.personaFormActions}>
+            <Button
+              type="submit"
+              size="sm"
+              variant="secondary"
+              disabled={personaFormDisabled || !personaName.trim()}
+              loading={personaSubmitting}
+            >
+              Save persona
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={clearPersonaSelection}
+              disabled={!personas.selectedId}
+            >
+              Clear selection
+            </Button>
+          </div>
+        </form>
+        {personas.error ? <p className={styles.personaError}>{personas.error}</p> : null}
+        <div className={styles.personaList} role="list">
+          {personas.loading && personas.items.length === 0 ? (
+            <p className={styles.recentHint}>Loading personas...</p>
+          ) : personas.items.length ? (
+            personas.items.map((persona) => {
+              const selected = personas.selectedId === persona.id;
+              return (
+                <button
+                  key={persona.id}
+                  type="button"
+                  className={styles.personaItem}
+                  role="listitem"
+                  data-selected={selected ? "true" : undefined}
+                  onClick={() => personas.select(persona.id)}
+                >
+                  <div className={styles.personaItemDetails}>
+                    <span className={styles.personaName}>{persona.name}</span>
+                    {persona.palette ? (
+                      <span className={styles.personaTrait}>Palette: {persona.palette}</span>
+                    ) : null}
+                    {persona.medium ? (
+                      <span className={styles.personaTrait}>Medium: {persona.medium}</span>
+                    ) : null}
+                    {persona.camera ? (
+                      <span className={styles.personaTrait}>Camera: {persona.camera}</span>
+                    ) : null}
+                    {persona.notes ? (
+                      <span className={styles.personaTrait}>Notes: {persona.notes}</span>
+                    ) : null}
+                  </div>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className={styles.personaDeleteButton}
+                    aria-label="Remove persona"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handlePersonaRemove(persona.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void handlePersonaRemove(persona.id);
+                      }
+                    }}
+                  >
+                    <TrashSimple size={14} weight="bold" />
+                  </span>
+                </button>
+              );
+            })
+          ) : (
+            <p className={styles.recentHint}>Save a persona to reuse your aesthetic cues.</p>
+          )}
+        </div>
+      </div>
+    ) : null}
+    {activeRailTab === "advanced" ? (
+      <div className={styles.railSection} aria-labelledby="advanced-controls-heading">
+        <div className={styles.recentHeader}>
+          <h3 id="advanced-controls-heading">Advanced controls</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={advanced.clear}
+            disabled={advanced.seed === null && advanced.guidance === null}
+          >
+            Reset
+          </Button>
+        </div>
+        <div className={styles.recentDescription}>
+          Set deterministic seeds or guidance strength for supported models.
+        </div>
+        <div className={styles.advancedForm}>
+          <label className={styles.advancedField}>
+            <span className={styles.advancedLabel}>Seed</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              className={styles.advancedInput}
+              placeholder="Random"
+              value={advanced.seed ?? ""}
+              onChange={(event) => {
+                const value = event.target.value;
+                advanced.setSeed(value === "" ? null : Number(value));
+              }}
+            />
+          </label>
+          <label className={styles.advancedField}>
+            <span className={styles.advancedLabel}>Guidance</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              max={30}
+              step={0.5}
+              className={styles.advancedInput}
+              placeholder="Model default"
+              value={advanced.guidance ?? ""}
+              onChange={(event) => {
+                const value = event.target.value;
+                advanced.setGuidance(value === "" ? null : Number(value));
+              }}
+            />
+          </label>
+        </div>
+        <p className={styles.advancedHint}>
+          Seed and guidance apply when generating with Stability models.
+        </p>
+      </div>
+    ) : null}
+    </div>
+    </section>
+  );
+
+  const ChatSection = () => (
+    <section className={styles.chatColumn}>
+    <div ref={chat.logRef} className={styles.chatLog} aria-live="polite">
+    {chat.messages.map((message) => (
+      <ChatMessageBubble
+        key={message.id}
+        message={message}
+        onBannerSelect={chat.onBannerSelect}
+      />
+    ))}
+    {chat.busy ? (
+      <div className={styles.chatTyping} aria-live="polite">
+        Capsule AI is thinking...
+      </div>
+    ) : null}
+    </div>
+
+    <div className={styles.prompterDock}>
+    <div className={styles.prompterWrap}>
+      <AiPrompterStage
+        key={chat.prompterSession}
+        placeholder={meta.prompterPlaceholder}
+        chips={[]}
+        statusMessage={null}
+        onAction={chat.onPrompterAction}
+        variant="bannerCustomizer"
+      />
+    </div>
+    </div>
+    </section>
+  );
+
+  const PreviewSection = () => (
+    <section className={styles.previewColumn}>
+    <div className={styles.previewPanel}>
+    <CapsuleBannerPreview />
+    <CapsuleAssetActions />
+    </div>
+    </section>
+  );
+
   return (
     <div className={styles.overlay} role="presentation" onClick={actions.overlayClick}>
       <div
@@ -277,486 +814,175 @@ function CapsuleCustomizerContent() {
             <h2 id="capsule-customizer-heading">{meta.headerTitle}</h2>
             <p>{meta.headerSubtitle}</p>
           </div>
-          <button
-            type="button"
-            className={styles.closeButton}
-            onClick={actions.handleClose}
-            aria-label={`Close ${meta.assetLabel} customizer`}
-          >
-            <X size={18} weight="bold" />
-          </button>
+          <div className={styles.headerActions}>
+            {isMobile ? (
+              <>
+                <button
+                  type="button"
+                  className={styles.mobileHeaderButton}
+                  onClick={handleToggleMobileNav}
+                  aria-expanded={mobileNavOpen}
+                  aria-controls="capsule-customizer-mobile-nav"
+                  data-active={mobileNavOpen ? "true" : undefined}
+                >
+                  <List size={18} weight="bold" />
+                  <span>Sections</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.mobileHeaderButton}
+                  onClick={handleToggleMobilePreview}
+                  aria-expanded={mobilePreviewOpen}
+                  aria-controls="capsule-customizer-mobile-preview"
+                  data-active={mobilePreviewOpen ? "true" : undefined}
+                >
+                  <SidebarSimple size={18} weight="bold" />
+                  <span>Preview</span>
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              className={styles.closeButton}
+              onClick={actions.handleClose}
+              aria-label={`Close ${meta.assetLabel} customizer`}
+            >
+              <X size={18} weight="bold" />
+            </button>
+          </div>
         </header>
 
-        <div className={styles.content}>
-          <PanelGroup
-            autoSaveId={panelLayoutId}
-            direction="horizontal"
-            className={resizableColumnsClass}
-          >
-            <Panel
-              defaultSize={24}
-              minSize={22}
-              collapsible={false}
-              className={navigationPanelClass}
-            >
-              <section className={styles.recentColumn} aria-label="Customizer navigation">
-            <div className={styles.railTabs} role="tablist" aria-label="Customizer sections">
-              {railTabs.map((tab) => {
-                const selected = tab.key === activeRailTab;
-                const buttonId = LEFT_TAB_BUTTON_IDS[tab.key];
-                const panelId = LEFT_TAB_PANEL_IDS[tab.key];
-                return (
-                  <button
-                    key={tab.key}
-                    id={buttonId}
-                    type="button"
-                    role="tab"
-                    aria-selected={selected}
-                    aria-controls={panelId}
-                    tabIndex={selected ? 0 : -1}
-                    className={`${styles.railTab}${selected ? ` ${styles.railTabActive}` : ""}`}
-                    data-selected={selected ? "true" : undefined}
-                    onClick={() => setActiveRailTab(tab.key)}
-                    title={tab.label}
-                  >
-                    {tab.renderIcon(selected)}
-                    <span className={styles.srOnly}>{tab.label}</span>
-                  </button>
-                );
-              })}
+        <div
+          className={styles.content}
+          aria-hidden={mobileNavOpen || mobilePreviewOpen ? "true" : undefined}
+        >
+          {isMobile ? (
+            <div className={styles.mobileChatColumn}>
+              <ChatSection />
             </div>
-            <div
-              className={styles.railScroll}
-              role="tabpanel"
-              id={LEFT_TAB_PANEL_IDS[activeRailTab]}
-              aria-labelledby={LEFT_TAB_BUTTON_IDS[activeRailTab]}
-              tabIndex={0}
+          ) : (
+            <PanelGroup
+              autoSaveId={panelLayoutId}
+              direction="horizontal"
+              className={resizableColumnsClass}
             >
-              {activeRailTab === "memory" ? (
-                <div className={styles.railSection}>
-                  <div className={styles.recentHeader}>
-                    <h3 id="customizer-memory-heading">Memories</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={memory.openPicker}
-                      aria-haspopup="dialog"
-                      aria-expanded={memory.isPickerOpen}
-                      aria-controls="memory-picker-dialog"
-                    >
-                      View all memories
-                    </Button>
-                  </div>
-                  <div className={styles.recentDescription}>{meta.recentDescription}</div>
-                  <div className={styles.recentList} role="list">
-                    {!memory.user ? (
-                      <p className={styles.recentHint}>Sign in to see recent memories.</p>
-                    ) : memory.loading ? (
-                      <p className={styles.recentHint}>Loading your recent memories...</p>
-                    ) : memory.error ? (
-                      <p className={styles.recentHint}>{memory.error}</p>
-                    ) : memory.recentMemories.length ? (
-                      memory.recentMemories.map((memoryItem, index) => {
-                        const alt =
-                          memoryItem.title?.trim() ||
-                          memoryItem.description?.trim() ||
-                          "Capsule memory preview";
-                        const selected =
-                          preview.selected?.kind === "memory" && preview.selected.id === memoryItem.id;
-                        const memoryKey = memoryItem.id ? `${memoryItem.id}-${index}` : `memory-${index}`;
-                        return (
-                          <button
-                            key={memoryKey}
-                            type="button"
-                            role="listitem"
-                            className={styles.recentItem}
-                            data-selected={selected ? "true" : undefined}
-                            onClick={() => memory.onSelectMemory(memoryItem)}
-                            aria-label={`Use memory ${alt}`}
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={memoryItem.displayUrl}
-                              alt={alt}
-                              className={styles.recentImage}
-                              loading="lazy"
-                            />
-                            <div className={styles.recentMeta}>
-                              <span className={styles.recentTitle}>{alt}</span>
-                              <span className={styles.recentSubtle}>Memory</span>
-                            </div>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <p className={styles.recentHint}>
-                        Generate, upload, or pick a memory to see it surface here.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-              {activeRailTab === "versions" ? (
-                variantsSupported ? (
-                  <div className={styles.railSection} aria-labelledby="customizer-versions-heading">
-                    <div className={styles.recentHeader}>
-                      <h3 id="customizer-versions-heading">AI versions</h3>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          void variants.refresh();
-                        }}
-                        disabled={variants.loading}
-                      >
-                        Refresh
-                      </Button>
-                    </div>
-                    <div className={styles.recentDescription}>{variantDescription}</div>
-                    <div className={styles.recentList} role="list">
-                      {variants.loading ? (
-                        <p className={styles.recentHint}>Loading your saved versions...</p>
-                      ) : variants.error ? (
-                        <p className={styles.recentHint}>{variants.error}</p>
-                      ) : variants.items.length ? (
-                        variants.items.map((variant: CapsuleVariant) => {
-                          const metadata = (variant.metadata ?? {}) as Record<string, unknown>;
-                          const mode =
-                            typeof metadata.mode === "string" && metadata.mode.trim().length
-                              ? metadata.mode.trim().toLowerCase()
-                              : "generate";
-                          const stylePreset =
-                            typeof metadata.stylePreset === "string" && metadata.stylePreset.trim().length
-                              ? humanize(metadata.stylePreset.trim())
-                              : null;
-                          const providerRaw =
-                            typeof metadata.provider === "string" && metadata.provider.trim().length
-                              ? metadata.provider.trim().toLowerCase()
-                              : null;
-                          const provider =
-                            providerRaw === "openai"
-                              ? "OpenAI"
-                              : providerRaw === "stability"
-                                ? "Stability"
-                                : providerRaw
-                                  ? humanize(providerRaw)
-                                  : null;
-                          const resolvedPrompt =
-                            typeof metadata.resolvedPrompt === "string" && metadata.resolvedPrompt.trim().length
-                              ? metadata.resolvedPrompt.trim()
-                              : null;
-                          const userPrompt =
-                            typeof metadata.userPrompt === "string" && metadata.userPrompt.trim().length
-                              ? metadata.userPrompt.trim()
-                              : null;
-                          const snippetSource = resolvedPrompt || userPrompt || "";
-                          const snippet = snippetSource.length ? `“${truncate(snippetSource, 68)}”` : null;
-                          const detailParts = [
-                            mode === "edit" ? "Edit" : "Generate",
-                            stylePreset,
-                            provider,
-                          ].filter(Boolean) as string[];
-                          const detail = detailParts.join(" • ");
-                          const thumbUrl = variant.thumbUrl ?? variant.imageUrl;
-                          const selected =
-                            preview.selected?.kind === "memory" && preview.selected.id === variant.id;
-                          return (
-                            <button
-                              key={variant.id}
-                              type="button"
-                              role="listitem"
-                              className={styles.recentItem}
-                              data-selected={selected ? "true" : undefined}
-                              onClick={() => variants.select(variant)}
-                              aria-label={`Switch to AI version ${variant.version}`}
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={thumbUrl}
-                                alt={`AI version ${variant.version}`}
-                                className={styles.recentImage}
-                                loading="lazy"
-                              />
-                              <div className={styles.recentMeta}>
-                                <span className={styles.recentTitle}>Version v{variant.version}</span>
-                                {snippet ? <span className={styles.recentSnippet}>{snippet}</span> : null}
-                                {detail ? <span className={styles.recentSubtle}>{detail}</span> : null}
-                              </div>
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <p className={styles.recentHint}>
-                          Versions appear here after you generate or edit with Capsule AI.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.railSection} aria-labelledby="customizer-versions-heading">
-                    <h3 id="customizer-versions-heading">AI versions</h3>
-                    <p className={styles.recentHint}>
-                      Switch to a banner, store banner, logo, or avatar to work with AI versions.
-                    </p>
-                  </div>
-                )
-              ) : null}
-              {activeRailTab === "personas" ? (
-                <div className={styles.railSection} aria-labelledby="style-personas-heading">
-                  <div className={styles.recentHeader}>
-                    <h3 id="style-personas-heading">Style personas</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        void personas.refresh();
-                      }}
-                      disabled={personas.loading}
-                      leftIcon={<ArrowsClockwise size={16} weight="bold" />}
-                    >
-                      Refresh
-                    </Button>
-                  </div>
-                  <div className={styles.recentDescription}>
-                    Save reusable palettes, mediums, and camera cues so prompts stay consistent.
-                  </div>
-                  <form className={styles.personaForm} onSubmit={handlePersonaSubmit}>
-                    <input
-                      className={styles.personaInput}
-                      type="text"
-                      placeholder="Persona name"
-                      value={personaName}
-                      onChange={(event) => setPersonaName(event.target.value)}
-                      required
-                      disabled={personaFormDisabled}
-                    />
-                    <textarea
-                      className={styles.personaInput}
-                      placeholder="Palette (colors, lighting, mood)"
-                      value={personaPalette}
-                      onChange={(event) => setPersonaPalette(event.target.value)}
-                      disabled={personaFormDisabled}
-                    />
-                    <textarea
-                      className={styles.personaInput}
-                      placeholder="Medium or materials"
-                      value={personaMedium}
-                      onChange={(event) => setPersonaMedium(event.target.value)}
-                      disabled={personaFormDisabled}
-                    />
-                    <textarea
-                      className={styles.personaInput}
-                      placeholder="Camera or framing"
-                      value={personaCamera}
-                      onChange={(event) => setPersonaCamera(event.target.value)}
-                      disabled={personaFormDisabled}
-                    />
-                    <textarea
-                      className={styles.personaInput}
-                      placeholder="Notes (optional)"
-                      value={personaNotes}
-                      onChange={(event) => setPersonaNotes(event.target.value)}
-                      disabled={personaFormDisabled}
-                    />
-                    <div className={styles.personaFormActions}>
-                      <Button
-                        type="submit"
-                        size="sm"
-                        variant="secondary"
-                        disabled={personaFormDisabled || !personaName.trim()}
-                        loading={personaSubmitting}
-                      >
-                        Save persona
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={clearPersonaSelection}
-                        disabled={!personas.selectedId}
-                      >
-                        Clear selection
-                      </Button>
-                    </div>
-                  </form>
-                  {personas.error ? <p className={styles.personaError}>{personas.error}</p> : null}
-                  <div className={styles.personaList} role="list">
-                    {personas.loading && personas.items.length === 0 ? (
-                      <p className={styles.recentHint}>Loading personas...</p>
-                    ) : personas.items.length ? (
-                      personas.items.map((persona) => {
-                        const selected = personas.selectedId === persona.id;
-                        return (
-                          <button
-                            key={persona.id}
-                            type="button"
-                            className={styles.personaItem}
-                            role="listitem"
-                            data-selected={selected ? "true" : undefined}
-                            onClick={() => personas.select(persona.id)}
-                          >
-                            <div className={styles.personaItemDetails}>
-                              <span className={styles.personaName}>{persona.name}</span>
-                              {persona.palette ? (
-                                <span className={styles.personaTrait}>Palette: {persona.palette}</span>
-                              ) : null}
-                              {persona.medium ? (
-                                <span className={styles.personaTrait}>Medium: {persona.medium}</span>
-                              ) : null}
-                              {persona.camera ? (
-                                <span className={styles.personaTrait}>Camera: {persona.camera}</span>
-                              ) : null}
-                              {persona.notes ? (
-                                <span className={styles.personaTrait}>Notes: {persona.notes}</span>
-                              ) : null}
-                            </div>
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              className={styles.personaDeleteButton}
-                              aria-label="Remove persona"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handlePersonaRemove(persona.id);
-                              }}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter" || event.key === " ") {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  void handlePersonaRemove(persona.id);
-                                }
-                              }}
-                            >
-                              <TrashSimple size={14} weight="bold" />
-                            </span>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <p className={styles.recentHint}>Save a persona to reuse your aesthetic cues.</p>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-              {activeRailTab === "advanced" ? (
-                <div className={styles.railSection} aria-labelledby="advanced-controls-heading">
-                  <div className={styles.recentHeader}>
-                    <h3 id="advanced-controls-heading">Advanced controls</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={advanced.clear}
-                      disabled={advanced.seed === null && advanced.guidance === null}
-                    >
-                      Reset
-                    </Button>
-                  </div>
-                  <div className={styles.recentDescription}>
-                    Set deterministic seeds or guidance strength for supported models.
-                  </div>
-                  <div className={styles.advancedForm}>
-                    <label className={styles.advancedField}>
-                      <span className={styles.advancedLabel}>Seed</span>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        step={1}
-                        className={styles.advancedInput}
-                        placeholder="Random"
-                        value={advanced.seed ?? ""}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          advanced.setSeed(value === "" ? null : Number(value));
-                        }}
-                      />
-                    </label>
-                    <label className={styles.advancedField}>
-                      <span className={styles.advancedLabel}>Guidance</span>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
-                        max={30}
-                        step={0.5}
-                        className={styles.advancedInput}
-                        placeholder="Model default"
-                        value={advanced.guidance ?? ""}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          advanced.setGuidance(value === "" ? null : Number(value));
-                        }}
-                      />
-                    </label>
-                  </div>
-                  <p className={styles.advancedHint}>
-                    Seed and guidance apply when generating with Stability models.
-                  </p>
-                </div>
-              ) : null}
-            </div>
-              </section>
-            </Panel>
-            <PanelResizeHandle
-              className={resizeHandleClass}
-              aria-label="Resize customizer navigation column"
-            />
-            <Panel
-              defaultSize={46}
-              minSize={34}
-              collapsible={false}
-              className={chatPanelClass}
-            >
-              <section className={styles.chatColumn}>
-            <div ref={chat.logRef} className={styles.chatLog} aria-live="polite">
-              {chat.messages.map((message) => (
-                <ChatMessageBubble
-                  key={message.id}
-                  message={message}
-                  onBannerSelect={chat.onBannerSelect}
-                />
-              ))}
-              {chat.busy ? (
-                <div className={styles.chatTyping} aria-live="polite">
-                  Capsule AI is thinking...
-                </div>
-              ) : null}
-            </div>
+              <Panel
+                defaultSize={24}
+                minSize={22}
+                collapsible={false}
+                className={navigationPanelClass}
+              >
+                <NavigationSection />
+              </Panel>
+              <PanelResizeHandle
+                className={resizeHandleClass}
+                aria-label="Resize customizer navigation column"
+              />
+              <Panel
+                defaultSize={46}
+                minSize={34}
+                collapsible={false}
+                className={chatPanelClass}
+              >
+                <ChatSection />
+              </Panel>
+              <PanelResizeHandle
+                className={resizeHandleClass}
+                aria-label="Resize customizer preview panel"
+              />
 
-            <div className={styles.prompterDock}>
-              <div className={styles.prompterWrap}>
-                <AiPrompterStage
-                  key={chat.prompterSession}
-                  placeholder={meta.prompterPlaceholder}
-                  chips={[]}
-                  statusMessage={null}
-                  onAction={chat.onPrompterAction}
-                  variant="bannerCustomizer"
-                />
+              <Panel
+                defaultSize={30}
+                minSize={24}
+                collapsible={false}
+                className={previewPanelClass}
+              >
+                <PreviewSection />
+              </Panel>
+            </PanelGroup>
+          )}
+        </div>
+
+        {isMobile && mobileNavOpen ? (
+          <div
+            id="capsule-customizer-mobile-nav"
+            className={styles.mobileSheet}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="capsule-customizer-mobile-nav-title"
+            onClick={closeMobilePanels}
+          >
+            <div className={styles.mobileSheetBackdrop} />
+            <div
+              className={styles.mobileSheetPanel}
+              role="document"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className={styles.mobileSheetHeader}>
+                <span className={styles.mobileSheetTitle} id="capsule-customizer-mobile-nav-title">
+                  Sections
+                </span>
+                <button
+                  type="button"
+                  className={styles.mobileSheetClose}
+                  onClick={closeMobilePanels}
+                  ref={mobileNavCloseRef}
+                  aria-label="Close sections panel"
+                >
+                  <X size={16} weight="bold" />
+                </button>
+              </div>
+              <div className={styles.mobileSheetBody}>
+                <NavigationSection />
               </div>
             </div>
-              </section>
-            </Panel>
-            <PanelResizeHandle
-              className={resizeHandleClass}
-              aria-label="Resize customizer preview panel"
-            />
+          </div>
+        ) : null}
 
-            <Panel
-              defaultSize={30}
-              minSize={24}
-              collapsible={false}
-              className={previewPanelClass}
+        {isMobile && mobilePreviewOpen ? (
+          <>
+            <div
+              className={styles.mobilePreviewBackdrop}
+              onClick={closeMobilePanels}
+              role="presentation"
+            />
+            <div
+              id="capsule-customizer-mobile-preview"
+              className={styles.mobilePreviewOverlay}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="capsule-customizer-mobile-preview-title"
+              onClick={closeMobilePanels}
             >
-              <section className={styles.previewColumn}>
-            <div className={styles.previewPanel}>
-              <CapsuleBannerPreview />
-              <CapsuleAssetActions />
+              <div
+                className={styles.mobilePreviewDialog}
+                role="document"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className={styles.mobilePreviewHeader}>
+                  <span
+                    className={styles.mobileSheetTitle}
+                    id="capsule-customizer-mobile-preview-title"
+                  >
+                    Preview
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.mobilePreviewClose}
+                    onClick={closeMobilePanels}
+                    ref={mobilePreviewCloseRef}
+                    aria-label="Close preview panel"
+                  >
+                    <X size={18} weight="bold" />
+                  </button>
+                </div>
+                <div className={styles.mobilePreviewContent}>
+                  <PreviewSection />
+                </div>
+              </div>
             </div>
-              </section>
-            </Panel>
-          </PanelGroup>
-        </div>
+          </>
+        ) : null}
 
         <CapsuleMemoryPicker />
 
@@ -814,6 +1040,3 @@ export function ProfileAvatarCustomizer(props: Omit<CapsuleCustomizerProps, "mod
 
 export { CapsuleCustomizer };
 export type { CapsuleCustomizerSaveResult, CapsuleCustomizerMode, CapsuleCustomizerProps };
-
-
-

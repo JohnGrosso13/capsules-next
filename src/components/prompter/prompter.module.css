@@ -1,4 +1,4 @@
-@layer components {
+﻿@layer components {
   .prompterStage {
     max-width: 860px;
     margin: 0 auto;
@@ -128,13 +128,28 @@
 
   @media (max-width: 640px) {
     .promptBar {
-      gap: 6px;
+      gap: 8px;
       padding: 10px 12px;
     }
 
     .promptBar::before {
       left: -12px;
       right: -12px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .promptBar {
+      padding: 8px 10px;
+    }
+
+    .promptAttachBtn {
+      width: 32px;
+      height: 32px;
+    }
+
+    .input {
+      font-size: 0.95rem;
     }
   }
 
@@ -952,3 +967,7 @@
     outline-offset: 2px;
   }
 }
+
+
+
+
