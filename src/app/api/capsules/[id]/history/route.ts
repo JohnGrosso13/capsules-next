@@ -177,10 +177,7 @@ function shouldForceRefresh(url: URL): boolean {
 export const runtime = "nodejs";
 
 export async function GET(req: Request, context: HistoryRouteContext) {
-  const viewerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
-  if (!viewerId) {
-    return returnError(401, "auth_required", "Sign in to view capsule history.");
-  }
+  const viewerId = await ensureUserFromRequest(req, {}, { allowGuests: true });
 
   const params = await resolveParams(context);
   const parsedParams = paramsSchema.safeParse(params);

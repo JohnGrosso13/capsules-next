@@ -2096,10 +2096,6 @@ function composeCapsuleHistorySnapshot(params: {
     const timeframe =
       suggestedSection?.timeframe ?? publishedSection?.timeframe ?? { start: null, end: null };
     const title = suggestedSection?.title ?? publishedSection?.title ?? period.toUpperCase();
-    const isEmpty =
-      suggestedSection?.isEmpty ??
-      (decoratedSuggested.timeline.length === 0 && decoratedSuggested.highlights.length === 0);
-
     return {
       period,
       title,
@@ -3075,29 +3071,13 @@ async function buildCapsuleHistorySnapshot({
 
 export async function getCapsuleHistory(
   capsuleId: string,
-  viewerId: string | null | undefined,
+  _viewerId: string | null | undefined,
   options: { forceRefresh?: boolean } = {},
 ): Promise<CapsuleHistorySnapshot> {
-  const normalizedViewerId = normalizeId(viewerId ?? null);
-  if (!normalizedViewerId) {
-    throw new CapsuleMembershipError("forbidden", "Authentication required.", 403);
-  }
-
-  const { capsule, ownerId } = await requireCapsule(capsuleId);
+  const { capsule } = await requireCapsule(capsuleId);
   const capsuleIdValue = normalizeId(capsule.id);
   if (!capsuleIdValue) {
     throw new Error("capsules.history: capsule has invalid identifier");
-  }
-
-  if (normalizedViewerId !== ownerId) {
-    const membership = await getCapsuleMemberRecord(capsuleIdValue, normalizedViewerId);
-    if (!membership) {
-      throw new CapsuleMembershipError(
-        "forbidden",
-        "Join this capsule to view its history.",
-        403,
-      );
-    }
   }
 
   const activity = await getCapsuleHistoryActivity(capsuleIdValue);
