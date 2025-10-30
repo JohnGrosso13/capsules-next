@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import styles from "../ladders/LadderBuilder.module.css";
+import { StudioStepper, type StepItem } from "../competitive/StudioStepper";
 
 type FormatOption = "single_elimination" | "double_elimination" | "round_robin";
 type RegistrationType = "open" | "invite" | "waitlist" | "mixed";
@@ -78,6 +79,13 @@ function parseInteger(value: string, fallback: number, options: { min?: number; 
 
 export function TournamentBuilder({ capsules, initialCapsuleId = null }: TournamentBuilderProps) {
   const router = useRouter();
+  const stepItems: StepItem[] = [
+    { id: "step-details", title: "Details", subtitle: "Name & visibility" },
+    { id: "step-format", title: "Format", subtitle: "Bracket & schedule" },
+    { id: "step-content", title: "Content", subtitle: "Overview, rules, comms" },
+    { id: "step-participants", title: "Participants", subtitle: "Seeds & teams" },
+    { id: "step-review", title: "Review", subtitle: "Generate & publish" },
+  ];
   const [capsuleList, setCapsuleList] = React.useState<CapsuleSummary[]>(capsules);
   const [selectedCapsule, setSelectedCapsule] = React.useState<CapsuleSummary | null>(() => {
     if (!initialCapsuleId) return null;
@@ -434,316 +442,329 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
 
   return (
     <div className={styles.builderWrap}>
-      <div className={styles.selectedCapsuleBanner}>
-        <div>
-          <div className={styles.capsuleLabel}>Capsule</div>
-          <div className={styles.capsuleName}>{selectedCapsule.name}</div>
-        </div>
-        <Button type="button" variant="ghost" onClick={() => handleCapsuleChange(null)}>
-          Switch capsule
-        </Button>
-      </div>
-
-      {errorMessage ? <div className={styles.errorMessage}>{errorMessage}</div> : null}
-      {statusMessage ? <div className={styles.statusMessage}>{statusMessage}</div> : null}
-
-      <div className={styles.grid}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Event details</CardTitle>
-            <CardDescription>Name your tournament and set its visibility.</CardDescription>
-          </CardHeader>
-          <CardContent className={styles.cardContent}>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="tournament-name">
-                Tournament name
-              </label>
-              <Input
-                id="tournament-name"
-                value={form.name}
-                placeholder="Capsule Clash Invitational"
-                onChange={(event) => handleFormChange("name", event.target.value)}
-              />
+      <div className={styles.pageGrid}>
+        <aside className={styles.stepperCol}>
+          <StudioStepper items={stepItems} />
+        </aside>
+        <div className={styles.formCol}>
+          <div className={styles.selectedCapsuleBanner}>
+            <div>
+              <div className={styles.capsuleLabel}>Capsule</div>
+              <div className={styles.capsuleName}>{selectedCapsule.name}</div>
             </div>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="tournament-summary">
-                Summary
-              </label>
-              <textarea
-                id="tournament-summary"
-                className={styles.textarea}
-                rows={3}
-                value={form.summary}
-                placeholder="Double-elimination showdown with Capsule AI narrating every upset."
-                onChange={(event) => handleFormChange("summary", event.target.value)}
-              />
-            </div>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label}>Visibility</label>
-              <div className={styles.radioRow}>
-                {(["private", "capsule", "public"] as const).map((option) => (
-                  <label key={option} className={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      name="tournament-visibility"
-                      checked={form.visibility === option}
-                      onChange={() => handleFormChange("visibility", option)}
-                    />
-                    <span className={styles.radioText}>
-                      {option === "private"
-                        ? "Private (organizers only)"
-                        : option === "capsule"
-                          ? "Capsule members"
-                          : "Public"}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label}>Publish immediately?</label>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={form.publish}
-                  onChange={(event) => handleFormChange("publish", event.target.checked)}
-                />
-                <span>Publish to Capsule Events after saving</span>
-              </label>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Format & schedule</CardTitle>
-            <CardDescription>Set bracket style, best-of count, and kickoff time.</CardDescription>
-          </CardHeader>
-          <CardContent className={styles.cardContent}>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label}>Format</label>
-              <div className={styles.radioRow}>
-                {(["single_elimination", "double_elimination", "round_robin"] as const).map((option) => (
-                  <label key={option} className={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      name="tournament-format"
-                      checked={form.format === option}
-                      onChange={() => handleFormChange("format", option)}
-                    />
-                    <span className={styles.radioText}>
-                      {option === "single_elimination"
-                        ? "Single Elimination"
-                        : option === "double_elimination"
-                          ? "Double Elimination"
-                          : "Round Robin"}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className={styles.fieldGroupRow}>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label} htmlFor="best-of">
-                  Best-of
-                </label>
-                <Input
-                  id="best-of"
-                  value={form.bestOf}
-                  onChange={(event) => handleFormChange("bestOf", event.target.value)}
-                  placeholder="3"
-                />
-              </div>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label} htmlFor="max-entrants">
-                  Max entrants
-                </label>
-                <Input
-                  id="max-entrants"
-                  value={form.maxEntrants}
-                  onChange={(event) => handleFormChange("maxEntrants", event.target.value)}
-                  placeholder="16"
-                />
-              </div>
-            </div>
-            <div className={styles.fieldGroupRow}>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label} htmlFor="start-time">
-                  Start time
-                </label>
-                <Input
-                  id="start-time"
-                  value={form.start}
-                  onChange={(event) => handleFormChange("start", event.target.value)}
-                  placeholder="Saturday 3pm PT"
-                />
-              </div>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label} htmlFor="timezone">
-                  Timezone
-                </label>
-                <Input
-                  id="timezone"
-                  value={form.timezone}
-                  onChange={(event) => handleFormChange("timezone", event.target.value)}
-                  placeholder="Pacific Time"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className={styles.grid}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Content sections</CardTitle>
-            <CardDescription>Capsule AI will reuse these sections across announcements.</CardDescription>
-          </CardHeader>
-          <CardContent className={styles.cardContent}>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="overview">
-                Overview
-              </label>
-              <textarea
-                id="overview"
-                className={styles.textarea}
-                rows={3}
-                value={form.overview}
-                onChange={(event) => handleFormChange("overview", event.target.value)}
-              />
-            </div>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="rules">
-                Rules & format
-              </label>
-              <textarea
-                id="rules"
-                className={styles.textarea}
-                rows={3}
-                value={form.rules}
-                onChange={(event) => handleFormChange("rules", event.target.value)}
-              />
-            </div>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="broadcast">
-                Broadcast & coverage
-              </label>
-              <textarea
-                id="broadcast"
-                className={styles.textarea}
-                rows={3}
-                value={form.broadcast}
-                onChange={(event) => handleFormChange("broadcast", event.target.value)}
-              />
-            </div>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="updates">
-                Updates & highlights
-              </label>
-              <textarea
-                id="updates"
-                className={styles.textarea}
-                rows={3}
-                value={form.updates}
-                onChange={(event) => handleFormChange("updates", event.target.value)}
-              />
-            </div>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="ai-notes">
-                AI notes
-              </label>
-              <textarea
-                id="ai-notes"
-                className={styles.textarea}
-                rows={2}
-                value={form.aiNotes}
-                placeholder="Key storylines, production cues, or prizing callouts."
-                onChange={(event) => handleFormChange("aiNotes", event.target.value)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Participants</CardTitle>
-            <CardDescription>Seed teams now or leave blank to handle later.</CardDescription>
-          </CardHeader>
-          <CardContent className={styles.cardContent}>
-            <div className={styles.membersTableWrap}>
-              <table className={styles.membersTable}>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Handle</th>
-                    <th>Seed</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {participants.map((participant, index) => (
-                    <tr key={participant.id ?? `participant-${index}`}>
-                      <td>
-                        <Input
-                          value={participant.displayName}
-                          placeholder="Team name"
-                          onChange={(event) =>
-                            handleParticipantChange(index, "displayName", event.target.value)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <Input
-                          value={participant.handle}
-                          placeholder="@captain"
-                          onChange={(event) =>
-                            handleParticipantChange(index, "handle", event.target.value)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <Input
-                          value={participant.seed}
-                          onChange={(event) =>
-                            handleParticipantChange(index, "seed", event.target.value)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeParticipant(index)}
-                        >
-                          Remove
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Button type="button" variant="secondary" onClick={addParticipant}>
-              Add participant
+            <Button type="button" variant="ghost" onClick={() => handleCapsuleChange(null)}>
+              Switch capsule
             </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      <div className={styles.actionsRow}>
-        <Button type="button" variant="outline" onClick={handleGenerateDraft} disabled={generating}>
-          {generating ? "Generating..." : "Generate with Capsule AI"}
-        </Button>
-        <Button type="button" onClick={createTournament} disabled={isSaving}>
-          {isSaving
-            ? "Saving tournament..."
-            : form.publish
-              ? "Publish tournament"
-              : "Save tournament draft"}
-        </Button>
+          {errorMessage ? <div className={styles.errorMessage}>{errorMessage}</div> : null}
+          {statusMessage ? <div className={styles.statusMessage}>{statusMessage}</div> : null}
+
+          <section id="step-details" className={styles.grid}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Event details</CardTitle>
+                <CardDescription>Name your tournament and set its visibility.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="tournament-name">
+                    Tournament name
+                  </label>
+                  <Input
+                    id="tournament-name"
+                    value={form.name}
+                    placeholder="Capsule Clash Invitational"
+                    onChange={(event) => handleFormChange("name", event.target.value)}
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="tournament-summary">
+                    Summary
+                  </label>
+                  <textarea
+                    id="tournament-summary"
+                    className={styles.textarea}
+                    rows={3}
+                    value={form.summary}
+                    placeholder="Double-elimination showdown with Capsule AI narrating every upset."
+                    onChange={(event) => handleFormChange("summary", event.target.value)}
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Visibility</label>
+                  <div className={styles.radioRow}>
+                    {(["private", "capsule", "public"] as const).map((option) => (
+                      <label key={option} className={styles.radioLabel}>
+                        <input
+                          type="radio"
+                          name="tournament-visibility"
+                          checked={form.visibility === option}
+                          onChange={() => handleFormChange("visibility", option)}
+                        />
+                        <span className={styles.radioText}>
+                          {option === "private"
+                            ? "Private (organizers only)"
+                            : option === "capsule"
+                              ? "Capsule members"
+                              : "Public"}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Publish immediately?</label>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={form.publish}
+                      onChange={(event) => handleFormChange("publish", event.target.checked)}
+                    />
+                    <span>Publish to Capsule Events after saving</span>
+                  </label>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section id="step-format" className={styles.grid}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Format & schedule</CardTitle>
+                <CardDescription>Set bracket style, best-of count, and kickoff time.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Format</label>
+                  <div className={styles.radioRow}>
+                    {(["single_elimination", "double_elimination", "round_robin"] as const).map((option) => (
+                      <label key={option} className={styles.radioLabel}>
+                        <input
+                          type="radio"
+                          name="tournament-format"
+                          checked={form.format === option}
+                          onChange={() => handleFormChange("format", option)}
+                        />
+                        <span className={styles.radioText}>
+                          {option === "single_elimination"
+                            ? "Single Elimination"
+                            : option === "double_elimination"
+                              ? "Double Elimination"
+                              : "Round Robin"}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.fieldGroupRow}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="best-of">
+                      Best-of
+                    </label>
+                    <Input
+                      id="best-of"
+                      value={form.bestOf}
+                      onChange={(event) => handleFormChange("bestOf", event.target.value)}
+                      placeholder="3"
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="max-entrants">
+                      Max entrants
+                    </label>
+                    <Input
+                      id="max-entrants"
+                      value={form.maxEntrants}
+                      onChange={(event) => handleFormChange("maxEntrants", event.target.value)}
+                      placeholder="16"
+                    />
+                  </div>
+                </div>
+                <div className={styles.fieldGroupRow}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="start-time">
+                      Start time
+                    </label>
+                    <Input
+                      id="start-time"
+                      value={form.start}
+                      onChange={(event) => handleFormChange("start", event.target.value)}
+                      placeholder="Saturday 3pm PT"
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="timezone">
+                      Timezone
+                    </label>
+                    <Input
+                      id="timezone"
+                      value={form.timezone}
+                      onChange={(event) => handleFormChange("timezone", event.target.value)}
+                      placeholder="Pacific Time"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section id="step-content" className={styles.grid}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Content sections</CardTitle>
+                <CardDescription>Capsule AI will reuse these sections across announcements.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="overview">
+                    Overview
+                  </label>
+                  <textarea
+                    id="overview"
+                    className={styles.textarea}
+                    rows={3}
+                    value={form.overview}
+                    onChange={(event) => handleFormChange("overview", event.target.value)}
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="rules">
+                    Rules & format
+                  </label>
+                  <textarea
+                    id="rules"
+                    className={styles.textarea}
+                    rows={3}
+                    value={form.rules}
+                    onChange={(event) => handleFormChange("rules", event.target.value)}
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="broadcast">
+                    Broadcast & coverage
+                  </label>
+                  <textarea
+                    id="broadcast"
+                    className={styles.textarea}
+                    rows={3}
+                    value={form.broadcast}
+                    onChange={(event) => handleFormChange("broadcast", event.target.value)}
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="updates">
+                    Updates & highlights
+                  </label>
+                  <textarea
+                    id="updates"
+                    className={styles.textarea}
+                    rows={3}
+                    value={form.updates}
+                    onChange={(event) => handleFormChange("updates", event.target.value)}
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="ai-notes">
+                    AI notes
+                  </label>
+                  <textarea
+                    id="ai-notes"
+                    className={styles.textarea}
+                    rows={2}
+                    value={form.aiNotes}
+                    placeholder="Key storylines, production cues, or prizing callouts."
+                    onChange={(event) => handleFormChange("aiNotes", event.target.value)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section id="step-participants" className={styles.grid}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Participants</CardTitle>
+                <CardDescription>Seed teams now or leave blank to handle later.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div className={styles.membersTableWrap}>
+                  <table className={styles.membersTable}>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Handle</th>
+                        <th>Seed</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {participants.map((participant, index) => (
+                        <tr key={participant.id ?? `participant-${index}`}>
+                          <td>
+                            <Input
+                              value={participant.displayName}
+                              placeholder="Team name"
+                              onChange={(event) =>
+                                handleParticipantChange(index, "displayName", event.target.value)
+                              }
+                            />
+                          </td>
+                          <td>
+                            <Input
+                              value={participant.handle}
+                              placeholder="@captain"
+                              onChange={(event) =>
+                                handleParticipantChange(index, "handle", event.target.value)
+                              }
+                            />
+                          </td>
+                          <td>
+                            <Input
+                              value={participant.seed}
+                              onChange={(event) =>
+                                handleParticipantChange(index, "seed", event.target.value)
+                              }
+                            />
+                          </td>
+                          <td>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeParticipant(index)}
+                            >
+                              Remove
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Button type="button" variant="secondary" onClick={addParticipant}>
+                  Add participant
+                </Button>
+              </CardContent>
+            </Card>
+          </section>
+
+          <div id="step-review" className={styles.actionsRow}>
+            <Button type="button" variant="outline" onClick={handleGenerateDraft} disabled={generating}>
+              {generating ? "Generating..." : "Generate with Capsule AI"}
+            </Button>
+            <Button type="button" onClick={createTournament} disabled={isSaving}>
+              {isSaving
+                ? "Saving tournament..."
+                : form.publish
+                  ? "Publish tournament"
+                  : "Save tournament draft"}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
+
+
 }

@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import styles from "./LadderBuilder.module.css";
+import { StudioStepper, type StepItem } from "../competitive/StudioStepper";
 
 type SectionKey = "overview" | "rules" | "shoutouts" | "upcoming" | "results";
 
@@ -173,6 +174,15 @@ export type LadderBuilderProps = {
 
 export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuilderProps) {
   const router = useRouter();
+  // Guided stepper items for quick scan + jumps
+  const stepItems: StepItem[] = [
+    { id: "step-details", title: "Details", subtitle: "Name, summary, visibility" },
+    { id: "step-seed", title: "Seed AI", subtitle: "Goals and context" },
+    { id: "step-content", title: "Sections", subtitle: "Overview, rules, highlights" },
+    { id: "step-format", title: "Format", subtitle: "Game, scoring, cadence" },
+    { id: "step-roster", title: "Roster", subtitle: "Seeds and members" },
+    { id: "step-review", title: "Review", subtitle: "Save or publish" },
+  ];
   const [capsuleList, setCapsuleList] = React.useState<CapsuleSummary[]>(capsules);
   const [selectedCapsule, setSelectedCapsule] = React.useState<CapsuleSummary | null>(() => {
     if (!initialCapsuleId) return null;
@@ -1124,7 +1134,9 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
             rows={2}
           />
         </div>
-        <div className={styles.actionsRow}>
+      <div id="step-review" />
+
+      <div className={styles.actionsRow}>
           <Button type="button" onClick={generateDraft} disabled={isGenerating}>
             {isGenerating ? "Drafting..." : "Generate Ladder Plan"}
           </Button>
@@ -1553,41 +1565,54 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
 
   return (
     <div className={styles.builderWrap}>
-      <div className={styles.selectedCapsuleBanner}>
-        <div>
-          <div className={styles.capsuleLabel}>Capsule</div>
-          <div className={styles.capsuleName}>{selectedCapsule.name}</div>
+      <div className={styles.pageGrid}>
+        <aside className={styles.stepperCol}>
+          <StudioStepper items={stepItems} />
+        </aside>
+        <div className={styles.formCol}>
+          <div className={styles.selectedCapsuleBanner}>
+            <div>
+              <div className={styles.capsuleLabel}>Capsule</div>
+              <div className={styles.capsuleName}>{selectedCapsule.name}</div>
+            </div>
+            <Button type="button" variant="ghost" onClick={() => handleCapsuleChange(null)}>
+              Switch capsule
+            </Button>
+          </div>
+
+          {errorMessage ? <div className={styles.errorMessage}>{errorMessage}</div> : null}
+          {statusMessage ? <div className={styles.statusMessage}>{statusMessage}</div> : null}
+
+          <section id="step-details" className={styles.grid}>
+            {renderGeneralForm()}
+          </section>
+
+          <section id="step-seed" className={styles.grid}>
+            {renderSeedForm()}
+          </section>
+
+          <section id="step-content" className={styles.grid}>
+            {renderSectionsForm()}
+          </section>
+
+          <section id="step-format" className={styles.grid}>
+            {renderConfigForm()}
+          </section>
+
+          <section id="step-roster" className={styles.grid}>
+            {renderMembersForm()}
+          </section>
+
+          {aiPlan ? <section className={styles.grid}>{renderAiPlan()}</section> : null}
+
+          <div id="step-review" className={styles.actionsRow}>
+            <Button type="button" onClick={createLadder} disabled={isSaving}>
+              {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
+            </Button>
+          </div>
         </div>
-        <Button type="button" variant="ghost" onClick={() => handleCapsuleChange(null)}>
-          Switch capsule
-        </Button>
-      </div>
-
-      {errorMessage ? <div className={styles.errorMessage}>{errorMessage}</div> : null}
-      {statusMessage ? <div className={styles.statusMessage}>{statusMessage}</div> : null}
-
-      <div className={styles.grid}>
-        {renderGeneralForm()}
-        {renderSeedForm()}
-      </div>
-
-      <div className={styles.grid}>
-        {renderSectionsForm()}
-        {renderConfigForm()}
-      </div>
-
-      <div className={styles.grid}>
-        {renderMembersForm()}
-        {renderAiPlan()}
-      </div>
-
-      <div className={styles.actionsRow}>
-        <Button type="button" onClick={createLadder} disabled={isSaving}>
-          {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
-        </Button>
       </div>
     </div>
   );
 }
-
 

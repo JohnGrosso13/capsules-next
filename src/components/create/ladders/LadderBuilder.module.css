@@ -1,8 +1,10 @@
-.builderWrap {
+﻿.builderWrap {
   display: flex;
   flex-direction: column;
   gap: 32px;
-  width: 100%;
+  width: min(100%, 1160px);
+  margin: 0 auto;
+  padding-bottom: 48px;
 }
 
 .gateWrap {
@@ -185,3 +187,101 @@
   flex-direction: column;
   gap: 6px;
 }
+/* ----- UI/UX refresh additions (Fluent + glass + neo) ----- */
+
+.pageGrid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: clamp(16px, 2vw, 28px);
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .pageGrid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: clamp(16px, 2vw, 28px);
+  align-items: start;
+}
+}
+
+.stepperCol {
+  align-self: start;
+  position: relative;
+  min-width: 0;
+}
+
+.formCol {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+
+/* Capsule banner refinement */
+.selectedCapsuleBanner {
+  background: var(--studio-surface-glass, rgba(18,22,38,0.65));
+  border: 1px solid var(--studio-border-soft, rgba(255,255,255,0.08));
+  backdrop-filter: blur(16px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 14px 30px rgba(6, 10, 24, 0.35);
+}
+
+.capsuleName { letter-spacing: 0.01em; }
+
+/* Inputs */
+.textarea {
+  background: color-mix(in srgb, var(--studio-surface-muted, rgba(14,18,30,0.6)) 76%, transparent);
+  border: 1px solid var(--studio-border-soft, rgba(255,255,255,0.08));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.textarea:focus-visible {
+  outline: 2px solid var(--studio-border-focus, rgba(120,145,255,0.6));
+}
+
+.select {
+  background: color-mix(in srgb, var(--studio-surface-muted, rgba(14,18,30,0.6)) 76%, transparent);
+  border: 1px solid var(--studio-border-soft, rgba(255,255,255,0.08));
+}
+
+/* Section cards */
+.sectionCard {
+  background: var(--studio-surface-panel, rgba(18,22,38,0.72));
+  border: 1px solid var(--studio-border-soft, rgba(255,255,255,0.08));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 12px 28px rgba(6,10,24,0.35);
+}
+
+/* Members table polish */
+.membersTable {
+  border: 1px solid var(--studio-border-soft, rgba(255,255,255,0.08));
+  background: var(--studio-surface-glass, rgba(14,18,30,0.5));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.membersTable th { background: rgba(255,255,255,0.02); }
+.membersTable tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* Radios/checkbox rows shared with tournament */
+.fieldGroupRow {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.radioRow { display: grid; gap: 10px; grid-template-columns: 1fr; }
+.radioLabel { display: inline-flex; align-items: center; gap: 8px; }
+.radioText { opacity: 0.9; font-size: 14px; }
+.checkboxLabel { display: inline-flex; align-items: center; gap: 8px; }
+
+/* Actions */
+.actionsRow {
+  position: sticky;
+  bottom: 8px;
+  padding: 8px;
+  background: linear-gradient(180deg, transparent, rgba(10,14,30,0.6));
+  backdrop-filter: blur(6px);
+}
+
