@@ -27,6 +27,7 @@ import { useComposerLayout } from "./hooks/useComposerLayout";
 import { useComposerVoice } from "./hooks/useComposerVoice";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
 import { useComposer } from "./ComposerProvider";
+import type { ComposerVideoStatus } from "./ComposerProvider";
 
 import { HomeFeedList } from "@/components/home-feed-list";
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
@@ -665,6 +666,7 @@ type ComposerFormProps = {
   summaryOptions?: SummaryPresentationOptions | null;
   summaryMessageId?: string | null;
   sidebar: ComposerSidebarData;
+  videoStatus: ComposerVideoStatus;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
   onPost(): void;
@@ -676,6 +678,7 @@ type ComposerFormProps = {
   onForceChoice?(key: string): void;
   onPrompt?(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
   onClarifierRespond?(answer: string): void;
+  onRetryVideo(): void;
 };
 
 export function ComposerForm({
@@ -691,6 +694,7 @@ export function ComposerForm({
   summaryOptions: summaryOptionsInput,
   summaryMessageId: summaryMessageIdInput,
   sidebar,
+  videoStatus,
   onChange,
   onClose,
   onPost,
@@ -702,6 +706,7 @@ export function ComposerForm({
   onPrompt,
   onForceChoice,
   onClarifierRespond,
+  onRetryVideo,
 }: ComposerFormProps) {
   const workingDraft = React.useMemo<ComposerDraft>(
     () =>
@@ -2003,6 +2008,28 @@ export function ComposerForm({
                 onRemove={handleRemoveAttachment}
                 onOpenViewer={openViewer}
               />
+            ) : null}
+
+            {videoStatus.state === "running" ? (
+              <li className={styles.msgRow} data-role="ai">
+                <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.videoStatusBubble}`}>
+                  <span className={styles.videoStatusSpinner} aria-hidden="true" />
+                  <p>{videoStatus.message ?? "Rendering your clip..."}</p>
+                </div>
+              </li>
+            ) : null}
+
+            {videoStatus.state === "failed" ? (
+              <li className={styles.msgRow} data-role="ai">
+                <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.videoStatusError}`}>
+                  <p>{videoStatus.error ?? "We hit a snag while rendering that clip."}</p>
+                  <div className={styles.videoStatusActions}>
+                    <button type="button" className={styles.videoRetryButton} onClick={onRetryVideo}>
+                      Try again
+                    </button>
+                  </div>
+                </div>
+              </li>
             ) : null}
 
             {showVibePrompt ? (

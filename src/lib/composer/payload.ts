@@ -79,6 +79,38 @@ export function buildPostPayload(
     payload.mediaDurationSeconds = null;
     payload.duration_seconds = null;
   }
+  if (typeof draft.videoRunId === "string" && draft.videoRunId.trim().length) {
+    const runId = draft.videoRunId.trim();
+    payload.videoRunId = runId;
+    payload.video_run_id = runId;
+  } else if (draft.videoRunId === null) {
+    payload.videoRunId = null;
+    payload.video_run_id = null;
+  }
+  if (typeof draft.videoRunStatus === "string" && draft.videoRunStatus.trim().length) {
+    const status = draft.videoRunStatus.trim().toLowerCase();
+    payload.videoRunStatus = status;
+    payload.video_run_status = status;
+  } else if (draft.videoRunStatus === null) {
+    payload.videoRunStatus = null;
+    payload.video_run_status = null;
+  }
+  if (typeof draft.videoRunError === "string" && draft.videoRunError.trim().length) {
+    const errorText = draft.videoRunError.trim();
+    payload.videoRunError = errorText;
+    payload.video_run_error = errorText;
+  } else if (draft.videoRunError === null) {
+    payload.videoRunError = null;
+    payload.video_run_error = null;
+  }
+  if (typeof draft.memoryId === "string" && draft.memoryId.trim().length) {
+    const memoryId = draft.memoryId.trim();
+    payload.memoryId = memoryId;
+    payload.memory_id = memoryId;
+  } else if (draft.memoryId === null) {
+    payload.memoryId = null;
+    payload.memory_id = null;
+  }
   const sanitizedPoll = sanitizePollFromDraft(draft);
   if (sanitizedPoll) {
     payload.poll = sanitizedPoll;

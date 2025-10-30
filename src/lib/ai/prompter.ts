@@ -28,6 +28,7 @@ import {
 } from "@/server/ai/image-runs";
 import { publishAiImageEvent } from "@/services/realtime/ai-images";
 import type { ComposerChatAttachment, ComposerChatMessage } from "@/lib/composer/chat-types";
+import { detectVideoIntent, extractPreferHints } from "@/shared/ai/video-intent";
 
 export class AIConfigError extends Error {
   constructor(message: string) {
@@ -54,6 +55,10 @@ type DraftPost = {
   muxPlaybackId?: string | null;
   muxAssetId?: string | null;
   durationSeconds?: number | null;
+  videoRunId?: string | null;
+  videoRunStatus?: "pending" | "running" | "succeeded" | "failed" | null;
+  videoRunError?: string | null;
+  memoryId?: string | null;
 };
 
 type PollDraft = { message: string; poll: { question: string; options: string[] } };
@@ -183,6 +188,7 @@ type ComposeDraftOptions = {
   rawOptions?: Record<string, unknown>;
   clarifier?: PromptClarifierInput | null;
   stylePreset?: string | null;
+  ownerId?: string | null;
 };
 
 type ImageProviderId = "openai" | "stability";
@@ -207,9 +213,6 @@ const CLARIFIER_RECENT_RUN_LIMIT = 12;
 
 const IMAGE_INTENT_REGEX =
   /(image|logo|banner|thumbnail|picture|photo|icon|cover|poster|graphic|illustration|art|avatar|background)\b/i;
-const VIDEO_INTENT_REGEX =
-  /(video|clip|reel|short|story|highlight|montage|edit|b-roll|broll|promo|trailer)\b/i;
-
 const VISUAL_KIND_HINTS = new Set([
   "visual",
   "image",
@@ -1729,6 +1732,30 @@ function buildBasePost(incoming: Record<string, unknown> = {}): DraftPost {
         : typeof incoming.duration_seconds === "number"
           ? Number(incoming.duration_seconds)
           : null,
+    videoRunId:
+      typeof incoming.videoRunId === "string"
+        ? incoming.videoRunId
+        : typeof incoming.video_run_id === "string"
+          ? incoming.video_run_id
+          : null,
+    videoRunStatus:
+      typeof incoming.videoRunStatus === "string"
+        ? (incoming.videoRunStatus as DraftPost["videoRunStatus"])
+        : typeof incoming.video_run_status === "string"
+          ? (incoming.video_run_status as DraftPost["videoRunStatus"])
+          : null,
+    videoRunError:
+      typeof incoming.videoRunError === "string"
+        ? incoming.videoRunError
+        : typeof incoming.video_run_error === "string"
+          ? incoming.video_run_error
+          : null,
+    memoryId:
+      typeof incoming.memoryId === "string"
+        ? incoming.memoryId
+        : typeof incoming.memory_id === "string"
+          ? incoming.memory_id
+          : null,
   };
 }
 
@@ -1736,19 +1763,29 @@ export async function createPostDraft(
   userText: string,
   context: ComposeDraftOptions = {},
 ): Promise<ComposeDraftResult> {
-  const { history, attachments, capsuleId, rawOptions, clarifier } = context;
-  const ownerUserId =
-    typeof rawOptions?.ownerUserId === "string" && rawOptions.ownerUserId.trim().length
-      ? rawOptions.ownerUserId.trim()
-      : null;
-
-  const preferHints: string[] = [];
-  const preferRaw =
-    typeof rawOptions?.prefer === "string" ? rawOptions.prefer.trim().toLowerCase() : null;
-  const preferKind =
-    typeof rawOptions?.kind === "string" ? rawOptions.kind.trim().toLowerCase() : null;
-  if (preferRaw) preferHints.push(preferRaw);
-  if (preferKind) preferHints.push(preferKind);
+  const {
+    history,
+    attachments,
+    capsuleId,
+    rawOptions,
+    clarifier,
+    ownerId: explicitOwnerId,
+  } = context;
+  const preferHints = extractPreferHints(rawOptions ?? null);
+  const ownerUserId = (() => {
+    if (typeof explicitOwnerId === "string" && explicitOwnerId.trim().length) {
+      return explicitOwnerId.trim();
+    }
+    if (!rawOptions || typeof rawOptions !== "object") return null;
+    const candidates = ["ownerUserId", "owner_id", "ownerId"];
+    for (const key of candidates) {
+      const value = (rawOptions as Record<string, unknown>)[key];
+      if (typeof value === "string" && value.trim().length) {
+        return value.trim();
+      }
+    }
+    return null;
+  })();
 
   const preferVisual = preferHints.some((hint) => VISUAL_KIND_HINTS.has(hint));
   const preferText = preferHints.some((hint) => TEXT_KIND_HINTS.has(hint));
@@ -1764,7 +1801,7 @@ export async function createPostDraft(
       : null;
   const intentSource = [userText, priorUserMessage].filter(Boolean).join(" ");
   const imageIntent = IMAGE_INTENT_REGEX.test(intentSource);
-  const videoIntent = VIDEO_INTENT_REGEX.test(intentSource);
+  const videoIntent = detectVideoIntent(intentSource);
   const historyMessages = mapConversationToMessages(history);
   const clarifierAnswered =
     typeof normalizedClarifier?.answer === "string" && normalizedClarifier.answer.trim().length > 0;
@@ -1930,6 +1967,9 @@ export async function createPostDraft(
     (requestedKind === "video" || videoIntent || preferVideo || Boolean(videoAttachment));
 
   if (shouldGenerateVideo) {
+    result.videoRunStatus = "running";
+    result.videoRunError = null;
+
     if (mediaUrl) {
       result.kind = "video";
       result.mediaUrl = mediaUrl;
@@ -1973,6 +2013,26 @@ export async function createPostDraft(
       if (typeof postResponse.duration_seconds === "number") {
         result.durationSeconds = Number(postResponse.duration_seconds);
       }
+      if (typeof postResponse.video_run_id === "string" && postResponse.video_run_id.trim().length) {
+        result.videoRunId = postResponse.video_run_id.trim();
+      } else if (
+        typeof postResponse.videoRunId === "string" &&
+        postResponse.videoRunId.trim().length &&
+        !result.videoRunId
+      ) {
+        result.videoRunId = postResponse.videoRunId.trim();
+      }
+      if (typeof postResponse.memory_id === "string" && postResponse.memory_id.trim().length) {
+        result.memoryId = postResponse.memory_id.trim();
+      } else if (
+        typeof postResponse.memoryId === "string" &&
+        postResponse.memoryId.trim().length &&
+        !result.memoryId
+      ) {
+        result.memoryId = postResponse.memoryId.trim();
+      }
+      result.videoRunStatus = result.videoRunStatus ?? "succeeded";
+      result.videoRunError = null;
     } else {
       try {
         const videoInstruction = mediaPrompt ?? instructionForModel;
@@ -1991,20 +2051,44 @@ export async function createPostDraft(
         }
       } catch (error) {
         console.error("Video generation failed for composer prompt:", error);
+        const errorMessage =
+          error instanceof Error && error.message ? error.message.trim() : "Unknown error";
+        result.videoRunStatus = "failed";
+        result.videoRunError = errorMessage;
+        result.videoRunId = result.videoRunId ?? null;
+        if (requestedKind === "video") {
+          result.kind = "text";
+        }
+        result.mediaUrl = null;
+        result.playbackUrl = null;
+        result.thumbnailUrl = null;
+        if (!statusMessage || !statusMessage.trim().length) {
+          statusMessage = `I hit a snag while rendering that clip: ${errorMessage}`;
+        } else {
+          statusMessage = `${statusMessage}\n\nVideo generation error: ${errorMessage}`;
+        }
       }
     }
   }
 
   if (videoResult) {
+    const playbackUrl = videoResult.playbackUrl ?? videoResult.url;
+    const downloadUrl = videoResult.url ?? videoResult.playbackUrl;
     result.kind = "video";
-    result.mediaUrl = videoResult.url;
+    result.mediaUrl = playbackUrl;
     result.mediaPrompt = mediaPrompt ?? instructionForModel;
     result.thumbnailUrl =
       videoResult.posterUrl ?? videoResult.thumbnailUrl ?? result.thumbnailUrl ?? null;
-    result.playbackUrl = videoResult.playbackUrl ?? videoResult.url;
+    result.playbackUrl = downloadUrl;
     result.muxPlaybackId = videoResult.muxPlaybackId ?? null;
     result.muxAssetId = videoResult.muxAssetId ?? null;
     result.durationSeconds = videoResult.durationSeconds ?? null;
+    result.videoRunId = videoResult.runId ?? result.videoRunId ?? null;
+    result.videoRunStatus = "succeeded";
+    result.videoRunError = null;
+    if (videoResult.memoryId) {
+      result.memoryId = videoResult.memoryId;
+    }
   }
 
   if (
@@ -2109,6 +2193,22 @@ export async function createPostDraft(
   }
   if (typeof result.durationSeconds === "number") {
     postPayload.duration_seconds = result.durationSeconds;
+  }
+  if (result.videoRunId) {
+    postPayload.videoRunId = result.videoRunId;
+    postPayload.video_run_id = result.videoRunId;
+  }
+  if (result.videoRunStatus) {
+    postPayload.videoRunStatus = result.videoRunStatus;
+    postPayload.video_run_status = result.videoRunStatus;
+  }
+  if (result.videoRunError) {
+    postPayload.videoRunError = result.videoRunError;
+    postPayload.video_run_error = result.videoRunError;
+  }
+  if (result.memoryId) {
+    postPayload.memoryId = result.memoryId;
+    postPayload.memory_id = result.memoryId;
   }
 
   return { action: "draft_post", message: statusMessage, post: postPayload };

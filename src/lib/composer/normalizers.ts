@@ -53,6 +53,37 @@ export function normalizeDraftFromPost(post: Record<string, unknown>): ComposerD
     typeof durationSecondsRaw === "number" && Number.isFinite(durationSecondsRaw)
       ? Number(durationSecondsRaw)
       : null;
+  const videoRunId =
+    typeof (post as { videoRunId?: unknown }).videoRunId === "string"
+      ? ((post as { videoRunId: string }).videoRunId ?? "").trim() || null
+      : typeof (post as { video_run_id?: unknown }).video_run_id === "string"
+        ? ((post as { video_run_id: string }).video_run_id ?? "").trim() || null
+        : null;
+  const videoRunStatusRaw =
+    typeof (post as { videoRunStatus?: unknown }).videoRunStatus === "string"
+      ? ((post as { videoRunStatus: string }).videoRunStatus ?? "").trim().toLowerCase()
+      : typeof (post as { video_run_status?: unknown }).video_run_status === "string"
+        ? ((post as { video_run_status: string }).video_run_status ?? "")
+            .trim()
+            .toLowerCase()
+        : null;
+  const allowedRunStatuses = new Set(["pending", "running", "succeeded", "failed"]);
+  const videoRunStatus =
+    videoRunStatusRaw && allowedRunStatuses.has(videoRunStatusRaw)
+      ? (videoRunStatusRaw as ComposerDraft["videoRunStatus"])
+      : null;
+  const videoRunError =
+    typeof (post as { videoRunError?: unknown }).videoRunError === "string"
+      ? ((post as { videoRunError: string }).videoRunError ?? "").trim() || null
+      : typeof (post as { video_run_error?: unknown }).video_run_error === "string"
+        ? ((post as { video_run_error: string }).video_run_error ?? "").trim() || null
+        : null;
+  const memoryId =
+    typeof (post as { memoryId?: unknown }).memoryId === "string"
+      ? ((post as { memoryId: string }).memoryId ?? "").trim() || null
+      : typeof (post as { memory_id?: unknown }).memory_id === "string"
+        ? ((post as { memory_id: string }).memory_id ?? "").trim() || null
+        : null;
   let poll: { question: string; options: string[] } | null = null;
   const pollValue = post.poll;
   if (pollValue && typeof pollValue === "object") {
@@ -99,6 +130,10 @@ export function normalizeDraftFromPost(post: Record<string, unknown>): ComposerD
   draft.muxPlaybackId = muxPlaybackId ?? null;
   draft.muxAssetId = muxAssetId ?? null;
   draft.mediaDurationSeconds = durationSeconds ?? null;
+  draft.videoRunId = videoRunId;
+  draft.videoRunStatus = videoRunStatus ?? null;
+  draft.videoRunError = videoRunError ?? null;
+  draft.memoryId = memoryId ?? null;
   if (suggestions && suggestions.length) {
     draft.suggestions = suggestions;
   }

@@ -9,6 +9,10 @@ export type ComposerDraft = {
   mediaDurationSeconds?: number | null;
   muxPlaybackId?: string | null;
   muxAssetId?: string | null;
+  videoRunId?: string | null;
+  videoRunStatus?: "pending" | "running" | "succeeded" | "failed" | null;
+  videoRunError?: string | null;
+  memoryId?: string | null;
   poll?: { question: string; options: string[] } | null;
   suggestions?: string[];
 };

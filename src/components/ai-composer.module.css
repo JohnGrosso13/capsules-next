@@ -3559,3 +3559,66 @@
   transform: translateY(-2px);
   box-shadow: 0 24px 46px rgba(45, 93, 255, 0.58);
 }
+
+.videoStatusBubble {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.videoStatusBubble p {
+  margin: 0;
+}
+
+.videoStatusSpinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-top-color: transparent;
+  animation: videoStatusSpin 0.8s linear infinite;
+}
+
+.videoStatusError {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.videoStatusError p {
+  margin: 0;
+}
+
+.videoStatusActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.videoRetryButton {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: var(--composer-accent, #6366f1);
+  color: rgba(10, 16, 30, 0.95);
+  cursor: pointer;
+  transition: filter 150ms ease, transform 150ms ease;
+}
+
+.videoRetryButton:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+.videoRetryButton:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+@keyframes videoStatusSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

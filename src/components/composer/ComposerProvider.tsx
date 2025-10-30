@@ -43,6 +43,7 @@ import {
 } from "@/shared/schemas/ai";
 import type { SummaryResult } from "@/types/summary";
 import type { SummaryConversationContext, SummaryPresentationOptions } from "@/lib/composer/summary-context";
+import { detectVideoIntent } from "@/shared/ai/video-intent";
 
 const ATTACHMENT_CONTEXT_LIMIT = 2;
 const ATTACHMENT_CONTEXT_CHAR_LIMIT = 2000;
@@ -549,6 +550,16 @@ async function persistPost(
   return response.json().catch(() => null) as Promise<Record<string, unknown> | null>;
 }
 
+export type ComposerVideoStatus = {
+  state: "idle" | "running" | "succeeded" | "failed";
+  runId: string | null;
+  prompt: string | null;
+  attachments: PrompterAttachment[] | null;
+  error: string | null;
+  message: string | null;
+  memoryId?: string | null;
+};
+
 type ComposerState = {
   open: boolean;
   loading: boolean;
@@ -564,6 +575,7 @@ type ComposerState = {
   summaryResult: SummaryResult | null;
   summaryOptions: SummaryPresentationOptions | null;
   summaryMessageId: string | null;
+  videoStatus: ComposerVideoStatus;
 };
 
 type ClarifierState = {
@@ -596,6 +608,7 @@ type ComposerContextValue = {
   createProject(name: string): void;
   selectProject(id: string | null): void;
   saveDraft(projectId?: string | null): void;
+  retryVideo(): void;
 };
 
 const initialState: ComposerState = {
@@ -613,6 +626,7 @@ const initialState: ComposerState = {
   summaryResult: null,
   summaryOptions: null,
   summaryMessageId: null,
+  videoStatus: createIdleVideoStatus(),
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -713,6 +727,42 @@ function mergeComposerRawPost(
     delete merged.duration_seconds;
   }
 
+  if (typeof draft.videoRunId === "string" && draft.videoRunId.trim().length) {
+    const runId = draft.videoRunId.trim();
+    merged.videoRunId = runId;
+    merged.video_run_id = runId;
+  } else if (draft.videoRunId === null) {
+    delete merged.videoRunId;
+    delete merged.video_run_id;
+  }
+
+  if (typeof draft.videoRunStatus === "string" && draft.videoRunStatus.trim().length) {
+    const status = draft.videoRunStatus.trim().toLowerCase();
+    merged.videoRunStatus = status;
+    merged.video_run_status = status;
+  } else if (draft.videoRunStatus === null) {
+    delete merged.videoRunStatus;
+    delete merged.video_run_status;
+  }
+
+  if (typeof draft.videoRunError === "string" && draft.videoRunError.trim().length) {
+    const errorMessage = draft.videoRunError.trim();
+    merged.videoRunError = errorMessage;
+    merged.video_run_error = errorMessage;
+  } else if (draft.videoRunError === null) {
+    delete merged.videoRunError;
+    delete merged.video_run_error;
+  }
+
+  if (typeof draft.memoryId === "string" && draft.memoryId.trim().length) {
+    const memoryId = draft.memoryId.trim();
+    merged.memoryId = memoryId;
+    merged.memory_id = memoryId;
+  } else if (draft.memoryId === null) {
+    delete merged.memoryId;
+    delete merged.memory_id;
+  }
+
   if (draft.poll) {
     const structured = ensurePollStructure(draft);
     merged.poll = {
@@ -724,6 +774,35 @@ function mergeComposerRawPost(
   }
 
   return merged;
+}
+
+function hasVideoAttachment(list?: PrompterAttachment[] | null): boolean {
+  if (!list || !list.length) return false;
+  return list.some(
+    (attachment) =>
+      typeof attachment.mimeType === "string" &&
+      attachment.mimeType.toLowerCase().startsWith("video/"),
+  );
+}
+
+function shouldExpectVideoResponse(
+  prompt: string,
+  attachments?: PrompterAttachment[] | null,
+): boolean {
+  if (hasVideoAttachment(attachments)) return true;
+  return detectVideoIntent(prompt);
+}
+
+function createIdleVideoStatus(): ComposerVideoStatus {
+  return {
+    state: "idle",
+    runId: null,
+    prompt: null,
+    attachments: null,
+    error: null,
+    message: null,
+    memoryId: null,
+  };
 }
 
 function appendCapsuleContext(
@@ -1209,6 +1288,92 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         recordedDraft = mergedDraft;
         const mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, mergedDraft);
         recordedRawPost = mergedRawPost;
+        const rawVideoRunId =
+          typeof (mergedRawPost as { video_run_id?: unknown }).video_run_id === "string"
+            ? ((mergedRawPost as { video_run_id: string }).video_run_id ?? "").trim() || null
+            : typeof (mergedRawPost as { videoRunId?: unknown }).videoRunId === "string"
+              ? ((mergedRawPost as { videoRunId: string }).videoRunId ?? "").trim() || null
+              : null;
+        const rawVideoRunStatus =
+          typeof (mergedRawPost as { video_run_status?: unknown }).video_run_status === "string"
+            ? ((mergedRawPost as { video_run_status: string }).video_run_status ?? "")
+                .trim()
+                .toLowerCase() || null
+            : typeof (mergedRawPost as { videoRunStatus?: unknown }).videoRunStatus === "string"
+              ? ((mergedRawPost as { videoRunStatus: string }).videoRunStatus ?? "")
+                  .trim()
+                  .toLowerCase() || null
+              : null;
+        const rawVideoRunError =
+          typeof (mergedRawPost as { video_run_error?: unknown }).video_run_error === "string"
+            ? ((mergedRawPost as { video_run_error: string }).video_run_error ?? "").trim() || null
+            : typeof (mergedRawPost as { videoRunError?: unknown }).videoRunError === "string"
+              ? ((mergedRawPost as { videoRunError: string }).videoRunError ?? "").trim() || null
+              : null;
+        const rawMemoryId =
+          typeof (mergedRawPost as { memory_id?: unknown }).memory_id === "string"
+            ? ((mergedRawPost as { memory_id: string }).memory_id ?? "").trim() || null
+            : typeof (mergedRawPost as { memoryId?: unknown }).memoryId === "string"
+              ? ((mergedRawPost as { memoryId: string }).memoryId ?? "").trim() || null
+              : null;
+        const resolvedRunId = mergedDraft.videoRunId ?? rawVideoRunId ?? prev.videoStatus.runId;
+        const normalizedRunStatus = (() => {
+          const candidate = mergedDraft.videoRunStatus ?? rawVideoRunStatus;
+          if (!candidate) return null;
+          const lowered = candidate.toLowerCase();
+          if (lowered === "pending" || lowered === "running") return "running" as const;
+          if (lowered === "succeeded" || lowered === "failed") {
+            return lowered as ComposerVideoStatus["state"];
+          }
+          return null;
+        })();
+        let nextVideoStatus: ComposerVideoStatus = prev.videoStatus;
+        if (normalizedRunStatus === "succeeded") {
+          nextVideoStatus = {
+            state: "succeeded",
+            runId: resolvedRunId ?? null,
+            prompt,
+            attachments: prev.videoStatus.attachments,
+            error: null,
+            message: messageText,
+            memoryId: mergedDraft.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
+          };
+        } else if (normalizedRunStatus === "failed") {
+          const errorText =
+            mergedDraft.videoRunError ??
+            rawVideoRunError ??
+            prev.videoStatus.error ??
+            "Video generation failed.";
+          nextVideoStatus = {
+            state: "failed",
+            runId: resolvedRunId ?? null,
+            prompt,
+            attachments: prev.videoStatus.attachments,
+            error: errorText,
+            message: messageText,
+            memoryId: mergedDraft.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
+          };
+        } else if (normalizedRunStatus === "running") {
+          nextVideoStatus = {
+            state: "running",
+            runId: resolvedRunId ?? null,
+            prompt,
+            attachments: prev.videoStatus.attachments,
+            error: null,
+            message: messageText,
+            memoryId: mergedDraft.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
+          };
+        } else if (prev.videoStatus.state !== "idle") {
+          nextVideoStatus = {
+            state: "idle",
+            runId: null,
+            prompt: null,
+            attachments: null,
+            error: null,
+            message: null,
+            memoryId: null,
+          };
+        }
         return {
           ...prev,
           open: true,
@@ -1221,6 +1386,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           history: historyForState,
           threadId: nextThreadId,
           clarifier: null,
+          videoStatus: nextVideoStatus,
         };
       });
       if (resolvedQuestionId) {
@@ -1581,6 +1747,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const trimmed = promptText.trim();
       if (!trimmed) return;
       const attachmentList = attachments && attachments.length ? attachments : undefined;
+      const expectVideo = shouldExpectVideoResponse(trimmed, attachmentList ?? null);
       const chatAttachments =
         attachmentList?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
       const pendingMessage: ComposerChatMessage = {
@@ -1597,6 +1764,20 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         previousHistory = existingHistory.slice();
         const resolvedThreadId = prev.threadId ?? safeRandomUUID();
         threadIdForRequest = resolvedThreadId;
+        let nextVideoStatus: ComposerVideoStatus = prev.videoStatus;
+        if (expectVideo) {
+          nextVideoStatus = {
+            state: "running",
+            runId: prev.videoStatus.state === "running" ? prev.videoStatus.runId : null,
+            prompt: trimmed,
+            attachments: attachmentList ?? null,
+            error: null,
+            message: "Rendering your clip...",
+            memoryId: prev.videoStatus.memoryId ?? null,
+          };
+        } else if (prev.videoStatus.state !== "idle") {
+          nextVideoStatus = createIdleVideoStatus();
+        }
         return {
           ...prev,
           loading: true,
@@ -1609,6 +1790,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           summaryResult: null,
           summaryOptions: null,
           summaryMessageId: null,
+          videoStatus: nextVideoStatus,
         };
       });
       try {
@@ -1639,15 +1821,39 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         handleAiResponse(trimmed, payload);
       } catch (error) {
         console.error("Composer prompt submit failed", error);
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          history: previousHistory,
-        }));
+        const errorMessage =
+          error instanceof Error && error.message ? error.message.trim() : "Capsule AI ran into an unexpected error.";
+        setState((prev) => {
+          const fallbackVideoStatus = expectVideo
+            ? {
+                state: "failed" as const,
+                runId: prev.videoStatus.runId,
+                prompt: trimmed,
+                attachments: prev.videoStatus.attachments ?? (attachmentList ?? null) ?? null,
+                error: errorMessage,
+                message: errorMessage,
+                memoryId: prev.videoStatus.memoryId ?? null,
+              }
+            : prev.videoStatus.state !== "idle"
+              ? createIdleVideoStatus()
+              : prev.videoStatus;
+          return {
+            ...prev,
+            loading: false,
+            history: previousHistory,
+            videoStatus: fallbackVideoStatus,
+          };
+        });
       }
     },
     [activeCapsuleId, handleAiResponse, state.clarifier, state.rawPost],
   );
+
+  const retryVideo = React.useCallback(() => {
+    const status = state.videoStatus;
+    if (status.state !== "failed" || !status.prompt) return;
+    void submitPrompt(status.prompt, status.attachments ?? undefined);
+  }, [state.videoStatus, submitPrompt]);
 
   const answerClarifier = React.useCallback(
     (answer: string) => {
@@ -1693,7 +1899,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     const recentChats = sidebarStore.recentChats.map((entry) => {
       const caption = describeRecentCaption(entry);
       const snippet = describeRecentSnippet(entry);
-      const combined = snippet ? `${caption} · ${snippet}` : caption;
+      const combined = snippet ? `${caption} - ${snippet}` : caption;
       return {
         id: entry.id,
         title: describeRecentTitle(entry),
@@ -1751,6 +1957,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       createProject,
       selectProject,
       saveDraft,
+      retryVideo,
     };
     if (forceChoice) {
       base.forceChoice = forceChoice;
@@ -1774,6 +1981,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     createProject,
     selectProject,
     saveDraft,
+    retryVideo,
   ]);
 
   return <ComposerContext.Provider value={contextValue}>{children}</ComposerContext.Provider>;
@@ -1794,6 +2002,7 @@ export function AiComposerRoot() {
     createProject,
     selectProject,
     saveDraft,
+    retryVideo,
   } = useComposer();
 
   const forceHandlers = forceChoice
@@ -1818,6 +2027,7 @@ export function AiComposerRoot() {
       summaryResult={state.summaryResult}
       summaryOptions={state.summaryOptions}
       summaryMessageId={state.summaryMessageId}
+      videoStatus={state.videoStatus}
       onChange={updateDraft}
       onClose={close}
       onPost={post}
@@ -1829,6 +2039,7 @@ export function AiComposerRoot() {
       onCreateProject={createProject}
       onSelectProject={selectProject}
       onSave={saveDraft}
+      onRetryVideo={retryVideo}
       {...forceHandlers}
     />
   );

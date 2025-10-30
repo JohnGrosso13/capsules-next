@@ -2,6 +2,7 @@ import { postOpenAIJson, fetchOpenAI } from "@/adapters/ai/openai/server";
 import { serverEnv } from "@/lib/env/server";
 import { buildMuxPlaybackUrl, muxVideoClient } from "@/adapters/mux/server";
 import { createAiVideoRun, updateAiVideoRun, type AiVideoRunAttempt } from "@/server/ai/video-runs";
+import { indexMemory } from "@/server/memories/service";
 
 const OPENAI_VIDEO_MODEL_DEFAULT = "gpt-4.1-video-preview";
 const DEFAULT_RESOLUTION = "1280x720";
@@ -67,6 +68,7 @@ export type VideoGenerationResult = {
   durationSeconds: number | null;
   muxAssetId: string | null;
   muxPlaybackId: string | null;
+  memoryId: string | null;
 };
 
 function wait(ms: number): Promise<void> {
@@ -406,6 +408,52 @@ async function runOpenAIVideoPipeline(
     buildMuxPlaybackUrl(persisted.playbackId ?? undefined, { extension: "m3u8" }) ||
     persisted.sourceUrl;
 
+  const playbackUrlFinal =
+    buildMuxPlaybackUrl(persisted.playbackId ?? undefined, { extension: "m3u8" }) ??
+    muxPlaybackUrl;
+  const fallbackMp4 =
+    buildMuxPlaybackUrl(persisted.playbackId ?? undefined, { extension: "mp4" }) ??
+    playbackUrlFinal;
+  let memoryId: string | null = null;
+  if (context.ownerUserId) {
+    const memoryMediaUrl = playbackUrlFinal ?? muxPlaybackUrl ?? persisted.sourceUrl ?? null;
+    if (memoryMediaUrl) {
+      try {
+        memoryId = await indexMemory({
+          ownerId: context.ownerUserId,
+          kind: "video",
+          mediaUrl: memoryMediaUrl,
+          mediaType: fallbackMp4 ? "video/mp4" : "video/*",
+          title: context.mode === "edit" ? "Edited AI clip" : "Generated AI clip",
+          description: prompt,
+          postId: null,
+          metadata: {
+            muxAssetId: persisted.assetId,
+            muxPlaybackId: persisted.playbackId,
+            posterUrl: persisted.posterUrl ?? asset.thumbnailUrl ?? null,
+            durationSeconds: asset.durationSeconds ?? null,
+            videoRunId: runRecord.id,
+          },
+          rawText: prompt,
+          source: context.mode === "edit" ? "ai-video.edit" : "ai-video.generate",
+          tags: ["ai", "video"],
+        });
+      } catch (memoryError) {
+        console.warn("ai_video_memory_index_failed", memoryError);
+      }
+    }
+  }
+
+  const responseMetadata: Record<string, unknown> = {
+    playbackUrl: playbackUrlFinal ?? muxPlaybackUrl,
+    posterUrl: persisted.posterUrl ?? asset.thumbnailUrl ?? null,
+    muxAssetId: persisted.assetId,
+    muxPlaybackId: persisted.playbackId,
+  };
+  if (memoryId) {
+    responseMetadata.memoryId = memoryId;
+  }
+
   await updateAiVideoRun(runRecord.id, {
     status: "succeeded",
     videoUrl: muxPlaybackUrl,
@@ -415,16 +463,10 @@ async function runOpenAIVideoPipeline(
     muxPosterUrl: persisted.posterUrl,
     durationSeconds: asset.durationSeconds ?? null,
     sizeBytes: asset.sizeBytes ?? null,
+    responseMetadata,
     attempts: [...(runRecord.attempts ?? []), completedAttempt],
     completedAt: new Date().toISOString(),
   });
-
-  const playbackUrlFinal =
-    buildMuxPlaybackUrl(persisted.playbackId ?? undefined, { extension: "m3u8" }) ??
-    muxPlaybackUrl;
-  const fallbackMp4 =
-    buildMuxPlaybackUrl(persisted.playbackId ?? undefined, { extension: "mp4" }) ??
-    playbackUrlFinal;
 
   return {
     url: fallbackMp4 ?? muxPlaybackUrl,
@@ -437,6 +479,7 @@ async function runOpenAIVideoPipeline(
     durationSeconds: asset.durationSeconds ?? null,
     muxAssetId: persisted.assetId,
     muxPlaybackId: persisted.playbackId,
+    memoryId,
   };
 }
 

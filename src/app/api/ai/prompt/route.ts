@@ -246,6 +246,7 @@ export async function POST(req: Request) {
     capsuleId,
     rawOptions: sanitizedOptions,
     clarifier: clarifierOption,
+    ownerId,
   };
 
   try {
