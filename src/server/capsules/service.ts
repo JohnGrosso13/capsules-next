@@ -1,7 +1,18 @@
 import type {
+  CapsuleHistoryContentBlock,
   CapsuleHistoryPeriod,
   CapsuleHistorySection,
+  CapsuleHistorySectionContent,
   CapsuleHistorySnapshot,
+  CapsuleHistoryTimelineEntry,
+  CapsuleHistoryCandidate,
+  CapsuleHistoryCoverage,
+  CapsuleHistoryCoverageMetric,
+  CapsuleHistoryPinnedItem,
+  CapsuleHistoryPinnedItemType,
+  CapsuleHistoryPromptMemory,
+  CapsuleHistoryTemplatePreset,
+  CapsuleHistorySource,
   CapsuleMemberRequestSummary,
   CapsuleMembershipState,
   CapsuleMembershipViewer,
@@ -26,13 +37,34 @@ import {
   type CapsuleAssetRow,
   getCapsuleHistorySnapshotRecord,
   upsertCapsuleHistorySnapshotRecord,
+  updateCapsuleHistoryPublishedSnapshotRecord,
   getCapsuleHistoryActivity,
+  listCapsuleHistoryRefreshCandidates,
+  listCapsuleHistorySectionSettings,
+  listCapsuleHistoryPins,
+  listCapsuleHistoryEdits,
+  listCapsuleHistoryExclusions,
+  listCapsuleTopicPages,
+  listCapsuleTopicPageBacklinks,
+  type CapsuleHistorySectionSettings,
+  type CapsuleHistoryPin,
+  type CapsuleHistoryEdit,
+  type CapsuleHistoryExclusion,
+  type CapsuleTopicPage,
+  type CapsuleTopicPageBacklink,
   updateCapsuleMemberRole,
   updateCapsuleBanner,
   updateCapsuleStoreBanner,
   updateCapsulePromoTile,
   updateCapsuleLogo,
   listCapsuleAssets,
+  upsertCapsuleHistorySectionSettingsRecord,
+  insertCapsuleHistoryEdit,
+  insertCapsuleHistoryPin,
+  deleteCapsuleHistoryPin,
+  insertCapsuleHistoryExclusion,
+  deleteCapsuleHistoryExclusion,
+  updateCapsuleHistoryPromptMemory,
 } from "./repository";
 import {
   isCapsuleMemberUiRole,
@@ -45,6 +77,7 @@ import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 import { getDatabaseAdminClient } from "@/config/database";
+import { createHash } from "node:crypto";
 import { AIConfigError, callOpenAIChat, extractJSON } from "@/lib/ai/prompter";
 
 export type { CapsuleSummary, DiscoverCapsuleSummary } from "./repository";
@@ -109,7 +142,8 @@ type CapsuleHistoryCacheEntry = {
   expiresAt: number;
   snapshot: CapsuleHistorySnapshot;
   latestPostAt: string | null;
-  generatedAtMs: number;
+  suggestedGeneratedAtMs: number;
+  suggestedPeriodHashes: Record<string, string>;
 };
 
 const capsuleHistoryCache = new Map<string, CapsuleHistoryCacheEntry>();
@@ -124,26 +158,31 @@ function getCachedCapsuleHistory(capsuleId: string): CapsuleHistoryCacheEntry | 
   return entry;
 }
 
+function invalidateCapsuleHistoryCache(capsuleId: string): void {
+  capsuleHistoryCache.delete(capsuleId);
+}
+
 function setCachedCapsuleHistory(
   capsuleId: string,
   snapshot: CapsuleHistorySnapshot,
-  meta: { latestPostAt: string | null },
-) {
-  const generatedAtMs = Date.parse(snapshot.generatedAt);
+  meta: { latestPostAt: string | null; suggestedPeriodHashes: Record<string, string> },
+): void {
+  const generatedAtMs = Date.parse(snapshot.suggestedGeneratedAt);
   capsuleHistoryCache.set(capsuleId, {
     expiresAt: Date.now() + HISTORY_CACHE_TTL_MS,
     snapshot,
     latestPostAt: meta.latestPostAt ?? null,
-    generatedAtMs: Number.isNaN(generatedAtMs) ? Date.now() : generatedAtMs,
+    suggestedGeneratedAtMs: Number.isNaN(generatedAtMs) ? Date.now() : generatedAtMs,
+    suggestedPeriodHashes: meta.suggestedPeriodHashes,
   });
 }
 
 function historySnapshotIsStale(params: {
-  generatedAtMs: number;
+  suggestedGeneratedAtMs: number;
   storedLatestPostAt: string | null;
   activityLatestPostAt: string | null;
 }): boolean {
-  const { generatedAtMs, storedLatestPostAt, activityLatestPostAt } = params;
+  const { suggestedGeneratedAtMs, storedLatestPostAt, activityLatestPostAt } = params;
   const snapshotLatestMs = toTimestamp(storedLatestPostAt);
   const activityLatestMs = toTimestamp(activityLatestPostAt);
 
@@ -155,18 +194,18 @@ function historySnapshotIsStale(params: {
     return true;
   }
 
-  if (Date.now() - generatedAtMs > HISTORY_PERSIST_REFRESH_MS) {
+  if (Date.now() - suggestedGeneratedAtMs > HISTORY_PERSIST_REFRESH_MS) {
     return true;
   }
 
   return false;
 }
 
-function extractLatestTimelineTimestamp(snapshot: CapsuleHistorySnapshot): string | null {
+function extractLatestTimelineTimestampFromStored(snapshot: StoredHistorySnapshot): string | null {
   let latestMs: number | null = null;
   let latestIso: string | null = null;
   snapshot.sections.forEach((section) => {
-    section.timeline.forEach((entry) => {
+    section.content.timeline.forEach((entry) => {
       const timestamp = entry.timestamp ?? null;
       const ms = toTimestamp(timestamp);
       if (ms !== null && (latestMs === null || ms > latestMs)) {
@@ -1049,6 +1088,53 @@ type HistoryModelTimelineEntry = {
   post_id?: unknown;
 };
 
+type StoredHistorySection = {
+  period: CapsuleHistoryPeriod;
+  title: string;
+  timeframe: { start: string | null; end: string | null };
+  postCount: number;
+  isEmpty: boolean;
+  content: CapsuleHistorySectionContent;
+};
+
+type StoredHistorySnapshot = {
+  capsuleId: string;
+  capsuleName: string | null;
+  generatedAt: string;
+  sections: StoredHistorySection[];
+  sources: Record<string, CapsuleHistorySource>;
+};
+
+type CoverageMetaMap = Record<CapsuleHistoryPeriod, CapsuleHistoryCoverage>;
+
+const DEFAULT_PROMPT_MEMORY: CapsuleHistoryPromptMemory = {
+  guidelines: [],
+  tone: null,
+  mustInclude: [],
+  autoLinkTopics: [],
+};
+
+const DEFAULT_HISTORY_TEMPLATE_PRESETS: CapsuleHistoryTemplatePreset[] = [
+  {
+    id: "press-release",
+    label: "Press Release",
+    description: "Structured, third-person recap suited for announcements.",
+    tone: "formal",
+  },
+  {
+    id: "community-recap",
+    label: "Community Recap",
+    description: "Conversational highlights focused on community activity.",
+    tone: "warm",
+  },
+  {
+    id: "investor-brief",
+    label: "Investor Brief",
+    description: "Bullet-first summary emphasizing outcomes and next steps.",
+    tone: "concise",
+  },
+];
+
 const HISTORY_CONTENT_LIMIT = 320;
 const HISTORY_SUMMARY_LIMIT = 420;
 const HISTORY_LINE_LIMIT = 200;
@@ -1126,12 +1212,119 @@ function sanitizeHistoryArray(
   return entries;
 }
 
+function buildHistoryContentId(...parts: Array<string | number | null | undefined>): string {
+  const hash = createHash("sha1");
+  parts.forEach((part) => {
+    hash.update(String(part ?? "-"));
+    hash.update("|");
+  });
+  return hash.digest("hex").slice(0, 16);
+}
+
+function makeContentBlock(params: {
+  period: CapsuleHistoryPeriod;
+  kind: string;
+  index: number;
+  text: string;
+  seed?: string;
+  sourceIds?: string[];
+  metadata?: Record<string, unknown> | null;
+}): CapsuleHistoryContentBlock {
+  const { period, kind, index, text } = params;
+  const id = buildHistoryContentId(period, kind, index, params.seed ?? text);
+  const uniqueSourceIds = Array.from(new Set(params.sourceIds ?? [])).filter((value) => value);
+  return {
+    id,
+    text,
+    sourceIds: uniqueSourceIds,
+    pinned: false,
+    pinId: null,
+    note: null,
+    metadata: params.metadata ?? null,
+  };
+}
+
+function makeTimelineEntry(params: {
+  period: CapsuleHistoryPeriod;
+  index: number;
+  label: string;
+  detail: string;
+  timestamp: string | null;
+  postId?: string | null;
+  permalink?: string | null;
+  sourceIds?: string[];
+}): CapsuleHistoryTimelineEntry {
+  const metadata: Record<string, unknown> | null = params.postId
+    ? { postId: params.postId }
+    : null;
+  const base = makeContentBlock({
+    period: params.period,
+    kind: "timeline",
+    index: params.index,
+    text: params.detail,
+    seed: params.label,
+    sourceIds: params.sourceIds,
+    metadata,
+  });
+  return {
+    ...base,
+    label: params.label,
+    detail: params.detail,
+    timestamp: params.timestamp ?? null,
+    postId: params.postId ?? null,
+    permalink: params.permalink ?? null,
+  };
+}
+
+function buildEmptyCoverage(): CapsuleHistoryCoverage {
+  return {
+    completeness: 0,
+    authors: [],
+    themes: [],
+    timeSpans: [],
+  };
+}
+
+function ensurePostSource(
+  sources: Record<string, CapsuleHistorySource>,
+  capsuleId: string,
+  post: CapsuleHistoryPost,
+): string {
+  const postId = post.id;
+  const sourceId = `post:${postId}`;
+  if (!sources[sourceId]) {
+    const label = post.content ? post.content.slice(0, 140) : `Update from ${post.user ?? "member"}`;
+    sources[sourceId] = {
+      id: sourceId,
+      type: "post",
+      label,
+      description: post.content ?? null,
+      url: buildCapsulePostPermalink(capsuleId, postId),
+      postId,
+      topicPageId: null,
+      quoteId: null,
+      authorName: post.user ?? null,
+      authorAvatarUrl: null,
+      occurredAt: post.createdAt,
+      metrics: {
+        reactions: null,
+        comments: null,
+        shares: null,
+      },
+    };
+  }
+  return sourceId;
+}
+
 function coerceTimelineEntries(
   value: unknown,
   capsuleId: string,
-): CapsuleHistorySection["timeline"] {
+  period: CapsuleHistoryPeriod,
+  sources: Record<string, CapsuleHistorySource>,
+  postLookup: Map<string, CapsuleHistoryPost>,
+): CapsuleHistoryTimelineEntry[] {
   if (!Array.isArray(value)) return [];
-  const entries: CapsuleHistorySection["timeline"] = [];
+  const entries: CapsuleHistoryTimelineEntry[] = [];
   for (const entry of value) {
     if (!entry || typeof entry !== "object") continue;
     const record = entry as HistoryModelTimelineEntry;
@@ -1149,17 +1342,48 @@ function coerceTimelineEntries(
     } else if (typeof postIdRaw === "number" && Number.isFinite(postIdRaw)) {
       postId = normalizeOptionalString(String(postIdRaw));
     }
-    entries.push({
-      label,
-      detail,
-      timestamp,
-      ...(postId
-        ? {
+    let sourceIds: string[] = [];
+    if (postId) {
+      const post = postLookup.get(postId) ?? null;
+      if (post) {
+        sourceIds = [ensurePostSource(sources, capsuleId, post)];
+      } else {
+        const fallbackSourceId = `post:${postId}`;
+        if (!sources[fallbackSourceId]) {
+          sources[fallbackSourceId] = {
+            id: fallbackSourceId,
+            type: "post",
+            label: `Post ${postId}`,
+            description: null,
+            url: buildCapsulePostPermalink(capsuleId, postId),
             postId,
-            permalink: buildCapsulePostPermalink(capsuleId, postId),
-          }
-        : {}),
-    });
+            topicPageId: null,
+            quoteId: null,
+            authorName: null,
+            authorAvatarUrl: null,
+            occurredAt: null,
+            metrics: {
+              reactions: null,
+              comments: null,
+              shares: null,
+            },
+          };
+        }
+        sourceIds = [fallbackSourceId];
+      }
+    }
+    entries.push(
+      makeTimelineEntry({
+        period,
+        index: entries.length,
+        label,
+        detail,
+        timestamp,
+        postId,
+        permalink: postId ? buildCapsulePostPermalink(capsuleId, postId) : null,
+        sourceIds,
+      }),
+    );
     if (entries.length >= HISTORY_TIMELINE_LIMIT) break;
   }
   return entries;
@@ -1359,13 +1583,13 @@ function buildFallbackNextFocus(timeframe: CapsuleHistoryTimeframe): string[] {
   ];
 }
 
-function buildFallbackTimeline(
+function buildFallbackTimelineEntries(
   capsuleId: string,
   timeframe: CapsuleHistoryTimeframe,
-): CapsuleHistorySection["timeline"] {
+  sources: Record<string, CapsuleHistorySource>,
+): CapsuleHistoryTimelineEntry[] {
   if (!timeframe.posts.length) return [];
-  const timeline: CapsuleHistorySection["timeline"] = [];
-  for (const post of timeframe.posts.slice(0, HISTORY_TIMELINE_LIMIT)) {
+  return timeframe.posts.slice(0, HISTORY_TIMELINE_LIMIT).map((post, index) => {
     const label =
       sanitizeHistoryString(
         post.user ? `Update from ${post.user}` : "New update",
@@ -1376,20 +1600,1168 @@ function buildFallbackTimeline(
         post.content || (post.hasMedia ? "Shared new media." : "Shared an update."),
         HISTORY_LINE_LIMIT,
       ) ?? "Shared an update.";
-    const postId = normalizeOptionalString(post.id);
-    timeline.push({
+    ensurePostSource(sources, capsuleId, post);
+    return makeTimelineEntry({
+      period: timeframe.period,
+      index,
       label,
       detail,
       timestamp: post.createdAt,
-      ...(postId
-        ? {
-            postId,
-            permalink: buildCapsulePostPermalink(capsuleId, postId),
-          }
-        : {}),
+      postId: post.id,
+      permalink: buildCapsulePostPermalink(capsuleId, post.id),
+      sourceIds: [`post:${post.id}`],
+    });
+  });
+}
+
+function computeCoverageMetrics(
+  timeframe: CapsuleHistoryTimeframe,
+  content: CapsuleHistorySectionContent,
+): CapsuleHistoryCoverage {
+  if (!timeframe.posts.length) {
+    return buildEmptyCoverage();
+  }
+
+  const totalPosts = timeframe.posts.length;
+  const timelinePostIds = new Set(
+    content.timeline
+      .map((entry) => entry.postId)
+      .filter((postId): postId is string => typeof postId === "string" && postId.length > 0),
+  );
+  const postAuthorMap = new Map<string, string | null>();
+  timeframe.posts.forEach((post) => {
+    postAuthorMap.set(post.id, post.user ?? null);
+  });
+
+  const summaryWeight = content.summary.text ? 1 : 0;
+  const coverageScore =
+    (summaryWeight + content.highlights.length + content.timeline.length) /
+    Math.max(1, totalPosts);
+
+  const authorStats = collectAuthorStats(timeframe.posts);
+  const authors = Array.from(authorStats.entries()).map(([name, count]) => {
+    let covered = false;
+    timelinePostIds.forEach((postId) => {
+      if (postAuthorMap.get(postId) === name) {
+        covered = true;
+      }
+    });
+    return {
+      id: `author:${name}`,
+      label: name,
+      covered,
+      weight: count,
+    };
+  });
+
+  const themeCounts = new Map<string, number>();
+  timeframe.posts.forEach((post) => {
+    const kind = typeof post.kind === "string" ? post.kind.trim() : "";
+    if (!kind) return;
+    themeCounts.set(kind, (themeCounts.get(kind) ?? 0) + 1);
+  });
+  const themes = Array.from(themeCounts.entries()).map(([kind, count]) => ({
+    id: `theme:${kind}`,
+    label: kind.replace(/_/g, " "),
+    covered: count > 0,
+    weight: count,
+  }));
+
+  const segmentCount = 3;
+  const segmentSize = Math.max(1, Math.ceil(totalPosts / segmentCount));
+  const timeSpans: CapsuleHistoryCoverage["timeSpans"] = [];
+  for (let index = 0; index < segmentCount; index += 1) {
+    const start = index * segmentSize;
+    const segmentPosts = timeframe.posts.slice(start, start + segmentSize);
+    const covered = segmentPosts.some((post) => timelinePostIds.has(post.id));
+    timeSpans.push({
+      id: `span:${index}`,
+      label: index === 0 ? "Early" : index === 1 ? "Mid-period" : "Recent",
+      covered,
+      weight: segmentPosts.length,
     });
   }
-  return timeline;
+
+  return {
+    completeness: Math.min(1, Number.isFinite(coverageScore) ? coverageScore : 0),
+    authors,
+    themes,
+    timeSpans,
+  };
+}
+
+function cloneContentBlock(block: CapsuleHistoryContentBlock): CapsuleHistoryContentBlock {
+  return {
+    ...block,
+    sourceIds: Array.isArray(block.sourceIds) ? [...block.sourceIds] : [],
+    metadata:
+      block.metadata && typeof block.metadata === "object"
+        ? { ...(block.metadata as Record<string, unknown>) }
+        : null,
+    pinned: Boolean(block.pinned),
+    pinId: block.pinId ?? null,
+    note: block.note ?? null,
+  };
+}
+
+function cloneTimelineEntry(entry: CapsuleHistoryTimelineEntry): CapsuleHistoryTimelineEntry {
+  return {
+    ...cloneContentBlock(entry),
+    label: entry.label,
+    detail: entry.detail,
+    timestamp: entry.timestamp ?? null,
+    postId: entry.postId ?? null,
+    permalink: entry.permalink ?? null,
+  };
+}
+
+function cloneSectionContent(content: CapsuleHistorySectionContent): CapsuleHistorySectionContent {
+  return {
+    summary: cloneContentBlock(content.summary),
+    highlights: content.highlights.map((item) => cloneContentBlock(item)),
+    timeline: content.timeline.map((item) => cloneTimelineEntry(item)),
+    nextFocus: content.nextFocus.map((item) => cloneContentBlock(item)),
+  };
+}
+
+function normalizePinType(value: string | null | undefined): CapsuleHistoryPinnedItemType {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (normalized === "summary" || normalized === "highlight" || normalized === "timeline") {
+    return normalized;
+  }
+  if (normalized === "next_focus" || normalized === "next-focus") {
+    return "next_focus";
+  }
+  return "highlight";
+}
+
+function decorateContentWithPins(
+  content: CapsuleHistorySectionContent,
+  pins: CapsuleHistoryPin[],
+): CapsuleHistorySectionContent {
+  if (!pins.length) {
+    return cloneSectionContent(content);
+  }
+
+  const decorated = cloneSectionContent(content);
+
+  const findHighlight = (pin: CapsuleHistoryPin) => {
+    const needle = typeof pin.quote === "string" ? pin.quote.trim().toLowerCase() : "";
+    if (!needle && pin.postId) {
+      const postSourceId = `post:${pin.postId}`;
+      return decorated.highlights.find((block) => block.sourceIds.includes(postSourceId)) ?? null;
+    }
+    return decorated.highlights.find((block) => block.text.trim().toLowerCase() === needle) ?? null;
+  };
+
+  const findNextFocus = (pin: CapsuleHistoryPin) => {
+    const needle = typeof pin.quote === "string" ? pin.quote.trim().toLowerCase() : "";
+    if (!needle) return null;
+    return decorated.nextFocus.find((block) => block.text.trim().toLowerCase() === needle) ?? null;
+  };
+
+  const findTimeline = (pin: CapsuleHistoryPin) => {
+    if (pin.postId) {
+      const matched = decorated.timeline.find((entry) => entry.postId === pin.postId);
+      if (matched) return matched;
+    }
+    const needle = typeof pin.quote === "string" ? pin.quote.trim() : "";
+    if (!needle) return null;
+    return decorated.timeline.find((entry) => entry.detail.includes(needle)) ?? null;
+  };
+
+  pins.forEach((pin) => {
+    const type = normalizePinType(pin.type);
+    if (type === "summary") {
+      decorated.summary.pinned = true;
+      decorated.summary.pinId = pin.id;
+      return;
+    }
+    if (type === "highlight") {
+      const highlight = findHighlight(pin);
+      if (highlight) {
+        highlight.pinned = true;
+        highlight.pinId = pin.id;
+      }
+      return;
+    }
+    if (type === "next_focus") {
+      const next = findNextFocus(pin);
+      if (next) {
+        next.pinned = true;
+        next.pinId = pin.id;
+      }
+      return;
+    }
+    if (type === "timeline") {
+      const timelineEntry = findTimeline(pin);
+      if (timelineEntry) {
+        timelineEntry.pinned = true;
+        timelineEntry.pinId = pin.id;
+      }
+    }
+  });
+
+  return decorated;
+}
+
+function convertPinToPinnedItem(pin: CapsuleHistoryPin): CapsuleHistoryPinnedItem {
+  const type = normalizePinType(pin.type);
+  const sourceRecord =
+    pin.source && typeof pin.source === "object" ? (pin.source as Record<string, unknown>) : null;
+  const sourceIdValue =
+    sourceRecord && typeof sourceRecord.source_id === "string" ? sourceRecord.source_id : null;
+  const fallbackSourceId = pin.postId ? `post:${pin.postId}` : null;
+  return {
+    id: pin.id,
+    type,
+    period: pin.period,
+    postId: pin.postId ?? null,
+    quote: typeof pin.quote === "string" ? pin.quote : null,
+    rank: Number.isFinite(pin.rank) ? Number(pin.rank) : 0,
+    sourceId: sourceIdValue ?? fallbackSourceId,
+    createdAt: pin.createdAt ?? null,
+    createdBy: pin.createdBy ?? null,
+  };
+}
+
+function buildSectionCandidates(
+  content: CapsuleHistorySectionContent,
+  sources: Record<string, CapsuleHistorySource>,
+): CapsuleHistoryCandidate[] {
+  const seen = new Set<string>();
+  const candidates: CapsuleHistoryCandidate[] = [];
+
+  content.timeline.forEach((entry) => {
+    const sourceId = entry.sourceIds[0] ?? (entry.postId ? `post:${entry.postId}` : null);
+    const source = sourceId ? sources[sourceId] ?? null : null;
+    const id = sourceId ?? entry.id;
+    if (seen.has(id)) return;
+    seen.add(id);
+    candidates.push({
+      id,
+      kind: "post",
+      postId: source?.postId ?? entry.postId ?? null,
+      quoteId: source?.quoteId ?? null,
+      title: source?.label ?? entry.label,
+      excerpt: entry.detail ?? entry.text,
+      sourceIds: sourceId ? [sourceId] : [],
+      createdAt: source?.occurredAt ?? entry.timestamp ?? null,
+      authorName: source?.authorName ?? null,
+      authorAvatarUrl: source?.authorAvatarUrl ?? null,
+      metrics: {
+        reactions: Number(source?.metrics.reactions ?? 0) || 0,
+        comments: Number(source?.metrics.comments ?? 0) || 0,
+        shares: Number(source?.metrics.shares ?? 0) || 0,
+      },
+      tags: [],
+    });
+  });
+
+  content.highlights.forEach((block) => {
+    if (!block.text || block.text.length < 8) return;
+    const candidateId = `highlight:${block.id}`;
+    if (seen.has(candidateId)) return;
+    seen.add(candidateId);
+    const sourceId = block.sourceIds[0] ?? null;
+    const source = sourceId ? sources[sourceId] ?? null : null;
+    candidates.push({
+      id: candidateId,
+      kind: "quote",
+      postId: source?.postId ?? null,
+      quoteId: source?.quoteId ?? null,
+      title: source?.label ?? "Highlight",
+      excerpt: block.text,
+      sourceIds: sourceId ? [sourceId] : [],
+      createdAt: source?.occurredAt ?? null,
+      authorName: source?.authorName ?? null,
+      authorAvatarUrl: source?.authorAvatarUrl ?? null,
+      metrics: {
+        reactions: Number(source?.metrics.reactions ?? 0) || 0,
+        comments: Number(source?.metrics.comments ?? 0) || 0,
+        shares: Number(source?.metrics.shares ?? 0) || 0,
+      },
+      tags: [],
+    });
+  });
+
+  return candidates;
+}
+
+function coercePromptMemory(value: unknown): CapsuleHistoryPromptMemory {
+  if (!value || typeof value !== "object") {
+    return DEFAULT_PROMPT_MEMORY;
+  }
+  const record = value as Record<string, unknown>;
+  const guidelines = Array.isArray(record.guidelines)
+    ? record.guidelines.filter((entry): entry is string => typeof entry === "string")
+    : [];
+  const mustInclude = Array.isArray(record.mustInclude)
+    ? record.mustInclude.filter((entry): entry is string => typeof entry === "string")
+    : [];
+  const autoLinkTopics = Array.isArray(record.autoLinkTopics)
+    ? record.autoLinkTopics.filter((entry): entry is string => typeof entry === "string")
+    : [];
+  const tone = typeof record.tone === "string" ? record.tone : null;
+  return {
+    guidelines,
+    mustInclude,
+    autoLinkTopics,
+    tone,
+  };
+}
+
+function coerceTemplatePresets(value: unknown): CapsuleHistoryTemplatePreset[] {
+  if (!Array.isArray(value)) {
+    return DEFAULT_HISTORY_TEMPLATE_PRESETS;
+  }
+  const presets: CapsuleHistoryTemplatePreset[] = [];
+  value.forEach((entry) => {
+    if (!entry || typeof entry !== "object") return;
+    const record = entry as Record<string, unknown>;
+    const id = typeof record.id === "string" ? record.id : null;
+    const label = typeof record.label === "string" ? record.label : null;
+    if (!id || !label) return;
+    presets.push({
+      id,
+      label,
+      description: typeof record.description === "string" ? record.description : null,
+      tone: typeof record.tone === "string" ? record.tone : null,
+    });
+  });
+  return presets.length ? presets : DEFAULT_HISTORY_TEMPLATE_PRESETS;
+}
+
+function coerceCoverageMeta(value: Record<string, unknown>): CoverageMetaMap {
+  const base: CoverageMetaMap = {
+    weekly: buildEmptyCoverage(),
+    monthly: buildEmptyCoverage(),
+    all_time: buildEmptyCoverage(),
+  };
+  (Object.keys(base) as CapsuleHistoryPeriod[]).forEach((period) => {
+    const raw = value?.[period];
+    if (!raw || typeof raw !== "object") return;
+    const record = raw as Record<string, unknown>;
+    const completeness = typeof record.completeness === "number" ? record.completeness : 0;
+    const authors = Array.isArray(record.authors)
+      ? record.authors
+          .map((entry) => {
+            if (!entry || typeof entry !== "object") return null;
+            const data = entry as Record<string, unknown>;
+            const id = typeof data.id === "string" ? data.id : null;
+            const label = typeof data.label === "string" ? data.label : null;
+            if (!id || !label) return null;
+            return {
+              id,
+              label,
+              covered: Boolean(data.covered),
+              weight: Number(data.weight ?? 0) || 0,
+            };
+          })
+          .filter((item): item is CapsuleHistoryCoverageMetric => item !== null)
+      : [];
+    const themes = Array.isArray(record.themes)
+      ? record.themes
+          .map((entry) => {
+            if (!entry || typeof entry !== "object") return null;
+            const data = entry as Record<string, unknown>;
+            const id = typeof data.id === "string" ? data.id : null;
+            const label = typeof data.label === "string" ? data.label : null;
+            if (!id || !label) return null;
+            return {
+              id,
+              label,
+              covered: Boolean(data.covered),
+              weight: Number(data.weight ?? 0) || 0,
+            };
+          })
+          .filter((item): item is CapsuleHistoryCoverageMetric => item !== null)
+      : [];
+    const timeSpans = Array.isArray(record.timeSpans)
+      ? record.timeSpans
+          .map((entry) => {
+            if (!entry || typeof entry !== "object") return null;
+            const data = entry as Record<string, unknown>;
+            const id = typeof data.id === "string" ? data.id : null;
+            const label = typeof data.label === "string" ? data.label : null;
+            if (!id || !label) return null;
+            return {
+              id,
+              label,
+              covered: Boolean(data.covered),
+              weight: Number(data.weight ?? 0) || 0,
+            };
+          })
+          .filter((item): item is CapsuleHistoryCoverageMetric => item !== null)
+      : [];
+    base[period] = {
+      completeness,
+      authors,
+      themes,
+      timeSpans,
+    };
+  });
+  return base;
+}
+
+function composeCapsuleHistorySnapshot(params: {
+  capsuleId: string;
+  capsuleName: string | null;
+  suggested: StoredHistorySnapshot | null;
+  published: StoredHistorySnapshot | null;
+  coverage: CoverageMetaMap;
+  promptMemory: CapsuleHistoryPromptMemory;
+  templates: CapsuleHistoryTemplatePreset[];
+  sectionSettings: CapsuleHistorySectionSettings[];
+  pins: CapsuleHistoryPin[];
+  exclusions: CapsuleHistoryExclusion[];
+  edits: CapsuleHistoryEdit[];
+  topicPages: CapsuleTopicPage[];
+  backlinks: CapsuleTopicPageBacklink[];
+}): CapsuleHistorySnapshot {
+  const periods: CapsuleHistoryPeriod[] = ["weekly", "monthly", "all_time"];
+  const sources: Record<string, CapsuleHistorySource> = {};
+
+  const mergeSources = (origin: StoredHistorySnapshot | null) => {
+    if (!origin || !origin.sources) return;
+    Object.entries(origin.sources).forEach(([sourceId, source]) => {
+      if (!sourceId || sources[sourceId]) return;
+      sources[sourceId] = source;
+    });
+  };
+
+  mergeSources(params.suggested);
+  mergeSources(params.published);
+
+  const sections: CapsuleHistorySection[] = periods.map((period) => {
+    const suggestedSection =
+      params.suggested?.sections.find((section) => section.period === period) ?? null;
+    const publishedSection =
+      params.published?.sections.find((section) => section.period === period) ?? null;
+    const settings = params.sectionSettings.find((entry) => entry.period === period) ?? null;
+    const pins = params.pins
+      .filter((pin) => pin.period === period)
+      .slice()
+      .sort(
+        (a, b) =>
+          a.rank - b.rank ||
+          (a.createdAt ?? "").localeCompare(b.createdAt ?? "", undefined, { sensitivity: "base" }),
+      );
+    const exclusions = params.exclusions.filter((entry) => entry.period === period);
+    const edits = params.edits.filter((entry) => entry.period === period);
+
+    const decoratedSuggested = suggestedSection
+      ? decorateContentWithPins(suggestedSection.content, pins)
+      : decorateContentWithPins(
+          {
+            summary: makeContentBlock({
+              period,
+              kind: "summary",
+              index: 0,
+              text: "No updates captured for this period yet.",
+              seed: `${period}-empty`,
+            }),
+            highlights: [],
+            timeline: [],
+            nextFocus: [],
+          },
+          pins,
+        );
+
+    const decoratedPublished = publishedSection
+      ? decorateContentWithPins(publishedSection.content, pins)
+      : null;
+
+    const pinnedItems = pins.map(convertPinToPinnedItem);
+    const coverage = params.coverage[period] ?? buildEmptyCoverage();
+    const editorNotes = settings?.editorNotes ?? null;
+    const excludedPostIds = Array.from(
+      new Set([
+        ...(settings?.excludedPostIds ?? []),
+        ...exclusions.map((entry) => entry.postId),
+      ]),
+    );
+    const versions: CapsuleHistoryVersion[] = edits.map((entry) => ({
+      id: entry.id,
+      createdAt: entry.createdAt,
+      editorId: entry.editorId,
+      editorName: null,
+      changeType: entry.changeType,
+      reason: entry.reason,
+    }));
+    const lastEdited = edits[0] ?? null;
+    const candidates = buildSectionCandidates(decoratedSuggested, sources);
+
+    const postCount = suggestedSection?.postCount ?? publishedSection?.postCount ?? 0;
+    const timeframe =
+      suggestedSection?.timeframe ?? publishedSection?.timeframe ?? { start: null, end: null };
+    const title = suggestedSection?.title ?? publishedSection?.title ?? period.toUpperCase();
+    const isEmpty =
+      suggestedSection?.isEmpty ??
+      (decoratedSuggested.timeline.length === 0 && decoratedSuggested.highlights.length === 0);
+
+    return {
+      period,
+      title,
+      timeframe,
+      postCount,
+      suggested: decoratedSuggested,
+      published: decoratedPublished,
+      editorNotes,
+      excludedPostIds,
+      coverage,
+      candidates,
+      pinned: pinnedItems,
+      versions,
+      discussionThreadId: settings?.discussionThreadId ?? null,
+      lastEditedAt: lastEdited?.createdAt ?? null,
+      lastEditedBy: lastEdited?.editorId ?? null,
+      templateId: settings?.templateId ?? null,
+      toneRecipeId: settings?.toneRecipeId ?? null,
+    };
+  });
+
+  return {
+    capsuleId: params.capsuleId,
+    capsuleName: params.capsuleName,
+    suggestedGeneratedAt: params.suggested?.generatedAt ?? new Date().toISOString(),
+    publishedGeneratedAt: params.published?.generatedAt ?? null,
+    sections,
+    sources,
+    promptMemory: params.promptMemory,
+    templates: params.templates,
+  };
+}
+
+function coerceStoredSnapshot(value: Record<string, unknown> | null): StoredHistorySnapshot | null {
+  if (!value) return null;
+  const record = value as Record<string, unknown>;
+  const sectionsRaw = Array.isArray(record.sections) ? record.sections : [];
+  const sections: StoredHistorySection[] = [];
+
+  sectionsRaw.forEach((entry) => {
+    if (!entry || typeof entry !== "object") return;
+    const raw = entry as Record<string, unknown>;
+    const period = normalizeHistoryPeriod(raw.period);
+    if (!period) return;
+    const title = typeof raw.title === "string" ? raw.title : period.toUpperCase();
+    const timeframeRaw = raw.timeframe;
+    const timeframe =
+      timeframeRaw && typeof timeframeRaw === "object"
+        ? {
+            start:
+              typeof (timeframeRaw as Record<string, unknown>).start === "string"
+                ? ((timeframeRaw as Record<string, unknown>).start as string)
+                : null,
+            end:
+              typeof (timeframeRaw as Record<string, unknown>).end === "string"
+                ? ((timeframeRaw as Record<string, unknown>).end as string)
+                : null,
+          }
+        : { start: null, end: null };
+    const postCount = Number(raw.postCount ?? 0) || 0;
+    const isEmpty = Boolean(raw.isEmpty);
+    const contentRaw = raw.content;
+
+    const coerceBlock = (blockValue: unknown): CapsuleHistoryContentBlock => {
+      if (!blockValue || typeof blockValue !== "object") {
+        return makeContentBlock({
+          period,
+          kind: "summary",
+          index: 0,
+          text: "",
+          seed: `${period}-missing`,
+        });
+      }
+      return cloneContentBlock(blockValue as CapsuleHistoryContentBlock);
+    };
+
+    const coerceBlockArray = (value: unknown[]): CapsuleHistoryContentBlock[] =>
+      value.map((item) => cloneContentBlock(item as CapsuleHistoryContentBlock));
+
+    const coerceTimelineArray = (value: unknown[]): CapsuleHistoryTimelineEntry[] =>
+      value.map((item) => cloneTimelineEntry(item as CapsuleHistoryTimelineEntry));
+
+    const content: CapsuleHistorySectionContent =
+      contentRaw && typeof contentRaw === "object"
+        ? {
+            summary: coerceBlock((contentRaw as Record<string, unknown>).summary),
+            highlights: Array.isArray((contentRaw as Record<string, unknown>).highlights)
+              ? coerceBlockArray((contentRaw as Record<string, unknown>).highlights as unknown[])
+              : [],
+            timeline: Array.isArray((contentRaw as Record<string, unknown>).timeline)
+              ? coerceTimelineArray((contentRaw as Record<string, unknown>).timeline as unknown[])
+              : [],
+            nextFocus: Array.isArray((contentRaw as Record<string, unknown>).nextFocus)
+              ? coerceBlockArray((contentRaw as Record<string, unknown>).nextFocus as unknown[])
+              : [],
+          }
+        : {
+            summary: makeContentBlock({
+              period,
+              kind: "summary",
+              index: 0,
+              text: "",
+              seed: `${period}-empty`,
+            }),
+            highlights: [],
+            timeline: [],
+            nextFocus: [],
+          };
+
+    sections.push({
+      period,
+      title,
+      timeframe,
+      postCount,
+      isEmpty,
+      content,
+    });
+  });
+
+  if (!sections.length) return null;
+  const generatedAt =
+    typeof record.generatedAt === "string"
+      ? (record.generatedAt as string)
+      : typeof record.generated_at === "string"
+        ? (record.generated_at as string)
+        : new Date().toISOString();
+  const capsuleId = typeof record.capsuleId === "string" ? (record.capsuleId as string) : "";
+  const capsuleName =
+    typeof record.capsuleName === "string" ? (record.capsuleName as string) : null;
+  const sources =
+    record.sources && typeof record.sources === "object"
+      ? (record.sources as Record<string, CapsuleHistorySource>)
+      : {};
+
+  return {
+    capsuleId,
+    capsuleName,
+    generatedAt,
+    sections,
+    sources,
+  };
+}
+
+export async function publishCapsuleHistorySection(params: {
+  capsuleId: string;
+  editorId: string;
+  period: CapsuleHistoryPeriod;
+  content: CapsuleHistorySectionContent;
+  title?: string;
+  timeframe?: { start: string | null; end: string | null };
+  postCount?: number;
+  notes?: string | null;
+  templateId?: string | null;
+  toneRecipeId?: string | null;
+  reason?: string | null;
+  promptOverrides?: Record<string, unknown> | null;
+  coverage?: CapsuleHistoryCoverage | null;
+}): Promise<CapsuleHistorySnapshot> {
+  const { capsule, ownerId } = await requireCapsuleOwnership(params.capsuleId, params.editorId);
+  const capsuleIdValue = normalizeId(capsule.id);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.history.publish: capsule has invalid identifier");
+  }
+
+  const persisted = await getCapsuleHistorySnapshotRecord(capsuleIdValue);
+  const promptMemoryRecord = persisted
+    ? coercePromptMemory(persisted.promptMemory)
+    : DEFAULT_PROMPT_MEMORY;
+  const templateRecord = persisted
+    ? coerceTemplatePresets(persisted.templatePresets)
+    : DEFAULT_HISTORY_TEMPLATE_PRESETS;
+  let coverageMeta = persisted
+    ? coerceCoverageMeta(persisted.coverageMeta ?? {})
+    : {
+        weekly: buildEmptyCoverage(),
+        monthly: buildEmptyCoverage(),
+        all_time: buildEmptyCoverage(),
+      };
+
+  const suggestedStored = persisted ? coerceStoredSnapshot(persisted.suggestedSnapshot) : null;
+  let publishedStored = persisted ? coerceStoredSnapshot(persisted.publishedSnapshot ?? null) : null;
+
+  const capsuleName = normalizeOptionalString(capsule.name ?? null);
+  if (!publishedStored) {
+    const baseSections = suggestedStored
+      ? suggestedStored.sections.map((section) => ({
+          ...section,
+          content: cloneSectionContent(section.content),
+        }))
+      : [];
+    publishedStored = {
+      capsuleId: capsuleIdValue,
+      capsuleName,
+      generatedAt: new Date().toISOString(),
+      sections: baseSections,
+      sources: suggestedStored?.sources ?? {},
+    };
+  }
+
+  const suggestedSection = suggestedStored?.sections.find(
+    (section) => section.period === params.period,
+  );
+  const title = params.title ?? suggestedSection?.title ?? params.period.toUpperCase();
+  const timeframe = params.timeframe ?? suggestedSection?.timeframe ?? { start: null, end: null };
+  const postCount =
+    typeof params.postCount === "number"
+      ? params.postCount
+      : suggestedSection?.postCount ?? 0;
+  const sectionContent = cloneSectionContent(params.content);
+  const sectionData: StoredHistorySection = {
+    period: params.period,
+    title,
+    timeframe,
+    postCount,
+    isEmpty: sectionContent.timeline.length === 0 && sectionContent.highlights.length === 0,
+    content: sectionContent,
+  };
+
+  const sectionIndex = publishedStored.sections.findIndex(
+    (section) => section.period === params.period,
+  );
+  if (sectionIndex >= 0) {
+    publishedStored.sections[sectionIndex] = sectionData;
+  } else {
+    publishedStored.sections.push(sectionData);
+  }
+  publishedStored.generatedAt = new Date().toISOString();
+
+  const updatedCoverage = params.coverage ?? coverageMeta[params.period] ?? buildEmptyCoverage();
+  coverageMeta = {
+    ...coverageMeta,
+    [params.period]: updatedCoverage,
+  } as CoverageMetaMap;
+
+  const publishedPeriodHashes = Object.fromEntries(
+    publishedStored.sections.map((section) => [
+      section.period,
+      computeSectionContentHash(section.content),
+    ]),
+  );
+  const publishedLatestTimelineAt = extractLatestTimelineTimestampFromStored(publishedStored);
+
+  await updateCapsuleHistoryPublishedSnapshotRecord({
+    capsuleId: capsuleIdValue,
+    publishedSnapshot: publishedStored as unknown as Record<string, unknown>,
+    publishedGeneratedAt: publishedStored.generatedAt,
+    publishedLatestPostAt: publishedLatestTimelineAt ?? persisted?.publishedLatestPostAt ?? null,
+    publishedPeriodHashes,
+    editorId: params.editorId,
+    editorReason: params.reason ?? null,
+  });
+
+  const existingSettings = await listCapsuleHistorySectionSettings(capsuleIdValue);
+  const currentSettings =
+    existingSettings.find((entry) => entry.period === params.period) ?? null;
+  await upsertCapsuleHistorySectionSettingsRecord({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    editorNotes: params.notes ?? currentSettings?.editorNotes ?? null,
+    excludedPostIds: currentSettings?.excludedPostIds ?? [],
+    templateId: params.templateId ?? currentSettings?.templateId ?? null,
+    toneRecipeId: params.toneRecipeId ?? currentSettings?.toneRecipeId ?? null,
+    promptOverrides: params.promptOverrides ?? currentSettings?.promptOverrides ?? {},
+    coverageSnapshot: updatedCoverage as unknown as Record<string, unknown>,
+    discussionThreadId: currentSettings?.discussionThreadId ?? null,
+    metadata: {
+      ...(currentSettings?.metadata ?? {}),
+      lastPublishedAt: new Date().toISOString(),
+    },
+    updatedBy: params.editorId,
+  });
+
+  await insertCapsuleHistoryEdit({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    editorId: params.editorId,
+    changeType: "publish_section",
+    reason: params.reason ?? null,
+    payload: {
+      title,
+      timeframe,
+      postCount,
+    },
+    snapshot: JSON.parse(JSON.stringify(sectionData)) as Record<string, unknown>,
+  });
+
+  await updateCapsuleHistoryPromptMemory({
+    capsuleId: capsuleIdValue,
+    promptMemory: promptMemoryRecord as unknown as Record<string, unknown>,
+    templates: templateRecord as unknown as Array<Record<string, unknown>>,
+    coverageMeta: coverageMeta as unknown as Record<string, unknown>,
+  });
+
+  invalidateCapsuleHistoryCache(capsuleIdValue);
+  return getCapsuleHistory(params.capsuleId, ownerId, { forceRefresh: false });
+}
+
+export async function addCapsuleHistoryPin(params: {
+  capsuleId: string;
+  editorId: string;
+  period: CapsuleHistoryPeriod;
+  type: string;
+  postId?: string | null;
+  quote?: string | null;
+  source?: Record<string, unknown> | null;
+  rank?: number | null;
+  reason?: string | null;
+}): Promise<CapsuleHistorySnapshot> {
+  const { ownerId } = await requireCapsuleOwnership(params.capsuleId, params.editorId);
+  const capsuleIdValue = normalizeId(params.capsuleId);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.history.pins.add: invalid capsule identifier");
+  }
+
+  const insertedPin = await insertCapsuleHistoryPin({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    type: normalizePinType(params.type),
+    postId: params.postId ?? null,
+    quote: params.quote ?? null,
+    source: params.source ?? {},
+    rank: params.rank ?? null,
+    createdBy: params.editorId,
+  });
+
+  await insertCapsuleHistoryEdit({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    editorId: params.editorId,
+    changeType: "pin_add",
+    reason: params.reason ?? null,
+    payload: {
+      pinId: insertedPin.id,
+      type: insertedPin.type,
+      postId: insertedPin.postId,
+      quote: insertedPin.quote,
+      rank: insertedPin.rank,
+    },
+  });
+
+  invalidateCapsuleHistoryCache(capsuleIdValue);
+  return getCapsuleHistory(params.capsuleId, ownerId, { forceRefresh: false });
+}
+
+export async function removeCapsuleHistoryPin(params: {
+  capsuleId: string;
+  editorId: string;
+  pinId: string;
+  reason?: string | null;
+  period?: CapsuleHistoryPeriod;
+}): Promise<CapsuleHistorySnapshot> {
+  const { ownerId } = await requireCapsuleOwnership(params.capsuleId, params.editorId);
+  const capsuleIdValue = normalizeId(params.capsuleId);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.history.pins.remove: invalid capsule identifier");
+  }
+
+  const removed = await deleteCapsuleHistoryPin({
+    capsuleId: capsuleIdValue,
+    pinId: params.pinId,
+  });
+  if (!removed) {
+    throw new CapsuleMembershipError("not_found", "Pin not found.", 404);
+  }
+
+  await insertCapsuleHistoryEdit({
+    capsuleId: capsuleIdValue,
+    period: params.period ?? "weekly",
+    editorId: params.editorId,
+    changeType: "pin_remove",
+    reason: params.reason ?? null,
+    payload: {
+      pinId: params.pinId,
+    },
+  });
+
+  invalidateCapsuleHistoryCache(capsuleIdValue);
+  return getCapsuleHistory(params.capsuleId, ownerId, { forceRefresh: false });
+}
+
+export async function addCapsuleHistoryExclusion(params: {
+  capsuleId: string;
+  editorId: string;
+  period: CapsuleHistoryPeriod;
+  postId: string;
+  reason?: string | null;
+}): Promise<CapsuleHistorySnapshot> {
+  const { ownerId } = await requireCapsuleOwnership(params.capsuleId, params.editorId);
+  const capsuleIdValue = normalizeId(params.capsuleId);
+  const postId = normalizeId(params.postId) ?? params.postId;
+  if (!capsuleIdValue || !postId) {
+    throw new Error("capsules.history.exclusions.add: invalid parameters");
+  }
+
+  await insertCapsuleHistoryExclusion({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    postId,
+    createdBy: params.editorId,
+  });
+
+  const settings = await listCapsuleHistorySectionSettings(capsuleIdValue);
+  const current = settings.find((entry) => entry.period === params.period);
+  const excluded = Array.from(new Set([...(current?.excludedPostIds ?? []), postId]));
+
+  await upsertCapsuleHistorySectionSettingsRecord({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    editorNotes: current?.editorNotes ?? null,
+    excludedPostIds: excluded,
+    templateId: current?.templateId ?? null,
+    toneRecipeId: current?.toneRecipeId ?? null,
+    promptOverrides: current?.promptOverrides ?? {},
+    coverageSnapshot: current?.coverageSnapshot ?? {},
+    discussionThreadId: current?.discussionThreadId ?? null,
+    metadata: current?.metadata ?? {},
+    updatedBy: params.editorId,
+  });
+
+  await insertCapsuleHistoryEdit({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    editorId: params.editorId,
+    changeType: "exclusion_add",
+    reason: params.reason ?? null,
+    payload: {
+      postId,
+    },
+  });
+
+  invalidateCapsuleHistoryCache(capsuleIdValue);
+  return getCapsuleHistory(params.capsuleId, ownerId, { forceRefresh: false });
+}
+
+export async function removeCapsuleHistoryExclusion(params: {
+  capsuleId: string;
+  editorId: string;
+  period: CapsuleHistoryPeriod;
+  postId: string;
+  reason?: string | null;
+}): Promise<CapsuleHistorySnapshot> {
+  const { ownerId } = await requireCapsuleOwnership(params.capsuleId, params.editorId);
+  const capsuleIdValue = normalizeId(params.capsuleId);
+  const postId = normalizeId(params.postId) ?? params.postId;
+  if (!capsuleIdValue || !postId) {
+    throw new Error("capsules.history.exclusions.remove: invalid parameters");
+  }
+
+  await deleteCapsuleHistoryExclusion({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    postId,
+  });
+
+  const settings = await listCapsuleHistorySectionSettings(capsuleIdValue);
+  const current = settings.find((entry) => entry.period === params.period);
+  const remaining = (current?.excludedPostIds ?? []).filter((value) => value !== postId);
+
+  await upsertCapsuleHistorySectionSettingsRecord({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    editorNotes: current?.editorNotes ?? null,
+    excludedPostIds: remaining,
+    templateId: current?.templateId ?? null,
+    toneRecipeId: current?.toneRecipeId ?? null,
+    promptOverrides: current?.promptOverrides ?? {},
+    coverageSnapshot: current?.coverageSnapshot ?? {},
+    discussionThreadId: current?.discussionThreadId ?? null,
+    metadata: current?.metadata ?? {},
+    updatedBy: params.editorId,
+  });
+
+  await insertCapsuleHistoryEdit({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    editorId: params.editorId,
+    changeType: "exclusion_remove",
+    reason: params.reason ?? null,
+    payload: {
+      postId,
+    },
+  });
+
+  invalidateCapsuleHistoryCache(capsuleIdValue);
+  return getCapsuleHistory(params.capsuleId, ownerId, { forceRefresh: false });
+}
+
+export async function updateCapsuleHistorySectionSettings(params: {
+  capsuleId: string;
+  editorId: string;
+  period: CapsuleHistoryPeriod;
+  notes?: string | null;
+  templateId?: string | null;
+  toneRecipeId?: string | null;
+  promptOverrides?: Record<string, unknown> | null;
+  discussionThreadId?: string | null;
+  coverage?: CapsuleHistoryCoverage | null;
+  reason?: string | null;
+}): Promise<CapsuleHistorySnapshot> {
+  const { ownerId } = await requireCapsuleOwnership(params.capsuleId, params.editorId);
+  const capsuleIdValue = normalizeId(params.capsuleId);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.history.settings.update: invalid capsule identifier");
+  }
+
+  const settings = await listCapsuleHistorySectionSettings(capsuleIdValue);
+  const current = settings.find((entry) => entry.period === params.period) ?? null;
+
+  await upsertCapsuleHistorySectionSettingsRecord({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    editorNotes: params.notes ?? current?.editorNotes ?? null,
+    excludedPostIds: current?.excludedPostIds ?? [],
+    templateId: params.templateId ?? current?.templateId ?? null,
+    toneRecipeId: params.toneRecipeId ?? current?.toneRecipeId ?? null,
+    promptOverrides: params.promptOverrides ?? current?.promptOverrides ?? {},
+    coverageSnapshot: params.coverage
+      ? (params.coverage as unknown as Record<string, unknown>)
+      : current?.coverageSnapshot ?? {},
+    discussionThreadId: params.discussionThreadId ?? current?.discussionThreadId ?? null,
+    metadata: current?.metadata ?? {},
+    updatedBy: params.editorId,
+  });
+
+  await insertCapsuleHistoryEdit({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    editorId: params.editorId,
+    changeType: "settings_update",
+    reason: params.reason ?? null,
+    payload: {
+      notes: params.notes ?? null,
+      templateId: params.templateId ?? null,
+      toneRecipeId: params.toneRecipeId ?? null,
+    },
+  });
+
+  if (params.coverage) {
+    const persisted = await getCapsuleHistorySnapshotRecord(capsuleIdValue);
+    const promptMemoryRecord = persisted
+      ? coercePromptMemory(persisted.promptMemory)
+      : DEFAULT_PROMPT_MEMORY;
+    const templateRecord = persisted
+      ? coerceTemplatePresets(persisted.templatePresets)
+      : DEFAULT_HISTORY_TEMPLATE_PRESETS;
+    const coverageMeta = persisted
+      ? coerceCoverageMeta(persisted.coverageMeta ?? {})
+      : {
+          weekly: buildEmptyCoverage(),
+          monthly: buildEmptyCoverage(),
+          all_time: buildEmptyCoverage(),
+        };
+    coverageMeta[params.period] = params.coverage;
+    await updateCapsuleHistoryPromptMemory({
+      capsuleId: capsuleIdValue,
+      promptMemory: promptMemoryRecord as unknown as Record<string, unknown>,
+      templates: templateRecord as unknown as Array<Record<string, unknown>>,
+      coverageMeta: coverageMeta as unknown as Record<string, unknown>,
+    });
+  }
+
+  invalidateCapsuleHistoryCache(capsuleIdValue);
+  return getCapsuleHistory(params.capsuleId, ownerId, { forceRefresh: false });
+}
+
+export async function updateCapsuleHistoryPromptSettings(params: {
+  capsuleId: string;
+  editorId: string;
+  promptMemory: CapsuleHistoryPromptMemory;
+  templates?: CapsuleHistoryTemplatePreset[];
+  reason?: string | null;
+}): Promise<CapsuleHistorySnapshot> {
+  const { ownerId } = await requireCapsuleOwnership(params.capsuleId, params.editorId);
+  const capsuleIdValue = normalizeId(params.capsuleId);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.history.prompt.update: invalid capsule identifier");
+  }
+
+  const persisted = await getCapsuleHistorySnapshotRecord(capsuleIdValue);
+  const coverageMeta = persisted
+    ? coerceCoverageMeta(persisted.coverageMeta ?? {})
+    : {
+        weekly: buildEmptyCoverage(),
+        monthly: buildEmptyCoverage(),
+        all_time: buildEmptyCoverage(),
+      };
+
+  await updateCapsuleHistoryPromptMemory({
+    capsuleId: capsuleIdValue,
+    promptMemory: params.promptMemory as unknown as Record<string, unknown>,
+    templates: params.templates
+      ? (params.templates as unknown as Array<Record<string, unknown>>)
+      : persisted?.templatePresets ?? DEFAULT_HISTORY_TEMPLATE_PRESETS,
+    coverageMeta: coverageMeta as unknown as Record<string, unknown>,
+  });
+
+  await insertCapsuleHistoryEdit({
+    capsuleId: capsuleIdValue,
+    period: "weekly",
+    editorId: params.editorId,
+    changeType: "prompt_update",
+    reason: params.reason ?? null,
+    payload: {
+      promptMemory: params.promptMemory,
+    },
+  });
+
+  invalidateCapsuleHistoryCache(capsuleIdValue);
+  return getCapsuleHistory(params.capsuleId, ownerId, { forceRefresh: false });
+}
+
+export async function refineCapsuleHistorySection(params: {
+  capsuleId: string;
+  editorId: string;
+  period: CapsuleHistoryPeriod;
+  instructions?: string | null;
+}): Promise<{ section: CapsuleHistorySectionContent | null; snapshot: CapsuleHistorySnapshot }> {
+  const { ownerId } = await requireCapsuleOwnership(params.capsuleId, params.editorId);
+  const capsuleIdValue = normalizeId(params.capsuleId);
+  if (!capsuleIdValue) {
+    throw new Error("capsules.history.refine: invalid capsule identifier");
+  }
+
+  const snapshot = await getCapsuleHistory(params.capsuleId, ownerId, { forceRefresh: true });
+  const section =
+    snapshot.sections.find((item) => item.period === params.period)?.suggested ?? null;
+
+  await insertCapsuleHistoryEdit({
+    capsuleId: capsuleIdValue,
+    period: params.period,
+    editorId: params.editorId,
+    changeType: "refine_section",
+    reason: params.instructions ?? null,
+    payload: {},
+  });
+
+  return { section, snapshot };
+}
+function computeTimeframeHash(timeframe: CapsuleHistoryTimeframe): string {
+  const hasher = createHash("sha256");
+  hasher.update(timeframe.period);
+  hasher.update(timeframe.start ?? "");
+  hasher.update(timeframe.end ?? "");
+  timeframe.posts.forEach((post) => {
+    hasher.update(post.id);
+    hasher.update(post.createdAt ?? "");
+    hasher.update(post.user ?? "");
+    hasher.update(post.content);
+  });
+  return hasher.digest("hex");
+}
+
+function buildPeriodHashMap(timeframes: CapsuleHistoryTimeframe[]): Record<string, string> {
+  const hashes: Record<string, string> = {};
+  timeframes.forEach((timeframe) => {
+    hashes[timeframe.period] = computeTimeframeHash(timeframe);
+  });
+  return hashes;
+}
+
+function computeSectionContentHash(content: CapsuleHistorySectionContent): string {
+  return createHash("sha256").update(JSON.stringify(content)).digest("hex");
 }
 
 async function generateCapsuleHistoryFromModel(input: {
@@ -1471,42 +2843,103 @@ function buildHistorySections(
   capsuleId: string,
   timeframes: CapsuleHistoryTimeframe[],
   modelSections: HistoryModelSection[] | null,
-): CapsuleHistorySection[] {
-  return timeframes.map((timeframe) => {
+  sources: Record<string, CapsuleHistorySource>,
+): { sections: StoredHistorySection[]; coverage: CoverageMetaMap } {
+  const coverage: CoverageMetaMap = {
+    weekly: buildEmptyCoverage(),
+    monthly: buildEmptyCoverage(),
+    all_time: buildEmptyCoverage(),
+  };
+
+  const sections = timeframes.map((timeframe) => {
+    const period = timeframe.period;
+    const posts = timeframe.posts;
+    const postLookup = new Map<string, CapsuleHistoryPost>();
+    posts.forEach((post) => {
+      postLookup.set(post.id, post);
+      ensurePostSource(sources, capsuleId, post);
+    });
+
     const match =
       modelSections?.find(
         (section) => normalizeHistoryPeriod(section.period) === timeframe.period,
       ) ?? null;
+
     const title = sanitizeHistoryString(match?.title, 80) ?? timeframe.label;
-    const summary =
+    const summaryText =
       sanitizeHistoryString(match?.summary, HISTORY_SUMMARY_LIMIT) ??
       buildFallbackSummary(timeframe);
-    const highlights = sanitizeHistoryArray(match?.highlights, HISTORY_HIGHLIGHT_LIMIT);
-    const nextFocus = sanitizeHistoryArray(match?.next_focus, HISTORY_NEXT_FOCUS_LIMIT, 160);
-    const timeline = coerceTimelineEntries(match?.timeline, capsuleId);
 
-    const resolvedHighlights = highlights.length
-      ? highlights
+    const summaryBlock = makeContentBlock({
+      period,
+      kind: "summary",
+      index: 0,
+      text: summaryText,
+      seed: `${period}-summary`,
+    });
+
+    const modelHighlights = sanitizeHistoryArray(match?.highlights, HISTORY_HIGHLIGHT_LIMIT);
+    const resolvedHighlights = modelHighlights.length
+      ? modelHighlights
       : sanitizeHistoryArray(buildFallbackHighlights(timeframe), HISTORY_HIGHLIGHT_LIMIT);
-    const resolvedNextFocus = nextFocus.length
-      ? nextFocus
+    const highlightBlocks = resolvedHighlights.map((text, index) =>
+      makeContentBlock({
+        period,
+        kind: "highlight",
+        index,
+        text,
+        seed: `${period}-highlight-${index}`,
+      }),
+    );
+
+    const modelNextFocus = sanitizeHistoryArray(match?.next_focus, HISTORY_NEXT_FOCUS_LIMIT, 160);
+    const resolvedNextFocus = modelNextFocus.length
+      ? modelNextFocus
       : sanitizeHistoryArray(buildFallbackNextFocus(timeframe), HISTORY_NEXT_FOCUS_LIMIT, 160);
-    const resolvedTimeline = timeline.length ? timeline : buildFallbackTimeline(capsuleId, timeframe);
+    const nextFocusBlocks = resolvedNextFocus.map((text, index) =>
+      makeContentBlock({
+        period,
+        kind: "next",
+        index,
+        text,
+        seed: `${period}-next-${index}`,
+      }),
+    );
+
+    const modelTimeline = coerceTimelineEntries(
+      match?.timeline,
+      capsuleId,
+      period,
+      sources,
+      postLookup,
+    );
+    const resolvedTimeline = modelTimeline.length
+      ? modelTimeline
+      : buildFallbackTimelineEntries(capsuleId, timeframe, sources);
 
     const isEmpty = Boolean(match?.empty) || timeframe.posts.length === 0;
 
-    return {
-      period: timeframe.period,
-      title,
-      summary,
-      highlights: resolvedHighlights,
-      nextFocus: resolvedNextFocus,
+    const content: CapsuleHistorySectionContent = {
+      summary: summaryBlock,
+      highlights: highlightBlocks,
       timeline: resolvedTimeline,
-      timeframe: { start: timeframe.start, end: timeframe.end },
-      postCount: timeframe.posts.length,
-      isEmpty,
+      nextFocus: nextFocusBlocks,
     };
+
+    const section: StoredHistorySection = {
+      period,
+      title,
+      timeframe: { start: timeframe.start, end: timeframe.end },
+      postCount: posts.length,
+      isEmpty,
+      content,
+    };
+
+    coverage[period] = computeCoverageMetrics(timeframe, content);
+    return section;
   });
+
+  return { sections, coverage };
 }
 
 async function buildCapsuleHistorySnapshot({
@@ -1515,37 +2948,86 @@ async function buildCapsuleHistorySnapshot({
 }: {
   capsuleId: string;
   capsuleName: string | null;
-}): Promise<CapsuleHistorySnapshot> {
+}): Promise<{
+  suggestedSnapshot: StoredHistorySnapshot;
+  suggestedPeriodHashes: Record<string, string>;
+  coverage: CoverageMetaMap;
+  latestTimelineAt: string | null;
+}> {
   const posts = await loadCapsuleHistoryPosts(capsuleId, HISTORY_POST_LIMIT);
   const now = new Date();
   const nowIso = now.toISOString();
   const timeframes = buildHistoryTimeframes(posts, now);
+  const periodHashes = buildPeriodHashMap(timeframes);
+  const sources: Record<string, CapsuleHistorySource> = {};
 
   if (!posts.length) {
-    const sections = timeframes.map<CapsuleHistorySection>((timeframe) => ({
-      period: timeframe.period,
-      title: timeframe.label,
-      summary: buildFallbackSummary(timeframe),
-      highlights: sanitizeHistoryArray(
+    const sections = timeframes.map<StoredHistorySection>((timeframe) => {
+      const summaryText = buildFallbackSummary(timeframe);
+      const summaryBlock = makeContentBlock({
+        period: timeframe.period,
+        kind: "summary",
+        index: 0,
+        text: summaryText,
+        seed: `${timeframe.period}-summary`,
+      });
+      const highlightBlocks = sanitizeHistoryArray(
         buildFallbackHighlights(timeframe),
         HISTORY_HIGHLIGHT_LIMIT,
-      ),
-      nextFocus: sanitizeHistoryArray(
+      ).map((text, index) =>
+        makeContentBlock({
+          period: timeframe.period,
+          kind: "highlight",
+          index,
+          text,
+          seed: `${timeframe.period}-highlight-${index}`,
+        }),
+      );
+      const nextFocusBlocks = sanitizeHistoryArray(
         buildFallbackNextFocus(timeframe),
         HISTORY_NEXT_FOCUS_LIMIT,
         160,
-      ),
-      timeline: buildFallbackTimeline(capsuleId, timeframe),
-      timeframe: { start: timeframe.start, end: timeframe.end },
-      postCount: 0,
-      isEmpty: true,
-    }));
+      ).map((text, index) =>
+        makeContentBlock({
+          period: timeframe.period,
+          kind: "next",
+          index,
+          text,
+          seed: `${timeframe.period}-next-${index}`,
+        }),
+      );
+      return {
+        period: timeframe.period,
+        title: timeframe.label,
+        timeframe: { start: timeframe.start, end: timeframe.end },
+        postCount: 0,
+        isEmpty: true,
+        content: {
+          summary: summaryBlock,
+          highlights: highlightBlocks,
+          timeline: [],
+          nextFocus: nextFocusBlocks,
+        },
+      };
+    });
+
+    const coverage: CoverageMetaMap = {
+      weekly: buildEmptyCoverage(),
+      monthly: buildEmptyCoverage(),
+      all_time: buildEmptyCoverage(),
+    };
 
     return {
-      capsuleId,
-      capsuleName,
-      generatedAt: nowIso,
-      sections,
+      suggestedSnapshot: {
+        capsuleId,
+        capsuleName,
+        generatedAt: nowIso,
+        sections,
+        sources,
+      },
+      suggestedPeriodHashes: periodHashes,
+      coverage,
+      latestTimelineAt: null,
     };
   }
 
@@ -1570,12 +3052,24 @@ async function buildCapsuleHistorySnapshot({
     console.error("capsules.history.generate", error);
   }
 
-  const sections = buildHistorySections(capsuleId, timeframes, modelSections);
-  return {
+  const { sections, coverage } = buildHistorySections(
+    capsuleId,
+    timeframes,
+    modelSections,
+    sources,
+  );
+  const snapshot: StoredHistorySnapshot = {
     capsuleId,
     capsuleName,
     generatedAt,
     sections,
+    sources,
+  };
+  return {
+    suggestedSnapshot: snapshot,
+    suggestedPeriodHashes: periodHashes,
+    coverage,
+    latestTimelineAt: extractLatestTimelineTimestampFromStored(snapshot),
   };
 }
 
@@ -1613,7 +3107,7 @@ export async function getCapsuleHistory(
     if (
       cachedEntry &&
       !historySnapshotIsStale({
-        generatedAtMs: cachedEntry.generatedAtMs,
+        suggestedGeneratedAtMs: cachedEntry.suggestedGeneratedAtMs,
         storedLatestPostAt: cachedEntry.latestPostAt,
         activityLatestPostAt: activity.latestPostAt,
       })
@@ -1622,46 +3116,129 @@ export async function getCapsuleHistory(
     }
   }
 
-  if (!options.forceRefresh) {
-    const persisted = await getCapsuleHistorySnapshotRecord(capsuleIdValue);
+  let persisted = await getCapsuleHistorySnapshotRecord(capsuleIdValue);
+  let promptMemory = coercePromptMemory(persisted?.promptMemory ?? DEFAULT_PROMPT_MEMORY);
+  let templates = coerceTemplatePresets(
+    persisted?.templatePresets ?? DEFAULT_HISTORY_TEMPLATE_PRESETS,
+  );
+  let coverageMeta = persisted
+    ? coerceCoverageMeta(persisted.coverageMeta ?? {})
+    : {
+        weekly: buildEmptyCoverage(),
+        monthly: buildEmptyCoverage(),
+        all_time: buildEmptyCoverage(),
+      };
+  let suggestedSnapshot = persisted ? coerceStoredSnapshot(persisted.suggestedSnapshot) : null;
+  let publishedSnapshot = persisted ? coerceStoredSnapshot(persisted.publishedSnapshot ?? null) : null;
+  let suggestedPeriodHashes = persisted?.suggestedPeriodHashes ?? {};
+  let latestTimelineAt = persisted?.suggestedLatestPostAt ?? null;
+
+  let shouldRefresh = Boolean(options.forceRefresh || !persisted || !suggestedSnapshot);
+  if (!shouldRefresh && persisted) {
+    shouldRefresh = historySnapshotIsStale({
+      suggestedGeneratedAtMs: toTimestamp(persisted.suggestedGeneratedAt) ?? Date.now(),
+      storedLatestPostAt: persisted.suggestedLatestPostAt,
+      activityLatestPostAt: activity.latestPostAt,
+    });
+  }
+
+  if (shouldRefresh) {
+    const generated = await buildCapsuleHistorySnapshot({
+      capsuleId: capsuleIdValue,
+      capsuleName: normalizeOptionalString(capsule.name ?? null),
+    });
+    suggestedSnapshot = generated.suggestedSnapshot;
+    suggestedPeriodHashes = generated.suggestedPeriodHashes;
+    coverageMeta = generated.coverage;
+    latestTimelineAt = generated.latestTimelineAt ?? activity.latestPostAt ?? null;
+
+    await upsertCapsuleHistorySnapshotRecord({
+      capsuleId: capsuleIdValue,
+      suggestedSnapshot: generated.suggestedSnapshot as unknown as Record<string, unknown>,
+      suggestedGeneratedAt: generated.suggestedSnapshot.generatedAt,
+      suggestedLatestPostAt: latestTimelineAt,
+      postCount: activity.postCount,
+      suggestedPeriodHashes,
+      promptMemory,
+      templatePresets: templates,
+      coverageMeta,
+    });
+
+    persisted = await getCapsuleHistorySnapshotRecord(capsuleIdValue);
     if (persisted) {
-      const generatedAtMs = toTimestamp(persisted.generatedAt) ?? Date.now();
-      if (
-        !historySnapshotIsStale({
-          generatedAtMs,
-          storedLatestPostAt: persisted.latestPostAt,
-          activityLatestPostAt: activity.latestPostAt,
-        })
-      ) {
-        setCachedCapsuleHistory(capsuleIdValue, persisted.snapshot, {
-          latestPostAt: persisted.latestPostAt,
-        });
-        return persisted.snapshot;
-      }
+      promptMemory = coercePromptMemory(persisted.promptMemory ?? promptMemory);
+      templates = coerceTemplatePresets(persisted.templatePresets ?? templates);
+      coverageMeta = coerceCoverageMeta(persisted.coverageMeta ?? coverageMeta);
+      suggestedPeriodHashes = persisted.suggestedPeriodHashes ?? suggestedPeriodHashes;
+      latestTimelineAt = persisted.suggestedLatestPostAt ?? latestTimelineAt;
+      suggestedSnapshot = coerceStoredSnapshot(persisted.suggestedSnapshot) ?? suggestedSnapshot;
+      publishedSnapshot = coerceStoredSnapshot(persisted.publishedSnapshot ?? null);
     }
   }
 
-  const snapshot = await buildCapsuleHistorySnapshot({
+  const sectionSettings = await listCapsuleHistorySectionSettings(capsuleIdValue);
+  const pins = await listCapsuleHistoryPins(capsuleIdValue);
+  const exclusions = await listCapsuleHistoryExclusions(capsuleIdValue);
+  const edits = await listCapsuleHistoryEdits(capsuleIdValue, { limit: 200 });
+  const topicPages = await listCapsuleTopicPages(capsuleIdValue);
+  const backlinks = await listCapsuleTopicPageBacklinks(capsuleIdValue);
+
+  const response = composeCapsuleHistorySnapshot({
     capsuleId: capsuleIdValue,
     capsuleName: normalizeOptionalString(capsule.name ?? null),
+    suggested: suggestedSnapshot,
+    published: publishedSnapshot,
+    coverage: coverageMeta,
+    promptMemory,
+    templates,
+    sectionSettings,
+    pins,
+    exclusions,
+    edits,
+    topicPages,
+    backlinks,
   });
-  const latestFromSnapshot =
-    activity.latestPostAt ?? extractLatestTimelineTimestamp(snapshot) ?? null;
-  setCachedCapsuleHistory(capsuleIdValue, snapshot, { latestPostAt: latestFromSnapshot });
 
-  try {
-    await upsertCapsuleHistorySnapshotRecord({
-      capsuleId: capsuleIdValue,
-      snapshot,
-      generatedAt: snapshot.generatedAt,
-      latestPostAt: latestFromSnapshot,
-      postCount: activity.postCount,
-    });
-  } catch (error) {
-    console.warn("capsules.history snapshot persistence failed", error);
+  setCachedCapsuleHistory(capsuleIdValue, response, {
+    latestPostAt: activity.latestPostAt ?? latestTimelineAt ?? null,
+    suggestedPeriodHashes,
+  });
+
+  return response;
+}
+
+export async function refreshStaleCapsuleHistories(params: {
+  limit?: number;
+  staleAfterMinutes?: number;
+} = {}): Promise<{
+  refreshed: number;
+  candidates: number;
+  errors: Array<{ capsuleId: string; error: string }>;
+}> {
+  const limit = Math.max(1, Math.trunc(params.limit ?? 12));
+  const staleAfterMinutes = Math.max(5, Math.trunc(params.staleAfterMinutes ?? 360));
+  const candidates = await listCapsuleHistoryRefreshCandidates({
+    limit,
+    staleAfterMinutes,
+  });
+  let refreshed = 0;
+  const errors: Array<{ capsuleId: string; error: string }> = [];
+
+  for (const candidate of candidates) {
+    try {
+      await getCapsuleHistory(candidate.capsuleId, candidate.ownerId, { forceRefresh: true });
+      refreshed += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push({ capsuleId: candidate.capsuleId, error: message });
+    }
   }
 
-  return snapshot;
+  return {
+    refreshed,
+    candidates: candidates.length,
+    errors,
+  };
 }
 
 function resolveAssetMimeType(

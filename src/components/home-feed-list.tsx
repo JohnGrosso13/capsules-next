@@ -504,6 +504,7 @@ type HomeFeedListProps = {
   hasFetched: boolean;
   isRefreshing: boolean;
   emptyMessage?: string;
+  focusPostId?: string | null;
 };
 
 export function HomeFeedList({
@@ -525,6 +526,7 @@ export function HomeFeedList({
   hasFetched,
   isRefreshing,
   emptyMessage,
+  focusPostId,
 }: HomeFeedListProps) {
   const composer = useComposer();
   const { user: currentUser } = useCurrentUser();
@@ -621,6 +623,47 @@ export function HomeFeedList({
     if (showSkeletons) return [];
     return posts.slice(0, visibleLimit || posts.length);
   }, [showSkeletons, posts, visibleLimit]);
+
+  const [pendingFocusPostId, setPendingFocusPostId] = React.useState<string | null>(() => {
+    if (typeof focusPostId === "string" && focusPostId.trim().length) {
+      return focusPostId.trim();
+    }
+    return null;
+  });
+
+  React.useEffect(() => {
+    if (typeof focusPostId === "string" && focusPostId.trim().length) {
+      const trimmed = focusPostId.trim();
+      setPendingFocusPostId((previous) => (previous === trimmed ? previous : trimmed));
+    } else if (focusPostId === null) {
+      setPendingFocusPostId(null);
+    }
+  }, [focusPostId]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!pendingFocusPostId) return;
+    if (!displayedPosts.length) return;
+    const hasPost = displayedPosts.some((post) => post.id === pendingFocusPostId);
+    if (!hasPost) return;
+
+    const raf = window.requestAnimationFrame(() => {
+      const escapedId =
+        typeof CSS !== "undefined" && typeof CSS.escape === "function"
+          ? CSS.escape(pendingFocusPostId)
+          : pendingFocusPostId.replace(/["'\\]/g, "\\$&");
+      const card = document.querySelector<HTMLElement>(`[data-post-id="${escapedId}"]`);
+      if (!card) return;
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.setAttribute("data-summary-flash", "true");
+      window.setTimeout(() => {
+        card.removeAttribute("data-summary-flash");
+      }, 2400);
+      setPendingFocusPostId(null);
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [pendingFocusPostId, displayedPosts]);
   const viewerEnvelope = React.useMemo(() => {
     if (!currentUser) return null;
     const provider = currentUser.provider ?? "guest";

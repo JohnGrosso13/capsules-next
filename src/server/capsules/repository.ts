@@ -96,15 +96,111 @@ type PostCapsuleRow = {
 
 type CapsuleHistorySnapshotRow = {
   capsule_id: string | null;
-  generated_at: string | null;
-  latest_post_at: string | null;
+  suggested_generated_at: string | null;
+  suggested_latest_post_at: string | null;
   post_count: number | null;
-  snapshot: Record<string, unknown> | null;
+  suggested_snapshot: Record<string, unknown> | null;
   updated_at: string | null;
+  suggested_period_hashes: Record<string, unknown> | null;
+  published_snapshot: Record<string, unknown> | null;
+  published_generated_at: string | null;
+  published_latest_post_at: string | null;
+  published_period_hashes: Record<string, unknown> | null;
+  published_editor_id: string | null;
+  published_editor_reason: string | null;
+  prompt_memory: Record<string, unknown> | null;
+  template_presets: Record<string, unknown> | null;
+  coverage_meta: Record<string, unknown> | null;
 };
 
 type CapsuleHistoryActivityRow = {
   id: string | null;
+  created_at: string | null;
+};
+
+type CapsuleHistoryRefreshCandidateRow = {
+  capsule_id: string | null;
+  owner_user_id: string | null;
+  snapshot_generated_at: string | null;
+  snapshot_latest_post: string | null;
+  latest_post: string | null;
+};
+
+type CapsuleHistorySectionSettingsRow = {
+  capsule_id: string | null;
+  period: string | null;
+  editor_notes: string | null;
+  excluded_post_ids: unknown;
+  template_id: string | null;
+  tone_recipe_id: string | null;
+  prompt_overrides: Record<string, unknown> | null;
+  coverage_snapshot: Record<string, unknown> | null;
+  discussion_thread_id: string | null;
+  metadata: Record<string, unknown> | null;
+  updated_at: string | null;
+  updated_by: string | null;
+};
+
+type CapsuleHistoryPinRow = {
+  id: string | null;
+  capsule_id: string | null;
+  period: string | null;
+  pin_type: string | null;
+  post_id: string | null;
+  quote: string | null;
+  source: Record<string, unknown> | null;
+  rank: number | null;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+type CapsuleHistoryExclusionRow = {
+  capsule_id: string | null;
+  period: string | null;
+  post_id: string | null;
+  created_by: string | null;
+  created_at: string | null;
+};
+
+type CapsuleHistoryEditRow = {
+  id: string | null;
+  capsule_id: string | null;
+  period: string | null;
+  editor_id: string | null;
+  change_type: string | null;
+  reason: string | null;
+  payload: Record<string, unknown> | null;
+  snapshot: Record<string, unknown> | null;
+  created_at: string | null;
+};
+
+type CapsuleTopicPageRow = {
+  id: string | null;
+  capsule_id: string | null;
+  slug: string | null;
+  title: string | null;
+  description: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+type CapsuleTopicPagePostRow = {
+  topic_page_id: string | null;
+  post_id: string | null;
+  created_by: string | null;
+  created_at: string | null;
+};
+
+type CapsuleTopicPageBacklinkRow = {
+  id: string | null;
+  topic_page_id: string | null;
+  capsule_id: string | null;
+  source_type: string | null;
+  source_id: string | null;
+  period: string | null;
   created_at: string | null;
 };
 
@@ -142,6 +238,29 @@ function normalizeString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+function normalizeHistoryPeriodValue(value: unknown): CapsuleHistoryPeriod | null {
+  const normalized = normalizeString(value);
+  if (!normalized) return null;
+  if (normalized === "weekly" || normalized === "monthly" || normalized === "all_time") {
+    return normalized;
+  }
+  return null;
+}
+
+function coerceStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const result: string[] = [];
+  value.forEach((entry) => {
+    if (typeof entry === "string") {
+      const normalized = entry.trim();
+      if (normalized.length) {
+        result.push(normalized);
+      }
+    }
+  });
+  return result;
 }
 
 const NAME_LIMIT = 80;
@@ -1024,11 +1143,92 @@ export async function listCapsuleAssets(params: {
 
 export type CapsuleHistorySnapshotRecord = {
   capsuleId: string;
-  generatedAt: string;
-  latestPostAt: string | null;
+  suggestedGeneratedAt: string;
+  suggestedLatestPostAt: string | null;
   postCount: number;
-  snapshot: CapsuleHistorySnapshot;
+  suggestedSnapshot: Record<string, unknown>;
+  suggestedPeriodHashes: Record<string, string>;
+  publishedSnapshot: Record<string, unknown> | null;
+  publishedGeneratedAt: string | null;
+  publishedLatestPostAt: string | null;
+  publishedPeriodHashes: Record<string, string>;
+  publishedEditorId: string | null;
+  publishedEditorReason: string | null;
+  promptMemory: Record<string, unknown>;
+  templatePresets: Array<Record<string, unknown>>;
+  coverageMeta: Record<string, unknown>;
   updatedAt: string | null;
+};
+
+export type CapsuleHistorySectionSettings = {
+  capsuleId: string;
+  period: CapsuleHistoryPeriod;
+  editorNotes: string | null;
+  excludedPostIds: string[];
+  templateId: string | null;
+  toneRecipeId: string | null;
+  promptOverrides: Record<string, unknown>;
+  coverageSnapshot: Record<string, unknown>;
+  discussionThreadId: string | null;
+  metadata: Record<string, unknown>;
+  updatedAt: string | null;
+  updatedBy: string | null;
+};
+
+export type CapsuleHistoryPin = {
+  id: string;
+  capsuleId: string;
+  period: CapsuleHistoryPeriod;
+  type: string;
+  postId: string | null;
+  quote: string | null;
+  source: Record<string, unknown>;
+  rank: number;
+  createdBy: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type CapsuleHistoryExclusion = {
+  capsuleId: string;
+  period: CapsuleHistoryPeriod;
+  postId: string;
+  createdBy: string;
+  createdAt: string | null;
+};
+
+export type CapsuleHistoryEdit = {
+  id: string;
+  capsuleId: string;
+  period: CapsuleHistoryPeriod;
+  editorId: string;
+  changeType: string;
+  reason: string | null;
+  payload: Record<string, unknown>;
+  snapshot: Record<string, unknown> | null;
+  createdAt: string | null;
+};
+
+export type CapsuleTopicPage = {
+  id: string;
+  capsuleId: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type CapsuleTopicPageBacklink = {
+  id: string;
+  topicPageId: string;
+  capsuleId: string;
+  sourceType: string;
+  sourceId: string;
+  period: string | null;
+  createdAt: string | null;
 };
 
 export async function getCapsuleHistorySnapshotRecord(
@@ -1040,7 +1240,24 @@ export async function getCapsuleHistorySnapshotRecord(
   const result = await db
     .from("capsule_history_snapshots")
     .select<CapsuleHistorySnapshotRow>(
-      "capsule_id, generated_at, latest_post_at, post_count, snapshot, updated_at",
+      [
+        "capsule_id",
+        "suggested_generated_at",
+        "suggested_latest_post_at",
+        "post_count",
+        "suggested_snapshot",
+        "updated_at",
+        "suggested_period_hashes",
+        "published_snapshot",
+        "published_generated_at",
+        "published_latest_post_at",
+        "published_period_hashes",
+        "published_editor_id",
+        "published_editor_reason",
+        "prompt_memory",
+        "template_presets",
+        "coverage_meta",
+      ].join(", "),
     )
     .eq("capsule_id", normalizedCapsuleId)
     .maybeSingle();
@@ -1052,41 +1269,661 @@ export async function getCapsuleHistorySnapshotRecord(
   const row = result.data ?? null;
   if (!row) return null;
 
-  const snapshotPayload =
-    row.snapshot && typeof row.snapshot === "object" ? (row.snapshot as CapsuleHistorySnapshot) : null;
-  const generatedAt = normalizeString(row.generated_at);
-  if (!snapshotPayload || !generatedAt) return null;
+  const suggestedSnapshot =
+    row.suggested_snapshot && typeof row.suggested_snapshot === "object"
+      ? (row.suggested_snapshot as Record<string, unknown>)
+      : null;
+  const suggestedGeneratedAt = normalizeString(row.suggested_generated_at);
+  if (!suggestedSnapshot || !suggestedGeneratedAt) return null;
+
+  const suggestedPeriodHashesRaw =
+    row.suggested_period_hashes && typeof row.suggested_period_hashes === "object"
+      ? (row.suggested_period_hashes as Record<string, unknown>)
+      : {};
+  const publishedPeriodHashesRaw =
+    row.published_period_hashes && typeof row.published_period_hashes === "object"
+      ? (row.published_period_hashes as Record<string, unknown>)
+      : {};
 
   return {
     capsuleId: normalizedCapsuleId,
-    generatedAt,
-    latestPostAt: normalizeString(row.latest_post_at),
+    suggestedGeneratedAt,
+    suggestedLatestPostAt: normalizeString(row.suggested_latest_post_at),
     postCount: typeof row.post_count === "number" && Number.isFinite(row.post_count) ? row.post_count : 0,
-    snapshot: snapshotPayload,
+    suggestedSnapshot,
+    suggestedPeriodHashes: Object.fromEntries(
+      Object.entries(suggestedPeriodHashesRaw).map(([key, value]) => [key, String(value ?? "")]),
+    ),
+    publishedSnapshot:
+      row.published_snapshot && typeof row.published_snapshot === "object"
+        ? (row.published_snapshot as Record<string, unknown>)
+        : null,
+    publishedGeneratedAt: normalizeString(row.published_generated_at),
+    publishedLatestPostAt: normalizeString(row.published_latest_post_at),
+    publishedPeriodHashes: Object.fromEntries(
+      Object.entries(publishedPeriodHashesRaw).map(([key, value]) => [key, String(value ?? "")]),
+    ),
+    publishedEditorId: normalizeString(row.published_editor_id),
+    publishedEditorReason: normalizeString(row.published_editor_reason),
+    promptMemory:
+      row.prompt_memory && typeof row.prompt_memory === "object"
+        ? (row.prompt_memory as Record<string, unknown>)
+        : {},
+    templatePresets: Array.isArray(row.template_presets)
+      ? (row.template_presets as Array<Record<string, unknown>>)
+      : [],
+    coverageMeta:
+      row.coverage_meta && typeof row.coverage_meta === "object"
+        ? (row.coverage_meta as Record<string, unknown>)
+        : {},
     updatedAt: normalizeString(row.updated_at),
   };
 }
 
-export async function upsertCapsuleHistorySnapshotRecord(params: {
+export async function listCapsuleHistorySectionSettings(
+  capsuleId: string,
+): Promise<CapsuleHistorySectionSettings[]> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  if (!normalizedCapsuleId) return [];
+
+  const result = await db
+    .from("capsule_history_section_settings")
+    .select<CapsuleHistorySectionSettingsRow>(
+      "capsule_id, period, editor_notes, excluded_post_ids, template_id, tone_recipe_id, prompt_overrides, coverage_snapshot, discussion_thread_id, metadata, updated_at, updated_by",
+    )
+    .eq("capsule_id", normalizedCapsuleId);
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.historySections.settings.list", result.error);
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+
+  return rows
+    .map((row) => {
+      const period = normalizeHistoryPeriodValue(row.period);
+      if (!period) return null;
+      return {
+        capsuleId: normalizedCapsuleId,
+        period,
+        editorNotes: typeof row.editor_notes === "string" ? row.editor_notes : null,
+        excludedPostIds: coerceStringArray(row.excluded_post_ids),
+        templateId: normalizeString(row.template_id),
+        toneRecipeId: normalizeString(row.tone_recipe_id),
+        promptOverrides:
+          row.prompt_overrides && typeof row.prompt_overrides === "object"
+            ? (row.prompt_overrides as Record<string, unknown>)
+            : {},
+        coverageSnapshot:
+          row.coverage_snapshot && typeof row.coverage_snapshot === "object"
+            ? (row.coverage_snapshot as Record<string, unknown>)
+            : {},
+        discussionThreadId: normalizeString(row.discussion_thread_id),
+        metadata:
+          row.metadata && typeof row.metadata === "object"
+            ? (row.metadata as Record<string, unknown>)
+            : {},
+        updatedAt: normalizeString(row.updated_at),
+        updatedBy: normalizeString(row.updated_by),
+      } satisfies CapsuleHistorySectionSettings;
+    })
+    .filter((entry): entry is CapsuleHistorySectionSettings => Boolean(entry));
+}
+
+export async function listCapsuleHistoryPins(capsuleId: string): Promise<CapsuleHistoryPin[]> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  if (!normalizedCapsuleId) return [];
+
+  const result = await db
+    .from("capsule_history_pins")
+    .select<CapsuleHistoryPinRow>(
+      "id, capsule_id, period, pin_type, post_id, quote, source, rank, created_by, created_at, updated_at",
+    )
+    .eq("capsule_id", normalizedCapsuleId)
+    .order("period", { ascending: true })
+    .order("pin_type", { ascending: true })
+    .order("rank", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.historyPins.list", result.error);
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+
+  return rows
+    .map((row) => {
+      const id = normalizeString(row.id);
+      const period = normalizeHistoryPeriodValue(row.period);
+      const type = normalizeString(row.pin_type);
+      if (!id || !period || !type) return null;
+      const source =
+        row.source && typeof row.source === "object"
+          ? (row.source as Record<string, unknown>)
+          : {};
+      const rank =
+        typeof row.rank === "number" && Number.isFinite(row.rank) ? Math.max(0, row.rank) : 0;
+
+      return {
+        id,
+        capsuleId: normalizedCapsuleId,
+        period,
+        type,
+        postId: normalizeString(row.post_id),
+        quote: typeof row.quote === "string" ? row.quote : null,
+        source,
+        rank,
+        createdBy: normalizeString(row.created_by),
+        createdAt: normalizeString(row.created_at),
+        updatedAt: normalizeString(row.updated_at),
+      } satisfies CapsuleHistoryPin;
+    })
+    .filter((entry): entry is CapsuleHistoryPin => Boolean(entry));
+}
+
+export async function listCapsuleHistoryExclusions(
+  capsuleId: string,
+): Promise<CapsuleHistoryExclusion[]> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  if (!normalizedCapsuleId) return [];
+
+  const result = await db
+    .from("capsule_history_exclusions")
+    .select<CapsuleHistoryExclusionRow>(
+      "capsule_id, period, post_id, created_by, created_at",
+    )
+    .eq("capsule_id", normalizedCapsuleId);
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.historyExclusions.list", result.error);
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+
+  return rows
+    .map((row) => {
+      const period = normalizeHistoryPeriodValue(row.period);
+      const postId = normalizeString(row.post_id);
+      const createdBy = normalizeString(row.created_by);
+      if (!period || !postId || !createdBy) return null;
+
+      return {
+        capsuleId: normalizedCapsuleId,
+        period,
+        postId,
+        createdBy,
+        createdAt: normalizeString(row.created_at),
+      } satisfies CapsuleHistoryExclusion;
+    })
+    .filter((entry): entry is CapsuleHistoryExclusion => Boolean(entry));
+}
+
+export async function listCapsuleHistoryEdits(
+  capsuleId: string,
+  options: { limit?: number } = {},
+): Promise<CapsuleHistoryEdit[]> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  if (!normalizedCapsuleId) return [];
+
+  const limit = Math.max(1, Math.trunc(options.limit ?? 100));
+
+  const result = await db
+    .from("capsule_history_edits")
+    .select<CapsuleHistoryEditRow>(
+      "id, capsule_id, period, editor_id, change_type, reason, payload, snapshot, created_at",
+    )
+    .eq("capsule_id", normalizedCapsuleId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.historyEdits.list", result.error);
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+
+  return rows
+    .map((row) => {
+      const id = normalizeString(row.id);
+      const period = normalizeHistoryPeriodValue(row.period);
+      const editorId = normalizeString(row.editor_id);
+      const changeType = normalizeString(row.change_type);
+      if (!id || !period || !editorId || !changeType) return null;
+
+      return {
+        id,
+        capsuleId: normalizedCapsuleId,
+        period,
+        editorId,
+        changeType,
+        reason: typeof row.reason === "string" ? row.reason : null,
+        payload:
+          row.payload && typeof row.payload === "object"
+            ? (row.payload as Record<string, unknown>)
+            : {},
+        snapshot:
+          row.snapshot && typeof row.snapshot === "object"
+            ? (row.snapshot as Record<string, unknown>)
+            : null,
+        createdAt: normalizeString(row.created_at),
+      } satisfies CapsuleHistoryEdit;
+    })
+    .filter((entry): entry is CapsuleHistoryEdit => Boolean(entry));
+}
+
+export async function listCapsuleTopicPages(
+  capsuleId: string,
+): Promise<CapsuleTopicPage[]> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  if (!normalizedCapsuleId) return [];
+
+  const result = await db
+    .from("capsule_topic_pages")
+    .select<CapsuleTopicPageRow>(
+      "id, capsule_id, slug, title, description, created_by, updated_by, created_at, updated_at",
+    )
+    .eq("capsule_id", normalizedCapsuleId)
+    .order("title", { ascending: true });
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.topicPages.list", result.error);
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+
+  return rows
+    .map((row) => {
+      const id = normalizeString(row.id);
+      const slug = normalizeString(row.slug);
+      const title = normalizeString(row.title);
+      if (!id || !slug || !title) return null;
+
+      return {
+        id,
+        capsuleId: normalizedCapsuleId,
+        slug,
+        title,
+        description: typeof row.description === "string" ? row.description : null,
+        createdBy: normalizeString(row.created_by),
+        updatedBy: normalizeString(row.updated_by),
+        createdAt: normalizeString(row.created_at),
+        updatedAt: normalizeString(row.updated_at),
+      } satisfies CapsuleTopicPage;
+    })
+    .filter((entry): entry is CapsuleTopicPage => Boolean(entry));
+}
+
+export async function listCapsuleTopicPageBacklinks(
+  capsuleId: string,
+): Promise<CapsuleTopicPageBacklink[]> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  if (!normalizedCapsuleId) return [];
+
+  const result = await db
+    .from("capsule_topic_page_backlinks")
+    .select<CapsuleTopicPageBacklinkRow>(
+      "id, topic_page_id, capsule_id, source_type, source_id, period, created_at",
+    )
+    .eq("capsule_id", normalizedCapsuleId)
+    .order("created_at", { ascending: false });
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.topicPages.backlinks.list", result.error);
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+
+  return rows
+    .map((row) => {
+      const id = normalizeString(row.id);
+      const topicPageId = normalizeString(row.topic_page_id);
+      const sourceType = normalizeString(row.source_type);
+      const sourceId = normalizeString(row.source_id);
+      if (!id || !topicPageId || !sourceType || !sourceId) return null;
+
+      return {
+        id,
+        topicPageId,
+        capsuleId: normalizedCapsuleId,
+        sourceType,
+        sourceId,
+        period: normalizeString(row.period),
+        createdAt: normalizeString(row.created_at),
+      } satisfies CapsuleTopicPageBacklink;
+    })
+    .filter((entry): entry is CapsuleTopicPageBacklink => Boolean(entry));
+}
+
+export async function upsertCapsuleHistorySectionSettingsRecord(params: {
   capsuleId: string;
-  snapshot: CapsuleHistorySnapshot;
-  generatedAt: string;
-  latestPostAt: string | null;
-  postCount: number;
-}): Promise<void> {
+  period: CapsuleHistoryPeriod;
+  editorNotes?: string | null;
+  excludedPostIds?: string[];
+  templateId?: string | null;
+  toneRecipeId?: string | null;
+  promptOverrides?: Record<string, unknown> | null;
+  coverageSnapshot?: Record<string, unknown> | null;
+  discussionThreadId?: string | null;
+  metadata?: Record<string, unknown> | null;
+  updatedBy: string;
+}): Promise<CapsuleHistorySectionSettings> {
   const normalizedCapsuleId = normalizeString(params.capsuleId);
-  const generatedAt = normalizeString(params.generatedAt);
-  if (!normalizedCapsuleId || !generatedAt) {
-    throw new Error("capsules.historySnapshots.upsert: capsuleId and generatedAt are required");
+  const period = normalizeHistoryPeriodValue(params.period);
+  const updaterId = normalizeString(params.updatedBy);
+  if (!normalizedCapsuleId || !period || !updaterId) {
+    throw new Error("capsules.history.sectionSettings.upsert: invalid parameters");
   }
 
   const payload = {
     capsule_id: normalizedCapsuleId,
-    generated_at: generatedAt,
-    latest_post_at: params.latestPostAt ? normalizeString(params.latestPostAt) : null,
-    post_count: Number.isFinite(params.postCount) ? Math.max(0, Math.trunc(params.postCount)) : 0,
-    snapshot: params.snapshot as unknown as Record<string, unknown>,
+    period,
+    editor_notes: params.editorNotes ?? null,
+    excluded_post_ids: params.excludedPostIds ?? [],
+    template_id: normalizeString(params.templateId ?? null),
+    tone_recipe_id: normalizeString(params.toneRecipeId ?? null),
+    prompt_overrides: params.promptOverrides ?? {},
+    coverage_snapshot: params.coverageSnapshot ?? {},
+    discussion_thread_id: normalizeString(params.discussionThreadId ?? null),
+    metadata: params.metadata ?? {},
+    updated_by: updaterId,
+    updated_at: new Date().toISOString(),
   };
+
+  const result = await db
+    .from("capsule_history_section_settings")
+    .upsert(payload, { onConflict: "capsule_id,period" })
+    .select<CapsuleHistorySectionSettingsRow>(
+      "capsule_id, period, editor_notes, excluded_post_ids, template_id, tone_recipe_id, prompt_overrides, coverage_snapshot, discussion_thread_id, metadata, updated_at, updated_by",
+    )
+    .eq("capsule_id", normalizedCapsuleId)
+    .eq("period", period)
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.history.sectionSettings.upsert", result.error);
+  }
+
+  const row = result.data;
+  if (!row) {
+    throw new Error("capsules.history.sectionSettings.upsert: upsert failed");
+  }
+
+  return {
+    capsuleId: normalizedCapsuleId,
+    period,
+    editorNotes: typeof row.editor_notes === "string" ? row.editor_notes : null,
+    excludedPostIds: coerceStringArray(row.excluded_post_ids),
+    templateId: normalizeString(row.template_id),
+    toneRecipeId: normalizeString(row.tone_recipe_id),
+    promptOverrides: row.prompt_overrides ?? {},
+    coverageSnapshot: row.coverage_snapshot ?? {},
+    discussionThreadId: normalizeString(row.discussion_thread_id),
+    metadata: row.metadata ?? {},
+    updatedAt: normalizeString(row.updated_at),
+    updatedBy: normalizeString(row.updated_by),
+  };
+}
+
+export async function insertCapsuleHistoryEdit(params: {
+  capsuleId: string;
+  period: CapsuleHistoryPeriod;
+  editorId: string;
+  changeType: string;
+  reason?: string | null;
+  payload?: Record<string, unknown> | null;
+  snapshot?: Record<string, unknown> | null;
+}): Promise<CapsuleHistoryEdit> {
+  const capsuleId = normalizeString(params.capsuleId);
+  const period = normalizeHistoryPeriodValue(params.period);
+  const editorId = normalizeString(params.editorId);
+  const changeType = normalizeString(params.changeType);
+  if (!capsuleId || !period || !editorId || !changeType) {
+    throw new Error("capsules.history.edits.insert: invalid parameters");
+  }
+
+  const result = await db
+    .from("capsule_history_edits")
+    .insert({
+      capsule_id: capsuleId,
+      period,
+      editor_id: editorId,
+      change_type: changeType,
+      reason: params.reason ?? null,
+      payload: params.payload ?? {},
+      snapshot: params.snapshot ?? null,
+    })
+    .select<CapsuleHistoryEditRow>("id, capsule_id, period, editor_id, change_type, reason, payload, snapshot, created_at")
+    .single();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.history.edits.insert", result.error);
+  }
+
+  const row = result.data;
+  return {
+    id: row.id ?? "",
+    capsuleId,
+    period,
+    editorId,
+    changeType,
+    reason: typeof row.reason === "string" ? row.reason : null,
+    payload: row.payload ?? {},
+    snapshot: row.snapshot ?? null,
+    createdAt: normalizeString(row.created_at),
+  };
+}
+
+export async function insertCapsuleHistoryPin(params: {
+  capsuleId: string;
+  period: CapsuleHistoryPeriod;
+  type: string;
+  postId?: string | null;
+  quote?: string | null;
+  source?: Record<string, unknown> | null;
+  rank?: number | null;
+  createdBy: string;
+}): Promise<CapsuleHistoryPin> {
+  const capsuleId = normalizeString(params.capsuleId);
+  const period = normalizeHistoryPeriodValue(params.period);
+  const type = normalizeString(params.type);
+  const createdBy = normalizeString(params.createdBy);
+  if (!capsuleId || !period || !type || !createdBy) {
+    throw new Error("capsules.history.pins.insert: invalid parameters");
+  }
+
+  const payload = {
+    capsule_id: capsuleId,
+    period,
+    pin_type: type,
+    post_id: normalizeString(params.postId ?? null),
+    quote: typeof params.quote === "string" ? params.quote : null,
+    source: params.source ?? {},
+    rank:
+      typeof params.rank === "number" && Number.isFinite(params.rank)
+        ? Math.max(0, Math.trunc(params.rank))
+        : 0,
+    created_by: createdBy,
+  };
+
+  const result = await db
+    .from("capsule_history_pins")
+    .insert(payload)
+    .select<CapsuleHistoryPinRow>(
+      "id, capsule_id, period, pin_type, post_id, quote, source, rank, created_by, created_at, updated_at",
+    )
+    .single();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.history.pins.insert", result.error);
+  }
+
+  const row = result.data;
+  return {
+    id: row.id ?? "",
+    capsuleId,
+    period,
+    type,
+    postId: normalizeString(row.post_id),
+    quote: typeof row.quote === "string" ? row.quote : null,
+    source: row.source ?? {},
+    rank: typeof row.rank === "number" ? row.rank : 0,
+    createdBy,
+    createdAt: normalizeString(row.created_at),
+    updatedAt: normalizeString(row.updated_at),
+  };
+}
+
+export async function deleteCapsuleHistoryPin(params: {
+  capsuleId: string;
+  pinId: string;
+}): Promise<boolean> {
+  const capsuleId = normalizeString(params.capsuleId);
+  const pinId = normalizeString(params.pinId);
+  if (!capsuleId || !pinId) return false;
+
+  const result = await db
+    .from("capsule_history_pins")
+    .delete({ count: "exact" })
+    .eq("capsule_id", capsuleId)
+    .eq("id", pinId)
+    .select("id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.history.pins.delete", result.error);
+  }
+
+  return Boolean(result.count && result.count > 0);
+}
+
+export async function insertCapsuleHistoryExclusion(params: {
+  capsuleId: string;
+  period: CapsuleHistoryPeriod;
+  postId: string;
+  createdBy: string;
+}): Promise<void> {
+  const capsuleId = normalizeString(params.capsuleId);
+  const period = normalizeHistoryPeriodValue(params.period);
+  const postId = normalizeString(params.postId);
+  const createdBy = normalizeString(params.createdBy);
+  if (!capsuleId || !period || !postId || !createdBy) {
+    throw new Error("capsules.history.exclusions.insert: invalid parameters");
+  }
+
+  const result = await db
+    .from("capsule_history_exclusions")
+    .upsert(
+      {
+        capsule_id: capsuleId,
+        period,
+        post_id: postId,
+        created_by: createdBy,
+      },
+      { onConflict: "capsule_id,period,post_id" },
+    )
+    .select("post_id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.history.exclusions.insert", result.error);
+  }
+}
+
+export async function deleteCapsuleHistoryExclusion(params: {
+  capsuleId: string;
+  period: CapsuleHistoryPeriod;
+  postId: string;
+}): Promise<boolean> {
+  const capsuleId = normalizeString(params.capsuleId);
+  const period = normalizeHistoryPeriodValue(params.period);
+  const postId = normalizeString(params.postId);
+  if (!capsuleId || !period || !postId) return false;
+
+  const result = await db
+    .from("capsule_history_exclusions")
+    .delete({ count: "exact" })
+    .eq("capsule_id", capsuleId)
+    .eq("period", period)
+    .eq("post_id", postId)
+    .select("post_id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.history.exclusions.delete", result.error);
+  }
+
+  return Boolean(result.count && result.count > 0);
+}
+
+export async function updateCapsuleHistoryPromptMemory(params: {
+  capsuleId: string;
+  promptMemory: Record<string, unknown>;
+  templates?: Array<Record<string, unknown>>;
+  coverageMeta?: Record<string, unknown>;
+}): Promise<void> {
+  const capsuleId = normalizeString(params.capsuleId);
+  if (!capsuleId) {
+    throw new Error("capsules.history.promptMemory.update: invalid capsuleId");
+  }
+
+  const payload: Record<string, unknown> = {
+    prompt_memory: params.promptMemory ?? {},
+  };
+  if (params.templates) {
+    payload.template_presets = params.templates;
+  }
+  if (params.coverageMeta) {
+    payload.coverage_meta = params.coverageMeta;
+  }
+
+  const result = await db
+    .from("capsule_history_snapshots")
+    .update(payload)
+    .eq("capsule_id", capsuleId)
+    .select("capsule_id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.history.promptMemory.update", result.error);
+  }
+}
+export async function upsertCapsuleHistorySnapshotRecord(params: {
+  capsuleId: string;
+  suggestedSnapshot: Record<string, unknown>;
+  suggestedGeneratedAt: string;
+  suggestedLatestPostAt: string | null;
+  postCount: number;
+  suggestedPeriodHashes: Record<string, string>;
+  promptMemory?: Record<string, unknown>;
+  templatePresets?: Array<Record<string, unknown>>;
+  coverageMeta?: Record<string, unknown>;
+}): Promise<void> {
+  const normalizedCapsuleId = normalizeString(params.capsuleId);
+  const generatedAt = normalizeString(params.suggestedGeneratedAt);
+  if (!normalizedCapsuleId || !generatedAt) {
+    throw new Error("capsules.historySnapshots.upsert: capsuleId and generatedAt are required");
+  }
+
+  const payload: Record<string, unknown> = {
+    capsule_id: normalizedCapsuleId,
+    suggested_generated_at: generatedAt,
+    suggested_latest_post_at: params.suggestedLatestPostAt
+      ? normalizeString(params.suggestedLatestPostAt)
+      : null,
+    post_count: Number.isFinite(params.postCount) ? Math.max(0, Math.trunc(params.postCount)) : 0,
+    suggested_snapshot: params.suggestedSnapshot,
+    suggested_period_hashes: params.suggestedPeriodHashes,
+  };
+
+  if (params.promptMemory) {
+    payload.prompt_memory = params.promptMemory;
+  }
+  if (params.templatePresets) {
+    payload.template_presets = params.templatePresets;
+  }
+  if (params.coverageMeta) {
+    payload.coverage_meta = params.coverageMeta;
+  }
 
   const result = await db
     .from("capsule_history_snapshots")
@@ -1096,6 +1933,45 @@ export async function upsertCapsuleHistorySnapshotRecord(params: {
 
   if (result.error) {
     throw decorateDatabaseError("capsules.historySnapshots.upsert", result.error);
+  }
+}
+
+export async function updateCapsuleHistoryPublishedSnapshotRecord(params: {
+  capsuleId: string;
+  publishedSnapshot: Record<string, unknown> | null;
+  publishedGeneratedAt: string | null;
+  publishedLatestPostAt: string | null;
+  publishedPeriodHashes: Record<string, string>;
+  editorId: string | null;
+  editorReason: string | null;
+}): Promise<void> {
+  const normalizedCapsuleId = normalizeString(params.capsuleId);
+  if (!normalizedCapsuleId) {
+    throw new Error("capsules.historySnapshots.publish: capsuleId is required");
+  }
+
+  const payload: Record<string, unknown> = {
+    capsule_id: normalizedCapsuleId,
+    published_snapshot: params.publishedSnapshot,
+    published_generated_at: params.publishedGeneratedAt
+      ? normalizeString(params.publishedGeneratedAt)
+      : null,
+    published_latest_post_at: params.publishedLatestPostAt
+      ? normalizeString(params.publishedLatestPostAt)
+      : null,
+    published_period_hashes: params.publishedPeriodHashes,
+    published_editor_id: params.editorId ? normalizeString(params.editorId) : null,
+    published_editor_reason: params.editorReason ?? null,
+  };
+
+  const result = await db
+    .from("capsule_history_snapshots")
+    .upsert(payload, { onConflict: "capsule_id" })
+    .select("capsule_id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.historySnapshots.publish", result.error);
   }
 }
 
@@ -1124,4 +2000,49 @@ export async function getCapsuleHistoryActivity(
   const postCount = typeof result.count === "number" && Number.isFinite(result.count) ? result.count : 0;
 
   return { latestPostAt, postCount };
+}
+
+export async function listCapsuleHistoryRefreshCandidates(params: {
+  limit?: number;
+  staleAfterMinutes?: number;
+}): Promise<
+  Array<{
+    capsuleId: string;
+    ownerId: string;
+    snapshotGeneratedAt: string | null;
+    snapshotLatestPostAt: string | null;
+    latestPostAt: string | null;
+  }>
+> {
+  const limit = Math.max(1, Math.trunc(params.limit ?? 24));
+  const staleAfterMinutes = Math.max(5, Math.trunc(params.staleAfterMinutes ?? 360));
+  const intervalValue = `${staleAfterMinutes} minutes`;
+
+  const result = await db.rpc<CapsuleHistoryRefreshCandidateRow>(
+    "list_capsule_history_refresh_candidates",
+    {
+      limit_count: limit,
+      stale_after: intervalValue,
+    },
+  );
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.historySnapshots.listRefreshCandidates", result.error);
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+  return rows
+    .map((row) => {
+      const capsuleId = normalizeString(row.capsule_id);
+      const ownerId = normalizeString(row.owner_user_id);
+      if (!capsuleId || !ownerId) return null;
+      return {
+        capsuleId,
+        ownerId,
+        snapshotGeneratedAt: normalizeString(row.snapshot_generated_at),
+        snapshotLatestPostAt: normalizeString(row.snapshot_latest_post),
+        latestPostAt: normalizeString(row.latest_post),
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
 }
