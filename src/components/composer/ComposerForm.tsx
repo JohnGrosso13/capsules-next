@@ -13,6 +13,7 @@ import {
   FolderSimple,
   Brain,
   List,
+  SidebarSimple,
   Plus,
 } from "@phosphor-icons/react/dist/ssr";
 
@@ -322,41 +323,38 @@ function ComposerToolbar({
 
       <header className={styles.panelToolbar}>
         <div className={styles.toolbarHeading}>
-          {isMobile ? (
-            <div className={styles.mobileHeadingRow}>
-              {onMenuToggle ? (
-                <button
-                  type="button"
-                  className={styles.headerIconBtn}
-                  onClick={onMenuToggle}
-                  aria-haspopup="menu"
-                  aria-expanded={mobileRailOpen}
-                  aria-label="Open composer menu"
-                >
-                  <List size={18} weight="bold" />
-                </button>
-              ) : null}
-              <h2 className={styles.toolbarTitle}>Composer Studio</h2>
-            </div>
-          ) : (
-            <h2 className={styles.toolbarTitle}>Composer Studio</h2>
-          )}
+          <h2 className={styles.toolbarTitle}>Composer Studio</h2>
         </div>
-        {isMobile ? (
-          <div className={styles.headerActions}>
-            {onPreviewToggle ? (
-              <button
-                type="button"
-                className={styles.previewToggle}
-                onClick={onPreviewToggle}
-                aria-pressed={previewOpen}
-                aria-label="Toggle preview"
-              >
-                Preview
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+        <div className={styles.headerActions}>
+          {isMobile && onMenuToggle ? (
+            <button
+              type="button"
+              className={styles.mobileHeaderButton}
+              onClick={onMenuToggle}
+              aria-expanded={mobileRailOpen}
+              aria-controls="composer-mobile-menu"
+              data-active={mobileRailOpen ? "true" : undefined}
+              disabled={disabled}
+            >
+              <List size={18} weight="bold" />
+              <span>Sections</span>
+            </button>
+          ) : null}
+          {isMobile && onPreviewToggle ? (
+            <button
+              type="button"
+              className={styles.mobileHeaderButton}
+              onClick={onPreviewToggle}
+              aria-expanded={previewOpen}
+              aria-controls="composer-mobile-preview"
+              data-active={previewOpen ? "true" : undefined}
+              disabled={disabled}
+            >
+              <SidebarSimple size={18} weight="bold" />
+              <span>Preview</span>
+            </button>
+          ) : null}
+        </div>
       </header>
     </>
   );
@@ -2695,13 +2693,19 @@ export function ComposerForm({
     !isMobileLayout || !mobileRailOpen
       ? null
       : (
-          <div className={styles.mobileSheet} role="presentation">
-            <div className={styles.mobileSheetBackdrop} onClick={closeMobileRail} />
+          <div
+            id="composer-mobile-menu"
+            className={styles.mobileSheet}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="composer-mobile-menu-title"
+            onClick={closeMobileRail}
+          >
+            <div className={styles.mobileSheetBackdrop} />
             <div
               className={styles.mobileSheetPanel}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="composer-mobile-menu-title"
+              role="document"
+              onClick={(event) => event.stopPropagation()}
             >
               <div className={styles.mobileSheetHeader}>
                 <span id="composer-mobile-menu-title" className={styles.mobileSheetTitle}>
@@ -2907,22 +2911,36 @@ export function ComposerForm({
                 className={styles.mobilePreviewBackdrop}
                 onClick={() => actions.setPreviewOpen(false)}
               />
-              <div className={styles.mobilePreviewOverlay} role="presentation">
+              <div
+                id="composer-mobile-preview"
+                className={styles.mobilePreviewOverlay}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="composer-mobile-preview-title"
+                onClick={() => actions.setPreviewOpen(false)}
+              >
                 <div
                   className={styles.mobilePreviewDialog}
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Post preview"
+                  role="document"
+                  onClick={(event) => event.stopPropagation()}
                 >
-                  <button
-                    type="button"
-                    className={styles.mobilePreviewClose}
-                    onClick={() => actions.setPreviewOpen(false)}
-                    ref={mobilePreviewCloseRef}
-                    aria-label="Close preview"
-                  >
-                    <X size={16} weight="bold" />
-                  </button>
+                  <div className={styles.mobilePreviewHeader}>
+                    <span
+                      className={styles.mobileSheetTitle}
+                      id="composer-mobile-preview-title"
+                    >
+                      Preview
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.mobilePreviewClose}
+                      onClick={() => actions.setPreviewOpen(false)}
+                      ref={mobilePreviewCloseRef}
+                      aria-label="Close preview"
+                    >
+                      <X size={16} weight="bold" />
+                    </button>
+                  </div>
                   <div className={styles.mobilePreviewContent}>{previewContent}</div>
                 </div>
               </div>

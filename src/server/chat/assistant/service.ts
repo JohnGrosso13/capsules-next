@@ -299,18 +299,6 @@ function getConversationId(ownerId: string, recipientId: string): string {
   return getChatConversationId(ownerId, recipientId);
 }
 
-function targetNeedsResponse(target: { data: Record<string, unknown> | null }): boolean {
-  if (!target.data || typeof target.data !== "object") return false;
-  const record = target.data as Record<string, unknown>;
-  if (typeof (record as { trackResponses?: unknown }).trackResponses === "boolean") {
-    return Boolean((record as { trackResponses: boolean }).trackResponses);
-  }
-  if (typeof (record as { track_responses?: unknown }).track_responses === "boolean") {
-    return Boolean((record as { track_responses: boolean }).track_responses);
-  }
-  return false;
-}
-
 const TOOL_DEFINITIONS = [
   {
     type: "function",
