@@ -133,27 +133,46 @@ function sanitizeAttempts(input: unknown): AiVideoRunAttempt[] {
       if (!Number.isFinite(attemptNumber) || !startedAtValue) return null;
       const normalized: AiVideoRunAttempt = {
         attempt: Math.max(0, Math.floor(attemptNumber)),
-        stage:
-          typeof source.stage === "string" && source.stage.trim().length
-            ? (source.stage.trim().toLowerCase() as AiVideoRunAttempt["stage"])
-            : undefined,
         model: typeof source.model === "string" ? source.model : null,
-        provider:
-          typeof source.provider === "string" && source.provider.trim().length
-            ? source.provider.trim()
-            : null,
         startedAt: startedAtValue,
-        completedAt:
-          typeof source.completedAt === "string" && source.completedAt.trim().length
-            ? source.completedAt
-            : null,
-        errorCode: typeof source.errorCode === "string" ? source.errorCode : null,
-        errorMessage: typeof source.errorMessage === "string" ? source.errorMessage : null,
-        meta:
-          source.meta && typeof source.meta === "object"
-            ? { ...(source.meta as Record<string, unknown>) }
-            : null,
       };
+      if (typeof source.stage === "string" && source.stage.trim().length) {
+        const stageValue = source.stage.trim().toLowerCase();
+        if (
+          stageValue === "generate" ||
+          stageValue === "edit" ||
+          stageValue === "upload" ||
+          stageValue === "transcode" ||
+          stageValue === "finalize"
+        ) {
+          normalized.stage = stageValue;
+        }
+      }
+      if (typeof source.provider === "string" && source.provider.trim().length) {
+        normalized.provider = source.provider.trim();
+      } else if (source.provider === null) {
+        normalized.provider = null;
+      }
+      if (typeof source.completedAt === "string" && source.completedAt.trim().length) {
+        normalized.completedAt = source.completedAt;
+      } else if (source.completedAt === null) {
+        normalized.completedAt = null;
+      }
+      if (typeof source.errorCode === "string") {
+        normalized.errorCode = source.errorCode;
+      } else if (source.errorCode === null) {
+        normalized.errorCode = null;
+      }
+      if (typeof source.errorMessage === "string") {
+        normalized.errorMessage = source.errorMessage;
+      } else if (source.errorMessage === null) {
+        normalized.errorMessage = null;
+      }
+      if (source.meta && typeof source.meta === "object") {
+        normalized.meta = { ...(source.meta as Record<string, unknown>) };
+      } else if (source.meta === null) {
+        normalized.meta = null;
+      }
       return normalized;
     })
     .filter((entry): entry is AiVideoRunAttempt => Boolean(entry));

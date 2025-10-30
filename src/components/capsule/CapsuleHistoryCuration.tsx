@@ -123,9 +123,10 @@ function toTemplateDraft(template: CapsuleHistoryTemplatePreset): TemplateDraft 
 
 function fromTemplateDraft(draft: TemplateDraft): CapsuleHistoryTemplatePreset {
   const normalizedId = draft.id.trim();
+  const normalizedLabel = draft.label.trim();
   return {
     id: normalizedId,
-    label: draft.label.trim() || null,
+    label: normalizedLabel.length ? normalizedLabel : normalizedId || "template",
     description: draft.description.trim() || null,
     tone: draft.tone.trim() || null,
   };
@@ -189,7 +190,7 @@ export function CapsuleHistoryCuration({
     );
   }
 
-  const resolvedCapsuleId = capsuleId;
+  const resolvedCapsuleId = capsuleId!;
   const activeSection = snapshot.sections.find((section) => section.period === activePeriod);
 
   return (

@@ -139,13 +139,13 @@ export async function POST(req: Request) {
 
     const pollCore = await pollCorePromise;
     let poll: unknown = pollCore?.poll ?? null;
-    let mediaPrompt: string | null =
+    const mediaPrompt: string | null =
       typeof pollCore?.media_prompt === "string" ? pollCore.media_prompt : null;
-    let pollAuthorId: string | null =
+    const pollAuthorId: string | null =
       typeof pollCore?.author_user_id === "string" && pollCore.author_user_id
         ? pollCore.author_user_id
         : null;
-    let pollClientId: string | null =
+    const pollClientId: string | null =
       typeof pollCore?.client_id === "string" && pollCore.client_id ? pollCore.client_id : null;
     let pollCreatedAt: string | null = null;
     if (pollCore && typeof pollCore === "object") {

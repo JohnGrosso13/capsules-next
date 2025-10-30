@@ -13,6 +13,7 @@ import type {
   CapsuleHistoryPromptMemory,
   CapsuleHistoryTemplatePreset,
   CapsuleHistorySource,
+  CapsuleHistoryVersion,
   CapsuleMemberRequestSummary,
   CapsuleMembershipState,
   CapsuleMembershipViewer,
@@ -1263,7 +1264,7 @@ function makeTimelineEntry(params: {
     index: params.index,
     text: params.detail,
     seed: params.label,
-    sourceIds: params.sourceIds,
+    ...(Array.isArray(params.sourceIds) ? { sourceIds: params.sourceIds } : {}),
     metadata,
   });
   return {

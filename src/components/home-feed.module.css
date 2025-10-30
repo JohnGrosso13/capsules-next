@@ -853,6 +853,24 @@
     background: #000;
   }
 
+  .lightboxFallback {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: clamp(240px, 52vh, 640px);
+    padding: clamp(var(--space-md), 4vw, var(--space-xl));
+    border-radius: inherit;
+    background: color-mix(
+      in srgb,
+      rgba(14, 18, 38, 0.72) 86%,
+      rgba(32, 38, 70, 0.18)
+    );
+    color: var(--home-lightboxcaption-color, rgba(255, 255, 255, 0.78));
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-align: center;
+  }
+
   .lightboxCaption {
     text-align: center;
     color: var(--home-lightboxcaption-color, rgba(255, 255, 255, 0.85));

@@ -5,7 +5,7 @@ import type {
   CapsuleMemberProfile,
   CapsuleMemberRequestSummary,
   CapsuleMemberSummary,
-  CapsuleHistorySnapshot,
+  CapsuleHistoryPeriod,
 } from "@/types/capsules";
 import {
   dbRoleToUiRole,
@@ -185,13 +185,6 @@ type CapsuleTopicPageRow = {
   updated_by: string | null;
   created_at: string | null;
   updated_at: string | null;
-};
-
-type CapsuleTopicPagePostRow = {
-  topic_page_id: string | null;
-  post_id: string | null;
-  created_by: string | null;
-  created_at: string | null;
 };
 
 type CapsuleTopicPageBacklinkRow = {
@@ -1331,7 +1324,8 @@ export async function listCapsuleHistorySectionSettings(
     .select<CapsuleHistorySectionSettingsRow>(
       "capsule_id, period, editor_notes, excluded_post_ids, template_id, tone_recipe_id, prompt_overrides, coverage_snapshot, discussion_thread_id, metadata, updated_at, updated_by",
     )
-    .eq("capsule_id", normalizedCapsuleId);
+    .eq("capsule_id", normalizedCapsuleId)
+    .fetch();
 
   if (result.error) {
     throw decorateDatabaseError("capsules.historySections.settings.list", result.error);
@@ -1383,7 +1377,8 @@ export async function listCapsuleHistoryPins(capsuleId: string): Promise<Capsule
     .order("period", { ascending: true })
     .order("pin_type", { ascending: true })
     .order("rank", { ascending: true })
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .fetch();
 
   if (result.error) {
     throw decorateDatabaseError("capsules.historyPins.list", result.error);
@@ -1432,7 +1427,8 @@ export async function listCapsuleHistoryExclusions(
     .select<CapsuleHistoryExclusionRow>(
       "capsule_id, period, post_id, created_by, created_at",
     )
-    .eq("capsule_id", normalizedCapsuleId);
+    .eq("capsule_id", normalizedCapsuleId)
+    .fetch();
 
   if (result.error) {
     throw decorateDatabaseError("capsules.historyExclusions.list", result.error);
@@ -1474,7 +1470,8 @@ export async function listCapsuleHistoryEdits(
     )
     .eq("capsule_id", normalizedCapsuleId)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(limit)
+    .fetch();
 
   if (result.error) {
     throw decorateDatabaseError("capsules.historyEdits.list", result.error);
@@ -1523,7 +1520,8 @@ export async function listCapsuleTopicPages(
       "id, capsule_id, slug, title, description, created_by, updated_by, created_at, updated_at",
     )
     .eq("capsule_id", normalizedCapsuleId)
-    .order("title", { ascending: true });
+    .order("title", { ascending: true })
+    .fetch();
 
   if (result.error) {
     throw decorateDatabaseError("capsules.topicPages.list", result.error);
@@ -1565,7 +1563,8 @@ export async function listCapsuleTopicPageBacklinks(
       "id, topic_page_id, capsule_id, source_type, source_id, period, created_at",
     )
     .eq("capsule_id", normalizedCapsuleId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .fetch();
 
   if (result.error) {
     throw decorateDatabaseError("capsules.topicPages.backlinks.list", result.error);
@@ -1700,6 +1699,9 @@ export async function insertCapsuleHistoryEdit(params: {
   }
 
   const row = result.data;
+  if (!row) {
+    throw new Error("capsules.history.edits.insert: insert failed");
+  }
   return {
     id: row.id ?? "",
     capsuleId,
@@ -1758,6 +1760,9 @@ export async function insertCapsuleHistoryPin(params: {
   }
 
   const row = result.data;
+  if (!row) {
+    throw new Error("capsules.history.pins.insert: insert failed");
+  }
   return {
     id: row.id ?? "",
     capsuleId,
@@ -1793,7 +1798,8 @@ export async function deleteCapsuleHistoryPin(params: {
     throw decorateDatabaseError("capsules.history.pins.delete", result.error);
   }
 
-  return Boolean(result.count && result.count > 0);
+  const deletedRow = result.data as { id?: string | null } | null;
+  return Boolean(deletedRow?.id);
 }
 
 export async function insertCapsuleHistoryExclusion(params: {
@@ -1852,7 +1858,8 @@ export async function deleteCapsuleHistoryExclusion(params: {
     throw decorateDatabaseError("capsules.history.exclusions.delete", result.error);
   }
 
-  return Boolean(result.count && result.count > 0);
+  const deletedRow = result.data as { post_id?: string | null } | null;
+  return Boolean(deletedRow?.post_id);
 }
 
 export async function updateCapsuleHistoryPromptMemory(params: {

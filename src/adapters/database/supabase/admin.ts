@@ -26,6 +26,7 @@ function mapError(error: unknown): DatabaseError {
 type SupabaseQueryResponse<T> = {
   data: T[] | null;
   error: unknown;
+  count?: number | null;
   [key: string]: unknown;
 };
 
@@ -36,7 +37,7 @@ type SupabaseSingleQueryResponse<T> = {
 };
 
 type SupabaseFilterLike<T> = PromiseLike<SupabaseQueryResponse<T>> & {
-  select<TResult = T>(columns?: string): SupabaseFilterLike<TResult>;
+  select<TResult = T>(columns?: string, options?: Record<string, unknown>): SupabaseFilterLike<TResult>;
   eq(column: string, value: unknown): SupabaseFilterLike<T>;
   neq(column: string, value: unknown): SupabaseFilterLike<T>;
   gt(column: string, value: unknown): SupabaseFilterLike<T>;
@@ -71,8 +72,8 @@ function toSupabaseFilter<T>(builder: unknown): SupabaseFilterLike<T> {
 class SupabaseQueryBuilder<T> implements DatabaseQueryBuilder<T> {
   constructor(private readonly builder: SupabaseFilterLike<T>) {}
 
-  select<TResult = T>(columns?: string): DatabaseQueryBuilder<TResult> {
-    return new SupabaseQueryBuilder<TResult>(this.builder.select<TResult>(columns));
+  select<TResult = T>(columns?: string, options?: Record<string, unknown>): DatabaseQueryBuilder<TResult> {
+    return new SupabaseQueryBuilder<TResult>(this.builder.select<TResult>(columns, options));
   }
 
   eq(column: string, value: unknown): DatabaseQueryBuilder<T> {
@@ -147,10 +148,11 @@ class SupabaseQueryBuilder<T> implements DatabaseQueryBuilder<T> {
   }
 
   async fetch(): Promise<DatabaseResult<T[]>> {
-    const { data, error } = await this.builder;
+    const { data, error, count } = await this.builder;
     return {
       data: (data ?? null) as T[] | null,
       error: error ? mapError(error) : null,
+      count: typeof count === "number" ? count : null,
     };
   }
 
@@ -159,6 +161,7 @@ class SupabaseQueryBuilder<T> implements DatabaseQueryBuilder<T> {
     return {
       data: (data ?? null) as T | null,
       error: error ? mapError(error) : null,
+      count: null,
     };
   }
 
@@ -167,6 +170,7 @@ class SupabaseQueryBuilder<T> implements DatabaseQueryBuilder<T> {
     return {
       data: data as T,
       error: error ? mapError(error) : null,
+      count: null,
     };
   }
 }
@@ -177,8 +181,8 @@ class SupabaseTableBuilder implements DatabaseTableBuilder {
     private readonly table: string,
   ) {}
 
-  select<T = unknown>(columns?: string): DatabaseQueryBuilder<T> {
-    const query = this.client.from(this.table).select(columns);
+  select<T = unknown>(columns?: string, options?: Record<string, unknown>): DatabaseQueryBuilder<T> {
+    const query = this.client.from(this.table).select(columns, options as never);
     return new SupabaseQueryBuilder<T>(toSupabaseFilter<T>(query));
   }
 

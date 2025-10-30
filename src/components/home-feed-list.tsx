@@ -19,7 +19,7 @@ import {
   X,
 } from "@phosphor-icons/react/dist/ssr";
 import { PostMenu } from "@/components/posts/PostMenu";
-import { normalizeMediaUrl } from "@/lib/media";
+import { normalizeMediaUrl, IMAGE_EXTENSION_PATTERN, canRenderInlineImage } from "@/lib/media";
 import type { HomeFeedAttachment, HomeFeedPost } from "@/hooks/useHomeFeed";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import {
@@ -77,7 +77,6 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(
 
 LazyImage.displayName = "LazyImage";
 
-const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|heic|heif|bmp|tiff)(\?|#|$)/i;
 const VIDEO_EXTENSION_PATTERN = /\.(mp4|m4v|mov|webm|ogv|ogg|mkv)(\?|#|$)/i;
 const GENERIC_ATTACHMENT_NAMES = new Set([
   "image",
@@ -548,21 +547,22 @@ export function HomeFeedList({
   const [lightbox, setLightbox] = React.useState<{
     postId: string;
     index: number;
-  items: Array<{
-    id: string;
-    kind: "image" | "video";
-    fullUrl: string;
-    fullSrcSet?: string | null;
-    displayUrl: string;
-    displaySrcSet?: string | null;
-    name: string | null;
-    alt: string;
-    mimeType: string | null;
-    width: number | null;
-    height: number | null;
-    aspectRatio: number | null;
-  }>;
-} | null>(null);
+    items: Array<{
+      id: string;
+      kind: "image" | "video";
+      fullUrl: string;
+      fullSrcSet?: string | null;
+      displayUrl: string;
+      displaySrcSet?: string | null;
+      thumbnailUrl?: string | null;
+      name: string | null;
+      alt: string;
+      mimeType: string | null;
+      width: number | null;
+      height: number | null;
+      aspectRatio: number | null;
+    }>;
+  } | null>(null);
 
   const INITIAL_BATCH = 6;
   const BATCH_SIZE = 6;
@@ -1487,8 +1487,8 @@ export function HomeFeedList({
 
           const hasMatch = (pattern: RegExp) => mediaSources.some((source) => pattern.test(source));
 
-          if (hasMatch(/\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv)(\?|#|$)/)) return "video";
-          if (hasMatch(/\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/)) return "image";
+          if (hasMatch(VIDEO_EXTENSION_PATTERN)) return "video";
+          if (hasMatch(IMAGE_EXTENSION_PATTERN)) return "image";
           return "file";
         };
         const seenMedia = new Set<string>();
@@ -1813,6 +1813,7 @@ export function HomeFeedList({
                       fullSrcSet: entry.fullSrcSet,
                       displayUrl: entry.displayUrl,
                       displaySrcSet: entry.displaySrcSet,
+                      thumbnailUrl: entry.thumbnailUrl ?? null,
                       name: entry.name,
                       alt: entry.name ?? "Post attachment",
                       mimeType: entry.mimeType,
@@ -2084,18 +2085,37 @@ export function HomeFeedList({
                           <source src={current.fullUrl} type={current.mimeType ?? undefined} />
                           Your browser does not support embedded video.
                         </video>
-                      ) : (
+                      ) : (() => {
+                        const renderable = canRenderInlineImage(current.mimeType, current.fullUrl);
+                        const fallbackSrc = [current.thumbnailUrl, current.displayUrl]
+                          .find((src) => src && src !== current.fullUrl)
+                          ?? null;
+                        const imageSrc = renderable ? current.fullUrl : fallbackSrc;
+                        const imageSrcSet = renderable
+                          ? current.fullSrcSet ?? current.displaySrcSet ?? undefined
+                          : current.displaySrcSet ?? current.fullSrcSet ?? undefined;
+
+                        if (!imageSrc) {
+                          return (
+                            <div className={styles.lightboxFallback} role="status">
+                              Preview unavailable for this file type.
+                            </div>
+                          );
+                        }
+
                         /* eslint-disable-next-line @next/next/no-img-element -- maintain lightbox srcset + eager load without reliable dimensions for next/image */
-                        <img
-                          className={styles.lightboxImage}
-                          src={current.fullUrl}
-                          srcSet={current.fullSrcSet ?? current.displaySrcSet ?? undefined}
-                          sizes="(min-width: 768px) 70vw, 90vw"
-                          alt={current.alt}
-                          loading="eager"
-                          draggable={false}
-                        />
-                      )}
+                        return (
+                          <img
+                            className={styles.lightboxImage}
+                            src={imageSrc}
+                            srcSet={imageSrcSet}
+                            sizes="(min-width: 768px) 70vw, 90vw"
+                            alt={current.alt}
+                            loading="eager"
+                            draggable={false}
+                          />
+                        );
+                      })()}
                     </div>
                   </div>
                   {current.name ? (

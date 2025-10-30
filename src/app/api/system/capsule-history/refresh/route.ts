@@ -53,10 +53,17 @@ async function handleRequest(request: Request): Promise<Response> {
     // ignore invalid JSON bodies
   }
 
-  const result = await refreshStaleCapsuleHistories({
-    limit: bodyLimit ?? queryLimit,
-    staleAfterMinutes: bodyStale ?? queryStale,
-  });
+  const params: Parameters<typeof refreshStaleCapsuleHistories>[0] = {};
+  const limitValue = bodyLimit ?? queryLimit;
+  const staleValue = bodyStale ?? queryStale;
+  if (typeof limitValue === "number") {
+    params.limit = limitValue;
+  }
+  if (typeof staleValue === "number") {
+    params.staleAfterMinutes = staleValue;
+  }
+
+  const result = await refreshStaleCapsuleHistories(params);
 
   return NextResponse.json({ ok: true, ...result });
 }

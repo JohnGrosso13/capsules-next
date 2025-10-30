@@ -166,13 +166,13 @@ export type CapsuleHistoryPinnedItem = {
   quote: string | null;
   rank: number;
   sourceId: string | null;
-  createdAt: string;
+  createdAt: string | null;
   createdBy: string | null;
 };
 
 export type CapsuleHistoryVersion = {
   id: string;
-  createdAt: string;
+  createdAt: string | null;
   editorId: string;
   editorName: string | null;
   changeType: string;

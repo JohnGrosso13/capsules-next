@@ -165,7 +165,7 @@ async function ingestVideoThroughMux(sourceUrl: string): Promise<{
   try {
     const mux = muxVideoClient();
     const asset = await mux.assets.create({
-      input: [{ url: sourceUrl }],
+      inputs: [{ url: sourceUrl }],
       playback_policy: ["public"],
     });
     let current = asset;

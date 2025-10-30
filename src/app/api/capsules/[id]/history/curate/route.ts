@@ -193,28 +193,29 @@ export async function POST(req: Request, context: CurateRouteContext) {
   try {
     const body = await req.json();
     payload = actionSchema.parse(body);
-  } catch (error) {
+  } catch {
     return returnError(400, "invalid_request", "Invalid request body.");
   }
 
   try {
     switch (payload.action) {
       case "publish_section": {
-        const snapshot = await publishCapsuleHistorySection({
+        const publishParams: Parameters<typeof publishCapsuleHistorySection>[0] = {
           capsuleId: parsedParams.data.id,
           editorId: viewerId,
           period: payload.period,
           content: payload.content,
-          title: payload.title,
-          timeframe: payload.timeframe,
-          postCount: payload.postCount,
           notes: payload.notes ?? null,
           templateId: payload.templateId ?? null,
           toneRecipeId: payload.toneRecipeId ?? null,
           reason: payload.reason ?? null,
           promptOverrides: payload.promptOverrides ?? null,
           coverage: payload.coverage ?? null,
-        });
+        };
+        if (payload.title !== undefined) publishParams.title = payload.title;
+        if (payload.timeframe !== undefined) publishParams.timeframe = payload.timeframe;
+        if (payload.postCount !== undefined) publishParams.postCount = payload.postCount;
+        const snapshot = await publishCapsuleHistorySection(publishParams);
         return Response.json(snapshot);
       }
       case "add_pin": {

@@ -96,7 +96,7 @@ function mapSummaryResult(result: SummaryResult): z.infer<typeof summaryResponse
 }
 
 const MAX_CAPTION_ATTACHMENTS = 6;
-const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|heic|heif|bmp|tiff)(\?|#|$)/i;
+const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|heic|heif|bmp|tiff|dng)(\?|#|$)/i;
 const VIDEO_EXTENSION_PATTERN = /\.(mp4|m4v|mov|webm|ogv|ogg|mkv)(\?|#|$)/i;
 
 function isLikelyImageAttachment(mimeType: string | null | undefined, url: string): boolean {

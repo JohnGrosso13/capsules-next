@@ -24,7 +24,7 @@ import {
   resolveCapsuleHref,
   resolveCapsuleTileMedia,
 } from "@/lib/capsules/promo-tile";
-import { normalizeMediaUrl } from "@/lib/media";
+import { normalizeMediaUrl, IMAGE_EXTENSION_PATTERN, canRenderInlineImage } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import capsuleTileHostStyles from "@/components/capsule/capsule-tile-host.module.css";
 import lightboxStyles from "@/components/home-feed.module.css";
@@ -92,7 +92,6 @@ const fallbackCapsules: Capsule[] = [
 ];
 
 const VIDEO_EXTENSION_PATTERN = /\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv|3gp|3g2)(\?|#|$)/i;
-const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/i;
 
 const HLS_MIME_HINTS = [
   "application/vnd.apple.mpegurl",
@@ -1157,16 +1156,35 @@ export function PromoRow() {
                       ) : null}
                       Your browser does not support embedded video.
                     </video>
-                  ) : (
+                  ) : (() => {
+                    const renderable = canRenderInlineImage(
+                      currentItem.mimeType,
+                      currentItem.mediaSrc,
+                    );
+                    const fallbackSrc = currentItem.posterSrc && currentItem.posterSrc !== currentItem.mediaSrc
+                      ? currentItem.posterSrc
+                      : null;
+                    const imageSrc = renderable ? currentItem.mediaSrc : fallbackSrc;
+
+                    if (!imageSrc) {
+                      return (
+                        <div className={lightboxStyles.lightboxFallback} role="status">
+                          Preview unavailable for this file type.
+                        </div>
+                      );
+                    }
+
                     /* eslint-disable-next-line @next/next/no-img-element -- preserve lightbox loading behaviour */
-                    <img
-                      className={lightboxStyles.lightboxImage}
-                      src={currentItem.mediaSrc}
-                      alt={currentItem.caption ?? "Promo media"}
-                      loading="eager"
-                      draggable={false}
-                    />
-                  )
+                    return (
+                      <img
+                        className={lightboxStyles.lightboxImage}
+                        src={imageSrc}
+                        alt={currentItem.caption ?? "Promo media"}
+                        loading="eager"
+                        draggable={false}
+                      />
+                    );
+                  })()
                 ) : (
                   <div className={styles.lightboxFallback} aria-hidden="true">
                     <FallbackIcon

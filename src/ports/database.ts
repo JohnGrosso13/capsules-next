@@ -8,10 +8,11 @@ export type DatabaseError = {
 export type DatabaseResult<T> = {
   data: T | null;
   error: DatabaseError | null;
+  count?: number | null;
 };
 
 export interface DatabaseQueryBuilder<T = unknown> {
-  select<TResult = T>(columns?: string): DatabaseQueryBuilder<TResult>;
+  select<TResult = T>(columns?: string, options?: Record<string, unknown>): DatabaseQueryBuilder<TResult>;
   eq(column: string, value: unknown): DatabaseQueryBuilder<T>;
   neq(column: string, value: unknown): DatabaseQueryBuilder<T>;
   gt(column: string, value: unknown): DatabaseQueryBuilder<T>;
@@ -45,7 +46,7 @@ export interface DatabaseQueryBuilder<T = unknown> {
 }
 
 export interface DatabaseTableBuilder {
-  select<T = unknown>(columns?: string): DatabaseQueryBuilder<T>;
+  select<T = unknown>(columns?: string, options?: Record<string, unknown>): DatabaseQueryBuilder<T>;
   insert<T = unknown>(
     values: Record<string, unknown> | Array<Record<string, unknown>>,
     options?: Record<string, unknown>,

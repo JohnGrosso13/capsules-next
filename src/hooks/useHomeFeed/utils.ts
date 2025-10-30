@@ -1,4 +1,4 @@
-﻿import { normalizeMediaUrl } from "@/lib/media";
+import { normalizeMediaUrl, IMAGE_EXTENSION_PATTERN } from "@/lib/media";
 import { safeRandomUUID } from "@/lib/random";
 
 import type { HomeFeedAttachment, HomeFeedPoll, HomeFeedPost } from "./types";
@@ -27,7 +27,6 @@ export function formatFeedCount(value?: number | null): string {
 export type PostMediaSource = Pick<HomeFeedPost, "mediaUrl" | "attachments">;
 
 const VIDEO_EXTENSION_PATTERN = /\.(mp4|webm|mov|m4v|avi|ogv|ogg|mkv|3gp|3g2)(\?|#|$)/i;
-const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|webp|avif|svg|heic|heif)(\?|#|$)/i;
 
 function inferMediaKindFromSource(
   mimeType: string | null | undefined,
