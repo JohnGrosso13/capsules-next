@@ -68,11 +68,16 @@ export function CompetitiveStudioLayout({
   return (
     <div className={`${capTheme.theme} ${styles.shellWrap}`}>
       <header className={styles.navBar}>
-        <div className={styles.navTabs} role="tablist" aria-label="Competitive events builder">
+        <div
+          className={`${capTheme.tabStrip} ${styles.navTabs}`}
+          role="tablist"
+          aria-label="Competitive events builder"
+          style={{ gridTemplateColumns: `repeat(${TAB_ITEMS.length}, minmax(0, 1fr))` }}
+        >
           {TAB_ITEMS.map((tab) => {
             const isActive = activeTab === tab.id;
-            const baseClass = `${styles.navButton}`;
-            const btnClass = isActive ? `${baseClass} ${styles.navButtonActive}` : baseClass;
+            const baseClass = `${capTheme.tab}`;
+            const btnClass = isActive ? `${baseClass} ${capTheme.tabActive}` : baseClass;
             return (
               <button
                 key={tab.id}

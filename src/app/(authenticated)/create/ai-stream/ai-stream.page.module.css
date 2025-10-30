@@ -36,65 +36,23 @@
 }
 
 .navTabs {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 12px;
-  padding: 8px;
-  border-radius: 999px;
-  background: var(--studio-surface-glass);
-  border: 1px solid var(--studio-border-soft);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 16%, transparent),
-    var(--studio-shadow-soft);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   flex: 1 1 auto;
   min-width: 0;
 }
 
 .navButton {
-  position: relative;
-  display: grid;
-  align-items: flex-start;
-  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
   flex: 1 1 0%;
-  padding: 14px 18px;
-  border-radius: 18px;
-  border: 1px solid var(--studio-border-strong);
-  background: var(--studio-surface-panel);
-  color: var(--studio-text-primary);
   font-weight: 600;
   text-align: left;
-  transition:
-    transform 0.16s ease,
-    border-color 0.16s ease,
-    box-shadow 0.16s ease,
-    background 0.16s ease;
-}
-
-.navButton:hover {
-  transform: translateY(-2px);
-  border-color: var(--studio-border-focus);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 20%, transparent),
-    var(--studio-shadow-soft);
+  padding: 10px 20px;
 }
 
 .navButton:focus-visible {
   outline: none;
-  transform: translateY(-1px);
-  box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--studio-border-focus) 80%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 22%, transparent);
-}
-
-.navButtonActive {
-  background: var(--studio-surface-accent);
-  border-color: var(--studio-border-focus);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--studio-text-primary) 28%, transparent),
-    var(--studio-shadow-strong);
 }
 
 @media (max-width: 960px) {
@@ -1019,12 +977,13 @@
 
   .navTabs {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 8px;
   }
 
   .navButton {
     min-width: unset;
-    flex: 1;
+    flex: 1 1 180px;
   }
 
   .navBar {

@@ -1171,12 +1171,17 @@ const renderEncoderContent = () => {
   return (
     <div className={`${capTheme.theme} ${styles.shellWrap}`}>
       <header className={styles.navBar}>
-        <div className={styles.navTabs} role="tablist" aria-label="AI Stream Studio sections">
+        <div
+          className={`${capTheme.tabStrip} ${styles.navTabs}`}
+          role="tablist"
+          aria-label="AI Stream Studio sections"
+          style={{ gridTemplateColumns: `repeat(${TAB_ITEMS.length}, minmax(0, 1fr))` }}
+        >
           {TAB_ITEMS.map((tab) => {
             const isActive = activeTab === tab.id;
             const indicator = navIndicators[tab.id];
-            const baseClass = `${styles.navButton}`;
-            const btnClass = isActive ? `${baseClass} ${styles.navButtonActive}` : baseClass;
+            const baseClass = `${capTheme.tab}`;
+            const btnClass = isActive ? `${baseClass} ${capTheme.tabActive}` : baseClass;
             return (
               <button
                 key={tab.id}
@@ -1213,8 +1218,6 @@ const renderEncoderContent = () => {
     </div>
   );
 }
-
-
 
 
 
