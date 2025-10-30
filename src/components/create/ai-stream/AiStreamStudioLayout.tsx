@@ -827,26 +827,34 @@ function AiStreamStudioLayoutInner({
   // Ensure right rail is visible only on the gate (no capsule selected)
   React.useEffect(() => {
     if (typeof document === "undefined") return;
-    const el = document.querySelector<HTMLElement>('aside[data-side="right"]');
-    if (!el) return;
+    const rightRail = document.querySelector<HTMLElement>('aside[data-side="right"]');
+    const layout = document.querySelector<HTMLElement>('div[data-layout="capsule"][data-columns]');
+    if (!rightRail || !layout) return;
+
     if (selectedCapsule) {
-      el.dataset.aiStreamHide = "1";
-      el.style.display = "none";
-      el.setAttribute("aria-hidden", "true");
+      // Hide the global right rail and collapse the outer grid to two columns
+      rightRail.dataset.aiStreamHide = "1";
+      rightRail.style.display = "none";
+      rightRail.setAttribute("aria-hidden", "true");
+      layout.setAttribute("data-has-right", "false");
+      layout.setAttribute("data-columns", "two");
     } else {
-      if (el.dataset.aiStreamHide === "1") {
-        delete el.dataset.aiStreamHide;
-      }
-      el.style.display = "";
-      el.removeAttribute("aria-hidden");
+      // On the gate page: restore the discovery rail and 3-column layout
+      if (rightRail.dataset.aiStreamHide === "1") delete rightRail.dataset.aiStreamHide;
+      rightRail.style.display = "";
+      rightRail.removeAttribute("aria-hidden");
+      layout.setAttribute("data-has-right", "true");
+      layout.setAttribute("data-columns", "with-right");
     }
     return () => {
       // Clean up if navigating away from the studio
-      if (!el) return;
-      if (el.dataset.aiStreamHide === "1") {
-        delete el.dataset.aiStreamHide;
-        el.style.display = "";
-        el.removeAttribute("aria-hidden");
+      if (!rightRail || !layout) return;
+      if (rightRail.dataset.aiStreamHide === "1") {
+        delete rightRail.dataset.aiStreamHide;
+        rightRail.style.display = "";
+        rightRail.removeAttribute("aria-hidden");
+        layout.setAttribute("data-has-right", "true");
+        layout.setAttribute("data-columns", "with-right");
       }
     };
   }, [selectedCapsule]);
@@ -1251,5 +1259,4 @@ const renderEncoderContent = () => {
     </div>
   );
 }
-
 
