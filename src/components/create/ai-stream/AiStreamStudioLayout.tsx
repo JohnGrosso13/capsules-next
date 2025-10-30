@@ -824,24 +824,57 @@ function AiStreamStudioLayoutInner({
     return `<mux-player stream-type="live" playback-id="${streamOverview.playback.playbackId}"></mux-player>`;
   }, [streamOverview]);
 
-  const renderStudioContent = () => (
-    <LiveStudioTab
-      selectorOpen={selectorOpen}
-      selectedCapsule={selectedCapsule}
-      capsules={capsules}
-      onCapsuleChange={handleCapsuleChange}
-      autoSaveIds={autoSaveIds}
-      panelStorage={panelStorage}
-      streamOverview={streamOverview}
-      overviewLoading={overviewLoading}
-      overviewError={overviewError}
-      actionBusy={actionBusy}
-      uptimeSeconds={uptimeSeconds}
-      notification={encoderNotification}
-      onEnsureStream={handleEnsureStream}
-      onNavigateToEncoder={() => handleTabChange("encoder")}
-    />
-  );
+  // Ensure right rail is visible only on the gate (no capsule selected)
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const el = document.querySelector<HTMLElement>('aside[data-side="right"]');
+    if (!el) return;
+    if (selectedCapsule) {
+      el.dataset.aiStreamHide = "1";
+      el.style.display = "none";
+      el.setAttribute("aria-hidden", "true");
+    } else {
+      if (el.dataset.aiStreamHide === "1") {
+        delete el.dataset.aiStreamHide;
+      }
+      el.style.display = "";
+      el.removeAttribute("aria-hidden");
+    }
+    return () => {
+      // Clean up if navigating away from the studio
+      if (!el) return;
+      if (el.dataset.aiStreamHide === "1") {
+        delete el.dataset.aiStreamHide;
+        el.style.display = "";
+        el.removeAttribute("aria-hidden");
+      }
+    };
+  }, [selectedCapsule]);
+
+  const renderStudioContent = () => {
+    const studioNotification =
+      encoderNotification?.title === "Configure your external encoder"
+        ? null
+        : encoderNotification;
+    return (
+      <LiveStudioTab
+        selectorOpen={selectorOpen}
+        selectedCapsule={selectedCapsule}
+        capsules={capsules}
+        onCapsuleChange={handleCapsuleChange}
+        autoSaveIds={autoSaveIds}
+        panelStorage={panelStorage}
+        streamOverview={streamOverview}
+        overviewLoading={overviewLoading}
+        overviewError={overviewError}
+        actionBusy={actionBusy}
+        uptimeSeconds={uptimeSeconds}
+        notification={studioNotification}
+        onEnsureStream={handleEnsureStream}
+        onNavigateToEncoder={() => handleTabChange("encoder")}
+      />
+    );
+  };
   const renderProducerContent = () => (
     <ProducerConsoleTab
       selectedCapsule={selectedCapsule}
@@ -1218,6 +1251,5 @@ const renderEncoderContent = () => {
     </div>
   );
 }
-
 
 
