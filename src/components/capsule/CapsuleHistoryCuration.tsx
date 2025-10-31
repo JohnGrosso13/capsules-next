@@ -74,6 +74,9 @@ function cloneSectionContent(content: CapsuleHistorySectionContent): CapsuleHist
   return {
     summary: cloneContentBlock(content.summary),
     highlights: content.highlights.map((item) => cloneContentBlock(item)),
+    articles: content.articles.map(
+      (item) => cloneContentBlock(item) as CapsuleHistorySectionContent["articles"][number],
+    ),
     timeline: content.timeline.map((item) => cloneTimelineEntry(item)),
     nextFocus: content.nextFocus.map((item) => cloneContentBlock(item)),
   };

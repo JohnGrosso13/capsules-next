@@ -28,6 +28,29 @@ const contentBlockSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).nullable().optional().default(null),
 });
 
+const articleMetadataSchema = z
+  .object({
+    title: z.string().nullable().optional().default(null),
+    paragraphs: z.array(z.string()).optional().default([]),
+    links: z
+      .array(
+        z.object({
+          label: z.string(),
+          url: z.string().nullable().optional().default(null),
+          sourceId: z.string().nullable().optional().default(null),
+        }),
+      )
+      .optional()
+      .default([]),
+  })
+  .nullable()
+  .optional()
+  .default(null);
+
+const articleBlockSchema = contentBlockSchema.extend({
+  metadata: articleMetadataSchema,
+});
+
 const timelineItemSchema = contentBlockSchema.extend({
   label: z.string(),
   detail: z.string(),
@@ -39,6 +62,7 @@ const timelineItemSchema = contentBlockSchema.extend({
 const sectionContentSchema = z.object({
   summary: contentBlockSchema,
   highlights: z.array(contentBlockSchema),
+  articles: z.array(articleBlockSchema),
   timeline: z.array(timelineItemSchema),
   nextFocus: z.array(contentBlockSchema),
 });

@@ -81,87 +81,6 @@
   color: color-mix(in srgb, rgba(180, 195, 245, 0.55) 90%, transparent);
 }
 
-.tileRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.25rem;
-}
-
-.summaryTile {
-  position: relative;
-  border: none;
-  padding: 0;
-  border-radius: 20px;
-  overflow: hidden;
-  background: color-mix(in srgb, rgba(26, 32, 68, 0.92) 80%, transparent);
-  border: 1px solid color-mix(in srgb, rgba(76, 94, 160, 0.35) 80%, transparent);
-  cursor: pointer;
-  min-height: 160px;
-  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
-}
-
-.summaryTile:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 40%, transparent);
-  box-shadow: 0 20px 40px rgba(15, 20, 45, 0.35);
-}
-
-.summaryTileActive {
-  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent);
-  box-shadow: 0 22px 46px rgba(20, 28, 70, 0.45);
-}
-
-.tileFace,
-.tileBack {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 1.25rem;
-  backface-visibility: hidden;
-  transition: opacity 220ms ease;
-}
-
-.summaryTileActive .tileFace {
-  opacity: 0;
-}
-
-.summaryTileActive .tileBack {
-  opacity: 1;
-}
-
-.tileBack {
-  opacity: 0;
-}
-
-.tileLabel {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text, rgba(255, 255, 255, 0.9));
-}
-
-.tileMeta {
-  font-size: 0.8rem;
-  color: var(--text-muted, rgba(205, 215, 245, 0.65));
-}
-
-.tileCount {
-  align-self: flex-start;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.3rem 0.75rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-brand, #2563eb) 22%, transparent);
-  color: var(--text-primary, #fff);
-}
-
-.tileSummary {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--text, rgba(255, 255, 255, 0.9));
-}
 
 .summaryPanel {
   border-radius: 20px;
@@ -205,10 +124,15 @@
 }
 
 .panelSummary {
-  margin: 0;
+  display: grid;
+  gap: 0.85rem;
   font-size: 1rem;
   line-height: 1.6;
   color: var(--text, rgba(255, 255, 255, 0.94));
+}
+
+.panelSummary p {
+  margin: 0;
 }
 
 .panelPlaceholder {
@@ -324,11 +248,24 @@
   color: var(--text, rgba(255, 255, 255, 0.9));
 }
 
+.articleTitleLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: color-mix(in srgb, var(--color-brand, #93c5fd) 80%, transparent);
+  text-decoration: none;
+}
+
 .articleBody {
-  margin: 0;
+  display: grid;
+  gap: 0.7rem;
   font-size: 0.95rem;
   line-height: 1.55;
   color: var(--text, rgba(230, 235, 255, 0.82));
+}
+
+.articleBody p {
+  margin: 0;
 }
 
 .articleLink {
@@ -336,6 +273,41 @@
   align-items: center;
   gap: 0.35rem;
   font-size: 0.85rem;
+  color: color-mix(in srgb, var(--color-brand, #93c5fd) 70%, transparent);
+  text-decoration: none;
+}
+
+.articleCitations {
+  border-top: 1px solid color-mix(in srgb, rgba(90, 110, 180, 0.2) 75%, transparent);
+  padding-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.citationsLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, rgba(205, 215, 240, 0.68));
+}
+
+.articleCitations ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.articleCitations li {
+  font-size: 0.85rem;
+  color: var(--text-muted, rgba(205, 215, 240, 0.75));
+}
+
+.articleCitations a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   color: color-mix(in srgb, var(--color-brand, #93c5fd) 70%, transparent);
   text-decoration: none;
 }
@@ -356,4 +328,73 @@
   .articleCard {
     padding: 1rem 1.1rem;
   }
+}
+.periodRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.periodButton {
+  border: 1px solid color-mix(in srgb, rgba(76, 94, 160, 0.35) 80%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, rgba(26, 32, 68, 0.92) 80%, transparent);
+  padding: 1.1rem 1.25rem;
+  display: grid;
+  gap: 0.6rem;
+  align-content: start;
+  cursor: pointer;
+  text-align: left;
+  min-height: 160px;
+  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.periodButton:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 40%, transparent);
+  box-shadow: 0 20px 40px rgba(15, 20, 45, 0.35);
+}
+
+.periodButtonActive {
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent);
+  box-shadow: 0 22px 46px rgba(20, 28, 70, 0.45);
+}
+
+.periodHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.periodLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted, rgba(230, 235, 255, 0.75));
+}
+
+.periodCount {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted, rgba(205, 215, 240, 0.65));
+}
+
+.periodRange {
+  font-size: 0.8rem;
+  color: var(--text-muted, rgba(210, 220, 255, 0.7));
+}
+
+.periodExcerpt {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text, rgba(255, 255, 255, 0.88));
+}
+
+.periodExcerptMuted {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted, rgba(205, 215, 240, 0.65));
 }

@@ -114,9 +114,26 @@ export type CapsuleHistoryTimelineEntry = CapsuleHistoryContentBlock & {
   permalink?: string | null;
 };
 
+export type CapsuleHistoryArticleLink = {
+  label: string;
+  url: string | null;
+  sourceId: string | null;
+};
+
+export type CapsuleHistoryArticleMetadata = {
+  title: string | null;
+  paragraphs: string[];
+  links: CapsuleHistoryArticleLink[];
+};
+
+export type CapsuleHistoryArticle = CapsuleHistoryContentBlock & {
+  metadata: CapsuleHistoryArticleMetadata | null;
+};
+
 export type CapsuleHistorySectionContent = {
   summary: CapsuleHistoryContentBlock;
   highlights: CapsuleHistoryContentBlock[];
+  articles: CapsuleHistoryArticle[];
   timeline: CapsuleHistoryTimelineEntry[];
   nextFocus: CapsuleHistoryContentBlock[];
 };

@@ -1,4 +1,7 @@
 import type {
+  CapsuleHistoryArticle,
+  CapsuleHistoryArticleLink,
+  CapsuleHistoryArticleMetadata,
   CapsuleHistoryContentBlock,
   CapsuleHistoryPeriod,
   CapsuleHistorySection,
@@ -135,6 +138,11 @@ const HISTORY_MODEL_POST_LIMIT = 150;
 const HISTORY_HIGHLIGHT_LIMIT = 5;
 const HISTORY_TIMELINE_LIMIT = 6;
 const HISTORY_NEXT_FOCUS_LIMIT = 4;
+const HISTORY_ARTICLE_LIMIT = 4;
+const HISTORY_ARTICLE_PARAGRAPH_LIMIT = 2;
+const HISTORY_ARTICLE_PARAGRAPH_LENGTH = 600;
+const HISTORY_ARTICLE_TITLE_LIMIT = 120;
+const HISTORY_ARTICLE_LINK_LIMIT = 4;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 const HISTORY_PERSIST_REFRESH_MS = WEEK_MS;
@@ -1077,6 +1085,7 @@ type HistoryModelSection = {
   title?: unknown;
   summary?: unknown;
   highlights?: unknown;
+  articles?: unknown;
   next_focus?: unknown;
   timeline?: unknown;
   empty?: unknown;
@@ -1087,6 +1096,20 @@ type HistoryModelTimelineEntry = {
   detail?: unknown;
   timestamp?: unknown;
   post_id?: unknown;
+};
+
+type HistoryModelArticle = {
+  title?: unknown;
+  summary?: unknown;
+  paragraphs?: unknown;
+  sources?: unknown;
+  primary_source_id?: unknown;
+};
+
+type HistoryModelArticleSource = {
+  label?: unknown;
+  post_id?: unknown;
+  url?: unknown;
 };
 
 type StoredHistorySection = {
@@ -1153,12 +1176,39 @@ const CAPSULE_HISTORY_RESPONSE_SCHEMA = {
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["period", "summary", "highlights", "timeline", "next_focus"],
+          required: ["period", "summary", "highlights", "articles", "timeline", "next_focus"],
           properties: {
             period: { type: "string", enum: ["weekly", "monthly", "all_time"] },
             title: { type: "string" },
             summary: { type: "string" },
             highlights: { type: "array", items: { type: "string" } },
+            articles: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["title", "paragraphs"],
+                properties: {
+                  title: { type: "string" },
+                  summary: { type: "string" },
+                  paragraphs: { type: "array", items: { type: "string" } },
+                  sources: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      required: ["label"],
+                      properties: {
+                        label: { type: "string" },
+                        post_id: { type: ["string", "null"] },
+                        url: { type: ["string", "null"] },
+                      },
+                    },
+                  },
+                  primary_source_id: { type: ["string", "null"] },
+                },
+              },
+            },
             timeline: {
               type: "array",
               items: {
@@ -1388,6 +1438,224 @@ function coerceTimelineEntries(
     if (entries.length >= HISTORY_TIMELINE_LIMIT) break;
   }
   return entries;
+}
+
+function coerceArticleLinks(
+  value: unknown,
+  capsuleId: string,
+  sources: Record<string, CapsuleHistorySource>,
+  postLookup: Map<string, CapsuleHistoryPost>,
+): { links: CapsuleHistoryArticleLink[]; sourceIds: string[] } {
+  if (!Array.isArray(value)) {
+    return { links: [], sourceIds: [] };
+  }
+
+  const links: CapsuleHistoryArticleLink[] = [];
+  const sourceIds: string[] = [];
+
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as HistoryModelArticleSource;
+    const rawPostId =
+      typeof record.post_id === "string" && record.post_id.trim().length
+        ? record.post_id.trim()
+        : null;
+    let resolvedSourceId: string | null = null;
+    if (rawPostId && postLookup.has(rawPostId)) {
+      resolvedSourceId = ensurePostSource(sources, capsuleId, postLookup.get(rawPostId)!);
+    }
+    let label =
+      sanitizeHistoryString(record.label, 140) ??
+      (resolvedSourceId && sources[resolvedSourceId]?.label
+        ? sanitizeHistoryString(sources[resolvedSourceId]?.label ?? null, 140)
+        : null) ??
+      (rawPostId && postLookup.has(rawPostId)
+        ? sanitizeHistoryString(postLookup.get(rawPostId)!.content, 140)
+        : null);
+
+    let url =
+      typeof record.url === "string" && record.url.trim().length ? record.url.trim() : null;
+    if (!url && resolvedSourceId) {
+      url = sources[resolvedSourceId]?.url ?? null;
+    }
+
+    const safeLabel = label ?? "Capsule post";
+    links.push({
+      label: safeLabel,
+      url,
+      sourceId: resolvedSourceId,
+    });
+
+    if (resolvedSourceId) {
+      sourceIds.push(resolvedSourceId);
+    }
+
+    if (links.length >= HISTORY_ARTICLE_LINK_LIMIT) break;
+  }
+
+  return {
+    links,
+    sourceIds: Array.from(new Set(sourceIds)),
+  };
+}
+
+function coerceHistoryArticles(
+  capsuleId: string,
+  period: CapsuleHistoryPeriod,
+  timeframe: CapsuleHistoryTimeframe,
+  value: unknown,
+  sources: Record<string, CapsuleHistorySource>,
+  postLookup: Map<string, CapsuleHistoryPost>,
+): CapsuleHistoryArticle[] {
+  if (!Array.isArray(value)) return [];
+  const articles: CapsuleHistoryArticle[] = [];
+  const entries = (value as HistoryModelArticle[]).slice(0, HISTORY_ARTICLE_LIMIT);
+
+  entries.forEach((entry, index) => {
+    if (!entry || typeof entry !== "object") return;
+
+    const titleCandidate = sanitizeHistoryString(entry.title, HISTORY_ARTICLE_TITLE_LIMIT);
+    const summaryCandidate = sanitizeHistoryContent(entry.summary);
+    let paragraphs = sanitizeHistoryArray(
+      entry.paragraphs,
+      HISTORY_ARTICLE_PARAGRAPH_LIMIT,
+      HISTORY_ARTICLE_PARAGRAPH_LENGTH,
+    );
+
+    if (!paragraphs.length && summaryCandidate.length) {
+      paragraphs = [summaryCandidate];
+    }
+    if (!paragraphs.length) {
+      paragraphs = [titleCandidate ?? `${timeframe.label} highlights`];
+    }
+
+    const primarySourcePostId =
+      typeof entry.primary_source_id === "string" && entry.primary_source_id.trim().length
+        ? entry.primary_source_id.trim()
+        : null;
+
+    const { links, sourceIds } = coerceArticleLinks(entry.sources, capsuleId, sources, postLookup);
+
+    if (primarySourcePostId && postLookup.has(primarySourcePostId)) {
+      const primarySourceId = ensurePostSource(
+        sources,
+        capsuleId,
+        postLookup.get(primarySourcePostId)!,
+      );
+      if (!sourceIds.includes(primarySourceId)) {
+        sourceIds.unshift(primarySourceId);
+      }
+      const existingIndex = links.findIndex((link) => link.sourceId === primarySourceId);
+      if (existingIndex >= 0) {
+        const [primary] = links.splice(existingIndex, 1);
+        if (primary) {
+          links.unshift(primary);
+        }
+      } else {
+        const source = sources[primarySourceId] ?? null;
+        links.unshift({
+          label: sanitizeHistoryString(source?.label, 140) ?? "Capsule post",
+          url: source?.url ?? null,
+          sourceId: primarySourceId,
+        });
+      }
+    }
+
+    if (links.length > HISTORY_ARTICLE_LINK_LIMIT) {
+      links.length = HISTORY_ARTICLE_LINK_LIMIT;
+    }
+
+    const metadata: CapsuleHistoryArticleMetadata = {
+      title: titleCandidate ?? `${timeframe.label} highlights`,
+      paragraphs,
+      links,
+    };
+    const text = paragraphs[0] ?? metadata.title;
+    if (!text) return;
+    const block = makeContentBlock({
+      period,
+      kind: "article",
+      index,
+      text,
+      seed: `${period}-article-${index}`,
+      sourceIds: Array.from(new Set(sourceIds)),
+      metadata,
+    }) as CapsuleHistoryArticle;
+    articles.push(block);
+  });
+
+  return articles;
+}
+
+function buildFallbackArticles(
+  capsuleId: string,
+  timeframe: CapsuleHistoryTimeframe,
+  summaryText: string,
+  highlightTexts: string[],
+  sources: Record<string, CapsuleHistorySource>,
+): CapsuleHistoryArticle[] {
+  const period = timeframe.period;
+  const fallbackParagraphs: string[] = [];
+  const summaryParagraph = sanitizeHistoryString(summaryText, HISTORY_ARTICLE_PARAGRAPH_LENGTH);
+  if (summaryParagraph) {
+    fallbackParagraphs.push(summaryParagraph);
+  }
+
+  if (fallbackParagraphs.length < HISTORY_ARTICLE_PARAGRAPH_LIMIT) {
+    const highlightParagraph = highlightTexts
+      .map((item) => sanitizeHistoryString(item, HISTORY_ARTICLE_PARAGRAPH_LENGTH))
+      .find((item): item is string => Boolean(item));
+    if (highlightParagraph) {
+      fallbackParagraphs.push(highlightParagraph);
+    }
+  }
+
+  if (!fallbackParagraphs.length) {
+    const message =
+      timeframe.posts.length === 0
+        ? `Capsule AI didn't find new activity for ${timeframe.label.toLowerCase()}. Share an update to get this wiki started.`
+        : `${timeframe.posts.length} update${timeframe.posts.length === 1 ? "" : "s"} were shared. Capture the highlights to keep your team aligned.`;
+    fallbackParagraphs.push(message);
+  }
+
+  const links: CapsuleHistoryArticleLink[] = [];
+  const sourceIds: string[] = [];
+  timeframe.posts.slice(0, HISTORY_ARTICLE_LINK_LIMIT).forEach((post) => {
+    const sourceId = ensurePostSource(sources, capsuleId, post);
+    const source = sources[sourceId] ?? null;
+    const label =
+      sanitizeHistoryString(source?.label, 140) ??
+      sanitizeHistoryString(post.content, 140) ??
+      `Post from ${post.user ?? "member"}`;
+    links.push({
+      label: label ?? "Capsule post",
+      url: source?.url ?? null,
+      sourceId,
+    });
+    sourceIds.push(sourceId);
+  });
+
+  const metadata: CapsuleHistoryArticleMetadata = {
+    title: `${timeframe.label} recap`,
+    paragraphs: fallbackParagraphs.slice(0, HISTORY_ARTICLE_PARAGRAPH_LIMIT),
+    links,
+  };
+  if (!metadata.paragraphs.length) {
+    metadata.paragraphs = [`Capsule AI is still gathering updates for ${timeframe.label.toLowerCase()}.`];
+  }
+  const articleText = metadata.paragraphs[0] ?? `${timeframe.label} recap`;
+
+  const block = makeContentBlock({
+    period,
+    kind: "article",
+    index: 0,
+    text: articleText,
+    seed: `${period}-article-fallback`,
+    sourceIds: Array.from(new Set(sourceIds)),
+    metadata,
+  }) as CapsuleHistoryArticle;
+
+  return [block];
 }
 
 function normalizeHistoryPeriod(value: unknown): CapsuleHistoryPeriod | null {
@@ -1705,6 +1973,59 @@ function cloneContentBlock(block: CapsuleHistoryContentBlock): CapsuleHistoryCon
   };
 }
 
+function normalizeArticleBlock(block: CapsuleHistoryArticle): CapsuleHistoryArticle {
+  const metadataRaw =
+    block.metadata && typeof block.metadata === "object"
+      ? (block.metadata as Record<string, unknown>)
+      : null;
+  const title =
+    metadataRaw && typeof metadataRaw.title === "string"
+      ? sanitizeHistoryString(metadataRaw.title, HISTORY_ARTICLE_TITLE_LIMIT)
+      : null;
+  const paragraphs = metadataRaw && Array.isArray(metadataRaw.paragraphs)
+    ? (metadataRaw.paragraphs as unknown[])
+        .map((paragraph) => sanitizeHistoryString(paragraph, HISTORY_ARTICLE_PARAGRAPH_LENGTH))
+        .filter((paragraph): paragraph is string => Boolean(paragraph))
+        .slice(0, HISTORY_ARTICLE_PARAGRAPH_LIMIT)
+    : [];
+  const links = metadataRaw && Array.isArray(metadataRaw.links)
+    ? (metadataRaw.links as unknown[])
+        .map((link) => {
+          if (!link || typeof link !== "object") return null;
+          const record = link as Record<string, unknown>;
+          const label = sanitizeHistoryString(record.label, 140);
+          const url =
+            typeof record.url === "string" && record.url.trim().length
+              ? record.url.trim()
+              : null;
+          const sourceId =
+            typeof record.sourceId === "string" && record.sourceId.trim().length
+              ? record.sourceId.trim()
+              : null;
+          return {
+            label: label ?? "Capsule post",
+            url,
+            sourceId,
+          };
+        })
+        .filter((link): link is CapsuleHistoryArticleLink => Boolean(link))
+        .slice(0, HISTORY_ARTICLE_LINK_LIMIT)
+    : [];
+
+  return {
+    ...block,
+    metadata: {
+      title: title ?? (paragraphs[0] ?? block.text ?? null),
+      paragraphs: paragraphs.length
+        ? paragraphs
+        : block.text
+          ? [block.text]
+          : [],
+      links,
+    },
+  };
+}
+
 function cloneTimelineEntry(entry: CapsuleHistoryTimelineEntry): CapsuleHistoryTimelineEntry {
   return {
     ...cloneContentBlock(entry),
@@ -1720,6 +2041,9 @@ function cloneSectionContent(content: CapsuleHistorySectionContent): CapsuleHist
   return {
     summary: cloneContentBlock(content.summary),
     highlights: content.highlights.map((item) => cloneContentBlock(item)),
+    articles: content.articles.map((item) =>
+      normalizeArticleBlock(cloneContentBlock(item) as CapsuleHistoryArticle),
+    ),
     timeline: content.timeline.map((item) => cloneTimelineEntry(item)),
     nextFocus: content.nextFocus.map((item) => cloneContentBlock(item)),
   };
@@ -2054,20 +2378,21 @@ function composeCapsuleHistorySnapshot(params: {
     const decoratedSuggested = suggestedSection
       ? decorateContentWithPins(suggestedSection.content, pins)
       : decorateContentWithPins(
-          {
-            summary: makeContentBlock({
-              period,
-              kind: "summary",
-              index: 0,
-              text: "No updates captured for this period yet.",
-              seed: `${period}-empty`,
-            }),
-            highlights: [],
-            timeline: [],
-            nextFocus: [],
-          },
-          pins,
-        );
+        {
+          summary: makeContentBlock({
+            period,
+            kind: "summary",
+            index: 0,
+            text: "No updates captured for this period yet.",
+            seed: `${period}-empty`,
+          }),
+          highlights: [],
+          articles: [],
+          timeline: [],
+          nextFocus: [],
+        },
+        pins,
+      );
 
     const decoratedPublished = publishedSection
       ? decorateContentWithPins(publishedSection.content, pins)
@@ -2176,6 +2501,11 @@ function coerceStoredSnapshot(value: Record<string, unknown> | null): StoredHist
     const coerceBlockArray = (value: unknown[]): CapsuleHistoryContentBlock[] =>
       value.map((item) => cloneContentBlock(item as CapsuleHistoryContentBlock));
 
+    const coerceArticleArray = (value: unknown[]): CapsuleHistoryArticle[] =>
+      value.map((item) =>
+        normalizeArticleBlock(cloneContentBlock(item as CapsuleHistoryContentBlock) as CapsuleHistoryArticle),
+      );
+
     const coerceTimelineArray = (value: unknown[]): CapsuleHistoryTimelineEntry[] =>
       value.map((item) => cloneTimelineEntry(item as CapsuleHistoryTimelineEntry));
 
@@ -2185,6 +2515,9 @@ function coerceStoredSnapshot(value: Record<string, unknown> | null): StoredHist
             summary: coerceBlock((contentRaw as Record<string, unknown>).summary),
             highlights: Array.isArray((contentRaw as Record<string, unknown>).highlights)
               ? coerceBlockArray((contentRaw as Record<string, unknown>).highlights as unknown[])
+              : [],
+            articles: Array.isArray((contentRaw as Record<string, unknown>).articles)
+              ? coerceArticleArray((contentRaw as Record<string, unknown>).articles as unknown[])
               : [],
             timeline: Array.isArray((contentRaw as Record<string, unknown>).timeline)
               ? coerceTimelineArray((contentRaw as Record<string, unknown>).timeline as unknown[])
@@ -2202,6 +2535,7 @@ function coerceStoredSnapshot(value: Record<string, unknown> | null): StoredHist
               seed: `${period}-empty`,
             }),
             highlights: [],
+            articles: [],
             timeline: [],
             nextFocus: [],
           };
@@ -2805,7 +3139,7 @@ async function generateCapsuleHistoryFromModel(input: {
   const systemMessage = {
     role: "system",
     content:
-      "You are Capsules AI, maintaining a capsule history wiki. For each timeframe (weekly, monthly, all_time) produce concise factual recaps based only on the provided posts. Return JSON matching the schema. Summaries may be up to three sentences. Highlights should be short bullet-style points (<=140 chars) referencing actual activity. Timeline entries should mention specific updates with plain language and include the related post_id when the post exists in the provided list. Provide 1-3 actionable next_focus suggestions when there is activity. If a timeframe has zero posts, set empty=true, summary like 'No new activity this period.', and provide one suggestion encouraging participation. Never invent names or events.",
+      "You are Capsules AI, maintaining a capsule history wiki. For each timeframe (weekly, monthly, all_time) produce concise factual recaps based only on the provided posts and return JSON that matches the schema. Summaries may be up to three sentences. Highlights must be short bullet-style points (<=140 chars) referencing actual activity. Articles should read like short features with 1-2 paragraphs, cite real posts, and include a sources list that prefers provided post_id values (fallback to explicit URLs only when necessary). Timeline entries should mention specific updates and include the related post_id when the post exists in the provided list. Provide 1-3 actionable next_focus suggestions when there is activity. If a timeframe has zero posts, set empty=true, give a summary such as 'No new activity this period.', craft a single article that encourages future participation, and provide one suggestion encouraging participation. Never invent names or events and do not include editing instructions.",
   };
 
   const userMessage = {
@@ -2889,6 +3223,18 @@ function buildHistorySections(
       }),
     );
 
+    const modelArticles = coerceHistoryArticles(
+      capsuleId,
+      period,
+      timeframe,
+      match?.articles,
+      sources,
+      postLookup,
+    );
+    const resolvedArticles = modelArticles.length
+      ? modelArticles
+      : buildFallbackArticles(capsuleId, timeframe, summaryText, resolvedHighlights, sources);
+
     const modelNextFocus = sanitizeHistoryArray(match?.next_focus, HISTORY_NEXT_FOCUS_LIMIT, 160);
     const resolvedNextFocus = modelNextFocus.length
       ? modelNextFocus
@@ -2919,6 +3265,7 @@ function buildHistorySections(
     const content: CapsuleHistorySectionContent = {
       summary: summaryBlock,
       highlights: highlightBlocks,
+      articles: resolvedArticles,
       timeline: resolvedTimeline,
       nextFocus: nextFocusBlocks,
     };
@@ -2968,10 +3315,11 @@ async function buildCapsuleHistorySnapshot({
         text: summaryText,
         seed: `${timeframe.period}-summary`,
       });
-      const highlightBlocks = sanitizeHistoryArray(
+      const fallbackHighlights = sanitizeHistoryArray(
         buildFallbackHighlights(timeframe),
         HISTORY_HIGHLIGHT_LIMIT,
-      ).map((text, index) =>
+      );
+      const highlightBlocks = fallbackHighlights.map((text, index) =>
         makeContentBlock({
           period: timeframe.period,
           kind: "highlight",
@@ -2979,6 +3327,13 @@ async function buildCapsuleHistorySnapshot({
           text,
           seed: `${timeframe.period}-highlight-${index}`,
         }),
+      );
+      const articleBlocks = buildFallbackArticles(
+        capsuleId,
+        timeframe,
+        summaryText,
+        fallbackHighlights,
+        sources,
       );
       const nextFocusBlocks = sanitizeHistoryArray(
         buildFallbackNextFocus(timeframe),
@@ -3002,6 +3357,7 @@ async function buildCapsuleHistorySnapshot({
         content: {
           summary: summaryBlock,
           highlights: highlightBlocks,
+          articles: articleBlocks,
           timeline: [],
           nextFocus: nextFocusBlocks,
         },

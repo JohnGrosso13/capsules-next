@@ -31,10 +31,16 @@ type ArticleEntry = {
   id: string;
   period: CapsuleHistorySection["period"];
   sectionTitle: string;
-  text: string;
-  sourceLabel: string | null;
-  sourceUrl: string | null;
+  title: string;
+  paragraphs: string[];
+  excerpt: string;
   timestamp: string | null;
+  citations: Array<{
+    label: string;
+    url: string | null;
+    sourceId: string | null;
+  }>;
+  primaryUrl: string | null;
 };
 
 function selectDisplayContent(section: CapsuleHistorySection): CapsuleHistorySectionContent {
@@ -59,24 +65,103 @@ function formatHistoryRange(start: string | null, end: string | null): string {
   return "All time";
 }
 
-function resolveHighlightArticles(snapshot: CapsuleHistorySnapshot): ArticleEntry[] {
+function resolveArticleEntries(snapshot: CapsuleHistorySnapshot): ArticleEntry[] {
   const entries: ArticleEntry[] = [];
-  for (const section of snapshot.sections) {
+
+  snapshot.sections.forEach((section) => {
     const content = selectDisplayContent(section);
-    for (const highlight of content.highlights) {
+    const articles = Array.isArray(content.articles) ? content.articles : [];
+    if (articles.length) {
+      articles.forEach((article) => {
+        const metadata =
+          article.metadata && typeof article.metadata === "object"
+            ? (article.metadata as Record<string, unknown>)
+            : {};
+        const title =
+          typeof metadata.title === "string" && metadata.title.trim().length
+            ? metadata.title.trim()
+            : section.title;
+        const paragraphs = Array.isArray(metadata.paragraphs)
+          ? (metadata.paragraphs as unknown[])
+              .map((paragraph) =>
+                typeof paragraph === "string" && paragraph.trim().length ? paragraph.trim() : null,
+              )
+              .filter((paragraph): paragraph is string => Boolean(paragraph))
+          : [];
+        const linksRaw = Array.isArray(metadata.links) ? (metadata.links as unknown[]) : [];
+        const citations = linksRaw
+          .map((link) => {
+            if (!link || typeof link !== "object") return null;
+            const record = link as Record<string, unknown>;
+            const sourceId =
+              typeof record.sourceId === "string" && record.sourceId.trim().length
+                ? record.sourceId.trim()
+                : null;
+            const source = sourceId ? snapshot.sources[sourceId] ?? null : null;
+            const rawUrl =
+              typeof record.url === "string" && record.url.trim().length
+                ? record.url.trim()
+                : null;
+            const url = rawUrl ?? source?.url ?? null;
+            const rawLabel =
+              typeof record.label === "string" && record.label.trim().length
+                ? record.label.trim()
+                : null;
+            const label = rawLabel ?? source?.label ?? (source?.postId ? "Post" : "Source");
+            if (!label) return null;
+            return { label, url, sourceId };
+          })
+          .filter((entry): entry is ArticleEntry["citations"][number] => Boolean(entry));
+        const excerptSource = article.text?.trim().length ? article.text.trim() : paragraphs[0] ?? "";
+        const timestamps = article.sourceIds
+          .map((sourceId) => snapshot.sources[sourceId]?.occurredAt)
+          .filter((value): value is string => Boolean(value));
+        const timestamp = timestamps[0] ?? section.timeframe.end ?? section.timeframe.start ?? null;
+        entries.push({
+          id: article.id,
+          period: section.period,
+          sectionTitle: section.title,
+          title,
+          paragraphs: paragraphs.length ? paragraphs : excerptSource.length ? [excerptSource] : [],
+          excerpt: excerptSource,
+          timestamp,
+          citations,
+          primaryUrl: citations.find((citation) => Boolean(citation.url))?.url ?? null,
+        });
+      });
+      return;
+    }
+
+    const summaryText = content.summary.text?.trim() ?? "";
+    content.highlights.forEach((highlight) => {
       const firstSourceId = highlight.sourceIds[0] ?? null;
       const source = firstSourceId ? snapshot.sources[firstSourceId] ?? null : null;
+      const paragraphs = [summaryText, highlight.text]
+        .map((paragraph) => (paragraph && paragraph.trim().length ? paragraph.trim() : null))
+        .filter((paragraph): paragraph is string => Boolean(paragraph));
+      const citation = source
+        ? [
+            {
+              label: source.label ?? "Source",
+              url: source.url ?? null,
+              sourceId: source.id,
+            },
+          ]
+        : [];
       entries.push({
         id: highlight.id,
         period: section.period,
         sectionTitle: section.title,
-        text: highlight.text,
-        sourceLabel: source?.label ?? null,
-        sourceUrl: source?.url ?? null,
+        title: section.title,
+        paragraphs,
+        excerpt: highlight.text,
         timestamp: source?.occurredAt ?? section.timeframe.end ?? section.timeframe.start,
+        citations: citation,
+        primaryUrl: citation.find((item) => Boolean(item.url))?.url ?? null,
       });
-    }
-  }
+    });
+  });
+
   return entries;
 }
 
@@ -88,14 +173,36 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
   const activeSection = sections.find((section) => section.period === activePeriod) ?? sections[0] ?? null;
   const activeContent = activeSection ? selectDisplayContent(activeSection) : null;
 
-  const articles = React.useMemo(() => resolveHighlightArticles(snapshot), [snapshot]);
+  const articles = React.useMemo(() => resolveArticleEntries(snapshot), [snapshot]);
   const filteredArticles = React.useMemo(() => {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed.length) return articles;
-    return articles.filter((article) =>
-      article.text.toLowerCase().includes(trimmed) || article.sectionTitle.toLowerCase().includes(trimmed),
-    );
+    return articles.filter((article) => {
+      const haystack = [
+        article.title,
+        article.sectionTitle,
+        article.excerpt,
+        ...article.paragraphs,
+        ...article.citations.map((citation) => citation.label),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(trimmed);
+    });
   }, [articles, query]);
+
+  const activeSummaryText = activeContent?.summary.text?.trim() ?? "";
+  const activeSummaryParagraphs = React.useMemo(
+    () =>
+      activeSummaryText.length
+        ? activeSummaryText
+            .split(/\n+/)
+            .map((part) => part.trim())
+            .filter((part) => part.length)
+        : [],
+    [activeSummaryText],
+  );
 
   return (
     <section className={styles.wrapper}>
@@ -115,46 +222,6 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
         </div>
       </header>
 
-      <div className={styles.searchRow}>
-        <MagnifyingGlass size={18} weight="bold" className={styles.searchIcon} />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search summaries or articles"
-          className={styles.searchInput}
-        />
-      </div>
-
-      <div className={styles.tileRow}>
-        {sections.map((section) => {
-          const content = selectDisplayContent(section);
-          const summary = content.summary.text?.trim() ?? "";
-          const isActive = section.period === activePeriod;
-          return (
-            <button
-              key={section.period}
-              type="button"
-              className={cn(styles.summaryTile, isActive && styles.summaryTileActive)}
-              onClick={() => setActivePeriod(section.period)}
-            >
-              <div className={styles.tileFace}>
-                <span className={styles.tileLabel}>{PERIOD_LABEL[section.period]}</span>
-                <span className={styles.tileMeta}>{formatHistoryRange(section.timeframe.start, section.timeframe.end)}</span>
-                <span className={styles.tileCount}>
-                  {section.postCount} {section.postCount === 1 ? "post" : "posts"}
-                </span>
-              </div>
-              <div className={styles.tileBack}>
-                <p className={styles.tileSummary}>
-                  {summary.length ? summary : "No summary yet ? tap to edit."}
-                </p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
       {activeSection && activeContent ? (
         <div className={styles.summaryPanel}>
           <div className={styles.panelHeader}>
@@ -169,10 +236,14 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
               <span>AI generated summary</span>
             </div>
           </div>
-          {activeContent.summary.text?.trim().length ? (
-            <p className={styles.panelSummary}>{activeContent.summary.text}</p>
+          {activeSummaryParagraphs.length ? (
+            <div className={styles.panelSummary}>
+              {activeSummaryParagraphs.map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ))}
+            </div>
           ) : (
-            <p className={styles.panelPlaceholder}>No recap yet. Ask Capsule AI to generate one in Edit mode.</p>
+            <p className={styles.panelPlaceholder}>Capsule AI hasn&apos;t generated a recap for this period yet.</p>
           )}
           {activeContent.timeline.length ? (
             <div className={styles.panelSection}>
@@ -196,6 +267,50 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
           ) : null}
         </div>
       ) : null}
+
+      <div className={styles.periodRow}>
+        {sections.map((section) => {
+          const content = selectDisplayContent(section);
+          const summary = content.summary.text?.trim() ?? "";
+          const summaryExcerpt =
+            summary.length > 180 ? `${summary.slice(0, 177)}…` : summary;
+          const isActive = section.period === activePeriod;
+          return (
+            <button
+              key={section.period}
+              type="button"
+              className={cn(styles.periodButton, isActive && styles.periodButtonActive)}
+              onClick={() => setActivePeriod(section.period)}
+            >
+              <div className={styles.periodHeader}>
+                <span className={styles.periodLabel}>{PERIOD_LABEL[section.period]}</span>
+                <span className={styles.periodCount}>
+                  {section.postCount} {section.postCount === 1 ? "post" : "posts"}
+                </span>
+              </div>
+              <span className={styles.periodRange}>
+                {formatHistoryRange(section.timeframe.start, section.timeframe.end)}
+              </span>
+              {summaryExcerpt.length ? (
+                <p className={styles.periodExcerpt}>{summaryExcerpt}</p>
+              ) : (
+                <p className={styles.periodExcerptMuted}>Capsule AI is watching for new updates.</p>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className={styles.searchRow}>
+        <MagnifyingGlass size={18} weight="bold" className={styles.searchIcon} />
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search summaries or articles"
+          className={styles.searchInput}
+        />
+      </div>
 
       <div className={styles.articlesHeader}>
         <h3>Articles</h3>
@@ -221,13 +336,41 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
                   </span>
                 ) : null}
               </div>
-              <h4 className={styles.articleTitle}>{article.sectionTitle}</h4>
-              <p className={styles.articleBody}>{article.text}</p>
-              {article.sourceUrl ? (
-                <Link href={article.sourceUrl} className={styles.articleLink} target="_blank" rel="noreferrer">
-                  {article.sourceLabel ?? "View source"}
-                  <ArrowSquareOut size={14} weight="bold" />
-                </Link>
+              <h4 className={styles.articleTitle}>
+                {article.primaryUrl ? (
+                  <Link href={article.primaryUrl} className={styles.articleTitleLink} target="_blank" rel="noreferrer">
+                    {article.title}
+                    <ArrowSquareOut size={14} weight="bold" />
+                  </Link>
+                ) : (
+                  article.title
+                )}
+              </h4>
+              <div className={styles.articleBody}>
+                {article.paragraphs.length
+                  ? article.paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)
+                  : null}
+              </div>
+              {article.citations.length ? (
+                <div className={styles.articleCitations}>
+                  <span className={styles.citationsLabel}>Sources</span>
+                  <ul>
+                    {article.citations.map((citation, index) => {
+                      const key = citation.sourceId ?? `${article.id}-${index}`;
+                      if (citation.url) {
+                        return (
+                          <li key={key}>
+                            <Link href={citation.url} target="_blank" rel="noreferrer">
+                              {citation.label}
+                              <ArrowSquareOut size={12} weight="bold" />
+                            </Link>
+                          </li>
+                        );
+                      }
+                      return <li key={key}>{citation.label}</li>;
+                    })}
+                  </ul>
+                </div>
               ) : null}
             </article>
           ))
