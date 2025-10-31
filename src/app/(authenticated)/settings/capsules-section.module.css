@@ -47,6 +47,11 @@
   background: color-mix(in srgb, rgba(255, 255, 255, 0.12) 38%, transparent);
 }
 
+.itemActive {
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent);
+  background: color-mix(in srgb, rgba(37, 99, 235, 0.12) 40%, transparent);
+}
+
 .itemLink {
   display: flex;
   align-items: center;
@@ -158,6 +163,57 @@
   margin: 0;
   font-size: 0.9rem;
   font-weight: 600;
+  color: var(--color-danger, #f87171);
+}
+
+.aiPanel {
+  margin-top: 20px;
+  padding: 20px 22px;
+  border-radius: 18px;
+  border: 1px solid
+    color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.18)) 75%, transparent);
+  background: color-mix(in srgb, rgba(18, 20, 42, 0.92) 85%, transparent);
+  display: grid;
+  gap: 18px;
+}
+
+.aiPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.aiPanelTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, rgba(255, 255, 255, 0.94));
+}
+
+.aiPanelSubtitle {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+  color: color-mix(in srgb, var(--text-2, rgba(255, 255, 255, 0.72)) 85%, transparent);
+}
+
+.aiPanelBody {
+  display: grid;
+  gap: 18px;
+}
+
+.aiPanelStatus {
+  font-size: 0.9rem;
+  color: var(--text-2, rgba(255, 255, 255, 0.7));
+}
+
+.aiPanelError {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
   color: var(--color-danger, #f87171);
 }
 

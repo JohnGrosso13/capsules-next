@@ -1200,4 +1200,3 @@ function HistoryReadOnly({ content }: { content: CapsuleHistorySectionContent })
 
 export default CapsuleHistoryCuration;
 
-

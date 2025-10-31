@@ -9,6 +9,7 @@ import cards from "@/components/cards.module.css";
 
 import layout from "./settings.module.css";
 import styles from "./capsules-section.module.css";
+import { CapsuleAiSettingsPanel } from "./capsule-ai-settings";
 
 type CapsuleSummary = {
   id: string;
@@ -49,9 +50,14 @@ export function CapsuleSettingsSection({
   const [error, setError] = React.useState<string | null>(null);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [confirming, setConfirming] = React.useState<CapsuleSummary | null>(null);
+  const [selectedCapsule, setSelectedCapsule] = React.useState<CapsuleSummary | null>(null);
 
   React.useEffect(() => {
     setCapsules(initialCapsules);
+    setSelectedCapsule((current) => {
+      if (!current) return null;
+      return initialCapsules.find((capsule) => capsule.id === current.id) ?? null;
+    });
   }, [initialCapsules]);
 
   const loadCapsules = React.useCallback(async () => {
@@ -65,6 +71,10 @@ export function CapsuleSettingsSection({
       }
       const ownedCapsules = payload.capsules.filter((capsule) => capsule.ownership === "owner");
       setCapsules(ownedCapsules);
+      setSelectedCapsule((current) => {
+        if (!current) return null;
+        return ownedCapsules.find((capsule) => capsule.id === current.id) ?? null;
+      });
     } catch (err) {
       console.error("settings capsules load error", err);
       setError("Unable to load your capsules. Please try again.");
@@ -85,6 +95,7 @@ export function CapsuleSettingsSection({
         throw new Error(`capsule delete failed with status ${response.status}`);
       }
       setCapsules((prev) => prev.filter((item) => item.id !== capsule.id));
+      setSelectedCapsule((current) => (current?.id === capsule.id ? null : current));
     } catch (err) {
       console.error("settings capsules delete error", err);
       setError("Failed to delete the capsule. Please try again.");
@@ -151,9 +162,14 @@ export function CapsuleSettingsSection({
             <div className={styles.list}>
               {capsules.map((capsule) => {
                 const deleting = deletingId === capsule.id;
+                const managing = selectedCapsule?.id === capsule.id;
                 const capsuleLink = `/capsule?capsuleId=${encodeURIComponent(capsule.id)}`;
                 return (
-                  <div key={capsule.id} className={styles.item}>
+                  <div
+                    key={capsule.id}
+                    className={managing ? `${styles.item} ${styles.itemActive}` : styles.item}
+                    data-active={managing ? "true" : undefined}
+                  >
                     <Link href={capsuleLink} className={styles.itemLink}>
                       <span className={styles.avatar} aria-hidden>
                         {capsule.logoUrl ? (
@@ -171,6 +187,15 @@ export function CapsuleSettingsSection({
                       </div>
                     </Link>
                     <div className={styles.actions}>
+                      <Button
+                        type="button"
+                        variant={managing ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedCapsule(capsule)}
+                        aria-pressed={managing}
+                      >
+                        {managing ? "Viewing AI Settings" : "Manage AI"}
+                      </Button>
                       <Button
                         type="button"
                         variant="ghost"
@@ -204,6 +229,14 @@ export function CapsuleSettingsSection({
               ? "You have 1 capsule that you can delete from here."
               : `You have ${ownedCount} capsules that you can delete from here.`}
           </p>
+        ) : null}
+
+        {selectedCapsule ? (
+          <CapsuleAiSettingsPanel
+            capsuleId={selectedCapsule.id}
+            capsuleName={selectedCapsule.name}
+            onClose={() => setSelectedCapsule(null)}
+          />
         ) : null}
       </div>
 

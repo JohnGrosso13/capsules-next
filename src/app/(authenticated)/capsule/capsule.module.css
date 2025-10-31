@@ -1765,6 +1765,22 @@
   color: var(--text-3, rgba(148, 163, 184, 0.8));
   font-style: italic;
 }
+.wikiWrap {
+  display: grid;
+  gap: 1.5rem;
+}
+.wikiEditor {
+  margin-top: 2rem;
+  display: grid;
+  gap: 1rem;
+}
+.wikiEditorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
 @media (max-width: 640px) {
   .historyActions {
     width: 100%;

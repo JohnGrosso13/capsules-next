@@ -121,6 +121,12 @@ export type CapsuleHistorySectionContent = {
   nextFocus: CapsuleHistoryContentBlock[];
 };
 
+export type CapsuleHistorySectionHints = {
+  summary: string;
+  timeline: string;
+  articles: string;
+};
+
 export type CapsuleHistoryCoverageMetric = {
   id: string;
   label: string;

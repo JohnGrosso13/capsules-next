@@ -11,27 +11,139 @@
   gap: 1rem;
 }
 
-.sectionNav {
+.settingsCallout {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, rgba(18, 22, 46, 0.72) 80%, transparent);
+  border: 1px solid color-mix(in srgb, rgba(132, 148, 255, 0.12) 70%, transparent);
+  font-size: 0.9rem;
+  color: var(--text-muted-strong, rgba(240, 244, 255, 0.82));
   flex-wrap: wrap;
 }
 
-.sectionButton {
-  border-radius: var(--pill-radius, 999px);
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(132, 148, 255, 0.2)) 80%, transparent);
-  background: color-mix(in srgb, var(--surface-elevated, rgba(16, 20, 50, 0.86)) 70%, transparent);
-  color: var(--text-muted-strong, rgba(240, 244, 255, 0.84));
-  padding: 0.4rem 0.95rem;
-  font-size: 0.9rem;
+.settingsLink {
+  color: var(--color-brand, #2563eb);
+  font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
-  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+  transition: color 160ms ease;
 }
 
-.sectionButtonActive {
-  background: color-mix(in srgb, var(--color-brand, #2563eb) 24%, transparent);
-  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 48%, transparent);
+.settingsLink:hover {
+  color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, white 10%);
+}
+
+.tileGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.sectionTile {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  perspective: 1200px;
+}
+
+.sectionTileInner {
+  --tile-rotation: 0deg;
+  --tile-translate: 0px;
+  position: relative;
+  border-radius: var(--card-radius, 16px);
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(132, 148, 255, 0.18)) 80%, transparent);
+  background: radial-gradient(
+    circle at top,
+    color-mix(in srgb, rgba(46, 58, 120, 0.38) 70%, transparent),
+    color-mix(in srgb, rgba(18, 20, 48, 0.92) 85%, transparent)
+  );
+  box-shadow: 0 12px 30px rgba(5, 10, 30, 0.35);
+  transition: transform 320ms ease;
+  transform-style: preserve-3d;
+  min-height: 160px;
+  transform: rotateY(var(--tile-rotation)) translateY(var(--tile-translate));
+}
+
+.sectionTileInner:hover {
+  --tile-translate: -2px;
+}
+
+.sectionTileInner[data-active="true"] {
+  --tile-rotation: 180deg;
+  --tile-translate: 0px;
+}
+
+.sectionTileActive .sectionTileInner {
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
+  box-shadow: 0 16px 36px rgba(30, 60, 150, 0.35);
+}
+
+.sectionTileFace,
+.sectionTileFaceBack {
+  position: absolute;
+  inset: 0;
+  padding: 1.15rem;
+  border-radius: inherit;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sectionTileFace {
+  justify-content: space-between;
+}
+
+.sectionTileFaceBack {
+  transform: rotateY(180deg);
+  justify-content: space-between;
+}
+
+.sectionTileBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent);
   color: var(--text-primary, #fff);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.sectionTileRange {
+  font-size: 0.85rem;
+  color: var(--text-muted, rgba(208, 216, 255, 0.72));
+}
+
+.sectionTileCount {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted-strong, rgba(240, 244, 255, 0.78));
+}
+
+.sectionTileSummary {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--text-primary, rgba(255, 255, 255, 0.92));
+}
+
+.sectionTileHighlight {
+  font-size: 0.85rem;
+  color: var(--text-muted-strong, rgba(240, 244, 255, 0.78));
+}
+
+.sectionTileAction {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--color-brand, #2563eb) 55%, white 10%);
 }
 
 .sectionCard {
@@ -56,11 +168,51 @@
   gap: 1rem;
 }
 
+.referenceColumn {
+  gap: 1.25rem;
+}
+
+.editorColumn {
+  gap: 1.5rem;
+}
+
+.previewCard {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.referenceSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .columnHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.hintsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, rgba(24, 32, 70, 0.86) 75%, transparent);
+  border: 1px solid color-mix(in srgb, rgba(132, 148, 255, 0.2) 65%, transparent);
+  font-size: 0.88rem;
+}
+
+.hintsHeader span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--text-primary, rgba(255, 255, 255, 0.88));
 }
 
 .fieldGroup {
@@ -179,4 +331,12 @@
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.sectionHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  color: var(--text-muted-strong, rgba(240, 244, 255, 0.78));
 }

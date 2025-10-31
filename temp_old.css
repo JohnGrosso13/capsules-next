@@ -1,0 +1,183 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sectionNav {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sectionButton {
+  border-radius: var(--pill-radius, 999px);
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(132, 148, 255, 0.2)) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated, rgba(16, 20, 50, 0.86)) 70%, transparent);
+  color: var(--text-muted-strong, rgba(240, 244, 255, 0.84));
+  padding: 0.4rem 0.95rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.sectionButtonActive {
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 24%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 48%, transparent);
+  color: var(--text-primary, #fff);
+}
+
+.sectionCard {
+  background: color-mix(in srgb, var(--surface-overlay, rgba(17, 21, 54, 0.88)) 68%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(132, 148, 255, 0.18)) 80%, transparent);
+  border-radius: var(--card-radius, 16px);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.columnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fieldLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted-strong, rgba(240, 244, 255, 0.78));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.textarea,
+.input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, rgba(132, 148, 255, 0.14) 70%, transparent);
+  background: color-mix(in srgb, rgba(12, 16, 36, 0.86) 74%, transparent);
+  color: var(--text-primary, #fff);
+  padding: 0.75rem 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 48px;
+}
+
+.textarea:focus-visible,
+.input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.listItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, rgba(19, 24, 52, 0.86) 72%, transparent);
+  border: 1px solid color-mix(in srgb, rgba(132, 148, 255, 0.18) 70%, transparent);
+}
+
+.listItemHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.listItemActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.candidateList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.candidateItem {
+  border-radius: 10px;
+  padding: 0.75rem;
+  background: color-mix(in srgb, rgba(20, 24, 52, 0.82) 70%, transparent);
+  border: 1px solid color-mix(in srgb, rgba(132, 148, 255, 0.16) 80%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.candidateActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.coverageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.coverageCard {
+  border-radius: 10px;
+  padding: 0.8rem 0.9rem;
+  background: color-mix(in srgb, rgba(20, 24, 48, 0.78) 68%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.versionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.statusMessage {
+  font-size: 0.85rem;
+  color: var(--text-muted, rgba(208, 216, 255, 0.76));
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
