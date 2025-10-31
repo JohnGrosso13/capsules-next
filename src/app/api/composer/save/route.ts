@@ -65,6 +65,7 @@ export async function POST(req: Request) {
       mediaType: item.mediaType ?? null,
       title: item.title,
       description: item.description,
+      postId: null,
       metadata,
       rawText: [item.title, item.description, item.prompt].filter(Boolean).join("\n\n"),
       source: "ai-composer",
@@ -80,4 +81,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to save creation" }, { status: 500 });
   }
 }
-

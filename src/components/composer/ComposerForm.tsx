@@ -32,6 +32,8 @@ import type {
   ComposerSaveStatus,
   ComposerSaveRequest,
   ComposerMemorySavePayload,
+  ComposerContextSnapshot,
+  ComposerContextSnippet,
 } from "./ComposerProvider";
 
 import { HomeFeedList } from "@/components/home-feed-list";
@@ -307,6 +309,9 @@ type ComposerToolbarProps = {
   onSelectKind: (key: string) => void;
   onClose: () => void;
   disabled: boolean;
+  smartContextEnabled: boolean;
+  onToggleContext: () => void;
+  contextActive: boolean;
   onMenuToggle?: () => void;
   mobileRailOpen?: boolean;
   onPreviewToggle?: () => void;
@@ -319,6 +324,9 @@ function ComposerToolbar({
   onSelectKind: _onSelectKind,
   onClose,
   disabled,
+  smartContextEnabled,
+  onToggleContext,
+  contextActive,
   onMenuToggle,
   mobileRailOpen,
   onPreviewToggle,
@@ -342,6 +350,19 @@ function ComposerToolbar({
           <h2 className={styles.toolbarTitle}>Composer Studio</h2>
         </div>
         <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.smartContextToggle}
+            onClick={onToggleContext}
+            aria-pressed={smartContextEnabled}
+            disabled={disabled}
+            data-active={smartContextEnabled ? "true" : undefined}
+            title={smartContextEnabled ? "Smart context is feeding Capsule AI" : "Enable smart context to ground Capsule AI with your memories"}
+          >
+            <Sparkle size={18} weight={smartContextEnabled ? "fill" : "duotone"} />
+            <span>{smartContextEnabled ? "Context on" : "Context off"}</span>
+            {contextActive ? <span className={styles.smartContextPulse} aria-hidden="true" /> : null}
+          </button>
           {isMobile && onMenuToggle ? (
             <button
               type="button"
@@ -376,6 +397,93 @@ function ComposerToolbar({
   );
 }
 
+function toHighlightMarkup(html: string | null | undefined): string | null {
+  if (!html) return null;
+  return html.replace(/<\/?em>/gi, (token) => (token.toLowerCase() === "<em>" ? "<mark>" : "</mark>"));
+}
+
+type SmartContextSummaryProps = {
+  enabled: boolean;
+  snapshot: ComposerContextSnapshot | null;
+  snippets: ComposerContextSnippet[];
+};
+
+function SmartContextSummary({ enabled, snapshot, snippets }: SmartContextSummaryProps) {
+  if (!enabled) {
+    return (
+      <div className={styles.smartContextBanner} data-enabled="false">
+        <p className={styles.smartContextMessage}>
+          Smart context is off. Toggle it in the header to ground Capsule AI with your saved memories.
+        </p>
+      </div>
+    );
+  }
+
+  if (!snippets.length) {
+    return (
+      <div className={styles.smartContextBanner} data-enabled="idle">
+        <p className={styles.smartContextMessage}>
+          Smart context is ready. Capsule AI will automatically pull in your memories when they match this conversation.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.smartContextBanner} data-enabled="true">
+      <header className={styles.smartContextHeader}>
+        <span className={styles.smartContextTitle}>
+          Referencing {snippets.length} memory{snippets.length === 1 ? "" : "ies"}
+        </span>
+        {snapshot?.query ? (
+          <span className={styles.smartContextQuery}>Query: {snapshot.query}</span>
+        ) : null}
+      </header>
+      <ul className={styles.smartContextList}>
+        {snippets.map((snippet, index) => {
+          const highlightMarkup = toHighlightMarkup(snippet.highlightHtml ?? null);
+          const displayText = highlightMarkup ?? snippet.snippet;
+          return (
+            <li key={`${snippet.id}-${index}`} className={styles.smartContextItem}>
+              <div className={styles.smartContextItemHeader}>
+                <span className={styles.smartContextMemoryId}>Memory #{index + 1}</span>
+                {snippet.title ? (
+                  <span className={styles.smartContextMemoryTitle}>{snippet.title}</span>
+                ) : null}
+                {snippet.source ? (
+                  <span className={styles.smartContextMemorySource}>{snippet.source}</span>
+                ) : null}
+              </div>
+              <p
+                className={styles.smartContextPreview}
+                dangerouslySetInnerHTML={{ __html: displayText }}
+              />
+              {snippet.tags.length ? (
+                <div className={styles.smartContextTags}>
+                  {snippet.tags.slice(0, 3).map((tag) => (
+                    <span key={tag} className={styles.smartContextTag}>
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {snippet.url ? (
+                <a
+                  href={snippet.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.smartContextLink}
+                >
+                  Open memory
+                </a>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 type ComposerFooterProps = {
   footerHint: string;
   privacy: ComposerFormState["privacy"];
@@ -711,6 +819,9 @@ type ComposerFormProps = {
   sidebar: ComposerSidebarData;
   videoStatus: ComposerVideoStatus;
   saveStatus: ComposerSaveStatus;
+  smartContextEnabled: boolean;
+  contextSnapshot?: ComposerContextSnapshot | null;
+  onSmartContextChange(enabled: boolean): void;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
   onPost(): void;
@@ -741,6 +852,9 @@ export function ComposerForm({
   sidebar,
   videoStatus,
   saveStatus,
+  smartContextEnabled,
+  contextSnapshot: contextSnapshotInput,
+  onSmartContextChange,
   onChange,
   onClose,
   onPost,
@@ -781,6 +895,12 @@ export function ComposerForm({
   const summaryResult = summaryResultInput ?? null;
   const summaryOptions = summaryOptionsInput ?? null;
   const summaryMessageId = summaryMessageIdInput ?? null;
+  const contextSnapshot = contextSnapshotInput ?? null;
+  const contextSnippets = React.useMemo(
+    () => (contextSnapshot?.snippets ?? []).slice(0, 5),
+    [contextSnapshot],
+  );
+  const hasContextSnippets = contextSnippets.length > 0;
   const renderedHistory = React.useMemo(() => {
     if (!summaryResult || !summaryMessageId) return conversationHistory;
     return conversationHistory.filter((entry) => entry.id !== summaryMessageId);
@@ -3292,11 +3412,20 @@ export function ComposerForm({
           onSelectKind={handleKindSelect}
           onClose={onClose}
           disabled={loading}
+          smartContextEnabled={smartContextEnabled}
+          onToggleContext={() => onSmartContextChange(!smartContextEnabled)}
+          contextActive={smartContextEnabled && hasContextSnippets}
           onMenuToggle={() => actions.setMobileRailOpen(!mobileRailOpen)}
           mobileRailOpen={mobileRailOpen}
           onPreviewToggle={handlePreviewToggle}
           previewOpen={previewOpen}
           isMobile={isMobileLayout}
+        />
+
+        <SmartContextSummary
+          enabled={smartContextEnabled}
+          snapshot={contextSnapshot}
+          snippets={contextSnippets}
         />
 
         <div className={styles.panelBody}>

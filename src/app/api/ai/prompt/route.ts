@@ -22,6 +22,13 @@ import {
   retryAfterSeconds as computeRetryAfterSeconds,
   type RateLimitDefinition,
 } from "@/server/rate-limit";
+import { deriveRequestOrigin } from "@/lib/url";
+import {
+  getChatContext,
+  formatContextForPrompt,
+  buildContextMetadata,
+} from "@/server/chat/retrieval";
+import { buildUserCard } from "@/server/chat/user-card";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -53,6 +60,7 @@ const requestSchema = z.object({
   history: z.array(historyMessageSchema).optional(),
   threadId: z.string().optional(),
   capsuleId: z.string().optional().nullable(),
+  useContext: z.boolean().optional(),
 });
 
 function generateThreadId(): string {
@@ -240,7 +248,7 @@ export async function POST(req: Request) {
     rawOptions,
   );
 
-  const composeOptions = {
+  let composeOptions = {
     history: previousHistory,
     attachments,
     capsuleId,
@@ -248,6 +256,80 @@ export async function POST(req: Request) {
     clarifier: clarifierOption,
     ownerId,
   };
+
+  const useContext =
+    typeof parsed.data.useContext === "boolean" ? parsed.data.useContext : true;
+  const requestOrigin = deriveRequestOrigin(req);
+
+  let responseContext: {
+    enabled: boolean;
+    query?: string | null;
+    memoryIds?: string[];
+    snippets?: Array<Record<string, unknown>>;
+    userCard?: string | null;
+  } = { enabled: useContext };
+
+  if (useContext) {
+    const [contextResult, userCardResult] = await Promise.all([
+      getChatContext({
+        ownerId,
+        message,
+        history: previousHistory,
+        origin: requestOrigin ?? null,
+      }),
+      buildUserCard(ownerId),
+    ]);
+
+    const contextPrompt = formatContextForPrompt(contextResult);
+    const contextRecords = contextResult?.snippets ?? [];
+    const contextMetadata = buildContextMetadata(contextResult);
+
+    composeOptions = {
+      ...composeOptions,
+      ...(userCardResult?.text ? { userCard: userCardResult.text } : {}),
+      ...(contextPrompt ? { contextPrompt } : {}),
+      ...(contextRecords.length
+        ? {
+            contextRecords: contextRecords.map((snippet) => ({
+              id: snippet.id,
+              title: snippet.title,
+              snippet: snippet.snippet,
+              source: snippet.source,
+              url: snippet.url,
+              kind: snippet.kind,
+              tags: snippet.tags,
+              highlightHtml: snippet.highlightHtml ?? null,
+            })),
+          }
+        : {}),
+      ...(contextMetadata ? { contextMetadata } : {}),
+    };
+
+    responseContext = {
+      enabled: true,
+      query: contextResult?.query ?? null,
+      memoryIds: contextResult?.usedIds ?? [],
+      snippets: contextRecords.map((snippet) => ({
+        id: snippet.id,
+        title: snippet.title,
+        snippet: snippet.snippet,
+        source: snippet.source ?? null,
+        kind: snippet.kind ?? null,
+        url: snippet.url ?? null,
+        highlightHtml: snippet.highlightHtml ?? null,
+        tags: snippet.tags,
+      })),
+      userCard: userCardResult?.text ?? null,
+    };
+
+    console.info("composer_context_ready", {
+      ownerId,
+      queryLength: contextResult?.query?.length ?? 0,
+      memoryCount: contextRecords.length,
+    });
+  } else {
+    responseContext = { enabled: false };
+  }
 
   try {
     let payload: unknown;
@@ -394,6 +476,7 @@ export async function POST(req: Request) {
       ...validated,
       threadId,
       history: historyOut,
+      context: responseContext,
     });
 
     return validatedJson(promptResponseSchema, finalResponse);

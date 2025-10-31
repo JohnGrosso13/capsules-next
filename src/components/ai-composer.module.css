@@ -3820,3 +3820,161 @@
   cursor: not-allowed;
   transform: none;
 }
+.smartContextToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.85rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 255, 0.35);
+  background: rgba(21, 26, 58, 0.55);
+  color: rgba(236, 239, 255, 0.92);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.smartContextToggle[data-active="true"] {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: rgba(165, 180, 252, 0.55);
+  color: rgba(247, 250, 255, 0.98);
+}
+
+.smartContextToggle:disabled {
+  opacity: 0.6;
+}
+
+.smartContextToggle svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.smartContextPulse {
+  display: inline-flex;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.95);
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.26);
+}
+
+.smartContextBanner {
+  margin: clamp(0.5rem, 1.8vw, 1rem) clamp(1rem, 2.6vw, 1.75rem) 0;
+  padding: clamp(0.6rem, 1.4vw, 1rem) clamp(0.9rem, 2.2vw, 1.5rem);
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 255, 0.25);
+  background: rgba(20, 26, 58, 0.6);
+  backdrop-filter: blur(9px);
+}
+
+.smartContextBanner[data-enabled="false"],
+.smartContextBanner[data-enabled="idle"] {
+  border-style: dashed;
+  color: rgba(203, 213, 255, 0.8);
+}
+
+.smartContextMessage {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.smartContextHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.smartContextTitle {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: rgba(247, 250, 255, 0.95);
+}
+
+.smartContextQuery {
+  font-size: 0.75rem;
+  color: rgba(203, 213, 255, 0.76);
+}
+
+.smartContextList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.smartContextItem {
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 255, 0.18);
+  background: rgba(15, 19, 42, 0.75);
+}
+
+.smartContextItemHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(180, 195, 255, 0.72);
+}
+
+.smartContextMemoryId {
+  font-weight: 700;
+  color: rgba(248, 250, 255, 0.95);
+}
+
+.smartContextMemoryTitle {
+  font-weight: 600;
+  color: rgba(248, 250, 255, 0.95);
+}
+
+.smartContextMemorySource {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.22);
+  color: rgba(191, 219, 254, 0.95);
+}
+
+.smartContextPreview {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(226, 232, 255, 0.92);
+}
+
+.smartContextPreview mark {
+  background: rgba(56, 189, 248, 0.25);
+  border-radius: 4px;
+  padding: 0 0.15rem;
+}
+
+.smartContextTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.smartContextTag {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(129, 140, 248, 0.22);
+  color: rgba(224, 231, 255, 0.92);
+}
+
+.smartContextLink {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(191, 219, 254, 0.95);
+}

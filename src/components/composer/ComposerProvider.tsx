@@ -333,6 +333,7 @@ async function callAiPrompt(
   history?: ComposerChatMessage[],
   threadId?: string | null,
   capsuleId?: string | null,
+  useContext?: boolean,
 ): Promise<PromptResponse> {
   const contextSnippets = await buildAttachmentContext(attachments);
   let requestMessage = message;
@@ -379,6 +380,7 @@ async function callAiPrompt(
   if (capsuleId) {
     body.capsuleId = capsuleId;
   }
+  body.useContext = useContext !== false;
 
   const response = await fetch("/api/ai/prompt", {
     method: "POST",
@@ -587,6 +589,24 @@ export type ComposerSaveRequest = {
   payload: ComposerMemorySavePayload;
 };
 
+export type ComposerContextSnippet = {
+  id: string;
+  title: string | null;
+  snippet: string;
+  source: string | null;
+  kind: string | null;
+  url: string | null;
+  highlightHtml: string | null;
+  tags: string[];
+};
+
+export type ComposerContextSnapshot = {
+  query: string | null;
+  memoryIds: string[];
+  snippets: ComposerContextSnippet[];
+  userCard: string | null;
+};
+
 type ComposerState = {
   open: boolean;
   loading: boolean;
@@ -604,6 +624,8 @@ type ComposerState = {
   summaryMessageId: string | null;
   videoStatus: ComposerVideoStatus;
   saveStatus: ComposerSaveStatus;
+  smartContextEnabled: boolean;
+  contextSnapshot: ComposerContextSnapshot | null;
 };
 
 type ClarifierState = {
@@ -638,6 +660,7 @@ type ComposerContextValue = {
   saveDraft(projectId?: string | null): void;
   retryVideo(): void;
   saveCreation(request: ComposerSaveRequest): Promise<string | null>;
+  setSmartContextEnabled(enabled: boolean): void;
 };
 
 const initialState: ComposerState = {
@@ -657,7 +680,22 @@ const initialState: ComposerState = {
   summaryMessageId: null,
   videoStatus: createIdleVideoStatus(),
   saveStatus: createIdleSaveStatus(),
+  smartContextEnabled: true,
+  contextSnapshot: null,
 };
+
+function resetStateWithPreference(
+  prev: ComposerState,
+  overrides: Partial<ComposerState> = {},
+): ComposerState {
+  return {
+    ...initialState,
+    smartContextEnabled: prev.smartContextEnabled,
+    ...overrides,
+  };
+}
+
+const SMART_CONTEXT_STORAGE_KEY = "capsules:composer:smartContextEnabled";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -899,6 +937,37 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   );
   const saveResetTimeout = React.useRef<number | null>(null);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(SMART_CONTEXT_STORAGE_KEY);
+      if (stored !== null) {
+        const enabled = stored !== "false";
+        setState((prev) =>
+          prev.smartContextEnabled === enabled
+            ? prev
+            : { ...prev, smartContextEnabled: enabled },
+        );
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("composer smart context load failed", error);
+      }
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        SMART_CONTEXT_STORAGE_KEY,
+        state.smartContextEnabled ? "true" : "false",
+      );
+    } catch {
+      // ignore persistence failures
+    }
+  }, [state.smartContextEnabled]);
+
   const sidebarStorageKey = React.useMemo(
     () => buildSidebarStorageKey(user?.id ?? null),
     [user?.id],
@@ -921,6 +990,18 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     },
     [sidebarStorageKey],
   );
+
+  const setSmartContextEnabled = React.useCallback((enabled: boolean) => {
+    setState((prev) =>
+      prev.smartContextEnabled === enabled
+        ? prev
+        : {
+            ...prev,
+            smartContextEnabled: enabled,
+            contextSnapshot: enabled ? prev.contextSnapshot : null,
+          },
+    );
+  }, []);
 
   React.useEffect(() => {
     if (!user) return;
@@ -1567,6 +1648,24 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             memoryId: null,
           };
         }
+        const nextSnapshot =
+          payload.context && payload.context.enabled
+            ? {
+                query: payload.context.query ?? null,
+                memoryIds: payload.context.memoryIds ?? [],
+                snippets: (payload.context.snippets ?? []).map((snippet) => ({
+                  id: snippet.id,
+                  title: snippet.title ?? null,
+                  snippet: snippet.snippet,
+                  source: snippet.source ?? null,
+                  kind: snippet.kind ?? null,
+                  url: snippet.url ?? null,
+                  highlightHtml: snippet.highlightHtml ?? null,
+                  tags: Array.isArray(snippet.tags) ? snippet.tags : [],
+                })),
+                userCard: payload.context.userCard ?? null,
+              }
+            : null;
         return {
           ...prev,
           open: true,
@@ -1580,6 +1679,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           threadId: nextThreadId,
           clarifier: null,
           videoStatus: nextVideoStatus,
+          contextSnapshot: nextSnapshot,
         };
       });
       if (resolvedQuestionId) {
@@ -1631,7 +1731,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           }
           const manualPayload = appendCapsuleContext(postPayload, activeCapsuleId);
           await persistPost(manualPayload, envelopePayload);
-          setState(initialState);
+          setState((prev) => resetStateWithPreference(prev));
           window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "manual" } }));
         } catch (error) {
           console.error("Manual post failed", error);
@@ -1695,6 +1795,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           baseHistory,
           threadIdForRequest,
           activeCapsuleId,
+          state.smartContextEnabled,
         );
         handleAiResponse(prompt, payload);
       } catch (error) {
@@ -1761,7 +1862,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           }));
         } catch (error) {
           console.error("Logo tool failed", error);
-          setState(initialState);
+          setState((prev) => resetStateWithPreference(prev));
         }
         return;
       }
@@ -1821,7 +1922,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           }));
         } catch (error) {
           console.error("Image edit tool failed", error);
-          setState(initialState);
+          setState((prev) => resetStateWithPreference(prev));
         }
         return;
       }
@@ -1870,17 +1971,21 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           baseHistory,
           threadIdForRequest,
           activeCapsuleId,
+          state.smartContextEnabled,
         );
         handleAiResponse(prompt, payload);
       } catch (error) {
         console.error("AI prompt failed", error);
-        setState(initialState);
+        setState((prev) => resetStateWithPreference(prev));
       }
     },
-    [activeCapsuleId, envelopePayload, handleAiResponse],
+    [activeCapsuleId, envelopePayload, handleAiResponse, state.smartContextEnabled],
   );
 
-  const close = React.useCallback(() => setState(initialState), []);
+  const close = React.useCallback(
+    () => setState((prev) => resetStateWithPreference(prev)),
+    [],
+  );
 
   const post = React.useCallback(async () => {
     if (!state.draft) return;
@@ -1892,7 +1997,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       });
       const payloadWithContext = appendCapsuleContext(postPayload, activeCapsuleId);
       await persistPost(payloadWithContext, envelopePayload);
-      setState(initialState);
+      setState((prev) => resetStateWithPreference(prev));
       window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "composer" } }));
     } catch (error) {
       console.error("Composer post failed", error);
@@ -2010,6 +2115,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           previousHistory,
           threadIdForRequest,
           activeCapsuleId,
+          state.smartContextEnabled,
         );
         handleAiResponse(trimmed, payload);
       } catch (error) {
@@ -2039,7 +2145,13 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         });
       }
     },
-    [activeCapsuleId, handleAiResponse, state.clarifier, state.rawPost],
+    [
+      activeCapsuleId,
+      handleAiResponse,
+      state.clarifier,
+      state.rawPost,
+      state.smartContextEnabled,
+    ],
   );
 
   const retryVideo = React.useCallback(() => {
@@ -2074,6 +2186,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           state.history,
           state.threadId,
           activeCapsuleId,
+          state.smartContextEnabled,
         );
         handleAiResponse(state.prompt, payload);
       } catch (error) {
@@ -2081,7 +2194,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         setState((prev) => ({ ...prev, loading: false }));
       }
     },
-    [activeCapsuleId, handleAiResponse, state.history, state.prompt, state.rawPost, state.threadId],
+    [
+      activeCapsuleId,
+      handleAiResponse,
+      state.history,
+      state.prompt,
+      state.rawPost,
+      state.threadId,
+      state.smartContextEnabled,
+    ],
   );
 
   const updateDraft = React.useCallback((draft: ComposerDraft) => {
@@ -2152,6 +2273,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       saveDraft,
       retryVideo,
       saveCreation,
+      setSmartContextEnabled,
     };
     if (forceChoice) {
       base.forceChoice = forceChoice;
@@ -2177,6 +2299,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     saveDraft,
     retryVideo,
     saveCreation,
+    setSmartContextEnabled,
   ]);
 
   return <ComposerContext.Provider value={contextValue}>{children}</ComposerContext.Provider>;
@@ -2199,6 +2322,7 @@ export function AiComposerRoot() {
     saveDraft,
     retryVideo,
     saveCreation,
+    setSmartContextEnabled,
   } = useComposer();
 
   const forceHandlers = forceChoice
@@ -2225,6 +2349,9 @@ export function AiComposerRoot() {
       summaryMessageId={state.summaryMessageId}
       videoStatus={state.videoStatus}
       saveStatus={state.saveStatus}
+      smartContextEnabled={state.smartContextEnabled}
+      contextSnapshot={state.contextSnapshot}
+      onSmartContextChange={setSmartContextEnabled}
       onChange={updateDraft}
       onClose={close}
       onPost={post}
@@ -2242,4 +2369,5 @@ export function AiComposerRoot() {
     />
   );
 }
+
 

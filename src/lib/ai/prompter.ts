@@ -56,9 +56,9 @@ type DraftPost = {
   muxAssetId?: string | null;
   durationSeconds?: number | null;
   videoRunId?: string | null;
-  videoRunStatus?: "pending" | "running" | "succeeded" | "failed" | null;
-  videoRunError?: string | null;
-  memoryId?: string | null;
+  videoRunStatus: "pending" | "running" | "succeeded" | "failed" | null;
+  videoRunError: string | null;
+  memoryId: string | null;
 };
 
 type PollDraft = { message: string; poll: { question: string; options: string[] } };
@@ -106,6 +106,48 @@ function mapConversationToMessages(
       content: `${entry.content}${attachmentsNote}`.trim(),
     };
   });
+}
+
+function buildContextMessages(context: ComposeDraftOptions): ChatMessage[] {
+  const messages: ChatMessage[] = [];
+  const userCard = typeof context.userCard === "string" ? context.userCard.trim() : "";
+  if (userCard.length) {
+    messages.push({
+      role: "system",
+      content: `User profile:\n${userCard}`,
+    });
+  }
+
+  let prompt = typeof context.contextPrompt === "string" ? context.contextPrompt.trim() : "";
+  if (!prompt && Array.isArray(context.contextRecords) && context.contextRecords.length) {
+    const lines: string[] = ["Context memories to ground your response:"];
+    context.contextRecords.slice(0, 6).forEach((record, index) => {
+      const headerParts = [
+        `Memory #${index + 1}`,
+        record.title ? `title: ${record.title}` : null,
+        record.kind ? `kind: ${record.kind}` : null,
+        record.source ? `source: ${record.source}` : null,
+        record.tags.length ? `tags: ${record.tags.join(", ")}` : null,
+      ].filter(Boolean);
+      lines.push(headerParts.join(" | "));
+      lines.push(record.snippet);
+      if (record.url) {
+        lines.push(`media: ${record.url}`);
+      }
+      lines.push("---");
+    });
+    lines.push("If you reference a memory, mention its Memory # to ground the response.");
+    prompt = lines.join("\n");
+  }
+
+  if (prompt.length) {
+    messages.push({
+      role: "system",
+      content: prompt,
+    });
+  }
+
+  return messages;
 }
 
 export type PromptClarifierInput = {
@@ -181,6 +223,17 @@ const CLARIFIER_STATIC_EXAMPLES: ClarifierExample[] = [
 
 type ComposeDraftResult = DraftPostPlan | ClarifyImagePromptPlan;
 
+type ComposeContextRecord = {
+  id: string;
+  title: string | null;
+  snippet: string;
+  source: string | null;
+  url: string | null;
+  kind: string | null;
+  tags: string[];
+  highlightHtml?: string | null;
+};
+
 type ComposeDraftOptions = {
   history?: ComposerChatMessage[];
   attachments?: ComposerChatAttachment[];
@@ -189,6 +242,10 @@ type ComposeDraftOptions = {
   clarifier?: PromptClarifierInput | null;
   stylePreset?: string | null;
   ownerId?: string | null;
+  userCard?: string | null;
+  contextPrompt?: string | null;
+  contextRecords?: ComposeContextRecord[];
+  contextMetadata?: Record<string, unknown> | null;
 };
 
 type ImageProviderId = "openai" | "stability";
@@ -1873,6 +1930,9 @@ export async function createPostDraft(
   if (rawOptions && Object.keys(rawOptions).length) {
     userPayload.options = rawOptions;
   }
+  if (context.contextMetadata && Object.keys(context.contextMetadata).length) {
+    userPayload.contextMetadata = context.contextMetadata;
+  }
 
   const messages: ChatMessage[] = [
     {
@@ -1888,6 +1948,8 @@ export async function createPostDraft(
         "Use clear, energetic but concise language.",
       ].join(" "),
     },
+
+    ...buildContextMessages(context),
 
     ...historyMessages,
 
@@ -2247,9 +2309,14 @@ export async function createPollDraft(
   if (rawOptions && Object.keys(rawOptions).length) {
     userPayload.options = rawOptions;
   }
+  if (context.contextMetadata && Object.keys(context.contextMetadata).length) {
+    userPayload.contextMetadata = context.contextMetadata;
+  }
 
   const messages: ChatMessage[] = [
     { role: "system", content: system },
+
+    ...buildContextMessages(context),
 
     ...historyMessages,
 
@@ -2325,6 +2392,9 @@ export async function refinePostDraft(
   if (rawOptions && Object.keys(rawOptions).length) {
     userPayload.options = rawOptions;
   }
+  if (context.contextMetadata && Object.keys(context.contextMetadata).length) {
+    userPayload.contextMetadata = context.contextMetadata;
+  }
 
   const messages: ChatMessage[] = [
     {
@@ -2342,6 +2412,8 @@ export async function refinePostDraft(
         "Keep tone consistent with the instruction and the existing copy.",
       ].join(" "),
     },
+
+    ...buildContextMessages(context),
 
     ...historyMessages,
 

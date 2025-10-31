@@ -9,6 +9,7 @@ import type {
   ComposerVideoStatus,
   ComposerSaveStatus,
   ComposerSaveRequest,
+  ComposerContextSnapshot,
 } from "./composer/ComposerProvider";
 import type { ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
@@ -36,6 +37,9 @@ type AiComposerDrawerProps = {
   sidebar: ComposerSidebarData;
   videoStatus: ComposerVideoStatus;
   saveStatus: ComposerSaveStatus;
+  smartContextEnabled: boolean;
+  contextSnapshot: ComposerContextSnapshot | null;
+  onSmartContextChange(enabled: boolean): void;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
   onPost(): void;
@@ -68,6 +72,9 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     sidebar,
     videoStatus,
     saveStatus,
+    smartContextEnabled,
+    contextSnapshot,
+    onSmartContextChange,
     onChange,
     onClose,
     onPost,
@@ -126,6 +133,9 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       sidebar={sidebar}
       videoStatus={videoStatus}
       saveStatus={saveStatus}
+      smartContextEnabled={smartContextEnabled}
+      contextSnapshot={contextSnapshot}
+      onSmartContextChange={onSmartContextChange}
       onChange={onChange}
       onClose={onClose}
       onPost={onPost}

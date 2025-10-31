@@ -32,6 +32,25 @@ export const composerChatMessageSchema = z.object({
   attachments: z.array(composerAttachmentSchema).optional().nullable(),
 });
 
+const promptContextSnippetSchema = z.object({
+  id: z.string(),
+  title: z.string().optional().nullable(),
+  snippet: z.string(),
+  source: z.string().optional().nullable(),
+  kind: z.string().optional().nullable(),
+  url: z.string().optional().nullable(),
+  highlightHtml: z.string().optional().nullable(),
+  tags: z.array(z.string()).optional(),
+});
+
+const promptContextSchema = z.object({
+  enabled: z.boolean(),
+  query: z.string().optional().nullable(),
+  memoryIds: z.array(z.string()).optional(),
+  snippets: z.array(promptContextSnippetSchema).optional(),
+  userCard: z.string().optional().nullable(),
+});
+
 export const draftPostResponseSchema = z.object({
   action: z.literal("draft_post"),
   message: z.string().optional(),
@@ -39,6 +58,7 @@ export const draftPostResponseSchema = z.object({
   choices: z.array(draftChoiceSchema).optional(),
   threadId: z.string().optional(),
   history: z.array(composerChatMessageSchema).optional(),
+  context: promptContextSchema.optional(),
 });
 export type DraftPostResponse = z.infer<typeof draftPostResponseSchema>;
 export type ComposerChatMessage = z.infer<typeof composerChatMessageSchema>;
@@ -74,6 +94,7 @@ export type AiImageVariant = z.infer<typeof aiImageVariantSchema>;
 
 export const promptResponseSchema = z.union([draftPostResponseSchema, clarifyImagePromptResponseSchema]);
 export type PromptResponse = z.infer<typeof promptResponseSchema>;
+export type PromptContext = z.infer<typeof promptContextSchema>;
 
 const variantMapSchema = z.record(z.string(), z.string());
 const stylerVariantsSchema = z.object({
