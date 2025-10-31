@@ -15,6 +15,7 @@ type FriendRowProps = {
   onNameClick?: () => void;
   actions?: React.ReactNode;
   className?: string;
+  friendIdAttr?: string | null;
 };
 
 function formatSince(value?: string | null): string | null {
@@ -47,6 +48,7 @@ export function FriendRow({
   onNameClick,
   actions,
   className,
+  friendIdAttr,
 }: FriendRowProps) {
   const sinceLabel = formatSince(since);
   const presenceLabel = getPresenceLabel(status);
@@ -63,7 +65,10 @@ export function FriendRow({
   }, [name]);
 
   return (
-    <article className={`${styles.friendRow} ${className ?? ""}`.trim()}>
+    <article
+      className={`${styles.friendRow} ${className ?? ""}`.trim()}
+      data-friend-id={friendIdAttr ?? undefined}
+    >
       <div className={styles.friendRowMain}>
         <span className={styles.avatarWrap} aria-hidden>
           {avatar ? (

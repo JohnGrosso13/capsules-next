@@ -129,6 +129,32 @@
   gap: 18px;
 }
 
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.sectionItems {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .resultItem {
   padding: 18px 20px;
   border-radius: 18px;
@@ -189,6 +215,78 @@
   color: color-mix(in srgb, var(--color-brand) 70%, var(--text));
   font-style: normal;
   font-weight: 600;
+}
+
+.entityResult {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.entityResult:hover {
+  border-color: color-mix(in srgb, var(--color-brand) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
+}
+
+.entityAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--surface-elevated) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+  flex-shrink: 0;
+}
+
+.entityAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.entityAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+.entityAvatarFallback {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.entityBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.entityTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.entitySubtitle {
+  font-size: 0.82rem;
+  color: var(--text-3);
 }
 
 @media (max-width: 720px) {

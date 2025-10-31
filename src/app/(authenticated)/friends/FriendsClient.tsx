@@ -111,11 +111,15 @@ export function FriendsClient() {
 
   const [activeTab, selectTab] = useTabFromSearch();
   const [notice, setNotice] = React.useState<string | null>(null);
+  const [highlightId, setHighlightId] = React.useState<string | null>(null);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
   const [chatNotice, setChatNotice] = React.useState<string | null>(null);
   const [groupFlow, setGroupFlow] = React.useState<GroupFlowState | null>(null);
   const [groupBusy, setGroupBusy] = React.useState(false);
   const [groupError, setGroupError] = React.useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const focusParam = searchParams.get("focus");
+  const lastFocusRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (!notice) return;
@@ -128,6 +132,62 @@ export function FriendsClient() {
     const timer = window.setTimeout(() => setChatNotice(null), 4000);
     return () => window.clearTimeout(timer);
   }, [chatNotice]);
+
+  React.useEffect(() => {
+    if (!focusParam) {
+      if (highlightId !== null) {
+        setHighlightId(null);
+      }
+      lastFocusRef.current = null;
+      return;
+    }
+
+    if (loading) return;
+    if (focusParam === lastFocusRef.current && highlightId) return;
+
+    if (activeTab !== "Friends") {
+      selectTab("Friends");
+    }
+
+    const match = friends.find((friend) => {
+      const identifiers = [
+        friend.userId ?? null,
+        friend.key ?? null,
+        friend.id ? String(friend.id) : null,
+      ];
+      return identifiers.some((identifier) => identifier === focusParam);
+    });
+
+    if (match) {
+      const resolvedId =
+        match.userId ?? match.key ?? (match.id ? String(match.id) : focusParam);
+      lastFocusRef.current = focusParam;
+      setHighlightId(resolvedId ?? focusParam);
+      setNotice(`Focusing on ${match.name}`);
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => {
+          if (typeof document === "undefined") return;
+          const identifier = resolvedId ?? focusParam;
+          if (!identifier) return;
+          const escaped =
+            typeof CSS !== "undefined" && typeof CSS.escape === "function"
+              ? CSS.escape(identifier)
+              : identifier.replace(/["\\]/g, "\\$&");
+          const element = document.querySelector<HTMLElement>(`[data-friend-id="${escaped}"]`);
+          element?.scrollIntoView({ block: "center", behavior: "smooth" });
+        });
+        window.setTimeout(() => {
+          setHighlightId((current) => (current === (resolvedId ?? focusParam) ? null : current));
+        }, 4000);
+      }
+    } else {
+      if (lastFocusRef.current !== focusParam) {
+        setNotice("Friend not found.");
+        lastFocusRef.current = focusParam;
+      }
+      setHighlightId(null);
+    }
+  }, [activeTab, focusParam, friends, highlightId, loading, selectTab, setNotice]);
 
   const hasEligibleFriends = React.useMemo(
     () => friends.some((friend) => Boolean(friend.userId)),
@@ -471,6 +531,7 @@ export function FriendsClient() {
             items={friends}
             pendingId={pendingId}
             notice={listNotice}
+            highlightId={highlightId}
             onDelete={(friend, identifier) => {
               void handleRemove(friend, identifier);
             }}

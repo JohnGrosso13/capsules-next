@@ -1,34 +1,37 @@
 "use client";
 
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type {
+  CapsuleSearchResult,
+  GlobalSearchResponse,
+  GlobalSearchSection,
+  MemorySearchItem,
+  MemorySearchResult,
+  UserSearchResult,
+} from "@/types/search";
+
 import styles from "./global-search.module.css";
-
-type MemorySearchItem = {
-  id: string;
-  kind?: string | null;
-  title?: string | null;
-  description?: string | null;
-  mediaUrl?: string | null;
-  media_type?: string | null;
-  created_at?: string | null;
-  meta?: Record<string, unknown> | null;
-};
-
-type MemorySearchResponse = {
-  items?: MemorySearchItem[];
-};
 
 const SEARCH_EVENT_NAME = "capsules:search:open";
 const DEBOUNCE_DELAY_MS = 220;
 const MIN_QUERY_LENGTH = 2;
 
+const SECTION_LABEL: Record<GlobalSearchSection["type"], string> = {
+  users: "People",
+  capsules: "Capsules",
+  memories: "Memories",
+};
+
 export function GlobalSearchOverlay() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<MemorySearchItem[]>([]);
+  const [sections, setSections] = useState<GlobalSearchSection[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -46,9 +49,18 @@ export function GlobalSearchOverlay() {
   const close = useCallback(() => {
     setOpen(false);
     setQuery("");
-    setResults([]);
+    setSections([]);
     setError(null);
   }, []);
+
+  const handleNavigate = useCallback(
+    (url: string | null | undefined) => {
+      if (!url) return;
+      close();
+      router.push(url);
+    },
+    [close, router],
+  );
 
   useEffect(() => {
     const handleOpen: EventListener = () => setOpen(true);
@@ -73,7 +85,7 @@ export function GlobalSearchOverlay() {
   }, [close, open]);
 
   useEffect(() => {
-    if (!open) return; // avoid running when closed
+    if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const focusTimer = window.setTimeout(() => {
@@ -91,7 +103,7 @@ export function GlobalSearchOverlay() {
     if (query.trim().length < MIN_QUERY_LENGTH) {
       abortRef.current?.abort();
       abortRef.current = null;
-      setResults([]);
+      setSections([]);
       setLoading(false);
       setError(null);
       return;
@@ -106,7 +118,7 @@ export function GlobalSearchOverlay() {
 
     const timer = window.setTimeout(async () => {
       try {
-        const response = await fetch("/api/memory/search", {
+        const response = await fetch("/api/search", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -121,15 +133,19 @@ export function GlobalSearchOverlay() {
           } else {
             setError("Search failed. Please try again.");
           }
-          setResults([]);
+          setSections([]);
         } else {
-          const data = (await response.json()) as MemorySearchResponse;
-          setResults(Array.isArray(data.items) ? data.items : []);
+          const data = (await response.json()) as GlobalSearchResponse;
+          if (Array.isArray(data.sections)) {
+            setSections(data.sections);
+          } else {
+            setSections([]);
+          }
         }
       } catch (err) {
         if ((err as Error)?.name !== "AbortError") {
           setError("Search request was interrupted. Try again.");
-          setResults([]);
+          setSections([]);
         }
       } finally {
         setLoading(false);
@@ -144,11 +160,152 @@ export function GlobalSearchOverlay() {
 
   if (!open) return null;
 
-  const renderHighlight = (item: MemorySearchItem) => {
+  const hasResults = sections.some((section) => section.items.length > 0);
+
+  const renderMemoryHighlight = (item: MemorySearchItem) => {
     const meta = item.meta ?? {};
     const highlight = typeof meta?.search_highlight === "string" ? meta.search_highlight : null;
     if (!highlight) return null;
     return <p className={styles.resultHighlight} dangerouslySetInnerHTML={{ __html: highlight }} />;
+  };
+
+  const renderMemoryItem = (item: MemorySearchResult) => {
+    const title = item.title?.trim() || item.description?.trim() || "Untitled memory";
+    const description = item.description?.trim() || null;
+    const kind = item.kind?.toUpperCase() ?? "MEMORY";
+    const createdAt = item.created_at
+      ? (() => {
+          try {
+            const date = new Date(item.created_at as string);
+            return formatter ? formatter.format(date) : date.toLocaleString();
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+    const highlightNode = renderMemoryHighlight(item);
+
+    return (
+      <article key={item.id} className={styles.resultItem}>
+        <header className={styles.resultHeader}>
+          <span className={styles.resultKind}>{kind}</span>
+          {createdAt ? <time className={styles.resultTime}>{createdAt}</time> : null}
+        </header>
+        <h3 className={styles.resultTitle}>{title}</h3>
+        {highlightNode}
+        {!highlightNode && description ? (
+          <p className={styles.resultDescription}>{description}</p>
+        ) : null}
+      </article>
+    );
+  };
+
+  const renderAvatar = (item: UserSearchResult | CapsuleSearchResult) => {
+    const avatarUrl =
+      item.type === "user" ? item.avatarUrl : item.logoUrl ?? item.bannerUrl ?? null;
+    const fallbackText =
+      item.name.trim().length && item.name[0]
+        ? item.name.trim()[0]?.toUpperCase()
+        : "•";
+    return (
+      <span className={styles.entityAvatar} aria-hidden>
+        {avatarUrl ? (
+          <Image
+            src={avatarUrl}
+            alt=""
+            width={44}
+            height={44}
+            className={styles.entityAvatarImg}
+            sizes="44px"
+            priority={false}
+          />
+        ) : (
+          <span className={styles.entityAvatarFallback}>{fallbackText}</span>
+        )}
+      </span>
+    );
+  };
+
+  const renderEntityTitle = (name: string, highlight: string | null) => {
+    if (highlight) {
+      return (
+        <span
+          className={styles.entityTitle}
+          dangerouslySetInnerHTML={{ __html: highlight }}
+        />
+      );
+    }
+    return <span className={styles.entityTitle}>{name}</span>;
+  };
+
+  const renderUserItem = (item: UserSearchResult) => {
+    return (
+      <button
+        key={`user-${item.id}`}
+        type="button"
+        className={styles.entityResult}
+        onClick={() => handleNavigate(item.url)}
+      >
+        {renderAvatar(item)}
+        <span className={styles.entityBody}>
+          {renderEntityTitle(item.name, item.highlight)}
+          {item.subtitle ? <span className={styles.entitySubtitle}>{item.subtitle}</span> : null}
+        </span>
+      </button>
+    );
+  };
+
+  const renderCapsuleItem = (item: CapsuleSearchResult) => {
+    return (
+      <button
+        key={`capsule-${item.id}`}
+        type="button"
+        className={styles.entityResult}
+        onClick={() => handleNavigate(item.url)}
+      >
+        {renderAvatar(item)}
+        <span className={styles.entityBody}>
+          {renderEntityTitle(item.name, item.highlight)}
+          {item.subtitle ? <span className={styles.entitySubtitle}>{item.subtitle}</span> : null}
+        </span>
+      </button>
+    );
+  };
+
+  const renderSection = (section: GlobalSearchSection) => {
+    if (!section.items.length) return null;
+    if (section.type === "users") {
+      return (
+        <section key="users" className={styles.section}>
+          <header className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>{SECTION_LABEL.users}</span>
+          </header>
+          <div className={styles.sectionItems}>{section.items.map((item) => renderUserItem(item))}</div>
+        </section>
+      );
+    }
+    if (section.type === "capsules") {
+      return (
+        <section key="capsules" className={styles.section}>
+          <header className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>{SECTION_LABEL.capsules}</span>
+          </header>
+          <div className={styles.sectionItems}>
+            {section.items.map((item) => renderCapsuleItem(item))}
+          </div>
+        </section>
+      );
+    }
+    return (
+      <section key="memories" className={styles.section}>
+        <header className={styles.sectionHeader}>
+          <span className={styles.sectionTitle}>{SECTION_LABEL.memories}</span>
+        </header>
+        <div className={styles.sectionItems}>
+          {section.items.map((item) => renderMemoryItem(item))}
+        </div>
+      </section>
+    );
   };
 
   return (
@@ -169,9 +326,9 @@ export function GlobalSearchOverlay() {
       >
         <header className={styles.header}>
           <div className={styles.headingGroup}>
-            <h2 id="global-search-heading">Search your memories</h2>
+            <h2 id="global-search-heading">Search Capsules</h2>
             <p className={styles.subheading}>
-              Algolia + vector search across posts, comments, friends, and more.
+              Find memories, capsules, and friends with one search.
             </p>
           </div>
           <button
@@ -188,7 +345,7 @@ export function GlobalSearchOverlay() {
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by title, description, people, or tags..."
+            placeholder="Search memories, capsules, or friends..."
             className={styles.searchInput}
             autoComplete="off"
             spellCheck={false}
@@ -197,7 +354,10 @@ export function GlobalSearchOverlay() {
         <div className={styles.statusRow}>
           {loading ? <span className={styles.statusText}>Searching...</span> : null}
           {!loading && error ? <span className={styles.errorText}>{error}</span> : null}
-          {!loading && !error && results.length === 0 && query.trim().length >= MIN_QUERY_LENGTH ? (
+          {!loading &&
+          !error &&
+          !hasResults &&
+          query.trim().length >= MIN_QUERY_LENGTH ? (
             <span className={styles.statusText}>No matches yet. Try another phrase.</span>
           ) : null}
           {!loading && !error && query.trim().length < MIN_QUERY_LENGTH ? (
@@ -206,38 +366,7 @@ export function GlobalSearchOverlay() {
             </span>
           ) : null}
         </div>
-        <div className={styles.results}>
-          {results.map((item) => {
-            const title = item.title?.trim() || item.description?.trim() || "Untitled memory";
-            const description = item.description?.trim() || null;
-            const kind = item.kind?.toUpperCase() ?? "MEMORY";
-            const createdAt = item.created_at
-              ? (() => {
-                  try {
-                    const date = new Date(item.created_at as string);
-                    return formatter ? formatter.format(date) : date.toLocaleString();
-                  } catch {
-                    return null;
-                  }
-                })()
-              : null;
-            const highlightNode = renderHighlight(item);
-
-            return (
-              <article key={item.id} className={styles.resultItem}>
-                <header className={styles.resultHeader}>
-                  <span className={styles.resultKind}>{kind}</span>
-                  {createdAt ? <time className={styles.resultTime}>{createdAt}</time> : null}
-                </header>
-                <h3 className={styles.resultTitle}>{title}</h3>
-                {highlightNode}
-                {!highlightNode && description ? (
-                  <p className={styles.resultDescription}>{description}</p>
-                ) : null}
-              </article>
-            );
-          })}
-        </div>
+        <div className={styles.results}>{sections.map((section) => renderSection(section))}</div>
       </div>
     </div>
   );

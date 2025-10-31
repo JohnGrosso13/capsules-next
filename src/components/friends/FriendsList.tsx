@@ -16,6 +16,7 @@ type FriendsListProps = {
   onBlock?: (item: FriendItem, identifier: string) => void;
   onView?: (item: FriendItem, identifier: string) => void;
   onStartChat?: (item: FriendItem, identifier: string) => void;
+  highlightId?: string | null;
 };
 
 export function FriendsList({
@@ -26,6 +27,7 @@ export function FriendsList({
   onBlock,
   onView,
   onStartChat,
+  highlightId,
 }: FriendsListProps) {
   if (!items.length) {
     return <div className={styles.empty}>No friends yet. Invite your circle to get started.</div>;
@@ -40,6 +42,7 @@ export function FriendsList({
         const isPending = pendingId === identifier;
         const isAssistant = friend.userId === ASSISTANT_USER_ID;
         const canTarget = Boolean(friend.userId || friend.key || friend.id);
+        const isHighlighted = highlightId ? highlightId === identifier : false;
 
         return (
           <FriendRow
@@ -48,6 +51,8 @@ export function FriendsList({
             avatar={friend.avatar}
             since={friend.since}
             status={friend.status}
+            className={isHighlighted ? styles.friendHighlight : undefined}
+            friendIdAttr={identifier}
             actions={
               <FriendMenu
                 canTarget={canTarget}

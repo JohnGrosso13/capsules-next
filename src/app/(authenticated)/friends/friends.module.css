@@ -299,6 +299,12 @@
   box-shadow: var(--friends-row-shadow, var(--style-friends-shadow));
 }
 
+.friendHighlight {
+  border-color: color-mix(in srgb, var(--color-brand) 55%, var(--card-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand) 32%, transparent);
+  background: color-mix(in srgb, var(--friends-row-background, var(--style-friends-bg)) 92%, transparent);
+}
+
 .friendRowMain {
   display: flex;
   align-items: center;
