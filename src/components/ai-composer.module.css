@@ -1556,7 +1556,8 @@
   flex-direction: column;
   gap: 1rem;
   padding: 0;
-  min-height: clamp(320px, 46vh, 480px);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .summaryContextToggleRow {
@@ -3621,4 +3622,201 @@
   to {
     transform: rotate(360deg);
   }
+}
+.chatAttachmentCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  width: min(220px, 100%);
+}
+
+.chatAttachmentActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chatAttachmentActionBtn {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 255, 0.32);
+  background: rgba(26, 32, 72, 0.65);
+  color: rgba(236, 239, 255, 0.9);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.chatAttachmentActionBtn:hover,
+.chatAttachmentActionBtn:focus-visible {
+  border-color: rgba(148, 163, 255, 0.6);
+  background: rgba(97, 109, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.chatAttachmentActionBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.saveDialogOverlay {
+  position: fixed;
+  inset: 0;
+  padding: 1.5rem;
+  z-index: 1600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 10, 26, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.saveDialog {
+  width: min(480px, 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(129, 140, 248, 0.4);
+  background: linear-gradient(185deg, rgba(32, 38, 82, 0.95), rgba(16, 22, 54, 0.92));
+  box-shadow: 0 26px 60px rgba(6, 12, 46, 0.58);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding: 1.6rem;
+}
+
+.saveDialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.saveDialogHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgba(238, 241, 255, 0.96);
+}
+
+.saveDialogClose {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(129, 140, 248, 0.14);
+  color: rgba(236, 239, 255, 0.85);
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.saveDialogClose:hover,
+.saveDialogClose:focus-visible {
+  background: rgba(129, 140, 248, 0.25);
+  transform: translateY(-1px);
+}
+
+.saveDialogClose:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.saveDialogBody {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.saveDialogLabel {
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(199, 209, 255, 0.72);
+}
+
+.saveDialogInput,
+.saveDialogTextarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(129, 140, 248, 0.32);
+  background: rgba(14, 18, 46, 0.82);
+  color: rgba(236, 239, 255, 0.95);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.95rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.saveDialogInput:focus,
+.saveDialogTextarea:focus {
+  outline: none;
+  border-color: rgba(148, 163, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(148, 163, 255, 0.2);
+}
+
+.saveDialogInput:disabled,
+.saveDialogTextarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.saveDialogTextarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.saveDialogError {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(255, 152, 152, 0.88);
+}
+
+.saveDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.saveDialogSecondary,
+.saveDialogPrimary {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 255, 0.32);
+  background: rgba(28, 34, 76, 0.75);
+  color: rgba(236, 239, 255, 0.92);
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.55rem 1.35rem;
+  cursor: pointer;
+  transition: background 140ms ease, transform 140ms ease, border-color 140ms ease;
+}
+
+.saveDialogSecondary:hover,
+.saveDialogSecondary:focus-visible {
+  background: rgba(148, 163, 255, 0.18);
+  border-color: rgba(148, 163, 255, 0.45);
+  transform: translateY(-1px);
+}
+
+.saveDialogPrimary {
+  border-color: rgba(129, 140, 248, 0.5);
+  background: linear-gradient(115deg, rgba(129, 140, 248, 0.85), rgba(56, 189, 248, 0.78));
+}
+
+.saveDialogPrimary:hover,
+.saveDialogPrimary:focus-visible {
+  transform: translateY(-1px);
+}
+
+.saveDialogSecondary:disabled,
+.saveDialogPrimary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
 }

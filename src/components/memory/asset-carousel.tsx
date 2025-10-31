@@ -206,7 +206,8 @@ function getSlidesPerView() {
 
 export type MemoryAssetCarouselProps = {
   title: string;
-  variants: MemoryAssetVariant[];
+  variants?: MemoryAssetVariant[] | null;
+  kind?: string | null;
   viewAllHref?: string;
   viewAllLabel?: string;
   emptySignedOut: string;
@@ -216,14 +217,15 @@ export type MemoryAssetCarouselProps = {
 
 export function MemoryAssetCarousel({
   title,
-  variants,
+  variants = [],
+  kind = null,
   viewAllHref,
   viewAllLabel = "View all",
   emptySignedOut,
   emptyLoading,
   emptyNone,
 }: MemoryAssetCarouselProps) {
-  const { user, items, loading, error, refresh } = useMemoryUploads(null);
+  const { user, items, loading, error, refresh } = useMemoryUploads(kind);
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
   const currentOrigin = React.useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : null),
@@ -240,11 +242,13 @@ export function MemoryAssetCarousel({
   );
 
   const filteredItems = React.useMemo(
-    () =>
-      processedItems.filter((item) => {
+    () => {
+      if (!variants || variants.length === 0) return processedItems;
+      return processedItems.filter((item) => {
         const variant = detectAssetVariant(item);
         return variants.includes(variant);
-      }),
+      });
+    },
     [processedItems, variants],
   );
 
@@ -387,6 +391,21 @@ export function CapsuleAssetsCarousel() {
       emptySignedOut="Sign in to access your capsule assets."
       emptyLoading="Loading your capsule assets..."
       emptyNone="No capsule assets saved yet. Customize a capsule or profile to add one."
+    />
+  );
+}
+
+export function ComposerCreationsCarousel() {
+  return (
+    <MemoryAssetCarousel
+      title="Capsule Creations"
+      kind="composer_creation"
+      variants={null}
+      viewAllHref="/memory/uploads?tab=uploads"
+      viewAllLabel="Open memories"
+      emptySignedOut="Sign in to view your Capsule creations."
+      emptyLoading="Loading your creations..."
+      emptyNone="No Capsule creations saved yet. Generate an image or video in the composer and tap Save."
     />
   );
 }

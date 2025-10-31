@@ -5,7 +5,11 @@ import { createPortal } from "react-dom";
 
 import styles from "./ai-composer.module.css";
 import { ComposerForm, type ComposerChoice, type ClarifierPrompt } from "./composer/ComposerForm";
-import type { ComposerVideoStatus } from "./composer/ComposerProvider";
+import type {
+  ComposerVideoStatus,
+  ComposerSaveStatus,
+  ComposerSaveRequest,
+} from "./composer/ComposerProvider";
 import type { ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
 import { usePortalHost } from "@/hooks/usePortalHost";
@@ -31,6 +35,7 @@ type AiComposerDrawerProps = {
   summaryMessageId?: string | null;
   sidebar: ComposerSidebarData;
   videoStatus: ComposerVideoStatus;
+  saveStatus: ComposerSaveStatus;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
   onPost(): void;
@@ -43,6 +48,7 @@ type AiComposerDrawerProps = {
   onSelectProject(id: string | null): void;
   onClarifierRespond?(answer: string): void;
   onRetryVideo(): void;
+  onSaveCreation(request: ComposerSaveRequest): Promise<string | null> | Promise<void> | void;
 };
 
 export function AiComposerDrawer(props: AiComposerDrawerProps) {
@@ -61,6 +67,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     summaryMessageId,
     sidebar,
     videoStatus,
+    saveStatus,
     onChange,
     onClose,
     onPost,
@@ -73,6 +80,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     onSelectProject,
     onClarifierRespond,
     onRetryVideo,
+    onSaveCreation,
   } = props;
   const portalClassName = styles.portalHost ?? "ai-composer-portal-host";
   const { host, ready } = usePortalHost(portalClassName, open);
@@ -117,6 +125,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       summaryMessageId={summaryMessageId ?? null}
       sidebar={sidebar}
       videoStatus={videoStatus}
+      saveStatus={saveStatus}
       onChange={onChange}
       onClose={onClose}
       onPost={onPost}
@@ -135,6 +144,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       {...(onForceChoice ? { onForceChoice } : {})}
       {...(onClarifierRespond ? { onClarifierRespond } : {})}
       onRetryVideo={onRetryVideo}
+      onSaveCreation={onSaveCreation}
     />,
     host,
   );

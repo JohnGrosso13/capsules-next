@@ -560,6 +560,33 @@ export type ComposerVideoStatus = {
   memoryId?: string | null;
 };
 
+export type ComposerSaveStatus = {
+  state: "idle" | "saving" | "succeeded" | "failed";
+  message: string | null;
+};
+
+export type ComposerMemorySavePayload = {
+  title: string;
+  description: string;
+  kind: string;
+  mediaUrl: string;
+  mediaType: string | null;
+  downloadUrl?: string | null;
+  thumbnailUrl?: string | null;
+  prompt?: string | null;
+  durationSeconds?: number | null;
+  muxPlaybackId?: string | null;
+  muxAssetId?: string | null;
+  runId?: string | null;
+  tags?: string[] | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type ComposerSaveRequest = {
+  target: "draft" | "attachment";
+  payload: ComposerMemorySavePayload;
+};
+
 type ComposerState = {
   open: boolean;
   loading: boolean;
@@ -576,6 +603,7 @@ type ComposerState = {
   summaryOptions: SummaryPresentationOptions | null;
   summaryMessageId: string | null;
   videoStatus: ComposerVideoStatus;
+  saveStatus: ComposerSaveStatus;
 };
 
 type ClarifierState = {
@@ -609,6 +637,7 @@ type ComposerContextValue = {
   selectProject(id: string | null): void;
   saveDraft(projectId?: string | null): void;
   retryVideo(): void;
+  saveCreation(request: ComposerSaveRequest): Promise<string | null>;
 };
 
 const initialState: ComposerState = {
@@ -627,6 +656,7 @@ const initialState: ComposerState = {
   summaryOptions: null,
   summaryMessageId: null,
   videoStatus: createIdleVideoStatus(),
+  saveStatus: createIdleSaveStatus(),
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -805,6 +835,13 @@ function createIdleVideoStatus(): ComposerVideoStatus {
   };
 }
 
+function createIdleSaveStatus(): ComposerSaveStatus {
+  return {
+    state: "idle",
+    message: null,
+  };
+}
+
 function appendCapsuleContext(
   post: Record<string, unknown>,
   capsuleId: string | null,
@@ -860,6 +897,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const [sidebarStore, setSidebarStore] = React.useState<ComposerSidebarSnapshot>(
     EMPTY_SIDEBAR_SNAPSHOT,
   );
+  const saveResetTimeout = React.useRef<number | null>(null);
 
   const sidebarStorageKey = React.useMemo(
     () => buildSidebarStorageKey(user?.id ?? null),
@@ -1199,6 +1237,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     [upsertDraft],
   );
 
+  React.useEffect(
+    () => () => {
+      if (typeof window !== "undefined" && saveResetTimeout.current) {
+        window.clearTimeout(saveResetTimeout.current);
+      }
+    },
+    [],
+  );
+
   const currentUserName = React.useMemo(() => {
     if (!user) return null;
     return user.name ?? user.email ?? null;
@@ -1213,6 +1260,152 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const activeCapsuleId = React.useMemo(
     () => normalizeCapsuleId(feedTarget.scope === "capsule" ? feedTarget.capsuleId : null),
     [feedTarget],
+  );
+
+  const saveCreation = React.useCallback(
+    async (request: ComposerSaveRequest): Promise<string | null> => {
+      setState((prev) => ({
+        ...prev,
+        saveStatus: { state: "saving", message: null },
+      }));
+
+      if (!envelopePayload) {
+        const message = "Sign in to save Capsule creations.";
+        setState((prev) => ({
+          ...prev,
+          saveStatus: { state: "failed", message },
+        }));
+        return null;
+      }
+
+      const payload = request.payload;
+      if (!payload.mediaUrl || !payload.title.trim() || !payload.description.trim()) {
+        const message = "Creation is missing required media or details.";
+        setState((prev) => ({
+          ...prev,
+          saveStatus: { state: "failed", message },
+        }));
+        return null;
+      }
+
+      try {
+        const metadata: Record<string, unknown> = {
+          source: "ai-composer",
+          category: "capsule_creation",
+          kind: payload.kind,
+        };
+        if (payload.prompt) metadata.prompt = payload.prompt;
+        if (payload.downloadUrl) metadata.download_url = payload.downloadUrl;
+        if (payload.thumbnailUrl) metadata.thumbnail_url = payload.thumbnailUrl;
+        if (payload.muxPlaybackId) metadata.mux_playback_id = payload.muxPlaybackId;
+        if (payload.muxAssetId) metadata.mux_asset_id = payload.muxAssetId;
+        if (payload.runId) metadata.video_run_id = payload.runId;
+        if (payload.durationSeconds != null) {
+          metadata.duration_seconds = payload.durationSeconds;
+        }
+        if (activeCapsuleId) {
+          metadata.capsule_id = activeCapsuleId;
+        }
+        if (payload.metadata && typeof payload.metadata === "object") {
+          Object.assign(metadata, payload.metadata);
+        }
+
+        const body = {
+          user: envelopePayload,
+          item: {
+            title: payload.title,
+            description: payload.description,
+            kind: payload.kind,
+            mediaUrl: payload.mediaUrl,
+            mediaType: payload.mediaType ?? null,
+            downloadUrl: payload.downloadUrl ?? null,
+            thumbnailUrl: payload.thumbnailUrl ?? null,
+            prompt: payload.prompt ?? null,
+            muxPlaybackId: payload.muxPlaybackId ?? null,
+            muxAssetId: payload.muxAssetId ?? null,
+            durationSeconds: payload.durationSeconds ?? null,
+            runId: payload.runId ?? null,
+            tags: payload.tags ?? null,
+            metadata,
+          },
+        };
+
+        const response = await fetch("/api/composer/save", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "");
+          throw new Error(errorText || `Save request failed (${response.status})`);
+        }
+        const result = (await response.json().catch(() => null)) as {
+          memoryId?: string | null;
+          message?: string | null;
+        } | null;
+
+        const memoryId =
+          typeof result?.memoryId === "string" ? result.memoryId.trim() || null : null;
+
+        setState((prev) => {
+          let nextDraft = prev.draft;
+          let nextVideoStatus = prev.videoStatus;
+          if (request.target === "draft" && nextDraft && memoryId) {
+            nextDraft = { ...nextDraft, memoryId };
+            nextVideoStatus = { ...prev.videoStatus, memoryId };
+          }
+          return {
+            ...prev,
+            draft: nextDraft,
+            videoStatus: nextVideoStatus,
+            saveStatus: {
+              state: "succeeded",
+              message: result?.message ?? "Saved to Memory.",
+            },
+          };
+        });
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("memory:refresh", { detail: { reason: "composer-save" } }),
+          );
+          if (saveResetTimeout.current) {
+            window.clearTimeout(saveResetTimeout.current);
+          }
+          saveResetTimeout.current = window.setTimeout(() => {
+            setState((prev) =>
+              prev.saveStatus.state === "succeeded"
+                ? { ...prev, saveStatus: createIdleSaveStatus() }
+                : prev,
+            );
+          }, 2600);
+        }
+
+        return memoryId;
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message ? error.message : "Failed to save creation.";
+        setState((prev) => ({
+          ...prev,
+          saveStatus: { state: "failed", message },
+        }));
+        if (typeof window !== "undefined") {
+          if (saveResetTimeout.current) {
+            window.clearTimeout(saveResetTimeout.current);
+          }
+          saveResetTimeout.current = window.setTimeout(() => {
+            setState((prev) =>
+              prev.saveStatus.state === "failed"
+                ? { ...prev, saveStatus: createIdleSaveStatus() }
+                : prev,
+            );
+          }, 3000);
+        }
+        return null;
+      }
+    },
+    [activeCapsuleId, envelopePayload],
   );
 
   React.useEffect(() => {
@@ -1958,6 +2151,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       selectProject,
       saveDraft,
       retryVideo,
+      saveCreation,
     };
     if (forceChoice) {
       base.forceChoice = forceChoice;
@@ -1982,6 +2176,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     selectProject,
     saveDraft,
     retryVideo,
+    saveCreation,
   ]);
 
   return <ComposerContext.Provider value={contextValue}>{children}</ComposerContext.Provider>;
@@ -2003,6 +2198,7 @@ export function AiComposerRoot() {
     selectProject,
     saveDraft,
     retryVideo,
+    saveCreation,
   } = useComposer();
 
   const forceHandlers = forceChoice
@@ -2028,6 +2224,7 @@ export function AiComposerRoot() {
       summaryOptions={state.summaryOptions}
       summaryMessageId={state.summaryMessageId}
       videoStatus={state.videoStatus}
+      saveStatus={state.saveStatus}
       onChange={updateDraft}
       onClose={close}
       onPost={post}
@@ -2040,6 +2237,7 @@ export function AiComposerRoot() {
       onSelectProject={selectProject}
       onSave={saveDraft}
       onRetryVideo={retryVideo}
+      onSaveCreation={saveCreation}
       {...forceHandlers}
     />
   );

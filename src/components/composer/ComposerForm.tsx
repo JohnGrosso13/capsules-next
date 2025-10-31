@@ -27,7 +27,12 @@ import { useComposerLayout } from "./hooks/useComposerLayout";
 import { useComposerVoice } from "./hooks/useComposerVoice";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
 import { useComposer } from "./ComposerProvider";
-import type { ComposerVideoStatus } from "./ComposerProvider";
+import type {
+  ComposerVideoStatus,
+  ComposerSaveStatus,
+  ComposerSaveRequest,
+  ComposerMemorySavePayload,
+} from "./ComposerProvider";
 
 import { HomeFeedList } from "@/components/home-feed-list";
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
@@ -47,7 +52,7 @@ import {
   type CloudflareImageVariantSet,
 } from "@/lib/cloudflare/images";
 import { buildLocalImageVariants, shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
-import type { ComposerChatMessage } from "@/lib/composer/chat-types";
+import type { ComposerChatMessage, ComposerChatAttachment } from "@/lib/composer/chat-types";
 import { extractFileFromDataTransfer } from "@/lib/clipboard/files";
 import type {
   SummaryConversationContext,
@@ -384,6 +389,7 @@ type ComposerFooterProps = {
   onPost: () => void;
   canSave: boolean;
   canPost: boolean;
+  saving: boolean;
 };
 
 function ComposerFooter({
@@ -399,6 +405,7 @@ function ComposerFooter({
   onPost,
   canSave,
   canPost,
+  saving,
 }: ComposerFooterProps) {
   return (
     <footer className={styles.panelFooter}>
@@ -430,8 +437,13 @@ function ComposerFooter({
         >
           Cancel
         </button>
-        <button type="button" className={styles.secondaryAction} onClick={onSave} disabled={!canSave}>
-          Save
+        <button
+          type="button"
+          className={styles.secondaryAction}
+          onClick={onSave}
+          disabled={!canSave || saving}
+        >
+          {saving ? "Saving..." : "Save"}
         </button>
         <button
           type="button"
@@ -651,7 +663,38 @@ type MemoryItem = {
   kind: "choice" | "preset";
 };
 
+type SaveDialogTarget =
+  | { type: "draft" }
+  | { type: "attachment"; attachment: ComposerChatAttachment };
+
 export type ComposerChoice = { key: string; label: string };
+function pickFirstMeaningful(...values: Array<string | null | undefined>): string {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  return "";
+}
+
+function formatTitleFromText(input: string, fallback = "Capsule creation"): string {
+  const trimmed = input.trim();
+  if (!trimmed.length) return fallback;
+  const preview = trimmed.split(/\s+/).slice(0, 8).join(" ");
+  return preview.charAt(0).toUpperCase() + preview.slice(1);
+}
+
+function formatDescriptionFromText(
+  input: string,
+  fallback = "Saved from Capsule Composer.",
+): string {
+  const trimmed = input.trim();
+  if (!trimmed.length) return fallback;
+  return trimmed.length > 400 ? `${trimmed.slice(0, 397)}...` : trimmed;
+}
+
 
 type ComposerFormProps = {
   loading: boolean;
@@ -667,6 +710,7 @@ type ComposerFormProps = {
   summaryMessageId?: string | null;
   sidebar: ComposerSidebarData;
   videoStatus: ComposerVideoStatus;
+  saveStatus: ComposerSaveStatus;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
   onPost(): void;
@@ -679,6 +723,7 @@ type ComposerFormProps = {
   onPrompt?(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
   onClarifierRespond?(answer: string): void;
   onRetryVideo(): void;
+  onSaveCreation(request: ComposerSaveRequest): Promise<string | null> | Promise<void> | void;
 };
 
 export function ComposerForm({
@@ -695,6 +740,7 @@ export function ComposerForm({
   summaryMessageId: summaryMessageIdInput,
   sidebar,
   videoStatus,
+  saveStatus,
   onChange,
   onClose,
   onPost,
@@ -707,6 +753,7 @@ export function ComposerForm({
   onForceChoice,
   onClarifierRespond,
   onRetryVideo,
+  onSaveCreation,
 }: ComposerFormProps) {
   const workingDraft = React.useMemo<ComposerDraft>(
     () =>
@@ -921,6 +968,11 @@ export function ComposerForm({
   const summarySignatureRef = React.useRef<string | null>(null);
   const mobileMenuCloseRef = React.useRef<HTMLButtonElement | null>(null);
   const mobilePreviewCloseRef = React.useRef<HTMLButtonElement | null>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = React.useState(false);
+  const [saveDialogTarget, setSaveDialogTarget] = React.useState<SaveDialogTarget | null>(null);
+  const [saveTitle, setSaveTitle] = React.useState("");
+  const [saveDescription, setSaveDescription] = React.useState("");
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   const {
     fileInputRef,
@@ -969,6 +1021,19 @@ export function ComposerForm({
       setSummaryPreviewEntry(null);
     }
   }, [summaryEntries]);
+
+  React.useEffect(() => {
+    if (!saveDialogOpen) return;
+    if (saveStatus.state === "succeeded") {
+      setSaveDialogOpen(false);
+      setSaveDialogTarget(null);
+      setSaveTitle("");
+      setSaveDescription("");
+      setSaveError(null);
+    } else if (saveStatus.state === "failed" && saveStatus.message) {
+      setSaveError(saveStatus.message);
+    }
+  }, [saveDialogOpen, saveStatus]);
 
   React.useEffect(() => {
     if (pendingPollFocusIndex === null) return;
@@ -1480,13 +1545,6 @@ export function ComposerForm({
     [updateDraft, workingDraft],
   );
 
-  const handleSave = React.useCallback(() => {
-    if (onSave) {
-      onSave(sidebar.selectedProjectId ?? null);
-    } else {
-      onPost();
-    }
-  }, [onPost, onSave, sidebar.selectedProjectId]);
 
   const handlePreviewToggle = React.useCallback(() => {
     actions.setPreviewOpen(!previewOpen);
@@ -1625,8 +1683,247 @@ export function ComposerForm({
     pollStructure,
   ]);
 
-  const canSave = hasDraftContent && !attachmentUploading && !loading;
+  const savingCreation = saveStatus.state === "saving";
+  const saveFailureMessage = saveStatus.state === "failed" ? saveStatus.message ?? "Failed to save creation." : null;
+
+  const canSave = hasDraftContent && !attachmentUploading && !loading && !savingCreation;
   const canPost = draftReady && !attachmentUploading && !loading;
+
+  const handleSaveDialogClose = React.useCallback(() => {
+    if (savingCreation) return;
+    setSaveDialogOpen(false);
+    setSaveDialogTarget(null);
+    setSaveError(null);
+  }, [savingCreation]);
+
+  const handleSaveClick = React.useCallback(() => {
+    if (onSave) {
+      onSave(sidebar.selectedProjectId ?? null);
+    }
+    const attachmentForPreview = displayAttachment;
+    if (!attachmentForPreview || attachmentForPreview.status !== "ready" || !attachmentForPreview.url) {
+      const fallbackTitle = pickFirstMeaningful(
+        workingDraft.title,
+        workingDraft.mediaPrompt,
+        workingDraft.content,
+        message ?? null,
+        promptValue,
+      );
+      const fallbackDescription = pickFirstMeaningful(
+        workingDraft.mediaPrompt,
+        workingDraft.content,
+        message ?? null,
+        promptValue,
+      );
+      setSaveDialogTarget({ type: "draft" });
+      setSaveTitle(formatTitleFromText(fallbackTitle || "Capsule creation"));
+      setSaveDescription(
+        formatDescriptionFromText(
+          fallbackDescription || "Saved from Capsule Composer.",
+        ),
+      );
+      setSaveError("Generate or attach a visual before saving.");
+      setSaveDialogOpen(true);
+      return;
+    }
+    const titleSource = pickFirstMeaningful(
+      workingDraft.title,
+      workingDraft.mediaPrompt,
+      videoStatus.prompt,
+      workingDraft.content,
+      message ?? null,
+      promptValue,
+    );
+    const descriptionSource = pickFirstMeaningful(
+      workingDraft.mediaPrompt,
+      workingDraft.content,
+      videoStatus.message,
+      message ?? null,
+    );
+    setSaveDialogTarget({ type: "draft" });
+    setSaveTitle(formatTitleFromText(titleSource || "Capsule creation"));
+    setSaveDescription(
+      formatDescriptionFromText(
+        descriptionSource || "Saved from Capsule Composer.",
+      ),
+    );
+    setSaveError(null);
+    setSaveDialogOpen(true);
+  }, [
+    displayAttachment,
+    message,
+    onSave,
+    promptValue,
+    sidebar.selectedProjectId,
+    videoStatus.message,
+    videoStatus.prompt,
+    workingDraft.content,
+    workingDraft.mediaPrompt,
+    workingDraft.title,
+  ]);
+
+  const handleAttachmentSave = React.useCallback(
+    (attachment: ComposerChatAttachment) => {
+      if (!attachment.url) return;
+      const titleSource = pickFirstMeaningful(
+        attachment.name,
+        attachment.excerpt,
+        workingDraft.mediaPrompt,
+        videoStatus.prompt,
+      );
+      const descriptionSource = pickFirstMeaningful(
+        attachment.excerpt,
+        videoStatus.message,
+        attachment.name,
+      );
+      setSaveDialogTarget({ type: "attachment", attachment });
+      setSaveTitle(formatTitleFromText(titleSource || "Capsule creation"));
+      setSaveDescription(
+        formatDescriptionFromText(
+          descriptionSource || "Saved from Capsule Composer.",
+        ),
+      );
+      setSaveError(null);
+      setSaveDialogOpen(true);
+    },
+    [videoStatus.message, videoStatus.prompt, workingDraft.mediaPrompt],
+  );
+
+  const canSaveAttachment = (attachment: ComposerChatAttachment): boolean => {
+    if (!attachment.url) return false;
+    const source = (attachment.source ?? "").toLowerCase();
+    return source === "ai" || attachment.role === "output";
+  };
+
+  const handleSaveConfirm = React.useCallback(async () => {
+    if (!saveDialogTarget) return;
+    const trimmedTitle = saveTitle.trim();
+    const trimmedDescription = saveDescription.trim();
+    setSaveError(null);
+    if (!trimmedTitle.length) {
+      setSaveError("Add a title before saving.");
+      return;
+    }
+    if (!trimmedDescription.length) {
+      setSaveError("Add a description before saving.");
+      return;
+    }
+
+    let payload: ComposerMemorySavePayload | null = null;
+
+    if (saveDialogTarget.type === "draft") {
+      if (!displayAttachment || displayAttachment.status !== "ready" || !displayAttachment.url) {
+        setSaveError("Generate or attach a visual before saving.");
+        return;
+      }
+      const primaryUrl = (workingDraft.mediaUrl ?? displayAttachment.url)?.trim();
+      if (!primaryUrl) {
+        setSaveError("Generate or attach a visual before saving.");
+        return;
+      }
+      const mimeType = displayAttachment.mimeType ?? "";
+      const lowerMime = mimeType.toLowerCase();
+      const inferredKind = (workingDraft.kind ?? "").toLowerCase();
+      const isVideo = lowerMime.startsWith("video/") || inferredKind === "video";
+      const kind = isVideo ? "video" : "image";
+      const mediaType = mimeType || (isVideo ? "video/*" : "image/*");
+      const downloadUrl =
+        (workingDraft.mediaPlaybackUrl ?? displayAttachment.url)?.trim() || primaryUrl;
+      const thumbnailUrl =
+        workingDraft.mediaThumbnailUrl?.trim() ?? displayAttachment.thumbUrl ?? null;
+      const metadata: Record<string, unknown> = { source_kind: "draft" };
+      if (displayAttachment.role) {
+        metadata.attachment_role = displayAttachment.role;
+      }
+      payload = {
+        title: trimmedTitle,
+        description: trimmedDescription,
+        kind,
+        mediaUrl: primaryUrl,
+        mediaType,
+        downloadUrl,
+        thumbnailUrl,
+        prompt:
+          workingDraft.mediaPrompt ??
+          videoStatus.prompt ??
+          workingDraft.content ??
+          message ??
+          promptValue,
+        durationSeconds: workingDraft.mediaDurationSeconds ?? null,
+        muxPlaybackId: workingDraft.muxPlaybackId ?? null,
+        muxAssetId: workingDraft.muxAssetId ?? null,
+        runId: workingDraft.videoRunId ?? videoStatus.runId ?? null,
+        tags: ["composer", "capsule_creation", kind],
+        metadata,
+      };
+    } else {
+      const attachment = saveDialogTarget.attachment;
+      if (!attachment.url) {
+        setSaveError("Attachment is missing a URL.");
+        return;
+      }
+      const mimeType = attachment.mimeType ?? "";
+      const lowerMime = mimeType.toLowerCase();
+      const kind = lowerMime.startsWith("video/")
+        ? "video"
+        : lowerMime.startsWith("image/")
+          ? "image"
+          : "upload";
+      const metadata: Record<string, unknown> = { source_kind: "chat-attachment" };
+      if (attachment.id) metadata.attachment_id = attachment.id;
+      if (attachment.source) metadata.attachment_source = attachment.source;
+      if (attachment.role) metadata.attachment_role = attachment.role;
+      if (attachment.excerpt) metadata.attachment_excerpt = attachment.excerpt;
+      payload = {
+        title: trimmedTitle,
+        description: trimmedDescription,
+        kind,
+        mediaUrl: attachment.url,
+        mediaType: attachment.mimeType ?? null,
+        downloadUrl: attachment.url,
+        thumbnailUrl: attachment.thumbnailUrl ?? null,
+        prompt: attachment.excerpt ?? promptValue,
+        tags: ["composer", "capsule_creation", kind],
+        metadata,
+      };
+    }
+
+    if (!payload) {
+      setSaveError("Unable to build save request.");
+      return;
+    }
+
+    try {
+      await onSaveCreation({ target: saveDialogTarget.type, payload });
+    } catch (error) {
+      const messageText =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to save creation.";
+      setSaveError(messageText);
+    }
+  }, [
+    displayAttachment,
+    message,
+    onSaveCreation,
+    promptValue,
+    saveDescription,
+    saveDialogTarget,
+    saveTitle,
+    videoStatus.prompt,
+    videoStatus.runId,
+    workingDraft.content,
+    workingDraft.kind,
+    workingDraft.mediaDurationSeconds,
+    workingDraft.mediaPlaybackUrl,
+    workingDraft.mediaPrompt,
+    workingDraft.mediaThumbnailUrl,
+    workingDraft.mediaUrl,
+    workingDraft.videoRunId,
+    workingDraft.muxAssetId,
+    workingDraft.muxPlaybackId,
+  ]);
+
 
   const hasConversation = renderedHistory.length > 0;
   const showWelcomeMessage = !hasConversation;
@@ -1958,28 +2255,59 @@ export function ComposerForm({
                           <div className={styles.chatAttachmentList}>
                             {attachments.map((attachment) => {
                               const attachmentKey = attachment.id || `${key}-${attachment.name}`;
-                              const isImage = attachment.mimeType.toLowerCase().startsWith("image/");
-                              const previewSrc = attachment.thumbnailUrl ?? attachment.url;
+                              const mimeType = (attachment.mimeType ?? "").toLowerCase();
+                              const isImage = mimeType.startsWith("image/");
+                              const previewSrc = attachment.thumbnailUrl ?? attachment.url ?? null;
+                              const hasUrl = typeof attachment.url === "string" && attachment.url.length > 0;
                               return (
-                                <a
-                                  key={attachmentKey}
-                                  href={attachment.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className={styles.chatAttachmentLink}
-                                >
-                                  {isImage && previewSrc ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                      src={previewSrc}
-                                      alt={attachment.name}
-                                      className={styles.chatAttachmentPreview}
-                                    />
-                                  ) : null}
-                                  <span className={styles.chatAttachmentLabel}>
-                                    {attachment.name}
-                                  </span>
-                                </a>
+                                <div key={attachmentKey} className={styles.chatAttachmentCard}>
+                                  <a
+                                    href={hasUrl ? attachment.url : undefined}
+                                    target={hasUrl ? "_blank" : undefined}
+                                    rel={hasUrl ? "noreferrer" : undefined}
+                                    className={styles.chatAttachmentLink}
+                                    aria-disabled={hasUrl ? undefined : "true"}
+                                    onClick={
+                                      hasUrl
+                                        ? undefined
+                                        : (event) => {
+                                            event.preventDefault();
+                                          }
+                                    }
+                                  >
+                                    {isImage && previewSrc ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={previewSrc}
+                                        alt={attachment.name}
+                                        className={styles.chatAttachmentPreview}
+                                      />
+                                    ) : null}
+                                    <span className={styles.chatAttachmentLabel}>{attachment.name}</span>
+                                  </a>
+                                  <div className={styles.chatAttachmentActions}>
+                                    {canSaveAttachment(attachment) ? (
+                                      <button
+                                        type="button"
+                                        className={styles.chatAttachmentActionBtn}
+                                        onClick={() => handleAttachmentSave(attachment)}
+                                      >
+                                        Save to Memory
+                                      </button>
+                                    ) : null}
+                                    {hasUrl ? (
+                                      <a
+                                        className={styles.chatAttachmentActionBtn}
+                                        href={attachment.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        download
+                                      >
+                                        Download
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                </div>
                               );
                             })}
                           </div>
@@ -2920,12 +3248,12 @@ export function ComposerForm({
                       type="button"
                       className={styles.secondaryAction}
                       onClick={() => {
-                        handleSave();
+                        handleSaveClick();
                         closeMobileRail();
                       }}
                       disabled={!canSave}
                     >
-                      Save
+                      {savingCreation ? "Saving..." : "Save"}
                     </button>
                   </div>
                 </section>
@@ -3038,13 +3366,90 @@ export function ComposerForm({
           loading={loading}
           attachmentUploading={attachmentUploading}
           onClose={onClose}
-          onSave={handleSave}
+          onSave={handleSaveClick}
           onPreviewToggle={handlePreviewToggle}
           previewOpen={previewOpen}
           onPost={onPost}
           canSave={canSave}
           canPost={canPost}
+          saving={savingCreation}
         />
+
+        {saveDialogOpen ? (
+          <div
+            className={styles.saveDialogOverlay}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="composer-save-dialog-title"
+            onClick={handleSaveDialogClose}
+          >
+            <div
+              className={styles.saveDialog}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className={styles.saveDialogHeader}>
+                <h3 id="composer-save-dialog-title">Save to Memory</h3>
+                <button
+                  type="button"
+                  className={styles.saveDialogClose}
+                  onClick={handleSaveDialogClose}
+                  aria-label="Close save dialog"
+                  disabled={savingCreation}
+                >
+                  <X size={16} weight="bold" />
+                </button>
+              </div>
+              <div className={styles.saveDialogBody}>
+                <label className={styles.saveDialogLabel} htmlFor="composer-save-title">
+                  Title
+                </label>
+                <input
+                  id="composer-save-title"
+                  className={styles.saveDialogInput}
+                  value={saveTitle}
+                  onChange={(event) => setSaveTitle(event.target.value)}
+                  placeholder="Describe this creation"
+                  disabled={savingCreation}
+                />
+                <label className={styles.saveDialogLabel} htmlFor="composer-save-description">
+                  Description
+                </label>
+                <textarea
+                  id="composer-save-description"
+                  className={styles.saveDialogTextarea}
+                  value={saveDescription}
+                  onChange={(event) => setSaveDescription(event.target.value)}
+                  rows={4}
+                  placeholder="Capsule uses this description for recall."
+                  disabled={savingCreation}
+                />
+                {(saveError ?? saveFailureMessage) ? (
+                  <p className={styles.saveDialogError} role="alert">
+                    {saveError ?? saveFailureMessage}
+                  </p>
+                ) : null}
+              </div>
+              <div className={styles.saveDialogActions}>
+                <button
+                  type="button"
+                  className={styles.saveDialogSecondary}
+                  onClick={handleSaveDialogClose}
+                  disabled={savingCreation}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={styles.saveDialogPrimary}
+                  onClick={handleSaveConfirm}
+                  disabled={savingCreation}
+                >
+                  {savingCreation ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <ComposerMemoryPicker
           open={memoryPickerOpen}
@@ -3076,3 +3481,5 @@ export function ComposerForm({
     </div>
   );
 }
+
+
