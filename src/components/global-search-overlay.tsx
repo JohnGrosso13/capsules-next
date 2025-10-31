@@ -16,7 +16,7 @@ import type {
 import styles from "./global-search.module.css";
 
 const SEARCH_EVENT_NAME = "capsules:search:open";
-const DEBOUNCE_DELAY_MS = 220;
+const DEBOUNCE_DELAY_MS = 140;
 const MIN_QUERY_LENGTH = 2;
 
 const SECTION_LABEL: Record<GlobalSearchSection["type"], string> = {
@@ -24,6 +24,19 @@ const SECTION_LABEL: Record<GlobalSearchSection["type"], string> = {
   capsules: "Capsules",
   memories: "Memories",
 };
+
+const SECTION_PRIORITY: Record<GlobalSearchSection["type"], number> = {
+  users: 0,
+  capsules: 1,
+  memories: 2,
+};
+
+function normalizeSections(
+  sections: GlobalSearchSection[] | null | undefined,
+): GlobalSearchSection[] {
+  if (!Array.isArray(sections)) return [];
+  return sections.slice().sort((a, b) => SECTION_PRIORITY[a.type] - SECTION_PRIORITY[b.type]);
+}
 
 export function GlobalSearchOverlay() {
   const router = useRouter();
@@ -34,6 +47,8 @@ export function GlobalSearchOverlay() {
   const [sections, setSections] = useState<GlobalSearchSection[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const overlayPointerDownRef = useRef(false);
+  const trimmedQuery = useMemo(() => query.trim(), [query]);
 
   const formatter = useMemo(() => {
     try {
@@ -100,7 +115,7 @@ export function GlobalSearchOverlay() {
   useEffect(() => {
     if (!open) return;
 
-    if (query.trim().length < MIN_QUERY_LENGTH) {
+    if (trimmedQuery.length < MIN_QUERY_LENGTH) {
       abortRef.current?.abort();
       abortRef.current = null;
       setSections([]);
@@ -123,7 +138,7 @@ export function GlobalSearchOverlay() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ q: query, limit: 24 }),
+          body: JSON.stringify({ q: trimmedQuery, limit: 24 }),
           signal: controller.signal,
         });
 
@@ -137,7 +152,7 @@ export function GlobalSearchOverlay() {
         } else {
           const data = (await response.json()) as GlobalSearchResponse;
           if (Array.isArray(data.sections)) {
-            setSections(data.sections);
+            setSections(normalizeSections(data.sections));
           } else {
             setSections([]);
           }
@@ -156,7 +171,7 @@ export function GlobalSearchOverlay() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [open, query]);
+  }, [open, trimmedQuery]);
 
   if (!open) return null;
 
@@ -312,10 +327,24 @@ export function GlobalSearchOverlay() {
     <div
       className={styles.overlay}
       role="presentation"
+      onPointerDown={(event) => {
+        overlayPointerDownRef.current = event.target === event.currentTarget;
+      }}
+      onPointerUp={(event) => {
+        overlayPointerDownRef.current =
+          overlayPointerDownRef.current && event.target === event.currentTarget;
+      }}
+      onPointerLeave={() => {
+        overlayPointerDownRef.current = false;
+      }}
+      onPointerCancel={() => {
+        overlayPointerDownRef.current = false;
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) {
+        if (overlayPointerDownRef.current && event.target === event.currentTarget) {
           close();
         }
+        overlayPointerDownRef.current = false;
       }}
     >
       <div
@@ -357,10 +386,10 @@ export function GlobalSearchOverlay() {
           {!loading &&
           !error &&
           !hasResults &&
-          query.trim().length >= MIN_QUERY_LENGTH ? (
+          trimmedQuery.length >= MIN_QUERY_LENGTH ? (
             <span className={styles.statusText}>No matches yet. Try another phrase.</span>
           ) : null}
-          {!loading && !error && query.trim().length < MIN_QUERY_LENGTH ? (
+          {!loading && !error && trimmedQuery.length < MIN_QUERY_LENGTH ? (
             <span className={styles.statusText}>
               Enter at least {MIN_QUERY_LENGTH} characters to search.
             </span>
