@@ -18,7 +18,6 @@ import type {
 import type {
   ChatParticipant,
   ChatSession,
-  ChatSessionEventPayload,
   ChatMessageEventPayload,
   ChatTypingEventPayload,
   ChatReactionEventPayload,
@@ -27,7 +26,9 @@ import type {
   ChatMessageReaction,
   ChatMessageAttachment,
 } from "@/components/providers/chat-store";
+import type { ChatSessionEventPayload } from "@/lib/chat/events";
 import { ChatStore } from "@/components/providers/chat-store";
+import { normalizeParticipant } from "@/components/providers/chat-store/helpers";
 
 const DIRECT_CHANNEL_WATERMARK_PREFIX = "capsule:chat:watermark:direct:";
 const TYPING_EVENT_REFRESH_MS = 2500;
@@ -1265,32 +1266,28 @@ export class ChatEngine {
         ? payload.session.participants
         : [];
       const normalizedParticipants = participants
-        .map((participant) => ({
-          id: participant.id,
-          name: participant.name,
-          avatar: participant.avatar ?? null,
-        }))
-        .filter((participant): participant is ChatParticipant => Boolean(participant.id));
-    if (!normalizedParticipants.length) return;
-    const descriptor = {
-      id: payload.conversationId,
-      type:
-        payload.session.type ??
-        (isGroupConversationId(payload.conversationId) ? "group" : "direct"),
-      title: payload.session.title ?? "",
-      avatar: payload.session.avatar ?? null,
-      createdBy: payload.session.createdBy ?? null,
-      participants: normalizedParticipants,
-    };
-    this.store.applySessionEvent(descriptor);
-    return;
-  }
-  if (event.name === "chat.typing") {
-    const payload = event.data as ChatTypingEventPayload;
-    this.store.applyTypingEvent(payload);
-    return;
-  }
-  if (event.name === "chat.session.deleted") {
+        .map((participant) => normalizeParticipant(participant))
+        .filter((participant): participant is ChatParticipant => Boolean(participant));
+      if (!normalizedParticipants.length) return;
+      const descriptor = {
+        id: payload.conversationId,
+        type:
+          payload.session.type ??
+          (isGroupConversationId(payload.conversationId) ? "group" : "direct"),
+        title: payload.session.title ?? "",
+        avatar: payload.session.avatar ?? null,
+        createdBy: payload.session.createdBy ?? null,
+        participants: normalizedParticipants,
+      };
+      this.store.applySessionEvent(descriptor);
+      return;
+    }
+    if (event.name === "chat.typing") {
+      const payload = event.data as ChatTypingEventPayload;
+      this.store.applyTypingEvent(payload);
+      return;
+    }
+    if (event.name === "chat.session.deleted") {
     const payload = event.data as { type?: string; conversationId?: string };
     const conversationId = payload?.conversationId;
     if (typeof conversationId === "string" && conversationId.trim()) {

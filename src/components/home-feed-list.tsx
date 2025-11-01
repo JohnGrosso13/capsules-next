@@ -19,20 +19,10 @@ import {
   X,
 } from "@phosphor-icons/react/dist/ssr";
 import { PostMenu } from "@/components/posts/PostMenu";
-import { normalizeMediaUrl, IMAGE_EXTENSION_PATTERN, canRenderInlineImage } from "@/lib/media";
+import { normalizeMediaUrl, canRenderInlineImage } from "@/lib/media";
 import type { HomeFeedAttachment, HomeFeedPost } from "@/hooks/useHomeFeed";
 import { resolveToAbsoluteUrl } from "@/lib/url";
-import {
-  buildImageVariants,
-  pickBestDisplayVariant,
-  pickBestFullVariant,
-} from "@/lib/cloudflare/images";
-import type { CloudflareImageVariantSet } from "@/lib/cloudflare/images";
-import {
-  buildLocalImageVariants,
-  containsCloudflareResize,
-  shouldBypassCloudflareImages,
-} from "@/lib/cloudflare/runtime";
+import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import { useComposer } from "@/components/composer/ComposerProvider";
 import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import {
@@ -49,6 +39,17 @@ import type {
   SummaryConversationEntry,
 } from "@/lib/composer/summary-context";
 import { useCurrentUser } from "@/services/auth/client";
+import {
+  describeAttachmentSet,
+  detectAttachmentKind,
+  extractAttachmentMeta,
+  formatHintList,
+  normalizeAttachmentName,
+  stripExtension,
+  buildPostMediaCollections,
+  type FeedGalleryItem,
+  type PostMediaCollections,
+} from "@/components/home-feed/utils";
 import { CommentPanel } from "@/components/comments/CommentPanel";
 import type {
   CommentAttachment,
@@ -77,148 +78,6 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(
 
 LazyImage.displayName = "LazyImage";
 
-const VIDEO_EXTENSION_PATTERN = /\.(mp4|m4v|mov|webm|ogv|ogg|mkv)(\?|#|$)/i;
-const GENERIC_ATTACHMENT_NAMES = new Set([
-  "image",
-  "photo",
-  "picture",
-  "screenshot",
-  "video",
-  "file",
-  "document",
-  "attachment",
-]);
-
-function detectAttachmentKind(
-  mimeType: string | null | undefined,
-  url: string | null | undefined,
-): "image" | "video" | "file" {
-  const normalized = (mimeType ?? "").toLowerCase();
-  if (normalized.startsWith("image/")) return "image";
-  if (normalized.startsWith("video/")) return "video";
-  const lowered = (url ?? "").toLowerCase();
-  if (VIDEO_EXTENSION_PATTERN.test(lowered)) return "video";
-  if (IMAGE_EXTENSION_PATTERN.test(lowered)) return "image";
-  return "file";
-}
-
-function stripExtension(value: string): string {
-  const lastDot = value.lastIndexOf(".");
-  if (lastDot === -1) return value;
-  return value.slice(0, lastDot);
-}
-
-function normalizeAttachmentName(name: string | null | undefined): string | null {
-  if (typeof name !== "string") return null;
-  const trimmed = name.trim();
-  if (!trimmed.length) return null;
-  const base = stripExtension(trimmed).trim();
-  if (!base.length) return null;
-  if (GENERIC_ATTACHMENT_NAMES.has(base.toLowerCase())) return null;
-  return base;
-}
-
-function extractAttachmentMeta(meta: unknown): string | null {
-  if (!meta || typeof meta !== "object") return null;
-  const candidateKeys = [
-    "description",
-    "caption",
-    "alt",
-    "altText",
-    "title",
-    "label",
-    "summary",
-    "prompt",
-    "keywords",
-  ];
-  for (const key of candidateKeys) {
-    const raw = (meta as Record<string, unknown>)[key];
-    if (typeof raw === "string") {
-      const trimmed = raw.trim();
-      if (trimmed.length) {
-        return trimmed;
-      }
-    }
-    if (Array.isArray(raw)) {
-      const joined = raw
-        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-        .filter((entry) => entry.length)
-        .join(", ");
-      if (joined.length) return joined;
-    }
-  }
-  return null;
-}
-
-function formatHintList(items: string[], limit: number): string {
-  if (!items.length) return "";
-  const slice = items.slice(0, limit);
-  const [first, second] = slice;
-  if (slice.length === 1) return first ?? "";
-  if (slice.length === 2) return `${first ?? ""} and ${second ?? ""}`;
-  const head = slice
-    .slice(0, -1)
-    .filter((entry) => Boolean(entry && entry.trim().length))
-    .join(", ");
-  const tail = slice[slice.length - 1] ?? "";
-  const ellipsis = items.length > limit ? "..." : "";
-  return `${head}, and ${tail}${ellipsis}`;
-}
-
-function describeAttachmentSet(
-  attachments: HomeFeedAttachment[],
-  fallbackMediaUrl: string | null | undefined,
-): { summary: string | null; hints: string[] } {
-  const counts: Record<"image" | "video" | "file", number> = {
-    image: 0,
-    video: 0,
-    file: 0,
-  };
-  const hints: string[] = [];
-  attachments.forEach((attachment) => {
-    const kind = detectAttachmentKind(attachment.mimeType, attachment.url);
-    counts[kind] += 1;
-    const metaHint = extractAttachmentMeta(attachment.meta);
-    if (metaHint) {
-      hints.push(metaHint);
-    } else {
-      const nameHint = normalizeAttachmentName(attachment.name);
-      if (nameHint) {
-        hints.push(nameHint);
-      }
-    }
-  });
-
-  if (!attachments.length && typeof fallbackMediaUrl === "string" && fallbackMediaUrl.trim().length) {
-    const kind = detectAttachmentKind(null, fallbackMediaUrl);
-    counts[kind] += 1;
-  }
-
-  const pieces: string[] = [];
-  if (counts.image) {
-    pieces.push(`${counts.image} image${counts.image > 1 ? "s" : ""}`);
-  }
-  if (counts.video) {
-    pieces.push(`${counts.video} video${counts.video > 1 ? "s" : ""}`);
-  }
-  if (counts.file) {
-    pieces.push(`${counts.file} file${counts.file > 1 ? "s" : ""}`);
-  }
-
-  const summary =
-    pieces.length > 0 ? `Shared ${pieces.join(" and ")}.` : attachments.length ? "Shared new files." : null;
-  const uniqueHints = Array.from(
-    new Set(
-      hints
-        .map((hint) => hint.trim())
-        .filter((hint) => hint.length)
-        .slice(0, 6),
-    ),
-  );
-
-  return { summary, hints: uniqueHints };
-}
-
 function describePoll(question: unknown): string | null {
   if (typeof question !== "string") return null;
   const trimmed = question.trim();
@@ -246,18 +105,6 @@ function buildIdentifierSet(...identifiers: Array<unknown>): Set<string> {
   return result;
 }
 
-function shouldRebuildVariantsForEnvironment(
-  variants: CloudflareImageVariantSet | null | undefined,
-  cloudflareEnabled: boolean,
-): boolean {
-  if (!cloudflareEnabled) return true;
-  if (!variants) return true;
-  if (containsCloudflareResize(variants.feed)) return true;
-  if (containsCloudflareResize(variants.full)) return true;
-  if (containsCloudflareResize(variants.thumb)) return true;
-  return false;
-}
-
 function sanitizeCounts(source: unknown, length: number): number[] | null {
   if (!Array.isArray(source)) return null;
   const values = (source as unknown[]).map((entry) => {
@@ -266,36 +113,6 @@ function sanitizeCounts(source: unknown, length: number): number[] | null {
     return Math.max(0, Math.trunc(numeric));
   });
   return Array.from({ length }, (_, index) => values[index] ?? 0);
-}
-
-type MediaDimensions = { width: number; height: number };
-
-const MEDIA_DIMENSION_KEY_PAIRS: Array<[string, string]> = [
-  ["width", "height"],
-  ["w", "h"],
-  ["naturalWidth", "naturalHeight"],
-  ["natural_width", "natural_height"],
-  ["imageWidth", "imageHeight"],
-  ["image_width", "image_height"],
-  ["originalWidth", "originalHeight"],
-  ["original_width", "original_height"],
-  ["previewWidth", "previewHeight"],
-  ["preview_width", "preview_height"],
-  ["pixelWidth", "pixelHeight"],
-  ["pixel_width", "pixel_height"],
-];
-
-function coerceDimension(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return value;
-  }
-  if (typeof value === "string") {
-    const parsed = Number.parseFloat(value);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
-  }
-  return null;
 }
 
 function createEmptyThreadState(): CommentThreadState {
@@ -421,65 +238,6 @@ function normalizeCommentFromApi(
     pending: false,
     error: null,
   };
-}
-
-type FeedGalleryItem = {
-  id: string;
-  originalUrl: string;
-  displayUrl: string;
-  displaySrcSet: string | null;
-  fullUrl: string;
-  fullSrcSet: string | null;
-  kind: "image" | "video";
-  name: string | null;
-  thumbnailUrl: string | null;
-  mimeType: string | null;
-  width: number | null;
-  height: number | null;
-  aspectRatio: number | null;
-};
-
-function extractMediaDimensions(source: unknown, depthLimit = 4): MediaDimensions | null {
-  if (!source || typeof source !== "object") return null;
-
-  const queue: Array<{ value: unknown; depth: number }> = [{ value: source, depth: 0 }];
-  const seen = new WeakSet<object>();
-
-  while (queue.length) {
-    const entry = queue.shift();
-    if (!entry) continue;
-    const { value, depth } = entry;
-    if (!value || typeof value !== "object") continue;
-
-    if (seen.has(value as object)) continue;
-    seen.add(value as object);
-
-    if (Array.isArray(value)) {
-      if (depth >= depthLimit) continue;
-      for (const child of value) {
-        queue.push({ value: child, depth: depth + 1 });
-      }
-      continue;
-    }
-
-    const record = value as Record<string, unknown>;
-    for (const [widthKey, heightKey] of MEDIA_DIMENSION_KEY_PAIRS) {
-      const width = coerceDimension(record[widthKey]);
-      const height = coerceDimension(record[heightKey]);
-      if (width && height) {
-        return { width, height };
-      }
-    }
-
-    if (depth >= depthLimit) continue;
-    for (const child of Object.values(record)) {
-      if (child && typeof child === "object") {
-        queue.push({ value: child, depth: depth + 1 });
-      }
-    }
-  }
-
-  return null;
 }
 
 type ActionKey = "like" | "comment" | "share";
@@ -717,7 +475,7 @@ export function HomeFeedList({
   const shouldShowSentinel = !showSkeletons && displayedPosts.length < posts.length;
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
   const currentOrigin = React.useMemo(
-    () => (typeof window !== "undefined" ? window.location.origin : undefined),
+    () => (typeof window !== "undefined" ? window.location.origin : null),
     [],
   );
 
@@ -1465,206 +1223,14 @@ export function HomeFeedList({
             count: shareCount,
           },
         ];
-        const attachmentsList = Array.isArray(post.attachments)
-          ? post.attachments.filter(
-              (attachment): attachment is NonNullable<HomeFeedPost["attachments"]>[number] =>
-                Boolean(attachment && attachment.url),
-            )
-          : [];
-        const inferAttachmentKind = (
-          mime: string | null | undefined,
-          url: string,
-          storageKey?: string | null,
-          thumbnailUrl?: string | null,
-        ): "image" | "video" | "file" => {
-          const loweredMime = mime?.toLowerCase() ?? "";
-          if (loweredMime.startsWith("image/")) return "image";
-          if (loweredMime.startsWith("video/")) return "video";
-
-          const mediaSources = [url, storageKey ?? null, thumbnailUrl ?? null].map((value) =>
-            typeof value === "string" ? value.toLowerCase() : "",
-          );
-
-          const hasMatch = (pattern: RegExp) => mediaSources.some((source) => pattern.test(source));
-
-          if (hasMatch(VIDEO_EXTENSION_PATTERN)) return "video";
-          if (hasMatch(IMAGE_EXTENSION_PATTERN)) return "image";
-          return "file";
-        };
-        const seenMedia = new Set<string>();
-        const galleryItems: FeedGalleryItem[] = [];
-        const fileAttachments: Array<{
-          id: string;
-          url: string;
-          name: string | null;
-          mimeType: string | null;
-          meta: Record<string, unknown> | null;
-          uploadSessionId: string | null;
-        }> = [];
-        const pushMedia = (
-          item: {
-            id: string;
-            originalUrl: string;
-            displayUrl: string;
-            displaySrcSet: string | null;
-            fullUrl: string;
-            fullSrcSet: string | null;
-            kind: "image" | "video";
-            name: string | null;
-            thumbnailUrl: string | null;
-            mimeType: string | null;
-            metadata?: unknown;
-          },
-        ) => {
-          if (!item.originalUrl || seenMedia.has(item.originalUrl)) return;
-          seenMedia.add(item.originalUrl);
-          const dimensions = extractMediaDimensions(item.metadata);
-          const width = dimensions?.width ?? null;
-          const height = dimensions?.height ?? null;
-          const aspectRatio =
-            width && height && height > 0
-              ? Math.min(Math.max(Number((width / height).toFixed(4)), 0.05), 20)
-              : null;
-          const { metadata: _metadata, ...rest } = item;
-          galleryItems.push({
-            ...rest,
-            width: width && Number.isFinite(width) ? width : null,
-            height: height && Number.isFinite(height) ? height : null,
-            aspectRatio,
-          });
-        };
-
-        if (media && !attachmentsList.length) {
-          const inferred = inferAttachmentKind(null, media) === "video" ? "video" : "image";
-          const absoluteMedia = resolveToAbsoluteUrl(media) ?? media;
-          const variants =
-            inferred === "image"
-              ? cloudflareEnabled
-                ? buildImageVariants(media, {
-                    thumbnailUrl: media,
-                    origin: currentOrigin ?? null,
-                  })
-                : buildLocalImageVariants(media, media)
-              : null;
-          const displayUrl =
-            inferred === "image"
-              ? (pickBestDisplayVariant(variants) ?? absoluteMedia)
-              : absoluteMedia;
-          const fullUrl =
-            inferred === "image" ? (pickBestFullVariant(variants) ?? absoluteMedia) : absoluteMedia;
-          const displaySrcSet =
-            cloudflareEnabled && inferred === "image" ? (variants?.feedSrcset ?? null) : null;
-        const fullSrcSet =
-          cloudflareEnabled && inferred === "image"
-            ? (variants?.fullSrcset ?? variants?.feedSrcset ?? null)
-            : null;
-        pushMedia({
-          id: `${post.id}-primary`,
-          originalUrl: variants?.original ?? absoluteMedia,
-          displayUrl,
-          displaySrcSet,
-          fullUrl,
-          fullSrcSet,
-          kind: inferred,
-          name: null,
-          thumbnailUrl: inferred === "image" ? (variants?.thumb ?? absoluteMedia) : null,
-          mimeType: null,
-          metadata: null,
+        const mediaCollections: PostMediaCollections = buildPostMediaCollections({
+          post,
+          initialMedia: media ?? null,
+          cloudflareEnabled,
+          currentOrigin,
         });
-      }
-
-        attachmentsList.forEach((attachment, index) => {
-          if (!attachment || !attachment.url) return;
-          const kind = inferAttachmentKind(
-            attachment.mimeType ?? null,
-            attachment.url,
-            attachment.storageKey ?? null,
-            attachment.thumbnailUrl ?? null,
-          );
-          const baseId = attachment.id || `${post.id}-att-${index}`;
-          if (kind === "image" || kind === "video") {
-            let variants = attachment.variants ?? null;
-            if (
-              kind === "image" &&
-              shouldRebuildVariantsForEnvironment(variants, cloudflareEnabled)
-            ) {
-              variants = cloudflareEnabled
-                ? buildImageVariants(attachment.url, {
-                    thumbnailUrl: attachment.thumbnailUrl ?? null,
-                    origin: currentOrigin ?? null,
-                  })
-                : buildLocalImageVariants(attachment.url, attachment.thumbnailUrl ?? null);
-            }
-            const absoluteOriginal = resolveToAbsoluteUrl(attachment.url) ?? attachment.url;
-            const absoluteThumb = resolveToAbsoluteUrl(attachment.thumbnailUrl ?? null);
-            const displayCandidate =
-              kind === "image"
-                ? (pickBestDisplayVariant(variants) ?? absoluteThumb ?? absoluteOriginal)
-                : absoluteOriginal;
-            const fullCandidate =
-              kind === "image"
-                ? (pickBestFullVariant(variants) ?? absoluteOriginal)
-                : absoluteOriginal;
-            const displaySrcSet =
-              cloudflareEnabled && kind === "image" ? (variants?.feedSrcset ?? null) : null;
-            const fullSrcSet =
-              cloudflareEnabled && kind === "image"
-                ? (variants?.fullSrcset ?? variants?.feedSrcset ?? null)
-                : null;
-            const thumbnailUrl =
-              kind === "image"
-                ? (variants?.thumb ?? absoluteThumb ?? absoluteOriginal)
-                : (() => {
-                    const candidate =
-                      absoluteThumb && absoluteThumb !== absoluteOriginal
-                        ? absoluteThumb
-                        : typeof attachment.thumbnailUrl === "string"
-                          ? attachment.thumbnailUrl
-                          : null;
-                    return candidate && candidate !== absoluteOriginal ? candidate : null;
-                  })();
-            pushMedia({
-              id: baseId,
-              originalUrl: variants?.original ?? absoluteOriginal,
-              displayUrl: displayCandidate,
-              displaySrcSet,
-              fullUrl: fullCandidate,
-              fullSrcSet,
-              kind,
-              name: attachment.name ?? null,
-              thumbnailUrl,
-              mimeType: attachment.mimeType ?? null,
-              metadata: attachment.meta ?? null,
-            });
-          } else {
-            if (fileAttachments.some((file) => file.url === attachment.url)) return;
-            let fallbackName = attachment.name ?? null;
-            if (!fallbackName) {
-              try {
-                const tail = decodeURIComponent(attachment.url.split("/").pop() ?? "");
-                const clean = tail.split("?")[0];
-                fallbackName = clean || tail || "Attachment";
-              } catch {
-                fallbackName = "Attachment";
-              }
-            }
-            fileAttachments.push({
-              id: baseId,
-              url: attachment.url,
-              name: fallbackName,
-              mimeType: attachment.mimeType ?? null,
-              meta: attachment.meta ?? null,
-              uploadSessionId: attachment.uploadSessionId ?? null,
-            });
-          }
-        });
-
-        if (!media && galleryItems.length) {
-          const primaryMedia = galleryItems[0] ?? null;
-          if (primaryMedia) {
-            media = primaryMedia.thumbnailUrl ?? primaryMedia.displayUrl ?? primaryMedia.fullUrl;
-          }
-        }
+        const { galleryItems, fileAttachments } = mediaCollections;
+        media = (mediaCollections.media ?? null) as string | null;
         const documentCards = fileAttachments.map((file) =>
           buildDocumentCardData({
             id: file.id,

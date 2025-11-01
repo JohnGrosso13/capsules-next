@@ -22,6 +22,8 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "baseUrl": ".",
+    "allowImportingTsExtensions": true,
     "plugins": [
       {
         "name": "next"
