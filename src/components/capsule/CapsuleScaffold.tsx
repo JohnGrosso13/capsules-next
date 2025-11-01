@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Broadcast,
@@ -923,7 +922,7 @@ function CapsuleFilesSection({ items, loading, error, onRetry, formatCount, onAs
 
 function CapsuleHistorySection({
   capsuleId,
-  capsuleName,
+  capsuleName: _capsuleName,
   viewerIsOwner,
 }: {
   capsuleId: string | null;

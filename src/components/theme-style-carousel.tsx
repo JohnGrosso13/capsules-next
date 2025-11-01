@@ -20,7 +20,7 @@ import {
   type ThemePreference,
 } from "@/lib/theme";
 import {
-  ThemeVariants,
+  type ThemeVariants,
   normalizeThemeVariantsInput,
   variantForMode,
   variantsEqual,

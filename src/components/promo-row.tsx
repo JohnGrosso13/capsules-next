@@ -1174,8 +1174,8 @@ export function PromoRow() {
                       );
                     }
 
-                    /* eslint-disable-next-line @next/next/no-img-element -- preserve lightbox loading behaviour */
                     return (
+                      // eslint-disable-next-line @next/next/no-img-element -- preserve lightbox loading behaviour
                       <img
                         className={lightboxStyles.lightboxImage}
                         src={imageSrc}

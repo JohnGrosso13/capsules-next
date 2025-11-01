@@ -22,11 +22,12 @@ import {
   findChatMessageById,
   updateChatMessageBody,
   deleteChatMessageById,
+  type ChatParticipantRow,
 } from "./repository";
 import {
-  ChatMessageAttachmentRecord,
-  ChatMessageRecord,
-  ChatParticipantSummary,
+  type ChatMessageAttachmentRecord,
+  type ChatMessageRecord,
+  type ChatParticipantSummary,
   ChatServiceError,
 } from "./types";
 import {
@@ -41,7 +42,7 @@ import {
   decodeMessagePayload,
   toMessageRecord,
   toParticipantSummary,
-  ResolvedIdentity,
+  type ResolvedIdentity,
 } from "./utils";
 import { resolveIdentity } from "./identity";
 import { getDirectConversationHistory } from "./history";

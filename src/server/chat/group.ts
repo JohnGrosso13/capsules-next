@@ -22,9 +22,9 @@ import {
   fetchUsersByIds,
 } from "./repository";
 import {
-  ChatMessageAttachmentRecord,
-  ChatMessageRecord,
-  ChatParticipantSummary,
+  type ChatMessageAttachmentRecord,
+  type ChatMessageRecord,
+  type ChatParticipantSummary,
   ChatServiceError,
 } from "./types";
 import {
@@ -39,7 +39,7 @@ import {
   sanitizeBody,
   toMessageRecord,
   toParticipantSummary,
-  ResolvedIdentity,
+  type ResolvedIdentity,
 } from "./utils";
 import { resolveIdentity } from "./identity";
 
@@ -192,7 +192,7 @@ export async function sendGroupMessage(params: {
   };
 }
 
-export async function updateMessageAttachments(params: {
+export async function updateGroupMessageAttachments(params: {
   conversationId: string;
   messageId: string;
   requesterId: string;
@@ -303,61 +303,6 @@ export async function updateMessageAttachments(params: {
 
   return {
     message: messageRecord,
-    participants: participantSummaries,
-  };
-}
-
-async function deleteDirectMessage(params: {
-  conversationId: string;
-  messageId: string;
-  requesterId: string;
-}): Promise<{ conversationId: string; messageId: string; participants: ChatParticipantSummary[] }> {
-  const { left, right } = parseConversationId(params.conversationId);
-  const identityCache = new Map<string, ResolvedIdentity | null>();
-  const leftResolved = await resolveIdentity(identityCache, left, left);
-  const rightResolved = await resolveIdentity(identityCache, right, right);
-  const requesterResolved = await resolveIdentity(
-    identityCache,
-    params.requesterId,
-    params.requesterId,
-  );
-  if (!leftResolved || !rightResolved || !requesterResolved) {
-    throw new ChatServiceError("invalid_conversation", 404, "That conversation could not be found.");
-  }
-
-  const canonicalLeft = normalizeId(leftResolved.canonicalId);
-  const canonicalRight = normalizeId(rightResolved.canonicalId);
-  const canonicalRequester = normalizeId(requesterResolved.canonicalId);
-  if (!canonicalLeft || !canonicalRight || !canonicalRequester) {
-    throw new ChatServiceError("invalid_conversation", 404, "That conversation could not be found.");
-  }
-
-  const canonicalConversationId = getChatConversationId(canonicalLeft, canonicalRight);
-  const canonicalMessageId = canonicalizeMessageId(params.messageId, canonicalConversationId);
-  const messageRow = await findChatMessageById(canonicalMessageId);
-  if (!messageRow || normalizeId(messageRow.conversation_id) !== canonicalConversationId) {
-    throw new ChatServiceError("message_not_found", 404, "That message could not be found.");
-  }
-  if (normalizeId(messageRow.sender_id) !== canonicalRequester) {
-    throw new ChatServiceError(
-      "forbidden",
-      403,
-      "You can only delete messages you sent.",
-    );
-  }
-
-  await deleteChatMessageById(messageRow.id);
-  const participantSummaries = await buildDirectParticipantSummaries(leftResolved, rightResolved);
-
-  await publishMessageDeletedEvent({
-    conversationId: canonicalConversationId,
-    messageId: canonicalMessageId,
-    participants: participantSummaries,
-  });
-
-  return {
-    conversationId: canonicalConversationId,
-    messageId: canonicalMessageId,
     participants: participantSummaries,
   };
 }
@@ -830,25 +775,3 @@ async function buildGroupParticipantSummaries(
     );
 }
 
-export async function getDirectConversationHistory(params: {
-  conversationId: string;
-  requesterId: string;
-  before?: string | null;
-  limit?: number;
-}): Promise<{
-  conversationId: string;
-  participants: ChatParticipantSummary[];
-  messages: ChatMessageRecord[];
-}> {
-  if (!params.conversationId.trim()) {
-    throw new ChatServiceError("invalid_conversation", 400, "A conversation id is required.");
-  }
-  if (isGroupConversationId(params.conversationId)) {
-    return getGroupConversationHistory(params);
-  }
-  const { left, right } = parseConversationId(params.conversationId);
-  const requesterTrimmed = params.requesterId?.trim();
-  if (!requesterTrimmed) {
-    throw new ChatServiceError("auth_required", 401, "Sign in to view this conversation.");
-  }
-  const requesterNormalized = normalizeId(requesterTrimmed);

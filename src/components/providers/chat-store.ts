@@ -1,14 +1,25 @@
 import type { FriendItem } from "@/hooks/useFriendsData";
 import { isGroupConversationId } from "@/lib/chat/channels";
 import { DEFAULT_CHAT_STORAGE_KEY, loadChatState, saveChatState } from "@/lib/chat/chat-storage";
+import type {
+  ChatParticipant,
+  ChatSessionType,
+  ChatSessionDescriptor,
+  ChatMessageEventPayload,
+  ChatMessageUpdatedEventPayload,
+  ChatMessageDeletedEventPayload,
+  ChatReactionEventPayload,
+} from "@/lib/chat/events";
 
-export type ChatSessionType = "direct" | "group";
-
-export type ChatParticipant = {
-  id: string;
-  name: string;
-  avatar: string | null;
-};
+export type {
+  ChatParticipant,
+  ChatSessionType,
+  ChatSessionDescriptor,
+  ChatMessageEventPayload,
+  ChatMessageUpdatedEventPayload,
+  ChatMessageDeletedEventPayload,
+  ChatReactionEventPayload,
+} from "@/lib/chat/events";
 
 export type ChatMessageReaction = {
   emoji: string;
@@ -60,108 +71,6 @@ export type ChatSession = {
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   typing: ChatParticipant[];
-};
-
-export type ChatSessionDescriptor = {
-  id: string;
-  type: ChatSessionType;
-  title: string;
-  avatar: string | null;
-  createdBy: string | null;
-  participants: ChatParticipant[];
-};
-
-export type ChatMessageEventPayload = {
-  type: "chat.message";
-  conversationId: string;
-  senderId: string;
-  participants: ChatParticipant[];
-  session?: {
-    type?: ChatSessionType;
-    title?: string | null;
-    avatar?: string | null;
-    createdBy?: string | null;
-  };
-  message: {
-    id: string;
-    body: string;
-    sentAt: string;
-    reactions?: Array<{
-      emoji: string;
-      count?: number;
-      users?: ChatParticipant[];
-    }>;
-    attachments?: Array<{
-      id: string;
-      name: string;
-      mimeType: string;
-      size?: number;
-      url: string;
-      thumbnailUrl?: string | null;
-      storageKey?: string | null;
-      sessionId?: string | null;
-    }>;
-  };
-};
-
-export type ChatReactionEventPayload = {
-  type: "chat.reaction";
-  conversationId: string;
-  messageId: string;
-  emoji: string;
-  action: "added" | "removed";
-  actor: ChatParticipant;
-  reactions: Array<{
-    emoji: string;
-    count?: number;
-    users?: ChatParticipant[];
-  }>;
-  participants?: ChatParticipant[];
-};
-
-export type ChatMessageUpdatedEventPayload = {
-  type: "chat.message.update";
-  conversationId: string;
-  messageId: string;
-  body: string;
-  attachments: Array<{
-    id: string;
-    name: string;
-    mimeType: string;
-    size?: number;
-    url: string;
-    thumbnailUrl?: string | null;
-    storageKey?: string | null;
-    sessionId?: string | null;
-  }>;
-  participants?: ChatParticipant[];
-  senderId?: string;
-  sentAt?: string;
-  session?: {
-    type?: ChatSessionType;
-    title?: string | null;
-    avatar?: string | null;
-    createdBy?: string | null;
-  };
-};
-
-export type ChatMessageDeletedEventPayload = {
-  type: "chat.message.delete";
-  conversationId: string;
-  messageId: string;
-  participants?: ChatParticipant[];
-  session?: {
-    type?: ChatSessionType;
-    title?: string | null;
-    avatar?: string | null;
-    createdBy?: string | null;
-  };
-};
-
-export type ChatSessionEventPayload = {
-  type: "chat.session";
-  conversationId: string;
-  session: ChatSessionDescriptor;
 };
 
 export type StoredMessage = {
@@ -1272,7 +1181,15 @@ export class ChatStore {
     const attachments = sanitizeIncomingAttachments(payload.message.attachments);
     if (!messageBody && attachments.length === 0) return;
     const authorId = payload.senderId || payload.message.id;
-    const reactions = normalizeReactions(payload.message.reactions, (id) => this.isSelfId(id));
+    const reactions = normalizeReactions(
+      Array.isArray(payload.message.reactions)
+        ? payload.message.reactions.map((reaction) => ({
+            emoji: reaction.emoji,
+            users: reaction.users ?? [],
+          }))
+        : undefined,
+      (id) => this.isSelfId(id),
+    );
     const chatMessage: ChatMessage = {
       id: payload.message.id,
       authorId,
@@ -1311,7 +1228,15 @@ export class ChatStore {
     if (typeof messageIndex !== "number") return;
     const existing = session.messages[messageIndex];
     if (!existing) return;
-    const reactions = normalizeReactions(payload.reactions, (id) => this.isSelfId(id));
+    const reactions = normalizeReactions(
+      Array.isArray(payload.reactions)
+        ? payload.reactions.map((reaction) => ({
+            emoji: reaction.emoji,
+            users: reaction.users ?? [],
+          }))
+        : undefined,
+      (id) => this.isSelfId(id),
+    );
     if (reactionsEqual(existing.reactions, reactions)) return;
     session.messages[messageIndex] = { ...existing, reactions };
     this.emit();

@@ -24,18 +24,18 @@ import {
   upsertGroupMessageReaction,
 } from "./repository";
 import {
-  ChatParticipantSummary,
-  ChatReactionMutationResult,
+  type ChatParticipantSummary,
+  type ChatReactionMutationResult,
   ChatServiceError,
 } from "./types";
 import {
-  ResolvedIdentity,
   buildReactionSummaries,
   canonicalizeMessageId,
   mergeParticipantMaps,
   normalizeId,
   sanitizeReactionEmoji,
   toParticipantSummary,
+  type ResolvedIdentity,
 } from "./utils";
 import { resolveIdentity } from "./identity";
 

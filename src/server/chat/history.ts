@@ -19,14 +19,13 @@ import {
   type ChatMessageRow,
 } from "./repository";
 import {
-  ChatConversationSummary,
-  ChatMessageRecord,
-  ChatParticipantSummary,
+  type ChatConversationSummary,
+  type ChatMessageRecord,
+  type ChatParticipantSummary,
   ChatServiceError,
-  ChatMessageReactionRecord,
+  type ChatMessageReactionRecord,
 } from "./types";
 import {
-  ResolvedIdentity,
   buildConversationTitle,
   buildGroupConversationTitle,
   buildReactionSummaries,
@@ -35,6 +34,7 @@ import {
   resolveSentAt,
   toMessageRecord,
   toParticipantSummary,
+  type ResolvedIdentity,
 } from "./utils";
 import { resolveIdentity } from "./identity";
 

@@ -7,10 +7,10 @@ import {
 } from "@/lib/theme/token-groups";
 import { PRESET_THEME_CONFIGS, type PresetThemeConfig } from "@/lib/theme/preset-config";
 import {
-  ThemeVariants,
   normalizeThemeVariantsInput,
   expandThemeVariants,
   isVariantEmpty,
+  type ThemeVariants,
 } from "@/lib/theme/variants";
 export type StylerPlan = {
   summary: string;

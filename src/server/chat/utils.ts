@@ -8,10 +8,10 @@ import type {
   ChatParticipantRow,
 } from "./repository";
 import {
-  ChatMessageAttachmentRecord,
-  ChatMessageReactionRecord,
-  ChatMessageRecord,
-  ChatParticipantSummary,
+  type ChatMessageAttachmentRecord,
+  type ChatMessageReactionRecord,
+  type ChatMessageRecord,
+  type ChatParticipantSummary,
   ChatServiceError,
 } from "./types";
 

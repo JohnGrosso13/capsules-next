@@ -1,4 +1,4 @@
-import { CreatePostInput } from "./types";
+import type { CreatePostInput } from "./types";
 import {
   fetchActivePostByClientId,
   fetchPostRowByIdentifier as fetchPostRowByIdentifierFromRepository,

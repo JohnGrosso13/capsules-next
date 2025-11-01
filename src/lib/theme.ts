@@ -1,14 +1,14 @@
 "use client";
 
 import {
-  ThemeVariants,
-  ThemeMode,
   THEME_MODES,
   normalizeThemeVariantsInput,
   canonicalizeThemeVariantsInput,
   dropEmptyVariants,
   expandThemeVariants,
   collectVariantKeys,
+  type ThemeVariants,
+  type ThemeMode,
 } from "./theme/variants";
 import type { ThemeVariantsInput } from "./theme/variants";
 

@@ -1,6 +1,6 @@
 import { findUserIdentity } from "./repository";
 import type { ChatParticipantRow } from "./repository";
-import { ResolvedIdentity, UUID_PATTERN, normalizeId } from "./utils";
+import { UUID_PATTERN, normalizeId, type ResolvedIdentity } from "./utils";
 
 export async function resolveIdentity(
   cache: Map<string, ResolvedIdentity | null>,

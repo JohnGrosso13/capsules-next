@@ -1,12 +1,12 @@
 import type { DurableObjectState } from "@cloudflare/workers-types";
 
 import {
-  DerivedAssetRecord,
-  Env,
-  ProcessingTask,
-  ProcessingTaskMessage,
-  UploadEventMessage,
-  CoordinatorState,
+  type DerivedAssetRecord,
+  type Env,
+  type ProcessingTask,
+  type ProcessingTaskMessage,
+  type UploadEventMessage,
+  type CoordinatorState,
 } from "./types";
 
 const STORAGE_KEY = "state";

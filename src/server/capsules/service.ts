@@ -1464,7 +1464,7 @@ function coerceArticleLinks(
     if (rawPostId && postLookup.has(rawPostId)) {
       resolvedSourceId = ensurePostSource(sources, capsuleId, postLookup.get(rawPostId)!);
     }
-    let label =
+    const label =
       sanitizeHistoryString(record.label, 140) ??
       (resolvedSourceId && sources[resolvedSourceId]?.label
         ? sanitizeHistoryString(sources[resolvedSourceId]?.label ?? null, 140)

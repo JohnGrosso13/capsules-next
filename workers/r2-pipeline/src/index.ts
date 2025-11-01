@@ -2,12 +2,12 @@ import type { DurableObjectStub, MessageBatch, R2ObjectBody } from "@cloudflare/
 
 import { UploadCoordinator } from "./upload-coordinator";
 import {
-  CoordinatorState,
-  DerivedAssetRecord,
-  Env,
-  ProcessingTask,
-  ProcessingTaskMessage,
-  UploadEventMessage,
+  type CoordinatorState,
+  type DerivedAssetRecord,
+  type Env,
+  type ProcessingTask,
+  type ProcessingTaskMessage,
+  type UploadEventMessage,
 } from "./types";
 export { UploadCoordinator };
 

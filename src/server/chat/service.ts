@@ -4,32 +4,16 @@ import {
   sendDirectMessage as sendDirectMessageCore,
   updateDirectMessageAttachments,
   deleteDirectMessage,
-  createAssistantDependenciesForUser,
 } from "./direct";
 import {
   sendGroupMessage as sendGroupMessageCore,
   updateGroupMessageAttachments as updateGroupMessageAttachmentsCore,
   deleteGroupMessage as deleteGroupMessageCore,
-  createGroupConversationSession,
-  addParticipantsToGroupConversation,
-  removeParticipantFromGroupConversation,
-  renameGroupConversation,
-  deleteGroupConversationSession,
-  assertGroupParticipantLimit,
 } from "./group";
 import {
-  getDirectConversationHistory,
-  getGroupConversationHistory,
-  listRecentDirectConversations,
-  listRecentGroupConversations,
-} from "./history";
-import {
-  ChatConversationSummary,
-  ChatMessageAttachmentRecord,
-  ChatMessageReactionRecord,
-  ChatMessageRecord,
-  ChatParticipantSummary,
-  ChatReactionMutationResult,
+  type ChatMessageAttachmentRecord,
+  type ChatMessageRecord,
+  type ChatParticipantSummary,
   ChatServiceError,
 } from "./types";
 

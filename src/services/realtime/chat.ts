@@ -2,13 +2,13 @@ import "server-only";
 
 import { getRealtimePublisher } from "@/config/realtime-server";
 import { getChatDirectChannel } from "@/lib/chat/channels";
-import type {
-  ChatMessageEventPayload,
-  ChatReactionEventPayload,
-  ChatSessionEventPayload,
-  ChatMessageUpdatedEventPayload,
-  ChatMessageDeletedEventPayload,
-} from "@/components/providers/chat-store";
+import {
+  chatMessageEventSchema,
+  chatReactionEventSchema,
+  chatSessionEventSchema,
+  chatMessageUpdatedEventSchema,
+  chatMessageDeletedEventSchema,
+} from "@/lib/chat/events";
 import type { ChatParticipantSummary } from "@/server/chat/service";
 
 type DirectChatSessionMeta = {
@@ -40,11 +40,13 @@ export async function publishDirectMessageEvent(params: {
 }): Promise<void> {
   const publisher = getRealtimePublisher();
   if (!publisher) return;
-  const participants = params.participants.map((participant) => ({
-    id: participant.id,
-    name: participant.name,
-    avatar: participant.avatar ?? null,
-  }));
+  const participants = params.participants
+    .map((participant) => ({
+      id: participant.id,
+      name: participant.name,
+      avatar: participant.avatar ?? null,
+    }))
+    .filter((participant) => Boolean(participant.id));
   if (!participants.length) return;
 
   const reactionEntries =
@@ -59,7 +61,7 @@ export async function publishDirectMessageEvent(params: {
         }))
       : [];
 
-  const payload: ChatMessageEventPayload = {
+  const payload = chatMessageEventSchema.parse({
     type: "chat.message",
     conversationId: params.conversationId,
     senderId: params.senderId,
@@ -89,7 +91,7 @@ export async function publishDirectMessageEvent(params: {
             }))
           : [],
     },
-  };
+  });
 
   const channels = new Set<string>();
   participants.forEach((participant) => {
@@ -137,7 +139,7 @@ export async function publishMessageUpdateEvent(params: {
     .filter((participant) => Boolean(participant.id));
   if (!participants.length) return;
 
-  const payload: ChatMessageUpdatedEventPayload = {
+  const payload = chatMessageUpdatedEventSchema.parse({
     type: "chat.message.update",
     conversationId: params.conversationId,
     messageId: params.messageId,
@@ -161,7 +163,7 @@ export async function publishMessageUpdateEvent(params: {
       avatar: params.session?.avatar ?? null,
       createdBy: params.session?.createdBy ?? null,
     },
-  };
+  });
 
   const channels = new Set<string>();
   participants.forEach((participant) => {
@@ -195,7 +197,7 @@ export async function publishMessageDeletedEvent(params: {
     .filter((participant) => Boolean(participant.id));
   if (!participants.length) return;
 
-  const payload: ChatMessageDeletedEventPayload = {
+  const payload = chatMessageDeletedEventSchema.parse({
     type: "chat.message.delete",
     conversationId: params.conversationId,
     messageId: params.messageId,
@@ -206,7 +208,7 @@ export async function publishMessageDeletedEvent(params: {
       avatar: params.session?.avatar ?? null,
       createdBy: params.session?.createdBy ?? null,
     },
-  };
+  });
 
   const channels = new Set<string>();
   participants.forEach((participant) => {
@@ -271,7 +273,7 @@ export async function publishReactionEvent(params: {
       .filter((user) => Boolean(user.id)),
   }));
 
-  const payload: ChatReactionEventPayload = {
+  const payload = chatReactionEventSchema.parse({
     type: "chat.reaction",
     conversationId: params.conversationId,
     messageId: params.messageId,
@@ -280,7 +282,7 @@ export async function publishReactionEvent(params: {
     actor: normalizedActor,
     reactions: reactionPayload,
     participants,
-  };
+  });
 
   const channels = new Set<string>();
   participants.forEach((participant) => {
@@ -311,7 +313,7 @@ export async function publishSessionEvent(params: {
     .filter((p) => Boolean(p.id));
   if (!participants.length) return;
 
-  const payload: ChatSessionEventPayload = {
+  const payload = chatSessionEventSchema.parse({
     type: "chat.session",
     conversationId: params.conversationId,
     session: {
@@ -322,7 +324,7 @@ export async function publishSessionEvent(params: {
       createdBy: params.session.createdBy,
       participants,
     },
-  } as unknown as ChatSessionEventPayload;
+  });
 
   const channels = new Set<string>();
   participants.forEach((participant) => {

@@ -2103,8 +2103,8 @@ export function HomeFeedList({
                           );
                         }
 
-                        /* eslint-disable-next-line @next/next/no-img-element -- maintain lightbox srcset + eager load without reliable dimensions for next/image */
                         return (
+                          // eslint-disable-next-line @next/next/no-img-element -- maintain lightbox srcset + eager load without reliable dimensions for next/image
                           <img
                             className={styles.lightboxImage}
                             src={imageSrc}
