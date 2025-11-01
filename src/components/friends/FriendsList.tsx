@@ -51,7 +51,7 @@ export function FriendsList({
             avatar={friend.avatar}
             since={friend.since}
             status={friend.status}
-            className={isHighlighted ? styles.friendHighlight : undefined}
+            className={isHighlighted ? styles.friendHighlight ?? "" : ""}
             friendIdAttr={identifier}
             actions={
               <FriendMenu

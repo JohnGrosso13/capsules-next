@@ -59,6 +59,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  margin: 1.5rem 0 1.75rem;
 }
 
 .searchIcon {
@@ -121,6 +122,15 @@
   border-radius: 999px;
   background: color-mix(in srgb, rgba(95, 115, 255, 0.12) 85%, transparent);
   color: var(--text, rgba(220, 230, 255, 0.88));
+}
+
+.summaryPrimaryLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--color-brand, #93c5fd) 75%, transparent);
+  text-decoration: none;
 }
 
 .panelSummary {
@@ -273,6 +283,34 @@
   align-items: center;
   gap: 0.35rem;
   font-size: 0.85rem;
+  color: color-mix(in srgb, var(--color-brand, #93c5fd) 70%, transparent);
+  text-decoration: none;
+}
+
+.summaryCitations {
+  border-top: 1px solid color-mix(in srgb, rgba(90, 110, 180, 0.2) 75%, transparent);
+  padding-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.summaryCitations ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.summaryCitations li {
+  font-size: 0.85rem;
+  color: var(--text-muted, rgba(205, 215, 240, 0.75));
+}
+
+.summaryCitations a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   color: color-mix(in srgb, var(--color-brand, #93c5fd) 70%, transparent);
   text-decoration: none;
 }

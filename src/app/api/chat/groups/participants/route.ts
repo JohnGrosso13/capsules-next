@@ -1,11 +1,8 @@
 import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import {
-  ChatServiceError,
-  addParticipantsToGroupConversation,
-  removeParticipantFromGroupConversation,
-} from "@/server/chat/service";
+import { ChatServiceError } from "@/server/chat/types";
+import { addParticipantsToGroupConversation, removeParticipantFromGroupConversation } from "@/server/chat/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 
 const participantSchema = z.object({

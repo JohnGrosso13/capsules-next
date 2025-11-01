@@ -3262,6 +3262,18 @@ function buildHistorySections(
 
     const isEmpty = Boolean(match?.empty) || timeframe.posts.length === 0;
 
+    const summarySourceSet = new Set<string>(summaryBlock.sourceIds);
+    resolvedTimeline.forEach((entry) => {
+      entry.sourceIds.forEach((sourceId) => {
+        if (sourceId) summarySourceSet.add(sourceId);
+      });
+    });
+    posts.slice(0, HISTORY_ARTICLE_LINK_LIMIT).forEach((post) => {
+      const sourceId = ensurePostSource(sources, capsuleId, post);
+      summarySourceSet.add(sourceId);
+    });
+    summaryBlock.sourceIds = Array.from(summarySourceSet);
+
     const content: CapsuleHistorySectionContent = {
       summary: summaryBlock,
       highlights: highlightBlocks,
@@ -3335,6 +3347,12 @@ async function buildCapsuleHistorySnapshot({
         fallbackHighlights,
         sources,
       );
+      const summarySourceIds = new Set<string>();
+      timeframe.posts.slice(0, HISTORY_ARTICLE_LINK_LIMIT).forEach((post) => {
+        const sourceId = ensurePostSource(sources, capsuleId, post);
+        summarySourceIds.add(sourceId);
+      });
+      summaryBlock.sourceIds = Array.from(summarySourceIds);
       const nextFocusBlocks = sanitizeHistoryArray(
         buildFallbackNextFocus(timeframe),
         HISTORY_NEXT_FOCUS_LIMIT,

@@ -286,7 +286,7 @@ export async function globalSearch({
     sections.push({ type: "capsules", items: capsules });
   }
 
-  const memoryResults = coerceMemoryResults(memoryItems, memoryLimit);
+  const memoryResults = coerceMemoryResults(memoryItems as MemorySearchItem[], memoryLimit);
   if (memoryResults.length) {
     sections.push({ type: "memories", items: memoryResults });
   }

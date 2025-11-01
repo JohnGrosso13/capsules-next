@@ -204,6 +204,22 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
     [activeSummaryText],
   );
 
+  const activeSummarySources = React.useMemo(() => {
+    if (!activeContent) return [];
+    return (activeContent.summary.sourceIds ?? [])
+      .map((sourceId) => {
+        const source = snapshot.sources[sourceId] ?? null;
+        if (!source) return null;
+        return {
+          id: sourceId,
+          label: source.label ?? (source.postId ? "Capsule post" : "Source"),
+          url: source.url ?? null,
+        };
+      })
+      .filter((entry): entry is { id: string; label: string; url: string | null } => Boolean(entry));
+  }, [activeContent, snapshot.sources]);
+  const primarySummarySource = activeSummarySources.find((entry) => Boolean(entry.url)) ?? null;
+
   return (
     <section className={styles.wrapper}>
       <header className={styles.header}>
@@ -222,6 +238,17 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
         </div>
       </header>
 
+      <div className={styles.searchRow}>
+        <MagnifyingGlass size={18} weight="bold" className={styles.searchIcon} />
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search summaries or articles"
+          className={styles.searchInput}
+        />
+      </div>
+
       {activeSection && activeContent ? (
         <div className={styles.summaryPanel}>
           <div className={styles.panelHeader}>
@@ -234,6 +261,17 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
             <div className={styles.panelMeta}>
               <Sparkle size={16} weight="fill" />
               <span>AI generated summary</span>
+              {primarySummarySource ? (
+                <Link
+                  href={primarySummarySource.url ?? ""}
+                  className={styles.summaryPrimaryLink}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View source
+                  <ArrowSquareOut size={12} weight="bold" />
+                </Link>
+              ) : null}
             </div>
           </div>
           {activeSummaryParagraphs.length ? (
@@ -245,6 +283,25 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
           ) : (
             <p className={styles.panelPlaceholder}>Capsule AI hasn&apos;t generated a recap for this period yet.</p>
           )}
+          {activeSummarySources.length ? (
+            <div className={styles.summaryCitations}>
+              <span className={styles.citationsLabel}>Sources</span>
+              <ul>
+                {activeSummarySources.map((entry) => (
+                  <li key={entry.id}>
+                    {entry.url ? (
+                      <Link href={entry.url} target="_blank" rel="noreferrer">
+                        {entry.label}
+                        <ArrowSquareOut size={12} weight="bold" />
+                      </Link>
+                    ) : (
+                      entry.label
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {activeContent.timeline.length ? (
             <div className={styles.panelSection}>
               <h4>Timeline Highlights</h4>
@@ -273,7 +330,7 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
           const content = selectDisplayContent(section);
           const summary = content.summary.text?.trim() ?? "";
           const summaryExcerpt =
-            summary.length > 180 ? `${summary.slice(0, 177)}…` : summary;
+            summary.length > 180 ? `${summary.slice(0, 177)}...` : summary;
           const isActive = section.period === activePeriod;
           return (
             <button
@@ -283,11 +340,11 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
               onClick={() => setActivePeriod(section.period)}
             >
               <div className={styles.periodHeader}>
-                <span className={styles.periodLabel}>{PERIOD_LABEL[section.period]}</span>
-                <span className={styles.periodCount}>
-                  {section.postCount} {section.postCount === 1 ? "post" : "posts"}
-                </span>
-              </div>
+              <span className={styles.periodLabel}>{PERIOD_LABEL[section.period]}</span>
+              <span className={styles.periodCount}>
+                {section.postCount} {section.postCount === 1 ? "post" : "posts"}
+              </span>
+            </div>
               <span className={styles.periodRange}>
                 {formatHistoryRange(section.timeframe.start, section.timeframe.end)}
               </span>
@@ -299,17 +356,6 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
             </button>
           );
         })}
-      </div>
-
-      <div className={styles.searchRow}>
-        <MagnifyingGlass size={18} weight="bold" className={styles.searchIcon} />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search summaries or articles"
-          className={styles.searchInput}
-        />
       </div>
 
       <div className={styles.articlesHeader}>
