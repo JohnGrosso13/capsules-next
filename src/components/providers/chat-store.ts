@@ -13,16 +13,12 @@ import type {
 import type {
   ChatMessage,
   ChatMessageAttachment,
-  ChatMessageReaction,
   ChatSession,
   ChatStoreConfig,
   ChatStoreSnapshot,
   LegacyStoredSession,
   StorageAdapter,
   StoredMessage,
-  StoredMessageAttachment,
-  StoredMessageReaction,
-  StoredParticipant,
   StoredSession,
   StoredState,
 } from "@/components/providers/chat-store/types";
@@ -266,14 +262,14 @@ export class ChatStore {
       this.emit();
       return;
     }
-    const restored = loadChatState(this.storage, this.storageKey);
+    const restored: StoredState | null = loadChatState(this.storage, this.storageKey);
     if (!restored) {
       this.hydrated = true;
       this.emit();
       return;
     }
     this.sessions.clear();
-    restored.sessions.forEach((stored) => {
+    restored.sessions.forEach((stored: StoredSession | LegacyStoredSession) => {
       let descriptor: ChatSessionDescriptor | null = null;
       if (isValidStoredSession(stored)) {
         const participants = stored.participants

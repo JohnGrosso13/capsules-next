@@ -5,7 +5,6 @@ import type Hls from "hls.js";
 import { Play } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "../home-feed.module.css";
-import { canRenderInlineImage } from "@/lib/media";
 import type { FeedGalleryItem } from "@/components/home-feed/utils";
 import { FeedLazyImage } from "@/components/home-feed/feed-lazy-image";
 

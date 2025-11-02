@@ -2,7 +2,6 @@ import type {
   ChatMessageEventPayload,
   ChatMessageUpdatedEventPayload,
   ChatParticipant,
-  ChatSessionDescriptor,
   ChatSessionType,
 } from "@/lib/chat/events";
 
@@ -131,4 +130,3 @@ export type ChatStoreConfig = {
 export type MessageAttachmentInput =
   | ChatMessageEventPayload["message"]["attachments"]
   | ChatMessageUpdatedEventPayload["attachments"];
-

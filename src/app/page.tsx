@@ -145,15 +145,15 @@ export default async function HomePage() {
       {isSignedIn ? (
         <HomeSignedIn />
       ) : (
-        <main className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col gap-16 px-5 py-10 sm:px-6 lg:px-8">
+        <main className="layout-shell relative flex flex-1 flex-col gap-16 py-10 sm:py-14 lg:py-16">
           <div className="contents">
             <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="flex flex-col gap-8">
                 <div className="space-y-4 text-center">
-                  <h1 className="font-display text-fg text-4xl tracking-tight sm:text-5xl lg:text-6xl">
+                  <h1 className="font-display text-fg text-[clamp(2.5rem,4.5vw,4rem)] leading-tight tracking-tight">
                     Create AI Powered Spaces That Remember
                   </h1>
-                  <p className="text-fg-subtle mx-auto max-w-xl text-lg leading-8">
+                  <p className="text-fg-subtle mx-auto max-w-xl text-[clamp(1rem,1.6vw,1.3rem)] leading-relaxed">
                     The first social platform that couples channel memory with AI building blocks so
                     your community stays connected, organized, and inspired.
                   </p>
@@ -187,8 +187,10 @@ export default async function HomePage() {
             <section className="space-y-6" id="how-it-works">
               <div className="section-shell section-alt rounded-3xl px-6 py-10 text-center md:py-12">
                 <div className="mx-auto max-w-5xl space-y-6">
-                  <h2 className="font-display text-fg text-3xl tracking-tight">How It Works</h2>
-                  <p className="text-fg-subtle mx-auto max-w-2xl text-base">
+                  <h2 className="font-display text-fg text-[clamp(1.9rem,3vw,2.5rem)] tracking-tight">
+                    How It Works
+                  </h2>
+                  <p className="text-fg-subtle mx-auto max-w-2xl text-[clamp(1rem,1.45vw,1.125rem)] leading-relaxed">
                     Guided workflows make it easy to launch, grow, and monetize a space with AI
                     copilots at every step.
                   </p>
@@ -199,10 +201,10 @@ export default async function HomePage() {
 
             <section className="space-y-6" id="categories">
               <div className="space-y-3 text-center">
-                <h2 className="font-display text-fg text-3xl tracking-tight">
+                <h2 className="font-display text-fg text-[clamp(1.9rem,3vw,2.5rem)] tracking-tight">
                   Any Group Can Benefit
                 </h2>
-                <p className="text-fg-subtle mx-auto max-w-xl text-base">
+                <p className="text-fg-subtle mx-auto max-w-xl text-[clamp(1rem,1.45vw,1.125rem)] leading-relaxed">
                   Purpose-built templates and memory models adapt to how your community
                   collaborates.
                 </p>
@@ -212,10 +214,10 @@ export default async function HomePage() {
 
             <section className="space-y-6" id="superpowers">
               <div className="section-shell section-alt space-y-3 rounded-3xl p-6 text-center">
-                <h2 className="font-display text-fg text-3xl tracking-tight">
+                <h2 className="font-display text-fg text-[clamp(1.9rem,3vw,2.5rem)] tracking-tight">
                   Superpowers For Your Community
                 </h2>
-                <p className="text-fg-subtle mx-auto max-w-xl text-base">
+                <p className="text-fg-subtle mx-auto max-w-xl text-[clamp(1rem,1.45vw,1.125rem)] leading-relaxed">
                   Automations and copilots keep your space lively without requiring a full-time
                   team.
                 </p>
@@ -234,10 +236,10 @@ export default async function HomePage() {
 
             <section className="space-y-6" id="features">
               <div className="section-shell space-y-3 rounded-3xl p-6 text-center">
-                <h2 className="font-display text-fg text-3xl tracking-tight">
+                <h2 className="font-display text-fg text-[clamp(1.9rem,3vw,2.5rem)] tracking-tight">
                   What Makes Us Different
                 </h2>
-                <p className="text-fg-subtle mx-auto max-w-xl text-base">
+                <p className="text-fg-subtle mx-auto max-w-xl text-[clamp(1rem,1.45vw,1.125rem)] leading-relaxed">
                   Everything you need to power a modern community, backed by AI context that
                   remembers every moment.
                 </p>
@@ -280,10 +282,10 @@ export default async function HomePage() {
                 aria-hidden="true"
               />
               <div className="relative z-10 mx-auto max-w-3xl space-y-6">
-                <h2 className="font-display text-brand-foreground text-3xl tracking-tight">
+                <h2 className="font-display text-brand-foreground text-[clamp(1.9rem,3vw,2.5rem)] tracking-tight">
                   Keep 90% of Your Creator Revenue
                 </h2>
-                <p className="text-brand-foreground/80 text-base">
+                <p className="text-brand-foreground/80 text-[clamp(1rem,1.45vw,1.125rem)] leading-relaxed">
                   Capsules only takes a 10% platform fee so you can reinvest more into your
                   community.
                 </p>
@@ -303,7 +305,7 @@ export default async function HomePage() {
       )}
 
       <footer className="border-border/40 bg-surface-muted/70 border-t backdrop-blur">
-        <div className="text-fg-subtle mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-5 py-6 text-sm sm:flex-row sm:justify-between">
+        <div className="layout-shell text-fg-subtle flex flex-col items-center gap-3 py-6 text-sm sm:flex-row sm:justify-between">
           <span className="text-fg font-medium">Capsules</span>
           <div className="flex flex-wrap items-center gap-4">
             {footerLinks.map((link) =>
