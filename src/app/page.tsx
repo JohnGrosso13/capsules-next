@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 
 import { GroupCarousel } from "@/components/group-carousel";
@@ -7,7 +8,6 @@ import { LandingAuthCard } from "@/components/landing-auth-card";
 import { CaretDown } from "@phosphor-icons/react/dist/ssr";
 import { HowItWorks } from "@/components/how-it-works";
 import { LaunchCta } from "@/components/launch-cta";
-import { HomeSignedIn } from "@/components/home-signed-in";
 // Removed Badge labels on signed-out landing
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
@@ -122,30 +122,23 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const { userId } = await auth();
-  const isSignedIn = Boolean(userId);
+  if (userId) {
+    redirect("/home");
+  }
   const contactEmail = "hello@capsules-platform.com";
-  const footerLinks: Array<{ label: string; href: string; external?: boolean }> = isSignedIn
-    ? [
-        { label: "Settings", href: "/settings" },
-        { label: "Create", href: "/create" },
-        { label: "Contact", href: "mailto:" + contactEmail, external: true },
-      ]
-    : [
-        { label: "Features", href: "/#features" },
-        { label: "Use Cases", href: "/#categories" },
-        { label: "Pricing", href: "/#revenue" },
-        { label: "Contact", href: "mailto:" + contactEmail, external: true },
-      ];
+  const footerLinks: Array<{ label: string; href: string; external?: boolean }> = [
+    { label: "Features", href: "/#features" },
+    { label: "Use Cases", href: "/#categories" },
+    { label: "Pricing", href: "/#revenue" },
+    { label: "Contact", href: "mailto:" + contactEmail, external: true },
+  ];
   const footerYear = new Date().getFullYear();
 
   return (
     <div className="relative flex min-h-screen flex-col">
       {/* Header removed for signed-out landing experience */}
 
-      {isSignedIn ? (
-        <HomeSignedIn />
-      ) : (
-        <main className="layout-shell relative flex flex-1 flex-col gap-16 py-10 sm:py-14 lg:py-16">
+      <main className="layout-shell relative flex flex-1 flex-col gap-16 py-10 sm:py-14 lg:py-16">
           <div className="contents">
             <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="flex flex-col gap-8">
@@ -302,7 +295,6 @@ export default async function HomePage() {
             </section>
           </div>
         </main>
-      )}
 
       <footer className="border-border/40 bg-surface-muted/70 border-t backdrop-blur">
         <div className="layout-shell text-fg-subtle flex flex-col items-center gap-3 py-6 text-sm sm:flex-row sm:justify-between">

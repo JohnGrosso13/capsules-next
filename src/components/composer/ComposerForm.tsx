@@ -3100,6 +3100,9 @@ export function ComposerForm({
                 canRemember={canRemember}
                 hasFetched={previewHasFetched}
                 isRefreshing={isRefreshing}
+                onLoadMore={() => {}}
+                hasMore={false}
+                isLoadingMore={false}
               />
             </div>
             {actions}

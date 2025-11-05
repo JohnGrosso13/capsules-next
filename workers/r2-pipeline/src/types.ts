@@ -75,6 +75,7 @@ export interface Env {
   MUX_TOKEN_SECRET?: string;
   MUX_ENVIRONMENT?: string;
   MUX_PLAYBACK_DOMAIN?: string;
+  RAW_PREVIEW_BASE_URL?: string;
 }
 
 export type CoordinatorState = {

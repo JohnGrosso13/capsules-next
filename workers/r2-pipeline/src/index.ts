@@ -191,13 +191,29 @@ async function processImageVariant(
   message: ProcessingTaskMessage,
   task: Extract<ProcessingTask, { kind: "image.thumbnail" | "image.preview" }>,
 ): Promise<DerivedAssetRecord> {
-  if (!env.IMAGE_RESIZE_BASE_URL) {
-    throw new Error("IMAGE_RESIZE_BASE_URL not configured");
-  }
-
   const originalContentType = resolveOriginalContentType(message);
   const preferredFormats = buildFormatCandidates(originalContentType, message.key);
   const errors: Error[] = [];
+  const rawPreviewAvailable =
+    typeof env.RAW_PREVIEW_BASE_URL === "string" && env.RAW_PREVIEW_BASE_URL.trim().length > 0;
+  const rawLikeSource = isRawLikeSource(originalContentType, message.key);
+
+  if (rawLikeSource && rawPreviewAvailable) {
+    try {
+      return await generateRawPreviewVariant(env, message, task, originalContentType);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      errors.push(err);
+      console.warn("raw preview variant generation failed", { error: err.message });
+    }
+  }
+
+  if (!env.IMAGE_RESIZE_BASE_URL) {
+    if (errors.length) {
+      throw errors[errors.length - 1];
+    }
+    throw new Error("IMAGE_RESIZE_BASE_URL not configured");
+  }
 
   for (const format of preferredFormats) {
     try {
@@ -206,6 +222,16 @@ async function processImageVariant(
       const err = error instanceof Error ? error : new Error(String(error));
       errors.push(err);
       console.warn("image variant generation failed", { format, error: err.message });
+    }
+  }
+
+  if (!rawLikeSource && rawPreviewAvailable) {
+    try {
+      return await generateRawPreviewVariant(env, message, task, originalContentType);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      errors.push(err);
+      console.warn("raw preview fallback failed", { error: err.message });
     }
   }
 
@@ -270,6 +296,72 @@ async function generateImageVariant(
   };
 }
 
+type RawPreviewSize = "thumb" | "feed" | "full";
+
+const RAW_PREVIEW_SIZE_BY_TASK: Record<
+  Extract<ProcessingTask, { kind: "image.thumbnail" | "image.preview" }>["kind"],
+  RawPreviewSize
+> = {
+  "image.thumbnail": "thumb",
+  "image.preview": "feed",
+};
+
+async function generateRawPreviewVariant(
+  env: Env,
+  message: ProcessingTaskMessage,
+  task: Extract<ProcessingTask, { kind: "image.thumbnail" | "image.preview" }>,
+  originalContentType: string | null,
+): Promise<DerivedAssetRecord> {
+  const baseUrl = env.RAW_PREVIEW_BASE_URL?.trim();
+  if (!baseUrl) {
+    throw new Error("RAW_PREVIEW_BASE_URL not configured");
+  }
+
+  const size = RAW_PREVIEW_SIZE_BY_TASK[task.kind] ?? "feed";
+  let requestUrl: string;
+  try {
+    const url = new URL(baseUrl);
+    url.searchParams.set("key", message.key);
+    url.searchParams.set("size", size);
+    requestUrl = url.toString();
+  } catch (error) {
+    throw new Error(
+      `Invalid RAW_PREVIEW_BASE_URL: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const response = await fetch(requestUrl, {
+    headers: {
+      Accept: "image/avif,image/webp,image/jpeg,image/*",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Raw preview request failed (${response.status})`);
+  }
+
+  const buffer = await response.arrayBuffer();
+  const derivedKey = `${stripExtension(message.key)}__${task.kind.replace(".", "_")}_${task.width}.jpg`;
+
+  await env.R2_BUCKET.put(derivedKey, buffer, {
+    httpMetadata: { contentType: "image/jpeg" },
+  });
+
+  return {
+    type: task.kind,
+    key: derivedKey,
+    url: buildPublicUrl(env, derivedKey),
+    metadata: {
+      width: task.width,
+      height: task.height ?? null,
+      format: "jpeg",
+      content_type: "image/jpeg",
+      source_content_type: originalContentType ?? null,
+      raw_preview_size: size,
+      note: "Generated via raw-preview fallback",
+    },
+  };
+}
+
 const RAW_LIKE_MIME_TYPES = new Set([
   "image/heic",
   "image/heif",
@@ -293,7 +385,7 @@ const RAW_LIKE_EXTENSIONS = new Set([
   "rw2",
 ]);
 
-function shouldPreferJpeg(contentType: string | null, key: string): boolean {
+function isRawLikeSource(contentType: string | null, key: string): boolean {
   const normalized = contentType?.toLowerCase() ?? null;
   if (normalized && RAW_LIKE_MIME_TYPES.has(normalized)) {
     return true;
@@ -303,6 +395,10 @@ function shouldPreferJpeg(contentType: string | null, key: string): boolean {
     return true;
   }
   return false;
+}
+
+function shouldPreferJpeg(contentType: string | null, key: string): boolean {
+  return isRawLikeSource(contentType, key);
 }
 
 function normalizeContentType(value: string | null | undefined): string | null {

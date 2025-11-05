@@ -63,6 +63,7 @@ const normalizedPostSchema = z.object({
 export const postsResponseSchema = z.object({
   posts: z.array(normalizedPostSchema),
   deleted: z.array(z.string()),
+  cursor: z.string().nullable().optional(),
 });
 
 export const createPostResponseSchema = z.object({

@@ -4,11 +4,13 @@ import * as React from "react";
 
 import { useCurrentUser } from "@/services/auth/client";
 import { fetchHomeFeed, type FeedFetchOptions } from "@/services/feed/client";
+import { loadHomeFeedPageAction } from "@/server/actions/home-feed";
 
 import type { HomeFeedPost } from "./useHomeFeed/types";
 import {
   createHomeFeedStore,
   homeFeedStore,
+  type HomeFeedHydrationSnapshot,
   type HomeFeedStore,
 } from "./useHomeFeed/homeFeedStore";
 import { formatExactTime, formatTimeAgo } from "./useHomeFeed/time";
@@ -38,6 +40,9 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
     deletePost,
     setActiveFriendTarget,
     clearFriendMessage,
+    appendPosts,
+    setLoadingMore,
+    hydrate,
   } = store.actions;
   const getState = store.getState;
 
@@ -76,6 +81,10 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
       handleDelete,
       setActiveFriendTarget: setActiveFriendTargetSafe,
       clearFriendMessage,
+      appendPosts: (posts: HomeFeedPost[], cursor: string | null) =>
+        appendPosts(posts, cursor),
+      setLoadingMore: (value: boolean) => setLoadingMore(value),
+      hydrate,
     } satisfies {
       refreshPosts: (signal?: AbortSignal) => Promise<void>;
       handleToggleLike: (postId: string) => Promise<void>;
@@ -85,11 +94,15 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
       handleDelete: (postId: string) => Promise<void>;
       setActiveFriendTarget: (next: React.SetStateAction<string | null>) => void;
       clearFriendMessage: () => void;
+      appendPosts: (posts: HomeFeedPost[], cursor: string | null) => void;
+      setLoadingMore: (value: boolean) => void;
+      hydrate: (snapshot: HomeFeedHydrationSnapshot) => void;
     };
   }, [
     canRemember,
     deletePost,
     getState,
+    hydrate,
     refresh,
     removeFriend,
     requestFriend,
@@ -97,28 +110,67 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
     toggleLike,
     toggleMemory,
     clearFriendMessage,
+    appendPosts,
+    setLoadingMore,
   ]);
 }
+
+type InitialFeedData = {
+  posts: HomeFeedPost[];
+  cursor?: string | null;
+  hasFetched?: boolean;
+  friendMessage?: string | null;
+};
 
 type UseFeedOptions = {
   refreshKey?: unknown;
   refreshEnabled?: boolean;
+  initialData?: InitialFeedData | null;
+  hydrationKey?: string | null;
+  skipInitialRefresh?: boolean;
 };
 
 function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
-  const { refreshKey, refreshEnabled = true } = options;
+  const {
+    refreshKey,
+    refreshEnabled = true,
+    initialData = null,
+    hydrationKey = null,
+    skipInitialRefresh = false,
+  } = options;
   const { user } = useCurrentUser();
   const canRemember = Boolean(user);
 
   const state = useFeedData(store);
   const actions = useFeedActions(store, canRemember);
+  const [isLoadMorePending, startLoadMore] = React.useTransition();
+  const hydratedRef = React.useRef<string | null>(null);
+  const initialRefreshHandledRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!initialData) return;
+    const key = hydrationKey ?? "__default__";
+    if (hydratedRef.current === key) return;
+    actions.hydrate({
+      posts: initialData.posts,
+      cursor: initialData.cursor ?? null,
+      hasFetched: initialData.hasFetched ?? true,
+      friendMessage: initialData.friendMessage ?? null,
+    });
+    hydratedRef.current = key;
+  }, [actions, initialData, hydrationKey]);
 
   React.useEffect(() => {
     if (!refreshEnabled) return undefined;
+    if (skipInitialRefresh && !initialRefreshHandledRef.current) {
+      initialRefreshHandledRef.current = true;
+      return undefined;
+    }
+    initialRefreshHandledRef.current = true;
     const controller = new AbortController();
     void actions.refreshPosts(controller.signal);
     return () => controller.abort();
-  }, [actions, refreshEnabled, refreshKey]);
+  }, [actions, refreshEnabled, refreshKey, skipInitialRefresh]);
 
   React.useEffect(() => {
     if (!refreshEnabled) return undefined;
@@ -138,6 +190,23 @@ function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
     const timer = window.setTimeout(() => actions.clearFriendMessage(), MESSAGE_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, [state.friendMessage, actions]);
+
+  const loadMore = React.useCallback(() => {
+    if (!refreshEnabled) return;
+    if (!state.cursor) return;
+    if (state.isLoadingMore) return;
+    actions.setLoadingMore(true);
+    startLoadMore(async () => {
+      try {
+        const page = await loadHomeFeedPageAction(state.cursor);
+        actions.appendPosts(page.posts, page.cursor ?? null);
+      } catch (error) {
+        console.error("Home feed pagination failed", error);
+      } finally {
+        actions.setLoadingMore(false);
+      }
+    });
+  }, [actions, refreshEnabled, state.cursor, state.isLoadingMore]);
 
   return {
     posts: state.posts,
@@ -159,11 +228,46 @@ function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
     canRemember,
     hasFetched: state.hasFetched,
     isRefreshing: state.isRefreshing,
+    loadMore,
+    isLoadingMore: state.isLoadingMore || isLoadMorePending,
+    hasMore: Boolean(state.cursor),
   };
 }
 
-export function useHomeFeed() {
-  return useFeed(homeFeedStore, { refreshEnabled: true });
+type UseHomeFeedOptions = {
+  initialPosts?: HomeFeedPost[];
+  initialCursor?: string | null;
+  hydrationKey?: string | null;
+  skipInitialRefresh?: boolean;
+  refreshEnabled?: boolean;
+};
+
+export function useHomeFeed(options?: UseHomeFeedOptions) {
+  const hasInitialData =
+    Array.isArray(options?.initialPosts) || options?.initialCursor !== undefined;
+
+  const initialData = hasInitialData
+    ? {
+        posts: options?.initialPosts ?? [],
+        cursor: options?.initialCursor ?? null,
+        hasFetched: true,
+      }
+    : null;
+
+  const hydrationKey =
+    options?.hydrationKey ??
+    (hasInitialData
+      ? `init:${options?.initialCursor ?? "none"}:${options?.initialPosts?.length ?? 0}:${
+          options?.initialPosts?.[0]?.id ?? "empty"
+        }`
+      : null);
+
+  return useFeed(homeFeedStore, {
+    refreshEnabled: options?.refreshEnabled ?? true,
+    initialData,
+    hydrationKey,
+    skipInitialRefresh: options?.skipInitialRefresh ?? hasInitialData,
+  });
 }
 
 export function useCapsuleFeed(capsuleId: string | null | undefined) {

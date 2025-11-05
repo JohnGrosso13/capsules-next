@@ -157,50 +157,49 @@ function buildRawLikeFallbackVariants(
   feed: string | null;
   full: string | null;
 } {
-  if (cloudflareEnabled) {
-    const thumb = buildCloudflareImageUrl(
-      originalUrl,
-      {
-        width: 640,
-        height: 640,
-        fit: "cover",
-        gravity: "faces",
-        quality: 88,
-        format: "jpeg",
-        sharpen: 1,
-      },
-      base ?? undefined,
-      origin ?? undefined,
-    );
-    const feed = buildCloudflareImageUrl(
-      originalUrl,
-      {
-        width: 1600,
-        height: 1600,
-        fit: "cover",
-        gravity: "faces",
-        quality: 90,
-        format: "jpeg",
-        sharpen: 1,
-      },
-      base ?? undefined,
-      origin ?? undefined,
-    );
-    const full = buildCloudflareImageUrl(
-      originalUrl,
-      {
-        width: 2400,
-        fit: "contain",
-        quality: 92,
-        format: "jpeg",
-      },
-      base ?? undefined,
-      origin ?? undefined,
-    );
-    return { thumb: thumb ?? null, feed: feed ?? null, full: full ?? null };
-  }
-
   if (!storageKey) {
+    if (cloudflareEnabled) {
+      const thumb = buildCloudflareImageUrl(
+        originalUrl,
+        {
+          width: 640,
+          height: 640,
+          fit: "cover",
+          gravity: "faces",
+          quality: 88,
+          format: "jpeg",
+          sharpen: 1,
+        },
+        base ?? undefined,
+        origin ?? undefined,
+      );
+      const feed = buildCloudflareImageUrl(
+        originalUrl,
+        {
+          width: 1600,
+          height: 1600,
+          fit: "cover",
+          gravity: "faces",
+          quality: 90,
+          format: "jpeg",
+          sharpen: 1,
+        },
+        base ?? undefined,
+        origin ?? undefined,
+      );
+      const full = buildCloudflareImageUrl(
+        originalUrl,
+        {
+          width: 2400,
+          fit: "contain",
+          quality: 92,
+          format: "jpeg",
+        },
+        base ?? undefined,
+        origin ?? undefined,
+      );
+      return { thumb: thumb ?? null, feed: feed ?? null, full: full ?? null };
+    }
     return { thumb: null, feed: null, full: null };
   }
 
@@ -322,7 +321,11 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
     console.error("Fetch posts error", error);
     if (shouldReturnFallback(error)) {
       console.warn("Supabase unreachable - returning demo posts for local development.");
-      return slimSuccess(postsResponseSchema, { posts: buildFallbackPosts(), deleted: [] });
+      return slimSuccess(postsResponseSchema, {
+        posts: buildFallbackPosts(),
+        deleted: [],
+        cursor: null,
+      });
     }
     return slimError(500, "posts_fetch_failed", "Failed to load posts");
   }
@@ -1012,7 +1015,10 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
     }
   }
 
-  return slimSuccess(postsResponseSchema, { posts, deleted: deletedIds });
+  const nextCursor =
+    posts.length === limit ? (posts[posts.length - 1]?.ts ?? null) : null;
+
+  return slimSuccess(postsResponseSchema, { posts, deleted: deletedIds, cursor: nextCursor });
 }
 
 export type CreatePostSlimInput = {

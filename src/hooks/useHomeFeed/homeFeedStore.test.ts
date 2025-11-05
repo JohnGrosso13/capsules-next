@@ -39,7 +39,7 @@ describe("homeFeedStore", () => {
 
     const store = createHomeFeedStore({
       client: { fetch: fetchMock },
-      events: { broadcastFriendsGraphRefresh: vi.fn() },
+      events: { refreshFriends: vi.fn() },
     });
 
     await store.actions.refresh();
@@ -50,6 +50,7 @@ describe("homeFeedStore", () => {
     expect(state.cursor).toBe("cursor-1");
     expect(state.posts).toHaveLength(1);
     expect(state.posts[0]?.id).toBe("abc");
+    expect(state.isLoadingMore).toBe(false);
   });
 
   it("refresh filters out deleted identifiers", async () => {
@@ -70,7 +71,7 @@ describe("homeFeedStore", () => {
 
     const store = createHomeFeedStore({
       client: { fetch: fetchMock },
-      events: { broadcastFriendsGraphRefresh: vi.fn() },
+      events: { refreshFriends: vi.fn() },
     });
 
     await store.actions.refresh();
@@ -78,6 +79,7 @@ describe("homeFeedStore", () => {
     const state = store.getState();
     expect(state.posts).toHaveLength(1);
     expect(state.posts[0]?.id).toBe("keep");
+    expect(state.isLoadingMore).toBe(false);
   });
 
   it("refresh falls back to default posts when empty", async () => {
@@ -87,7 +89,7 @@ describe("homeFeedStore", () => {
     const store = createHomeFeedStore({
       client: { fetch: fetchMock },
       fallbackPosts: fallback,
-      events: { broadcastFriendsGraphRefresh: vi.fn() },
+      events: { refreshFriends: vi.fn() },
     });
 
     await store.actions.refresh();
@@ -102,7 +104,7 @@ describe("homeFeedStore", () => {
     const store = createHomeFeedStore({
       client: { toggleLike: toggleLikeMock },
       fallbackPosts: [makePost({ id: "p1", dbId: "remote-1", likes: 1 })],
-      events: { broadcastFriendsGraphRefresh: vi.fn() },
+      events: { refreshFriends: vi.fn() },
     });
 
     await store.actions.toggleLike("p1");
@@ -121,7 +123,7 @@ describe("homeFeedStore", () => {
     const store = createHomeFeedStore({
       client: { toggleLike: toggleLikeMock },
       fallbackPosts: [makePost({ id: "p2", likes: 4, viewerLiked: false })],
-      events: { broadcastFriendsGraphRefresh: vi.fn() },
+      events: { refreshFriends: vi.fn() },
     });
 
     try {
@@ -140,7 +142,7 @@ describe("homeFeedStore", () => {
   it("toggleMemory enforces authentication", async () => {
     const store = createHomeFeedStore({
       fallbackPosts: [makePost({ id: "p3" })],
-      events: { broadcastFriendsGraphRefresh: vi.fn() },
+      events: { refreshFriends: vi.fn() },
     });
 
     await expect(store.actions.toggleMemory("p3", { canRemember: false })).rejects.toThrowError(
@@ -153,7 +155,7 @@ describe("homeFeedStore", () => {
     const store = createHomeFeedStore({
       client: { toggleMemory: toggleMemoryMock },
       fallbackPosts: [makePost({ id: "p4", viewerRemembered: false })],
-      events: { broadcastFriendsGraphRefresh: vi.fn() },
+      events: { refreshFriends: vi.fn() },
     });
 
     const result = await store.actions.toggleMemory("p4", { canRemember: true });
@@ -167,8 +169,8 @@ describe("homeFeedStore", () => {
     expect(post?.viewer_remembered).toBe(true);
   });
 
-  it("requestFriend sets message and triggers broadcast", async () => {
-    const broadcastMock = vi.fn();
+  it("requestFriend sets message and triggers friends refresh", async () => {
+    const refreshMock = vi.fn();
     const updateFriendMock = vi.fn().mockResolvedValue({ message: "ok" });
     const store = createHomeFeedStore({
       client: { updateFriend: updateFriendMock },
@@ -180,7 +182,7 @@ describe("homeFeedStore", () => {
           owner_user_key: "friend-key",
         }),
       ],
-      events: { broadcastFriendsGraphRefresh: broadcastMock },
+      events: { refreshFriends: refreshMock },
     });
 
     await store.actions.requestFriend("p5", "friend");
@@ -189,7 +191,7 @@ describe("homeFeedStore", () => {
     const state = store.getState();
     expect(state.friendMessage).toBe("ok");
     expect(state.activeFriendTarget).toBeNull();
-    expect(broadcastMock).toHaveBeenCalled();
+    expect(refreshMock).toHaveBeenCalled();
   });
 
   it("deletePost removes post and calls client with request id", async () => {
@@ -197,12 +199,34 @@ describe("homeFeedStore", () => {
     const store = createHomeFeedStore({
       client: { deletePost: deleteMock },
       fallbackPosts: [makePost({ id: "p6", dbId: "remote-6" })],
-      events: { broadcastFriendsGraphRefresh: vi.fn() },
+      events: { refreshFriends: vi.fn() },
     });
 
     await store.actions.deletePost("p6");
 
     expect(deleteMock).toHaveBeenCalledWith({ postId: "remote-6" });
     expect(store.getState().posts).toHaveLength(0);
+  });
+
+  it("appendPosts merges posts and updates cursor", () => {
+    const store = createHomeFeedStore();
+    const initial = store.getState();
+    expect(initial.posts.length).toBeGreaterThan(0);
+
+    const newPost = makePost({ id: "post-2", created_at: "2023-01-03T00:00:00.000Z" });
+    store.actions.appendPosts([newPost], "cursor-2");
+
+    const state = store.getState();
+    expect(state.cursor).toBe("cursor-2");
+    expect(state.posts.some((post) => post.id === "post-2")).toBe(true);
+    expect(state.isLoadingMore).toBe(false);
+  });
+
+  it("setLoadingMore toggles loading state", () => {
+    const store = createHomeFeedStore();
+    store.actions.setLoadingMore(true);
+    expect(store.getState().isLoadingMore).toBe(true);
+    store.actions.setLoadingMore(false);
+    expect(store.getState().isLoadingMore).toBe(false);
   });
 });

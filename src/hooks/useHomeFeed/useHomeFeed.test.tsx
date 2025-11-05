@@ -28,6 +28,13 @@ const clearFriendMessageMock = vi.fn(() => {
   notify();
 });
 const resetPendingStatesMock = vi.fn();
+const appendPostsMock = vi.fn();
+const setLoadingMoreMock = vi.fn();
+const hydrateMock = vi.fn();
+
+vi.mock("@/server/actions/home-feed", () => ({
+  loadHomeFeedPageAction: vi.fn().mockResolvedValue({ posts: [], cursor: null }),
+}));
 
 let mockState: {
   posts: HomeFeedPost[];
@@ -39,6 +46,7 @@ let mockState: {
   activeFriendTarget: string | null;
   isRefreshing: boolean;
   hasFetched: boolean;
+  isLoadingMore: boolean;
 };
 
 function notify() {
@@ -68,6 +76,10 @@ vi.mock("./homeFeedStore", () => ({
       setActiveFriendTarget: (value: string | null) => setActiveFriendTargetMock(value),
       clearFriendMessage: () => clearFriendMessageMock(),
       resetPendingStates: () => resetPendingStatesMock(),
+      appendPosts: (posts: HomeFeedPost[], cursor: string | null) =>
+        appendPostsMock(posts, cursor),
+      setLoadingMore: (value: boolean) => setLoadingMoreMock(value),
+      hydrate: (snapshot: unknown) => hydrateMock(snapshot),
     },
   },
   homeFeedFallbackPosts: [],
@@ -115,6 +127,9 @@ beforeEach(() => {
   setActiveFriendTargetMock.mockClear();
   clearFriendMessageMock.mockClear();
   resetPendingStatesMock.mockClear();
+  appendPostsMock.mockClear();
+  setLoadingMoreMock.mockClear();
+  hydrateMock.mockClear();
   mockState = {
     posts: [basePost],
     cursor: null,
@@ -125,6 +140,7 @@ beforeEach(() => {
     activeFriendTarget: null,
     isRefreshing: false,
     hasFetched: false,
+    isLoadingMore: false,
   };
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -154,6 +170,7 @@ describe("useHomeFeed", () => {
     expect(latest.canRemember).toBe(true);
     expect(typeof latest.refreshPosts).toBe("function");
     expect(typeof latest.handleToggleLike).toBe("function");
+    expect(typeof latest.loadMore).toBe("function");
   });
 
   it("forwards actions to the store and clears friend message on timeout", async () => {

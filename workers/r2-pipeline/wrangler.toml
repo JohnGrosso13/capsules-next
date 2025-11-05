@@ -39,6 +39,8 @@ PUBLIC_MEDIA_BASE_URL = "https://media.local.example"
 # Cloudflare Image Resizing endpoint. If you don't have a zone yet, leave as-is and we will fall back.
 # For production, point this at a domain you control on Cloudflare with Image Resizing enabled, e.g. https://media.example.com/cdn-cgi/image
 IMAGE_RESIZE_BASE_URL = "https://media.local.example/cdn-cgi/image"
+# Base URL (absolute) for the Next.js raw preview API. Used to generate JPEG fallbacks for RAW uploads.
+RAW_PREVIEW_BASE_URL = "https://local.capsules.test/api/uploads/raw-preview"
 
 # Supabase service creds (fill with your project values)
 SUPABASE_URL = "https://YOUR-PROJECT.supabase.co"

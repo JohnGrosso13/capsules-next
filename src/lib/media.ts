@@ -27,7 +27,13 @@ export function canRenderInlineImage(
     }
   }
   if (typeof url === "string" && url.trim().length) {
-    return IMAGE_EXTENSION_PATTERN.test(url.trim().toLowerCase());
+    const normalizedUrl = url.trim().toLowerCase();
+    if (IMAGE_EXTENSION_PATTERN.test(normalizedUrl)) {
+      return true;
+    }
+    if (normalizedUrl.includes("/api/uploads/raw-preview")) {
+      return true;
+    }
   }
   return false;
 }

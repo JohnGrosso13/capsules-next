@@ -1488,6 +1488,9 @@ function CapsuleFeed({
     hasFetched,
     isRefreshing,
     friendMessage,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   } = useCapsuleFeed(capsuleId);
 
   const emptyMessage = capsuleName
@@ -1519,6 +1522,9 @@ function CapsuleFeed({
         isRefreshing={isRefreshing}
         emptyMessage={emptyMessage}
         focusPostId={focusPostId}
+        onLoadMore={loadMore}
+        hasMore={hasMore}
+        isLoadingMore={isLoadingMore}
       />
     </section>
   );

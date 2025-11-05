@@ -1,4 +1,4 @@
-import { broadcastFriendsGraphRefresh } from "@/hooks/useFriendsGraph";
+import { friendsActions } from "@/lib/friends/store";
 import {
   deletePost as deletePostRequest,
   fetchHomeFeed,
@@ -21,6 +21,7 @@ type HomeFeedStoreState = {
   activeFriendTarget: string | null;
   isRefreshing: boolean;
   hasFetched: boolean;
+  isLoadingMore: boolean;
 };
 
 type HomeFeedStoreListener = () => void;
@@ -40,6 +41,9 @@ type HomeFeedStoreActions = {
   setActiveFriendTarget: (identifier: string | null) => void;
   clearFriendMessage: () => void;
   resetPendingStates: () => void;
+  hydrate: (snapshot: HomeFeedHydrationSnapshot) => void;
+  setLoadingMore: (value: boolean) => void;
+  appendPosts: (posts: HomeFeedPost[], cursor: string | null) => void;
 };
 
 type HomeFeedStoreApi = {
@@ -60,8 +64,15 @@ type HomeFeedStoreDependencies = {
   client?: Partial<HomeFeedClient>;
   fallbackPosts?: HomeFeedPost[];
   events?: {
-    broadcastFriendsGraphRefresh?: () => void;
+    refreshFriends?: () => void;
   };
+};
+
+export type HomeFeedHydrationSnapshot = {
+  posts?: HomeFeedPost[];
+  cursor?: string | null;
+  hasFetched?: boolean;
+  friendMessage?: string | null;
 };
 
 function cloneAttachment(value: HomeFeedAttachment): HomeFeedAttachment {
@@ -102,7 +113,9 @@ const defaultClient: HomeFeedClient = {
 };
 
 const defaultEvents = {
-  broadcastFriendsGraphRefresh,
+  refreshFriends: () => {
+    void friendsActions.refresh({ background: true });
+  },
 };
 
 function getRequestId(post: HomeFeedPost): string {
@@ -147,6 +160,7 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
     activeFriendTarget: null,
     isRefreshing: false,
     hasFetched: false,
+    isLoadingMore: false,
   };
 
   const listeners = new Set<HomeFeedStoreListener>();
@@ -174,6 +188,66 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
       likePending: {},
       memoryPending: {},
       friendActionPending: null,
+    });
+  }
+
+  function hydrate(snapshot: HomeFeedHydrationSnapshot) {
+    if (!Array.isArray(snapshot.posts)) {
+      return;
+    }
+  const normalizedPosts =
+    snapshot.posts.length > 0 ? clonePosts(snapshot.posts) : clonePosts(fallbackPosts);
+  setState({
+    posts: normalizedPosts,
+    cursor: snapshot.cursor ?? null,
+    hasFetched: snapshot.hasFetched ?? true,
+    friendMessage: snapshot.friendMessage ?? null,
+    likePending: {},
+    memoryPending: {},
+    friendActionPending: null,
+    activeFriendTarget: null,
+    isRefreshing: false,
+    isLoadingMore: false,
+  });
+}
+
+  function setLoadingMore(value: boolean) {
+    setState({ isLoadingMore: value });
+  }
+
+  function appendPosts(posts: HomeFeedPost[], cursor: string | null) {
+    if (!Array.isArray(posts) || posts.length === 0) {
+      setState({ cursor: cursor ?? null, isLoadingMore: false });
+      return;
+    }
+    const additions = clonePosts(posts);
+    setState((prev) => {
+      const merged = [...prev.posts];
+      const seen = new Set<string>(merged.map((post) => String(post.id)));
+      additions.forEach((post) => {
+        const postId =
+          typeof post.id === "string"
+            ? post.id
+            : typeof post.id === "number"
+              ? String(post.id)
+              : null;
+        if (!postId) return;
+        if (seen.has(postId)) {
+          const index = merged.findIndex((existing) => String(existing.id) === postId);
+          if (index !== -1) {
+            merged[index] = post;
+          }
+        } else {
+          seen.add(postId);
+          merged.push(post);
+        }
+      });
+      return {
+        posts: merged,
+        cursor: cursor ?? null,
+        hasFetched: true,
+        isLoadingMore: false,
+      };
     });
   }
 
@@ -383,7 +457,13 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
           ? result.message
           : fallbackMessage;
       setState({ friendMessage: message, activeFriendTarget: null });
-      events.broadcastFriendsGraphRefresh();
+      if (events.refreshFriends) {
+        try {
+          events.refreshFriends();
+        } catch (error) {
+          console.error("Friends refresh callback failed", error);
+        }
+      }
     } catch (error) {
       console.error("Post friend action error", error);
       const fallbackMessage =
@@ -432,6 +512,9 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
       setActiveFriendTarget,
       clearFriendMessage,
       resetPendingStates,
+      hydrate,
+      setLoadingMore,
+      appendPosts,
     },
   };
 }

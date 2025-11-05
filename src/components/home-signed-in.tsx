@@ -8,13 +8,23 @@ import { AppShell } from "./app-shell";
 import { PromoRow } from "./promo-row";
 import { HomeFeedList } from "./home-feed-list";
 import { useHomeFeed } from "@/hooks/useHomeFeed";
+import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 
 type Props = {
   showPromoRow?: boolean;
   showPrompter?: boolean;
+  initialPosts?: HomeFeedPost[];
+  initialCursor?: string | null;
+  hydrationKey?: string | null;
 };
 
-export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props) {
+export function HomeSignedIn({
+  showPromoRow = true,
+  showPrompter = true,
+  initialPosts,
+  initialCursor,
+  hydrationKey,
+}: Props) {
   const {
     posts,
     likePending,
@@ -27,14 +37,22 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
     handleFriendRequest,
     handleDelete,
     handleFriendRemove,
-    setActiveFriendTarget,
-    formatCount,
-    timeAgo,
-    exactTime,
-    canRemember,
-    hasFetched,
-    isRefreshing,
-  } = useHomeFeed();
+  setActiveFriendTarget,
+  formatCount,
+  timeAgo,
+  exactTime,
+  canRemember,
+  hasFetched,
+  isRefreshing,
+    loadMore,
+    hasMore,
+    isLoadingMore,
+  } = useHomeFeed({
+    initialPosts,
+    initialCursor,
+    hydrationKey,
+    skipInitialRefresh: initialPosts !== undefined || initialCursor !== undefined,
+  });
 
   return (
     <AppShell
@@ -64,6 +82,9 @@ export function HomeSignedIn({ showPromoRow = true, showPrompter = true }: Props
           canRemember={canRemember}
           hasFetched={hasFetched}
           isRefreshing={isRefreshing}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
         />
       </section>
     </AppShell>

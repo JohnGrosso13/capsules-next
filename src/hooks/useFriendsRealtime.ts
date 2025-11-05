@@ -3,15 +3,14 @@
 import * as React from "react";
 
 import { getRealtimeClientFactory } from "@/config/realtime-client";
+import { useFriendsActions, useFriendsSelector } from "@/lib/friends/store";
+import type { FriendsChannelInfo, PresenceMap, PresenceStatus } from "@/lib/friends/types";
 import type {
   RealtimeAuthPayload,
   RealtimeClient,
   RealtimePresenceChannel,
 } from "@/ports/realtime";
-import type { FriendsChannelInfo } from "@/services/friends/client";
-
-export type PresenceStatus = "online" | "offline" | "away";
-export type PresenceMap = Record<string, { status: PresenceStatus; updatedAt: string | null }>;
+export type { PresenceStatus, PresenceMap } from "@/lib/friends/types";
 export type ChannelInfo = FriendsChannelInfo;
 
 let presenceCache: PresenceMap = {};
@@ -367,7 +366,8 @@ export function useFriendsRealtime(
   tokenProvider: () => Promise<RealtimeAuthPayload>,
   onEvent: () => void,
 ): PresenceMap {
-  const [presence, setPresenceState] = React.useState<PresenceMap>(() => presenceCache);
+  const presence = useFriendsSelector((state) => state.presence);
+  const actions = useFriendsActions();
   const tokenProviderRef = React.useRef(tokenProvider);
   const onEventRef = React.useRef(onEvent);
 
@@ -381,7 +381,7 @@ export function useFriendsRealtime(
 
   const setPresence = React.useCallback<React.Dispatch<React.SetStateAction<PresenceMap>>>(
     (update) => {
-      setPresenceState((prev) => {
+      actions.updatePresence((prev) => {
         const next =
           typeof update === "function"
             ? (update as (value: PresenceMap) => PresenceMap)(prev)
@@ -394,8 +394,12 @@ export function useFriendsRealtime(
         return next;
       });
     },
-    [],
+    [actions],
   );
+
+  React.useEffect(() => {
+    presenceCache = presence;
+  }, [presence]);
 
   const eventsChannelName = channels?.events ?? "";
   const presenceChannelName = channels?.presence ?? "";

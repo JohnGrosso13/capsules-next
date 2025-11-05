@@ -1,4 +1,5 @@
-import { removeFriend } from "@/lib/api/friends";
+import { useFriendsActions } from "@/lib/friends/store";
+import { buildFriendTargetPayload } from "@/lib/friends/targets";
 
 export type FriendLike = {
   userId?: string | null;
@@ -8,19 +9,16 @@ export type FriendLike = {
   avatar?: string | null;
 };
 
-export function buildFriendTargetPayload(friend: FriendLike): Record<string, string> | null {
-  const target: Record<string, string> = {};
-  if (friend.userId) target.userId = String(friend.userId);
-  else if (friend.key) target.userKey = String(friend.key);
-  else if (friend.id) target.id = String(friend.id);
-  else return null;
-  if (friend.name) target.name = String(friend.name);
-  if (friend.avatar) target.avatar = String(friend.avatar);
-  return target;
-}
-
 export function useFriendActions() {
+  const actions = useFriendsActions();
+
   return {
-    remove: async (target: Record<string, unknown>) => removeFriend(target),
+    remove: async (friend: FriendLike) => {
+      const target = buildFriendTargetPayload(friend);
+      if (!target) {
+        throw new Error("Unable to resolve friend target");
+      }
+      await actions.performTargetedMutation("remove", target);
+    },
   } as const;
 }

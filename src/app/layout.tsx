@@ -5,14 +5,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import "./light-theme.css";
 import "./cta-overrides.css";
-import { MobileCommandBar } from "@/components/mobile-command-bar";
-import { GlobalSearchOverlay } from "@/components/global-search-overlay";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme/script";
-import { ComposerProvider, AiComposerRoot } from "@/components/composer/ComposerProvider";
-import { ChatProvider } from "@/components/providers/ChatProvider";
-import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
-import { PartyProvider } from "@/components/providers/PartyProvider";
-import { AiImageRunProvider } from "@/components/providers/AiImageRunProvider";
 
 export const runtime = "nodejs";
 
@@ -40,22 +33,7 @@ export default function RootLayout({
             {THEME_BOOTSTRAP_SCRIPT}
           </Script>
           {/* BackgroundFX removed: no animated/static glow overlay */}
-          <SignedIn>
-            <FriendsDataProvider>
-              <PartyProvider>
-                <ChatProvider>
-                  <AiImageRunProvider>
-                    <ComposerProvider>
-                      {children}
-                      <AiComposerRoot />
-                    </ComposerProvider>
-                    <GlobalSearchOverlay />
-                    <MobileCommandBar />
-                  </AiImageRunProvider>
-                </ChatProvider>
-              </PartyProvider>
-            </FriendsDataProvider>
-          </SignedIn>
+          <SignedIn>{children}</SignedIn>
           <SignedOut>{children}</SignedOut>
         </body>
       </html>
