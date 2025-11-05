@@ -1,4 +1,4 @@
-"use client";
+ï»¿"use client";
 
 import * as React from "react";
 import { Sparkle } from "@phosphor-icons/react/dist/ssr";
@@ -30,7 +30,7 @@ export function SummaryCTA({ pending, hasPosts, onSummarize }: SummaryCTAProps) 
         disabled={pending}
         aria-busy={pending || undefined}
       >
-        {pending ? "Summarizing…" : "Summarize this feed"}
+        {pending ? "Summarizing..." : "Summarize this feed"}
       </button>
     </section>
   );

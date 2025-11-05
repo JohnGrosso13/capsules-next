@@ -16,12 +16,12 @@ import { normalizeMediaUrl } from "@/lib/media";
 import { FeedLazyImage } from "@/components/home-feed/feed-lazy-image";
 import { FeedMediaGallery, type LightboxImageItem } from "@/components/home-feed/feed-media-gallery";
 import { FeedCardActions, type FeedCardAction } from "@/components/home-feed/feed-card-actions";
+import { buildPostMediaCollections, type PostMediaCollections } from "@/components/home-feed/utils";
 import {
-  buildPostMediaCollections,
+  DocumentAttachmentCard,
   buildDocumentCardData,
-  type PostMediaCollections,
-} from "@/components/home-feed/utils";
-import { DocumentAttachmentCard, type DocumentCardData } from "@/components/documents/document-card";
+  type DocumentCardData,
+} from "@/components/documents/document-card";
 import { PostMenu } from "@/components/posts/PostMenu";
 import { FeedPoll } from "@/components/home-feed/cards/FeedPoll";
 
