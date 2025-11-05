@@ -5,8 +5,6 @@ import styles from "../ai-composer.module.css";
 import lightboxStyles from "@/components/home-feed.module.css";
 import {
   X,
-  Paperclip,
-  CaretDown,
   Sparkle,
   ChatsTeardrop,
   FileText,
@@ -20,13 +18,13 @@ import {
 import { ComposerLayout } from "./components/ComposerLayout";
 import { AttachmentPanel } from "./components/AttachmentPanel";
 import { PreviewColumn } from "./components/PreviewColumn";
-import { VoiceRecorder } from "./components/VoiceRecorder";
 import { ComposerMemoryPicker, type MemoryPickerTab } from "./components/ComposerMemoryPicker";
 import { useComposerFormReducer, type ComposerFormState } from "./hooks/useComposerFormReducer";
 import { useComposerLayout } from "./hooks/useComposerLayout";
 import { useComposerVoice } from "./hooks/useComposerVoice";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
 import { useComposer } from "./ComposerProvider";
+import { PromptSurface } from "./components/PromptSurface";
 import type {
   ComposerVideoStatus,
   ComposerSaveStatus,
@@ -2562,88 +2560,23 @@ export function ComposerForm({
         </div>
       </div>
 
-      <div className={styles.composerBottom}>
-        <div className={styles.promptSurface}>
-          <button
-            type="button"
-            className={styles.promptIconBtn}
-            aria-label="Attach file"
-            onClick={handleAttachClick}
-            disabled={loading || attachmentUploading}
-          >
-            <Paperclip size={18} weight="duotone" />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="*/*"
-            className={styles.hiddenFileInput}
-            onChange={handleAttachmentSelect}
-            disabled={loading || attachmentUploading}
-          />
-          <input
-            ref={promptInputRef}
-            className={styles.promptInput}
-            placeholder={currentPromptPlaceholder}
-            value={promptValue}
-            onPaste={handlePromptPaste}
-            onChange={(event) => setPromptValue(event.target.value)}
-            disabled={loading}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                handlePromptSubmit();
-              }
-            }}
-          />
-          <VoiceRecorder
-            isActive={voiceControls.isActive}
-            status={voiceControls.status}
-            buttonLabel={voiceControls.buttonLabel}
-            buttonDisabled={voiceControls.buttonDisabled}
-            onToggle={voiceControls.toggle}
-            errorMessage={voiceControls.errorMessage}
-          />
-          <button
-            type="button"
-            className={styles.promptGenerateBtn}
-            onClick={handlePromptSubmit}
-            disabled={loading || attachmentUploading || !promptValue.trim()}
-          >
-            <span className={styles.generateIcon}>
-              <Sparkle size={16} weight="fill" />
-            </span>
-            <span className={styles.generateLabel}>Generate</span>
-            <CaretDown size={14} weight="bold" />
-          </button>
-        </div>
-
-        {voiceControls.hint ? (
-          <div
-            className={styles.voiceStatus}
-            data-state={voiceControls.hintState ?? undefined}
-            role="status"
-            aria-live="polite"
-          >
-            {voiceControls.hint}
-          </div>
-        ) : null}
-
-        {!summaryResult ? (
-          <div className={styles.promptPresets}>
-            {quickPromptOptions.map((option) => (
-              <button
-                key={option.prompt}
-                type="button"
-                className={styles.promptPresetBtn}
-                onClick={() => handleSuggestionSelect(option.prompt)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
+      <PromptSurface
+        loading={loading}
+        attachmentUploading={attachmentUploading}
+        onAttachClick={handleAttachClick}
+        onAttachmentSelect={handleAttachmentSelect}
+        fileInputRef={fileInputRef}
+        promptInputRef={promptInputRef}
+        promptValue={promptValue}
+        placeholder={currentPromptPlaceholder}
+        onPromptChange={setPromptValue}
+        onPromptPaste={handlePromptPaste}
+        onPromptSubmit={handlePromptSubmit}
+        quickPromptOptions={quickPromptOptions}
+        onQuickPromptSelect={handleSuggestionSelect}
+        showQuickPrompts={!summaryResult}
+        voiceControls={voiceControls}
+      />
     </>
   );
 
