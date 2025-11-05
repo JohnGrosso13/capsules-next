@@ -205,16 +205,6 @@ export function HomeFeedList({
 
   );
 
-  const [lightbox, setLightbox] = React.useState<{
-
-    postId: string;
-
-    index: number;
-
-    items: LightboxImageItem[];
-
-  } | null>(null);
-
   const INITIAL_BATCH = 6;
 
   const BATCH_SIZE = 6;
@@ -499,111 +489,6 @@ export function HomeFeedList({
 
   );
 
-  const closeLightbox = React.useCallback(() => {
-
-    setLightbox(null);
-
-  }, []);
-
-  const handleOpenLightbox = React.useCallback(
-
-    (payload: { postId: string; index: number; items: LightboxImageItem[] }) => {
-
-      setLightbox(payload);
-
-    },
-
-    [],
-
-  );
-
-  const handleCloseButtonClick = React.useCallback(
-
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-
-      event.preventDefault();
-
-      event.stopPropagation();
-
-      closeLightbox();
-
-    },
-
-    [closeLightbox],
-
-  );
-
-  const navigateLightbox = React.useCallback((step: number) => {
-
-    setLightbox((prev) => {
-
-      if (!prev || !prev.items.length) return prev;
-
-      const total = prev.items.length;
-
-      const nextIndex = (((prev.index + step) % total) + total) % total;
-
-      return {
-
-        ...prev,
-
-        index: nextIndex,
-
-      };
-
-    });
-
-  }, []);
-
-  React.useEffect(() => {
-
-    if (!lightbox) return undefined;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-
-      if (event.key === "Escape") {
-
-        event.preventDefault();
-
-        closeLightbox();
-
-      } else if (event.key === "ArrowRight") {
-
-        event.preventDefault();
-
-        navigateLightbox(1);
-
-      } else if (event.key === "ArrowLeft") {
-
-        event.preventDefault();
-
-        navigateLightbox(-1);
-
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => window.removeEventListener("keydown", handleKeyDown);
-
-  }, [lightbox, closeLightbox, navigateLightbox]);
-
-  React.useEffect(() => {
-
-    if (!lightbox) return undefined;
-
-    const originalOverflow = document.body.style.overflow;
-
-    document.body.style.overflow = "hidden";
-
-    return () => {
-
-      document.body.style.overflow = originalOverflow;
-
-    };
-
-  }, [lightbox]);
-
   const handleAskDocument = React.useCallback(
 
     (doc: DocumentCardData) => {
@@ -654,6 +539,20 @@ export function HomeFeedList({
     onHighlightPost: highlightPost,
 
   });
+
+  const {
+
+    lightbox,
+
+    openLightbox,
+
+    closeLightbox,
+
+    handleCloseButtonClick,
+
+    navigate: navigateLightbox,
+
+  } = useFeedLightbox();
 
   const handleSummarizeFeed = React.useCallback(() => {
 
@@ -799,7 +698,7 @@ export function HomeFeedList({
             onToggleLike={onToggleLike}
             onToggleMemory={onToggleMemory}
             onDelete={onDelete}
-            onOpenLightbox={handleOpenLightbox}
+            onOpenLightbox={openLightbox}
             onAskDocument={handleAskDocument}
             onSummarizeDocument={summarizeDocument}
             onCommentClick={(currentPost, anchor) => handleCommentButtonClick(currentPost, anchor)}
