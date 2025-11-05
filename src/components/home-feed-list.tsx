@@ -17,6 +17,7 @@ import { buildPrompterAttachment, type DocumentCardData } from "@/components/doc
 import { PostCard } from "@/components/home-feed/cards/PostCard";
 import { useFeedSummary } from "@/components/home-feed/useFeedSummary";
 import { useFeedComments } from "@/components/home-feed/useFeedComments";
+import { useFeedCommentUI } from "@/components/home-feed/useFeedCommentUI";
 import { useCurrentUser } from "@/services/auth/client";
 import type { LightboxImageItem } from "@/components/home-feed/feed-media-gallery";
 import { EMPTY_THREAD_STATE } from "@/components/comments/types";
@@ -222,10 +223,6 @@ export function HomeFeedList({
 
   const sentinelRef = React.useRef<HTMLDivElement | null>(null);
 
-  const [activeComment, setActiveComment] = React.useState<{ postId: string } | null>(null);
-
-  const commentAnchorRef = React.useRef<HTMLElement | null>(null);
-
   const showSkeletons = !hasFetched;
 
   React.useEffect(() => {
@@ -419,6 +416,14 @@ export function HomeFeedList({
     viewerUserId,
     viewerEnvelope,
   });
+
+  const {
+    activeComment,
+    commentAnchorRef,
+    handleCommentButtonClick,
+    closeComments,
+    highlightPost,
+  } = useFeedCommentUI({ displayedPosts, loadComments });
 
   const skeletons = React.useMemo(
 
@@ -630,67 +635,6 @@ export function HomeFeedList({
 
 
 
-  const handleHighlightPost = React.useCallback(
-
-    (postId: string, options?: { focusComment?: boolean }) => {
-
-      const hasPost = displayedPosts.some((entry) => entry.id === postId);
-
-      if (!hasPost) return;
-
-      if (typeof window !== "undefined") {
-
-        const escapedId =
-
-          typeof CSS !== "undefined" && typeof CSS.escape === "function"
-
-            ? CSS.escape(postId)
-
-            : postId.replace(/["'\\]/g, "\\$&");
-
-        const card = document.querySelector<HTMLElement>(`[data-post-id="${escapedId}"]`);
-
-        if (card) {
-
-          card.scrollIntoView({ behavior: "smooth", block: "center" });
-
-          card.setAttribute("data-summary-flash", "true");
-
-          window.setTimeout(() => {
-
-            card.removeAttribute("data-summary-flash");
-
-          }, 2400);
-
-        }
-        if (options?.focusComment) {
-
-          const anchor =
-
-            (card?.querySelector<HTMLElement>('[data-action-key="comment"]') ?? card) ?? null;
-
-          commentAnchorRef.current = anchor;
-
-          setActiveComment({ postId });
-
-          void loadComments(postId);
-
-        }
-
-      } else if (options?.focusComment) {
-
-        setActiveComment({ postId });
-
-        void loadComments(postId);
-
-      }
-
-    },
-
-    [displayedPosts, loadComments, setActiveComment],
-
-  );
-
   const {
 
     documentSummaryPending,
@@ -707,7 +651,7 @@ export function HomeFeedList({
 
     timeAgo,
 
-    onHighlightPost: handleHighlightPost,
+    onHighlightPost: highlightPost,
 
   });
 
@@ -716,40 +660,6 @@ export function HomeFeedList({
     void summarizeFeed();
 
   }, [summarizeFeed]);
-
-  const handleCommentButtonClick = React.useCallback((post: HomeFeedPost, target: HTMLElement) => {
-
-    setActiveComment((previous) => {
-
-      const next = previous?.postId === post.id ? null : { postId: post.id };
-
-      commentAnchorRef.current = next ? target : null;
-
-      return next;
-
-    });
-
-  }, []);
-
-  const closeComments = React.useCallback(() => {
-
-    setActiveComment(null);
-
-    commentAnchorRef.current = null;
-
-  }, []);
-
-
-
-  React.useEffect(() => {
-
-    if (!activeComment) return;
-
-    if (posts.some((post) => post.id === activeComment.postId)) return;
-
-    closeComments();
-
-  }, [activeComment, closeComments, posts]);
 
   const activeCommentPost = React.useMemo(
 
