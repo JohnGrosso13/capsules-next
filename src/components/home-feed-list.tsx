@@ -18,6 +18,7 @@ import { PostCard } from "@/components/home-feed/cards/PostCard";
 import { useFeedSummary } from "@/components/home-feed/useFeedSummary";
 import { useFeedComments } from "@/components/home-feed/useFeedComments";
 import { useFeedCommentUI } from "@/components/home-feed/useFeedCommentUI";
+import { useFeedLightbox } from "@/components/home-feed/useFeedLightbox";
 import { useCurrentUser } from "@/services/auth/client";
 import type { LightboxImageItem } from "@/components/home-feed/feed-media-gallery";
 import { EMPTY_THREAD_STATE } from "@/components/comments/types";
