@@ -80,7 +80,6 @@ function buildIdentifierSet(...identifiers: Array<unknown>): Set<string> {
   return result;
 
 }
-}
 function createEmptyThreadState(): CommentThreadState {
 
   return { status: "idle", comments: [], error: null };
