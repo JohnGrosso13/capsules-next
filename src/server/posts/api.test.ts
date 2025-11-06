@@ -6,11 +6,17 @@ vi.mock("@/lib/supabase/posts", () => ({
 
 vi.mock("@/lib/env/server", () => ({
   serverEnv: {
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    SUPABASE_ANON_KEY: "anon-key",
+    SUPABASE_BUCKET: "capsule-assets",
+    R2_ACCOUNT_ID: "test-account",
+    R2_ACCESS_KEY_ID: "test-access",
+    R2_SECRET_ACCESS_KEY: "test-secret",
+    R2_BUCKET: "capsule-uploads",
     CLOUDFLARE_IMAGE_RESIZE_BASE_URL: null,
     SITE_URL: "https://example.com",
     R2_PUBLIC_BASE_URL: "",
-    R2_BUCKET: "",
-    R2_ACCOUNT_ID: "",
   },
 }));
 

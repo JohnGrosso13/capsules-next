@@ -1,0 +1,342 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 10, 24, 0.72);
+  backdrop-filter: blur(12px);
+  z-index: 90;
+  padding: 24px;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(920px, 100%);
+  max-height: min(88vh, 960px);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(16, 20, 36, 0.95), rgba(10, 14, 28, 0.86));
+  box-shadow:
+    0 36px 68px rgba(5, 10, 26, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: inherit;
+  padding: 28px 32px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.titleRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.subtitle {
+  font-size: 14px;
+  opacity: 0.78;
+}
+
+.closeBtn {
+  border: none;
+  background: rgba(32, 36, 58, 0.72);
+  color: inherit;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.closeBtn:hover,
+.closeBtn:focus-visible {
+  background: rgba(70, 92, 255, 0.3);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 24px;
+  overflow: hidden;
+}
+
+@media (max-width: 1024px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rosterTableWrap {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(13, 18, 34, 0.72);
+  overflow: hidden;
+}
+
+.rosterTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.rosterTable th,
+.rosterTable td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.rosterTable thead th {
+  font-size: 12px;
+  text-transform: uppercase;
+  opacity: 0.7;
+  letter-spacing: 0.06em;
+}
+
+.rosterTable tbody tr:last-of-type th,
+.rosterTable tbody tr:last-of-type td {
+  border-bottom: none;
+}
+
+.memberName {
+  font-weight: 600;
+}
+
+.memberHandle {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.memberMeta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.actionCell {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.formPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(18, 24, 44, 0.78);
+}
+
+.formPanel h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.formGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.errorBox {
+  border-radius: 12px;
+  background: rgba(255, 102, 102, 0.14);
+  color: #ff9b9b;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+.emptyState {
+  padding: 32px;
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.72;
+}
+
+.stateBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.loadingSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 0;
+}
+
+.skeletonRow {
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  animation: rosterPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes rosterPulse {
+  0% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.78;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingSkeleton,
+  .skeletonRow {
+    animation: none;
+  }
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.inlineControls {
+  display: flex;
+  gap: 8px;
+}
+
+.formFieldset {
+  display: contents;
+}
+
+.input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 12, 24, 0.6);
+  color: inherit;
+  padding: 6px 10px;
+  font: inherit;
+}
+
+.input:focus-visible {
+  outline: 2px solid rgba(110, 136, 255, 0.6);
+  outline-offset: 1px;
+}
+
+.inlineForm {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.inlineFormControls {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(70, 92, 255, 0.16);
+  color: #9fb4ff;
+}
+
+.statsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.loadingState {
+  padding: 32px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.closeBtn:focus-visible,
+.sortDirectionBtn:focus-visible,
+.inlineControls button:focus-visible {
+  outline: 2px solid rgba(110, 136, 255, 0.55);
+  outline-offset: 2px;
+}
+
+.sortDirectionBtn:hover {
+  background: rgba(70, 92, 255, 0.35);
+}
+
+.inlineControls button {
+  border: none;
+  background: rgba(32, 36, 58, 0.72);
+  color: inherit;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inlineControls button:hover {
+  background: rgba(70, 92, 255, 0.32);
+}
+
+.inlineControls button:disabled,
+.sortDirectionBtn:disabled,
+.closeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.inlineFormControls button {
+  border: none;
+  background: rgba(32, 36, 58, 0.72);
+  color: inherit;
+  padding: 5px 9px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inlineFormControls button:hover {
+  background: rgba(70, 92, 255, 0.32);
+}
+
+@media (max-width: 720px) {
+  .dialog {
+    padding: 20px;
+    width: 100%;
+  }
+
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: calc(100vh - 140px);
+  }
+
+  .overlay {
+    padding: 12px;
+  }
+}

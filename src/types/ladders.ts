@@ -162,3 +162,17 @@ export type CapsuleLadderMemberInput = {
   streak?: number | null;
   metadata?: Record<string, unknown> | null;
 };
+
+export type CapsuleLadderMemberUpdateInput = {
+  userId?: string | null;
+  displayName?: string;
+  handle?: string | null;
+  seed?: number | null;
+  rank?: number | null;
+  rating?: number | null;
+  wins?: number | null;
+  losses?: number | null;
+  draws?: number | null;
+  streak?: number | null;
+  metadata?: Record<string, unknown> | null;
+};

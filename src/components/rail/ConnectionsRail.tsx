@@ -641,6 +641,9 @@ export function ConnectionsRail() {
     async (inviteId: string) => {
       try {
         const invite = await acceptPartyInvite(inviteId);
+        if (!invite?.partyId) {
+          throw new Error("Party invite did not include a party id.");
+        }
         await joinParty(invite.partyId, { displayName: null });
         setRailMode("connections");
         setActiveRailTab("party");

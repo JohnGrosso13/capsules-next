@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { FriendsStore } from "@/lib/friends/store";
-import type { FriendMutationActionInput, FriendsSnapshotActionResult } from "@/server/actions/friends";
+import type {
+  FriendMutationActionInput,
+  FriendMutationActionResult,
+  FriendsSnapshotActionResult,
+} from "@/server/actions/friends";
 import type { SocialGraphSnapshot } from "@/lib/supabase/friends";
 import type { PartyInviteSummary } from "@/types/party";
 
@@ -71,22 +75,33 @@ const partyInvites: PartyInviteSummary[] = [
 
 describe("FriendsStore", () => {
   function createStore(overrides: Partial<ConstructorParameters<typeof FriendsStore>[0]> = {}) {
-    const loadSnapshot = vi.fn<[], Promise<FriendsSnapshotActionResult>>().mockResolvedValue({
-      viewerId: "viewer-1",
-      graph: structuredClone(baseGraph),
-      channels: { events: "events:viewer-1", presence: "presence:friends" },
-    });
+    const loadSnapshot = vi
+      .fn<() => Promise<FriendsSnapshotActionResult>>()
+      .mockResolvedValue({
+        viewerId: "viewer-1",
+        graph: structuredClone(baseGraph),
+        channels: { events: "events:viewer-1", presence: "presence:friends" },
+      });
     const mutate = vi
-      .fn<[FriendMutationActionInput], Promise<{ action: string; result: null; graph: SocialGraphSnapshot }>>()
+      .fn<(input: FriendMutationActionInput) => Promise<FriendMutationActionResult>>()
       .mockImplementation(async () => ({
         action: "accept",
         result: null,
         graph: structuredClone(baseGraph),
       }));
-    const fetchInvites = vi.fn().mockResolvedValue(structuredClone(partyInvites));
-    const respondInvite = vi.fn().mockImplementation(async (inviteId: string) => {
-      return { ...partyInvites[0], id: inviteId, status: "accepted" } satisfies PartyInviteSummary;
-    });
+    const fetchInvites = vi
+      .fn<() => Promise<PartyInviteSummary[]>>()
+      .mockResolvedValue(structuredClone(partyInvites));
+    const respondInvite = vi
+      .fn<(inviteId: string, action: "accept" | "decline") => Promise<PartyInviteSummary>>()
+      .mockImplementation(async (inviteId, action) => {
+        const template = partyInvites[0]!;
+        return {
+          ...template,
+          id: inviteId,
+          status: action === "accept" ? "accepted" : "declined",
+        };
+      });
     const dependencies = {
       loadSnapshot,
       mutate,
@@ -142,7 +157,7 @@ describe("FriendsStore", () => {
       outgoingRequests: [],
     };
     const mutate = vi
-      .fn<[FriendMutationActionInput], Promise<{ action: string; result: null; graph: SocialGraphSnapshot }>>()
+      .fn<(input: FriendMutationActionInput) => Promise<FriendMutationActionResult>>()
       .mockResolvedValue({
         action: "remove",
         result: null,
@@ -159,10 +174,12 @@ describe("FriendsStore", () => {
   });
 
   it("acceptPartyInvite removes invite from state", async () => {
-    const respondInvite = vi.fn().mockResolvedValue({
-      ...partyInvites[0],
-      status: "accepted",
-    } satisfies PartyInviteSummary);
+    const respondInvite = vi
+      .fn<(inviteId: string, action: "accept" | "decline") => Promise<PartyInviteSummary>>()
+      .mockResolvedValue({
+        ...partyInvites[0]!,
+        status: "accepted",
+      });
     const { store } = createStore({ respondInvite });
     await store.refresh();
 

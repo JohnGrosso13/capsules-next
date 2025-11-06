@@ -261,20 +261,20 @@ export class FriendsStore {
     await this.mutate({ action, target });
   }
 
-  async acceptPartyInvite(inviteId: string): Promise<void> {
-    await this.handleInviteResponse(inviteId, "accept");
+  async acceptPartyInvite(inviteId: string): Promise<PartyInviteSummary> {
+    return this.handleInviteResponse(inviteId, "accept");
   }
 
-  async declinePartyInvite(inviteId: string): Promise<void> {
-    await this.handleInviteResponse(inviteId, "decline");
+  async declinePartyInvite(inviteId: string): Promise<PartyInviteSummary> {
+    return this.handleInviteResponse(inviteId, "decline");
   }
 
   private async handleInviteResponse(
     inviteId: string,
     action: "accept" | "decline",
-  ): Promise<void> {
+  ): Promise<PartyInviteSummary> {
     try {
-      await this.deps.respondInvite(inviteId, action);
+      const invite = await this.deps.respondInvite(inviteId, action);
       this.recompute({
         partyInvites: this.state.partyInvites.filter((invite) => invite.id !== inviteId),
         counters: {
@@ -282,6 +282,7 @@ export class FriendsStore {
           requests: Math.max(0, this.state.counters.requests - 1),
         },
       });
+      return invite;
     } catch (error) {
       throw error;
     }
@@ -323,8 +324,8 @@ type FriendsActions = {
     action: "request" | "remove" | "block" | "follow" | "unfollow" | "unblock",
     target: Record<string, unknown>,
   ) => Promise<void>;
-  acceptPartyInvite: (inviteId: string) => Promise<void>;
-  declinePartyInvite: (inviteId: string) => Promise<void>;
+  acceptPartyInvite: (inviteId: string) => Promise<PartyInviteSummary>;
+  declinePartyInvite: (inviteId: string) => Promise<PartyInviteSummary>;
   mutate: (input: FriendMutationActionInput) => Promise<FriendMutationActionResult>;
 };
 

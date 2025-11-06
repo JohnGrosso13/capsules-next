@@ -11,10 +11,8 @@ import {
   sendFriendRequest,
   unfollowUser,
   unblockUser,
-  type FriendSummary,
-  type SocialGraphSnapshot,
 } from "@/server/friends/service";
-import { FriendGraphError } from "@/server/friends/types";
+import { FriendGraphError, type FriendSummary, type SocialGraphSnapshot } from "@/server/friends/types";
 import { resolveSupabaseUserId, type UserIdentifierInput } from "@/lib/supabase/users";
 import {
   friendTargetSchema,
@@ -65,16 +63,16 @@ function buildTargetIdentifier(raw: MutationPayload): UserIdentifierInput {
 
 function mapFriendList(summaries: FriendSummary[]): Array<{
   id: string;
-  userId: string | null;
+  userId: string;
   key: string | null;
   name: string;
   avatar: string | null;
   since: string | null;
-  status: "online" | "offline";
+  status: "online" | "offline" | "away";
 }> {
   return summaries.map((friend) => ({
     id: friend.id,
-    userId: friend.friendUserId,
+    userId: friend.friendUserId ?? friend.id,
     key: friend.user?.key ?? null,
     name: friend.user?.name ?? "Friend",
     avatar: friend.user?.avatarUrl ?? null,

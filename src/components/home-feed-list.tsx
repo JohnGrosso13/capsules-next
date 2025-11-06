@@ -20,7 +20,6 @@ import { useFeedComments } from "@/components/home-feed/useFeedComments";
 import { useFeedCommentUI } from "@/components/home-feed/useFeedCommentUI";
 import { useFeedLightbox } from "@/components/home-feed/useFeedLightbox";
 import { useCurrentUser } from "@/services/auth/client";
-import type { LightboxImageItem } from "@/components/home-feed/feed-media-gallery";
 import { EMPTY_THREAD_STATE } from "@/components/comments/types";
 
 const CommentPanel = dynamic(
@@ -934,9 +933,7 @@ export function HomeFeedList({
                         return (
 
                           // eslint-disable-next-line @next/next/no-img-element -- maintain lightbox srcset + eager load without reliable dimensions for next/image
-
                           <img
-
                             className={styles.lightboxImage}
                             src={imageSrc}
                             srcSet={imageSrcSet}
@@ -992,13 +989,4 @@ export function HomeFeedList({
   );
 
 }
-type FeedPollProps = {
-
-  postId: string;
-
-  poll: NonNullable<HomeFeedPost["poll"]>;
-
-  formatCount: (value?: number | null) => string;
-
-};
 

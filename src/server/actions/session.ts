@@ -55,6 +55,6 @@ export async function ensureUserSession(): Promise<UserSessionContext> {
 }
 
 export async function resolveRequestOrigin(): Promise<string | null> {
-  const headerList = headers();
+  const headerList = await Promise.resolve(headers());
   return deriveRequestOrigin({ headers: headerList }) ?? null;
 }

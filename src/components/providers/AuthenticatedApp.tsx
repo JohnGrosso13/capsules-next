@@ -3,11 +3,13 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 
-import { ComposerProvider, AiComposerRoot } from "@/components/composer/ComposerProvider";
-import { ChatProvider } from "@/components/providers/ChatProvider";
-import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
-import { PartyProvider } from "@/components/providers/PartyProvider";
-import { AiImageRunProvider } from "@/components/providers/AiImageRunProvider";
+const AiImageRunToasts = dynamic(
+  () =>
+    import("@/components/providers/AiImageRunToasts").then((mod) => ({
+      default: mod.AiImageRunToasts,
+    })),
+  { ssr: false, loading: () => null },
+);
 
 const GlobalSearchOverlay = dynamic(
   () =>
@@ -31,23 +33,17 @@ type AuthenticatedAppProps = {
 
 export function AuthenticatedApp({ children }: AuthenticatedAppProps) {
   return (
-    <FriendsDataProvider>
-      <PartyProvider>
-        <ChatProvider>
-          <AiImageRunProvider>
-            <ComposerProvider>
-              {children}
-              <AiComposerRoot />
-            </ComposerProvider>
-            <React.Suspense fallback={null}>
-              <GlobalSearchOverlay />
-            </React.Suspense>
-            <React.Suspense fallback={null}>
-              <MobileCommandBar />
-            </React.Suspense>
-          </AiImageRunProvider>
-        </ChatProvider>
-      </PartyProvider>
-    </FriendsDataProvider>
+    <>
+      {children}
+      <React.Suspense fallback={null}>
+        <GlobalSearchOverlay />
+      </React.Suspense>
+      <React.Suspense fallback={null}>
+        <MobileCommandBar />
+      </React.Suspense>
+      <React.Suspense fallback={null}>
+        <AiImageRunToasts />
+      </React.Suspense>
+    </>
   );
 }

@@ -51,7 +51,7 @@ type PostCardProps = {
   isRefreshing: boolean;
   documentSummaryPending: Record<string, boolean>;
   onToggleLike(postId: string): void;
-  onToggleMemory(post: HomeFeedPost, desired: boolean): void;
+  onToggleMemory(post: HomeFeedPost, desired: boolean): Promise<unknown> | boolean | void;
   onDelete(postId: string): void;
   onOpenLightbox(payload: { postId: string; index: number; items: LightboxImageItem[] }): void;
   onAskDocument(doc: DocumentCardData): void;
@@ -156,12 +156,10 @@ export function PostCard({
     if (memoryPending || !canRemember) return;
     const desired = !remembered;
     try {
-      const result = onToggleMemory(post, desired);
-      if (result && typeof (result as Promise<unknown>).then === "function") {
-        (result as Promise<unknown>).catch((error) => {
-          console.error("Memory toggle error", error);
-        });
-      }
+      const outcome = onToggleMemory(post, desired);
+      void Promise.resolve(outcome).catch((error) => {
+        console.error("Memory toggle error", error);
+      });
     } catch (error) {
       console.error("Memory toggle error", error);
     }

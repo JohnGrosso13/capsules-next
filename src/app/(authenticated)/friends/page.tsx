@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 
-import { FriendsClient } from "./FriendsClient";
+import { FriendsPageProviders } from "./FriendsPageProviders";
 
 function FriendsPageContent() {
-  return <FriendsClient />;
+  return <FriendsPageProviders />;
 }
 
 export default function FriendsPage() {

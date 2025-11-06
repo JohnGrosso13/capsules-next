@@ -72,6 +72,7 @@ describe("useAiStreamStudioNavigation", () => {
   };
 
   beforeEach(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -109,6 +110,7 @@ describe("useAiStreamStudioNavigation", () => {
     });
     container.remove();
     (globalThis as unknown as { fetch: typeof fetch }).fetch = originalFetch;
+    delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT;
   });
 
   it("syncs active tab and search params when interacting with navigation helpers", async () => {

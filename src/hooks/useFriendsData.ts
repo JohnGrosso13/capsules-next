@@ -6,16 +6,11 @@ import { useCurrentUser } from "@/services/auth/client";
 import { buildRealtimeEnvelope } from "@/lib/realtime/envelope";
 import { requestRealtimeToken } from "@/lib/realtime/token";
 import { useFriendsRealtime } from "@/hooks/useFriendsRealtime";
-import { useFriendsActions, useFriendsState } from "@/lib/friends/store";
+import { useFriendsActions, useFriendsSelector } from "@/lib/friends/store";
 import {
   FALLBACK_DISPLAY_FRIENDS,
 } from "@/lib/friends/transformers";
-import {
-  type FriendItem,
-  type FriendsCounters,
-  type PartyInviteItem,
-  type RequestItem,
-} from "@/lib/friends/types";
+import type { FriendItem } from "@/lib/friends/types";
 import { buildFriendTargetPayload } from "@/lib/friends/targets";
 
 export type { FriendItem, FriendsCounters, PartyInviteItem, RequestItem } from "@/lib/friends/types";
@@ -27,7 +22,17 @@ export type UseFriendsDataOptions = {
 export function useFriendsData(options: UseFriendsDataOptions = {}) {
   const subscribeRealtime = options.subscribeRealtime ?? true;
   const { user } = useCurrentUser();
-  const state = useFriendsState();
+  const status = useFriendsSelector((snapshot) => snapshot.status);
+  const lastUpdatedAt = useFriendsSelector((snapshot) => snapshot.lastUpdatedAt);
+  const channels = useFriendsSelector((snapshot) => snapshot.channels);
+  const friendsState = useFriendsSelector((snapshot) => snapshot.friends);
+  const hasRealFriends = useFriendsSelector((snapshot) => snapshot.hasRealFriends);
+  const incomingRequests = useFriendsSelector((snapshot) => snapshot.incomingRequests);
+  const outgoingRequests = useFriendsSelector((snapshot) => snapshot.outgoingRequests);
+  const partyInvites = useFriendsSelector((snapshot) => snapshot.partyInvites);
+  const counters = useFriendsSelector((snapshot) => snapshot.counters);
+  const error = useFriendsSelector((snapshot) => snapshot.error);
+  const viewerId = useFriendsSelector((snapshot) => snapshot.viewerId);
   const actions = useFriendsActions();
 
   const envelope = React.useMemo(() => buildRealtimeEnvelope(user), [user]);
@@ -44,7 +49,7 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
   }, [actions]);
 
   React.useEffect(() => {
-    if (state.status === "idle") {
+    if (status === "idle") {
       void actions.refresh();
     }
     return () => {
@@ -53,18 +58,18 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
         refreshRef.current = null;
       }
     };
-  }, [actions, state.status]);
+  }, [actions, status]);
 
   const tokenProvider = React.useCallback(() => requestRealtimeToken(envelope), [envelope]);
 
-  useFriendsRealtime(subscribeRealtime ? state.channels : null, tokenProvider, scheduleRefresh);
+  useFriendsRealtime(subscribeRealtime ? channels : null, tokenProvider, scheduleRefresh);
 
-  const loading = state.status === "loading" && state.lastUpdatedAt === null;
+  const loading = status === "loading" && lastUpdatedAt === null;
 
   const friends = React.useMemo<FriendItem[]>(() => {
-    if (!state.friends.length) return FALLBACK_DISPLAY_FRIENDS;
-    return state.friends;
-  }, [state.friends]);
+    if (!friendsState.length) return FALLBACK_DISPLAY_FRIENDS;
+    return friendsState;
+  }, [friendsState]);
 
   const removeFriend = React.useCallback(
     async (friend: FriendItem) => {
@@ -122,16 +127,12 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
   );
 
   const acceptPartyInvite = React.useCallback(
-    async (inviteId: string) => {
-      await actions.acceptPartyInvite(inviteId);
-    },
+    async (inviteId: string) => actions.acceptPartyInvite(inviteId),
     [actions],
   );
 
   const declinePartyInvite = React.useCallback(
-    async (inviteId: string) => {
-      await actions.declinePartyInvite(inviteId);
-    },
+    async (inviteId: string) => actions.declinePartyInvite(inviteId),
     [actions],
   );
 
@@ -148,13 +149,13 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
 
   return {
     friends,
-    hasRealFriends: state.hasRealFriends,
-    incomingRequests: state.incomingRequests,
-    outgoingRequests: state.outgoingRequests,
-    partyInvites: state.partyInvites,
-    counters: state.counters,
+    hasRealFriends,
+    incomingRequests,
+    outgoingRequests,
+    partyInvites,
+    counters,
     loading,
-    error: state.error,
+    error,
     setError,
     refresh,
     removeFriend,
@@ -164,6 +165,6 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     cancelRequest,
     acceptPartyInvite,
     declinePartyInvite,
-    viewerId: state.viewerId,
+    viewerId,
   } as const;
 }

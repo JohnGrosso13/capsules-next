@@ -108,6 +108,14 @@ describe("ChatConversation message context menu", () => {
       });
     }
 
+    if (typeof HTMLElement.prototype.scrollIntoView !== "function") {
+      Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+        configurable: true,
+        writable: true,
+        value: vi.fn(),
+      });
+    }
+
     clipboardWrite = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {
       clipboard: {

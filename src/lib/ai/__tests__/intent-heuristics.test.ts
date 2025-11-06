@@ -7,7 +7,7 @@ describe("detectIntentHeuristically", () => {
     const result = detectIntentHeuristically("");
     expect(result.intent).toBe("post");
     expect(result.confidence).toBeLessThan(0.4);
-    expect(result.reason).toMatch(/defaulting to post/i);
+    expect(result.reason).toMatch(/ready when you are/i);
   });
 
   it("assumes post for ambiguous phrasing", () => {

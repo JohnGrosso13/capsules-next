@@ -7,6 +7,7 @@ import type {
   CapsuleLadderDetail,
   CapsuleLadderMember,
   CapsuleLadderMemberInput,
+  CapsuleLadderMemberUpdateInput,
   CapsuleLadderSummary,
   LadderAiPlan,
   LadderConfig,
@@ -527,6 +528,125 @@ export async function listCapsuleLadderMemberRecords(
   } catch (error) {
     if (isDatabaseError(error)) {
       throw decorateDatabaseError("list capsule_ladder_member records", error);
+    }
+    throw error;
+  }
+}
+
+export async function getCapsuleLadderMemberRecordById(
+  ladderId: string,
+  memberId: string,
+): Promise<CapsuleLadderMember | null> {
+  try {
+    const result = await db
+      .from("capsule_ladder_members")
+      .select<LadderMemberRow>("*")
+      .eq("ladder_id", ladderId)
+      .eq("id", memberId)
+      .maybeSingle();
+    const row = maybeResult(result, "get capsule_ladder_member record");
+    return mapLadderMemberRow(row);
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("get capsule_ladder_member record", error);
+    }
+    throw error;
+  }
+}
+
+export async function insertCapsuleLadderMemberRecords(
+  ladderId: string,
+  members: CapsuleLadderMemberInput[],
+): Promise<CapsuleLadderMember[]> {
+  if (!members.length) return [];
+  const payload = members.map((member) => ({
+    ladder_id: ladderId,
+    user_id: member.userId ?? null,
+    display_name: member.displayName,
+    handle: member.handle ?? null,
+    seed: member.seed ?? null,
+    rank: member.rank ?? null,
+    rating: member.rating ?? 1200,
+    wins: member.wins ?? 0,
+    losses: member.losses ?? 0,
+    draws: member.draws ?? 0,
+    streak: member.streak ?? 0,
+    metadata: member.metadata ?? null,
+  }));
+
+  try {
+    const result = await db
+      .from("capsule_ladder_members")
+      .insert(payload)
+      .select<LadderMemberRow>("*")
+      .fetch();
+    const rows = expectResult(result, "insert capsule_ladder_members");
+    return rows
+      .map((row) => mapLadderMemberRow(row))
+      .filter((member): member is CapsuleLadderMember => Boolean(member));
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("insert capsule_ladder_members", error);
+    }
+    throw error;
+  }
+}
+
+export async function updateCapsuleLadderMemberRecord(
+  ladderId: string,
+  memberId: string,
+  patch: CapsuleLadderMemberUpdateInput,
+): Promise<CapsuleLadderMember | null> {
+  const payload: Record<string, unknown> = {};
+  if (patch.userId !== undefined) payload.user_id = patch.userId ?? null;
+  if (patch.displayName !== undefined) payload.display_name = patch.displayName;
+  if (patch.handle !== undefined) payload.handle = patch.handle ?? null;
+  if (patch.seed !== undefined) payload.seed = patch.seed ?? null;
+  if (patch.rank !== undefined) payload.rank = patch.rank ?? null;
+  if (patch.rating !== undefined) payload.rating = patch.rating ?? null;
+  if (patch.wins !== undefined) payload.wins = patch.wins ?? null;
+  if (patch.losses !== undefined) payload.losses = patch.losses ?? null;
+  if (patch.draws !== undefined) payload.draws = patch.draws ?? null;
+  if (patch.streak !== undefined) payload.streak = patch.streak ?? null;
+  if (patch.metadata !== undefined) payload.metadata = patch.metadata ?? null;
+
+  if (Object.keys(payload).length === 0) {
+    return getCapsuleLadderMemberRecordById(ladderId, memberId);
+  }
+
+  try {
+    const result = await db
+      .from("capsule_ladder_members")
+      .update(payload)
+      .eq("ladder_id", ladderId)
+      .eq("id", memberId)
+      .select<LadderMemberRow>("*")
+      .maybeSingle();
+    const row = maybeResult(result, "update capsule_ladder_member record");
+    return mapLadderMemberRow(row);
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("update capsule_ladder_member record", error);
+    }
+    throw error;
+  }
+}
+
+export async function deleteCapsuleLadderMemberRecord(
+  ladderId: string,
+  memberId: string,
+): Promise<void> {
+  try {
+    const result = await db
+      .from("capsule_ladder_members")
+      .delete()
+      .eq("ladder_id", ladderId)
+      .eq("id", memberId)
+      .fetch();
+    ensureResult(result, "delete capsule_ladder_member record");
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("delete capsule_ladder_member record", error);
     }
     throw error;
   }

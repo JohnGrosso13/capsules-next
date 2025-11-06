@@ -209,6 +209,15 @@
   flex-direction: column;
 }
 
+.railPlaceholder {
+  width: 100%;
+  min-height: clamp(280px, 40vh, 520px);
+  border-radius: var(--radius-2xl, 20px);
+  border: 1px solid var(--card-border);
+  background: var(--card-background, rgba(18, 22, 42, 0.45));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
 .capsuleBanner {
   width: 100%;
   margin: -8px 0 var(--layout-page-gap);

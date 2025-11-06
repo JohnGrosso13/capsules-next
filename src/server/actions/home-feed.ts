@@ -21,11 +21,19 @@ export type HomeFeedPage = {
 
 const FEED_LIMIT = 30;
 
+type HomeFeedSlimBody = {
+  posts: unknown[];
+  deleted: string[];
+  cursor?: string | null | undefined;
+};
+
 function computeHydrationKey(posts: HomeFeedPost[], cursor: string | null): string {
   if (cursor) return `cursor:${cursor}`;
-  if (posts.length) {
-    const first = posts[0];
-    return `posts:${first.id}-${posts.length}`;
+  if (posts.length > 0) {
+    const [first] = posts;
+    if (first) {
+      return `posts:${first.id}-${posts.length}`;
+    }
   }
   return "posts:empty";
 }
@@ -42,7 +50,7 @@ export async function loadHomeFeedAction(): Promise<HomeFeedSnapshot> {
     },
   };
 
-  let response: SlimResponse<{ posts: unknown[]; deleted: string[] }>;
+  let response: SlimResponse<HomeFeedSlimBody>;
 
   try {
     response = await getPostsSlim(request);
@@ -83,9 +91,7 @@ export async function loadHomeFeedAction(): Promise<HomeFeedSnapshot> {
   };
 }
 
-export async function loadHomeFeedPageAction(
-  cursor: string | null,
-): Promise<HomeFeedPage> {
+export async function loadHomeFeedPageAction(cursor: string | null): Promise<HomeFeedPage> {
   const { supabaseUserId } = await ensureUserSession();
   const origin = await resolveRequestOrigin();
 
@@ -94,7 +100,7 @@ export async function loadHomeFeedPageAction(
     origin,
     query: {
       limit: FEED_LIMIT,
-      before: cursor ?? undefined,
+      before: cursor ?? null,
     },
   };
 

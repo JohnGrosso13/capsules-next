@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import * as React from "react";
-import { act } from "react-dom/test-utils";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
@@ -95,6 +95,7 @@ describe("ExternalEncoderTab", () => {
   let root: Root;
 
   beforeEach(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -105,6 +106,7 @@ describe("ExternalEncoderTab", () => {
       root.unmount();
     });
     container.remove();
+    delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT;
   });
 
   function renderEncoderTab(

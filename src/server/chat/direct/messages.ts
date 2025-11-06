@@ -7,8 +7,8 @@ import {
   publishMessageUpdateEvent,
 } from "@/services/realtime/chat";
 import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
-import { handleAssistantMessage, handleAssistantTaskResponse } from "./assistant/service";
-import type { AssistantDependencies } from "./assistant/service";
+import { handleAssistantMessage, handleAssistantTaskResponse } from "../assistant/service";
+import type { AssistantDependencies } from "../assistant/service";
 import { listSocialGraph } from "@/server/friends/service";
 import { listCapsulesForUser } from "@/server/capsules/repository";
 import {
@@ -23,13 +23,13 @@ import {
   updateChatMessageBody,
   deleteChatMessageById,
   type ChatParticipantRow,
-} from "./repository";
+} from "../repository";
 import {
   type ChatMessageAttachmentRecord,
   type ChatMessageRecord,
   type ChatParticipantSummary,
   ChatServiceError,
-} from "./types";
+} from "../types";
 import {
   MAX_BODY_LENGTH,
   buildConversationTitle,
@@ -43,9 +43,9 @@ import {
   toMessageRecord,
   toParticipantSummary,
   type ResolvedIdentity,
-} from "./utils";
-import { resolveIdentity } from "./identity";
-import { getDirectConversationHistory } from "./history";
+} from "../utils";
+import { resolveIdentity } from "../identity";
+import { getDirectConversationHistory } from "../history";
 
 export function createAssistantDependenciesForUser(ownerUserId: string): AssistantDependencies {
   return {

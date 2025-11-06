@@ -73,6 +73,8 @@ const COLOR_NAME_MAP = new Map<string, string>([
   ["charcoal", "#1f2937"],
 ]);
 
+const COMPLEX_MULTI_COLOR_PROMPT = /\b(unique|each|every|different)\b[^.?!]*(colors?|palettes?|tones?)\b/i;
+
 const THEME_PRESETS: ThemePreset[] = [
   {
     id: "dark",
@@ -439,6 +441,9 @@ function isSimpleColorPrompt(prompt: string, color: ColorSpec): boolean {
 }
 
 export function resolveStylerHeuristicPlan(prompt: string): StylerPlan | null {
+  if (COMPLEX_MULTI_COLOR_PROMPT.test(prompt)) {
+    return null;
+  }
   const presetPlan = resolvePresetHeuristicPlan(prompt);
   if (presetPlan) return presetPlan;
   return buildHeuristicPlan(prompt);

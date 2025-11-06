@@ -187,8 +187,6 @@ export function useFeedSummary({
           (post as { caption?: string | null }).caption ??
           null;
         const content = typeof contentRaw === "string" ? contentRaw.trim() : "";
-        const normalized =
-          content.length > 560 ? `${content.slice(0, 557).trimEnd()}...` : content;
         const attachmentsList = Array.isArray(post.attachments) ? post.attachments : [];
 
         const { summary: attachmentSummary, hints: attachmentHints } = describeAttachmentSet(
@@ -233,15 +231,33 @@ export function useFeedSummary({
           const attachmentDescription =
             extractAttachmentMeta(attachment.meta) ?? normalizeAttachmentName(attachment.name);
 
-          attachmentPayload.push({
+          const payloadAttachment: SummaryAttachmentInput = {
             id: attachmentId,
-            name: attachment.name ?? null,
             url: absoluteUrl,
-            mimeType: attachment.mimeType ?? null,
-            excerpt: attachmentDescription ?? null,
-            text: attachmentDescription ?? null,
-            thumbnailUrl: absoluteThumb,
-          });
+          };
+
+          if (typeof attachment.name === "string" && attachment.name.trim().length) {
+            payloadAttachment.name = attachment.name.trim();
+          }
+
+          const description =
+            typeof attachmentDescription === "string" && attachmentDescription.trim().length
+              ? attachmentDescription.trim()
+              : undefined;
+          if (description) {
+            payloadAttachment.excerpt = description;
+            payloadAttachment.text = description;
+          }
+
+          if (typeof attachment.mimeType === "string" && attachment.mimeType.trim().length) {
+            payloadAttachment.mimeType = attachment.mimeType.trim();
+          }
+
+          if (absoluteThumb && absoluteThumb.trim().length) {
+            payloadAttachment.thumbnailUrl = absoluteThumb;
+          }
+
+          attachmentPayload.push(payloadAttachment);
         }
 
         if (
@@ -254,12 +270,7 @@ export function useFeedSummary({
             seenAttachmentUrls.add(primaryUrl);
             attachmentPayload.push({
               id: `${post.id}-primary`,
-              name: null,
               url: primaryUrl,
-              mimeType: null,
-              excerpt: null,
-              text: null,
-              thumbnailUrl: null,
             });
           }
         }
@@ -417,10 +428,9 @@ export function useFeedSummary({
     if (typeof window === "undefined" || !onHighlightPost) return undefined;
 
     const handleSummaryAction = (event: Event) => {
-      const detail = (event as CustomEvent<ComposerSummaryActionDetail> | null)?.detail ?? null;
-      const postId = detail?.postId ?? null;
-      if (!postId) return;
-      onHighlightPost(postId, { focusComment: detail.action === "comment" });
+      const detail = (event as CustomEvent<ComposerSummaryActionDetail> | null)?.detail;
+      if (!detail?.postId) return;
+      onHighlightPost(detail.postId, { focusComment: detail.action === "comment" });
     };
 
     window.addEventListener(COMPOSER_SUMMARY_ACTION_EVENT, handleSummaryAction);

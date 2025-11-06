@@ -25,6 +25,17 @@ export function HomeSignedIn({
   initialCursor,
   hydrationKey,
 }: Props) {
+  const feedOptions = React.useMemo(
+    () =>
+      ({
+        skipInitialRefresh: initialPosts !== undefined || initialCursor !== undefined,
+        ...(initialPosts !== undefined ? { initialPosts } : {}),
+        ...(initialCursor !== undefined ? { initialCursor } : {}),
+        ...(hydrationKey !== undefined ? { hydrationKey } : {}),
+      } satisfies Parameters<typeof useHomeFeed>[0]),
+    [initialPosts, initialCursor, hydrationKey],
+  );
+
   const {
     posts,
     likePending,
@@ -47,12 +58,7 @@ export function HomeSignedIn({
     loadMore,
     hasMore,
     isLoadingMore,
-  } = useHomeFeed({
-    initialPosts,
-    initialCursor,
-    hydrationKey,
-    skipInitialRefresh: initialPosts !== undefined || initialCursor !== undefined,
-  });
+  } = useHomeFeed(feedOptions);
 
   return (
     <AppShell

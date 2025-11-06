@@ -43,32 +43,297 @@
 
 .listWrap {
   display: grid;
-  gap: 20px;
+  gap: 32px;
 }
 
-.sectionGroup {
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.offlineBanner {
+  margin-bottom: 16px;
+}
+
+.sectionShell {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  padding: 22px 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: linear-gradient(180deg, rgba(13, 18, 36, 0.92), rgba(13, 18, 36, 0.75));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 22px 42px rgba(6, 10, 24, 0.35);
 }
 
-.sectionHeading {
-  font-size: 16px;
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.01em;
+}
+
+.sectionSubtitle {
+  margin: 6px 0 0;
+  font-size: 14px;
+  opacity: 0.78;
+  max-width: 520px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.searchWrap {
+  min-width: 220px;
+  flex: 1 1 220px;
+}
+
+.searchInput {
+  width: 100%;
+  background: rgba(18, 24, 44, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: inherit;
+  padding: 6px 12px;
+  border-radius: 12px;
+}
+
+.searchInput:focus {
+  outline: 2px solid rgba(110, 136, 255, 0.55);
+  outline-offset: 1px;
+}
+
+.filterGroup {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(22, 26, 48, 0.7);
+  padding: 4px;
+  gap: 4px;
+}
+
+.filterButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.filterButton:hover {
+  background: rgba(90, 118, 255, 0.18);
+}
+
+.filterButtonActive {
+  background: rgba(90, 118, 255, 0.3);
+  color: #f8fbff;
+  box-shadow: 0 0 0 1px rgba(110, 136, 255, 0.4);
+}
+
+.filterCount {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.sortWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sortSelectWrap {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.sortSelect {
+  border: none;
+  background: rgba(18, 24, 44, 0.75);
+  color: inherit;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.sortSelect:focus {
+  outline: none;
+}
+
+.sortDirectionBtn {
+  border: none;
+  background: rgba(18, 24, 44, 0.9);
+  color: inherit;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.sortableHeader {
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.72;
+  cursor: pointer;
+}
+
+.sortableHeader:hover,
+.sortableHeader:focus {
+  opacity: 0.95;
+}
+
+.summaryStats {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(16, 20, 36, 0.8);
+}
+
+.statCard span {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.statCard strong {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ladderTableWrap {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  background: rgba(11, 16, 32, 0.8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.sortPulse tbody tr {
+  animation: rowPulse 260ms ease-out;
+}
+
+.ladderTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ladderTable thead {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ladderTable th,
+.ladderTable td {
+  padding: 14px 18px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: top;
+}
+
+.ladderTable th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.ladderTable tbody tr:last-of-type th,
+.ladderTable tbody tr:last-of-type td {
+  border-bottom: none;
+}
+
+.tablePrimary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tableHeadingRow {
   display: flex;
   align-items: center;
   gap: 10px;
-  opacity: 0.86;
+  flex-wrap: wrap;
 }
 
-.sectionHeading span {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.8);
+.ladderName {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ladderSummary {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.75;
+  line-height: 1.4;
+}
+
+.tableMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0.8;
+}
+
+.actionsCol {
+  text-align: right;
+}
+
+.emptyFiltered {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(13, 18, 36, 0.45);
+  font-size: 14px;
+}
+
+.chunkActions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 0 0;
 }
 
 .ladderCard {
@@ -119,26 +384,79 @@
 }
 
 .statusBadge {
-  padding: 3px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
   border-radius: 999px;
   font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  border: 1px solid var(--badge-border, rgba(146, 158, 255, 0.4));
+  background: var(--badge-surface, rgba(84, 104, 210, 0.16));
+  color: var(--badge-color, #c7d4ff);
+  box-shadow: 0 10px 24px var(--badge-glow, rgba(58, 86, 210, 0.28));
 }
 
 .toneSuccess {
-  background: rgba(72, 217, 135, 0.18);
-  color: #48d987;
+  --badge-surface: hsla(150deg 72% 63% / 0.16);
+  --badge-border: hsla(150deg 78% 68% / 0.46);
+  --badge-color: #7ff2c0;
+  --badge-glow: hsla(150deg 72% 58% / 0.25);
 }
 
 .toneNeutral {
-  background: rgba(124, 132, 169, 0.18);
-  color: #b9c3ff;
+  --badge-surface: hsla(226deg 62% 74% / 0.16);
+  --badge-border: hsla(226deg 74% 78% / 0.4);
+  --badge-color: #c3cdff;
+  --badge-glow: hsla(226deg 64% 70% / 0.22);
 }
 
 .toneWarn {
-  background: rgba(255, 134, 95, 0.18);
-  color: #ffa571;
+  --badge-surface: hsla(18deg 92% 64% / 0.18);
+  --badge-border: hsla(18deg 94% 68% / 0.46);
+  --badge-color: #ffbb97;
+  --badge-glow: hsla(18deg 88% 60% / 0.28);
+}
+
+.identityChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--identity-surface, rgba(100, 124, 255, 0.16));
+  border: 1px solid var(--identity-border, rgba(154, 178, 255, 0.6));
+  color: var(--identity-color, rgba(170, 188, 255, 0.92));
+  box-shadow: 0 8px 20px var(--identity-glow, rgba(82, 112, 255, 0.28));
+}
+
+.identityDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--identity-color, rgba(170, 188, 255, 0.92));
+  box-shadow: 0 0 12px var(--identity-glow, rgba(82, 112, 255, 0.34));
+}
+
+.badgeSoft {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(92, 118, 255, 0.14);
+  border: 1px solid rgba(154, 182, 255, 0.4);
+  color: #b6c3ff;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 20px rgba(82, 112, 255, 0.18);
 }
 
 .tagBadge {
@@ -159,4 +477,19 @@
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+@keyframes rowPulse {
+  from {
+    background-color: rgba(97, 122, 255, 0.18);
+  }
+
+  to {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sortPulse tbody tr {
+    animation: none;
+  }
 }

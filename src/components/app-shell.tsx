@@ -1,16 +1,31 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
-import { useComposer } from "@/components/composer/ComposerProvider";
+import {
+  ComposerProvider,
+  AiComposerRoot,
+  useComposer,
+} from "@/components/composer/ComposerProvider";
 import { PrimaryHeader } from "@/components/primary-header";
-import { ConnectionsRail } from "@/components/rail/ConnectionsRail";
 import { DiscoveryRail } from "@/components/rail/DiscoveryRail";
 import { LiveChatRail, type LiveChatRailProps } from "@/components/live/LiveChatRail";
 
 import styles from "./app-shell.module.css";
+
+const ConnectionsRailIsland = dynamic(
+  () =>
+    import("@/components/rail/ConnectionsRailIsland").then((mod) => ({
+      default: mod.ConnectionsRailIsland,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className={styles.railPlaceholder} aria-hidden />,
+  },
+);
 
 type NavKey = "home" | "explore" | "create" | "capsule" | "market" | "memory";
 type CapsuleTab = "live" | "feed" | "store";
@@ -27,7 +42,7 @@ type AppShellProps = {
   layoutVariant?: "default" | "capsule";
 };
 
-export function AppShell({
+function AppShellContent({
   children,
   activeNav,
   showPrompter = true,
@@ -169,7 +184,7 @@ export function AppShell({
             data-capsule-tab={usesCapsuleLayout ? capsuleTab : undefined}
           >
             <aside className={styles.rail} data-side="left" data-layout={effectiveLayout}>
-              <ConnectionsRail />
+              <ConnectionsRailIsland />
             </aside>
 
             <section
@@ -200,7 +215,15 @@ export function AppShell({
           </div>
         </main>
       </div>
-      {/* Composer is mounted globally via AiComposerRoot */}
     </div>
+  );
+}
+
+export function AppShell(props: AppShellProps) {
+  return (
+    <ComposerProvider>
+      <AppShellContent {...props} />
+      <AiComposerRoot />
+    </ComposerProvider>
   );
 }

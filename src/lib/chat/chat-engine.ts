@@ -29,6 +29,25 @@ import type {
 import type { ChatSessionEventPayload } from "@/lib/chat/events";
 import { ChatStore } from "@/components/providers/chat-store";
 import { normalizeParticipant } from "@/components/providers/chat-store/helpers";
+import {
+  addGroupParticipantsAction,
+  createGroupConversationAction,
+  deleteChatMessageAction,
+  deleteGroupConversationAction,
+  loadChatHistoryAction,
+  loadChatInboxAction,
+  renameGroupConversationAction,
+  sendChatMessageAction,
+  toggleChatReactionAction,
+  updateChatMessageAttachmentsAction,
+} from "@/services/chat/actions";
+import type {
+  ChatConversationDTO,
+  ChatMessageAttachmentDTO,
+  ChatMessageDTO,
+  ChatParticipantDTO,
+  ChatReactionDTO,
+} from "@/services/chat/schema";
 
 const DIRECT_CHANNEL_WATERMARK_PREFIX = "capsule:chat:watermark:direct:";
 const TYPING_EVENT_REFRESH_MS = 2500;
@@ -52,82 +71,6 @@ type UserProfile = {
   name: string | null;
   email: string | null;
   avatarUrl: string | null;
-};
-
-type ChatParticipantDto = {
-  id: string;
-  name: string;
-  avatar: string | null;
-};
-
-type ChatMessageReactionDto = {
-  emoji: string;
-  count: number;
-  users: ChatParticipantDto[];
-};
-
-type ChatAttachmentDto = {
-  id: string;
-  name: string;
-  mimeType: string;
-  size?: number;
-  url: string;
-  thumbnailUrl?: string | null;
-  storageKey?: string | null;
-  sessionId?: string | null;
-};
-
-type ChatMessageDto = {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  body: string;
-  sentAt: string;
-  reactions?: ChatMessageReactionDto[];
-  attachments?: ChatAttachmentDto[];
-};
-
-type ChatHistoryResponse = {
-  success: true;
-  conversationId: string;
-  participants: ChatParticipantDto[];
-  messages: ChatMessageDto[];
-};
-
-type ChatSendResponse = {
-  success: true;
-  message: ChatMessageDto;
-  participants: ChatParticipantDto[];
-};
-
-type ChatInboxConversation = {
-  conversationId: string;
-  participants: ChatParticipantDto[];
-  session: {
-    type: "direct" | "group";
-    title: string;
-    avatar: string | null;
-    createdBy: string | null;
-  };
-  lastMessage: ChatMessageDto | null;
-};
-
-type ChatInboxResponse = {
-  success: true;
-  conversations: ChatInboxConversation[];
-};
-
-type ChatReactionMutationResponse = {
-  success: true;
-  conversationId: string;
-  messageId: string;
-  emoji: string;
-  action: "added" | "removed";
-  reactions: Array<{
-    emoji: string;
-    count: number;
-    users: ChatParticipantDto[];
-  }>;
 };
 
 export class ChatEngine {
@@ -348,45 +291,21 @@ export class ChatEngine {
     const participantIds = participantList.map((p) => p.id);
 
     try {
-      const response = await fetch("/api/chat/groups", {
-        method: "POST",
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          conversationId,
-          participantIds,
-          title: name?.trim() ?? "",
-        }),
+      const result = await createGroupConversationAction({
+        conversationId,
+        participantIds,
+        title: name?.trim() ?? "",
       });
-      if (!response.ok) {
-        let errorMessage = `Failed to create group (${response.status})`;
-        try {
-          const payload = (await response.json()) as { message?: string; error?: string };
-          errorMessage = payload.message ?? payload.error ?? errorMessage;
-        } catch {
-          const text = await response.text().catch(() => "");
-          if (text) errorMessage = text;
-        }
-        throw new Error(errorMessage);
-      }
-      const payload = (await response.json()) as {
-        success: true;
-        conversation: {
-          conversationId: string;
-          participants: ChatParticipantDto[];
-          session: { type: "group"; title: string; avatar: string | null; createdBy: string | null };
-        };
-      };
       const descriptor = {
-        id: payload.conversation.conversationId,
-        type: payload.conversation.session.type,
-        title: payload.conversation.session.title,
-        avatar: payload.conversation.session.avatar,
-        createdBy: payload.conversation.session.createdBy,
-        participants: payload.conversation.participants.map((p) => ({
-          id: p.id,
-          name: p.name,
-          avatar: p.avatar ?? null,
+        id: result.conversationId,
+        type: result.session.type,
+        title: result.session.title,
+        avatar: result.session.avatar,
+        createdBy: result.session.createdBy,
+        participants: result.participants.map((participant) => ({
+          id: participant.id,
+          name: participant.name,
+          avatar: participant.avatar ?? null,
         })),
       } as const;
       this.store.startSession(descriptor, { activate: options?.activate ?? true });
@@ -424,25 +343,15 @@ export class ChatEngine {
       throw new Error("Only group chats can accept additional participants.");
     }
     const ids = targets.map((t) => t.id).filter(Boolean);
-    const response = await fetch("/api/chat/groups/participants", {
-      method: "POST",
-      credentials: "include",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ conversationId: session.id, participantIds: ids }),
+    const participantsDto = await addGroupParticipantsAction({
+      conversationId: session.id,
+      participantIds: ids,
     });
-    if (!response.ok) {
-      let errorMessage = `Failed to add participants (${response.status})`;
-      try {
-        const payload = (await response.json()) as { message?: string; error?: string };
-        errorMessage = payload.message ?? payload.error ?? errorMessage;
-      } catch {
-        const text = await response.text().catch(() => "");
-        if (text) errorMessage = text;
-      }
-      throw new Error(errorMessage);
-    }
-    const payload = (await response.json()) as { success: true; participants: ChatParticipantDto[] };
-    const participants = payload.participants.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar ?? null }));
+    const participants = participantsDto.map((participant) => ({
+      id: participant.id,
+      name: participant.name,
+      avatar: participant.avatar ?? null,
+    }));
     const descriptor = {
       id: session.id,
       type: session.type,
@@ -461,23 +370,7 @@ export class ChatEngine {
       throw new Error("Chat session not found.");
     }
     const trimmed = name.trim();
-    const response = await fetch("/api/chat/groups", {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ conversationId, title: trimmed }),
-    });
-    if (!response.ok) {
-      let errorMessage = `Failed to rename group (${response.status})`;
-      try {
-        const payload = (await response.json()) as { message?: string; error?: string };
-        errorMessage = payload.message ?? payload.error ?? errorMessage;
-      } catch {
-        const text = await response.text().catch(() => "");
-        if (text) errorMessage = text;
-      }
-      throw new Error(errorMessage);
-    }
+    await renameGroupConversationAction({ conversationId, title: trimmed });
     const descriptor = {
       id: session.id,
       type: session.type,
@@ -532,78 +425,53 @@ export class ChatEngine {
     void this.ensureConversationHistory(effectiveConversationId);
 
     try {
-      const response = await fetch("/api/chat/messages", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          conversationId,
-          messageId: message.id,
-          body: message.body,
-          sentAt: message.sentAt,
-          attachments:
-            message.attachments.length > 0
-              ? message.attachments.map((attachment) => ({
-                  id: attachment.id,
-                  name: attachment.name,
-                  mimeType: attachment.mimeType,
-                  size: attachment.size,
-                  url: attachment.url,
-                  thumbnailUrl: attachment.thumbnailUrl,
-                  storageKey: attachment.storageKey,
-                  sessionId: attachment.sessionId,
-                }))
-              : [],
-        }),
+      const attachmentDtos =
+        message.attachments.length > 0
+          ? message.attachments.map((attachment) => ({
+              id: attachment.id,
+              name: attachment.name,
+              mimeType: attachment.mimeType,
+              size: attachment.size,
+              url: attachment.url,
+              thumbnailUrl: attachment.thumbnailUrl ?? null,
+              storageKey: attachment.storageKey ?? null,
+              sessionId: attachment.sessionId ?? null,
+            }))
+          : [];
+
+      const result = await sendChatMessageAction({
+        conversationId,
+        messageId: message.id,
+        body: message.body,
+        clientSentAt: message.sentAt,
+        attachments: attachmentDtos,
       });
 
-      if (!response.ok) {
-        let errorMessage = `Failed to send message (${response.status})`;
-        try {
-          const payload = (await response.json()) as { message?: string; error?: string };
-          errorMessage = payload.message ?? payload.error ?? errorMessage;
-        } catch {
-          const text = await response.text().catch(() => "");
-          if (text) errorMessage = text;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const payload = (await response.json()) as ChatSendResponse;
       const responseConversationId =
-        (payload?.message?.conversationId?.trim() ?? "") || effectiveConversationId;
+        (result.message?.conversationId?.trim() ?? "") || effectiveConversationId;
       if (responseConversationId && responseConversationId !== effectiveConversationId) {
         this.handleConversationRemap(effectiveConversationId, responseConversationId);
         effectiveConversationId = responseConversationId;
       }
-      if (Array.isArray(payload.participants) && payload.participants.length) {
-        this.applyParticipantsFromDto(effectiveConversationId, payload.participants);
+
+      if (Array.isArray(result.participants) && result.participants.length) {
+        this.applyParticipantsFromDto(effectiveConversationId, result.participants);
       }
-      if (payload?.message && typeof payload.message.id === "string") {
-        const reactionDescriptors =
-          Array.isArray(payload.message.reactions) && payload.message.reactions.length > 0
-            ? payload.message.reactions.map((reaction) => ({
-                emoji: reaction.emoji,
-                users: Array.isArray(reaction.users)
-                  ? reaction.users.map((user) => ({
-                      id: user.id,
-                      name: user.name || user.id,
-                      avatar: user.avatar ?? null,
-                    }))
-                  : [],
-              }))
-            : [];
+
+      if (result?.message && typeof result.message.id === "string") {
+        const reactionDescriptors = this.normalizeReactionsFromDto(result.message.reactions);
+        const acknowledgedAttachments = this.normalizeAttachmentsFromDto(
+          result.message.attachments,
+        );
         this.store.acknowledgeMessage(effectiveConversationId, message.id, {
-          id: payload.message.id,
-          authorId: payload.message.senderId,
-          body: payload.message.body,
-          sentAt: payload.message.sentAt,
+          id: result.message.id,
+          authorId: result.message.senderId,
+          body: result.message.body,
+          sentAt: result.message.sentAt,
           reactions: reactionDescriptors,
-          attachments: payload.message.attachments,
+          attachments: acknowledgedAttachments,
         });
-        this.recordDirectChannelWatermarkFromIso(payload.message.sentAt);
+        this.recordDirectChannelWatermarkFromIso(result.message.sentAt);
       } else {
         this.store.markMessageStatus(effectiveConversationId, message.id, "sent");
       }
@@ -658,35 +526,15 @@ export class ChatEngine {
     action: "add" | "remove",
     session: ChatSession,
   ): Promise<void> {
-    const response = await fetch("/api/chat/reactions", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        conversationId,
-        messageId,
-        emoji,
-        action,
-      }),
+    const result = await toggleChatReactionAction({
+      conversationId,
+      messageId,
+      emoji,
+      action,
     });
 
-    if (!response.ok) {
-      let errorMessage = `Failed to ${action === "add" ? "add" : "remove"} reaction (${response.status})`;
-      try {
-        const payload = (await response.json()) as { message?: string; error?: string };
-        errorMessage = payload.message ?? payload.error ?? errorMessage;
-      } catch {
-        const text = await response.text().catch(() => "");
-        if (text) errorMessage = text;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const payload = (await response.json()) as ChatReactionMutationResponse;
     const resolvedConversationId =
-      (payload?.conversationId?.trim() ?? "") || conversationId;
+      (result?.conversationId?.trim() ?? "") || conversationId;
     if (resolvedConversationId && resolvedConversationId !== conversationId) {
       this.handleConversationRemap(conversationId, resolvedConversationId);
     }
@@ -708,11 +556,11 @@ export class ChatEngine {
     }
 
     const reactionEntries =
-      Array.isArray(payload.reactions) && payload.reactions.length > 0
-        ? payload.reactions.map((reaction) => ({
+      Array.isArray(result.reactions) && result.reactions.length > 0
+        ? result.reactions.map((reaction: ChatReactionDTO) => ({
             emoji: reaction.emoji,
             users: Array.isArray(reaction.users)
-              ? reaction.users.map((user) => ({
+              ? reaction.users.map((user: ChatParticipantDTO) => ({
                   id: user.id,
                   name: user.name || user.id,
                   avatar: user.avatar ?? null,
@@ -724,9 +572,9 @@ export class ChatEngine {
     const eventPayload: ChatReactionEventPayload = {
       type: "chat.reaction",
       conversationId: resolvedConversationId,
-      messageId: payload.messageId || messageId,
-      emoji: payload.emoji || emoji,
-      action: payload.action,
+      messageId: result.messageId || messageId,
+      emoji: result.emoji || emoji,
+      action: result.action,
       actor,
       reactions: reactionEntries,
       participants: targetSession.participants.map((participant) => ({ ...participant })),
@@ -912,15 +760,18 @@ export class ChatEngine {
 
   private applyParticipantsFromDto(
     conversationId: string,
-    participants: ChatParticipantDto[],
+    participants: ChatParticipantDTO[],
   ): void {
     if (!Array.isArray(participants) || participants.length === 0) return;
+    const existingSession = this.findSession(conversationId);
     const descriptor = {
       id: conversationId,
-      type: "direct" as const,
-      title: "",
-      avatar: null,
-      createdBy: null,
+      type:
+        existingSession?.type ??
+        (isGroupConversationId(conversationId) ? ("group" as const) : ("direct" as const)),
+      title: existingSession?.title ?? "",
+      avatar: existingSession?.avatar ?? null,
+      createdBy: existingSession?.createdBy ?? null,
       participants: participants.map((participant) => ({
         id: participant.id,
         name: participant.name || participant.id,
@@ -931,7 +782,7 @@ export class ChatEngine {
   }
 
   private normalizeReactionsFromDto(
-    reactions: ChatMessageReactionDto[] | undefined,
+    reactions: ChatReactionDTO[] | undefined,
   ): ChatMessageReaction[] {
     if (!Array.isArray(reactions) || reactions.length === 0) {
       return [];
@@ -981,7 +832,7 @@ export class ChatEngine {
   }
 
   private normalizeAttachmentsFromDto(
-    attachments: ChatAttachmentDto[] | undefined,
+    attachments: ChatMessageAttachmentDTO[] | undefined,
   ): ChatMessageAttachment[] {
     if (!Array.isArray(attachments) || attachments.length === 0) {
       return [];
@@ -1028,7 +879,7 @@ export class ChatEngine {
     return Array.from(merged.values());
   }
 
-  private upsertMessageFromDto(conversationId: string, dto: ChatMessageDto): void {
+  private upsertMessageFromDto(conversationId: string, dto: ChatMessageDTO): void {
     if (!dto?.id) return;
     const sanitized =
       typeof dto.body === "string" ? dto.body.replace(/\s+/g, " ").trim() : "";
@@ -1095,28 +946,12 @@ export class ChatEngine {
   }
 
   private async loadInbox(): Promise<void> {
-    const params = new URLSearchParams({ limit: "50" });
-    const response = await fetch(`/api/chat/inbox?${params.toString()}`, {
-      method: "GET",
-      credentials: "include",
-    });
-    if (!response.ok) {
-      let message = `Failed to load inbox (${response.status})`;
-      try {
-        const payload = (await response.json()) as { message?: string; error?: string };
-        message = payload.message ?? payload.error ?? message;
-      } catch {
-        const text = await response.text().catch(() => "");
-        if (text) message = text;
-      }
-      throw new Error(message);
-    }
-    const data = (await response.json()) as ChatInboxResponse;
-    if (!data?.success || !Array.isArray(data.conversations)) {
+    const data = await loadChatInboxAction(50);
+    if (!data?.conversations?.length) {
       this.inboxLoaded = true;
       return;
     }
-    data.conversations.forEach((conversation) => {
+    data.conversations.forEach((conversation: ChatConversationDTO) => {
       const participants = (conversation.participants ?? [])
         .map((participant) => ({
           id: participant.id,
@@ -1167,23 +1002,10 @@ export class ChatEngine {
   }
 
   private async loadConversationHistory(conversationId: string): Promise<void> {
-    const params = new URLSearchParams({ conversationId, limit: "50" });
-    const response = await fetch(`/api/chat/messages?${params.toString()}`, {
-      method: "GET",
-      credentials: "include",
+    const data = await loadChatHistoryAction({
+      conversationId,
+      limit: 50,
     });
-    if (!response.ok) {
-      let errorMessage = `Failed to load conversation (${response.status})`;
-      try {
-        const payload = (await response.json()) as { message?: string; error?: string };
-        errorMessage = payload.message ?? payload.error ?? errorMessage;
-      } catch {
-        const text = await response.text().catch(() => "");
-        if (text) errorMessage = text;
-      }
-      throw new Error(errorMessage);
-    }
-    const data = (await response.json()) as ChatHistoryResponse;
     const resolvedId =
       (typeof data.conversationId === "string" && data.conversationId.trim().length
         ? data.conversationId.trim()
@@ -1194,7 +1016,7 @@ export class ChatEngine {
     if (Array.isArray(data.participants) && data.participants.length) {
       this.applyParticipantsFromDto(resolvedId, data.participants);
     }
-    data.messages.forEach((message) => {
+    (data.messages ?? []).forEach((message) => {
       this.upsertMessageFromDto(resolvedId, message);
     });
     this.conversationHistoryLoaded.add(resolvedId);
@@ -1366,22 +1188,7 @@ export class ChatEngine {
     const trimmed = conversationId.trim();
     if (!trimmed) return;
     try {
-      const params = new URLSearchParams({ conversationId: trimmed });
-      const response = await fetch(`/api/chat/groups?${params.toString()}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!response.ok) {
-        let errorMessage = `Failed to delete group (${response.status})`;
-        try {
-          const payload = (await response.json()) as { message?: string; error?: string };
-          errorMessage = payload.message ?? payload.error ?? errorMessage;
-        } catch {
-          const text = await response.text().catch(() => "");
-          if (text) errorMessage = text;
-        }
-        throw new Error(errorMessage);
-      }
+      await deleteGroupConversationAction(trimmed);
     } catch (error) {
       console.error("ChatEngine deleteGroupConversation error", error);
       throw error;
@@ -1397,58 +1204,26 @@ export class ChatEngine {
     const trimmedMessageId = typeof messageId === "string" ? messageId.trim() : "";
     if (!trimmedMessageId || !attachmentIds.length) return;
     try {
-      const response = await fetch(`/api/chat/messages/${encodeURIComponent(trimmedMessageId)}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          conversationId,
-          removeAttachmentIds: attachmentIds,
-        }),
+      const result = await updateChatMessageAttachmentsAction({
+        conversationId,
+        messageId: trimmedMessageId,
+        removeAttachmentIds: attachmentIds,
       });
-      if (!response.ok) {
-        let errorMessage = `Failed to update attachments (${response.status})`;
-        try {
-          const payload = (await response.json()) as { message?: string; error?: string };
-          errorMessage = payload.message ?? payload.error ?? errorMessage;
-        } catch {
-          const text = await response.text().catch(() => "");
-          if (text) errorMessage = text;
-        }
-        throw new Error(errorMessage);
-      }
-      const payload = (await response.json()) as ChatSendResponse;
-      if (!payload?.success) return;
-      const participants = payload.participants.map((participant) => ({
+      const participants = result.participants.map((participant) => ({
         id: participant.id,
         name: participant.name,
         avatar: participant.avatar ?? null,
       }));
-      const attachments =
-        payload.message.attachments?.map((attachment) => ({
-          id: attachment.id,
-          name: attachment.name,
-          mimeType: attachment.mimeType,
-          size:
-            typeof attachment.size === "number" && Number.isFinite(attachment.size)
-              ? attachment.size
-              : 0,
-          url: attachment.url,
-          thumbnailUrl: attachment.thumbnailUrl ?? null,
-          storageKey: attachment.storageKey ?? null,
-          sessionId: attachment.sessionId ?? null,
-        })) ?? [];
+      const attachments = this.normalizeAttachmentsFromDto(result.message.attachments);
       this.store.applyMessageUpdateEvent({
         type: "chat.message.update",
-        conversationId: payload.message.conversationId,
-        messageId: payload.message.id,
-        body: payload.message.body,
+        conversationId: result.message.conversationId,
+        messageId: result.message.id,
+        body: result.message.body,
         attachments,
         participants,
-        senderId: payload.message.senderId,
-        sentAt: payload.message.sentAt,
+        senderId: result.message.senderId,
+        sentAt: result.message.sentAt,
       });
     } catch (error) {
       console.error("ChatEngine updateMessageAttachments error", error);
@@ -1460,30 +1235,17 @@ export class ChatEngine {
     const trimmedMessageId = typeof messageId === "string" ? messageId.trim() : "";
     if (!trimmedMessageId) return;
     try {
-      const params = new URLSearchParams({ conversationId });
-      const response = await fetch(
-        `/api/chat/messages/${encodeURIComponent(trimmedMessageId)}?${params.toString()}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        },
-      );
-      if (!response.ok) {
-        let errorMessage = `Failed to delete message (${response.status})`;
-        try {
-          const payload = (await response.json()) as { message?: string; error?: string };
-          errorMessage = payload.message ?? payload.error ?? errorMessage;
-        } catch {
-          const text = await response.text().catch(() => "");
-          if (text) errorMessage = text;
-        }
-        throw new Error(errorMessage);
+      const result = await deleteChatMessageAction({
+        conversationId,
+        messageId: trimmedMessageId,
+      });
+      const resolvedConversationId =
+        (result?.conversationId?.trim() ?? "") || conversationId;
+      if (resolvedConversationId && resolvedConversationId !== conversationId) {
+        this.handleConversationRemap(conversationId, resolvedConversationId);
       }
-      const payload = (await response.json().catch(() => null)) as
-        | { success?: boolean; participants?: ChatParticipantDto[] }
-        | null;
-      const participants = Array.isArray(payload?.participants)
-        ? payload!.participants.map((participant) => ({
+      const participants = Array.isArray(result.participants)
+        ? result.participants.map((participant) => ({
             id: participant.id,
             name: participant.name,
             avatar: participant.avatar ?? null,
@@ -1491,8 +1253,8 @@ export class ChatEngine {
         : undefined;
       const eventPayload = {
         type: "chat.message.delete" as const,
-        conversationId,
-        messageId: trimmedMessageId,
+        conversationId: resolvedConversationId,
+        messageId: result.messageId || trimmedMessageId,
         ...(participants ? { participants } : {}),
       };
       this.store.applyMessageDeleteEvent(eventPayload);

@@ -3,8 +3,12 @@ import {
   updateCapsuleLadderRecord,
   getCapsuleLadderRecordById,
   listCapsuleLaddersByCapsule,
-  replaceCapsuleLadderMemberRecords,
   listCapsuleLadderMemberRecords,
+  insertCapsuleLadderMemberRecords,
+  updateCapsuleLadderMemberRecord,
+  deleteCapsuleLadderMemberRecord,
+  getCapsuleLadderMemberRecordById,
+  replaceCapsuleLadderMemberRecords,
   deleteCapsuleLadderRecord,
   getCapsuleLadderBySlug,
   type InsertCapsuleLadderParams,
@@ -13,6 +17,7 @@ import type {
   CapsuleLadderDetail,
   CapsuleLadderMember,
   CapsuleLadderMemberInput,
+  CapsuleLadderMemberUpdateInput,
   CapsuleLadderSummary,
   LadderAiPlan,
   LadderAiSuggestion,
@@ -1045,6 +1050,70 @@ export async function listCapsuleLaddersForViewer(
   });
 }
 
+function sanitizeMemberCreateInput(member: CapsuleLadderMemberInput): CapsuleLadderMemberInput {
+  const displayName = member.displayName?.trim();
+  if (!displayName) {
+    throw new CapsuleLadderAccessError(
+      "invalid",
+      "Each member must include a display name.",
+      400,
+    );
+  }
+
+  const sanitized: CapsuleLadderMemberInput = {
+    displayName,
+  };
+  if (member.userId !== undefined) {
+    sanitized.userId = normalizeId(member.userId);
+  }
+  if (member.handle !== undefined) {
+    const handle = member.handle?.trim();
+    sanitized.handle = handle?.length ? handle : null;
+  }
+  if (member.seed !== undefined) sanitized.seed = member.seed;
+  if (member.rank !== undefined) sanitized.rank = member.rank;
+  if (member.rating !== undefined) sanitized.rating = member.rating;
+  if (member.wins !== undefined) sanitized.wins = member.wins;
+  if (member.losses !== undefined) sanitized.losses = member.losses;
+  if (member.draws !== undefined) sanitized.draws = member.draws;
+  if (member.streak !== undefined) sanitized.streak = member.streak;
+  if (member.metadata !== undefined) sanitized.metadata = member.metadata ?? null;
+  return sanitized;
+}
+
+function sanitizeMemberUpdateInput(
+  patch: CapsuleLadderMemberUpdateInput,
+): CapsuleLadderMemberUpdateInput {
+  const sanitized: CapsuleLadderMemberUpdateInput = {};
+  if (patch.userId !== undefined) {
+    sanitized.userId = normalizeId(patch.userId);
+  }
+  if (patch.displayName !== undefined) {
+    const name = patch.displayName.trim();
+    if (!name.length) {
+      throw new CapsuleLadderAccessError(
+        "invalid",
+        "Display name cannot be empty.",
+        400,
+      );
+    }
+    sanitized.displayName = name;
+  }
+  if (patch.handle !== undefined) {
+    const handle = patch.handle?.trim();
+    sanitized.handle = handle?.length ? handle : null;
+  }
+  if (patch.seed !== undefined) sanitized.seed = patch.seed;
+  if (patch.rank !== undefined) sanitized.rank = patch.rank;
+  if (patch.rating !== undefined) sanitized.rating = patch.rating;
+  if (patch.wins !== undefined) sanitized.wins = patch.wins;
+  if (patch.losses !== undefined) sanitized.losses = patch.losses;
+  if (patch.draws !== undefined) sanitized.draws = patch.draws;
+  if (patch.streak !== undefined) sanitized.streak = patch.streak;
+  if (patch.metadata !== undefined) sanitized.metadata = patch.metadata ?? null;
+  return sanitized;
+}
+
 export async function replaceCapsuleLadderMembers(
   actorId: string,
   ladderId: string,
@@ -1056,4 +1125,68 @@ export async function replaceCapsuleLadderMembers(
   }
   await requireCapsuleManager(ladder.capsuleId, actorId);
   return replaceCapsuleLadderMemberRecords(ladder.id, members);
+}
+
+export async function listCapsuleLadderMembers(
+  actorId: string,
+  ladderId: string,
+): Promise<CapsuleLadderMember[]> {
+  const ladder = await getCapsuleLadderRecordById(ladderId);
+  if (!ladder) {
+    throw new CapsuleLadderAccessError("not_found", "Ladder not found.", 404);
+  }
+  await requireCapsuleManager(ladder.capsuleId, actorId);
+  return listCapsuleLadderMemberRecords(ladder.id);
+}
+
+export async function addCapsuleLadderMembers(
+  actorId: string,
+  ladderId: string,
+  members: CapsuleLadderMemberInput[],
+): Promise<CapsuleLadderMember[]> {
+  if (!members.length) return listCapsuleLadderMembers(actorId, ladderId);
+  const ladder = await getCapsuleLadderRecordById(ladderId);
+  if (!ladder) {
+    throw new CapsuleLadderAccessError("not_found", "Ladder not found.", 404);
+  }
+  await requireCapsuleManager(ladder.capsuleId, actorId);
+  const sanitized = members.map(sanitizeMemberCreateInput);
+  return insertCapsuleLadderMemberRecords(ladder.id, sanitized);
+}
+
+export async function updateCapsuleLadderMember(
+  actorId: string,
+  ladderId: string,
+  memberId: string,
+  patch: CapsuleLadderMemberUpdateInput,
+): Promise<CapsuleLadderMember> {
+  const ladder = await getCapsuleLadderRecordById(ladderId);
+  if (!ladder) {
+    throw new CapsuleLadderAccessError("not_found", "Ladder not found.", 404);
+  }
+  await requireCapsuleManager(ladder.capsuleId, actorId);
+
+  const sanitized = sanitizeMemberUpdateInput(patch);
+  const updated = await updateCapsuleLadderMemberRecord(ladder.id, memberId, sanitized);
+  if (!updated) {
+    throw new CapsuleLadderAccessError("not_found", "Member not found.", 404);
+  }
+  return updated;
+}
+
+export async function removeCapsuleLadderMember(
+  actorId: string,
+  ladderId: string,
+  memberId: string,
+): Promise<void> {
+  const ladder = await getCapsuleLadderRecordById(ladderId);
+  if (!ladder) {
+    throw new CapsuleLadderAccessError("not_found", "Ladder not found.", 404);
+  }
+  await requireCapsuleManager(ladder.capsuleId, actorId);
+  const existing = await getCapsuleLadderMemberRecordById(ladder.id, memberId);
+  if (!existing) {
+    throw new CapsuleLadderAccessError("not_found", "Member not found.", 404);
+  }
+  await deleteCapsuleLadderMemberRecord(ladder.id, memberId);
 }

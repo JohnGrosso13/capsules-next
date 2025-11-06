@@ -126,6 +126,7 @@ describe("useAiStreamStudioStore", () => {
   };
 
   beforeEach(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -141,6 +142,7 @@ describe("useAiStreamStudioStore", () => {
     });
     container.remove();
     (globalThis as unknown as { fetch: typeof fetch }).fetch = originalFetch;
+    delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT;
   });
 
   it("loads overview and preferences when a capsule is selected", async () => {
@@ -293,6 +295,4 @@ describe("useAiStreamStudioStore", () => {
     expect(latestState?.actionBusy).toBeNull();
   });
 });
-
-
 
