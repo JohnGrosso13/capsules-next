@@ -118,22 +118,37 @@ function toHex(buffer: ArrayBuffer): string {
   const view = new Uint8Array(buffer);
   let hex = "";
   for (let i = 0; i < view.length; i += 1) {
-    hex += view[i].toString(16).padStart(2, "0");
+    const byte = view[i];
+    if (byte === undefined) continue;
+    hex += byte.toString(16).padStart(2, "0");
   }
   return hex;
 }
 
+function toArrayBuffer(input: ArrayBuffer | ArrayBufferView): ArrayBuffer {
+  if (input instanceof ArrayBuffer) return input;
+  const view = input as ArrayBufferView;
+  const uintView = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+  const copy = new Uint8Array(uintView.length);
+  copy.set(uintView);
+  return copy.buffer;
+}
+
 async function sha256Hex(data: Uint8Array | string): Promise<string> {
   const bytes = typeof data === "string" ? textEncoder.encode(data) : data;
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const digest = await crypto.subtle.digest("SHA-256", toArrayBuffer(bytes));
   return toHex(digest);
 }
 
-async function hmac(keyData: ArrayBuffer, data: string): Promise<ArrayBuffer> {
-  const cryptoKey = await crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, [
-    "sign",
-  ]);
-  return crypto.subtle.sign("HMAC", cryptoKey, textEncoder.encode(data));
+async function hmac(keyData: ArrayBuffer | ArrayBufferView, data: string): Promise<ArrayBuffer> {
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    toArrayBuffer(keyData),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return crypto.subtle.sign("HMAC", cryptoKey, toArrayBuffer(textEncoder.encode(data)));
 }
 
 async function deriveSigningKey(secretAccessKey: string, dateStamp: string): Promise<ArrayBuffer> {
@@ -275,11 +290,11 @@ class R2StorageProvider implements StorageProvider {
         bodyInit = options.body;
       } else if (options.body instanceof Uint8Array) {
         payloadHash = await sha256Hex(options.body);
-        bodyInit = options.body;
+        bodyInit = toArrayBuffer(options.body);
       } else if (options.body) {
         const bytes = ensureUint8Array(options.body);
         payloadHash = await sha256Hex(bytes);
-        bodyInit = bytes;
+        bodyInit = toArrayBuffer(bytes);
       }
       headers["x-amz-content-sha256"] = payloadHash;
       if (!headers["x-amz-date"]) {
@@ -287,10 +302,9 @@ class R2StorageProvider implements StorageProvider {
       }
     }
 
-    const canonicalHeadersEntries = Object.entries(headers).map(([key, value]) => [
-      key.toLowerCase(),
-      normalizeHeaderValue(value),
-    ]);
+    const canonicalHeadersEntries: Array<[string, string]> = Object.entries(headers).map(
+      ([key, value]) => [key.toLowerCase(), normalizeHeaderValue(value)] as [string, string],
+    );
     canonicalHeadersEntries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
 
     const canonicalHeaders = canonicalHeadersEntries.map(([key, value]) => `${key}:${value}\n`).join("");
@@ -338,20 +352,24 @@ class R2StorageProvider implements StorageProvider {
     const authorizationHeader = `${AWS_ALGORITHM} Credential=${this.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
     headers.authorization = authorizationHeader;
 
-    return {
+    const request: SignedRequest = {
       url: signedUrl,
       headers,
-      body: bodyInit,
     };
+    if (bodyInit !== undefined) {
+      request.body = bodyInit;
+    }
+    return request;
   }
 
   private async signedFetch(options: BuildRequestOptions): Promise<Response> {
     const signed = await this.buildSignedRequest(options);
-    const response = await fetch(signed.url, {
+    const fetchInit: RequestInit = {
       method: options.method,
       headers: signed.headers,
-      body: signed.body,
-    });
+      ...(signed.body !== undefined ? { body: signed.body } : {}),
+    };
+    const response = await fetch(signed.url, fetchInit);
     if (!response.ok) {
       let details = "";
       try {

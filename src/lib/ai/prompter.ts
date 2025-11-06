@@ -13,8 +13,11 @@ import {
   editVideoWithInstruction,
   type VideoGenerationResult,
 } from "@/lib/ai/video";
+import type { Buffer } from "node:buffer";
+
 import { serverEnv } from "../env/server";
 import { safeRandomUUID } from "@/lib/random";
+import { decodeBase64 } from "@/lib/base64";
 
 import { getDatabaseAdminClient } from "@/config/database";
 
@@ -915,8 +918,8 @@ function extractOpenAiErrorDetails(error: unknown): OpenAiErrorDetails {
 }
 
 export type ImageProviderErrorDetails = {
-  status?: number;
-  code?: string;
+  status: number | null;
+  code: string | null;
   message: string;
 };
 
@@ -924,10 +927,11 @@ export function extractImageProviderError(error: unknown): ImageProviderErrorDet
   if (!error) return null;
   const baseMessage =
     error instanceof Error && typeof error.message === "string" ? error.message.trim() : "";
+  const defaultMessage = baseMessage || "Image generation request failed.";
   const status =
     typeof (error as { status?: unknown })?.status === "number"
       ? ((error as { status?: number }).status as number)
-      : undefined;
+      : null;
   const meta = (error as { meta?: unknown })?.meta;
 
   const coerceMessage = (value: unknown): string | null => {
@@ -942,21 +946,22 @@ export function extractImageProviderError(error: unknown): ImageProviderErrorDet
     const record = meta as Record<string, unknown>;
     if (record.error && typeof record.error === "object") {
       const err = record.error as Record<string, unknown>;
-      const message = coerceMessage(err.message) ?? coerceMessage(record.message) ?? baseMessage;
+      const message =
+        coerceMessage(err.message) ?? coerceMessage(record.message) ?? defaultMessage;
       const code =
-        typeof err.code === "string" && err.code.trim().length ? err.code.trim() : undefined;
+        typeof err.code === "string" && err.code.trim().length ? err.code.trim() : null;
       if (message) return { status, code, message };
     }
     if (Array.isArray(record.errors) && record.errors.length) {
       const first = record.errors[0] as Record<string, unknown>;
       const message =
-        coerceMessage(first?.message) ?? coerceMessage(record.message) ?? baseMessage;
+        coerceMessage(first?.message) ?? coerceMessage(record.message) ?? defaultMessage;
       const codeCandidate =
         typeof first?.code === "string" && first.code.trim().length
           ? first.code.trim()
           : typeof record.name === "string" && record.name.trim().length
             ? record.name.trim()
-            : undefined;
+            : null;
       if (message) {
         return { status, code: codeCandidate, message };
       }
@@ -966,16 +971,12 @@ export function extractImageProviderError(error: unknown): ImageProviderErrorDet
       const code =
         typeof record.code === "string" && record.code.trim().length
           ? record.code.trim()
-          : undefined;
+          : null;
       return { status, code, message };
     }
   }
 
-  if (baseMessage) {
-    return { status, message: baseMessage };
-  }
-
-  return null;
+  return { status, code: null, message: defaultMessage };
 }
 
 function shouldRetryError(details: OpenAiErrorDetails): boolean {
@@ -1243,6 +1244,19 @@ type ProviderResult = {
   provider: ImageProviderId;
 };
 
+type NodeBufferCtor = {
+  from(input: ArrayBuffer | ArrayBufferView | string, encoding?: "base64"): Buffer;
+};
+
+function getNodeBufferCtor(): NodeBufferCtor | null {
+  const globalWithBuffer = globalThis as unknown as { Buffer?: NodeBufferCtor };
+  return typeof globalWithBuffer.Buffer === "function" ? globalWithBuffer.Buffer : null;
+}
+
+function toUint8ArrayView(view: ArrayBufferView): Uint8Array {
+  return new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+}
+
 const OPENAI_ALLOWED_SIZES = ["256x256", "512x512", "1024x1024"] as const;
 type OpenAiAllowedSize = (typeof OPENAI_ALLOWED_SIZES)[number];
 
@@ -1254,9 +1268,12 @@ export function normalizeOpenAiImageSize(requested: string | null | undefined): 
     }
     const match = normalized.match(/^(\d+)\s*x\s*(\d+)$/);
     if (match) {
-      const width = Number.parseInt(match[1], 10);
-      const height = Number.parseInt(match[2], 10);
-      const largest = Number.isFinite(width) && Number.isFinite(height) ? Math.max(width, height) : width || height;
+      const widthRaw = match[1];
+      const heightRaw = match[2];
+      const width = widthRaw ? Number.parseInt(widthRaw, 10) : NaN;
+      const height = heightRaw ? Number.parseInt(heightRaw, 10) : NaN;
+      const largest =
+        Number.isFinite(width) && Number.isFinite(height) ? Math.max(width, height) : width || height;
       if (largest && largest <= 256) return "256x256";
       if (largest && largest <= 512) return "512x512";
       if (largest && largest >= 1024) return "1024x1024";
@@ -1602,7 +1619,7 @@ export async function editImageWithInstruction(
 
   let attemptCounter = runState ? runState.attempts.length : 0;
 
-  let buffer: Buffer;
+  let imageBytes: Uint8Array;
   try {
     const imgResponse = await fetch(imageUrl);
     if (!imgResponse.ok) {
@@ -1613,12 +1630,17 @@ export async function editImageWithInstruction(
       throw error;
     }
 
-    buffer = Buffer.from(await imgResponse.arrayBuffer());
+    imageBytes = new Uint8Array(await imgResponse.arrayBuffer());
 
     try {
       const { default: Jimp } = await import("jimp");
-      const image = await Jimp.read(buffer);
-      buffer = await image.getBufferAsync(Jimp.MIME_PNG);
+      const bufferCtor = getNodeBufferCtor();
+      if (!bufferCtor) {
+        throw new Error("Buffer not available");
+      }
+      const image = await Jimp.read(bufferCtor.from(imageBytes));
+      const converted = await image.getBufferAsync(Jimp.MIME_PNG);
+      imageBytes = toUint8ArrayView(converted);
     } catch (conversionError) {
       console.warn(
         "PNG conversion failed, attempting edit with original format:",
@@ -1648,13 +1670,12 @@ export async function editImageWithInstruction(
     throw error;
   }
 
-  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-  const baseBlob = new Blob([arrayBuffer as ArrayBuffer], { type: "image/png" });
+  const baseBlob = new Blob([imageBytes.slice()], { type: "image/png" });
 
   let maskBlob: Blob | null = null;
   if (maskData) {
     try {
-      let maskBuffer: Buffer;
+      let maskBytes: Uint8Array;
       if (/^data:/i.test(maskData)) {
         const match = maskData.match(/^data:([^;]+);base64,(.*)$/i);
         if (!match) {
@@ -1664,33 +1685,45 @@ export async function editImageWithInstruction(
         if (!payload) {
           throw new Error("Invalid mask data URI");
         }
-        maskBuffer = Buffer.from(payload, "base64");
+        maskBytes = decodeBase64(payload);
       } else {
         const response = await fetch(maskData);
         if (!response.ok) {
           throw new Error(`Failed to fetch mask image (${response.status})`);
         }
-        maskBuffer = Buffer.from(await response.arrayBuffer());
+        maskBytes = new Uint8Array(await response.arrayBuffer());
       }
 
-      const { default: Jimp } = await import("jimp");
-      const sourceMask = await Jimp.read(maskBuffer);
-      const processedMask = await new Jimp(
-        sourceMask.bitmap.width,
-        sourceMask.bitmap.height,
-        0xffffffff,
-      );
-      const targetData = processedMask.bitmap.data;
-      sourceMask.scan(0, 0, sourceMask.bitmap.width, sourceMask.bitmap.height, function (_x, _y, idx) {
-        const alpha = this.bitmap.data[idx + 3] ?? 0;
-        targetData[idx + 3] = alpha > 10 ? 0 : 255;
-      });
-      const processedBuffer = await processedMask.getBufferAsync(Jimp.MIME_PNG);
-      const processedArray = new Uint8Array(processedBuffer);
-      maskBlob = new Blob(
-        [processedArray.buffer.slice(processedArray.byteOffset, processedArray.byteOffset + processedArray.byteLength)],
-        { type: "image/png" },
-      );
+      try {
+        const { default: Jimp } = await import("jimp");
+        const bufferCtor = getNodeBufferCtor();
+        if (!bufferCtor) {
+          throw new Error("Buffer not available");
+        }
+        const sourceMask = await Jimp.read(bufferCtor.from(maskBytes));
+        const processedMask = await new Jimp(
+          sourceMask.bitmap.width,
+          sourceMask.bitmap.height,
+          0xffffffff,
+        );
+        const targetData = processedMask.bitmap.data;
+        sourceMask.scan(
+          0,
+          0,
+          sourceMask.bitmap.width,
+          sourceMask.bitmap.height,
+          function (_x, _y, idx) {
+            const alpha = this.bitmap.data[idx + 3] ?? 0;
+            targetData[idx + 3] = alpha > 10 ? 0 : 255;
+          },
+        );
+        const processedBuffer = await processedMask.getBufferAsync(Jimp.MIME_PNG);
+        const processedArray = toUint8ArrayView(processedBuffer);
+        maskBlob = new Blob([processedArray.slice()], { type: "image/png" });
+      } catch (maskProcessError) {
+        console.warn("editImageWithInstruction mask processing failed", maskProcessError);
+        maskBlob = new Blob([maskBytes.slice()], { type: "image/png" });
+      }
     } catch (maskError) {
       console.warn("editImageWithInstruction mask processing failed", maskError);
     }
@@ -2774,25 +2807,7 @@ function decodeBase64ToUint8Array(base64: string): Uint8Array {
   const padLength = normalized.length % 4;
   const padded = padLength ? normalized + "=".repeat(4 - padLength) : normalized;
 
-  if (typeof globalThis.atob === "function") {
-    const binary = globalThis.atob(padded);
-    const length = binary.length;
-    const bytes = new Uint8Array(length);
-    for (let index = 0; index < length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    return bytes;
-  }
-
-  const bufferConstructor = (globalThis as {
-    Buffer?: { from(input: string, encoding: string): Uint8Array };
-  }).Buffer;
-  if (bufferConstructor && typeof bufferConstructor.from === "function") {
-    const nodeBuffer = bufferConstructor.from(padded, "base64");
-    return new Uint8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.byteLength);
-  }
-
-  throw new Error("Base64 decoding is not supported in this runtime.");
+  return decodeBase64(padded);
 }
 
 function parseBase64Audio(

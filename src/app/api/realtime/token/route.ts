@@ -8,7 +8,7 @@ import {
   ablyTokenRequestSchema,
 } from "@/server/validation/schemas/realtime";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 async function handle(req: Request) {
   const parsed = await parseJsonBody(req, requestUserEnvelopeSchema);
@@ -26,6 +26,19 @@ async function handle(req: Request) {
     const authPayload = await createFriendRealtimeAuth(ownerId);
     if (!authPayload) {
       return returnError(503, "realtime_disabled", "Realtime not configured");
+    }
+
+    const isProduction =
+      typeof process !== "undefined" && process?.env?.NODE_ENV === "production";
+    if (!isProduction) {
+      const tokenShape =
+        authPayload && typeof authPayload === "object" && authPayload.token && typeof authPayload.token === "object"
+          ? Object.keys(authPayload.token as Record<string, unknown>)
+          : null;
+      console.debug("Realtime auth payload shape", {
+        provider: authPayload.provider,
+        tokenKeys: tokenShape,
+      });
     }
 
     const token =

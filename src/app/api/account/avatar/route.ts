@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import { Buffer } from "node:buffer";
 
 import { updateUserAvatarImage, clearUserAvatar } from "@/server/users/service";
 import { getStorageProvider } from "@/config/storage";
@@ -9,6 +8,7 @@ import { generateStorageObjectKey } from "@/lib/storage/keys";
 import type { StorageMetadataValue } from "@/ports/storage";
 import { returnError, validatedJson } from "@/server/validation/http";
 import { deriveRequestOrigin } from "@/lib/url";
+import { decodeBase64Payload } from "@/lib/base64";
 
 const bodySchema = z
   .object({
@@ -65,9 +65,10 @@ export async function POST(req: Request) {
     const mimeType = parsedBody.data.mimeType ?? "image/jpeg";
     const source = parsedBody.data.source ?? "upload";
 
-    if (parsedBody.data.imageData) {
+    const rawImageData = parsedBody.data.imageData;
+    if (typeof rawImageData === "string" && rawImageData.trim().length) {
       const provider = getStorageProvider();
-      const buffer = Buffer.from(parsedBody.data.imageData, "base64");
+      const bytes = decodeBase64Payload(rawImageData);
       const key = generateStorageObjectKey({
         prefix: provider.getUploadPrefix(),
         ownerId,
@@ -109,7 +110,7 @@ export async function POST(req: Request) {
       const upload = await provider.uploadBuffer({
         key,
         contentType: mimeType,
-        body: buffer,
+        body: bytes,
         metadata,
       });
 

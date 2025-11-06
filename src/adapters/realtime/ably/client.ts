@@ -39,17 +39,24 @@ function mapPresenceAction(
   return undefined;
 }
 
-function assertAblyAuth(payload: RealtimeAuthPayload): {
-  tokenRequest: AblyTypes.TokenRequest;
+function normalizeAblyAuth(payload: RealtimeAuthPayload): {
+  token: AblyTypes.TokenRequest | AblyTypes.TokenDetails | string;
   environment?: string | null;
 } {
   if (!payload || payload.provider !== "ably") {
     throw new Error("Realtime auth payload is not for Ably");
   }
-  return {
-    tokenRequest: payload.token as AblyTypes.TokenRequest,
-    environment: payload.environment ?? null,
-  };
+  const token = payload.token;
+  if (
+    typeof token === "string" ||
+    (typeof token === "object" && token !== null && ("token" in token || "mac" in token))
+  ) {
+    return {
+      token: token as AblyTypes.TokenRequest | AblyTypes.TokenDetails | string,
+      environment: payload.environment ?? null,
+    };
+  }
+  throw new Error("Realtime auth payload did not include a usable Ably token");
 }
 
 class AblyPresenceChannel implements RealtimePresenceChannel {
@@ -187,7 +194,8 @@ class AblyRealtimeClientFactory implements RealtimeClientFactory {
     if (!this.fetchAuth) {
       throw new Error("Ably auth provider is not configured");
     }
-    const initial = assertAblyAuth(await this.fetchAuth());
+    const initialAuth = await this.fetchAuth();
+    const normalizedInitial = normalizeAblyAuth(initialAuth);
     const options: Ably.Types.ClientOptions = {
       authCallback: async (_, callback) => {
         try {
@@ -195,16 +203,17 @@ class AblyRealtimeClientFactory implements RealtimeClientFactory {
           if (!fetchAuth) {
             throw new Error("Ably auth provider is not configured");
           }
-          const next = assertAblyAuth(await fetchAuth());
-          callback(null, next.tokenRequest);
+          const nextAuth = await fetchAuth();
+          const normalized = normalizeAblyAuth(nextAuth);
+          callback(null, normalized.token);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           callback(message, null);
         }
       },
     };
-    if (initial.environment) {
-      options.environment = initial.environment;
+    if (normalizedInitial.environment) {
+      options.environment = normalizedInitial.environment;
     }
     const createRealtime = Ably.Realtime as unknown as (
       options: Ably.Types.ClientOptions,

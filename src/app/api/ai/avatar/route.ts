@@ -15,7 +15,7 @@ import { createAiImageVariant, type AiImageVariantRecord } from "@/server/ai/ima
 import { deriveRequestOrigin, resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
-import { Buffer } from "node:buffer";
+import { encodeBase64 } from "@/lib/base64";
 import {
   checkRateLimit,
   retryAfterSeconds as computeRetryAfterSeconds,
@@ -87,8 +87,8 @@ async function persistAndDescribeImage(
       if (response.ok) {
         const contentType = response.headers.get("content-type") || "image/png";
         const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        base64Data = buffer.toString("base64");
+        const bytes = new Uint8Array(arrayBuffer);
+        base64Data = encodeBase64(bytes);
         mimeType = contentType;
         normalizedSource = `data:${contentType};base64,${base64Data}`;
       }

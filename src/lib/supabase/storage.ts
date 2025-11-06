@@ -3,6 +3,7 @@ import { generateStorageObjectKey } from "@/lib/storage/keys";
 import { serverEnv } from "@/lib/env/server";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import type { StorageMetadataValue, StorageBinaryLike } from "@/ports/storage";
+import { decodeBase64 } from "@/lib/base64";
 
 function extFromContentType(contentType: string) {
   const map: Record<string, string> = {
@@ -169,24 +170,4 @@ export async function storeImageSrcToSupabase(
     console.warn("storeImageSrcToSupabase fetch failed", error);
     return { url: resolvedSrc, key: null };
   }
-}
-
-function decodeBase64(value: string): Uint8Array {
-  if (typeof atob === "function") {
-    const binary = atob(value);
-    const length = binary.length;
-    const bytes = new Uint8Array(length);
-    for (let i = 0; i < length; i += 1) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-  }
-  const maybeBuffer = (globalThis as unknown as {
-    Buffer?: { from: (src: string, encoding: string) => { buffer: ArrayBuffer; byteOffset: number; byteLength: number } };
-  }).Buffer;
-  if (maybeBuffer) {
-    const buffer = maybeBuffer.from(value, "base64");
-    return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-  }
-  throw new Error("Base64 decoding is not supported in this environment");
 }
