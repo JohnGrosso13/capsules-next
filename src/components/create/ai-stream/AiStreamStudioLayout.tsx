@@ -171,12 +171,12 @@ function usePanelLayoutStorage(
       }
     });
 
-    let pending = new Map<string, string>();
-    let timer: number | null = null;
+    const pending = new Map<string, string>();
+    const timerRef = { current: null as number | null };
 
     const flush = async () => {
       if (!pending.size) {
-        timer = null;
+        timerRef.current = null;
         return;
       }
       const entries: Array<{ storageKey: string; state: unknown }> = [];
@@ -187,8 +187,8 @@ function usePanelLayoutStorage(
           console.warn("Failed to parse panel layout payload", error);
         }
       });
-      pending = new Map();
-      timer = null;
+      pending.clear();
+      timerRef.current = null;
       if (!entries.length) return;
       try {
         await fetch("/api/studio/layout", {
@@ -203,21 +203,21 @@ function usePanelLayoutStorage(
 
     const scheduleFlush = () => {
       if (typeof window === "undefined") return;
-      if (timer !== null) {
-        window.clearTimeout(timer);
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
       }
-      timer = window.setTimeout(() => {
+      timerRef.current = window.setTimeout(() => {
         void flush();
       }, 500);
     };
 
     const cancel = () => {
       if (typeof window === "undefined") return;
-      if (timer !== null) {
-        window.clearTimeout(timer);
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
       }
-      timer = null;
-      pending = new Map();
+      timerRef.current = null;
+      pending.clear();
     };
 
     const storageImpl: PanelGroupStorageLike = {
@@ -1259,4 +1259,3 @@ const renderEncoderContent = () => {
     </div>
   );
 }
-

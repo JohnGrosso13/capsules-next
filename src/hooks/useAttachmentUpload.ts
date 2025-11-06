@@ -252,6 +252,7 @@ function createErrorAttachment(
 function useAttachmentInput(): {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   handleAttachClick: () => void;
+  resetFileInputValue: () => void;
 } {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -259,10 +260,17 @@ function useAttachmentInput(): {
     fileInputRef.current?.click();
   }, []);
 
-  return { fileInputRef, handleAttachClick };
+  const resetFileInputValue = React.useCallback(() => {
+    const input = fileInputRef.current;
+    if (input) {
+      input.value = "";
+    }
+  }, []);
+
+  return { fileInputRef, handleAttachClick, resetFileInputValue };
 }
 
-function useAttachmentState(fileInputRef: React.MutableRefObject<HTMLInputElement | null>): {
+function useAttachmentState(resetFileInputValue: () => void): {
   attachment: LocalAttachment | null;
   setAttachment: React.Dispatch<React.SetStateAction<LocalAttachment | null>>;
   readyAttachment: LocalAttachment | null;
@@ -279,10 +287,8 @@ function useAttachmentState(fileInputRef: React.MutableRefObject<HTMLInputElemen
 
   const clearAttachment = React.useCallback(() => {
     setAttachment(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  }, [fileInputRef]);
+    resetFileInputValue();
+  }, [resetFileInputValue]);
 
   return { attachment, setAttachment, readyAttachment, uploading, clearAttachment };
 }
@@ -291,7 +297,8 @@ function useAttachmentProcessor(
   maxSizeBytes: number,
   setAttachment: React.Dispatch<React.SetStateAction<LocalAttachment | null>>,
   options: UseAttachmentUploadOptions | undefined,
-  uploadAbortRef: React.MutableRefObject<AbortController | null>,
+  getAbortController: () => AbortController | null,
+  setAbortController: (controller: AbortController | null) => void,
 ): (file: File) => Promise<void> {
   return React.useCallback(
     async (file: File) => {
@@ -304,9 +311,9 @@ function useAttachmentProcessor(
         return;
       }
 
-      uploadAbortRef.current?.abort();
+      getAbortController()?.abort();
       const controller = new AbortController();
-      uploadAbortRef.current = controller;
+      setAbortController(controller);
 
       setAttachment({
         id,
@@ -363,13 +370,15 @@ function useAttachmentProcessor(
               }
             : prev,
         );
-        if (uploadAbortRef.current === controller) {
-          uploadAbortRef.current = null;
+        const finalController = getAbortController();
+        if (finalController === controller) {
+          setAbortController(null);
         }
       } catch (error) {
         if ((error as DOMException)?.name === "AbortError") {
-          if (uploadAbortRef.current === controller) {
-            uploadAbortRef.current = null;
+          const activeController = getAbortController();
+          if (activeController === controller) {
+            setAbortController(null);
           }
           return;
         }
@@ -387,12 +396,13 @@ function useAttachmentProcessor(
               }
             : prev,
         );
-        if (uploadAbortRef.current === controller) {
-          uploadAbortRef.current = null;
+        const activeController = getAbortController();
+        if (activeController === controller) {
+          setAbortController(null);
         }
       }
     },
-    [maxSizeBytes, options, setAttachment, uploadAbortRef],
+    [getAbortController, maxSizeBytes, options, setAttachment, setAbortController],
   );
 }
 
@@ -633,15 +643,22 @@ export function useAttachmentUpload(
   maxSizeBytes = DEFAULT_MAX_SIZE,
   options: UseAttachmentUploadOptions = {},
 ) {
-  const { fileInputRef, handleAttachClick } = useAttachmentInput();
+  const { fileInputRef, handleAttachClick, resetFileInputValue } = useAttachmentInput();
   const {
     attachment,
     setAttachment,
     readyAttachment,
     uploading,
     clearAttachment: resetAttachment,
-  } = useAttachmentState(fileInputRef);
+  } = useAttachmentState(resetFileInputValue);
   const uploadAbortRef = React.useRef<AbortController | null>(null);
+  const getUploadAbortController = React.useCallback(() => uploadAbortRef.current, []);
+  const setUploadAbortController = React.useCallback(
+    (controller: AbortController | null) => {
+      uploadAbortRef.current = controller;
+    },
+    [],
+  );
   const remoteTimersRef = React.useRef<number[]>([]);
   const cancelRemoteTimers = React.useCallback(() => {
     if (typeof window === "undefined") {
@@ -654,12 +671,24 @@ export function useAttachmentUpload(
     remoteTimersRef.current = [];
   }, []);
   const clearAttachment = React.useCallback(() => {
-    uploadAbortRef.current?.abort();
-    uploadAbortRef.current = null;
+    const activeController = getUploadAbortController();
+    activeController?.abort();
+    setUploadAbortController(null);
     cancelRemoteTimers();
     resetAttachment();
-  }, [cancelRemoteTimers, resetAttachment]);
-  const processFile = useAttachmentProcessor(maxSizeBytes, setAttachment, options, uploadAbortRef);
+  }, [
+    cancelRemoteTimers,
+    getUploadAbortController,
+    resetAttachment,
+    setUploadAbortController,
+  ]);
+  const processFile = useAttachmentProcessor(
+    maxSizeBytes,
+    setAttachment,
+    options,
+    getUploadAbortController,
+    setUploadAbortController,
+  );
 
   const handleAttachmentSelect = React.useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {

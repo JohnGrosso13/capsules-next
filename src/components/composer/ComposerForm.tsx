@@ -1211,7 +1211,7 @@ export function ComposerForm({
   const openViewer = React.useCallback(() => actions.viewer.open(), [actions]);
   const closeViewer = React.useCallback(() => actions.viewer.close(), [actions]);
 
-  const cloudflareBypass = React.useMemo(shouldBypassCloudflareImages, []);
+  const cloudflareBypass = React.useMemo(() => shouldBypassCloudflareImages(), []);
   const cloudflareEnabled = React.useMemo(() => !cloudflareBypass, [cloudflareBypass]);
   const memoryOrigin = React.useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : null),

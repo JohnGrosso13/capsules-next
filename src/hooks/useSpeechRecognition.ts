@@ -304,7 +304,7 @@ export function useSpeechRecognition(
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "speech-start-error";
-      statusRef.current = "error";
+      setStatus("error");
       reportError(message);
       return false;
     }
@@ -316,7 +316,6 @@ export function useSpeechRecognition(
     optionsRef,
     reportError,
     setStatus,
-    statusRef,
     supported,
   ]);
 
@@ -327,13 +326,12 @@ export function useSpeechRecognition(
       return;
     }
 
-    statusRef.current = "stopping";
     setStatus("stopping");
     try {
       recognition.stop();
     } catch (err) {
       const message = err instanceof Error ? err.message : "speech-stop-error";
-      statusRef.current = "error";
+      setStatus("error");
       reportError(message);
     }
   }, [recognitionRef, reportError, setStatus, statusRef]);
