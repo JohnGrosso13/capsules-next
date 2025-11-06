@@ -30,6 +30,30 @@
     justify-content: end;
   }
 
+  .feedVirtualRoot {
+    position: relative;
+    width: 100%;
+    will-change: height;
+  }
+
+  .feedVirtualItem {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    padding-bottom: var(--layout-page-gap, var(--space-3xl));
+    will-change: transform;
+  }
+
+  .feedVirtualFallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-xl) 0;
+    color: var(--color-fg-muted, rgba(255, 255, 255, 0.65));
+  }
+
   .feedUtilityButton {
     display: inline-flex;
     align-items: center;

@@ -3,8 +3,8 @@
 import * as React from "react";
 
 import { useCurrentUser } from "@/services/auth/client";
-import { fetchHomeFeed, type FeedFetchOptions } from "@/services/feed/client";
-import { loadHomeFeedPageAction } from "@/server/actions/home-feed";
+import type { FeedFetchOptions } from "@/domain/feed";
+import { fetchHomeFeedSliceAction, loadHomeFeedPageAction } from "@/server/actions/home-feed";
 
 import type { HomeFeedPost } from "./useHomeFeed/types";
 import {
@@ -286,7 +286,8 @@ export function useCapsuleFeed(capsuleId: string | null | undefined) {
             if (!trimmedCapsuleId) {
               return { posts: [], cursor: null, deleted: [] };
             }
-            return fetchHomeFeed({ ...options, capsuleId: trimmedCapsuleId });
+            const { signal: _signal, ...rest } = options ?? {};
+            return fetchHomeFeedSliceAction({ ...rest, capsuleId: trimmedCapsuleId });
           },
         },
       }),

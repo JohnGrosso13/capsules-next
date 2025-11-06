@@ -109,7 +109,7 @@ describe("homeFeedStore", () => {
 
     await store.actions.toggleLike("p1");
 
-    expect(toggleLikeMock).toHaveBeenCalledWith({ postId: "remote-1", action: "like" });
+    expect(toggleLikeMock).toHaveBeenCalledWith({ postId: "remote-1", like: true });
     const state = store.getState();
     const post = state.posts[0];
     expect(post?.viewerLiked).toBe(true);
@@ -162,7 +162,7 @@ describe("homeFeedStore", () => {
 
     expect(result).toBe(true);
     expect(toggleMemoryMock).toHaveBeenCalledWith(
-      expect.objectContaining({ postId: "db-post-1", action: "remember" }),
+      expect.objectContaining({ postId: "db-post-1", remember: true }),
     );
     const post = store.getState().posts[0];
     expect(post?.viewerRemembered).toBe(true);

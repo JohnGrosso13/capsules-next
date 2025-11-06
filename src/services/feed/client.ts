@@ -1,3 +1,4 @@
+import type { FeedFetchOptions, FeedFetchResult } from "@/domain/feed";
 import type { FriendTarget } from "@/hooks/useHomeFeed/utils";
 
 type JsonRecord = Record<string, unknown> | null;
@@ -31,19 +32,6 @@ async function ensureOk(response: Response, fallback: string): Promise<JsonRecor
   }
   return payload;
 }
-
-export type FeedFetchOptions = {
-  limit?: number;
-  cursor?: string | null;
-  capsuleId?: string | null;
-  signal?: AbortSignal;
-};
-
-export type FeedFetchResult = {
-  posts: unknown[];
-  cursor: string | null;
-  deleted: string[];
-};
 
 function buildFeedUrl(options: FeedFetchOptions): string {
   const params = new URLSearchParams();

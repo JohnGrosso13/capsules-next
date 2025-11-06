@@ -41,6 +41,7 @@
         "@upstash/redis": "^1.30.2",
         "ably": "^1.2.50",
         "algoliasearch": "^5.39.0",
+        "@tanstack/react-virtual": "^3.0.0",
         "bcryptjs": "^2.4.3",
         "clsx": "^2.1.1",
         "embla-carousel": "^8.6.0",

@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import dynamic from "next/dynamic";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 import styles from "./home-feed.module.css";
 
@@ -296,6 +297,27 @@ export function HomeFeedList({
 
   }, [showSkeletons, posts, visibleLimit]);
 
+  const estimatePostHeight = React.useCallback(() => 520, []);
+  const virtualizationCount = showSkeletons ? 0 : displayedPosts.length;
+  const windowVirtualizer = useWindowVirtualizer({
+    count: virtualizationCount,
+    estimateSize: estimatePostHeight,
+    overscan: 8,
+    getItemKey: React.useCallback(
+      (index: number) => displayedPosts[index]?.id ?? `feed-item-${index}`,
+      [displayedPosts],
+    ),
+  });
+  const virtualItems = windowVirtualizer.getVirtualItems();
+  const totalVirtualHeight = windowVirtualizer.getTotalSize();
+  const measureVirtualElement = React.useCallback(
+    (node: HTMLElement | null) => {
+      if (!node) return;
+      windowVirtualizer.measureElement(node);
+    },
+    [windowVirtualizer],
+  );
+
   const [pendingFocusPostId, setPendingFocusPostId] = React.useState<string | null>(() => {
 
     if (typeof focusPostId === "string" && focusPostId.trim().length) {
@@ -330,9 +352,15 @@ export function HomeFeedList({
 
     if (!displayedPosts.length) return;
 
-    const hasPost = displayedPosts.some((post) => post.id === pendingFocusPostId);
+    const targetIndex = displayedPosts.findIndex((post) => post.id === pendingFocusPostId);
 
-    if (!hasPost) return;
+    if (targetIndex === -1) return;
+
+    if (virtualizationCount > 0) {
+
+      windowVirtualizer.scrollToIndex(targetIndex, { align: "center" });
+
+    }
 
     const raf = window.requestAnimationFrame(() => {
 
@@ -364,7 +392,7 @@ export function HomeFeedList({
 
     return () => window.cancelAnimationFrame(raf);
 
-  }, [pendingFocusPostId, displayedPosts]);
+  }, [pendingFocusPostId, displayedPosts, windowVirtualizer, virtualizationCount]);
 
   const viewerEnvelope = React.useMemo(() => {
 
@@ -602,111 +630,148 @@ export function HomeFeedList({
       ) : null}
       {!showSkeletons ? (
 
-        <SummaryCTAIsland
+        <React.Suspense fallback={<div className={styles.feedVirtualFallback}>Preparing summary...</div>}>
 
-          pending={feedSummaryPending}
+          <SummaryCTAIsland
 
-          hasPosts={displayedPosts.length > 0}
+            pending={feedSummaryPending}
 
-          onSummarize={handleSummarizeFeed}
+            hasPosts={displayedPosts.length > 0}
 
-        />
+            onSummarize={handleSummarizeFeed}
 
-      ) : null}
-      {displayedPosts.map((post) => {
-
-        const resolvedUserId =
-
-          post.owner_user_id ??
-
-          post.ownerUserId ??
-
-          post.author_user_id ??
-
-          post.authorUserId ??
-
-          null;
-
-        const resolvedUserKey =
-
-          post.owner_user_key ??
-
-          post.ownerKey ??
-
-          post.author_user_key ??
-
-          post.authorUserKey ??
-
-          null;
-
-        const friendTargetKey = resolvedUserId ?? resolvedUserKey ?? post.id;
-
-        const menuIdentifier = `${friendTargetKey}::${post.id}`;
-
-        const canTarget = Boolean(resolvedUserId ?? resolvedUserKey);
-
-        const isFriendOptionOpen = activeFriendTarget === menuIdentifier;
-
-        const isFriendActionPending = friendActionPending === menuIdentifier;
-
-        const friendMenuConfig = {
-
-          canTarget,
-
-          isOpen: isFriendOptionOpen,
-
-          isPending: isFriendActionPending,
-
-          identifier: menuIdentifier,
-
-          onToggle: (next: boolean) => onToggleFriendTarget(next ? menuIdentifier : null),
-
-          onRequest: () => onFriendRequest(post, menuIdentifier),
-
-          onRemove: () => onRemoveFriend(post, menuIdentifier),
-
-        };
-
-        const baseCommentCount =
-
-          typeof post.comments === "number" ? Math.max(0, post.comments) : 0;
-
-        const threadForPost = commentThreads[post.id] ?? null;
-
-        const commentCount = threadForPost ? threadForPost.comments.length : baseCommentCount;
-
-        return (
-
-          <PostCard
-
-            key={post.id}
-            post={post}
-            viewerIdentifiers={viewerIdentifierSet}
-            likePending={Boolean(likePending[post.id])}
-            memoryPending={Boolean(memoryPending[post.id])}
-            remembered={Boolean(post.viewerRemembered ?? post.viewer_remembered ?? false)}
-            canRemember={canRemember}
-            friendMenu={friendMenuConfig}
-            cloudflareEnabled={cloudflareEnabled}
-            currentOrigin={currentOrigin}
-            formatCount={formatCount}
-            timeAgo={timeAgo}
-            exactTime={exactTime}
-            commentCount={commentCount}
-            isRefreshing={isRefreshing && hasFetched}
-            documentSummaryPending={documentSummaryPending}
-            onToggleLike={onToggleLike}
-            onToggleMemory={onToggleMemory}
-            onDelete={onDelete}
-            onOpenLightbox={openLightbox}
-            onAskDocument={handleAskDocument}
-            onSummarizeDocument={summarizeDocument}
-            onCommentClick={(currentPost, anchor) => handleCommentButtonClick(currentPost, anchor)}
           />
 
-        );
+        </React.Suspense>
 
-      })}
+      ) : null}
+      {!showSkeletons && virtualizationCount > 0 ? (
+
+        <React.Suspense fallback={<div className={styles.feedVirtualFallback}>Rendering feed...</div>}>
+
+          <div className={styles.feedVirtualRoot} style={{ height: `${totalVirtualHeight}px` }}>
+
+            {virtualItems.map((virtualRow) => {
+
+              const post = displayedPosts[virtualRow.index];
+
+              if (!post) return null;
+
+              const resolvedUserId =
+
+                post.owner_user_id ??
+
+                post.ownerUserId ??
+
+                post.author_user_id ??
+
+                post.authorUserId ??
+
+                null;
+
+              const resolvedUserKey =
+
+                post.owner_user_key ??
+
+                post.ownerUserKey ??
+
+                post.author_user_key ??
+
+                post.authorUserKey ??
+
+                null;
+
+              const friendTargetKey = resolvedUserId ?? resolvedUserKey ?? post.id;
+
+              const menuIdentifier = `${friendTargetKey}::${post.id}`;
+
+              const canTarget = Boolean(resolvedUserId ?? resolvedUserKey);
+
+              const isFriendOptionOpen = activeFriendTarget === menuIdentifier;
+
+              const isFriendActionPending = friendActionPending === menuIdentifier;
+
+              const friendMenuConfig = {
+
+                canTarget,
+
+                isOpen: isFriendOptionOpen,
+
+                isPending: isFriendActionPending,
+
+                identifier: menuIdentifier,
+
+                onToggle: (next: boolean) => onToggleFriendTarget(next ? menuIdentifier : null),
+
+                onRequest: () => onFriendRequest(post, menuIdentifier),
+
+                onRemove: () => onRemoveFriend(post, menuIdentifier),
+
+              };
+
+              const baseCommentCount =
+
+                typeof post.comments === "number" ? Math.max(0, post.comments) : 0;
+
+              const threadForPost = commentThreads[post.id] ?? null;
+
+              const commentCount = threadForPost ? threadForPost.comments.length : baseCommentCount;
+
+              return (
+
+                <div
+
+                  key={virtualRow.key}
+
+                  ref={measureVirtualElement}
+
+                  data-index={virtualRow.index}
+
+                  className={styles.feedVirtualItem}
+
+                  style={{
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+
+                >
+
+                  <PostCard
+
+                    post={post}
+                    viewerIdentifiers={viewerIdentifierSet}
+                    likePending={Boolean(likePending[post.id])}
+                    memoryPending={Boolean(memoryPending[post.id])}
+                    remembered={Boolean(post.viewerRemembered ?? post.viewer_remembered ?? false)}
+                    canRemember={canRemember}
+                    friendMenu={friendMenuConfig}
+                    cloudflareEnabled={cloudflareEnabled}
+                    currentOrigin={currentOrigin}
+                    formatCount={formatCount}
+                    timeAgo={timeAgo}
+                    exactTime={exactTime}
+                    commentCount={commentCount}
+                    isRefreshing={isRefreshing && hasFetched}
+                    documentSummaryPending={documentSummaryPending}
+                    onToggleLike={onToggleLike}
+                    onToggleMemory={onToggleMemory}
+                    onDelete={onDelete}
+                    onOpenLightbox={openLightbox}
+                    onAskDocument={handleAskDocument}
+                    onSummarizeDocument={summarizeDocument}
+                    onCommentClick={(currentPost, anchor) => handleCommentButtonClick(currentPost, anchor)}
+                  />
+
+                </div>
+
+              );
+
+            })}
+
+          </div>
+
+        </React.Suspense>
+
+      ) : null}
       {hasMore && onLoadMore ? (
 
         <div className={styles.loadMoreRow}>

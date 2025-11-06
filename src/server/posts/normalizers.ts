@@ -1,118 +1,94 @@
+import {
+  buildFallbackFeedPosts,
+  normalizeFeedPosts,
+  type FeedPost,
+} from "@/domain/feed";
 import { normalizeMediaUrl } from "@/lib/media";
 
 import type { NormalizedAttachment } from "./media";
 
-function decodePollFromMediaPrompt(value: unknown): unknown | null {
-  if (typeof value !== "string") return null;
-  if (!value.startsWith("__POLL__")) return null;
-  const payload = value.slice(8);
-  try {
-    return JSON.parse(payload) as unknown;
-  } catch {
-    return null;
-  }
+type FeedRow = Record<string, unknown>;
+
+function resolveTimestamp(row: FeedRow): string {
+  const createdAt = row["created_at"];
+  const updatedAt = row["updated_at"];
+  if (typeof createdAt === "string" && createdAt.trim().length) return createdAt;
+  if (typeof updatedAt === "string" && updatedAt.trim().length) return updatedAt;
+  return new Date().toISOString();
 }
 
-export function normalizePost(row: Record<string, unknown>) {
-  const dbId =
-    typeof row.id === "string" || typeof row.id === "number" ? String(row.id) : undefined;
-  const pollValue =
-    Object.prototype.hasOwnProperty.call(row, "poll") && row.poll !== undefined
-      ? (row.poll as unknown)
-      : decodePollFromMediaPrompt(
-          (row as Record<string, unknown>)["media_prompt"] ??
-            (row as Record<string, unknown>)["mediaPrompt"],
-        );
-
-  return {
-    id: (row.client_id ?? row.id) as string,
-    dbId,
-    kind: (row.kind as string) ?? "text",
-    content: (row.content as string) ?? "",
-    mediaUrl:
-      normalizeMediaUrl(row["media_url"]) ??
-      normalizeMediaUrl((row as Record<string, unknown>)["mediaUrl"]) ??
-      null,
-    mediaPrompt: ((row.media_prompt as string) ?? null) as string | null,
-    userName: ((row.user_name as string) ?? null) as string | null,
-    userAvatar: ((row.user_avatar as string) ?? null) as string | null,
-    capsuleId: ((row.capsule_id as string) ?? null) as string | null,
-    tags: Array.isArray(row.tags) ? (row.tags as string[]) : undefined,
-    likes: typeof row.likes_count === "number" ? row.likes_count : 0,
-    comments: typeof row.comments_count === "number" ? row.comments_count : undefined,
-    hotScore: typeof row.hot_score === "number" ? row.hot_score : undefined,
-    rankScore: typeof row.rank_score === "number" ? row.rank_score : undefined,
-    ts: String(
-      (row.created_at as string) ?? (row.updated_at as string) ?? new Date().toISOString(),
-    ),
-    source: String((row.source as string) ?? "web"),
-    ownerUserId: ((row.author_user_id as string) ?? null) as string | null,
-    viewerLiked:
-      typeof row["viewer_liked"] === "boolean" ? (row["viewer_liked"] as boolean) : false,
-    viewerRemembered:
-      typeof row["viewer_remembered"] === "boolean" ? (row["viewer_remembered"] as boolean) : false,
-    poll: pollValue ?? null,
-  };
-}
-
-export type NormalizedPost = ReturnType<typeof normalizePost> & {
+export type NormalizedPost = FeedPost & {
+  kind: string;
+  mediaPrompt: string | null;
+  capsuleId: string | null;
+  tags?: string[];
+  hotScore?: number;
+  rankScore?: number;
+  source: string;
+  ts: string;
   attachments?: NormalizedAttachment[];
 };
 
-const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
-  {
-    id: "demo-welcome",
-    dbId: "demo-welcome",
-    kind: "text",
-    content:
-      "Welcome to Capsules! Connect your Supabase project to see real posts here. This demo post is only shown locally when the data source is offline.",
-    mediaUrl: null,
-    mediaPrompt: null,
-    userName: "Capsules Demo Bot",
-    userAvatar: null,
-    capsuleId: null,
-    tags: ["demo"],
-    likes: 12,
-    comments: 2,
-    hotScore: 0,
-    rankScore: 0,
-    source: "demo",
-    ownerUserId: null,
-    viewerLiked: false,
-    viewerRemembered: false,
-    poll: null,
-    attachments: [],
-  },
-  {
-    id: "demo-prompt-ideas",
-    dbId: "demo-prompt-ideas",
-    kind: "text",
-    content:
-      "Tip: Use the Generate button to draft a welcome message or poll. Once Supabase is configured you'll see the real-time feed here.",
-    mediaUrl: null,
-    mediaPrompt: null,
-    userName: "Capsules Tips",
-    userAvatar: null,
-    capsuleId: null,
-    tags: ["demo", "tips"],
-    likes: 4,
-    comments: 0,
-    hotScore: 0,
-    rankScore: 0,
-    source: "demo",
-    ownerUserId: null,
-    viewerLiked: false,
-    viewerRemembered: false,
-    poll: null,
-    attachments: [],
-  },
-];
+export function normalizePost(row: FeedRow): NormalizedPost {
+  const [feedPost = {} as FeedPost] = normalizeFeedPosts([row]);
+
+  const mediaPrompt =
+    typeof row["media_prompt"] === "string"
+      ? (row["media_prompt"] as string)
+      : typeof row["mediaPrompt"] === "string"
+        ? (row["mediaPrompt"] as string)
+        : null;
+
+  const capsuleId =
+    typeof row["capsule_id"] === "string"
+      ? (row["capsule_id"] as string)
+      : typeof row["capsuleId"] === "string"
+        ? (row["capsuleId"] as string)
+        : null;
+
+  const tags = Array.isArray(row["tags"]) ? (row["tags"] as string[]) : undefined;
+  const hotScore = typeof row["hot_score"] === "number" ? (row["hot_score"] as number) : undefined;
+  const rankScore =
+    typeof row["rank_score"] === "number" ? (row["rank_score"] as number) : undefined;
+
+  const sourceRaw = row["source"];
+  const source =
+    typeof sourceRaw === "string" && sourceRaw.trim().length ? sourceRaw.trim() : "web";
+
+  const normalized: NormalizedPost = {
+    ...feedPost,
+    kind: typeof row["kind"] === "string" ? (row["kind"] as string) : "text",
+    mediaPrompt,
+    capsuleId,
+    tags,
+    hotScore,
+    rankScore,
+    source,
+    ts: resolveTimestamp(row),
+  };
+
+  if (normalized.mediaUrl) {
+    normalized.mediaUrl = normalizeMediaUrl(normalized.mediaUrl) ?? normalized.mediaUrl;
+  }
+
+  return normalized;
+}
 
 export function buildFallbackPosts(): NormalizedPost[] {
+  const seeds = buildFallbackFeedPosts();
   const now = Date.now();
-  return FALLBACK_POST_SEEDS.map((seed, index) => ({
-    ...seed,
-    ts: new Date(now - index * 90_000).toISOString(),
+
+  return seeds.map((post, index) => ({
+    ...post,
+    kind: "text",
+    mediaPrompt: null,
+    capsuleId: null,
+    tags: ["demo"],
+    hotScore: 0,
+    rankScore: 0,
+    source: "demo",
+    ts: post.created_at ?? new Date(now - index * 90_000).toISOString(),
+    attachments: post.attachments ?? [],
   }));
 }
 

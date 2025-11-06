@@ -1,13 +1,6 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
-@layer base {
-  *,
-  ::before,
-  ::after {
-    box-sizing: border-box;
-  }
-  :root {
-    color-scheme: dark;
+@theme {
     --font-sans:
       "Inter", "SF Pro Text", "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI",
       sans-serif;
@@ -1099,6 +1092,17 @@
     --mobile-page-gutter: 0px;
     --mobile-dock-height: 0px;
   }
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+    :root {
+    color-scheme: dark;
+  }
+
 
   /* Global mobile layout overrides so all modules sharing --app-feed-width
      expand to the full device width, regardless of where they are mounted. */

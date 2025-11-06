@@ -1,23 +1,18 @@
 "use server";
 
-import { normalizePosts } from "@/hooks/useHomeFeed/utils";
-import type { HomeFeedPost } from "@/hooks/useHomeFeed";
-import { buildFallbackPosts } from "@/server/posts/normalizers";
+import {
+  buildFallbackFeedPosts,
+  normalizePosts,
+  type FeedFetchOptions,
+  type FeedFetchResult,
+  type FeedPost,
+  type FeedPage,
+  type FeedSnapshot,
+} from "@/domain/feed";
 import { getPostsSlim } from "@/server/posts/api";
 import type { SlimResponse } from "@/server/posts/api";
 import type { PostsQueryInput } from "@/server/posts/api";
 import { ensureUserSession, resolveRequestOrigin } from "@/server/actions/session";
-
-export type HomeFeedSnapshot = {
-  posts: HomeFeedPost[];
-  cursor: string | null;
-  hydrationKey: string;
-};
-
-export type HomeFeedPage = {
-  posts: HomeFeedPost[];
-  cursor: string | null;
-};
 
 const FEED_LIMIT = 30;
 
@@ -27,7 +22,7 @@ type HomeFeedSlimBody = {
   cursor?: string | null | undefined;
 };
 
-function computeHydrationKey(posts: HomeFeedPost[], cursor: string | null): string {
+function computeHydrationKey(posts: FeedPost[], cursor: string | null): string {
   if (cursor) return `cursor:${cursor}`;
   if (posts.length > 0) {
     const [first] = posts;
@@ -38,7 +33,7 @@ function computeHydrationKey(posts: HomeFeedPost[], cursor: string | null): stri
   return "posts:empty";
 }
 
-export async function loadHomeFeedAction(): Promise<HomeFeedSnapshot> {
+export async function loadHomeFeedAction(): Promise<FeedSnapshot> {
   const { supabaseUserId } = await ensureUserSession();
   const origin = await resolveRequestOrigin();
 
@@ -56,7 +51,7 @@ export async function loadHomeFeedAction(): Promise<HomeFeedSnapshot> {
     response = await getPostsSlim(request);
   } catch (error) {
     console.error("loadHomeFeedAction: getPostsSlim failed", error);
-    const fallbackPosts = buildFallbackPosts();
+    const fallbackPosts = buildFallbackFeedPosts();
     const posts = normalizePosts(fallbackPosts);
     return {
       posts,
@@ -71,7 +66,7 @@ export async function loadHomeFeedAction(): Promise<HomeFeedSnapshot> {
       error: response.body.error,
       message: response.body.message,
     });
-    const fallbackPosts = buildFallbackPosts();
+    const fallbackPosts = buildFallbackFeedPosts();
     const posts = normalizePosts(fallbackPosts);
     return {
       posts,
@@ -91,7 +86,7 @@ export async function loadHomeFeedAction(): Promise<HomeFeedSnapshot> {
   };
 }
 
-export async function loadHomeFeedPageAction(cursor: string | null): Promise<HomeFeedPage> {
+export async function loadHomeFeedPageAction(cursor: string | null): Promise<FeedPage> {
   const { supabaseUserId } = await ensureUserSession();
   const origin = await resolveRequestOrigin();
 
@@ -121,5 +116,42 @@ export async function loadHomeFeedPageAction(cursor: string | null): Promise<Hom
   } catch (error) {
     console.error("loadHomeFeedPageAction: getPostsSlim failed", error);
     return { posts: [], cursor: null };
+  }
+}
+
+export async function fetchHomeFeedSliceAction(
+  options: FeedFetchOptions = {},
+): Promise<FeedFetchResult> {
+  const { supabaseUserId } = await ensureUserSession();
+  const origin = await resolveRequestOrigin();
+
+  const limit =
+    typeof options.limit === "number" && Number.isFinite(options.limit)
+      ? Math.max(1, Math.trunc(options.limit))
+      : FEED_LIMIT;
+
+  const request: PostsQueryInput = {
+    viewerId: supabaseUserId,
+    origin,
+    query: {
+      limit,
+      capsuleId: options.capsuleId ?? null,
+      before: options.cursor ?? null,
+    },
+  };
+
+  try {
+    const response = await getPostsSlim(request);
+    if (!response.ok) {
+      throw new Error(response.body.message ?? "Failed to fetch feed");
+    }
+    return {
+      posts: response.body.posts ?? [],
+      cursor: response.body.cursor ?? null,
+      deleted: response.body.deleted ?? [],
+    };
+  } catch (error) {
+    console.error("fetchHomeFeedSliceAction failed", error);
+    throw error;
   }
 }

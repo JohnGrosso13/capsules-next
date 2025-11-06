@@ -1,13 +1,11 @@
 import { friendsActions } from "@/lib/friends/store";
+import type { FeedFetchOptions, FeedFetchResult } from "@/domain/feed";
+import { fetchHomeFeedSliceAction } from "@/server/actions/home-feed";
+import { toggleFeedLikeAction, toggleFeedMemoryAction } from "@/server/actions/feed-mutations";
 import {
   deletePost as deletePostRequest,
-  fetchHomeFeed,
-  togglePostLike,
-  togglePostMemory,
   updatePostFriendship,
-  type FeedFetchOptions,
 } from "@/services/feed/client";
-
 import type { HomeFeedAttachment, HomeFeedPost } from "./types";
 import { buildFriendTarget, normalizePosts, resolvePostMediaUrl } from "./utils";
 
@@ -53,9 +51,16 @@ type HomeFeedStoreApi = {
 };
 
 type HomeFeedClient = {
-  fetch: typeof fetchHomeFeed;
-  toggleLike: typeof togglePostLike;
-  toggleMemory: typeof togglePostMemory;
+  fetch: (options?: FeedFetchOptions) => Promise<FeedFetchResult>;
+  toggleLike: (input: { postId: string; like: boolean }) => Promise<{
+    likes: number | null;
+    viewerLiked: boolean | null;
+  }>;
+  toggleMemory: (input: {
+    postId: string;
+    remember: boolean;
+    payload?: Record<string, unknown> | null;
+  }) => Promise<{ remembered: boolean | null }>;
   updateFriend: typeof updatePostFriendship;
   deletePost: typeof deletePostRequest;
 };
@@ -105,9 +110,20 @@ const defaultFallbackPosts: HomeFeedPost[] = [
 ];
 
 const defaultClient: HomeFeedClient = {
-  fetch: fetchHomeFeed,
-  toggleLike: togglePostLike,
-  toggleMemory: togglePostMemory,
+  fetch: (options) => fetchHomeFeedSliceAction(options ?? {}),
+  toggleLike: async ({ postId, like }) => {
+    const result = await toggleFeedLikeAction({ postId, like });
+    return {
+      likes: result.likes,
+      viewerLiked: result.viewerLiked,
+    };
+  },
+  toggleMemory: async ({ postId, remember, payload }) => {
+    const result = await toggleFeedMemoryAction({ postId, remember, payload });
+    return {
+      remembered: result.remembered,
+    };
+  },
   updateFriend: updatePostFriendship,
   deletePost: deletePostRequest,
 };
@@ -260,7 +276,6 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
         ...(options.limit !== undefined ? { limit: options.limit } : {}),
         ...(options.cursor !== undefined ? { cursor: options.cursor } : {}),
         ...(options.capsuleId !== undefined ? { capsuleId: options.capsuleId } : {}),
-        ...(options.signal !== undefined ? { signal: options.signal } : {}),
       };
       const result = await client.fetch(requestOptions);
       if (token !== refreshGeneration) {
@@ -323,7 +338,7 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
     try {
       const response = await client.toggleLike({
         postId: requestId,
-        action: nextLiked ? "like" : "unlike",
+        like: nextLiked,
       });
       const confirmedLikes = typeof response.likes === "number" ? response.likes : optimisticLikes;
       const liked = typeof response.viewerLiked === "boolean" ? response.viewerLiked : nextLiked;
@@ -383,7 +398,7 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
     try {
       const response = await client.toggleMemory({
         postId: requestId,
-        action: nextRemembered ? "remember" : "forget",
+        remember: nextRemembered,
         payload: nextRemembered
           ? {
               mediaUrl,
