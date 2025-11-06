@@ -118,7 +118,7 @@ const defaultClient: HomeFeedClient = {
       viewerLiked: result.viewerLiked,
     };
   },
-  toggleMemory: async ({ postId, remember, payload }) => {
+  toggleMemory: async ({ postId, remember, payload = null }) => {
     const result = await toggleFeedMemoryAction({ postId, remember, payload });
     return {
       remembered: result.remembered,
@@ -396,16 +396,17 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
     }));
 
     try {
+      const payload: Record<string, unknown> | null = nextRemembered
+        ? {
+            mediaUrl,
+            content: typeof current.content === "string" ? current.content : null,
+            userName: current.user_name ?? null,
+          }
+        : null;
       const response = await client.toggleMemory({
         postId: requestId,
         remember: nextRemembered,
-        payload: nextRemembered
-          ? {
-              mediaUrl,
-              content: typeof current.content === "string" ? current.content : null,
-              userName: current.user_name ?? null,
-            }
-          : null,
+        payload,
       });
       const confirmed =
         typeof response.remembered === "boolean" ? response.remembered : nextRemembered;

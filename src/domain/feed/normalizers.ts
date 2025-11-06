@@ -218,11 +218,9 @@ export function normalizeFeedPosts(rawPosts: unknown[]): FeedPost[] {
     const createdAt =
       typeof record["created_at"] === "string"
         ? (record["created_at"] as string)
-        : typeof record["createdAt"] === "string"
-          ? (record["createdAt"] as string)
-          : typeof record["ts"] === "string"
-            ? (record["ts"] as string)
-            : null;
+        : typeof record["ts"] === "string"
+          ? (record["ts"] as string)
+          : null;
 
     const authorIdRaw =
       coerceIdentifier(record["authorUserId"]) ??
@@ -337,12 +335,12 @@ export function normalizeFeedPosts(rawPosts: unknown[]): FeedPost[] {
       const variantsSource = data["variants"];
       const variants = (() => {
         if (!variantsSource || typeof variantsSource !== "object") return null;
-        const record = variantsSource as Record<string, unknown>;
-        const original = normalizeMediaUrl(record["original"]);
+        const recordVariants = variantsSource as Record<string, unknown>;
+        const original = normalizeMediaUrl(recordVariants["original"]);
         if (!original) return null;
-        const thumb = normalizeMediaUrl(record["thumb"]);
-        const feed = normalizeMediaUrl(record["feed"]);
-        const full = normalizeMediaUrl(record["full"]);
+        const thumb = normalizeMediaUrl(recordVariants["thumb"]);
+        const feed = normalizeMediaUrl(recordVariants["feed"]);
+        const full = normalizeMediaUrl(recordVariants["full"]);
         return {
           original,
           thumb: thumb ?? null,
@@ -358,7 +356,7 @@ export function normalizeFeedPosts(rawPosts: unknown[]): FeedPost[] {
           : null;
 
       const identifierValue = data["id"];
-      const id =
+      const attachmentId =
         typeof identifierValue === "string"
           ? identifierValue
           : typeof identifierValue === "number"
@@ -366,7 +364,7 @@ export function normalizeFeedPosts(rawPosts: unknown[]): FeedPost[] {
             : safeRandomUUID();
 
       attachments.push({
-        id,
+        id: attachmentId,
         url,
         mimeType: mime ?? null,
         name: name ?? null,
@@ -387,67 +385,60 @@ export function normalizeFeedPosts(rawPosts: unknown[]): FeedPost[] {
       decodePollFromMediaPrompt(record["mediaPrompt"]) ??
       decodePollFromMediaPrompt(record["media_prompt"]);
 
-    const baseUserName =
-      typeof record["userName"] === "string"
-        ? (record["userName"] as string)
-        : typeof record["user_name"] === "string"
-          ? (record["user_name"] as string)
+    const userNameValue =
+      typeof record["user_name"] === "string"
+        ? (record["user_name"] as string)
+        : typeof record["userName"] === "string"
+          ? (record["userName"] as string)
           : null;
 
-    const userAvatar =
-      typeof record["userAvatar"] === "string"
-        ? (record["userAvatar"] as string)
-        : typeof record["user_avatar"] === "string"
-          ? (record["user_avatar"] as string)
+    const userAvatarValue =
+      typeof record["user_avatar"] === "string"
+        ? (record["user_avatar"] as string)
+        : typeof record["userAvatar"] === "string"
+          ? (record["userAvatar"] as string)
           : null;
 
-    const dbIdRaw =
+    const dbIdValue =
       typeof record["dbId"] === "string"
         ? (record["dbId"] as string)
         : typeof record["db_id"] === "string"
           ? (record["db_id"] as string)
-          : typeof record["id"] === "string" || typeof record["id"] === "number"
-            ? String(record["id"])
-            : null;
-    const sanitizedDbId =
-      typeof dbIdRaw === "string" ? (dbIdRaw.trim().length ? dbIdRaw.trim() : null) : null;
+          : null;
 
-    const normalizedDbId = sanitizedDbId ?? undefined;
-
-    const post: FeedPost = {
+    return {
       id: String(identifier),
-      ...(normalizedDbId ? { dbId: normalizedDbId } : {}),
-      userName: baseUserName ?? "Capsules AI",
-      user_name: baseUserName ?? "Capsules AI",
-      userAvatar,
-      user_avatar: userAvatar,
-      content: typeof record["content"] === "string" ? (record["content"] as string) : null,
+      dbId: dbIdValue,
+      user_name: userNameValue ?? "Capsules AI",
+      userName: userNameValue ?? "Capsules AI",
+      user_avatar: userAvatarValue,
+      userAvatar: userAvatarValue,
+      content: typeof record["content"] === "string" ? (record["content"] as string) : "",
       mediaUrl: media,
-      createdAt: createdAt,
       created_at: createdAt,
-      ownerUserId: ownerId ?? null,
+      createdAt: createdAt,
       owner_user_id: ownerId ?? null,
-      ownerUserKey: ownerKey ?? null,
+      ownerUserId: ownerId ?? null,
       owner_user_key: ownerKey ?? null,
-      authorUserId: authorId ?? null,
+      ownerUserKey: ownerKey ?? null,
+      ownerKey: ownerKey ?? null,
       author_user_id: authorId ?? null,
-      authorUserKey: authorKey ?? null,
+      authorUserId: authorId ?? null,
       author_user_key: authorKey ?? null,
+      authorUserKey: authorKey ?? null,
+      authorKey: authorKey ?? null,
       likes,
       comments,
       shares,
-      viewerLiked,
       viewer_liked: viewerLiked,
-      viewerRemembered,
+      viewerLiked,
       viewer_remembered: viewerRemembered,
+      viewerRemembered,
       attachments,
       poll: normalizeFeedPoll(pollSource),
     };
-
-    return post;
   });
 }
-
 const FALLBACK_POST_SEEDS: Array<Omit<FeedPost, "id">> = [
   {
     dbId: "demo-welcome",
@@ -513,10 +504,20 @@ export function buildFallbackFeedPosts(): FeedPost[] {
   const now = Date.now();
   return FALLBACK_POST_SEEDS.map((seed, index) => ({
     ...seed,
-    id: seed.dbId ?? `demo-${index + 1}`,
-    createdAt: seed.createdAt ?? new Date(now - index * 90_000).toISOString(),
-    created_at: seed.created_at ?? new Date(now - index * 90_000).toISOString(),
+    id:
+      typeof seed.dbId === "string" && seed.dbId.trim().length
+        ? seed.dbId.trim()
+        : `demo-${index + 1}`,
+    createdAt:
+      typeof seed.createdAt === "string" && seed.createdAt.trim().length
+        ? seed.createdAt
+        : new Date(now - index * 90_000).toISOString(),
+    created_at:
+      typeof seed.created_at === "string" && seed.created_at.trim().length
+        ? seed.created_at
+        : new Date(now - index * 90_000).toISOString(),
   }));
 }
 
 export { normalizeFeedPosts as normalizePosts };
+

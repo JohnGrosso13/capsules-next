@@ -26,6 +26,7 @@ import {
   type NormalizedAttachment,
 } from "@/server/posts/media";
 import { sanitizeMemoryMeta } from "@/server/memories/service";
+import type { FeedPoll } from "@/domain/feed";
 import {
   buildFallbackPosts,
   normalizePost,
@@ -567,7 +568,7 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
         }
 
         record.options = normalizedOptions;
-        post.poll = record;
+        post.poll = record as FeedPoll;
       });
     }
 
@@ -903,7 +904,7 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                     origin: cloudflareOrigin,
                   });
                 } else {
-                  variants = buildLocalImageVariants(url, thumbnailUrl, originForAssets);
+                  variants = buildLocalImageVariants(url, thumbnailUrl ?? null, originForAssets ?? null);
                 }
               }
 

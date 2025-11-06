@@ -35,10 +35,12 @@ export type FeedPost = {
   ownerUserId?: string | null;
   owner_user_key?: string | null;
   ownerUserKey?: string | null;
+  ownerKey?: string | null;
   author_user_id?: string | null;
   authorUserId?: string | null;
   author_user_key?: string | null;
   authorUserKey?: string | null;
+  authorKey?: string | null;
   likes?: number | null;
   comments?: number | null;
   shares?: number | null;
