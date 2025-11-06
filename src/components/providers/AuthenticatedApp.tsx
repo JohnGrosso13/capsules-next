@@ -29,9 +29,10 @@ const MobileCommandBar = dynamic(
 
 type AuthenticatedAppProps = {
   children: React.ReactNode;
+  supabaseUserId?: string | null;
 };
 
-export function AuthenticatedApp({ children }: AuthenticatedAppProps) {
+export function AuthenticatedApp({ children, supabaseUserId = null }: AuthenticatedAppProps) {
   return (
     <>
       {children}
@@ -42,7 +43,7 @@ export function AuthenticatedApp({ children }: AuthenticatedAppProps) {
         <MobileCommandBar />
       </React.Suspense>
       <React.Suspense fallback={null}>
-        <AiImageRunToasts />
+        <AiImageRunToasts supabaseUserId={supabaseUserId} />
       </React.Suspense>
     </>
   );

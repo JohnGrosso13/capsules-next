@@ -180,14 +180,37 @@ function normalizeEvent(data: RealtimeEvent["data"]): AiImageRunRealtimeEvent | 
 
 type AiImageRunProviderProps = {
   children: React.ReactNode;
+  supabaseUserId?: string | null;
 };
 
-export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
+export function AiImageRunProvider({ children, supabaseUserId = null }: AiImageRunProviderProps) {
   const { user } = useCurrentUser();
   const userRef = React.useRef<AuthClientUser | null>(user);
   React.useEffect(() => {
     userRef.current = user;
   }, [user]);
+
+  const initialSupabaseUserId =
+    typeof supabaseUserId === "string" && supabaseUserId.trim().length
+      ? supabaseUserId.trim()
+      : null;
+  const supabaseUserIdRef = React.useRef<string | null>(initialSupabaseUserId);
+  const profileIdCacheRef = React.useRef<string | null | undefined>(
+    initialSupabaseUserId !== null ? initialSupabaseUserId : undefined,
+  );
+
+  React.useEffect(() => {
+    const normalized =
+      typeof supabaseUserId === "string" && supabaseUserId.trim().length
+        ? supabaseUserId.trim()
+        : null;
+    supabaseUserIdRef.current = normalized;
+    if (normalized !== null) {
+      profileIdCacheRef.current = normalized;
+    } else if (profileIdCacheRef.current === undefined) {
+      profileIdCacheRef.current = null;
+    }
+  }, [supabaseUserId]);
 
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const timersRef = React.useRef<Map<string, number>>(new Map());
@@ -392,15 +415,27 @@ export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
     };
 
     const resolveChannelUserId = async (): Promise<string> => {
+      const explicit = supabaseUserIdRef.current;
+      if (explicit && explicit.length) {
+        return explicit;
+      }
+
+      const cached = profileIdCacheRef.current;
+      if (cached !== undefined) {
+        return cached ?? user.id;
+      }
+
       try {
         const res = await fetch("/api/account/profile", { credentials: "include" });
         const json = (await res.json().catch(() => null)) as { id?: unknown } | null;
-        const profileId = json && typeof json.id === "string" ? json.id.trim() : null;
-        if (profileId && profileId.length) return profileId;
+        const profileId =
+          json && typeof json.id === "string" && json.id.trim().length ? json.id.trim() : null;
+        profileIdCacheRef.current = profileId;
+        return profileId ?? user.id;
       } catch {
-        // ignore and fall back to auth id
+        profileIdCacheRef.current = null;
+        return user.id;
       }
-      return user.id; // Clerk id fallback (may fail capability if server publishes to Supabase id)
     };
 
     const connect = async (attempt = 0) => {
@@ -457,7 +492,7 @@ export function AiImageRunProvider({ children }: AiImageRunProviderProps) {
         });
       }
     };
-  }, [handleEvent, user?.id]);
+  }, [handleEvent, supabaseUserId, user?.id]);
 
   return (
     <>

@@ -5,6 +5,8 @@ import type {
   ChatSessionType,
 } from "@/lib/chat/events";
 
+import type { TimerAdapter } from "@/components/providers/chat-store/scheduler";
+
 export type ChatMessageReaction = {
   emoji: string;
   count: number;
@@ -125,6 +127,7 @@ export type ChatStoreConfig = {
   storageKey?: string;
   messageLimit?: number;
   now?: () => number;
+  timers?: TimerAdapter | null;
 };
 
 export type MessageAttachmentInput =
