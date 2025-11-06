@@ -130,7 +130,12 @@ export function extractErrorMessage(error: unknown): string {
 }
 
 export function shouldReturnFallback(error: unknown): boolean {
-  if (process.env.NODE_ENV === "production") return false;
+  const isProduction =
+    typeof process !== "undefined" &&
+    process &&
+    typeof process.env === "object" &&
+    process.env?.NODE_ENV === "production";
+  if (isProduction) return false;
   const message = extractErrorMessage(error).toLowerCase();
   if (!message) return false;
   return (

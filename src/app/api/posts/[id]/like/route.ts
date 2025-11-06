@@ -9,7 +9,7 @@ import {
   upsertPostLike,
 } from "@/server/posts/repository";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const body = await req.json().catch(() => null);

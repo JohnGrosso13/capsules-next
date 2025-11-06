@@ -1,9 +1,8 @@
-import type { Buffer as NodeBuffer } from "node:buffer";
 import { getStorageProvider } from "@/config/storage";
 import { generateStorageObjectKey } from "@/lib/storage/keys";
 import { serverEnv } from "@/lib/env/server";
 import { resolveToAbsoluteUrl } from "@/lib/url";
-import type { StorageMetadataValue } from "@/ports/storage";
+import type { StorageMetadataValue, StorageBinaryLike } from "@/ports/storage";
 
 function extFromContentType(contentType: string) {
   const map: Record<string, string> = {
@@ -22,21 +21,29 @@ function extFromContentType(contentType: string) {
   return parts.length > 1 ? parts[1] : "bin";
 }
 
-type ByteLike = Uint8Array | ArrayBuffer | NodeBuffer;
+type ByteLike = StorageBinaryLike;
 
-function toUploadBuffer(input: ByteLike): NodeBuffer {
-  const ctor = (
-    globalThis as unknown as {
-      Buffer?: { from: (src: ArrayBuffer | Uint8Array) => NodeBuffer };
-    }
-  ).Buffer;
-  if (ctor) {
-    if (input instanceof Uint8Array) return ctor.from(input);
-    if (input instanceof ArrayBuffer) return ctor.from(input);
-    return input as NodeBuffer;
+function toUploadBytes(input: ByteLike): Uint8Array {
+  if (input instanceof Uint8Array) {
+    return input;
   }
-  // Fallback cast (code paths using this run on Node runtime in practice)
-  return input as unknown as NodeBuffer;
+  if (input instanceof ArrayBuffer) {
+    return new Uint8Array(input);
+  }
+  if (ArrayBuffer.isView(input)) {
+    const view = input as ArrayBufferView;
+    return new Uint8Array(
+      view.buffer,
+      view.byteOffset,
+      view.byteLength,
+    );
+  }
+  const maybeBuffer = (globalThis as unknown as { Buffer?: { isBuffer?: (value: unknown) => boolean } }).Buffer;
+  if (maybeBuffer?.isBuffer?.(input)) {
+    const buffer = input as unknown as { buffer: ArrayBuffer; byteOffset: number; byteLength: number };
+    return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  }
+  throw new TypeError("Unsupported byte source for upload");
 }
 
 export async function uploadBufferToStorage(
@@ -73,7 +80,7 @@ export async function uploadBufferToStorage(
   const { url } = await provider.uploadBuffer({
     key,
     contentType,
-    body: toUploadBuffer(buffer),
+    body: toUploadBytes(buffer),
     metadata,
   });
 
@@ -95,18 +102,7 @@ export async function storeImageSrcToSupabase(
     if (!match) throw new Error("Invalid data URI");
     const contentType = match[1] || "image/png";
     const base64 = match[2] || "";
-    const ctor = (
-      globalThis as unknown as {
-        Buffer?: { from: (src: string, encoding: string) => NodeBuffer };
-      }
-    ).Buffer;
-    const bytes: ByteLike = ctor
-      ? ctor.from(base64, "base64")
-      : new Uint8Array(
-          atob(base64)
-            .split("")
-            .map((c) => c.charCodeAt(0)),
-        );
+    const bytes = decodeBase64(base64);
     return uploadBufferToStorage(bytes, contentType, filenameHint);
   }
 
@@ -165,12 +161,7 @@ export async function storeImageSrcToSupabase(
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    const ctor = (
-      globalThis as unknown as {
-        Buffer?: { from: (src: ArrayBuffer) => NodeBuffer };
-      }
-    ).Buffer;
-    const bytes: ByteLike = ctor ? ctor.from(arrayBuffer) : new Uint8Array(arrayBuffer);
+    const bytes: ByteLike = new Uint8Array(arrayBuffer);
     const contentType = response.headers.get("content-type") || "image/png";
 
     return uploadBufferToStorage(bytes, contentType, filenameHint);
@@ -178,4 +169,24 @@ export async function storeImageSrcToSupabase(
     console.warn("storeImageSrcToSupabase fetch failed", error);
     return { url: resolvedSrc, key: null };
   }
+}
+
+function decodeBase64(value: string): Uint8Array {
+  if (typeof atob === "function") {
+    const binary = atob(value);
+    const length = binary.length;
+    const bytes = new Uint8Array(length);
+    for (let i = 0; i < length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+  const maybeBuffer = (globalThis as unknown as {
+    Buffer?: { from: (src: string, encoding: string) => { buffer: ArrayBuffer; byteOffset: number; byteLength: number } };
+  }).Buffer;
+  if (maybeBuffer) {
+    const buffer = maybeBuffer.from(value, "base64");
+    return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  }
+  throw new Error("Base64 decoding is not supported in this environment");
 }

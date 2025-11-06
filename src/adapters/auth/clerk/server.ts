@@ -23,9 +23,13 @@ type UserRecord = {
 
 function parseEnvList(...keys: string[]) {
   const values = new Set<string>();
+  const envSource =
+    typeof process !== "undefined" && process && typeof process.env === "object"
+      ? (process.env as Record<string, string | undefined>)
+      : {};
 
   keys.forEach((key) => {
-    const raw = process.env[key];
+    const raw = envSource[key];
 
     if (!raw) return;
 

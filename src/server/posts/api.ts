@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { z } from "zod";
 
 import {
@@ -15,6 +14,7 @@ import {
 } from "@/lib/cloudflare/runtime";
 import { createPostRecord } from "@/lib/supabase/posts";
 import { mergeUploadMetadata } from "@/lib/uploads/metadata";
+import { safeRandomUUID } from "@/lib/random";
 import { listUploadSessionsByIds, type UploadSessionRecord } from "@/server/memories/uploads";
 import {
   ensureAccessibleMediaUrl,
@@ -964,7 +964,7 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                     ? row.id
                     : typeof row?.id === "number"
                       ? String(row.id)
-                      : randomUUID(),
+                      : safeRandomUUID(),
                 url,
                 mimeType: mimeType ?? null,
                 name: typeof row?.title === "string" ? row.title : null,

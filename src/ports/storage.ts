@@ -1,5 +1,3 @@
-import type { Buffer } from "node:buffer";
-
 export type StorageMetadataValue = string | number | boolean;
 
 export type StorageMultipartPart = {
@@ -38,10 +36,12 @@ export type StorageMultipartAbortParams = {
   key: string;
 };
 
+export type StorageBinaryLike = ArrayBuffer | ArrayBufferView;
+
 export type StorageUploadBufferParams = {
   key: string;
   contentType: string;
-  body: Buffer;
+  body: StorageBinaryLike;
   metadata?: Record<string, StorageMetadataValue>;
 };
 

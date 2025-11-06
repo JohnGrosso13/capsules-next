@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter";
+import {
+  generateImageFromPrompt,
+  editImageWithInstruction,
+  extractImageProviderError,
+} from "@/lib/ai/prompter";
 import { composeUserLedPrompt } from "@/lib/ai/prompt-styles";
 import { mergePersonaCues, type StylePersonaPromptData } from "@/lib/ai/style-persona";
 import { getStylePersona, type CapsuleStylePersonaRecord } from "@/server/capsules/style-personas";
@@ -269,7 +273,7 @@ export async function POST(req: Request) {
       const generated = await generateImageFromPrompt(
         avatarPrompt,
         {
-          quality: "high",
+          quality: "standard",
           size: "768x768",
         },
         {
@@ -369,13 +373,13 @@ export async function POST(req: Request) {
     }
 
     const instruction = buildEditInstruction(prompt, stylePreset, personaPrompt);
-    const edited = await editImageWithInstruction(
-      normalizedSource,
-      instruction,
-      {
-        quality: "high",
-        size: "768x768",
-      },
+      const edited = await editImageWithInstruction(
+        normalizedSource,
+        instruction,
+        {
+          quality: "standard",
+          size: "768x768",
+        },
       {
         ownerId,
         assetKind: "avatar",
@@ -437,6 +441,16 @@ export async function POST(req: Request) {
       ...(variantResponse ? { variant: variantResponse } : {}),
     });
   } catch (error) {
+    const providerError = extractImageProviderError(error);
+    if (providerError) {
+      const status =
+        typeof providerError.status === "number" && providerError.status >= 400
+          ? providerError.status
+          : 422;
+      const code = providerError.code ?? "avatar_generation_failed";
+      console.warn("ai.avatar provider error", providerError);
+      return returnError(status, code, providerError.message);
+    }
     console.error("ai.avatar error", error);
     const message = error instanceof Error ? error.message : "Failed to update avatar.";
     return returnError(500, "avatar_generation_failed", message);

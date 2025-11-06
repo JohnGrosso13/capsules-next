@@ -14,8 +14,13 @@ const readEnv = (
   const normalizedOptions = Array.isArray(options) ? { fallbacks: options } : options;
   const { fallbacks = [], format } = normalizedOptions;
   const keys = [key, ...fallbacks];
+  const sourceEnv =
+    typeof process !== "undefined" && process && typeof process.env === "object"
+      ? (process.env as Record<string, string | undefined>)
+      : undefined;
+
   for (const candidate of keys) {
-    const raw = process.env[candidate];
+    const raw = sourceEnv?.[candidate];
     if (typeof raw !== "string") continue;
     const trimmed = raw.trim();
     if (!trimmed.length) continue;

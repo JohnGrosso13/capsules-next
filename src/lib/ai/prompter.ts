@@ -914,6 +914,70 @@ function extractOpenAiErrorDetails(error: unknown): OpenAiErrorDetails {
   return fallback;
 }
 
+export type ImageProviderErrorDetails = {
+  status?: number;
+  code?: string;
+  message: string;
+};
+
+export function extractImageProviderError(error: unknown): ImageProviderErrorDetails | null {
+  if (!error) return null;
+  const baseMessage =
+    error instanceof Error && typeof error.message === "string" ? error.message.trim() : "";
+  const status =
+    typeof (error as { status?: unknown })?.status === "number"
+      ? ((error as { status?: number }).status as number)
+      : undefined;
+  const meta = (error as { meta?: unknown })?.meta;
+
+  const coerceMessage = (value: unknown): string | null => {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    }
+    return null;
+  };
+
+  if (meta && typeof meta === "object" && !Array.isArray(meta)) {
+    const record = meta as Record<string, unknown>;
+    if (record.error && typeof record.error === "object") {
+      const err = record.error as Record<string, unknown>;
+      const message = coerceMessage(err.message) ?? coerceMessage(record.message) ?? baseMessage;
+      const code =
+        typeof err.code === "string" && err.code.trim().length ? err.code.trim() : undefined;
+      if (message) return { status, code, message };
+    }
+    if (Array.isArray(record.errors) && record.errors.length) {
+      const first = record.errors[0] as Record<string, unknown>;
+      const message =
+        coerceMessage(first?.message) ?? coerceMessage(record.message) ?? baseMessage;
+      const codeCandidate =
+        typeof first?.code === "string" && first.code.trim().length
+          ? first.code.trim()
+          : typeof record.name === "string" && record.name.trim().length
+            ? record.name.trim()
+            : undefined;
+      if (message) {
+        return { status, code: codeCandidate, message };
+      }
+    }
+    const message = coerceMessage(record.message);
+    if (message) {
+      const code =
+        typeof record.code === "string" && record.code.trim().length
+          ? record.code.trim()
+          : undefined;
+      return { status, code, message };
+    }
+  }
+
+  if (baseMessage) {
+    return { status, message: baseMessage };
+  }
+
+  return null;
+}
+
 function shouldRetryError(details: OpenAiErrorDetails): boolean {
   if (details.status === 429) return true;
   if (typeof details.status === "number" && details.status >= 500) return true;
@@ -1179,6 +1243,28 @@ type ProviderResult = {
   provider: ImageProviderId;
 };
 
+const OPENAI_ALLOWED_SIZES = ["256x256", "512x512", "1024x1024"] as const;
+type OpenAiAllowedSize = (typeof OPENAI_ALLOWED_SIZES)[number];
+
+export function normalizeOpenAiImageSize(requested: string | null | undefined): OpenAiAllowedSize {
+  if (typeof requested === "string" && requested.trim().length) {
+    const normalized = requested.trim().toLowerCase();
+    if (OPENAI_ALLOWED_SIZES.includes(normalized as OpenAiAllowedSize)) {
+      return normalized as OpenAiAllowedSize;
+    }
+    const match = normalized.match(/^(\d+)\s*x\s*(\d+)$/);
+    if (match) {
+      const width = Number.parseInt(match[1], 10);
+      const height = Number.parseInt(match[2], 10);
+      const largest = Number.isFinite(width) && Number.isFinite(height) ? Math.max(width, height) : width || height;
+      if (largest && largest <= 256) return "256x256";
+      if (largest && largest <= 512) return "512x512";
+      if (largest && largest >= 1024) return "1024x1024";
+    }
+  }
+  return "1024x1024";
+}
+
 async function generateWithOpenAI(runtime: ProviderRuntimeParams): Promise<ProviderResult> {
   requireOpenAIKey();
 
@@ -1220,12 +1306,20 @@ async function generateWithOpenAI(runtime: ProviderRuntimeParams): Promise<Provi
       }
 
       try {
+        const normalizedSize = normalizeOpenAiImageSize(runtime.params.size);
+        const normalizedQuality =
+          runtime.params.quality === "hd" ? ("hd" as const) : ("standard" as const);
+        const effectiveQuality =
+          normalizedQuality === "hd" && normalizedSize !== "1024x1024" ? "hd" : normalizedQuality;
+        const effectiveSize =
+          normalizedQuality === "hd" ? ("1024x1024" as const) : normalizedSize;
+
         const body = {
           model: modelName,
           prompt: runtime.prompt,
           n: 1,
-          size: runtime.params.size,
-          quality: runtime.params.quality,
+          size: effectiveSize,
+          quality: effectiveQuality,
         };
 
         const response = await fetchOpenAI("/images/generations", {
@@ -1646,11 +1740,17 @@ export async function editImageWithInstruction(
       }
 
       try {
+        const normalizedSize = normalizeOpenAiImageSize(params.size);
+        const normalizedQuality =
+          params.quality === "hd" ? ("hd" as const) : ("standard" as const);
+        const effectiveEditSize =
+          normalizedQuality === "hd" ? ("1024x1024" as const) : normalizedSize;
+
         const fd = new FormData();
         fd.append("model", modelName);
         fd.append("image", baseBlob, "image.png");
         fd.append("prompt", promptText);
-        if (params.size) fd.append("size", params.size);
+        fd.append("size", effectiveEditSize);
         if (maskBlob) fd.append("mask", maskBlob, "mask.png");
 
         const response = await fetchOpenAI("/images/edits", {

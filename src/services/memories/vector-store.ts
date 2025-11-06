@@ -53,7 +53,7 @@ export async function upsertMemoryVector({
   mediaType?: string | null;
   extra?: Record<string, unknown> | null;
 }): Promise<void> {
-  const store = getVectorStore<MemoryVectorMetadata>();
+  const store = await getVectorStore<MemoryVectorMetadata>();
   if (!store) return;
   if (!id || !ownerId || !Array.isArray(values) || !values.length) return;
 
@@ -101,7 +101,7 @@ export async function upsertMemoryVector({
 }
 
 export async function deleteMemoryVectors(ids: string[]): Promise<void> {
-  const store = getVectorStore<MemoryVectorMetadata>();
+  const store = await getVectorStore<MemoryVectorMetadata>();
   if (!store) return;
   if (!Array.isArray(ids) || !ids.length) return;
   await store.delete(ids);
@@ -114,7 +114,7 @@ export async function queryMemoryVectors(
   vector: number[],
   topK: number,
 ): Promise<MemoryVectorMatch[]> {
-  const store = getVectorStore<MemoryVectorMetadata>();
+  const store = await getVectorStore<MemoryVectorMetadata>();
   if (!store) return [];
   if (!ownerId || !Array.isArray(vector) || !vector.length) return [];
   return store.query({ vector, topK, filter: { ownerId } });

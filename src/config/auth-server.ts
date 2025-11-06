@@ -3,7 +3,12 @@ import "server-only";
 import { clerkAuthServerAdapter } from "@/adapters/auth/clerk/server";
 import type { AuthServerAdapter } from "@/ports/auth";
 
-const authVendor = process.env.AUTH_VENDOR?.trim() || "clerk";
+const authVendorEnv =
+  typeof process !== "undefined" && process && typeof process.env === "object"
+    ? process.env.AUTH_VENDOR
+    : undefined;
+
+const authVendor = authVendorEnv?.trim() || "clerk";
 
 let adapter: AuthServerAdapter | null;
 

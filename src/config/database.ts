@@ -1,7 +1,12 @@
 import { getSupabaseDatabaseAdapter } from "@/adapters/database/supabase/admin";
 import type { DatabaseAdapter, DatabaseClient } from "@/ports/database";
 
-const configuredVendor = (process.env.DATABASE_VENDOR ?? "supabase").trim().toLowerCase();
+const rawDatabaseVendor =
+  typeof process !== "undefined" && process && typeof process.env === "object"
+    ? process.env.DATABASE_VENDOR
+    : undefined;
+
+const configuredVendor = (rawDatabaseVendor ?? "supabase").trim().toLowerCase();
 
 let adapter: DatabaseAdapter | null = null;
 

@@ -1,20 +1,36 @@
 import "server-only";
 
-import { getPineconeVectorStore } from "@/adapters/vector/pinecone";
 import type { RecordMetadata } from "@pinecone-database/pinecone";
 import type { VectorStore } from "@/ports/vector-store";
 
-let vectorStoreInstance: VectorStore<RecordMetadata> | null = null;
+let vectorStorePromise: Promise<VectorStore<RecordMetadata> | null> | null = null;
 
-function getOrCreateVectorStore(): VectorStore<RecordMetadata> {
-  if (!vectorStoreInstance) {
-    vectorStoreInstance = getPineconeVectorStore();
+async function loadVectorStore(): Promise<VectorStore<RecordMetadata> | null> {
+  const runtime =
+    typeof process !== "undefined" && process && typeof process.env === "object"
+      ? process.env.NEXT_RUNTIME
+      : undefined;
+  if (runtime === "edge") {
+    return null;
   }
-  return vectorStoreInstance;
+
+  try {
+    const { getPineconeVectorStore } = await import("../adapters/vector/pinecone");
+    return getPineconeVectorStore();
+  } catch (error) {
+    console.warn("Vector store initialization failed; falling back to null store.", error);
+    return null;
+  }
 }
 
-export function getVectorStore<T extends RecordMetadata = RecordMetadata>(): VectorStore<T> | null {
-  return getOrCreateVectorStore() as VectorStore<T>;
+export async function getVectorStore<T extends RecordMetadata = RecordMetadata>(): Promise<
+  VectorStore<T> | null
+> {
+  if (!vectorStorePromise) {
+    vectorStorePromise = loadVectorStore();
+  }
+  const store = await vectorStorePromise;
+  return (store as VectorStore<T> | null) ?? null;
 }
 
 export function getVectorVendor(): string {

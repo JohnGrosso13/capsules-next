@@ -1,7 +1,12 @@
 import { isLocalLikeHostname, resolveToAbsoluteUrl } from "@/lib/url";
 import type { CloudflareImageVariantSet } from "@/lib/cloudflare/images";
 
-const FORCE_ENV_FLAG = normalizeBoolean(process.env.NEXT_PUBLIC_FORCE_CLOUDFLARE_IMAGES);
+const envSource =
+  typeof process !== "undefined" && process && typeof process.env === "object"
+    ? (process.env as Record<string, string | undefined>)
+    : {};
+
+const FORCE_ENV_FLAG = normalizeBoolean(envSource.NEXT_PUBLIC_FORCE_CLOUDFLARE_IMAGES);
 const OVERRIDE_STORAGE_KEY = "capsules:forceCloudflareImages";
 const OVERRIDE_QUERY_KEY = "cloudflareImages";
 

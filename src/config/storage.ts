@@ -2,7 +2,12 @@ import { getR2StorageProvider } from "@/adapters/storage/r2/provider";
 import { serverEnv } from "@/lib/env/server";
 import type { StorageProvider } from "@/ports/storage";
 
-const storageVendor = (process.env.STORAGE_VENDOR ?? "r2").trim().toLowerCase();
+const rawStorageVendor =
+  typeof process !== "undefined" && process && typeof process.env === "object"
+    ? process.env.STORAGE_VENDOR
+    : undefined;
+
+const storageVendor = (rawStorageVendor ?? "r2").trim().toLowerCase();
 
 let provider: StorageProvider | null = null;
 

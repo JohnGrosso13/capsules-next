@@ -40,7 +40,7 @@ export async function GET(req: Request) {
   }
 }
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 export async function PATCH(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });

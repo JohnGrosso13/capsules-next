@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import { persistCommentToDB, resolvePostId } from "@/lib/supabase/posts";
+import { persistCommentToDB } from "@/server/posts/comments";
+import { resolvePostId } from "@/server/posts/identifiers";
 import { listCommentsForPost, fetchCommentById } from "@/server/posts/repository";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 type CommentAttachmentResponse = {
   id: string;
