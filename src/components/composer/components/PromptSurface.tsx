@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Paperclip, Sparkle, CaretDown } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Sparkle, CaretDown } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "../../ai-composer.module.css";
 import { VoiceRecorder } from "./VoiceRecorder";
@@ -60,7 +60,7 @@ export function PromptSurface({
           onClick={onAttachClick}
           disabled={loading || attachmentUploading}
         >
-          <Paperclip size={18} weight="duotone" />
+          <Plus size={18} weight="bold" />
         </button>
         <input
           ref={fileInputRef}
@@ -135,3 +135,6 @@ export function PromptSurface({
     </div>
   );
 }
+
+
+

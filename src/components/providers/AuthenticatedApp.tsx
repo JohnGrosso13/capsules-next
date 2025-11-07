@@ -3,6 +3,8 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 
+import { SupabaseSessionProvider } from "@/components/providers/SupabaseSessionProvider";
+
 const AiImageRunToasts = dynamic(
   () =>
     import("@/components/providers/AiImageRunToasts").then((mod) => ({
@@ -34,7 +36,7 @@ type AuthenticatedAppProps = {
 
 export function AuthenticatedApp({ children, supabaseUserId = null }: AuthenticatedAppProps) {
   return (
-    <>
+    <SupabaseSessionProvider supabaseUserId={supabaseUserId}>
       {children}
       <React.Suspense fallback={null}>
         <GlobalSearchOverlay />
@@ -45,6 +47,6 @@ export function AuthenticatedApp({ children, supabaseUserId = null }: Authentica
       <React.Suspense fallback={null}>
         <AiImageRunToasts supabaseUserId={supabaseUserId} />
       </React.Suspense>
-    </>
+    </SupabaseSessionProvider>
   );
 }

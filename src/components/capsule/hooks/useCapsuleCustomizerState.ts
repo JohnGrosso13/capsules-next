@@ -13,6 +13,7 @@ import { useCapsuleCustomizerMemory } from "./useCapsuleCustomizerMemory";
 import {
   type CapsuleCustomizerMode,
   type CapsuleCustomizerSaveResult,
+  type CapsulePromptClarifier,
   type ChatBannerOption,
   type ChatMessage,
   type CroppableBanner,
@@ -65,6 +66,91 @@ function describeSource(source: SelectedBanner | null, label: string): string {
   return `AI prompt - "${source.prompt}"`;
 }
 
+const DEFAULT_PROMPTER_CHIPS = [
+  "Bold gradient hero with soft glow lighting",
+  "Minimal collage banner with generous white space",
+  "Photo-forward hero featuring community moments",
+  "Neon synthwave grid hero with holographic text",
+];
+
+const CUSTOMIZER_CLARIFIERS: Record<CapsuleCustomizerMode, CapsulePromptClarifier> = {
+  banner: {
+    prompt: "Want the hero to feel bold, minimal, photo-first, or neon?",
+    suggestions: [
+      "Bold gradient hero",
+      "Minimal collage layout",
+      "Photo-forward hero",
+      "Neon grid energy",
+    ],
+    prompterChips: [
+      "Bold gradient hero with glass typography, centered logo",
+      "Minimal collage hero mixing two monochrome photos and clean serif text",
+      "Photo-forward hero featuring candid team shots with warm lighting",
+      "Neon grid hero with holographic lines and synthwave accents",
+    ],
+  },
+  storeBanner: {
+    prompt: "Tap a store vibe to riff on or describe exactly what you imagine.",
+    suggestions: [
+      "Product spotlight hero",
+      "Luxury boutique feel",
+      "Neon marketplace energy",
+      "Editorial collage",
+    ],
+    prompterChips: [
+      "Product spotlight hero with floating cards and bold CTA",
+      "Luxury boutique store banner with soft beige textures and serif copy",
+      "Neon marketplace hero with animated grid and glitch lighting",
+      "Editorial collage hero mixing cutout product photos and headline text",
+    ],
+  },
+  tile: {
+    prompt: "Need the promo tile to feel typographic, cinematic, or collage-like?",
+    suggestions: [
+      "Bold typography tile",
+      "Moodboard collage tile",
+      "Portrait tile with depth",
+      "High-contrast monochrome",
+    ],
+    prompterChips: [
+      "Bold typography tile with stacked lettering and radial blur",
+      "Moodboard collage tile mixing stickers, tape, and gritty textures",
+      "Portrait tile with dramatic lighting and depth of field",
+      "High-contrast monochrome tile with sharp angles and noise grain",
+    ],
+  },
+  logo: {
+    prompt: "Should this logo feel minimal, playful, retro, or sharp?",
+    suggestions: [
+      "Minimal monogram",
+      "Playful bubble mark",
+      "Retro badge logo",
+      "Sharp geometric icon",
+    ],
+    prompterChips: [
+      "Minimal monogram logo with rounded corners and subtle gradient",
+      "Playful bubble wordmark with soft shadows",
+      "Retro badge logo with bold outline and capsule lettering",
+      "Sharp geometric icon with intersecting lines and negative space",
+    ],
+  },
+  avatar: {
+    prompt: "Do you want the avatar realistic, illustrated, dreamy, or futuristic?",
+    suggestions: [
+      "Realistic portrait",
+      "Cartoon cel-shaded",
+      "Dreamy watercolor",
+      "Neon hologram",
+    ],
+    prompterChips: [
+      "Realistic portrait with studio lighting and subtle depth of field",
+      "Cartoon cel-shaded avatar with bold outlines and expressive eyes",
+      "Dreamy watercolor avatar with pastel washes and soft focus",
+      "Neon hologram avatar with chrome highlights and holographic glow",
+    ],
+  },
+};
+
 export type UseCapsuleCustomizerOptions = {
   open?: boolean;
   capsuleId?: string | null;
@@ -80,6 +166,7 @@ export type CapsuleChatState = {
   prompterSession: number;
   onPrompterAction: (action: PrompterAction) => void;
   onBannerSelect: (option: ChatBannerOption) => void;
+  onSuggestionSelect: (value: string) => void;
   logRef: React.RefObject<HTMLDivElement | null>;
 };
 
@@ -131,6 +218,7 @@ export type CapsuleCustomizerMeta = {
   headerTitle: string;
   headerSubtitle: string;
   prompterPlaceholder: string;
+  prompterChips: string[];
   stageAriaLabel: string;
   footerDefaultHint: string;
   recentDescription: string;
@@ -184,6 +272,26 @@ export function useCapsuleCustomizerState(
     if (customizerMode === "banner" || customizerMode === "storeBanner") return "banner";
     return null;
   }, [customizerMode]);
+
+  const clarifierPreset = React.useMemo<CapsulePromptClarifier | null>(() => {
+    const preset = CUSTOMIZER_CLARIFIERS[customizerMode];
+    if (!preset) return null;
+    return {
+      prompt: preset.prompt,
+      suggestions: [...preset.suggestions],
+      ...(preset.prompterChips ? { prompterChips: [...preset.prompterChips] } : {}),
+    };
+  }, [customizerMode]);
+
+  const prompterChips = React.useMemo<string[]>(() => {
+    if (clarifierPreset?.prompterChips?.length) {
+      return clarifierPreset.prompterChips;
+    }
+    if (clarifierPreset?.suggestions?.length) {
+      return clarifierPreset.suggestions;
+    }
+    return DEFAULT_PROMPTER_CHIPS;
+  }, [clarifierPreset]);
 
   const [personas, setPersonas] = React.useState<CapsuleStylePersona[]>([]);
   const [personasLoading, setPersonasLoading] = React.useState(false);
@@ -432,6 +540,7 @@ export function useCapsuleCustomizerState(
     chatLogRef,
     handlePrompterAction,
     handleBannerOptionSelect,
+    handleSuggestionSelect,
     resetPromptHistory,
     resetConversation,
     syncBannerCropToMessages,
@@ -451,6 +560,7 @@ export function useCapsuleCustomizerState(
     stylePersonaId: selectedPersonaId,
     seed: advancedSeed,
     guidance: advancedGuidance,
+    clarifier: clarifierPreset,
   });
 
   cropUpdateRef.current = syncBannerCropToMessages;
@@ -553,9 +663,9 @@ export function useCapsuleCustomizerState(
 
   React.useEffect(() => {
     if (!open) return;
-    resetConversation(assistantIntro);
+    resetConversation(assistantIntro, clarifierPreset);
     clearUploadArtifacts();
-  }, [assistantIntro, clearUploadArtifacts, open, resetConversation]);
+  }, [assistantIntro, clarifierPreset, clearUploadArtifacts, open, resetConversation]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -600,6 +710,7 @@ export function useCapsuleCustomizerState(
       headerTitle,
       headerSubtitle,
       prompterPlaceholder,
+      prompterChips,
       stageAriaLabel,
       footerDefaultHint,
       recentDescription,
@@ -612,6 +723,7 @@ export function useCapsuleCustomizerState(
       prompterSession,
       onPrompterAction: handlePrompterAction,
       onBannerSelect: handleBannerOptionSelect,
+      onSuggestionSelect: handleSuggestionSelect,
       logRef: chatLogRef,
     },
     memory: {

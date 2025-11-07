@@ -103,9 +103,9 @@ export function SummaryNarrativeCard({
   const introLabel = React.useMemo(() => {
     const sourceLabel = options?.sourceLabel?.trim();
     if (sourceLabel && sourceLabel.length) {
-      return `Here is what is happening in ${sourceLabel}:`;
+      return `You’re all caught up on ${sourceLabel}.`;
     }
-    return "Here is what I am seeing right now:";
+    return "You’re all caught up.";
   }, [options?.sourceLabel]);
 
   const summaryParagraphs = React.useMemo(() => {
@@ -114,6 +114,14 @@ export function SummaryNarrativeCard({
       .map((segment) => segment.trim())
       .filter((segment) => segment.length > 0);
   }, [result.summary]);
+
+  const headlineHighlights = React.useMemo(() => {
+    return result.highlights.slice(0, 5);
+  }, [result.highlights]);
+
+  const remainingHighlightCount = Math.max(0, result.highlights.length - headlineHighlights.length);
+
+  const showPostSuggestion = Boolean(result.postTitle || result.postPrompt);
 
   const handleLineToggle = React.useCallback(
     (id: string, entry: SummaryConversationEntry) => {
@@ -184,6 +192,9 @@ export function SummaryNarrativeCard({
         {options?.title ? (
           <p className={styles.summaryNarrativeSubtitle}>{options.title}</p>
         ) : null}
+        <p className={styles.summaryNarrativeNote}>
+          Capsule pulled the loudest moments so you can react, comment, or ask for help in seconds.
+        </p>
       </header>
 
       {summaryParagraphs.length ? (
@@ -194,48 +205,36 @@ export function SummaryNarrativeCard({
         </ul>
       ) : null}
 
-      {result.highlights.length ? (
+      {headlineHighlights.length ? (
         <div className={styles.summaryNarrativeSection}>
-          <h4 className={styles.summaryNarrativeSectionTitle}>Highlights I noticed</h4>
+          <div className={styles.summaryHighlightHeading}>
+            <h4 className={styles.summaryNarrativeSectionTitle}>Don’t miss these</h4>
+            {remainingHighlightCount ? (
+              <span className={styles.summaryHighlightBadge}>
+                +{remainingHighlightCount} more in feed
+              </span>
+            ) : null}
+          </div>
           <ul className={styles.summaryNarrativeList}>
-            {result.highlights.map((highlight, index) =>
+            {headlineHighlights.map((highlight, index) =>
               renderLine(highlight, `highlight-${index}`),
             )}
           </ul>
         </div>
       ) : null}
 
-      {result.insights.length ? (
-        <div className={styles.summaryNarrativeSection}>
-          <h4 className={styles.summaryNarrativeSectionTitle}>What it could mean</h4>
-          <ul className={styles.summaryNarrativeList}>
-            {result.insights.map((insight, index) =>
-              renderLine(insight, `insight-${index}`),
-            )}
-          </ul>
-        </div>
-      ) : null}
-
-      {result.nextActions.length ? (
-        <div className={styles.summaryNarrativeSection}>
-          <h4 className={styles.summaryNarrativeSectionTitle}>Next steps to try</h4>
-          <ul className={styles.summaryNarrativeList}>
-            {result.nextActions.map((action, index) =>
-              renderLine(action, `action-${index}`),
-            )}
-          </ul>
-        </div>
-      ) : null}
-
-      {result.postTitle || result.postPrompt ? (
-        <div className={styles.summaryNarrativeSection}>
-          <h4 className={styles.summaryNarrativeSectionTitle}>Want to publish something next?</h4>
-          {result.postTitle ? (
-            renderLine(`Title: ${result.postTitle}`, "post-title")
-          ) : null}
-          {result.postPrompt ? (
-            renderLine(`Prompt: ${result.postPrompt}`, "post-prompt")
-          ) : null}
+      {showPostSuggestion ? (
+        <div className={`${styles.summaryNarrativeSection} ${styles.summaryCta}`}>
+          <div>
+            <h4 className={styles.summaryCtaTitle}>Need to respond fast?</h4>
+            <p className={styles.summaryCtaNote}>
+              Capsule can draft a reply or post. Tap to open the suggestion and fire it off.
+            </p>
+          </div>
+          <div className={styles.summaryCtaLines}>
+            {result.postTitle ? renderLine(`Title: ${result.postTitle}`, "post-title") : null}
+            {result.postPrompt ? renderLine(`Prompt: ${result.postPrompt}`, "post-prompt") : null}
+          </div>
         </div>
       ) : null}
     </section>

@@ -9,6 +9,7 @@ import {
   isCroppableBanner,
   type BannerCrop,
   type CapsuleCustomizerMode,
+  type CapsulePromptClarifier,
   type ChatBannerOption,
   type ChatMessage,
   type CroppableBanner,
@@ -44,6 +45,7 @@ const clampBias = (value: number) => clamp(value, -1, 1);
 type UseCustomizerChatOptions = {
   aiWorkingMessage: string;
   assistantIntro: string;
+  clarifier?: CapsulePromptClarifier | null;
   assetLabel: string;
   normalizedName: string;
   customizerMode: CapsuleCustomizerMode;
@@ -196,9 +198,39 @@ function _buildAssistantResponse({
   return `${intro} ${detail} ${nextPrompt}`;
 }
 
+function buildIntroMessages(
+  intro: string,
+  clarifier?: CapsulePromptClarifier | null,
+): ChatMessage[] {
+  const normalizedIntro = intro.trim().length
+    ? intro.trim()
+    : "Tell me the vibe you want and I'll mock up a few options.";
+  const introMessage: ChatMessage = {
+    id: randomId(),
+    role: "assistant",
+    content: normalizedIntro,
+  };
+  const clarifierPrompt = clarifier?.prompt?.trim();
+  if (!clarifierPrompt) {
+    return [introMessage];
+  }
+  const normalizedSuggestions =
+    clarifier?.suggestions
+      ?.map((suggestion) => suggestion.trim())
+      .filter((suggestion) => suggestion.length > 0) ?? [];
+  const clarifierMessage: ChatMessage = {
+    id: randomId(),
+    role: "assistant",
+    content: clarifierPrompt,
+    suggestions: normalizedSuggestions,
+  };
+  return [introMessage, clarifierMessage];
+}
+
 export function useCapsuleCustomizerChat({
   aiWorkingMessage,
   assistantIntro,
+  clarifier = null,
   assetLabel,
   normalizedName,
   customizerMode,
@@ -213,9 +245,9 @@ export function useCapsuleCustomizerChat({
   seed,
   guidance,
 }: UseCustomizerChatOptions) {
-  const [messages, setMessages] = React.useState<ChatMessage[]>(() => [
-    { id: randomId(), role: "assistant", content: assistantIntro },
-  ]);
+  const [messages, setMessages] = React.useState<ChatMessage[]>(() =>
+    buildIntroMessages(assistantIntro, clarifier),
+  );
   const [chatBusy, setChatBusy] = React.useState(false);
   const [prompterSession, setPrompterSession] = React.useState(0);
   const chatLogRef = React.useRef<HTMLDivElement | null>(null);
@@ -231,14 +263,16 @@ export function useCapsuleCustomizerChat({
   }, []);
 
   const resetConversation = React.useCallback(
-    (intro: string) => {
-      setMessages([{ id: randomId(), role: "assistant", content: intro }]);
+    (intro: string, clarifierOverride?: CapsulePromptClarifier | null) => {
+      const clarifierToUse =
+        typeof clarifierOverride === "undefined" ? clarifier : clarifierOverride;
+      setMessages(buildIntroMessages(intro, clarifierToUse));
       setChatBusy(false);
       updateSelectedBanner(null);
       resetPromptHistory();
       setPrompterSession((value) => value + 1);
     },
-    [resetPromptHistory, updateSelectedBanner],
+    [clarifier, resetPromptHistory, updateSelectedBanner],
   );
 
   const syncBannerCropToMessages = React.useCallback(
@@ -845,6 +879,19 @@ export function useCapsuleCustomizerChat({
     ],
   );
 
+  const handleSuggestionSelect = React.useCallback(
+    (suggestion: string) => {
+      const trimmed = suggestion.trim();
+      if (!trimmed) return;
+      handlePrompterAction({
+        kind: "generate",
+        text: trimmed,
+        raw: trimmed,
+      });
+    },
+    [handlePrompterAction],
+  );
+
   return {
     messages,
     chatBusy,
@@ -852,10 +899,9 @@ export function useCapsuleCustomizerChat({
     chatLogRef,
     handlePrompterAction,
     handleBannerOptionSelect,
+    handleSuggestionSelect,
     resetPromptHistory,
     resetConversation,
     syncBannerCropToMessages,
   } as const;
 }
-
-

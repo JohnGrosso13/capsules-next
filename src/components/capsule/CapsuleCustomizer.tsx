@@ -74,9 +74,11 @@ function joinClassNames(...tokens: Array<string | undefined | null>): string {
 function ChatMessageBubble({
   message,
   onBannerSelect,
+  onSuggestionSelect,
 }: {
   message: ChatMessage;
   onBannerSelect: (option: ChatBannerOption) => void;
+  onSuggestionSelect?: (suggestion: string) => void;
 }) {
   return (
     <div className={styles.chatMessage} data-role={message.role}>
@@ -105,6 +107,21 @@ function ChatMessageBubble({
                   loading="lazy"
                 />
                 <span className={styles.chatBannerOptionOverlay}>Add to banner</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {message.role === "assistant" && message.suggestions?.length ? (
+          <div className={styles.chatSuggestions} role="list">
+            {message.suggestions.map((suggestion) => (
+              <button
+                key={`${message.id}-${suggestion}`}
+                type="button"
+                className={styles.chatSuggestionChip}
+                onClick={() => onSuggestionSelect?.(suggestion)}
+                role="listitem"
+              >
+                {suggestion}
               </button>
             ))}
           </div>
@@ -763,13 +780,14 @@ function CapsuleCustomizerContent() {
   const ChatSection = () => (
     <section className={styles.chatColumn}>
     <div ref={chat.logRef} className={styles.chatLog} aria-live="polite">
-    {chat.messages.map((message) => (
-      <ChatMessageBubble
-        key={message.id}
-        message={message}
-        onBannerSelect={chat.onBannerSelect}
-      />
-    ))}
+        {chat.messages.map((message) => (
+          <ChatMessageBubble
+            key={message.id}
+            message={message}
+            onBannerSelect={chat.onBannerSelect}
+            onSuggestionSelect={chat.onSuggestionSelect}
+          />
+        ))}
     {chat.busy ? (
       <div className={styles.chatTyping} aria-live="polite">
         Capsule AI is thinking...
@@ -782,7 +800,7 @@ function CapsuleCustomizerContent() {
       <AiPrompterStage
         key={chat.prompterSession}
         placeholder={meta.prompterPlaceholder}
-        chips={[]}
+        chips={meta.prompterChips}
         statusMessage={null}
         onAction={chat.onPrompterAction}
         variant="bannerCustomizer"

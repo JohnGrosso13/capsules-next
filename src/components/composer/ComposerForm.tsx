@@ -3053,8 +3053,7 @@ export function ComposerForm({
             ) : null}
             {highlightChips}
             <div className={styles.summaryPreviewPostFeed}>
-              <HomeFeedList
-                posts={previewPosts}
+              <HomeFeedList showSummaryCTA={false} posts={previewPosts}
                 likePending={likePending}
                 memoryPending={memoryPending}
                 activeFriendTarget={activeFriendTarget}
@@ -3363,11 +3362,11 @@ export function ComposerForm({
     [actions, layout.leftWidth],
   );
 
-  const startBottomResize = React.useCallback(
+  const startRightResize = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      actions.layout.setDrag({ kind: "bottom", startY: event.clientY, start: layout.bottomHeight });
+      actions.layout.setDrag({ kind: "right", startX: event.clientX, start: layout.rightWidth });
     },
-    [actions, layout.bottomHeight],
+    [actions, layout.rightWidth],
   );
 
   return (
@@ -3408,7 +3407,7 @@ export function ComposerForm({
             onToggleMobileRail={() => actions.setMobileRailOpen(!mobileRailOpen)}
             mobileMenu={mobileMenu}
             onLeftResizeStart={startLeftResize}
-            onBottomResizeStart={startBottomResize}
+            onRightResizeStart={startRightResize}
           />
 
           {isMobileLayout && previewOpen ? (

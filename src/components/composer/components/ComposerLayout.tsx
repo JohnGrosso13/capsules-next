@@ -19,7 +19,7 @@ type ComposerLayoutProps = {
   onToggleMobileRail: () => void;
   mobileMenu?: React.ReactNode;
   onLeftResizeStart: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onBottomResizeStart: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onRightResizeStart: (event: React.MouseEvent<HTMLDivElement>) => void;
 };
 
 export function ComposerLayout({
@@ -34,7 +34,7 @@ export function ComposerLayout({
   onToggleMobileRail,
   mobileMenu,
   onLeftResizeStart,
-  onBottomResizeStart,
+  onRightResizeStart,
 }: ComposerLayoutProps) {
   return (
     <>
@@ -69,14 +69,6 @@ export function ComposerLayout({
           aria-label="Chat thread"
           style={{ gridTemplateRows: `minmax(0, 1fr) ${layout.bottomHeight}px` }}
         >
-          <div
-            className={styles.rowResizer}
-            role="separator"
-            aria-orientation="horizontal"
-            data-active={layout.drag?.kind === "bottom" ? "true" : undefined}
-            style={{ top: Math.max(32, layout.mainHeight - layout.bottomHeight - 3) }}
-            onMouseDown={onBottomResizeStart}
-          />
           {mainContent}
         </section>
 
@@ -94,6 +86,17 @@ export function ComposerLayout({
           style={{ left: layout.leftWidth }}
           onMouseDown={onLeftResizeStart}
         />
+
+        {previewOpen ? (
+          <div
+            className={styles.colResizer}
+            role="separator"
+            aria-orientation="vertical"
+            data-active={layout.drag?.kind === "right" ? "true" : undefined}
+            style={{ left: `calc(100% - ${layout.rightWidth}px)` }}
+            onMouseDown={onRightResizeStart}
+          />
+        ) : null}
       </div>
 
       {mobileRailOpen ? (mobileMenu ?? null) : null}

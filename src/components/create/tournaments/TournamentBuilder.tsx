@@ -442,20 +442,29 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
 
   return (
     <div className={styles.builderWrap}>
-      <div className={styles.pageGrid}>
-        <aside className={styles.stepperCol}>
-          <StudioStepper items={stepItems} />
-        </aside>
-        <div className={styles.formCol}>
-          <div className={styles.selectedCapsuleBanner}>
-            <div>
-              <div className={styles.capsuleLabel}>Capsule</div>
-              <div className={styles.capsuleName}>{selectedCapsule.name}</div>
+      <div className={styles.wizardPanel}>
+        <div className={styles.panelGlow} aria-hidden />
+        <div className={styles.pageGrid}>
+          <aside className={styles.stepperCol}>
+            <StudioStepper items={stepItems} />
+          </aside>
+          <div className={styles.formCol}>
+            <header className={styles.stepHero}>
+              <span className={styles.stepHeroLabel}>Tournament wizard</span>
+              <h1 className={styles.stepHeroTitle}>Design your bracket plan</h1>
+              <p className={styles.stepHeroSubtitle}>
+                Mirror the capsule onboarding experience with neon gradients, soft shadows, and responsive steps.
+              </p>
+            </header>
+            <div className={styles.selectedCapsuleBanner}>
+              <div>
+                <div className={styles.capsuleLabel}>Capsule</div>
+                <div className={styles.capsuleName}>{selectedCapsule.name}</div>
+              </div>
+              <Button type="button" variant="ghost" onClick={() => handleCapsuleChange(null)}>
+                Switch capsule
+              </Button>
             </div>
-            <Button type="button" variant="ghost" onClick={() => handleCapsuleChange(null)}>
-              Switch capsule
-            </Button>
-          </div>
 
           {errorMessage ? <div className={styles.errorMessage}>{errorMessage}</div> : null}
           {statusMessage ? <div className={styles.statusMessage}>{statusMessage}</div> : null}
@@ -762,9 +771,8 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
             </Button>
           </div>
         </div>
+        </div>
       </div>
     </div>
   );
-
-
 }

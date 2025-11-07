@@ -6,6 +6,12 @@ import { aiImageVariantSchema } from "@/shared/schemas/ai";
 
 export type CapsuleCustomizerMode = "banner" | "storeBanner" | "tile" | "logo" | "avatar";
 
+export type CapsulePromptClarifier = {
+  prompt: string;
+  suggestions: string[];
+  prompterChips?: string[];
+};
+
 export type BannerCrop = {
   offsetX: number;
   offsetY: number;
@@ -152,4 +158,5 @@ export type ChatMessage = {
   role: ChatRole;
   content: string;
   bannerOptions?: ChatBannerOption[];
+  suggestions?: string[];
 };

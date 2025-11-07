@@ -1,10 +1,40 @@
-﻿.builderWrap {
+.builderWrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 32px;
-  width: min(100%, 1160px);
+  width: min(100%, 1280px);
   margin: 0 auto;
-  padding-bottom: 48px;
+  padding: clamp(24px, 4vw, 56px) clamp(18px, 4vw, 48px) 64px;
+}
+
+.wizardPanel {
+  position: relative;
+  border-radius: clamp(24px, 4vw, 40px);
+  padding: clamp(24px, 4vw, 42px);
+  background:
+    linear-gradient(145deg, rgba(12, 16, 32, 0.94), rgba(22, 28, 52, 0.88)),
+    radial-gradient(circle at 20% 12%, rgba(118, 166, 255, 0.32), transparent 52%),
+    radial-gradient(circle at 80% 0%, rgba(194, 120, 255, 0.24), transparent 50%);
+  box-shadow:
+    0 32px 64px rgba(5, 6, 20, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  isolation: isolate;
+  animation: panelFloat 360ms ease forwards;
+}
+
+.panelGlow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(92, 128, 255, 0.32), transparent 55%),
+    radial-gradient(circle at 80% 25%, rgba(204, 126, 255, 0.28), transparent 50%);
+  filter: blur(24px);
+  opacity: 0.85;
+  animation: auroraShift 18s ease-in-out infinite alternate;
+  pointer-events: none;
 }
 
 .gateWrap {
@@ -17,10 +47,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(64, 88, 255, 0.12), rgba(117, 96, 255, 0.08));
+  gap: 16px;
+  padding: 18px 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(145deg, rgba(62, 84, 206, 0.22), rgba(148, 108, 255, 0.12)),
+    rgba(14, 18, 30, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 14px 34px rgba(6, 10, 24, 0.5);
+  backdrop-filter: blur(16px);
+  animation: fadeSlideIn 360ms ease 60ms both;
 }
 
 .capsuleLabel {
@@ -34,6 +72,36 @@
   font-size: 20px;
   font-weight: 600;
   margin-top: 4px;
+}
+
+.stepHero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  animation: fadeSlideIn 360ms ease both;
+}
+
+.stepHeroLabel {
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.stepHeroTitle {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.stepHeroSubtitle {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 56ch;
 }
 
 .toastStack {
@@ -305,6 +373,8 @@
   grid-template-columns: 260px minmax(0, 1fr) minmax(280px, 360px);
   gap: clamp(16px, 2vw, 28px);
   align-items: start;
+  position: relative;
+  z-index: 1;
 }
 
 @media (max-width: 1200px) {
@@ -394,121 +464,107 @@
 
 .stepperShell {
   position: sticky;
-  top: 20px;
+  top: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px;
-  border-radius: 16px;
-  border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
-  background: var(--studio-surface-glass, rgba(20, 24, 46, 0.72));
-  backdrop-filter: blur(14px);
+  gap: 18px;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(6, 10, 20, 0.45);
+  backdrop-filter: blur(20px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 18px 40px rgba(6, 10, 24, 0.35);
+    0 24px 48px rgba(4, 6, 18, 0.55);
+}
+
+.stepperLabel {
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .stepperHeading h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 1.35rem;
   font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .stepperHeading p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  opacity: 0.75;
-  line-height: 1.5;
+  margin: 10px 0 0;
+  font-size: 0.92rem;
+  opacity: 0.7;
+  line-height: 1.6;
 }
 
 .stepList {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding: 0;
-  margin: 16px 0 0;
+  margin: 12px 0 0;
 }
 
-.stepButton {
+.stepItem {
   width: 100%;
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
-  background: color-mix(in srgb, var(--studio-surface-panel, rgba(18, 22, 38, 0.72)) 85%, transparent);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(12, 16, 32, 0.45);
   text-align: left;
-  color: inherit;
+  color: rgba(234, 238, 255, 0.78);
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-  position: relative;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
-.stepButton:hover {
-  border-color: var(--studio-border-strong, rgba(132, 148, 255, 0.3));
+.stepItem:hover {
+  border-color: rgba(148, 178, 255, 0.35);
+  transform: translateX(2px);
 }
 
-.stepButtonActive {
-  border-color: var(--studio-border-strong, rgba(132, 148, 255, 0.5));
-  background: color-mix(in srgb, var(--studio-surface-panel, rgba(36, 46, 92, 0.85)) 88%, transparent);
-  box-shadow: 0 0 12px rgba(58, 84, 209, 0.35);
-}
-
-.stepButtonComplete {
-  border-color: rgba(140, 158, 255, 0.4);
-  background: linear-gradient(135deg, rgba(49, 64, 128, 0.4), rgba(24, 38, 98, 0.92));
+.stepItem[data-state="active"] {
+  background: linear-gradient(135deg, rgba(84, 110, 255, 0.32), rgba(114, 210, 255, 0.18));
+  border-color: rgba(184, 204, 255, 0.5);
   box-shadow:
-    inset 0 0 0 1px rgba(188, 204, 255, 0.2),
-    0 14px 28px rgba(48, 78, 200, 0.42);
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 12px 28px rgba(34, 52, 140, 0.45);
+  color: #ffffff;
 }
 
-.stepIndex {
+.stepItem[data-state="complete"] {
+  background: linear-gradient(140deg, rgba(92, 255, 203, 0.26), rgba(132, 148, 255, 0.28));
+  border-color: rgba(144, 255, 231, 0.5);
+  color: rgba(6, 18, 28, 0.92);
+}
+
+.stepBullet {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.38);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(70, 92, 255, 0.18);
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.88);
   position: relative;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16);
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.stepIndex::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: inherit;
-  background: radial-gradient(circle at center, rgba(118, 134, 255, 0.4), transparent 65%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  pointer-events: none;
-}
-
-.stepIndexActive {
-  background: rgba(118, 134, 255, 0.92);
-  color: #050b1f;
-  box-shadow:
-    0 0 0 1px rgba(191, 205, 255, 0.65),
-    0 10px 20px rgba(88, 108, 230, 0.45);
-}
-
-.stepIndexActive::after {
-  opacity: 0.45;
-}
-
-.stepIndexComplete {
-  background: linear-gradient(140deg, rgba(152, 174, 255, 0.95), rgba(118, 190, 255, 0.9));
-  color: #041026;
-  box-shadow:
-    0 0 0 1px rgba(214, 226, 255, 0.75),
-    0 12px 24px rgba(88, 130, 255, 0.45);
+.stepItem[data-state="active"] .stepBullet,
+.stepItem[data-state="complete"] .stepBullet {
+  background: currentColor;
+  border-color: currentColor;
+  box-shadow: 0 0 10px rgba(122, 158, 255, 0.65);
 }
 
 .stepCopy {
@@ -520,21 +576,29 @@
 }
 
 .stepTitle {
-  font-size: 14px;
+  font-size: 0.95rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .stepSubtitle {
-  font-size: 12px;
+  font-size: 0.82rem;
   opacity: 0.72;
 }
 
-.stepStatus {
-  font-size: 16px;
-  opacity: 0.75;
-  margin-left: auto;
-  align-self: center;
-  font-weight: 600;
+.stepMeta {
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.stepItem[data-state="active"] .stepMeta {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.stepItem[data-state="complete"] .stepMeta {
+  color: rgba(10, 26, 26, 0.9);
 }
 
 .previewCol {
@@ -850,6 +914,47 @@
   backdrop-filter: blur(6px);
 }
 
+@keyframes panelFloat {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes auroraShift {
+  0% {
+    transform: translate3d(-4%, -2%, 0) scale(1);
+    opacity: 0.85;
+  }
+
+  50% {
+    transform: translate3d(3%, 4%, 0) scale(1.05);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate3d(6%, -3%, 0) scale(1.08);
+    opacity: 0.9;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes stepFade {
   from {
     opacity: 0;
@@ -865,8 +970,12 @@
 @media (prefers-reduced-motion: reduce) {
   .previewShell,
   .previewCard,
-  .toastCard {
+  .toastCard,
+  .wizardPanel,
+  .panelGlow,
+  .stepHero {
     transition: none !important;
+    animation: none !important;
   }
 }
 .previewShell,

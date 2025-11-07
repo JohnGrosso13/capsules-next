@@ -14,6 +14,7 @@ import { canRenderInlineImage } from "@/lib/media";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import { useComposer } from "@/components/composer/ComposerProvider";
 import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDataProvider";
+import { useSupabaseUserId } from "@/components/providers/SupabaseSessionProvider";
 import { buildPrompterAttachment, type DocumentCardData } from "@/components/documents/document-card";
 import { PostCard } from "@/components/home-feed/cards/PostCard";
 import { useFeedSummary } from "@/components/home-feed/useFeedSummary";
@@ -77,6 +78,9 @@ function buildIdentifierSet(...identifiers: Array<unknown>): Set<string> {
 
 }
 type HomeFeedListProps = {
+
+  /** Hide the summary CTA banner (used inside Composer preview). */
+  showSummaryCTA?: boolean;
 
   posts: HomeFeedPost[];
 
@@ -170,6 +174,7 @@ export function HomeFeedList({
 
   isLoadingMore = false,
 
+  showSummaryCTA = true,
 }: HomeFeedListProps) {
 
   const composer = useComposer();
@@ -177,6 +182,8 @@ export function HomeFeedList({
   const { user: currentUser } = useCurrentUser();
 
   const friendsData = useOptionalFriendsDataContext();
+
+  const supabaseUserId = useSupabaseUserId();
 
   const viewerUserId =
 
@@ -200,9 +207,9 @@ export function HomeFeedList({
 
   const viewerIdentifierSet = React.useMemo(
 
-    () => buildIdentifierSet(viewerUserId, viewerUserKey, supabaseViewerId),
+    () => buildIdentifierSet(viewerUserId, viewerUserKey, supabaseViewerId, supabaseUserId),
 
-    [viewerUserId, viewerUserKey, supabaseViewerId],
+    [viewerUserId, viewerUserKey, supabaseViewerId, supabaseUserId],
 
   );
 
@@ -628,7 +635,7 @@ export function HomeFeedList({
         </div>
 
       ) : null}
-      {!showSkeletons ? (
+      {!showSkeletons && showSummaryCTA ? (
 
         <React.Suspense fallback={<div className={styles.feedVirtualFallback}>Preparing summary...</div>}>
 
@@ -1054,4 +1061,6 @@ export function HomeFeedList({
   );
 
 }
+
+
 

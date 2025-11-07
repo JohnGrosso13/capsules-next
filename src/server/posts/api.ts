@@ -140,6 +140,118 @@ function isRawLikeAttachment(
   return candidates.some((ext) => RAW_LIKE_EXTENSIONS.has(ext));
 }
 
+function normalizeStorageKey(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    const decoded = decodeURIComponent(value).trim();
+    if (!decoded.length || decoded.includes("\u0000")) {
+      return null;
+    }
+    const normalized = decoded.replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!normalized.length || normalized.includes("..")) {
+      return null;
+    }
+    return normalized;
+  } catch {
+    return null;
+  }
+}
+
+function extractStorageKeyFromUrl(source: string | null | undefined): string | null {
+  if (typeof source !== "string") return null;
+  const trimmed = source.trim();
+  if (!trimmed.length) return null;
+
+  const seen = new Set<string>();
+
+  const attemptFromUrl = (input: URL): string | null => {
+    const signature = `${input.protocol}//${input.host}${input.pathname}?${input.search}`;
+    if (seen.has(signature)) return null;
+    seen.add(signature);
+
+    const queryKey = normalizeStorageKey(input.searchParams.get("key"));
+    if (queryKey) return queryKey;
+
+    const proxyMatch = input.pathname.match(/\/api\/uploads\/r2\/object\/(.+)/);
+    if (proxyMatch?.[1]) {
+      return normalizeStorageKey(proxyMatch[1]);
+    }
+
+    if (input.pathname.startsWith("/api/uploads/raw-preview")) {
+      const previewKey = normalizeStorageKey(input.searchParams.get("key"));
+      if (previewKey) return previewKey;
+    }
+
+    if (input.pathname.startsWith("/cdn-cgi/image/")) {
+      const segments = input.pathname.replace(/^\/+/, "").split("/");
+      const encodedSource = segments.at(-1);
+      if (encodedSource) {
+        try {
+          const decodedSource = decodeURIComponent(encodedSource);
+          if (decodedSource.startsWith("http://") || decodedSource.startsWith("https://")) {
+            const nested = new URL(decodedSource);
+            const nestedKey = attemptFromUrl(nested);
+            if (nestedKey) return nestedKey;
+          } else {
+            const normalized = normalizeStorageKey(decodedSource);
+            if (normalized) return normalized;
+          }
+        } catch {
+          /* ignore decode issues */
+        }
+      }
+    }
+
+    const bucket = serverEnv.R2_BUCKET?.trim();
+    const account = serverEnv.R2_ACCOUNT_ID?.trim();
+    if (bucket && account) {
+      const suffix = ".r2.cloudflarestorage.com";
+      const lowerBucket = bucket.toLowerCase();
+      const accountHost = `${account.toLowerCase()}${suffix}`;
+      const bucketHost = `${lowerBucket}.${accountHost}`;
+      const candidateHost = input.host.toLowerCase();
+      const strippedPath = input.pathname.replace(/^\/+/, "");
+      const pathSegments = strippedPath.split("/");
+
+      if (candidateHost === bucketHost) {
+        return normalizeStorageKey(strippedPath);
+      }
+      if (candidateHost === accountHost && pathSegments[0]?.toLowerCase() === lowerBucket) {
+        return normalizeStorageKey(pathSegments.slice(1).join("/"));
+      }
+      if (pathSegments[0]?.toLowerCase() === lowerBucket && pathSegments.length > 1) {
+        return normalizeStorageKey(pathSegments.slice(1).join("/"));
+      }
+    }
+
+    return null;
+  };
+
+  const candidates: URL[] = [];
+  try {
+    candidates.push(new URL(trimmed));
+  } catch {
+    try {
+      candidates.push(new URL(trimmed, "https://example.invalid"));
+    } catch {
+      /* ignore invalid URLs */
+    }
+  }
+
+  for (const candidate of candidates) {
+    const derived = attemptFromUrl(candidate);
+    if (derived) return derived;
+  }
+
+  const looseMatch = trimmed.match(/[?&]key=([^&#]+)/);
+  if (looseMatch?.[1]) {
+    const normalized = normalizeStorageKey(looseMatch[1]);
+    if (normalized) return normalized;
+  }
+
+  return null;
+}
+
 function buildRawLikeFallbackVariants(
   originalUrl: string,
   {
@@ -158,7 +270,9 @@ function buildRawLikeFallbackVariants(
   feed: string | null;
   full: string | null;
 } {
-  if (!storageKey) {
+  const resolvedStorageKey = normalizeStorageKey(storageKey) ?? extractStorageKeyFromUrl(originalUrl);
+
+  if (!resolvedStorageKey) {
     if (cloudflareEnabled) {
       const thumb = buildCloudflareImageUrl(
         originalUrl,
@@ -204,7 +318,7 @@ function buildRawLikeFallbackVariants(
     return { thumb: null, feed: null, full: null };
   }
 
-  const encoded = encodeURIComponent(storageKey);
+  const encoded = encodeURIComponent(resolvedStorageKey);
   const basePath = `/api/uploads/raw-preview?key=${encoded}`;
   return {
     thumb: `${basePath}&size=thumb`,
@@ -940,19 +1054,21 @@ export async function getPostsSlim(options: PostsQueryInput): Promise<SlimRespon
                   variants = variants
                     ? { ...variants }
                     : ({ original: url } as CloudflareImageVariantSet);
-                  if (fallback.thumb && !variants.thumb) {
-                    variants.thumb = fallback.thumb;
+                  if (fallback.thumb) {
+                    const shouldOverrideThumb =
+                      !variants.thumb ||
+                      variants.thumb === url ||
+                      variants.thumb.includes(".cloudflarestorage.com");
+                    if (shouldOverrideThumb) {
+                      variants.thumb = fallback.thumb;
+                    }
                   }
-                  if (fallback.feed && !variants.feed) {
+                  if (fallback.feed) {
                     variants.feed = fallback.feed;
-                  }
-                  if (fallback.full && !variants.full) {
-                    variants.full = fallback.full;
-                  }
-                  if (fallback.feed && !variants.feedSrcset) {
                     variants.feedSrcset = null;
                   }
-                  if (fallback.full && !variants.fullSrcset) {
+                  if (fallback.full) {
+                    variants.full = fallback.full;
                     variants.fullSrcset = null;
                   }
                 }

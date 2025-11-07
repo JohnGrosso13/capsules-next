@@ -549,6 +549,18 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
   const nextStepId = currentStepIndex < lastStepIndex ? LADDER_WIZARD_STEP_ORDER[currentStepIndex + 1] : null;
   const previousStepId = currentStepIndex > 0 ? LADDER_WIZARD_STEP_ORDER[currentStepIndex - 1] : null;
   const nextStep = nextStepId ? LADDER_WIZARD_STEPS.find((step) => step.id === nextStepId) ?? null : null;
+  const totalWizardSteps = LADDER_WIZARD_STEPS.length;
+  const computedActiveStepIndex = Math.max(
+    0,
+    LADDER_WIZARD_STEPS.findIndex((step) => step.id === activeStep),
+  );
+  const activeStepDefinition =
+    LADDER_WIZARD_STEPS[computedActiveStepIndex] ?? LADDER_WIZARD_STEPS[0] ?? null;
+  const stepProgressLabel =
+    totalWizardSteps > 0 ? `Step ${computedActiveStepIndex + 1} of ${totalWizardSteps}` : null;
+  const currentStepTitle = activeStepDefinition?.title ?? "Ladder wizard";
+  const currentStepSubtitle =
+    activeStepDefinition?.subtitle ?? "Complete each goal to get your ladder production-ready.";
   const validateStep = React.useCallback(
     (stepId: LadderWizardStepId, context: "advance" | "jump" | "publish"): boolean => {
       const definition = stepDefinitionMap.get(stepId);
@@ -2370,47 +2382,38 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
   }
   return (
     <div className={styles.builderWrap}>
-      <div className={styles.pageGrid}>
+      <div className={styles.wizardPanel}>
+        <div className={styles.panelGlow} aria-hidden />
+        <div className={styles.pageGrid}>
         <aside className={styles.stepperCol}>
           <div className={styles.stepperShell}>
             <div className={styles.stepperHeading}>
-              <h2>Ladder wizard</h2>
-              <p>Guide creators from idea to live ladder in a few focused steps.</p>
+              <span className={styles.stepperLabel}>Wizard progress</span>
+              <h2>Guide creators from idea to live ladder.</h2>
+              <p>Match the capsule onboarding aesthetic with luminous steps, subtle gradients, and motion.</p>
             </div>
-            <ol className={styles.stepList}>
+            <ol className={styles.stepList} role="list">
               {LADDER_WIZARD_STEPS.map((step, index) => {
                 const isActive = step.id === activeStep;
                 const isComplete = stepCompletion[step.id];
-                const stepButtonClass = [
-                  styles.stepButton,
-                  isActive ? styles.stepButtonActive : "",
-                  isComplete ? styles.stepButtonComplete : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ");
-                const stepIndexClass = [
-                  styles.stepIndex,
-                  isActive ? styles.stepIndexActive : "",
-                  isComplete ? styles.stepIndexComplete : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ");
+                const state = isActive ? "active" : isComplete ? "complete" : "idle";
                 return (
                   <li key={step.id}>
                     <button
                       type="button"
                       onClick={() => goToStep(step.id)}
-                      className={stepButtonClass}
+                      className={styles.stepItem}
+                      data-state={state}
                       aria-current={isActive ? "step" : undefined}
                       aria-label={`Step ${index + 1}: ${step.title}${isActive ? " (current)" : isComplete ? " (completed)" : ""}`}
                     >
-                      <span className={stepIndexClass}>{index + 1}</span>
+                      <span className={styles.stepBullet} data-state={state} aria-hidden />
                       <span className={styles.stepCopy}>
                         <span className={styles.stepTitle}>{step.title}</span>
                         <span className={styles.stepSubtitle}>{step.subtitle}</span>
                       </span>
-                      <span className={styles.stepStatus} aria-hidden="true">
-                        {isComplete ? "\u2713" : isActive ? "\u2192" : ""}
+                      <span className={styles.stepMeta} aria-hidden="true">
+                        {isComplete ? "Done" : isActive ? "Now" : "Start"}
                       </span>
                     </button>
                   </li>
@@ -2420,6 +2423,13 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
           </div>
         </aside>
         <div className={styles.formCol}>
+          <header className={styles.stepHero}>
+            {stepProgressLabel ? (
+              <span className={styles.stepHeroLabel}>{stepProgressLabel}</span>
+            ) : null}
+            <h1 className={styles.stepHeroTitle}>{currentStepTitle}</h1>
+            <p className={styles.stepHeroSubtitle}>{currentStepSubtitle}</p>
+          </header>
           <div className={styles.selectedCapsuleBanner}>
             <div>
               <div className={styles.capsuleLabel}>Capsule</div>
@@ -2490,6 +2500,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
             {renderPreviewPanel()}
           </div>
         </aside>
+        </div>
       </div>
     </div>
   );
