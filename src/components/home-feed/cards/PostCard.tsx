@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import {
@@ -35,6 +35,8 @@ type FriendMenuConfig = {
 };
 
 type PostCardProps = {
+  /** When set to "preview", hides bottom action row to avoid conflicts inside Composer preview. */
+  variant?: "full" | "preview";
   post: HomeFeedPost;
   viewerIdentifiers: Set<string>;
   likePending: boolean;
@@ -82,6 +84,7 @@ export function PostCard({
   onAskDocument,
   onSummarizeDocument,
   onCommentClick,
+  variant = "full",
 }: PostCardProps) {
   const resolvedUserId =
     post.owner_user_id ??
@@ -332,7 +335,10 @@ export function PostCard({
         </div>
       ) : null}
 
-      <FeedCardActions actions={actionItems} formatCount={formatCount} />
+      {variant === "full" ? (<FeedCardActions actions={actionItems} formatCount={formatCount} />) : null}
     </article>
   );
 }
+
+
+

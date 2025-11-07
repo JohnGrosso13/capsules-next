@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import styles from "../ai-composer.module.css";
@@ -280,8 +280,8 @@ function SidebarSection({
                   className={cardClass}
                   onClick={item.onClick}
                   disabled={item.disabled}
-                  title={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
-                  aria-label={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
+                  title={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
+                  aria-label={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
                 >
                   <span className={thumbClass}>{item.icon ?? itemIcon ?? null}</span>
                   <span className={styles.memoryMeta}>
@@ -685,7 +685,7 @@ const DEFAULT_MEMORY_PRESETS: MemoryPreset[] = [
     key: "weekly-recap",
     label: "Weekly Recap",
     description: "Blueprint",
-    prompt: "Summarize the week’s highlights with sections for wins, shoutouts, and next moves.",
+    prompt: "Summarize the weekâ€™s highlights with sections for wins, shoutouts, and next moves.",
   },
 ];
 
@@ -734,7 +734,7 @@ function getPromptPlaceholder(kind: string): string {
     case "image":
       return "Describe the vibe or upload a visual you want to evolve...";
     case "video":
-      return "Explain the clip, storyboard, or edit you’re dreaming up...";
+      return "Explain the clip, storyboard, or edit youâ€™re dreaming up...";
     case "document":
       return "Outline the doc, brief, or playbook you want Capsule AI to draft...";
     case "tournament":
@@ -749,13 +749,13 @@ function getFooterHint(kind: string): string {
     case "poll":
       return "Give Capsule AI a prompt or tweak the poll structure below.";
     case "image":
-      return "Upload a visual, pull from your library, or describe the feel you’re after.";
+      return "Upload a visual, pull from your library, or describe the feel youâ€™re after.";
     case "video":
       return "Drop in reference footage or narrate the scenes you need.";
     case "document":
       return "Share the sections you need, or ask Capsule AI to outline it for you.";
     case "tournament":
-      return "Tell Capsule AI how the bracket should flow and it’ll draft it out.";
+      return "Tell Capsule AI how the bracket should flow and itâ€™ll draft it out.";
     default:
       return "Chat with Capsule AI, reference a blueprint, or upload supporting visuals.";
   }
@@ -2301,8 +2301,8 @@ export function ComposerForm({
                         className={cardClass}
                         onClick={item.onClick}
                         disabled={item.disabled}
-                        title={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
-                        aria-label={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
+                        title={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
+                        aria-label={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
                       >
                         <span className={thumbClass}>{item.icon ?? recentItemIcon}</span>
                         <span className={styles.memoryMeta}>
@@ -2789,7 +2789,7 @@ export function ComposerForm({
         case "video": {
           empty = !mediaUrl;
           const durationLabel = formatClipDuration(clipDurationSeconds);
-          helper = [mediaPrompt || attachmentName, durationLabel].filter(Boolean).join(" • ");
+          helper = [mediaPrompt || attachmentName, durationLabel].filter(Boolean).join(" â€¢ ");
           if (empty) {
             body = renderPlaceholder("Drop a clip or describe scenes to preview them here.");
           } else {
@@ -2804,7 +2804,7 @@ export function ComposerForm({
                   preload="metadata"
                   poster={attachmentThumb ?? undefined}
                 />
-                {captionParts.length ? <figcaption>{captionParts.join(" • ")}</figcaption> : null}
+                {captionParts.length ? <figcaption>{captionParts.join(" â€¢ ")}</figcaption> : null}
               </figure>
             );
           }
@@ -3053,7 +3053,7 @@ export function ComposerForm({
             ) : null}
             {highlightChips}
             <div className={styles.summaryPreviewPostFeed}>
-              <HomeFeedList showSummaryCTA={false} posts={previewPosts}
+              <HomeFeedList showSummaryCTA={false} cardVariant="preview" onCommentClickOverride={() => handleSummaryComment(summaryPreviewEntry)} posts={previewPosts}
                 likePending={likePending}
                 memoryPending={memoryPending}
                 activeFriendTarget={activeFriendTarget}
@@ -3575,5 +3575,6 @@ export function ComposerForm({
     </div>
   );
 }
+
 
 

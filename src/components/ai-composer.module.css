@@ -106,7 +106,7 @@
   z-index: 1;
   width: 100%;
   padding-bottom: 0.75rem;
-  /* Reserve space so the Close icon doesn’t overlap the header actions */
+  /* Reserve space so the Close icon doesn't overlap the header actions */
   padding-right: 76px;
   border-bottom: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 60%, transparent);
 }
@@ -4042,5 +4042,3 @@
   font-weight: 600;
   color: rgba(191, 219, 254, 0.95);
 }
-
-

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 
@@ -78,9 +78,12 @@ function buildIdentifierSet(...identifiers: Array<unknown>): Set<string> {
 
 }
 type HomeFeedListProps = {
-
   /** Hide the summary CTA banner (used inside Composer preview). */
   showSummaryCTA?: boolean;
+  /** Card rendering variant. */
+  cardVariant?: "full" | "preview";
+  /** Optional override to route comment clicks (used in Composer preview). */
+  onCommentClickOverride?: (post: HomeFeedPost) => void;
 
   posts: HomeFeedPost[];
 
@@ -175,7 +178,8 @@ export function HomeFeedList({
   isLoadingMore = false,
 
   showSummaryCTA = true,
-}: HomeFeedListProps) {
+  cardVariant = "full",
+  onCommentClickOverride,\n}: HomeFeedListProps) {
 
   const composer = useComposer();
 
@@ -744,7 +748,7 @@ export function HomeFeedList({
 
                   <PostCard
 
-                    post={post}
+                    variant={cardVariant} post={post}
                     viewerIdentifiers={viewerIdentifierSet}
                     likePending={Boolean(likePending[post.id])}
                     memoryPending={Boolean(memoryPending[post.id])}
@@ -765,7 +769,7 @@ export function HomeFeedList({
                     onOpenLightbox={openLightbox}
                     onAskDocument={handleAskDocument}
                     onSummarizeDocument={summarizeDocument}
-                    onCommentClick={(currentPost, anchor) => handleCommentButtonClick(currentPost, anchor)}
+                    onCommentClick={(currentPost, anchor) => onCommentClickOverride ? onCommentClickOverride(currentPost) : handleCommentButtonClick(currentPost, anchor)}
                   />
 
                 </div>
@@ -1061,6 +1065,10 @@ export function HomeFeedList({
   );
 
 }
+
+
+
+
 
 
 

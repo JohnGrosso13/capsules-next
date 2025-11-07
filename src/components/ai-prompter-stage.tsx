@@ -239,10 +239,10 @@ export function AiPrompterStage({
   }, []);
 
   const showLocalStatus = React.useCallback(
-    (message: string | null, ttl = 4000) => {
+    (message: string | null, ttl?: number | null) => {
       clearLocalStatusTimer();
       setLocalStatus(message);
-      if (message && typeof window !== "undefined") {
+      if (message && typeof ttl === "number" && ttl > 0 && typeof window !== "undefined") {
         localStatusTimerRef.current = window.setTimeout(() => {
           setLocalStatus(null);
           localStatusTimerRef.current = null;
@@ -307,10 +307,10 @@ export function AiPrompterStage({
       if (!detail) return;
       switch (detail.status) {
         case "started":
-          showLocalStatus("Summarizing your feed...", 2200);
+          showLocalStatus("Summarizing your feed...");
           break;
         case "busy":
-          showLocalStatus("Already working on a feed summary...", 2400);
+          showLocalStatus("Already working on a feed summary...");
           break;
         case "empty":
           showLocalStatus("No feed posts to summarize yet.", 2600);
@@ -338,7 +338,7 @@ export function AiPrompterStage({
       window.dispatchEvent(
         new CustomEvent<SummarizeFeedRequestDetail>(SUMMARIZE_FEED_REQUEST_EVENT, { detail }),
       );
-      showLocalStatus("Summarizing your feed...", 2200);
+      showLocalStatus("Summarizing your feed...");
     },
     [showLocalStatus],
   );
