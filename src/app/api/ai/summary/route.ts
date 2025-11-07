@@ -7,7 +7,16 @@ import { summarizeText } from "@/lib/ai/summary";
 import { serverEnv } from "@/lib/env/server";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import { getOrCreateMemoryCaption } from "@/server/memories/caption-cache";
-import type { SummaryLengthHint, SummaryResult, SummaryTarget } from "@/types/summary";
+import { readSummaryCache, writeSummaryCache } from "@/server/summary-cache";
+import type { SummarySignaturePayload } from "@/lib/ai/summary-signature";
+import type {
+  SummaryApiResponse,
+  SummaryAttachmentInput,
+  SummaryLengthHint,
+  SummaryRequestMeta,
+  SummaryResult,
+  SummaryTarget,
+} from "@/types/summary";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 
 const attachmentSchema = z.object({
@@ -57,6 +66,36 @@ const summaryResponseSchema = z.object({
 
 type ParsedBody = z.infer<typeof requestSchema>;
 
+function normalizeString(value?: string | null): string | null {
+  return typeof value === "string" && value.trim().length ? value : null;
+}
+
+function normalizeAttachments(
+  attachments: Array<z.infer<typeof attachmentSchema>> | undefined,
+): SummaryAttachmentInput[] | null {
+  if (!attachments?.length) return null;
+  return attachments.map((attachment) => ({
+    id: attachment.id,
+    name: normalizeString(attachment.name),
+    excerpt: attachment.excerpt ?? null,
+    text: attachment.text ?? null,
+    url: normalizeString(attachment.url),
+    mimeType: normalizeString(attachment.mimeType),
+    thumbnailUrl: normalizeString(attachment.thumbnailUrl),
+  }));
+}
+
+function normalizeMeta(meta: ParsedBody["meta"]): SummaryRequestMeta | null {
+  if (!meta) return null;
+  return {
+    title: normalizeString(meta.title ?? null),
+    author: normalizeString(meta.author ?? null),
+    audience: normalizeString(meta.audience ?? null),
+    timeframe: normalizeString(meta.timeframe ?? null),
+    capsuleId: normalizeString(meta.capsuleId ?? null),
+  };
+}
+
 function collectSegments(body: ParsedBody): string[] {
   const segments: string[] = [];
   if (Array.isArray(body.segments)) {
@@ -77,7 +116,7 @@ function collectSegments(body: ParsedBody): string[] {
   return segments;
 }
 
-function mapSummaryResult(result: SummaryResult): z.infer<typeof summaryResponseSchema> {
+function mapSummaryResult(result: SummaryResult): SummaryApiResponse {
   return {
     status: "ok",
     summary: result.summary,
@@ -169,6 +208,23 @@ async function handleFeedSummary(
   const providedSegments = collectSegments(body);
   const captionSegments = await buildAttachmentCaptionSegments(body.attachments);
   const summarySegments = [...providedSegments, ...captionSegments];
+  const normalizedAttachments = normalizeAttachments(body.attachments);
+  const normalizedMeta = normalizeMeta(body.meta);
+
+  const signaturePayload: SummarySignaturePayload = {
+    target: "feed",
+    capsuleId: body.capsuleId ?? body.meta?.capsuleId ?? null,
+    hint: body.hint ?? null,
+    limit: body.limit ?? null,
+    segments: summarySegments,
+    attachments: normalizedAttachments,
+    meta: normalizedMeta,
+  };
+
+  const cached = await readSummaryCache(signaturePayload);
+  if (cached) {
+    return cached;
+  }
 
   if (summarySegments.length) {
     const summaryInput: Parameters<typeof summarizeText>[0] = {
@@ -189,7 +245,9 @@ async function handleFeedSummary(
     if (!summary) {
       return returnError(502, "summary_failed", "Unable to generate feed summary.");
     }
-    return mapSummaryResult(summary);
+    const payload = mapSummaryResult(summary);
+    await writeSummaryCache(signaturePayload, payload);
+    return payload;
   }
 
   try {
@@ -212,7 +270,9 @@ async function handleFeedSummary(
       model: null,
       source: "feed",
     };
-    return mapSummaryResult(result);
+    const payload = mapSummaryResult(result);
+    await writeSummaryCache(signaturePayload, payload);
+    return payload;
   } catch (error) {
     console.error("summarizeFeedFromDB error", error);
     return returnError(502, "summary_failed", "Unable to summarize feed.");
@@ -226,6 +286,23 @@ async function handleGenericSummary(
   const segments = collectSegments(body);
   const captionSegments = await buildAttachmentCaptionSegments(body.attachments);
   const combinedSegments = [...segments, ...captionSegments];
+  const normalizedAttachments = normalizeAttachments(body.attachments);
+  const normalizedMeta = normalizeMeta(body.meta);
+
+  const signaturePayload: SummarySignaturePayload = {
+    target,
+    capsuleId: body.capsuleId ?? body.meta?.capsuleId ?? null,
+    hint: body.hint ?? null,
+    limit: body.limit ?? null,
+    segments: combinedSegments,
+    attachments: normalizedAttachments,
+    meta: normalizedMeta,
+  };
+
+  const cached = await readSummaryCache(signaturePayload);
+  if (cached) {
+    return cached;
+  }
 
   if (!combinedSegments.length) {
     return returnError(400, "missing_content", "No content provided to summarize.");
@@ -251,7 +328,9 @@ async function handleGenericSummary(
     return returnError(502, "summary_failed", "Unable to generate summary.");
   }
 
-  return mapSummaryResult(summary);
+  const payload = mapSummaryResult(summary);
+  await writeSummaryCache(signaturePayload, payload);
+  return payload;
 }
 
 export async function POST(req: NextRequest) {

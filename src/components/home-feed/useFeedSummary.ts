@@ -13,6 +13,7 @@ import {
 } from "@/components/home-feed/utils";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { normalizeSummaryResponse, requestSummary } from "@/lib/ai/client-summary";
+import { buildSummarySignature } from "@/lib/ai/summary-signature";
 import {
   COMPOSER_SUMMARY_ACTION_EVENT,
   SUMMARIZE_FEED_REQUEST_EVENT,
@@ -26,7 +27,7 @@ import type {
   SummaryConversationEntry,
 } from "@/lib/composer/summary-context";
 import { resolveToAbsoluteUrl } from "@/lib/url";
-import type { SummaryAttachmentInput } from "@/types/summary";
+import type { SummaryAttachmentInput, SummaryResult } from "@/types/summary";
 
 function describePoll(question: unknown): string | null {
   if (typeof question !== "string") return null;
@@ -48,6 +49,11 @@ type UseFeedSummaryResult = {
   summarizeFeed: () => Promise<void>;
 };
 
+type CachedFeedSummary = {
+  signature: string;
+  summary: SummaryResult;
+};
+
 export function useFeedSummary({
   displayedPosts,
   timeAgo,
@@ -59,6 +65,7 @@ export function useFeedSummary({
   );
   const [feedSummaryPending, setFeedSummaryPending] = React.useState(false);
   const summaryOriginRef = React.useRef<SummarizeFeedRequestOrigin>("external");
+  const lastSummaryRef = React.useRef<CachedFeedSummary | null>(null);
 
   const summarizeDocument = React.useCallback(
     async (doc: DocumentCardData) => {
@@ -173,6 +180,35 @@ export function useFeedSummary({
       const seenAttachmentUrls = new Set<string>();
       const summaryEntries: SummaryConversationEntry[] = [];
       const conversationAttachments: PrompterAttachment[] = [];
+
+      const presentSummary = (result: SummaryResult) => {
+        const summaryContext: SummaryConversationContext = {
+          source: result.source,
+          title: "Feed recap",
+          entries: summaryEntries,
+        };
+
+        composer.showSummary(
+          result,
+          {
+            title: "Feed recap",
+            sourceLabel: "Current feed",
+            sourceType: result.source,
+          },
+          {
+            context: summaryContext,
+            attachments: conversationAttachments,
+          },
+        );
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent(SUMMARIZE_FEED_STATUS_EVENT, {
+              detail: { status: "success", origin: summaryOriginRef.current },
+            }),
+          );
+        }
+      };
 
       const segments = segmentSource.map((post, index) => {
         const author = post.user_name ?? (post as { userName?: string }).userName ?? "Someone";
@@ -367,43 +403,34 @@ export function useFeedSummary({
         return segmentText;
       });
 
+      const feedMeta = {
+        title: "Recent activity",
+        timeframe: "latest updates",
+      };
+
+      const signature = buildSummarySignature({
+        target: "feed",
+        segments,
+        attachments: attachmentPayload,
+        meta: feedMeta,
+      });
+
+      const cachedSummary = lastSummaryRef.current;
+      if (cachedSummary && cachedSummary.signature === signature) {
+        presentSummary(cachedSummary.summary);
+        return;
+      }
+
       const summaryPayload = await requestSummary({
         target: "feed",
         segments,
         attachments: attachmentPayload,
-        meta: {
-          title: "Recent activity",
-          timeframe: "latest updates",
-        },
+        meta: feedMeta,
       });
 
       const summaryResult = normalizeSummaryResponse(summaryPayload);
-      const summaryContext: SummaryConversationContext = {
-        source: summaryResult.source,
-        title: "Feed recap",
-        entries: summaryEntries,
-      };
-
-      composer.showSummary(
-        summaryResult,
-        {
-          title: "Feed recap",
-          sourceLabel: "Current feed",
-          sourceType: summaryResult.source,
-        },
-        {
-          context: summaryContext,
-          attachments: conversationAttachments,
-        },
-      );
-
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent(SUMMARIZE_FEED_STATUS_EVENT, {
-            detail: { status: "success", origin: summaryOriginRef.current },
-          }),
-        );
-      }
+      presentSummary(summaryResult);
+      lastSummaryRef.current = { signature, summary: summaryResult };
     } catch (error) {
       console.error("Feed summary failed", error);
       if (typeof window !== "undefined") {

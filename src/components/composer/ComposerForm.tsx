@@ -1564,6 +1564,11 @@ export function ComposerForm({
     return baseQuickPromptOptions;
   }, [baseQuickPromptOptions, summaryQuickPromptOptions, vibeSuggestions]);
 
+  const quickPromptBubbleOptions = React.useMemo(
+    () => quickPromptOptions.slice(0, 4),
+    [quickPromptOptions],
+  );
+
   const memoryItems = React.useMemo<MemoryItem[]>(() => {
     if (_choices?.length) {
       return _choices.map((choice) => ({
@@ -1716,6 +1721,16 @@ export function ComposerForm({
           !message,
       ),
     [displayAttachment, attachmentUploading, loading, message],
+  );
+
+  const showQuickPromptBubble = React.useMemo(
+    () =>
+      !loading &&
+      !clarifier &&
+      renderedHistory.length === 0 &&
+      !message &&
+      quickPromptBubbleOptions.length > 0,
+    [clarifier, loading, message, quickPromptBubbleOptions.length, renderedHistory.length],
   );
 
   React.useEffect(() => {
@@ -2538,6 +2553,29 @@ export function ComposerForm({
               </li>
             ) : null}
 
+            {showQuickPromptBubble ? (
+              <li className={styles.msgRow} data-role="ai">
+                <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.quickPromptBubble}`}>
+                  <p className={styles.quickPromptHeading}>
+                    Want a head start? Tap a vibe and I&apos;ll riff from there.
+                  </p>
+                  <div className={styles.quickPromptChips}>
+                    {quickPromptBubbleOptions.map((option, index) => (
+                      <button
+                        key={`${option.label}-${index}`}
+                        type="button"
+                        className={styles.quickPromptChip}
+                        onClick={() => handleSuggestionSelect(option.prompt)}
+                        disabled={loading}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </li>
+            ) : null}
+
             {!renderedHistory.length && message && !clarifier ? (
               <li className={styles.msgRow} data-role="ai">
                 <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{message}</div>
@@ -3325,13 +3363,6 @@ export function ComposerForm({
     [actions, layout.leftWidth],
   );
 
-  const startRightResize = React.useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      actions.layout.setDrag({ kind: "right", startX: event.clientX, start: layout.rightWidth });
-    },
-    [actions, layout.rightWidth],
-  );
-
   const startBottomResize = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       actions.layout.setDrag({ kind: "bottom", startY: event.clientY, start: layout.bottomHeight });
@@ -3377,7 +3408,6 @@ export function ComposerForm({
             onToggleMobileRail={() => actions.setMobileRailOpen(!mobileRailOpen)}
             mobileMenu={mobileMenu}
             onLeftResizeStart={startLeftResize}
-            onRightResizeStart={startRightResize}
             onBottomResizeStart={startBottomResize}
           />
 

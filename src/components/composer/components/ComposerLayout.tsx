@@ -19,7 +19,6 @@ type ComposerLayoutProps = {
   onToggleMobileRail: () => void;
   mobileMenu?: React.ReactNode;
   onLeftResizeStart: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onRightResizeStart: (event: React.MouseEvent<HTMLDivElement>) => void;
   onBottomResizeStart: (event: React.MouseEvent<HTMLDivElement>) => void;
 };
 
@@ -35,7 +34,6 @@ export function ComposerLayout({
   onToggleMobileRail,
   mobileMenu,
   onLeftResizeStart,
-  onRightResizeStart,
   onBottomResizeStart,
 }: ComposerLayoutProps) {
   return (
@@ -96,17 +94,6 @@ export function ComposerLayout({
           style={{ left: layout.leftWidth }}
           onMouseDown={onLeftResizeStart}
         />
-
-        {previewOpen ? (
-          <div
-            className={styles.colResizer}
-            role="separator"
-            aria-orientation="vertical"
-            data-active={layout.drag?.kind === "right" ? "true" : undefined}
-            style={{ left: `calc(100% - ${layout.rightWidth}px)` }}
-            onMouseDown={onRightResizeStart}
-          />
-        ) : null}
       </div>
 
       {mobileRailOpen ? (mobileMenu ?? null) : null}
