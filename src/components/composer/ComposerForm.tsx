@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import styles from "../ai-composer.module.css";
@@ -31,10 +31,9 @@ import type {
   ComposerSaveRequest,
   ComposerMemorySavePayload,
   ComposerContextSnapshot,
-  ComposerContextSnippet,
 } from "./ComposerProvider";
 
-import { HomeFeedList } from "@/components/home-feed-list";
+import { PostCard } from "@/components/home-feed/cards/PostCard";
 import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
 import { formatFeedCount, type HomeFeedPost } from "@/hooks/useHomeFeed";
 import { homeFeedStore } from "@/hooks/useHomeFeed/homeFeedStore";
@@ -64,6 +63,9 @@ import { COMPOSER_SUMMARY_ACTION_EVENT } from "@/lib/events";
 import { useCurrentUser } from "@/services/auth/client";
 import { SummaryContextPanel } from "./components/SummaryContextPanel";
 import { SummaryNarrativeCard } from "./components/SummaryNarrativeCard";
+import { safeRandomUUID } from "@/lib/random";
+import type { AuthClientUser } from "@/ports/auth-client";
+import { buildViewerEnvelope } from "@/lib/feed/viewer-envelope";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
@@ -395,93 +397,6 @@ function ComposerToolbar({
   );
 }
 
-function toHighlightMarkup(html: string | null | undefined): string | null {
-  if (!html) return null;
-  return html.replace(/<\/?em>/gi, (token) => (token.toLowerCase() === "<em>" ? "<mark>" : "</mark>"));
-}
-
-type SmartContextSummaryProps = {
-  enabled: boolean;
-  snapshot: ComposerContextSnapshot | null;
-  snippets: ComposerContextSnippet[];
-};
-
-function SmartContextSummary({ enabled, snapshot, snippets }: SmartContextSummaryProps) {
-  if (!enabled) {
-    return (
-      <div className={styles.smartContextBanner} data-enabled="false">
-        <p className={styles.smartContextMessage}>
-          Smart context is off. Toggle it in the header to ground Capsule AI with your saved memories.
-        </p>
-      </div>
-    );
-  }
-
-  if (!snippets.length) {
-    return (
-      <div className={styles.smartContextBanner} data-enabled="idle">
-        <p className={styles.smartContextMessage}>
-          Smart context is ready. Capsule AI will automatically pull in your memories when they match this conversation.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.smartContextBanner} data-enabled="true">
-      <header className={styles.smartContextHeader}>
-        <span className={styles.smartContextTitle}>
-          Referencing {snippets.length} memory{snippets.length === 1 ? "" : "ies"}
-        </span>
-        {snapshot?.query ? (
-          <span className={styles.smartContextQuery}>Query: {snapshot.query}</span>
-        ) : null}
-      </header>
-      <ul className={styles.smartContextList}>
-        {snippets.map((snippet, index) => {
-          const highlightMarkup = toHighlightMarkup(snippet.highlightHtml ?? null);
-          const displayText = highlightMarkup ?? snippet.snippet;
-          return (
-            <li key={`${snippet.id}-${index}`} className={styles.smartContextItem}>
-              <div className={styles.smartContextItemHeader}>
-                <span className={styles.smartContextMemoryId}>Memory #{index + 1}</span>
-                {snippet.title ? (
-                  <span className={styles.smartContextMemoryTitle}>{snippet.title}</span>
-                ) : null}
-                {snippet.source ? (
-                  <span className={styles.smartContextMemorySource}>{snippet.source}</span>
-                ) : null}
-              </div>
-              <p
-                className={styles.smartContextPreview}
-                dangerouslySetInnerHTML={{ __html: displayText }}
-              />
-              {snippet.tags.length ? (
-                <div className={styles.smartContextTags}>
-                  {snippet.tags.slice(0, 3).map((tag) => (
-                    <span key={tag} className={styles.smartContextTag}>
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              {snippet.url ? (
-                <a
-                  href={snippet.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={styles.smartContextLink}
-                >
-                  Open memory
-                </a>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
 type ComposerFooterProps = {
   footerHint: string;
   privacy: ComposerFormState["privacy"];
@@ -921,12 +836,24 @@ export function ComposerForm({
     }
     return null;
   }, [feedState.posts, summaryPreviewEntry?.postId]);
-  const previewPosts = React.useMemo(
-    () => (summaryPreviewPost ? [summaryPreviewPost] : []),
-    [summaryPreviewPost],
+  const { likePending, memoryPending, isRefreshing } = feedState;
+  const previewViewerIdentifiers = React.useMemo(() => new Set<string>(), []);
+  const previewFriendMenu = React.useMemo(
+    () => ({
+      canTarget: false,
+      isOpen: false,
+      isPending: false,
+      onToggle: () => {},
+      onRequest: () => {},
+      onRemove: () => {},
+    }),
+    [],
   );
-  const previewHasFetched = feedState.hasFetched || Boolean(summaryPreviewPost);
-  const { likePending, memoryPending, activeFriendTarget, friendActionPending, isRefreshing } = feedState;
+  const viewerEnvelope = React.useMemo(() => buildViewerEnvelope(currentUser), [currentUser]);
+  const previewCurrentOrigin = React.useMemo(
+    () => (typeof window !== "undefined" ? window.location.origin : null),
+    [],
+  );
 
   const handlePreviewToggleLike = React.useCallback((postId: string) => {
     void homeFeedStore.actions.toggleLike(postId);
@@ -937,26 +864,6 @@ export function ComposerForm({
       homeFeedStore.actions.toggleMemory(post.id, { desired, canRemember }),
     [canRemember],
   );
-
-  const handlePreviewFriendRequest = React.useCallback(
-    (post: HomeFeedPost, identifier: string) =>
-      homeFeedStore.actions.requestFriend(post.id, identifier),
-    [],
-  );
-
-  const handlePreviewFriendRemove = React.useCallback(
-    (post: HomeFeedPost, identifier: string) =>
-      homeFeedStore.actions.removeFriend(post.id, identifier),
-    [],
-  );
-
-  const handlePreviewToggleFriendTarget = React.useCallback((identifier: string | null) => {
-    homeFeedStore.actions.setActiveFriendTarget(identifier);
-  }, []);
-
-  const handlePreviewDeletePost = React.useCallback((postId: string) => {
-    void homeFeedStore.actions.deletePost(postId);
-  }, []);
 
   const clarifier = React.useMemo<ClarifierPrompt | null>(() => {
     if (!clarifierInput) return null;
@@ -2998,139 +2905,139 @@ export function ComposerForm({
 
   const summaryPreviewContent = React.useMemo(() => {
     if (!summaryPreviewEntry) return null;
-    const hasPost = Boolean(summaryPreviewEntry.postId);
+
     const highlightChips =
       summaryPreviewEntry.highlights && summaryPreviewEntry.highlights.length ? (
         <div className={styles.summaryPreviewHighlights}>
           {summaryPreviewEntry.highlights.map((highlight, index) => (
-            <span key={`${summaryPreviewEntry.id}-highlight-${index}`} className={styles.summaryPreviewHighlight}>
+            <span
+              key={`${summaryPreviewEntry.id}-highlight-${index}`}
+              className={styles.summaryPreviewHighlight}
+            >
               {highlight}
             </span>
           ))}
         </div>
       ) : null;
 
-    const actions = (
-      <div className={styles.summaryPreviewActions}>
-        <button
-          type="button"
-          className={styles.summaryPreviewActionBtn}
-          onClick={() => handleSummaryView(summaryPreviewEntry)}
-        >
-          Open in feed
-        </button>
-        <button
-          type="button"
-          className={styles.summaryPreviewActionBtn}
-          onClick={() => handleSummaryComment(summaryPreviewEntry)}
-          disabled={!hasPost}
-          data-disabled={!hasPost ? "true" : undefined}
-        >
-          Open comments
-        </button>
+    const hasPost = Boolean(summaryPreviewEntry.postId);
+
+    const openInFeedButton = (
+      <button
+        type="button"
+        className={styles.summaryPreviewActionBtn}
+        onClick={() => handleSummaryView(summaryPreviewEntry)}
+      >
+        Open in feed
+      </button>
+    );
+
+    const mobileBackButton = (
+      <button
+        type="button"
+        className={`${styles.summaryPreviewBackBtn} ${styles.mobileOnly}`}
+        onClick={() => setSummaryPreviewEntry(null)}
+      >
+        Back to composer
+      </button>
+    );
+
+    const intro = (
+      <div className={styles.summaryPreviewIntro}>
+        {summaryPreviewEntry.summary ? (
+          <p className={styles.summaryPreviewText}>{summaryPreviewEntry.summary}</p>
+        ) : null}
+        {summaryPreviewEntry.relativeTime ? (
+          <span className={styles.summaryPreviewTimestamp}>{summaryPreviewEntry.relativeTime}</span>
+        ) : null}
+        {highlightChips}
       </div>
     );
 
     if (summaryPreviewPost) {
+      const baseCommentCount =
+        typeof summaryPreviewPost.comments === "number"
+          ? summaryPreviewPost.comments
+          : typeof (summaryPreviewPost as { comment_count?: number }).comment_count === "number"
+            ? ((summaryPreviewPost as { comment_count?: number }).comment_count ?? 0)
+            : 0;
+
       return (
-        <PreviewColumn
-          title="Referenced update"
-          subtitle={summaryPreviewEntry.author ?? "Feed activity"}
-          meta={summaryPreviewEntry.relativeTime ? <span>{summaryPreviewEntry.relativeTime}</span> : null}
-          actions={
-            <button
-              type="button"
-              className={styles.summaryPreviewBackBtn}
-              onClick={() => setSummaryPreviewEntry(null)}
-            >
-              Back to composer
-            </button>
-          }
-        >
-          <div className={styles.summaryPreviewPost}>
-            {summaryPreviewEntry.summary ? (
-              <p className={styles.summaryPreviewText}>{summaryPreviewEntry.summary}</p>
-            ) : null}
-            {highlightChips}
-            <div className={styles.summaryPreviewPostFeed}>
-              <HomeFeedList showSummaryCTA={false} cardVariant="preview" onCommentClickOverride={() => handleSummaryComment(summaryPreviewEntry)} posts={previewPosts}
-                likePending={likePending}
-                memoryPending={memoryPending}
-                activeFriendTarget={activeFriendTarget}
-                friendActionPending={friendActionPending}
-                onToggleLike={handlePreviewToggleLike}
-                onToggleMemory={handlePreviewToggleMemory}
-                onFriendRequest={handlePreviewFriendRequest}
-                onDelete={handlePreviewDeletePost}
-                onRemoveFriend={handlePreviewFriendRemove}
-                onToggleFriendTarget={handlePreviewToggleFriendTarget}
-                formatCount={formatFeedCount}
-                timeAgo={formatTimeAgo}
-                exactTime={formatExactTime}
-                canRemember={canRemember}
-                hasFetched={previewHasFetched}
-                isRefreshing={isRefreshing}
-                onLoadMore={() => {}}
-                hasMore={false}
-                isLoadingMore={false}
-              />
-            </div>
-            {actions}
+        <PreviewColumn hideHeader variant="compact">
+          {mobileBackButton}
+          {intro}
+          <div className={styles.summaryPreviewScroll}>
+            <PostCard
+              variant="preview"
+              post={summaryPreviewPost}
+              viewerIdentifiers={previewViewerIdentifiers}
+              likePending={Boolean(likePending[summaryPreviewPost.id])}
+              memoryPending={Boolean(memoryPending[summaryPreviewPost.id])}
+              remembered={Boolean(summaryPreviewPost.viewerRemembered ?? summaryPreviewPost.viewer_remembered ?? false)}
+              canRemember={canRemember}
+              friendMenu={previewFriendMenu}
+              cloudflareEnabled={cloudflareEnabled}
+              currentOrigin={previewCurrentOrigin}
+              formatCount={formatFeedCount}
+              timeAgo={formatTimeAgo}
+              exactTime={formatExactTime}
+              commentCount={baseCommentCount}
+              isRefreshing={isRefreshing}
+              documentSummaryPending={{}}
+              onToggleLike={handlePreviewToggleLike}
+              onToggleMemory={handlePreviewToggleMemory}
+              onDelete={() => {}}
+              onOpenLightbox={() => {}}
+              onAskDocument={() => {}}
+              onSummarizeDocument={() => {}}
+              onCommentClick={() => {}}
+            />
           </div>
+          <SummaryPreviewCommentForm
+            postId={summaryPreviewPost.id}
+            viewerEnvelope={viewerEnvelope}
+            currentUser={currentUser}
+          />
+          <div className={styles.summaryPreviewActions}>{openInFeedButton}</div>
         </PreviewColumn>
       );
     }
 
     return (
-      <PreviewColumn
-        title="Referenced update"
-        subtitle={summaryPreviewEntry.author ?? "Feed activity"}
-        meta={summaryPreviewEntry.relativeTime ? <span>{summaryPreviewEntry.relativeTime}</span> : null}
-        actions={
-          <button
-            type="button"
-            className={styles.summaryPreviewBackBtn}
-            onClick={() => setSummaryPreviewEntry(null)}
-          >
-            Back to composer
-          </button>
-        }
-      >
+      <PreviewColumn hideHeader variant="compact">
+        {mobileBackButton}
         <div className={styles.summaryPreviewCard}>
-          {summaryPreviewEntry.summary ? (
-            <p className={styles.summaryPreviewText}>{summaryPreviewEntry.summary}</p>
-          ) : null}
-          {highlightChips}
-          {!summaryPreviewPost && hasPost ? (
+          {intro}
+          {hasPost ? (
             <p className={styles.summaryPreviewHint}>
               We couldn&apos;t load this post in the preview. Use Open in feed to view it in the timeline.
             </p>
-          ) : null}
-          {actions}
+          ) : (
+            <p className={styles.summaryPreviewHint}>
+              No post was linked to this summary yet. Open the feed to read the full story.
+            </p>
+          )}
         </div>
+        <div className={styles.summaryPreviewActions}>{openInFeedButton}</div>
       </PreviewColumn>
     );
   }, [
-    activeFriendTarget,
     canRemember,
-    friendActionPending,
-    handlePreviewDeletePost,
-    handlePreviewFriendRemove,
-    handlePreviewFriendRequest,
-    handlePreviewToggleFriendTarget,
+    currentUser,
     handlePreviewToggleLike,
     handlePreviewToggleMemory,
-    handleSummaryComment,
     handleSummaryView,
-    isRefreshing,
     likePending,
     memoryPending,
-    previewHasFetched,
-    previewPosts,
+    viewerEnvelope,
     summaryPreviewEntry,
     summaryPreviewPost,
+    previewFriendMenu,
+    previewViewerIdentifiers,
+    cloudflareEnabled,
+    previewCurrentOrigin,
+    isRefreshing,
   ]);
-
   const previewContent = summaryPreviewContent ?? (
     <PreviewColumn
       title="Preview"
@@ -3388,12 +3295,6 @@ export function ComposerForm({
           isMobile={isMobileLayout}
         />
 
-        <SmartContextSummary
-          enabled={smartContextEnabled}
-          snapshot={contextSnapshot}
-          snippets={contextSnippets}
-        />
-
         <div className={styles.panelBody}>
           <ComposerLayout
             columnsRef={columnsRef}
@@ -3578,3 +3479,99 @@ export function ComposerForm({
 
 
 
+
+type SummaryPreviewCommentFormProps = {
+  postId: string;
+  viewerEnvelope: Record<string, unknown> | null;
+  currentUser: AuthClientUser | null;
+};
+
+function SummaryPreviewCommentForm({
+  postId,
+  viewerEnvelope,
+  currentUser,
+}: SummaryPreviewCommentFormProps) {
+  const [value, setValue] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [success, setSuccess] = React.useState<string | null>(null);
+  const canComment = Boolean(currentUser);
+
+  const handleSubmit = React.useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!canComment) return;
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      setSubmitting(true);
+      setError(null);
+      setSuccess(null);
+      const clientId = safeRandomUUID();
+      const timestamp = new Date().toISOString();
+      try {
+        const response = await fetch("/api/comments", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            comment: {
+              id: clientId,
+              postId,
+              content: trimmed,
+              attachments: [],
+              capsuleId: null,
+              capsule_id: null,
+              ts: timestamp,
+              userName: currentUser?.name ?? currentUser?.email ?? "You",
+              userAvatar: currentUser?.avatarUrl ?? null,
+              source: "composer-summary-preview",
+            },
+            user: viewerEnvelope,
+          }),
+        });
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          throw new Error(text || "Failed to submit comment.");
+        }
+        setValue("");
+        setSuccess("Comment posted");
+        if (typeof window !== "undefined") {
+          window.setTimeout(() => setSuccess(null), 3200);
+        }
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "Failed to submit comment.");
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [canComment, currentUser?.avatarUrl, currentUser?.email, currentUser?.name, postId, value, viewerEnvelope],
+  );
+
+  return (
+    <form className={styles.summaryCommentForm} onSubmit={handleSubmit}>
+      <textarea
+        className={styles.summaryCommentInput}
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder={canComment ? "Leave a quick comment..." : "Sign in to comment"}
+        disabled={!canComment || submitting}
+      />
+      <div className={styles.summaryCommentActions}>
+        {error ? (
+          <span className={styles.summaryCommentError}>{error}</span>
+        ) : success ? (
+          <span className={styles.summaryCommentSuccess}>{success}</span>
+        ) : (
+          <span />
+        )}
+        <button
+          type="submit"
+          className={styles.summaryCommentSubmit}
+          disabled={!canComment || submitting || !value.trim()}
+        >
+          {submitting ? "Posting..." : "Comment"}
+        </button>
+      </div>
+    </form>
+  );
+}

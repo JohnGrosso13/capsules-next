@@ -330,6 +330,10 @@
   gap: 18px;
 }
 
+.previewSection[data-variant='compact'] {
+  gap: 12px;
+}
+
 .previewHeader {
   display: flex;
   align-items: flex-start;
@@ -1813,8 +1817,15 @@
 }
 
 .summaryPreviewPost {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.9rem;
+}
+
+.summaryPreviewScroll {
+  max-height: min(70vh, 620px);
+  overflow-y: auto;
+  padding-right: 6px;
 }
 
 .summaryPreviewPostFeed {
@@ -1862,6 +1873,77 @@
   gap: 0.45rem;
 }
 
+.summaryPreviewTimestamp {
+  font-size: 0.75rem;
+  color: rgba(199, 208, 255, 0.68);
+}
+
+.summaryCommentForm {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 14px;
+  border: 1px solid rgba(118, 136, 255, 0.28);
+  background: rgba(16, 24, 56, 0.75);
+}
+
+.summaryCommentInput {
+  width: 100%;
+  min-height: 80px;
+  border-radius: 10px;
+  border: 1px solid rgba(126, 144, 255, 0.32);
+  background: rgba(10, 16, 40, 0.8);
+  color: rgba(235, 239, 255, 0.94);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.summaryCommentInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.summaryCommentActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summaryCommentError {
+  font-size: 0.75rem;
+  color: rgba(255, 182, 182, 0.9);
+}
+
+.summaryCommentSuccess {
+  font-size: 0.75rem;
+  color: rgba(168, 241, 255, 0.85);
+}
+
+.summaryCommentSubmit {
+  border-radius: 999px;
+  border: 1px solid rgba(129, 144, 255, 0.36);
+  padding: 0.35rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(233, 236, 255, 0.95);
+  background: linear-gradient(180deg, rgba(36, 44, 108, 0.92), rgba(24, 30, 74, 0.94));
+  cursor: pointer;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+.summaryCommentSubmit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mobileOnly {
+  display: none;
+}
+
 .summaryPreviewActionBtn {
   display: inline-flex;
   align-items: center;
@@ -1892,6 +1974,28 @@
   background: rgba(20, 28, 58, 0.55);
   border-color: rgba(126, 144, 255, 0.18);
   color: rgba(211, 216, 255, 0.5);
+}
+
+.summaryPreviewActionsCompact {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.summaryPreviewIntro {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.summaryPreviewHeaderSpacer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .mobileOnly {
+    display: inline-flex;
+  }
 }
 
 .summaryContextPanel {

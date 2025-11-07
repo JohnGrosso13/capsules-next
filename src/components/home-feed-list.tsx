@@ -12,6 +12,7 @@ import { CaretLeft, CaretRight, X } from "@phosphor-icons/react/dist/ssr";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { canRenderInlineImage } from "@/lib/media";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
+import { buildViewerEnvelope } from "@/lib/feed/viewer-envelope";
 import { useComposer } from "@/components/composer/ComposerProvider";
 import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import { useSupabaseUserId } from "@/components/providers/SupabaseSessionProvider";
@@ -179,7 +180,8 @@ export function HomeFeedList({
 
   showSummaryCTA = true,
   cardVariant = "full",
-  onCommentClickOverride,\n}: HomeFeedListProps) {
+  onCommentClickOverride,
+}: HomeFeedListProps) {
 
   const composer = useComposer();
 
@@ -405,40 +407,7 @@ export function HomeFeedList({
 
   }, [pendingFocusPostId, displayedPosts, windowVirtualizer, virtualizationCount]);
 
-  const viewerEnvelope = React.useMemo(() => {
-
-    if (!currentUser) return null;
-
-    const provider = currentUser.provider ?? "guest";
-
-    const envelope: Record<string, unknown> = {
-
-      provider,
-
-      email: currentUser.email ?? null,
-
-      full_name: currentUser.name ?? null,
-
-      avatar_url: currentUser.avatarUrl ?? null,
-
-    };
-
-    if (currentUser.provider === "clerk") {
-
-      envelope.clerk_id = currentUser.id ?? null;
-
-    } else {
-
-      envelope.clerk_id = null;
-
-    }
-    envelope.key =
-
-      currentUser.key ?? (currentUser.provider === "clerk" ? `clerk:${currentUser.id}` : currentUser.id);
-
-    return envelope;
-
-  }, [currentUser]);
+  const viewerEnvelope = React.useMemo(() => buildViewerEnvelope(currentUser), [currentUser]);
 
   const { commentThreads, commentSubmitting, loadComments, submitComment } = useFeedComments({
     currentUser,
@@ -1065,9 +1034,6 @@ export function HomeFeedList({
   );
 
 }
-
-
-
 
 
 

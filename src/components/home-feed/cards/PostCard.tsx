@@ -207,6 +207,7 @@ export function PostCard({
   return (
     <article
       className={styles.card}
+      data-variant={variant}
       data-post-id={post.id}
       data-refreshing={isRefreshing ? "true" : undefined}
       aria-busy={isRefreshing ? true : undefined}
@@ -335,7 +336,7 @@ export function PostCard({
         </div>
       ) : null}
 
-      {variant === "full" ? (<FeedCardActions actions={actionItems} formatCount={formatCount} />) : null}
+      {variant === "full" ? <FeedCardActions actions={actionItems} formatCount={formatCount} /> : null}
     </article>
   );
 }
