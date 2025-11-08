@@ -169,6 +169,7 @@ function AppShellContent({
             <div ref={prompterRef} className={styles.prompterStage}>
               <AiPrompterStage
                 onAction={composer.handlePrompterAction}
+                onHandoff={composer.handlePrompterHandoff}
                 statusMessage={statusMessage}
               />
             </div>

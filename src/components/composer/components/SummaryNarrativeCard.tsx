@@ -191,7 +191,7 @@ export function SummaryNarrativeCard({
       {headlineHighlights.length ? (
         <div className={styles.summaryNarrativeSection}>
           <div className={styles.summaryHighlightHeading}>
-            <h4 className={styles.summaryNarrativeSectionTitle}>Don't miss these</h4>
+            <h4 className={styles.summaryNarrativeSectionTitle}>Don&rsquo;t miss these</h4>
             {remainingHighlightCount ? (
               <span className={styles.summaryHighlightBadge}>
                 +{remainingHighlightCount} more in feed

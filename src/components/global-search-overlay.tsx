@@ -133,12 +133,16 @@ export function GlobalSearchOverlay() {
 
     const timer = window.setTimeout(async () => {
       try {
+        const activeCapsuleId =
+          typeof document === "undefined"
+            ? null
+            : document.documentElement.dataset.activeCapsuleId ?? null;
         const response = await fetch("/api/search", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ q: trimmedQuery, limit: 24 }),
+          body: JSON.stringify({ q: trimmedQuery, limit: 24, capsuleId: activeCapsuleId }),
           signal: controller.signal,
         });
 

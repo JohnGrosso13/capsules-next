@@ -1,5 +1,14 @@
 import { searchMemories } from "@/lib/supabase/memories";
+import { getCapsuleHistory } from "@/server/capsules/service";
+import {
+  searchCapsuleHistorySnippets,
+  type CapsuleKnowledgeSnippet,
+} from "@/server/capsules/knowledge-index";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
+import type {
+  CapsuleHistorySection,
+  CapsuleHistorySectionContent,
+} from "@/types/capsules";
 
 export type ChatMemorySnippet = {
   id: string;
@@ -213,6 +222,183 @@ export function buildContextMetadata(input: ChatContextResult | null) {
     query: input.query,
     memoryIds: input.usedIds,
   });
+}
+
+function normalizeCapsuleId(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function truncateSnippet(value: string, limit = 800): string {
+  if (value.length <= limit) return value;
+  return `${value.slice(0, limit - 1)}…`;
+}
+
+function buildTimeframeLabel(section: CapsuleHistorySection): string | null {
+  const { start, end } = section.timeframe ?? {};
+  if (start && end && start !== end) return `${start} → ${end}`;
+  if (start) return start;
+  if (end) return end;
+  return null;
+}
+
+function pickContent(section: CapsuleHistorySection): CapsuleHistorySectionContent | null {
+  if (section.published) return section.published;
+  if (section.suggested) return section.suggested;
+  return null;
+}
+
+function buildHistorySnippet(
+  capsuleId: string,
+  capsuleName: string | null,
+  section: CapsuleHistorySection,
+  content: CapsuleHistorySectionContent,
+): ChatMemorySnippet | null {
+  const titleParts: string[] = [];
+  if (section.title) {
+    titleParts.push(section.title);
+  } else if (capsuleName) {
+    titleParts.push(`${capsuleName} ${section.period} recap`);
+  } else {
+    titleParts.push(`Capsule ${section.period} recap`);
+  }
+  const timeframe = buildTimeframeLabel(section);
+  if (timeframe) {
+    titleParts.push(`(${timeframe})`);
+  }
+
+  const summaryText = content.summary?.text?.trim() ?? "";
+  const highlightText =
+    content.highlights?.find((block) => block?.text?.trim())?.text?.trim() ?? null;
+  const timelineEntry =
+    content.timeline?.find((entry) => entry?.text?.trim()) ?? null;
+  const nextFocusText =
+    content.nextFocus?.find((entry) => entry?.text?.trim())?.text?.trim() ?? null;
+
+  const snippetParts: string[] = [];
+  if (summaryText) snippetParts.push(summaryText);
+  if (highlightText) snippetParts.push(`Highlight: ${highlightText}`);
+  if (timelineEntry) {
+    const timeLabel = timelineEntry.timestamp ? ` (${timelineEntry.timestamp})` : "";
+    snippetParts.push(`Timeline: ${timelineEntry.text ?? timelineEntry.label}${timeLabel}`);
+  }
+  if (nextFocusText) snippetParts.push(`Next focus: ${nextFocusText}`);
+
+  if (!snippetParts.length) {
+    return null;
+  }
+
+  const snippet = truncateSnippet(snippetParts.join("\n\n"));
+  const idSeed =
+    section.timeframe?.start ??
+    section.timeframe?.end ??
+    section.title ??
+    section.period;
+  const safeSeed = (idSeed ?? "unknown").replace(/\s+/g, "-").toLowerCase();
+
+  return {
+    id: `capsule-history:${capsuleId}:${safeSeed}`,
+    title: titleParts.join(" ").trim(),
+    snippet,
+    kind: "capsule_history",
+    url: null,
+    createdAt: section.lastEditedAt ?? null,
+    tags: [
+      `capsule:${capsuleId}`,
+      `period:${section.period}`,
+      ...(section.templateId ? [`template:${section.templateId}`] : []),
+    ],
+    source: "capsule_history",
+  };
+}
+
+function mapCapsuleVectorSnippet(snippet: CapsuleKnowledgeSnippet): ChatMemorySnippet {
+  return {
+    id: snippet.id,
+    title: snippet.title,
+    snippet: snippet.snippet,
+    kind: snippet.kind,
+    url: snippet.url,
+    createdAt: snippet.createdAt,
+    tags: snippet.tags,
+    source: snippet.source,
+    highlightHtml: null,
+  };
+}
+
+async function loadCapsuleSnapshotSnippets(params: {
+  capsuleId: string;
+  viewerId?: string | null;
+  limit: number;
+}): Promise<ChatMemorySnippet[]> {
+  try {
+    const history = await getCapsuleHistory(params.capsuleId, params.viewerId ?? null, {});
+    if (!history?.sections?.length) {
+      return [];
+    }
+    const records: ChatMemorySnippet[] = [];
+    for (const section of history.sections) {
+      if (records.length >= params.limit) break;
+      const content = pickContent(section);
+      if (!content) continue;
+      const snippet = buildHistorySnippet(
+        params.capsuleId,
+        history.capsuleName ?? null,
+        section,
+        content,
+      );
+      if (snippet) {
+        records.push(snippet);
+      }
+    }
+    return records;
+  } catch (error) {
+    console.warn("capsule history context fetch failed", error);
+    return [];
+  }
+}
+
+export async function getCapsuleHistorySnippets(params: {
+  capsuleId?: string | null;
+  viewerId?: string | null;
+  limit?: number;
+  query?: string | null;
+}): Promise<ChatMemorySnippet[]> {
+  const capsuleId = normalizeCapsuleId(params.capsuleId ?? null);
+  if (!capsuleId) {
+    return [];
+  }
+
+  const limit = Math.max(1, Math.min(params.limit ?? 4, 12));
+  const query = typeof params.query === "string" ? params.query.trim() : "";
+
+  let vectorSnippets: ChatMemorySnippet[] = [];
+  if (query.length) {
+    try {
+      const matches = await searchCapsuleHistorySnippets({
+        capsuleId,
+        query,
+        limit,
+      });
+      vectorSnippets = matches.map((snippet) => mapCapsuleVectorSnippet(snippet));
+    } catch (error) {
+      console.warn("capsule history vector search failed", error);
+    }
+  }
+
+  const remaining = Math.max(0, limit - vectorSnippets.length);
+  if (remaining === 0) {
+    return vectorSnippets.slice(0, limit);
+  }
+
+  const fallback = await loadCapsuleSnapshotSnippets({
+    capsuleId,
+    viewerId: params.viewerId ?? null,
+    limit: remaining,
+  });
+
+  return [...vectorSnippets, ...fallback].slice(0, limit);
 }
 function compactObject<T extends Record<string, unknown>>(input: T): Record<string, unknown> {
   const output: Record<string, unknown> = {};

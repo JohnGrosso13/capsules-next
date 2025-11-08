@@ -399,6 +399,7 @@ export function CapsuleContent({
     <AiPrompterStage
       {...(tab === "feed" ? {} : { chips: [] })}
       onAction={composer.handlePrompterAction}
+      onHandoff={composer.handlePrompterHandoff}
     />
   );
 

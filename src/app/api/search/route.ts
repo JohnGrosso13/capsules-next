@@ -15,6 +15,10 @@ export async function POST(req: Request) {
       ? Math.min(Math.max(Math.floor(limitRaw), 1), 48)
       : 24;
   const userPayload = (body?.user as Record<string, unknown>) ?? {};
+  const capsuleId =
+    typeof body?.capsuleId === "string" && body.capsuleId.trim().length
+      ? body.capsuleId.trim()
+      : null;
 
   const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: false });
   if (!ownerId) {
@@ -32,6 +36,7 @@ export async function POST(req: Request) {
       ownerId,
       query: trimmed,
       limit,
+      capsuleId,
       origin: origin ?? null,
     });
     return NextResponse.json(result);

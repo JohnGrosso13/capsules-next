@@ -348,6 +348,21 @@ export function CapsuleGate({
     };
     window.dispatchEvent(new CustomEvent("capsule:live-chat", { detail }));
   }, [activeCapsule?.id, activeCapsule?.name, shouldAutoActivate]);
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    if (activeCapsule?.id) {
+      root.dataset.activeCapsuleId = activeCapsule.id;
+      if (activeCapsule.name) {
+        root.dataset.activeCapsuleName = activeCapsule.name;
+      } else {
+        delete root.dataset.activeCapsuleName;
+      }
+    } else {
+      delete root.dataset.activeCapsuleId;
+      delete root.dataset.activeCapsuleName;
+    }
+  }, [activeCapsule?.id, activeCapsule?.name]);
 
   if (!capsuleList.length) {
     return (
