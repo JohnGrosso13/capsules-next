@@ -171,6 +171,11 @@
     background: color-mix(in srgb, rgba(255, 68, 68, 0.18) 40%, transparent);
   }
 
+  .notice[data-tone="warning"] {
+    border-color: color-mix(in srgb, rgba(255, 183, 77, 0.7) 55%, transparent);
+    background: color-mix(in srgb, rgba(255, 183, 77, 0.2) 60%, transparent);
+  }
+
   .tabs {
     display: inline-flex;
     align-items: center;

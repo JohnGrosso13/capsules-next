@@ -24,13 +24,17 @@
 
   .row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
+    width: 100%;
+    max-width: var(--app-feed-width, clamp(640px, 52vw, 760px));
+    margin: 0 auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .tile {
     display: block;
     text-decoration: none;
+    color: inherit;
   }
 
   .empty {
@@ -39,5 +43,18 @@
     border: 1px dashed var(--card-border);
     color: var(--text-2);
     text-align: center;
+  }
+
+  @media (max-width: 900px) {
+    .row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
   }
 }

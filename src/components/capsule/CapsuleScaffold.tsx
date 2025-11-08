@@ -6,6 +6,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Broadcast,
   CaretDown,
+  DoorOpen,
   MagnifyingGlass,
   MagicWand,
   ImageSquare,
@@ -97,7 +98,7 @@ export function CapsuleContent({
     setMemberRole,
     follow: followCapsule,
     unfollow: unfollowCapsule,
-    leave: _leave,
+    leave,
     inviteMember,
     refresh: refreshMembership,
     setError: setMembershipError,
@@ -165,7 +166,6 @@ export function CapsuleContent({
   const viewer = membership?.viewer ?? null;
   const canCustomize = Boolean(viewer?.isOwner);
   const isAuthenticated = Boolean(user);
-  const pendingCount = viewer?.isOwner ? (membership?.counts.pendingRequests ?? 0) : 0;
   const handleSignIn = React.useCallback(() => {
     if (typeof window === "undefined") return;
     const redirectUrl = `${window.location.pathname}${window.location.search}` || "/capsule";
@@ -241,6 +241,7 @@ export function CapsuleContent({
     () => unfollowCapsule().catch(() => {}),
     [unfollowCapsule],
   );
+  const handleLeaveCapsule = React.useCallback(() => leave().catch(() => {}), [leave]);
   const heroPrimary = React.useMemo<{
     label: string;
     disabled: boolean;
@@ -322,7 +323,19 @@ export function CapsuleContent({
       onClick: busy ? null : handleFollowCapsule,
     };
   }, [viewer, membershipMutatingAction, handleFollowCapsule, handleUnfollowCapsule]);
-  const showMembersBadge = Boolean(viewer?.isOwner && pendingCount > 0);
+  const heroLeave = React.useMemo<{
+    label: string;
+    disabled: boolean;
+    onClick: (() => void) | null;
+  } | null>(() => {
+    if (!viewer || viewer.isOwner || !viewer.isMember) return null;
+    const busy = membershipMutatingAction === "leave";
+    return {
+      label: busy ? "Leaving..." : "Leave capsule",
+      disabled: busy,
+      onClick: busy ? null : handleLeaveCapsule,
+    };
+  }, [viewer, membershipMutatingAction, handleLeaveCapsule]);
   const membershipErrorVisible = membershipError && !membersOpen ? membershipError : null;
   const capsuleBannerUrl =
     bannerUrlOverride ?? (membership?.capsule ? membership.capsule.bannerUrl : null);
@@ -502,9 +515,8 @@ export function CapsuleContent({
               : {})}
             primaryAction={heroPrimary}
             followAction={heroFollow}
+            leaveAction={heroLeave}
             membersOpen={membersOpen}
-            showMembersBadge={showMembersBadge}
-            pendingCount={pendingCount}
             activeSection={heroSection}
             onSelectMembers={showMembers}
             onSelectEvents={showEvents}
@@ -526,6 +538,7 @@ export function CapsuleContent({
               onRemove={handleRemoveMember}
               onChangeRole={handleChangeMemberRole}
               onInvite={handleInviteMember}
+              {...(heroLeave ? { onLeave: handleLeaveCapsule } : {})}
             />
           ) : (
             <>
@@ -669,9 +682,12 @@ type CapsuleHeroProps = {
     disabled: boolean;
     onClick: (() => void) | null;
   } | null;
+  leaveAction?: {
+    label: string;
+    disabled: boolean;
+    onClick: (() => void) | null;
+  } | null;
   membersOpen: boolean;
-  showMembersBadge: boolean;
-  pendingCount: number;
   activeSection: CapsuleHeroSection;
   onSelectMembers: () => void;
   onSelectEvents: () => void;
@@ -691,9 +707,8 @@ function CapsuleHero({
   onCustomizeLogo,
   primaryAction,
   followAction = null,
+  leaveAction = null,
   membersOpen,
-  showMembersBadge,
-  pendingCount,
   activeSection,
   onSelectMembers,
   onSelectEvents,
@@ -772,21 +787,32 @@ function CapsuleHero({
             <UsersThree size={16} weight="bold" />
             {primaryAction.label}
           </button>
-          {followAction ? (
-            <button
-              type="button"
-              className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
-              onClick={followAction.onClick ?? undefined}
-              disabled={followAction.disabled}
-            >
-              <UserPlus size={16} weight="bold" />
-              {followAction.label}
-            </button>
-          ) : null}
+        {followAction ? (
           <button
             type="button"
             className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
+            onClick={followAction.onClick ?? undefined}
+            disabled={followAction.disabled}
           >
+            <UserPlus size={16} weight="bold" />
+            {followAction.label}
+          </button>
+        ) : null}
+        {leaveAction ? (
+          <button
+            type="button"
+            className={`${capTheme.heroAction} ${capTheme.heroActionDanger}`}
+            onClick={leaveAction.onClick ?? undefined}
+            disabled={leaveAction.disabled}
+          >
+            <DoorOpen size={16} weight="bold" />
+            {leaveAction.label}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
+        >
             <ShareFat size={16} weight="bold" />
             Share
           </button>
@@ -838,9 +864,6 @@ function CapsuleHero({
           return (
             <button key={label} type="button" className={className} onClick={handleClick}>
               {label}
-              {isMembersLink && showMembersBadge ? (
-                <span className={capTheme.heroTabBadge}>{pendingCount}</span>
-              ) : null}
             </button>
           );
         })}

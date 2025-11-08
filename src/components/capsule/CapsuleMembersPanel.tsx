@@ -24,6 +24,7 @@ type CapsuleMembersPanelProps = {
   onRemove: (memberId: string) => Promise<unknown> | unknown;
   onChangeRole: (memberId: string, role: string) => Promise<unknown> | unknown;
   onInvite: (targetUserId: string) => Promise<unknown> | unknown;
+  onLeave?: () => Promise<unknown> | unknown;
 };
 
 type MemberPanelTab = "members" | "pending" | "follows";
@@ -143,6 +144,7 @@ export function CapsuleMembersPanel({
   onRemove,
   onChangeRole,
   onInvite,
+  onLeave,
 }: CapsuleMembersPanelProps) {
   const handleApprove = React.useCallback(
     (requestId: string) => {
@@ -179,6 +181,12 @@ export function CapsuleMembersPanel({
   const viewer = membership?.viewer ?? null;
   const isOwner = Boolean(viewer?.isOwner);
   const requestStatus = viewer?.requestStatus ?? "none";
+  const canLeaveCapsule = Boolean(onLeave && viewer?.isMember && !viewer.isOwner);
+  const leaveBusy = mutatingAction === "leave";
+  const handleLeaveCapsule = React.useCallback(() => {
+    if (!canLeaveCapsule || leaveBusy || !onLeave) return;
+    void onLeave();
+  }, [canLeaveCapsule, leaveBusy, onLeave]);
   const members = membership?.members ?? EMPTY_MEMBERS;
   const pendingRequests = membership?.requests ?? EMPTY_REQUESTS;
   const pendingInvites = membership?.invites ?? EMPTY_INVITES;
@@ -286,10 +294,26 @@ export function CapsuleMembersPanel({
 
       {!isOwner && requestStatus === "declined" ? (
         <div className={styles.notice}>
-          <WarningCircle size={16} weight="bold" />
-          Your previous request was declined. You can request again at any time.
-        </div>
-      ) : null}
+      <WarningCircle size={16} weight="bold" />
+      Your previous request was declined. You can request again at any time.
+    </div>
+  ) : null}
+
+  {canLeaveCapsule ? (
+    <div className={styles.notice} data-tone="warning">
+      <WarningCircle size={16} weight="bold" />
+      <span>You can leave this capsule whenever you like.</span>
+      <button
+        type="button"
+        className={styles.button}
+        data-tone="danger"
+        onClick={handleLeaveCapsule}
+        disabled={leaveBusy}
+      >
+        Leave capsule
+      </button>
+    </div>
+  ) : null}
 
       {tabItems.length > 1 ? (
         <div className={styles.tabs} role="tablist" aria-label="Member management views">

@@ -411,12 +411,14 @@ export function CapsuleGate({
   );
 
   React.useEffect(() => {
-    if (startInSelector) {
-      setActiveId(null);
-      return;
-    }
     setActiveId((previous) => {
-      if (previous && capsuleList.some((capsule) => capsule.id === previous)) {
+      const hasPrevious = Boolean(previous);
+      const isValidPrevious =
+        hasPrevious && capsuleList.some((capsule) => capsule.id === previous);
+      if (startInSelector) {
+        return isValidPrevious ? previous : null;
+      }
+      if (isValidPrevious) {
         return previous;
       }
       return resolvedDefaultId;

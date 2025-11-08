@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
 import capsuleTileHostStyles from "@/components/capsule/capsule-tile-host.module.css";
+import { resolveCapsuleHandle, resolveCapsuleTileMedia } from "@/lib/capsules/promo-tile";
 import type { CapsuleSummary } from "@/server/capsules/service";
 
 import styles from "./followed-capsules-row.module.css";
@@ -36,23 +37,32 @@ export function FollowedCapsulesRow({ capsules }: FollowedCapsulesRowProps) {
       </header>
       {limitedCapsules.length ? (
         <div className={styles.row}>
-          {limitedCapsules.map((capsule) => (
-            <Link
-              key={capsule.id}
-              href={buildCapsuleLink(capsule.id)}
-              className={styles.tile}
-              aria-label={`Open capsule ${capsule.name}`}
-              prefetch={false}
-            >
-              <CapsulePromoTile
-                name={capsule.name}
-                bannerUrl={capsule.bannerUrl}
-                logoUrl={capsule.logoUrl}
-                className={capsuleTileHostStyles.tileHost ?? ""}
-                showSlug={false}
-              />
-            </Link>
-          ))}
+          {limitedCapsules.map((capsule) => {
+            const media = resolveCapsuleTileMedia({
+              promoTileUrl: capsule.promoTileUrl ?? null,
+              bannerUrl: capsule.bannerUrl ?? null,
+              logoUrl: capsule.logoUrl ?? null,
+            });
+            const slugHandle = resolveCapsuleHandle(capsule.slug);
+            return (
+              <Link
+                key={capsule.id}
+                href={buildCapsuleLink(capsule.id)}
+                className={styles.tile}
+                aria-label={`Open capsule ${capsule.name}`}
+                prefetch={false}
+              >
+                <CapsulePromoTile
+                  name={capsule.name}
+                  slug={slugHandle}
+                  bannerUrl={media.bannerUrl}
+                  logoUrl={media.logoUrl}
+                  className={capsuleTileHostStyles.tileHost ?? ""}
+                  showSlug={false}
+                />
+              </Link>
+            );
+          })}
         </div>
       ) : (
         <div className={styles.empty}>

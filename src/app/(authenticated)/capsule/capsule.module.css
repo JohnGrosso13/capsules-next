@@ -489,6 +489,11 @@
   background: color-mix(in srgb, rgba(18, 22, 44, 0.56) 80%, transparent);
   color: var(--text, white);
 }
+.heroActionDanger {
+  border-color: color-mix(in srgb, rgba(255, 124, 124, 0.7) 70%, transparent);
+  background: color-mix(in srgb, rgba(54, 16, 28, 0.78) 80%, transparent);
+  color: color-mix(in srgb, white 88%, transparent);
+}
 
 .heroAction:hover,
 .heroAction:focus-visible {
@@ -500,6 +505,11 @@
 .heroActionSecondary:focus-visible {
   border-color: rgba(255, 255, 255, 0.42);
   background: color-mix(in srgb, rgba(18, 22, 44, 0.7) 86%, transparent);
+}
+.heroActionDanger:hover,
+.heroActionDanger:focus-visible {
+  border-color: color-mix(in srgb, rgba(255, 148, 148, 0.85) 80%, transparent);
+  background: color-mix(in srgb, rgba(66, 18, 30, 0.88) 82%, transparent);
 }
 
 .heroAction:focus-visible {
