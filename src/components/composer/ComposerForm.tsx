@@ -2264,6 +2264,8 @@ export function ComposerForm({
               result={summaryResult}
               options={summaryOptions}
               entries={summaryEntries}
+              selectedEntry={summaryPreviewEntry}
+              onSelectEntry={setSummaryPreviewEntry}
               onAsk={handleSummaryAsk}
               onComment={handleSummaryComment}
               onView={handleSummaryView}
@@ -2906,20 +2908,6 @@ export function ComposerForm({
   const summaryPreviewContent = React.useMemo(() => {
     if (!summaryPreviewEntry) return null;
 
-    const highlightChips =
-      summaryPreviewEntry.highlights && summaryPreviewEntry.highlights.length ? (
-        <div className={styles.summaryPreviewHighlights}>
-          {summaryPreviewEntry.highlights.map((highlight, index) => (
-            <span
-              key={`${summaryPreviewEntry.id}-highlight-${index}`}
-              className={styles.summaryPreviewHighlight}
-            >
-              {highlight}
-            </span>
-          ))}
-        </div>
-      ) : null;
-
     const hasPost = Boolean(summaryPreviewEntry.postId);
 
     const openInFeedButton = (
@@ -2942,15 +2930,23 @@ export function ComposerForm({
       </button>
     );
 
-    const intro = (
-      <div className={styles.summaryPreviewIntro}>
-        {summaryPreviewEntry.summary ? (
-          <p className={styles.summaryPreviewText}>{summaryPreviewEntry.summary}</p>
-        ) : null}
-        {summaryPreviewEntry.relativeTime ? (
-          <span className={styles.summaryPreviewTimestamp}>{summaryPreviewEntry.relativeTime}</span>
-        ) : null}
-        {highlightChips}
+    const previewHeading = (
+      <div className={styles.summaryPreviewShellHeader}>
+        <div className={styles.summaryPreviewShellTitleGroup}>
+          <span className={styles.summaryPreviewShellLabel}>Live post preview</span>
+          {summaryPreviewEntry.title ? (
+            <p className={styles.summaryPreviewShellTitle}>{summaryPreviewEntry.title}</p>
+          ) : null}
+          {summaryPreviewEntry.author ? (
+            <span className={styles.summaryPreviewShellAuthor}>{summaryPreviewEntry.author}</span>
+          ) : null}
+        </div>
+        <div className={styles.summaryPreviewShellMeta}>
+          {summaryPreviewEntry.relativeTime ? (
+            <span className={styles.summaryPreviewShellTimestamp}>{summaryPreviewEntry.relativeTime}</span>
+          ) : null}
+          {mobileBackButton}
+        </div>
       </div>
     );
 
@@ -2964,61 +2960,65 @@ export function ComposerForm({
 
       return (
         <PreviewColumn hideHeader variant="compact">
-          {mobileBackButton}
-          {intro}
-          <div className={styles.summaryPreviewScroll}>
-            <PostCard
-              variant="preview"
-              post={summaryPreviewPost}
-              viewerIdentifiers={previewViewerIdentifiers}
-              likePending={Boolean(likePending[summaryPreviewPost.id])}
-              memoryPending={Boolean(memoryPending[summaryPreviewPost.id])}
-              remembered={Boolean(summaryPreviewPost.viewerRemembered ?? summaryPreviewPost.viewer_remembered ?? false)}
-              canRemember={canRemember}
-              friendMenu={previewFriendMenu}
-              cloudflareEnabled={cloudflareEnabled}
-              currentOrigin={previewCurrentOrigin}
-              formatCount={formatFeedCount}
-              timeAgo={formatTimeAgo}
-              exactTime={formatExactTime}
-              commentCount={baseCommentCount}
-              isRefreshing={isRefreshing}
-              documentSummaryPending={{}}
-              onToggleLike={handlePreviewToggleLike}
-              onToggleMemory={handlePreviewToggleMemory}
-              onDelete={() => {}}
-              onOpenLightbox={() => {}}
-              onAskDocument={() => {}}
-              onSummarizeDocument={() => {}}
-              onCommentClick={() => {}}
-            />
+          <div className={styles.summaryPreviewShell}>
+            {previewHeading}
+            <div className={styles.summaryPreviewShellBody}>
+              <div className={styles.summaryPreviewScroll}>
+                <PostCard
+                  variant="preview"
+                  post={summaryPreviewPost}
+                  viewerIdentifiers={previewViewerIdentifiers}
+                  likePending={Boolean(likePending[summaryPreviewPost.id])}
+                  memoryPending={Boolean(memoryPending[summaryPreviewPost.id])}
+                  remembered={Boolean(summaryPreviewPost.viewerRemembered ?? summaryPreviewPost.viewer_remembered ?? false)}
+                  canRemember={canRemember}
+                  friendMenu={previewFriendMenu}
+                  cloudflareEnabled={cloudflareEnabled}
+                  currentOrigin={previewCurrentOrigin}
+                  formatCount={formatFeedCount}
+                  timeAgo={formatTimeAgo}
+                  exactTime={formatExactTime}
+                  commentCount={baseCommentCount}
+                  isRefreshing={isRefreshing}
+                  documentSummaryPending={{}}
+                  onToggleLike={handlePreviewToggleLike}
+                  onToggleMemory={handlePreviewToggleMemory}
+                  onDelete={() => {}}
+                  onOpenLightbox={() => {}}
+                  onAskDocument={() => {}}
+                  onSummarizeDocument={() => {}}
+                  onCommentClick={() => {}}
+                />
+              </div>
+              <SummaryPreviewCommentForm
+                postId={summaryPreviewPost.id}
+                viewerEnvelope={viewerEnvelope}
+                currentUser={currentUser}
+              />
+            </div>
+            <div className={styles.summaryPreviewShellActions}>{openInFeedButton}</div>
           </div>
-          <SummaryPreviewCommentForm
-            postId={summaryPreviewPost.id}
-            viewerEnvelope={viewerEnvelope}
-            currentUser={currentUser}
-          />
-          <div className={styles.summaryPreviewActions}>{openInFeedButton}</div>
         </PreviewColumn>
       );
     }
 
     return (
       <PreviewColumn hideHeader variant="compact">
-        {mobileBackButton}
-        <div className={styles.summaryPreviewCard}>
-          {intro}
-          {hasPost ? (
-            <p className={styles.summaryPreviewHint}>
-              We couldn&apos;t load this post in the preview. Use Open in feed to view it in the timeline.
-            </p>
-          ) : (
-            <p className={styles.summaryPreviewHint}>
-              No post was linked to this summary yet. Open the feed to read the full story.
-            </p>
-          )}
+        <div className={styles.summaryPreviewShell}>
+          {previewHeading}
+          <div className={styles.summaryPreviewCard}>
+            {hasPost ? (
+              <p className={styles.summaryPreviewHint}>
+                We couldn&apos;t load this post in the preview. Use Open in feed to view it in the timeline.
+              </p>
+            ) : (
+              <p className={styles.summaryPreviewHint}>
+                No post was linked to this summary yet. Open the feed to read the full story.
+              </p>
+            )}
+          </div>
+          <div className={styles.summaryPreviewShellActions}>{openInFeedButton}</div>
         </div>
-        <div className={styles.summaryPreviewActions}>{openInFeedButton}</div>
       </PreviewColumn>
     );
   }, [
