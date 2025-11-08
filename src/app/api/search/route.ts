@@ -4,7 +4,7 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { deriveRequestOrigin } from "@/lib/url";
 import { globalSearch } from "@/server/search/service";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
