@@ -11,8 +11,8 @@ import {
   FolderSimple,
   Brain,
   List,
-  SidebarSimple,
   Plus,
+  SidebarSimple,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
@@ -1969,6 +1969,18 @@ export function ComposerForm({
   const hasConversation = renderedHistory.length > 0;
   const showWelcomeMessage = !hasConversation;
 
+  const handleToggleLeftRail = React.useCallback(() => {
+    actions.layout.setLeftCollapsed(!layout.leftCollapsed);
+  }, [actions.layout, layout.leftCollapsed]);
+
+  const handleCollapsedNavSelect = React.useCallback(
+    (tabKey: SidebarTabKey) => {
+      setActiveSidebarTab(tabKey);
+      actions.layout.setLeftCollapsed(false);
+    },
+    [actions.layout, setActiveSidebarTab],
+  );
+
   const recentSidebarItems: SidebarListItem[] = React.useMemo(
     () =>
       sidebar.recentChats.map((item) => ({
@@ -2146,88 +2158,257 @@ export function ComposerForm({
     recentSidebarItems,
   ]);
 
-  const leftRail = (
-    <div className={styles.memoryRail}>
-      <div className={styles.sidebarTabs} role="tablist" aria-label="Composer navigation">
-        {SIDEBAR_TAB_OPTIONS.map((tab) => {
-          const selected = tab.key === activeSidebarTab;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              tabIndex={selected ? 0 : -1}
-              className={`${styles.sidebarTab} ${selected ? styles.sidebarTabActive : ""}`}
-              data-selected={selected ? "true" : undefined}
-              onClick={() => setActiveSidebarTab(tab.key)}
-              title={tab.label}
-            >
-              {tab.renderIcon(selected)}
-              <span className={styles.srOnly}>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className={styles.sidebarScroll}>{sidebarContent}</div>
-      {recentModalOpen ? (
-        <div
-          className={styles.sidebarOverlay}
-          role="dialog"
-          aria-modal="true"
-          aria-label="All recent chats"
-          onClick={() => setRecentModalOpen(false)}
-        >
-          <div
-            className={styles.sidebarOverlayCard}
-            onClick={(event) => event.stopPropagation()}
+  const collapsedLeftRail = (
+
+    <div className={styles.collapsedRail}>
+
+      <button
+
+        type="button"
+
+        className={styles.collapsedRailBtn}
+
+        onClick={handleToggleLeftRail}
+
+        aria-label="Expand sidebar"
+
+        title="Expand sidebar"
+
+      >
+
+        <SidebarSimple size={18} weight="bold" />
+
+        <span className={styles.srOnly}>Expand sidebar</span>
+
+      </button>
+
+      {SIDEBAR_TAB_OPTIONS.map((tab) => {
+
+        const selected = activeSidebarTab === tab.key;
+
+        return (
+
+          <button
+
+            key={`collapsed-${tab.key}`}
+
+            type="button"
+
+            className={styles.collapsedRailBtn}
+
+            data-active={selected ? "true" : undefined}
+
+            onClick={() => handleCollapsedNavSelect(tab.key)}
+
+            aria-label={tab.label}
+
+            title={tab.label}
+
           >
-            <div className={styles.sidebarOverlayHeader}>
-              <span className={styles.sidebarOverlayTitle}>Recent chats</span>
-              <button
-                type="button"
-                className={styles.sidebarOverlayClose}
-                onClick={() => setRecentModalOpen(false)}
-              >
-                Close
-              </button>
-            </div>
-            <div className={styles.sidebarOverlayList}>
-              <ol className={styles.memoryList}>
-                {recentSidebarItems.map((item) => {
-                  const cardClass = `${styles.memoryCard}${
-                    item.active ? ` ${styles.memoryCardActive}` : ""
-                  }`;
-                  const iconNode = item.icon ?? null;
-                  const thumbClass = `${styles.memoryThumb} ${styles.memoryThumbChat ?? ""}`;
-                  return (
-                    <li key={`recent-modal-${item.id}`}>
-                      <button
-                        type="button"
-                        className={cardClass}
-                        onClick={item.onClick}
-                        disabled={item.disabled}
-                        title={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
-                        aria-label={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
-                      >
-                        {iconNode ? <span className={thumbClass}>{iconNode}</span> : null}
-                        <span className={styles.memoryMeta}>
-                          <span className={styles.memoryName}>{item.title}</span>
-                          {item.subtitle ? (
-                            <span className={styles.memoryType}>{item.subtitle}</span>
-                          ) : null}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          </div>
-        </div>
-      ) : null}
+
+            {tab.renderIcon(selected)}
+
+          </button>
+
+        );
+
+      })}
+
     </div>
+
   );
+
+
+
+  const expandedLeftRail = (
+
+    <div className={styles.memoryRail}>
+
+      <div className={styles.sidebarHeaderRow}>
+
+        <div className={styles.sidebarTabs} role="tablist" aria-label="Composer navigation">
+
+          {SIDEBAR_TAB_OPTIONS.map((tab) => {
+
+            const selected = tab.key === activeSidebarTab;
+
+            return (
+
+              <button
+
+                key={tab.key}
+
+                type="button"
+
+                role="tab"
+
+                aria-selected={selected}
+
+                tabIndex={selected ? 0 : -1}
+
+                className={`${styles.sidebarTab} ${selected ? styles.sidebarTabActive : ""}`}
+
+                data-selected={selected ? "true" : undefined}
+
+                onClick={() => setActiveSidebarTab(tab.key)}
+
+                title={tab.label}
+
+              >
+
+                {tab.renderIcon(selected)}
+
+                <span className={styles.srOnly}>{tab.label}</span>
+
+              </button>
+
+            );
+
+          })}
+
+        </div>
+
+        <button
+
+          type="button"
+
+          className={styles.sidebarCollapseBtn}
+
+          onClick={handleToggleLeftRail}
+
+          aria-label="Hide sidebar"
+
+        >
+
+          <SidebarSimple size={16} weight="bold" />
+
+          <span className={styles.srOnly}>Hide sidebar</span>
+
+        </button>
+
+      </div>
+
+      <div className={styles.sidebarScroll}>{sidebarContent}</div>
+
+      {recentModalOpen ? (
+
+        <div
+
+          className={styles.sidebarOverlay}
+
+          role="dialog"
+
+          aria-modal="true"
+
+          aria-label="All recent chats"
+
+          onClick={() => setRecentModalOpen(false)}
+
+        >
+
+          <div
+
+            className={styles.sidebarOverlayCard}
+
+            onClick={(event) => event.stopPropagation()}
+
+          >
+
+            <div className={styles.sidebarOverlayHeader}>
+
+              <span className={styles.sidebarOverlayTitle}>Recent chats</span>
+
+              <button
+
+                type="button"
+
+                className={styles.sidebarOverlayClose}
+
+                onClick={() => setRecentModalOpen(false)}
+
+              >
+
+                Close
+
+              </button>
+
+            </div>
+
+            <div className={styles.sidebarOverlayList}>
+
+              <ol className={styles.memoryList}>
+
+                {recentSidebarItems.map((item) => {
+
+                  const cardClass = `${styles.memoryCard}${
+
+                    item.active ? ` ${styles.memoryCardActive}` : ""
+
+                  }`;
+
+                  const iconNode = item.icon ?? null;
+
+                  const thumbClass = `${styles.memoryThumb} ${styles.memoryThumbChat ?? ""}`;
+
+                  return (
+
+                    <li key={`recent-modal-${item.id}`}>
+
+                      <button
+
+                        type="button"
+
+                        className={cardClass}
+
+                        onClick={item.onClick}
+
+                        disabled={item.disabled}
+
+                        title={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
+
+                        aria-label={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
+
+                      >
+
+                        {iconNode ? <span className={thumbClass}>{iconNode}</span> : null}
+
+                        <span className={styles.memoryMeta}>
+
+                          <span className={styles.memoryName}>{item.title}</span>
+
+                          {item.subtitle ? (
+
+                            <span className={styles.memoryType}>{item.subtitle}</span>
+
+                          ) : null}
+
+                        </span>
+
+                      </button>
+
+                    </li>
+
+                  );
+
+                })}
+
+              </ol>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      ) : null}
+
+    </div>
+
+  );
+
+
+
+  const leftRail = layout.leftCollapsed ? collapsedLeftRail : expandedLeftRail;
 
   const mainContent = (
     <>
@@ -3301,6 +3482,7 @@ export function ComposerForm({
             mainRef={mainRef}
             layout={layout}
             previewOpen={isMobileLayout ? false : previewOpen}
+            leftCollapsed={layout.leftCollapsed}
             leftRail={leftRail}
             mainContent={mainContent}
             previewContent={isMobileLayout ? null : previewContent}
