@@ -83,11 +83,8 @@ import { serverEnv } from "@/lib/env/server";
 import { getDatabaseAdminClient } from "@/config/database";
 import { createHash } from "node:crypto";
 import { AIConfigError, callOpenAIChat, extractJSON } from "@/lib/ai/prompter";
-import {
-  indexCapsuleHistorySnapshot,
-  indexCapsuleKnowledgeDocs,
-} from "./knowledge-index";
-import { loadCapsuleKnowledgeDocs } from "./knowledge-docs";
+import { indexCapsuleHistorySnapshot } from "./knowledge-index";
+import { refreshCapsuleKnowledge } from "./knowledge";
 
 export type { CapsuleSummary, DiscoverCapsuleSummary } from "./repository";
 export type {
@@ -3563,16 +3560,9 @@ export async function getCapsuleHistory(
     void indexCapsuleHistorySnapshot(capsuleIdValue, response).catch((error) => {
       console.warn("capsule history vector sync failed", { capsuleId: capsuleIdValue, error });
     });
-    void (async () => {
-      try {
-        const docs = await loadCapsuleKnowledgeDocs(capsuleIdValue, capsule.name ?? null);
-        if (docs.length) {
-          await indexCapsuleKnowledgeDocs(capsuleIdValue, docs);
-        }
-      } catch (error) {
-        console.warn("capsule knowledge sync failed", { capsuleId: capsuleIdValue, error });
-      }
-    })();
+    void refreshCapsuleKnowledge(capsuleIdValue, capsule.name ?? null).catch((error) => {
+      console.warn("capsule knowledge sync failed", { capsuleId: capsuleIdValue, error });
+    });
   }
 
   setCachedCapsuleHistory(capsuleIdValue, response, {

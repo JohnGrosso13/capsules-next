@@ -1,13 +1,15 @@
 import { getDatabaseAdminClient } from "@/config/database";
+import { listCapsuleAssets, type CapsuleAssetRow } from "@/server/capsules/repository";
 import { listCapsuleLaddersByCapsule } from "@/server/ladders/repository";
 import type { CapsuleKnowledgeDoc } from "./knowledge-index";
 import type { CapsuleLadderSummary } from "@/types/ladders";
 
-const POST_LIMIT = 80;
-const LADDER_LIMIT = 12;
-const MAX_MEMBER_ROWS = 2000;
+const POST_LIMIT = 200;
+const LADDER_LIMIT = 20;
+const ASSET_LIMIT = 200;
+const MAX_MEMBER_ROWS = 5000;
 const TITLE_LIMIT = 160;
-const DOC_TEXT_LIMIT = 1200;
+const DOC_TEXT_LIMIT = 1400;
 
 type PostKnowledgeRow = {
   id: string | null;
@@ -30,43 +32,49 @@ type MemberKnowledgeRow = {
 
 const db = getDatabaseAdminClient();
 
-function truncate(value: string, limit: number): string {
-  if (value.length <= limit) return value;
-  return `${value.slice(0, limit - 1)}…`;
+function truncate(value: string | null | undefined, limit: number): string | null {
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized.length) return null;
+  return normalized.length <= limit ? normalized : `${normalized.slice(0, limit - 3)}...`;
 }
 
-function formatIso(value: string | null): string | null {
+function truncateTitle(value: string | null | undefined): string | null {
+  return truncate(value, TITLE_LIMIT);
+}
+
+function truncateText(value: string | null | undefined): string | null {
+  return truncate(value, DOC_TEXT_LIMIT);
+}
+
+function formatDateLabel(value: string | null | undefined): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString();
-}
-
-function formatDateLabel(value: string | null): string | null {
-  const iso = formatIso(value);
-  if (!iso) return null;
   try {
     return new Intl.DateTimeFormat(undefined, {
       dateStyle: "medium",
       timeStyle: "short",
-    }).format(new Date(iso));
+    }).format(date);
   } catch {
-    return new Date(iso).toLocaleString();
+    return date.toISOString();
   }
 }
 
 function extractTags(meta: unknown): string[] {
   if (!meta || typeof meta !== "object") return [];
   const record = meta as Record<string, unknown>;
-  const rawTags =
-    Array.isArray(record.tags) && record.tags.length
-      ? record.tags
-      : Array.isArray(record.summary_tags)
-        ? record.summary_tags
-        : [];
-  return rawTags
-    .map((tag) => (typeof tag === "string" ? tag.trim() : ""))
-    .filter((tag) => tag.length > 0);
+  const sets: unknown[] = [];
+  if (Array.isArray(record.tags)) sets.push(...record.tags);
+  if (Array.isArray(record.summary_tags)) sets.push(...record.summary_tags);
+  if (Array.isArray(record.keywords)) sets.push(...record.keywords);
+  return Array.from(
+    new Set(
+      sets
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter((tag) => tag.length > 0),
+    ),
+  );
 }
 
 function extractPollSummary(value: unknown): string | null {
@@ -74,42 +82,37 @@ function extractPollSummary(value: unknown): string | null {
   const record = value as Record<string, unknown>;
   const question = typeof record.question === "string" ? record.question.trim() : null;
   const options = Array.isArray(record.options)
-    ? record.options.map((option) =>
-        typeof option === "string" ? option.trim() : String(option ?? ""),
-      )
+    ? record.options.map((option, index) => {
+        if (typeof option === "string" && option.trim().length) return `- ${option.trim()}`;
+        return `- Option ${index + 1}`;
+      })
     : [];
   if (!question || !options.length) return null;
-  return [`Poll: ${question}`, ...options.map((option, index) => `• ${index + 1}. ${option}`)].join(
-    "\n",
-  );
+  return [`Poll: ${question}`, ...options].join("\n");
 }
 
-function buildPostDoc(
-  row: PostKnowledgeRow,
-  capsuleLabel: string,
-): CapsuleKnowledgeDoc | null {
+function buildPostDoc(row: PostKnowledgeRow, capsuleLabel: string): CapsuleKnowledgeDoc | null {
   const id = row.id ?? row.client_id;
   if (!id) return null;
   const author = row.user_name?.trim() || "Member";
-  const createdLabel = formatDateLabel(row.created_at);
-  const title = createdLabel
-    ? `${capsuleLabel} post by ${author} (${createdLabel})`
-    : `${capsuleLabel} post by ${author}`;
-  const tags = extractTags(row.metadata);
+  const created = formatDateLabel(row.created_at);
+  const title = truncateTitle(
+    created ? `${capsuleLabel} post by ${author} (${created})` : `${capsuleLabel} post by ${author}`,
+  );
   const poll = extractPollSummary(row.poll);
+  const tags = extractTags(row.metadata);
   const segments = [
-    row.content?.trim() || null,
-    row.media_prompt ? `Media prompt: ${row.media_prompt.trim()}` : null,
+    truncateText(row.content),
+    truncateText(row.media_prompt ? `Media prompt: ${row.media_prompt}` : null),
     row.media_url ? `Media reference: ${row.media_url}` : null,
     poll,
     tags.length ? `Tags: ${tags.join(", ")}` : null,
   ].filter((segment): segment is string => Boolean(segment));
-  if (!segments.length) return null;
-  const text = segments.join("\n\n");
+  if (!segments.length || !title) return null;
   return {
     id: `capsule-post:${id}`,
-    title: truncateTitle(title),
-    text: truncateText(text),
+    title,
+    text: truncateText(segments.join("\n\n")) ?? segments.join("\n\n"),
     kind: "capsule_post",
     source: "capsule_post",
     createdAt: row.created_at ?? null,
@@ -117,33 +120,27 @@ function buildPostDoc(
   };
 }
 
-function buildLadderDoc(
-  ladder: CapsuleLadderSummary,
-  capsuleLabel: string,
-): CapsuleKnowledgeDoc | null {
+function buildLadderDoc(ladder: CapsuleLadderSummary, capsuleLabel: string): CapsuleKnowledgeDoc | null {
   if (!ladder.id) return null;
   const segments = [
     ladder.summary ? `Summary: ${ladder.summary}` : null,
+    ladder.game?.title ? `Game: ${ladder.game.title}` : null,
     ladder.game?.summary ? `Game notes: ${ladder.game.summary}` : null,
-    ladder.game?.title ? `Game title: ${ladder.game.title}` : null,
     `Status: ${ladder.status}`,
     `Visibility: ${ladder.visibility}`,
   ].filter((segment): segment is string => Boolean(segment));
   if (!segments.length) return null;
   return {
     id: `capsule-ladder:${ladder.id}`,
-    title: truncateTitle(`${capsuleLabel} ladder: ${ladder.name ?? "Unnamed ladder"}`),
-    text: truncateText(segments.join("\n\n")),
+    title: truncateTitle(`${capsuleLabel} ladder: ${ladder.name ?? "Unnamed ladder"}`) ?? "Capsule ladder",
+    text: truncateText(segments.join("\n\n")) ?? segments.join("\n\n"),
     kind: "capsule_ladder",
     source: "capsule_ladder",
     createdAt: ladder.updatedAt ?? ladder.createdAt ?? null,
   };
 }
 
-function buildMembershipDocs(
-  rows: MemberKnowledgeRow[],
-  capsuleLabel: string,
-): CapsuleKnowledgeDoc[] {
+function buildMembershipDocs(rows: MemberKnowledgeRow[], capsuleLabel: string): CapsuleKnowledgeDoc[] {
   if (!rows.length) {
     return [
       {
@@ -160,32 +157,36 @@ function buildMembershipDocs(
   rows.forEach((row) => {
     const role = row.role?.trim().toLowerCase() || "member";
     roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1);
-    const joined = formatIso(row.joined_at);
-    if (joined) {
-      const year = new Date(joined).getUTCFullYear().toString();
-      yearlyCounts.set(year, (yearlyCounts.get(year) ?? 0) + 1);
+    if (row.joined_at) {
+      const date = new Date(row.joined_at);
+      if (!Number.isNaN(date.getTime())) {
+        const year = date.getUTCFullYear().toString();
+        yearlyCounts.set(year, (yearlyCounts.get(year) ?? 0) + 1);
+      }
     }
   });
 
-  const total = rows.length;
-  const roleSummary = Array.from(roleCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([role, count]) => `${role}: ${count}`)
-    .join(", ");
-  const yearSummary = Array.from(yearlyCounts.entries())
-    .sort(([a], [b]) => Number(a) - Number(b))
-    .map(([year, count]) => `${year}: ${count}`)
-    .join(", ");
+  const summaryLines = [
+    `Total members: ${rows.length}`,
+    roleCounts.size
+      ? `Roles — ${Array.from(roleCounts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([role, count]) => `${role}: ${count}`)
+          .join(", ")}`
+      : null,
+    yearlyCounts.size
+      ? `Yearly joins — ${Array.from(yearlyCounts.entries())
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([year, count]) => `${year}: ${count}`)
+          .join(", ")}`
+      : null,
+  ].filter((line): line is string => Boolean(line));
 
   const docs: CapsuleKnowledgeDoc[] = [
     {
       id: `capsule-membership:${capsuleLabel}:summary`,
       title: `${capsuleLabel} membership snapshot`,
-      text: truncateText(
-        [`Total members: ${total}`, roleSummary ? `Roles — ${roleSummary}` : null, yearSummary ? `Yearly joins — ${yearSummary}` : null]
-          .filter(Boolean)
-          .join("\n\n"),
-      ),
+      text: truncateText(summaryLines.join("\n")) ?? summaryLines.join("\n"),
       kind: "capsule_membership_summary",
       source: "capsule_membership",
     },
@@ -206,12 +207,32 @@ function buildMembershipDocs(
   return docs;
 }
 
-function truncateTitle(value: string): string {
-  return truncate(value, TITLE_LIMIT);
-}
-
-function truncateText(value: string): string {
-  return truncate(value, DOC_TEXT_LIMIT);
+function buildAssetDoc(row: CapsuleAssetRow, capsuleLabel: string): CapsuleKnowledgeDoc | null {
+  if (!row.id) return null;
+  const baseTitle =
+    row.title?.trim() ||
+    (typeof row.meta === "object" && row.meta && typeof (row.meta as Record<string, unknown>).original_name === "string"
+      ? ((row.meta as Record<string, unknown>).original_name as string)
+      : null) ||
+    "Library item";
+  const metaTags = extractTags(row.meta);
+  const lines = [
+    row.description?.trim() || null,
+    row.media_type ? `Type: ${row.media_type}` : null,
+    row.media_url ? `URL: ${row.media_url}` : null,
+    typeof row.view_count === "number" ? `Views: ${row.view_count}` : null,
+    row.uploaded_by ? `Uploaded by: ${row.uploaded_by}` : null,
+  ].filter((line): line is string => Boolean(line));
+  if (!lines.length) return null;
+  return {
+    id: `capsule-asset:${row.id}`,
+    title: truncateTitle(`${capsuleLabel} asset: ${baseTitle}`) ?? `${capsuleLabel} asset`,
+    text: truncateText(lines.join("\n")) ?? lines.join("\n"),
+    kind: "capsule_asset",
+    source: "capsule_asset",
+    createdAt: row.created_at ?? null,
+    tags: metaTags,
+  };
 }
 
 export async function loadCapsuleKnowledgeDocs(
@@ -220,6 +241,12 @@ export async function loadCapsuleKnowledgeDocs(
 ): Promise<CapsuleKnowledgeDoc[]> {
   const capsuleLabel = capsuleName?.trim().length ? capsuleName.trim() : "Capsule";
   const docs: CapsuleKnowledgeDoc[] = [];
+  const seen = new Set<string>();
+  const addDoc = (doc: CapsuleKnowledgeDoc | null) => {
+    if (!doc || !doc.id || seen.has(doc.id)) return;
+    seen.add(doc.id);
+    docs.push(doc);
+  };
 
   try {
     const postResult = await db
@@ -231,23 +258,23 @@ export async function loadCapsuleKnowledgeDocs(
       .order("created_at", { ascending: false })
       .limit(POST_LIMIT)
       .fetch();
-    const postRows = postResult.data ?? [];
-    postRows.forEach((row) => {
-      const doc = buildPostDoc(row, capsuleLabel);
-      if (doc) docs.push(doc);
-    });
+    (postResult.data ?? []).forEach((row) => addDoc(buildPostDoc(row, capsuleLabel)));
   } catch (error) {
     console.warn("capsule knowledge posts fetch failed", { capsuleId, error });
   }
 
   try {
     const ladders = await listCapsuleLaddersByCapsule(capsuleId);
-    ladders.slice(0, LADDER_LIMIT).forEach((ladder) => {
-      const doc = buildLadderDoc(ladder, capsuleLabel);
-      if (doc) docs.push(doc);
-    });
+    ladders.slice(0, LADDER_LIMIT).forEach((ladder) => addDoc(buildLadderDoc(ladder, capsuleLabel)));
   } catch (error) {
     console.warn("capsule knowledge ladders fetch failed", { capsuleId, error });
+  }
+
+  try {
+    const assets = await listCapsuleAssets({ capsuleId, limit: ASSET_LIMIT });
+    assets.forEach((asset) => addDoc(buildAssetDoc(asset, capsuleLabel)));
+  } catch (error) {
+    console.warn("capsule knowledge assets fetch failed", { capsuleId, error });
   }
 
   try {
@@ -258,8 +285,8 @@ export async function loadCapsuleKnowledgeDocs(
       .order("joined_at", { ascending: true })
       .limit(MAX_MEMBER_ROWS)
       .fetch();
-    const memberRows = memberResult.data ?? [];
-    docs.push(...buildMembershipDocs(memberRows, capsuleLabel));
+    const membershipDocs = buildMembershipDocs(memberResult.data ?? [], capsuleLabel);
+    membershipDocs.forEach((doc) => addDoc(doc));
   } catch (error) {
     console.warn("capsule knowledge members fetch failed", { capsuleId, error });
   }

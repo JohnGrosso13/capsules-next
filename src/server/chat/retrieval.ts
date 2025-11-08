@@ -1,7 +1,7 @@
 import { searchMemories } from "@/lib/supabase/memories";
 import { getCapsuleHistory } from "@/server/capsules/service";
 import {
-  searchCapsuleHistorySnippets,
+  searchCapsuleKnowledgeSnippets,
   type CapsuleKnowledgeSnippet,
 } from "@/server/capsules/knowledge-index";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
@@ -376,7 +376,7 @@ export async function getCapsuleHistorySnippets(params: {
   let vectorSnippets: ChatMemorySnippet[] = [];
   if (query.length) {
     try {
-      const matches = await searchCapsuleHistorySnippets({
+      const matches = await searchCapsuleKnowledgeSnippets({
         capsuleId,
         query,
         limit,
