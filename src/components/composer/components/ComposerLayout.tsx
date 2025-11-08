@@ -12,6 +12,7 @@ type ComposerLayoutProps = {
   mainRef: React.RefObject<HTMLDivElement | null>;
   layout: ComposerLayoutState;
   previewOpen: boolean;
+  leftCollapsed: boolean;
   leftRail: React.ReactNode;
   mainContent: React.ReactNode;
   previewContent?: React.ReactNode;
@@ -27,6 +28,7 @@ export function ComposerLayout({
   mainRef,
   layout,
   previewOpen,
+  leftCollapsed,
   leftRail,
   mainContent,
   previewContent,
@@ -36,6 +38,9 @@ export function ComposerLayout({
   onLeftResizeStart,
   onRightResizeStart,
 }: ComposerLayoutProps) {
+  const collapsedRailWidth = 76;
+  const renderWidth = leftCollapsed ? collapsedRailWidth : layout.leftWidth;
+
   return (
     <>
       <button
@@ -55,11 +60,15 @@ export function ComposerLayout({
         data-preview={previewOpen ? "open" : "closed"}
         style={{
           gridTemplateColumns: previewOpen
-            ? `${layout.leftWidth}px minmax(0, 1fr) ${layout.rightWidth}px`
-            : `${layout.leftWidth}px minmax(0, 1fr)`,
+            ? `${renderWidth}px minmax(0, 1fr) ${layout.rightWidth}px`
+            : `${renderWidth}px minmax(0, 1fr)`,
         }}
       >
-        <aside className={styles.rail} aria-label="Conversation navigation">
+        <aside
+          className={styles.rail}
+          aria-label="Conversation navigation"
+          data-collapsed={leftCollapsed ? "true" : undefined}
+        >
           {leftRail}
         </aside>
 
@@ -78,14 +87,16 @@ export function ComposerLayout({
           </aside>
         ) : null}
 
-        <div
-          className={styles.colResizer}
-          role="separator"
-          aria-orientation="vertical"
-          data-active={layout.drag?.kind === "left" ? "true" : undefined}
-          style={{ left: layout.leftWidth }}
-          onMouseDown={onLeftResizeStart}
-        />
+        {!leftCollapsed ? (
+          <div
+            className={styles.colResizer}
+            role="separator"
+            aria-orientation="vertical"
+            data-active={layout.drag?.kind === "left" ? "true" : undefined}
+            style={{ left: layout.leftWidth }}
+            onMouseDown={onLeftResizeStart}
+          />
+        ) : null}
 
         {previewOpen ? (
           <div

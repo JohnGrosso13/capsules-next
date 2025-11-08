@@ -1223,13 +1223,30 @@ begin
 end
 $$;
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_type
+    where typname = 'capsule_member_request_origin'
+  ) then
+    create type public.capsule_member_request_origin as enum (
+      'viewer_request',
+      'owner_invite'
+    );
+  end if;
+end
+$$;
+
 create table if not exists public.capsule_member_requests (
   id uuid primary key default gen_random_uuid(),
   capsule_id uuid not null references public.capsules(id) on delete cascade,
   requester_id uuid not null references public.users(id) on delete cascade,
   status public.capsule_member_request_status not null default 'pending',
   role public.member_role not null default 'member',
+  origin public.capsule_member_request_origin not null default 'viewer_request',
   message text,
+  initiator_id uuid references public.users(id) on delete set null,
   responded_by uuid references public.users(id) on delete set null,
   created_at timestamptz not null default now(),
   responded_at timestamptz,
@@ -1280,6 +1297,58 @@ $$;
 
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 -- END MIGRATION: 0011_capsule_member_requests.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- BEGIN MIGRATION: 202511081200_capsule_followers_and_invites.sql
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+create table if not exists public.capsule_followers (
+  id uuid primary key default gen_random_uuid(),
+  capsule_id uuid not null references public.capsules(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint capsule_followers_unique unique (capsule_id, user_id)
+);
+
+create index if not exists idx_capsule_followers_capsule
+  on public.capsule_followers(capsule_id);
+
+create index if not exists idx_capsule_followers_user
+  on public.capsule_followers(user_id);
+
+alter table public.capsule_followers enable row level security;
+
+do $$
+begin
+  begin
+    create policy "Service role full access capsule_followers"
+      on public.capsule_followers
+      to service_role
+      using (true)
+      with check (true);
+  exception
+    when others then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    create trigger trg_capsule_followers_updated_at
+      before update on public.capsule_followers
+      for each row execute function public.set_updated_at();
+  exception
+    when duplicate_object then null;
+  end;
+end
+$$;
+
+-- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-- END MIGRATION: 202511081200_capsule_followers_and_invites.sql
 -- ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 

@@ -127,6 +127,33 @@
     );
   }
 
+  .subSection {
+    margin-top: 16px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .subSectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+
+  .suggestionList {
+    display: grid;
+    gap: 14px;
+  }
+
+  .suggestionRow {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+  }
+
   .notice {
     display: inline-flex;
     align-items: center;
@@ -142,6 +169,11 @@
   .notice[data-tone="error"] {
     border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
     background: color-mix(in srgb, rgba(255, 68, 68, 0.18) 40%, transparent);
+  }
+
+  .notice[data-tone="warning"] {
+    border-color: color-mix(in srgb, rgba(255, 183, 77, 0.7) 55%, transparent);
+    background: color-mix(in srgb, rgba(255, 183, 77, 0.2) 60%, transparent);
   }
 
   .tabs {

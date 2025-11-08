@@ -12,7 +12,6 @@ import {
   Brain,
   List,
   SidebarSimple,
-  Plus,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
@@ -21,10 +20,11 @@ import { PreviewColumn } from "./components/PreviewColumn";
 import { ComposerMemoryPicker, type MemoryPickerTab } from "./components/ComposerMemoryPicker";
 import { useComposerFormReducer, type ComposerFormState } from "./hooks/useComposerFormReducer";
 import { useComposerLayout } from "./hooks/useComposerLayout";
-import { useComposerVoice } from "./hooks/useComposerVoice";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
 import { useComposer } from "./ComposerProvider";
 import { PromptSurface } from "./components/PromptSurface";
+import { usePollBuilder } from "./features/poll-builder/usePollBuilder";
+import { PollBuilderCard } from "./features/poll-builder/PollBuilderCard";
 import type {
   ComposerVideoStatus,
   ComposerSaveStatus,
@@ -32,25 +32,12 @@ import type {
   ComposerMemorySavePayload,
   ComposerContextSnapshot,
 } from "./ComposerProvider";
+import type { PromptSubmitOptions } from "./types";
 
-import { PostCard } from "@/components/home-feed/cards/PostCard";
-import { useAttachmentUpload, type LocalAttachment } from "@/hooks/useAttachmentUpload";
-import { formatFeedCount, type HomeFeedPost } from "@/hooks/useHomeFeed";
-import { homeFeedStore } from "@/hooks/useHomeFeed/homeFeedStore";
-import { formatExactTime, formatTimeAgo } from "@/hooks/useHomeFeed/time";
-import { computeDisplayUploads } from "@/components/memory/process-uploads";
-import { useMemoryUploads } from "@/components/memory/use-memory-uploads";
-import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
+import type { LocalAttachment } from "@/hooks/useAttachmentUpload";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
 import { ensurePollStructure, isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
-import {
-  buildImageVariants,
-  pickBestDisplayVariant,
-  pickBestFullVariant,
-  type CloudflareImageVariantSet,
-} from "@/lib/cloudflare/images";
-import { buildLocalImageVariants, shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import type { ComposerChatMessage, ComposerChatAttachment } from "@/lib/composer/chat-types";
 import { extractFileFromDataTransfer } from "@/lib/clipboard/files";
 import type {
@@ -59,133 +46,21 @@ import type {
   SummaryPresentationOptions,
 } from "@/lib/composer/summary-context";
 import type { SummaryResult } from "@/types/summary";
-import { COMPOSER_SUMMARY_ACTION_EVENT } from "@/lib/events";
 import { useCurrentUser } from "@/services/auth/client";
 import { SummaryContextPanel } from "./components/SummaryContextPanel";
 import { SummaryNarrativeCard } from "./components/SummaryNarrativeCard";
-import { safeRandomUUID } from "@/lib/random";
-import type { AuthClientUser } from "@/ports/auth-client";
-import { buildViewerEnvelope } from "@/lib/feed/viewer-envelope";
+import {
+  useAttachmentRail,
+  type AttachmentMemoryItem,
+} from "./features/attachment-rail/useAttachmentRail";
+import { useFeedPreview } from "./features/feed-preview/useFeedPreview";
+import { usePromptSurface } from "./features/prompt-surface/usePromptSurface";
+import { useSummarySidebar } from "./features/summary-sidebar/useSummarySidebar";
+import type { ClarifierPrompt } from "./types";
+export type { ClarifierPrompt } from "./types";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
-
-const MAX_POLL_OPTIONS = 6;
-
-function formatClipDuration(totalSeconds: number | null | undefined): string | null {
-  if (typeof totalSeconds !== "number" || !Number.isFinite(totalSeconds) || totalSeconds <= 0) {
-    return null;
-  }
-  const rounded = Math.max(0, Math.round(totalSeconds));
-  const minutes = Math.floor(rounded / 60);
-  const seconds = rounded % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-type QuickPromptOption = { label: string; prompt: string };
-
-const DEFAULT_QUICK_PROMPTS: QuickPromptOption[] = [
-  {
-    label: "Launch announcement",
-    prompt: "Draft a hype launch announcement with three punchy bullet highlights.",
-  },
-  {
-    label: "Weekly recap",
-    prompt: "Summarize our latest wins in a warm, conversational recap post.",
-  },
-  {
-    label: "Event teaser",
-    prompt: "Write a teaser for an upcoming event with a strong call to action.",
-  },
-];
-
-const QUICK_PROMPT_PRESETS: Record<string, QuickPromptOption[]> = {
-  default: DEFAULT_QUICK_PROMPTS,
-  poll: [
-    {
-      label: "Engagement poll",
-      prompt: "Create a poll asking the community which initiative we should prioritize next.",
-    },
-    {
-      label: "Preference check",
-      prompt: "Draft a poll comparing three visual themes for our brand refresh.",
-    },
-  ],
-  image: [
-    {
-      label: "Logo direction",
-      prompt: "Explore a logo direction that feels modern, fluid, and a little rebellious.",
-    },
-    {
-      label: "Moodboard",
-      prompt: "Generate a cinematic moodboard for a late-night product drop.",
-    },
-  ],
-  video: [
-    {
-      label: "Clip storyboard",
-      prompt: "Outline a 30-second video storyboard with three scenes and caption ideas.",
-    },
-    {
-      label: "Highlight reel",
-      prompt: "Suggest cuts for a highlight reel that spotlights our top community moments.",
-    },
-  ],
-  document: [
-    {
-      label: "Playbook outline",
-      prompt: "Draft a one-page playbook with sections for goal, timeline, and takeaways.",
-    },
-    {
-      label: "Brief template",
-      prompt: "Create a creative brief template for designers with clear instructions.",
-    },
-  ],
-  tournament: [
-    {
-      label: "Bracket kickoff",
-      prompt: "Describe a tournament bracket reveal with rounds, rewards, and hype copy.",
-    },
-    {
-      label: "Match highlights",
-      prompt: "Summarize key matchups and storylines for our upcoming community tournament.",
-    },
-  ],
-};
-
-function resolveQuickPromptPreset(kind: string): QuickPromptOption[] {
-  const preset = QUICK_PROMPT_PRESETS[kind];
-  const fallback = QUICK_PROMPT_PRESETS.default;
-  if (preset && preset.length > 0) {
-    return preset;
-  }
-  if (fallback && fallback.length > 0) {
-    return fallback;
-  }
-  return DEFAULT_QUICK_PROMPTS;
-}
-
-function truncateText(value: string, limit: number): string {
-  if (!value) return "";
-  if (value.length <= limit) return value;
-  return `${value.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
-}
-
-function useHomeFeedSnapshot() {
-  return React.useSyncExternalStore(
-    homeFeedStore.subscribe,
-    homeFeedStore.getState,
-    homeFeedStore.getState,
-  );
-}
-
-export type ClarifierPrompt = {
-  questionId: string;
-  question: string;
-  rationale: string | null;
-  suggestions: string[];
-  styleTraits: string[];
-};
 
 type SidebarListItem = {
   id: string;
@@ -274,6 +149,7 @@ function SidebarSection({
         <ol className={styles.memoryList}>
           {visibleItems.map((item) => {
             const cardClass = `${styles.memoryCard}${item.active ? ` ${styles.memoryCardActive}` : ""}`;
+            const iconNode = item.icon ?? itemIcon ?? null;
             const thumbClass = `${styles.memoryThumb}${thumbClassName ? ` ${thumbClassName}` : ""}`;
             return (
               <li key={item.id}>
@@ -285,7 +161,7 @@ function SidebarSection({
                   title={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
                   aria-label={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
                 >
-                  <span className={thumbClass}>{item.icon ?? itemIcon ?? null}</span>
+                  {iconNode ? <span className={thumbClass}>{iconNode}</span> : null}
                   <span className={styles.memoryMeta}>
                     <span className={styles.memoryName}>{item.title}</span>
                     {item.subtitle ? (
@@ -744,7 +620,11 @@ type ComposerFormProps = {
   onCreateProject(name: string): void;
   onSelectProject(id: string | null): void;
   onForceChoice?(key: string): void;
-  onPrompt?(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
+  onPrompt?(
+    prompt: string,
+    attachments?: PrompterAttachment[] | null,
+    options?: PromptSubmitOptions,
+  ): Promise<void> | void;
   onClarifierRespond?(answer: string): void;
   onRetryVideo(): void;
   onSaveCreation(request: ComposerSaveRequest): Promise<string | null> | Promise<void> | void;
@@ -805,9 +685,24 @@ export function ComposerForm({
     () => summaryContext?.entries ?? [],
     [summaryContext],
   );
+  const summaryEntrySignature = React.useMemo(
+    () => summaryEntries.map((entry) => entry.id).join("|"),
+    [summaryEntries],
+  );
   const summaryResult = summaryResultInput ?? null;
   const summaryOptions = summaryOptionsInput ?? null;
   const summaryMessageId = summaryMessageIdInput ?? null;
+  const [summaryCollapsed, setSummaryCollapsed] = React.useState(false);
+  const summaryAutoCollapseRef = React.useRef(false);
+
+  React.useEffect(() => {
+    summaryAutoCollapseRef.current = false;
+    setSummaryCollapsed(false);
+  }, [summaryEntrySignature, summaryMessageId]);
+  const hasUserMessages = React.useMemo(
+    () => conversationHistory.some((entry) => entry.role === "user"),
+    [conversationHistory],
+  );
   const contextSnapshot = contextSnapshotInput ?? null;
   const contextSnippets = React.useMemo(
     () => (contextSnapshot?.snippets ?? []).slice(0, 5),
@@ -818,65 +713,16 @@ export function ComposerForm({
     if (!summaryResult || !summaryMessageId) return conversationHistory;
     return conversationHistory.filter((entry) => entry.id !== summaryMessageId);
   }, [conversationHistory, summaryMessageId, summaryResult]);
-  const [summaryPreviewEntry, setSummaryPreviewEntry] = React.useState<SummaryConversationEntry | null>(null);
-  const feedState = useHomeFeedSnapshot();
-  const { user: currentUser } = useCurrentUser();
-  const canRemember = Boolean(currentUser);
-  const summaryPreviewPost = React.useMemo<HomeFeedPost | null>(() => {
-    if (!summaryPreviewEntry?.postId) return null;
-    const target = summaryPreviewEntry.postId.trim();
-    if (!target.length) return null;
-    for (const post of feedState.posts) {
-      if (post.id === target) return post;
-      const dbId =
-        typeof post.dbId === "string" && post.dbId.trim().length
-          ? post.dbId.trim()
-          : null;
-      if (dbId === target) return post;
-    }
-    return null;
-  }, [feedState.posts, summaryPreviewEntry?.postId]);
-  const { likePending, memoryPending, isRefreshing } = feedState;
-  const previewViewerIdentifiers = React.useMemo(() => new Set<string>(), []);
-  const previewFriendMenu = React.useMemo(
-    () => ({
-      canTarget: false,
-      isOpen: false,
-      isPending: false,
-      onToggle: () => {},
-      onRequest: () => {},
-      onRemove: () => {},
-    }),
-    [],
-  );
-  const viewerEnvelope = React.useMemo(() => buildViewerEnvelope(currentUser), [currentUser]);
-  const previewCurrentOrigin = React.useMemo(
-    () => (typeof window !== "undefined" ? window.location.origin : null),
-    [],
-  );
-
-  const handlePreviewToggleLike = React.useCallback((postId: string) => {
-    void homeFeedStore.actions.toggleLike(postId);
-  }, []);
-
-  const handlePreviewToggleMemory = React.useCallback(
-    (post: HomeFeedPost, desired: boolean) =>
-      homeFeedStore.actions.toggleMemory(post.id, { desired, canRemember }),
-    [canRemember],
-  );
-
   const clarifier = React.useMemo<ClarifierPrompt | null>(() => {
     if (!clarifierInput) return null;
     return {
       questionId: clarifierInput.questionId,
       question: clarifierInput.question,
-      rationale: clarifierInput.rationale,
+      rationale: clarifierInput.rationale ?? null,
       suggestions: clarifierInput.suggestions ?? [],
       styleTraits: clarifierInput.styleTraits ?? [],
     };
   }, [clarifierInput]);
-
-  const pollStructure = React.useMemo(() => ensurePollStructure(workingDraft), [workingDraft]);
 
   const updateDraft = React.useCallback(
     (partial: Partial<ComposerDraft>) => {
@@ -885,112 +731,71 @@ export function ComposerForm({
     [onChange, workingDraft],
   );
 
-  const pollQuestionRef = React.useRef<HTMLTextAreaElement | null>(null);
-  const pollOptionRefs = React.useRef<Record<number, HTMLInputElement | null>>({});
-  const [pendingPollFocusIndex, setPendingPollFocusIndex] = React.useState<number | null>(null);
-
-  const handlePollQuestionInput = React.useCallback(
-    (value: string) => {
-      updateDraft({
-        poll: {
-          question: value,
-          options: [...pollStructure.options],
-        },
-      });
-    },
-    [pollStructure.options, updateDraft],
-  );
-
-  const handlePollOptionInput = React.useCallback(
-    (index: number, value: string) => {
-      const nextOptions = pollStructure.options.map((option, idx) =>
-        idx === index ? value : option,
-      );
-      updateDraft({
-        poll: {
-          question: pollStructure.question,
-          options: nextOptions,
-        },
-      });
-    },
-    [pollStructure.options, pollStructure.question, updateDraft],
-  );
-
-  const handleAddPollOption = React.useCallback(
-    (afterIndex?: number) => {
-      if (pollStructure.options.length >= MAX_POLL_OPTIONS) return;
-      const nextOptions = [...pollStructure.options];
-      const insertAt =
-        typeof afterIndex === "number" && afterIndex >= -1 && afterIndex < nextOptions.length
-          ? afterIndex + 1
-          : nextOptions.length;
-      nextOptions.splice(insertAt, 0, "");
-      updateDraft({
-        poll: {
-          question: pollStructure.question,
-          options: nextOptions,
-        },
-      });
-      setPendingPollFocusIndex(insertAt);
-    },
-    [pollStructure.options, pollStructure.question, setPendingPollFocusIndex, updateDraft],
-  );
-
-  const handleRemovePollOption = React.useCallback(
-    (index: number) => {
-      if (index < 0 || index >= pollStructure.options.length) return;
-      if (pollStructure.options.length <= 2) {
-        const nextOptions = pollStructure.options.map((option, idx) =>
-          idx === index ? "" : option,
-        );
-        updateDraft({
-          poll: {
-            question: pollStructure.question,
-            options: nextOptions,
-          },
-        });
-        setPendingPollFocusIndex(index);
-        return;
-      }
-      const nextOptions = pollStructure.options.filter((_, idx) => idx !== index);
-      if (nextOptions.length < 2) {
-        nextOptions.push("");
-      }
-      updateDraft({
-        poll: {
-          question: pollStructure.question,
-          options: nextOptions,
-        },
-      });
-      setPendingPollFocusIndex(Math.min(index, nextOptions.length - 1));
-    },
-    [pollStructure.options, pollStructure.question, setPendingPollFocusIndex, updateDraft],
-  );
-
-  const handlePollBodyInput = React.useCallback(
-    (value: string) => {
-      updateDraft({ content: value });
-    },
-    [updateDraft],
-  );
-
   const { activeCapsuleId } = useComposer();
   const { state, actions } = useComposerFormReducer();
   const { privacy, mobileRailOpen, previewOpen, layout, viewerOpen, voice: voiceState } = state;
 
+  const {
+    pollStructure,
+    pollBodyValue,
+    pollQuestionValue,
+    pollHelperText,
+    hasStructure: pollHasStructure,
+    registerPollOptionRef,
+    pollQuestionRef,
+    handlePollBodyInput,
+    handlePollQuestionInput,
+    handlePollOptionInput,
+    handleAddPollOption,
+    handleRemovePollOption,
+  } = usePollBuilder({ draft: workingDraft, onDraftChange: updateDraft });
+
+  const {
+    fileInputRef,
+    handleAttachClick,
+    handleAttachmentSelect,
+    handleAttachmentFile,
+    attachRemoteAttachment,
+    attachmentUploading,
+    readyAttachment,
+    displayAttachment,
+    attachmentKind,
+    attachmentStatusLabel,
+    attachmentPreviewUrl,
+    attachmentDisplayUrl,
+    attachmentFullUrl,
+    attachmentProgressPct,
+    removeAttachment: handleRemoveAttachment,
+    vibeSuggestions,
+    cloudflareEnabled,
+    memoryPicker: attachmentMemoryPicker,
+  } = useAttachmentRail({
+    draft: workingDraft,
+    onDraftChange: updateDraft,
+    capsuleId: activeCapsuleId ?? null,
+  });
+
+  const {
+    open: memoryPickerOpen,
+    tab: memoryPickerTab,
+    uploads: uploadMemories,
+    uploadsLoading,
+    uploadsError,
+    assets: assetMemories,
+    assetsLoading,
+    assetsError,
+    openPicker: openAttachmentPicker,
+    closePicker: closeAttachmentPicker,
+    onTabChange: onAttachmentTabChange,
+  } = attachmentMemoryPicker;
+
+  const { user: currentUser } = useCurrentUser();
+  const canRemember = Boolean(currentUser);
   const columnsRef = React.useRef<HTMLDivElement | null>(null);
   const mainRef = React.useRef<HTMLDivElement | null>(null);
-  const promptInputRef = React.useRef<HTMLInputElement | null>(null);
-  const [promptValue, setPromptValue] = React.useState<string>(() =>
-    conversationHistory.length > 0 ? "" : prompt ?? "",
-  );
   const [recentModalOpen, setRecentModalOpen] = React.useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = React.useState<SidebarTabKey>("recent");
   const [isMobileLayout, setIsMobileLayout] = React.useState(false);
-  const lastSubmittedPromptRef = React.useRef<string | null>(null);
-  const previousHistoryCountRef = React.useRef(conversationHistory.length);
-  const [summaryPanelOpen, setSummaryPanelOpen] = React.useState(false);
-  const summarySignatureRef = React.useRef<string | null>(null);
   const mobileMenuCloseRef = React.useRef<HTMLButtonElement | null>(null);
   const mobilePreviewCloseRef = React.useRef<HTMLButtonElement | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = React.useState(false);
@@ -998,54 +803,6 @@ export function ComposerForm({
   const [saveTitle, setSaveTitle] = React.useState("");
   const [saveDescription, setSaveDescription] = React.useState("");
   const [saveError, setSaveError] = React.useState<string | null>(null);
-
-  const {
-    fileInputRef,
-    attachment,
-    readyAttachment,
-    uploading: attachmentUploading,
-    clearAttachment,
-    handleAttachClick,
-    handleAttachmentSelect,
-    handleAttachmentFile,
-    attachRemoteAttachment,
-  } = useAttachmentUpload(undefined, {
-    metadata: () => (activeCapsuleId ? { capsule_id: activeCapsuleId } : null),
-  });
-
-  React.useEffect(() => {
-    const normalized = prompt ?? "";
-    const historyCount = conversationHistory.length;
-    const previousCount = previousHistoryCountRef.current;
-
-    if (historyCount > 0) {
-      if (previousCount === 0) {
-        setPromptValue(() => "");
-      }
-      lastSubmittedPromptRef.current = null;
-    } else if (lastSubmittedPromptRef.current && normalized === lastSubmittedPromptRef.current) {
-      lastSubmittedPromptRef.current = null;
-    } else {
-      setPromptValue(normalized);
-    }
-
-    previousHistoryCountRef.current = historyCount;
-  }, [conversationHistory.length, prompt]);
-
-  React.useEffect(() => {
-    const signature = summaryEntries.map((entry) => entry.id).join("|");
-    if (!summaryEntries.length) {
-      summarySignatureRef.current = null;
-      setSummaryPanelOpen(false);
-      setSummaryPreviewEntry(null);
-      return;
-    }
-    if (summarySignatureRef.current !== signature) {
-      summarySignatureRef.current = signature;
-      setSummaryPanelOpen(false);
-      setSummaryPreviewEntry(null);
-    }
-  }, [summaryEntries]);
 
   React.useEffect(() => {
     if (!saveDialogOpen) return;
@@ -1060,29 +817,6 @@ export function ComposerForm({
     }
   }, [saveDialogOpen, saveStatus]);
 
-  React.useEffect(() => {
-    if (pendingPollFocusIndex === null) return;
-    if (pendingPollFocusIndex === -1) {
-      const questionElement = pollQuestionRef.current;
-      if (questionElement) {
-        questionElement.focus();
-        const length = questionElement.value.length;
-        try {
-          questionElement.setSelectionRange(length, length);
-        } catch {
-          // Ignore selection errors on browsers that do not support setSelectionRange on textarea.
-        }
-        setPendingPollFocusIndex(null);
-      }
-      return;
-    }
-    const optionElement = pollOptionRefs.current[pendingPollFocusIndex];
-    if (optionElement) {
-      optionElement.focus();
-      optionElement.select();
-      setPendingPollFocusIndex(null);
-    }
-  }, [pendingPollFocusIndex, pollStructure.options.length]);
 
   React.useEffect(() => {
     if (activeSidebarTab !== "recent" && recentModalOpen) {
@@ -1098,56 +832,11 @@ export function ComposerForm({
     },
     [handleAttachmentFile],
   );
-  const [memoryPickerOpen, setMemoryPickerOpen] = React.useState(false);
-  const [memoryPickerTab, setMemoryPickerTab] = React.useState<MemoryPickerTab>("uploads");
-  const memoryUploads = useMemoryUploads("upload");
-  const memoryAssets = useMemoryUploads(null);
-  const {
-    items: uploadItems,
-    loading: uploadsLoading,
-    error: uploadsError,
-    refresh: refreshUploads,
-  } = memoryUploads;
-  const {
-    items: assetItems,
-    loading: assetsLoading,
-    error: assetsError,
-    refresh: refreshAssets,
-  } = memoryAssets;
-
   const openViewer = React.useCallback(() => actions.viewer.open(), [actions]);
   const closeViewer = React.useCallback(() => actions.viewer.close(), [actions]);
 
-  const cloudflareBypass = React.useMemo(() => shouldBypassCloudflareImages(), []);
-  const cloudflareEnabled = React.useMemo(() => !cloudflareBypass, [cloudflareBypass]);
-  const memoryOrigin = React.useMemo(
-    () => (typeof window !== "undefined" ? window.location.origin : null),
-    [],
-  );
-  const uploadMemories = React.useMemo(
-    () => computeDisplayUploads(uploadItems, { origin: memoryOrigin, cloudflareEnabled }),
-    [cloudflareEnabled, memoryOrigin, uploadItems],
-  );
-  const assetMemories = React.useMemo(
-    () =>
-      computeDisplayUploads(
-        assetItems.filter((item) => (item.kind ?? "").toLowerCase() !== "upload"),
-        { origin: memoryOrigin, cloudflareEnabled },
-      ),
-    [assetItems, cloudflareEnabled, memoryOrigin],
-  );
 
   useComposerLayout({ layout, layoutActions: actions.layout, mainRef });
-
-  const voiceControls = useComposerVoice({
-    voiceState,
-    voiceActions: actions.voice,
-    promptValue,
-    setPromptValue,
-    promptInputRef,
-    loading,
-    attachmentUploading,
-  });
 
   useAttachmentViewer({ open: viewerOpen, onClose: closeViewer });
   const closeMobileRail = React.useCallback(() => actions.setMobileRailOpen(false), [actions]);
@@ -1175,12 +864,6 @@ export function ComposerForm({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [closeMobileRail, mobileRailOpen]);
-
-  React.useEffect(() => {
-    if (!memoryPickerOpen) return;
-    void refreshUploads();
-    void refreshAssets();
-  }, [memoryPickerOpen, refreshAssets, refreshUploads]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -1222,113 +905,6 @@ export function ComposerForm({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [actions, isMobileLayout, previewOpen]);
 
-  const displayAttachment = React.useMemo<LocalAttachment | null>(() => {
-    if (attachment) return attachment;
-    if (workingDraft.mediaUrl) {
-      const inferredKind = (workingDraft.kind ?? "").toLowerCase();
-      let inferredMime = "application/octet-stream";
-      if (inferredKind.startsWith("video")) inferredMime = "video/*";
-      else if (inferredKind.startsWith("image")) inferredMime = "image/*";
-      else if (inferredKind.startsWith("audio")) inferredMime = "audio/*";
-      else if (inferredKind.startsWith("text")) inferredMime = "text/plain";
-      else if (inferredKind.startsWith("document")) inferredMime = "application/octet-stream";
-      const derivedName =
-        workingDraft.mediaPrompt?.trim() ||
-        workingDraft.title?.trim() ||
-        workingDraft.mediaUrl.split("/").pop() ||
-        "Attached media";
-      return {
-        id: "draft-media",
-        name: derivedName,
-        size: 0,
-        mimeType: inferredMime,
-        status: "ready",
-        url: workingDraft.mediaUrl ?? workingDraft.mediaPlaybackUrl ?? null,
-        progress: 1,
-        thumbUrl: workingDraft.mediaThumbnailUrl ?? null,
-        role: "reference",
-        source: "ai",
-      };
-    }
-    return null;
-  }, [
-    attachment,
-    workingDraft.kind,
-    workingDraft.mediaPrompt,
-    workingDraft.mediaUrl,
-    workingDraft.mediaPlaybackUrl,
-    workingDraft.mediaThumbnailUrl,
-    workingDraft.title,
-  ]);
-
-  const attachmentStatusLabel = React.useMemo(() => {
-    if (!displayAttachment) return null;
-    if (displayAttachment.status === "uploading") {
-      if (displayAttachment.phase === "finalizing") {
-        return "Finishing upload...";
-      }
-      const pct = Math.round((displayAttachment.progress ?? 0) * 100);
-      return pct > 0 ? `Uploading ${pct}%` : "Uploading...";
-    }
-    if (displayAttachment.status === "error") {
-      return displayAttachment.error ?? "Upload failed";
-    }
-    return "Attachment ready";
-  }, [displayAttachment]);
-
-  const attachmentPreviewUrl = React.useMemo(() => {
-    if (!displayAttachment) return null;
-    if (displayAttachment.thumbUrl) return displayAttachment.thumbUrl;
-    if (displayAttachment.url && displayAttachment.mimeType.startsWith("image/")) {
-      return displayAttachment.url;
-    }
-    return null;
-  }, [displayAttachment]);
-
-  const hasAttachment = Boolean(displayAttachment);
-  const attachmentMime = displayAttachment?.mimeType ?? "";
-  const attachmentUrl = displayAttachment?.url ?? null;
-  const attachmentThumb = displayAttachment?.thumbUrl ?? attachmentPreviewUrl ?? null;
-  const attachmentProgress = displayAttachment?.progress ?? 0;
-  const attachmentKind = React.useMemo(
-    () => (attachmentMime.startsWith("video/") ? "video" : attachmentMime ? "image" : null),
-    [attachmentMime],
-  );
-  const attachmentProgressPct = React.useMemo(
-    () => Math.round((attachmentProgress ?? 0) * 100),
-    [attachmentProgress],
-  );
-
-  const attachmentVariants = React.useMemo<CloudflareImageVariantSet | null>(() => {
-    if (!hasAttachment || attachmentKind !== "image" || !attachmentUrl) return null;
-    const origin = typeof window !== "undefined" ? window.location.origin : null;
-    if (cloudflareBypass) {
-      return buildLocalImageVariants(attachmentUrl, attachmentThumb, origin);
-    }
-    return buildImageVariants(attachmentUrl, {
-      thumbnailUrl: attachmentThumb,
-      origin,
-    });
-  }, [attachmentKind, attachmentThumb, attachmentUrl, cloudflareBypass, hasAttachment]);
-
-  const attachmentDisplayUrl = React.useMemo(() => {
-    if (!hasAttachment) return null;
-    if (attachmentKind === "video") {
-      return attachmentUrl;
-    }
-    const variantUrl = pickBestDisplayVariant(attachmentVariants);
-    return variantUrl ?? attachmentPreviewUrl ?? attachmentUrl;
-  }, [attachmentKind, attachmentPreviewUrl, attachmentUrl, attachmentVariants, hasAttachment]);
-
-  const attachmentFullUrl = React.useMemo(() => {
-    if (!hasAttachment) return null;
-    if (attachmentKind === "video") {
-      return attachmentUrl;
-    }
-    const variantUrl = pickBestFullVariant(attachmentVariants);
-    return variantUrl ?? attachmentUrl;
-  }, [attachmentKind, attachmentUrl, attachmentVariants, hasAttachment]);
-
   const activeKind = React.useMemo(() => {
     const normalized = normalizeComposerKind(workingDraft.kind);
     if ((normalized === "text" || !normalized) && attachmentKind) {
@@ -1349,131 +925,110 @@ export function ComposerForm({
   const footerHint = React.useMemo(() => getFooterHint(activeKind), [activeKind]);
   const activeKindLabel = React.useMemo(() => resolveKindLabel(activeKind), [activeKind]);
 
-  const vibeSuggestions = React.useMemo(() => {
-    if (!displayAttachment || displayAttachment.status !== "ready" || !displayAttachment.url) {
-      return [] as Array<{ label: string; prompt: string }>;
-    }
-    const isVideo = displayAttachment.mimeType.startsWith("video/");
-    if (isVideo) {
-      return [
-        {
-          label: "Summarize this clip",
-          prompt: "Summarize this video and call out the key beats.",
-        },
-        { label: "Suggest edits", prompt: "Suggest ways we could edit or enhance this video." },
-        {
-          label: "Remove distractions",
-          prompt: "Remove background distractions and keep the focus on the key people in this clip.",
-        },
-        {
-          label: "Tighten the cut",
-          prompt: "Trim this video to the most impactful 20 seconds and smooth the transitions.",
-        },
-        { label: "Prep a post", prompt: "Draft a social post that spotlights this video." },
-      ];
-    }
-    return [
-      { label: "Describe this image", prompt: "Describe this image in vivid detail." },
-      {
-        label: "Create a post",
-        prompt: "Draft a social post that uses this image as the hero visual.",
-      },
-      { label: "Edit ideas", prompt: "Suggest edits or variations for this image." },
-    ];
-  }, [displayAttachment]);
+  const {
+    promptInputRef,
+    promptValue,
+    setPromptValue,
+    quickPromptOptions,
+    quickPromptBubbleOptions,
+    handleSuggestionSelect,
+    handlePromptSubmit,
+    handlePromptRun,
+    voiceControls,
+  } = usePromptSurface({
+    prompt,
+    conversationHistory,
+    summaryEntries,
+    activeKind,
+    onPrompt,
+    readyAttachment,
+    loading,
+    attachmentUploading,
+    voiceState,
+    voiceActions: actions.voice,
+    vibeSuggestions,
+  });
 
-  const handleSuggestionSelect = React.useCallback((nextPrompt: string) => {
-    setPromptValue(nextPrompt);
-    window.requestAnimationFrame(() => {
-      promptInputRef.current?.focus();
-    });
-  }, []);
+  const summarySidebar = useSummarySidebar({
+    summaryEntries,
+    cloudflareEnabled,
+    currentUser,
+    canRemember,
+    handleSuggestionSelect,
+    handlePromptRun,
+  });
+  const {
+    summaryPanelOpen,
+    setSummaryPanelOpen,
+    summaryPreviewEntry,
+    setSummaryPreviewEntry,
+    summaryPreviewContent,
+    handleSummaryAsk: baseHandleSummaryAsk,
+    handleSummaryView,
+    handleSummaryComment,
+  } = summarySidebar;
+
+  React.useEffect(() => {
+    if (
+      summaryResult &&
+      hasUserMessages &&
+      !summaryCollapsed &&
+      !summaryAutoCollapseRef.current
+    ) {
+      summaryAutoCollapseRef.current = true;
+      setSummaryCollapsed(true);
+      setSummaryPanelOpen(false);
+    }
+  }, [
+    hasUserMessages,
+    setSummaryPanelOpen,
+    summaryCollapsed,
+    summaryResult,
+  ]);
 
   const handleSummaryAsk = React.useCallback(
     (entry: SummaryConversationEntry) => {
-      const snippet = truncateText(entry.summary ?? "", 220);
-      const parts: string[] = [
-        entry.author ? `Tell me more about ${entry.author}'s update.` : "Tell me more about this update.",
-      ];
-      if (snippet) {
-        parts.push(`Context: ${snippet}`);
-      }
-      handleSuggestionSelect(parts.join(" "));
-      setSummaryPreviewEntry(entry);
+      baseHandleSummaryAsk(entry);
+      summaryAutoCollapseRef.current = true;
+      setSummaryCollapsed(true);
+      setSummaryPanelOpen(false);
     },
-    [handleSuggestionSelect],
+    [baseHandleSummaryAsk, setSummaryCollapsed, setSummaryPanelOpen],
   );
 
-  const handleSummaryView = React.useCallback((entry: SummaryConversationEntry) => {
-    setSummaryPreviewEntry(entry);
-    if (typeof window === "undefined") return;
-    if (!entry.postId) return;
-    window.dispatchEvent(
-      new CustomEvent(COMPOSER_SUMMARY_ACTION_EVENT, {
-        detail: { action: "view", postId: entry.postId },
-      }),
-    );
-  }, []);
+  const handleSummaryReset = React.useCallback(() => {
+    summaryAutoCollapseRef.current = true;
+    setSummaryCollapsed(false);
+    setSummaryPanelOpen(false);
+  }, [setSummaryCollapsed, setSummaryPanelOpen]);
 
-  const handleSummaryComment = React.useCallback(
-    (entry: SummaryConversationEntry) => {
-      const snippet = truncateText(entry.summary ?? "", 220);
-      const promptSegments: string[] = [
-        entry.author
-          ? `Draft a short, friendly comment I can post on ${entry.author}'s update.`
-          : "Draft a short, friendly comment I can post on this update.",
-      ];
-      if (snippet) {
-        promptSegments.push(`Use this context: ${snippet}`);
-      }
-      handleSuggestionSelect(promptSegments.join(" "));
-      setSummaryPreviewEntry(entry);
-      if (typeof window !== "undefined" && entry.postId) {
-        window.dispatchEvent(
-          new CustomEvent(COMPOSER_SUMMARY_ACTION_EVENT, {
-            detail: { action: "comment", postId: entry.postId },
-          }),
-        );
-      }
-    },
-    [handleSuggestionSelect],
-  );
-
-  const baseQuickPromptOptions = React.useMemo(
-    () => resolveQuickPromptPreset(activeKind),
-    [activeKind],
-  );
-
-  const summaryQuickPromptOptions = React.useMemo<QuickPromptOption[]>(() => {
-    if (!summaryEntries.length) return [];
-    return summaryEntries.slice(0, 3).map((entry, index) => {
-      const snippet = truncateText(entry.summary ?? "", 180);
-      const promptSegments: string[] = [
-        entry.author ? `Tell me more about ${entry.author}'s update.` : `Tell me more about this update.`,
-      ];
-      if (snippet) {
-        promptSegments.push(`What else should I know about it? Context: ${snippet}`);
-      }
-      return {
-        label: entry.author ? `Ask about ${entry.author}` : `Ask about update ${index + 1}`,
-        prompt: promptSegments.join(" "),
-      };
-    });
-  }, [summaryEntries]);
-
-  const quickPromptOptions = React.useMemo<QuickPromptOption[]>(() => {
-    if (vibeSuggestions.length) {
-      return vibeSuggestions;
-    }
-    if (summaryQuickPromptOptions.length) {
-      return [...summaryQuickPromptOptions, ...baseQuickPromptOptions];
-    }
-    return baseQuickPromptOptions;
-  }, [baseQuickPromptOptions, summaryQuickPromptOptions, vibeSuggestions]);
-
-  const quickPromptBubbleOptions = React.useMemo(
-    () => quickPromptOptions.slice(0, 4),
-    [quickPromptOptions],
+  const pollPreviewCard = React.useMemo(
+    () => (
+      <PollBuilderCard
+        pollBodyValue={pollBodyValue}
+        pollQuestionValue={pollQuestionValue}
+        pollStructure={pollStructure}
+        pollQuestionRef={pollQuestionRef}
+        registerPollOptionRef={registerPollOptionRef}
+        onPollBodyChange={handlePollBodyInput}
+        onPollQuestionChange={handlePollQuestionInput}
+        onPollOptionChange={handlePollOptionInput}
+        onAddPollOption={handleAddPollOption}
+        onRemovePollOption={handleRemovePollOption}
+      />
+    ),
+    [
+      handleAddPollOption,
+      handlePollBodyInput,
+      handlePollOptionInput,
+      handlePollQuestionInput,
+      handleRemovePollOption,
+      pollBodyValue,
+      pollQuestionRef,
+      pollQuestionValue,
+      pollStructure,
+      registerPollOptionRef,
+    ],
   );
 
   const memoryItems = React.useMemo<MemoryItem[]>(() => {
@@ -1518,37 +1073,33 @@ export function ComposerForm({
   }, [handleMemorySelect, memoryItems]);
 
   const handleMemoryPickerClose = React.useCallback(() => {
-    setMemoryPickerOpen(false);
-  }, []);
+    closeAttachmentPicker();
+  }, [closeAttachmentPicker]);
 
   const handleMemoryPickerOpen = React.useCallback(
     (tab: MemoryPickerTab = "uploads") => {
-      setMemoryPickerTab(tab);
-      setMemoryPickerOpen(true);
+      openAttachmentPicker(tab);
       closeMobileRail();
     },
-    [closeMobileRail],
+    [closeMobileRail, openAttachmentPicker],
   );
 
   const handleMemoryAttach = React.useCallback(
-    (memory: DisplayMemoryUpload) => {
+    (memory: AttachmentMemoryItem) => {
       const primaryUrl =
         memory.fullUrl?.trim() ||
         memory.media_url?.trim() ||
         memory.displayUrl?.trim() ||
         "";
       if (!primaryUrl) return;
-      const displayName =
-        memory.title?.trim() ||
-        memory.description?.trim() ||
-        "Memory asset";
+      const displayName = memory.title?.trim() || memory.description?.trim() || "Memory asset";
       attachRemoteAttachment({
         url: primaryUrl,
         name: displayName,
         mimeType: memory.media_type ?? null,
         thumbUrl: memory.displayUrl ?? null,
       });
-      setMemoryPickerOpen(false);
+      closeAttachmentPicker();
       closeMobileRail();
       if (typeof window !== "undefined") {
         window.requestAnimationFrame(() => {
@@ -1556,12 +1107,15 @@ export function ComposerForm({
         });
       }
     },
-    [attachRemoteAttachment, closeMobileRail],
+    [attachRemoteAttachment, closeAttachmentPicker, closeMobileRail, promptInputRef],
   );
 
-  const handleMemoryTabChange = React.useCallback((tab: MemoryPickerTab) => {
-    setMemoryPickerTab(tab);
-  }, []);
+  const handleMemoryTabChange = React.useCallback(
+    (tab: MemoryPickerTab) => {
+      onAttachmentTabChange(tab);
+    },
+    [onAttachmentTabChange],
+  );
 
   const handleKindSelect = React.useCallback(
     (nextKind: string) => {
@@ -1575,6 +1129,31 @@ export function ComposerForm({
     [updateDraft, workingDraft],
   );
 
+  const {
+    previewState,
+    previewPrimaryAction,
+    previewSecondaryAction,
+  } = useFeedPreview({
+    activeKind,
+    activeKindLabel,
+    workingDraft,
+    displayAttachment,
+    attachmentDisplayUrl,
+    attachmentFullUrl,
+    pollHasStructure,
+    pollHelperText,
+    pollPreviewCard,
+    handleAttachClick,
+    handlePromptSubmit,
+    handleMemoryPickerOpen,
+    handleBlueprintShortcut,
+    promptValue,
+    attachmentUploading,
+    loading,
+    memoryPickerTab,
+    memoryItemCount: memoryItems.length,
+  });
+
 
   const handlePreviewToggle = React.useCallback(() => {
     actions.setPreviewOpen(!previewOpen);
@@ -1586,37 +1165,6 @@ export function ComposerForm({
     },
     [actions],
   );
-
-  const handlePromptSubmit = React.useCallback(() => {
-    if (!onPrompt) return;
-    if (loading || attachmentUploading) return;
-    const trimmed = promptValue.trim();
-    if (!trimmed) return;
-    lastSubmittedPromptRef.current = trimmed;
-
-    let attachments: PrompterAttachment[] | null = null;
-    if (readyAttachment?.url) {
-      attachments = [
-        {
-          id: readyAttachment.id,
-          name: readyAttachment.name,
-          mimeType: readyAttachment.mimeType,
-          size: readyAttachment.size,
-          url: readyAttachment.url,
-          thumbnailUrl: readyAttachment.thumbUrl ?? undefined,
-          storageKey: readyAttachment.key ?? null,
-          sessionId: readyAttachment.sessionId ?? null,
-        },
-      ];
-    }
-
-    const result = onPrompt(trimmed, attachments);
-    if (result && typeof (result as Promise<unknown>).then === "function") {
-      void (result as Promise<unknown>).finally(() => setPromptValue(""));
-    } else {
-      setPromptValue("");
-    }
-  }, [attachmentUploading, loading, onPrompt, promptValue, readyAttachment]);
 
   const showVibePrompt = React.useMemo(
     () =>
@@ -1666,7 +1214,7 @@ export function ComposerForm({
   }, [readyAttachment, updateDraft, workingDraft.kind, workingDraft.mediaUrl]);
 
   React.useEffect(() => {
-    if (attachment && attachment.status === "uploading" && workingDraft.mediaUrl) {
+    if (displayAttachment && displayAttachment.status === "uploading" && workingDraft.mediaUrl) {
       const currentKind = (workingDraft.kind ?? "text").toLowerCase();
       const partial: Partial<ComposerDraft> = {
         mediaUrl: null,
@@ -1682,25 +1230,7 @@ export function ComposerForm({
       }
       updateDraft(partial);
     }
-  }, [attachment, updateDraft, workingDraft.kind, workingDraft.mediaUrl]);
-
-  const handleRemoveAttachment = React.useCallback(() => {
-    const currentKind = (workingDraft.kind ?? "text").toLowerCase();
-    const partial: Partial<ComposerDraft> = {
-      mediaUrl: null,
-      mediaPrompt: null,
-      mediaThumbnailUrl: null,
-      mediaPlaybackUrl: null,
-      mediaDurationSeconds: null,
-      muxPlaybackId: null,
-      muxAssetId: null,
-    };
-    if (currentKind === "image" || currentKind === "video") {
-      partial.kind = "text";
-    }
-    updateDraft(partial);
-    clearAttachment();
-  }, [clearAttachment, updateDraft, workingDraft.kind]);
+  }, [displayAttachment, updateDraft, workingDraft.kind, workingDraft.mediaUrl]);
 
   const draftReady = isComposerDraftReady(workingDraft);
 
@@ -1968,6 +1498,18 @@ export function ComposerForm({
   const hasConversation = renderedHistory.length > 0;
   const showWelcomeMessage = !hasConversation;
 
+  const handleToggleLeftRail = React.useCallback(() => {
+    actions.layout.setLeftCollapsed(!layout.leftCollapsed);
+  }, [actions.layout, layout.leftCollapsed]);
+
+  const handleCollapsedNavSelect = React.useCallback(
+    (tabKey: SidebarTabKey) => {
+      setActiveSidebarTab(tabKey);
+      actions.layout.setLeftCollapsed(false);
+    },
+    [actions.layout, setActiveSidebarTab],
+  );
+
   const recentSidebarItems: SidebarListItem[] = React.useMemo(
     () =>
       sidebar.recentChats.map((item) => ({
@@ -2050,7 +1592,6 @@ export function ComposerForm({
     [onSelectProject, sidebar.projects, sidebar.selectedProjectId],
   );
 
-  const recentItemIcon = React.useMemo(() => <ChatsTeardrop size={18} weight="duotone" />, []);
   const RECENT_VISIBLE_LIMIT = 6;
   const recentHasOverflow = recentSidebarItems.length > RECENT_VISIBLE_LIMIT;
   const handleShowRecentModal = React.useCallback(() => {
@@ -2085,7 +1626,6 @@ export function ComposerForm({
             description="Pick up where you and Capsule left off."
             items={recentSidebarItems}
             emptyMessage="No chats yet"
-            itemIcon={recentItemIcon}
             thumbClassName={styles.memoryThumbChat ?? ""}
             maxVisible={RECENT_VISIBLE_LIMIT}
             {...(recentActionProps ?? {})}
@@ -2144,126 +1684,309 @@ export function ComposerForm({
     handleMemoryPickerOpen,
     projectSidebarItems,
     recentActionProps,
-    recentItemIcon,
     recentSidebarItems,
   ]);
 
-  const leftRail = (
-    <div className={styles.memoryRail}>
-      <div className={styles.sidebarTabs} role="tablist" aria-label="Composer navigation">
-        {SIDEBAR_TAB_OPTIONS.map((tab) => {
-          const selected = tab.key === activeSidebarTab;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              tabIndex={selected ? 0 : -1}
-              className={`${styles.sidebarTab} ${selected ? styles.sidebarTabActive : ""}`}
-              data-selected={selected ? "true" : undefined}
-              onClick={() => setActiveSidebarTab(tab.key)}
-              title={tab.label}
-            >
-              {tab.renderIcon(selected)}
-              <span className={styles.srOnly}>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className={styles.sidebarScroll}>{sidebarContent}</div>
-      {recentModalOpen ? (
-        <div
-          className={styles.sidebarOverlay}
-          role="dialog"
-          aria-modal="true"
-          aria-label="All recent chats"
-          onClick={() => setRecentModalOpen(false)}
-        >
-          <div
-            className={styles.sidebarOverlayCard}
-            onClick={(event) => event.stopPropagation()}
+  const collapsedLeftRail = (
+
+    <div className={styles.collapsedRail}>
+
+      <button
+
+        type="button"
+
+        className={styles.collapsedRailBtn}
+
+        onClick={handleToggleLeftRail}
+
+        aria-label="Expand sidebar"
+
+        title="Expand sidebar"
+
+      >
+
+        <SidebarSimple size={18} weight="bold" />
+
+        <span className={styles.srOnly}>Expand sidebar</span>
+
+      </button>
+
+      {SIDEBAR_TAB_OPTIONS.map((tab) => {
+
+        const selected = activeSidebarTab === tab.key;
+
+        return (
+
+          <button
+
+            key={`collapsed-${tab.key}`}
+
+            type="button"
+
+            className={styles.collapsedRailBtn}
+
+            data-active={selected ? "true" : undefined}
+
+            onClick={() => handleCollapsedNavSelect(tab.key)}
+
+            aria-label={tab.label}
+
+            title={tab.label}
+
           >
-            <div className={styles.sidebarOverlayHeader}>
-              <span className={styles.sidebarOverlayTitle}>Recent chats</span>
-              <button
-                type="button"
-                className={styles.sidebarOverlayClose}
-                onClick={() => setRecentModalOpen(false)}
-              >
-                Close
-              </button>
-            </div>
-            <div className={styles.sidebarOverlayList}>
-              <ol className={styles.memoryList}>
-                {recentSidebarItems.map((item) => {
-                  const cardClass = `${styles.memoryCard}${
-                    item.active ? ` ${styles.memoryCardActive}` : ""
-                  }`;
-                  const thumbClass = `${styles.memoryThumb} ${styles.memoryThumbChat ?? ""}`;
-                  return (
-                    <li key={`recent-modal-${item.id}`}>
-                      <button
-                        type="button"
-                        className={cardClass}
-                        onClick={item.onClick}
-                        disabled={item.disabled}
-                        title={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
-                        aria-label={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
-                      >
-                        <span className={thumbClass}>{item.icon ?? recentItemIcon}</span>
-                        <span className={styles.memoryMeta}>
-                          <span className={styles.memoryName}>{item.title}</span>
-                          {item.subtitle ? (
-                            <span className={styles.memoryType}>{item.subtitle}</span>
-                          ) : null}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          </div>
-        </div>
-      ) : null}
+
+            {tab.renderIcon(selected)}
+
+          </button>
+
+        );
+
+      })}
+
     </div>
+
   );
+
+
+
+  const expandedLeftRail = (
+
+    <div className={styles.memoryRail}>
+
+      <div className={styles.sidebarHeaderRow}>
+
+        <div className={styles.sidebarTabs} role="tablist" aria-label="Composer navigation">
+
+          {SIDEBAR_TAB_OPTIONS.map((tab) => {
+
+            const selected = tab.key === activeSidebarTab;
+
+            return (
+
+              <button
+
+                key={tab.key}
+
+                type="button"
+
+                role="tab"
+
+                aria-selected={selected}
+
+                tabIndex={selected ? 0 : -1}
+
+                className={`${styles.sidebarTab} ${selected ? styles.sidebarTabActive : ""}`}
+
+                data-selected={selected ? "true" : undefined}
+
+                onClick={() => setActiveSidebarTab(tab.key)}
+
+                title={tab.label}
+
+              >
+
+                {tab.renderIcon(selected)}
+
+                <span className={styles.srOnly}>{tab.label}</span>
+
+              </button>
+
+            );
+
+          })}
+
+        </div>
+
+        <button
+
+          type="button"
+
+          className={styles.sidebarCollapseBtn}
+
+          onClick={handleToggleLeftRail}
+
+          aria-label="Hide sidebar"
+
+        >
+
+          <SidebarSimple size={16} weight="bold" />
+
+          <span className={styles.srOnly}>Hide sidebar</span>
+
+        </button>
+
+      </div>
+
+      <div className={styles.sidebarScroll}>{sidebarContent}</div>
+
+      {recentModalOpen ? (
+
+        <div
+
+          className={styles.sidebarOverlay}
+
+          role="dialog"
+
+          aria-modal="true"
+
+          aria-label="All recent chats"
+
+          onClick={() => setRecentModalOpen(false)}
+
+        >
+
+          <div
+
+            className={styles.sidebarOverlayCard}
+
+            onClick={(event) => event.stopPropagation()}
+
+          >
+
+            <div className={styles.sidebarOverlayHeader}>
+
+              <span className={styles.sidebarOverlayTitle}>Recent chats</span>
+
+              <button
+
+                type="button"
+
+                className={styles.sidebarOverlayClose}
+
+                onClick={() => setRecentModalOpen(false)}
+
+              >
+
+                Close
+
+              </button>
+
+            </div>
+
+            <div className={styles.sidebarOverlayList}>
+
+              <ol className={styles.memoryList}>
+
+                {recentSidebarItems.map((item) => {
+
+                  const cardClass = `${styles.memoryCard}${
+
+                    item.active ? ` ${styles.memoryCardActive}` : ""
+
+                  }`;
+
+                  const iconNode = item.icon ?? null;
+
+                  const thumbClass = `${styles.memoryThumb} ${styles.memoryThumbChat ?? ""}`;
+
+                  return (
+
+                    <li key={`recent-modal-${item.id}`}>
+
+                      <button
+
+                        type="button"
+
+                        className={cardClass}
+
+                        onClick={item.onClick}
+
+                        disabled={item.disabled}
+
+                        title={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
+
+                        aria-label={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
+
+                      >
+
+                        {iconNode ? <span className={thumbClass}>{iconNode}</span> : null}
+
+                        <span className={styles.memoryMeta}>
+
+                          <span className={styles.memoryName}>{item.title}</span>
+
+                          {item.subtitle ? (
+
+                            <span className={styles.memoryType}>{item.subtitle}</span>
+
+                          ) : null}
+
+                        </span>
+
+                      </button>
+
+                    </li>
+
+                  );
+
+                })}
+
+              </ol>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      ) : null}
+
+    </div>
+
+  );
+
+
+
+  const leftRail = layout.leftCollapsed ? collapsedLeftRail : expandedLeftRail;
 
   const mainContent = (
     <>
       <div className={styles.chatArea}>
         {summaryEntries.length ? (
-          <>
+          summaryCollapsed ? (
             <div className={styles.summaryContextToggleRow}>
               <button
                 type="button"
                 className={styles.summaryContextToggleBtn}
-                data-active={summaryPanelOpen ? "true" : undefined}
-                aria-expanded={summaryPanelOpen}
-                onClick={() => setSummaryPanelOpen((open) => !open)}
+                onClick={handleSummaryReset}
               >
-                {summaryPanelOpen
-                  ? "Hide referenced updates"
-                  : `View referenced updates (${summaryEntries.length})`}
+                Back to summaries
               </button>
             </div>
-            {summaryPanelOpen ? (
-              <SummaryContextPanel
-                entries={summaryEntries}
-                onAsk={handleSummaryAsk}
-                onComment={handleSummaryComment}
-                onView={handleSummaryView}
-              />
-            ) : null}
-          </>
+          ) : (
+            <>
+              <div className={styles.summaryContextToggleRow}>
+                <button
+                  type="button"
+                  className={styles.summaryContextToggleBtn}
+                  data-active={summaryPanelOpen ? "true" : undefined}
+                  aria-expanded={summaryPanelOpen}
+                  onClick={() => setSummaryPanelOpen((open) => !open)}
+                >
+                  {summaryPanelOpen
+                    ? "Hide referenced updates"
+                    : `View referenced updates (${summaryEntries.length})`}
+                </button>
+              </div>
+              {summaryPanelOpen ? (
+                <SummaryContextPanel
+                  entries={summaryEntries}
+                  onAsk={handleSummaryAsk}
+                  onComment={handleSummaryComment}
+                  onView={handleSummaryView}
+                />
+              ) : null}
+            </>
+          )
         ) : null}
         <div className={styles.chatScroll}>
-          {summaryResult ? (
+          {summaryResult && !summaryCollapsed ? (
             <SummaryNarrativeCard
               result={summaryResult}
               options={summaryOptions}
               entries={summaryEntries}
+              selectedEntry={summaryPreviewEntry}
+              onSelectEntry={setSummaryPreviewEntry}
               onAsk={handleSummaryAsk}
               onComment={handleSummaryComment}
               onView={handleSummaryView}
@@ -2525,519 +2248,6 @@ export function ComposerForm({
     </>
   );
 
-  const previewState = React.useMemo(() => {
-    const kind = activeKind;
-    let label = activeKindLabel;
-    const content = (workingDraft.content ?? "").trim();
-    const title = (workingDraft.title ?? "").trim();
-    const mediaPrompt = (workingDraft.mediaPrompt ?? "").trim();
-    const mediaUrl =
-      attachmentDisplayUrl ??
-      attachmentFullUrl ??
-      workingDraft.mediaUrl ??
-      workingDraft.mediaPlaybackUrl ??
-      null;
-    const attachmentName = displayAttachment?.name ?? null;
-    const attachmentThumb =
-      displayAttachment?.thumbUrl ?? workingDraft.mediaThumbnailUrl ?? null;
-    const clipDurationSeconds = workingDraft.mediaDurationSeconds ?? null;
-    const pollBodyValue = workingDraft.content ?? "";
-    const trimmedPollBody = pollBodyValue.trim();
-    const pollQuestionValue = pollStructure.question ?? "";
-    const trimmedPollQuestion = pollQuestionValue.trim();
-    const trimmedPollOptions = pollStructure.options.map((option) => option.trim()).filter(Boolean);
-    const pollHasStructure =
-      trimmedPollBody.length > 0 ||
-      trimmedPollQuestion.length > 0 ||
-      trimmedPollOptions.length > 0;
-    const pollOptionCount = trimmedPollOptions.length || pollStructure.options.length;
-    const pollHelperText = `${pollOptionCount} option${pollOptionCount === 1 ? "" : "s"} ready`;
-    const pollPreviewCard = (
-      <div className={styles.previewPollCard} data-editable="true">
-        <div className={styles.pollEditorField}>
-          <label className={styles.pollEditorLabel} htmlFor="composer-poll-intro">
-            Poll intro
-          </label>
-          <textarea
-            id="composer-poll-intro"
-            className={`${styles.previewPollBody} ${styles.pollEditorQuestion}`}
-            value={pollBodyValue}
-            placeholder="Prep the community with a short vibe check..."
-            rows={3}
-            onChange={(event) => handlePollBodyInput(event.target.value)}
-          />
-        </div>
-        <div className={styles.pollEditorField}>
-          <label className={styles.pollEditorLabel} htmlFor="composer-poll-question">
-            Poll title
-          </label>
-          <textarea
-            id="composer-poll-question"
-            ref={pollQuestionRef}
-            className={`${styles.previewPollQuestion} ${styles.pollEditorQuestion}`}
-            value={pollQuestionValue}
-            placeholder="Untitled poll"
-            rows={2}
-            onChange={(event) => handlePollQuestionInput(event.target.value)}
-          />
-        </div>
-        <div className={styles.pollEditorField}>
-          <span className={styles.pollEditorLabel}>Poll options</span>
-          <ul className={`${styles.previewPollOptions} ${styles.pollEditorOptions}`} role="list">
-            {pollStructure.options.map((option, index) => {
-              const allowRemoval = pollStructure.options.length > 2;
-              return (
-                <li key={`poll-option-${index}`} className={styles.pollEditorOptionRow}>
-                  <span className={styles.previewPollOptionBullet}>{index + 1}</span>
-                  <input
-                    ref={(element) => {
-                      if (element) {
-                        pollOptionRefs.current[index] = element;
-                      } else {
-                        delete pollOptionRefs.current[index];
-                      }
-                    }}
-                    className={`${styles.previewPollOptionLabel} ${styles.pollEditorOptionInput}`}
-                    value={option}
-                    placeholder={`Option ${index + 1}`}
-                    type="text"
-                    autoComplete="off"
-                    onChange={(event) => handlePollOptionInput(index, event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        handleAddPollOption(index);
-                      } else if (
-                        (event.key === "Backspace" || event.key === "Delete") &&
-                        !event.currentTarget.value.trim() &&
-                        pollStructure.options.length > 2
-                      ) {
-                        event.preventDefault();
-                        handleRemovePollOption(index);
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className={styles.pollEditorRemove}
-                    onClick={() => handleRemovePollOption(index)}
-                    aria-label={
-                      allowRemoval
-                        ? `Remove option ${index + 1}`
-                        : `Clear option ${index + 1}`
-                    }
-                  >
-                    <X size={12} weight="bold" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {pollStructure.options.length < MAX_POLL_OPTIONS ? (
-            <button
-              type="button"
-              className={styles.pollEditorAdd}
-              onClick={() => handleAddPollOption()}
-            >
-              <span className={styles.pollEditorAddIcon}>
-                <Plus size={14} weight="bold" />
-              </span>
-              <span>Add option</span>
-            </button>
-          ) : null}
-        </div>
-      </div>
-    );
-    const renderPlaceholder = (message: string) => (
-      <div className={styles.previewPlaceholderCard}>
-        <span className={styles.previewPlaceholderIcon}>
-          <Sparkle size={20} weight="fill" />
-        </span>
-        <p>{message}</p>
-      </div>
-    );
-
-    let helper: string | null = null;
-    let body: React.ReactNode;
-    let empty = false;
-
-    if (kind === "poll") {
-      if (!pollHasStructure) {
-        empty = true;
-        body = renderPlaceholder(
-          "Describe the poll or start drafting your intro and the live preview will appear.",
-        );
-      } else {
-        empty = false;
-        helper = pollHelperText;
-        body = pollPreviewCard;
-      }
-    } else {
-      switch (kind) {
-        case "image": {
-          empty = !mediaUrl;
-          helper = mediaPrompt || attachmentName;
-          if (empty) {
-            body = renderPlaceholder("Upload or describe a visual to stage it here.");
-          } else {
-            body = (
-              <figure className={styles.previewMediaFrame} data-kind="image">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={mediaUrl ?? undefined}
-                  alt={attachmentName ?? (mediaPrompt || "Generated visual preview")}
-                />
-                {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
-              </figure>
-            );
-          }
-          break;
-        }
-        case "video": {
-          empty = !mediaUrl;
-          const durationLabel = formatClipDuration(clipDurationSeconds);
-          helper = [mediaPrompt || attachmentName, durationLabel].filter(Boolean).join(" â€¢ ");
-          if (empty) {
-            body = renderPlaceholder("Drop a clip or describe scenes to preview them here.");
-          } else {
-            const captionParts = [];
-            if (mediaPrompt) captionParts.push(mediaPrompt);
-            if (durationLabel) captionParts.push(durationLabel);
-            body = (
-              <figure className={styles.previewMediaFrame} data-kind="video">
-                <video
-                  src={mediaUrl ?? undefined}
-                  controls
-                  preload="metadata"
-                  poster={attachmentThumb ?? undefined}
-                />
-                {captionParts.length ? <figcaption>{captionParts.join(" â€¢ ")}</figcaption> : null}
-              </figure>
-            );
-          }
-          break;
-        }
-        case "document": {
-          const blocks = content
-            ? content.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean)
-            : [];
-          empty = blocks.length === 0 && !title;
-          if (empty) {
-            body = renderPlaceholder("Outline the sections you need and the document will render.");
-          } else {
-            const displayBlocks = blocks.length ? blocks : ["Overview", "Highlights", "Next steps"];
-            helper = `${displayBlocks.length} section${
-              displayBlocks.length === 1 ? "" : "s"
-            } in progress`;
-            body = (
-              <div className={styles.previewDocumentCard}>
-                <h3 className={styles.previewDocumentTitle}>{title || "Untitled document"}</h3>
-                <ol className={styles.previewDocumentSections}>
-                  {displayBlocks.map((block, index) => {
-                    const [heading, ...rest] = block.split(/\n+/);
-                    const bodyText = rest.join(" ").trim();
-                    return (
-                      <li key={`${heading}-${index}`}>
-                        <span className={styles.previewDocumentSectionBadge}>
-                          {index + 1 < 10 ? `0${index + 1}` : index + 1}
-                        </span>
-                        <div className={styles.previewDocumentSectionContent}>
-                          <h4>{heading || `Section ${index + 1}`}</h4>
-                          {bodyText ? <p>{bodyText}</p> : null}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
-            );
-          }
-          break;
-        }
-        case "tournament": {
-          const rounds = content
-            ? content.split(/\n+/).map((value) => value.trim()).filter(Boolean)
-            : [];
-          empty = rounds.length === 0 && !title;
-          if (empty) {
-            body = renderPlaceholder(
-              "Tell Capsule AI about rounds, seeds, or teams to map the bracket.",
-            );
-          } else {
-            const displayRounds = rounds.length
-              ? rounds
-              : ["Round of 16", "Quarterfinals", "Semifinals", "Final"];
-            helper = `${displayRounds.length} stage${
-              displayRounds.length === 1 ? "" : "s"
-            } plotted`;
-            body = (
-              <div className={styles.previewTournamentCard}>
-                <h3 className={styles.previewTournamentTitle}>{title || "Tournament bracket"}</h3>
-                <div className={styles.previewTournamentGrid}>
-                  {displayRounds.map((round, index) => (
-                    <div key={`${round}-${index}`} className={styles.previewTournamentColumn}>
-                      <span>{round}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          }
-          break;
-        }
-        default: {
-          const paragraphs = content
-            ? content.split(/\n+/).map((block) => block.trim()).filter(Boolean)
-            : [];
-          empty = paragraphs.length === 0 && !title;
-          if (empty) {
-            body = renderPlaceholder(
-              `Give Capsule AI a prompt to see your ${label.toLowerCase()} take shape.`,
-            );
-          } else {
-            body = (
-              <div className={styles.previewPostCard}>
-                {title ? <h3 className={styles.previewPostTitle}>{title}</h3> : null}
-                <div className={styles.previewPostBody}>
-                  {paragraphs.map((paragraph, index) => (
-                    <p key={`${paragraph}-${index}`}>{paragraph}</p>
-                  ))}
-                </div>
-              </div>
-            );
-          }
-          break;
-        }
-      }
-    }
-
-    if (kind !== "poll" && pollHasStructure) {
-      if (empty) {
-        body = pollPreviewCard;
-      } else {
-        const composite: React.ReactNode[] = [
-          <div key="base" className={styles.previewPrimary}>
-            {body}
-          </div>,
-        ];
-        composite.push(
-          <div key="divider" className={styles.previewDivider} aria-hidden="true" />,
-        );
-        composite.push(
-          <div key="poll" className={styles.previewSupplement}>
-            {pollPreviewCard}
-          </div>,
-        );
-        body = <div className={styles.previewComposite}>{composite}</div>;
-      }
-      helper = helper ?? pollHelperText;
-      empty = false;
-      label = `${activeKindLabel} + Poll`;
-    }
-
-    return { kind, label, body, empty, helper };
-  }, [
-    activeKind,
-    activeKindLabel,
-    attachmentDisplayUrl,
-    attachmentFullUrl,
-    displayAttachment?.name,
-    displayAttachment?.thumbUrl,
-    handleAddPollOption,
-    handlePollBodyInput,
-    handlePollOptionInput,
-    handlePollQuestionInput,
-    handleRemovePollOption,
-    pollStructure,
-    workingDraft.content,
-    workingDraft.mediaPrompt,
-    workingDraft.mediaUrl,
-    workingDraft.mediaPlaybackUrl,
-    workingDraft.mediaThumbnailUrl,
-    workingDraft.mediaDurationSeconds,
-    workingDraft.title,
-  ]);
-
-  const previewPrimaryAction = React.useMemo(() => {
-    if (activeKind === "image" || activeKind === "video") {
-      return {
-        label: "Upload asset",
-        onClick: handleAttachClick,
-        disabled: loading || attachmentUploading,
-      };
-    }
-    const trimmed = promptValue.trim();
-    const pollHasStructure =
-      pollStructure.question.trim().length > 0 ||
-      pollStructure.options.some((option) => option.trim().length > 0);
-    const label =
-      activeKind === "poll" ? "Generate via AI" : activeKind === "document" ? "Outline with AI" : "Ask Capsule";
-    const allowed = trimmed.length > 0 || pollHasStructure;
-    return {
-      label,
-      onClick: handlePromptSubmit,
-      disabled: loading || attachmentUploading || !allowed,
-    };
-  }, [
-    activeKind,
-    attachmentUploading,
-    handleAttachClick,
-    handlePromptSubmit,
-    loading,
-    promptValue,
-    pollStructure,
-  ]);
-
-  const previewSecondaryAction = React.useMemo(() => {
-    if (activeKind === "image" || activeKind === "video") {
-      return {
-        label: "Open library",
-        onClick: () => handleMemoryPickerOpen(memoryPickerTab),
-        disabled: false,
-      };
-    }
-    return {
-      label: "Browse blueprints",
-      onClick: handleBlueprintShortcut,
-      disabled: !memoryItems.length,
-    };
-  }, [activeKind, handleBlueprintShortcut, handleMemoryPickerOpen, memoryItems.length, memoryPickerTab]);
-
-  const summaryPreviewContent = React.useMemo(() => {
-    if (!summaryPreviewEntry) return null;
-
-    const highlightChips =
-      summaryPreviewEntry.highlights && summaryPreviewEntry.highlights.length ? (
-        <div className={styles.summaryPreviewHighlights}>
-          {summaryPreviewEntry.highlights.map((highlight, index) => (
-            <span
-              key={`${summaryPreviewEntry.id}-highlight-${index}`}
-              className={styles.summaryPreviewHighlight}
-            >
-              {highlight}
-            </span>
-          ))}
-        </div>
-      ) : null;
-
-    const hasPost = Boolean(summaryPreviewEntry.postId);
-
-    const openInFeedButton = (
-      <button
-        type="button"
-        className={styles.summaryPreviewActionBtn}
-        onClick={() => handleSummaryView(summaryPreviewEntry)}
-      >
-        Open in feed
-      </button>
-    );
-
-    const mobileBackButton = (
-      <button
-        type="button"
-        className={`${styles.summaryPreviewBackBtn} ${styles.mobileOnly}`}
-        onClick={() => setSummaryPreviewEntry(null)}
-      >
-        Back to composer
-      </button>
-    );
-
-    const intro = (
-      <div className={styles.summaryPreviewIntro}>
-        {summaryPreviewEntry.summary ? (
-          <p className={styles.summaryPreviewText}>{summaryPreviewEntry.summary}</p>
-        ) : null}
-        {summaryPreviewEntry.relativeTime ? (
-          <span className={styles.summaryPreviewTimestamp}>{summaryPreviewEntry.relativeTime}</span>
-        ) : null}
-        {highlightChips}
-      </div>
-    );
-
-    if (summaryPreviewPost) {
-      const baseCommentCount =
-        typeof summaryPreviewPost.comments === "number"
-          ? summaryPreviewPost.comments
-          : typeof (summaryPreviewPost as { comment_count?: number }).comment_count === "number"
-            ? ((summaryPreviewPost as { comment_count?: number }).comment_count ?? 0)
-            : 0;
-
-      return (
-        <PreviewColumn hideHeader variant="compact">
-          {mobileBackButton}
-          {intro}
-          <div className={styles.summaryPreviewScroll}>
-            <PostCard
-              variant="preview"
-              post={summaryPreviewPost}
-              viewerIdentifiers={previewViewerIdentifiers}
-              likePending={Boolean(likePending[summaryPreviewPost.id])}
-              memoryPending={Boolean(memoryPending[summaryPreviewPost.id])}
-              remembered={Boolean(summaryPreviewPost.viewerRemembered ?? summaryPreviewPost.viewer_remembered ?? false)}
-              canRemember={canRemember}
-              friendMenu={previewFriendMenu}
-              cloudflareEnabled={cloudflareEnabled}
-              currentOrigin={previewCurrentOrigin}
-              formatCount={formatFeedCount}
-              timeAgo={formatTimeAgo}
-              exactTime={formatExactTime}
-              commentCount={baseCommentCount}
-              isRefreshing={isRefreshing}
-              documentSummaryPending={{}}
-              onToggleLike={handlePreviewToggleLike}
-              onToggleMemory={handlePreviewToggleMemory}
-              onDelete={() => {}}
-              onOpenLightbox={() => {}}
-              onAskDocument={() => {}}
-              onSummarizeDocument={() => {}}
-              onCommentClick={() => {}}
-            />
-          </div>
-          <SummaryPreviewCommentForm
-            postId={summaryPreviewPost.id}
-            viewerEnvelope={viewerEnvelope}
-            currentUser={currentUser}
-          />
-          <div className={styles.summaryPreviewActions}>{openInFeedButton}</div>
-        </PreviewColumn>
-      );
-    }
-
-    return (
-      <PreviewColumn hideHeader variant="compact">
-        {mobileBackButton}
-        <div className={styles.summaryPreviewCard}>
-          {intro}
-          {hasPost ? (
-            <p className={styles.summaryPreviewHint}>
-              We couldn&apos;t load this post in the preview. Use Open in feed to view it in the timeline.
-            </p>
-          ) : (
-            <p className={styles.summaryPreviewHint}>
-              No post was linked to this summary yet. Open the feed to read the full story.
-            </p>
-          )}
-        </div>
-        <div className={styles.summaryPreviewActions}>{openInFeedButton}</div>
-      </PreviewColumn>
-    );
-  }, [
-    canRemember,
-    currentUser,
-    handlePreviewToggleLike,
-    handlePreviewToggleMemory,
-    handleSummaryView,
-    likePending,
-    memoryPending,
-    viewerEnvelope,
-    summaryPreviewEntry,
-    summaryPreviewPost,
-    previewFriendMenu,
-    previewViewerIdentifiers,
-    cloudflareEnabled,
-    previewCurrentOrigin,
-    isRefreshing,
-  ]);
   const previewContent = summaryPreviewContent ?? (
     <PreviewColumn
       title="Preview"
@@ -3076,27 +2286,30 @@ export function ComposerForm({
   );
 
   const renderMobileListItem = React.useCallback(
-    (item: SidebarListItem, fallbackIcon?: React.ReactNode) => (
-      <li key={item.id}>
-        <button
-          type="button"
-          onClick={() => {
-            item.onClick();
-            closeMobileRail();
-          }}
-          disabled={item.disabled}
-          data-active={item.active ? "true" : undefined}
-        >
-          <span className={styles.mobileSheetListIcon}>{item.icon ?? fallbackIcon ?? null}</span>
-          <span className={styles.mobileSheetListMeta}>
-            <span className={styles.mobileSheetListTitle}>{item.title}</span>
-            {item.subtitle ? (
-              <span className={styles.mobileSheetListCaption}>{item.subtitle}</span>
-            ) : null}
-          </span>
-        </button>
-      </li>
-    ),
+    (item: SidebarListItem, fallbackIcon?: React.ReactNode) => {
+      const iconNode = item.icon ?? fallbackIcon ?? null;
+      return (
+        <li key={item.id}>
+          <button
+            type="button"
+            onClick={() => {
+              item.onClick();
+              closeMobileRail();
+            }}
+            disabled={item.disabled}
+            data-active={item.active ? "true" : undefined}
+          >
+            {iconNode ? <span className={styles.mobileSheetListIcon}>{iconNode}</span> : null}
+            <span className={styles.mobileSheetListMeta}>
+              <span className={styles.mobileSheetListTitle}>{item.title}</span>
+              {item.subtitle ? (
+                <span className={styles.mobileSheetListCaption}>{item.subtitle}</span>
+              ) : null}
+            </span>
+          </button>
+        </li>
+      );
+    },
     [closeMobileRail],
   );
 
@@ -3151,9 +2364,7 @@ export function ComposerForm({
                   </header>
                   {recentSidebarItems.length ? (
                     <ul className={styles.mobileSheetList} role="list">
-                      {recentSidebarItems.map((item) =>
-                        renderMobileListItem(item, recentItemIcon),
-                      )}
+                      {recentSidebarItems.map((item) => renderMobileListItem(item))}
                     </ul>
                   ) : (
                     <div className={styles.memoryEmpty}>No chats yet</div>
@@ -3301,6 +2512,7 @@ export function ComposerForm({
             mainRef={mainRef}
             layout={layout}
             previewOpen={isMobileLayout ? false : previewOpen}
+            leftCollapsed={layout.leftCollapsed}
             leftRail={leftRail}
             mainContent={mainContent}
             previewContent={isMobileLayout ? null : previewContent}
@@ -3480,98 +2692,4 @@ export function ComposerForm({
 
 
 
-type SummaryPreviewCommentFormProps = {
-  postId: string;
-  viewerEnvelope: Record<string, unknown> | null;
-  currentUser: AuthClientUser | null;
-};
 
-function SummaryPreviewCommentForm({
-  postId,
-  viewerEnvelope,
-  currentUser,
-}: SummaryPreviewCommentFormProps) {
-  const [value, setValue] = React.useState("");
-  const [submitting, setSubmitting] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [success, setSuccess] = React.useState<string | null>(null);
-  const canComment = Boolean(currentUser);
-
-  const handleSubmit = React.useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      if (!canComment) return;
-      const trimmed = value.trim();
-      if (!trimmed) return;
-      setSubmitting(true);
-      setError(null);
-      setSuccess(null);
-      const clientId = safeRandomUUID();
-      const timestamp = new Date().toISOString();
-      try {
-        const response = await fetch("/api/comments", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            comment: {
-              id: clientId,
-              postId,
-              content: trimmed,
-              attachments: [],
-              capsuleId: null,
-              capsule_id: null,
-              ts: timestamp,
-              userName: currentUser?.name ?? currentUser?.email ?? "You",
-              userAvatar: currentUser?.avatarUrl ?? null,
-              source: "composer-summary-preview",
-            },
-            user: viewerEnvelope,
-          }),
-        });
-        if (!response.ok) {
-          const text = await response.text().catch(() => "");
-          throw new Error(text || "Failed to submit comment.");
-        }
-        setValue("");
-        setSuccess("Comment posted");
-        if (typeof window !== "undefined") {
-          window.setTimeout(() => setSuccess(null), 3200);
-        }
-      } catch (error) {
-        setError(error instanceof Error ? error.message : "Failed to submit comment.");
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [canComment, currentUser?.avatarUrl, currentUser?.email, currentUser?.name, postId, value, viewerEnvelope],
-  );
-
-  return (
-    <form className={styles.summaryCommentForm} onSubmit={handleSubmit}>
-      <textarea
-        className={styles.summaryCommentInput}
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        placeholder={canComment ? "Leave a quick comment..." : "Sign in to comment"}
-        disabled={!canComment || submitting}
-      />
-      <div className={styles.summaryCommentActions}>
-        {error ? (
-          <span className={styles.summaryCommentError}>{error}</span>
-        ) : success ? (
-          <span className={styles.summaryCommentSuccess}>{success}</span>
-        ) : (
-          <span />
-        )}
-        <button
-          type="submit"
-          className={styles.summaryCommentSubmit}
-          disabled={!canComment || submitting || !value.trim()}
-        >
-          {submitting ? "Posting..." : "Comment"}
-        </button>
-      </div>
-    </form>
-  );
-}

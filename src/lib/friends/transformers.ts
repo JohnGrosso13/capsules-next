@@ -4,6 +4,7 @@ import type {
   SocialGraphSnapshot,
 } from "@/lib/supabase/friends";
 import type { PartyInviteSummary } from "@/types/party";
+import type { CapsuleMemberRequestSummary } from "@/types/capsules";
 
 import {
   ASSISTANT_DEFAULT_AVATAR,
@@ -12,6 +13,7 @@ import {
   ASSISTANT_USER_KEY,
 } from "@/shared/assistant/constants";
 import type {
+  CapsuleInviteItem,
   FriendItem,
   FriendsCounters,
   PartyInviteItem,
@@ -128,6 +130,22 @@ export function mapPartyInviteSummaries(
   }));
 }
 
+export function mapCapsuleInviteSummaries(
+  summaries: CapsuleMemberRequestSummary[] | undefined,
+): CapsuleInviteItem[] {
+  if (!Array.isArray(summaries) || summaries.length === 0) {
+    return [];
+  }
+  return summaries.map((invite) => ({
+    id: invite.id,
+    capsuleId: invite.capsuleId,
+    capsuleName: invite.capsuleName ?? "Capsule invite",
+    capsuleSlug: invite.capsuleSlug ?? null,
+    capsuleLogoUrl: invite.capsuleLogoUrl ?? null,
+    inviterName: invite.initiator?.name ?? null,
+  }));
+}
+
 function countRealFriends(summaries: FriendSummary[] | undefined): number {
   if (!Array.isArray(summaries)) return 0;
   return summaries.filter((summary) => summary.friendUserId && summary.friendUserId !== ASSISTANT_USER_ID)
@@ -138,9 +156,11 @@ export function deriveCounters(
   summaries: FriendSummary[] | undefined,
   incoming: FriendRequestSummary[] | undefined,
   partyInvites: PartyInviteItem[],
+  capsuleInvites: CapsuleInviteItem[],
 ): FriendsCounters {
   const realFriendCount = countRealFriends(summaries);
-  const requestCount = (incoming?.length ?? 0) + partyInvites.length;
+  const requestCount =
+    (incoming?.length ?? 0) + partyInvites.length + capsuleInvites.length;
   return {
     friends: realFriendCount > 0 ? realFriendCount : 0,
     chats: 0,

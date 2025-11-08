@@ -33,6 +33,15 @@ export type PartyInviteItem = {
   senderId: string;
 };
 
+export type CapsuleInviteItem = {
+  id: string;
+  capsuleId: string;
+  capsuleName: string;
+  capsuleSlug: string | null;
+  capsuleLogoUrl: string | null;
+  inviterName: string | null;
+};
+
 export type FriendsCounters = {
   friends: number;
   chats: number;

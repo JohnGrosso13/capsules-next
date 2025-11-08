@@ -42,10 +42,20 @@ export type MemorySearchResult = MemorySearchItem & {
   type: "memory";
 };
 
+export type CapsuleRecordSearchResult = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  detail: string;
+  kind: "membership" | "posts" | "files" | "ladder";
+  url?: string | null;
+};
+
 export type GlobalSearchSection =
   | { type: "users"; items: UserSearchResult[] }
   | { type: "capsules"; items: CapsuleSearchResult[] }
-  | { type: "memories"; items: MemorySearchResult[] };
+  | { type: "memories"; items: MemorySearchResult[] }
+  | { type: "capsule_records"; items: CapsuleRecordSearchResult[] };
 
 export type GlobalSearchResponse = {
   query: string;

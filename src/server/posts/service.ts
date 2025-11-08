@@ -14,6 +14,7 @@ import { indexMemory } from "@/lib/supabase/memories";
 import { captionImage, captionVideo } from "@/lib/ai/openai";
 import { ensurePollStructure } from "@/lib/composer/draft";
 import { normalizeUuid, pruneNullish } from "./utils";
+import { enqueueCapsuleKnowledgeRefresh } from "@/server/capsules/knowledge";
 
 export { fetchPostRowByIdentifierFromRepository as fetchPostRowByIdentifier };
 
@@ -773,6 +774,10 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
     } catch (error) {
       console.warn("Initial poll memory snapshot failed", error);
     }
+  }
+
+  if (capsuleId) {
+    enqueueCapsuleKnowledgeRefresh(capsuleId, null);
   }
 
   return postId;

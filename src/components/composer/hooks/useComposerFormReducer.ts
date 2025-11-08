@@ -22,6 +22,7 @@ export type ComposerLayoutState = {
   bottomHeight: number;
   mainHeight: number;
   drag: ComposerDragState | null;
+  leftCollapsed: boolean;
 };
 
 export type ComposerFormState = {
@@ -41,6 +42,7 @@ type ComposerFormAction =
   | { type: "setMobileRailOpen"; value: boolean }
   | { type: "setPreviewOpen"; value: boolean }
   | { type: "layout/setLeftWidth"; value: number }
+  | { type: "layout/setLeftCollapsed"; value: boolean }
   | { type: "layout/setRightWidth"; value: number }
   | { type: "layout/setBottomHeight"; value: number }
   | { type: "layout/setMainHeight"; value: number }
@@ -55,10 +57,11 @@ const initialState: ComposerFormState = {
   previewOpen: true,
   layout: {
     leftWidth: 320,
-    rightWidth: 420,
+    rightWidth: 680,
     bottomHeight: 200,
     mainHeight: 0,
     drag: null,
+    leftCollapsed: false,
   },
   viewerOpen: false,
   voice: {
@@ -83,6 +86,8 @@ function reducer(state: ComposerFormState, action: ComposerFormAction): Composer
       return { ...state, previewOpen: action.value };
     case "layout/setLeftWidth":
       return { ...state, layout: { ...state.layout, leftWidth: action.value } };
+    case "layout/setLeftCollapsed":
+      return { ...state, layout: { ...state.layout, leftCollapsed: action.value } };
     case "layout/setRightWidth":
       return { ...state, layout: { ...state.layout, rightWidth: action.value } };
     case "layout/setBottomHeight":
@@ -108,6 +113,7 @@ export type ComposerFormActions = {
   setPreviewOpen: (value: boolean) => void;
   layout: {
     setLeftWidth: (value: number) => void;
+    setLeftCollapsed: (value: boolean) => void;
     setRightWidth: (value: number) => void;
     setBottomHeight: (value: number) => void;
     setMainHeight: (value: number) => void;
@@ -145,6 +151,7 @@ export function useComposerFormReducer(overrides?: Partial<ComposerFormState>): 
       setPreviewOpen: (value) => dispatch({ type: "setPreviewOpen", value }),
       layout: {
         setLeftWidth: (value) => dispatch({ type: "layout/setLeftWidth", value }),
+        setLeftCollapsed: (value) => dispatch({ type: "layout/setLeftCollapsed", value }),
         setRightWidth: (value) => dispatch({ type: "layout/setRightWidth", value }),
         setBottomHeight: (value) => dispatch({ type: "layout/setBottomHeight", value }),
         setMainHeight: (value) => dispatch({ type: "layout/setMainHeight", value }),

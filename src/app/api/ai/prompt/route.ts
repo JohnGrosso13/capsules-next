@@ -27,7 +27,9 @@ import {
   getChatContext,
   formatContextForPrompt,
   buildContextMetadata,
+  getCapsuleHistorySnippets,
 } from "@/server/chat/retrieval";
+import type { ChatMemorySnippet } from "@/server/chat/retrieval";
 import { buildUserCard } from "@/server/chat/user-card";
 
 const attachmentSchema = z.object({
@@ -270,46 +272,69 @@ export async function POST(req: Request) {
   } = { enabled: useContext };
 
   if (useContext) {
-    const [contextResult, userCardResult] = await Promise.all([
-      getChatContext({
-        ownerId,
-        message,
-        history: previousHistory,
-        origin: requestOrigin ?? null,
-      }),
-      buildUserCard(ownerId),
-    ]);
+  const capsuleHistoryPromise: Promise<ChatMemorySnippet[]> =
+    useContext && capsuleId
+      ? getCapsuleHistorySnippets({ capsuleId, viewerId: ownerId, query: message })
+      : Promise.resolve<ChatMemorySnippet[]>([]);
 
-    const contextPrompt = formatContextForPrompt(contextResult);
-    const contextRecords = contextResult?.snippets ?? [];
-    const contextMetadata = buildContextMetadata(contextResult);
+  const [contextResult, userCardResult, capsuleHistorySnippets] = await Promise.all([
+    getChatContext({
+      ownerId,
+      message,
+      history: previousHistory,
+      origin: requestOrigin ?? null,
+      capsuleId,
+    }),
+    buildUserCard(ownerId),
+    capsuleHistoryPromise,
+  ]);
 
-    composeOptions = {
-      ...composeOptions,
-      ...(userCardResult?.text ? { userCard: userCardResult.text } : {}),
-      ...(contextPrompt ? { contextPrompt } : {}),
-      ...(contextRecords.length
-        ? {
-            contextRecords: contextRecords.map((snippet) => ({
-              id: snippet.id,
-              title: snippet.title,
-              snippet: snippet.snippet,
-              source: snippet.source,
-              url: snippet.url,
-              kind: snippet.kind,
-              tags: snippet.tags,
-              highlightHtml: snippet.highlightHtml ?? null,
-            })),
-          }
-        : {}),
-      ...(contextMetadata ? { contextMetadata } : {}),
+  const memorySnippets = contextResult?.snippets ?? [];
+  const combinedSnippets = [...memorySnippets, ...capsuleHistorySnippets];
+  const combinedContext =
+    combinedSnippets.length > 0
+      ? {
+          query: contextResult?.query ?? message,
+          snippets: combinedSnippets,
+          usedIds: contextResult?.usedIds ?? [],
+        }
+      : contextResult;
+
+  const contextPrompt = formatContextForPrompt(combinedContext);
+  let contextMetadata = buildContextMetadata(contextResult);
+  if (capsuleHistorySnippets.length) {
+    contextMetadata = {
+      ...(contextMetadata ?? {}),
+      capsuleHistorySections: capsuleHistorySnippets.map((snippet) => snippet.id),
     };
+  }
+
+  const resolvedContextRecords = combinedSnippets.length
+    ? combinedSnippets.map((snippet) => ({
+        id: snippet.id,
+        title: snippet.title,
+        snippet: snippet.snippet,
+        source: snippet.source,
+        url: snippet.url,
+        kind: snippet.kind,
+        tags: snippet.tags,
+        highlightHtml: snippet.highlightHtml ?? null,
+      }))
+    : [];
+
+  composeOptions = {
+    ...composeOptions,
+    ...(userCardResult?.text ? { userCard: userCardResult.text } : {}),
+    ...(contextPrompt ? { contextPrompt } : {}),
+    ...(resolvedContextRecords.length ? { contextRecords: resolvedContextRecords } : {}),
+    ...(contextMetadata ? { contextMetadata } : {}),
+  };
 
     responseContext = {
       enabled: true,
       query: contextResult?.query ?? null,
       memoryIds: contextResult?.usedIds ?? [],
-      snippets: contextRecords.map((snippet) => ({
+      snippets: resolvedContextRecords.map((snippet) => ({
         id: snippet.id,
         title: snippet.title,
         snippet: snippet.snippet,
@@ -325,7 +350,7 @@ export async function POST(req: Request) {
     console.info("composer_context_ready", {
       ownerId,
       queryLength: contextResult?.query?.length ?? 0,
-      memoryCount: contextRecords.length,
+      memoryCount: resolvedContextRecords.length,
     });
   } else {
     responseContext = { enabled: false };

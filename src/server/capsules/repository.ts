@@ -2,6 +2,7 @@ import { getDatabaseAdminClient } from "@/config/database";
 import { decorateDatabaseError } from "@/lib/database/utils";
 import type { DatabaseError } from "@/ports/database";
 import type {
+  CapsuleFollowerSummary,
   CapsuleMemberProfile,
   CapsuleMemberRequestSummary,
   CapsuleMemberSummary,
@@ -65,6 +66,7 @@ type CapsuleMemberRequestRow = {
   status: string | null;
   role: string | null;
   message: string | null;
+  origin: string | null;
   responded_by: string | null;
   created_at: string | null;
   responded_at: string | null;
@@ -72,6 +74,17 @@ type CapsuleMemberRequestRow = {
   declined_at: string | null;
   cancelled_at: string | null;
   requester: MemberProfileRow | null;
+  initiator_id: string | null;
+  initiator: MemberProfileRow | null;
+  capsule: CapsuleRow | null;
+};
+
+type CapsuleFollowerRow = {
+  capsule_id: string | null;
+  user_id: string | null;
+  created_at: string | null;
+  user: MemberProfileRow | null;
+  capsule?: CapsuleRow | null;
 };
 
 export type CapsuleAssetRow = {
@@ -206,7 +219,7 @@ export type CapsuleSummary = {
   promoTileUrl: string | null;
   logoUrl: string | null;
   role: string | null;
-  ownership: "owner" | "member";
+  ownership: "owner" | "member" | "follower";
 };
 
 export type DiscoverCapsuleSummary = {
@@ -321,6 +334,19 @@ function mapMemberRow(
   };
 }
 
+function mapFollowerRow(row: CapsuleFollowerRow): CapsuleFollowerSummary | null {
+  const userId = normalizeString(row.user_id);
+  if (!userId) return null;
+  const profile = mapProfile(row.user);
+  return {
+    userId,
+    followedAt: normalizeString(row.created_at),
+    name: profile?.name ?? normalizeString(row.user?.full_name ?? null),
+    avatarUrl: profile?.avatarUrl ?? normalizeString(row.user?.avatar_url ?? null),
+    userKey: profile?.userKey ?? normalizeString(row.user?.user_key ?? null),
+  };
+}
+
 function mapRequestRow(row: CapsuleMemberRequestRow): CapsuleMemberRequestSummary | null {
   const id = normalizeString(row.id);
   const capsuleId = normalizeString(row.capsule_id);
@@ -335,6 +361,10 @@ function mapRequestRow(row: CapsuleMemberRequestRow): CapsuleMemberRequestSummar
       ? statusRaw
       : "pending";
   const requesterProfile = mapProfile(row.requester);
+  const initiatorProfile = mapProfile(row.initiator);
+  const capsuleData = row.capsule ?? null;
+  const originRaw = normalizeString(row.origin);
+  const origin = originRaw === "owner_invite" ? "owner_invite" : "viewer_request";
   return {
     id,
     capsuleId,
@@ -349,6 +379,12 @@ function mapRequestRow(row: CapsuleMemberRequestRow): CapsuleMemberRequestSummar
     declinedAt: normalizeString(row.declined_at),
     cancelledAt: normalizeString(row.cancelled_at),
     requester: requesterProfile,
+    initiatorId: normalizeString(row.initiator_id),
+    initiator: initiatorProfile,
+    origin,
+    capsuleName: capsuleData ? normalizeName(capsuleData.name ?? null) : null,
+    capsuleSlug: capsuleData ? normalizeString(capsuleData.slug ?? null) : null,
+    capsuleLogoUrl: capsuleData ? normalizeString(capsuleData.logo_url ?? null) : null,
   };
 }
 
@@ -356,20 +392,23 @@ function upsertSummary(
   map: Map<string, CapsuleSummary>,
   order: string[],
   capsule: CapsuleRow,
-  meta: { role?: string | null; ownership: "owner" | "member" },
+  meta: { role?: string | null; ownership: CapsuleSummary["ownership"] },
 ): void {
   const rawId = capsule?.id;
   if (!rawId) return;
   const id = String(rawId);
   const existing = map.get(id) ?? null;
-  const resolvedOwnership =
-    meta.ownership === "owner" || existing?.ownership === "owner" ? "owner" : "member";
+  const resolvedOwnership = (() => {
+    if (meta.ownership === "owner" || existing?.ownership === "owner") return "owner";
+    if (meta.ownership === "member" || existing?.ownership === "member") return "member";
+    return "follower";
+  })();
   const sourceRole = meta.role ?? existing?.role ?? null;
   const normalizedSourceRole = normalizeString(sourceRole);
   const resolvedRole =
     resolvedOwnership === "owner"
       ? "founder"
-      : normalizedSourceRole
+      : resolvedOwnership === "member" && normalizedSourceRole
         ? dbRoleToUiRole(normalizedSourceRole) ?? normalizedSourceRole
         : null;
 
@@ -437,9 +476,100 @@ export async function listCapsulesForUser(userId: string): Promise<CapsuleSummar
     upsertSummary(summaries, order, row, { ownership: "owner" });
   }
 
+  const followersResult = await db
+    .from("capsule_followers")
+    .select<CapsuleFollowerRow>(
+      "capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url,created_by_id), capsule_id, user_id, created_at",
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .fetch();
+
+  if (followersResult.error) {
+    throw decorateDatabaseError("capsules.followers.list", followersResult.error);
+  }
+
+  for (const row of followersResult.data ?? []) {
+    if (!row?.capsule) continue;
+    upsertSummary(summaries, order, row.capsule, { ownership: "follower" });
+  }
+
   return order
     .map((id) => summaries.get(id) ?? null)
     .filter((entry): entry is CapsuleSummary => entry !== null);
+}
+
+export async function listCapsulesByOwnerIds(
+  ownerIds: string[],
+  options: { limit?: number } = {},
+): Promise<CapsuleSummary[]> {
+  const normalizedOwners = Array.from(
+    new Set(
+      ownerIds
+        .map((id) => normalizeString(id))
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  if (!normalizedOwners.length) {
+    return [];
+  }
+
+  const requestedLimit = typeof options.limit === "number" ? Math.floor(options.limit) : 24;
+  const limit = Math.min(Math.max(requestedLimit, 1), 64);
+
+  const result = await db
+    .from("capsules")
+    .select<CapsuleRow>(
+      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at",
+    )
+    .in("created_by_id", normalizedOwners)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.listByOwners", result.error);
+  }
+
+  const summaries: CapsuleSummary[] = [];
+  for (const row of result.data ?? []) {
+    if (!row?.id) continue;
+    summaries.push({
+      id: String(row.id),
+      name: normalizeName(row.name),
+      slug: normalizeString(row.slug),
+      bannerUrl: normalizeString(row.banner_url),
+      storeBannerUrl: normalizeString(row.store_banner_url),
+      promoTileUrl: normalizeString(row.promo_tile_url),
+      logoUrl: normalizeString(row.logo_url),
+      role: null,
+      ownership: "owner",
+    });
+  }
+  return summaries;
+}
+
+export async function listAllCapsules(): Promise<Array<{ id: string; name: string | null }>> {
+  const result = await db
+    .from("capsules")
+    .select<CapsuleRow>("id, name, created_at")
+    .order("created_at", { ascending: true })
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.listAll", result.error);
+  }
+
+  const entries: Array<{ id: string; name: string | null }> = [];
+  for (const row of result.data ?? []) {
+    const id = normalizeString(row?.id);
+    if (!id) continue;
+    entries.push({
+      id,
+      name: normalizeString(row?.name ?? null),
+    });
+  }
+  return entries;
 }
 
 export async function listRecentPublicCapsules(
@@ -809,7 +939,7 @@ export async function listCapsuleMemberRequests(
   let query = db
     .from("capsule_member_requests")
     .select<CapsuleMemberRequestRow>(
-      "id, capsule_id, requester_id, status, role, message, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key)",
+      "id, capsule_id, requester_id, status, role, message, origin, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key), initiator_id, initiator:initiator_id(id, full_name, avatar_url, user_key), capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url)",
     )
     .eq("capsule_id", normalizedId);
 
@@ -829,6 +959,56 @@ export async function listCapsuleMemberRequests(
     .filter((entry): entry is CapsuleMemberRequestSummary => entry !== null);
 }
 
+export async function listCapsuleInvites(
+  capsuleId: string,
+): Promise<CapsuleMemberRequestSummary[]> {
+  const normalizedId = normalizeString(capsuleId);
+  if (!normalizedId) return [];
+  const result = await db
+    .from("capsule_member_requests")
+    .select<CapsuleMemberRequestRow>(
+      "id, capsule_id, requester_id, status, role, message, origin, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key), initiator_id, initiator:initiator_id(id, full_name, avatar_url, user_key), capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url)",
+    )
+    .eq("capsule_id", normalizedId)
+    .eq("origin", "owner_invite")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.memberInvites.list", result.error);
+  }
+
+  return (result.data ?? [])
+    .map((row) => mapRequestRow(row))
+    .filter((entry): entry is CapsuleMemberRequestSummary => entry !== null);
+}
+
+export async function listViewerCapsuleInvites(
+  userId: string,
+): Promise<CapsuleMemberRequestSummary[]> {
+  const normalizedUserId = normalizeString(userId);
+  if (!normalizedUserId) return [];
+  const result = await db
+    .from("capsule_member_requests")
+    .select<CapsuleMemberRequestRow>(
+      "id, capsule_id, requester_id, status, role, message, origin, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key), initiator_id, initiator:initiator_id(id, full_name, avatar_url, user_key), capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url)",
+    )
+    .eq("requester_id", normalizedUserId)
+    .eq("origin", "owner_invite")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.viewerInvites.list", result.error);
+  }
+
+  return (result.data ?? [])
+    .map((row) => mapRequestRow(row))
+    .filter((entry): entry is CapsuleMemberRequestSummary => entry !== null);
+}
+
 export async function getCapsuleMemberRequest(
   capsuleId: string,
   requesterId: string,
@@ -840,7 +1020,7 @@ export async function getCapsuleMemberRequest(
   const result = await db
     .from("capsule_member_requests")
     .select<CapsuleMemberRequestRow>(
-      "id, capsule_id, requester_id, status, role, message, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key)",
+      "id, capsule_id, requester_id, status, role, message, origin, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key), initiator_id, initiator:initiator_id(id, full_name, avatar_url, user_key), capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url)",
     )
     .eq("capsule_id", normalizedCapsuleId)
     .eq("requester_id", normalizedRequesterId)
@@ -856,10 +1036,37 @@ export async function getCapsuleMemberRequest(
   return mapped ?? null;
 }
 
+export async function getCapsuleMemberRequestById(
+  requestId: string,
+): Promise<CapsuleMemberRequestSummary | null> {
+  const normalizedRequestId = normalizeString(requestId);
+  if (!normalizedRequestId) return null;
+
+  const result = await db
+    .from("capsule_member_requests")
+    .select<CapsuleMemberRequestRow>(
+      "id, capsule_id, requester_id, status, role, message, origin, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key), initiator_id, initiator:initiator_id(id, full_name, avatar_url, user_key), capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url)",
+    )
+    .eq("id", normalizedRequestId)
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.memberRequests.getById", result.error);
+  }
+
+  const mapped = result.data ? mapRequestRow(result.data) : null;
+  return mapped ?? null;
+}
+
 export async function upsertCapsuleMemberRequest(
   capsuleId: string,
   requesterId: string,
-  params: { role?: string | null; message?: string | null } = {},
+  params: {
+    role?: string | null;
+    message?: string | null;
+    origin?: CapsuleMemberRequestSummary["origin"];
+    initiatorId?: string | null;
+  } = {},
 ): Promise<CapsuleMemberRequestSummary> {
   const normalizedCapsuleId = normalizeString(capsuleId);
   const normalizedRequesterId = normalizeString(requesterId);
@@ -885,12 +1092,19 @@ export async function upsertCapsuleMemberRequest(
   }
 
   const now = new Date().toISOString();
+  const origin: CapsuleMemberRequestSummary["origin"] =
+    params.origin === "owner_invite" ? "owner_invite" : "viewer_request";
+  const providedInitiator = normalizeString(params.initiatorId);
+  const initiatorId =
+    providedInitiator ?? (origin === "viewer_request" ? normalizedRequesterId : null);
   const payload = {
     capsule_id: normalizedCapsuleId,
     requester_id: normalizedRequesterId,
     status: "pending",
     role: roleValue,
     message: params.message ?? null,
+    origin,
+    initiator_id: initiatorId ?? normalizedRequesterId,
     responded_by: null,
     responded_at: null,
     approved_at: null,
@@ -904,7 +1118,7 @@ export async function upsertCapsuleMemberRequest(
     .from("capsule_member_requests")
     .upsert(payload, { onConflict: "capsule_id,requester_id" })
     .select<CapsuleMemberRequestRow>(
-      "id, capsule_id, requester_id, status, role, message, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key)",
+      "id, capsule_id, requester_id, status, role, message, origin, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key), initiator_id, initiator:initiator_id(id, full_name, avatar_url, user_key), capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url)",
     )
     .single();
 
@@ -952,7 +1166,7 @@ export async function setCapsuleMemberRequestStatus(params: {
     .eq("capsule_id", normalizedCapsuleId)
     .eq("status", "pending")
     .select<CapsuleMemberRequestRow>(
-      "id, capsule_id, requester_id, status, role, message, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key)",
+      "id, capsule_id, requester_id, status, role, message, origin, responded_by, created_at, responded_at, approved_at, declined_at, cancelled_at, requester:requester_id(id, full_name, avatar_url, user_key), initiator_id, initiator:initiator_id(id, full_name, avatar_url, user_key), capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url)",
     )
     .maybeSingle();
 
@@ -981,6 +1195,103 @@ export async function deleteCapsuleMember(capsuleId: string, memberId: string): 
     throw decorateDatabaseError("capsules.members.delete", result.error);
   }
 
+  return (result.data ?? []).length > 0;
+}
+
+export async function listCapsuleFollowers(
+  capsuleId: string,
+): Promise<CapsuleFollowerSummary[]> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  if (!normalizedCapsuleId) return [];
+
+  const result = await db
+    .from("capsule_followers")
+    .select<CapsuleFollowerRow>(
+      "capsule_id, user_id, created_at, user:user_id(id, full_name, avatar_url, user_key)",
+    )
+    .eq("capsule_id", normalizedCapsuleId)
+    .order("created_at", { ascending: true })
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.followers.list", result.error);
+  }
+
+  return (result.data ?? [])
+    .map((row) => mapFollowerRow(row))
+    .filter((entry): entry is CapsuleFollowerSummary => entry !== null);
+}
+
+export async function getCapsuleFollowerRecord(
+  capsuleId: string,
+  userId: string,
+): Promise<CapsuleFollowerRow | null> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  const normalizedUserId = normalizeString(userId);
+  if (!normalizedCapsuleId || !normalizedUserId) return null;
+
+  const result = await db
+    .from("capsule_followers")
+    .select<CapsuleFollowerRow>(
+      "capsule_id, user_id, created_at, user:user_id(id, full_name, avatar_url, user_key)",
+    )
+    .eq("capsule_id", normalizedCapsuleId)
+    .eq("user_id", normalizedUserId)
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.followers.get", result.error);
+  }
+
+  return result.data ?? null;
+}
+
+export async function upsertCapsuleFollower(params: {
+  capsuleId: string;
+  userId: string;
+}): Promise<void> {
+  const normalizedCapsuleId = normalizeString(params.capsuleId);
+  const normalizedUserId = normalizeString(params.userId);
+  if (!normalizedCapsuleId || !normalizedUserId) {
+    throw new Error("capsules.followers.upsert: capsuleId and userId are required");
+  }
+
+  const result = await db
+    .from("capsule_followers")
+    .upsert(
+      {
+        capsule_id: normalizedCapsuleId,
+        user_id: normalizedUserId,
+      },
+      { onConflict: "capsule_id,user_id" },
+    )
+    .select("id")
+    .maybeSingle();
+
+  if (result?.error) {
+    throw decorateDatabaseError("capsules.followers.upsert", result.error);
+  }
+}
+
+export async function deleteCapsuleFollower(
+  capsuleId: string,
+  userId: string,
+): Promise<boolean> {
+  const normalizedCapsuleId = normalizeString(capsuleId);
+  const normalizedUserId = normalizeString(userId);
+  if (!normalizedCapsuleId || !normalizedUserId) return false;
+
+  const result = await db
+    .from("capsule_followers")
+    .delete({ count: "exact" })
+    .eq("capsule_id", normalizedCapsuleId)
+    .eq("user_id", normalizedUserId)
+    .select("id")
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.followers.delete", result.error);
+  }
   return (result.data ?? []).length > 0;
 }
 
@@ -1071,25 +1382,34 @@ async function fetchPostCapsuleMap(
 export async function listCapsuleAssets(params: {
   capsuleId: string;
   limit?: number;
+  includeInternal?: boolean;
 }): Promise<CapsuleAssetRow[]> {
   const normalizedCapsuleId = normalizeString(params.capsuleId);
   if (!normalizedCapsuleId) return [];
   const limit =
     typeof params.limit === "number" && params.limit > 0 ? Math.min(params.limit, 500) : 200;
+  const includeInternal = Boolean(params.includeInternal);
 
-  const result = await db
+  let query = db
     .from("memories")
     .select<CapsuleAssetRow>(
       "id, owner_user_id, media_url, media_type, title, description, meta, created_at, post_id, kind, view_count, uploaded_by",
     )
     .eq("is_latest", true)
-    .filter("meta->>source", "eq", "post_attachment")
-    .or(
-      `meta->>capsule_id.eq.${normalizedCapsuleId},meta->>capsule_id.is.null`,
-    )
     .order("created_at", { ascending: false })
-    .limit(limit)
-    .fetch();
+    .limit(limit);
+
+  if (includeInternal) {
+    const attachmentCondition = `and(meta->>source.eq.post_attachment,or(meta->>capsule_id.eq.${normalizedCapsuleId},meta->>capsule_id.is.null))`;
+    const directCondition = `meta->>capsule_id.eq.${normalizedCapsuleId}`;
+    query = query.or(`${attachmentCondition},${directCondition}`);
+  } else {
+    query = query
+      .filter("meta->>source", "eq", "post_attachment")
+      .or(`meta->>capsule_id.eq.${normalizedCapsuleId},meta->>capsule_id.is.null`);
+  }
+
+  const result = await query.fetch();
 
   if (result.error) {
     throw decorateDatabaseError("capsules.assets.list", result.error);

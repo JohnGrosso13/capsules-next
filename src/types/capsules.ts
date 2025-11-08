@@ -15,7 +15,17 @@ export type CapsuleMemberSummary = {
   isOwner: boolean;
 };
 
+export type CapsuleFollowerSummary = {
+  userId: string;
+  followedAt: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+  userKey: string | null;
+};
+
 export type CapsuleMemberRequestStatus = "pending" | "approved" | "declined" | "cancelled";
+
+export type CapsuleMemberRequestOrigin = "viewer_request" | "owner_invite";
 
 export type CapsuleMemberRequestSummary = {
   id: string;
@@ -31,16 +41,25 @@ export type CapsuleMemberRequestSummary = {
   declinedAt: string | null;
   cancelledAt: string | null;
   requester: CapsuleMemberProfile | null;
+  initiatorId: string | null;
+  initiator: CapsuleMemberProfile | null;
+  origin: CapsuleMemberRequestOrigin;
+  capsuleName?: string | null;
+  capsuleSlug?: string | null;
+  capsuleLogoUrl?: string | null;
 };
 
 export type CapsuleMembershipViewer = {
   userId: string | null;
   isOwner: boolean;
   isMember: boolean;
+  isFollower: boolean;
   canManage: boolean;
   canRequest: boolean;
+  canFollow: boolean;
   role: string | null;
   memberSince: string | null;
+  followedAt: string | null;
   requestStatus: CapsuleMemberRequestStatus | "none";
   requestId: string | null;
 };
@@ -60,9 +79,12 @@ export type CapsuleMembershipState = {
   counts: {
     members: number;
     pendingRequests: number;
+    followers: number;
   };
   members: CapsuleMemberSummary[];
+  followers: CapsuleFollowerSummary[];
   requests: CapsuleMemberRequestSummary[];
+  invites: CapsuleMemberRequestSummary[];
   viewerRequest: CapsuleMemberRequestSummary | null;
 };
 
@@ -71,7 +93,13 @@ export type CapsuleMembershipAction =
   | "approve_request"
   | "decline_request"
   | "remove_member"
-  | "set_role";
+  | "set_role"
+  | "follow"
+  | "unfollow"
+  | "leave"
+  | "invite_member"
+  | "accept_invite"
+  | "decline_invite";
 
 export type CapsuleHistoryPeriod = "weekly" | "monthly" | "all_time";
 

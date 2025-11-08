@@ -2,6 +2,7 @@ import { getDatabaseAdminClient } from "@/config/database";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import { listCapsulesForUser } from "@/server/capsules/repository";
 import { searchMemories } from "@/server/memories/service";
+import { searchCapsuleKnowledgeSnippets } from "@/server/capsules/knowledge-index";
 import type {
   CapsuleSearchResult,
   GlobalSearchResponse,
@@ -9,7 +10,15 @@ import type {
   MemorySearchResult,
   MemorySearchItem,
   UserSearchResult,
+  CapsuleRecordSearchResult,
 } from "@/types/search";
+import type { CapsuleKnowledgeSnippet } from "@/server/capsules/knowledge-index";
+import {
+  fetchStructuredPayloads,
+  parseStructuredQuery,
+  structuredPayloadToRecords,
+  type StructuredRecord,
+} from "@/server/capsules/structured";
 
 const USER_SECTION_LIMIT = 6;
 const CAPSULE_SECTION_LIMIT = 6;
@@ -28,6 +37,7 @@ type GlobalSearchParams = {
   ownerId: string;
   query: string;
   limit: number;
+  capsuleId?: string | null;
   origin?: string | null;
 };
 
@@ -141,6 +151,8 @@ async function searchCapsulesForUser(
       if (capsule.slug) subtitleParts.push(capsule.slug);
       if (capsule.ownership === "owner") {
         subtitleParts.push("Owner");
+      } else if (capsule.ownership === "follower") {
+        subtitleParts.push("Follower");
       } else if (capsule.role) {
         subtitleParts.push(capsule.role);
       }
@@ -254,10 +266,37 @@ function coerceMemoryResults(items: MemorySearchItem[], limit: number): MemorySe
   }));
 }
 
+function mapKnowledgeSnippet(snippet: CapsuleKnowledgeSnippet): MemorySearchItem {
+  const meta =
+    typeof snippet.source === "string" && snippet.source.trim().length
+      ? { source: snippet.source }
+      : null;
+  return {
+    id: snippet.id,
+    kind: snippet.kind,
+    title: snippet.title ?? "Capsule record",
+    description: snippet.snippet,
+    created_at: snippet.createdAt ?? null,
+    meta,
+  };
+}
+
+function mapStructuredRecord(record: StructuredRecord): CapsuleRecordSearchResult {
+  return {
+    id: record.id,
+    title: record.title,
+    subtitle: record.subtitle,
+    detail: record.detail,
+    kind: record.kind,
+    url: null,
+  };
+}
+
 export async function globalSearch({
   ownerId,
   query,
   limit,
+  capsuleId,
   origin,
 }: GlobalSearchParams): Promise<GlobalSearchResponse> {
   const trimmed = query.trim();
@@ -272,11 +311,36 @@ export async function globalSearch({
 
   const memoryLimit = Math.max(1, limit);
 
-  const [memoryItems, capsules, users] = await Promise.all([
+  const [memoryItems, capsules, users, capsuleKnowledge] = await Promise.all([
     searchMemories({ ownerId, query: trimmed, limit: memoryLimit, origin: origin ?? null }),
     searchCapsulesForUser(ownerId, trimmed, tokens, origin, CAPSULE_SECTION_LIMIT),
     searchFriendsForUser(ownerId, trimmed, tokens, origin, USER_SECTION_LIMIT),
+    capsuleId
+      ? searchCapsuleKnowledgeSnippets({
+          capsuleId,
+          query: trimmed,
+          limit: memoryLimit,
+        })
+      : Promise.resolve([]),
   ]);
+
+  let capsuleRecords: CapsuleRecordSearchResult[] = [];
+  if (capsuleId) {
+    const structuredIntents = parseStructuredQuery(trimmed);
+    if (structuredIntents.length) {
+      try {
+        const structuredPayloads = await fetchStructuredPayloads({
+          capsuleId,
+          intents: structuredIntents,
+        });
+        capsuleRecords = structuredPayloads
+          .flatMap((payload) => structuredPayloadToRecords(payload))
+          .map((record) => mapStructuredRecord(record));
+      } catch (error) {
+        console.warn("capsule structured search failed", { capsuleId, error });
+      }
+    }
+  }
 
   const sections: GlobalSearchSection[] = [];
   if (users.length) {
@@ -285,8 +349,18 @@ export async function globalSearch({
   if (capsules.length) {
     sections.push({ type: "capsules", items: capsules });
   }
+  if (capsuleRecords.length) {
+    sections.push({ type: "capsule_records", items: capsuleRecords });
+  }
 
-  const memoryResults = coerceMemoryResults(memoryItems as MemorySearchItem[], memoryLimit);
+  const combinedMemoryItems: MemorySearchItem[] = [
+    ...(Array.isArray(memoryItems) ? (memoryItems as MemorySearchItem[]) : []),
+    ...((capsuleKnowledge as CapsuleKnowledgeSnippet[]).map((snippet) =>
+      mapKnowledgeSnippet(snippet),
+    ) ?? []),
+  ];
+
+  const memoryResults = coerceMemoryResults(combinedMemoryItems, memoryLimit);
   if (memoryResults.length) {
     sections.push({ type: "memories", items: memoryResults });
   }

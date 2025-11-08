@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { indexMemory } from "@/lib/supabase/memories";
+import { enqueueCapsuleKnowledgeRefresh } from "@/server/capsules/knowledge";
 
 const DEFAULT_TITLE_LIMIT = 120;
 
@@ -27,12 +28,19 @@ export async function POST(req: Request) {
   }
 
   const language = typeof body?.language === "string" ? body.language : null;
+  const capsuleId =
+    typeof body?.capsuleId === "string" && body.capsuleId.trim().length
+      ? body.capsuleId.trim()
+      : null;
   const metaInput = (body?.meta as Record<string, unknown>) ?? {};
   const metadata: Record<string, unknown> = {
     ...metaInput,
     source: metaInput.source ?? "voice_transcription",
     transcript_length: text.length,
   };
+  if (capsuleId) {
+    metadata.capsule_id = capsuleId;
+  }
   if (language) metadata.language = language;
 
   try {
@@ -50,6 +58,9 @@ export async function POST(req: Request) {
         typeof metadata.source === "string" ? (metadata.source as string) : "voice_transcription",
       eventAt: typeof metadata.captured_at === "string" ? (metadata.captured_at as string) : null,
     });
+    if (capsuleId) {
+      enqueueCapsuleKnowledgeRefresh(capsuleId, null);
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("memory transcript error", error);

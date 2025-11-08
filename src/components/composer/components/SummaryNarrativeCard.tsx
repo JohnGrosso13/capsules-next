@@ -4,23 +4,17 @@ import * as React from "react";
 
 import styles from "../../ai-composer.module.css";
 import type { SummaryResult } from "@/types/summary";
-import type {
-  SummaryConversationEntry,
-  SummaryPresentationOptions,
-} from "@/lib/composer/summary-context";
+import type { SummaryConversationEntry, SummaryPresentationOptions } from "@/lib/composer/summary-context";
 
 type SummaryNarrativeCardProps = {
   result: SummaryResult;
   options: SummaryPresentationOptions | null;
   entries: SummaryConversationEntry[];
+  selectedEntry: SummaryConversationEntry | null;
+  onSelectEntry(entry: SummaryConversationEntry | null): void;
   onAsk(entry: SummaryConversationEntry): void;
   onComment(entry: SummaryConversationEntry): void;
   onView(entry: SummaryConversationEntry): void;
-};
-
-type ActiveSelection = {
-  id: string;
-  entry: SummaryConversationEntry;
 };
 
 const NORMALIZE_REGEX = /[^a-z0-9]+/gi;
@@ -93,27 +87,13 @@ export function SummaryNarrativeCard({
   result,
   options,
   entries,
+  selectedEntry,
+  onSelectEntry,
   onAsk,
   onComment,
   onView,
 }: SummaryNarrativeCardProps) {
-  const [active, setActive] = React.useState<ActiveSelection | null>(null);
   const resolveEntry = React.useMemo(() => buildEntryResolver(entries), [entries]);
-
-  const introLabel = React.useMemo(() => {
-    const sourceLabel = options?.sourceLabel?.trim();
-    if (sourceLabel && sourceLabel.length) {
-      return `You’re all caught up on ${sourceLabel}.`;
-    }
-    return "You’re all caught up.";
-  }, [options?.sourceLabel]);
-
-  const summaryParagraphs = React.useMemo(() => {
-    return result.summary
-      .split(/\n+/)
-      .map((segment) => segment.trim())
-      .filter((segment) => segment.length > 0);
-  }, [result.summary]);
 
   const headlineHighlights = React.useMemo(() => {
     return result.highlights.slice(0, 5);
@@ -121,122 +101,116 @@ export function SummaryNarrativeCard({
 
   const remainingHighlightCount = Math.max(0, result.highlights.length - headlineHighlights.length);
 
-  const showPostSuggestion = Boolean(result.postTitle || result.postPrompt);
-
-  const handleLineToggle = React.useCallback(
-    (id: string, entry: SummaryConversationEntry) => {
-      setActive((current) => {
-        if (current?.id === id) {
-          return null;
-        }
-        return { id, entry };
-      });
+  const handleLineSelect = React.useCallback(
+    (entry: SummaryConversationEntry) => {
+      if (selectedEntry?.id === entry.id) {
+        onSelectEntry(null);
+        return;
+      }
+      onSelectEntry(entry);
     },
-    [],
+    [onSelectEntry, selectedEntry?.id],
   );
 
   const renderLine = React.useCallback(
     (text: string, id: string) => {
       const entry = resolveEntry(text, id);
-      const isActive = active?.id === id;
+      const isActive = selectedEntry?.id === entry.id;
       const hasPost = Boolean(entry.postId);
       return (
-        <li key={id} className={styles.summaryNarrativeItem}>
+        <li key={id} className={styles.summaryNarrativeItem} data-active={isActive ? "true" : undefined}>
           <button
             type="button"
             className={styles.summaryNarrativeLineBtn}
             data-active={isActive ? "true" : undefined}
-            onClick={() => handleLineToggle(id, entry)}
+            onClick={() => handleLineSelect(entry)}
           >
             {text}
           </button>
           {isActive ? (
-            <div className={styles.summaryNarrativeActions}>
-              <button
-                type="button"
-                className={styles.summaryNarrativeActionBtn}
-                onClick={() => onAsk(entry)}
-              >
-                Ask Capsule
-              </button>
-              <button
-                type="button"
-                className={styles.summaryNarrativeActionBtn}
-                onClick={() => onView(entry)}
-                disabled={!hasPost}
-                data-disabled={!hasPost ? "true" : undefined}
-              >
-                View Post
-              </button>
-              <button
-                type="button"
-                className={styles.summaryNarrativeActionBtn}
-                onClick={() => onComment(entry)}
-                disabled={!hasPost}
-                data-disabled={!hasPost ? "true" : undefined}
-              >
-                Draft Comment
-              </button>
+            <div className={styles.summaryDetailPanel}>
+              <div className={styles.summaryDetailHeader}>
+                <div className={styles.summaryDetailHeading}>
+                  {entry.title ? <p className={styles.summaryDetailTitle}>{entry.title}</p> : null}
+                  {entry.author ? (
+                    <span className={styles.summaryDetailAuthor}>{entry.author}</span>
+                  ) : null}
+                </div>
+                {entry.relativeTime ? (
+                  <span className={styles.summaryDetailTimestamp}>{entry.relativeTime}</span>
+                ) : null}
+              </div>
+              {entry.summary ? (
+                <p className={styles.summaryDetailSummary}>{entry.summary}</p>
+              ) : null}
+              {entry.highlights && entry.highlights.length ? (
+                <div className={styles.summaryDetailHighlights}>
+                  {entry.highlights.map((highlight, index) => (
+                    <span key={`${entry.id}-detail-highlight-${index}`} className={styles.summaryDetailHighlight}>
+                      {highlight}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <div className={styles.summaryDetailActions}>
+                <button type="button" className={styles.summaryNarrativeActionBtn} onClick={() => onAsk(entry)}>
+                  Ask Capsule
+                </button>
+                <button
+                  type="button"
+                  className={styles.summaryNarrativeActionBtn}
+                  onClick={() => onView(entry)}
+                  disabled={!hasPost}
+                  data-disabled={!hasPost ? "true" : undefined}
+                >
+                  View Post
+                </button>
+                <button
+                  type="button"
+                  className={styles.summaryNarrativeActionBtn}
+                  onClick={() => onComment(entry)}
+                  disabled={!hasPost}
+                  data-disabled={!hasPost ? "true" : undefined}
+                >
+                  Draft Comment
+                </button>
+              </div>
             </div>
           ) : null}
         </li>
       );
     },
-    [active?.id, handleLineToggle, onAsk, onComment, onView, resolveEntry],
+    [handleLineSelect, onAsk, onComment, onView, resolveEntry, selectedEntry?.id],
   );
 
   return (
-    <section className={styles.summaryNarrativeCard} aria-label="Feed summary">
-      <header className={styles.summaryNarrativeHeader}>
-        <h3 className={styles.summaryNarrativeTitle}>{introLabel}</h3>
-        {options?.title ? (
-          <p className={styles.summaryNarrativeSubtitle}>{options.title}</p>
-        ) : null}
-        <p className={styles.summaryNarrativeNote}>
-          Capsule pulled the loudest moments so you can react, comment, or ask for help in seconds.
-        </p>
-      </header>
-
-      {summaryParagraphs.length ? (
-        <ul className={styles.summaryNarrativeList}>
-          {summaryParagraphs.map((paragraph, index) =>
-            renderLine(paragraph, `summary-${index}`),
-          )}
-        </ul>
-      ) : null}
-
+    <section
+      className={styles.summaryNarrativeCard}
+      aria-label={options?.title ?? "Highlighted feed moments"}
+    >
       {headlineHighlights.length ? (
         <div className={styles.summaryNarrativeSection}>
           <div className={styles.summaryHighlightHeading}>
-            <h4 className={styles.summaryNarrativeSectionTitle}>Don’t miss these</h4>
+            <h4 className={styles.summaryNarrativeSectionTitle}>Don&rsquo;t miss these</h4>
             {remainingHighlightCount ? (
               <span className={styles.summaryHighlightBadge}>
                 +{remainingHighlightCount} more in feed
               </span>
             ) : null}
           </div>
-          <ul className={styles.summaryNarrativeList}>
-            {headlineHighlights.map((highlight, index) =>
-              renderLine(highlight, `highlight-${index}`),
-            )}
-          </ul>
-        </div>
-      ) : null}
-
-      {showPostSuggestion ? (
-        <div className={`${styles.summaryNarrativeSection} ${styles.summaryCta}`}>
-          <div>
-            <h4 className={styles.summaryCtaTitle}>Need to respond fast?</h4>
-            <p className={styles.summaryCtaNote}>
-              Capsule can draft a reply or post. Tap to open the suggestion and fire it off.
-            </p>
-          </div>
-          <div className={styles.summaryCtaLines}>
-            {result.postTitle ? renderLine(`Title: ${result.postTitle}`, "post-title") : null}
-            {result.postPrompt ? renderLine(`Prompt: ${result.postPrompt}`, "post-prompt") : null}
+          <div className={styles.summaryNarrativeListScroll}>
+            <ul className={styles.summaryNarrativeList}>
+              {headlineHighlights.map((highlight, index) =>
+                renderLine(highlight, `highlight-${index}`),
+              )}
+            </ul>
           </div>
         </div>
       ) : null}
     </section>
   );
 }
+
+
+
+

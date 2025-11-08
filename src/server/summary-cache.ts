@@ -7,6 +7,18 @@ import { buildSummarySignature, type SummarySignaturePayload } from "@/lib/ai/su
 const CACHE_PREFIX = "summary:v1:";
 const CACHE_TTL_SECONDS = 60 * 5; // 5 minutes
 
+function isLikelyJsonPayload(raw: string): boolean {
+  if (typeof raw !== "string") return false;
+  const trimmed = raw.trim();
+  if (!trimmed.length) return false;
+  const first = trimmed[0];
+  const last = trimmed[trimmed.length - 1];
+  return (
+    (first === "{" && last === "}") ||
+    (first === "[" && last === "]")
+  );
+}
+
 type SummaryCacheEntry = SummaryApiResponse & {
   cachedAt: string;
 };
@@ -18,10 +30,22 @@ export async function readSummaryCache(
   if (!redis) return null;
   try {
     const signature = buildSummarySignature(payload);
-    const raw = await redis.get<string>(`${CACHE_PREFIX}${signature}`);
+    const cacheKey = `${CACHE_PREFIX}${signature}`;
+    const raw = await redis.get<string>(cacheKey);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as SummaryCacheEntry;
-    return parsed;
+    if (!isLikelyJsonPayload(raw)) {
+      console.warn("summary cache read skipped due to malformed payload", { key: cacheKey });
+      await redis.del(cacheKey);
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw) as SummaryCacheEntry;
+      return parsed;
+    } catch (error) {
+      console.warn("summary cache read failed to parse payload", { key: cacheKey, error });
+      await redis.del(cacheKey);
+      return null;
+    }
   } catch (error) {
     console.warn("summary cache read failed", error);
     return null;
@@ -42,4 +66,3 @@ export async function writeSummaryCache(
     console.warn("summary cache write failed", error);
   }
 }
-

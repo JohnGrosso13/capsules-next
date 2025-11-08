@@ -1977,9 +1977,14 @@ export async function createPostDraft(
     return null;
   })();
 
-  const preferVisual = preferHints.some((hint) => VISUAL_KIND_HINTS.has(hint));
-  const preferText = preferHints.some((hint) => TEXT_KIND_HINTS.has(hint));
-  const preferVideo = preferHints.some((hint) => VIDEO_KIND_HINTS.has(hint));
+  const chatOnlyFlag =
+    rawOptions &&
+    typeof rawOptions === "object" &&
+    ((rawOptions as { chatOnly?: unknown }).chatOnly === true ||
+      (rawOptions as { chat_only?: unknown }).chat_only === true);
+  const preferVisual = !chatOnlyFlag && preferHints.some((hint) => VISUAL_KIND_HINTS.has(hint));
+  const preferText = chatOnlyFlag || preferHints.some((hint) => TEXT_KIND_HINTS.has(hint));
+  const preferVideo = chatOnlyFlag ? false : preferHints.some((hint) => VIDEO_KIND_HINTS.has(hint));
 
   const normalizedClarifier = normalizeClarifierInput(clarifier);
   const priorUserMessage =
@@ -1997,6 +2002,7 @@ export async function createPostDraft(
     typeof normalizedClarifier?.answer === "string" && normalizedClarifier.answer.trim().length > 0;
   const clarifierSkip = normalizedClarifier?.skip === true;
   const allowGeneratedMedia =
+    !chatOnlyFlag &&
     !clarifierSkip &&
     !preferText &&
     (preferVisual || preferVideo || imageIntent || videoIntent || clarifierAnswered);

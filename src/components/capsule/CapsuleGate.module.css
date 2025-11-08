@@ -297,6 +297,12 @@
     padding-inline: 4px;
   }
 
+  .tileShell {
+    position: relative;
+    width: var(--tile-width);
+    flex: 0 0 var(--tile-width);
+  }
+
   .tileButton {
     width: var(--tile-width);
     flex: 0 0 var(--tile-width);
@@ -315,6 +321,33 @@
   .tileButton:focus-visible .tile {
     outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 65%, transparent);
     outline-offset: 3px;
+  }
+
+  .tileMenuButton {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(5, 8, 20, 0.6);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .tileMenuButton:hover {
+    background: rgba(5, 8, 20, 0.8);
+  }
+
+  .tileMenu {
+    position: absolute;
+    top: 42px;
+    right: 0;
+    min-width: 180px;
   }
 
   .tile {

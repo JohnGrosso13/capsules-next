@@ -11,7 +11,8 @@ type UseComposerLayoutParams = {
 };
 
 const MIN_RAIL_WIDTH = 200;
-const MAX_RAIL_WIDTH = 520;
+const MAX_LEFT_WIDTH = 520;
+const MAX_RIGHT_WIDTH = 720;
 const MIN_BOTTOM_HEIGHT = 120;
 const MAX_BOTTOM_HEIGHT = 420;
 
@@ -41,12 +42,12 @@ export function useComposerLayout({ layout, layoutActions, mainRef }: UseCompose
       if (currentDrag.kind === "left") {
         const delta = event.clientX - currentDrag.startX;
         layoutActions.setLeftWidth(
-          clamp(currentDrag.start + delta, MIN_RAIL_WIDTH, MAX_RAIL_WIDTH),
+          clamp(currentDrag.start + delta, MIN_RAIL_WIDTH, MAX_LEFT_WIDTH),
         );
       } else if (currentDrag.kind === "right") {
         const delta = currentDrag.startX - event.clientX;
         layoutActions.setRightWidth(
-          clamp(currentDrag.start + delta, MIN_RAIL_WIDTH, MAX_RAIL_WIDTH),
+          clamp(currentDrag.start + delta, MIN_RAIL_WIDTH, MAX_RIGHT_WIDTH),
         );
       } else {
         const delta = currentDrag.startY - event.clientY;

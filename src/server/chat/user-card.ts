@@ -1,6 +1,8 @@
 import { getUserProfileSummary } from "@/server/users/service";
 import { listCapsulesForUser } from "@/server/capsules/repository";
 
+type CapsuleOwnership = "owner" | "member" | "follower";
+
 export type UserCardResult = {
   text: string | null;
   summary: {
@@ -9,16 +11,21 @@ export type UserCardResult = {
     capsules: Array<{
       id: string;
       name: string;
-      ownership: "owner" | "member";
+      ownership: CapsuleOwnership;
     }>;
   };
 };
 
 function formatCapsuleLine(
-  entry: { id: string; name: string; ownership: "owner" | "member" },
+  entry: { id: string; name: string; ownership: CapsuleOwnership },
   index: number,
 ): string {
-  const prefix = entry.ownership === "owner" ? "owns" : "member of";
+  const prefix =
+    entry.ownership === "owner"
+      ? "owns"
+      : entry.ownership === "member"
+        ? "member of"
+        : "follows";
   return `${index === 0 ? "Capsules:" : "         "} ${prefix} ${entry.name} (${entry.id})`;
 }
 

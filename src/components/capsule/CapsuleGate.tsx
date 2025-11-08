@@ -11,6 +11,8 @@ import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
 import capsuleTileHostStyles from "@/components/capsule/capsule-tile-host.module.css";
 import { resolveCapsuleTileMedia } from "@/lib/capsules/promo-tile";
 import type { CapsuleSummary } from "@/server/capsules/service";
+import { DotsThree } from "@phosphor-icons/react/dist/ssr";
+import contextMenuStyles from "@/components/ui/context-menu.module.css";
 
 import styles from "./CapsuleGate.module.css";
 
@@ -128,6 +130,7 @@ function PromoCarouselRow({ items, rowLabel }: { items: PlaceholderCapsule[]; ro
 
 function formatRole(summary: CapsuleSummary): string {
   if (summary.ownership === "owner") return "You are the owner";
+  if (summary.ownership === "follower") return "You follow this capsule";
   if (summary.role) return `Role: ${summary.role}`;
   return "Member";
 }
@@ -135,11 +138,18 @@ function formatRole(summary: CapsuleSummary): string {
 function CapsuleSelectorTile({
   capsule,
   onSelect,
+  onLeave,
 }: {
   capsule: CapsuleSummary;
   onSelect: (capsuleId: string) => void;
+  onLeave?: (capsuleId: string) => void;
 }) {
-  const badgeLabel = capsule.ownership === "owner" ? "Owner" : "Member";
+  const badgeLabel =
+    capsule.ownership === "owner"
+      ? "Owner"
+      : capsule.ownership === "member"
+        ? "Member"
+        : "Follower";
   const roleDescription = formatRole(capsule);
   const { bannerUrl, logoUrl } = resolveCapsuleTileMedia({
     promoTileUrl: capsule.promoTileUrl,
@@ -147,25 +157,104 @@ function CapsuleSelectorTile({
     logoUrl: capsule.logoUrl,
   });
   const tileClass = `${capsuleTileHostStyles.tileHost} ${styles.tile ?? ""}`.trim();
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!menuOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (menuRef.current.contains(event.target as Node)) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [menuOpen]);
+
+  const handleSelectTile = React.useCallback(() => {
+    setMenuOpen(false);
+    onSelect(capsule.id);
+  }, [capsule.id, onSelect]);
+
+  const handleReport = React.useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
+      setMenuOpen(false);
+      console.info("Report capsule", capsule.id);
+    },
+    [capsule.id],
+  );
+
+  const handleLeave = React.useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
+      setMenuOpen(false);
+      onLeave?.(capsule.id);
+    },
+    [capsule.id, onLeave],
+  );
+
   return (
-    <button
-      type="button"
-      className={styles.tileButton}
-      onClick={() => onSelect(capsule.id)}
-      aria-label={`Open ${capsule.name}`}
-    >
-      <CapsulePromoTile
-        name={capsule.name}
-        bannerUrl={bannerUrl}
-        logoUrl={logoUrl}
-        className={tileClass}
-        showSlug={false}
-      />
-      <div className={styles.tileMeta}>
-        <span className={styles.tileBadge}>{badgeLabel}</span>
-        <span className={styles.tileRole}>{roleDescription}</span>
-      </div>
-    </button>
+    <div className={styles.tileShell}>
+      <button
+        type="button"
+        className={styles.tileButton}
+        onClick={handleSelectTile}
+        aria-label={`Open ${capsule.name}`}
+      >
+        <CapsulePromoTile
+          name={capsule.name}
+          bannerUrl={bannerUrl}
+          logoUrl={logoUrl}
+          className={tileClass}
+          showSlug={false}
+        />
+        <div className={styles.tileMeta}>
+          <span className={styles.tileBadge}>{badgeLabel}</span>
+          <span className={styles.tileRole}>{roleDescription}</span>
+        </div>
+      </button>
+      {capsule.ownership !== "owner" ? (
+        <>
+          <button
+            type="button"
+            className={styles.tileMenuButton}
+            aria-label={`More options for ${capsule.name}`}
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+            onClick={(event) => {
+              event.stopPropagation();
+              setMenuOpen((prev) => !prev);
+            }}
+          >
+            <DotsThree size={18} weight="bold" />
+          </button>
+          {menuOpen ? (
+            <div
+              ref={menuRef}
+              className={`${contextMenuStyles.menu} ${styles.tileMenu}`.trim()}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button type="button" className={contextMenuStyles.item} onClick={handleReport}>
+                Report capsule
+              </button>
+              {capsule.ownership === "member" ? (
+                <>
+                  <div className={contextMenuStyles.separator} />
+                  <button
+                    type="button"
+                    className={`${contextMenuStyles.item} ${contextMenuStyles.danger}`.trim()}
+                    onClick={handleLeave}
+                  >
+                    Leave capsule
+                  </button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
   );
 }
 
@@ -214,11 +303,16 @@ export function CapsuleGate({
     [capsuleList],
   );
   const memberCapsules = React.useMemo(
-    () => capsuleList.filter((capsule) => capsule.ownership !== "owner"),
+    () => capsuleList.filter((capsule) => capsule.ownership === "member"),
+    [capsuleList],
+  );
+  const followedCapsules = React.useMemo(
+    () => capsuleList.filter((capsule) => capsule.ownership === "follower"),
     [capsuleList],
   );
   const hasOwnedCapsule = ownedCapsules.length > 0;
   const hasMemberCapsules = memberCapsules.length > 0;
+  const hasFollowedCapsules = followedCapsules.length > 0;
   const knownCapsuleIds = React.useMemo(
     () => new Set(capsuleList.map((capsule) => capsule.id)),
     [capsuleList],
@@ -249,6 +343,25 @@ export function CapsuleGate({
       }
     },
     [capsuleList, onCapsuleChosen, shouldAutoActivate, setActiveId],
+  );
+
+  const handleLeaveCapsule = React.useCallback(
+    async (capsuleId: string) => {
+      try {
+        const response = await fetch(`/api/capsules/${capsuleId}/membership`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "leave" }),
+        });
+        if (!response.ok) {
+          throw new Error("Failed to leave capsule");
+        }
+        setCapsuleList((previous) => previous.filter((capsule) => capsule.id !== capsuleId));
+      } catch (error) {
+        console.error("capsule.leave", error);
+      }
+    },
+    [],
   );
 
   const syncUrl = React.useCallback(
@@ -298,12 +411,14 @@ export function CapsuleGate({
   );
 
   React.useEffect(() => {
-    if (startInSelector) {
-      setActiveId(null);
-      return;
-    }
     setActiveId((previous) => {
-      if (previous && capsuleList.some((capsule) => capsule.id === previous)) {
+      const hasPrevious = Boolean(previous);
+      const isValidPrevious =
+        hasPrevious && capsuleList.some((capsule) => capsule.id === previous);
+      if (startInSelector) {
+        return isValidPrevious ? previous : null;
+      }
+      if (isValidPrevious) {
         return previous;
       }
       return resolvedDefaultId;
@@ -348,6 +463,21 @@ export function CapsuleGate({
     };
     window.dispatchEvent(new CustomEvent("capsule:live-chat", { detail }));
   }, [activeCapsule?.id, activeCapsule?.name, shouldAutoActivate]);
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    if (activeCapsule?.id) {
+      root.dataset.activeCapsuleId = activeCapsule.id;
+      if (activeCapsule.name) {
+        root.dataset.activeCapsuleName = activeCapsule.name;
+      } else {
+        delete root.dataset.activeCapsuleName;
+      }
+    } else {
+      delete root.dataset.activeCapsuleId;
+      delete root.dataset.activeCapsuleName;
+    }
+  }, [activeCapsule?.id, activeCapsule?.name]);
 
   if (!capsuleList.length) {
     return (
@@ -426,7 +556,11 @@ export function CapsuleGate({
           {hasOwnedCapsule ? (
             <div className={styles.grid}>
               {ownedCapsules.map((capsule) => (
-                <CapsuleSelectorTile key={capsule.id} capsule={capsule} onSelect={handleSelect} />
+                <CapsuleSelectorTile
+                  key={capsule.id}
+                  capsule={capsule}
+                  onSelect={handleSelect}
+                />
               ))}
             </div>
           ) : (
@@ -443,13 +577,39 @@ export function CapsuleGate({
           {hasMemberCapsules ? (
             <div className={styles.grid}>
               {memberCapsules.map((capsule) => (
-                <CapsuleSelectorTile key={capsule.id} capsule={capsule} onSelect={handleSelect} />
+                <CapsuleSelectorTile
+                  key={capsule.id}
+                  capsule={capsule}
+                  onSelect={handleSelect}
+                  onLeave={handleLeaveCapsule}
+                />
               ))}
             </div>
           ) : (
             <p className={styles.sectionMessage}>
               You&apos;re not a member of any capsules yet. Accept an invite or request to join to
               see them here.
+            </p>
+          )}
+        </section>
+        <section className={styles.section} aria-label="Followed Capsules">
+          <header className={styles.sectionHeader}>
+            <h3 className={styles.sectionTitle}>Followed Capsules</h3>
+            <span className={styles.sectionBadge}>{followedCapsules.length}</span>
+          </header>
+          {hasFollowedCapsules ? (
+            <div className={styles.grid}>
+              {followedCapsules.map((capsule) => (
+                <CapsuleSelectorTile
+                  key={capsule.id}
+                  capsule={capsule}
+                  onSelect={handleSelect}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className={styles.sectionMessage}>
+              Follow capsules you care about to access them quickly.
             </p>
           )}
         </section>

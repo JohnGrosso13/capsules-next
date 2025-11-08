@@ -7,21 +7,22 @@ import { useCurrentUser } from "@/services/auth/client";
 import { AiComposerDrawer } from "@/components/ai-composer";
 import type { ComposerChoice } from "@/components/composer/ComposerForm";
 import type { PrompterAction, PrompterAttachment } from "@/components/ai-prompter-stage";
+import type { PrompterHandoff } from "@/components/composer/prompter-handoff";
 import { applyThemeVars } from "@/lib/theme";
 import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
 import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
+import { useComposerCore } from "@/components/composer/state/useComposerCore";
+import { useSmartContextPersistence } from "@/components/composer/state/useSmartContextPersistence";
+import { useRemoteConversations } from "@/components/composer/state/useRemoteConversations";
+import { cloneComposerData } from "@/components/composer/state/utils";
+import { useSidebarStore } from "@/components/composer/state/useSidebarStore";
 import {
   sanitizeComposerChatHistory,
   type ComposerChatAttachment,
   type ComposerChatMessage,
 } from "@/lib/composer/chat-types";
 import {
-  buildSidebarStorageKey,
-  EMPTY_SIDEBAR_SNAPSHOT,
-  loadSidebarSnapshot,
-  saveSidebarSnapshot,
-  type ComposerSidebarSnapshot,
   type ComposerStoredDraft,
   type ComposerStoredProject,
   type ComposerStoredRecentChat,
@@ -34,7 +35,6 @@ import {
 } from "@/lib/composer/sidebar-types";
 import { normalizeDraftFromPost } from "@/lib/composer/normalizers";
 import { buildPostPayload } from "@/lib/composer/payload";
-import type { ComposerMode } from "@/lib/ai/nav";
 import {
   promptResponseSchema,
   stylerResponseSchema,
@@ -44,7 +44,7 @@ import {
 import type { SummaryResult } from "@/types/summary";
 import type { SummaryConversationContext, SummaryPresentationOptions } from "@/lib/composer/summary-context";
 import { detectVideoIntent } from "@/shared/ai/video-intent";
-
+import type { PromptRunMode, PromptSubmitOptions } from "./types";
 const ATTACHMENT_CONTEXT_LIMIT = 2;
 const ATTACHMENT_CONTEXT_CHAR_LIMIT = 2000;
 const TEXT_MIME_PREFIXES = ["text/", "application/json", "application/xml", "application/yaml"];
@@ -416,14 +416,6 @@ async function callStyler(
   return stylerResponseSchema.parse(json);
 }
 
-function cloneData<T>(value: T): T {
-  if (value === null || value === undefined) return value;
-  if (typeof structuredClone === "function") {
-    return structuredClone(value);
-  }
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
 function pickFirstMeaningfulText(...values: Array<string | null | undefined>): string | null {
   for (const value of values) {
     if (!value) continue;
@@ -482,16 +474,6 @@ function mapPrompterAttachmentToChat(
     excerpt: attachment.excerpt ?? null,
   };
 }
-
-type RemoteConversationSummary = {
-  threadId: string;
-  prompt: string;
-  message: string | null;
-  updatedAt: string;
-  draft: Record<string, unknown> | null;
-  rawPost: Record<string, unknown> | null;
-  history: ComposerChatMessage[];
-};
 
 function describeRecentCaption(entry: ComposerStoredRecentChat): string {
   const historyCount = Array.isArray(entry.history) ? entry.history.length : 0;
@@ -607,7 +589,7 @@ export type ComposerContextSnapshot = {
   userCard: string | null;
 };
 
-type ComposerState = {
+export type ComposerState = {
   open: boolean;
   loading: boolean;
   prompt: string;
@@ -636,14 +618,23 @@ type ClarifierState = {
   styleTraits: string[];
 };
 
+type AiPromptHandoff = Extract<PrompterHandoff, { intent: "ai_prompt" }>;
+type ImageLogoHandoff = Extract<PrompterHandoff, { intent: "image_logo" }>;
+type ImageEditHandoff = Extract<PrompterHandoff, { intent: "image_edit" }>;
+
 type ComposerContextValue = {
   state: ComposerState;
   feedTarget: FeedTarget;
   activeCapsuleId: string | null;
   handlePrompterAction(action: PrompterAction): void;
+  handlePrompterHandoff(handoff: PrompterHandoff): void;
   close(): void;
   post(): Promise<void>;
-  submitPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void>;
+  submitPrompt(
+    prompt: string,
+    attachments?: PrompterAttachment[] | null,
+    options?: PromptSubmitOptions,
+  ): Promise<void>;
   showSummary(
     result: SummaryResult,
     options: SummaryPresentationOptions,
@@ -694,8 +685,6 @@ function resetStateWithPreference(
     ...overrides,
   };
 }
-
-const SMART_CONTEXT_STORAGE_KEY = "capsules:composer:smartContextEnabled";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -930,66 +919,11 @@ function formatAuthor(user: AuthClientUser | null, name: string | null, avatar: 
 
 export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const { user } = useCurrentUser();
-  const [state, setState] = React.useState<ComposerState>(initialState);
+  const { state, setState } = useComposerCore(initialState);
+  const smartContextEnabled = state.smartContextEnabled;
   const [feedTarget, setFeedTarget] = React.useState<FeedTarget>({ scope: "home" });
-  const [sidebarStore, setSidebarStore] = React.useState<ComposerSidebarSnapshot>(
-    EMPTY_SIDEBAR_SNAPSHOT,
-  );
+  const { sidebarStore, updateSidebarStore } = useSidebarStore(user?.id ?? null);
   const saveResetTimeout = React.useRef<number | null>(null);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const stored = window.localStorage.getItem(SMART_CONTEXT_STORAGE_KEY);
-      if (stored !== null) {
-        const enabled = stored !== "false";
-        setState((prev) =>
-          prev.smartContextEnabled === enabled
-            ? prev
-            : { ...prev, smartContextEnabled: enabled },
-        );
-      }
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("composer smart context load failed", error);
-      }
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        SMART_CONTEXT_STORAGE_KEY,
-        state.smartContextEnabled ? "true" : "false",
-      );
-    } catch {
-      // ignore persistence failures
-    }
-  }, [state.smartContextEnabled]);
-
-  const sidebarStorageKey = React.useMemo(
-    () => buildSidebarStorageKey(user?.id ?? null),
-    [user?.id],
-  );
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    setSidebarStore(loadSidebarSnapshot(sidebarStorageKey));
-  }, [sidebarStorageKey]);
-
-  const updateSidebarStore = React.useCallback(
-    (updater: (prev: ComposerSidebarSnapshot) => ComposerSidebarSnapshot) => {
-      setSidebarStore((prev) => {
-        const next = updater(prev);
-        if (typeof window !== "undefined") {
-          saveSidebarSnapshot(sidebarStorageKey, next);
-        }
-        return next;
-      });
-    },
-    [sidebarStorageKey],
-  );
 
   const setSmartContextEnabled = React.useCallback((enabled: boolean) => {
     setState((prev) =>
@@ -1001,67 +935,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             contextSnapshot: enabled ? prev.contextSnapshot : null,
           },
     );
-  }, []);
+  }, [setState]);
 
-  React.useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    const loadRemoteConversations = async () => {
-      try {
-        const response = await fetch("/api/ai/conversations", {
-          method: "GET",
-          credentials: "include",
-        });
-        if (!response.ok || cancelled) return;
-        const payload = (await response.json().catch(() => null)) as {
-          conversations?: RemoteConversationSummary[];
-        } | null;
-        const conversations = payload?.conversations;
-        if (!conversations?.length || cancelled) return;
-        updateSidebarStore((prev) => {
-          const merged = new Map<string, ComposerStoredRecentChat>();
-          for (const chat of prev.recentChats) {
-            const key = chat.threadId ?? chat.id;
-            merged.set(key, chat);
-          }
-          for (const conversation of conversations) {
-            const history = sanitizeComposerChatHistory(conversation.history ?? []);
-            const normalizedDraft = normalizeDraftFromPost(
-              (conversation.rawPost as Record<string, unknown>) ??
-                (conversation.draft as Record<string, unknown>) ??
-                {},
-            );
-            const entry: ComposerStoredRecentChat = {
-              id: conversation.threadId,
-              prompt: conversation.prompt,
-              message: conversation.message,
-              draft: cloneData(normalizedDraft),
-              rawPost: conversation.rawPost ? cloneData(conversation.rawPost) : null,
-              createdAt: conversation.updatedAt,
-              updatedAt: conversation.updatedAt,
-              history: cloneData(history),
-              threadId: conversation.threadId,
-            };
-            merged.set(conversation.threadId, entry);
-          }
-          const sorted = Array.from(merged.values())
-            .sort((a, b) => {
-              const aTime = Date.parse(a.updatedAt ?? "");
-              const bTime = Date.parse(b.updatedAt ?? "");
-              return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
-            })
-            .slice(0, 20);
-          return { ...prev, recentChats: sorted };
-        });
-      } catch (error) {
-        console.warn("composer remote history fetch failed", error);
-      }
-    };
-    void loadRemoteConversations();
-    return () => {
-      cancelled = true;
-    };
-  }, [updateSidebarStore, user]);
+  useSmartContextPersistence(smartContextEnabled, setSmartContextEnabled);
+  useRemoteConversations(user?.id ?? null, updateSidebarStore);
 
   const recordRecentChat = React.useCallback(
     (input: {
@@ -1094,11 +971,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           id: entryId,
           prompt: input.prompt,
           message: input.message ?? null,
-          draft: cloneData(input.draft),
-          rawPost: input.rawPost ? cloneData(input.rawPost) : null,
+          draft: cloneComposerData(input.draft),
+          rawPost: input.rawPost ? cloneComposerData(input.rawPost) : null,
           createdAt,
           updatedAt: now,
-          history: cloneData(historySlice),
+          history: cloneComposerData(historySlice),
           threadId: resolvedThreadId,
         };
         const filtered = prev.recentChats.filter(
@@ -1167,9 +1044,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
       updateSidebarStore((prev) => {
         const now = new Date().toISOString();
-        const sanitizedDraft = cloneData(draft);
-        const sanitizedRawPost = rawPost ? cloneData(rawPost) : null;
-        const historySlice = cloneData(history.slice(-20));
+        const sanitizedDraft = cloneComposerData(draft);
+        const sanitizedRawPost = rawPost ? cloneComposerData(rawPost) : null;
+        const historySlice = cloneComposerData(history.slice(-20));
         const existingIndex = prev.drafts.findIndex((item) => item.id === baseId);
         let drafts = [...prev.drafts];
         if (existingIndex >= 0) {
@@ -1236,8 +1113,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     (draftId: string) => {
     const entry = sidebarStore.drafts.find((draftItem) => draftItem.id === draftId);
     if (!entry) return;
-    const draftClone = cloneData(entry.draft);
-    const rawPostClone = entry.rawPost ? cloneData(entry.rawPost) : null;
+    const draftClone = cloneComposerData(entry.draft);
+    const rawPostClone = entry.rawPost ? cloneComposerData(entry.rawPost) : null;
     setState((prev) => ({
       ...prev,
       open: true,
@@ -1247,7 +1124,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       rawPost: rawPostClone,
       message: entry.message ?? null,
       choices: null,
-      history: cloneData(entry.history ?? []),
+      history: cloneComposerData(entry.history ?? []),
       threadId: entry.threadId ?? null,
       clarifier: null,
     }));
@@ -1273,15 +1150,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         selectProject(entry.projectId);
       }
     },
-    [recordRecentChat, selectProject, sidebarStore.drafts, updateSidebarStore],
+    [recordRecentChat, selectProject, sidebarStore.drafts, setState, updateSidebarStore],
   );
 
   const selectRecentChat = React.useCallback(
     (chatId: string) => {
     const entry = sidebarStore.recentChats.find((chat) => chat.id === chatId);
     if (!entry) return;
-    const draftClone = cloneData(entry.draft);
-    const rawPostClone = entry.rawPost ? cloneData(entry.rawPost) : null;
+    const draftClone = cloneComposerData(entry.draft);
+    const rawPostClone = entry.rawPost ? cloneComposerData(entry.rawPost) : null;
     setState((prev) => ({
       ...prev,
       open: true,
@@ -1291,7 +1168,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       rawPost: rawPostClone,
       message: entry.message ?? null,
       choices: null,
-      history: cloneData(entry.history ?? []),
+      history: cloneComposerData(entry.history ?? []),
       threadId: entry.threadId ?? entry.id ?? null,
       clarifier: null,
     }));
@@ -1303,7 +1180,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         return { ...prev, recentChats: [{ ...found, updatedAt: now }, ...others] };
       });
     },
-    [sidebarStore.recentChats, updateSidebarStore],
+    [setState, sidebarStore.recentChats, updateSidebarStore],
   );
 
   const saveDraft = React.useCallback(
@@ -1315,7 +1192,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         return prev;
       });
     },
-    [upsertDraft],
+    [setState, upsertDraft],
   );
 
   React.useEffect(
@@ -1486,7 +1363,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
     },
-    [activeCapsuleId, envelopePayload],
+    [activeCapsuleId, envelopePayload, setState],
   );
 
   React.useEffect(() => {
@@ -1503,7 +1380,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleAiResponse = React.useCallback(
-    (prompt: string, payload: PromptResponse) => {
+    (prompt: string, payload: PromptResponse, mode: PromptRunMode = "default") => {
       if (payload.action === "clarify_image_prompt") {
         const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
         setState((prev) => {
@@ -1539,28 +1416,78 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const rawSource = (payload.post ?? {}) as Record<string, unknown>;
       const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
       const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
-      const messageText = payload.message ?? null;
+      const isDraftResponse = (payload as { action?: string }).action === "draft_post";
+      const draftPayloadPost =
+        isDraftResponse && typeof (payload as { post?: unknown }).post === "object"
+          ? ((payload as { post?: Record<string, unknown> | null }).post ?? null)
+          : null;
+      const draftPostContent =
+        mode === "chatOnly" &&
+        draftPayloadPost &&
+        typeof (draftPayloadPost as { content?: unknown }).content === "string" &&
+        (draftPayloadPost as { content: string }).content.trim().length
+          ? ((draftPayloadPost as { content: string }).content ?? "").trim()
+          : null;
+
+      let messageText =
+        typeof payload.message === "string" && payload.message.trim().length
+          ? payload.message.trim()
+          : null;
+      if (draftPostContent) {
+        messageText = messageText ? `${messageText}\n\n${draftPostContent}` : draftPostContent;
+      }
       let recordedHistory: ComposerChatMessage[] = [];
       let recordedThreadId: string | null = null;
       let resolvedQuestionId: string | null = null;
       let recordedDraft: ComposerDraft | null = null;
       let recordedRawPost: Record<string, unknown> | null = null;
+      const applyDraftUpdates = mode !== "chatOnly";
       setState((prev) => {
         const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
-        const historyForState =
+        let historyForState =
           normalizedHistory.length > 0 ? normalizedHistory : prev.history ?? [];
+        if (mode === "chatOnly" && messageText) {
+          const safeMessageText = messageText;
+          const lastIndex = historyForState.length - 1;
+          const lastEntry = lastIndex >= 0 ? historyForState[lastIndex] : null;
+          if (lastEntry && lastEntry.role === "assistant") {
+            const updatedHistory = historyForState.map((entry, index) =>
+              index === lastIndex ? { ...entry, content: safeMessageText } : entry,
+            );
+            historyForState = updatedHistory;
+          } else {
+            historyForState = [
+              ...historyForState,
+              {
+                id: safeRandomUUID(),
+                role: "assistant",
+                content: safeMessageText,
+                createdAt: new Date().toISOString(),
+                attachments: null,
+              },
+            ];
+          }
+        }
         recordedHistory = historyForState;
         recordedThreadId = nextThreadId;
         if (prev.clarifier?.questionId) {
           resolvedQuestionId = prev.clarifier.questionId;
         }
-        const preserveOptions = shouldPreservePollOptions(prompt, prev.draft ?? null);
-        const baseDraft = normalizeDraftFromPost(rawPost);
-        const mergedDraft = mergeComposerDrafts(prev.draft, baseDraft, {
-          preservePollOptions: preserveOptions,
-        });
+        const preserveOptions =
+          applyDraftUpdates && shouldPreservePollOptions(prompt, prev.draft ?? null);
+        let mergedDraft: ComposerDraft | null = prev.draft ?? null;
+        let mergedRawPost: Record<string, unknown> | null;
+        if (applyDraftUpdates) {
+          const baseDraft = normalizeDraftFromPost(rawPost);
+          const draftForMerge = mergeComposerDrafts(prev.draft, baseDraft, {
+            preservePollOptions: preserveOptions,
+          });
+          mergedDraft = draftForMerge;
+          mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, draftForMerge);
+        } else {
+          mergedRawPost = prev.rawPost ?? rawPost ?? null;
+        }
         recordedDraft = mergedDraft;
-        const mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, mergedDraft);
         recordedRawPost = mergedRawPost;
         const rawVideoRunId =
           typeof (mergedRawPost as { video_run_id?: unknown }).video_run_id === "string"
@@ -1590,9 +1517,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             : typeof (mergedRawPost as { memoryId?: unknown }).memoryId === "string"
               ? ((mergedRawPost as { memoryId: string }).memoryId ?? "").trim() || null
               : null;
-        const resolvedRunId = mergedDraft.videoRunId ?? rawVideoRunId ?? prev.videoStatus.runId;
+        const resolvedRunId = mergedDraft?.videoRunId ?? rawVideoRunId ?? prev.videoStatus.runId;
         const normalizedRunStatus = (() => {
-          const candidate = mergedDraft.videoRunStatus ?? rawVideoRunStatus;
+          const candidate = mergedDraft?.videoRunStatus ?? rawVideoRunStatus;
           if (!candidate) return null;
           const lowered = candidate.toLowerCase();
           if (lowered === "pending" || lowered === "running") return "running" as const;
@@ -1602,51 +1529,53 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           return null;
         })();
         let nextVideoStatus: ComposerVideoStatus = prev.videoStatus;
-        if (normalizedRunStatus === "succeeded") {
-          nextVideoStatus = {
-            state: "succeeded",
-            runId: resolvedRunId ?? null,
-            prompt,
-            attachments: prev.videoStatus.attachments,
-            error: null,
-            message: messageText,
-            memoryId: mergedDraft.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
-          };
-        } else if (normalizedRunStatus === "failed") {
-          const errorText =
-            mergedDraft.videoRunError ??
-            rawVideoRunError ??
-            prev.videoStatus.error ??
-            "Video generation failed.";
-          nextVideoStatus = {
-            state: "failed",
-            runId: resolvedRunId ?? null,
-            prompt,
-            attachments: prev.videoStatus.attachments,
-            error: errorText,
-            message: messageText,
-            memoryId: mergedDraft.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
-          };
-        } else if (normalizedRunStatus === "running") {
-          nextVideoStatus = {
-            state: "running",
-            runId: resolvedRunId ?? null,
-            prompt,
-            attachments: prev.videoStatus.attachments,
-            error: null,
-            message: messageText,
-            memoryId: mergedDraft.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
-          };
-        } else if (prev.videoStatus.state !== "idle") {
-          nextVideoStatus = {
-            state: "idle",
-            runId: null,
-            prompt: null,
-            attachments: null,
-            error: null,
-            message: null,
-            memoryId: null,
-          };
+        if (applyDraftUpdates) {
+          if (normalizedRunStatus === "succeeded") {
+            nextVideoStatus = {
+              state: "succeeded",
+              runId: resolvedRunId ?? null,
+              prompt,
+              attachments: prev.videoStatus.attachments,
+              error: null,
+              message: messageText,
+              memoryId: mergedDraft?.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
+            };
+          } else if (normalizedRunStatus === "failed") {
+            const errorText =
+              mergedDraft?.videoRunError ??
+              rawVideoRunError ??
+              prev.videoStatus.error ??
+              "Video generation failed.";
+            nextVideoStatus = {
+              state: "failed",
+              runId: resolvedRunId ?? null,
+              prompt,
+              attachments: prev.videoStatus.attachments,
+              error: errorText,
+              message: messageText,
+              memoryId: mergedDraft?.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
+            };
+          } else if (normalizedRunStatus === "running") {
+            nextVideoStatus = {
+              state: "running",
+              runId: resolvedRunId ?? null,
+              prompt,
+              attachments: prev.videoStatus.attachments,
+              error: null,
+              message: messageText,
+              memoryId: mergedDraft?.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
+            };
+          } else if (prev.videoStatus.state !== "idle") {
+            nextVideoStatus = {
+              state: "idle",
+              runId: null,
+              prompt: null,
+              attachments: null,
+              error: null,
+              message: null,
+              memoryId: null,
+            };
+          }
         }
         const nextSnapshot =
           payload.context && payload.context.enabled
@@ -1674,7 +1603,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           draft: mergedDraft,
           rawPost: mergedRawPost,
           message: messageText,
-          choices: payload.choices ?? null,
+          choices: applyDraftUpdates ? payload.choices ?? null : prev.choices,
           history: historyForState,
           threadId: nextThreadId,
           clarifier: null,
@@ -1688,16 +1617,226 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           prompt,
         });
       }
-      recordRecentChat({
-        prompt,
-        message: messageText,
-        draft: recordedDraft ?? normalizeDraftFromPost(rawPost),
-        rawPost: recordedRawPost,
-        history: recordedHistory,
-        threadId: recordedThreadId,
-      });
+      if (mode !== "chatOnly") {
+        recordRecentChat({
+          prompt,
+          message: messageText,
+          draft: recordedDraft ?? normalizeDraftFromPost(rawPost),
+          rawPost: recordedRawPost,
+          history: recordedHistory,
+          threadId: recordedThreadId,
+        });
+      }
     },
-    [activeCapsuleId, recordRecentChat],
+    [activeCapsuleId, recordRecentChat, setState],
+  );
+
+  const runAiPromptHandoff = React.useCallback(
+    async ({ prompt, attachments, options }: AiPromptHandoff) => {
+      const trimmedPrompt = prompt.trim();
+      if (!trimmedPrompt.length) return;
+      const normalizedAttachments = attachments && attachments.length ? attachments : undefined;
+      const composeOptions: Record<string, unknown> = {};
+      if (options?.composeMode) {
+        composeOptions.compose = options.composeMode;
+      }
+      if (options?.prefer) {
+        composeOptions.prefer = options.prefer;
+      }
+      if (options?.extras && Object.keys(options.extras).length) {
+        Object.assign(composeOptions, options.extras);
+      }
+      const resolvedOptions = Object.keys(composeOptions).length ? composeOptions : undefined;
+
+      const createdAt = new Date().toISOString();
+      const attachmentForChat =
+        normalizedAttachments?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
+      const pendingMessage: ComposerChatMessage = {
+        id: safeRandomUUID(),
+        role: "user",
+        content: trimmedPrompt,
+        createdAt,
+        attachments: attachmentForChat.length ? attachmentForChat : null,
+      };
+      let baseHistory: ComposerChatMessage[] = [];
+      let threadIdForRequest: string | null = null;
+      setState((prev) => {
+        const existingHistory = prev.history ?? [];
+        baseHistory = existingHistory.slice();
+        const resolvedThreadId = prev.threadId ?? safeRandomUUID();
+        threadIdForRequest = resolvedThreadId;
+        return {
+          ...prev,
+          open: true,
+          loading: true,
+          prompt: trimmedPrompt,
+          message: null,
+          choices: null,
+          history: [...existingHistory, pendingMessage],
+          threadId: resolvedThreadId,
+          clarifier: null,
+          summaryContext: null,
+          summaryResult: null,
+          summaryOptions: null,
+          summaryMessageId: null,
+        };
+      });
+      try {
+        const payload = await callAiPrompt(
+          trimmedPrompt,
+          resolvedOptions,
+          undefined,
+          normalizedAttachments,
+          baseHistory,
+          threadIdForRequest,
+          activeCapsuleId,
+          smartContextEnabled,
+        );
+        handleAiResponse(trimmedPrompt, payload);
+      } catch (error) {
+        console.error("AI prompt failed", error);
+        setState((prev) => resetStateWithPreference(prev));
+      }
+    },
+    [activeCapsuleId, handleAiResponse, setState, smartContextEnabled],
+  );
+
+  const runLogoHandoff = React.useCallback(
+    async ({ prompt }: ImageLogoHandoff) => {
+      setState((prev) => ({
+        ...prev,
+        open: true,
+        loading: true,
+        prompt,
+        message: null,
+        choices: null,
+        clarifier: null,
+      }));
+      try {
+        const res = await fetch("/api/ai/image/generate", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const json = (await res.json().catch(() => null)) as { url?: string } | null;
+        if (!res.ok || !json?.url) throw new Error(`Image generate failed (${res.status})`);
+        const draft: ComposerDraft = {
+          kind: "image",
+          title: null,
+          content: "",
+          mediaUrl: json.url,
+          mediaPrompt: prompt,
+          poll: null,
+        };
+        const assistantMessage: ComposerChatMessage = {
+          id: safeRandomUUID(),
+          role: "assistant",
+          content: "Generated a logo concept from your prompt.",
+          createdAt: new Date().toISOString(),
+          attachments: null,
+        };
+        setState((prev) => ({
+          ...prev,
+          open: true,
+          loading: false,
+          prompt,
+          draft,
+          rawPost: appendCapsuleContext(
+            { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
+            activeCapsuleId,
+          ),
+          message: assistantMessage.content,
+          choices: null,
+          history: [assistantMessage],
+          threadId: safeRandomUUID(),
+          clarifier: null,
+        }));
+      } catch (error) {
+        console.error("Logo tool failed", error);
+        setState((prev) => resetStateWithPreference(prev));
+      }
+    },
+    [activeCapsuleId, setState],
+  );
+
+  const runImageEditHandoff = React.useCallback(
+    async ({ prompt, reference }: ImageEditHandoff) => {
+      if (!reference?.url) return;
+      setState((prev) => ({
+        ...prev,
+        open: true,
+        loading: true,
+        prompt,
+        message: null,
+        choices: null,
+        clarifier: null,
+      }));
+      try {
+        const res = await fetch("/api/ai/image/edit", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: reference.url, instruction: prompt }),
+        });
+        const json = (await res.json().catch(() => null)) as { url?: string } | null;
+        if (!res.ok || !json?.url) throw new Error(`Image edit failed (${res.status})`);
+        const draft: ComposerDraft = {
+          kind: "image",
+          title: null,
+          content: "",
+          mediaUrl: json.url,
+          mediaPrompt: prompt,
+          poll: null,
+        };
+        const assistantMessage: ComposerChatMessage = {
+          id: safeRandomUUID(),
+          role: "assistant",
+          content: "Updated your image with those vibes.",
+          createdAt: new Date().toISOString(),
+          attachments: null,
+        };
+        setState((prev) => ({
+          ...prev,
+          open: true,
+          loading: false,
+          prompt,
+          draft,
+          rawPost: appendCapsuleContext(
+            { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
+            activeCapsuleId,
+          ),
+          message: assistantMessage.content,
+          choices: null,
+          history: [assistantMessage],
+          threadId: safeRandomUUID(),
+          clarifier: null,
+        }));
+      } catch (error) {
+        console.error("Image edit tool failed", error);
+        setState((prev) => resetStateWithPreference(prev));
+      }
+    },
+    [activeCapsuleId, setState],
+  );
+
+  const handlePrompterHandoff = React.useCallback(
+    async (handoff: PrompterHandoff) => {
+      switch (handoff.intent) {
+        case "ai_prompt":
+          await runAiPromptHandoff(handoff);
+          return;
+        case "image_logo":
+          await runLogoHandoff(handoff);
+          return;
+        case "image_edit":
+          await runImageEditHandoff(handoff);
+          return;
+        default:
+          return;
+      }
+    },
+    [runAiPromptHandoff, runLogoHandoff, runImageEditHandoff],
   );
 
   const handlePrompterAction = React.useCallback(
@@ -1751,240 +1890,52 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           console.error("Styler action failed", error);
         }
-      return;
-    }
-
-    if (action.kind === "tool_poll") {
-      const prompt = action.prompt;
-      const pendingMessage: ComposerChatMessage = {
-        id: safeRandomUUID(),
-        role: "user",
-        content: prompt,
-        createdAt: new Date().toISOString(),
-        attachments: null,
-      };
-      let baseHistory: ComposerChatMessage[] = [];
-      let threadIdForRequest: string | null = null;
-      setState((prev) => {
-        const existingHistory = prev.history ?? [];
-        baseHistory = existingHistory.slice();
-        const resolvedThreadId = prev.threadId ?? safeRandomUUID();
-        threadIdForRequest = resolvedThreadId;
-        return {
-          ...prev,
-          open: true,
-          loading: true,
-          prompt,
-          message: null,
-          choices: null,
-          history: [...existingHistory, pendingMessage],
-          threadId: resolvedThreadId,
-          clarifier: null,
-          summaryContext: null,
-          summaryResult: null,
-          summaryOptions: null,
-          summaryMessageId: null,
-        };
-      });
-      try {
-        const payload = await callAiPrompt(
-          prompt,
-          { prefer: "poll" },
-          undefined,
-          undefined,
-          baseHistory,
-          threadIdForRequest,
-          activeCapsuleId,
-          state.smartContextEnabled,
-        );
-        handleAiResponse(prompt, payload);
-      } catch (error) {
-        console.error("Poll tool failed", error);
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          history: baseHistory,
-        }));
+        return;
       }
-      return;
-    }
-      // Tool: Logo (generate an image from prompt then open composer)
+      if (action.kind === "tool_poll") {
+        await handlePrompterHandoff({
+          intent: "ai_prompt",
+          prompt: action.prompt,
+          options: { prefer: "poll" },
+        });
+        return;
+      }
       if (action.kind === "tool_logo") {
-        const prompt = action.prompt;
-        setState((prev) => ({
-          ...prev,
-          open: true,
-          loading: true,
-          prompt,
-          message: null,
-          choices: null,
-          clarifier: null,
-        }));
-        try {
-          const res = await fetch("/api/ai/image/generate", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt }),
-          });
-          const json = (await res.json().catch(() => null)) as { url?: string } | null;
-          if (!res.ok || !json?.url) throw new Error(`Image generate failed (${res.status})`);
-          const draft: ComposerDraft = {
-            kind: "image",
-            title: null,
-            content: "",
-            mediaUrl: json.url,
-            mediaPrompt: prompt,
-            poll: null,
-          };
-          const assistantMessage: ComposerChatMessage = {
-            id: safeRandomUUID(),
-            role: "assistant",
-            content: "Generated a logo concept from your prompt.",
-            createdAt: new Date().toISOString(),
-            attachments: null,
-          };
-          setState((prev) => ({
-            ...prev,
-            open: true,
-            loading: false,
-            prompt,
-            draft,
-            rawPost: appendCapsuleContext(
-              { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
-              activeCapsuleId,
-            ),
-            message: assistantMessage.content,
-            choices: null,
-            history: [assistantMessage],
-            threadId: safeRandomUUID(),
-            clarifier: null,
-          }));
-        } catch (error) {
-          console.error("Logo tool failed", error);
-          setState((prev) => resetStateWithPreference(prev));
-        }
+        await handlePrompterHandoff({ intent: "image_logo", prompt: action.prompt });
         return;
       }
-      // Tool: Image edit/vibe (requires attachment image)
       if (action.kind === "tool_image_edit") {
-        const prompt = action.prompt;
-        const attachment = action.attachments?.[0] ?? null;
-        if (!attachment?.url) return;
-        setState((prev) => ({
-          ...prev,
-          open: true,
-          loading: true,
-          prompt,
-          message: null,
-          choices: null,
-          clarifier: null,
-        }));
-        try {
-          const res = await fetch("/api/ai/image/edit", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageUrl: attachment.url, instruction: prompt }),
-          });
-          const json = (await res.json().catch(() => null)) as { url?: string } | null;
-          if (!res.ok || !json?.url) throw new Error(`Image edit failed (${res.status})`);
-          const draft: ComposerDraft = {
-            kind: "image",
-            title: null,
-            content: "",
-            mediaUrl: json.url,
-            mediaPrompt: prompt,
-            poll: null,
-          };
-          const assistantMessage: ComposerChatMessage = {
-            id: safeRandomUUID(),
-            role: "assistant",
-            content: "Updated your image with those vibes.",
-            createdAt: new Date().toISOString(),
-            attachments: null,
-          };
-          setState((prev) => ({
-            ...prev,
-            open: true,
-            loading: false,
-            prompt,
-            draft,
-            rawPost: appendCapsuleContext(
-              { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
-              activeCapsuleId,
-            ),
-            message: assistantMessage.content,
-            choices: null,
-            history: [assistantMessage],
-            threadId: safeRandomUUID(),
-            clarifier: null,
-          }));
-        } catch (error) {
-          console.error("Image edit tool failed", error);
-          setState((prev) => resetStateWithPreference(prev));
-        }
+        const attachment = action.attachments?.[0];
+        if (!attachment) return;
+        await handlePrompterHandoff({ intent: "image_edit", prompt: action.prompt, reference: attachment });
         return;
       }
-      const prompt = action.kind === "post_ai" ? action.prompt : action.text;
-      const composeOptions: Record<string, unknown> | undefined =
-        action.kind === "post_ai" ? { compose: action.mode as ComposerMode } : undefined;
-      const createdAt = new Date().toISOString();
-      const attachmentForChat =
-        action.attachments?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
-      const pendingMessage: ComposerChatMessage = {
-        id: safeRandomUUID(),
-        role: "user",
-        content: prompt,
-        createdAt,
-        attachments: attachmentForChat.length ? attachmentForChat : null,
-      };
-      let baseHistory: ComposerChatMessage[] = [];
-      let threadIdForRequest: string | null = null;
-      setState((prev) => {
-        const existingHistory = prev.history ?? [];
-        baseHistory = existingHistory.slice();
-        const resolvedThreadId = prev.threadId ?? safeRandomUUID();
-        threadIdForRequest = resolvedThreadId;
-        return {
-          ...prev,
-          open: true,
-          loading: true,
-          prompt,
-          message: null,
-          choices: null,
-          history: [...existingHistory, pendingMessage],
-          threadId: resolvedThreadId,
-          clarifier: null,
-          summaryContext: null,
-          summaryResult: null,
-          summaryOptions: null,
-          summaryMessageId: null,
-        };
-      });
-      try {
-        const payload = await callAiPrompt(
-          prompt,
-          composeOptions,
-          undefined,
-          action.attachments,
-          baseHistory,
-          threadIdForRequest,
-          activeCapsuleId,
-          state.smartContextEnabled,
-        );
-        handleAiResponse(prompt, payload);
-      } catch (error) {
-        console.error("AI prompt failed", error);
-        setState((prev) => resetStateWithPreference(prev));
+      if (action.kind === "post_ai") {
+        const attachments = action.attachments && action.attachments.length ? action.attachments : undefined;
+        await handlePrompterHandoff({
+          intent: "ai_prompt",
+          prompt: action.prompt,
+          ...(attachments ? { attachments } : {}),
+          options: { composeMode: action.mode },
+        });
+        return;
+      }
+      if (action.kind === "generate") {
+        const attachments = action.attachments && action.attachments.length ? action.attachments : undefined;
+        await handlePrompterHandoff({
+          intent: "ai_prompt",
+          prompt: action.text,
+          ...(attachments ? { attachments } : {}),
+        });
+        return;
       }
     },
-    [activeCapsuleId, envelopePayload, handleAiResponse, state.smartContextEnabled],
+    [activeCapsuleId, envelopePayload, handlePrompterHandoff, setState],
   );
 
   const close = React.useCallback(
     () => setState((prev) => resetStateWithPreference(prev)),
-    [],
+    [setState],
   );
 
   const post = React.useCallback(async () => {
@@ -2003,7 +1954,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       console.error("Composer post failed", error);
       setState((prev) => ({ ...prev, loading: false }));
     }
-  }, [state.draft, state.rawPost, author.name, author.avatar, activeCapsuleId, envelopePayload]);
+  }, [
+    state.draft,
+    state.rawPost,
+    author.name,
+    author.avatar,
+    activeCapsuleId,
+    envelopePayload,
+    setState,
+  ]);
 
   const showSummary = React.useCallback(
     (
@@ -2037,15 +1996,21 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         summaryMessageId: messageId,
       }));
     },
-    [],
+    [setState],
   );
 
   const submitPrompt = React.useCallback(
-    async (promptText: string, attachments?: PrompterAttachment[] | null) => {
+    async (
+      promptText: string,
+      attachments?: PrompterAttachment[] | null,
+      options?: PromptSubmitOptions,
+    ) => {
       const trimmed = promptText.trim();
       if (!trimmed) return;
       const attachmentList = attachments && attachments.length ? attachments : undefined;
-      const expectVideo = shouldExpectVideoResponse(trimmed, attachmentList ?? null);
+      const chatOnly = options?.mode === "chatOnly";
+      const expectVideo = !chatOnly && shouldExpectVideoResponse(trimmed, attachmentList ?? null);
+      const preserveSummary = options?.preserveSummary ?? Boolean(state.summaryResult);
       const chatAttachments =
         attachmentList?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
       const pendingMessage: ComposerChatMessage = {
@@ -2073,7 +2038,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             message: "Rendering your clip...",
             memoryId: prev.videoStatus.memoryId ?? null,
           };
-        } else if (prev.videoStatus.state !== "idle") {
+        } else if (!chatOnly && prev.videoStatus.state !== "idle") {
           nextVideoStatus = createIdleVideoStatus();
         }
         return {
@@ -2084,10 +2049,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           choices: null,
           history: [...existingHistory, pendingMessage],
           threadId: resolvedThreadId,
-          summaryContext: null,
-          summaryResult: null,
-          summaryOptions: null,
-          summaryMessageId: null,
+          summaryContext: preserveSummary ? prev.summaryContext : null,
+          summaryResult: preserveSummary ? prev.summaryResult : null,
+          summaryOptions: preserveSummary ? prev.summaryOptions : null,
+          summaryMessageId: preserveSummary ? prev.summaryMessageId : null,
           videoStatus: nextVideoStatus,
         };
       });
@@ -2107,9 +2072,19 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             answer: clarifierOption.clarifier.answer,
           });
         }
+        const requestOptions: Record<string, unknown> = {};
+        if (clarifierOption?.clarifier) {
+          requestOptions.clarifier = clarifierOption.clarifier;
+        }
+        if (options?.mode === "chatOnly") {
+          requestOptions.chatOnly = true;
+          if (!requestOptions.prefer) {
+            requestOptions.prefer = "text";
+          }
+        }
         const payload = await callAiPrompt(
           trimmed,
-          clarifierOption,
+          Object.keys(requestOptions).length ? requestOptions : undefined,
           state.rawPost ?? undefined,
           attachmentList,
           previousHistory,
@@ -2117,7 +2092,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           activeCapsuleId,
           state.smartContextEnabled,
         );
-        handleAiResponse(trimmed, payload);
+        handleAiResponse(trimmed, payload, options?.mode ?? "default");
       } catch (error) {
         console.error("Composer prompt submit failed", error);
         const errorMessage =
@@ -2148,9 +2123,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     [
       activeCapsuleId,
       handleAiResponse,
+      setState,
       state.clarifier,
       state.rawPost,
       state.smartContextEnabled,
+      state.summaryResult,
     ],
   );
 
@@ -2197,6 +2174,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     [
       activeCapsuleId,
       handleAiResponse,
+      setState,
       state.history,
       state.prompt,
       state.rawPost,
@@ -2207,7 +2185,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const updateDraft = React.useCallback((draft: ComposerDraft) => {
     setState((prev) => ({ ...prev, draft }));
-  }, []);
+  }, [setState]);
 
   const sidebarData = React.useMemo<ComposerSidebarData>(() => {
     const recentChats = sidebarStore.recentChats.map((entry) => {
@@ -2259,6 +2237,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       feedTarget,
       activeCapsuleId,
       handlePrompterAction,
+      handlePrompterHandoff,
       close,
       post,
       submitPrompt,
@@ -2284,6 +2263,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     feedTarget,
     activeCapsuleId,
     handlePrompterAction,
+    handlePrompterHandoff,
     close,
     post,
     submitPrompt,

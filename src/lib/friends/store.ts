@@ -9,8 +9,10 @@ import {
   hasRealFriends,
   applyPresenceToSummaries,
   FALLBACK_DISPLAY_FRIENDS,
+  mapCapsuleInviteSummaries,
 } from "@/lib/friends/transformers";
 import type {
+  CapsuleInviteItem,
   FriendsChannelInfo,
   FriendsCounters,
   FriendItem,
@@ -40,6 +42,7 @@ type FriendsState = {
   incomingRequests: RequestItem[];
   outgoingRequests: RequestItem[];
   partyInvites: PartyInviteItem[];
+  capsuleInvites: CapsuleInviteItem[];
   counters: FriendsCounters;
   error: string | null;
   lastUpdatedAt: number | null;
@@ -55,6 +58,11 @@ type FriendsStoreDependencies = {
     inviteId: string,
     action: "accept" | "decline",
   ) => Promise<PartyInviteSummary>;
+  respondCapsuleInvite: (
+    capsuleId: string,
+    requestId: string,
+    action: "accept" | "decline",
+  ) => Promise<void>;
 };
 
 type RefreshOptions = {
@@ -74,6 +82,7 @@ const initialState: FriendsState = {
   incomingRequests: [],
   outgoingRequests: [],
   partyInvites: [],
+  capsuleInvites: [],
   counters: { friends: 0, chats: 0, requests: 0 },
   error: null,
   lastUpdatedAt: null,
@@ -93,6 +102,21 @@ const defaultDependencies: FriendsStoreDependencies = {
     return Array.isArray(response?.incoming) ? response.incoming : [];
   },
   respondInvite: respondToPartyInvite,
+  respondCapsuleInvite: async (capsuleId, requestId, action) => {
+    const res = await fetch(`/api/capsules/${capsuleId}/membership`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: action === "accept" ? "accept_invite" : "decline_invite",
+        requestId,
+      }),
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || "Unable to update capsule invite.");
+    }
+    await res.json().catch(() => null);
+  },
 };
 
 function clonePresence(map: PresenceMap): PresenceMap {
@@ -144,10 +168,17 @@ export class FriendsStore {
       const graph = next.graph ?? prev.graph;
       const presence = next.presence ?? prev.presence ?? emptyPresence;
       const partyInvites = next.partyInvites ?? prev.partyInvites;
+      const capsuleInvites =
+        next.capsuleInvites ?? mapCapsuleInviteSummaries(graph?.capsuleInvites ?? []);
       const friends = applyPresenceToSummaries(graph, presence);
       const incomingRequests = mapRequestSummaries(graph?.incomingRequests ?? [], "incoming");
       const outgoingRequests = mapRequestSummaries(graph?.outgoingRequests ?? [], "outgoing");
-      const counters = deriveCounters(graph?.friends ?? [], graph?.incomingRequests ?? [], partyInvites);
+      const counters = deriveCounters(
+        graph?.friends ?? [],
+        graph?.incomingRequests ?? [],
+        partyInvites,
+        capsuleInvites,
+      );
       const hasFriends = hasRealFriends(graph?.friends ?? []);
 
       return {
@@ -160,6 +191,7 @@ export class FriendsStore {
         incomingRequests,
         outgoingRequests,
         partyInvites,
+        capsuleInvites,
         counters,
       };
     });
@@ -185,12 +217,14 @@ export class FriendsStore {
           this.deps.fetchInvites(),
         ]);
         const inviteItems = mapPartyInviteSummaries(invites);
+        const capsuleInviteItems = mapCapsuleInviteSummaries(snapshot.graph?.capsuleInvites ?? []);
         this.recompute({
           status: "ready",
           viewerId: snapshot.viewerId ?? null,
           channels: snapshot.channels ?? null,
           graph: snapshot.graph,
           partyInvites: inviteItems,
+          capsuleInvites: capsuleInviteItems,
           error: null,
           lastUpdatedAt: Date.now(),
         });
@@ -269,6 +303,14 @@ export class FriendsStore {
     return this.handleInviteResponse(inviteId, "decline");
   }
 
+  async acceptCapsuleInvite(capsuleId: string, requestId: string): Promise<void> {
+    await this.handleCapsuleInviteResponse(capsuleId, requestId, "accept");
+  }
+
+  async declineCapsuleInvite(capsuleId: string, requestId: string): Promise<void> {
+    await this.handleCapsuleInviteResponse(capsuleId, requestId, "decline");
+  }
+
   private async handleInviteResponse(
     inviteId: string,
     action: "accept" | "decline",
@@ -283,6 +325,25 @@ export class FriendsStore {
         },
       });
       return invite;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async handleCapsuleInviteResponse(
+    capsuleId: string,
+    requestId: string,
+    action: "accept" | "decline",
+  ): Promise<void> {
+    try {
+      await this.deps.respondCapsuleInvite(capsuleId, requestId, action);
+      this.recompute({
+        capsuleInvites: this.state.capsuleInvites.filter((invite) => invite.id !== requestId),
+        counters: {
+          ...this.state.counters,
+          requests: Math.max(0, this.state.counters.requests - 1),
+        },
+      });
     } catch (error) {
       throw error;
     }
@@ -326,6 +387,8 @@ type FriendsActions = {
   ) => Promise<void>;
   acceptPartyInvite: (inviteId: string) => Promise<PartyInviteSummary>;
   declinePartyInvite: (inviteId: string) => Promise<PartyInviteSummary>;
+  acceptCapsuleInvite: (capsuleId: string, requestId: string) => Promise<void>;
+  declineCapsuleInvite: (capsuleId: string, requestId: string) => Promise<void>;
   mutate: (input: FriendMutationActionInput) => Promise<FriendMutationActionResult>;
 };
 
@@ -340,6 +403,10 @@ const actions: FriendsActions = {
     getFriendsStore().performTargetedMutation(action, target),
   acceptPartyInvite: (inviteId) => getFriendsStore().acceptPartyInvite(inviteId),
   declinePartyInvite: (inviteId) => getFriendsStore().declinePartyInvite(inviteId),
+  acceptCapsuleInvite: (capsuleId, requestId) =>
+    getFriendsStore().acceptCapsuleInvite(capsuleId, requestId),
+  declineCapsuleInvite: (capsuleId, requestId) =>
+    getFriendsStore().declineCapsuleInvite(capsuleId, requestId),
   mutate: (input) => getFriendsStore().mutate(input),
 };
 

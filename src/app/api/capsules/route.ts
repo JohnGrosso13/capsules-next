@@ -24,7 +24,7 @@ const listResponseSchema = z.object({
       promoTileUrl: z.string().nullable(),
       logoUrl: z.string().nullable(),
       role: z.string().nullable(),
-      ownership: z.union([z.literal("owner"), z.literal("member")]),
+      ownership: z.union([z.literal("owner"), z.literal("member"), z.literal("follower")]),
     }),
   ),
 });

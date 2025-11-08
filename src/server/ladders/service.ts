@@ -32,6 +32,7 @@ import type {
   LadderVisibility,
 } from "@/types/ladders";
 import { findCapsuleById, getCapsuleMemberRecord } from "@/server/capsules/repository";
+import { enqueueCapsuleKnowledgeRefresh } from "@/server/capsules/knowledge";
 import { randomUUID } from "crypto";
 import { AIConfigError, callOpenAIChat, extractJSON } from "@/lib/ai/prompter";
 
@@ -936,6 +937,8 @@ export async function createCapsuleLadder(
     members = await replaceCapsuleLadderMemberRecords(ladder.id, input.members);
   }
 
+  enqueueCapsuleKnowledgeRefresh(context.capsuleId, null);
+
   return { ladder, members };
 }
 
@@ -986,6 +989,8 @@ export async function updateCapsuleLadder(
     members = await replaceCapsuleLadderMemberRecords(ladderId, nextMembers);
   }
 
+  enqueueCapsuleKnowledgeRefresh(existing.capsuleId, null);
+
   return members !== undefined ? { ladder: updated, members } : { ladder: updated };
 }
 
@@ -996,6 +1001,7 @@ export async function deleteCapsuleLadder(actorId: string, ladderId: string): Pr
   }
   await requireCapsuleManager(existing.capsuleId, actorId);
   await deleteCapsuleLadderRecord(ladderId);
+  enqueueCapsuleKnowledgeRefresh(existing.capsuleId, null);
 }
 
 export async function getCapsuleLadderForViewer(

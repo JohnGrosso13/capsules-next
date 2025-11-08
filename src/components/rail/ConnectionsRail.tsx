@@ -169,12 +169,15 @@ export function ConnectionsRail() {
     incomingRequests,
     outgoingRequests,
     partyInvites,
+    capsuleInvites,
     removeFriend,
     acceptRequest,
     declineRequest,
     cancelRequest,
     acceptPartyInvite,
     declinePartyInvite,
+    acceptCapsuleInvite,
+    declineCapsuleInvite,
   } = useFriendsDataContext();
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
@@ -665,6 +668,30 @@ export function ConnectionsRail() {
     [declinePartyInvite],
   );
 
+  const handleAcceptCapsuleInvite = React.useCallback(
+    async (capsuleId: string, requestId: string) => {
+      try {
+        await acceptCapsuleInvite(capsuleId, requestId);
+        setRailMode("connections");
+        setActiveRailTab("friends");
+      } catch (error) {
+        console.error("Capsule invite accept error", error);
+      }
+    },
+    [acceptCapsuleInvite],
+  );
+
+  const handleDeclineCapsuleInvite = React.useCallback(
+    async (capsuleId: string, requestId: string) => {
+      try {
+        await declineCapsuleInvite(capsuleId, requestId);
+      } catch (error) {
+        console.error("Capsule invite decline error", error);
+      }
+    },
+    [declineCapsuleInvite],
+  );
+
   React.useEffect(() => {
     setRailMode("tiles");
     setActiveRailTab("friends");
@@ -855,11 +882,14 @@ export function ConnectionsRail() {
               incoming={incomingRequests}
               outgoing={outgoingRequests}
               partyInvites={partyInvites}
+              capsuleInvites={capsuleInvites}
               onAccept={handleAccept}
               onDecline={handleDecline}
               onCancel={handleCancel}
               onAcceptInvite={handleAcceptInvite}
               onDeclineInvite={handleDeclineInvite}
+              onAcceptCapsuleInvite={handleAcceptCapsuleInvite}
+              onDeclineCapsuleInvite={handleDeclineCapsuleInvite}
             />
           </div>
           {/* Overlay for group chat create/invite */}
