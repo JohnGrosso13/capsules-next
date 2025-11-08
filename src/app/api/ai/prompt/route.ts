@@ -283,6 +283,7 @@ export async function POST(req: Request) {
       message,
       history: previousHistory,
       origin: requestOrigin ?? null,
+      capsuleId,
     }),
     buildUserCard(ownerId),
     capsuleHistoryPromise,

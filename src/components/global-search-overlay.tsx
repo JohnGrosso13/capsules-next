@@ -11,6 +11,7 @@ import type {
   MemorySearchItem,
   MemorySearchResult,
   UserSearchResult,
+  CapsuleRecordSearchResult,
 } from "@/types/search";
 
 import styles from "./global-search.module.css";
@@ -18,17 +19,25 @@ import styles from "./global-search.module.css";
 const SEARCH_EVENT_NAME = "capsules:search:open";
 const DEBOUNCE_DELAY_MS = 140;
 const MIN_QUERY_LENGTH = 2;
+const RECORD_KIND_LABEL: Record<CapsuleRecordSearchResult["kind"], string> = {
+  membership: "Membership",
+  posts: "Posts",
+  files: "Files",
+  ladder: "Ladder",
+};
 
 const SECTION_LABEL: Record<GlobalSearchSection["type"], string> = {
   users: "People",
   capsules: "Capsules",
   memories: "Memories",
+  capsule_records: "Capsule records",
 };
 
 const SECTION_PRIORITY: Record<GlobalSearchSection["type"], number> = {
   users: 0,
   capsules: 1,
-  memories: 2,
+  capsule_records: 2,
+  memories: 3,
 };
 
 function normalizeSections(
@@ -291,6 +300,30 @@ export function GlobalSearchOverlay() {
     );
   };
 
+  const formatRecordKind = (kind: CapsuleRecordSearchResult["kind"]): string => {
+    return RECORD_KIND_LABEL[kind] ?? kind;
+  };
+
+  const renderCapsuleRecordItem = (item: CapsuleRecordSearchResult) => {
+    const isClickable = Boolean(item.url);
+    return (
+      <button
+        key={`record-${item.id}`}
+        type="button"
+        className={styles.recordResult}
+        onClick={() => (item.url ? handleNavigate(item.url) : undefined)}
+        disabled={!isClickable}
+      >
+        <div className={styles.recordHeader}>
+          <span className={styles.recordKind}>{formatRecordKind(item.kind)}</span>
+          {item.subtitle ? <span className={styles.recordSubtitle}>{item.subtitle}</span> : null}
+        </div>
+        <p className={styles.recordTitle}>{item.title}</p>
+        <p className={styles.recordDetail}>{item.detail}</p>
+      </button>
+    );
+  };
+
   const renderSection = (section: GlobalSearchSection) => {
     if (!section.items.length) return null;
     if (section.type === "users") {
@@ -311,6 +344,18 @@ export function GlobalSearchOverlay() {
           </header>
           <div className={styles.sectionItems}>
             {section.items.map((item) => renderCapsuleItem(item))}
+          </div>
+        </section>
+      );
+    }
+    if (section.type === "capsule_records") {
+      return (
+        <section key="capsule-records" className={styles.section}>
+          <header className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>{SECTION_LABEL.capsule_records}</span>
+          </header>
+          <div className={styles.recordList}>
+            {section.items.map((item) => renderCapsuleRecordItem(item))}
           </div>
         </section>
       );

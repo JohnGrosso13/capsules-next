@@ -4,6 +4,11 @@ import {
   searchCapsuleKnowledgeSnippets,
   type CapsuleKnowledgeSnippet,
 } from "@/server/capsules/knowledge-index";
+import {
+  fetchStructuredPayloads,
+  parseStructuredQuery,
+  type StructuredPayload,
+} from "@/server/capsules/structured";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 import type {
   CapsuleHistorySection,
@@ -127,6 +132,132 @@ function collectSnippet(row: RawMemoryRow): ChatMemorySnippet | null {
   };
 }
 
+async function resolveStructuredSnippets(params: {
+  capsuleId?: string | null;
+  query: string;
+}): Promise<ChatMemorySnippet[]> {
+  const capsuleId = normalizeCapsuleId(params.capsuleId ?? null);
+  if (!capsuleId) return [];
+  const intents = parseStructuredQuery(params.query);
+  if (!intents.length) return [];
+  try {
+    const payloads = await fetchStructuredPayloads({ capsuleId, intents });
+    return payloads
+      .map((payload, index) => structuredPayloadToSnippet(payload, index))
+      .filter((snippet): snippet is ChatMemorySnippet => Boolean(snippet));
+  } catch (error) {
+    console.warn("structured snippets fetch failed", { capsuleId, error });
+    return [];
+  }
+}
+
+function structuredPayloadToSnippet(
+  payload: StructuredPayload,
+  index: number,
+): ChatMemorySnippet | null {
+  switch (payload.kind) {
+    case "membership": {
+      const roleLine = payload.roleCounts
+        .slice(0, 3)
+        .map((entry) => `${entry.role}: ${entry.count}`)
+        .join(" | ");
+      const recentLine =
+        payload.recentJoins.length && payload.recentJoins[0]
+          ? `Recent joins - ${payload.recentJoins[0].label}: ${payload.recentJoins[0].count}`
+          : null;
+      const snippetLines = [
+        `Members: ${payload.totalMembers}`,
+        roleLine ? `Roles: ${roleLine}` : null,
+        recentLine,
+      ].filter((line): line is string => Boolean(line));
+      if (!snippetLines.length) return null;
+      return {
+        id: `capsule-structured:membership:${index}`,
+        title: "Membership stats",
+        snippet: snippetLines.join("\n"),
+        kind: "capsule_membership_stats",
+        url: null,
+        createdAt: null,
+        tags: ["membership", "structured"],
+        source: "capsule_membership",
+      };
+    }
+    case "posts": {
+      if (!payload.posts.length) return null;
+      const lines = payload.posts
+        .slice(0, 4)
+        .map((post) => {
+          const date = formatShortDate(post.createdAt);
+          return `- ${post.author}${date ? ` (${date})` : ""}: ${post.title}`;
+        });
+      return {
+        id: `capsule-structured:posts:${index}`,
+        title: payload.filters.author ? `Posts by ${payload.filters.author}` : "Recent posts",
+        snippet: lines.join("\n"),
+        kind: "capsule_posts_structured",
+        url: null,
+        createdAt: payload.posts[0]?.createdAt ?? null,
+        tags: ["posts", "structured"],
+        source: "capsule_post",
+      };
+    }
+    case "files": {
+      if (!payload.files.length) return null;
+      const lines = payload.files
+        .slice(0, 4)
+        .map((file) => `- ${file.title}${file.mimeType ? ` (${file.mimeType})` : ""}`);
+      return {
+        id: `capsule-structured:files:${index}`,
+        title: payload.fileType ? `${payload.fileType.toUpperCase()} files` : "Capsule files",
+        snippet: lines.join("\n"),
+        kind: "capsule_files_structured",
+        url: payload.files[0]?.url ?? null,
+        createdAt: null,
+        tags: ["files", "structured"],
+        source: "capsule_asset",
+      };
+    }
+    case "ladder": {
+      if (!payload.standings.length) return null;
+      const lines = payload.standings
+        .slice(0, 5)
+        .map(
+          (entry, idx) =>
+            `${idx + 1}. ${entry.displayName}${
+              entry.record ? ` (${entry.record})` : entry.rating ? ` (ELO ${entry.rating})` : ""
+            }`,
+        );
+      return {
+        id: `capsule-structured:ladder:${payload.ladder.id}`,
+        title: `${payload.ladder.name} standings`,
+        snippet: lines.join("\n"),
+        kind: "capsule_ladder_results",
+        url: null,
+        createdAt: payload.ladder.updatedAt ?? payload.ladder.createdAt ?? null,
+        tags: ["ladder", "structured"],
+        source: "capsule_ladder",
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+function formatShortDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  } catch {
+    const [datePart] = date.toISOString().split("T");
+    return datePart ?? null;
+  }
+}
+
 function buildQueryFromHistory(
   latest: string,
   history: ComposerChatMessage[] | undefined,
@@ -155,6 +286,7 @@ export async function getChatContext(params: {
   history?: ComposerChatMessage[];
   limit?: number;
   origin?: string | null;
+  capsuleId?: string | null;
 }): Promise<ChatContextResult | null> {
   const ownerId = coerceString(params.ownerId);
   const message = coerceString(params.message);
@@ -173,18 +305,21 @@ export async function getChatContext(params: {
       origin: params.origin ?? null,
     });
 
-    if (!Array.isArray(rows) || !rows.length) {
-      return { query, snippets: [], usedIds: [] };
-    }
-
     const snippets = rows
       .map((row) => collectSnippet(row as RawMemoryRow))
       .filter((snippet): snippet is ChatMemorySnippet => Boolean(snippet));
 
+    const structured = await resolveStructuredSnippets({
+      capsuleId: params.capsuleId ?? null,
+      query,
+    });
+
+    const finalSnippets = structured.length ? [...structured, ...snippets] : snippets;
+
     return {
       query,
-      snippets,
-      usedIds: snippets.map((snippet) => snippet.id),
+      snippets: finalSnippets,
+      usedIds: finalSnippets.map((snippet) => snippet.id),
     };
   } catch (error) {
     console.warn("chat retrieval failed", error);
@@ -211,7 +346,7 @@ export function formatContextForPrompt(input: ChatContextResult | null): string 
     }
     lines.push("---");
   });
-  lines.push("When useful, cite memories by their Memory # to ground your response.");
+  lines.push("Always cite supporting statements using [Memory #n].");
 
   return lines.join("\n");
 }
@@ -232,12 +367,12 @@ function normalizeCapsuleId(value: string | null | undefined): string | null {
 
 function truncateSnippet(value: string, limit = 800): string {
   if (value.length <= limit) return value;
-  return `${value.slice(0, limit - 1)}…`;
+  return `${value.slice(0, limit - 3)}...`;
 }
 
 function buildTimeframeLabel(section: CapsuleHistorySection): string | null {
   const { start, end } = section.timeframe ?? {};
-  if (start && end && start !== end) return `${start} → ${end}`;
+  if (start && end && start !== end) return `${start} -> ${end}`;
   if (start) return start;
   if (end) return end;
   return null;

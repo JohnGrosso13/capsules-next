@@ -10,8 +10,15 @@ import type {
   MemorySearchResult,
   MemorySearchItem,
   UserSearchResult,
+  CapsuleRecordSearchResult,
 } from "@/types/search";
 import type { CapsuleKnowledgeSnippet } from "@/server/capsules/knowledge-index";
+import {
+  fetchStructuredPayloads,
+  parseStructuredQuery,
+  structuredPayloadToRecords,
+  type StructuredRecord,
+} from "@/server/capsules/structured";
 
 const USER_SECTION_LIMIT = 6;
 const CAPSULE_SECTION_LIMIT = 6;
@@ -272,6 +279,17 @@ function mapKnowledgeSnippet(snippet: CapsuleKnowledgeSnippet): MemorySearchItem
   };
 }
 
+function mapStructuredRecord(record: StructuredRecord): CapsuleRecordSearchResult {
+  return {
+    id: record.id,
+    title: record.title,
+    subtitle: record.subtitle,
+    detail: record.detail,
+    kind: record.kind,
+    url: null,
+  };
+}
+
 export async function globalSearch({
   ownerId,
   query,
@@ -304,12 +322,33 @@ export async function globalSearch({
       : Promise.resolve([]),
   ]);
 
+  let capsuleRecords: CapsuleRecordSearchResult[] = [];
+  if (capsuleId) {
+    const structuredIntents = parseStructuredQuery(trimmed);
+    if (structuredIntents.length) {
+      try {
+        const structuredPayloads = await fetchStructuredPayloads({
+          capsuleId,
+          intents: structuredIntents,
+        });
+        capsuleRecords = structuredPayloads
+          .flatMap((payload) => structuredPayloadToRecords(payload))
+          .map((record) => mapStructuredRecord(record));
+      } catch (error) {
+        console.warn("capsule structured search failed", { capsuleId, error });
+      }
+    }
+  }
+
   const sections: GlobalSearchSection[] = [];
   if (users.length) {
     sections.push({ type: "users", items: users });
   }
   if (capsules.length) {
     sections.push({ type: "capsules", items: capsules });
+  }
+  if (capsuleRecords.length) {
+    sections.push({ type: "capsule_records", items: capsuleRecords });
   }
 
   const combinedMemoryItems: MemorySearchItem[] = [

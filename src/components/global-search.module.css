@@ -289,6 +289,70 @@
   color: var(--text-3);
 }
 
+.recordList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recordResult {
+  width: 100%;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface-elevated) 90%, transparent);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.recordResult:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.recordResult:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--color-brand) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--surface-elevated) 95%, transparent);
+}
+
+.recordHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.recordKind {
+  font-weight: 600;
+  color: color-mix(in srgb, var(--color-brand) 80%, var(--text));
+}
+
+.recordSubtitle {
+  color: var(--text-3);
+}
+
+.recordTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.recordDetail {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-2);
+}
+
 @media (max-width: 720px) {
   .panel {
     border-radius: 22px;

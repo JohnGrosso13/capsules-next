@@ -453,13 +453,16 @@ export async function listAllCapsules(): Promise<Array<{ id: string; name: strin
     throw decorateDatabaseError("capsules.listAll", result.error);
   }
 
-  return (result.data ?? [])
-    .map((row) => {
-      const id = normalizeString(row?.id);
-      if (!id) return null;
-      return { id, name: normalizeName(row?.name ?? null) };
-    })
-    .filter((entry): entry is { id: string; name: string | null } => Boolean(entry));
+  const entries: Array<{ id: string; name: string | null }> = [];
+  for (const row of result.data ?? []) {
+    const id = normalizeString(row?.id);
+    if (!id) continue;
+    entries.push({
+      id,
+      name: normalizeString(row?.name ?? null),
+    });
+  }
+  return entries;
 }
 
 export async function listRecentPublicCapsules(
