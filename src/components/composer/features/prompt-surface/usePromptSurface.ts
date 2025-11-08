@@ -246,18 +246,26 @@ export function usePromptSurface({
 
   const handlePromptRun = React.useCallback(
     (nextPrompt: string, config?: PromptRunConfig) => {
-      runPrompt(nextPrompt, {
+      let submitOptions: PromptSubmitOptions | undefined;
+      if (config?.mode || config?.preserveSummary !== undefined) {
+        submitOptions = {};
+        if (config.mode) {
+          submitOptions.mode = config.mode;
+        }
+        if (config.preserveSummary !== undefined) {
+          submitOptions.preserveSummary = config.preserveSummary;
+        }
+      }
+      const runOptions: RunPromptOptions = {
         attachments: config?.attachments ?? null,
-        includeReadyAttachment: config?.includeReadyAttachment ?? true,
+        includeReadyAttachment:
+          config?.includeReadyAttachment !== undefined ? config.includeReadyAttachment : true,
         immediateReset: true,
-        submitOptions:
-          config?.mode || config?.preserveSummary
-            ? {
-                mode: config?.mode,
-                preserveSummary: config?.preserveSummary,
-              }
-            : undefined,
-      });
+      };
+      if (submitOptions) {
+        runOptions.submitOptions = submitOptions;
+      }
+      runPrompt(nextPrompt, runOptions);
     },
     [runPrompt],
   );

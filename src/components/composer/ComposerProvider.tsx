@@ -1447,10 +1447,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         let historyForState =
           normalizedHistory.length > 0 ? normalizedHistory : prev.history ?? [];
         if (mode === "chatOnly" && messageText) {
+          const safeMessageText = messageText;
           const lastIndex = historyForState.length - 1;
-          if (lastIndex >= 0 && historyForState[lastIndex].role === "assistant") {
+          const lastEntry = lastIndex >= 0 ? historyForState[lastIndex] : null;
+          if (lastEntry && lastEntry.role === "assistant") {
             const updatedHistory = historyForState.map((entry, index) =>
-              index === lastIndex ? { ...entry, content: messageText ?? entry.content } : entry,
+              index === lastIndex ? { ...entry, content: safeMessageText } : entry,
             );
             historyForState = updatedHistory;
           } else {
@@ -1459,7 +1461,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
               {
                 id: safeRandomUUID(),
                 role: "assistant",
-                content: messageText,
+                content: safeMessageText,
                 createdAt: new Date().toISOString(),
                 attachments: null,
               },
@@ -1473,16 +1475,19 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         }
         const preserveOptions =
           applyDraftUpdates && shouldPreservePollOptions(prompt, prev.draft ?? null);
-        const baseDraft = applyDraftUpdates ? normalizeDraftFromPost(rawPost) : prev.draft ?? null;
-        const mergedDraft = applyDraftUpdates
-          ? mergeComposerDrafts(prev.draft, baseDraft, {
-              preservePollOptions: preserveOptions,
-            })
-          : prev.draft ?? null;
+        let mergedDraft: ComposerDraft | null = prev.draft ?? null;
+        let mergedRawPost: Record<string, unknown> | null;
+        if (applyDraftUpdates) {
+          const baseDraft = normalizeDraftFromPost(rawPost);
+          const draftForMerge = mergeComposerDrafts(prev.draft, baseDraft, {
+            preservePollOptions: preserveOptions,
+          });
+          mergedDraft = draftForMerge;
+          mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, draftForMerge);
+        } else {
+          mergedRawPost = prev.rawPost ?? rawPost ?? null;
+        }
         recordedDraft = mergedDraft;
-        const mergedRawPost = applyDraftUpdates
-          ? mergeComposerRawPost(prev.rawPost ?? null, rawPost, mergedDraft)
-          : prev.rawPost ?? rawPost ?? null;
         recordedRawPost = mergedRawPost;
         const rawVideoRunId =
           typeof (mergedRawPost as { video_run_id?: unknown }).video_run_id === "string"

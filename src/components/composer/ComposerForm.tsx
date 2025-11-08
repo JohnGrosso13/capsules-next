@@ -40,7 +40,11 @@ import { ensurePollStructure, isComposerDraftReady, type ComposerDraft } from "@
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
 import type { ComposerChatMessage, ComposerChatAttachment } from "@/lib/composer/chat-types";
 import { extractFileFromDataTransfer } from "@/lib/clipboard/files";
-import type { SummaryConversationContext, SummaryPresentationOptions } from "@/lib/composer/summary-context";
+import type {
+  SummaryConversationContext,
+  SummaryConversationEntry,
+  SummaryPresentationOptions,
+} from "@/lib/composer/summary-context";
 import type { SummaryResult } from "@/types/summary";
 import { useCurrentUser } from "@/services/auth/client";
 import { SummaryContextPanel } from "./components/SummaryContextPanel";
@@ -714,7 +718,7 @@ export function ComposerForm({
     return {
       questionId: clarifierInput.questionId,
       question: clarifierInput.question,
-      rationale: clarifierInput.rationale,
+      rationale: clarifierInput.rationale ?? null,
       suggestions: clarifierInput.suggestions ?? [],
       styleTraits: clarifierInput.styleTraits ?? [],
     };
