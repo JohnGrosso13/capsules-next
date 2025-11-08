@@ -274,6 +274,7 @@ function SidebarSection({
         <ol className={styles.memoryList}>
           {visibleItems.map((item) => {
             const cardClass = `${styles.memoryCard}${item.active ? ` ${styles.memoryCardActive}` : ""}`;
+            const iconNode = item.icon ?? itemIcon ?? null;
             const thumbClass = `${styles.memoryThumb}${thumbClassName ? ` ${thumbClassName}` : ""}`;
             return (
               <li key={item.id}>
@@ -285,7 +286,7 @@ function SidebarSection({
                   title={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
                   aria-label={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
                 >
-                  <span className={thumbClass}>{item.icon ?? itemIcon ?? null}</span>
+                  {iconNode ? <span className={thumbClass}>{iconNode}</span> : null}
                   <span className={styles.memoryMeta}>
                     <span className={styles.memoryName}>{item.title}</span>
                     {item.subtitle ? (
@@ -2050,7 +2051,6 @@ export function ComposerForm({
     [onSelectProject, sidebar.projects, sidebar.selectedProjectId],
   );
 
-  const recentItemIcon = React.useMemo(() => <ChatsTeardrop size={18} weight="duotone" />, []);
   const RECENT_VISIBLE_LIMIT = 6;
   const recentHasOverflow = recentSidebarItems.length > RECENT_VISIBLE_LIMIT;
   const handleShowRecentModal = React.useCallback(() => {
@@ -2085,7 +2085,6 @@ export function ComposerForm({
             description="Pick up where you and Capsule left off."
             items={recentSidebarItems}
             emptyMessage="No chats yet"
-            itemIcon={recentItemIcon}
             thumbClassName={styles.memoryThumbChat ?? ""}
             maxVisible={RECENT_VISIBLE_LIMIT}
             {...(recentActionProps ?? {})}
@@ -2144,7 +2143,6 @@ export function ComposerForm({
     handleMemoryPickerOpen,
     projectSidebarItems,
     recentActionProps,
-    recentItemIcon,
     recentSidebarItems,
   ]);
 
@@ -2200,6 +2198,7 @@ export function ComposerForm({
                   const cardClass = `${styles.memoryCard}${
                     item.active ? ` ${styles.memoryCardActive}` : ""
                   }`;
+                  const iconNode = item.icon ?? null;
                   const thumbClass = `${styles.memoryThumb} ${styles.memoryThumbChat ?? ""}`;
                   return (
                     <li key={`recent-modal-${item.id}`}>
@@ -2211,7 +2210,7 @@ export function ComposerForm({
                         title={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
                         aria-label={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
                       >
-                        <span className={thumbClass}>{item.icon ?? recentItemIcon}</span>
+                        {iconNode ? <span className={thumbClass}>{iconNode}</span> : null}
                         <span className={styles.memoryMeta}>
                           <span className={styles.memoryName}>{item.title}</span>
                           {item.subtitle ? (
@@ -3076,27 +3075,30 @@ export function ComposerForm({
   );
 
   const renderMobileListItem = React.useCallback(
-    (item: SidebarListItem, fallbackIcon?: React.ReactNode) => (
-      <li key={item.id}>
-        <button
-          type="button"
-          onClick={() => {
-            item.onClick();
-            closeMobileRail();
-          }}
-          disabled={item.disabled}
-          data-active={item.active ? "true" : undefined}
-        >
-          <span className={styles.mobileSheetListIcon}>{item.icon ?? fallbackIcon ?? null}</span>
-          <span className={styles.mobileSheetListMeta}>
-            <span className={styles.mobileSheetListTitle}>{item.title}</span>
-            {item.subtitle ? (
-              <span className={styles.mobileSheetListCaption}>{item.subtitle}</span>
-            ) : null}
-          </span>
-        </button>
-      </li>
-    ),
+    (item: SidebarListItem, fallbackIcon?: React.ReactNode) => {
+      const iconNode = item.icon ?? fallbackIcon ?? null;
+      return (
+        <li key={item.id}>
+          <button
+            type="button"
+            onClick={() => {
+              item.onClick();
+              closeMobileRail();
+            }}
+            disabled={item.disabled}
+            data-active={item.active ? "true" : undefined}
+          >
+            {iconNode ? <span className={styles.mobileSheetListIcon}>{iconNode}</span> : null}
+            <span className={styles.mobileSheetListMeta}>
+              <span className={styles.mobileSheetListTitle}>{item.title}</span>
+              {item.subtitle ? (
+                <span className={styles.mobileSheetListCaption}>{item.subtitle}</span>
+              ) : null}
+            </span>
+          </button>
+        </li>
+      );
+    },
     [closeMobileRail],
   );
 
@@ -3151,9 +3153,7 @@ export function ComposerForm({
                   </header>
                   {recentSidebarItems.length ? (
                     <ul className={styles.mobileSheetList} role="list">
-                      {recentSidebarItems.map((item) =>
-                        renderMobileListItem(item, recentItemIcon),
-                      )}
+                      {recentSidebarItems.map((item) => renderMobileListItem(item))}
                     </ul>
                   ) : (
                     <div className={styles.memoryEmpty}>No chats yet</div>

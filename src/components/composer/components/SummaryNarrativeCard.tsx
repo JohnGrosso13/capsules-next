@@ -4,10 +4,7 @@ import * as React from "react";
 
 import styles from "../../ai-composer.module.css";
 import type { SummaryResult } from "@/types/summary";
-import type {
-  SummaryConversationEntry,
-  SummaryPresentationOptions,
-} from "@/lib/composer/summary-context";
+import type { SummaryConversationEntry, SummaryPresentationOptions } from "@/lib/composer/summary-context";
 
 type SummaryNarrativeCardProps = {
   result: SummaryResult;
@@ -98,145 +95,99 @@ export function SummaryNarrativeCard({
 }: SummaryNarrativeCardProps) {
   const resolveEntry = React.useMemo(() => buildEntryResolver(entries), [entries]);
 
-  const introLabel = React.useMemo(() => {
-    const sourceLabel = options?.sourceLabel?.trim();
-    if (sourceLabel && sourceLabel.length) {
-      return `You're all caught up on ${sourceLabel}.`;
-    }
-    return "You're all caught up.";
-  }, [options?.sourceLabel]);
-
-  const summaryParagraphs = React.useMemo(() => {
-    return result.summary
-      .split(/\n+/)
-      .map((segment) => segment.trim())
-      .filter((segment) => segment.length > 0);
-  }, [result.summary]);
-
   const headlineHighlights = React.useMemo(() => {
     return result.highlights.slice(0, 5);
   }, [result.highlights]);
 
   const remainingHighlightCount = Math.max(0, result.highlights.length - headlineHighlights.length);
 
-  const showPostSuggestion = Boolean(result.postTitle || result.postPrompt);
-
   const handleLineSelect = React.useCallback(
-    (id: string, text: string) => {
-      const entry = resolveEntry(text, id);
+    (entry: SummaryConversationEntry) => {
       if (selectedEntry?.id === entry.id) {
         onSelectEntry(null);
         return;
       }
       onSelectEntry(entry);
     },
-    [onSelectEntry, resolveEntry, selectedEntry?.id],
+    [onSelectEntry, selectedEntry?.id],
   );
 
   const renderLine = React.useCallback(
     (text: string, id: string) => {
       const entry = resolveEntry(text, id);
       const isActive = selectedEntry?.id === entry.id;
+      const hasPost = Boolean(entry.postId);
       return (
-        <li key={id} className={styles.summaryNarrativeItem}>
+        <li key={id} className={styles.summaryNarrativeItem} data-active={isActive ? "true" : undefined}>
           <button
             type="button"
             className={styles.summaryNarrativeLineBtn}
             data-active={isActive ? "true" : undefined}
-            onClick={() => handleLineSelect(id, text)}
+            onClick={() => handleLineSelect(entry)}
           >
             {text}
           </button>
+          {isActive ? (
+            <div className={styles.summaryDetailPanel}>
+              <div className={styles.summaryDetailHeader}>
+                <div className={styles.summaryDetailHeading}>
+                  {entry.title ? <p className={styles.summaryDetailTitle}>{entry.title}</p> : null}
+                  {entry.author ? (
+                    <span className={styles.summaryDetailAuthor}>{entry.author}</span>
+                  ) : null}
+                </div>
+                {entry.relativeTime ? (
+                  <span className={styles.summaryDetailTimestamp}>{entry.relativeTime}</span>
+                ) : null}
+              </div>
+              {entry.summary ? (
+                <p className={styles.summaryDetailSummary}>{entry.summary}</p>
+              ) : null}
+              {entry.highlights && entry.highlights.length ? (
+                <div className={styles.summaryDetailHighlights}>
+                  {entry.highlights.map((highlight, index) => (
+                    <span key={`${entry.id}-detail-highlight-${index}`} className={styles.summaryDetailHighlight}>
+                      {highlight}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <div className={styles.summaryDetailActions}>
+                <button type="button" className={styles.summaryNarrativeActionBtn} onClick={() => onAsk(entry)}>
+                  Ask Capsule
+                </button>
+                <button
+                  type="button"
+                  className={styles.summaryNarrativeActionBtn}
+                  onClick={() => onView(entry)}
+                  disabled={!hasPost}
+                  data-disabled={!hasPost ? "true" : undefined}
+                >
+                  View Post
+                </button>
+                <button
+                  type="button"
+                  className={styles.summaryNarrativeActionBtn}
+                  onClick={() => onComment(entry)}
+                  disabled={!hasPost}
+                  data-disabled={!hasPost ? "true" : undefined}
+                >
+                  Draft Comment
+                </button>
+              </div>
+            </div>
+          ) : null}
         </li>
       );
     },
-    [handleLineSelect, resolveEntry, selectedEntry?.id],
-  );
-
-  const selectionDetails = selectedEntry ? (
-    <div className={styles.summarySelectionCard}>
-      <div className={styles.summarySelectionMeta}>
-        <div className={styles.summarySelectionIdentity}>
-          {selectedEntry.title ? (
-            <p className={styles.summarySelectionTitle}>{selectedEntry.title}</p>
-          ) : null}
-          {selectedEntry.author ? (
-            <span className={styles.summarySelectionAuthor}>{selectedEntry.author}</span>
-          ) : null}
-        </div>
-        {selectedEntry.relativeTime ? (
-          <span className={styles.summarySelectionTimestamp}>{selectedEntry.relativeTime}</span>
-        ) : null}
-      </div>
-      {selectedEntry.summary ? (
-        <p className={styles.summarySelectionSummary}>{selectedEntry.summary}</p>
-      ) : null}
-      {selectedEntry.highlights && selectedEntry.highlights.length ? (
-        <div className={styles.summarySelectionHighlights}>
-          {selectedEntry.highlights.map((highlight, index) => (
-            <span
-              key={`${selectedEntry.id}-selection-highlight-${index}`}
-              className={styles.summarySelectionHighlight}
-            >
-              {highlight}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      <div className={styles.summarySelectionActions}>
-        <button
-          type="button"
-          className={styles.summaryNarrativeActionBtn}
-          onClick={() => onAsk(selectedEntry)}
-        >
-          Ask Capsule
-        </button>
-        <button
-          type="button"
-          className={styles.summaryNarrativeActionBtn}
-          onClick={() => onView(selectedEntry)}
-          disabled={!selectedEntry.postId}
-          data-disabled={!selectedEntry.postId ? "true" : undefined}
-        >
-          View Post
-        </button>
-        <button
-          type="button"
-          className={styles.summaryNarrativeActionBtn}
-          onClick={() => onComment(selectedEntry)}
-          disabled={!selectedEntry.postId}
-          data-disabled={!selectedEntry.postId ? "true" : undefined}
-        >
-          Draft Comment
-        </button>
-      </div>
-    </div>
-  ) : (
-    <div className={styles.summarySelectionPlaceholder}>
-      <p>Tap a highlight to see the full context and quick actions.</p>
-    </div>
+    [handleLineSelect, onAsk, onComment, onView, resolveEntry, selectedEntry?.id],
   );
 
   return (
-    <section className={styles.summaryNarrativeCard} aria-label="Feed summary">
-      <header className={styles.summaryNarrativeHeader}>
-        <h3 className={styles.summaryNarrativeTitle}>{introLabel}</h3>
-        {options?.title ? (
-          <p className={styles.summaryNarrativeSubtitle}>{options.title}</p>
-        ) : null}
-        <p className={styles.summaryNarrativeNote}>
-          Capsule pulled the loudest moments so you can react, comment, or ask for help in seconds.
-        </p>
-      </header>
-
-      {summaryParagraphs.length ? (
-        <ul className={styles.summaryNarrativeList}>
-          {summaryParagraphs.map((paragraph, index) =>
-            renderLine(paragraph, `summary-${index}`),
-          )}
-        </ul>
-      ) : null}
-
+    <section
+      className={styles.summaryNarrativeCard}
+      aria-label={options?.title ?? "Highlighted feed moments"}
+    >
       {headlineHighlights.length ? (
         <div className={styles.summaryNarrativeSection}>
           <div className={styles.summaryHighlightHeading}>
@@ -247,26 +198,12 @@ export function SummaryNarrativeCard({
               </span>
             ) : null}
           </div>
-          <ul className={styles.summaryNarrativeList}>
-            {headlineHighlights.map((highlight, index) =>
-              renderLine(highlight, `highlight-${index}`),
-            )}
-          </ul>
-          <div className={styles.summarySelectionSection}>{selectionDetails}</div>
-        </div>
-      ) : null}
-
-      {showPostSuggestion ? (
-        <div className={`${styles.summaryNarrativeSection} ${styles.summaryCta}`}>
-          <div>
-            <h4 className={styles.summaryCtaTitle}>Need to respond fast?</h4>
-            <p className={styles.summaryCtaNote}>
-              Capsule can draft a reply or post. Tap to open the suggestion and fire it off.
-            </p>
-          </div>
-          <div className={styles.summaryCtaLines}>
-            {result.postTitle ? renderLine(`Title: ${result.postTitle}`, "post-title") : null}
-            {result.postPrompt ? renderLine(`Prompt: ${result.postPrompt}`, "post-prompt") : null}
+          <div className={styles.summaryNarrativeListScroll}>
+            <ul className={styles.summaryNarrativeList}>
+              {headlineHighlights.map((highlight, index) =>
+                renderLine(highlight, `highlight-${index}`),
+              )}
+            </ul>
           </div>
         </div>
       ) : null}
