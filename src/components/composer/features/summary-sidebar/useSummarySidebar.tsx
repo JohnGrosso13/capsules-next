@@ -8,6 +8,7 @@ import SummaryPreviewCommentForm from "./SummaryPreviewCommentForm";
 
 import styles from "../../../ai-composer.module.css";
 import type { SummaryConversationEntry } from "@/lib/composer/summary-context";
+import type { PromptRunMode } from "../../types";
 import { truncateText } from "../../utils/text";
 import { COMPOSER_SUMMARY_ACTION_EVENT } from "@/lib/events";
 import { homeFeedStore } from "@/hooks/useHomeFeed/homeFeedStore";
@@ -23,6 +24,10 @@ type UseSummarySidebarParams = {
   currentUser: AuthClientUser | null;
   canRemember: boolean;
   handleSuggestionSelect(prompt: string): void;
+  handlePromptRun(
+    prompt: string,
+    options?: { mode?: PromptRunMode; preserveSummary?: boolean; includeReadyAttachment?: boolean },
+  ): void;
 };
 
 export type SummarySidebarController = {
@@ -42,6 +47,7 @@ export function useSummarySidebar({
   currentUser,
   canRemember,
   handleSuggestionSelect,
+  handlePromptRun,
 }: UseSummarySidebarParams): SummarySidebarController {
   const [summaryPanelOpen, setSummaryPanelOpen] = React.useState(false);
   const [summaryPreviewEntry, setSummaryPreviewEntry] = React.useState<SummaryConversationEntry | null>(null);
@@ -111,17 +117,35 @@ export function useSummarySidebar({
 
   const handleSummaryAsk = React.useCallback(
     (entry: SummaryConversationEntry) => {
+      setSummaryPreviewEntry(entry);
       const snippet = truncateText(entry.summary ?? "", 220);
+      const highlightContext =
+        entry.highlights && entry.highlights.length ? `Highlights: ${entry.highlights.join(" | ")}` : null;
       const parts: string[] = [
-        entry.author ? `Tell me more about ${entry.author}'s update.` : "Tell me more about this update.",
+        entry.author
+          ? `Give me a friendly breakdown of ${entry.author}'s update.`
+          : "Give me a friendly breakdown of this update.",
       ];
+      if (entry.title) {
+        parts.push(`Title: ${entry.title}`);
+      }
       if (snippet) {
         parts.push(`Context: ${snippet}`);
       }
-      handleSuggestionSelect(parts.join(" "));
-      setSummaryPreviewEntry(entry);
+      if (highlightContext) {
+        parts.push(highlightContext);
+      }
+      parts.push(
+        "Explain why it matters and share two or three suggestions for how I could respond, follow up, or build on it.",
+      );
+      handlePromptRun(parts.join(" "), {
+        mode: "chatOnly",
+        preserveSummary: true,
+        includeReadyAttachment: false,
+      });
+      setSummaryPanelOpen(false);
     },
-    [handleSuggestionSelect],
+    [handlePromptRun, setSummaryPanelOpen],
   );
 
   const handleSummaryView = React.useCallback((entry: SummaryConversationEntry) => {

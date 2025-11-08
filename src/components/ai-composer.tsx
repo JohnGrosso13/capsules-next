@@ -18,6 +18,7 @@ import type { PrompterAttachment } from "@/components/ai-prompter-stage";
 import type { SummaryConversationContext, SummaryPresentationOptions } from "@/lib/composer/summary-context";
 import type { SummaryResult } from "@/types/summary";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
+import type { PromptSubmitOptions } from "./composer/types";
 
 export type { ComposerDraft } from "@/lib/composer/draft";
 
@@ -44,7 +45,11 @@ type AiComposerDrawerProps = {
   onClose(): void;
   onPost(): void;
   onSave?(projectId?: string | null): void;
-  onPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
+  onPrompt(
+    prompt: string,
+    attachments?: PrompterAttachment[] | null,
+    options?: PromptSubmitOptions,
+  ): Promise<void> | void;
   onForceChoice?(key: string): void;
   onSelectRecentChat(id: string): void;
   onSelectDraft(id: string): void;

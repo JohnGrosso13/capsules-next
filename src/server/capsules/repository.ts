@@ -499,6 +499,56 @@ export async function listCapsulesForUser(userId: string): Promise<CapsuleSummar
     .filter((entry): entry is CapsuleSummary => entry !== null);
 }
 
+export async function listCapsulesByOwnerIds(
+  ownerIds: string[],
+  options: { limit?: number } = {},
+): Promise<CapsuleSummary[]> {
+  const normalizedOwners = Array.from(
+    new Set(
+      ownerIds
+        .map((id) => normalizeString(id))
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  if (!normalizedOwners.length) {
+    return [];
+  }
+
+  const requestedLimit = typeof options.limit === "number" ? Math.floor(options.limit) : 24;
+  const limit = Math.min(Math.max(requestedLimit, 1), 64);
+
+  const result = await db
+    .from("capsules")
+    .select<CapsuleRow>(
+      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at",
+    )
+    .in("created_by_id", normalizedOwners)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.listByOwners", result.error);
+  }
+
+  const summaries: CapsuleSummary[] = [];
+  for (const row of result.data ?? []) {
+    if (!row?.id) continue;
+    summaries.push({
+      id: String(row.id),
+      name: normalizeName(row.name),
+      slug: normalizeString(row.slug),
+      bannerUrl: normalizeString(row.banner_url),
+      storeBannerUrl: normalizeString(row.store_banner_url),
+      promoTileUrl: normalizeString(row.promo_tile_url),
+      logoUrl: normalizeString(row.logo_url),
+      role: null,
+      ownership: "owner",
+    });
+  }
+  return summaries;
+}
+
 export async function listAllCapsules(): Promise<Array<{ id: string; name: string | null }>> {
   const result = await db
     .from("capsules")

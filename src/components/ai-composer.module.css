@@ -1637,6 +1637,7 @@
   gap: 1.1rem;
   min-height: 100%;
   position: relative;
+  padding-bottom: clamp(150px, 18vh, 240px);
 }
 
 .chatArea {
@@ -3229,6 +3230,9 @@
     padding: 0 12px 12px;
   }
   /* Give a bit more room to the composer on small screens */
+  .mainColumn {
+    padding-bottom: clamp(130px, 30vh, 220px);
+  }
   .chatArea {
     min-height: clamp(180px, 32vh, 320px);
   }

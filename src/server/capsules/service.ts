@@ -40,6 +40,7 @@ import {
   upsertCapsuleFollower,
   deleteCapsuleFollower,
   listCapsulesForUser,
+  listCapsulesByOwnerIds,
   listRecentPublicCapsules,
   getCapsuleSummaryForViewer as repoGetCapsuleSummaryForViewer,
   type CapsuleSummary,
@@ -91,6 +92,7 @@ import { createHash } from "node:crypto";
 import { AIConfigError, callOpenAIChat, extractJSON } from "@/lib/ai/prompter";
 import { indexCapsuleHistorySnapshot } from "./knowledge-index";
 import { enqueueCapsuleKnowledgeRefresh } from "./knowledge";
+import { listFriendUserIds } from "@/server/friends/repository";
 
 export type { CapsuleSummary, DiscoverCapsuleSummary } from "./repository";
 export type {
@@ -121,11 +123,18 @@ export type CapsuleLibrary = {
 };
 
 const REQUEST_MESSAGE_MAX_LENGTH = 500;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function normalizeId(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+function normalizeSupabaseId(value: string | null | undefined): string | null {
+  const normalized = normalizeId(value);
+  if (!normalized) return null;
+  return UUID_PATTERN.test(normalized) ? normalized : null;
 }
 
 function normalizeOptionalString(value: unknown): string | null {
@@ -363,6 +372,45 @@ export async function getFollowedCapsules(
       promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl, origin),
       logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl, origin),
     }));
+}
+
+export async function getFriendOwnedCapsules(
+  supabaseUserId: string | null | undefined,
+  options: { origin?: string | null; limit?: number } = {},
+): Promise<CapsuleSummary[]> {
+  const viewerId = normalizeSupabaseId(supabaseUserId);
+  if (!viewerId) return [];
+
+  let friendIds: string[] = [];
+  try {
+    friendIds = await listFriendUserIds(viewerId);
+  } catch (error) {
+    console.error("capsules.friendOwned.listFriendIds", error);
+    return [];
+  }
+
+  const ownerIds = Array.from(
+    new Set(
+      friendIds
+        .map((id) => normalizeSupabaseId(id))
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  if (!ownerIds.length) return [];
+
+  const repoOptions =
+    typeof options.limit === "number" ? { limit: options.limit } : ({} as { limit?: number });
+  const rawCapsules = await listCapsulesByOwnerIds(ownerIds, repoOptions);
+  const origin = options.origin ?? null;
+
+  return rawCapsules.map((capsule) => ({
+    ...capsule,
+    ownership: "follower",
+    bannerUrl: resolveCapsuleMediaUrl(capsule.bannerUrl, origin),
+    storeBannerUrl: resolveCapsuleMediaUrl(capsule.storeBannerUrl, origin),
+    promoTileUrl: resolveCapsuleMediaUrl(capsule.promoTileUrl, origin),
+    logoUrl: resolveCapsuleMediaUrl(capsule.logoUrl, origin),
+  }));
 }
 
 export async function getRecentCapsules(

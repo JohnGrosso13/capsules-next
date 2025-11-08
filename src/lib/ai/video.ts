@@ -288,7 +288,6 @@ async function runOpenAIVideoPipeline(
   const payload = {
     model,
     input: inputMessages,
-    modalities: ["video"],
     video: {
       format: "mp4",
       resolution,

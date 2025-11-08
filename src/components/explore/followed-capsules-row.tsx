@@ -11,6 +11,10 @@ import styles from "./followed-capsules-row.module.css";
 
 type FollowedCapsulesRowProps = {
   capsules: CapsuleSummary[];
+  title?: string;
+  subtitle?: string;
+  emptyMessage?: string;
+  headingId?: string;
 };
 
 function buildCapsuleLink(capsuleId: string): string {
@@ -18,22 +22,25 @@ function buildCapsuleLink(capsuleId: string): string {
   return `/capsule?${params.toString()}`;
 }
 
-export function FollowedCapsulesRow({ capsules }: FollowedCapsulesRowProps) {
+export function FollowedCapsulesRow({
+  capsules,
+  title = "Followed Capsules",
+  subtitle = "Jump back into the capsules you follow. Invite friends, catch up on posts, or unfollow if the vibe has changed.",
+  emptyMessage = "You\u2019re not following any capsules yet. Discover some below and hit Follow.",
+  headingId = "followed-capsules-heading",
+}: FollowedCapsulesRowProps) {
   const uniqueCapsules = capsules.filter(
     (capsule, index, list) => list.findIndex((entry) => entry.id === capsule.id) === index,
   );
   const limitedCapsules = uniqueCapsules.slice(0, 8);
 
   return (
-    <section className={styles.section} aria-labelledby="followed-capsules-heading">
+    <section className={styles.section} aria-labelledby={headingId}>
       <header className={styles.header}>
-        <h1 id="followed-capsules-heading" className={styles.title}>
-          Followed Capsules
+        <h1 id={headingId} className={styles.title}>
+          {title}
         </h1>
-        <p className={styles.subtitle}>
-          Jump back into the capsules you follow. Invite friends, catch up on posts, or unfollow if
-          the vibe has changed.
-        </p>
+        <p className={styles.subtitle}>{subtitle}</p>
       </header>
       {limitedCapsules.length ? (
         <div className={styles.row}>
@@ -66,7 +73,7 @@ export function FollowedCapsulesRow({ capsules }: FollowedCapsulesRowProps) {
         </div>
       ) : (
         <div className={styles.empty}>
-          <p>You&apos;re not following any capsules yet. Discover some below and hit Follow.</p>
+          <p>{emptyMessage}</p>
         </div>
       )}
     </section>

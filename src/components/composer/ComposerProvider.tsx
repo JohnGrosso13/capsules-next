@@ -44,7 +44,7 @@ import {
 import type { SummaryResult } from "@/types/summary";
 import type { SummaryConversationContext, SummaryPresentationOptions } from "@/lib/composer/summary-context";
 import { detectVideoIntent } from "@/shared/ai/video-intent";
-
+import type { PromptRunMode, PromptSubmitOptions } from "./types";
 const ATTACHMENT_CONTEXT_LIMIT = 2;
 const ATTACHMENT_CONTEXT_CHAR_LIMIT = 2000;
 const TEXT_MIME_PREFIXES = ["text/", "application/json", "application/xml", "application/yaml"];
@@ -630,7 +630,11 @@ type ComposerContextValue = {
   handlePrompterHandoff(handoff: PrompterHandoff): void;
   close(): void;
   post(): Promise<void>;
-  submitPrompt(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void>;
+  submitPrompt(
+    prompt: string,
+    attachments?: PrompterAttachment[] | null,
+    options?: PromptSubmitOptions,
+  ): Promise<void>;
   showSummary(
     result: SummaryResult,
     options: SummaryPresentationOptions,
@@ -1376,7 +1380,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleAiResponse = React.useCallback(
-    (prompt: string, payload: PromptResponse) => {
+    (prompt: string, payload: PromptResponse, mode: PromptRunMode = "default") => {
       if (payload.action === "clarify_image_prompt") {
         const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
         setState((prev) => {
@@ -1412,28 +1416,73 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       const rawSource = (payload.post ?? {}) as Record<string, unknown>;
       const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
       const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
-      const messageText = payload.message ?? null;
+      const isDraftResponse = (payload as { action?: string }).action === "draft_post";
+      const draftPayloadPost =
+        isDraftResponse && typeof (payload as { post?: unknown }).post === "object"
+          ? ((payload as { post?: Record<string, unknown> | null }).post ?? null)
+          : null;
+      const draftPostContent =
+        mode === "chatOnly" &&
+        draftPayloadPost &&
+        typeof (draftPayloadPost as { content?: unknown }).content === "string" &&
+        (draftPayloadPost as { content: string }).content.trim().length
+          ? ((draftPayloadPost as { content: string }).content ?? "").trim()
+          : null;
+
+      let messageText =
+        typeof payload.message === "string" && payload.message.trim().length
+          ? payload.message.trim()
+          : null;
+      if (draftPostContent) {
+        messageText = messageText ? `${messageText}\n\n${draftPostContent}` : draftPostContent;
+      }
       let recordedHistory: ComposerChatMessage[] = [];
       let recordedThreadId: string | null = null;
       let resolvedQuestionId: string | null = null;
       let recordedDraft: ComposerDraft | null = null;
       let recordedRawPost: Record<string, unknown> | null = null;
+      const applyDraftUpdates = mode !== "chatOnly";
       setState((prev) => {
         const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
-        const historyForState =
+        let historyForState =
           normalizedHistory.length > 0 ? normalizedHistory : prev.history ?? [];
+        if (mode === "chatOnly" && messageText) {
+          const lastIndex = historyForState.length - 1;
+          if (lastIndex >= 0 && historyForState[lastIndex].role === "assistant") {
+            const updatedHistory = historyForState.map((entry, index) =>
+              index === lastIndex ? { ...entry, content: messageText ?? entry.content } : entry,
+            );
+            historyForState = updatedHistory;
+          } else {
+            historyForState = [
+              ...historyForState,
+              {
+                id: safeRandomUUID(),
+                role: "assistant",
+                content: messageText,
+                createdAt: new Date().toISOString(),
+                attachments: null,
+              },
+            ];
+          }
+        }
         recordedHistory = historyForState;
         recordedThreadId = nextThreadId;
         if (prev.clarifier?.questionId) {
           resolvedQuestionId = prev.clarifier.questionId;
         }
-        const preserveOptions = shouldPreservePollOptions(prompt, prev.draft ?? null);
-        const baseDraft = normalizeDraftFromPost(rawPost);
-        const mergedDraft = mergeComposerDrafts(prev.draft, baseDraft, {
-          preservePollOptions: preserveOptions,
-        });
+        const preserveOptions =
+          applyDraftUpdates && shouldPreservePollOptions(prompt, prev.draft ?? null);
+        const baseDraft = applyDraftUpdates ? normalizeDraftFromPost(rawPost) : prev.draft ?? null;
+        const mergedDraft = applyDraftUpdates
+          ? mergeComposerDrafts(prev.draft, baseDraft, {
+              preservePollOptions: preserveOptions,
+            })
+          : prev.draft ?? null;
         recordedDraft = mergedDraft;
-        const mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, mergedDraft);
+        const mergedRawPost = applyDraftUpdates
+          ? mergeComposerRawPost(prev.rawPost ?? null, rawPost, mergedDraft)
+          : prev.rawPost ?? rawPost ?? null;
         recordedRawPost = mergedRawPost;
         const rawVideoRunId =
           typeof (mergedRawPost as { video_run_id?: unknown }).video_run_id === "string"
@@ -1463,9 +1512,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             : typeof (mergedRawPost as { memoryId?: unknown }).memoryId === "string"
               ? ((mergedRawPost as { memoryId: string }).memoryId ?? "").trim() || null
               : null;
-        const resolvedRunId = mergedDraft.videoRunId ?? rawVideoRunId ?? prev.videoStatus.runId;
+        const resolvedRunId = mergedDraft?.videoRunId ?? rawVideoRunId ?? prev.videoStatus.runId;
         const normalizedRunStatus = (() => {
-          const candidate = mergedDraft.videoRunStatus ?? rawVideoRunStatus;
+          const candidate = mergedDraft?.videoRunStatus ?? rawVideoRunStatus;
           if (!candidate) return null;
           const lowered = candidate.toLowerCase();
           if (lowered === "pending" || lowered === "running") return "running" as const;
@@ -1475,51 +1524,53 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           return null;
         })();
         let nextVideoStatus: ComposerVideoStatus = prev.videoStatus;
-        if (normalizedRunStatus === "succeeded") {
-          nextVideoStatus = {
-            state: "succeeded",
-            runId: resolvedRunId ?? null,
-            prompt,
-            attachments: prev.videoStatus.attachments,
-            error: null,
-            message: messageText,
-            memoryId: mergedDraft.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
-          };
-        } else if (normalizedRunStatus === "failed") {
-          const errorText =
-            mergedDraft.videoRunError ??
-            rawVideoRunError ??
-            prev.videoStatus.error ??
-            "Video generation failed.";
-          nextVideoStatus = {
-            state: "failed",
-            runId: resolvedRunId ?? null,
-            prompt,
-            attachments: prev.videoStatus.attachments,
-            error: errorText,
-            message: messageText,
-            memoryId: mergedDraft.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
-          };
-        } else if (normalizedRunStatus === "running") {
-          nextVideoStatus = {
-            state: "running",
-            runId: resolvedRunId ?? null,
-            prompt,
-            attachments: prev.videoStatus.attachments,
-            error: null,
-            message: messageText,
-            memoryId: mergedDraft.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
-          };
-        } else if (prev.videoStatus.state !== "idle") {
-          nextVideoStatus = {
-            state: "idle",
-            runId: null,
-            prompt: null,
-            attachments: null,
-            error: null,
-            message: null,
-            memoryId: null,
-          };
+        if (applyDraftUpdates) {
+          if (normalizedRunStatus === "succeeded") {
+            nextVideoStatus = {
+              state: "succeeded",
+              runId: resolvedRunId ?? null,
+              prompt,
+              attachments: prev.videoStatus.attachments,
+              error: null,
+              message: messageText,
+              memoryId: mergedDraft?.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
+            };
+          } else if (normalizedRunStatus === "failed") {
+            const errorText =
+              mergedDraft?.videoRunError ??
+              rawVideoRunError ??
+              prev.videoStatus.error ??
+              "Video generation failed.";
+            nextVideoStatus = {
+              state: "failed",
+              runId: resolvedRunId ?? null,
+              prompt,
+              attachments: prev.videoStatus.attachments,
+              error: errorText,
+              message: messageText,
+              memoryId: mergedDraft?.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
+            };
+          } else if (normalizedRunStatus === "running") {
+            nextVideoStatus = {
+              state: "running",
+              runId: resolvedRunId ?? null,
+              prompt,
+              attachments: prev.videoStatus.attachments,
+              error: null,
+              message: messageText,
+              memoryId: mergedDraft?.memoryId ?? rawMemoryId ?? prev.videoStatus.memoryId ?? null,
+            };
+          } else if (prev.videoStatus.state !== "idle") {
+            nextVideoStatus = {
+              state: "idle",
+              runId: null,
+              prompt: null,
+              attachments: null,
+              error: null,
+              message: null,
+              memoryId: null,
+            };
+          }
         }
         const nextSnapshot =
           payload.context && payload.context.enabled
@@ -1547,7 +1598,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           draft: mergedDraft,
           rawPost: mergedRawPost,
           message: messageText,
-          choices: payload.choices ?? null,
+          choices: applyDraftUpdates ? payload.choices ?? null : prev.choices,
           history: historyForState,
           threadId: nextThreadId,
           clarifier: null,
@@ -1561,14 +1612,16 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           prompt,
         });
       }
-      recordRecentChat({
-        prompt,
-        message: messageText,
-        draft: recordedDraft ?? normalizeDraftFromPost(rawPost),
-        rawPost: recordedRawPost,
-        history: recordedHistory,
-        threadId: recordedThreadId,
-      });
+      if (mode !== "chatOnly") {
+        recordRecentChat({
+          prompt,
+          message: messageText,
+          draft: recordedDraft ?? normalizeDraftFromPost(rawPost),
+          rawPost: recordedRawPost,
+          history: recordedHistory,
+          threadId: recordedThreadId,
+        });
+      }
     },
     [activeCapsuleId, recordRecentChat, setState],
   );
@@ -1942,11 +1995,17 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   );
 
   const submitPrompt = React.useCallback(
-    async (promptText: string, attachments?: PrompterAttachment[] | null) => {
+    async (
+      promptText: string,
+      attachments?: PrompterAttachment[] | null,
+      options?: PromptSubmitOptions,
+    ) => {
       const trimmed = promptText.trim();
       if (!trimmed) return;
       const attachmentList = attachments && attachments.length ? attachments : undefined;
-      const expectVideo = shouldExpectVideoResponse(trimmed, attachmentList ?? null);
+      const chatOnly = options?.mode === "chatOnly";
+      const expectVideo = !chatOnly && shouldExpectVideoResponse(trimmed, attachmentList ?? null);
+      const preserveSummary = options?.preserveSummary ?? Boolean(state.summaryResult);
       const chatAttachments =
         attachmentList?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
       const pendingMessage: ComposerChatMessage = {
@@ -1974,7 +2033,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             message: "Rendering your clip...",
             memoryId: prev.videoStatus.memoryId ?? null,
           };
-        } else if (prev.videoStatus.state !== "idle") {
+        } else if (!chatOnly && prev.videoStatus.state !== "idle") {
           nextVideoStatus = createIdleVideoStatus();
         }
         return {
@@ -1985,10 +2044,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           choices: null,
           history: [...existingHistory, pendingMessage],
           threadId: resolvedThreadId,
-          summaryContext: null,
-          summaryResult: null,
-          summaryOptions: null,
-          summaryMessageId: null,
+          summaryContext: preserveSummary ? prev.summaryContext : null,
+          summaryResult: preserveSummary ? prev.summaryResult : null,
+          summaryOptions: preserveSummary ? prev.summaryOptions : null,
+          summaryMessageId: preserveSummary ? prev.summaryMessageId : null,
           videoStatus: nextVideoStatus,
         };
       });
@@ -2008,9 +2067,19 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             answer: clarifierOption.clarifier.answer,
           });
         }
+        const requestOptions: Record<string, unknown> = {};
+        if (clarifierOption?.clarifier) {
+          requestOptions.clarifier = clarifierOption.clarifier;
+        }
+        if (options?.mode === "chatOnly") {
+          requestOptions.chatOnly = true;
+          if (!requestOptions.prefer) {
+            requestOptions.prefer = "text";
+          }
+        }
         const payload = await callAiPrompt(
           trimmed,
-          clarifierOption,
+          Object.keys(requestOptions).length ? requestOptions : undefined,
           state.rawPost ?? undefined,
           attachmentList,
           previousHistory,
@@ -2018,7 +2087,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           activeCapsuleId,
           state.smartContextEnabled,
         );
-        handleAiResponse(trimmed, payload);
+        handleAiResponse(trimmed, payload, options?.mode ?? "default");
       } catch (error) {
         console.error("Composer prompt submit failed", error);
         const errorMessage =
@@ -2053,6 +2122,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       state.clarifier,
       state.rawPost,
       state.smartContextEnabled,
+      state.summaryResult,
     ],
   );
 

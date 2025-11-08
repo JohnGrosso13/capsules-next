@@ -6,6 +6,7 @@ import type { PrompterAttachment } from "@/components/ai-prompter-stage";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 import type { SummaryConversationEntry } from "@/lib/composer/summary-context";
 import type { LocalAttachment } from "@/hooks/useAttachmentUpload";
+import type { PromptRunMode, PromptSubmitOptions } from "../../types";
 
 import { useComposerVoice, type ComposerVoiceResult } from "../../hooks/useComposerVoice";
 import type { ComposerFormActions, ComposerVoiceState } from "../../hooks/useComposerFormReducer";
@@ -99,13 +100,33 @@ type UsePromptSurfaceParams = {
   conversationHistory: ComposerChatMessage[];
   summaryEntries: SummaryConversationEntry[];
   activeKind: string;
-  onPrompt?: ((prompt: string, attachments?: PrompterAttachment[] | null) => Promise<void> | void) | undefined;
+  onPrompt?:
+    | ((
+        prompt: string,
+        attachments?: PrompterAttachment[] | null,
+        options?: PromptSubmitOptions,
+      ) => Promise<void> | void)
+    | undefined;
   readyAttachment: LocalAttachment | null;
   loading: boolean;
   attachmentUploading: boolean;
   voiceState: ComposerVoiceState;
   voiceActions: ComposerFormActions["voice"];
   vibeSuggestions: QuickPromptOption[];
+};
+
+type RunPromptOptions = {
+  attachments?: PrompterAttachment[] | null;
+  includeReadyAttachment?: boolean;
+  immediateReset?: boolean;
+  submitOptions?: PromptSubmitOptions;
+};
+
+type PromptRunConfig = {
+  attachments?: PrompterAttachment[] | null;
+  mode?: PromptRunMode;
+  preserveSummary?: boolean;
+  includeReadyAttachment?: boolean;
 };
 
 export type PromptSurfaceController = {
@@ -116,6 +137,7 @@ export type PromptSurfaceController = {
   quickPromptBubbleOptions: QuickPromptOption[];
   handleSuggestionSelect(nextPrompt: string): void;
   handlePromptSubmit(): void;
+  handlePromptRun(nextPrompt: string, config?: PromptRunConfig): void;
   voiceControls: ComposerVoiceResult;
 };
 
@@ -167,36 +189,78 @@ export function usePromptSurface({
     }
   }, []);
 
+  const buildReadyAttachmentPayload = React.useCallback((): PrompterAttachment[] | null => {
+    if (!readyAttachment?.url) return null;
+    return [
+      {
+        id: readyAttachment.id,
+        name: readyAttachment.name,
+        mimeType: readyAttachment.mimeType,
+        size: readyAttachment.size,
+        url: readyAttachment.url,
+        thumbnailUrl: readyAttachment.thumbUrl ?? undefined,
+        storageKey: readyAttachment.key ?? null,
+        sessionId: readyAttachment.sessionId ?? null,
+      },
+    ];
+  }, [readyAttachment]);
+
+  const runPrompt = React.useCallback(
+    (text: string, options?: RunPromptOptions) => {
+      if (!onPrompt) return;
+      if (loading || attachmentUploading) return;
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      lastSubmittedPromptRef.current = trimmed;
+
+      if (options?.immediateReset) {
+        setPromptValue("");
+      }
+
+      let attachments: PrompterAttachment[] | null = null;
+      if (options?.attachments !== undefined) {
+        attachments = options.attachments;
+      } else if (options?.includeReadyAttachment !== false) {
+        attachments = buildReadyAttachmentPayload();
+      }
+
+      const result = onPrompt(trimmed, attachments ?? null, options?.submitOptions);
+      const shouldResetLater = !options?.immediateReset;
+
+      if (result && typeof (result as Promise<unknown>).then === "function") {
+        void (result as Promise<unknown>).finally(() => {
+          if (shouldResetLater) {
+            setPromptValue("");
+          }
+        });
+      } else if (shouldResetLater) {
+        setPromptValue("");
+      }
+    },
+    [attachmentUploading, buildReadyAttachmentPayload, loading, onPrompt, setPromptValue],
+  );
+
   const handlePromptSubmit = React.useCallback(() => {
-    if (!onPrompt) return;
-    if (loading || attachmentUploading) return;
-    const trimmed = promptValue.trim();
-    if (!trimmed) return;
-    lastSubmittedPromptRef.current = trimmed;
+    runPrompt(promptValue, { includeReadyAttachment: true });
+  }, [promptValue, runPrompt]);
 
-    let attachments: PrompterAttachment[] | null = null;
-    if (readyAttachment?.url) {
-      attachments = [
-        {
-          id: readyAttachment.id,
-          name: readyAttachment.name,
-          mimeType: readyAttachment.mimeType,
-          size: readyAttachment.size,
-          url: readyAttachment.url,
-          thumbnailUrl: readyAttachment.thumbUrl ?? undefined,
-          storageKey: readyAttachment.key ?? null,
-          sessionId: readyAttachment.sessionId ?? null,
-        },
-      ];
-    }
-
-    const result = onPrompt(trimmed, attachments);
-    if (result && typeof (result as Promise<unknown>).then === "function") {
-      void (result as Promise<unknown>).finally(() => setPromptValue(""));
-    } else {
-      setPromptValue("");
-    }
-  }, [attachmentUploading, loading, onPrompt, promptValue, readyAttachment]);
+  const handlePromptRun = React.useCallback(
+    (nextPrompt: string, config?: PromptRunConfig) => {
+      runPrompt(nextPrompt, {
+        attachments: config?.attachments ?? null,
+        includeReadyAttachment: config?.includeReadyAttachment ?? true,
+        immediateReset: true,
+        submitOptions:
+          config?.mode || config?.preserveSummary
+            ? {
+                mode: config?.mode,
+                preserveSummary: config?.preserveSummary,
+              }
+            : undefined,
+      });
+    },
+    [runPrompt],
+  );
 
   const baseQuickPromptOptions = React.useMemo(
     () => resolveQuickPromptPreset(activeKind),
@@ -253,6 +317,7 @@ export function usePromptSurface({
     quickPromptBubbleOptions,
     handleSuggestionSelect,
     handlePromptSubmit,
+    handlePromptRun,
     voiceControls,
   };
 }

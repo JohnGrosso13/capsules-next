@@ -32,6 +32,7 @@ import type {
   ComposerMemorySavePayload,
   ComposerContextSnapshot,
 } from "./ComposerProvider";
+import type { PromptSubmitOptions } from "./types";
 
 import type { LocalAttachment } from "@/hooks/useAttachmentUpload";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
@@ -615,7 +616,11 @@ type ComposerFormProps = {
   onCreateProject(name: string): void;
   onSelectProject(id: string | null): void;
   onForceChoice?(key: string): void;
-  onPrompt?(prompt: string, attachments?: PrompterAttachment[] | null): Promise<void> | void;
+  onPrompt?(
+    prompt: string,
+    attachments?: PrompterAttachment[] | null,
+    options?: PromptSubmitOptions,
+  ): Promise<void> | void;
   onClarifierRespond?(answer: string): void;
   onRetryVideo(): void;
   onSaveCreation(request: ComposerSaveRequest): Promise<string | null> | Promise<void> | void;
@@ -676,9 +681,24 @@ export function ComposerForm({
     () => summaryContext?.entries ?? [],
     [summaryContext],
   );
+  const summaryEntrySignature = React.useMemo(
+    () => summaryEntries.map((entry) => entry.id).join("|"),
+    [summaryEntries],
+  );
   const summaryResult = summaryResultInput ?? null;
   const summaryOptions = summaryOptionsInput ?? null;
   const summaryMessageId = summaryMessageIdInput ?? null;
+  const [summaryCollapsed, setSummaryCollapsed] = React.useState(false);
+  const summaryAutoCollapseRef = React.useRef(false);
+
+  React.useEffect(() => {
+    summaryAutoCollapseRef.current = false;
+    setSummaryCollapsed(false);
+  }, [summaryEntrySignature, summaryMessageId]);
+  const hasUserMessages = React.useMemo(
+    () => conversationHistory.some((entry) => entry.role === "user"),
+    [conversationHistory],
+  );
   const contextSnapshot = contextSnapshotInput ?? null;
   const contextSnippets = React.useMemo(
     () => (contextSnapshot?.snippets ?? []).slice(0, 5),
@@ -909,6 +929,7 @@ export function ComposerForm({
     quickPromptBubbleOptions,
     handleSuggestionSelect,
     handlePromptSubmit,
+    handlePromptRun,
     voiceControls,
   } = usePromptSurface({
     prompt,
@@ -924,22 +945,58 @@ export function ComposerForm({
     vibeSuggestions,
   });
 
+  const summarySidebar = useSummarySidebar({
+    summaryEntries,
+    cloudflareEnabled,
+    currentUser,
+    canRemember,
+    handleSuggestionSelect,
+    handlePromptRun,
+  });
   const {
     summaryPanelOpen,
     setSummaryPanelOpen,
     summaryPreviewEntry,
     setSummaryPreviewEntry,
     summaryPreviewContent,
-    handleSummaryAsk,
+    handleSummaryAsk: baseHandleSummaryAsk,
     handleSummaryView,
     handleSummaryComment,
-  } = useSummarySidebar({
-    summaryEntries,
-    cloudflareEnabled,
-    currentUser,
-    canRemember,
-    handleSuggestionSelect,
-  });
+  } = summarySidebar;
+
+  React.useEffect(() => {
+    if (
+      summaryResult &&
+      hasUserMessages &&
+      !summaryCollapsed &&
+      !summaryAutoCollapseRef.current
+    ) {
+      summaryAutoCollapseRef.current = true;
+      setSummaryCollapsed(true);
+      setSummaryPanelOpen(false);
+    }
+  }, [
+    hasUserMessages,
+    setSummaryPanelOpen,
+    summaryCollapsed,
+    summaryResult,
+  ]);
+
+  const handleSummaryAsk = React.useCallback(
+    (entry: SummaryConversationEntry) => {
+      baseHandleSummaryAsk(entry);
+      summaryAutoCollapseRef.current = true;
+      setSummaryCollapsed(true);
+      setSummaryPanelOpen(false);
+    },
+    [baseHandleSummaryAsk, setSummaryCollapsed, setSummaryPanelOpen],
+  );
+
+  const handleSummaryReset = React.useCallback(() => {
+    summaryAutoCollapseRef.current = true;
+    setSummaryCollapsed(false);
+    setSummaryPanelOpen(false);
+  }, [setSummaryCollapsed, setSummaryPanelOpen]);
 
   const pollPreviewCard = React.useMemo(
     () => (
@@ -1882,32 +1939,44 @@ export function ComposerForm({
     <>
       <div className={styles.chatArea}>
         {summaryEntries.length ? (
-          <>
+          summaryCollapsed ? (
             <div className={styles.summaryContextToggleRow}>
               <button
                 type="button"
                 className={styles.summaryContextToggleBtn}
-                data-active={summaryPanelOpen ? "true" : undefined}
-                aria-expanded={summaryPanelOpen}
-                onClick={() => setSummaryPanelOpen((open) => !open)}
+                onClick={handleSummaryReset}
               >
-                {summaryPanelOpen
-                  ? "Hide referenced updates"
-                  : `View referenced updates (${summaryEntries.length})`}
+                Back to summaries
               </button>
             </div>
-            {summaryPanelOpen ? (
-              <SummaryContextPanel
-                entries={summaryEntries}
-                onAsk={handleSummaryAsk}
-                onComment={handleSummaryComment}
-                onView={handleSummaryView}
-              />
-            ) : null}
-          </>
+          ) : (
+            <>
+              <div className={styles.summaryContextToggleRow}>
+                <button
+                  type="button"
+                  className={styles.summaryContextToggleBtn}
+                  data-active={summaryPanelOpen ? "true" : undefined}
+                  aria-expanded={summaryPanelOpen}
+                  onClick={() => setSummaryPanelOpen((open) => !open)}
+                >
+                  {summaryPanelOpen
+                    ? "Hide referenced updates"
+                    : `View referenced updates (${summaryEntries.length})`}
+                </button>
+              </div>
+              {summaryPanelOpen ? (
+                <SummaryContextPanel
+                  entries={summaryEntries}
+                  onAsk={handleSummaryAsk}
+                  onComment={handleSummaryComment}
+                  onView={handleSummaryView}
+                />
+              ) : null}
+            </>
+          )
         ) : null}
         <div className={styles.chatScroll}>
-          {summaryResult ? (
+          {summaryResult && !summaryCollapsed ? (
             <SummaryNarrativeCard
               result={summaryResult}
               options={summaryOptions}
