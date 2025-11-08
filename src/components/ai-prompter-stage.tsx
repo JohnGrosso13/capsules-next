@@ -182,6 +182,7 @@ export function AiPrompterStage({
           body: JSON.stringify({
             text: textValue,
             language,
+            capsuleId: activeCapsuleId,
             user: userEnvelope,
           }),
         });
@@ -189,7 +190,7 @@ export function AiPrompterStage({
         console.error("Voice transcript memory error", error);
       }
     },
-    [userEnvelope],
+    [activeCapsuleId, userEnvelope],
   );
 
   React.useEffect(() => {

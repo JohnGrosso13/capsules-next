@@ -84,7 +84,7 @@ import { getDatabaseAdminClient } from "@/config/database";
 import { createHash } from "node:crypto";
 import { AIConfigError, callOpenAIChat, extractJSON } from "@/lib/ai/prompter";
 import { indexCapsuleHistorySnapshot } from "./knowledge-index";
-import { refreshCapsuleKnowledge } from "./knowledge";
+import { enqueueCapsuleKnowledgeRefresh } from "./knowledge";
 
 export type { CapsuleSummary, DiscoverCapsuleSummary } from "./repository";
 export type {
@@ -499,6 +499,8 @@ export async function updateCapsuleBannerImage(
     eventAt: savedAtIso,
   });
 
+  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
+
   return { bannerUrl: resolvedBannerUrl };
 }
 
@@ -605,6 +607,8 @@ export async function updateCapsuleStoreBannerImage(
     eventAt: savedAtIso,
   });
 
+  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
+
   return { storeBannerUrl: resolvedStoreBannerUrl };
 }
 
@@ -706,6 +710,8 @@ export async function updateCapsulePromoTileImage(
     eventAt: savedAtIso,
   });
 
+  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
+
   return { tileUrl: resolvedTileUrl };
 }
 
@@ -806,6 +812,8 @@ export async function updateCapsuleLogoImage(
     tags: ["capsule", "logo", capsuleName],
     eventAt: savedAtIso,
   });
+
+  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
 
   return { logoUrl: resolvedLogoUrl };
 }
@@ -951,7 +959,9 @@ export async function approveCapsuleMemberRequest(
     role: dbRole,
   });
 
-  return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
+  const membershipState = await getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
+  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
+  return membershipState;
 }
 
 export async function declineCapsuleMemberRequest(
@@ -1015,7 +1025,9 @@ export async function removeCapsuleMember(
     throw new CapsuleMembershipError("not_found", "Member not found in this capsule.", 404);
   }
 
-  return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
+  const membershipState = await getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
+  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
+  return membershipState;
 }
 
 export async function setCapsuleMemberRole(
@@ -1052,7 +1064,9 @@ export async function setCapsuleMemberRole(
     throw new CapsuleMembershipError("not_found", "Member not found in this capsule.", 404);
   }
 
-  return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
+  const membershipState = await getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
+  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
+  return membershipState;
 }
 
 type CapsuleHistoryPostRow = {
@@ -3560,9 +3574,7 @@ export async function getCapsuleHistory(
     void indexCapsuleHistorySnapshot(capsuleIdValue, response).catch((error) => {
       console.warn("capsule history vector sync failed", { capsuleId: capsuleIdValue, error });
     });
-    void refreshCapsuleKnowledge(capsuleIdValue, capsule.name ?? null).catch((error) => {
-      console.warn("capsule knowledge sync failed", { capsuleId: capsuleIdValue, error });
-    });
+    enqueueCapsuleKnowledgeRefresh(capsuleIdValue, capsule.name ?? null);
   }
 
   setCachedCapsuleHistory(capsuleIdValue, response, {

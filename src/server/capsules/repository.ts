@@ -442,6 +442,26 @@ export async function listCapsulesForUser(userId: string): Promise<CapsuleSummar
     .filter((entry): entry is CapsuleSummary => entry !== null);
 }
 
+export async function listAllCapsules(): Promise<Array<{ id: string; name: string | null }>> {
+  const result = await db
+    .from("capsules")
+    .select<CapsuleRow>("id, name, created_at")
+    .order("created_at", { ascending: true })
+    .fetch();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.listAll", result.error);
+  }
+
+  return (result.data ?? [])
+    .map((row) => {
+      const id = normalizeString(row?.id);
+      if (!id) return null;
+      return { id, name: normalizeName(row?.name ?? null) };
+    })
+    .filter((entry): entry is { id: string; name: string | null } => Boolean(entry));
+}
+
 export async function listRecentPublicCapsules(
   options: {
     excludeCreatorId?: string | null;
@@ -1071,25 +1091,34 @@ async function fetchPostCapsuleMap(
 export async function listCapsuleAssets(params: {
   capsuleId: string;
   limit?: number;
+  includeInternal?: boolean;
 }): Promise<CapsuleAssetRow[]> {
   const normalizedCapsuleId = normalizeString(params.capsuleId);
   if (!normalizedCapsuleId) return [];
   const limit =
     typeof params.limit === "number" && params.limit > 0 ? Math.min(params.limit, 500) : 200;
+  const includeInternal = Boolean(params.includeInternal);
 
-  const result = await db
+  let query = db
     .from("memories")
     .select<CapsuleAssetRow>(
       "id, owner_user_id, media_url, media_type, title, description, meta, created_at, post_id, kind, view_count, uploaded_by",
     )
     .eq("is_latest", true)
-    .filter("meta->>source", "eq", "post_attachment")
-    .or(
-      `meta->>capsule_id.eq.${normalizedCapsuleId},meta->>capsule_id.is.null`,
-    )
     .order("created_at", { ascending: false })
-    .limit(limit)
-    .fetch();
+    .limit(limit);
+
+  if (includeInternal) {
+    const attachmentCondition = `and(meta->>source.eq.post_attachment,or(meta->>capsule_id.eq.${normalizedCapsuleId},meta->>capsule_id.is.null))`;
+    const directCondition = `meta->>capsule_id.eq.${normalizedCapsuleId}`;
+    query = query.or(`${attachmentCondition},${directCondition}`);
+  } else {
+    query = query
+      .filter("meta->>source", "eq", "post_attachment")
+      .or(`meta->>capsule_id.eq.${normalizedCapsuleId},meta->>capsule_id.is.null`);
+  }
+
+  const result = await query.fetch();
 
   if (result.error) {
     throw decorateDatabaseError("capsules.assets.list", result.error);

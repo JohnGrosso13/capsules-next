@@ -9,3 +9,13 @@ export async function refreshCapsuleKnowledge(
   if (!docs.length) return;
   await indexCapsuleKnowledgeDocs(capsuleId, docs);
 }
+
+export function enqueueCapsuleKnowledgeRefresh(
+  capsuleId: string | null | undefined,
+  capsuleName?: string | null,
+): void {
+  if (!capsuleId) return;
+  void refreshCapsuleKnowledge(capsuleId, capsuleName ?? null).catch((error) => {
+    console.warn("capsule knowledge refresh enqueue failed", { capsuleId, error });
+  });
+}
