@@ -5,8 +5,9 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 
 import { AppPage } from "@/components/app-page";
 import { RecentCapsulesGrid } from "@/components/explore/recent-capsules-grid";
+import { FollowedCapsulesRow } from "@/components/explore/followed-capsules-row";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
-import { getRecentCapsules } from "@/server/capsules/service";
+import { getFollowedCapsules, getRecentCapsules } from "@/server/capsules/service";
 import { deriveRequestOrigin } from "@/lib/url";
 
 export const metadata: Metadata = {
@@ -54,9 +55,13 @@ export default async function ExplorePage() {
     limit: 16,
     origin: requestOrigin,
   });
+  const followedCapsules = await getFollowedCapsules(supabaseUserId, {
+    origin: requestOrigin,
+  });
 
   return (
     <AppPage activeNav="explore" showPrompter showDiscoveryRightRail>
+      <FollowedCapsulesRow capsules={followedCapsules} />
       <RecentCapsulesGrid capsules={recentCapsules} />
     </AppPage>
   );

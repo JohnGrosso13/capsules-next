@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import styles from "@/app/(authenticated)/friends/friends.module.css";
-import type { PartyInviteItem, RequestItem } from "@/hooks/useFriendsData";
+import type { CapsuleInviteItem, PartyInviteItem, RequestItem } from "@/hooks/useFriendsData";
 import { MicrophoneStage } from "@phosphor-icons/react/dist/ssr";
 
 type RequestsListProps = {
@@ -15,6 +15,9 @@ type RequestsListProps = {
   onCancel: (id: string) => void;
   onAcceptInvite: (id: string) => void;
   onDeclineInvite: (id: string) => void;
+  capsuleInvites: CapsuleInviteItem[];
+  onAcceptCapsuleInvite: (capsuleId: string, requestId: string) => void;
+  onDeclineCapsuleInvite: (capsuleId: string, requestId: string) => void;
 };
 
 function renderName(item: RequestItem, fallback: string): string {
@@ -45,8 +48,16 @@ export function RequestsList({
   onCancel,
   onAcceptInvite,
   onDeclineInvite,
+  capsuleInvites,
+  onAcceptCapsuleInvite,
+  onDeclineCapsuleInvite,
 }: RequestsListProps) {
-  if (incoming.length === 0 && outgoing.length === 0 && partyInvites.length === 0) {
+  if (
+    incoming.length === 0 &&
+    outgoing.length === 0 &&
+    partyInvites.length === 0 &&
+    capsuleInvites.length === 0
+  ) {
     return <div className={styles.empty}>No pending requests.</div>;
   }
 
@@ -80,6 +91,32 @@ export function RequestsList({
           </div>
         );
       })}
+      {capsuleInvites.map((invite) => (
+        <div key={`capsule-invite-${invite.id}`} className={styles.requestRow}>
+          <div className={styles.requestMeta}>
+            <span className={styles.friendName}>{invite.capsuleName}</span>
+            <span className={styles.requestLabel}>
+              Capsule invite
+              {invite.inviterName ? ` · from ${invite.inviterName}` : ""}
+            </span>
+          </div>
+          <div className={styles.requestActions}>
+            <button
+              type="button"
+              className={styles.primaryAction}
+              onClick={() => onAcceptCapsuleInvite(invite.capsuleId, invite.id)}
+            >
+              Join
+            </button>
+            <button
+              type="button"
+              onClick={() => onDeclineCapsuleInvite(invite.capsuleId, invite.id)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ))}
       {incoming.map((item) => (
         <div key={`incoming-${item.id}`} className={styles.requestRow}>
           <div className={styles.requestMeta}>

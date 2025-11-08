@@ -87,6 +87,7 @@ export function FriendsClient() {
     incomingRequests,
     outgoingRequests,
     partyInvites,
+    capsuleInvites,
     counters,
     loading,
     error,
@@ -99,6 +100,8 @@ export function FriendsClient() {
     cancelRequest,
     acceptPartyInvite,
     declinePartyInvite,
+    acceptCapsuleInvite,
+    declineCapsuleInvite,
   } = useFriendsDataContext();
   const {
     startChat: startChatSession,
@@ -434,6 +437,33 @@ export function FriendsClient() {
     [declinePartyInvite],
   );
 
+  const handleAcceptCapsuleInvite = React.useCallback(
+    async (capsuleId: string, requestId: string) => {
+      try {
+        await acceptCapsuleInvite(capsuleId, requestId);
+        setNotice("Joined capsule.");
+        selectTab("Friends");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Couldn't accept that invite.";
+        setNotice(message);
+      }
+    },
+    [acceptCapsuleInvite, selectTab],
+  );
+
+  const handleDeclineCapsuleInvite = React.useCallback(
+    async (capsuleId: string, requestId: string) => {
+      try {
+        await declineCapsuleInvite(capsuleId, requestId);
+        setNotice("Invite dismissed.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Couldn't dismiss that invite.";
+        setNotice(message);
+      }
+    },
+    [declineCapsuleInvite],
+  );
+
   const inviteSession =
     groupFlow?.mode === "invite"
       ? (chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null)
@@ -586,11 +616,14 @@ export function FriendsClient() {
             incoming={incomingRequests}
             outgoing={outgoingRequests}
             partyInvites={partyInvites}
+            capsuleInvites={capsuleInvites}
             onAccept={handleAccept}
             onDecline={handleDecline}
             onCancel={handleCancel}
             onAcceptInvite={handleAcceptInvite}
             onDeclineInvite={handleDeclineInvite}
+            onAcceptCapsuleInvite={handleAcceptCapsuleInvite}
+            onDeclineCapsuleInvite={handleDeclineCapsuleInvite}
           />
         </div>
       </section>

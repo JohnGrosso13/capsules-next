@@ -40,6 +40,7 @@ import {
   updateFriendRequest,
   updatePendingRequest,
 } from "./repository";
+import { listViewerCapsuleInvites } from "@/server/capsules/repository";
 
 import { asString, mapBlockRow, mapFollowRow, mapFriendRow, mapRequestRow } from "./mappers";
 
@@ -65,6 +66,7 @@ function assertPending(row: RawRow, context: string): void {
 export async function listSocialGraph(userId: string): Promise<SocialGraphSnapshot> {
   const { friends, incoming, outgoing, followers, following, blocked } =
     await fetchSocialGraphRows(userId);
+  const capsuleInvites = await listViewerCapsuleInvites(userId);
 
   const friendSummaries = friends.map((row) => mapFriendRow(row));
   const hasAssistant = friendSummaries.some(
@@ -93,6 +95,7 @@ export async function listSocialGraph(userId: string): Promise<SocialGraphSnapsh
     followers: followers.map((row) => mapFollowRow(row, "follower")),
     following: following.map((row) => mapFollowRow(row, "following")),
     blocked: blocked.map((row) => mapBlockRow(row)),
+    capsuleInvites,
   };
 }
 

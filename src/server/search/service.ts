@@ -151,6 +151,8 @@ async function searchCapsulesForUser(
       if (capsule.slug) subtitleParts.push(capsule.slug);
       if (capsule.ownership === "owner") {
         subtitleParts.push("Owner");
+      } else if (capsule.ownership === "follower") {
+        subtitleParts.push("Follower");
       } else if (capsule.role) {
         subtitleParts.push(capsule.role);
       }

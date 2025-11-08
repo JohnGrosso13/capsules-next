@@ -9,7 +9,13 @@ type PerformActionPayload =
   | { action: "approve_request"; requestId: string }
   | { action: "decline_request"; requestId: string }
   | { action: "remove_member"; memberId: string }
-  | { action: "set_role"; memberId: string; role: string };
+  | { action: "set_role"; memberId: string; role: string }
+  | { action: "follow" }
+  | { action: "unfollow" }
+  | { action: "leave" }
+  | { action: "invite_member"; targetUserId: string }
+  | { action: "accept_invite"; requestId: string }
+  | { action: "decline_invite"; requestId: string };
 
 type UseCapsuleMembershipResult = {
   membership: CapsuleMembershipState | null;
@@ -23,6 +29,12 @@ type UseCapsuleMembershipResult = {
   declineRequest: (requestId: string) => Promise<CapsuleMembershipState | null>;
   removeMember: (memberId: string) => Promise<CapsuleMembershipState | null>;
   setMemberRole: (memberId: string, role: string) => Promise<CapsuleMembershipState | null>;
+  follow: () => Promise<CapsuleMembershipState | null>;
+  unfollow: () => Promise<CapsuleMembershipState | null>;
+  leave: () => Promise<CapsuleMembershipState | null>;
+  inviteMember: (targetUserId: string) => Promise<CapsuleMembershipState | null>;
+  acceptInvite: (requestId: string) => Promise<CapsuleMembershipState | null>;
+  declineInvite: (requestId: string) => Promise<CapsuleMembershipState | null>;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
@@ -194,6 +206,27 @@ export function useCapsuleMembership(
     [performAction],
   );
 
+  const follow = React.useCallback(() => performAction({ action: "follow" }), [performAction]);
+
+  const unfollow = React.useCallback(() => performAction({ action: "unfollow" }), [performAction]);
+
+  const leave = React.useCallback(() => performAction({ action: "leave" }), [performAction]);
+
+  const inviteMember = React.useCallback(
+    (targetUserId: string) => performAction({ action: "invite_member", targetUserId }),
+    [performAction],
+  );
+
+  const acceptInvite = React.useCallback(
+    (requestId: string) => performAction({ action: "accept_invite", requestId }),
+    [performAction],
+  );
+
+  const declineInvite = React.useCallback(
+    (requestId: string) => performAction({ action: "decline_invite", requestId }),
+    [performAction],
+  );
+
   return {
     membership,
     loading,
@@ -206,6 +239,12 @@ export function useCapsuleMembership(
     declineRequest,
     removeMember,
     setMemberRole,
+    follow,
+    unfollow,
+    leave,
+    inviteMember,
+    acceptInvite,
+    declineInvite,
     setError,
   };
 }

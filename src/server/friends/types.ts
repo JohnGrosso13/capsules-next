@@ -72,6 +72,8 @@ export type BlockSummary = {
   user: FriendUserSummary | null;
 };
 
+import type { CapsuleMemberRequestSummary } from "@/types/capsules";
+
 export type SocialGraphSnapshot = {
   friends: FriendSummary[];
   incomingRequests: FriendRequestSummary[];
@@ -79,6 +81,7 @@ export type SocialGraphSnapshot = {
   followers: FollowSummary[];
   following: FollowSummary[];
   blocked: BlockSummary[];
+  capsuleInvites: CapsuleMemberRequestSummary[];
 };
 
 export type RawRow = Record<string, unknown>;

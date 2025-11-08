@@ -4,11 +4,17 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import {
   CapsuleMembershipError,
   approveCapsuleMemberRequest,
+  acceptCapsuleInvite,
+  declineCapsuleInvite,
   declineCapsuleMemberRequest,
+  followCapsule,
   getCapsuleMembership,
+  inviteCapsuleMember,
+  leaveCapsule,
   removeCapsuleMember,
   requestCapsuleMembership,
   setCapsuleMemberRole,
+  unfollowCapsule,
 } from "@/server/capsules/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
@@ -79,6 +85,7 @@ export async function POST(req: Request, context: CapsuleMembershipRouteContext)
   }
 
   const { action, message, requestId, memberId, role } = parsedBody.data;
+  const targetUserId = parsedBody.data.targetUserId;
   const requestOrigin = deriveRequestOrigin(req) ?? null;
 
   try {
@@ -138,6 +145,43 @@ export async function POST(req: Request, context: CapsuleMembershipRouteContext)
           role,
           { origin: requestOrigin },
         );
+        break;
+      }
+      case "follow": {
+        membership = await followCapsule(actorId, parsedParams.data.id, { origin: requestOrigin });
+        break;
+      }
+      case "unfollow": {
+        membership = await unfollowCapsule(actorId, parsedParams.data.id, {
+          origin: requestOrigin,
+        });
+        break;
+      }
+      case "leave": {
+        membership = await leaveCapsule(actorId, parsedParams.data.id, { origin: requestOrigin });
+        break;
+      }
+      case "invite_member": {
+        if (!targetUserId) {
+          return returnError(400, "invalid_request", "targetUserId is required to invite a user.");
+        }
+        membership = await inviteCapsuleMember(actorId, parsedParams.data.id, targetUserId, {
+          origin: requestOrigin,
+        });
+        break;
+      }
+      case "accept_invite": {
+        if (!requestId) {
+          return returnError(400, "invalid_request", "requestId is required to accept an invite.");
+        }
+        membership = await acceptCapsuleInvite(actorId, requestId, { origin: requestOrigin });
+        break;
+      }
+      case "decline_invite": {
+        if (!requestId) {
+          return returnError(400, "invalid_request", "requestId is required to decline an invite.");
+        }
+        membership = await declineCapsuleInvite(actorId, requestId, { origin: requestOrigin });
         break;
       }
       default:

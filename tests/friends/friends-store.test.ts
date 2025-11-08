@@ -47,6 +47,7 @@ const baseGraph: SocialGraphSnapshot = {
   followers: [],
   following: [],
   blocked: [],
+  capsuleInvites: [],
 };
 
 const partyInvites: PartyInviteSummary[] = [
@@ -102,11 +103,15 @@ describe("FriendsStore", () => {
           status: action === "accept" ? "accepted" : "declined",
         };
       });
+    const respondCapsuleInvite = vi
+      .fn<(capsuleId: string, requestId: string, action: "accept" | "decline") => Promise<void>>()
+      .mockResolvedValue(undefined);
     const dependencies = {
       loadSnapshot,
       mutate,
       fetchInvites,
       respondInvite,
+      respondCapsuleInvite,
       ...overrides,
     };
     return {
@@ -115,6 +120,7 @@ describe("FriendsStore", () => {
       mutate,
       fetchInvites,
       respondInvite,
+      respondCapsuleInvite,
     };
   }
 

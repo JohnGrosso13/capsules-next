@@ -13,7 +13,13 @@ import {
 import type { FriendItem } from "@/lib/friends/types";
 import { buildFriendTargetPayload } from "@/lib/friends/targets";
 
-export type { FriendItem, FriendsCounters, PartyInviteItem, RequestItem } from "@/lib/friends/types";
+export type {
+  CapsuleInviteItem,
+  FriendItem,
+  FriendsCounters,
+  PartyInviteItem,
+  RequestItem,
+} from "@/lib/friends/types";
 
 export type UseFriendsDataOptions = {
   subscribeRealtime?: boolean;
@@ -30,6 +36,7 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
   const incomingRequests = useFriendsSelector((snapshot) => snapshot.incomingRequests);
   const outgoingRequests = useFriendsSelector((snapshot) => snapshot.outgoingRequests);
   const partyInvites = useFriendsSelector((snapshot) => snapshot.partyInvites);
+  const capsuleInvites = useFriendsSelector((snapshot) => snapshot.capsuleInvites);
   const counters = useFriendsSelector((snapshot) => snapshot.counters);
   const error = useFriendsSelector((snapshot) => snapshot.error);
   const viewerId = useFriendsSelector((snapshot) => snapshot.viewerId);
@@ -136,6 +143,18 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     [actions],
   );
 
+  const acceptCapsuleInvite = React.useCallback(
+    async (capsuleId: string, requestId: string) =>
+      actions.acceptCapsuleInvite(capsuleId, requestId),
+    [actions],
+  );
+
+  const declineCapsuleInvite = React.useCallback(
+    async (capsuleId: string, requestId: string) =>
+      actions.declineCapsuleInvite(capsuleId, requestId),
+    [actions],
+  );
+
   const refresh = React.useCallback(async () => {
     await actions.refresh();
   }, [actions]);
@@ -153,6 +172,7 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     incomingRequests,
     outgoingRequests,
     partyInvites,
+    capsuleInvites,
     counters,
     loading,
     error,
@@ -165,6 +185,8 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     cancelRequest,
     acceptPartyInvite,
     declinePartyInvite,
+    acceptCapsuleInvite,
+    declineCapsuleInvite,
     viewerId,
   } as const;
 }

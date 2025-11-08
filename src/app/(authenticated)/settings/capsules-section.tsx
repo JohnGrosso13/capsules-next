@@ -20,7 +20,7 @@ type CapsuleSummary = {
   promoTileUrl: string | null;
   logoUrl: string | null;
   role: string | null;
-  ownership: "owner" | "member";
+  ownership: "owner" | "member" | "follower";
 };
 
 type CapsulesResponse = {

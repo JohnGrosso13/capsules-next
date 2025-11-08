@@ -1,0 +1,43 @@
+@layer components {
+  .section {
+    margin-bottom: clamp(24px, 5vw, 48px);
+    display: grid;
+    gap: 16px;
+  }
+
+  .header {
+    display: grid;
+    gap: 8px;
+  }
+
+  .title {
+    margin: 0;
+    font-size: clamp(1.25rem, 3vw, 1.5rem);
+    font-weight: 800;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: var(--text-2);
+    line-height: 1.5;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  .tile {
+    display: block;
+    text-decoration: none;
+  }
+
+  .empty {
+    padding: 24px;
+    border-radius: var(--radius-2xl, 20px);
+    border: 1px dashed var(--card-border);
+    color: var(--text-2);
+    text-align: center;
+  }
+}
