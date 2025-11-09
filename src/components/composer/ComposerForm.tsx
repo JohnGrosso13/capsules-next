@@ -1,38 +1,27 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import styles from "../ai-composer.module.css";
 import lightboxStyles from "@/components/home-feed.module.css";
-import {
-  X,
-  Sparkle,
-  ChatsTeardrop,
-  FileText,
-  FolderSimple,
-  Brain,
-  List,
-  SidebarSimple,
-} from "@phosphor-icons/react/dist/ssr";
+import { X, Sparkle, Brain, List, SidebarSimple, FileText, FolderSimple } from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
-import { AttachmentPanel } from "./components/AttachmentPanel";
-import { PreviewColumn } from "./components/PreviewColumn";
 import { ComposerMemoryPicker, type MemoryPickerTab } from "./components/ComposerMemoryPicker";
 import { useComposerFormReducer, type ComposerFormState } from "./hooks/useComposerFormReducer";
 import { useComposerLayout } from "./hooks/useComposerLayout";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
 import { useComposer } from "./ComposerProvider";
-import { PromptSurface } from "./components/PromptSurface";
 import { usePollBuilder } from "./features/poll-builder/usePollBuilder";
 import { PollBuilderCard } from "./features/poll-builder/PollBuilderCard";
+import type { ComposerContextSnapshot } from "./ComposerProvider";
 import type {
   ComposerVideoStatus,
   ComposerSaveStatus,
   ComposerSaveRequest,
   ComposerMemorySavePayload,
-  ComposerContextSnapshot,
-} from "./ComposerProvider";
-import type { PromptSubmitOptions } from "./types";
+  PromptSubmitOptions,
+} from "./types";
 
 import type { LocalAttachment } from "@/hooks/useAttachmentUpload";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
@@ -47,8 +36,6 @@ import type {
 } from "@/lib/composer/summary-context";
 import type { SummaryResult } from "@/types/summary";
 import { useCurrentUser } from "@/services/auth/client";
-import { SummaryContextPanel } from "./components/SummaryContextPanel";
-import { SummaryNarrativeCard } from "./components/SummaryNarrativeCard";
 import {
   useAttachmentRail,
   type AttachmentMemoryItem,
@@ -56,129 +43,45 @@ import {
 import { useFeedPreview } from "./features/feed-preview/useFeedPreview";
 import { usePromptSurface } from "./features/prompt-surface/usePromptSurface";
 import { useSummarySidebar } from "./features/summary-sidebar/useSummarySidebar";
+import type { PromptPaneProps, PromptPaneSurfaceProps } from "./panes/PromptPane";
+import type { PreviewPaneProps } from "./panes/PreviewPane";
 import type { ClarifierPrompt } from "./types";
 export type { ClarifierPrompt } from "./types";
+import {
+  type SidebarRailProps,
+  type SidebarSectionProps,
+  type MobileSidebarMenuProps,
+  type SidebarListItem,
+  type SidebarTabKey,
+} from "./panes/SidebarPane";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
 
-type SidebarListItem = {
-  id: string;
-  title: string;
-  subtitle?: string;
-  onClick(): void;
-  active?: boolean;
-  disabled?: boolean;
-  icon?: React.ReactNode;
-};
+const PromptPane = dynamic<PromptPaneProps>(
+  () => import("./panes/PromptPane").then((mod) => mod.PromptPane),
+  { ssr: false, loading: () => null },
+);
 
-type SidebarSectionProps = {
-  title: string;
-  description?: string;
-  items: SidebarListItem[];
-  emptyMessage: string;
-  itemIcon?: React.ReactNode;
-  thumbClassName?: string;
-  actionLabel?: string;
-  onAction?: () => void;
-  maxVisible?: number;
-};
+const PreviewPane = dynamic<PreviewPaneProps>(
+  () => import("./panes/PreviewPane").then((mod) => mod.PreviewPane),
+  { ssr: false, loading: () => null },
+);
 
-type SidebarTabKey = "recent" | "drafts" | "projects" | "memories";
+const SidebarRail = dynamic<SidebarRailProps>(
+  () => import("./panes/SidebarPane").then((mod) => mod.SidebarRail),
+  { ssr: false, loading: () => null },
+);
 
-type SidebarTabOption = {
-  key: SidebarTabKey;
-  label: string;
-  renderIcon(selected: boolean): React.ReactNode;
-};
+const SidebarSection = dynamic<SidebarSectionProps>(
+  () => import("./panes/SidebarPane").then((mod) => mod.SidebarSection),
+  { ssr: false, loading: () => null },
+);
 
-const SIDEBAR_TAB_OPTIONS: SidebarTabOption[] = [
-  {
-    key: "recent",
-    label: "Recent chats",
-    renderIcon: (selected) => <ChatsTeardrop size={18} weight={selected ? "fill" : "duotone"} />,
-  },
-  {
-    key: "drafts",
-    label: "Saved drafts",
-    renderIcon: (selected) => <FileText size={18} weight={selected ? "fill" : "duotone"} />,
-  },
-  {
-    key: "projects",
-    label: "Projects",
-    renderIcon: (selected) => <FolderSimple size={18} weight={selected ? "fill" : "duotone"} />,
-  },
-  {
-    key: "memories",
-    label: "Memories",
-    renderIcon: (selected) => <Brain size={18} weight={selected ? "fill" : "duotone"} />,
-  },
-];
-
-function SidebarSection({
-  title,
-  description,
-  items,
-  emptyMessage,
-  itemIcon,
-  thumbClassName = "",
-  actionLabel,
-  onAction,
-  maxVisible,
-}: SidebarSectionProps) {
-  const limit =
-    typeof maxVisible === "number" && Number.isFinite(maxVisible) && maxVisible > 0
-      ? Math.trunc(maxVisible)
-      : null;
-  const visibleItems = limit ? items.slice(0, limit) : items;
-
-  return (
-    <section className={styles.memorySection}>
-      <header className={styles.memoryHeader}>
-        <div className={styles.memoryHeaderTop}>
-          <span className={styles.memoryTitle}>{title}</span>
-          {onAction ? (
-            <button type="button" className={styles.memoryLinkBtn} onClick={onAction}>
-              {actionLabel ?? "Add"}
-            </button>
-          ) : null}
-        </div>
-        {description ? <p className={styles.memorySubtitle}>{description}</p> : null}
-      </header>
-      {visibleItems.length ? (
-        <ol className={styles.memoryList}>
-          {visibleItems.map((item) => {
-            const cardClass = `${styles.memoryCard}${item.active ? ` ${styles.memoryCardActive}` : ""}`;
-            const iconNode = item.icon ?? itemIcon ?? null;
-            const thumbClass = `${styles.memoryThumb}${thumbClassName ? ` ${thumbClassName}` : ""}`;
-            return (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className={cardClass}
-                  onClick={item.onClick}
-                  disabled={item.disabled}
-                  title={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
-                  aria-label={`${item.title}${item.subtitle ? ` â€” ${item.subtitle}` : ""}`}
-                >
-                  {iconNode ? <span className={thumbClass}>{iconNode}</span> : null}
-                  <span className={styles.memoryMeta}>
-                    <span className={styles.memoryName}>{item.title}</span>
-                    {item.subtitle ? (
-                      <span className={styles.memoryType}>{item.subtitle}</span>
-                    ) : null}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      ) : (
-        <div className={styles.memoryEmpty}>{emptyMessage}</div>
-      )}
-    </section>
-  );
-}
+const MobileSidebarMenu = dynamic<MobileSidebarMenuProps>(
+  () => import("./panes/SidebarPane").then((mod) => mod.MobileSidebarMenu),
+  { ssr: false, loading: () => null },
+);
 
 type ComposerToolbarProps = {
   activeKey: string;
@@ -1002,6 +905,41 @@ export function ComposerForm({
     setSummaryPanelOpen(false);
   }, [setSummaryCollapsed, setSummaryPanelOpen]);
 
+  const toggleSummaryPanel = React.useCallback(() => {
+    setSummaryPanelOpen((open) => !open);
+  }, [setSummaryPanelOpen]);
+
+  const summaryControls = React.useMemo(
+    () => ({
+      entries: summaryEntries,
+      collapsed: summaryCollapsed,
+      panelOpen: summaryPanelOpen,
+      onPanelToggle: toggleSummaryPanel,
+      onReset: handleSummaryReset,
+      result: summaryResult,
+      options: summaryOptions,
+      previewEntry: summaryPreviewEntry,
+      onSelectPreviewEntry: setSummaryPreviewEntry,
+      onAsk: handleSummaryAsk,
+      onComment: handleSummaryComment,
+      onView: handleSummaryView,
+    }),
+    [
+      summaryEntries,
+      summaryCollapsed,
+      summaryPanelOpen,
+      toggleSummaryPanel,
+      handleSummaryReset,
+      summaryResult,
+      summaryOptions,
+      summaryPreviewEntry,
+      setSummaryPreviewEntry,
+      handleSummaryAsk,
+      handleSummaryComment,
+      handleSummaryView,
+    ],
+  );
+
   const pollPreviewCard = React.useMemo(
     () => (
       <PollBuilderCard
@@ -1115,6 +1053,14 @@ export function ComposerForm({
       onAttachmentTabChange(tab);
     },
     [onAttachmentTabChange],
+  );
+
+  const handleSidebarTabChange = React.useCallback(
+    (tabKey: SidebarTabKey) => {
+      setActiveSidebarTab(tabKey);
+      actions.layout.setLeftCollapsed(false);
+    },
+    [actions.layout, setActiveSidebarTab],
   );
 
   const handleKindSelect = React.useCallback(
@@ -1332,39 +1278,6 @@ export function ComposerForm({
     workingDraft.title,
   ]);
 
-  const handleAttachmentSave = React.useCallback(
-    (attachment: ComposerChatAttachment) => {
-      if (!attachment.url) return;
-      const titleSource = pickFirstMeaningful(
-        attachment.name,
-        attachment.excerpt,
-        workingDraft.mediaPrompt,
-        videoStatus.prompt,
-      );
-      const descriptionSource = pickFirstMeaningful(
-        attachment.excerpt,
-        videoStatus.message,
-        attachment.name,
-      );
-      setSaveDialogTarget({ type: "attachment", attachment });
-      setSaveTitle(formatTitleFromText(titleSource || "Capsule creation"));
-      setSaveDescription(
-        formatDescriptionFromText(
-          descriptionSource || "Saved from Capsule Composer.",
-        ),
-      );
-      setSaveError(null);
-      setSaveDialogOpen(true);
-    },
-    [videoStatus.message, videoStatus.prompt, workingDraft.mediaPrompt],
-  );
-
-  const canSaveAttachment = (attachment: ComposerChatAttachment): boolean => {
-    if (!attachment.url) return false;
-    const source = (attachment.source ?? "").toLowerCase();
-    return source === "ai" || attachment.role === "output";
-  };
-
   const handleSaveConfirm = React.useCallback(async () => {
     if (!saveDialogTarget) return;
     const trimmedTitle = saveTitle.trim();
@@ -1502,13 +1415,9 @@ export function ComposerForm({
     actions.layout.setLeftCollapsed(!layout.leftCollapsed);
   }, [actions.layout, layout.leftCollapsed]);
 
-  const handleCollapsedNavSelect = React.useCallback(
-    (tabKey: SidebarTabKey) => {
-      setActiveSidebarTab(tabKey);
-      actions.layout.setLeftCollapsed(false);
-    },
-    [actions.layout, setActiveSidebarTab],
-  );
+  const handleRecentModalClose = React.useCallback(() => {
+    setRecentModalOpen(false);
+  }, []);
 
   const recentSidebarItems: SidebarListItem[] = React.useMemo(
     () =>
@@ -1518,10 +1427,10 @@ export function ComposerForm({
         subtitle: item.caption,
         onClick: () => {
           onSelectRecentChat(item.id);
-          setRecentModalOpen(false);
+          handleRecentModalClose();
         },
       })),
-    [onSelectRecentChat, sidebar.recentChats],
+    [handleRecentModalClose, onSelectRecentChat, sidebar.recentChats],
   );
 
   const draftSidebarItems: SidebarListItem[] = React.useMemo(() => {
@@ -1687,790 +1596,169 @@ export function ComposerForm({
     recentSidebarItems,
   ]);
 
-  const collapsedLeftRail = (
-
-    <div className={styles.collapsedRail}>
-
-      <button
-
-        type="button"
-
-        className={styles.collapsedRailBtn}
-
-        onClick={handleToggleLeftRail}
-
-        aria-label="Expand sidebar"
-
-        title="Expand sidebar"
-
-      >
-
-        <SidebarSimple size={18} weight="bold" />
-
-        <span className={styles.srOnly}>Expand sidebar</span>
-
-      </button>
-
-      {SIDEBAR_TAB_OPTIONS.map((tab) => {
-
-        const selected = activeSidebarTab === tab.key;
-
-        return (
-
-          <button
-
-            key={`collapsed-${tab.key}`}
-
-            type="button"
-
-            className={styles.collapsedRailBtn}
-
-            data-active={selected ? "true" : undefined}
-
-            onClick={() => handleCollapsedNavSelect(tab.key)}
-
-            aria-label={tab.label}
-
-            title={tab.label}
-
-          >
-
-            {tab.renderIcon(selected)}
-
-          </button>
-
-        );
-
-      })}
-
-    </div>
-
+  const mobileSections = React.useMemo<MobileSidebarMenuProps["sections"]>(
+    () => [
+      {
+        title: "Recent chats",
+        items: recentSidebarItems,
+        emptyMessage: "No chats yet",
+        ...(recentActionProps?.actionLabel
+          ? { actionLabel: recentActionProps.actionLabel }
+          : {}),
+        ...(recentActionProps ? { onAction: () => recentActionProps.onAction() } : {}),
+      },
+      {
+        title: "Saved drafts",
+        items: draftSidebarItems,
+        emptyMessage: "No drafts saved yet",
+      },
+      {
+        title: "Projects",
+        items: projectSidebarItems,
+        emptyMessage: "Create a project to organize drafts",
+        actionLabel: "New project",
+        onAction: () => handleCreateProjectClick(),
+      },
+    ],
+    [draftSidebarItems, projectSidebarItems, recentActionProps, recentSidebarItems, handleCreateProjectClick],
   );
 
+  const mobileMemoriesSection = React.useMemo(
+    () => ({
+      title: "Memories",
+      buttonLabel: "Browse memories",
+      description: "Open your stored assets and brand visuals.",
+      onBrowse: () => handleMemoryPickerOpen("uploads"),
+    }),
+    [handleMemoryPickerOpen],
+  );
 
-
-  const expandedLeftRail = (
-
-    <div className={styles.memoryRail}>
-
-      <div className={styles.sidebarHeaderRow}>
-
-        <div className={styles.sidebarTabs} role="tablist" aria-label="Composer navigation">
-
-          {SIDEBAR_TAB_OPTIONS.map((tab) => {
-
-            const selected = tab.key === activeSidebarTab;
-
-            return (
-
-              <button
-
-                key={tab.key}
-
-                type="button"
-
-                role="tab"
-
-                aria-selected={selected}
-
-                tabIndex={selected ? 0 : -1}
-
-                className={`${styles.sidebarTab} ${selected ? styles.sidebarTabActive : ""}`}
-
-                data-selected={selected ? "true" : undefined}
-
-                onClick={() => setActiveSidebarTab(tab.key)}
-
-                title={tab.label}
-
-              >
-
-                {tab.renderIcon(selected)}
-
-                <span className={styles.srOnly}>{tab.label}</span>
-
-              </button>
-
-            );
-
-          })}
-
-        </div>
-
+  const mobileSettingsSection = (
+    <section className={styles.mobileSheetSection}>
+      <header>
+        <span className={styles.mobileSheetSectionTitle}>Settings</span>
+      </header>
+      <div className={styles.privacyGroup}>
+        <span className={styles.privacyLabel}>Visibility</span>
+        <select
+          aria-label="Visibility"
+          className={styles.privacySelect}
+          value={privacy}
+          onChange={(event) => {
+            const nextValue = (event.target.value || "public") as ComposerFormState["privacy"];
+            actions.setPrivacy(nextValue);
+          }}
+          disabled={loading}
+        >
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </select>
+      </div>
+      <div>
         <button
-
           type="button"
-
-          className={styles.sidebarCollapseBtn}
-
-          onClick={handleToggleLeftRail}
-
-          aria-label="Hide sidebar"
-
+          className={styles.secondaryAction}
+          onClick={() => {
+            handleSaveClick();
+            closeMobileRail();
+          }}
+          disabled={!canSave}
         >
-
-          <SidebarSimple size={16} weight="bold" />
-
-          <span className={styles.srOnly}>Hide sidebar</span>
-
+          {savingCreation ? "Saving..." : "Save"}
         </button>
-
       </div>
-
-      <div className={styles.sidebarScroll}>{sidebarContent}</div>
-
-      {recentModalOpen ? (
-
-        <div
-
-          className={styles.sidebarOverlay}
-
-          role="dialog"
-
-          aria-modal="true"
-
-          aria-label="All recent chats"
-
-          onClick={() => setRecentModalOpen(false)}
-
-        >
-
-          <div
-
-            className={styles.sidebarOverlayCard}
-
-            onClick={(event) => event.stopPropagation()}
-
-          >
-
-            <div className={styles.sidebarOverlayHeader}>
-
-              <span className={styles.sidebarOverlayTitle}>Recent chats</span>
-
-              <button
-
-                type="button"
-
-                className={styles.sidebarOverlayClose}
-
-                onClick={() => setRecentModalOpen(false)}
-
-              >
-
-                Close
-
-              </button>
-
-            </div>
-
-            <div className={styles.sidebarOverlayList}>
-
-              <ol className={styles.memoryList}>
-
-                {recentSidebarItems.map((item) => {
-
-                  const cardClass = `${styles.memoryCard}${
-
-                    item.active ? ` ${styles.memoryCardActive}` : ""
-
-                  }`;
-
-                  const iconNode = item.icon ?? null;
-
-                  const thumbClass = `${styles.memoryThumb} ${styles.memoryThumbChat ?? ""}`;
-
-                  return (
-
-                    <li key={`recent-modal-${item.id}`}>
-
-                      <button
-
-                        type="button"
-
-                        className={cardClass}
-
-                        onClick={item.onClick}
-
-                        disabled={item.disabled}
-
-                        title={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
-
-                        aria-label={`${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`}
-
-                      >
-
-                        {iconNode ? <span className={thumbClass}>{iconNode}</span> : null}
-
-                        <span className={styles.memoryMeta}>
-
-                          <span className={styles.memoryName}>{item.title}</span>
-
-                          {item.subtitle ? (
-
-                            <span className={styles.memoryType}>{item.subtitle}</span>
-
-                          ) : null}
-
-                        </span>
-
-                      </button>
-
-                    </li>
-
-                  );
-
-                })}
-
-              </ol>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      ) : null}
-
-    </div>
-
+    </section>
   );
 
 
+  const promptSurfaceProps: PromptPaneSurfaceProps = {
+    loading,
+    attachmentUploading,
+    onAttachClick: handleAttachClick,
+    onAttachmentSelect: handleAttachmentSelect,
+    fileInputRef,
+    promptInputRef,
+    promptValue,
+    placeholder: currentPromptPlaceholder,
+    onPromptChange: setPromptValue,
+    onPromptPaste: handlePromptPaste,
+    onPromptSubmit: handlePromptSubmit,
+    quickPromptOptions,
+    onQuickPromptSelect: handleSuggestionSelect,
+    showQuickPrompts: !summaryResult,
+    voiceControls,
+  };
 
-  const leftRail = layout.leftCollapsed ? collapsedLeftRail : expandedLeftRail;
-
+  const leftRail = (
+    <SidebarRail
+      collapsed={layout.leftCollapsed}
+      activeTab={activeSidebarTab}
+      onTabChange={handleSidebarTabChange}
+      onToggleCollapse={handleToggleLeftRail}
+      content={sidebarContent}
+      {...(recentModalOpen
+        ? {
+            recentModal: {
+              open: true,
+              items: recentSidebarItems,
+              onClose: handleRecentModalClose,
+            },
+          }
+        : {})}
+    />
+  );
   const mainContent = (
-    <>
-      <div className={styles.chatArea}>
-        {summaryEntries.length ? (
-          summaryCollapsed ? (
-            <div className={styles.summaryContextToggleRow}>
-              <button
-                type="button"
-                className={styles.summaryContextToggleBtn}
-                onClick={handleSummaryReset}
-              >
-                Back to summaries
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className={styles.summaryContextToggleRow}>
-                <button
-                  type="button"
-                  className={styles.summaryContextToggleBtn}
-                  data-active={summaryPanelOpen ? "true" : undefined}
-                  aria-expanded={summaryPanelOpen}
-                  onClick={() => setSummaryPanelOpen((open) => !open)}
-                >
-                  {summaryPanelOpen
-                    ? "Hide referenced updates"
-                    : `View referenced updates (${summaryEntries.length})`}
-                </button>
-              </div>
-              {summaryPanelOpen ? (
-                <SummaryContextPanel
-                  entries={summaryEntries}
-                  onAsk={handleSummaryAsk}
-                  onComment={handleSummaryComment}
-                  onView={handleSummaryView}
-                />
-              ) : null}
-            </>
-          )
-        ) : null}
-        <div className={styles.chatScroll}>
-          {summaryResult && !summaryCollapsed ? (
-            <SummaryNarrativeCard
-              result={summaryResult}
-              options={summaryOptions}
-              entries={summaryEntries}
-              selectedEntry={summaryPreviewEntry}
-              onSelectEntry={setSummaryPreviewEntry}
-              onAsk={handleSummaryAsk}
-              onComment={handleSummaryComment}
-              onView={handleSummaryView}
-            />
-          ) : null}
-          <ol className={styles.chatList}>
-            {showWelcomeMessage ? (
-              <li className={styles.msgRow} data-role="ai">
-                <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{PANEL_WELCOME}</div>
-              </li>
-            ) : null}
-
-            {renderedHistory.length
-              ? renderedHistory.map((entry, index) => {
-                  const role = entry.role === "user" ? "user" : "ai";
-                  const bubbleClass =
-                    role === "user"
-                      ? `${styles.msgBubble} ${styles.userBubble}`
-                      : `${styles.msgBubble} ${styles.aiBubble}`;
-                  const key = entry.id || `${role}-${index}`;
-                  const attachments = Array.isArray(entry.attachments)
-                    ? entry.attachments
-                    : [];
-                  return (
-                    <li key={key} className={styles.msgRow} data-role={role}>
-                      <div className={bubbleClass}>
-                        <div className={styles.chatMessageText}>{entry.content}</div>
-                        {attachments.length ? (
-                          <div className={styles.chatAttachmentList}>
-                            {attachments.map((attachment) => {
-                              const attachmentKey = attachment.id || `${key}-${attachment.name}`;
-                              const mimeType = (attachment.mimeType ?? "").toLowerCase();
-                              const isImage = mimeType.startsWith("image/");
-                              const previewSrc = attachment.thumbnailUrl ?? attachment.url ?? null;
-                              const hasUrl = typeof attachment.url === "string" && attachment.url.length > 0;
-                              return (
-                                <div key={attachmentKey} className={styles.chatAttachmentCard}>
-                                  <a
-                                    href={hasUrl ? attachment.url : undefined}
-                                    target={hasUrl ? "_blank" : undefined}
-                                    rel={hasUrl ? "noreferrer" : undefined}
-                                    className={styles.chatAttachmentLink}
-                                    aria-disabled={hasUrl ? undefined : "true"}
-                                    onClick={
-                                      hasUrl
-                                        ? undefined
-                                        : (event) => {
-                                            event.preventDefault();
-                                          }
-                                    }
-                                  >
-                                    {isImage && previewSrc ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img
-                                        src={previewSrc}
-                                        alt={attachment.name}
-                                        className={styles.chatAttachmentPreview}
-                                      />
-                                    ) : null}
-                                    <span className={styles.chatAttachmentLabel}>{attachment.name}</span>
-                                  </a>
-                                  <div className={styles.chatAttachmentActions}>
-                                    {canSaveAttachment(attachment) ? (
-                                      <button
-                                        type="button"
-                                        className={styles.chatAttachmentActionBtn}
-                                        onClick={() => handleAttachmentSave(attachment)}
-                                      >
-                                        Save to Memory
-                                      </button>
-                                    ) : null}
-                                    {hasUrl ? (
-                                      <a
-                                        className={styles.chatAttachmentActionBtn}
-                                        href={attachment.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        download
-                                      >
-                                        Download
-                                      </a>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })
-              : null}
-
-            {!renderedHistory.length && prompt ? (
-              <li className={styles.msgRow} data-role="user">
-                <div className={`${styles.msgBubble} ${styles.userBubble}`}>{prompt}</div>
-              </li>
-            ) : null}
-
-            {displayAttachment ? (
-              <AttachmentPanel
-                attachment={displayAttachment}
-                kind={attachmentKind}
-                statusLabel={attachmentStatusLabel}
-                displayUrl={attachmentDisplayUrl}
-                progressPct={attachmentProgressPct}
-                loading={loading}
-                uploading={attachmentUploading}
-                onRemove={handleRemoveAttachment}
-                onOpenViewer={openViewer}
-              />
-            ) : null}
-
-            {videoStatus.state === "running" ? (
-              <li className={styles.msgRow} data-role="ai">
-                <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.videoStatusBubble}`}>
-                  <span className={styles.videoStatusSpinner} aria-hidden="true" />
-                  <p>{videoStatus.message ?? "Rendering your clip..."}</p>
-                </div>
-              </li>
-            ) : null}
-
-            {videoStatus.state === "failed" ? (
-              <li className={styles.msgRow} data-role="ai">
-                <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.videoStatusError}`}>
-                  <p>{videoStatus.error ?? "We hit a snag while rendering that clip."}</p>
-                  <div className={styles.videoStatusActions}>
-                    <button type="button" className={styles.videoRetryButton} onClick={onRetryVideo}>
-                      Try again
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ) : null}
-
-            {showVibePrompt ? (
-              <li className={styles.msgRow} data-role="ai">
-                <div
-                  className={`${styles.msgBubble} ${styles.aiBubble} ${styles.attachmentPromptBubble}`}
-                >
-                  <p className={styles.attachmentPromptIntro}>
-                    Ready to vibe this {attachmentKind === "video" ? "clip" : "visual"} into
-                    something new. What should we explore next?
-                  </p>
-                  <div className={styles.vibeActions}>
-                    {vibeSuggestions.map((suggestion) => (
-                      <button
-                        key={suggestion.prompt}
-                        type="button"
-                        className={styles.vibeAction}
-                        onClick={() => handleSuggestionSelect(suggestion.prompt)}
-                      >
-                        {suggestion.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </li>
-            ) : null}
-
-            {clarifier ? (
-              <li className={styles.msgRow} data-role="ai">
-                <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.clarifierBubble}`}>
-                  <p className={styles.clarifierHeading}>{clarifier.question}</p>
-                  {clarifier.rationale ? (
-                    <p className={styles.clarifierRationale}>{clarifier.rationale}</p>
-                  ) : null}
-                  {clarifier.styleTraits.length ? (
-                    <div className={styles.clarifierTraits}>
-                      {clarifier.styleTraits.map((trait) => (
-                        <span key={`${clarifier.questionId}-${trait}`} className={styles.clarifierTrait}>
-                          {trait}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {clarifier.suggestions.length ? (
-                    <div className={styles.clarifierSuggestions}>
-                      {clarifier.suggestions.map((suggestion) => (
-                        <button
-                          key={`${clarifier.questionId}-${suggestion}`}
-                          type="button"
-                          className={styles.clarifierSuggestion}
-                          onClick={() => onClarifierRespond?.(suggestion)}
-                          disabled={loading}
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </li>
-            ) : null}
-
-            {showQuickPromptBubble ? (
-              <li className={styles.msgRow} data-role="ai">
-                <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.quickPromptBubble}`}>
-                  <p className={styles.quickPromptHeading}>
-                    Want a head start? Tap a vibe and I&apos;ll riff from there.
-                  </p>
-                  <div className={styles.quickPromptChips}>
-                    {quickPromptBubbleOptions.map((option, index) => (
-                      <button
-                        key={`${option.label}-${index}`}
-                        type="button"
-                        className={styles.quickPromptChip}
-                        onClick={() => handleSuggestionSelect(option.prompt)}
-                        disabled={loading}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </li>
-            ) : null}
-
-            {!renderedHistory.length && message && !clarifier ? (
-              <li className={styles.msgRow} data-role="ai">
-                <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{message}</div>
-              </li>
-            ) : null}
-
-            {loading ? (
-              <li className={styles.msgRow} data-role="ai">
-                <div
-                  className={`${styles.msgBubble} ${styles.aiBubble} ${styles.streaming}`}
-                  aria-live="polite"
-                >
-                  <span className={styles.streamDot} />
-                  <span className={styles.streamDot} />
-                  <span className={styles.streamDot} />
-                </div>
-              </li>
-            ) : null}
-          </ol>
-        </div>
-      </div>
-
-      <PromptSurface
-        loading={loading}
-        attachmentUploading={attachmentUploading}
-        onAttachClick={handleAttachClick}
-        onAttachmentSelect={handleAttachmentSelect}
-        fileInputRef={fileInputRef}
-        promptInputRef={promptInputRef}
-        promptValue={promptValue}
-        placeholder={currentPromptPlaceholder}
-        onPromptChange={setPromptValue}
-        onPromptPaste={handlePromptPaste}
-        onPromptSubmit={handlePromptSubmit}
-        quickPromptOptions={quickPromptOptions}
-        onQuickPromptSelect={handleSuggestionSelect}
-        showQuickPrompts={!summaryResult}
-        voiceControls={voiceControls}
-      />
-    </>
+    <PromptPane
+      summaryControls={summaryControls}
+      history={renderedHistory}
+      showWelcomeMessage={showWelcomeMessage}
+      welcomeMessage={PANEL_WELCOME}
+      prompt={prompt}
+      message={message}
+      clarifier={clarifier}
+      {...(onClarifierRespond ? { onClarifierRespond } : {})}
+      loading={loading}
+      displayAttachment={displayAttachment}
+      attachmentKind={attachmentKind}
+      attachmentStatusLabel={attachmentStatusLabel ?? null}
+      attachmentDisplayUrl={attachmentDisplayUrl ?? null}
+      attachmentProgressPct={attachmentProgressPct}
+      attachmentUploading={attachmentUploading}
+      onRemoveAttachment={handleRemoveAttachment}
+      onOpenAttachmentViewer={openViewer}
+      videoStatus={videoStatus}
+      onRetryVideo={onRetryVideo}
+      showVibePrompt={showVibePrompt}
+      vibeSuggestions={vibeSuggestions}
+      onSuggestionSelect={handleSuggestionSelect}
+      showQuickPromptBubble={showQuickPromptBubble}
+      quickPromptBubbleOptions={quickPromptBubbleOptions}
+      promptSurfaceProps={promptSurfaceProps}
+    />
   );
 
-  const previewContent = summaryPreviewContent ?? (
-    <PreviewColumn
-      title="Preview"
-      meta={<span className={styles.previewTypeBadge}>{previewState.label}</span>}
-    >
-      <div
-        id="composer-preview-pane"
-        className={styles.previewCanvas}
-        data-kind={previewState.kind}
-        data-empty={previewState.empty ? "true" : undefined}
-      >
-        <div className={styles.previewStage}>{previewState.body}</div>
-        {previewState.helper ? (
-          <p className={styles.previewHelper}>{previewState.helper}</p>
-        ) : null}
-        <div className={styles.previewActions}>
-          <button
-            type="button"
-            className={styles.previewActionPrimary}
-            onClick={previewPrimaryAction.onClick}
-            disabled={previewPrimaryAction.disabled}
-          >
-            {previewPrimaryAction.label}
-          </button>
-          <button
-            type="button"
-            className={styles.previewActionSecondary}
-            onClick={previewSecondaryAction.onClick}
-            disabled={previewSecondaryAction.disabled}
-          >
-            {previewSecondaryAction.label}
-          </button>
-        </div>
-      </div>
-    </PreviewColumn>
-  );
-
-  const renderMobileListItem = React.useCallback(
-    (item: SidebarListItem, fallbackIcon?: React.ReactNode) => {
-      const iconNode = item.icon ?? fallbackIcon ?? null;
-      return (
-        <li key={item.id}>
-          <button
-            type="button"
-            onClick={() => {
-              item.onClick();
-              closeMobileRail();
-            }}
-            disabled={item.disabled}
-            data-active={item.active ? "true" : undefined}
-          >
-            {iconNode ? <span className={styles.mobileSheetListIcon}>{iconNode}</span> : null}
-            <span className={styles.mobileSheetListMeta}>
-              <span className={styles.mobileSheetListTitle}>{item.title}</span>
-              {item.subtitle ? (
-                <span className={styles.mobileSheetListCaption}>{item.subtitle}</span>
-              ) : null}
-            </span>
-          </button>
-        </li>
-      );
-    },
-    [closeMobileRail],
+  const previewContent = (
+    <PreviewPane
+      summaryPreviewContent={summaryPreviewContent}
+      previewState={previewState}
+      previewPrimaryAction={previewPrimaryAction}
+      previewSecondaryAction={previewSecondaryAction}
+    />
   );
 
   const mobileMenu =
     !isMobileLayout || !mobileRailOpen
       ? null
       : (
-          <div
-            id="composer-mobile-menu"
-            className={styles.mobileSheet}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="composer-mobile-menu-title"
-            onClick={closeMobileRail}
-          >
-            <div className={styles.mobileSheetBackdrop} />
-            <div
-              className={styles.mobileSheetPanel}
-              role="document"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className={styles.mobileSheetHeader}>
-                <span id="composer-mobile-menu-title" className={styles.mobileSheetTitle}>
-                  Composer menu
-                </span>
-                <button
-                  type="button"
-                  className={styles.mobileSheetClose}
-                  onClick={closeMobileRail}
-                  ref={mobileMenuCloseRef}
-                  aria-label="Close composer menu"
-                >
-                  <X size={16} weight="bold" />
-                </button>
-              </div>
-              <div className={styles.mobileSheetBody}>
-                <section className={styles.mobileSheetSection}>
-                  <header>
-                    <span className={styles.mobileSheetSectionTitle}>Recent chats</span>
-                    {recentActionProps ? (
-                      <button
-                        type="button"
-                        className={styles.mobileSheetSectionAction}
-                        onClick={() => {
-                          closeMobileRail();
-                          recentActionProps.onAction();
-                        }}
-                      >
-                        {recentActionProps.actionLabel ?? "See all"}
-                      </button>
-                    ) : null}
-                  </header>
-                  {recentSidebarItems.length ? (
-                    <ul className={styles.mobileSheetList} role="list">
-                      {recentSidebarItems.map((item) => renderMobileListItem(item))}
-                    </ul>
-                  ) : (
-                    <div className={styles.memoryEmpty}>No chats yet</div>
-                  )}
-                </section>
-
-                <section className={styles.mobileSheetSection}>
-                  <header>
-                    <span className={styles.mobileSheetSectionTitle}>Saved drafts</span>
-                  </header>
-                  {draftSidebarItems.length ? (
-                    <ul className={styles.mobileSheetList} role="list">
-                      {draftSidebarItems.map((item) => renderMobileListItem(item))}
-                    </ul>
-                  ) : (
-                    <div className={styles.memoryEmpty}>No drafts saved yet</div>
-                  )}
-                </section>
-
-                <section className={styles.mobileSheetSection}>
-                  <header>
-                    <span className={styles.mobileSheetSectionTitle}>Projects</span>
-                    <button
-                      type="button"
-                      className={styles.mobileSheetSectionAction}
-                      onClick={() => {
-                        closeMobileRail();
-                        handleCreateProjectClick();
-                      }}
-                    >
-                      New project
-                    </button>
-                  </header>
-                  {projectSidebarItems.length ? (
-                    <ul className={styles.mobileSheetList} role="list">
-                      {projectSidebarItems.map((item) => renderMobileListItem(item))}
-                    </ul>
-                  ) : (
-                    <div className={styles.memoryEmpty}>Create a project to organize drafts</div>
-                  )}
-                </section>
-
-                <section className={styles.mobileSheetSection}>
-                  <header>
-                    <span className={styles.mobileSheetSectionTitle}>Memories</span>
-                  </header>
-                  <ul className={styles.mobileSheetList} role="list">
-                    <li>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          closeMobileRail();
-                          handleMemoryPickerOpen("uploads");
-                        }}
-                      >
-                        <span className={styles.mobileSheetListIcon}>
-                          <Brain size={18} weight="fill" />
-                        </span>
-                        <span className={styles.mobileSheetListMeta}>
-                          <span className={styles.mobileSheetListTitle}>Browse memories</span>
-                          <span className={styles.mobileSheetListCaption}>
-                            Open your stored assets and brand visuals.
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  </ul>
-                </section>
-
-                <section className={styles.mobileSheetSection}>
-                  <header>
-                    <span className={styles.mobileSheetSectionTitle}>Settings</span>
-                  </header>
-                  <div className={styles.privacyGroup}>
-                    <span className={styles.privacyLabel}>Visibility</span>
-                    <select
-                      aria-label="Visibility"
-                      className={styles.privacySelect}
-                      value={privacy}
-                      onChange={(event) => {
-                        const nextValue = (event.target.value || "public") as ComposerFormState["privacy"];
-                        actions.setPrivacy(nextValue);
-                      }}
-                      disabled={loading}
-                    >
-                      <option value="public">Public</option>
-                      <option value="private">Private</option>
-                    </select>
-                  </div>
-                  <div>
-                    <button
-                      type="button"
-                      className={styles.secondaryAction}
-                      onClick={() => {
-                        handleSaveClick();
-                        closeMobileRail();
-                      }}
-                      disabled={!canSave}
-                    >
-                      {savingCreation ? "Saving..." : "Save"}
-                    </button>
-                  </div>
-                </section>
-              </div>
-            </div>
-          </div>
+          <MobileSidebarMenu
+            open={mobileRailOpen}
+            onClose={closeMobileRail}
+            closeButtonRef={mobileMenuCloseRef}
+            onItemSelect={closeMobileRail}
+            sections={mobileSections}
+            memoriesSection={mobileMemoriesSection}
+            extraSections={mobileSettingsSection}
+          />
         );
 
   const startLeftResize = React.useCallback(
@@ -2688,8 +1976,4 @@ export function ComposerForm({
     </div>
   );
 }
-
-
-
-
 

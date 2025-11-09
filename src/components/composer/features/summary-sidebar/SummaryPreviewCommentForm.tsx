@@ -5,6 +5,7 @@ import * as React from "react";
 import styles from "../../../ai-composer.module.css";
 import { safeRandomUUID } from "@/lib/random";
 import type { AuthClientUser } from "@/ports/auth-client";
+import { submitComment } from "@/services/comments";
 
 type SummaryPreviewCommentFormProps = {
   postId: string;
@@ -35,30 +36,21 @@ export default function SummaryPreviewCommentForm({
       const clientId = safeRandomUUID();
       const timestamp = new Date().toISOString();
       try {
-        const response = await fetch("/api/comments", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            comment: {
-              id: clientId,
-              postId,
-              content: trimmed,
-              attachments: [],
-              capsuleId: null,
-              capsule_id: null,
-              ts: timestamp,
-              userName: currentUser?.name ?? currentUser?.email ?? "You",
-              userAvatar: currentUser?.avatarUrl ?? null,
-              source: "composer-summary-preview",
-            },
-            user: viewerEnvelope,
-          }),
-        });
-        if (!response.ok) {
-          const text = await response.text().catch(() => "");
-          throw new Error(text || "Failed to submit comment.");
-        }
+        await submitComment(
+          {
+            id: clientId,
+            postId,
+            content: trimmed,
+            attachments: [],
+            capsuleId: null,
+            capsule_id: null,
+            ts: timestamp,
+            userName: currentUser?.name ?? currentUser?.email ?? "You",
+            userAvatar: currentUser?.avatarUrl ?? null,
+            source: "composer-summary-preview",
+          },
+          viewerEnvelope,
+        );
         setValue("");
         setSuccess("Comment posted");
         if (typeof window !== "undefined") {

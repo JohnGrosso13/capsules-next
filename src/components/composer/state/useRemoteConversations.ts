@@ -2,30 +2,18 @@
 
 import * as React from "react";
 
-import {
-  sanitizeComposerChatHistory,
-  type ComposerChatMessage,
-} from "@/lib/composer/chat-types";
+import { sanitizeComposerChatHistory } from "@/lib/composer/chat-types";
 import { normalizeDraftFromPost } from "@/lib/composer/normalizers";
 import type {
   ComposerSidebarSnapshot,
   ComposerStoredRecentChat,
 } from "@/lib/composer/sidebar-store";
 import { cloneComposerData } from "@/components/composer/state/utils";
+import { fetchRemoteConversations } from "@/services/composer/conversations";
 
 type UpdateSidebarStore = (
   updater: (prev: ComposerSidebarSnapshot) => ComposerSidebarSnapshot,
 ) => void;
-
-type RemoteConversationSummary = {
-  threadId: string;
-  prompt: string;
-  message: string | null;
-  draft: Record<string, unknown> | null;
-  rawPost: Record<string, unknown> | null;
-  history: ComposerChatMessage[] | null;
-  updatedAt: string;
-};
 
 export function useRemoteConversations(
   userId: string | null | undefined,
@@ -36,15 +24,7 @@ export function useRemoteConversations(
     let cancelled = false;
     const loadRemoteConversations = async () => {
       try {
-        const response = await fetch("/api/ai/conversations", {
-          method: "GET",
-          credentials: "include",
-        });
-        if (!response.ok || cancelled) return;
-        const payload = (await response.json().catch(() => null)) as {
-          conversations?: RemoteConversationSummary[];
-        } | null;
-        const conversations = payload?.conversations;
+        const conversations = await fetchRemoteConversations();
         if (!conversations?.length || cancelled) return;
         updateSidebarStore((prev) => {
           const merged = new Map<string, ComposerStoredRecentChat>();

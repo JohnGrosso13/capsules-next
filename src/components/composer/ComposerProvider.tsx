@@ -13,10 +13,9 @@ import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
 import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
 import { useComposerCore } from "@/components/composer/state/useComposerCore";
-import { useSmartContextPersistence } from "@/components/composer/state/useSmartContextPersistence";
-import { useRemoteConversations } from "@/components/composer/state/useRemoteConversations";
 import { cloneComposerData } from "@/components/composer/state/utils";
-import { useSidebarStore } from "@/components/composer/state/useSidebarStore";
+import { ComposerSidebarProvider, useComposerSidebarStore } from "./context/SidebarProvider";
+import { ComposerSmartContextProvider, useComposerSmartContext } from "./context/SmartContextProvider";
 import {
   sanitizeComposerChatHistory,
   type ComposerChatAttachment,
@@ -35,97 +34,22 @@ import {
 } from "@/lib/composer/sidebar-types";
 import { normalizeDraftFromPost } from "@/lib/composer/normalizers";
 import { buildPostPayload } from "@/lib/composer/payload";
-import {
-  promptResponseSchema,
-  stylerResponseSchema,
-  type PromptResponse,
-  type StylerResponse,
-} from "@/shared/schemas/ai";
+import { type PromptResponse } from "@/shared/schemas/ai";
+import { callAiPrompt } from "@/services/composer/ai";
+import { persistPost } from "@/services/composer/posts";
+import { saveComposerItem } from "@/services/composer/memories";
+import { requestImageGeneration, requestImageEdit } from "@/services/composer/images";
+import { callStyler } from "@/services/composer/styler";
 import type { SummaryResult } from "@/types/summary";
 import type { SummaryConversationContext, SummaryPresentationOptions } from "@/lib/composer/summary-context";
 import { detectVideoIntent } from "@/shared/ai/video-intent";
-import type { PromptRunMode, PromptSubmitOptions } from "./types";
-const ATTACHMENT_CONTEXT_LIMIT = 2;
-const ATTACHMENT_CONTEXT_CHAR_LIMIT = 2000;
-const TEXT_MIME_PREFIXES = ["text/", "application/json", "application/xml", "application/yaml"];
-const TEXT_EXTENSIONS = new Set([
-  "txt",
-  "md",
-  "markdown",
-  "csv",
-  "tsv",
-  "json",
-  "yaml",
-  "yml",
-  "xml",
-  "log",
-  "ini",
-]);
-
-function extractExtension(name: string | undefined): string | null {
-  if (!name) return null;
-  const trimmed = name.trim();
-  if (!trimmed.length) return null;
-  const parts = trimmed.split(".");
-  if (parts.length <= 1) return null;
-  const ext = parts.pop();
-  return ext ? ext.toLowerCase() : null;
-}
-
-function isLikelyTextAttachment(attachment: PrompterAttachment): boolean {
-  const mime = (attachment.mimeType ?? "").toLowerCase();
-  if (TEXT_MIME_PREFIXES.some((prefix) => mime.startsWith(prefix))) {
-    return true;
-  }
-  const extension = extractExtension(attachment.name);
-  if (extension && TEXT_EXTENSIONS.has(extension)) {
-    return true;
-  }
-  return false;
-}
-
-async function buildAttachmentContext(
-  attachments?: PrompterAttachment[] | null,
-): Promise<Array<{ id: string; name: string; text: string }>> {
-  if (!attachments || !attachments.length) return [];
-  const collected: Array<{ id: string; name: string; text: string }> = [];
-
-  for (const attachment of attachments) {
-    if (collected.length >= ATTACHMENT_CONTEXT_LIMIT) break;
-    const role = attachment.role ?? "reference";
-    if (role !== "reference") continue;
-    if (!attachment.url) continue;
-    const excerpt =
-      typeof attachment.excerpt === "string" && attachment.excerpt.trim().length
-        ? attachment.excerpt.trim()
-        : null;
-    if (excerpt) {
-      collected.push({
-        id: attachment.id,
-        name: attachment.name,
-        text: excerpt.slice(0, ATTACHMENT_CONTEXT_CHAR_LIMIT),
-      });
-      continue;
-    }
-    if (!isLikelyTextAttachment(attachment)) continue;
-    try {
-      const response = await fetch(attachment.url);
-      if (!response.ok) continue;
-      const raw = await response.text();
-      const snippet = raw.slice(0, ATTACHMENT_CONTEXT_CHAR_LIMIT).trim();
-      if (!snippet.length) continue;
-      collected.push({
-        id: attachment.id,
-        name: attachment.name,
-        text: snippet,
-      });
-    } catch {
-      // Ignore fetch failures when building attachment context
-    }
-  }
-
-  return collected;
-}
+import type {
+  PromptRunMode,
+  PromptSubmitOptions,
+  ComposerVideoStatus,
+  ComposerSaveStatus,
+  ComposerSaveRequest,
+} from "./types";
 
 type PollMergeOptions = {
   preserveOptions?: boolean;
@@ -325,96 +249,6 @@ function formatSummaryMessage(result: SummaryResult, options: SummaryPresentatio
 
   return sections.join("\n\n").trim();
 }
-async function callAiPrompt(
-  message: string,
-  options?: Record<string, unknown>,
-  post?: Record<string, unknown>,
-  attachments?: PrompterAttachment[],
-  history?: ComposerChatMessage[],
-  threadId?: string | null,
-  capsuleId?: string | null,
-  useContext?: boolean,
-): Promise<PromptResponse> {
-  const contextSnippets = await buildAttachmentContext(attachments);
-  let requestMessage = message;
-  if (contextSnippets.length) {
-    const contextText = contextSnippets
-      .map(({ name, text }) => `Attachment "${name}":\n${text}`)
-      .join("\n\n");
-    requestMessage = `${message}\n\n---\nAttachment context provided:\n${contextText}`;
-  }
-
-  const body: Record<string, unknown> = { message: requestMessage };
-  if (options && Object.keys(options).length) body.options = options;
-  if (post) body.post = post;
-  if (attachments && attachments.length) {
-    const excerptMap = new Map(contextSnippets.map(({ id, text }) => [id, text]));
-    body.attachments = attachments.map((attachment) => ({
-      id: attachment.id,
-      name: attachment.name,
-      mimeType: attachment.mimeType,
-      size: attachment.size,
-      url: attachment.url,
-      thumbnailUrl: attachment.thumbnailUrl ?? null,
-      storageKey: attachment.storageKey ?? null,
-      sessionId: attachment.sessionId ?? null,
-      role: attachment.role ?? "reference",
-      source: attachment.source ?? "user",
-      excerpt: attachment.excerpt ?? excerptMap.get(attachment.id) ?? null,
-    }));
-  }
-  if (contextSnippets.length) {
-    body.context = contextSnippets;
-  }
-  if (history && history.length) {
-    body.history = history.map(({ attachments, ...rest }) => {
-      if (Array.isArray(attachments) && attachments.length) {
-        return { ...rest, attachments };
-      }
-      return rest;
-    });
-  }
-  if (threadId) {
-    body.threadId = threadId;
-  }
-  if (capsuleId) {
-    body.capsuleId = capsuleId;
-  }
-  body.useContext = useContext !== false;
-
-  const response = await fetch("/api/ai/prompt", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const json = await response.json().catch(() => null);
-  if (!response.ok || !json) {
-    throw new Error(`Prompt request failed (${response.status})`);
-  }
-  return promptResponseSchema.parse(json);
-}
-
-async function callStyler(
-  prompt: string,
-  envelope?: Record<string, unknown> | null,
-): Promise<StylerResponse> {
-  const body: Record<string, unknown> = { prompt };
-  if (envelope && Object.keys(envelope).length) {
-    body.user = envelope;
-  }
-  const response = await fetch("/api/ai/styler", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const json = await response.json().catch(() => null);
-  if (!response.ok || !json) {
-    throw new Error(`Styler request failed (${response.status})`);
-  }
-  return stylerResponseSchema.parse(json);
-}
 
 function pickFirstMeaningfulText(...values: Array<string | null | undefined>): string | null {
   for (const value of values) {
@@ -513,64 +347,6 @@ function describeProjectCaption(project: ComposerStoredProject): string {
   return `${countLabel} · ${formatRelativeTime(project.updatedAt)}`;
 }
 
-async function persistPost(
-  post: Record<string, unknown>,
-  userEnvelope?: Record<string, unknown> | null,
-) {
-  const body: Record<string, unknown> = { post };
-  if (userEnvelope && Object.keys(userEnvelope).length) {
-    body.user = userEnvelope;
-  }
-  const response = await fetch("/api/posts", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(text || `Post request failed (${response.status})`);
-  }
-  return response.json().catch(() => null) as Promise<Record<string, unknown> | null>;
-}
-
-export type ComposerVideoStatus = {
-  state: "idle" | "running" | "succeeded" | "failed";
-  runId: string | null;
-  prompt: string | null;
-  attachments: PrompterAttachment[] | null;
-  error: string | null;
-  message: string | null;
-  memoryId?: string | null;
-};
-
-export type ComposerSaveStatus = {
-  state: "idle" | "saving" | "succeeded" | "failed";
-  message: string | null;
-};
-
-export type ComposerMemorySavePayload = {
-  title: string;
-  description: string;
-  kind: string;
-  mediaUrl: string;
-  mediaType: string | null;
-  downloadUrl?: string | null;
-  thumbnailUrl?: string | null;
-  prompt?: string | null;
-  durationSeconds?: number | null;
-  muxPlaybackId?: string | null;
-  muxAssetId?: string | null;
-  runId?: string | null;
-  tags?: string[] | null;
-  metadata?: Record<string, unknown> | null;
-};
-
-export type ComposerSaveRequest = {
-  target: "draft" | "attachment";
-  payload: ComposerMemorySavePayload;
-};
-
 export type ComposerContextSnippet = {
   id: string;
   title: string | null;
@@ -606,7 +382,6 @@ export type ComposerState = {
   summaryMessageId: string | null;
   videoStatus: ComposerVideoStatus;
   saveStatus: ComposerSaveStatus;
-  smartContextEnabled: boolean;
   contextSnapshot: ComposerContextSnapshot | null;
 };
 
@@ -626,6 +401,7 @@ type ComposerContextValue = {
   state: ComposerState;
   feedTarget: FeedTarget;
   activeCapsuleId: string | null;
+  smartContextEnabled: boolean;
   handlePrompterAction(action: PrompterAction): void;
   handlePrompterHandoff(handoff: PrompterHandoff): void;
   close(): void;
@@ -671,7 +447,6 @@ const initialState: ComposerState = {
   summaryMessageId: null,
   videoStatus: createIdleVideoStatus(),
   saveStatus: createIdleSaveStatus(),
-  smartContextEnabled: true,
   contextSnapshot: null,
 };
 
@@ -681,7 +456,6 @@ function resetStateWithPreference(
 ): ComposerState {
   return {
     ...initialState,
-    smartContextEnabled: prev.smartContextEnabled,
     ...overrides,
   };
 }
@@ -917,28 +691,31 @@ function formatAuthor(user: AuthClientUser | null, name: string | null, avatar: 
   };
 }
 
-export function ComposerProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useCurrentUser();
+type ComposerSessionProviderProps = {
+  children: React.ReactNode;
+  user: AuthClientUser | null;
+};
+
+function ComposerSessionProvider({ children, user }: ComposerSessionProviderProps) {
   const { state, setState } = useComposerCore(initialState);
-  const smartContextEnabled = state.smartContextEnabled;
   const [feedTarget, setFeedTarget] = React.useState<FeedTarget>({ scope: "home" });
-  const { sidebarStore, updateSidebarStore } = useSidebarStore(user?.id ?? null);
+  const { sidebarStore, updateSidebarStore } = useComposerSidebarStore();
+  const { smartContextEnabled, setSmartContextEnabled: setSmartContextEnabledContext } =
+    useComposerSmartContext();
   const saveResetTimeout = React.useRef<number | null>(null);
 
-  const setSmartContextEnabled = React.useCallback((enabled: boolean) => {
-    setState((prev) =>
-      prev.smartContextEnabled === enabled
-        ? prev
-        : {
-            ...prev,
-            smartContextEnabled: enabled,
-            contextSnapshot: enabled ? prev.contextSnapshot : null,
-          },
-    );
-  }, [setState]);
-
-  useSmartContextPersistence(smartContextEnabled, setSmartContextEnabled);
-  useRemoteConversations(user?.id ?? null, updateSidebarStore);
+  const setSmartContextEnabled = React.useCallback(
+    (enabled: boolean) => {
+      setSmartContextEnabledContext(enabled);
+      if (!enabled) {
+        setState((prev) => ({
+          ...prev,
+          contextSnapshot: null,
+        }));
+      }
+    },
+    [setSmartContextEnabledContext, setState],
+  );
 
   const recordRecentChat = React.useCallback(
     (input: {
@@ -1247,64 +1024,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const metadata: Record<string, unknown> = {
-          source: "ai-composer",
-          category: "capsule_creation",
-          kind: payload.kind,
-        };
-        if (payload.prompt) metadata.prompt = payload.prompt;
-        if (payload.downloadUrl) metadata.download_url = payload.downloadUrl;
-        if (payload.thumbnailUrl) metadata.thumbnail_url = payload.thumbnailUrl;
-        if (payload.muxPlaybackId) metadata.mux_playback_id = payload.muxPlaybackId;
-        if (payload.muxAssetId) metadata.mux_asset_id = payload.muxAssetId;
-        if (payload.runId) metadata.video_run_id = payload.runId;
-        if (payload.durationSeconds != null) {
-          metadata.duration_seconds = payload.durationSeconds;
-        }
-        if (activeCapsuleId) {
-          metadata.capsule_id = activeCapsuleId;
-        }
-        if (payload.metadata && typeof payload.metadata === "object") {
-          Object.assign(metadata, payload.metadata);
-        }
-
-        const body = {
-          user: envelopePayload,
-          item: {
-            title: payload.title,
-            description: payload.description,
-            kind: payload.kind,
-            mediaUrl: payload.mediaUrl,
-            mediaType: payload.mediaType ?? null,
-            downloadUrl: payload.downloadUrl ?? null,
-            thumbnailUrl: payload.thumbnailUrl ?? null,
-            prompt: payload.prompt ?? null,
-            muxPlaybackId: payload.muxPlaybackId ?? null,
-            muxAssetId: payload.muxAssetId ?? null,
-            durationSeconds: payload.durationSeconds ?? null,
-            runId: payload.runId ?? null,
-            tags: payload.tags ?? null,
-            metadata,
-          },
-        };
-
-        const response = await fetch("/api/composer/save", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+        const result = await saveComposerItem({
+          payload,
+          capsuleId: activeCapsuleId,
+          envelope: envelopePayload ?? undefined,
         });
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => "");
-          throw new Error(errorText || `Save request failed (${response.status})`);
-        }
-        const result = (await response.json().catch(() => null)) as {
-          memoryId?: string | null;
-          message?: string | null;
-        } | null;
-
-        const memoryId =
-          typeof result?.memoryId === "string" ? result.memoryId.trim() || null : null;
+        const memoryId = result.memoryId;
 
         setState((prev) => {
           let nextDraft = prev.draft;
@@ -1682,16 +1407,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         };
       });
       try {
-        const payload = await callAiPrompt(
-          trimmedPrompt,
-          resolvedOptions,
-          undefined,
-          normalizedAttachments,
-          baseHistory,
-          threadIdForRequest,
-          activeCapsuleId,
-          smartContextEnabled,
-        );
+        const payload = await callAiPrompt({
+          message: trimmedPrompt,
+          ...(resolvedOptions ? { options: resolvedOptions } : {}),
+          ...(normalizedAttachments ? { attachments: normalizedAttachments } : {}),
+          history: baseHistory,
+          ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
+          ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
+          useContext: smartContextEnabled,
+        });
         handleAiResponse(trimmedPrompt, payload);
       } catch (error) {
         console.error("AI prompt failed", error);
@@ -1713,19 +1437,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         clarifier: null,
       }));
       try {
-        const res = await fetch("/api/ai/image/generate", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
-        const json = (await res.json().catch(() => null)) as { url?: string } | null;
-        if (!res.ok || !json?.url) throw new Error(`Image generate failed (${res.status})`);
+        const result = await requestImageGeneration(prompt);
         const draft: ComposerDraft = {
           kind: "image",
           title: null,
           content: "",
-          mediaUrl: json.url,
+          mediaUrl: result.url,
           mediaPrompt: prompt,
           poll: null,
         };
@@ -1743,7 +1460,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           prompt,
           draft,
           rawPost: appendCapsuleContext(
-            { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
+            { kind: "image", mediaUrl: result.url, media_prompt: prompt, source: "ai-prompter" },
             activeCapsuleId,
           ),
           message: assistantMessage.content,
@@ -1773,19 +1490,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         clarifier: null,
       }));
       try {
-        const res = await fetch("/api/ai/image/edit", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: reference.url, instruction: prompt }),
-        });
-        const json = (await res.json().catch(() => null)) as { url?: string } | null;
-        if (!res.ok || !json?.url) throw new Error(`Image edit failed (${res.status})`);
+        const result = await requestImageEdit({ imageUrl: reference.url, instruction: prompt });
         const draft: ComposerDraft = {
           kind: "image",
           title: null,
           content: "",
-          mediaUrl: json.url,
+          mediaUrl: result.url,
           mediaPrompt: prompt,
           poll: null,
         };
@@ -1803,7 +1513,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           prompt,
           draft,
           rawPost: appendCapsuleContext(
-            { kind: "image", mediaUrl: json.url, media_prompt: prompt, source: "ai-prompter" },
+            { kind: "image", mediaUrl: result.url, media_prompt: prompt, source: "ai-prompter" },
             activeCapsuleId,
           ),
           message: assistantMessage.content,
@@ -2082,16 +1792,16 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             requestOptions.prefer = "text";
           }
         }
-        const payload = await callAiPrompt(
-          trimmed,
-          Object.keys(requestOptions).length ? requestOptions : undefined,
-          state.rawPost ?? undefined,
-          attachmentList,
-          previousHistory,
-          threadIdForRequest,
-          activeCapsuleId,
-          state.smartContextEnabled,
-        );
+        const payload = await callAiPrompt({
+          message: trimmed,
+          ...(Object.keys(requestOptions).length ? { options: requestOptions } : {}),
+          ...(state.rawPost ? { post: state.rawPost } : {}),
+          ...(attachmentList ? { attachments: attachmentList } : {}),
+          history: previousHistory,
+          ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
+          ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
+          useContext: smartContextEnabled,
+        });
         handleAiResponse(trimmed, payload, options?.mode ?? "default");
       } catch (error) {
         console.error("Composer prompt submit failed", error);
@@ -2126,7 +1836,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       setState,
       state.clarifier,
       state.rawPost,
-      state.smartContextEnabled,
+      smartContextEnabled,
       state.summaryResult,
     ],
   );
@@ -2155,16 +1865,15 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       if (!state.prompt) return;
       setState((prev) => ({ ...prev, loading: true }));
       try {
-        const payload = await callAiPrompt(
-          state.prompt,
-          { force: key },
-          state.rawPost ?? undefined,
-          undefined,
-          state.history,
-          state.threadId,
-          activeCapsuleId,
-          state.smartContextEnabled,
-        );
+        const payload = await callAiPrompt({
+          message: state.prompt,
+          options: { force: key },
+          ...(state.rawPost ? { post: state.rawPost } : {}),
+          history: state.history,
+          ...(state.threadId ? { threadId: state.threadId } : {}),
+          ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
+          useContext: smartContextEnabled,
+        });
         handleAiResponse(state.prompt, payload);
       } catch (error) {
         console.error("Composer force choice failed", error);
@@ -2179,7 +1888,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       state.prompt,
       state.rawPost,
       state.threadId,
-      state.smartContextEnabled,
+      smartContextEnabled,
     ],
   );
 
@@ -2236,6 +1945,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       state,
       feedTarget,
       activeCapsuleId,
+      smartContextEnabled,
       handlePrompterAction,
       handlePrompterHandoff,
       close,
@@ -2280,14 +1990,27 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     retryVideo,
     saveCreation,
     setSmartContextEnabled,
+    smartContextEnabled,
   ]);
 
   return <ComposerContext.Provider value={contextValue}>{children}</ComposerContext.Provider>;
 }
 
+export function ComposerProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useCurrentUser();
+  return (
+    <ComposerSidebarProvider userId={user?.id ?? null}>
+      <ComposerSmartContextProvider>
+        <ComposerSessionProvider user={user}>{children}</ComposerSessionProvider>
+      </ComposerSmartContextProvider>
+    </ComposerSidebarProvider>
+  );
+}
+
 export function AiComposerRoot() {
   const {
     state,
+    smartContextEnabled,
     close,
     updateDraft,
     post,
@@ -2329,7 +2052,7 @@ export function AiComposerRoot() {
       summaryMessageId={state.summaryMessageId}
       videoStatus={state.videoStatus}
       saveStatus={state.saveStatus}
-      smartContextEnabled={state.smartContextEnabled}
+      smartContextEnabled={smartContextEnabled}
       contextSnapshot={state.contextSnapshot}
       onSmartContextChange={setSmartContextEnabled}
       onChange={updateDraft}
@@ -2349,5 +2072,3 @@ export function AiComposerRoot() {
     />
   );
 }
-
-

@@ -5,12 +5,12 @@ import { createPortal } from "react-dom";
 
 import styles from "./ai-composer.module.css";
 import { ComposerForm, type ComposerChoice, type ClarifierPrompt } from "./composer/ComposerForm";
+import type { ComposerContextSnapshot } from "./composer/ComposerProvider";
 import type {
   ComposerVideoStatus,
   ComposerSaveStatus,
   ComposerSaveRequest,
-  ComposerContextSnapshot,
-} from "./composer/ComposerProvider";
+} from "./composer/types";
 import type { ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
 import { usePortalHost } from "@/hooks/usePortalHost";

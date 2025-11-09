@@ -72,9 +72,8 @@ export function useComposerCore(initial: ComposerState): ComposerCoreApi {
         return { message, threadId: nextThreadId };
       },
       reset(overrides) {
-        setState((prev) => ({
+        setState(() => ({
           ...initial,
-          smartContextEnabled: prev.smartContextEnabled,
           ...overrides,
         }));
       },
