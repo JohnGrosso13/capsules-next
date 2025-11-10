@@ -40,77 +40,65 @@ export function ProfilePageClient({ data, canonicalPath }: ProfilePageClientProp
       .join("");
   }, [data.user.name, data.user.key]);
 
-  // Use the featured store banner as a soft hero background if available.
-  const heroBannerUrl = data.featuredStore?.bannerUrl ?? null;
-  const heroBannerStyle = heroBannerUrl ? { backgroundImage: `url(${heroBannerUrl})` } : undefined;
-
   return (
     <div className={styles.page}>
-      <div className={styles.shell}>
+      <div className={styles.profileSurface}>
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
+          className={styles.profileTabs}
           variant="pill"
           size="md"
-          className={styles.profileCard}
         >
           <section className={styles.hero}>
             <div className={styles.heroInner}>
-              <div className={styles.heroBanner} style={heroBannerStyle} aria-hidden />
+              <div className={styles.heroTexture} aria-hidden />
               <div className={styles.backdropGlow} aria-hidden />
               <div className={styles.profileHeader}>
-              <div className={styles.avatarShell} aria-hidden={!data.user.avatarUrl}>
-                {data.user.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={data.user.avatarUrl} alt="" />
-                ) : (
-                  initials
-                )}
-              </div>
-              <div className={styles.identity}>
-                <h1 className={styles.displayName}>{data.user.name ?? "Capsules member"}</h1>
-                {data.user.key ? (
-                  <div className={styles.handle}>@{data.user.key}</div>
-                ) : null}
-                {data.user.bio ? (
-                  <p className={styles.heroBio}>{data.user.bio}</p>
-                ) : (
+                <div className={styles.avatarShell} aria-hidden={!data.user.avatarUrl}>
+                  {data.user.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={data.user.avatarUrl} alt="" />
+                  ) : (
+                    initials
+                  )}
+                </div>
+                <div className={styles.identity}>
+                  <h1 className={styles.displayName}>{data.user.name ?? "Capsules member"}</h1>
                   <p className={styles.heroBio}>
-                    Crafting memories, capsules, and tournaments with AI copilots.
+                    {data.user.bio?.trim().length
+                      ? data.user.bio
+                      : "Crafting memories, capsules, and tournaments with AI copilots."}
                   </p>
-                )}
+                </div>
+              </div>
+
+              <ProfileActions data={data} canonicalPath={canonicalPath} />
+
+              <div className={styles.tabBar}>
+                <TabsList className={styles.tabList}>
+                  <TabsTrigger className={styles.tabTrigger} value="overview">
+                    Overview
+                  </TabsTrigger>
+                  <TabsTrigger className={styles.tabTrigger} value="posts">
+                    Posts
+                  </TabsTrigger>
+                  <TabsTrigger className={styles.tabTrigger} value="clips">
+                    Clips
+                  </TabsTrigger>
+                  <TabsTrigger className={styles.tabTrigger} value="events">
+                    Events
+                  </TabsTrigger>
+                  <TabsTrigger className={styles.tabTrigger} value="stats">
+                    Stats
+                  </TabsTrigger>
+                  <TabsTrigger className={styles.tabTrigger} value="store">
+                    Store
+                  </TabsTrigger>
+                </TabsList>
               </div>
             </div>
-
-            <div className={styles.statsBar}>
-              <Stat label="Followers" value={data.stats.followers} />
-              <Stat label="Following" value={data.stats.following} />
-              <Stat label="Owned spaces" value={data.stats.spacesOwned} />
-            </div>
-
-            <ProfileActions data={data} canonicalPath={canonicalPath} />
-
-            <div className={styles.tabBar}>
-              <TabsList className={styles.tabList}>
-                <TabsTrigger className={styles.tabTrigger} value="overview">
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger className={styles.tabTrigger} value="posts">
-                  Posts
-                </TabsTrigger>
-                <TabsTrigger className={styles.tabTrigger} value="clips">
-                  Clips
-                </TabsTrigger>
-                <TabsTrigger className={styles.tabTrigger} value="events">
-                  Events
-                </TabsTrigger>
-                <TabsTrigger className={styles.tabTrigger} value="store">
-                  Store
-                </TabsTrigger>
-              </TabsList>
-            </div>
-          </div>
-        </section>
+          </section>
 
           <section className={styles.tabPanels}>
             <TabsContent value="overview" className={styles.tabPanel}>
@@ -127,6 +115,10 @@ export function ProfilePageClient({ data, canonicalPath }: ProfilePageClientProp
 
             <TabsContent value="events" className={styles.tabPanel}>
               <EventsTab events={data.events} />
+            </TabsContent>
+
+            <TabsContent value="stats" className={styles.tabPanel}>
+              <StatsTab stats={data.stats} />
             </TabsContent>
 
             <TabsContent value="store" className={styles.tabPanel}>
@@ -585,15 +577,9 @@ function PostCollection({ title, posts, emptyMessage }: PostCollectionProps) {
               </div>
               <div className={styles.postBody}>
                 <p>{post.content ?? "Visual story from this member."}</p>
-                <div className="flex items-center gap-4 text-sm text-white/70">
-                  <span className="flex items-center gap-1" aria-label="likes">
-                    <span aria-hidden>??</span>
-                    {post.likes ?? 0}
-                  </span>
-                  <span className="flex items-center gap-1" aria-label="comments">
-                    <span aria-hidden>??</span>
-                    {post.comments ?? 0}
-                  </span>
+                <div className={styles.postMeta}>
+                  <span aria-label="likes">{post.likes ?? 0} likes</span>
+                  <span aria-label="comments">{post.comments ?? 0} comments</span>
                 </div>
               </div>
             </article>
@@ -666,6 +652,16 @@ function EventsTab({ events }: { events: ProfileEvent[] }) {
           No ladders or tournaments yet. Host one with Capsule Automations when ready.
         </div>
       )}
+    </div>
+  );
+}
+
+function StatsTab({ stats }: { stats: ProfilePageData["stats"] }) {
+  return (
+    <div className={styles.statPanel}>
+      <Stat label="Followers" value={stats.followers} />
+      <Stat label="Following" value={stats.following} />
+      <Stat label="Owned spaces" value={stats.spacesOwned} />
     </div>
   );
 }
