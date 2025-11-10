@@ -44,7 +44,7 @@ import type {
   ChatParticipantDTO,
   ChatReactionDTO,
 } from "@/services/chat/schema";
-import { RealtimeChatEventBus } from "@/lib/chat/event-bus";
+import { RealtimeChatEventBus, type ChatEventBusConnection } from "@/lib/chat/event-bus";
 import { ChatStoreReconciler } from "@/lib/chat/store-reconciler";
 
 const DIRECT_CHANNEL_WATERMARK_PREFIX = "capsule:chat:watermark:direct:";

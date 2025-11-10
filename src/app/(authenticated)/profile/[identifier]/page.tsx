@@ -50,7 +50,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   });
 
   return (
-    <AppPage showPrompter={false}>
+    <AppPage showPrompter={true}>
       <ProfilePageClient data={data} canonicalPath={canonicalPath} />
     </AppPage>
   );

@@ -40,76 +40,101 @@ export function ProfilePageClient({ data, canonicalPath }: ProfilePageClientProp
       .join("");
   }, [data.user.name, data.user.key]);
 
+  // Use the featured store banner as a soft hero background if available.
+  const heroBannerUrl = data.featuredStore?.bannerUrl ?? null;
+  const heroBannerStyle = heroBannerUrl ? { backgroundImage: `url(${heroBannerUrl})` } : undefined;
+
   return (
     <div className={styles.page}>
-      <section className={styles.hero}>
-        <div className={styles.heroInner}>
-          <div className={styles.backdropGlow} aria-hidden />
-          <div className={styles.profileHeader}>
-            <div className={styles.avatarShell} aria-hidden={!data.user.avatarUrl}>
-              {data.user.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={data.user.avatarUrl} alt="" />
-              ) : (
-                initials
-              )}
+      <div className={styles.shell}>
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          variant="pill"
+          size="md"
+          className={styles.profileCard}
+        >
+          <section className={styles.hero}>
+            <div className={styles.heroInner}>
+              <div className={styles.heroBanner} style={heroBannerStyle} aria-hidden />
+              <div className={styles.backdropGlow} aria-hidden />
+              <div className={styles.profileHeader}>
+              <div className={styles.avatarShell} aria-hidden={!data.user.avatarUrl}>
+                {data.user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={data.user.avatarUrl} alt="" />
+                ) : (
+                  initials
+                )}
+              </div>
+              <div className={styles.identity}>
+                <h1 className={styles.displayName}>{data.user.name ?? "Capsules member"}</h1>
+                {data.user.key ? (
+                  <div className={styles.handle}>@{data.user.key}</div>
+                ) : null}
+                {data.user.bio ? (
+                  <p className={styles.heroBio}>{data.user.bio}</p>
+                ) : (
+                  <p className={styles.heroBio}>
+                    Crafting memories, capsules, and tournaments with AI copilots.
+                  </p>
+                )}
+              </div>
             </div>
-            <div className={styles.identity}>
-              <h1 className={styles.displayName}>{data.user.name ?? "Capsules member"}</h1>
-              {data.user.key ? (
-                <div className={styles.handle}>@{data.user.key.replace(/[:]/g, "·")}</div>
-              ) : null}
-              {data.user.bio ? (
-                <p className={styles.heroBio}>{data.user.bio}</p>
-              ) : (
-                <p className={styles.heroBio}>
-                  Crafting memories, capsules, and tournaments with AI copilots.
-                </p>
-              )}
+
+            <div className={styles.statsBar}>
+              <Stat label="Followers" value={data.stats.followers} />
+              <Stat label="Following" value={data.stats.following} />
+              <Stat label="Owned spaces" value={data.stats.spacesOwned} />
+            </div>
+
+            <ProfileActions data={data} canonicalPath={canonicalPath} />
+
+            <div className={styles.tabBar}>
+              <TabsList className={styles.tabList}>
+                <TabsTrigger className={styles.tabTrigger} value="overview">
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger className={styles.tabTrigger} value="posts">
+                  Posts
+                </TabsTrigger>
+                <TabsTrigger className={styles.tabTrigger} value="clips">
+                  Clips
+                </TabsTrigger>
+                <TabsTrigger className={styles.tabTrigger} value="events">
+                  Events
+                </TabsTrigger>
+                <TabsTrigger className={styles.tabTrigger} value="store">
+                  Store
+                </TabsTrigger>
+              </TabsList>
             </div>
           </div>
+        </section>
 
-          <div className={styles.statsBar}>
-            <Stat label="Followers" value={data.stats.followers} />
-            <Stat label="Following" value={data.stats.following} />
-            <Stat label="Owned spaces" value={data.stats.spacesOwned} />
-          </div>
+          <section className={styles.tabPanels}>
+            <TabsContent value="overview" className={styles.tabPanel}>
+              <OverviewTab data={data} />
+            </TabsContent>
 
-          <ProfileActions data={data} canonicalPath={canonicalPath} />
-        </div>
-      </section>
+            <TabsContent value="posts" className={styles.tabPanel}>
+              <PostsTab recent={data.posts.recent} top={data.posts.top} />
+            </TabsContent>
 
-      <section className={styles.tabsCard}>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={styles.tabList}>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="posts">Posts</TabsTrigger>
-            <TabsTrigger value="clips">Clips</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
-            <TabsTrigger value="store">Store</TabsTrigger>
-          </TabsList>
+            <TabsContent value="clips" className={styles.tabPanel}>
+              <ClipsTab clips={data.clips} />
+            </TabsContent>
 
-          <TabsContent value="overview">
-            <OverviewTab data={data} />
-          </TabsContent>
+            <TabsContent value="events" className={styles.tabPanel}>
+              <EventsTab events={data.events} />
+            </TabsContent>
 
-          <TabsContent value="posts">
-            <PostsTab recent={data.posts.recent} top={data.posts.top} />
-          </TabsContent>
-
-          <TabsContent value="clips">
-            <ClipsTab clips={data.clips} />
-          </TabsContent>
-
-          <TabsContent value="events">
-            <EventsTab events={data.events} />
-          </TabsContent>
-
-          <TabsContent value="store">
-            <StoreTab store={data.featuredStore} />
-          </TabsContent>
+            <TabsContent value="store" className={styles.tabPanel}>
+              <StoreTab store={data.featuredStore} />
+            </TabsContent>
+          </section>
         </Tabs>
-      </section>
+      </div>
     </div>
   );
 }
@@ -220,25 +245,26 @@ function ProfileActions({ data, canonicalPath }: ProfileActionsProps) {
         <Button
           variant="gradient"
           size="lg"
-          className="font-semibold tracking-wide uppercase"
+          className={styles.actionButton}
+          leftIcon={<UserPlus weight="duotone" />}
           disabled={data.viewer.isSelf}
           onClick={handleFollow}
-          data-loading={pending === "follow" ? "true" : undefined}
+          loading={pending === "follow"}
         >
-          <UserPlus weight="duotone" />
           {followed ? "Following" : "Follow"}
         </Button>
 
         <Button
           variant="secondary"
           size="lg"
+          className={styles.actionButton}
+          leftIcon={<PaperPlaneTilt weight="duotone" />}
           onClick={() => {
             void handleMessage();
           }}
           disabled={data.viewer.isSelf}
-          data-loading={pending === "message" ? "true" : undefined}
+          loading={pending === "message"}
         >
-          <PaperPlaneTilt weight="duotone" />
           Message
         </Button>
 
@@ -248,17 +274,21 @@ function ProfileActions({ data, canonicalPath }: ProfileActionsProps) {
           targetUserId={data.user.id}
           onStatus={(message) => setFeedback(message)}
           onPending={(value) => setPending(value ? "invite" : null)}
+          buttonClassName={styles.actionButton}
+          buttonLoading={pending === "invite"}
         />
 
-        <button
-          type="button"
-          className={styles.secondaryAction}
+        <Button
+          variant="secondary"
+          size="lg"
+          className={styles.actionButton}
+          leftIcon={<ShareNetwork weight="duotone" />}
           onClick={handleShare}
-          disabled={!canonicalPath || pending === "share"}
+          disabled={!canonicalPath}
+          loading={pending === "share"}
         >
-          <ShareNetwork weight="duotone" />
           Share profile
-        </button>
+        </Button>
       </div>
       {feedback ? <p className={styles.feedback}>{feedback}</p> : null}
     </>
@@ -271,9 +301,19 @@ type InviteMenuProps = {
   targetUserId: string;
   onStatus(message: string): void;
   onPending(state: boolean): void;
+  buttonClassName?: string | undefined;
+  buttonLoading?: boolean | undefined;
 };
 
-function InviteMenu({ capsules, disabled, targetUserId, onStatus, onPending }: InviteMenuProps) {
+function InviteMenu({
+  capsules,
+  disabled,
+  targetUserId,
+  onStatus,
+  onPending,
+  buttonClassName,
+  buttonLoading,
+}: InviteMenuProps) {
   const [open, setOpen] = React.useState(false);
   const [pendingCapsuleId, setPendingCapsuleId] = React.useState<string | null>(null);
 
@@ -322,15 +362,18 @@ function InviteMenu({ capsules, disabled, targetUserId, onStatus, onPending }: I
 
   return (
     <div className={styles.inviteMenu}>
-      <button
+      <Button
         type="button"
-        className={styles.secondaryAction}
+        variant="secondary"
+        size="lg"
+        className={buttonClassName}
         onClick={toggle}
         disabled={disabled}
+        loading={buttonLoading || Boolean(pendingCapsuleId)}
+        leftIcon={<Sparkle weight="duotone" />}
       >
-        <Sparkle weight="duotone" />
         Invite
-      </button>
+      </Button>
       {open ? (
         <div className={styles.invitePopover}>
           {capsules.map((capsule) => (
@@ -542,9 +585,15 @@ function PostCollection({ title, posts, emptyMessage }: PostCollectionProps) {
               </div>
               <div className={styles.postBody}>
                 <p>{post.content ?? "Visual story from this member."}</p>
-                <div className="flex items-center gap-3 text-sm text-white/70">
-                  <span>❤️ {post.likes ?? 0}</span>
-                  <span>💬 {post.comments ?? 0}</span>
+                <div className="flex items-center gap-4 text-sm text-white/70">
+                  <span className="flex items-center gap-1" aria-label="likes">
+                    <span aria-hidden>??</span>
+                    {post.likes ?? 0}
+                  </span>
+                  <span className="flex items-center gap-1" aria-label="comments">
+                    <span aria-hidden>??</span>
+                    {post.comments ?? 0}
+                  </span>
                 </div>
               </div>
             </article>
@@ -556,7 +605,6 @@ function PostCollection({ title, posts, emptyMessage }: PostCollectionProps) {
     </div>
   );
 }
-
 function ClipsTab({ clips }: { clips: ProfileClip[] }) {
   return (
     <div className={styles.glassCard}>
@@ -604,7 +652,7 @@ function EventsTab({ events }: { events: ProfileEvent[] }) {
               </div>
               <div className="text-sm text-white/80">
                 <div>
-                  {event.stats.wins ?? 0}W · {event.stats.losses ?? 0}L
+                  {event.stats.wins ?? 0}W A� {event.stats.losses ?? 0}L
                 </div>
                 <div className="text-xs text-white/60">
                   {event.startedAt ? new Date(event.startedAt).toLocaleDateString() : "Pending"}
@@ -660,3 +708,4 @@ function StoreTab({ store }: { store: CapsuleSummary | null }) {
 }
 
 export default ProfilePageClient;
+
