@@ -20,3 +20,15 @@ export type CreatePostInput = {
   ts?: string | null;
   [key: string]: unknown;
 };
+
+export type PostsQueryInput = {
+  viewerId: string | null;
+  origin?: string | null;
+  cloudflareEnabled?: boolean | null;
+  query: {
+    capsuleId?: string | null;
+    limit?: string | number | null;
+    before?: string | null;
+    after?: string | null;
+  };
+};

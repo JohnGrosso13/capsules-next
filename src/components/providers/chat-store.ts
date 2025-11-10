@@ -1,5 +1,6 @@
 import type { FriendItem } from "@/hooks/useFriendsData";
-import { loadChatState, saveChatState, DEFAULT_CHAT_STORAGE_KEY } from "@/lib/chat/chat-storage";
+import { ChatStorePersistence } from "@/components/providers/chat-store/persistence";
+import type { ChatStorePersistenceOptions } from "@/components/providers/chat-store/persistence";
 
 import type {
   ChatParticipant,
@@ -17,6 +18,7 @@ import type {
   StorageAdapter,
   StoredState,
   ChatTypingEventPayload,
+  ChatStorePersistenceAdapter,
 } from "@/components/providers/chat-store/types";
 import {
   standardizeUserId,
@@ -65,6 +67,8 @@ export type {
   StoredState,
   ChatTypingEventPayload,
 } from "@/components/providers/chat-store/types";
+export { ChatStorePersistence } from "@/components/providers/chat-store/persistence";
+export type { ChatStorePersistenceOptions } from "@/components/providers/chat-store/persistence";
 
 type SelfParticipantOptions = Parameters<ChatStateMachine["applySelfParticipant"]>[0];
 type MessageUpdateOptions = Parameters<ChatStateMachine["applyMessageUpdateEvent"]>[2];
@@ -74,7 +78,7 @@ type PrepareLocalOptions = Parameters<ChatStateMachine["prepareLocalMessage"]>[2
 export class ChatStore extends ChatStateMachine {
   private listeners = new Set<(snapshot: ChatStoreSnapshot) => void>();
   private storage: StorageAdapter | null;
-  private storageKey: string;
+  private readonly persistence: ChatStorePersistenceAdapter;
   private snapshot: ChatStoreSnapshot = {
     sessions: [],
     activeSessionId: null,
@@ -93,13 +97,18 @@ export class ChatStore extends ChatStateMachine {
     });
     this.clock = now;
     this.storage = config?.storage ?? null;
-    this.storageKey = config?.storageKey ?? DEFAULT_CHAT_STORAGE_KEY;
+    const persistenceOptions: ChatStorePersistenceOptions = {
+      storage: this.storage,
+      ...(config?.storageKey ? { storageKey: config.storageKey } : {}),
+    };
+    this.persistence = config?.persistence ?? new ChatStorePersistence(persistenceOptions);
     const defaultTimer = typeof window !== "undefined" ? browserTimerAdapter : noopTimerAdapter;
     this.timerAdapter = config?.timers ?? defaultTimer;
   }
 
   setStorage(storage: StorageAdapter | null) {
     this.storage = storage;
+    this.persistence.setStorage(storage);
   }
 
   getSnapshot(): ChatStoreSnapshot {
@@ -115,8 +124,8 @@ export class ChatStore extends ChatStateMachine {
   }
 
   private persist() {
-    if (!this.isHydrated() || !this.storage) return;
-    saveChatState(this.storage, this.toStoredState(), this.storageKey);
+    if (!this.isHydrated() || !this.persistence.isEnabled()) return;
+    this.persistence.save(this.toStoredState());
   }
 
   private emit() {
@@ -169,12 +178,12 @@ export class ChatStore extends ChatStateMachine {
   }
 
   hydrateFromStorage(): void {
-    if (!this.storage) {
+    if (!this.persistence.isEnabled()) {
       this.setHydrated();
       this.emit();
       return;
     }
-    const restored: StoredState | null = loadChatState(this.storage, this.storageKey);
+    const restored: StoredState | null = this.persistence.load();
     if (!restored) {
       this.setHydrated();
       this.emit();

@@ -122,12 +122,20 @@ export type ChatStoreSnapshot = {
   unreadCount: number;
 };
 
+export interface ChatStorePersistenceAdapter {
+  load(): StoredState | null;
+  save(state: StoredState): void;
+  setStorage(storage: StorageAdapter | null): void;
+  isEnabled(): boolean;
+}
+
 export type ChatStoreConfig = {
   storage?: StorageAdapter | null;
   storageKey?: string;
   messageLimit?: number;
   now?: () => number;
   timers?: TimerAdapter | null;
+  persistence?: ChatStorePersistenceAdapter | null;
 };
 
 export type MessageAttachmentInput =

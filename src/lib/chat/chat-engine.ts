@@ -10,7 +10,6 @@ import {
 import type { RealtimeEnvelope } from "@/lib/realtime/envelope";
 import type {
   RealtimeAuthPayload,
-  RealtimeClient,
   RealtimeClientFactory,
   RealtimeEvent,
   RealtimeSubscribeOptions,
@@ -23,7 +22,6 @@ import type {
   ChatReactionEventPayload,
   ChatMessageUpdatedEventPayload,
   ChatMessageDeletedEventPayload,
-  ChatMessageReaction,
   ChatMessageAttachment,
 } from "@/components/providers/chat-store";
 import type { ChatSessionEventPayload } from "@/lib/chat/events";
@@ -43,11 +41,11 @@ import {
 } from "@/services/chat/actions";
 import type {
   ChatConversationDTO,
-  ChatMessageAttachmentDTO,
-  ChatMessageDTO,
   ChatParticipantDTO,
   ChatReactionDTO,
 } from "@/services/chat/schema";
+import { RealtimeChatEventBus } from "@/lib/chat/event-bus";
+import { ChatStoreReconciler } from "@/lib/chat/store-reconciler";
 
 const DIRECT_CHANNEL_WATERMARK_PREFIX = "capsule:chat:watermark:direct:";
 const TYPING_EVENT_REFRESH_MS = 2500;
@@ -75,10 +73,9 @@ type UserProfile = {
 
 export class ChatEngine {
   private readonly store: ChatStore;
-  private client: RealtimeClient | null = null;
-  private clientFactory: RealtimeClientFactory | null = null;
-  private unsubscribe: (() => void) | null = null;
+  private readonly reconciler: ChatStoreReconciler;
   private clientChannelName: string | null = null;
+  private eventBus: RealtimeChatEventBus | null = null;
   private resolvedSelfClientId: string | null = null;
   private supabaseUserId: string | null = null;
   private userProfile: UserProfile = { id: null, name: null, email: null, avatarUrl: null };
@@ -92,6 +89,14 @@ export class ChatEngine {
 
   constructor(store?: ChatStore) {
     this.store = store ?? new ChatStore();
+    this.reconciler = new ChatStoreReconciler({
+      store: this.store,
+      resolveSession: (conversationId) => this.findSession(conversationId),
+      isSelfUser: (userId) => this.isSelfUser(userId),
+      onMessageCommitted: ({ message }) => {
+        this.recordDirectChannelWatermarkFromIso(message.sentAt);
+      },
+    });
   }
 
   getStore(): ChatStore {
@@ -173,61 +178,43 @@ export class ChatEngine {
       this.store.setSelfClientId(null);
       return;
     }
-    const tokenProvider = () => options.requestToken(options.envelope);
+    const eventBus = new RealtimeChatEventBus();
     try {
-      const client = await options.factory.getClient(tokenProvider);
-      const clientId = client.clientId();
-      if (!clientId) {
-        await options.factory.release(client);
-        this.resolvedSelfClientId = null;
-        this.store.setSelfClientId(null);
-        return;
-      }
-      this.client = client;
-      this.clientFactory = options.factory;
-      this.resolvedSelfClientId = clientId;
-      this.setSupabaseUserId(clientId);
-      this.store.setSelfClientId(clientId);
-      const channelName = getChatDirectChannel(clientId);
-      this.clientChannelName = channelName;
-      const subscribeOptions = this.buildDirectChannelSubscribeOptions();
-      const cleanup = await client.subscribe(
-        channelName,
+      const connection = await eventBus.connect(
+        {
+          envelope: options.envelope,
+          factory: options.factory,
+          requestToken: options.requestToken,
+          subscribeOptions: this.buildDirectChannelSubscribeOptions(),
+          channelResolver: (clientId) => getChatDirectChannel(clientId),
+        },
         (event) => {
           this.handleRealtimeEvent(event);
         },
-        subscribeOptions,
       );
-      this.unsubscribe = cleanup;
+      this.eventBus = eventBus;
+      this.resolvedSelfClientId = connection.clientId;
+      this.setSupabaseUserId(connection.clientId);
+      this.store.setSelfClientId(connection.clientId);
+      this.clientChannelName = connection.channelName;
     } catch (error) {
       console.error("ChatEngine connect failed", error);
+      await eventBus.disconnect();
+      this.eventBus = null;
       this.resolvedSelfClientId = null;
       this.store.setSelfClientId(null);
     }
   }
 
   async disconnectRealtime(): Promise<void> {
-    if (this.unsubscribe) {
+    if (this.eventBus) {
       try {
-        this.unsubscribe();
+        await this.eventBus.disconnect();
       } catch (error) {
-        console.error("ChatEngine unsubscribe error", error);
-      }
-      this.unsubscribe = null;
-    }
-    if (this.client) {
-      try {
-        if (this.clientFactory) {
-          await Promise.resolve(this.clientFactory.release(this.client));
-        } else {
-          await this.client.close();
-        }
-      } catch (error) {
-        console.error("ChatEngine release error", error);
+        console.error("ChatEngine disconnect error", error);
       }
     }
-    this.client = null;
-    this.clientFactory = null;
+    this.eventBus = null;
     this.clientChannelName = null;
     this.resolvedSelfClientId = null;
     this.store.setSelfClientId(null);
@@ -455,12 +442,14 @@ export class ChatEngine {
       }
 
       if (Array.isArray(result.participants) && result.participants.length) {
-        this.applyParticipantsFromDto(effectiveConversationId, result.participants);
+        this.reconciler.applyParticipants(effectiveConversationId, result.participants);
       }
 
       if (result?.message && typeof result.message.id === "string") {
-        const reactionDescriptors = this.normalizeReactionsFromDto(result.message.reactions);
-        const acknowledgedAttachments = this.normalizeAttachmentsFromDto(
+        const reactionDescriptors = this.reconciler.normalizeReactionsFromDto(
+          result.message.reactions,
+        );
+        const acknowledgedAttachments = this.reconciler.normalizeAttachmentsFromDto(
           result.message.attachments,
         );
         this.store.acknowledgeMessage(effectiveConversationId, message.id, {
@@ -685,8 +674,8 @@ export class ChatEngine {
   }
 
   private async publishTypingEvent(conversationId: string, typing: boolean): Promise<void> {
-    const client = this.client;
-    if (!client) return;
+    const eventBus = this.eventBus;
+    if (!eventBus) return;
     const session = this.findSession(conversationId);
     if (!session) return;
     const selfId = this.resolveSelfId();
@@ -720,9 +709,7 @@ export class ChatEngine {
       channels.add(this.clientChannelName);
     }
     if (!channels.size) return;
-    await Promise.all(
-      Array.from(channels).map((channel) => client.publish(channel, "chat.typing", payload)),
-    );
+    await eventBus.publishToChannels(channels, "chat.typing", payload);
   }
 
   private persistDirectChannelWatermark(): void {
@@ -779,125 +766,6 @@ export class ChatEngine {
       })),
     };
     this.store.applySessionEvent(descriptor);
-  }
-
-  private normalizeReactionsFromDto(
-    reactions: ChatReactionDTO[] | undefined,
-  ): ChatMessageReaction[] {
-    if (!Array.isArray(reactions) || reactions.length === 0) {
-      return [];
-    }
-    const aggregation = new Map<string, Map<string, ChatParticipant>>();
-    reactions.forEach((reaction) => {
-      if (!reaction) return;
-      const emoji = typeof reaction.emoji === "string" ? reaction.emoji.trim() : "";
-      if (!emoji) return;
-      const users = Array.isArray(reaction.users) ? reaction.users : [];
-      let bucket = aggregation.get(emoji);
-      if (!bucket) {
-        bucket = new Map<string, ChatParticipant>();
-        aggregation.set(emoji, bucket);
-      }
-      users.forEach((user) => {
-        if (!user?.id) return;
-        const normalized: ChatParticipant = {
-          id: user.id,
-          name: typeof user.name === "string" && user.name.trim().length
-            ? user.name.trim()
-            : user.id,
-          avatar: user.avatar ?? null,
-        };
-        bucket!.set(normalized.id, normalized);
-      });
-    });
-    const normalized: ChatMessageReaction[] = [];
-    aggregation.forEach((bucket, emoji) => {
-      const users = Array.from(bucket.values()).sort((a, b) => {
-        const nameCompare = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-        if (nameCompare !== 0) return nameCompare;
-        return a.id.localeCompare(b.id);
-      });
-      normalized.push({
-        emoji,
-        count: users.length,
-        users,
-        selfReacted: users.some((user) => this.isSelfUser(user.id)),
-      });
-    });
-    normalized.sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      return a.emoji.localeCompare(b.emoji);
-    });
-    return normalized;
-  }
-
-  private normalizeAttachmentsFromDto(
-    attachments: ChatMessageAttachmentDTO[] | undefined,
-  ): ChatMessageAttachment[] {
-    if (!Array.isArray(attachments) || attachments.length === 0) {
-      return [];
-    }
-    const merged = new Map<string, ChatMessageAttachment>();
-    attachments.forEach((attachment) => {
-      if (!attachment) return;
-      const id = typeof attachment.id === "string" ? attachment.id.trim() : "";
-      if (!id || merged.has(id)) return;
-      const name =
-        typeof attachment.name === "string" && attachment.name.trim().length
-          ? attachment.name.trim()
-          : id;
-      const mimeType =
-        typeof attachment.mimeType === "string" && attachment.mimeType.trim().length
-          ? attachment.mimeType.trim()
-          : "application/octet-stream";
-      const url = typeof attachment.url === "string" && attachment.url.trim().length ? attachment.url.trim() : "";
-      if (!url) return;
-      const size =
-        typeof attachment.size === "number" && Number.isFinite(attachment.size) && attachment.size >= 0
-          ? Math.floor(attachment.size)
-          : 0;
-      merged.set(id, {
-        id,
-        name,
-        mimeType,
-        size,
-        url,
-        thumbnailUrl:
-          typeof attachment.thumbnailUrl === "string" && attachment.thumbnailUrl.trim().length
-            ? attachment.thumbnailUrl.trim()
-            : null,
-        storageKey:
-          typeof attachment.storageKey === "string" && attachment.storageKey.trim().length
-            ? attachment.storageKey.trim()
-            : null,
-        sessionId:
-          typeof attachment.sessionId === "string" && attachment.sessionId.trim().length
-            ? attachment.sessionId.trim()
-            : null,
-      });
-    });
-    return Array.from(merged.values());
-  }
-
-  private upsertMessageFromDto(conversationId: string, dto: ChatMessageDTO): void {
-    if (!dto?.id) return;
-    const sanitized =
-      typeof dto.body === "string" ? dto.body.replace(/\s+/g, " ").trim() : "";
-    const attachments = this.normalizeAttachmentsFromDto(dto.attachments);
-    if (!sanitized && attachments.length === 0) return;
-    const reactions = this.normalizeReactionsFromDto(dto.reactions);
-    const chatMessage = {
-      id: dto.id,
-      authorId: dto.senderId,
-      body: sanitized,
-      sentAt: dto.sentAt,
-      status: "sent" as const,
-      reactions,
-      attachments,
-    };
-    const isLocal = this.isSelfUser(dto.senderId);
-    this.store.addMessage(conversationId, chatMessage, { isLocal });
-    this.recordDirectChannelWatermarkFromIso(chatMessage.sentAt);
   }
 
   private isSelfUser(userId: string | null | undefined): boolean {
@@ -973,9 +841,9 @@ export class ChatEngine {
       if (lastMessage && typeof lastMessage.id === "string" && typeof lastMessage.sentAt === "string") {
         const sanitized =
           typeof lastMessage.body === "string" ? lastMessage.body.replace(/\s+/g, " ").trim() : "";
-        const attachments = this.normalizeAttachmentsFromDto(lastMessage.attachments);
+        const attachments = this.reconciler.normalizeAttachmentsFromDto(lastMessage.attachments);
         if (sanitized || attachments.length > 0) {
-          const reactions = this.normalizeReactionsFromDto(lastMessage.reactions);
+          const reactions = this.reconciler.normalizeReactionsFromDto(lastMessage.reactions);
           const chatMessage = {
             id: lastMessage.id,
             authorId: lastMessage.senderId,
@@ -1014,10 +882,10 @@ export class ChatEngine {
       this.handleConversationRemap(conversationId, resolvedId);
     }
     if (Array.isArray(data.participants) && data.participants.length) {
-      this.applyParticipantsFromDto(resolvedId, data.participants);
+      this.reconciler.applyParticipants(resolvedId, data.participants);
     }
     (data.messages ?? []).forEach((message) => {
-      this.upsertMessageFromDto(resolvedId, message);
+      this.reconciler.upsertMessage(resolvedId, message);
     });
     this.conversationHistoryLoaded.add(resolvedId);
     if (resolvedId !== conversationId) {
@@ -1042,8 +910,8 @@ export class ChatEngine {
   }
 
   private async publishSessionUpdate(conversationId: string): Promise<void> {
-    const client = this.client;
-    if (!client) {
+    const eventBus = this.eventBus;
+    if (!eventBus) {
       console.warn("Chat connection is not ready yet.");
       return;
     }
@@ -1073,9 +941,7 @@ export class ChatEngine {
     if (this.clientChannelName) {
       channels.add(this.clientChannelName);
     }
-    await Promise.all(
-      Array.from(channels).map((channel) => client.publish(channel, "chat.session", payload)),
-    );
+    await eventBus.publishToChannels(channels, "chat.session", payload);
   }
 
   private handleRealtimeEvent(event: RealtimeEvent): void {
@@ -1214,7 +1080,7 @@ export class ChatEngine {
         name: participant.name,
         avatar: participant.avatar ?? null,
       }));
-      const attachments = this.normalizeAttachmentsFromDto(result.message.attachments);
+      const attachments = this.reconciler.normalizeAttachmentsFromDto(result.message.attachments);
       this.store.applyMessageUpdateEvent({
         type: "chat.message.update",
         conversationId: result.message.conversationId,

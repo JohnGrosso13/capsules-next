@@ -46,7 +46,7 @@ export type ComposerStatus = {
   text: string;
 };
 
-type ChatComposerProps = {
+export type ChatComposerProps = {
   error: string | null;
   draft: string;
   sending: boolean;

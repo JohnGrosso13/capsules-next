@@ -9,18 +9,11 @@ import {
   type FeedPage,
   type FeedSnapshot,
 } from "@/domain/feed";
-import { getPostsSlim } from "@/server/posts/api";
-import type { SlimResponse } from "@/server/posts/api";
-import type { PostsQueryInput } from "@/server/posts/api";
+import { PostsQueryError, queryPosts } from "@/server/posts/services/posts-query";
+import type { PostsQueryInput } from "@/server/posts/types";
 import { ensureUserSession, resolveRequestOrigin } from "@/server/actions/session";
 
 const FEED_LIMIT = 30;
-
-type HomeFeedSlimBody = {
-  posts: unknown[];
-  deleted: string[];
-  cursor?: string | null | undefined;
-};
 
 function computeHydrationKey(posts: FeedPost[], cursor: string | null): string {
   if (cursor) return `cursor:${cursor}`;
@@ -45,12 +38,26 @@ export async function loadHomeFeedAction(): Promise<FeedSnapshot> {
     },
   };
 
-  let response: SlimResponse<HomeFeedSlimBody>;
-
   try {
-    response = await getPostsSlim(request);
+    const result = await queryPosts(request);
+    const rawPosts = result.posts ?? [];
+    const cursor = result.cursor ?? null;
+    const posts = normalizePosts(rawPosts);
+    return {
+      posts,
+      cursor,
+      hydrationKey: computeHydrationKey(posts, cursor),
+    };
   } catch (error) {
-    console.error("loadHomeFeedAction: getPostsSlim failed", error);
+    if (error instanceof PostsQueryError) {
+      console.error("loadHomeFeedAction: posts query error", {
+        status: error.status,
+        code: error.code,
+        message: error.message,
+      });
+    } else {
+      console.error("loadHomeFeedAction: posts query failed", error);
+    }
     const fallbackPosts = buildFallbackFeedPosts();
     const posts = normalizePosts(fallbackPosts);
     return {
@@ -59,31 +66,6 @@ export async function loadHomeFeedAction(): Promise<FeedSnapshot> {
       hydrationKey: computeHydrationKey(posts, null),
     };
   }
-
-  if (!response.ok) {
-    console.error("loadHomeFeedAction: getPostsSlim returned error", {
-      status: response.status,
-      error: response.body.error,
-      message: response.body.message,
-    });
-    const fallbackPosts = buildFallbackFeedPosts();
-    const posts = normalizePosts(fallbackPosts);
-    return {
-      posts,
-      cursor: null,
-      hydrationKey: computeHydrationKey(posts, null),
-    };
-  }
-
-  const rawPosts = response.body.posts ?? [];
-  const cursor = response.body.cursor ?? null;
-  const posts = normalizePosts(rawPosts);
-
-  return {
-    posts,
-    cursor,
-    hydrationKey: computeHydrationKey(posts, cursor),
-  };
 }
 
 export async function loadHomeFeedPageAction(cursor: string | null): Promise<FeedPage> {
@@ -100,21 +82,21 @@ export async function loadHomeFeedPageAction(cursor: string | null): Promise<Fee
   };
 
   try {
-    const response = await getPostsSlim(request);
-    if (!response.ok) {
-      console.error("loadHomeFeedPageAction: getPostsSlim returned error", {
-        status: response.status,
-        error: response.body.error,
-      });
-      return { posts: [], cursor: null };
-    }
-    const posts = normalizePosts(response.body.posts ?? []);
+    const result = await queryPosts(request);
+    const posts = normalizePosts(result.posts ?? []);
     return {
       posts,
-      cursor: response.body.cursor ?? null,
+      cursor: result.cursor ?? null,
     };
   } catch (error) {
-    console.error("loadHomeFeedPageAction: getPostsSlim failed", error);
+    if (error instanceof PostsQueryError) {
+      console.error("loadHomeFeedPageAction: posts query error", {
+        status: error.status,
+        code: error.code,
+      });
+    } else {
+      console.error("loadHomeFeedPageAction: posts query failed", error);
+    }
     return { posts: [], cursor: null };
   }
 }
@@ -141,17 +123,22 @@ export async function fetchHomeFeedSliceAction(
   };
 
   try {
-    const response = await getPostsSlim(request);
-    if (!response.ok) {
-      throw new Error(response.body.message ?? "Failed to fetch feed");
-    }
+    const result = await queryPosts(request);
     return {
-      posts: response.body.posts ?? [],
-      cursor: response.body.cursor ?? null,
-      deleted: response.body.deleted ?? [],
+      posts: result.posts ?? [],
+      cursor: result.cursor ?? null,
+      deleted: result.deleted ?? [],
     };
   } catch (error) {
-    console.error("fetchHomeFeedSliceAction failed", error);
+    if (error instanceof PostsQueryError) {
+      console.error("fetchHomeFeedSliceAction: posts query error", {
+        status: error.status,
+        code: error.code,
+        message: error.message,
+      });
+    } else {
+      console.error("fetchHomeFeedSliceAction failed", error);
+    }
     throw error;
   }
 }
