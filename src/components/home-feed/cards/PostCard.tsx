@@ -15,6 +15,7 @@ import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { normalizeMediaUrl } from "@/lib/media";
 import { FeedLazyImage } from "@/components/home-feed/feed-lazy-image";
 import { FeedMediaGallery, type LightboxImageItem } from "@/components/home-feed/feed-media-gallery";
+import { CommentsPreview } from "@/components/home-feed/comments-preview";
 import { FeedCardActions, type FeedCardAction } from "@/components/home-feed/feed-card-actions";
 import { buildPostMediaCollections, type PostMediaCollections } from "@/components/home-feed/utils";
 import {
@@ -23,6 +24,7 @@ import {
   type DocumentCardData,
 } from "@/components/documents/document-card";
 import { PostMenu } from "@/components/posts/PostMenu";
+import type { CommentThreadState } from "@/components/comments/types";
 import { FeedPoll } from "@/components/home-feed/cards/FeedPoll";
 
 type FriendMenuConfig = {
@@ -50,6 +52,8 @@ type PostCardProps = {
   timeAgo: (iso?: string | null) => string;
   exactTime: (iso?: string | null) => string;
   commentCount: number;
+  commentThread?: CommentThreadState | null;
+  onRequestComments?: (postId: string) => void | Promise<void>;
   isRefreshing: boolean;
   documentSummaryPending: Record<string, boolean>;
   onToggleLike(postId: string): void;
@@ -75,6 +79,8 @@ export function PostCard({
   timeAgo,
   exactTime,
   commentCount,
+  commentThread,
+  onRequestComments,
   isRefreshing,
   documentSummaryPending,
   onToggleLike,
@@ -86,6 +92,7 @@ export function PostCard({
   onCommentClick,
   variant = "full",
 }: PostCardProps) {
+  const articleRef = React.useRef<HTMLElement | null>(null);
   const resolvedUserId =
     post.owner_user_id ??
     post.ownerUserId ??
@@ -207,6 +214,7 @@ export function PostCard({
   return (
     <article
       className={styles.card}
+      ref={articleRef}
       data-variant={variant}
       data-post-id={post.id}
       data-refreshing={isRefreshing ? "true" : undefined}
@@ -336,10 +344,25 @@ export function PostCard({
         </div>
       ) : null}
 
+      {/* Inline comments preview (first 2–3) */}
+      {variant === "full" ? (
+        <CommentsPreview
+          postId={post.id}
+          thread={commentThread ?? null}
+          loadComments={(id) => Promise.resolve(onRequestComments?.(id))}
+          timeAgo={timeAgo}
+          exactTime={exactTime}
+          onOpenFull={async () => {
+            const anchor =
+              articleRef.current ??
+              (typeof document !== "undefined" ? document.body ?? null : null);
+            if (!anchor) return;
+            onCommentClick(post, anchor);
+          }}
+        />
+      ) : null}
+
       {variant === "full" ? <FeedCardActions actions={actionItems} formatCount={formatCount} /> : null}
     </article>
   );
 }
-
-
-

@@ -225,3 +225,60 @@ export async function listTaskTargetsByTask(
     .fetch();
   return expectArrayResult(result, "assistant_task_targets.list_by_task");
 }
+
+export async function listAssistantTasks(params: {
+  ownerUserId: string;
+  statuses?: string[];
+  limit?: number;
+}): Promise<AssistantTaskRow[]> {
+  const db = getDatabaseAdminClient();
+  let query = db
+    .from(TASKS_TABLE)
+    .select<AssistantTaskRow>("*")
+    .eq("owner_user_id", params.ownerUserId)
+    .order("updated_at", { ascending: false });
+  if (Array.isArray(params.statuses) && params.statuses.length > 0) {
+    query = query.in("status", params.statuses);
+  }
+  if (params.limit !== undefined) {
+    query = query.limit(Math.max(1, params.limit));
+  }
+  const result = await query.fetch();
+  return expectArrayResult(result, "assistant_tasks.list_by_owner");
+}
+
+export async function listAwaitingTargetsOlderThan(params: {
+  olderThan: string;
+  limit?: number;
+}): Promise<AssistantTaskTargetRow[]> {
+  const db = getDatabaseAdminClient();
+  let query = db
+    .from(TARGETS_TABLE)
+    .select<AssistantTaskTargetRow>("*")
+    .eq("status", "awaiting_response")
+    .lt("updated_at", params.olderThan)
+    .order("updated_at", { ascending: true });
+  if (params.limit) {
+    query = query.limit(params.limit);
+  }
+  const result = await query.fetch();
+  return expectArrayResult(result, "assistant_task_targets.list_awaiting");
+}
+
+export async function markTaskTargetReminded(row: {
+  id: string;
+  data?: Record<string, unknown> | null;
+}): Promise<AssistantTaskTargetRow> {
+  const db = getDatabaseAdminClient();
+  const payload: Record<string, unknown> = {
+    data: row.data ?? null,
+  };
+  const result = await db
+    .from(TARGETS_TABLE)
+    .update(payload)
+    .eq("id", row.id)
+    .select<AssistantTaskTargetRow>("*")
+    .single();
+  const updated = expectResult(result, "assistant_task_targets.mark_reminded");
+  return updated;
+}

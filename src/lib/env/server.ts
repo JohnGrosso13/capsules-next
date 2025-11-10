@@ -139,6 +139,8 @@ const serverEnvSchema = z.object({
   GIPHY_RATING: optionalString,
   TENOR_API_KEY: optionalString,
   TENOR_CLIENT_KEY: optionalString,
+  ASSISTANT_REMINDER_SECRET: optionalString,
+  ASSISTANT_REMINDER_THRESHOLD_HOURS: optionalPositiveInteger,
 });
 
 const rawServerEnv = {
@@ -233,6 +235,8 @@ const rawServerEnv = {
   GIPHY_RATING: readEnv("GIPHY_RATING"),
   TENOR_API_KEY: readEnv("TENOR_API_KEY"),
   TENOR_CLIENT_KEY: readEnv("TENOR_CLIENT_KEY"),
+  ASSISTANT_REMINDER_SECRET: readEnv("ASSISTANT_REMINDER_SECRET", ["INTERNAL_CRON_SECRET"]),
+  ASSISTANT_REMINDER_THRESHOLD_HOURS: readEnv("ASSISTANT_REMINDER_THRESHOLD_HOURS"),
 } satisfies Record<string, string | undefined>;
 
 const parsedServerEnv = serverEnvSchema.safeParse(rawServerEnv);

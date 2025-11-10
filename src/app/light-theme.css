@@ -78,6 +78,11 @@
     --feed-action-shadow-hover: 0 14px 28px rgba(15, 23, 42, 0.12);
     --feed-icon-text: color-mix(in srgb, var(--color-fg) 80%, var(--color-brand) 20%);
 
+    /* Feed: ensure a visible divider between content and actions in light mode */
+    --home-actionbar-border: color-mix(in srgb, var(--color-border) 96%, transparent);
+    /* Divider above inline comments preview */
+    --home-commentpreview-divider: color-mix(in srgb, var(--color-border) 94%, transparent);
+
     /* Header icon buttons (neutral plate with subtle brand tint) */
     --home-card-icon-bg-1: #ffffff;
     --home-card-icon-bg-2: #f6f9ff;
@@ -91,6 +96,12 @@
     --home-card-icon-active-bg-2: #e8f0ff;
     --home-card-icon-active-color: color-mix(in srgb, var(--color-brand) 65%, #1e3a8a);
     --home-card-icon-danger: #ef4444;
+
+    /* Feed card subtle specular and hover tint for light mode */
+    --home-card--before-background: radial-gradient(120% 90% at 50% -10%, rgba(14, 23, 42, 0.06), rgba(14, 23, 42, 0) 68%),
+      linear-gradient(180deg, rgba(14, 23, 42, 0.04), rgba(14, 23, 42, 0));
+    --home-cardhead-background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.86));
+    --home-cardhead-border-bottom-color: color-mix(in srgb, var(--color-border) 96%, transparent);
 
     /* Poll surfaces (neutral shells + brand progress fill) */
     --home-poll-card-border: color-mix(in srgb, var(--color-border) 92%, transparent);

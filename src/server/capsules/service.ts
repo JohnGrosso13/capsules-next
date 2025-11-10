@@ -17,28 +17,10 @@ import type {
   CapsuleHistoryTemplatePreset,
   CapsuleHistorySource,
   CapsuleHistoryVersion,
-  CapsuleMemberRequestSummary,
-  CapsuleMembershipState,
-  CapsuleMembershipViewer,
 } from "@/types/capsules";
 import {
   createCapsuleForUser,
-  deleteCapsuleMember as deleteCapsuleMemberRecord,
   deleteCapsuleOwnedByUser,
-  findCapsuleById,
-  getCapsuleFollowerRecord,
-  getCapsuleMemberRecord,
-  getCapsuleMemberRequest,
-  getCapsuleMemberRequestById,
-  listCapsuleMemberRequests,
-  listCapsuleMembers,
-  listCapsuleFollowers,
-  listCapsuleInvites,
-  setCapsuleMemberRequestStatus,
-  upsertCapsuleMember,
-  upsertCapsuleMemberRequest,
-  upsertCapsuleFollower,
-  deleteCapsuleFollower,
   listCapsulesForUser,
   listCapsulesByOwnerIds,
   listRecentPublicCapsules,
@@ -63,7 +45,6 @@ import {
   type CapsuleHistoryExclusion,
   type CapsuleTopicPage,
   type CapsuleTopicPageBacklink,
-  updateCapsuleMemberRole,
   updateCapsuleBanner,
   updateCapsuleStoreBanner,
   updateCapsulePromoTile,
@@ -78,15 +59,14 @@ import {
   updateCapsuleHistoryPromptMemory,
 } from "./repository";
 import {
-  isCapsuleMemberUiRole,
-  resolveViewerUiRole,
-  uiRoleToDbRole,
-  type CapsuleMemberUiRole,
-} from "./roles";
+  CapsuleMembershipError,
+  normalizeId,
+  normalizeOptionalString,
+  requireCapsule,
+  requireCapsuleOwnership,
+  resolveCapsuleMediaUrl,
+} from "./domain/common";
 import { indexMemory } from "@/server/memories/service";
-import { normalizeMediaUrl } from "@/lib/media";
-import { resolveToAbsoluteUrl } from "@/lib/url";
-import { serverEnv } from "@/lib/env/server";
 import { getDatabaseAdminClient } from "@/config/database";
 import { createHash } from "node:crypto";
 import { AIConfigError, callOpenAIChat, extractJSON } from "@/lib/ai/prompter";
@@ -101,6 +81,21 @@ export type {
   CapsuleMembershipViewer,
   CapsuleMembershipState,
 } from "@/types/capsules";
+export { CapsuleMembershipError, requireCapsuleOwnership } from "./domain/common";
+export {
+  getCapsuleMembership,
+  requestCapsuleMembership,
+  followCapsule,
+  unfollowCapsule,
+  leaveCapsule,
+  inviteCapsuleMember,
+  acceptCapsuleInvite,
+  declineCapsuleInvite,
+  approveCapsuleMemberRequest,
+  declineCapsuleMemberRequest,
+  removeCapsuleMember,
+  setCapsuleMemberRole,
+} from "./domain/membership-service";
 
 export type CapsuleLibraryItem = {
   id: string;
@@ -122,57 +117,84 @@ export type CapsuleLibrary = {
   files: CapsuleLibraryItem[];
 };
 
-const REQUEST_MESSAGE_MAX_LENGTH = 500;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function normalizeId(value: string | null | undefined): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : null;
-}
-
-function normalizeSupabaseId(value: string | null | undefined): string | null {
-  const normalized = normalizeId(value);
-  if (!normalized) return null;
-  return UUID_PATTERN.test(normalized) ? normalized : null;
-}
-
-function normalizeOptionalString(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : null;
-}
-
-function toTimestamp(value: string | null | undefined): number | null {
-  if (!value) return null;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
-const HISTORY_CACHE_TTL_MS = 5 * 60 * 1000;
-const HISTORY_POST_LIMIT = 180;
-const HISTORY_MODEL_POST_LIMIT = 150;
-const HISTORY_HIGHLIGHT_LIMIT = 5;
-const HISTORY_TIMELINE_LIMIT = 6;
-const HISTORY_NEXT_FOCUS_LIMIT = 4;
-const HISTORY_ARTICLE_LIMIT = 4;
-const HISTORY_ARTICLE_PARAGRAPH_LIMIT = 2;
-const HISTORY_ARTICLE_PARAGRAPH_LENGTH = 600;
-const HISTORY_ARTICLE_TITLE_LIMIT = 120;
-const HISTORY_ARTICLE_LINK_LIMIT = 4;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-const HISTORY_PERSIST_REFRESH_MS = WEEK_MS;
+const HISTORY_TIMELINE_LIMIT = 24;
+const HISTORY_ARTICLE_LIMIT = 5;
+const HISTORY_ARTICLE_LINK_LIMIT = 8;
+const HISTORY_ARTICLE_TITLE_LIMIT = 180;
+const HISTORY_ARTICLE_PARAGRAPH_LIMIT = 6;
+const HISTORY_ARTICLE_PARAGRAPH_LENGTH = 420;
+const HISTORY_POST_LIMIT = 120;
+const HISTORY_MODEL_POST_LIMIT = 90;
+const HISTORY_HIGHLIGHT_LIMIT = 5;
+const HISTORY_NEXT_FOCUS_LIMIT = 4;
+const CAPSULE_HISTORY_CACHE_TTL_MS = 5 * 60 * 1000;
+const HISTORY_SNAPSHOT_STALE_MS = 15 * 60 * 1000;
 
 type CapsuleHistoryCacheEntry = {
-  expiresAt: number;
   snapshot: CapsuleHistorySnapshot;
   latestPostAt: string | null;
   suggestedGeneratedAtMs: number;
-  suggestedPeriodHashes: Record<string, string>;
+  expiresAt: number;
 };
 
 const capsuleHistoryCache = new Map<string, CapsuleHistoryCacheEntry>();
+
+function normalizeSupabaseId(value: string | null | undefined): string | null {
+  return normalizeId(value ?? null);
+}
+
+function buildCapsulePostPermalink(capsuleId: string, postId: string): string {
+  const base = `/capsule?capsuleId=${encodeURIComponent(capsuleId)}`;
+  if (!postId) return base;
+  return `${base}&postId=${encodeURIComponent(postId)}`;
+}
+
+function toTimestamp(value: string | null | undefined): number | null {
+  if (typeof value !== "string" || !value.trim().length) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function extractLatestTimelineTimestampFromStored(
+  snapshot: StoredHistorySnapshot | null,
+): string | null {
+  if (!snapshot) return null;
+  let latest: { iso: string; ms: number } | null = null;
+  for (const section of snapshot.sections) {
+    for (const entry of section.content.timeline) {
+      if (!entry?.timestamp) continue;
+      const ms = toTimestamp(entry.timestamp);
+      if (ms === null) continue;
+      if (!latest || ms > latest.ms) {
+        latest = { iso: entry.timestamp, ms };
+      }
+    }
+  }
+  if (!latest) {
+    return null;
+  }
+  return latest.iso;
+}
+
+function historySnapshotIsStale(params: {
+  suggestedGeneratedAtMs: number;
+  storedLatestPostAt: string | null | undefined;
+  activityLatestPostAt: string | null | undefined;
+}): boolean {
+  const now = Date.now();
+  if (!Number.isFinite(params.suggestedGeneratedAtMs)) return true;
+  if (now - params.suggestedGeneratedAtMs > HISTORY_SNAPSHOT_STALE_MS) {
+    return true;
+  }
+  const storedMs = toTimestamp(params.storedLatestPostAt);
+  const activityMs = toTimestamp(params.activityLatestPostAt);
+  if (activityMs !== null && (storedMs === null || activityMs > storedMs)) {
+    return true;
+  }
+  return false;
+}
 
 function getCachedCapsuleHistory(capsuleId: string): CapsuleHistoryCacheEntry | null {
   const entry = capsuleHistoryCache.get(capsuleId);
@@ -184,135 +206,24 @@ function getCachedCapsuleHistory(capsuleId: string): CapsuleHistoryCacheEntry | 
   return entry;
 }
 
-function invalidateCapsuleHistoryCache(capsuleId: string): void {
-  capsuleHistoryCache.delete(capsuleId);
-}
-
 function setCachedCapsuleHistory(
   capsuleId: string,
   snapshot: CapsuleHistorySnapshot,
-  meta: { latestPostAt: string | null; suggestedPeriodHashes: Record<string, string> },
+  meta: { latestPostAt: string | null; suggestedPeriodHashes?: Record<string, string> },
 ): void {
-  const generatedAtMs = Date.parse(snapshot.suggestedGeneratedAt);
+  const { latestPostAt } = meta;
+  const suggestedGeneratedAtMs =
+    toTimestamp(snapshot.suggestedGeneratedAt) ?? Date.now();
   capsuleHistoryCache.set(capsuleId, {
-    expiresAt: Date.now() + HISTORY_CACHE_TTL_MS,
     snapshot,
-    latestPostAt: meta.latestPostAt ?? null,
-    suggestedGeneratedAtMs: Number.isNaN(generatedAtMs) ? Date.now() : generatedAtMs,
-    suggestedPeriodHashes: meta.suggestedPeriodHashes,
+    latestPostAt: latestPostAt ?? null,
+    suggestedGeneratedAtMs,
+    expiresAt: Date.now() + CAPSULE_HISTORY_CACHE_TTL_MS,
   });
 }
 
-function historySnapshotIsStale(params: {
-  suggestedGeneratedAtMs: number;
-  storedLatestPostAt: string | null;
-  activityLatestPostAt: string | null;
-}): boolean {
-  const { suggestedGeneratedAtMs, storedLatestPostAt, activityLatestPostAt } = params;
-  const snapshotLatestMs = toTimestamp(storedLatestPostAt);
-  const activityLatestMs = toTimestamp(activityLatestPostAt);
-
-  if (activityLatestMs !== null) {
-    if (snapshotLatestMs === null || activityLatestMs > snapshotLatestMs) {
-      return true;
-    }
-  } else if (snapshotLatestMs !== null) {
-    return true;
-  }
-
-  if (Date.now() - suggestedGeneratedAtMs > HISTORY_PERSIST_REFRESH_MS) {
-    return true;
-  }
-
-  return false;
-}
-
-function extractLatestTimelineTimestampFromStored(snapshot: StoredHistorySnapshot): string | null {
-  let latestMs: number | null = null;
-  let latestIso: string | null = null;
-  snapshot.sections.forEach((section) => {
-    section.content.timeline.forEach((entry) => {
-      const timestamp = entry.timestamp ?? null;
-      const ms = toTimestamp(timestamp);
-      if (ms !== null && (latestMs === null || ms > latestMs)) {
-        latestMs = ms;
-        latestIso = timestamp;
-      }
-    });
-  });
-  return latestIso;
-}
-
-function resolveCapsuleMediaUrl(
-  value: string | null,
-  originOverride?: string | null,
-): string | null {
-  const normalized = normalizeMediaUrl(value);
-  if (!normalized) return null;
-  const origin = originOverride ?? serverEnv.SITE_URL;
-  return resolveToAbsoluteUrl(normalized, origin) ?? normalized;
-}
-
-function buildCapsulePostPermalink(capsuleId: string, postId: string): string {
-  const base = `/capsule?capsuleId=${encodeURIComponent(capsuleId)}`;
-  return `${base}&postId=${encodeURIComponent(postId)}`;
-}
-
-function normalizeMemberRole(value: unknown): CapsuleMemberUiRole {
-  const normalized = normalizeOptionalString(value);
-  if (!normalized) {
-    throw new CapsuleMembershipError("invalid", "Invalid capsule role.", 400);
-  }
-  const lower = normalized.toLowerCase();
-  if (!isCapsuleMemberUiRole(lower)) {
-    throw new CapsuleMembershipError("invalid", "Invalid capsule role.", 400);
-  }
-  return lower as CapsuleMemberUiRole;
-}
-
-function normalizeRequestMessage(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed.length) return null;
-  return trimmed.slice(0, REQUEST_MESSAGE_MAX_LENGTH);
-}
-
-export class CapsuleMembershipError extends Error {
-  constructor(
-    public code: "not_found" | "forbidden" | "conflict" | "invalid",
-    message: string,
-    public status: number,
-  ) {
-    super(message);
-  }
-}
-
-async function requireCapsule(capsuleId: string) {
-  const capsule = await findCapsuleById(capsuleId);
-  if (!capsule?.id) {
-    throw new CapsuleMembershipError("not_found", "Capsule not found.", 404);
-  }
-  const ownerId = normalizeId(capsule.created_by_id);
-  if (!ownerId) {
-    throw new Error("capsules.membership: capsule missing owner identifier");
-  }
-  return { capsule, ownerId };
-}
-
-export async function requireCapsuleOwnership(capsuleId: string, ownerId: string) {
-  const normalizedOwnerId = normalizeId(ownerId);
-  if (!normalizedOwnerId) {
-    throw new CapsuleMembershipError("forbidden", "Authentication required.", 403);
-  }
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsule(capsuleId);
-  if (capsuleOwnerId !== normalizedOwnerId) {
-    throw new CapsuleMembershipError(
-      "forbidden",
-      "You do not have permission to manage this capsule.",
-      403,
-    );
-  }
-  return { capsule, ownerId: capsuleOwnerId };
+function invalidateCapsuleHistoryCache(capsuleId: string): void {
+  capsuleHistoryCache.delete(capsuleId);
 }
 
 export type CapsuleGatePayload = {
@@ -888,448 +799,6 @@ export async function updateCapsuleLogoImage(
   enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
 
   return { logoUrl: resolvedLogoUrl };
-}
-
-export async function getCapsuleMembership(
-  capsuleId: string,
-  viewerId: string | null | undefined,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const { capsule, ownerId } = await requireCapsule(capsuleId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.membership: capsule has invalid identifier");
-  }
-
-  const normalizedViewerId = normalizeId(viewerId ?? null);
-  const isOwner = normalizedViewerId === ownerId;
-
-  let membershipRecord = null;
-  if (normalizedViewerId && !isOwner) {
-    membershipRecord = await getCapsuleMemberRecord(capsuleIdValue, normalizedViewerId);
-  }
-
-  let followerRecord: { created_at: string | null } | null = null;
-  if (normalizedViewerId && !isOwner && !membershipRecord) {
-    followerRecord = await getCapsuleFollowerRecord(capsuleIdValue, normalizedViewerId);
-  }
-
-  let viewerRequest: CapsuleMemberRequestSummary | null = null;
-  if (normalizedViewerId && !isOwner && !membershipRecord) {
-    viewerRequest = await getCapsuleMemberRequest(capsuleIdValue, normalizedViewerId);
-  }
-
-  const members = await listCapsuleMembers(capsuleIdValue, ownerId);
-  const followers = await listCapsuleFollowers(capsuleIdValue);
-  const rawRequests = isOwner ? await listCapsuleMemberRequests(capsuleIdValue, "pending") : [];
-  const requests = rawRequests.filter((request) => request.origin === "viewer_request");
-  const invites = isOwner ? await listCapsuleInvites(capsuleIdValue) : [];
-
-  const isFollower = Boolean(followerRecord);
-  const viewer: CapsuleMembershipViewer = {
-    userId: normalizedViewerId,
-    isOwner,
-    isMember: isOwner || Boolean(membershipRecord),
-    isFollower,
-    canManage: isOwner,
-    canRequest:
-      Boolean(normalizedViewerId) &&
-      !isOwner &&
-      !membershipRecord &&
-      viewerRequest?.status !== "pending",
-    canFollow:
-      Boolean(normalizedViewerId) && !isOwner && !membershipRecord && !isFollower,
-    role: resolveViewerUiRole(membershipRecord?.role ?? null, isOwner),
-    memberSince: membershipRecord?.joined_at ?? null,
-    followedAt: followerRecord ? normalizeOptionalString(followerRecord.created_at ?? null) : null,
-    requestStatus: viewerRequest?.status ?? "none",
-    requestId: viewerRequest?.id ?? null,
-  };
-
-  return {
-    capsule: {
-      id: capsuleIdValue,
-      name: normalizeOptionalString(capsule.name ?? null),
-      slug: normalizeOptionalString(capsule.slug ?? null),
-      ownerId,
-      bannerUrl: resolveCapsuleMediaUrl(capsule.banner_url ?? null, options.origin ?? null),
-      storeBannerUrl: resolveCapsuleMediaUrl(capsule.store_banner_url ?? null, options.origin ?? null),
-      promoTileUrl: resolveCapsuleMediaUrl(capsule.promo_tile_url ?? null, options.origin ?? null),
-      logoUrl: resolveCapsuleMediaUrl(capsule.logo_url ?? null, options.origin ?? null),
-    },
-    viewer,
-    counts: {
-      members: members.length,
-      pendingRequests: requests.length,
-      followers: followers.length,
-    },
-    members,
-    followers,
-    requests,
-    invites: isOwner ? invites : [],
-    viewerRequest,
-  };
-}
-
-export async function requestCapsuleMembership(
-  userId: string,
-  capsuleId: string,
-  params: { message?: string } = {},
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedUserId = normalizeId(userId);
-  if (!normalizedUserId) {
-    throw new CapsuleMembershipError("forbidden", "Authentication required.", 403);
-  }
-
-  const { capsule, ownerId } = await requireCapsule(capsuleId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.membership.request: capsule has invalid identifier");
-  }
-
-  if (ownerId === normalizedUserId) {
-    throw new CapsuleMembershipError("conflict", "You already own this capsule.", 409);
-  }
-
-  const membership = await getCapsuleMemberRecord(capsuleIdValue, normalizedUserId);
-  if (membership) {
-    throw new CapsuleMembershipError("conflict", "You are already a member of this capsule.", 409);
-  }
-
-  const message = normalizeRequestMessage(params.message ?? null);
-  await upsertCapsuleMemberRequest(capsuleIdValue, normalizedUserId, { message });
-
-  return getCapsuleMembership(capsuleIdValue, normalizedUserId, options);
-}
-
-export async function followCapsule(
-  userId: string,
-  capsuleId: string,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedUserId = normalizeId(userId);
-  if (!normalizedUserId) {
-    throw new CapsuleMembershipError("forbidden", "Authentication required.", 403);
-  }
-  const { capsule } = await requireCapsule(capsuleId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.follow: capsule has invalid identifier");
-  }
-  const membership = await getCapsuleMemberRecord(capsuleIdValue, normalizedUserId);
-  if (membership) {
-    return getCapsuleMembership(capsuleIdValue, normalizedUserId, options);
-  }
-  await upsertCapsuleFollower({ capsuleId: capsuleIdValue, userId: normalizedUserId });
-  return getCapsuleMembership(capsuleIdValue, normalizedUserId, options);
-}
-
-export async function unfollowCapsule(
-  userId: string,
-  capsuleId: string,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedUserId = normalizeId(userId);
-  if (!normalizedUserId) {
-    throw new CapsuleMembershipError("forbidden", "Authentication required.", 403);
-  }
-  const { capsule } = await requireCapsule(capsuleId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.unfollow: capsule has invalid identifier");
-  }
-  await deleteCapsuleFollower(capsuleIdValue, normalizedUserId);
-  return getCapsuleMembership(capsuleIdValue, normalizedUserId, options);
-}
-
-export async function leaveCapsule(
-  userId: string,
-  capsuleId: string,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedUserId = normalizeId(userId);
-  if (!normalizedUserId) {
-    throw new CapsuleMembershipError("forbidden", "Authentication required.", 403);
-  }
-
-  const { capsule, ownerId } = await requireCapsule(capsuleId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.leave: capsule has invalid identifier");
-  }
-
-  if (normalizedUserId === ownerId) {
-    throw new CapsuleMembershipError("conflict", "Owners cannot leave their own capsule.", 409);
-  }
-
-  const membership = await getCapsuleMemberRecord(capsuleIdValue, normalizedUserId);
-  if (!membership) {
-    throw new CapsuleMembershipError("not_found", "You are not a member of this capsule.", 404);
-  }
-
-  await deleteCapsuleMemberRecord(capsuleIdValue, normalizedUserId);
-  return getCapsuleMembership(capsuleIdValue, normalizedUserId, options);
-}
-
-export async function inviteCapsuleMember(
-  ownerId: string,
-  capsuleId: string,
-  targetUserId: string,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedTargetId = normalizeId(targetUserId);
-  if (!normalizedTargetId) {
-    throw new CapsuleMembershipError("invalid", "A valid user id is required to invite.", 400);
-  }
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.invite: capsule has invalid identifier");
-  }
-  if (normalizedTargetId === capsuleOwnerId) {
-    throw new CapsuleMembershipError("conflict", "You already own this capsule.", 409);
-  }
-  const membership = await getCapsuleMemberRecord(capsuleIdValue, normalizedTargetId);
-  if (membership) {
-    throw new CapsuleMembershipError("conflict", "That user is already a member.", 409);
-  }
-  const existingRequest = await getCapsuleMemberRequest(capsuleIdValue, normalizedTargetId);
-  if (existingRequest && existingRequest.status === "pending" && existingRequest.origin === "viewer_request") {
-    throw new CapsuleMembershipError("conflict", "That user already has a pending request.", 409);
-  }
-  await upsertCapsuleMemberRequest(capsuleIdValue, normalizedTargetId, {
-    origin: "owner_invite",
-    initiatorId: capsuleOwnerId,
-  });
-  return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
-}
-
-export async function acceptCapsuleInvite(
-  userId: string,
-  requestId: string,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedUserId = normalizeId(userId);
-  if (!normalizedUserId) {
-    throw new CapsuleMembershipError("forbidden", "Authentication required.", 403);
-  }
-  const normalizedRequestId = normalizeId(requestId);
-  if (!normalizedRequestId) {
-    throw new CapsuleMembershipError("invalid", "A valid request id is required.", 400);
-  }
-  const request = await getCapsuleMemberRequestById(normalizedRequestId);
-  if (!request || request.requesterId !== normalizedUserId) {
-    throw new CapsuleMembershipError("not_found", "Invitation not found.", 404);
-  }
-  if (request.origin !== "owner_invite" || request.status !== "pending") {
-    throw new CapsuleMembershipError("conflict", "This invitation is not available anymore.", 409);
-  }
-  const capsuleIdValue = normalizeId(request.capsuleId);
-  if (!capsuleIdValue) {
-    throw new CapsuleMembershipError("invalid", "Invitation capsule is invalid.", 400);
-  }
-  await upsertCapsuleMember({
-    capsuleId: capsuleIdValue,
-    userId: normalizedUserId,
-    role: uiRoleToDbRole("member"),
-  });
-  await setCapsuleMemberRequestStatus({
-    capsuleId: capsuleIdValue,
-    requestId: normalizedRequestId,
-    status: "approved",
-    responderId: normalizedUserId,
-  });
-  enqueueCapsuleKnowledgeRefresh(
-    capsuleIdValue,
-    normalizeOptionalString(request.capsuleName ?? null),
-  );
-  return getCapsuleMembership(capsuleIdValue, normalizedUserId, options);
-}
-
-export async function declineCapsuleInvite(
-  userId: string,
-  requestId: string,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedUserId = normalizeId(userId);
-  if (!normalizedUserId) {
-    throw new CapsuleMembershipError("forbidden", "Authentication required.", 403);
-  }
-  const normalizedRequestId = normalizeId(requestId);
-  if (!normalizedRequestId) {
-    throw new CapsuleMembershipError("invalid", "A valid request id is required.", 400);
-  }
-  const request = await getCapsuleMemberRequestById(normalizedRequestId);
-  if (!request || request.requesterId !== normalizedUserId) {
-    throw new CapsuleMembershipError("not_found", "Invitation not found.", 404);
-  }
-  if (request.origin !== "owner_invite" || request.status !== "pending") {
-    throw new CapsuleMembershipError("conflict", "This invitation is not available anymore.", 409);
-  }
-  const capsuleIdValue = normalizeId(request.capsuleId);
-  if (!capsuleIdValue) {
-    throw new CapsuleMembershipError("invalid", "Invitation capsule is invalid.", 400);
-  }
-  await setCapsuleMemberRequestStatus({
-    capsuleId: capsuleIdValue,
-    requestId: normalizedRequestId,
-    status: "declined",
-    responderId: normalizedUserId,
-  });
-  return getCapsuleMembership(capsuleIdValue, normalizedUserId, options);
-}
-
-export async function approveCapsuleMemberRequest(
-  ownerId: string,
-  capsuleId: string,
-  requestId: string,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedRequestId = normalizeId(requestId);
-  if (!normalizedRequestId) {
-    throw new CapsuleMembershipError("invalid", "A valid request id is required.", 400);
-  }
-
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.membership.approve: capsule has invalid identifier");
-  }
-
-  const updated = await setCapsuleMemberRequestStatus({
-    capsuleId: capsuleIdValue,
-    requestId: normalizedRequestId,
-    status: "approved",
-    responderId: capsuleOwnerId,
-  });
-
-  if (!updated) {
-    throw new CapsuleMembershipError(
-      "not_found",
-      "Pending membership request not found or already processed.",
-      404,
-    );
-  }
-
-  const uiRole: CapsuleMemberUiRole =
-    updated.role && isCapsuleMemberUiRole(updated.role) ? updated.role : "member";
-  const dbRole = uiRoleToDbRole(uiRole);
-
-  await upsertCapsuleMember({
-    capsuleId: capsuleIdValue,
-    userId: updated.requesterId,
-    role: dbRole,
-  });
-
-  const membershipState = await getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
-  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
-  return membershipState;
-}
-
-export async function declineCapsuleMemberRequest(
-  ownerId: string,
-  capsuleId: string,
-  requestId: string,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedRequestId = normalizeId(requestId);
-  if (!normalizedRequestId) {
-    throw new CapsuleMembershipError("invalid", "A valid request id is required.", 400);
-  }
-
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.membership.decline: capsule has invalid identifier");
-  }
-
-  const updated = await setCapsuleMemberRequestStatus({
-    capsuleId: capsuleIdValue,
-    requestId: normalizedRequestId,
-    status: "declined",
-    responderId: capsuleOwnerId,
-  });
-
-  if (!updated) {
-    throw new CapsuleMembershipError(
-      "not_found",
-      "Pending membership request not found or already processed.",
-      404,
-    );
-  }
-
-  return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
-}
-
-export async function removeCapsuleMember(
-  ownerId: string,
-  capsuleId: string,
-  memberId: string,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedMemberId = normalizeId(memberId);
-  if (!normalizedMemberId) {
-    throw new CapsuleMembershipError("invalid", "A valid member id is required.", 400);
-  }
-
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.membership.remove: capsule has invalid identifier");
-  }
-
-  if (normalizedMemberId === capsuleOwnerId) {
-    throw new CapsuleMembershipError("conflict", "You cannot remove the capsule owner.", 409);
-  }
-
-  const removed = await deleteCapsuleMemberRecord(capsuleIdValue, normalizedMemberId);
-  if (!removed) {
-    throw new CapsuleMembershipError("not_found", "Member not found in this capsule.", 404);
-  }
-
-  const membershipState = await getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
-  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
-  return membershipState;
-}
-
-export async function setCapsuleMemberRole(
-  ownerId: string,
-  capsuleId: string,
-  memberId: string,
-  role: string,
-  options: { origin?: string | null } = {},
-): Promise<CapsuleMembershipState> {
-  const normalizedMemberId = normalizeId(memberId);
-  if (!normalizedMemberId) {
-    throw new CapsuleMembershipError("invalid", "A valid member id is required.", 400);
-  }
-
-  const normalizedRole = normalizeMemberRole(role);
-
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.membership.role: capsule has invalid identifier");
-  }
-
-  if (normalizedMemberId === capsuleOwnerId && normalizedRole !== "founder") {
-    throw new CapsuleMembershipError("conflict", "The capsule owner must remain a founder.", 409);
-  }
-
-  const updated = await updateCapsuleMemberRole({
-    capsuleId: capsuleIdValue,
-    memberId: normalizedMemberId,
-    role: uiRoleToDbRole(normalizedRole),
-  });
-
-  if (!updated) {
-    throw new CapsuleMembershipError("not_found", "Member not found in this capsule.", 404);
-  }
-
-  const membershipState = await getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
-  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
-  return membershipState;
 }
 
 type CapsuleHistoryPostRow = {

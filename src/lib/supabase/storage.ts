@@ -1,4 +1,4 @@
-import { getStorageProvider } from "@/config/storage";
+import { getStorageService } from "@/config/storage";
 import { generateStorageObjectKey } from "@/lib/storage/keys";
 import { serverEnv } from "@/lib/env/server";
 import { resolveToAbsoluteUrl } from "@/lib/url";
@@ -57,11 +57,11 @@ export async function uploadBufferToStorage(
     metadata?: Record<string, string | number | null | undefined>;
   },
 ) {
-  const provider = getStorageProvider();
+  const storage = getStorageService();
   const ownerId = options?.ownerId ?? "system";
 
   const key = generateStorageObjectKey({
-    prefix: provider.getUploadPrefix(),
+    prefix: storage.getUploadPrefix(),
     ownerId,
     filename: `${filenameHint}.${extFromContentType(contentType)}`,
     contentType,
@@ -78,7 +78,7 @@ export async function uploadBufferToStorage(
     }
   }
 
-  const { url } = await provider.uploadBuffer({
+  const { url } = await storage.uploadBuffer({
     key,
     contentType,
     body: toUploadBytes(buffer),

@@ -1,4 +1,5 @@
 import { getR2StorageProvider } from "@/adapters/storage/r2/provider";
+import { ConsoleStorageTelemetry, StorageService } from "@/adapters/storage/service";
 import { serverEnv } from "@/lib/env/server";
 import type { StorageProvider } from "@/ports/storage";
 
@@ -10,6 +11,7 @@ const rawStorageVendor =
 const storageVendor = (rawStorageVendor ?? "r2").trim().toLowerCase();
 
 let provider: StorageProvider | null = null;
+let service: StorageService | null = null;
 
 switch (storageVendor) {
   case "r2":
@@ -27,6 +29,16 @@ export function getStorageProvider(): StorageProvider {
     provider = getR2StorageProvider();
   }
   return provider;
+}
+
+export function getStorageService(): StorageService {
+  if (!service) {
+    service = new StorageService({
+      provider: getStorageProvider(),
+      telemetry: new ConsoleStorageTelemetry(`storage:${getStorageVendor()}`),
+    });
+  }
+  return service;
 }
 
 export function getStorageVendor(): string {

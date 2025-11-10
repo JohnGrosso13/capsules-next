@@ -559,7 +559,11 @@
     justify-content: space-between;
     gap: var(--space-sm);
     padding: 12px 16px 10px;
-    border-top: 1px solid var(--border-default, rgba(255, 255, 255, 0.12));
+    /* Use card-border by default; allow a light-mode specific override via --home-actionbar-border */
+    border-top: 1px solid var(
+      --home-actionbar-border,
+      var(--card-border, var(--border-default, rgba(255, 255, 255, 0.12)))
+    );
   }
 
   .card:hover .actionBar,
@@ -1000,6 +1004,71 @@
         color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent)
       );
   }
+
+  /* Inline comments preview (first 2–3 comments under a post) */
+  .commentPreview {
+    display: grid;
+    gap: var(--space-sm);
+    padding: 10px 16px 12px;
+    border-top: 1px solid var(
+      --home-commentpreview-divider,
+      var(--card-border, rgba(255, 255, 255, 0.12))
+    );
+  }
+
+  .commentPreviewItem {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    gap: 10px;
+  }
+
+  .commentPreviewAvatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--card-border, rgba(255, 255, 255, 0.14));
+    background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.1)), var(--glass-bg-2, rgba(255,255,255,0.06)));
+    color: var(--text-2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.75rem;
+    overflow: hidden;
+  }
+  .commentPreviewAvatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .commentPreviewBubble {
+    border-radius: 14px;
+    border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+    background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.06)), var(--glass-bg-2, rgba(255,255,255,0.03)));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(5,10,30,0.28);
+    padding: 8px 10px;
+    display: grid;
+    gap: 4px;
+  }
+
+  .commentPreviewHeader { display: flex; align-items: baseline; gap: 8px; }
+  .commentPreviewName { font-weight: 700; color: var(--text); font-size: 0.88rem; }
+  .commentPreviewTime { color: var(--text-2); font-size: 0.75rem; }
+  .commentPreviewBody { color: var(--text); font-size: 0.9rem; line-height: 1.45; word-break: break-word; }
+
+  .commentPreviewMoreBtn {
+    margin-top: 4px;
+    align-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--feed-action-border, rgba(255,255,255,0.12));
+    background: linear-gradient(180deg, var(--feed-action-bg-1, rgba(255,255,255,0.06)), var(--feed-action-bg-2, rgba(255,255,255,0.02)));
+    color: var(--text);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .commentPreviewMoreBtn:hover { transform: translateY(-1px); box-shadow: var(--feed-action-shadow-hover, 0 12px 28px rgba(5,10,30,0.28)); }
 
   .pollOptionBar {
     position: absolute;

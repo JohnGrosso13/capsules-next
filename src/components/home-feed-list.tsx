@@ -730,6 +730,8 @@ export function HomeFeedList({
                     timeAgo={timeAgo}
                     exactTime={exactTime}
                     commentCount={commentCount}
+                    commentThread={threadForPost ?? null}
+                    onRequestComments={loadComments}
                     isRefreshing={isRefreshing && hasFetched}
                     documentSummaryPending={documentSummaryPending}
                     onToggleLike={onToggleLike}
@@ -1034,7 +1036,6 @@ export function HomeFeedList({
   );
 
 }
-
 
 
 

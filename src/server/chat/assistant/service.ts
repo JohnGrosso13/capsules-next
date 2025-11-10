@@ -9,6 +9,7 @@ import type {
   ChatMessageRecord,
   ChatParticipantSummary,
 } from "@/server/chat/service";
+import { getChatContext, getCapsuleHistorySnippets } from "@/server/chat/retrieval";
 import type { FriendSummary } from "@/server/friends/types";
 import type { CapsuleSummary } from "@/server/capsules/service";
 import type { CapsuleLadderSummary, CapsuleLadderMember } from "@/types/ladders";
@@ -56,6 +57,210 @@ type AssistantContext = {
 const MODEL = process.env.ASSISTANT_MODEL ?? "gpt-4o-mini";
 const MAX_TOOL_ITERATIONS = 6;
 const MAX_HISTORY_MESSAGES = 30;
+const MAX_MESSAGE_RECIPIENTS = Number.parseInt(
+  process.env.ASSISTANT_MAX_RECIPIENTS ?? "10",
+  10,
+);
+const CONFIRMATION_THRESHOLD = Math.max(
+  1,
+  Math.min(Number.parseInt(process.env.ASSISTANT_CONFIRMATION_THRESHOLD ?? "3", 10), MAX_MESSAGE_RECIPIENTS),
+);
+const SENSITIVE_KEYWORDS = [
+  "password",
+  "passcode",
+  "confidential",
+  "nda",
+  "social security",
+  "ssn",
+  "routing number",
+  "account number",
+  "wire instructions",
+  "bank details",
+];
+const DEFAULT_TIME_WINDOW = { start: "09:00", end: "17:00" } as const;
+
+type TimeWindowInput = {
+  date: string;
+  window_start?: string;
+  window_end?: string;
+};
+
+type TimeSlot = {
+  id: string;
+  date: string;
+  start: string;
+  end: string;
+  timezone: string;
+  label: string;
+};
+
+type MeetingSlot = {
+  date: string;
+  start: string;
+  end: string;
+  timezone: string;
+};
+
+function requiresExplicitConfirmation(message: string): boolean {
+  const lower = message.toLowerCase();
+  return SENSITIVE_KEYWORDS.some((keyword) => lower.includes(keyword));
+}
+
+function toMinutes(value: string | undefined): number | null {
+  if (!value) return null;
+  const match = /^([0-2]?\d):([0-5]\d)$/.exec(value.trim());
+  if (!match) return null;
+  const hours = Number.parseInt(match[1]!, 10);
+  const minutes = Number.parseInt(match[2]!, 10);
+  if (hours > 23) return null;
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(total: number): string {
+  const normalized = Math.max(0, Math.min(total, 24 * 60));
+  const hours = Math.floor(normalized / 60)
+    .toString()
+    .padStart(2, "0");
+  const minutes = (normalized % 60).toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function describeSlot(date: string, time: string, timezone: string): string {
+  const safeDate = new Date(`${date}T00:00:00Z`);
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const dayLabel = Number.isNaN(safeDate.getTime()) ? date : formatter.format(safeDate);
+  return `${dayLabel} at ${time} (${timezone})`;
+}
+
+function buildSlotId(date: string, start: string, timezone: string): string {
+  return `${date}|${start}|${timezone}`.toLowerCase();
+}
+
+function normalizeTimeSlots(options: {
+  windows: TimeWindowInput[];
+  durationMinutes: number;
+  timezone: string;
+  maxSuggestions: number;
+}): TimeSlot[] {
+  const { windows, durationMinutes, timezone, maxSuggestions } = options;
+  const slots: TimeSlot[] = [];
+  windows.forEach((window) => {
+    if (!window?.date) return;
+    const startMinutes = toMinutes(window.window_start ?? DEFAULT_TIME_WINDOW.start);
+    const endMinutes = toMinutes(window.window_end ?? DEFAULT_TIME_WINDOW.end);
+    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) return;
+    let cursor = startMinutes;
+    let guard = 0;
+    while (cursor + durationMinutes <= endMinutes && slots.length < maxSuggestions && guard < 48) {
+      const start = minutesToTime(cursor);
+      const end = minutesToTime(cursor + durationMinutes);
+      slots.push({
+        id: buildSlotId(window.date, start, timezone),
+        date: window.date,
+        start,
+        end,
+        timezone,
+        label: describeSlot(window.date, start, timezone),
+      });
+      cursor += durationMinutes;
+      guard += 1;
+    }
+  });
+  return slots.slice(0, maxSuggestions);
+}
+
+function summarizeAvailability(
+  responses: Array<{
+    participant: string;
+    slots: Array<{ date: string; start: string; end: string }>;
+  }>,
+  timezone: string,
+  limit = 5,
+) {
+  const counts = new Map<string, { slot: TimeSlot; participants: Set<string> }>();
+  for (const response of responses) {
+    const participant = response.participant?.trim() || "Unknown";
+    for (const slot of response.slots ?? []) {
+      if (!slot.date || !slot.start || !slot.end) continue;
+      const id = buildSlotId(slot.date, slot.start, timezone);
+      if (!counts.has(id)) {
+        counts.set(id, {
+          slot: {
+            id,
+            date: slot.date,
+            start: slot.start,
+            end: slot.end,
+            timezone,
+            label: describeSlot(slot.date, slot.start, timezone),
+          },
+          participants: new Set<string>(),
+        });
+      }
+      counts.get(id)!.participants.add(participant);
+    }
+  }
+
+  const ranking = Array.from(counts.values())
+    .map((entry) => ({
+      slot: entry.slot,
+      participants: Array.from(entry.participants),
+      count: entry.participants.size,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  return ranking.slice(0, limit);
+}
+
+function escapeIcsText(value: string | undefined | null): string {
+  if (!value) return "";
+  return value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+
+function normalizeIcsDateTime(date: string, time: string): string {
+  const safeDate = date.replace(/-/g, "");
+  const safeTime = time.replace(/:/g, "") + "00";
+  return `${safeDate}T${safeTime}`;
+}
+
+function generateIcsEvent(options: {
+  title: string;
+  slot: MeetingSlot;
+  description?: string | null;
+  location?: string | null;
+  organizerEmail?: string | null;
+}): { ics: string; uid: string } {
+  const uid = randomUUID();
+  const dtStamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const dtStart = normalizeIcsDateTime(options.slot.date, options.slot.start);
+  const dtEnd = normalizeIcsDateTime(options.slot.date, options.slot.end);
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Capsules//Assistant//EN",
+    "CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${dtStamp}`,
+    `DTSTART;TZID=${options.slot.timezone}:${dtStart}`,
+    `DTEND;TZID=${options.slot.timezone}:${dtEnd}`,
+    `SUMMARY:${escapeIcsText(options.title)}`,
+  ];
+  if (options.location) {
+    lines.push(`LOCATION:${escapeIcsText(options.location)}`);
+  }
+  if (options.description) {
+    lines.push(`DESCRIPTION:${escapeIcsText(options.description)}`);
+  }
+  if (options.organizerEmail) {
+    lines.push(`ORGANIZER;CN=Capsules Assistant:mailto:${options.organizerEmail}`);
+  }
+  lines.push("END:VEVENT", "END:VCALENDAR");
+  return { ics: lines.join("\r\n"), uid };
+}
 
 type ToolResult = Record<string, unknown>;
 
@@ -166,6 +371,14 @@ async function runTool(
         };
       }
 
+      if (recipientsRaw.length > MAX_MESSAGE_RECIPIENTS) {
+        return {
+          task: null,
+          error: `Too many recipients. Limit is ${MAX_MESSAGE_RECIPIENTS}.`,
+          limit: MAX_MESSAGE_RECIPIENTS,
+        };
+      }
+
       const defaultTrackResponses =
         typeof payload.track_responses === "boolean"
           ? payload.track_responses
@@ -211,6 +424,22 @@ async function runTool(
 
       if (!recipients.length) {
         return { task: null, error: "No valid recipients resolved." };
+      }
+
+      const needsConfirmation =
+        recipients.length > CONFIRMATION_THRESHOLD || requiresExplicitConfirmation(messageText);
+      const isConfirmed = Boolean((payload as Record<string, unknown>).confirmed);
+      if (needsConfirmation && !isConfirmed) {
+        return {
+          task: null,
+          error: "confirmation_required",
+          reason:
+            recipients.length > CONFIRMATION_THRESHOLD
+              ? `More than ${CONFIRMATION_THRESHOLD} recipients requested.`
+              : "Message appears to reference confidential information.",
+          recipients: recipients.length,
+          limit: CONFIRMATION_THRESHOLD,
+        };
       }
 
       const task = await createMessagingTask({
@@ -315,6 +544,219 @@ async function runTool(
         results: resultEntries,
       };
     }
+    case "search_memories": {
+      const payload = typeof args === "object" && args ? (args as Record<string, unknown>) : {};
+      const query = typeof payload.query === "string" ? payload.query.trim() : "";
+      if (!query) {
+        return { snippets: [], error: "query is required" };
+      }
+      const limit = Number.isFinite(payload.limit)
+        ? Math.max(1, Math.min(Number(payload.limit), 12))
+        : undefined;
+      const capsuleId =
+        typeof payload.capsule_id === "string" && payload.capsule_id.trim().length
+          ? payload.capsule_id.trim()
+          : null;
+      const contextOptions: {
+        ownerId: string;
+        message: string;
+        limit?: number;
+        capsuleId?: string | null;
+      } = {
+        ownerId: ctx.ownerUserId,
+        message: query,
+      };
+      if (typeof limit === "number") {
+        contextOptions.limit = limit;
+      }
+      if (capsuleId !== null) {
+        contextOptions.capsuleId = capsuleId;
+      }
+      const context = await getChatContext(contextOptions);
+      return {
+        query: context?.query ?? query,
+        snippets: context?.snippets ?? [],
+      };
+    }
+    case "capsule_history": {
+      const payload = typeof args === "object" && args ? (args as Record<string, unknown>) : {};
+      const capsuleId =
+        typeof payload.capsule_id === "string" && payload.capsule_id.trim().length
+          ? payload.capsule_id.trim()
+          : "";
+      if (!capsuleId) {
+        return { snippets: [], error: "capsule_id is required" };
+      }
+      const limit = Number.isFinite(payload.limit)
+        ? Math.max(1, Math.min(Number(payload.limit), 12))
+        : undefined;
+      const query = typeof payload.query === "string" ? payload.query.trim() : null;
+      const historyOptions: {
+        capsuleId?: string | null;
+        viewerId?: string | null;
+        limit?: number;
+        query?: string | null;
+      } = {
+        capsuleId,
+        viewerId: ctx.ownerUserId,
+        query,
+      };
+      if (typeof limit === "number") {
+        historyOptions.limit = limit;
+      }
+      const snippets = await getCapsuleHistorySnippets(historyOptions);
+      return { snippets };
+    }
+    case "propose_times": {
+      const payload = typeof args === "object" && args ? (args as Record<string, unknown>) : {};
+      const timezone = typeof payload.timezone === "string" ? payload.timezone.trim() : "";
+      const windows = Array.isArray(payload.windows)
+        ? (payload.windows as TimeWindowInput[])
+        : [];
+      if (!timezone || !windows.length) {
+        return { suggestions: [], error: "timezone and windows are required" };
+      }
+      const durationMinutes = Number.isFinite(payload.duration_minutes)
+        ? Math.max(15, Math.min(Number(payload.duration_minutes), 240))
+        : 30;
+      const maxSuggestions = Number.isFinite(payload.max_suggestions)
+        ? Math.max(1, Math.min(Number(payload.max_suggestions), 12))
+        : 6;
+      const suggestions = normalizeTimeSlots({
+        windows,
+        durationMinutes,
+        timezone,
+        maxSuggestions,
+      });
+      return { suggestions, duration_minutes: durationMinutes };
+    }
+    case "collect_availability": {
+      const payload = typeof args === "object" && args ? (args as Record<string, unknown>) : {};
+      const responses = Array.isArray(payload.responses)
+        ? (payload.responses as Array<{
+            participant: string;
+            slots: Array<{ date: string; start: string; end: string }>;
+          }>)
+        : [];
+      if (!responses.length) {
+        return { summary: [], error: "responses are required" };
+      }
+      const timezone =
+        typeof payload.timezone === "string" && payload.timezone.trim().length
+          ? payload.timezone.trim()
+          : "UTC";
+      const ranking = summarizeAvailability(responses, timezone);
+      return {
+        top_slots: ranking,
+        participant_count: responses.length,
+      };
+    }
+    case "finalize_meeting": {
+      const payload = typeof args === "object" && args ? (args as Record<string, unknown>) : {};
+      const title = typeof payload.title === "string" ? payload.title.trim() : "";
+      const slot = payload.slot as MeetingSlot | undefined;
+      if (!title || !slot || !slot.date || !slot.start || !slot.end || !slot.timezone) {
+        return { error: "title and slot are required" };
+      }
+      const { ics, uid } = generateIcsEvent({
+        title,
+        slot,
+        description: typeof payload.description === "string" ? payload.description : null,
+        location: typeof payload.location === "string" ? payload.location : null,
+      });
+      return {
+        meeting: {
+          title,
+          slot,
+          location: typeof payload.location === "string" ? payload.location : null,
+          description: typeof payload.description === "string" ? payload.description : null,
+        },
+        ics,
+        uid,
+      };
+    }
+    case "send_calendar_invite": {
+      const payload = typeof args === "object" && args ? (args as Record<string, unknown>) : {};
+      const title = typeof payload.title === "string" ? payload.title.trim() : "";
+      const slot = payload.slot as MeetingSlot | undefined;
+      if (!title || !slot || !slot.date || !slot.start || !slot.end || !slot.timezone) {
+        return { error: "title and slot are required" };
+      }
+      const recipients = Array.isArray(payload.recipients)
+        ? (payload.recipients as Array<Record<string, unknown>>)
+        : [];
+      if (recipients.length > MAX_MESSAGE_RECIPIENTS) {
+        return { error: `Too many recipients. Limit is ${MAX_MESSAGE_RECIPIENTS}.` };
+      }
+      const { ics, uid } = generateIcsEvent({
+        title,
+        slot,
+        description: typeof payload.description === "string" ? payload.description : null,
+        location: typeof payload.location === "string" ? payload.location : null,
+      });
+      const deliveries: Array<{ recipient: string; status: string }> = [];
+      for (const recipient of recipients) {
+        if (!recipient || typeof recipient !== "object") continue;
+        const userId =
+          typeof recipient.user_id === "string"
+            ? recipient.user_id
+            : typeof (recipient as Record<string, unknown>).userId === "string"
+              ? ((recipient as Record<string, unknown>).userId as string)
+              : null;
+        if (!userId || userId === ctx.ownerUserId) continue;
+        const conversationId = getConversationId(ctx.ownerUserId, userId);
+        const inviteNote =
+          typeof recipient.note === "string" && recipient.note.trim().length
+            ? `\n\nNote: ${recipient.note.trim()}`
+            : "";
+        const includeMessage =
+          typeof payload.include_message === "string" && payload.include_message.trim().length
+            ? `\n\nMessage from organizer:\n${payload.include_message.trim()}`
+            : "";
+        const body = [
+          `Meeting invite: ${title}`,
+          `When: ${slot.date} ${slot.start}-${slot.end} (${slot.timezone})`,
+          payload.location ? `Location: ${payload.location}` : null,
+          payload.description ? `Agenda: ${payload.description}` : null,
+          inviteNote || null,
+          includeMessage || null,
+          "",
+          "ICS (copy into a .ics file to add to your calendar):",
+          "```ics",
+          ics,
+          "```",
+        ]
+          .filter((line): line is string => line !== null)
+          .join("\n");
+        try {
+          await deps.sendUserMessage({
+            conversationId,
+            senderId: ctx.ownerUserId,
+            body,
+          });
+          deliveries.push({
+            recipient: typeof recipient.name === "string" ? recipient.name : userId,
+            status: "sent",
+          });
+        } catch (error) {
+          deliveries.push({
+            recipient: typeof recipient.name === "string" ? recipient.name : userId,
+            status: error instanceof Error ? `failed: ${error.message}` : "failed",
+          });
+        }
+      }
+      return {
+        meeting: {
+          title,
+          slot,
+          location: typeof payload.location === "string" ? payload.location : null,
+          description: typeof payload.description === "string" ? payload.description : null,
+        },
+        ics,
+        uid,
+        deliveries,
+      };
+    }
     default:
       return { error: `Unknown tool: ${name}` };
   }
@@ -394,8 +836,188 @@ const TOOL_DEFINITIONS = [
           },
           track_responses: { type: "boolean" },
           kind: { type: "string" },
+          confirmed: { type: "boolean" },
         },
         required: ["message", "recipients"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_memories",
+      description:
+        "Retrieve grounded context from the user's memories/resurfaced content to cite in responses.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          limit: { type: "number" },
+          capsule_id: { type: "string" },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "capsule_history",
+      description:
+        "Fetch published capsule history snippets or knowledge-base results to cite when coordinating with members.",
+      parameters: {
+        type: "object",
+        properties: {
+          capsule_id: { type: "string" },
+          query: { type: "string" },
+          limit: { type: "number" },
+        },
+        required: ["capsule_id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "propose_times",
+      description:
+        "Generate suggested meeting times inside the provided windows. Use before collecting availability or sending invites.",
+      parameters: {
+        type: "object",
+        properties: {
+          timezone: { type: "string" },
+          duration_minutes: { type: "number" },
+          windows: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                date: { type: "string" },
+                window_start: { type: "string" },
+                window_end: { type: "string" },
+              },
+              required: ["date"],
+              additionalProperties: false,
+            },
+          },
+          max_suggestions: { type: "number" },
+        },
+        required: ["timezone", "windows"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "collect_availability",
+      description:
+        "Summarize availability responses from participants and highlight the best overlapping slots.",
+      parameters: {
+        type: "object",
+        properties: {
+          timezone: { type: "string" },
+          responses: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                participant: { type: "string" },
+                slots: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      date: { type: "string" },
+                      start: { type: "string" },
+                      end: { type: "string" },
+                    },
+                    required: ["date", "start", "end"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["participant", "slots"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["responses"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "finalize_meeting",
+      description:
+        "Lock in a selected slot and generate an ICS payload (without messaging participants).",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          location: { type: "string" },
+          slot: {
+            type: "object",
+            properties: {
+              date: { type: "string" },
+              start: { type: "string" },
+              end: { type: "string" },
+              timezone: { type: "string" },
+            },
+            required: ["date", "start", "end", "timezone"],
+            additionalProperties: false,
+          },
+        },
+        required: ["title", "slot"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_calendar_invite",
+      description:
+        "Generate an ICS event and optionally deliver it to specific recipients via direct message.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          location: { type: "string" },
+          slot: {
+            type: "object",
+            properties: {
+              date: { type: "string" },
+              start: { type: "string" },
+              end: { type: "string" },
+              timezone: { type: "string" },
+            },
+            required: ["date", "start", "end", "timezone"],
+            additionalProperties: false,
+          },
+          recipients: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                user_id: { type: "string" },
+                name: { type: "string" },
+                note: { type: "string" },
+              },
+              required: ["user_id"],
+              additionalProperties: false,
+            },
+          },
+          include_message: { type: "string" },
+        },
+        required: ["title", "slot"],
         additionalProperties: false,
       },
     },

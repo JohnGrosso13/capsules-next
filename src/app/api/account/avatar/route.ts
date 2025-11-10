@@ -3,7 +3,7 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 
 import { updateUserAvatarImage, clearUserAvatar } from "@/server/users/service";
-import { getStorageProvider } from "@/config/storage";
+import { getStorageService } from "@/config/storage";
 import { generateStorageObjectKey } from "@/lib/storage/keys";
 import type { StorageMetadataValue } from "@/ports/storage";
 import { returnError, validatedJson } from "@/server/validation/http";
@@ -67,10 +67,10 @@ export async function POST(req: Request) {
 
     const rawImageData = parsedBody.data.imageData;
     if (typeof rawImageData === "string" && rawImageData.trim().length) {
-      const provider = getStorageProvider();
+      const storage = getStorageService();
       const bytes = decodeBase64Payload(rawImageData);
       const key = generateStorageObjectKey({
-        prefix: provider.getUploadPrefix(),
+        prefix: storage.getUploadPrefix(),
         ownerId,
         filename: parsedBody.data.filename ?? null,
         contentType: mimeType,
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
         metadata.crop_offset_y = Number(parsedBody.data.crop.offsetY.toFixed(4));
       }
 
-      const upload = await provider.uploadBuffer({
+      const upload = await storage.uploadBuffer({
         key,
         contentType: mimeType,
         body: bytes,

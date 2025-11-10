@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
+import { useAssistantTasks } from "@/hooks/useAssistantTasks";
 import styles from "./discovery-rail.module.css";
 
 type Item = {
@@ -140,6 +141,53 @@ const FALLBACK_CAPSULES: Item[] = [
 export function DiscoveryRail() {
   const [recommendedCapsules, setRecommendedCapsules] = React.useState<Item[]>(FALLBACK_CAPSULES);
   const [loadingCapsules, setLoadingCapsules] = React.useState(true);
+  const {
+    tasks: assistantTaskSummaries,
+    loading: loadingAssistantTasks,
+    error: assistantTasksError,
+    refresh: refreshAssistantTasks,
+  } = useAssistantTasks({ pollIntervalMs: 60_000 });
+
+  const assistantItems = React.useMemo<Item[]>(() => {
+    if (!assistantTaskSummaries?.length) return [];
+    return assistantTaskSummaries.map((task) => {
+      const awaiting = task.totals.awaitingResponses;
+      const failed = task.totals.failed;
+      const title =
+        task.kind === "assistant_broadcast"
+          ? "Broadcast"
+          : task.kind.replace(/_/g, " ");
+      const badge = awaiting
+        ? `${awaiting} awaiting`
+        : failed
+          ? `${failed} failed`
+          : task.status.replace(/_/g, " ");
+      const promptPreview = task.prompt ? task.prompt.trim() : null;
+      const subtitle = promptPreview
+        ? promptPreview.length > 120
+          ? `${promptPreview.slice(0, 117)}...`
+          : promptPreview
+        : "Coordinating outreach";
+      const metaParts = [
+        `${task.totals.recipients} recipient${task.totals.recipients === 1 ? "" : "s"}`,
+      ];
+      const relative = formatRelativeDate(task.lastResponseAt ?? task.updatedAt);
+      if (relative) {
+        metaParts.push(`Updated ${relative}`);
+      }
+      return {
+        id: task.id,
+        title,
+        subtitle,
+        badge,
+        meta: metaParts.join(" • "),
+      } as Item;
+    });
+  }, [assistantTaskSummaries]);
+
+  const assistantEmptyMessage = loadingAssistantTasks
+    ? "Loading assistant updates..."
+    : assistantTasksError ?? "Assistant has no active tasks.";
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -230,6 +278,12 @@ export function DiscoveryRail() {
     <div className={styles.container}>
       {/* Chat-like shell so this rail can become live chat later */}
       <div className={styles.shell}>
+        <Section
+          title="Assistant Tasks"
+          items={assistantItems}
+          action={{ label: "Refresh", onClick: () => void refreshAssistantTasks() }}
+          emptyMessage={assistantEmptyMessage}
+        />
         <Section
           title="Recommended Capsules"
           items={recommendedCapsules}

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getStorageProvider } from "@/config/storage";
+import { getStorageService } from "@/config/storage";
 import type {
   StorageMultipartAbortParams,
   StorageMultipartCompleteParams,
@@ -18,19 +18,19 @@ export type {
 export async function createMultipartUpload(
   params: StorageMultipartInitParams,
 ): Promise<StorageMultipartInitResult> {
-  return getStorageProvider().createMultipartUpload(params);
+  return getStorageService().createMultipartUpload(params);
 }
 
 export async function completeMultipartUpload(
   params: StorageMultipartCompleteParams,
 ): Promise<void> {
-  await getStorageProvider().completeMultipartUpload(params);
+  await getStorageService().completeMultipartUpload(params);
 }
 
 export async function abortMultipartUpload(params: StorageMultipartAbortParams): Promise<void> {
-  await getStorageProvider().abortMultipartUpload(params);
+  await getStorageService().abortMultipartUpload(params);
 }
 
 export function getStorageObjectUrl(key: string): string {
-  return getStorageProvider().getPublicUrl(key);
+  return getStorageService().getPublicUrl(key);
 }
