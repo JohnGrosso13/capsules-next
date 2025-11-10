@@ -39,6 +39,32 @@ function mapPresenceAction(
   return undefined;
 }
 
+function describeAblyError(error: unknown): {
+  message: string;
+  code?: string | number | null;
+  statusCode?: number | null;
+} {
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    return {
+      message:
+        typeof record.message === "string" && record.message.length
+          ? record.message
+          : "Unknown Ably error",
+      code:
+        typeof record.code === "string" || typeof record.code === "number"
+          ? record.code
+          : null,
+      statusCode: typeof record.statusCode === "number" ? record.statusCode : null,
+    };
+  }
+  return {
+    message: typeof error === "string" && error.length ? error : "Unknown Ably error",
+    code: null,
+    statusCode: null,
+  };
+}
+
 function normalizeAblyAuth(payload: RealtimeAuthPayload): {
   token: AblyTypes.TokenRequest | AblyTypes.TokenDetails | string;
   environment?: string | null;
@@ -126,18 +152,36 @@ class AblyRealtimeConnection implements RealtimeClient {
     options?: RealtimeSubscribeOptions,
   ): Promise<() => void> {
     const channel = this.client.channels.get(channelName);
-    if (options?.params && Object.keys(options.params).length) {
+    const params =
+      options?.params && Object.keys(options.params).length ? options.params : null;
+    if (params) {
       try {
-        await channel.setOptions({ params: options.params });
-      } catch (error) {
-        console.error("Ably channel option error", { channel: channelName, error });
-      }
-    }
-    if (options?.params) {
-      try {
+        await channel.setOptions({ params });
         await channel.attach();
-      } catch (error) {
-        console.error("Ably channel attach error", { channel: channelName, error });
+      } catch (error: unknown) {
+        const details = describeAblyError(error);
+        console.warn("Ably channel attach params rejected", {
+          channel: channelName,
+          params,
+          ...details,
+        });
+        try {
+          await channel.setOptions({ params: {} });
+        } catch (resetError) {
+          console.error("Ably channel option reset error", {
+            channel: channelName,
+            ...describeAblyError(resetError),
+          });
+        }
+        try {
+          await channel.attach();
+        } catch (retryError) {
+          console.error("Ably channel attach retry failed", {
+            channel: channelName,
+            ...describeAblyError(retryError),
+          });
+          throw retryError;
+        }
       }
     }
     const listener = (message: AblyTypes.Message) => {

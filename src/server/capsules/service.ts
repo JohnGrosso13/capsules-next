@@ -80,9 +80,13 @@ export type CapsuleLibrary = {
   files: CapsuleLibraryItem[];
 };
 
+const SUPABASE_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function normalizeSupabaseId(value: string | null | undefined): string | null {
-  return normalizeId(value ?? null);
+  const normalized = normalizeId(value ?? null);
+  if (!normalized) return null;
+  return SUPABASE_UUID_PATTERN.test(normalized) ? normalized : null;
 }
 export type CapsuleGatePayload = {
   capsules: CapsuleSummary[];

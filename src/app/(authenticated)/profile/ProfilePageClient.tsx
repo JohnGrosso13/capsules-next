@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { friendsActions } from "@/lib/friends/store";
-import { useChatContext } from "@/components/providers/ChatProvider";
+import { requestChatStart } from "@/components/providers/ChatProvider";
 import type {
   ProfilePageData,
   ProfileClip,
@@ -131,7 +131,6 @@ type ProfileActionsProps = {
 };
 
 function ProfileActions({ data, canonicalPath }: ProfileActionsProps) {
-  const chat = useChatContext();
   const [followed, setFollowed] = React.useState(data.viewer.follow.isFollowing);
   const [pending, setPending] = React.useState<"follow" | "message" | "invite" | "share" | null>(
     null,
@@ -169,12 +168,12 @@ function ProfileActions({ data, canonicalPath }: ProfileActionsProps) {
     }
   };
 
-  const handleMessage = () => {
+  const handleMessage = async () => {
     if (data.viewer.isSelf) return;
     setFeedback(null);
     setPending("message");
     try {
-      const result = chat.startChat(
+      const result = await requestChatStart(
         {
           userId: data.user.id,
           name: data.user.name ?? "Friend",
@@ -233,7 +232,9 @@ function ProfileActions({ data, canonicalPath }: ProfileActionsProps) {
         <Button
           variant="secondary"
           size="lg"
-          onClick={handleMessage}
+          onClick={() => {
+            void handleMessage();
+          }}
           disabled={data.viewer.isSelf}
           data-loading={pending === "message" ? "true" : undefined}
         >

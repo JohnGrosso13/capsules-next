@@ -76,6 +76,7 @@ export class ChatEngine {
   private readonly reconciler: ChatStoreReconciler;
   private clientChannelName: string | null = null;
   private eventBus: RealtimeChatEventBus | null = null;
+  private connectPromise: Promise<ChatEventBusConnection> | null = null;
   private resolvedSelfClientId: string | null = null;
   private supabaseUserId: string | null = null;
   private userProfile: UserProfile = { id: null, name: null, email: null, avatarUrl: null };
@@ -179,34 +180,45 @@ export class ChatEngine {
       return;
     }
     const eventBus = new RealtimeChatEventBus();
+    const connectOperation = eventBus.connect(
+      {
+        envelope: options.envelope,
+        factory: options.factory,
+        requestToken: options.requestToken,
+        subscribeOptions: this.buildDirectChannelSubscribeOptions(),
+        channelResolver: (clientId) => getChatDirectChannel(clientId),
+      },
+      (event) => {
+        this.handleRealtimeEvent(event);
+      },
+    );
+    this.connectPromise = connectOperation;
     try {
-      const connection = await eventBus.connect(
-        {
-          envelope: options.envelope,
-          factory: options.factory,
-          requestToken: options.requestToken,
-          subscribeOptions: this.buildDirectChannelSubscribeOptions(),
-          channelResolver: (clientId) => getChatDirectChannel(clientId),
-        },
-        (event) => {
-          this.handleRealtimeEvent(event);
-        },
-      );
+      const connection = await connectOperation;
+      if (this.connectPromise === connectOperation) {
+        this.connectPromise = null;
+      }
       this.eventBus = eventBus;
       this.resolvedSelfClientId = connection.clientId;
       this.setSupabaseUserId(connection.clientId);
       this.store.setSelfClientId(connection.clientId);
       this.clientChannelName = connection.channelName;
     } catch (error) {
+      if (this.connectPromise === connectOperation) {
+        this.connectPromise = null;
+      }
       console.error("ChatEngine connect failed", error);
       await eventBus.disconnect();
-      this.eventBus = null;
+      if (this.eventBus === eventBus) {
+        this.eventBus = null;
+      }
       this.resolvedSelfClientId = null;
       this.store.setSelfClientId(null);
     }
   }
 
   async disconnectRealtime(): Promise<void> {
+    await this.waitForPendingConnect();
     if (this.eventBus) {
       try {
         await this.eventBus.disconnect();
@@ -659,6 +671,20 @@ export class ChatEngine {
     this.typingStates.delete(conversationId);
     if (publish && existing.active) {
       void this.publishTypingEvent(conversationId, false);
+    }
+  }
+
+  private async waitForPendingConnect(): Promise<void> {
+    const pending = this.connectPromise;
+    if (!pending) return;
+    try {
+      await pending;
+    } catch {
+      // ignore failures from superseded attempts
+    } finally {
+      if (this.connectPromise === pending) {
+        this.connectPromise = null;
+      }
     }
   }
 

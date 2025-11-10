@@ -73,6 +73,15 @@ export type ChatContextValue = {
 };
 
 const ChatContext = React.createContext<ChatContextValue | null>(null);
+const CHAT_START_EVENT = "capsules:chat:start";
+
+type ChatStartEventDetail = {
+  target: ChatFriendTarget;
+  options?: { activate?: boolean } | undefined;
+  resolve?: ((result: StartChatResult | null) => void) | undefined;
+};
+
+type ChatStartEvent = CustomEvent<ChatStartEventDetail>;
 
 export function useChatContext(): ChatContextValue {
   const context = React.useContext(ChatContext);
@@ -80,6 +89,30 @@ export function useChatContext(): ChatContextValue {
     throw new Error("useChatContext must be used within a ChatProvider");
   }
   return context;
+}
+
+export function requestChatStart(
+  target: ChatFriendTarget,
+  options?: { activate?: boolean },
+): Promise<StartChatResult | null> {
+  if (typeof window === "undefined") {
+    return Promise.resolve(null);
+  }
+  return new Promise<StartChatResult | null>((resolve) => {
+    let handled = false;
+    const detail: ChatStartEventDetail = {
+      target,
+      options,
+      resolve: (result) => {
+        handled = true;
+        resolve(result ?? null);
+      },
+    };
+    window.dispatchEvent(new CustomEvent<ChatStartEventDetail>(CHAT_START_EVENT, { detail }));
+    if (!handled) {
+      resolve(null);
+    }
+  });
 }
 
 function coerceFriendTarget(friend: FriendItem): ChatFriendTarget | null {
@@ -185,6 +218,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     },
     [engine],
   );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (event: Event) => {
+      const custom = event as ChatStartEvent;
+      const detail = custom.detail;
+      if (!detail?.target) return;
+      const result = startChat(detail.target, detail.options);
+      detail.resolve?.(result ?? null);
+    };
+    window.addEventListener(CHAT_START_EVENT, handler as EventListener);
+    return () => {
+      window.removeEventListener(CHAT_START_EVENT, handler as EventListener);
+    };
+  }, [startChat]);
 
   const addParticipantsToGroup = React.useCallback(
     async (conversationId: string, targets: ChatFriendTarget[]) => {
