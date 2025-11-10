@@ -19,6 +19,8 @@ import {
 
 import {
   closePendingRequest,
+  countUserFollowers,
+  countUserFollowing,
   ensureFriendshipEdge,
   fetchSocialGraphRows,
   findActiveBlock,
@@ -537,4 +539,41 @@ export async function unblockUser(
   ]);
 
   return blockSummary;
+}
+
+export async function getFollowStatsSummary(
+  userId: string,
+): Promise<{ followers: number; following: number }> {
+  const [followers, following] = await Promise.all([
+    countUserFollowers(userId).catch((error) => {
+      console.warn("friends.followers.count_failed", error);
+      return 0;
+    }),
+    countUserFollowing(userId).catch((error) => {
+      console.warn("friends.following.count_failed", error);
+      return 0;
+    }),
+  ]);
+  return { followers, following };
+}
+
+export async function getViewerFollowState(
+  viewerId: string | null | undefined,
+  targetUserId: string,
+): Promise<{ isFollowing: boolean; canFollow: boolean }> {
+  if (!viewerId || viewerId === targetUserId) {
+    return { isFollowing: false, canFollow: false };
+  }
+  try {
+    const latest = await findLatestFollowEdge(viewerId, targetUserId);
+    const deletedAt =
+      latest && typeof latest.deleted_at === "string" && latest.deleted_at.trim().length
+        ? latest.deleted_at
+        : null;
+    const isFollowing = Boolean(latest && !deletedAt);
+    return { isFollowing, canFollow: !isFollowing };
+  } catch (error) {
+    console.warn("friends.follow_state.resolve_failed", error);
+    return { isFollowing: false, canFollow: true };
+  }
 }

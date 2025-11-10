@@ -57,6 +57,13 @@ function normalizeCommentFromApi(raw: Record<string, unknown>, fallbackPostId: s
         ? raw.user_avatar
         : null;
 
+  const userIdCandidate =
+    (raw as { userId?: unknown }).userId ?? (raw as { user_id?: unknown }).user_id ?? null;
+  const userId =
+    typeof userIdCandidate === "string" && userIdCandidate.trim().length
+      ? userIdCandidate.trim()
+      : null;
+
   const capsuleId =
     typeof raw.capsuleId === "string"
       ? raw.capsuleId
@@ -149,15 +156,10 @@ function normalizeCommentFromApi(raw: Record<string, unknown>, fallbackPostId: s
     content,
     userName,
     userAvatar,
+    userId,
     capsuleId,
     ts,
     attachments,
-    userId:
-      typeof raw.userId === "string"
-        ? raw.userId
-        : typeof raw.user_id === "string"
-          ? raw.user_id
-          : null,
     pending: false,
     error: null,
   };

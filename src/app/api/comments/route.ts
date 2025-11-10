@@ -102,6 +102,12 @@ function formatCommentRow(
     id: identifier,
     postId,
     content: typeof row.content === "string" ? row.content : null,
+    userId:
+      typeof row.user_id === "string"
+        ? row.user_id
+        : typeof row.userId === "string"
+          ? row.userId
+          : null,
     userName:
       typeof row.user_name === "string"
         ? row.user_name

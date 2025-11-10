@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Link from "next/link";
 import * as React from "react";
 import {
   Brain,
@@ -17,6 +18,7 @@ import { FeedLazyImage } from "@/components/home-feed/feed-lazy-image";
 import { FeedMediaGallery, type LightboxImageItem } from "@/components/home-feed/feed-media-gallery";
 import { CommentsPreview } from "@/components/home-feed/comments-preview";
 import { FeedCardActions, type FeedCardAction } from "@/components/home-feed/feed-card-actions";
+import { buildProfileHref } from "@/lib/profile/routes";
 import { buildPostMediaCollections, type PostMediaCollections } from "@/components/home-feed/utils";
 import {
   DocumentAttachmentCard,
@@ -122,6 +124,11 @@ export function PostCard({
     return new Set(values.map((value) => value.trim()));
   }, [post, resolvedUserId, resolvedUserKey]);
 
+  const profileHref = React.useMemo(
+    () => buildProfileHref({ userId: resolvedUserId, userKey: resolvedUserKey }),
+    [resolvedUserId, resolvedUserKey],
+  );
+
   const viewerOwnsPost = React.useMemo(() => {
     if (!ownerIdentifierSet.size || !viewerIdentifiers.size) return false;
     for (const identifier of viewerIdentifiers.values()) {
@@ -129,6 +136,25 @@ export function PostCard({
     }
     return false;
   }, [ownerIdentifierSet, viewerIdentifiers]);
+
+  const avatarNode = (
+    <span className={styles.avatarWrap} aria-hidden>
+      {post.user_avatar ? (
+        <FeedLazyImage
+          className={styles.avatarImg}
+          src={post.user_avatar}
+          alt=""
+          width={44}
+          height={44}
+          sizes="44px"
+          loading="lazy"
+          unoptimized
+        />
+      ) : (
+        <span className={styles.avatar} />
+      )}
+    </span>
+  );
 
   const likeCount = typeof post.likes === "number" ? Math.max(0, post.likes) : 0;
   const shareCount = typeof post.shares === "number" ? Math.max(0, post.shares) : 0;
@@ -222,32 +248,18 @@ export function PostCard({
     >
       <header className={styles.cardHead}>
         <div className={styles.userMeta}>
-          <span className={styles.avatarWrap} aria-hidden>
-            {post.user_avatar ? (
-              <FeedLazyImage
-                className={styles.avatarImg}
-                src={post.user_avatar}
-                alt=""
-                width={44}
-                height={44}
-                sizes="44px"
-                loading="lazy"
-                unoptimized
-              />
-            ) : (
-              <span className={styles.avatar} />
-            )}
-          </span>
+          {profileHref ? (
+            <Link href={profileHref} className={styles.avatarLink} aria-label="View profile">
+              {avatarNode}
+            </Link>
+          ) : (
+            avatarNode
+          )}
 
-          {friendMenu.canTarget ? (
-            <button
-              type="button"
-              className={`${styles.userNameButton} ${styles.userName}`.trim()}
-              onClick={() => friendMenu.onToggle(!friendMenu.isOpen)}
-              aria-expanded={friendMenu.isOpen}
-            >
+          {profileHref ? (
+            <Link href={profileHref} className={styles.userName}>
               {post.user_name || "Capsules AI"}
-            </button>
+            </Link>
           ) : (
             <div className={styles.userName}>{post.user_name || "Capsules AI"}</div>
           )}

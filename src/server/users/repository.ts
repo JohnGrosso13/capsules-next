@@ -3,8 +3,11 @@ import type { DatabaseError, DatabaseResult } from "@/ports/database";
 
 type UserRow = {
   id: string;
+  user_key: string | null;
   full_name: string | null;
   avatar_url: string | null;
+  bio: string | null;
+  created_at: string | null;
 };
 
 const NO_ROW_CODE = "PGRST116";
@@ -41,7 +44,7 @@ export async function findUserById(userId: string): Promise<UserRow | null> {
   const db = getDatabaseAdminClient();
   const result = await db
     .from("users")
-    .select<UserRow>("id, full_name, avatar_url")
+    .select<UserRow>("id, user_key, full_name, avatar_url, bio, created_at")
     .eq("id", normalizedId)
     .maybeSingle();
   return handleResult(result, "users.findById");
@@ -84,5 +87,39 @@ export async function updateUserName(params: {
     .maybeSingle();
 
   const updated = handleResult(result, "users.updateName");
+  return Boolean(updated?.id);
+}
+
+export async function updateUserProfileFields(params: {
+  userId: string;
+  fullName?: string | null;
+  bio?: string | null;
+}): Promise<boolean> {
+  const normalizedId = normalizeString(params.userId);
+  if (!normalizedId) return false;
+
+  const payload: Record<string, unknown> = {};
+  if (Object.prototype.hasOwnProperty.call(params, "fullName")) {
+    payload.full_name = normalizeString(params.fullName ?? null);
+  }
+  if (Object.prototype.hasOwnProperty.call(params, "bio")) {
+    const bioValue =
+      typeof params.bio === "string" ? params.bio : params.bio == null ? null : String(params.bio);
+    payload.bio = bioValue;
+  }
+
+  if (!Object.keys(payload).length) {
+    return true;
+  }
+
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from("users")
+    .update(payload)
+    .eq("id", normalizedId)
+    .select<{ id: string | null }>("id")
+    .maybeSingle();
+
+  const updated = handleResult(result, "users.updateProfileFields");
   return Boolean(updated?.id);
 }

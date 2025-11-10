@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -312,6 +313,16 @@ export function AccountSettingsSection({
                 {displayNameFeedback.message}
               </p>
             ) : null}
+          </div>
+
+          <div className={styles.profileLinkCard}>
+            <div>
+              <h4>Profile page</h4>
+              <p>Preview and share how your Capsules profile appears to others.</p>
+            </div>
+            <Button asChild variant="secondary">
+              <Link href="/profile/me">Open profile</Link>
+            </Button>
           </div>
         </div>
       </article>

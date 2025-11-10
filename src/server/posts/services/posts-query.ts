@@ -324,12 +324,14 @@ export async function queryPosts(options: PostsQueryInput): Promise<PostsQueryRe
     });
   }
 
-  const { capsuleId, before, after } = parsedQuery.data;
+  const { capsuleId, before, after, authorId, sort } = parsedQuery.data;
   const limit = parsedQuery.data.limit ?? 60;
   const viewerId = options.viewerId;
   const requestOrigin = options.origin ?? null;
   const defaultOrigin = serverEnv.SITE_URL;
   const originForAssets = requestOrigin ?? defaultOrigin;
+  const orderBy =
+    sort === "top" ? "likes_count" : sort === "hot" ? "hot_score" : ("created_at" as const);
 
   let cloudflareOriginCandidate = requestOrigin ?? defaultOrigin;
   if (!shouldUseCloudflareImagesForOrigin(cloudflareOriginCandidate)) {
@@ -408,9 +410,11 @@ export async function queryPosts(options: PostsQueryInput): Promise<PostsQueryRe
   try {
     rows = await listPostsView({
       capsuleId: capsuleId ?? null,
+      authorId: authorId ?? null,
       limit,
       after: after ?? null,
       before: before ?? null,
+      orderBy,
     });
   } catch (error) {
     console.error("Fetch posts error", error);

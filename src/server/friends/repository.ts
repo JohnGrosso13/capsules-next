@@ -394,6 +394,34 @@ export async function insertFollowEdge(followerId: string, followeeId: string): 
   return assertSuccess(result, "friends.insertFollowEdge") as RawRow;
 }
 
+export async function countUserFollowers(userId: string): Promise<number> {
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from("user_follows")
+    .select("id", { count: "exact", head: true })
+    .eq("followee_user_id", userId)
+    .is("deleted_at", null)
+    .fetch();
+  if (result.error) {
+    throw wrapError("friends.countFollowers", result.error);
+  }
+  return result.count ?? 0;
+}
+
+export async function countUserFollowing(userId: string): Promise<number> {
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from("user_follows")
+    .select("id", { count: "exact", head: true })
+    .eq("follower_user_id", userId)
+    .is("deleted_at", null)
+    .fetch();
+  if (result.error) {
+    throw wrapError("friends.countFollowing", result.error);
+  }
+  return result.count ?? 0;
+}
+
 export async function findLatestBlockEdge(
   blockerId: string,
   blockedId: string,

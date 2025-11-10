@@ -14,7 +14,7 @@ type FriendsListProps = {
   notice: string | null;
   onDelete: (item: FriendItem, identifier: string) => void;
   onBlock?: (item: FriendItem, identifier: string) => void;
-  onView?: (item: FriendItem, identifier: string) => void;
+  onView?: (item: FriendItem) => void;
   onStartChat?: (item: FriendItem, identifier: string) => void;
   highlightId?: string | null;
 };
@@ -64,7 +64,7 @@ export function FriendsList({
                 onBlock={
                   !isAssistant && onBlock ? () => onBlock(friend, identifier) : null
                 }
-                onView={onView ? () => onView(friend, identifier) : null}
+                onView={onView ? () => onView(friend) : null}
                 onStartChat={onStartChat ? () => onStartChat(friend, identifier) : null}
               />
             }

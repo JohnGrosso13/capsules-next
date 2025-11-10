@@ -74,6 +74,7 @@ type CommentDbRow = {
   content: string | null;
   user_name: string | null;
   user_avatar: string | null;
+  user_id?: string | null;
   capsule_id: string | null;
   created_at: string | null;
   attachments: unknown;
@@ -157,19 +158,30 @@ function attachPollFromMediaPrompt(row: PostCoreDbRow | null): PostCoreDbRow | n
 }
 export async function listPostsView(options: {
   capsuleId?: string | null;
+  authorId?: string | null;
   limit: number;
   after?: string | null;
   before?: string | null;
+  orderBy?: "created_at" | "likes_count" | "hot_score";
 }): Promise<PostsViewRow[]> {
-  let query = db
-    .from("posts_view")
-    .select<PostsViewRow>("*")
-    .order("created_at", { ascending: false })
-    .limit(options.limit);
+  const orderColumn = options.orderBy ?? "created_at";
+  let query = db.from("posts_view").select<PostsViewRow>("*").limit(options.limit);
 
-  if (options.capsuleId) query = query.eq("capsule_id", options.capsuleId);
-  if (options.after) query = query.gt("created_at", options.after);
-  if (options.before) query = query.lt("created_at", options.before);
+  if (options.capsuleId) {
+    query = query.eq("capsule_id", options.capsuleId);
+  }
+  if (options.authorId) {
+    query = query.eq("author_user_id", options.authorId);
+  }
+  if (orderColumn === "created_at") {
+    if (options.after) query = query.gt("created_at", options.after);
+    if (options.before) query = query.lt("created_at", options.before);
+  }
+
+  query = query.order(orderColumn, { ascending: false });
+  if (orderColumn !== "created_at") {
+    query = query.order("created_at", { ascending: false });
+  }
 
   const result = await query.fetch();
   if (result.error) throw decorateDatabaseError("posts.list", result.error);
@@ -400,7 +412,7 @@ export async function listCommentsForPost(postId: string, limit = 200): Promise<
   const result = await db
     .from("comments")
     .select<CommentDbRow>(
-      "id, client_id, post_id, content, user_name, user_avatar, capsule_id, created_at, attachments",
+      "id, client_id, post_id, content, user_name, user_avatar, user_id, capsule_id, created_at, attachments",
     )
     .eq("post_id", postId)
     .order("created_at", { ascending: true })

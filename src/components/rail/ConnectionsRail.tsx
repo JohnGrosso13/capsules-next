@@ -25,7 +25,8 @@ import {
   Handshake,
   MicrophoneStage,
 } from "@phosphor-icons/react/dist/ssr";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { buildProfileHref } from "@/lib/profile/routes";
 
 type RailTab = "friends" | "party" | "chats" | "requests";
 
@@ -335,6 +336,7 @@ export function ConnectionsRail() {
   const [friendActionPendingId, setFriendActionPendingId] = React.useState<string | null>(null);
   const [chatTicker, setChatTicker] = React.useState(() => Date.now());
   const pathname = usePathname();
+  const router = useRouter();
   const [connectionOverrides, setConnectionOverrides] = React.useState<ConnectionOverrideMap>({});
   const connectionsContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [connectionsViewportHeight, setConnectionsViewportHeight] = React.useState<number | null>(
@@ -567,9 +569,13 @@ export function ConnectionsRail() {
   ]);
 
   const handleFriendNameClick = React.useCallback(
-    (identifier: string) =>
-      setActiveFriendTarget((prev) => (prev === identifier ? null : identifier)),
-    [],
+    (friend: FriendItem) => {
+      const href = buildProfileHref({ userId: friend.userId, userKey: friend.key });
+      if (!href) return;
+      router.push(href);
+      setActiveFriendTarget(null);
+    },
+    [router],
   );
 
   const handleFriendRemove = React.useCallback(

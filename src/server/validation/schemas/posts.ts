@@ -7,6 +7,9 @@ export const postsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(200).optional(),
   before: z.string().trim().min(1).optional(),
   after: z.string().trim().min(1).optional(),
+  authorId: z.string().trim().min(1).optional(),
+  authorKey: z.string().trim().min(1).optional(),
+  sort: z.enum(["recent", "top", "hot"]).optional(),
 });
 
 export const postPayloadSchema = z

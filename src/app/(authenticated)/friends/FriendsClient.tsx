@@ -22,6 +22,7 @@ import {
 import { PartyPanel } from "@/components/party/PartyPanel";
 import { usePartyContext } from "@/components/providers/PartyProvider";
 import { FriendsList } from "@/components/friends/FriendsList";
+import { buildProfileHref } from "@/lib/profile/routes";
 
 import styles from "./friends.module.css";
 
@@ -111,6 +112,7 @@ export function FriendsClient() {
     sessions: chatSessions,
   } = useChatContext();
   const party = usePartyContext();
+  const router = useRouter();
 
   const [activeTab, selectTab] = useTabFromSearch();
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -334,10 +336,17 @@ export function FriendsClient() {
     [blockFriend, withPendingAction],
   );
 
-  const handleView = React.useCallback((friend: FriendItem) => {
-    const label = friend.name || "Friend";
-    setNotice(`Viewing ${label} is coming soon.`);
-  }, []);
+  const handleView = React.useCallback(
+    (friend: FriendItem) => {
+      const href = buildProfileHref({ userId: friend.userId, userKey: friend.key });
+      if (!href) {
+        setNotice("That profile is not available yet.");
+        return;
+      }
+      router.push(href);
+    },
+    [router],
+  );
 
   const handleStartChat = React.useCallback(
     (friend: FriendItem) => {

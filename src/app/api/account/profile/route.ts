@@ -1,23 +1,28 @@
 import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import { getUserProfileSummary, updateUserDisplayName } from "@/server/users/service";
+import { getUserProfileSummary, updateUserProfile } from "@/server/users/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { deriveRequestOrigin } from "@/lib/url";
 
 const responseSchema = z.object({
   id: z.string(),
+  key: z.string().nullable(),
   name: z.string().nullable(),
   avatarUrl: z.string().nullable(),
+  bio: z.string().nullable(),
+  joinedAt: z.string().nullable(),
 });
 
 const updateRequestSchema = z.object({
   name: z.union([z.string().max(80), z.null()]).optional(),
+  bio: z.union([z.string().max(560), z.null()]).optional(),
 });
 
 const updateResponseSchema = z.object({
   success: z.literal(true),
   name: z.string().nullable(),
+  bio: z.string().nullable(),
 });
 
 export async function GET(req: Request) {
@@ -31,8 +36,11 @@ export async function GET(req: Request) {
     const profile = await getUserProfileSummary(ownerId, { origin: requestOrigin ?? null });
     return validatedJson(responseSchema, {
       id: profile.id ?? "",
+      key: profile.key ?? null,
       name: profile.name ?? null,
       avatarUrl: profile.avatarUrl ?? null,
+      bio: profile.bio ?? null,
+      joinedAt: profile.joinedAt ?? null,
     });
   } catch (error) {
     console.error("account.profile fetch error", error);
@@ -53,16 +61,31 @@ export async function PATCH(req: Request) {
     return parsed.response;
   }
 
-  const raw = parsed.data.name ?? null;
-  const sanitized =
-    typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : null;
-  const nextName = sanitized && sanitized.length ? sanitized : null;
+  const hasNameField = Object.prototype.hasOwnProperty.call(parsed.data, "name");
+  const rawName = hasNameField ? parsed.data.name : undefined;
+  const sanitizedName =
+    typeof rawName === "string" ? rawName.replace(/\s+/g, " ").trim() : rawName;
+  const nextName =
+    sanitizedName === undefined ? undefined : sanitizedName && sanitizedName.length ? sanitizedName : null;
+  const hasBioField = Object.prototype.hasOwnProperty.call(parsed.data, "bio");
+  const rawBio = hasBioField ? parsed.data.bio : undefined;
+  const nextBio =
+    rawBio === undefined ? undefined : typeof rawBio === "string" ? rawBio : null;
+
+  const payload: { name?: string | null; bio?: string | null } = {};
+  if (nextName !== undefined) {
+    payload.name = nextName;
+  }
+  if (nextBio !== undefined) {
+    payload.bio = nextBio;
+  }
 
   try {
-    const updated = await updateUserDisplayName(ownerId, nextName);
+    const updated = await updateUserProfile(ownerId, payload);
     return validatedJson(updateResponseSchema, {
       success: true,
       name: updated.name,
+      bio: updated.bio,
     });
   } catch (error) {
     console.error("account.profile update error", error);

@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 
 import type { CommentThreadState } from "@/components/comments/types";
 import styles from "@/components/home-feed.module.css";
+import { buildProfileHref } from "@/lib/profile/routes";
 
 type CommentsPreviewProps = {
   postId: string;
@@ -64,19 +66,44 @@ export function CommentsPreview({
           const parts = name.split(/\s+/);
           return (parts[0]?.[0] ?? "").toUpperCase() + (parts[parts.length - 1]?.[0] ?? "").toUpperCase();
         })();
+        const commentProfileHref = buildProfileHref({ userId: c.userId ?? null });
         return (
           <div key={c.id} className={styles.commentPreviewItem}>
-            <div className={styles.commentPreviewAvatar} aria-hidden>
-              {c.userAvatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={c.userAvatar} alt="" />
-              ) : (
-                initials
-              )}
-            </div>
+            {commentProfileHref ? (
+              <Link
+                href={commentProfileHref}
+                className={styles.commentPreviewAvatar}
+                aria-label="View commenter profile"
+              >
+                {c.userAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={c.userAvatar} alt="" />
+                ) : (
+                  initials
+                )}
+              </Link>
+            ) : (
+              <div className={styles.commentPreviewAvatar} aria-hidden>
+                {c.userAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={c.userAvatar} alt="" />
+                ) : (
+                  initials
+                )}
+              </div>
+            )}
             <div className={styles.commentPreviewBubble}>
               <div className={styles.commentPreviewHeader}>
-                <span className={styles.commentPreviewName}>{c.userName ?? "Member"}</span>
+            {commentProfileHref ? (
+              <Link
+                href={commentProfileHref}
+                className={styles.commentPreviewName}
+              >
+                {c.userName ?? "Member"}
+              </Link>
+                ) : (
+                  <span className={styles.commentPreviewName}>{c.userName ?? "Member"}</span>
+                )}
                 <time
                   className={styles.commentPreviewTime}
                   dateTime={c.ts}
@@ -100,4 +127,3 @@ export function CommentsPreview({
 }
 
 export default CommentsPreview;
-

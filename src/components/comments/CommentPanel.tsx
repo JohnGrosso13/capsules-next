@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
@@ -13,6 +14,7 @@ import { chatCopy } from "@/components/chat/copy";
 import { formatAttachmentSize } from "@/components/chat/utils";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import { safeRandomUUID } from "@/lib/random";
+import { buildProfileHref } from "@/lib/profile/routes";
 // AI composer not used in the redesigned UI
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { useCurrentUser } from "@/services/auth/client";
@@ -673,6 +675,7 @@ export function CommentPanel({
                 (comment.pending ? "Sending…" : "Capsule member");
               const content = comment.content?.trim() || "";
               const timeLabel = timeAgo(comment.ts);
+              const profileHref = buildProfileHref({ userId: comment.userId ?? null });
               return (
                 <div
                   key={comment.id}
@@ -680,17 +683,38 @@ export function CommentPanel({
                   data-pending={comment.pending ? "true" : undefined}
                   data-error={comment.error ? "true" : undefined}
                 >
-                  <div className={styles.commentAvatar} aria-hidden>
-                    {comment.userAvatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={comment.userAvatar} alt="" />
-                    ) : (
-                      initialsFrom(comment.userName ?? userName)
-                    )}
-                  </div>
+                  {profileHref ? (
+                    <Link
+                      href={profileHref}
+                      className={styles.commentAvatar}
+                      aria-label="View commenter profile"
+                    >
+                      {comment.userAvatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={comment.userAvatar} alt="" />
+                      ) : (
+                        initialsFrom(comment.userName ?? userName)
+                      )}
+                    </Link>
+                  ) : (
+                    <div className={styles.commentAvatar} aria-hidden>
+                      {comment.userAvatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={comment.userAvatar} alt="" />
+                      ) : (
+                        initialsFrom(comment.userName ?? userName)
+                      )}
+                    </div>
+                  )}
                   <div className={styles.commentBubble}>
                     <div className={styles.commentHeader}>
-                      <span className={styles.commentName}>{userName}</span>
+                      {profileHref ? (
+                        <Link href={profileHref} className={styles.commentName}>
+                          {userName}
+                        </Link>
+                      ) : (
+                        <span className={styles.commentName}>{userName}</span>
+                      )}
                       <time
                         className={styles.commentTimestamp}
                         dateTime={comment.ts}

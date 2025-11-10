@@ -30,5 +30,8 @@ export type PostsQueryInput = {
     limit?: string | number | null;
     before?: string | null;
     after?: string | null;
+    authorId?: string | null;
+    authorKey?: string | null;
+    sort?: "recent" | "top" | "hot" | null;
   };
 };

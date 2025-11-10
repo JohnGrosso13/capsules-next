@@ -11,7 +11,7 @@ export type FriendsRailProps = {
   friends: FriendItem[];
   pendingId: string | null;
   activeTarget: string | null;
-  onNameClick: (identifier: string) => void;
+  onNameClick: (friend: FriendItem) => void;
   onDelete: (friend: FriendItem, identifier: string) => Promise<void> | void;
   onStartChat?: (friend: FriendItem, identifier: string) => void;
 };
@@ -41,7 +41,7 @@ export function FriendsRail({
             since={friend.since}
             status={friend.status}
             open={isOpen}
-            onNameClick={() => onNameClick(identifier)}
+            onNameClick={() => onNameClick(friend)}
             actions={
               <FriendMenu
                 canTarget={canTarget}

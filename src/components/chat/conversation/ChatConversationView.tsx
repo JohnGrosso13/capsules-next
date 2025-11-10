@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 
@@ -12,6 +13,7 @@ import { MessageContextMenu } from "./MessageContextMenu";
 import { ConversationMessageList, type ConversationMessageListProps } from "./ConversationMessageList";
 import { initialsFrom } from "./utils";
 import type { ConversationParticipantsViewModel, ReactionPickerViewModel } from "./types";
+import { buildProfileHref } from "@/lib/profile/routes";
 
 import styles from "../chat.module.css";
 
@@ -84,37 +86,45 @@ function ReactionPickerFloating({ anchorRect, anchorLabel, onSelect, onClose }: 
   );
 }
 
-function ConversationParticipants({ participants, onInviteParticipants }: ConversationParticipantsViewModel) {
+function ConversationParticipants({ participants }: ConversationParticipantsViewModel) {
   if (!participants.length) return null;
   return (
     <div className={styles.conversationParticipants}>
-      {participants.map((participant) => (
-        <button
-          key={participant.id}
-          type="button"
-          className={styles.conversationParticipant}
-          title={participant.name}
-          onClick={() => onInviteParticipants?.()}
-          disabled={!onInviteParticipants}
-          aria-disabled={!onInviteParticipants}
-          aria-label={participant.name ? `View ${participant.name}` : "View participant"}
-        >
-          {participant.avatar ? (
-            <Image
-              src={participant.avatar}
-              alt=""
-              width={28}
-              height={28}
-              className={styles.conversationParticipantAvatar}
-              sizes="28px"
-            />
-          ) : (
-            <span className={styles.conversationParticipantInitials}>
-              {initialsFrom(participant.name ?? "")}
-            </span>
-          )}
-        </button>
-      ))}
+      {participants.map((participant) => {
+        const href = buildProfileHref({ userId: participant.id ?? null });
+        const content = participant.avatar ? (
+          <Image
+            src={participant.avatar}
+            alt=""
+            width={28}
+            height={28}
+            className={styles.conversationParticipantAvatar}
+            sizes="28px"
+          />
+        ) : (
+          <span className={styles.conversationParticipantInitials}>
+            {initialsFrom(participant.name ?? "")}
+          </span>
+        );
+        if (!href) {
+          return (
+            <div key={participant.id} className={styles.conversationParticipant} aria-hidden>
+              {content}
+            </div>
+          );
+        }
+        return (
+          <Link
+            key={participant.id}
+            href={href}
+            className={styles.conversationParticipant}
+            title={participant.name ?? undefined}
+            aria-label={participant.name ? `View ${participant.name}` : "View participant"}
+          >
+            {content}
+          </Link>
+        );
+      })}
     </div>
   );
 }

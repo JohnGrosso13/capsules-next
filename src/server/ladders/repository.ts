@@ -58,6 +58,10 @@ type LadderMemberRow = {
   updated_at: string | null;
 };
 
+type LadderParticipationRow = LadderMemberRow & {
+  ladder: LadderRow | null;
+};
+
 export type InsertCapsuleLadderParams = {
   capsuleId: string;
   createdById: string;
@@ -528,6 +532,64 @@ export async function listCapsuleLadderMemberRecords(
   } catch (error) {
     if (isDatabaseError(error)) {
       throw decorateDatabaseError("list capsule_ladder_member records", error);
+    }
+    throw error;
+  }
+}
+
+export async function listLaddersByParticipant(
+  userId: string,
+  options: { limit?: number } = {},
+): Promise<
+  Array<{
+    ladder: CapsuleLadderSummary;
+    membership: CapsuleLadderMember;
+  }>
+> {
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+  try {
+    const result = await db
+      .from("capsule_ladder_members")
+      .select<LadderParticipationRow>(
+        "id, ladder_id, user_id, display_name, handle, seed, rank, rating, wins, losses, draws, streak, metadata, created_at, updated_at, ladder:capsule_ladders!inner(*)",
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit)
+      .fetch();
+
+    const rows = expectResult(result, "list ladders by participant");
+    return rows
+      .map((row) => {
+        const summary = mapLadderSummaryRow(row.ladder);
+        if (!summary) return null;
+        const membershipRow: LadderMemberRow = {
+          id: row.id,
+          ladder_id: row.ladder_id,
+          user_id: row.user_id,
+          display_name: row.display_name,
+          handle: row.handle,
+          seed: row.seed,
+          rank: row.rank,
+          rating: row.rating,
+          wins: row.wins,
+          losses: row.losses,
+          draws: row.draws,
+          streak: row.streak,
+          metadata: row.metadata,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+        };
+        const membership = mapLadderMemberRow(membershipRow);
+        if (!membership) return null;
+        return { ladder: summary, membership };
+      })
+      .filter((entry): entry is { ladder: CapsuleLadderSummary; membership: CapsuleLadderMember } =>
+        Boolean(entry),
+      );
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("list ladders by participant", error);
     }
     throw error;
   }

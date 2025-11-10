@@ -3,7 +3,11 @@ import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
 
-import { findUserById, updateUserAvatar, updateUserName } from "./repository";
+import {
+  findUserById,
+  updateUserAvatar,
+  updateUserProfileFields,
+} from "./repository";
 
 type BannerCrop = {
   offsetX: number;
@@ -45,36 +49,75 @@ export async function getUserProfileSummary(
   options: { origin?: string | null } = {},
 ): Promise<{
   id: string;
+  key: string | null;
   name: string | null;
   avatarUrl: string | null;
+  bio: string | null;
+  joinedAt: string | null;
 }> {
   const user = await requireUser(userId);
   const resolvedId =
     typeof user.id === "number" ? String(user.id) : typeof user.id === "string" ? user.id : "";
   return {
     id: resolvedId,
+    key: normalizeOptionalString(user.user_key ?? null),
     name: normalizeOptionalString(user.full_name ?? null),
     avatarUrl: resolveProfileMediaUrl(user.avatar_url ?? null, options.origin ?? null),
+    bio: normalizeOptionalString(user.bio ?? null),
+    joinedAt: normalizeOptionalString(user.created_at ?? null),
   };
 }
 
-export async function updateUserDisplayName(
+export async function updateUserProfile(
   ownerId: string,
-  name: string | null,
-): Promise<{ name: string | null }> {
+  updates: { name?: string | null; bio?: string | null },
+): Promise<{ name: string | null; bio: string | null }> {
   await requireUser(ownerId);
-  const normalized = normalizeOptionalString(name ?? null);
-  const collapsed = normalized ? collapseWhitespace(normalized) : null;
-  if (collapsed && collapsed.length > MAX_DISPLAY_NAME_LENGTH) {
+  const normalizedName =
+    Object.prototype.hasOwnProperty.call(updates, "name") && updates.name !== undefined
+      ? normalizeOptionalString(updates.name)
+      : undefined;
+  const collapsedName =
+    typeof normalizedName === "string" ? collapseWhitespace(normalizedName) : normalizedName;
+  if (collapsedName && collapsedName.length > MAX_DISPLAY_NAME_LENGTH) {
     throw new Error(`Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or fewer.`);
   }
 
-  const updated = await updateUserName({ userId: ownerId, fullName: collapsed });
-  if (!updated) {
-    throw new Error("Failed to update display name.");
+  const normalizedBio =
+    Object.prototype.hasOwnProperty.call(updates, "bio") && updates.bio !== undefined
+      ? limitBio(updates.bio)
+      : undefined;
+
+  const payload: { fullName?: string | null; bio?: string | null } = {};
+  if (collapsedName !== undefined) {
+    payload.fullName = collapsedName ?? null;
+  }
+  if (normalizedBio !== undefined) {
+    payload.bio = normalizedBio;
+  }
+  if (!Object.keys(payload).length) {
+    return {
+      name: collapsedName ?? null,
+      bio: normalizedBio ?? null,
+    };
   }
 
-  return { name: collapsed };
+  const updated = await updateUserProfileFields({ userId: ownerId, ...payload });
+  if (!updated) {
+    throw new Error("Failed to update profile settings.");
+  }
+
+  return { name: collapsedName ?? null, bio: normalizedBio ?? null };
+}
+
+const MAX_BIO_LENGTH = 560;
+
+function limitBio(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  const normalized = collapseWhitespace(String(value));
+  if (!normalized.length) return null;
+  if (normalized.length <= MAX_BIO_LENGTH) return normalized;
+  return normalized.slice(0, MAX_BIO_LENGTH).trimEnd();
 }
 
 export async function updateUserAvatarImage(
