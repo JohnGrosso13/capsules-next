@@ -92,6 +92,171 @@ type LadderToast = {
   description?: string;
   persist?: boolean;
 };
+type LadderCreationMode = "guided" | "manual";
+type GuidedStepId = "title" | "summary" | "type" | "rules" | "timeline" | "roster" | "rewards" | "review";
+type GuidedStepDefinition = {
+  id: GuidedStepId;
+  title: string;
+  subtitle: string;
+  helper: string;
+};
+type LadderTemplatePreset = {
+  id: string;
+  label: string;
+  description: string;
+  mode: string;
+  cadence: string;
+  kickoff: string;
+  summary: string;
+};
+const GUIDED_STEP_DEFINITIONS: GuidedStepDefinition[] = [
+  {
+    id: "title",
+    title: "Name & vibe",
+    subtitle: "Give the ladder an identity challengers can rally around.",
+    helper: 'Short, ownable names work best. Think "{Capsule} Clash" or "Weekend Gauntlet".',
+  },
+  {
+    id: "summary",
+    title: "One-line summary",
+    subtitle: "Explain why this ladder matters in a single sentence.",
+    helper: "Highlight audience, cadence, or prizes so Capsule AI can build the promo copy.",
+  },
+  {
+    id: "type",
+    title: "Ladder type",
+    subtitle: "Tell Capsule what kind of competition this is.",
+    helper: "Pick the match style and platform so we can pre-fill the format metadata.",
+  },
+  {
+    id: "rules",
+    title: "Rules snapshot",
+    subtitle: "Lay down the essentials players need to know.",
+    helper: "Capsule AI will automate the long-form version; just note the must-follow items.",
+  },
+  {
+    id: "timeline",
+    title: "Timeline",
+    subtitle: "Share when the ladder runs and how often matches happen.",
+    helper: "We'll use this for reminders, recap pacing, and calendar tooling.",
+  },
+  {
+    id: "roster",
+    title: "Starter roster",
+    subtitle: "Drop the opening lineup or teams on standby.",
+    helper: "Paste a list of names. We'll seed and format the standings automatically.",
+  },
+  {
+    id: "rewards",
+    title: "Rewards & spotlight",
+    subtitle: "Tell challengers what they're chasing.",
+    helper: "Capsule AI can hype prizes, shoutouts, or story beats in announcements.",
+  },
+  {
+    id: "review",
+    title: "Review & publish",
+    subtitle: "Double-check visibility and go live when you're ready.",
+    helper: "You can still switch back to manual fields if you want the power user view.",
+  },
+];
+const GUIDED_STEP_ORDER = GUIDED_STEP_DEFINITIONS.map((step) => step.id);
+const GUIDED_STEP_MAP = new Map<GuidedStepId, GuidedStepDefinition>(
+  GUIDED_STEP_DEFINITIONS.map((step) => [step.id, step]),
+);
+const DEFAULT_GUIDED_STEP: GuidedStepId = GUIDED_STEP_ORDER[0] ?? "title";
+const RULE_SNIPPETS = [
+  "Matches are best-of-three. Screenshot every result.",
+  "Captains have 48 hours to play once a match post goes live.",
+  "Subs are allowed but must be reported before kickoff.",
+  "Report disputes in #match-review with evidence.",
+];
+const REWARD_SNIPPETS = [
+  "Top 3 earn featured posts across Capsule Events.",
+  "Weekly MVP gets a custom Capsule portrait.",
+  "Winners snag merch codes + priority scrim slots.",
+  "Perfect records unlock an interview with the Capsule host.",
+];
+const LADDER_TEMPLATE_PRESETS: LadderTemplatePreset[] = [
+  {
+    id: "solo-duel",
+    label: "Solo Duel Ladder",
+    description: "1v1 clashes, quick bragging rights.",
+    mode: "1v1 Duels",
+    cadence: "Daily windows",
+    kickoff: "Match anytime within 24h",
+    summary: "Solo players queue up head-to-head duels with instant ELO updates.",
+  },
+  {
+    id: "squad-gauntlet",
+    label: "Squad Gauntlet",
+    description: "Teams rotate weekly spotlight challenges.",
+    mode: "3v3 Teams",
+    cadence: "Weekly rounds",
+    kickoff: "Thursdays 7 PM local",
+    summary: "Squads tackle curated challenges each week with Capsule shoutouts.",
+  },
+  {
+    id: "creator-circuit",
+    label: "Creator Circuit",
+    description: "Open ladder with stream-ready prompts.",
+    mode: "Open queue",
+    cadence: "Weekend sprint",
+    kickoff: "Saturday block",
+    summary: "Creators drop-in for highlight-driven matches with AI-scripted recaps.",
+  },
+];
+const ROSTER_STARTER_POOL = [
+  "Nova Lynx",
+  "Atlas Prime",
+  "Circuit Breakers",
+  "Echo Rift",
+  "Luminous Crew",
+  "Midnight Bloom",
+  "Stormglow",
+  "Vector Nine",
+  "Glacier Rush",
+  "Radiant Forge",
+  "Velvet Reign",
+  "Pulse Theory",
+];
+const buildHash = (value: string): number => {
+  return value.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+};
+const buildGuidedNameIdeas = (capsuleName?: string | null, gameTitle?: string): string[] => {
+  const base = (capsuleName ?? "Capsule").trim() || "Capsule";
+  const game = (gameTitle ?? "").trim() || "Open";
+  const stem = `${base} ${game}`.trim();
+  return [
+    `${stem} Ladder`,
+    `${base} ${game} Gauntlet`,
+    `${game} Spotlight Series`,
+  ];
+};
+const buildGuidedSummaryIdeas = (options: {
+  capsuleName?: string | null;
+  gameTitle?: string;
+  cadence?: string;
+  rewardsFocus?: string;
+}): string[] => {
+  const capsule = (options.capsuleName ?? "the capsule community").trim();
+  const game = (options.gameTitle ?? "your game").trim() || "your game";
+  const cadence = (options.cadence ?? "weekly rounds").trim() || "weekly rounds";
+  const rewards = (options.rewardsFocus ?? "spotlight shoutouts").trim() || "spotlight shoutouts";
+  return [
+    `${capsule} runs a ${cadence} ${game} ladder with Capsule AI covering every upset.`,
+    `${game} challengers climb fast seasons, win ${rewards}, and get auto-generated recaps.`,
+  ];
+};
+const buildRosterPreset = (seedValue: string): string[] => {
+  const offset = buildHash(seedValue) % ROSTER_STARTER_POOL.length;
+  const names: string[] = [];
+  for (let i = 0; i < 6; i += 1) {
+    const index = (offset + i) % ROSTER_STARTER_POOL.length;
+    const candidate = ROSTER_STARTER_POOL[index] ?? `Seed ${index + 1}`;
+    names.push(candidate);
+  }
+  return names;
+};
 type PersistedLadderDraft = {
   version: 1;
   updatedAt: number;
@@ -100,6 +265,8 @@ type PersistedLadderDraft = {
   seed: typeof defaultSeedForm;
   meta: Record<string, unknown>;
   activeStep: LadderWizardStepId;
+  creationMode?: LadderCreationMode;
+  guidedStep?: GuidedStepId;
 };
 type FormState = {
   name: string;
@@ -232,6 +399,10 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     typeof helperDensityValue === "string" && helperDensityValue.trim().length
       ? (helperDensityValue as string)
       : "standard";
+  const guidedTemplateId =
+    typeof (meta as Record<string, unknown>).guidedTemplate === "string"
+      ? ((meta as Record<string, unknown>).guidedTemplate as string)
+      : null;
   const [seed, setSeed] = React.useState(() => ({ ...defaultSeedForm }));
   const isOnline = useNetworkStatus();
   const [toasts, setToasts] = React.useState<LadderToast[]>([]);
@@ -246,6 +417,21 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
   const [draftRestoredAt, setDraftRestoredAt] = React.useState<number | null>(null);
   const [isGenerating, setGenerating] = React.useState(false);
   const [isSaving, setSaving] = React.useState(false);
+  const [creationMode, setCreationMode] = React.useState<LadderCreationMode>("guided");
+  const [guidedStep, setGuidedStep] = React.useState<GuidedStepId>(DEFAULT_GUIDED_STEP);
+  const rosterPlainText = React.useMemo(
+    () =>
+      members
+        .map((member) => member.displayName.trim())
+        .filter(Boolean)
+        .join("\n"),
+    [members],
+  );
+  const [guidedRosterDraft, setGuidedRosterDraft] = React.useState<string>(rosterPlainText);
+  const [assistantDraft, setAssistantDraft] = React.useState("");
+  React.useEffect(() => {
+    setGuidedRosterDraft(rosterPlainText);
+  }, [rosterPlainText]);
   React.useEffect(() => {
     const capsuleId = selectedCapsuleId;
     const lastTracked = lastTrackedCapsuleRef.current;
@@ -307,7 +493,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     if (formContentRef.current) {
       formContentRef.current.focus();
     }
-  }, [activeStep]);
+  }, [activeStep, creationMode, guidedStep]);
   React.useEffect(() => {
     if (!hasAnnouncedNetwork.current) {
       hasAnnouncedNetwork.current = true;
@@ -398,6 +584,58 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     () => Math.max(0, LADDER_WIZARD_STEP_ORDER.indexOf(activeStep)),
     [activeStep],
   );
+  const guidedStepIndex = React.useMemo(
+    () => Math.max(0, GUIDED_STEP_ORDER.indexOf(guidedStep)),
+    [guidedStep],
+  );
+  const guidedPreviousStepId = guidedStepIndex > 0 ? GUIDED_STEP_ORDER[guidedStepIndex - 1] : null;
+  const guidedNextStepId =
+    guidedStepIndex < GUIDED_STEP_ORDER.length - 1 ? GUIDED_STEP_ORDER[guidedStepIndex + 1] : null;
+  const guidedCompletion = React.useMemo<Record<GuidedStepId, boolean>>(() => {
+    const basicsComplete = {
+      title: Boolean(form.name.trim().length),
+      summary: Boolean(form.summary.trim().length),
+      type: Boolean(form.game.title.trim().length),
+      rules: Boolean(form.sections.rules.body?.trim().length),
+      timeline: Boolean(
+        (form.schedule.cadence ?? "").trim().length || (form.schedule.kickoff ?? "").trim().length,
+      ),
+      roster: members.some((member) => member.displayName.trim().length),
+      rewards: Boolean(form.sections.results.body?.trim().length),
+    };
+    const reviewReady = Object.values(basicsComplete).every(Boolean);
+    return {
+      ...basicsComplete,
+      review: reviewReady,
+    };
+  }, [form.game.title, form.name, form.schedule.cadence, form.schedule.kickoff, form.sections.results.body, form.sections.rules.body, form.summary, members]);
+  const guidedNextIncompleteStep = React.useMemo(() => {
+    return GUIDED_STEP_ORDER.find((stepId) => !guidedCompletion[stepId]) ?? "review";
+  }, [guidedCompletion]);
+  const guidedNextStep = guidedNextStepId ? GUIDED_STEP_MAP.get(guidedNextStepId) ?? null : null;
+  const guidedNameIdeas = React.useMemo(
+    () => buildGuidedNameIdeas(selectedCapsule?.name, form.game.title),
+    [form.game.title, selectedCapsule?.name],
+  );
+  const guidedSummaryIdeas = React.useMemo(() => {
+    const summaryOptions: {
+      capsuleName?: string | null;
+      gameTitle?: string;
+      cadence?: string;
+      rewardsFocus?: string;
+    } = {
+      capsuleName: selectedCapsule?.name ?? null,
+      gameTitle: form.game.title,
+    };
+    if (form.schedule.cadence?.trim()) {
+      summaryOptions.cadence = form.schedule.cadence;
+    }
+    if (form.sections.results.body?.trim()) {
+      summaryOptions.rewardsFocus = form.sections.results.body;
+    }
+    return buildGuidedSummaryIdeas(summaryOptions);
+  }, [form.game.title, form.schedule.cadence, form.sections.results.body, selectedCapsule?.name]);
+  const rosterSeed = selectedCapsule?.name ?? form.name ?? "Capsule";
   React.useEffect(() => {
     const lifecycle = wizardLifecycleRef.current;
     const now = Date.now();
@@ -466,6 +704,16 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       if (parsed.activeStep && LADDER_WIZARD_STEP_ORDER.includes(parsed.activeStep)) {
         setActiveStep(parsed.activeStep);
       }
+      if (parsed.creationMode === "guided" || parsed.creationMode === "manual") {
+        setCreationMode(parsed.creationMode);
+      }
+      if (
+        parsed.guidedStep &&
+        typeof parsed.guidedStep === "string" &&
+        GUIDED_STEP_ORDER.includes(parsed.guidedStep as GuidedStepId)
+      ) {
+        setGuidedStep(parsed.guidedStep as GuidedStepId);
+      }
       const restoredAt = Date.now();
       setDraftStatus("saved");
       setLastDraftSavedAt(parsed.updatedAt ?? restoredAt);
@@ -502,6 +750,8 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
           seed,
           meta,
           activeStep,
+          creationMode,
+          guidedStep,
         };
         window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
         setDraftStatus("saved");
@@ -544,7 +794,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       }
       autosaveStartedAt.current = null;
     };
-  }, [activeStep, draftStorageKey, form, members, meta, pushToast, seed, selectedCapsuleId]);
+  }, [activeStep, creationMode, draftStorageKey, form, guidedStep, members, meta, pushToast, seed, selectedCapsuleId]);
   const lastStepIndex = LADDER_WIZARD_STEP_ORDER.length - 1;
   const nextStepId = currentStepIndex < lastStepIndex ? LADDER_WIZARD_STEP_ORDER[currentStepIndex + 1] : null;
   const previousStepId = currentStepIndex > 0 ? LADDER_WIZARD_STEP_ORDER[currentStepIndex - 1] : null;
@@ -737,12 +987,132 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     },
     [],
   );
+  const applyTemplatePreset = React.useCallback(
+    (preset: LadderTemplatePreset) => {
+      handleGameChange("mode", preset.mode);
+      handleScheduleChange("cadence", preset.cadence);
+      handleScheduleChange("kickoff", preset.kickoff);
+      if (!form.game.title.trim().length) {
+        handleGameChange("title", preset.label);
+      }
+      if (!form.sections.overview.body?.trim().length) {
+        handleSectionChange("overview", "body", preset.summary);
+      }
+      setMeta((prev) => ({ ...prev, guidedTemplate: preset.id }));
+    },
+    [form.game.title, form.sections.overview.body, handleGameChange, handleScheduleChange, handleSectionChange, setMeta],
+  );
+  const handleAppendRuleSnippet = React.useCallback(
+    (snippet: string) => {
+      const current = form.sections.rules.body ?? "";
+      const next = current.trim().length ? `${current}\n• ${snippet}` : `• ${snippet}`;
+      handleSectionChange("rules", "body", next);
+    },
+    [form.sections.rules.body, handleSectionChange],
+  );
+  const handleAppendRewardSnippet = React.useCallback(
+    (snippet: string) => {
+      const current = form.sections.results.body ?? "";
+      const next = current.trim().length ? `${current}\n${snippet}` : snippet;
+      handleSectionChange("results", "body", next);
+    },
+    [form.sections.results.body, handleSectionChange],
+  );
+  const syncRosterFromText = React.useCallback(
+    (value: string) => {
+      const rows = value
+        .split("\n")
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .slice(0, 24);
+      if (!rows.length) {
+        setMembers(defaultMembersForm());
+        return;
+      }
+      const payload = rows.map((name, index) => ({
+        ...createEmptyMemberForm(index),
+        displayName: name.slice(0, 80),
+      }));
+      setMembers(normalizeMemberList(payload));
+    },
+    [setMembers],
+  );
+  const handleGuidedRosterInput = React.useCallback(
+    (value: string) => {
+      setGuidedRosterDraft(value);
+      syncRosterFromText(value);
+    },
+    [setGuidedRosterDraft, syncRosterFromText],
+  );
+  const handleRosterPreset = React.useCallback(
+    (seedLabel: string) => {
+      const entries = buildRosterPreset(seedLabel);
+      const payload = entries.map((name, index) => ({
+        ...createEmptyMemberForm(index),
+        displayName: name,
+      }));
+      setMembers(normalizeMemberList(payload));
+      setGuidedRosterDraft(entries.join("\n"));
+    },
+    [setGuidedRosterDraft, setMembers],
+  );
+  const handleCreationModeToggle = React.useCallback(
+    (mode: LadderCreationMode) => {
+      setCreationMode(mode);
+      if (mode === "guided") {
+        const fallback = guidedCompletion[guidedStep] ? guidedNextIncompleteStep : guidedStep;
+        setGuidedStep(fallback);
+      }
+    },
+    [guidedCompletion, guidedNextIncompleteStep, guidedStep],
+  );
   const handleSeedChange = React.useCallback((field: keyof typeof seed, value: string) => {
     setSeed((prev) => ({
       ...prev,
       [field]: value,
     }));
   }, []);
+  const handleAssistantSend = React.useCallback(() => {
+    const message = assistantDraft.trim();
+    if (!message.length) {
+      pushToast({
+        tone: "info",
+        title: "Describe the vibe",
+        description: "Tell Capsule how you want the ladder to sound and we'll riff on names.",
+      });
+      return;
+    }
+    const suggestionPool = [
+      ...guidedNameIdeas,
+      `${message} Ladder`.trim(),
+      `${message} Circuit`.trim(),
+    ].filter((entry) => entry.length);
+    const suggestion = suggestionPool[Math.floor(Math.random() * suggestionPool.length)] ?? null;
+    if (!suggestion) {
+      pushToast({
+        tone: "info",
+        title: "Need one more detail",
+        description: "Add a note about the mood or stakes so Capsule can suggest a name.",
+      });
+      return;
+    }
+    handleFormField("name", suggestion);
+    pushToast({
+      tone: "success",
+      title: "Capsule suggested a name",
+      description: suggestion,
+    });
+    setAssistantDraft("");
+  }, [assistantDraft, guidedNameIdeas, handleFormField, pushToast]);
+  const handleAssistantKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleAssistantSend();
+      }
+    },
+    [handleAssistantSend],
+  );
   const handleMemberField = React.useCallback(
     (index: number, field: keyof LadderMemberFormValues, value: string) => {
       setMembers((prev) => {
@@ -776,6 +1146,8 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     setMeta({ variant: "ladder" });
     setSeed({ ...defaultSeedForm });
     setActiveStep(DEFAULT_WIZARD_START_STEP);
+    setCreationMode("guided");
+    setGuidedStep(DEFAULT_GUIDED_STEP);
     setDraftStatus("idle");
     setLastDraftSavedAt(null);
     setDraftRestoredAt(null);
@@ -2185,6 +2557,431 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
         </CardContent>
       </Card>
     ) : null;
+  const renderCapsuleBanner = () =>
+    selectedCapsule ? (
+      <div className={styles.selectedCapsuleBanner}>
+        <div>
+          <div className={styles.capsuleLabel}>Capsule</div>
+          <div className={styles.capsuleName}>{selectedCapsule.name}</div>
+        </div>
+      </div>
+    ) : null;
+  const renderToastStack = () =>
+    toasts.length ? (
+      <div className={styles.toastStack} role="region" aria-live="assertive">
+        {toasts.map((toast) => (
+          <Alert key={toast.id} tone={toast.tone} className={styles.toastCard}>
+            <button
+              type="button"
+              className={styles.toastDismiss}
+              onClick={() => dismissToast(toast.id)}
+              aria-label="Dismiss notification"
+            >
+              Close
+            </button>
+            <AlertTitle>{toast.title}</AlertTitle>
+            {toast.description ? <AlertDescription>{toast.description}</AlertDescription> : null}
+          </Alert>
+        ))}
+      </div>
+    ) : null;
+  const renderAutosaveMeta = () =>
+    autosaveText || canDiscardDraft ? (
+      <div className={styles.autosaveMeta} role="status" aria-live="polite">
+        <span>{autosaveText ?? "Draft ready"}</span>
+        {canDiscardDraft ? (
+          <button type="button" className={styles.linkButton} onClick={handleDiscardDraft}>
+            Discard draft
+          </button>
+        ) : null}
+      </div>
+    ) : null;
+  const renderGuidedChatCard = React.useCallback(
+    (config: { title: string; helper: string; placeholder: string }) => (
+      <Card className={styles.chatCard}>
+        <CardHeader>
+          <CardTitle>{config.title}</CardTitle>
+          <CardDescription>{config.helper}</CardDescription>
+        </CardHeader>
+        <CardContent className={styles.cardContent}>
+          <div className={styles.chatHistory}>
+            <div className={styles.chatBubble}>
+              <span className={styles.chatBubbleLabel}>Capsule AI</span>
+              <p>I can riff on names, rules, rewards, or anything else you need for this step.</p>
+            </div>
+          </div>
+          <div className={styles.chatComposer}>
+            <Input
+              value={assistantDraft}
+              onChange={(event) => setAssistantDraft(event.target.value)}
+              onKeyDown={handleAssistantKeyDown}
+              placeholder={config.placeholder}
+            />
+            <Button type="button" variant="secondary" onClick={handleAssistantSend}>
+              Send
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    ),
+    [assistantDraft, handleAssistantKeyDown, handleAssistantSend, setAssistantDraft],
+  );
+  const renderGuidedStepContent = () => {
+    switch (guidedStep) {
+      case "title":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Pick a title</CardTitle>
+                <CardDescription>Show the season energy. Chip suggestions update as you edit.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="guided-name">
+                    Ladder title
+                  </label>
+                  <Input
+                    id="guided-name"
+                    value={form.name}
+                    onChange={(event) => handleFormField("name", event.target.value)}
+                    placeholder="Nova Circuit Season"
+                  />
+                </div>
+                <div className={styles.pillGroup}>
+                  {guidedNameIdeas.map((idea) => (
+                    <button
+                      key={idea}
+                      type="button"
+                      className={styles.pillButton}
+                      onClick={() => handleFormField("name", idea)}
+                    >
+                      {idea}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            {renderGuidedChatCard({
+              title: "Need help naming it?",
+              helper: "Tell Capsule the vibe and we'll suggest names instantly.",
+              placeholder: "Describe the mood, stakes, or rewards...",
+            })}
+          </>
+        );
+      case "summary":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>One-line summary</CardTitle>
+                <CardDescription>Appears anywhere this ladder is referenced inside Capsule.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <textarea
+                  id="guided-summary"
+                  className={styles.textarea}
+                  value={form.summary}
+                  onChange={(event) => handleFormField("summary", event.target.value)}
+                  rows={3}
+                  placeholder="Weekly Rocket League duels with Capsule AI recaps + spotlight prizes."
+                />
+                <div className={styles.pillGroup}>
+                  {guidedSummaryIdeas.map((idea) => (
+                    <button
+                      key={idea}
+                      type="button"
+                      className={styles.pillButton}
+                      onClick={() => handleFormField("summary", idea)}
+                    >
+                      {idea}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+      case "type":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Game & ladder type</CardTitle>
+                <CardDescription>Capsule AI uses this to suggest rules, playlists, and stats.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="guided-game-title">
+                    Game or title
+                  </label>
+                  <Input
+                    id="guided-game-title"
+                    value={form.game.title}
+                    onChange={(event) => handleGameChange("title", event.target.value)}
+                    placeholder="Rocket League"
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="guided-game-mode">
+                    Format
+                  </label>
+                  <Input
+                    id="guided-game-mode"
+                    value={form.game.mode}
+                    onChange={(event) => handleGameChange("mode", event.target.value)}
+                    placeholder="1v1 Duels"
+                  />
+                </div>
+                <div className={styles.fieldRow}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-platform">
+                      Platform
+                    </label>
+                    <Input
+                      id="guided-platform"
+                      value={form.game.platform ?? ""}
+                      onChange={(event) => handleGameChange("platform", event.target.value)}
+                      placeholder="Cross-play"
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-region">
+                      Region
+                    </label>
+                    <Input
+                      id="guided-region"
+                      value={form.game.region ?? ""}
+                      onChange={(event) => handleGameChange("region", event.target.value)}
+                      placeholder="NA / EU"
+                    />
+                  </div>
+                </div>
+                <div className={styles.templateGrid}>
+                  {LADDER_TEMPLATE_PRESETS.map((preset) => {
+                    const isActive = guidedTemplateId === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={styles.templateButton}
+                        data-state={isActive ? "active" : "idle"}
+                        onClick={() => applyTemplatePreset(preset)}
+                      >
+                        <strong>{preset.label}</strong>
+                        <span>{preset.description}</span>
+                        <span className={styles.templateMeta}>{preset.mode}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+      case "rules":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Rules snapshot</CardTitle>
+                <CardDescription>We surface these in every post-match recap.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <textarea
+                  id="guided-rules"
+                  className={styles.textarea}
+                  value={form.sections.rules.body ?? ""}
+                  onChange={(event) => handleSectionChange("rules", "body", event.target.value)}
+                  rows={4}
+                  placeholder="Matches are best-of-three. Report scores within 2 hours with screenshots."
+                />
+                <div className={styles.pillGroup}>
+                  {RULE_SNIPPETS.map((snippet) => (
+                    <button
+                      key={snippet}
+                      type="button"
+                      className={styles.pillButton}
+                      onClick={() => handleAppendRuleSnippet(snippet)}
+                    >
+                      {snippet}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+      case "timeline":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Timeline & cadence</CardTitle>
+                <CardDescription>Adjust any detail later in manual mode.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div className={styles.fieldRow}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-season-length">
+                      Season length (weeks)
+                    </label>
+                    <Input
+                      id="guided-season-length"
+                      value={seed.seasonLengthWeeks}
+                      onChange={(event) => handleSeedChange("seasonLengthWeeks", event.target.value)}
+                      placeholder="6"
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-cadence">
+                      Match cadence
+                    </label>
+                    <Input
+                      id="guided-cadence"
+                      value={form.schedule.cadence ?? ""}
+                      onChange={(event) => handleScheduleChange("cadence", event.target.value)}
+                      placeholder="Weekly rounds"
+                    />
+                  </div>
+                </div>
+                <div className={styles.fieldRow}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-kickoff">
+                      Kickoff window
+                    </label>
+                    <Input
+                      id="guided-kickoff"
+                      value={form.schedule.kickoff ?? ""}
+                      onChange={(event) => handleScheduleChange("kickoff", event.target.value)}
+                      placeholder="Mondays 7 PM"
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-timezone">
+                      Timezone
+                    </label>
+                    <Input
+                      id="guided-timezone"
+                      value={form.schedule.timezone ?? ""}
+                      onChange={(event) => handleScheduleChange("timezone", event.target.value)}
+                      placeholder="NA / CET"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+      case "roster":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Starter roster</CardTitle>
+                <CardDescription>Limit of 24 to kick things off. You can add more once the ladder is live.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <textarea
+                  id="guided-roster"
+                  className={styles.textarea}
+                  value={guidedRosterDraft}
+                  onChange={(event) => handleGuidedRosterInput(event.target.value)}
+                  rows={6}
+                  placeholder={"Nova Lynx\nAtlas Prime\nEcho Rift"}
+                />
+                <div className={styles.guidedActionBar}>
+                  <Button type="button" variant="secondary" onClick={() => handleRosterPreset(rosterSeed)}>
+                    Generate names with Capsule
+                  </Button>
+                  <span className={styles.guidedHint}>We auto-seed and add ELO defaults.</span>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+      case "rewards":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Rewards & spotlight</CardTitle>
+                <CardDescription>Shared in every recap, stream script, and reminder.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <textarea
+                  id="guided-rewards"
+                  className={styles.textarea}
+                  value={form.sections.results.body ?? ""}
+                  onChange={(event) => handleSectionChange("results", "body", event.target.value)}
+                  rows={4}
+                  placeholder="Top 3 earn featured posts, MVP gets a custom Capsule portrait."
+                />
+                <div className={styles.pillGroup}>
+                  {REWARD_SNIPPETS.map((snippet) => (
+                    <button
+                      key={snippet}
+                      type="button"
+                      className={styles.pillButton}
+                      onClick={() => handleAppendRewardSnippet(snippet)}
+                    >
+                      {snippet}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+      case "review":
+      default:
+        return (
+          <>
+            <div className={styles.guidedReviewStack}>
+              {renderReviewOverview()}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Visibility & publish</CardTitle>
+                  <CardDescription>Flip to public whenever you&apos;re ready.</CardDescription>
+                </CardHeader>
+                <CardContent className={styles.cardContent}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-visibility">
+                      Visibility
+                    </label>
+                    <select
+                      id="guided-visibility"
+                      className={styles.select}
+                      value={form.visibility}
+                      onChange={(event) =>
+                        handleFormField("visibility", event.target.value as "private" | "capsule" | "public")
+                      }
+                    >
+                      <option value="capsule">Capsule members</option>
+                      <option value="private">Managers only</option>
+                      <option value="public">Public showcase</option>
+                    </select>
+                  </div>
+                  <div className={styles.checkboxRow}>
+                    <input
+                      id="guided-publish"
+                      type="checkbox"
+                      checked={form.publish}
+                      onChange={(event) => handleFormField("publish", event.target.checked)}
+                    />
+                    <label htmlFor="guided-publish">Publish immediately after saving</label>
+                  </div>
+                  <p className={styles.fieldHint}>
+                    Leave unchecked to save a draft. Capsule will keep everything private.
+                  </p>
+                </CardContent>
+              </Card>
+              {renderAiPlan()}
+            </div>
+          </>
+        );
+    }
+  };
   const renderReviewOverview = () => {
     const visibility = ladderVisibilityOptions.find((option) => option.value === form.visibility);
     const stats = [
@@ -2365,6 +3162,190 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       </div>
     );
   };
+  const renderManualExperience = () => (
+    <div className={styles.pageGrid}>
+      <aside className={styles.stepperCol}>
+        <div className={styles.stepperShell}>
+          <div className={styles.stepperHeading}>
+            <span className={styles.stepperLabel}>Wizard progress</span>
+            <h2>Guide creators from idea to live ladder.</h2>
+            <p>Match the capsule onboarding aesthetic with luminous steps, subtle gradients, and motion.</p>
+          </div>
+          <ol className={styles.stepList} role="list">
+            {LADDER_WIZARD_STEPS.map((step, index) => {
+              const isActive = step.id === activeStep;
+              const isComplete = stepCompletion[step.id];
+              const state = isActive ? "active" : isComplete ? "complete" : "idle";
+              return (
+                <li key={step.id}>
+                  <button
+                    type="button"
+                    onClick={() => goToStep(step.id)}
+                    className={styles.stepItem}
+                    data-state={state}
+                    aria-current={isActive ? "step" : undefined}
+                    aria-label={`Step ${index + 1}: ${step.title}${isActive ? " (current)" : isComplete ? " (completed)" : ""}`}
+                  >
+                    <span className={styles.stepBullet} data-state={state} aria-hidden />
+                    <span className={styles.stepCopy}>
+                      <span className={styles.stepTitle}>{step.title}</span>
+                      <span className={styles.stepSubtitle}>{step.subtitle}</span>
+                    </span>
+                    <span className={styles.stepMeta} aria-hidden="true">
+                      {isComplete ? "Done" : isActive ? "Now" : "Start"}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </aside>
+      <div className={styles.formCol}>
+        <header className={styles.stepHero}>
+          {stepProgressLabel ? <span className={styles.stepHeroLabel}>{stepProgressLabel}</span> : null}
+          <h1 className={styles.stepHeroTitle}>{currentStepTitle}</h1>
+          <p className={styles.stepHeroSubtitle}>{currentStepSubtitle}</p>
+        </header>
+        {renderCapsuleBanner()}
+        {renderToastStack()}
+        {renderAutosaveMeta()}
+        <div
+          ref={formContentRef}
+          className={styles.stepStack}
+          aria-live="polite"
+          role="region"
+          tabIndex={-1}
+        >
+          {renderStepContent()}
+        </div>
+        <div className={styles.stepControls} aria-label="Step controls">
+          <Button type="button" variant="ghost" onClick={handlePreviousStep} disabled={!previousStepId}>
+            Back
+          </Button>
+          {activeStep !== "review" ? (
+            <Button type="button" onClick={handleNextStep} disabled={!nextStepId}>
+              {nextStep ? `Next: ${nextStep.title}` : "Next"}
+            </Button>
+          ) : (
+            <Button type="button" onClick={createLadder} disabled={isSaving || !isOnline}>
+              {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
+            </Button>
+          )}
+        </div>
+      </div>
+      <aside className={styles.previewCol}>
+        <div className={styles.previewShell}>
+          <div className={styles.previewHeading}>
+            <h3>Live preview</h3>
+            <p>See how capsule members will experience this ladder.</p>
+          </div>
+          {renderPreviewPanel()}
+        </div>
+      </aside>
+    </div>
+  );
+  const renderGuidedExperience = () => (
+    <div className={styles.pageGrid}>
+      <aside className={styles.stepperCol}>
+        <div className={styles.stepperShell}>
+          <div className={styles.stepperHeading}>
+            <span className={styles.stepperLabel}>Guided progress</span>
+          </div>
+          <ol className={styles.stepList} role="list">
+            {GUIDED_STEP_DEFINITIONS.map((step, index) => {
+              const isActive = step.id === guidedStep;
+              const isComplete = guidedCompletion[step.id];
+              const state = isActive ? "active" : isComplete ? "complete" : "idle";
+              return (
+                <li key={step.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGuidedStep(step.id);
+                      if (typeof window !== "undefined") {
+                        window.requestAnimationFrame(scrollToStepContent);
+                      }
+                    }}
+                    className={styles.stepItem}
+                    data-state={state}
+                    aria-current={isActive ? "step" : undefined}
+                    aria-label={`Step ${index + 1}: ${step.title}${isActive ? " (current)" : isComplete ? " (completed)" : ""}`}
+                  >
+                    <span className={styles.stepBullet} data-state={state} aria-hidden />
+                    <span className={styles.stepCopy}>
+                      <span className={styles.stepTitle}>{step.title}</span>
+                      <span className={styles.stepSubtitle}>{step.subtitle}</span>
+                    </span>
+                    <span className={styles.stepMeta} aria-hidden="true">
+                      {isComplete ? "Done" : isActive ? "Now" : "Start"}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </aside>
+      <div className={styles.formCol}>
+        {renderToastStack()}
+        {renderAutosaveMeta()}
+        <div
+          ref={formContentRef}
+          className={`${styles.stepStack} ${styles.guidedStack}`}
+          aria-live="polite"
+          role="region"
+          tabIndex={-1}
+        >
+          {renderGuidedStepContent()}
+        </div>
+        <div className={styles.stepControls} aria-label="Step controls">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              if (!guidedPreviousStepId) return;
+              setGuidedStep(guidedPreviousStepId);
+              if (typeof window !== "undefined") {
+                window.requestAnimationFrame(scrollToStepContent);
+              }
+            }}
+            disabled={!guidedPreviousStepId}
+          >
+            Back
+          </Button>
+          {guidedStep !== "review" ? (
+            <Button
+              type="button"
+              onClick={() => {
+                if (!guidedNextStepId) return;
+                setGuidedStep(guidedNextStepId);
+                if (typeof window !== "undefined") {
+                  window.requestAnimationFrame(scrollToStepContent);
+                }
+              }}
+              disabled={!guidedNextStepId}
+            >
+              {guidedNextStep ? `Next: ${guidedNextStep.title}` : "Next"}
+            </Button>
+          ) : (
+            <Button type="button" onClick={createLadder} disabled={isSaving || !isOnline}>
+              {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
+            </Button>
+          )}
+        </div>
+      </div>
+      <aside className={styles.previewCol}>
+        <div className={styles.previewShell}>
+          <div className={styles.previewHeading}>
+            <h3>Live preview</h3>
+            <p>Everything you type updates instantly.</p>
+          </div>
+          {renderPreviewPanel()}
+        </div>
+      </aside>
+    </div>
+  );
   if (!selectedCapsule) {
     return (
       <div className={styles.gateWrap}>
@@ -2384,123 +3365,40 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     <div className={styles.builderWrap}>
       <div className={styles.wizardPanel}>
         <div className={styles.panelGlow} aria-hidden />
-        <div className={styles.pageGrid}>
-        <aside className={styles.stepperCol}>
-          <div className={styles.stepperShell}>
-            <div className={styles.stepperHeading}>
-              <span className={styles.stepperLabel}>Wizard progress</span>
-              <h2>Guide creators from idea to live ladder.</h2>
-              <p>Match the capsule onboarding aesthetic with luminous steps, subtle gradients, and motion.</p>
+        {selectedCapsule ? (
+          <div className={styles.panelTopActions}>
+            <div className={styles.panelCapsule}>
+              <span className={styles.panelCapsuleLabel}>Capsule</span>
+              <strong>{selectedCapsule.name}</strong>
             </div>
-            <ol className={styles.stepList} role="list">
-              {LADDER_WIZARD_STEPS.map((step, index) => {
-                const isActive = step.id === activeStep;
-                const isComplete = stepCompletion[step.id];
-                const state = isActive ? "active" : isComplete ? "complete" : "idle";
-                return (
-                  <li key={step.id}>
-                    <button
-                      type="button"
-                      onClick={() => goToStep(step.id)}
-                      className={styles.stepItem}
-                      data-state={state}
-                      aria-current={isActive ? "step" : undefined}
-                      aria-label={`Step ${index + 1}: ${step.title}${isActive ? " (current)" : isComplete ? " (completed)" : ""}`}
-                    >
-                      <span className={styles.stepBullet} data-state={state} aria-hidden />
-                      <span className={styles.stepCopy}>
-                        <span className={styles.stepTitle}>{step.title}</span>
-                        <span className={styles.stepSubtitle}>{step.subtitle}</span>
-                      </span>
-                      <span className={styles.stepMeta} aria-hidden="true">
-                        {isComplete ? "Done" : isActive ? "Now" : "Start"}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-        </aside>
-        <div className={styles.formCol}>
-          <header className={styles.stepHero}>
-            {stepProgressLabel ? (
-              <span className={styles.stepHeroLabel}>{stepProgressLabel}</span>
-            ) : null}
-            <h1 className={styles.stepHeroTitle}>{currentStepTitle}</h1>
-            <p className={styles.stepHeroSubtitle}>{currentStepSubtitle}</p>
-          </header>
-          <div className={styles.selectedCapsuleBanner}>
-            <div>
-              <div className={styles.capsuleLabel}>Capsule</div>
-              <div className={styles.capsuleName}>{selectedCapsule.name}</div>
-            </div>
-            <Button type="button" variant="ghost" onClick={() => handleCapsuleChange(null)}>
+            <Button type="button" size="sm" variant="secondary" onClick={() => handleCapsuleChange(null)}>
               Switch capsule
             </Button>
           </div>
-          {toasts.length ? (
-            <div className={styles.toastStack} role="region" aria-live="assertive">
-              {toasts.map((toast) => (
-                <Alert key={toast.id} tone={toast.tone} className={styles.toastCard}>
-                  <button
-                    type="button"
-                    className={styles.toastDismiss}
-                    onClick={() => dismissToast(toast.id)}
-                    aria-label="Dismiss notification"
-                  >
-                    Close
-                  </button>
-                  <AlertTitle>{toast.title}</AlertTitle>
-                  {toast.description ? <AlertDescription>{toast.description}</AlertDescription> : null}
-                </Alert>
-              ))}
-            </div>
-          ) : null}
-          {autosaveText || canDiscardDraft ? (
-            <div className={styles.autosaveMeta} role="status" aria-live="polite">
-              <span>{autosaveText ?? "Draft ready"}</span>
-              {canDiscardDraft ? (
-                <button type="button" className={styles.linkButton} onClick={handleDiscardDraft}>
-                  Discard draft
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-          <div
-            ref={formContentRef}
-            className={styles.stepStack}
-            aria-live="polite"
-            role="region"
-            tabIndex={-1}
+        ) : null}
+        <div className={styles.modeTabs} role="tablist" aria-label="Creation mode">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={creationMode === "guided"}
+            className={styles.modeTab}
+            data-state={creationMode === "guided" ? "active" : "idle"}
+            onClick={() => handleCreationModeToggle("guided")}
           >
-            {renderStepContent()}
-          </div>
-          <div className={styles.stepControls} aria-label="Step controls">
-            <Button type="button" variant="ghost" onClick={handlePreviousStep} disabled={!previousStepId}>
-              Back
-            </Button>
-            {activeStep !== "review" ? (
-              <Button type="button" onClick={handleNextStep} disabled={!nextStepId}>
-                {nextStep ? `Next: ${nextStep.title}` : "Next"}
-              </Button>
-            ) : (
-              <Button type="button" onClick={createLadder} disabled={isSaving || !isOnline}>
-                {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
-              </Button>
-            )}
-          </div>
+            <span className={styles.modeTabLabel}>Guided creation</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={creationMode === "manual"}
+            className={styles.modeTab}
+            data-state={creationMode === "manual" ? "active" : "idle"}
+            onClick={() => handleCreationModeToggle("manual")}
+          >
+            <span className={styles.modeTabLabel}>Manual creation</span>
+          </button>
         </div>
-        <aside className={styles.previewCol}>
-          <div className={styles.previewShell}>
-            <div className={styles.previewHeading}>
-              <h3>Live preview</h3>
-              <p>See how capsule members will experience this ladder.</p>
-            </div>
-            {renderPreviewPanel()}
-          </div>
-        </aside>
-        </div>
+        {creationMode === "guided" ? renderGuidedExperience() : renderManualExperience()}
       </div>
     </div>
   );
