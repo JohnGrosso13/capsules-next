@@ -620,7 +620,8 @@
 
   .railPanel[data-tab="friends"],
   .railPanel[data-tab="party"],
-  .railPanel[data-tab="requests"] {
+  .railPanel[data-tab="requests"],
+  .railPanel[data-tab="assistant"] {
     overflow: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;

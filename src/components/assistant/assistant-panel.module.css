@@ -1,0 +1,195 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 6px 0 12px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text, #fff) 68%, transparent);
+  margin: 0;
+}
+
+.title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.lede {
+  margin: 0;
+  color: color-mix(in srgb, var(--text, #fff) 70%, transparent);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.refresh {
+  align-self: flex-start;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: color-mix(in srgb, var(--color-brand) 30%, transparent);
+  color: var(--text, #fff);
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    border-color 120ms ease;
+}
+
+.refresh:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+}
+
+.refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.state {
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px dashed color-mix(in srgb, var(--card-border) 85%, transparent);
+  color: color-mix(in srgb, var(--text, #fff) 70%, transparent);
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.stateError {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-danger, #f87171) 65%, transparent);
+  color: color-mix(in srgb, var(--color-danger, #f87171) 80%, var(--text, #fff) 35%);
+}
+
+.tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.taskCard {
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: color-mix(in srgb, var(--card-background, rgba(255, 255, 255, 0.04)) 90%, transparent);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.taskHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.taskTitle {
+  font-weight: 600;
+}
+
+.prompt {
+  margin: 6px 0 0;
+  color: color-mix(in srgb, var(--text, #fff) 72%, transparent);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.badge {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+
+.badge_info {
+  border-color: color-mix(in srgb, var(--color-info, #38bdf8) 75%, transparent);
+  color: color-mix(in srgb, var(--color-info, #38bdf8) 85%, var(--text, #fff) 25%);
+}
+
+.badge_success {
+  border-color: color-mix(in srgb, var(--color-success, #4ade80) 70%, transparent);
+  color: color-mix(in srgb, var(--color-success, #4ade80) 85%, var(--text, #fff) 20%);
+}
+
+.badge_warning {
+  border-color: color-mix(in srgb, var(--color-warning, #facc15) 70%, transparent);
+  color: color-mix(in srgb, var(--color-warning, #facc15) 85%, var(--text, #fff) 20%);
+}
+
+.taskMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.84rem;
+  color: color-mix(in srgb, var(--text, #fff) 70%, transparent);
+}
+
+.metric {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.2)) 85%, transparent);
+  background: color-mix(in srgb, var(--pill-background, rgba(255, 255, 255, 0.05)) 90%, transparent);
+}
+
+.metricAlert {
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 60%, transparent);
+  color: color-mix(in srgb, var(--color-brand, #6366f1) 85%, var(--text, #fff) 20%);
+}
+
+.metricWarning {
+  border-color: color-mix(in srgb, var(--color-danger, #f87171) 65%, transparent);
+  color: color-mix(in srgb, var(--color-danger, #f87171) 85%, var(--text, #fff) 25%);
+}
+
+.timestamp {
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--text, #fff) 55%, transparent);
+}
+
+.inlineError {
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--color-danger, #f87171) 80%, var(--text, #fff) 30%);
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .taskHeader {
+    flex-direction: column;
+  }
+
+  .badge {
+    align-self: flex-start;
+  }
+}

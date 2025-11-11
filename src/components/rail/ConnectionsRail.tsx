@@ -3,6 +3,7 @@
 import * as React from "react";
 import styles from "./connections-rail.module.css";
 import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
+import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { FriendsRail } from "@/components/rail/FriendsRail";
 import { RequestsList } from "@/components/friends/RequestsList";
 import { PartyPanel } from "@/components/party/PartyPanel";
@@ -19,16 +20,19 @@ import {
   type ChatSession,
 } from "@/components/providers/ChatProvider";
 import { type FriendItem } from "@/hooks/useFriendsData";
+import { useAssistantTasks } from "@/hooks/useAssistantTasks";
+import type { AssistantTaskSummary } from "@/types/assistant";
 import {
   UsersThree,
   ChatsCircle,
   Handshake,
   MicrophoneStage,
+  Sparkle,
 } from "@phosphor-icons/react/dist/ssr";
 import { usePathname, useRouter } from "next/navigation";
 import { buildProfileHref } from "@/lib/profile/routes";
 
-type RailTab = "friends" | "party" | "chats" | "requests";
+type RailTab = "friends" | "party" | "chats" | "requests" | "assistant";
 
 type ConnectionOverride = {
   description?: string;
@@ -88,10 +92,22 @@ const CONNECTION_TILE_DEFS: Array<{
     icon: <Handshake size={28} weight="duotone" className="duo" />,
     badgeIcon: <Handshake size={16} weight="fill" />,
   },
+  {
+    key: "assistant",
+    title: "Assistant",
+    icon: <Sparkle size={28} weight="duotone" className="duo" />,
+    badgeIcon: <Sparkle size={16} weight="fill" />,
+  },
 ];
 
 function isRailTab(value: unknown): value is RailTab {
-  return value === "friends" || value === "party" || value === "chats" || value === "requests";
+  return (
+    value === "friends" ||
+    value === "party" ||
+    value === "chats" ||
+    value === "requests" ||
+    value === "assistant"
+  );
 }
 
 function pluralize(word: string, count: number): string {
@@ -150,6 +166,51 @@ function formatRequestsSummary(incoming: number, outgoing: number, party: number
   return "No pending requests right now.";
 }
 
+const ACTIVE_ASSISTANT_STATUSES = new Set(["pending", "messaging", "awaiting_responses"]);
+
+function summarizeAssistantTile({
+  tasks,
+  loading,
+  error,
+}: {
+  tasks: AssistantTaskSummary[] | null;
+  loading: boolean;
+  error: string | null;
+}): { description: string; badge: number | null } {
+  if (loading && !tasks) {
+    return { description: "Checking for assistant updates...", badge: null };
+  }
+  if (error && !tasks) {
+    return { description: "Assistant is unavailable right now.", badge: null };
+  }
+  if (!tasks || tasks.length === 0) {
+    return { description: "Assistant is ready whenever you are.", badge: null };
+  }
+
+  let awaiting = 0;
+  let failed = 0;
+  let active = 0;
+  tasks.forEach((task) => {
+    awaiting += task.totals.awaitingResponses;
+    failed += task.totals.failed;
+    if (ACTIVE_ASSISTANT_STATUSES.has(task.status)) {
+      active += 1;
+    }
+  });
+
+  let description = "Assistant is all caught up.";
+  if (awaiting > 0) {
+    description = `${awaiting} ${pluralize("reply", awaiting)} needed.`;
+  } else if (active > 0) {
+    description = `${active} active ${pluralize("task", active)} running.`;
+  } else if (failed > 0) {
+    description = `${failed} ${pluralize("delivery", failed)} failed to send.`;
+  }
+
+  const badge = awaiting > 0 ? awaiting : failed > 0 ? failed : null;
+  return { description, badge };
+}
+
 function sanitizeOverrideText(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -187,6 +248,13 @@ export function ConnectionsRail() {
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
+
+  const {
+    tasks: assistantTasks,
+    loading: loadingAssistantTasks,
+    error: assistantTasksError,
+    refresh: refreshAssistantTasks,
+  } = useAssistantTasks({ pollIntervalMs: 60_000, idlePollIntervalMs: 5 * 60_000 });
 
   // Chat / group chat integration
   const {
@@ -558,6 +626,15 @@ export function ConnectionsRail() {
   );
 
   const totalPendingRequests = incomingRequests.length + partyInvites.length;
+  const assistantTileSummary = React.useMemo(
+    () =>
+      summarizeAssistantTile({
+        tasks: assistantTasks,
+        loading: loadingAssistantTasks,
+        error: assistantTasksError,
+      }),
+    [assistantTasks, loadingAssistantTasks, assistantTasksError],
+  );
   const connectionTiles = React.useMemo<ConnectionTile[]>(() => {
     const now = chatTicker || Date.now();
     const defaults = {
@@ -573,15 +650,19 @@ export function ConnectionsRail() {
         description: formatChatSummary(chatUnreadCount, lastChatTimestamp, now),
         badge: chatUnreadCount > 0 ? chatUnreadCount : null,
       },
-      requests: {
-        description: formatRequestsSummary(
-          incomingRequests.length,
-          outgoingRequests.length,
-          partyInvites.length,
-        ),
-        badge: totalPendingRequests > 0 ? totalPendingRequests : null,
-      },
-    } as const;
+        requests: {
+          description: formatRequestsSummary(
+            incomingRequests.length,
+            outgoingRequests.length,
+            partyInvites.length,
+          ),
+          badge: totalPendingRequests > 0 ? totalPendingRequests : null,
+        },
+        assistant: {
+          description: assistantTileSummary.description,
+          badge: assistantTileSummary.badge,
+        },
+      } as const;
 
     return CONNECTION_TILE_DEFS.map((def) => {
       const override = connectionOverrides[def.key];
@@ -599,19 +680,20 @@ export function ConnectionsRail() {
         badgeIcon: def.badgeIcon ?? null,
       } satisfies ConnectionTile;
     });
-  }, [
-    connectedFriends,
-    totalFriendsForSummary,
-    incomingRequests.length,
-    partyInvites.length,
-    totalPendingRequests,
-    outgoingRequests.length,
-    chatUnreadCount,
-    lastChatTimestamp,
-    connectionOverrides,
-    chatTicker,
-    partySummary,
-  ]);
+    }, [
+      connectedFriends,
+      totalFriendsForSummary,
+      incomingRequests.length,
+      partyInvites.length,
+      totalPendingRequests,
+      outgoingRequests.length,
+      chatUnreadCount,
+      lastChatTimestamp,
+      connectionOverrides,
+      chatTicker,
+      partySummary,
+      assistantTileSummary,
+    ]);
 
   const handleFriendNameClick = React.useCallback(
     (friend: FriendItem) => {
@@ -960,25 +1042,37 @@ export function ConnectionsRail() {
               onInviteToGroup={handleInviteToGroup}
             />
           </div>
-          <div
-            className={styles.railPanel}
-            hidden={activeRailTab !== "requests"}
-            data-tab="requests"
-          >
-            <RequestsList
-              incoming={incomingRequests}
-              outgoing={outgoingRequests}
-              partyInvites={partyInvites}
-              capsuleInvites={capsuleInvites}
-              onAccept={handleAccept}
-              onDecline={handleDecline}
-              onCancel={handleCancel}
-              onAcceptInvite={handleAcceptInvite}
-              onDeclineInvite={handleDeclineInvite}
-              onAcceptCapsuleInvite={handleAcceptCapsuleInvite}
-              onDeclineCapsuleInvite={handleDeclineCapsuleInvite}
-            />
-          </div>
+        <div
+          className={styles.railPanel}
+          hidden={activeRailTab !== "requests"}
+          data-tab="requests"
+        >
+          <RequestsList
+            incoming={incomingRequests}
+            outgoing={outgoingRequests}
+            partyInvites={partyInvites}
+            capsuleInvites={capsuleInvites}
+            onAccept={handleAccept}
+            onDecline={handleDecline}
+            onCancel={handleCancel}
+            onAcceptInvite={handleAcceptInvite}
+            onDeclineInvite={handleDeclineInvite}
+            onAcceptCapsuleInvite={handleAcceptCapsuleInvite}
+            onDeclineCapsuleInvite={handleDeclineCapsuleInvite}
+          />
+        </div>
+        <div
+          className={styles.railPanel}
+          hidden={activeRailTab !== "assistant"}
+          data-tab="assistant"
+        >
+          <AssistantPanel
+            tasks={assistantTasks}
+            loading={loadingAssistantTasks}
+            error={assistantTasksError}
+            onRefresh={refreshAssistantTasks}
+          />
+        </div>
           {/* Overlay for group chat create/invite */}
           <GroupChatOverlay
             open={groupFlow !== null}
