@@ -37,6 +37,8 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
     toggleMemory,
     requestFriend,
     removeFriend,
+    followUser,
+    unfollowUser,
     deletePost,
     setActiveFriendTarget,
     clearFriendMessage,
@@ -62,6 +64,10 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
       requestFriend(post.id, identifier);
     const handleFriendRemove = (post: HomeFeedPost, identifier: string) =>
       removeFriend(post.id, identifier);
+    const handleFollowUser = (post: HomeFeedPost, identifier: string) =>
+      followUser(post.id, identifier);
+    const handleUnfollowUser = (post: HomeFeedPost, identifier: string) =>
+      unfollowUser(post.id, identifier);
     const handleDelete = (postId: string) => deletePost(postId);
     const setActiveFriendTargetSafe = (next: React.SetStateAction<string | null>) => {
       const current = getState().activeFriendTarget;
@@ -78,6 +84,8 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
       handleToggleMemory,
       handleFriendRequest,
       handleFriendRemove,
+      handleFollowUser,
+      handleUnfollowUser,
       handleDelete,
       setActiveFriendTarget: setActiveFriendTargetSafe,
       clearFriendMessage,
@@ -91,6 +99,8 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
       handleToggleMemory: (post: HomeFeedPost, desired?: boolean) => Promise<boolean>;
       handleFriendRequest: (post: HomeFeedPost, identifier: string) => Promise<void>;
       handleFriendRemove: (post: HomeFeedPost, identifier: string) => Promise<void>;
+      handleFollowUser: (post: HomeFeedPost, identifier: string) => Promise<void>;
+      handleUnfollowUser: (post: HomeFeedPost, identifier: string) => Promise<void>;
       handleDelete: (postId: string) => Promise<void>;
       setActiveFriendTarget: (next: React.SetStateAction<string | null>) => void;
       clearFriendMessage: () => void;
@@ -105,6 +115,8 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
     hydrate,
     refresh,
     removeFriend,
+    followUser,
+    unfollowUser,
     requestFriend,
     setActiveFriendTarget,
     toggleLike,
@@ -220,6 +232,8 @@ function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
     handleToggleMemory: actions.handleToggleMemory,
     handleFriendRequest: actions.handleFriendRequest,
     handleFriendRemove: actions.handleFriendRemove,
+    handleFollowUser: actions.handleFollowUser,
+    handleUnfollowUser: actions.handleUnfollowUser,
     handleDelete: actions.handleDelete,
     setActiveFriendTarget: actions.setActiveFriendTarget,
     formatCount: formatFeedCount,

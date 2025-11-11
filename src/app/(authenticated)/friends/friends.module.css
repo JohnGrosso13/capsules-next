@@ -364,6 +364,16 @@
   color: var(--text);
 }
 
+.relationshipHint {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, rgba(255, 255, 255, 0.65));
+}
+
 .friendNameButton {
   background: none;
   border: none;

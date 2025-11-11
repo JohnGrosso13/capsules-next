@@ -48,10 +48,12 @@ export function HomeSignedIn({
     handleFriendRequest,
     handleDelete,
     handleFriendRemove,
-  setActiveFriendTarget,
-  formatCount,
-  timeAgo,
-  exactTime,
+    handleFollowUser,
+    handleUnfollowUser,
+    setActiveFriendTarget,
+    formatCount,
+    timeAgo,
+    exactTime,
   canRemember,
   hasFetched,
   isRefreshing,
@@ -81,6 +83,8 @@ export function HomeSignedIn({
           onFriendRequest={handleFriendRequest}
           onDelete={handleDelete}
           onRemoveFriend={handleFriendRemove}
+          onFollowUser={handleFollowUser}
+          onUnfollowUser={handleUnfollowUser}
           onToggleFriendTarget={setActiveFriendTarget}
           formatCount={formatCount}
           timeAgo={timeAgo}

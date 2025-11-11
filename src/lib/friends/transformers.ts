@@ -2,6 +2,7 @@ import type {
   FriendSummary,
   FriendRequestSummary,
   SocialGraphSnapshot,
+  FollowSummary,
 } from "@/lib/supabase/friends";
 import type { PartyInviteSummary } from "@/types/party";
 import type { CapsuleMemberRequestSummary } from "@/types/capsules";
@@ -59,6 +60,50 @@ export const FALLBACK_DISPLAY_FRIENDS: FriendItem[] = [
     status: "offline",
   },
 ];
+
+function normalizeIdentifier(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value.toString();
+  }
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function addIdentifier(target: Set<string>, value: unknown) {
+  const normalized = normalizeIdentifier(value);
+  if (normalized) {
+    target.add(normalized);
+  }
+}
+
+function buildFollowIdentifierSet(
+  summaries: FollowSummary[] | undefined,
+  mode: "following" | "followers",
+): Set<string> {
+  const identifiers = new Set<string>();
+  if (!Array.isArray(summaries)) {
+    return identifiers;
+  }
+  summaries.forEach((summary) => {
+    if (mode === "following") {
+      addIdentifier(identifiers, summary.followeeId);
+    } else {
+      addIdentifier(identifiers, summary.followerId);
+    }
+    addIdentifier(identifiers, summary.user?.id);
+    addIdentifier(identifiers, summary.user?.key);
+  });
+  return identifiers;
+}
+
+function buildFriendIdentifierSet(friend: FriendItem): Set<string> {
+  const identifiers = new Set<string>();
+  addIdentifier(identifiers, friend.userId);
+  addIdentifier(identifiers, friend.key);
+  addIdentifier(identifiers, friend.id);
+  return identifiers;
+}
 
 export function mapFriendSummaries(
   summaries: FriendSummary[] | undefined,
@@ -177,5 +222,24 @@ export function applyPresenceToSummaries(
   presence: PresenceMap,
 ): FriendItem[] {
   const friends = mapFriendSummaries(graph?.friends ?? [], presence);
-  return friends.length > 0 ? friends : FALLBACK_DISPLAY_FRIENDS;
+  if (!friends.length) {
+    return FALLBACK_DISPLAY_FRIENDS;
+  }
+  const followingIds = buildFollowIdentifierSet(graph?.following, "following");
+  const followerIds = buildFollowIdentifierSet(graph?.followers, "followers");
+  return friends.map((friend) => {
+    const identifiers = buildFriendIdentifierSet(friend);
+    const isFollowing = Array.from(identifiers).some((id) => followingIds.has(id));
+    const isFollower = Array.from(identifiers).some((id) => followerIds.has(id));
+    return {
+      ...friend,
+      followState:
+        isFollowing || isFollower
+          ? {
+              isFollowing,
+              isFollower,
+            }
+          : null,
+    };
+  });
 }

@@ -103,6 +103,10 @@ export function FriendsClient() {
     declinePartyInvite,
     acceptCapsuleInvite,
     declineCapsuleInvite,
+    followFriend,
+    unfollowFriend,
+    followingIds,
+    followerIds,
   } = useFriendsDataContext();
   const {
     startChat: startChatSession,
@@ -125,6 +129,43 @@ export function FriendsClient() {
   const searchParams = useSearchParams();
   const focusParam = searchParams.get("focus");
   const lastFocusRef = React.useRef<string | null>(null);
+
+  const normalizeIdentifiers = React.useCallback((friend: FriendItem) => {
+    const ids = new Set<string>();
+    const add = (value: unknown) => {
+      if (typeof value !== "string") return;
+      const trimmed = value.trim();
+      if (trimmed.length) {
+        ids.add(trimmed);
+      }
+    };
+    add(friend.userId);
+    add(friend.key);
+    add(typeof friend.id === "string" ? friend.id : String(friend.id));
+    return ids;
+  }, []);
+
+  const isFollowingFriend = React.useCallback(
+    (friend: FriendItem) => {
+      const identifiers = normalizeIdentifiers(friend);
+      for (const id of identifiers) {
+        if (followingIds.has(id)) return true;
+      }
+      return false;
+    },
+    [followingIds, normalizeIdentifiers],
+  );
+
+  const isFollowerFriend = React.useCallback(
+    (friend: FriendItem) => {
+      const identifiers = normalizeIdentifiers(friend);
+      for (const id of identifiers) {
+        if (followerIds.has(id)) return true;
+      }
+      return false;
+    },
+    [followerIds, normalizeIdentifiers],
+  );
 
   React.useEffect(() => {
     if (!notice) return;
@@ -310,6 +351,37 @@ export function FriendsClient() {
       }
     },
     [setError],
+  );
+
+  const resolveFriendLabel = React.useCallback((friend: FriendItem) => {
+    const name = friend.name?.trim();
+    return name && name.length ? name : "this member";
+  }, []);
+
+  const handleFollowFriend = React.useCallback(
+    async (friend: FriendItem, identifier: string) => {
+      const label = resolveFriendLabel(friend);
+      await withPendingAction(
+        friend,
+        identifier,
+        () => followFriend(friend),
+        `Now following ${label}.`,
+      );
+    },
+    [followFriend, resolveFriendLabel, withPendingAction],
+  );
+
+  const handleUnfollowFriend = React.useCallback(
+    async (friend: FriendItem, identifier: string) => {
+      const label = resolveFriendLabel(friend);
+      await withPendingAction(
+        friend,
+        identifier,
+        () => unfollowFriend(friend),
+        `Unfollowed ${label}.`,
+      );
+    },
+    [resolveFriendLabel, unfollowFriend, withPendingAction],
   );
 
   const handleRemove = React.useCallback(
@@ -582,6 +654,14 @@ export function FriendsClient() {
             }}
             onView={(friend) => handleView(friend)}
             onStartChat={(friend) => handleStartChat(friend)}
+            onFollow={(friend, identifier) => {
+              void handleFollowFriend(friend, identifier);
+            }}
+            onUnfollow={(friend, identifier) => {
+              void handleUnfollowFriend(friend, identifier);
+            }}
+            isFollowing={isFollowingFriend}
+            isFollower={isFollowerFriend}
           />
         </div>
 

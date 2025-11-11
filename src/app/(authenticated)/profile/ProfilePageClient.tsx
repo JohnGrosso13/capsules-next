@@ -3,6 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import {
+  Eye,
+  EyeSlash,
+  LockSimple,
   PaperPlaneTilt,
   ShareNetwork,
   Sparkle,
@@ -27,6 +30,8 @@ type ProfilePageClientProps = {
   data: ProfilePageData;
   canonicalPath: string | null;
 };
+
+type StatsVisibility = ProfilePageData["privacy"]["statsVisibility"];
 
 export function ProfilePageClient({ data, canonicalPath }: ProfilePageClientProps) {
   const [activeTab, setActiveTab] = React.useState("overview");
@@ -118,7 +123,7 @@ export function ProfilePageClient({ data, canonicalPath }: ProfilePageClientProp
             </TabsContent>
 
             <TabsContent value="stats" className={styles.tabPanel}>
-              <StatsTab stats={data.stats} />
+              <StatsTab data={data} />
             </TabsContent>
 
             <TabsContent value="store" className={styles.tabPanel}>
@@ -638,7 +643,7 @@ function EventsTab({ events }: { events: ProfileEvent[] }) {
               </div>
               <div className="text-sm text-white/80">
                 <div>
-                  {event.stats.wins ?? 0}W A� {event.stats.losses ?? 0}L
+                  {event.stats.wins ?? 0}W A? {event.stats.losses ?? 0}L
                 </div>
                 <div className="text-xs text-white/60">
                   {event.startedAt ? new Date(event.startedAt).toLocaleDateString() : "Pending"}
@@ -656,24 +661,282 @@ function EventsTab({ events }: { events: ProfileEvent[] }) {
   );
 }
 
-function StatsTab({ stats }: { stats: ProfilePageData["stats"] }) {
+function StatsTab({ data }: { data: ProfilePageData }) {
+  const summaryMetrics = [
+    { label: "Followers", value: data.stats.followers },
+    { label: "Following", value: data.stats.following },
+    { label: "Owned spaces", value: data.stats.spacesOwned },
+  ];
+
+  const joinedAtDate =
+    typeof data.user.joinedAt === "string" ? new Date(data.user.joinedAt) : null;
+  const joinedValid = joinedAtDate && !Number.isNaN(joinedAtDate.getTime());
+  const membershipDays = joinedValid
+    ? Math.max(1, Math.floor((Date.now() - joinedAtDate.getTime()) / 86_400_000))
+    : null;
+  const joinedDisplay = joinedValid
+    ? joinedAtDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    : "?";
+
+  const activityStats = [
+    {
+      label: "Posts highlighted",
+      value: data.posts.recent.length + data.posts.top.length,
+    },
+    { label: "Clips saved", value: data.clips.length },
+    { label: "Events tracked", value: data.events.length },
+  ];
+
+  const spacePreview = data.spaces.slice(0, 3);
+  const viewerOwnsProfile = data.viewer.isSelf;
+  const [statsVisibility, setStatsVisibility] = React.useState<StatsVisibility>(
+    data.privacy.statsVisibility,
+  );
+  const [privacyPending, setPrivacyPending] = React.useState(false);
+  const [privacyFeedback, setPrivacyFeedback] = React.useState<string | null>(null);
+  const requestRef = React.useRef<AbortController | null>(null);
+  const mountedRef = React.useRef(true);
+
+  React.useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (requestRef.current) {
+        requestRef.current.abort();
+        requestRef.current = null;
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    setStatsVisibility(data.privacy.statsVisibility);
+  }, [data.privacy.statsVisibility]);
+
+  const effectiveVisibility = viewerOwnsProfile ? statsVisibility : data.privacy.statsVisibility;
+  const statsHiddenForViewer = effectiveVisibility === "private" && !viewerOwnsProfile;
+
+  const handleVisibilityChange = React.useCallback(
+    async (next: StatsVisibility) => {
+      if (!viewerOwnsProfile) return;
+      if (next === statsVisibility) return;
+      if (requestRef.current) {
+        requestRef.current.abort();
+      }
+      const controller = new AbortController();
+      requestRef.current = controller;
+      setPrivacyPending(true);
+      setPrivacyFeedback(null);
+      try {
+        const response = await fetch("/api/account/profile/privacy", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ statsVisibility: next }),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          throw new Error(text || "Unable to update stats privacy.");
+        }
+        const payload = (await response.json().catch(() => ({}))) as {
+          statsVisibility?: StatsVisibility;
+        };
+        if (!mountedRef.current) return;
+        const resolved: StatsVisibility =
+          payload?.statsVisibility === "private" ? "private" : "public";
+        setStatsVisibility(resolved);
+        setPrivacyFeedback(
+          resolved === "private"
+            ? "Stats hidden from other members."
+            : "Stats are visible to everyone.",
+        );
+      } catch (error) {
+        if (controller.signal.aborted || !mountedRef.current) return;
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : "Unable to update stats privacy.";
+        setPrivacyFeedback(message);
+      } finally {
+        if (requestRef.current === controller) {
+          requestRef.current = null;
+        }
+        if (!controller.signal.aborted && mountedRef.current) {
+          setPrivacyPending(false);
+        }
+      }
+    },
+    [viewerOwnsProfile, statsVisibility],
+  );
+
   return (
-    <div className={styles.statPanel}>
-      <Stat label="Followers" value={stats.followers} />
-      <Stat label="Following" value={stats.following} />
-      <Stat label="Owned spaces" value={stats.spacesOwned} />
+    <div className={styles.statsGrid}>
+      {viewerOwnsProfile ? (
+        <StatsPrivacyControls
+          visibility={statsVisibility}
+          pending={privacyPending}
+          feedback={privacyFeedback}
+          onChange={handleVisibilityChange}
+        />
+      ) : null}
+
+      {statsHiddenForViewer ? (
+        <div className={styles.statsPrivacyNotice}>
+          <span className={styles.statsPrivacyNoticeIcon} aria-hidden>
+            <LockSimple size={24} weight="duotone" />
+          </span>
+          <div>
+            <h4>Stats are private</h4>
+            <p>
+              {data.user.name?.trim().length ? data.user.name : "This member"} hides their stats
+              from other viewers.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className={styles.statPanel}>
+            {summaryMetrics.map((metric) => (
+              <Stat key={metric.label} label={metric.label} value={metric.value} />
+            ))}
+          </div>
+
+          <div className={styles.statInfoGrid}>
+            <section className={styles.statInfoCard}>
+              <h4>Membership</h4>
+              <dl>
+                <div>
+                  <dt>Member since</dt>
+                  <dd>{joinedDisplay}</dd>
+                </div>
+                <div>
+                  <dt>Days on Capsules</dt>
+                  <dd>{membershipDays ? membershipDays.toLocaleString() : "--"}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className={styles.statInfoCard}>
+              <h4>Activity pulse</h4>
+              <dl>
+                {activityStats.map((item) => (
+                  <div key={item.label}>
+                    <dt>{item.label}</dt>
+                    <dd>{item.value.toLocaleString()}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+
+            <section className={styles.statInfoCard}>
+              <h4>Owned spaces</h4>
+              {spacePreview.length ? (
+                <ul className={styles.statSpaceList}>
+                  {spacePreview.map((space) => (
+                    <li key={space.id}>
+                      <span>{space.name}</span>
+                      <small>{space.slug ? `capsules.app/${space.slug}` : "Private space"}</small>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={styles.statDescription}>No published spaces yet.</p>
+              )}
+            </section>
+          </div>
+
+          {viewerOwnsProfile && statsVisibility === "private" ? (
+            <p className={styles.statsPrivacyHint}>Only you can see these metrics.</p>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
 
-function StoreTab({ store }: { store: CapsuleSummary | null }) {
+type StatsPrivacyControlsProps = {
+  visibility: StatsVisibility;
+  pending: boolean;
+  feedback: string | null;
+  onChange: (value: StatsVisibility) => void;
+};
+
+function StatsPrivacyControls({
+  visibility,
+  pending,
+  feedback,
+  onChange,
+}: StatsPrivacyControlsProps) {
+  const options: Array<{
+    value: StatsVisibility;
+    label: string;
+    description: string;
+    icon: React.ReactNode;
+  }> = [
+    {
+      value: "public",
+      label: "Public",
+      description: "Everyone on Capsules can view this stats grid.",
+      icon: <Eye size={18} weight="duotone" />,
+    },
+    {
+      value: "private",
+      label: "Private",
+      description: "Only you can view these metrics.",
+      icon: <EyeSlash size={18} weight="duotone" />,
+    },
+  ];
+
+  return (
+    <section className={styles.statsPrivacyShell}>
+      <div className={styles.statsPrivacyHeader}>
+        <div>
+          <h4>Stats visibility</h4>
+          <p>Control who can view your follower counts and activity grid.</p>
+        </div>
+      </div>
+      <div
+        className={styles.statsPrivacyToggleGroup}
+        role="radiogroup"
+        aria-label="Profile stats visibility"
+      >
+        {options.map((option) => {
+          const active = visibility === option.value;
+          const disabled = pending || active;
+          return (
+            <button
+              type="button"
+              key={option.value}
+              className={`${styles.statsPrivacyToggle} ${
+                active ? styles.statsPrivacyToggleActive : ""
+              }`.trim()}
+              aria-pressed={active}
+              onClick={() => onChange(option.value)}
+              disabled={disabled}
+            >
+              <span className={styles.statsPrivacyIcon} aria-hidden>
+                {option.icon}
+              </span>
+              <span className={styles.statsPrivacyCopy}>
+                <strong>{option.label}</strong>
+                <small>{option.description}</small>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {feedback ? <p className={styles.statsPrivacyStatus}>{feedback}</p> : null}
+    </section>
+  );
+}function StoreTab({ store }: { store: CapsuleSummary | null }) {
   return (
     <div className={styles.glassCard}>
       <div className={styles.cardHeader}>
         <h3 className={styles.cardTitle}>Featured store</h3>
         {store ? (
           <Button variant="primary" size="sm" asChild>
-            <Link href={`/capsule?capsuleId=${store.id}`}>Visit store</Link>
+            <Link href={`/capsule?capsuleId=${encodeURIComponent(store.id)}&tab=store`}>
+              Visit store
+            </Link>
           </Button>
         ) : null}
       </div>
@@ -704,4 +967,8 @@ function StoreTab({ store }: { store: CapsuleSummary | null }) {
 }
 
 export default ProfilePageClient;
+
+
+
+
 

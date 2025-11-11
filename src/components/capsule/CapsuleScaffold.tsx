@@ -419,11 +419,20 @@ export function CapsuleContent({
     };
   }, [capsuleNameProp, capsuleName]);
 
-  const handleSelect = (next: CapsuleTab) => {
+  const handleSelect = React.useCallback((next: CapsuleTab) => {
     setTab(next);
     const ev = new CustomEvent("capsule:tab", { detail: { tab: next } });
     window.dispatchEvent(ev);
-  };
+  }, []);
+
+  const routedTab = useSearchParams()?.get("tab") ?? null;
+  React.useEffect(() => {
+    if (!routedTab) return;
+    const normalized = routedTab.toLowerCase();
+    if (normalized !== "feed" && normalized !== "live" && normalized !== "store") return;
+    if (normalized === tab) return;
+    handleSelect(normalized as CapsuleTab);
+  }, [handleSelect, routedTab, tab]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1563,6 +1572,8 @@ function CapsuleFeed({
     handleFriendRequest,
     handleDelete,
     handleFriendRemove,
+    handleFollowUser,
+    handleUnfollowUser,
     setActiveFriendTarget,
     formatCount,
     timeAgo,
@@ -1596,6 +1607,8 @@ function CapsuleFeed({
         onFriendRequest={handleFriendRequest}
         onDelete={handleDelete}
         onRemoveFriend={handleFriendRemove}
+        onFollowUser={handleFollowUser}
+        onUnfollowUser={handleUnfollowUser}
         onToggleFriendTarget={setActiveFriendTarget}
         formatCount={formatCount}
         timeAgo={timeAgo}

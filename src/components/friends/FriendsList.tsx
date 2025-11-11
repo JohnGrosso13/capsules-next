@@ -17,6 +17,10 @@ type FriendsListProps = {
   onView?: (item: FriendItem) => void;
   onStartChat?: (item: FriendItem, identifier: string) => void;
   highlightId?: string | null;
+  onFollow?: (item: FriendItem, identifier: string) => void;
+  onUnfollow?: (item: FriendItem, identifier: string) => void;
+  isFollowing?: (item: FriendItem) => boolean;
+  isFollower?: (item: FriendItem) => boolean;
 };
 
 export function FriendsList({
@@ -28,6 +32,10 @@ export function FriendsList({
   onView,
   onStartChat,
   highlightId,
+  onFollow,
+  onUnfollow,
+  isFollowing,
+  isFollower,
 }: FriendsListProps) {
   if (!items.length) {
     return <div className={styles.empty}>No friends yet. Invite your circle to get started.</div>;
@@ -43,6 +51,27 @@ export function FriendsList({
         const isAssistant = friend.userId === ASSISTANT_USER_ID;
         const canTarget = Boolean(friend.userId || friend.key || friend.id);
         const isHighlighted = highlightId ? highlightId === identifier : false;
+        const following = isFollowing ? isFollowing(friend) : undefined;
+        const follower = isFollower ? isFollower(friend) : false;
+        const relationshipHint =
+          follower && following
+            ? "Following each other"
+            : follower
+              ? "Follows you"
+              : following
+                ? "You follow"
+                : null;
+
+        const followMenuProps =
+          typeof following === "boolean"
+            ? {
+                isFollowing: following,
+                onFollow:
+                  !isAssistant && onFollow ? () => onFollow(friend, identifier) : null,
+                onUnfollow:
+                  !isAssistant && onUnfollow ? () => onUnfollow(friend, identifier) : null,
+              }
+            : {};
 
         return (
           <FriendRow
@@ -53,6 +82,7 @@ export function FriendsList({
             status={friend.status}
             className={isHighlighted ? styles.friendHighlight ?? "" : ""}
             friendIdAttr={identifier}
+            relationshipHint={relationshipHint}
             actions={
               <FriendMenu
                 canTarget={canTarget}
@@ -66,6 +96,7 @@ export function FriendsList({
                 }
                 onView={onView ? () => onView(friend) : null}
                 onStartChat={onStartChat ? () => onStartChat(friend, identifier) : null}
+                {...followMenuProps}
               />
             }
           />

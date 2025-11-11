@@ -7,9 +7,7 @@ import { buildRealtimeEnvelope } from "@/lib/realtime/envelope";
 import { requestRealtimeToken } from "@/lib/realtime/token";
 import { useFriendsRealtime } from "@/hooks/useFriendsRealtime";
 import { useFriendsActions, useFriendsSelector } from "@/lib/friends/store";
-import {
-  FALLBACK_DISPLAY_FRIENDS,
-} from "@/lib/friends/transformers";
+import { FALLBACK_DISPLAY_FRIENDS } from "@/lib/friends/transformers";
 import type { FriendItem } from "@/lib/friends/types";
 import { buildFriendTargetPayload } from "@/lib/friends/targets";
 
@@ -32,6 +30,7 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
   const lastUpdatedAt = useFriendsSelector((snapshot) => snapshot.lastUpdatedAt);
   const channels = useFriendsSelector((snapshot) => snapshot.channels);
   const friendsState = useFriendsSelector((snapshot) => snapshot.friends);
+  const graph = useFriendsSelector((snapshot) => snapshot.graph);
   const hasRealFriends = useFriendsSelector((snapshot) => snapshot.hasRealFriends);
   const incomingRequests = useFriendsSelector((snapshot) => snapshot.incomingRequests);
   const outgoingRequests = useFriendsSelector((snapshot) => snapshot.outgoingRequests);
@@ -78,6 +77,36 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     return friendsState;
   }, [friendsState]);
 
+  const addIdentifier = React.useCallback((set: Set<string>, value: unknown) => {
+    if (typeof value !== "string") return;
+    const trimmed = value.trim();
+    if (trimmed.length) {
+      set.add(trimmed);
+    }
+  }, []);
+
+  const followingIds = React.useMemo(() => {
+    if (!graph?.following) return new Set<string>();
+    const identifiers = new Set<string>();
+    for (const follow of graph.following) {
+      addIdentifier(identifiers, follow.followeeId);
+      addIdentifier(identifiers, follow.user?.id ?? null);
+      addIdentifier(identifiers, follow.user?.key ?? null);
+    }
+    return identifiers;
+  }, [graph?.following, addIdentifier]);
+
+  const followerIds = React.useMemo(() => {
+    if (!graph?.followers) return new Set<string>();
+    const identifiers = new Set<string>();
+    for (const follow of graph.followers) {
+      addIdentifier(identifiers, follow.followerId);
+      addIdentifier(identifiers, follow.user?.id ?? null);
+      addIdentifier(identifiers, follow.user?.key ?? null);
+    }
+    return identifiers;
+  }, [graph?.followers, addIdentifier]);
+
   const removeFriend = React.useCallback(
     async (friend: FriendItem) => {
       const target = buildFriendTargetPayload({
@@ -108,6 +137,40 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
         throw new Error("Unable to resolve friend target");
       }
       await actions.performTargetedMutation("block", target);
+    },
+    [actions],
+  );
+
+  const followFriend = React.useCallback(
+    async (friend: FriendItem) => {
+      const target = buildFriendTargetPayload({
+        userId: friend.userId,
+        key: friend.key,
+        id: friend.id,
+        name: friend.name,
+        avatar: friend.avatar ?? null,
+      });
+      if (!target) {
+        throw new Error("Unable to resolve follow target");
+      }
+      await actions.performTargetedMutation("follow", target);
+    },
+    [actions],
+  );
+
+  const unfollowFriend = React.useCallback(
+    async (friend: FriendItem) => {
+      const target = buildFriendTargetPayload({
+        userId: friend.userId,
+        key: friend.key,
+        id: friend.id,
+        name: friend.name,
+        avatar: friend.avatar ?? null,
+      });
+      if (!target) {
+        throw new Error("Unable to resolve follow target");
+      }
+      await actions.performTargetedMutation("unfollow", target);
     },
     [actions],
   );
@@ -188,5 +251,9 @@ export function useFriendsData(options: UseFriendsDataOptions = {}) {
     acceptCapsuleInvite,
     declineCapsuleInvite,
     viewerId,
+    followingIds,
+    followerIds,
+    followFriend,
+    unfollowFriend,
   } as const;
 }

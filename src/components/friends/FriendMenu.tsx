@@ -13,6 +13,9 @@ type FriendMenuProps = {
   onBlock?: (() => void) | null;
   onView?: (() => void) | null;
   onStartChat?: (() => void) | null;
+  isFollowing?: boolean;
+  onFollow?: (() => void) | null;
+  onUnfollow?: (() => void) | null;
 };
 
 export function FriendMenu({
@@ -23,6 +26,9 @@ export function FriendMenu({
   onBlock,
   onView,
   onStartChat,
+  isFollowing,
+  onFollow,
+  onUnfollow,
 }: FriendMenuProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -77,6 +83,13 @@ export function FriendMenu({
 
   const disableActions = !canTarget || Boolean(pending);
   const hideDestructive = immutable === true;
+  const followHandlers =
+    typeof isFollowing === "boolean"
+      ? isFollowing
+        ? { handler: onUnfollow ?? null, label: "Unfollow" }
+        : { handler: onFollow ?? null, label: "Follow" }
+      : null;
+  const followDisabled = disableActions || !followHandlers?.handler;
 
   const handleAction = React.useCallback(
     (fn?: (() => void) | null) => {
@@ -126,11 +139,22 @@ export function FriendMenu({
                 role="menuitem"
                 onClick={() => handleAction(onView ?? null)}
                 disabled={disableActions}
-              >
-                View profile
-              </button>
-              <button
-                type="button"
+            >
+              View profile
+            </button>
+              {followHandlers ? (
+                <button
+                  type="button"
+                  className={styles.friendMenuItem}
+                  role="menuitem"
+                  onClick={() => handleAction(followHandlers.handler)}
+                  disabled={followDisabled}
+                >
+                  {followHandlers.label}
+                </button>
+              ) : null}
+            <button
+              type="button"
                 className={styles.friendMenuItem}
                 role="menuitem"
                 onClick={() => handleAction(onStartChat ?? null)}

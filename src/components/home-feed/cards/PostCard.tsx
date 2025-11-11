@@ -36,6 +36,9 @@ type FriendMenuConfig = {
   onToggle(open: boolean): void;
   onRequest(): void;
   onRemove(): void;
+  followState?: "following" | "not_following";
+  onFollow?: (() => void) | null;
+  onUnfollow?: (() => void) | null;
 };
 
 type PostCardProps = {
@@ -297,6 +300,13 @@ export function PostCard({
             onOpenChange={(next) => friendMenu.onToggle(next)}
             onAddFriend={friendMenu.onRequest}
             onRemoveFriend={friendMenu.onRemove}
+            {...(friendMenu.followState
+              ? {
+                  followState: friendMenu.followState,
+                  onFollow: friendMenu.onFollow ?? null,
+                  onUnfollow: friendMenu.onUnfollow ?? null,
+                }
+              : {})}
             renderTrigger={({ ref, toggle, open, pending }) => (
               <button
                 type="button"

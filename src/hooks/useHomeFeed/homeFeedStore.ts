@@ -35,6 +35,8 @@ type HomeFeedStoreActions = {
   toggleMemory: (postId: string, options: ToggleMemoryOptions) => Promise<boolean>;
   requestFriend: (postId: string, identifier: string) => Promise<void>;
   removeFriend: (postId: string, identifier: string) => Promise<void>;
+  followUser: (postId: string, identifier: string) => Promise<void>;
+  unfollowUser: (postId: string, identifier: string) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   setActiveFriendTarget: (identifier: string | null) => void;
   clearFriendMessage: () => void;
@@ -444,7 +446,7 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
   async function performFriendAction(
     postId: string,
     identifier: string,
-    action: "request" | "remove",
+    action: "request" | "remove" | "follow" | "unfollow",
   ): Promise<void> {
     const current = state.posts.find((post) => post.id === postId);
     if (!current) {
@@ -455,7 +457,11 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
       const message =
         action === "request"
           ? "That profile isn't ready for requests yet."
-          : "That profile isn't ready for removal yet.";
+          : action === "remove"
+            ? "That profile isn't ready for removal yet."
+            : action === "follow"
+              ? "That profile isn't ready for follows yet."
+              : "That profile isn't ready for unfollows yet.";
       setState({ friendMessage: message });
       return;
     }
@@ -467,7 +473,11 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
       const fallbackMessage =
         action === "request"
           ? `Friend request sent to ${current.user_name || "this member"}.`
-          : `${current.user_name || "Friend"} removed.`;
+          : action === "remove"
+            ? `${current.user_name || "Friend"} removed.`
+            : action === "follow"
+              ? `Now following ${current.user_name || "this member"}.`
+              : `Unfollowed ${current.user_name || "this member"}.`;
       const message =
         typeof result.message === "string" && result.message.trim().length > 0
           ? result.message
@@ -485,7 +495,11 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
       const fallbackMessage =
         action === "request"
           ? "Couldn't send that friend request."
-          : "Couldn't remove that friend.";
+          : action === "remove"
+            ? "Couldn't remove that friend."
+            : action === "follow"
+              ? "Couldn't follow that member."
+              : "Couldn't unfollow that member.";
       const message = error instanceof Error && error.message ? error.message : fallbackMessage;
       setState({ friendMessage: message });
     } finally {
@@ -524,6 +538,8 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
       toggleMemory,
       requestFriend: (postId, identifier) => performFriendAction(postId, identifier, "request"),
       removeFriend: (postId, identifier) => performFriendAction(postId, identifier, "remove"),
+      followUser: (postId, identifier) => performFriendAction(postId, identifier, "follow"),
+      unfollowUser: (postId, identifier) => performFriendAction(postId, identifier, "unfollow"),
       deletePost,
       setActiveFriendTarget,
       clearFriendMessage,

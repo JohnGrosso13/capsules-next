@@ -14,6 +14,10 @@ export type FriendsRailProps = {
   onNameClick: (friend: FriendItem) => void;
   onDelete: (friend: FriendItem, identifier: string) => Promise<void> | void;
   onStartChat?: (friend: FriendItem, identifier: string) => void;
+  onFollow?: (friend: FriendItem, identifier: string) => Promise<void> | void;
+  onUnfollow?: (friend: FriendItem, identifier: string) => Promise<void> | void;
+  isFollowing?: (friend: FriendItem) => boolean;
+  isFollower?: (friend: FriendItem) => boolean;
 };
 
 export function FriendsRail({
@@ -23,6 +27,10 @@ export function FriendsRail({
   onNameClick,
   onDelete,
   onStartChat,
+  onFollow,
+  onUnfollow,
+  isFollowing,
+  isFollower,
 }: FriendsRailProps) {
   return (
     <div className={`${friendsStyles.list}`.trim()}>
@@ -33,6 +41,25 @@ export function FriendsRail({
         const canTarget = Boolean(friend.userId || friend.key || friend.id);
         const isOpen = activeTarget === identifier;
         const isPending = pendingId === identifier;
+        const following = isFollowing ? isFollowing(friend) : undefined;
+        const follower = isFollower ? isFollower(friend) : false;
+        const relationshipHint =
+          follower && following
+            ? "Following each other"
+            : follower
+              ? "Follows you"
+              : following
+                ? "You follow"
+                : null;
+        const followMenuProps =
+          typeof following === "boolean"
+            ? {
+                isFollowing: following,
+                onFollow: onFollow ? () => onFollow(friend, identifier) : null,
+                onUnfollow: onUnfollow ? () => onUnfollow(friend, identifier) : null,
+              }
+            : {};
+
         return (
           <FriendRow
             key={listKey}
@@ -42,6 +69,7 @@ export function FriendsRail({
             status={friend.status}
             open={isOpen}
             onNameClick={() => onNameClick(friend)}
+            relationshipHint={relationshipHint}
             actions={
               <FriendMenu
                 canTarget={canTarget}
@@ -50,6 +78,7 @@ export function FriendsRail({
                   void onDelete(friend, identifier);
                 }}
                 onStartChat={onStartChat ? () => onStartChat(friend, identifier) : null}
+                {...followMenuProps}
               />
             }
           />

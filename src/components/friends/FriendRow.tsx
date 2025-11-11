@@ -16,6 +16,7 @@ type FriendRowProps = {
   actions?: React.ReactNode;
   className?: string;
   friendIdAttr?: string | null;
+  relationshipHint?: string | null;
 };
 
 function formatSince(value?: string | null): string | null {
@@ -49,6 +50,7 @@ export function FriendRow({
   actions,
   className,
   friendIdAttr,
+  relationshipHint,
 }: FriendRowProps) {
   const sinceLabel = formatSince(since);
   const presenceLabel = getPresenceLabel(status);
@@ -98,6 +100,9 @@ export function FriendRow({
           ) : (
             <span className={styles.friendName}>{name}</span>
           )}
+          {relationshipHint ? (
+            <span className={styles.relationshipHint}>{relationshipHint}</span>
+          ) : null}
           <div className={styles.friendMetaRow}>
             {sinceLabel ? <span className={styles.friendSince}>Since {sinceLabel}</span> : null}
             <span

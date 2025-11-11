@@ -21,6 +21,9 @@ type PostMenuProps = {
   onStartChat?: () => void;
   onBlock?: () => void;
   onRemoveFriend?: () => void | Promise<void>;
+  followState?: "following" | "not_following";
+  onFollow?: (() => void) | null;
+  onUnfollow?: (() => void) | null;
   renderTrigger?: (props: TriggerRenderProps) => React.ReactNode;
 };
 
@@ -33,6 +36,9 @@ export function PostMenu({
   onStartChat,
   onBlock,
   onRemoveFriend,
+  followState,
+  onFollow,
+  onUnfollow,
   renderTrigger,
 }: PostMenuProps) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -90,6 +96,13 @@ export function PostMenu({
   }, [open, closeMenu, updateCoords]);
 
   const disableActions = !canTarget || pending;
+  const followHandlers =
+    followState === "following"
+      ? { handler: onUnfollow ?? null, label: "Unfollow member" }
+      : followState === "not_following"
+        ? { handler: onFollow ?? null, label: "Follow member" }
+        : null;
+  const followDisabled = disableActions || !followHandlers?.handler;
 
   const invokeAndClose = React.useCallback(
     (fn?: (() => void | Promise<void>) | null) => {
@@ -148,6 +161,17 @@ export function PostMenu({
                 zIndex: 1400,
               }}
             >
+              {followHandlers ? (
+                <button
+                  type="button"
+                  className={styles.friendMenuItem}
+                  role="menuitem"
+                  onClick={() => invokeAndClose(followHandlers.handler)}
+                  disabled={followDisabled}
+                >
+                  {followHandlers.label}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={styles.friendMenuItem}

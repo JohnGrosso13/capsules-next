@@ -179,6 +179,10 @@ export function ConnectionsRail() {
     declinePartyInvite,
     acceptCapsuleInvite,
     declineCapsuleInvite,
+    followFriend,
+    unfollowFriend,
+    followingIds,
+    followerIds,
   } = useFriendsDataContext();
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
@@ -331,6 +335,47 @@ export function ConnectionsRail() {
     if (!inviteSession) return undefined;
     return `Add people to ${inviteSession.title}`;
   }, [inviteSession]);
+
+  const normalizeFriendIdentifiers = React.useCallback((friend: FriendItem) => {
+    const ids = new Set<string>();
+    const add = (value: unknown) => {
+      if (typeof value !== "string") return;
+      const trimmed = value.trim();
+      if (trimmed.length) {
+        ids.add(trimmed);
+      }
+    };
+    add(friend.userId);
+    add(friend.key);
+    add(typeof friend.id === "string" ? friend.id : String(friend.id));
+    return ids;
+  }, []);
+
+  const isFollowingFriend = React.useCallback(
+    (friend: FriendItem) => {
+      const identifiers = normalizeFriendIdentifiers(friend);
+      for (const id of identifiers) {
+        if (followingIds.has(id)) {
+          return true;
+        }
+      }
+      return false;
+    },
+    [followingIds, normalizeFriendIdentifiers],
+  );
+
+  const isFollowerFriend = React.useCallback(
+    (friend: FriendItem) => {
+      const identifiers = normalizeFriendIdentifiers(friend);
+      for (const id of identifiers) {
+        if (followerIds.has(id)) {
+          return true;
+        }
+      }
+      return false;
+    },
+    [followerIds, normalizeFriendIdentifiers],
+  );
 
   const [activeFriendTarget, setActiveFriendTarget] = React.useState<string | null>(null);
   const [friendActionPendingId, setFriendActionPendingId] = React.useState<string | null>(null);
@@ -591,6 +636,34 @@ export function ConnectionsRail() {
       }
     },
     [removeFriend],
+  );
+
+  const handleFollowFriend = React.useCallback(
+    async (friend: FriendItem, identifier: string) => {
+      setFriendActionPendingId(identifier);
+      try {
+        await followFriend(friend);
+      } catch (error) {
+        console.error("Friend follow error", error);
+      } finally {
+        setFriendActionPendingId((prev) => (prev === identifier ? null : prev));
+      }
+    },
+    [followFriend],
+  );
+
+  const handleUnfollowFriend = React.useCallback(
+    async (friend: FriendItem, identifier: string) => {
+      setFriendActionPendingId(identifier);
+      try {
+        await unfollowFriend(friend);
+      } catch (error) {
+        console.error("Friend unfollow error", error);
+      } finally {
+        setFriendActionPendingId((prev) => (prev === identifier ? null : prev));
+      }
+    },
+    [unfollowFriend],
   );
 
   const handleStartChat = React.useCallback(
@@ -854,6 +927,14 @@ export function ConnectionsRail() {
               onStartChat={(friend) => {
                 handleStartChat(friend);
               }}
+              onFollow={(friend, identifier) => {
+                void handleFollowFriend(friend, identifier);
+              }}
+              onUnfollow={(friend, identifier) => {
+                void handleUnfollowFriend(friend, identifier);
+              }}
+              isFollowing={isFollowingFriend}
+              isFollower={isFollowerFriend}
             />
           </div>
           <div

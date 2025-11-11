@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 
@@ -101,6 +101,8 @@ type HomeFeedListProps = {
   onToggleMemory(post: HomeFeedPost, desired: boolean): Promise<boolean | void> | boolean | void;
 
   onFriendRequest(post: HomeFeedPost, identifier: string): Promise<void> | void;
+  onFollowUser(post: HomeFeedPost, identifier: string): Promise<void> | void;
+  onUnfollowUser(post: HomeFeedPost, identifier: string): Promise<void> | void;
 
   onDelete(postId: string): void;
 
@@ -149,6 +151,8 @@ export function HomeFeedList({
   onToggleMemory,
 
   onFriendRequest,
+  onFollowUser,
+  onUnfollowUser,
 
   onDelete,
 
@@ -212,12 +216,11 @@ export function HomeFeedList({
       : null;
 
   const viewerIdentifierSet = React.useMemo(
-
     () => buildIdentifierSet(viewerUserId, viewerUserKey, supabaseViewerId, supabaseUserId),
-
     [viewerUserId, viewerUserKey, supabaseViewerId, supabaseUserId],
-
   );
+
+  const followingIdentifierSet = friendsData?.followingIds ?? null;
 
   const INITIAL_BATCH = 6;
 
@@ -667,9 +670,33 @@ export function HomeFeedList({
 
               const canTarget = Boolean(resolvedUserId ?? resolvedUserKey);
 
+              const normalizedAuthorIds = [
+                normalizeIdentifier(resolvedUserId),
+                normalizeIdentifier(resolvedUserKey),
+              ].filter((value): value is string => Boolean(value));
+
+              const viewerOwnsPost =
+                normalizedAuthorIds.length > 0 &&
+                normalizedAuthorIds.some((id) => viewerIdentifierSet.has(id));
+
+              const allowFollowActions = canTarget && !viewerOwnsPost;
+
               const isFriendOptionOpen = activeFriendTarget === menuIdentifier;
 
               const isFriendActionPending = friendActionPending === menuIdentifier;
+
+              const isFollowingAuthor =
+                allowFollowActions &&
+                Boolean(
+                  followingIdentifierSet &&
+                    normalizedAuthorIds.some((id) => followingIdentifierSet.has(id)),
+                );
+
+              const followState: "following" | "not_following" | null = allowFollowActions
+                ? isFollowingAuthor
+                  ? "following"
+                  : "not_following"
+                : null;
 
               const friendMenuConfig = {
 
@@ -686,6 +713,14 @@ export function HomeFeedList({
                 onRequest: () => onFriendRequest(post, menuIdentifier),
 
                 onRemove: () => onRemoveFriend(post, menuIdentifier),
+
+                ...(followState
+                  ? {
+                      followState,
+                      onFollow: () => onFollowUser(post, menuIdentifier),
+                      onUnfollow: () => onUnfollowUser(post, menuIdentifier),
+                    }
+                  : {}),
 
               };
 
@@ -1036,6 +1071,3 @@ export function HomeFeedList({
   );
 
 }
-
-
-

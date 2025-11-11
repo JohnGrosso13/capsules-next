@@ -144,7 +144,7 @@ export async function togglePostMemory(params: ToggleMemoryParams): Promise<Togg
   return { remembered };
 }
 
-export type FriendAction = "request" | "remove";
+export type FriendAction = "request" | "remove" | "follow" | "unfollow";
 
 export type UpdateFriendOptions = {
   action: FriendAction;

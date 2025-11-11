@@ -12,6 +12,7 @@ import { listMemories } from "@/server/memories/service";
 import { listLaddersByParticipant } from "@/server/ladders/repository";
 import type { CapsuleLadderSummary, CapsuleLadderMember, LadderStatus } from "@/types/ladders";
 import { PROFILE_SELF_ALIAS, looksLikeProfileId } from "@/lib/profile/routes";
+import { getProfilePrivacySettings } from "@/server/profile/privacy";
 
 export type ProfileClip = {
   id: string;
@@ -63,6 +64,9 @@ export type ProfilePageData = {
   clips: ProfileClip[];
   events: ProfileEvent[];
   featuredStore: CapsuleSummary | null;
+  privacy: {
+    statsVisibility: "public" | "private";
+  };
   viewer: {
     id: string | null;
     isSelf: boolean;
@@ -204,11 +208,12 @@ export async function loadProfilePageData(params: {
 }): Promise<ProfilePageData> {
   const { viewerId, targetUserId, origin } = params;
   const normalizedOrigin = origin ?? null;
-  const [profile, followStats, viewerFollow, targetCapsules] = await Promise.all([
+  const [profile, followStats, viewerFollow, targetCapsules, privacySettings] = await Promise.all([
     getUserProfileSummary(targetUserId, { origin: normalizedOrigin }),
     getFollowStatsSummary(targetUserId),
     getViewerFollowState(viewerId, targetUserId),
     getUserCapsules(targetUserId, { origin: normalizedOrigin }),
+    getProfilePrivacySettings(targetUserId),
   ]);
 
   const ownedSpaces = targetCapsules.filter((capsule) => capsule.ownership === "owner");
@@ -257,6 +262,7 @@ export async function loadProfilePageData(params: {
     clips,
     events,
     featuredStore: ownedSpaces[0] ?? null,
+    privacy: privacySettings,
     viewer: {
       id: viewerId,
       isSelf: Boolean(viewerId && viewerId === targetUserId),

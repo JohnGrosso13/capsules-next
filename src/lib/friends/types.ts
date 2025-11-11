@@ -15,6 +15,10 @@ export type FriendItem = {
   avatar: string | null;
   since: string | null;
   status: PresenceStatus;
+  followState?: {
+    isFollowing: boolean;
+    isFollower: boolean;
+  } | null;
 };
 
 export type RequestItem = {
