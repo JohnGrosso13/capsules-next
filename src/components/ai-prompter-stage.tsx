@@ -9,7 +9,7 @@ import { PrompterToolbar } from "@/components/prompter/PrompterToolbar";
 import { PrompterPreviewModal } from "@/components/prompter/PrompterPreviewModal";
 import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { usePrompterStageController } from "@/components/prompter/hooks/usePrompterStageController";
-import type { PrompterAction } from "@/components/prompter/hooks/usePrompterStageController";
+import type { PrompterAction, PrompterChipOption } from "@/components/prompter/hooks/usePrompterStageController";
 
 const cssClass = (...keys: Array<keyof typeof styles>): string =>
   keys
@@ -18,21 +18,29 @@ const cssClass = (...keys: Array<keyof typeof styles>): string =>
     .join(" ")
     .trim();
 
+type PrompterChip = string | PrompterChipOption;
+
 type Props = {
   placeholder?: string;
-  chips?: string[];
+  chips?: PrompterChip[];
   statusMessage?: string | null;
   onAction?: (action: PrompterAction) => void;
   onHandoff?: (handoff: PrompterHandoff) => void;
   variant?: "default" | "bannerCustomizer";
+  showIntentMenu?: boolean;
+  submitVariant?: "default" | "icon";
 };
 
-export type { PrompterAttachment, PrompterAction } from "@/components/prompter/hooks/usePrompterStageController";
+export type {
+  PrompterAttachment,
+  PrompterAction,
+  PrompterChipOption,
+} from "@/components/prompter/hooks/usePrompterStageController";
 
 export function AiPrompterStage(props: Props) {
   const controller = usePrompterStageController(props);
   const {
-    chips,
+    chipOptions,
     variantConfig,
     resolvedPlaceholder,
     text,
@@ -81,6 +89,10 @@ export function AiPrompterStage(props: Props) {
 
   const noop = React.useCallback(() => {}, []);
 
+  const allowIntentMenu =
+    typeof props.showIntentMenu === "boolean" ? props.showIntentMenu : variantConfig.allowIntentMenu;
+  const submitVariant = props.submitVariant ?? "default";
+
   const buttonClassName =
     buttonVariant === "style" ? cssClass("genBtn", "genBtnStyle") : cssClass("genBtn");
 
@@ -118,9 +130,9 @@ export function AiPrompterStage(props: Props) {
           onAttachClick={handleAttachClick}
           onFileChange={handleAttachmentSelect}
           {...(attachmentsEnabled ? { onPaste: handlePasteAttachment } : {})}
-          manualIntent={variantConfig.allowIntentMenu ? manualIntent : null}
-          menuOpen={variantConfig.allowIntentMenu ? menuOpen : false}
-          onToggleMenu={variantConfig.allowIntentMenu ? () => setMenuOpen((o) => !o) : noop}
+          manualIntent={allowIntentMenu ? manualIntent : null}
+          menuOpen={allowIntentMenu ? menuOpen : false}
+          onToggleMenu={allowIntentMenu ? () => setMenuOpen((o) => !o) : noop}
           onSelectIntent={applyManualIntent}
           anchorRef={anchorRef}
           menuRef={menuRef}
@@ -140,11 +152,12 @@ export function AiPrompterStage(props: Props) {
           onClearTool={variantConfig.allowTools ? () => setManualTool(null) : noop}
           showHint={showHint}
           showAttachmentStatus={attachmentsEnabled}
-          showIntentMenu={variantConfig.allowIntentMenu}
+          showIntentMenu={allowIntentMenu}
           showVoiceButton={variantConfig.allowVoice}
           showAttachmentButton={attachmentsEnabled}
           multiline={variantConfig.multilineInput}
           showTools={variantConfig.allowTools}
+          submitVariant={submitVariant}
         />
 
         <PrompterPreviewModal
@@ -155,7 +168,7 @@ export function AiPrompterStage(props: Props) {
           onClose={closePreview}
         />
 
-        <PrompterSuggestedActions actions={chips} onSelect={handleSuggestedAction} />
+        <PrompterSuggestedActions actions={chipOptions} onSelect={handleSuggestedAction} />
       </div>
     </section>
   );

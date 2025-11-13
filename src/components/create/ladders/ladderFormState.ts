@@ -42,9 +42,9 @@ export const defaultBasicsForm: LadderBasicsFormValues = {
 };
 
 export const ladderSeedFormSchema = z.object({
-  goal: z.string().max(280).optional(),
-  audience: z.string().max(280).optional(),
-  tone: z.string().max(140).optional(),
+  goal: z.string().max(420).optional(),
+  audience: z.string().max(160).optional(),
+  tone: z.string().max(160).optional(),
   capsuleBrief: z.string().max(420).optional(),
   seasonLengthWeeks: z.string().max(20).optional(),
   participants: z.string().max(20).optional(),

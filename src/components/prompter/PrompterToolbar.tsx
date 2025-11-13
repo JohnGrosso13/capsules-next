@@ -57,6 +57,7 @@ type Props = {
   showAttachmentButton?: boolean;
   multiline?: boolean;
   showTools?: boolean;
+  submitVariant?: "default" | "icon";
 };
 
 export function PrompterToolbar({
@@ -101,6 +102,7 @@ export function PrompterToolbar({
   showAttachmentButton = true,
   multiline = false,
   showTools = true,
+  submitVariant = "default",
 }: Props) {
   const isVoiceActive = voiceStatus === "listening" || voiceStatus === "stopping";
   return (
@@ -134,6 +136,7 @@ export function PrompterToolbar({
         showVoiceButton={showVoiceButton}
         showIntentMenu={showIntentMenu}
         multiline={multiline}
+        submitVariant={submitVariant}
       />
 
       <div className={styles.statusRow} role="status" aria-live="polite">

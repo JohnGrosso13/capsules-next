@@ -44,7 +44,6 @@ import {
   defaultMembersForm,
   defaultBasicsForm,
   defaultSeedForm,
-  ladderVisibilityOptions,
   createEmptyMemberForm,
   parseIntegerField,
   parseOptionalIntegerField,
@@ -55,6 +54,10 @@ import {
   LADDER_WIZARD_STEPS,
   type LadderWizardStepId,
 } from "./ladderWizardConfig";
+import { AiPlanCard } from "./components/AiPlanCard";
+import { ReviewOverviewCard } from "./components/ReviewOverviewCard";
+import { RosterStep } from "./components/RosterStep";
+import { WizardLayout } from "./components/WizardLayout";
 type MemberPayload = {
   displayName: string;
   handle?: string | null;
@@ -70,21 +73,6 @@ type AiPlanState = {
   prompt?: string | null;
   suggestions?: Array<{ id: string; title: string; summary: string; section?: string | null }>;
 };
-type LadderBlueprint = {
-  ladder: {
-    name: string;
-    summary: string | null;
-    visibility: "private" | "capsule" | "public";
-    status: "draft" | "active" | "archived";
-    publish: boolean;
-    game: Record<string, unknown> | null;
-    config: Record<string, unknown> | null;
-    sections: Record<string, unknown> | null;
-    aiPlan: Record<string, unknown> | null;
-    meta: Record<string, unknown> | null;
-  };
-  members: Array<Record<string, unknown>>;
-};
 type LadderToast = {
   id: string;
   tone: AlertTone;
@@ -92,8 +80,19 @@ type LadderToast = {
   description?: string;
   persist?: boolean;
 };
-type LadderCreationMode = "guided" | "manual";
-type GuidedStepId = "title" | "summary" | "type" | "rules" | "timeline" | "roster" | "rewards" | "review";
+type GuidedStepId =
+  | "title"
+  | "summary"
+  | "registration"
+  | "type"
+  | "format"
+  | "overview"
+  | "rules"
+  | "shoutouts"
+  | "timeline"
+  | "roster"
+  | "rewards"
+  | "review";
 type GuidedStepDefinition = {
   id: GuidedStepId;
   title: string;
@@ -123,16 +122,40 @@ const GUIDED_STEP_DEFINITIONS: GuidedStepDefinition[] = [
     helper: "Highlight audience, cadence, or prizes so Capsule AI can build the promo copy.",
   },
   {
+    id: "registration",
+    title: "Registration",
+    subtitle: "Choose how teams join and set limits.",
+    helper: "Capsule uses this for funnel copy, invite buttons, and reminders.",
+  },
+  {
     id: "type",
     title: "Ladder type",
     subtitle: "Tell Capsule what kind of competition this is.",
     helper: "Pick the match style and platform so we can pre-fill the format metadata.",
   },
   {
+    id: "format",
+    title: "Format basics",
+    subtitle: "Dial in the rating defaults and placement matches.",
+    helper: "Initial rating, K-factor, and placement games help Capsule guide skill progression.",
+  },
+  {
+    id: "overview",
+    title: "Ladder overview",
+    subtitle: "Describe the story, vibe, or stakes.",
+    helper: "This becomes the hero copy on Capsules and invites, so keep it vivid and specific.",
+  },
+  {
     id: "rules",
     title: "Rules snapshot",
     subtitle: "Lay down the essentials players need to know.",
     helper: "Capsule AI will automate the long-form version; just note the must-follow items.",
+  },
+  {
+    id: "shoutouts",
+    title: "Shoutouts & highlights",
+    subtitle: "Collect story hooks, MVPs, or spotlight moments.",
+    helper: "Use bullets for themes (e.g. clutch saves, top fraggers) so AI recaps can riff on them.",
   },
   {
     id: "timeline",
@@ -143,8 +166,8 @@ const GUIDED_STEP_DEFINITIONS: GuidedStepDefinition[] = [
   {
     id: "roster",
     title: "Starter roster",
-    subtitle: "Drop the opening lineup or teams on standby.",
-    helper: "Paste a list of names. We'll seed and format the standings automatically.",
+    subtitle: "Set seeds, handles, and starting stats.",
+    helper: "Edit each row directly. Capsule highlights ratings and streaks in the preview.",
   },
   {
     id: "rewards",
@@ -205,23 +228,6 @@ const LADDER_TEMPLATE_PRESETS: LadderTemplatePreset[] = [
     summary: "Creators drop-in for highlight-driven matches with AI-scripted recaps.",
   },
 ];
-const ROSTER_STARTER_POOL = [
-  "Nova Lynx",
-  "Atlas Prime",
-  "Circuit Breakers",
-  "Echo Rift",
-  "Luminous Crew",
-  "Midnight Bloom",
-  "Stormglow",
-  "Vector Nine",
-  "Glacier Rush",
-  "Radiant Forge",
-  "Velvet Reign",
-  "Pulse Theory",
-];
-const buildHash = (value: string): number => {
-  return value.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-};
 const buildGuidedNameIdeas = (capsuleName?: string | null, gameTitle?: string): string[] => {
   const base = (capsuleName ?? "Capsule").trim() || "Capsule";
   const game = (gameTitle ?? "").trim() || "Open";
@@ -247,16 +253,6 @@ const buildGuidedSummaryIdeas = (options: {
     `${game} challengers climb fast seasons, win ${rewards}, and get auto-generated recaps.`,
   ];
 };
-const buildRosterPreset = (seedValue: string): string[] => {
-  const offset = buildHash(seedValue) % ROSTER_STARTER_POOL.length;
-  const names: string[] = [];
-  for (let i = 0; i < 6; i += 1) {
-    const index = (offset + i) % ROSTER_STARTER_POOL.length;
-    const candidate = ROSTER_STARTER_POOL[index] ?? `Seed ${index + 1}`;
-    names.push(candidate);
-  }
-  return names;
-};
 type PersistedLadderDraft = {
   version: 1;
   updatedAt: number;
@@ -264,8 +260,6 @@ type PersistedLadderDraft = {
   members: LadderMemberFormValues[];
   seed: typeof defaultSeedForm;
   meta: Record<string, unknown>;
-  activeStep: LadderWizardStepId;
-  creationMode?: LadderCreationMode;
   guidedStep?: GuidedStepId;
 };
 type FormState = {
@@ -366,7 +360,6 @@ export type LadderBuilderProps = {
 };
 export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuilderProps) {
   const router = useRouter();
-  const [activeStep, setActiveStep] = React.useState<LadderWizardStepId>(DEFAULT_WIZARD_START_STEP);
   const [capsuleList, setCapsuleList] = React.useState<CapsuleSummary[]>(capsules);
   const [selectedCapsule, setSelectedCapsule] = React.useState<CapsuleSummary | null>(() => {
     if (!initialCapsuleId) return null;
@@ -415,23 +408,9 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
   const [draftStatus, setDraftStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastDraftSavedAt, setLastDraftSavedAt] = React.useState<number | null>(null);
   const [draftRestoredAt, setDraftRestoredAt] = React.useState<number | null>(null);
-  const [isGenerating, setGenerating] = React.useState(false);
   const [isSaving, setSaving] = React.useState(false);
-  const [creationMode, setCreationMode] = React.useState<LadderCreationMode>("guided");
   const [guidedStep, setGuidedStep] = React.useState<GuidedStepId>(DEFAULT_GUIDED_STEP);
-  const rosterPlainText = React.useMemo(
-    () =>
-      members
-        .map((member) => member.displayName.trim())
-        .filter(Boolean)
-        .join("\n"),
-    [members],
-  );
-  const [guidedRosterDraft, setGuidedRosterDraft] = React.useState<string>(rosterPlainText);
   const [assistantDraft, setAssistantDraft] = React.useState("");
-  React.useEffect(() => {
-    setGuidedRosterDraft(rosterPlainText);
-  }, [rosterPlainText]);
   React.useEffect(() => {
     const capsuleId = selectedCapsuleId;
     const lastTracked = lastTrackedCapsuleRef.current;
@@ -439,8 +418,8 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       return;
     }
     lastTrackedCapsuleRef.current = capsuleId;
-    const lifecycle = createWizardLifecycleState(activeStep);
-    lifecycle.currentStepId = activeStep;
+    const lifecycle = createWizardLifecycleState(DEFAULT_WIZARD_START_STEP);
+    lifecycle.currentStepId = DEFAULT_WIZARD_START_STEP;
     wizardLifecycleRef.current = lifecycle;
     const action = lastTracked === "__init" ? "initial" : "capsule_switch";
     trackLadderEvent({
@@ -454,7 +433,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
         helperDensity: helperDensityVariant,
       },
     });
-  }, [activeStep, capsuleList.length, draftRestoredAt, helperDensityVariant, metaVariant, selectedCapsuleId]);
+  }, [capsuleList.length, draftRestoredAt, helperDensityVariant, metaVariant, selectedCapsuleId]);
   const dismissToast = React.useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
     const timerId = toastTimers.current[id];
@@ -493,7 +472,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     if (formContentRef.current) {
       formContentRef.current.focus();
     }
-  }, [activeStep, creationMode, guidedStep]);
+  }, [guidedStep]);
   React.useEffect(() => {
     if (!hasAnnouncedNetwork.current) {
       hasAnnouncedNetwork.current = true;
@@ -517,11 +496,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
         dismissToast(offlineToastId.current);
         offlineToastId.current = null;
       }
-      pushToast({
-        tone: "success",
-        title: "Back online",
-        description: "Publishing ladders and AI drafting are available again.",
-      });
     } else if (!offlineToastId.current) {
       offlineToastId.current = pushToast({
         tone: "warning",
@@ -566,13 +540,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     };
   }, [form, seed, members, meta]);
   const previewModel = React.useMemo(() => buildWizardPreviewModel(wizardState), [wizardState]);
-  const stepCompletion = React.useMemo<Record<LadderWizardStepId, boolean>>(() => {
-    const result = {} as Record<LadderWizardStepId, boolean>;
-    LADDER_WIZARD_STEPS.forEach((step) => {
-      result[step.id] = step.completionCheck(wizardState);
-    });
-    return result;
-  }, [wizardState]);
   const stepDefinitionMap = React.useMemo(() => {
     const map = new Map<LadderWizardStepId, (typeof LADDER_WIZARD_STEPS)[number]>();
     LADDER_WIZARD_STEPS.forEach((step) => {
@@ -580,10 +547,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     });
     return map;
   }, []);
-  const currentStepIndex = React.useMemo(
-    () => Math.max(0, LADDER_WIZARD_STEP_ORDER.indexOf(activeStep)),
-    [activeStep],
-  );
   const guidedStepIndex = React.useMemo(
     () => Math.max(0, GUIDED_STEP_ORDER.indexOf(guidedStep)),
     [guidedStep],
@@ -595,8 +558,17 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     const basicsComplete = {
       title: Boolean(form.name.trim().length),
       summary: Boolean(form.summary.trim().length),
+      registration: Boolean(form.registration.type && form.registration.type.trim().length),
       type: Boolean(form.game.title.trim().length),
+      format:
+        Boolean(form.scoring.initialRating.trim().length) &&
+        Boolean(form.scoring.kFactor.trim().length) &&
+        Boolean(form.scoring.placementMatches.trim().length),
+      overview: Boolean(form.sections.overview.body?.trim().length),
       rules: Boolean(form.sections.rules.body?.trim().length),
+      shoutouts: Boolean(
+        form.sections.shoutouts.body?.trim().length || form.sections.shoutouts.bulletsText?.trim().length,
+      ),
       timeline: Boolean(
         (form.schedule.cadence ?? "").trim().length || (form.schedule.kickoff ?? "").trim().length,
       ),
@@ -608,10 +580,23 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       ...basicsComplete,
       review: reviewReady,
     };
-  }, [form.game.title, form.name, form.schedule.cadence, form.schedule.kickoff, form.sections.results.body, form.sections.rules.body, form.summary, members]);
-  const guidedNextIncompleteStep = React.useMemo(() => {
-    return GUIDED_STEP_ORDER.find((stepId) => !guidedCompletion[stepId]) ?? "review";
-  }, [guidedCompletion]);
+  }, [
+    form.game.title,
+    form.name,
+    form.registration.type,
+    form.schedule.cadence,
+    form.schedule.kickoff,
+    form.scoring.initialRating,
+    form.scoring.kFactor,
+    form.scoring.placementMatches,
+    form.sections.overview.body,
+    form.sections.shoutouts.body,
+    form.sections.shoutouts.bulletsText,
+    form.sections.results.body,
+    form.sections.rules.body,
+    form.summary,
+    members,
+  ]);
   const guidedNextStep = guidedNextStepId ? GUIDED_STEP_MAP.get(guidedNextStepId) ?? null : null;
   const guidedNameIdeas = React.useMemo(
     () => buildGuidedNameIdeas(selectedCapsule?.name, form.game.title),
@@ -635,24 +620,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     }
     return buildGuidedSummaryIdeas(summaryOptions);
   }, [form.game.title, form.schedule.cadence, form.sections.results.body, selectedCapsule?.name]);
-  const rosterSeed = selectedCapsule?.name ?? form.name ?? "Capsule";
-  React.useEffect(() => {
-    const lifecycle = wizardLifecycleRef.current;
-    const now = Date.now();
-    lifecycle.currentStepId = activeStep;
-    lifecycle.stepVisits[activeStep] = (lifecycle.stepVisits[activeStep] ?? 0) + 1;
-    lifecycle.stepStartedAt[activeStep] = now;
-    trackLadderEvent({
-      event: "ladders.step.enter",
-      capsuleId: selectedCapsuleId,
-      payload: {
-        stepId: activeStep,
-        visit: lifecycle.stepVisits[activeStep],
-        elapsedMs: msSince(lifecycle.wizardStartedAt),
-        completion: stepCompletion[activeStep],
-      },
-    });
-  }, [activeStep, selectedCapsuleId, stepCompletion]);
   const lastSavedMessage = React.useMemo(() => {
     if (!lastDraftSavedAt) return null;
     return `Last saved ${formatRelativeTime(new Date(lastDraftSavedAt).toISOString())}`;
@@ -701,12 +668,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       if (parsed.meta && typeof parsed.meta === "object") {
         setMeta((prev) => ({ ...prev, ...parsed.meta }));
       }
-      if (parsed.activeStep && LADDER_WIZARD_STEP_ORDER.includes(parsed.activeStep)) {
-        setActiveStep(parsed.activeStep);
-      }
-      if (parsed.creationMode === "guided" || parsed.creationMode === "manual") {
-        setCreationMode(parsed.creationMode);
-      }
       if (
         parsed.guidedStep &&
         typeof parsed.guidedStep === "string" &&
@@ -749,8 +710,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
           members,
           seed,
           meta,
-          activeStep,
-          creationMode,
           guidedStep,
         };
         window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
@@ -794,23 +753,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       }
       autosaveStartedAt.current = null;
     };
-  }, [activeStep, creationMode, draftStorageKey, form, guidedStep, members, meta, pushToast, seed, selectedCapsuleId]);
-  const lastStepIndex = LADDER_WIZARD_STEP_ORDER.length - 1;
-  const nextStepId = currentStepIndex < lastStepIndex ? LADDER_WIZARD_STEP_ORDER[currentStepIndex + 1] : null;
-  const previousStepId = currentStepIndex > 0 ? LADDER_WIZARD_STEP_ORDER[currentStepIndex - 1] : null;
-  const nextStep = nextStepId ? LADDER_WIZARD_STEPS.find((step) => step.id === nextStepId) ?? null : null;
-  const totalWizardSteps = LADDER_WIZARD_STEPS.length;
-  const computedActiveStepIndex = Math.max(
-    0,
-    LADDER_WIZARD_STEPS.findIndex((step) => step.id === activeStep),
-  );
-  const activeStepDefinition =
-    LADDER_WIZARD_STEPS[computedActiveStepIndex] ?? LADDER_WIZARD_STEPS[0] ?? null;
-  const stepProgressLabel =
-    totalWizardSteps > 0 ? `Step ${computedActiveStepIndex + 1} of ${totalWizardSteps}` : null;
-  const currentStepTitle = activeStepDefinition?.title ?? "Ladder wizard";
-  const currentStepSubtitle =
-    activeStepDefinition?.subtitle ?? "Complete each goal to get your ladder production-ready.";
+  }, [draftStorageKey, form, guidedStep, members, meta, pushToast, seed, selectedCapsuleId]);
   const validateStep = React.useCallback(
     (stepId: LadderWizardStepId, context: "advance" | "jump" | "publish"): boolean => {
       const definition = stepDefinitionMap.get(stepId);
@@ -865,39 +808,15 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     const top = node.getBoundingClientRect().top + window.scrollY - 96;
     window.scrollTo({ top, behavior: "smooth" });
   }, []);
-  const goToStep = React.useCallback(
-    (stepId: LadderWizardStepId) => {
-      if (stepId === activeStep) return;
-      const targetIndex = LADDER_WIZARD_STEP_ORDER.indexOf(stepId);
-      if (targetIndex > currentStepIndex) {
-        const valid = validateStep(activeStep, "jump");
-        if (!valid) {
-          return;
-        }
-      }
-      setActiveStep(stepId);
+  const handleGuidedStepSelect = React.useCallback(
+    (stepId: GuidedStepId) => {
+      setGuidedStep(stepId);
       if (typeof window !== "undefined") {
         window.requestAnimationFrame(scrollToStepContent);
       }
     },
-    [activeStep, currentStepIndex, scrollToStepContent, validateStep],
+    [scrollToStepContent],
   );
-  const handleNextStep = React.useCallback(() => {
-    if (!nextStepId) return;
-    const valid = validateStep(activeStep, "advance");
-    if (!valid) return;
-    setActiveStep(nextStepId as LadderWizardStepId);
-    if (typeof window !== "undefined") {
-      window.requestAnimationFrame(scrollToStepContent);
-    }
-  }, [activeStep, nextStepId, scrollToStepContent, validateStep]);
-  const handlePreviousStep = React.useCallback(() => {
-    if (!previousStepId) return;
-    setActiveStep(previousStepId as LadderWizardStepId);
-    if (typeof window !== "undefined") {
-      window.requestAnimationFrame(scrollToStepContent);
-    }
-  }, [previousStepId, scrollToStepContent]);
   const handleCapsuleChange = React.useCallback((capsule: CapsuleSummary | null) => {
     setSelectedCapsule(capsule);
   }, []);
@@ -1018,54 +937,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     },
     [form.sections.results.body, handleSectionChange],
   );
-  const syncRosterFromText = React.useCallback(
-    (value: string) => {
-      const rows = value
-        .split("\n")
-        .map((entry) => entry.trim())
-        .filter(Boolean)
-        .slice(0, 24);
-      if (!rows.length) {
-        setMembers(defaultMembersForm());
-        return;
-      }
-      const payload = rows.map((name, index) => ({
-        ...createEmptyMemberForm(index),
-        displayName: name.slice(0, 80),
-      }));
-      setMembers(normalizeMemberList(payload));
-    },
-    [setMembers],
-  );
-  const handleGuidedRosterInput = React.useCallback(
-    (value: string) => {
-      setGuidedRosterDraft(value);
-      syncRosterFromText(value);
-    },
-    [setGuidedRosterDraft, syncRosterFromText],
-  );
-  const handleRosterPreset = React.useCallback(
-    (seedLabel: string) => {
-      const entries = buildRosterPreset(seedLabel);
-      const payload = entries.map((name, index) => ({
-        ...createEmptyMemberForm(index),
-        displayName: name,
-      }));
-      setMembers(normalizeMemberList(payload));
-      setGuidedRosterDraft(entries.join("\n"));
-    },
-    [setGuidedRosterDraft, setMembers],
-  );
-  const handleCreationModeToggle = React.useCallback(
-    (mode: LadderCreationMode) => {
-      setCreationMode(mode);
-      if (mode === "guided") {
-        const fallback = guidedCompletion[guidedStep] ? guidedNextIncompleteStep : guidedStep;
-        setGuidedStep(fallback);
-      }
-    },
-    [guidedCompletion, guidedNextIncompleteStep, guidedStep],
-  );
   const handleSeedChange = React.useCallback((field: keyof typeof seed, value: string) => {
     setSeed((prev) => ({
       ...prev,
@@ -1145,8 +1016,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     setAiPlan(null);
     setMeta({ variant: "ladder" });
     setSeed({ ...defaultSeedForm });
-    setActiveStep(DEFAULT_WIZARD_START_STEP);
-    setCreationMode("guided");
     setGuidedStep(DEFAULT_GUIDED_STEP);
     setDraftStatus("idle");
     setLastDraftSavedAt(null);
@@ -1172,260 +1041,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       payload: { action: "discard" },
     });
   }, [draftStorageKey, pushToast, resetBuilderToDefaults, selectedCapsuleId]);
-  const applyBlueprint = React.useCallback((data: LadderBlueprint) => {
-    const ladder = data.ladder;
-    setForm((prev) => {
-      const next = { ...prev };
-      next.name = ladder.name ?? prev.name;
-      next.summary = ladder.summary ?? "";
-      next.visibility = ladder.visibility;
-      next.publish = ladder.publish;
-      const sections = ladder.sections && typeof ladder.sections === "object" ? ladder.sections : {};
-      const updatedSections = defaultSectionsForm();
-      SECTION_KEYS.forEach((key) => {
-        const raw = (sections as Record<string, unknown>)[key];
-        if (raw && typeof raw === "object") {
-          const source = raw as Record<string, unknown>;
-          updatedSections[key] = {
-            title: typeof source.title === "string" ? source.title : updatedSections[key].title,
-            body: typeof source.body === "string" ? source.body : "",
-            bulletsText: Array.isArray(source.bulletPoints)
-              ? (source.bulletPoints as unknown[])
-                  .map((entry) => (typeof entry === "string" ? entry : ""))
-                  .filter((entry) => entry.trim().length)
-                  .join("\n")
-              : "",
-          };
-        }
-      });
-      next.sections = updatedSections;
-      const upcomingSection = updatedSections.upcoming;
-      const hasUpcomingContent =
-        Boolean(upcomingSection.body && upcomingSection.body.trim().length) ||
-        Boolean(upcomingSection.bulletsText && upcomingSection.bulletsText.trim().length);
-      if (hasUpcomingContent) {
-        recordFirstChallenge("blueprint");
-      }
-      if (Array.isArray((sections as Record<string, unknown>).custom)) {
-        const customList: LadderCustomSectionFormValues[] = [];
-        ((sections as Record<string, unknown>).custom as unknown[]).forEach((entry, index) => {
-          if (!entry || typeof entry !== "object") return;
-          const block = entry as Record<string, unknown>;
-          const title =
-            typeof block.title === "string" && block.title.trim().length
-              ? block.title
-              : `Custom Section ${index + 1}`;
-          const body = typeof block.body === "string" ? block.body : "";
-          const bullets = Array.isArray(block.bulletPoints)
-            ? (block.bulletPoints as unknown[])
-                .map((b) => (typeof b === "string" ? b : ""))
-                .filter((b) => b.trim().length)
-                .join("\n")
-            : "";
-          const id =
-            typeof block.id === "string" && block.id.trim().length
-              ? block.id
-              : typeof crypto !== "undefined" && "randomUUID" in crypto
-                ? crypto.randomUUID()
-                : `${Date.now()}-${index}`;
-          customList.push({
-            id,
-            title,
-            body,
-            bulletsText: bullets,
-          });
-        });
-        next.customSections = customList;
-      } else {
-        next.customSections = [];
-      }
-      const game = ladder.game && typeof ladder.game === "object" ? (ladder.game as Record<string, unknown>) : {};
-      next.game = {
-        title: typeof game.title === "string" ? game.title : prev.game.title,
-        mode: typeof game.mode === "string" ? game.mode : "",
-        platform: typeof game.platform === "string" ? game.platform : "",
-        region: typeof game.region === "string" ? game.region : "",
-      };
-      const config = ladder.config && typeof ladder.config === "object" ? (ladder.config as Record<string, unknown>) : {};
-      const scoring = config.scoring && typeof config.scoring === "object"
-        ? (config.scoring as Record<string, unknown>)
-        : {};
-      next.scoring = {
-        system:
-          scoring.system === "points" || scoring.system === "custom" || scoring.system === "elo"
-            ? (scoring.system as LadderScoringFormValues["system"])
-            : prev.scoring.system,
-        initialRating:
-          typeof scoring.initialRating === "number"
-            ? String(scoring.initialRating)
-            : typeof scoring.initialRating === "string"
-              ? scoring.initialRating
-              : prev.scoring.initialRating,
-        kFactor:
-          typeof scoring.kFactor === "number"
-            ? String(scoring.kFactor)
-            : typeof scoring.kFactor === "string"
-              ? scoring.kFactor
-              : prev.scoring.kFactor,
-        placementMatches:
-          typeof scoring.placementMatches === "number"
-            ? String(scoring.placementMatches)
-            : typeof scoring.placementMatches === "string"
-              ? scoring.placementMatches
-              : prev.scoring.placementMatches,
-        decayPerDay:
-          typeof scoring.decayPerDay === "number"
-            ? String(scoring.decayPerDay)
-            : typeof scoring.decayPerDay === "string"
-              ? scoring.decayPerDay
-              : prev.scoring.decayPerDay ?? "",
-        bonusForStreak:
-          typeof scoring.bonusForStreak === "number"
-            ? String(scoring.bonusForStreak)
-            : typeof scoring.bonusForStreak === "string"
-              ? scoring.bonusForStreak
-              : prev.scoring.bonusForStreak ?? "",
-      };
-      const schedule = config.schedule && typeof config.schedule === "object"
-        ? (config.schedule as Record<string, unknown>)
-        : {};
-      next.schedule = {
-        cadence:
-          typeof schedule.cadence === "string" && schedule.cadence.trim().length
-            ? schedule.cadence
-            : prev.schedule.cadence,
-        kickoff:
-          typeof schedule.kickoff === "string" && schedule.kickoff.trim().length
-            ? schedule.kickoff
-            : prev.schedule.kickoff,
-        timezone: typeof schedule.timezone === "string" ? schedule.timezone : prev.schedule.timezone,
-      };
-      const registration = config.registration && typeof config.registration === "object"
-        ? (config.registration as Record<string, unknown>)
-        : {};
-      const requirements =
-        Array.isArray(registration.requirements) && registration.requirements.length
-          ? (registration.requirements as unknown[])
-              .map((entry) => (typeof entry === "string" ? entry : ""))
-              .filter((entry) => entry.trim().length)
-              .join("\n")
-          : typeof registration.requirements === "string"
-            ? registration.requirements
-            : "";
-      next.registration = {
-        type:
-          registration.type === "invite" || registration.type === "waitlist" ? registration.type : "open",
-        maxTeams:
-          typeof registration.maxTeams === "number"
-            ? String(registration.maxTeams)
-            : typeof registration.maxTeams === "string"
-              ? registration.maxTeams
-              : "",
-        requirements,
-        opensAt: typeof registration.opensAt === "string" ? registration.opensAt : prev.registration.opensAt ?? "",
-        closesAt: typeof registration.closesAt === "string" ? registration.closesAt : prev.registration.closesAt ?? "",
-      };
-      return next;
-    });
-    const blueprintMembers: LadderMemberFormValues[] = [];
-    data.members.forEach((entry, index) => {
-      if (!entry || typeof entry !== "object") return;
-      const record = entry as Record<string, unknown>;
-      const displayName =
-        typeof record.displayName === "string"
-          ? record.displayName.trim()
-          : typeof record.name === "string"
-            ? record.name.trim()
-            : "";
-      if (!displayName.length) return;
-      const handleValue =
-        typeof record.handle === "string"
-          ? record.handle.trim()
-          : typeof record.gamertag === "string"
-            ? record.gamertag.trim()
-            : "";
-      const seedRaw =
-        typeof record.seed === "string" || typeof record.seed === "number"
-          ? String(record.seed)
-          : "";
-      const ratingRaw =
-        typeof record.rating === "string" || typeof record.rating === "number"
-          ? String(record.rating)
-          : "";
-      const winsRaw =
-        typeof record.wins === "string" || typeof record.wins === "number"
-          ? String(record.wins)
-          : "";
-      const lossesRaw =
-        typeof record.losses === "string" || typeof record.losses === "number"
-          ? String(record.losses)
-          : "";
-      const drawsRaw =
-        typeof record.draws === "string" || typeof record.draws === "number"
-          ? String(record.draws)
-          : "";
-      const streakRaw =
-        typeof record.streak === "string" || typeof record.streak === "number"
-          ? String(record.streak)
-          : "";
-      const seedValue = parseOptionalIntegerField(seedRaw, { min: 1, max: 999 }) ?? index + 1;
-      const member: LadderMemberFormValues = {
-        displayName,
-        handle: handleValue,
-        seed: String(seedValue),
-        rating: String(parseIntegerField(ratingRaw, 1200, { min: 100, max: 4000 })),
-        wins: String(parseIntegerField(winsRaw, 0, { min: 0, max: 500 })),
-        losses: String(parseIntegerField(lossesRaw, 0, { min: 0, max: 500 })),
-        draws: String(parseIntegerField(drawsRaw, 0, { min: 0, max: 500 })),
-        streak: String(parseIntegerField(streakRaw, 0, { min: -20, max: 20 })),
-      };
-      if (typeof record.id === "string" && record.id.trim().length) {
-        member.id = record.id.trim();
-      }
-      blueprintMembers.push(member);
-    });
-    const normalized = normalizeMemberList(
-      blueprintMembers.length ? blueprintMembers : [createEmptyMemberForm(0)],
-    );
-    setMembers(normalized);
-    const plan = ladder.aiPlan && typeof ladder.aiPlan === "object" ? (ladder.aiPlan as Record<string, unknown>) : null;
-    if (plan) {
-      const suggestions = Array.isArray(plan.suggestions)
-        ? (plan.suggestions as unknown[])
-            .map((entry) => {
-              if (!entry || typeof entry !== "object") return null;
-              const record = entry as Record<string, unknown>;
-              const title = typeof record.title === "string" ? record.title : null;
-              const summary = typeof record.summary === "string" ? record.summary : null;
-              if (!title || !summary) return null;
-              return {
-                id:
-                  typeof record.id === "string" && record.id.trim().length
-                    ? record.id
-                    : crypto.randomUUID(),
-                title,
-                summary,
-                section:
-                  typeof record.section === "string" && record.section.trim().length
-                    ? record.section
-                    : null,
-              };
-            })
-            .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
-        : undefined;
-      setAiPlan({
-        reasoning: typeof plan.reasoning === "string" ? plan.reasoning : null,
-        prompt: typeof plan.prompt === "string" ? plan.prompt : null,
-        ...(suggestions ? { suggestions } : {}),
-      });
-    } else {
-      setAiPlan(null);
-    }
-    const metaRecord =
-      ladder.meta && typeof ladder.meta === "object" ? (ladder.meta as Record<string, unknown>) : null;
-    setMeta(metaRecord ?? { variant: "ladder" });
-    wizardLifecycleRef.current.blueprintApplied = true;
-  }, [recordFirstChallenge]);
+
   React.useEffect(() => {
     void router;
   }, [router]);
@@ -1566,111 +1182,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       region: trimOrNull(region ?? ""),
     };
   }, [form.game]);
-  const generateDraft = React.useCallback(async () => {
-    if (!selectedCapsule) {
-      pushToast({
-        tone: "warning",
-        title: "Select a capsule",
-        description: "Pick a capsule to ground the ladder plan before generating a draft.",
-      });
-      trackLadderEvent({
-        event: "ladders.error.surface",
-        payload: { context: "draft_generate", reason: "no_capsule" },
-      });
-      return;
-    }
-    if (!isOnline) {
-      pushToast({
-        tone: "warning",
-        title: "Offline drafting unavailable",
-        description: "Reconnect to use LadderForge drafting.",
-      });
-      trackLadderEvent({
-        event: "ladders.error.surface",
-        capsuleId: selectedCapsule.id,
-        payload: { context: "draft_generate", reason: "offline" },
-      });
-      return;
-    }
-    setGenerating(true);
-    try {
-      const response = await fetch(`/api/capsules/${selectedCapsule.id}/ladders/draft`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          goal: seed.goal || undefined,
-          audience: seed.audience || undefined,
-          tone: seed.tone || undefined,
-          capsuleBrief: seed.capsuleBrief || undefined,
-          seasonLengthWeeks: seed.seasonLengthWeeks ? Number(seed.seasonLengthWeeks) : undefined,
-          participants: seed.participants ? Number(seed.participants) : undefined,
-          timezone: seed.timezone || undefined,
-          registrationNotes: seed.registrationNotes || undefined,
-          existingRules: seed.existingRules || undefined,
-          notes: seed.notes || undefined,
-          prizeIdeas: seed.prizeIdeas
-            ? seed.prizeIdeas
-                .split("\n")
-                .map((entry) => entry.trim())
-                .filter(Boolean)
-            : undefined,
-          announcementsFocus: seed.announcementsFocus
-            ? seed.announcementsFocus
-                .split("\n")
-                .map((entry) => entry.trim())
-                .filter(Boolean)
-            : undefined,
-          shoutouts: seed.shoutouts
-            ? seed.shoutouts
-                .split("\n")
-                .map((entry) => entry.trim())
-                .filter(Boolean)
-            : undefined,
-          game: {
-            title: seed.gameTitle || undefined,
-            mode: seed.gameMode || undefined,
-            platform: seed.gamePlatform || undefined,
-            region: seed.gameRegion || undefined,
-          },
-        }),
-      });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        const message =
-          payload?.error?.message ??
-          payload?.message ??
-          "We couldn't generate a ladder blueprint right now.";
-        throw new Error(message);
-      }
-      const data = (await response.json()) as LadderBlueprint;
-      applyBlueprint(data);
-      pushToast({
-        tone: "success",
-        title: "Draft created",
-        description: "Review the sections, roster, and config before publishing.",
-      });
-      trackLadderEvent({
-        event: "ladders.draft.generate",
-        capsuleId: selectedCapsule.id,
-        payload: { status: "success", source: "ai_blueprint" },
-      });
-    } catch (error) {
-      pushToast({
-        tone: "danger",
-        title: "Draft generation failed",
-        description: (error as Error).message,
-      });
-      trackLadderEvent({
-        event: "ladders.draft.generate",
-        capsuleId: selectedCapsule.id,
-        payload: { status: "error", message: (error as Error).message, source: "ai_blueprint" },
-      });
-    } finally {
-      setGenerating(false);
-    }
-  }, [applyBlueprint, isOnline, pushToast, seed, selectedCapsule]);
+
   const createLadder = React.useCallback(async () => {
     if (!selectedCapsule) {
       pushToast({
@@ -1713,7 +1225,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     for (const stepId of LADDER_WIZARD_STEP_ORDER) {
       const valid = validateStep(stepId, "publish");
       if (!valid) {
-        setActiveStep(stepId);
         return;
       }
     }
@@ -1855,717 +1366,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     selectedCapsule,
     validateStep,
   ]);
-  const renderSeedForm = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle>AI Draft Brief</CardTitle>
-        <CardDescription>
-          Share goals and flavour - LadderForge will generate sections, rules, and a starter roster.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className={styles.cardContent}>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="seed-goal">
-            Primary goal
-          </label>
-          <textarea
-            id="seed-goal"
-            className={styles.textarea}
-            value={seed.goal}
-            onChange={(event) => handleSeedChange("goal", event.target.value)}
-            placeholder="Keep members playing weekly, funnel scrim footage, spotlight upcoming talent..."
-            rows={2}
-          />
-        </div>
-        <div className={styles.fieldRow}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="seed-audience">
-              Audience
-            </label>
-            <Input
-              id="seed-audience"
-              value={seed.audience}
-              onChange={(event) => handleSeedChange("audience", event.target.value)}
-              placeholder="e.g. Platinum+ VALORANT roster, EU timezone, alumni captains"
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="seed-tone">
-              Tone
-            </label>
-            <Input
-              id="seed-tone"
-              value={seed.tone}
-              onChange={(event) => handleSeedChange("tone", event.target.value)}
-              placeholder="Hype esports, supportive coaching, casual seasonal"
-            />
-          </div>
-        </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="seed-brief">
-            Capsule brief
-          </label>
-          <textarea
-            id="seed-brief"
-            className={styles.textarea}
-            value={seed.capsuleBrief}
-            onChange={(event) => handleSeedChange("capsuleBrief", event.target.value)}
-            placeholder="Drop any context the AI should know about your community."
-            rows={2}
-          />
-        </div>
-        <div className={styles.fieldRow}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="seed-season">
-              Season length (weeks)
-            </label>
-            <Input
-              id="seed-season"
-              type="number"
-              min={1}
-              max={52}
-              value={seed.seasonLengthWeeks}
-              onChange={(event) => handleSeedChange("seasonLengthWeeks", event.target.value)}
-              placeholder="6"
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="seed-participants">
-              Target participants
-            </label>
-            <Input
-              id="seed-participants"
-              type="number"
-              min={2}
-              value={seed.participants}
-              onChange={(event) => handleSeedChange("participants", event.target.value)}
-              placeholder="32"
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="seed-timezone">
-              Timezone / region
-            </label>
-            <Input
-              id="seed-timezone"
-              value={seed.timezone}
-              onChange={(event) => handleSeedChange("timezone", event.target.value)}
-              placeholder="NA / CET / LATAM ..."
-            />
-          </div>
-        </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="seed-registration">
-            Registration notes
-          </label>
-          <textarea
-            id="seed-registration"
-            className={styles.textarea}
-            value={seed.registrationNotes}
-            onChange={(event) => handleSeedChange("registrationNotes", event.target.value)}
-            placeholder="e.g. Captains must confirm with screenshot, subs allowed once per stage..."
-            rows={2}
-          />
-        </div>
-        <div className={styles.fieldRow}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="seed-game-title">
-              Game / title
-            </label>
-            <Input
-              id="seed-game-title"
-              value={seed.gameTitle}
-              onChange={(event) => handleSeedChange("gameTitle", event.target.value)}
-              placeholder="Rocket League"
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="seed-game-mode">
-              Mode
-            </label>
-            <Input
-              id="seed-game-mode"
-              value={seed.gameMode}
-              onChange={(event) => handleSeedChange("gameMode", event.target.value)}
-              placeholder="3v3, Ranked Competitive"
-            />
-          </div>
-        </div>
-        <div className={styles.fieldRow}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="seed-game-platform">
-              Platform
-            </label>
-            <Input
-              id="seed-game-platform"
-              value={seed.gamePlatform}
-              onChange={(event) => handleSeedChange("gamePlatform", event.target.value)}
-              placeholder="PC + Console cross-play"
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="seed-game-region">
-              Region
-            </label>
-            <Input
-              id="seed-game-region"
-              value={seed.gameRegion}
-              onChange={(event) => handleSeedChange("gameRegion", event.target.value)}
-              placeholder="North America / Global"
-            />
-          </div>
-        </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="seed-prizes">
-            Prize ideas (one per line)
-          </label>
-          <textarea
-            id="seed-prizes"
-            className={styles.textarea}
-            value={seed.prizeIdeas}
-            onChange={(event) => handleSeedChange("prizeIdeas", event.target.value)}
-            rows={2}
-          />
-        </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="seed-announcements">
-            Announcement focus (one per line)
-          </label>
-          <textarea
-            id="seed-announcements"
-            className={styles.textarea}
-            value={seed.announcementsFocus}
-            onChange={(event) => handleSeedChange("announcementsFocus", event.target.value)}
-            rows={2}
-          />
-        </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="seed-shoutouts">
-            Shoutout themes (one per line)
-          </label>
-          <textarea
-            id="seed-shoutouts"
-            className={styles.textarea}
-            value={seed.shoutouts}
-            onChange={(event) => handleSeedChange("shoutouts", event.target.value)}
-            rows={2}
-          />
-        </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="seed-existing">
-            Existing rules to honour
-          </label>
-          <textarea
-            id="seed-existing"
-            className={styles.textarea}
-            value={seed.existingRules}
-            onChange={(event) => handleSeedChange("existingRules", event.target.value)}
-            rows={2}
-          />
-        </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="seed-notes">
-            Extra notes
-          </label>
-          <textarea
-            id="seed-notes"
-            className={styles.textarea}
-            value={seed.notes}
-            onChange={(event) => handleSeedChange("notes", event.target.value)}
-            rows={2}
-          />
-        </div>
-      <div id="step-review" />
-      <div className={styles.actionsRow}>
-          <Button type="button" onClick={generateDraft} disabled={isGenerating || !isOnline}>
-            {isGenerating ? "Drafting..." : "Generate Ladder Plan"}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-  const renderGeneralForm = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle>Basics & visibility</CardTitle>
-        <CardDescription>Set the name, choose who can see it, and decide whether it saves live or as a draft.</CardDescription>
-      </CardHeader>
-      <CardContent className={styles.cardContent}>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="ladder-name">
-            Ladder name
-          </label>
-          <p id="ladder-name-hint" className={styles.fieldHint}>
-            Use a clear, searchable title so teams recognize the ladder instantly.
-          </p>
-          <Input
-            id="ladder-name"
-            aria-describedby="ladder-name-hint"
-            value={form.name}
-            onChange={(event) => handleFormField("name", event.target.value)}
-            placeholder="Community Champions S3"
-          />
-        </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="ladder-summary">
-            Ladder summary
-          </label>
-          <p id="ladder-summary-hint" className={styles.fieldHint}>
-            Summaries appear across Events. Keep it short and highlight the format or prize.
-          </p>
-          <textarea
-            id="ladder-summary"
-            className={styles.textarea}
-            aria-describedby="ladder-summary-hint"
-            value={form.summary}
-            onChange={(event) => handleFormField("summary", event.target.value)}
-            placeholder="AI-assisted ELO ladder with weekly spotlight challenges and top-4 finals."
-            rows={3}
-          />
-        </div>
-        <div className={styles.fieldRow}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="ladder-visibility">
-              Visibility
-            </label>
-            <p id="ladder-visibility-hint" className={styles.fieldHint}>
-              Capsule keeps access limited to members; Public lets anyone view standings.
-            </p>
-            <select
-              id="ladder-visibility"
-              className={styles.select}
-              aria-describedby="ladder-visibility-hint"
-              value={form.visibility}
-              onChange={(event) =>
-                handleFormField("visibility", event.target.value as "private" | "capsule" | "public")
-              }
-            >
-              <option value="capsule">Capsule members</option>
-              <option value="private">Managers only (private draft)</option>
-              <option value="public">Public showcase</option>
-            </select>
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="ladder-publish">
-              Publish now
-            </label>
-            <div className={styles.checkboxRow}>
-              <input
-                id="ladder-publish"
-                type="checkbox"
-                checked={form.publish}
-                onChange={(event) => handleFormField("publish", event.target.checked)}
-              />
-              <span>Publish to Events tab after creation</span>
-            </div>
-            <p className={styles.fieldHint}>Leave unchecked to save a draft and publish later.</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-  const renderSectionsForm = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle>Sections & copy</CardTitle>
-        <CardDescription>Tailor the AI-generated sections before they hit your Events tab.</CardDescription>
-      </CardHeader>
-      <CardContent className={styles.cardContent}>
-        <div className={styles.sectionGrid}>
-          {SECTION_KEYS.map((key) => {
-            const section = form.sections[key];
-            return (
-              <div key={key} className={styles.sectionCard}>
-                <label className={styles.sectionLabel}>
-                  <span>{section.title || key}</span>
-                  <Input
-                    value={section.title}
-                    onChange={(event) => handleSectionChange(key, "title", event.target.value)}
-                    placeholder="Section title"
-                  />
-                </label>
-                <textarea
-                  className={styles.textarea}
-                  value={section.body ?? ""}
-                  onChange={(event) => handleSectionChange(key, "body", event.target.value)}
-                  placeholder="Narrative or summary copy. Markdown accepted."
-                  rows={4}
-                />
-                <textarea
-                  className={styles.textarea}
-                  value={section.bulletsText ?? ""}
-                  onChange={(event) => handleSectionChange(key, "bulletsText", event.target.value)}
-                  placeholder="Bullet points (one per line)"
-                  rows={3}
-                />
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
-  );
-  const renderConfigForm = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle>Format & scoring</CardTitle>
-        <CardDescription>Dial in the structure, cadence, and rating curve your players will feel each week.</CardDescription>
-      </CardHeader>
-      <CardContent className={styles.cardContent}>
-        <div className={styles.fieldRow}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="game-title">
-              Game title
-            </label>
-            <Input
-              id="game-title"
-              value={form.game.title}
-              onChange={(event) => handleGameChange("title", event.target.value)}
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="game-mode">
-              Mode / Format
-            </label>
-            <Input
-              id="game-mode"
-              value={form.game.mode}
-              onChange={(event) => handleGameChange("mode", event.target.value)}
-            />
-          </div>
-        </div>
-        <div className={styles.fieldRow}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="game-platform">
-              Platform
-            </label>
-            <Input
-              id="game-platform"
-              value={form.game.platform}
-              onChange={(event) => handleGameChange("platform", event.target.value)}
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="game-region">
-              Region
-            </label>
-            <Input
-              id="game-region"
-              value={form.game.region}
-              onChange={(event) => handleGameChange("region", event.target.value)}
-            />
-          </div>
-        </div>
-        <div className={styles.fieldRow}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="scoring-rating">
-              Initial rating
-            </label>
-            <Input
-              id="scoring-rating"
-              type="number"
-              value={form.scoring.initialRating}
-              onChange={(event) => handleScoringChange("initialRating", event.target.value)}
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="scoring-kfactor">
-              K-Factor
-            </label>
-            <Input
-              id="scoring-kfactor"
-              type="number"
-              value={form.scoring.kFactor}
-              onChange={(event) => handleScoringChange("kFactor", event.target.value)}
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="scoring-placement">
-              Placement matches
-            </label>
-            <Input
-              id="scoring-placement"
-              type="number"
-              value={form.scoring.placementMatches}
-              onChange={(event) => handleScoringChange("placementMatches", event.target.value)}
-            />
-          </div>
-        </div>
-        <p className={styles.fieldHint}>
-          Tune{" "}
-          <abbr
-            className={styles.helperAbbr}
-            title="ELO calibrates skill after each match. Stick near 1200 unless your ladder already has historical data."
-          >
-            ELO
-          </abbr>{" "}
-          and{" "}
-          <abbr
-            className={styles.helperAbbr}
-            title="K-Factor controls how much ratings swing per match. Higher numbers boost volatility."
-          >
-            K-Factor
-          </abbr>{" "}
-          before adjusting placement games or decay.
-        </p>
-        <div className={styles.fieldRow}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="schedule-cadence">
-              Cadence
-            </label>
-            <Input
-              id="schedule-cadence"
-              value={form.schedule.cadence}
-              onChange={(event) => handleScheduleChange("cadence", event.target.value)}
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="schedule-kickoff">
-              Kickoff window
-            </label>
-            <Input
-              id="schedule-kickoff"
-              value={form.schedule.kickoff}
-              onChange={(event) => handleScheduleChange("kickoff", event.target.value)}
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="schedule-timezone">
-              Timezone
-            </label>
-            <Input
-              id="schedule-timezone"
-              value={form.schedule.timezone}
-              onChange={(event) => handleScheduleChange("timezone", event.target.value)}
-            />
-          </div>
-        </div>
-        <div className={styles.fieldRow}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="registration-type">
-              Registration type
-            </label>
-            <select
-              id="registration-type"
-              className={styles.select}
-              value={form.registration.type}
-              onChange={(event) =>
-                handleRegistrationChange("type", event.target.value as LadderRegistrationFormValues["type"])
-              }
-            >
-              <option value="open">Open sign-ups</option>
-              <option value="invite">Moderated invites</option>
-              <option value="waitlist">Waitlist</option>
-            </select>
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="registration-max">
-              Max teams / players
-            </label>
-            <Input
-              id="registration-max"
-              type="number"
-              value={form.registration.maxTeams}
-              onChange={(event) => handleRegistrationChange("maxTeams", event.target.value)}
-            />
-          </div>
-        </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="registration-reqs">
-            Requirements (one per line)
-          </label>
-          <textarea
-            id="registration-reqs"
-            className={styles.textarea}
-            value={form.registration.requirements}
-            onChange={(event) => handleRegistrationChange("requirements", event.target.value)}
-            rows={3}
-          />
-        </div>
-      </CardContent>
-    </Card>
-  );
-  const renderMembersForm = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle>Roster seeds & stats</CardTitle>
-        <CardDescription>Log the headline squads, their handles, and starting records. Leave blanks if you plan to onboard later.</CardDescription>
-      </CardHeader>
-      <CardContent className={styles.cardContent}>
-        <p className={styles.fieldHint}>
-          <abbr
-            className={styles.helperAbbr}
-            title="ELO updates player skill after every match. Keep new ladders near 1200 and adjust with K-factor for larger swings."
-          >
-            ELO
-          </abbr>{" "}
-          feeds highlight badges alongside{" "}
-          <abbr
-            className={styles.helperAbbr}
-            title="Streak counts consecutive wins so you can spotlight hot runs."
-          >
-            streak
-          </abbr>{" "}
-          momentum.
-        </p>
-        <div className={styles.membersTableWrap}>
-          <table className={styles.membersTable}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Handle</th>
-                <th>Seed</th>
-                <th>Rating</th>
-                <th>W</th>
-                <th>L</th>
-                <th>Draw</th>
-                <th>Streak</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((member, index) => {
-                const accent = getIdentityAccent(
-                  member.displayName || member.handle || `Seed ${index + 1}`,
-                  index,
-                );
-                const accentStyle = {
-                  "--identity-color": accent.primary,
-                  "--identity-glow": accent.glow,
-                  "--identity-border": accent.border,
-                  "--identity-surface": accent.surface,
-                  "--identity-text": accent.text,
-                } as React.CSSProperties;
-                return (
-                  <tr key={member.id ?? `member-${index}`}>
-                    <td>
-                      <div className={styles.memberField}>
-                        <span className={styles.memberAvatar} style={accentStyle}>
-                          <span className={styles.memberAvatarText}>{accent.initials}</span>
-                        </span>
-                        <Input
-                          id={`member-name-${index}`}
-                          value={member.displayName}
-                          onChange={(event) =>
-                            handleMemberField(index, "displayName", event.target.value)}
-                          placeholder="Player name"
-                        />
-                      </div>
-                    </td>
-                    <td>
-                      <Input
-                        id={`member-handle-${index}`}
-                        value={member.handle}
-                        onChange={(event) => handleMemberField(index, "handle", event.target.value)}
-                        placeholder="@handle"
-                      />
-                    </td>
-                    <td>
-                      <Input
-                        id={`member-seed-${index}`}
-                        value={member.seed}
-                        onChange={(event) => handleMemberField(index, "seed", event.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <Input
-                        id={`member-rating-${index}`}
-                        value={member.rating}
-                        onChange={(event) => handleMemberField(index, "rating", event.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <Input
-                        id={`member-wins-${index}`}
-                        value={member.wins}
-                        onChange={(event) => handleMemberField(index, "wins", event.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <Input
-                        id={`member-losses-${index}`}
-                        value={member.losses}
-                        onChange={(event) => handleMemberField(index, "losses", event.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <Input
-                        id={`member-draws-${index}`}
-                        value={member.draws}
-                        onChange={(event) => handleMemberField(index, "draws", event.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <Input
-                        id={`member-streak-${index}`}
-                        value={member.streak}
-                        onChange={(event) => handleMemberField(index, "streak", event.target.value)}
-                      />
-                    </td>
-                    <td className={styles.memberActions}>
-                      <span className={styles.memberChip} style={accentStyle}>
-                        Seed {member.seed || index + 1}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeMember(index)}
-                      >
-                        Remove
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <Button type="button" variant="secondary" onClick={addMember}>
-          Add member
-        </Button>
-      </CardContent>
-    </Card>
-  );
-  const renderAiPlan = () =>
-    aiPlan ? (
-      <Card>
-        <CardHeader>
-          <CardTitle>AI notes</CardTitle>
-          <CardDescription>Save for internal planning or next iteration prompts.</CardDescription>
-        </CardHeader>
-        <CardContent className={styles.cardContent}>
-          {aiPlan.reasoning ? (
-            <div className={styles.aiReasoning}>
-              <strong>Why this plan works</strong>
-              <p>{aiPlan.reasoning}</p>
-            </div>
-          ) : null}
-          {aiPlan.suggestions && aiPlan.suggestions.length ? (
-            <div className={styles.aiSuggestions}>
-              <strong>Suggested improvements</strong>
-              <ul>
-                {aiPlan.suggestions.map((suggestion) => (
-                  <li key={suggestion.id}>
-                    <span>{suggestion.title} - </span>
-                    <span>{suggestion.summary}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-    ) : null;
-  const renderCapsuleBanner = () =>
-    selectedCapsule ? (
-      <div className={styles.selectedCapsuleBanner}>
-        <div>
-          <div className={styles.capsuleLabel}>Capsule</div>
-          <div className={styles.capsuleName}>{selectedCapsule.name}</div>
-        </div>
-      </div>
-    ) : null;
+  const renderAiPlan = () => <AiPlanCard plan={aiPlan} />;
   const renderToastStack = () =>
     toasts.length ? (
       <div className={styles.toastStack} role="region" aria-live="assertive">
@@ -2702,6 +1503,66 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
             </Card>
           </>
         );
+      case "registration":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Registration</CardTitle>
+                <CardDescription>Decide how teams join and any launch requirements.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div className={styles.fieldRow}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-registration-type">
+                      Registration type
+                    </label>
+                    <select
+                      id="guided-registration-type"
+                      className={styles.select}
+                      value={form.registration.type}
+                      onChange={(event) =>
+                        handleRegistrationChange(
+                          "type",
+                          event.target.value as LadderRegistrationFormValues["type"],
+                        )
+                      }
+                    >
+                      <option value="open">Open sign-ups</option>
+                      <option value="invite">Moderated invites</option>
+                      <option value="waitlist">Waitlist</option>
+                    </select>
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-max-teams">
+                      Max teams / players
+                    </label>
+                    <Input
+                      id="guided-max-teams"
+                      type="number"
+                      value={form.registration.maxTeams}
+                      onChange={(event) => handleRegistrationChange("maxTeams", event.target.value)}
+                      placeholder="32"
+                    />
+                  </div>
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="guided-registration-reqs">
+                    Requirements (one per line)
+                  </label>
+                  <textarea
+                    id="guided-registration-reqs"
+                    className={styles.textarea}
+                    value={form.registration.requirements}
+                    onChange={(event) => handleRegistrationChange("requirements", event.target.value)}
+                    rows={3}
+                    placeholder={"Captains must confirm by Wednesday\nSubs allowed after week 2\nScreenshots required"}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
       case "type":
         return (
           <>
@@ -2779,6 +1640,84 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
             </Card>
           </>
         );
+      case "format":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Format basics</CardTitle>
+                <CardDescription>Set the starting rating, K-factor, and placement matches.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div className={styles.fieldRow}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-initial-rating">
+                      Initial rating
+                    </label>
+                    <Input
+                      id="guided-initial-rating"
+                      type="number"
+                      value={form.scoring.initialRating}
+                      onChange={(event) => handleScoringChange("initialRating", event.target.value)}
+                      placeholder="1200"
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-kfactor">
+                      K-factor
+                    </label>
+                    <Input
+                      id="guided-kfactor"
+                      type="number"
+                      value={form.scoring.kFactor}
+                      onChange={(event) => handleScoringChange("kFactor", event.target.value)}
+                      placeholder="32"
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-placement">
+                      Placement matches
+                    </label>
+                    <Input
+                      id="guided-placement"
+                      type="number"
+                      value={form.scoring.placementMatches}
+                      onChange={(event) => handleScoringChange("placementMatches", event.target.value)}
+                      placeholder="3"
+                    />
+                  </div>
+                </div>
+                <p className={styles.fieldHint}>
+                  These defaults power Capsule&apos;s matchmaking tips. Adjust later if needed.
+                </p>
+              </CardContent>
+            </Card>
+          </>
+        );
+      case "overview":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Ladder overview</CardTitle>
+                <CardDescription>This copy appears at the top of your ladder and in invites.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <textarea
+                  id="guided-overview"
+                  className={styles.textarea}
+                  value={form.sections.overview.body ?? ""}
+                  onChange={(event) => handleSectionChange("overview", "body", event.target.value)}
+                  rows={5}
+                  placeholder="Set the stakes, cadence, rewards, and why challengers should care."
+                />
+                <p className={styles.fieldHint}>
+                  Mention cadence, platform, or spotlight moments so Capsule can reuse the story across surfaces.
+                </p>
+              </CardContent>
+            </Card>
+          </>
+        );
       case "rules":
         return (
           <>
@@ -2807,6 +1746,45 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
                       {snippet}
                     </button>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+      case "shoutouts":
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Shoutouts & highlights</CardTitle>
+                <CardDescription>Feed Capsule AI the themes you want to spotlight every week.</CardDescription>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="guided-shoutouts-body">
+                    Story beats
+                  </label>
+                  <textarea
+                    id="guided-shoutouts-body"
+                    className={styles.textarea}
+                    value={form.sections.shoutouts.body ?? ""}
+                    onChange={(event) => handleSectionChange("shoutouts", "body", event.target.value)}
+                    rows={4}
+                    placeholder="Call out rivalries, MVP awards, clutch moments, or rookie spotlights."
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label} htmlFor="guided-shoutouts-bullets">
+                    Highlight bullets (one per line)
+                  </label>
+                  <textarea
+                    id="guided-shoutouts-bullets"
+                    className={styles.textarea}
+                    value={form.sections.shoutouts.bulletsText ?? ""}
+                    onChange={(event) => handleSectionChange("shoutouts", "bulletsText", event.target.value)}
+                    rows={3}
+                    placeholder={"Most electrifying play\nFan favorite team\nUnderdog to watch"}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -2875,30 +1853,12 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
         );
       case "roster":
         return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Starter roster</CardTitle>
-                <CardDescription>Limit of 24 to kick things off. You can add more once the ladder is live.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <textarea
-                  id="guided-roster"
-                  className={styles.textarea}
-                  value={guidedRosterDraft}
-                  onChange={(event) => handleGuidedRosterInput(event.target.value)}
-                  rows={6}
-                  placeholder={"Nova Lynx\nAtlas Prime\nEcho Rift"}
-                />
-                <div className={styles.guidedActionBar}>
-                  <Button type="button" variant="secondary" onClick={() => handleRosterPreset(rosterSeed)}>
-                    Generate names with Capsule
-                  </Button>
-                  <span className={styles.guidedHint}>We auto-seed and add ELO defaults.</span>
-                </div>
-              </CardContent>
-            </Card>
-          </>
+          <RosterStep
+            members={members}
+            onMemberField={handleMemberField}
+            onAddMember={addMember}
+            onRemoveMember={removeMember}
+          />
         );
       case "rewards":
         return (
@@ -2982,60 +1942,15 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
         );
     }
   };
-  const renderReviewOverview = () => {
-    const visibility = ladderVisibilityOptions.find((option) => option.value === form.visibility);
-    const stats = [
-      { label: "Capsule", value: selectedCapsule?.name ?? "Select a capsule" },
-      { label: "Visibility", value: visibility?.label ?? form.visibility },
-      { label: "Status on save", value: form.publish ? "Publish immediately" : "Save as draft" },
-      {
-        label: "Participants",
-        value: members.length ? `${members.length} seeded` : "Add at least one team or player",
-      },
-      { label: "Sections ready", value: previewModel.sections.length },
-    ];
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Review launch settings</CardTitle>
-          <CardDescription>Confirm the key details before saving or publishing.</CardDescription>
-        </CardHeader>
-        <CardContent className={styles.cardContent}>
-          <dl className={styles.reviewList}>
-            {stats.map((stat) => (
-              <div key={stat.label} className={styles.reviewRow}>
-                <dt>{stat.label}</dt>
-                <dd>{stat.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </CardContent>
-      </Card>
-    );
-  };
-  const renderStepContent = () => {
-    switch (activeStep) {
-      case "basics":
-        return renderGeneralForm();
-      case "seed":
-        return renderSeedForm();
-      case "sections":
-        return renderSectionsForm();
-      case "format":
-        return renderConfigForm();
-      case "roster":
-        return renderMembersForm();
-      case "review":
-        return (
-          <>
-            {renderReviewOverview()}
-            {renderAiPlan()}
-          </>
-        );
-      default:
-        return null;
-    }
-  };
+  const renderReviewOverview = () => (
+    <ReviewOverviewCard
+      capsuleName={selectedCapsule?.name ?? null}
+      visibility={form.visibility}
+      publish={form.publish}
+      membersCount={members.length}
+      sectionsReady={previewModel.sections.length}
+    />
+  );
   const renderPreviewPanel = () => {
     const topSections = previewModel.sections.slice(0, 3);
     const topMembers = previewModel.members.slice(0, 5);
@@ -3162,189 +2077,58 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       </div>
     );
   };
-  const renderManualExperience = () => (
-    <div className={styles.pageGrid}>
-      <aside className={styles.stepperCol}>
-        <div className={styles.stepperShell}>
-          <div className={styles.stepperHeading}>
-            <span className={styles.stepperLabel}>Wizard progress</span>
-            <h2>Guide creators from idea to live ladder.</h2>
-            <p>Match the capsule onboarding aesthetic with luminous steps, subtle gradients, and motion.</p>
-          </div>
-          <ol className={styles.stepList} role="list">
-            {LADDER_WIZARD_STEPS.map((step, index) => {
-              const isActive = step.id === activeStep;
-              const isComplete = stepCompletion[step.id];
-              const state = isActive ? "active" : isComplete ? "complete" : "idle";
-              return (
-                <li key={step.id}>
-                  <button
-                    type="button"
-                    onClick={() => goToStep(step.id)}
-                    className={styles.stepItem}
-                    data-state={state}
-                    aria-current={isActive ? "step" : undefined}
-                    aria-label={`Step ${index + 1}: ${step.title}${isActive ? " (current)" : isComplete ? " (completed)" : ""}`}
-                  >
-                    <span className={styles.stepBullet} data-state={state} aria-hidden />
-                    <span className={styles.stepCopy}>
-                      <span className={styles.stepTitle}>{step.title}</span>
-                      <span className={styles.stepSubtitle}>{step.subtitle}</span>
-                    </span>
-                    <span className={styles.stepMeta} aria-hidden="true">
-                      {isComplete ? "Done" : isActive ? "Now" : "Start"}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      </aside>
-      <div className={styles.formCol}>
-        <header className={styles.stepHero}>
-          {stepProgressLabel ? <span className={styles.stepHeroLabel}>{stepProgressLabel}</span> : null}
-          <h1 className={styles.stepHeroTitle}>{currentStepTitle}</h1>
-          <p className={styles.stepHeroSubtitle}>{currentStepSubtitle}</p>
-        </header>
-        {renderCapsuleBanner()}
-        {renderToastStack()}
-        {renderAutosaveMeta()}
-        <div
-          ref={formContentRef}
-          className={styles.stepStack}
-          aria-live="polite"
-          role="region"
-          tabIndex={-1}
-        >
-          {renderStepContent()}
-        </div>
-        <div className={styles.stepControls} aria-label="Step controls">
-          <Button type="button" variant="ghost" onClick={handlePreviousStep} disabled={!previousStepId}>
-            Back
-          </Button>
-          {activeStep !== "review" ? (
-            <Button type="button" onClick={handleNextStep} disabled={!nextStepId}>
-              {nextStep ? `Next: ${nextStep.title}` : "Next"}
-            </Button>
-          ) : (
-            <Button type="button" onClick={createLadder} disabled={isSaving || !isOnline}>
-              {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
-            </Button>
-          )}
-        </div>
-      </div>
-      <aside className={styles.previewCol}>
-        <div className={styles.previewShell}>
-          <div className={styles.previewHeading}>
-            <h3>Live preview</h3>
-            <p>See how capsule members will experience this ladder.</p>
-          </div>
-          {renderPreviewPanel()}
-        </div>
-      </aside>
-    </div>
-  );
   const renderGuidedExperience = () => (
-    <div className={styles.pageGrid}>
-      <aside className={styles.stepperCol}>
-        <div className={styles.stepperShell}>
-          <div className={styles.stepperHeading}>
-            <span className={styles.stepperLabel}>Guided progress</span>
-          </div>
-          <ol className={styles.stepList} role="list">
-            {GUIDED_STEP_DEFINITIONS.map((step, index) => {
-              const isActive = step.id === guidedStep;
-              const isComplete = guidedCompletion[step.id];
-              const state = isActive ? "active" : isComplete ? "complete" : "idle";
-              return (
-                <li key={step.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGuidedStep(step.id);
-                      if (typeof window !== "undefined") {
-                        window.requestAnimationFrame(scrollToStepContent);
-                      }
-                    }}
-                    className={styles.stepItem}
-                    data-state={state}
-                    aria-current={isActive ? "step" : undefined}
-                    aria-label={`Step ${index + 1}: ${step.title}${isActive ? " (current)" : isComplete ? " (completed)" : ""}`}
-                  >
-                    <span className={styles.stepBullet} data-state={state} aria-hidden />
-                    <span className={styles.stepCopy}>
-                      <span className={styles.stepTitle}>{step.title}</span>
-                      <span className={styles.stepSubtitle}>{step.subtitle}</span>
-                    </span>
-                    <span className={styles.stepMeta} aria-hidden="true">
-                      {isComplete ? "Done" : isActive ? "Now" : "Start"}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      </aside>
-      <div className={styles.formCol}>
-        {renderToastStack()}
-        {renderAutosaveMeta()}
-        <div
-          ref={formContentRef}
-          className={`${styles.stepStack} ${styles.guidedStack}`}
-          aria-live="polite"
-          role="region"
-          tabIndex={-1}
-        >
-          {renderGuidedStepContent()}
-        </div>
-        <div className={styles.stepControls} aria-label="Step controls">
+    <WizardLayout
+      stepperLabel="Guided progress"
+      steps={GUIDED_STEP_DEFINITIONS}
+      activeStepId={guidedStep}
+      completionMap={guidedCompletion}
+      onStepSelect={handleGuidedStepSelect}
+      toastStack={renderToastStack()}
+      formContentRef={formContentRef}
+      stepStackClassName={styles.guidedStack}
+      formContent={renderGuidedStepContent()}
+      controlsStart={
+        <>
           <Button
             type="button"
             variant="ghost"
             onClick={() => {
               if (!guidedPreviousStepId) return;
-              setGuidedStep(guidedPreviousStepId);
-              if (typeof window !== "undefined") {
-                window.requestAnimationFrame(scrollToStepContent);
-              }
+              handleGuidedStepSelect(guidedPreviousStepId);
             }}
             disabled={!guidedPreviousStepId}
           >
             Back
           </Button>
-          {guidedStep !== "review" ? (
-            <Button
-              type="button"
-              onClick={() => {
-                if (!guidedNextStepId) return;
-                setGuidedStep(guidedNextStepId);
-                if (typeof window !== "undefined") {
-                  window.requestAnimationFrame(scrollToStepContent);
-                }
-              }}
-              disabled={!guidedNextStepId}
-            >
-              {guidedNextStep ? `Next: ${guidedNextStep.title}` : "Next"}
+          {canDiscardDraft ? (
+            <Button type="button" variant="ghost" onClick={handleDiscardDraft} disabled={isSaving}>
+              Discard draft
             </Button>
-          ) : (
-            <Button type="button" onClick={createLadder} disabled={isSaving || !isOnline}>
-              {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
-            </Button>
-          )}
-        </div>
-      </div>
-      <aside className={styles.previewCol}>
-        <div className={styles.previewShell}>
-          <div className={styles.previewHeading}>
-            <h3>Live preview</h3>
-            <p>Everything you type updates instantly.</p>
-          </div>
-          {renderPreviewPanel()}
-        </div>
-      </aside>
-    </div>
+          ) : null}
+          {renderAutosaveMeta()}
+        </>
+      }
+      controlsEnd={
+        guidedStep !== "review" ? (
+          <Button
+            type="button"
+            onClick={() => {
+              if (!guidedNextStepId) return;
+              handleGuidedStepSelect(guidedNextStepId);
+            }}
+            disabled={!guidedNextStepId}
+          >
+            {guidedNextStep ? `Next: ${guidedNextStep.title}` : "Next"}
+          </Button>
+        ) : (
+          <Button type="button" onClick={createLadder} disabled={isSaving || !isOnline}>
+            {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
+          </Button>
+        )
+      }
+      previewPanel={renderPreviewPanel()}
+    />
   );
   if (!selectedCapsule) {
     return (
@@ -3376,30 +2160,9 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
             </Button>
           </div>
         ) : null}
-        <div className={styles.modeTabs} role="tablist" aria-label="Creation mode">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={creationMode === "guided"}
-            className={styles.modeTab}
-            data-state={creationMode === "guided" ? "active" : "idle"}
-            onClick={() => handleCreationModeToggle("guided")}
-          >
-            <span className={styles.modeTabLabel}>Guided creation</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={creationMode === "manual"}
-            className={styles.modeTab}
-            data-state={creationMode === "manual" ? "active" : "idle"}
-            onClick={() => handleCreationModeToggle("manual")}
-          >
-            <span className={styles.modeTabLabel}>Manual creation</span>
-          </button>
-        </div>
-        {creationMode === "guided" ? renderGuidedExperience() : renderManualExperience()}
+        {renderGuidedExperience()}
       </div>
     </div>
   );
 }
+

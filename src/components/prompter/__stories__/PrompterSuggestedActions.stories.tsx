@@ -13,12 +13,15 @@ export default meta;
 
 export function Default() {
   const [lastAction, setLastAction] = React.useState<string | null>(null);
+  const actions = ["Post an update", "Share a photo", "Summarize my feed", "Style my capsule"].map(
+    (label) => ({
+      label,
+      value: label,
+    }),
+  );
   return (
     <div style={{ maxWidth: 520 }}>
-      <PrompterSuggestedActions
-        actions={["Post an update", "Share a photo", "Summarize my feed", "Style my capsule"]}
-        onSelect={(action) => setLastAction(action)}
-      />
+      <PrompterSuggestedActions actions={actions} onSelect={(action) => setLastAction(action)} />
       {lastAction ? (
         <p style={{ marginTop: "1rem" }}>
           Last selected:

@@ -37,6 +37,7 @@ type Props = {
   showVoiceButton?: boolean;
   showIntentMenu?: boolean;
   multiline?: boolean;
+  submitVariant?: "default" | "icon";
 };
 
 export function PrompterInputBar({
@@ -69,6 +70,7 @@ export function PrompterInputBar({
   showVoiceButton = true,
   showIntentMenu = true,
   multiline = false,
+  submitVariant = "default",
 }: Props) {
   const isListening = voiceStatus === "listening" || voiceStatus === "stopping";
   const [isCompact, setIsCompact] = React.useState(false);
@@ -94,6 +96,7 @@ export function PrompterInputBar({
         : "Start voice capture");
   const voiceButtonDisabled = voiceDisabled || !voiceSupported || voiceStatus === "stopping";
   const showSend = isCompact && value.trim().length > 0;
+  const useIconSubmit = submitVariant === "icon";
 
   return (
     <div className={styles.promptBar}>
@@ -183,7 +186,18 @@ export function PrompterInputBar({
           </button>
         )
       ) : null}
-      {!isCompact && showIntentMenu ? (
+      {!isCompact && useIconSubmit ? (
+        <button
+          type="button"
+          className={styles.sendIconBtn}
+          aria-label="Send"
+          onClick={onGenerate}
+          disabled={buttonDisabled}
+          data-intent={dataIntent}
+        >
+          <ArrowUp size={18} weight="bold" />
+        </button>
+      ) : !isCompact && showIntentMenu ? (
         <div className={styles.genSplit} role="group">
           <button
             className={`${buttonClassName} ${styles.genSplitMain}`.trim()}

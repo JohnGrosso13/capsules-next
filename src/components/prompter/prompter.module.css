@@ -311,6 +311,36 @@
     transform: none;
   }
 
+  .sendIconBtn {
+    width: 48px;
+    height: 42px;
+    border-radius: 999px;
+    border: 1px solid var(--ai-prompter-button-border);
+    background: var(--ai-prompter-button-gradient);
+    color: var(--ai-prompter-button-text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--ai-prompter-button-shadow);
+    cursor: pointer;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      opacity 0.18s ease;
+  }
+
+  .sendIconBtn:hover:not(:disabled),
+  .sendIconBtn:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: var(--ai-prompter-button-shadow-hover);
+  }
+
+  .sendIconBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
   .genSplit {
     display: inline-flex;
     align-items: stretch;
@@ -967,7 +997,6 @@
     outline-offset: 2px;
   }
 }
-
 
 
 

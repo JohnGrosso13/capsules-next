@@ -3,8 +3,10 @@
 import * as React from "react";
 import styles from "./prompter.module.css";
 
+type Action = { label: string; value: string };
+
 type Props = {
-  actions: string[];
+  actions: Action[];
   onSelect: (value: string) => void;
 };
 
@@ -13,8 +15,13 @@ export function PrompterSuggestedActions({ actions, onSelect }: Props) {
   return (
     <div className={styles.chips}>
       {actions.map((action) => (
-        <button key={action} className={styles.chip} type="button" onClick={() => onSelect(action)}>
-          {action}
+        <button
+          key={action.value}
+          className={styles.chip}
+          type="button"
+          onClick={() => onSelect(action.value)}
+        >
+          {action.label}
         </button>
       ))}
     </div>

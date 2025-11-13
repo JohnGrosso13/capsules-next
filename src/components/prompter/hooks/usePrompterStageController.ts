@@ -46,10 +46,12 @@ export type PrompterAction =
   | { kind: "tool_logo"; prompt: string; raw: string; attachments?: PrompterAttachment[] }
   | { kind: "tool_poll"; prompt: string; raw: string; attachments?: PrompterAttachment[] }
   | { kind: "tool_image_edit"; prompt: string; raw: string; attachments?: PrompterAttachment[] };
+export type PrompterChipOption = { label: string; value: string };
+type PrompterChip = string | PrompterChipOption;
 
 type UsePrompterStageControllerProps = {
   placeholder?: string;
-  chips?: string[];
+  chips?: PrompterChip[];
   statusMessage?: string | null;
   onAction?: (action: PrompterAction) => void;
   onHandoff?: (handoff: PrompterHandoff) => void;
@@ -407,6 +409,19 @@ export function usePrompterStageController({
       Boolean(uploadCompleteHint) ||
       attachment?.status === "error");
 
+  const chipOptions = React.useMemo<PrompterChipOption[]>(
+    () =>
+      chips.map((chip) =>
+        typeof chip === "string"
+          ? {
+              label: chip,
+              value: chip,
+            }
+          : chip,
+      ),
+    [chips],
+  );
+
   return {
     composerContext,
     activeCapsuleId,
@@ -414,7 +429,7 @@ export function usePrompterStageController({
     resolvedPlaceholder,
     localStatus,
     showLocalStatus,
-    chips,
+    chipOptions,
     statusMessage,
     text,
     setText,
