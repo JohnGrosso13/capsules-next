@@ -1,0 +1,139 @@
+.stage {
+  width: 100%;
+}
+
+.surface {
+  width: 100%;
+  max-width: 860px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg, 18px);
+}
+
+.chatShell {
+  border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
+  border-radius: 22px;
+  background: color-mix(in srgb, rgba(12, 18, 36, 0.75) 90%, transparent);
+  padding: clamp(16px, 2vw, 22px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 38px rgba(5, 8, 20, 0.5);
+}
+
+.chatLog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 12px);
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(8, 12, 28, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  min-height: 520px;
+  max-height: 780px;
+  overflow-y: auto;
+}
+
+.chatLog::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chatLog::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+.chatBubble {
+  border-radius: 18px;
+  padding: 14px 18px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--color-fg, rgba(255, 255, 255, 0.92));
+  background: rgba(20, 24, 48, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  align-self: flex-start;
+}
+
+.chatBubble p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.chatBubbleUser {
+  align-self: flex-end;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #2563eb) 55%, rgba(255, 255, 255, 0.15)),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 35%, rgba(255, 255, 255, 0.1))
+  );
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 65%, rgba(255, 255, 255, 0.25));
+}
+
+.chatLabel {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-fg-subtle, rgba(255, 255, 255, 0.65));
+  margin-bottom: 6px;
+}
+
+.attachmentTray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.attachmentPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(20, 26, 50, 0.8);
+  font-size: 0.85rem;
+}
+
+.attachmentName {
+  font-weight: 600;
+}
+
+.attachmentSize {
+  opacity: 0.7;
+  font-size: 0.78rem;
+}
+
+.attachmentRemove {
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+
+.attachmentRemove:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.chipRow {
+  margin-top: 4px;
+}
+
+.chipRow :global(.chip) {
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  .chatLog {
+    padding: var(--space-md, 16px);
+  }
+}

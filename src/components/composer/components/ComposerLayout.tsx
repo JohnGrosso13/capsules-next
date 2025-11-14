@@ -72,12 +72,7 @@ export function ComposerLayout({
           {leftRail}
         </aside>
 
-        <section
-          ref={mainRef}
-          className={styles.mainColumn}
-          aria-label="Chat thread"
-          style={{ gridTemplateRows: `minmax(0, 1fr) ${layout.bottomHeight}px` }}
-        >
+        <section ref={mainRef} className={styles.mainColumn} aria-label="Chat thread">
           {mainContent}
         </section>
 

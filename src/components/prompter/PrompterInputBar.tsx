@@ -12,6 +12,7 @@ type Props = {
   value: string;
   placeholder?: string;
   onChange: (value: string) => void;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onPaste?: (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   buttonLabel: string;
   buttonClassName: string;
@@ -45,6 +46,7 @@ export function PrompterInputBar({
   value,
   placeholder,
   onChange,
+  onKeyDown,
   onPaste,
   buttonLabel,
   buttonClassName,
@@ -124,9 +126,10 @@ export function PrompterInputBar({
           enterKeyHint="go"
           rows={2}
           value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onPaste={onPaste}
-      />
+          onChange={(event) => onChange(event.target.value)}
+          onPaste={onPaste}
+          onKeyDown={onKeyDown}
+        />
     ) : (
       <input
         className={styles.input}
@@ -142,6 +145,7 @@ export function PrompterInputBar({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onPaste={onPaste}
+        onKeyDown={onKeyDown}
       />
     )}
       {showAttachmentButton ? (

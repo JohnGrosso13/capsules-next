@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 
 import styles from "./ai-composer.module.css";
-import { ComposerForm, type ComposerChoice, type ClarifierPrompt } from "./composer/ComposerForm";
+import type { ComposerChoice, ClarifierPrompt } from "./composer/ComposerForm";
 import type { ComposerContextSnapshot } from "./composer/ComposerProvider";
 import type {
   ComposerVideoStatus,
@@ -21,6 +22,11 @@ import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 import type { PromptSubmitOptions } from "./composer/types";
 
 export type { ComposerDraft } from "@/lib/composer/draft";
+
+const ComposerForm = dynamic(
+  () => import("./composer/ComposerForm").then((mod) => mod.ComposerForm),
+  { ssr: false, loading: () => null },
+);
 
 type AiComposerDrawerProps = {
   open: boolean;

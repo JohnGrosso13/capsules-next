@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import styles from "../../ai-composer.module.css";
+import summaryStyles from "../styles/composer-summary.module.css";
 import { SummaryContextPanel } from "../components/SummaryContextPanel";
 import { SummaryNarrativeCard } from "../components/SummaryNarrativeCard";
 import { AttachmentPanel } from "../components/AttachmentPanel";
@@ -65,6 +66,9 @@ export type PromptPaneProps = {
   promptSurfaceProps: PromptPaneSurfaceProps;
 };
 
+const AI_ATTACHMENT_FEEDBACK_PROMPT =
+  "How does this look? Want me to refine anything or try another variation?";
+
 export function PromptPane({
   summaryControls,
   history,
@@ -92,18 +96,59 @@ export function PromptPane({
   quickPromptBubbleOptions,
   promptSurfaceProps,
 }: PromptPaneProps) {
+  const chatScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const shouldStickRef = React.useRef(true);
   const resolvedAttachmentKind =
     attachmentKind === "video" ? "video" : attachmentKind === "image" ? "image" : null;
+  const trimmedAssistantMessage = typeof message === "string" ? message.trim() : "";
+  const isAiAttachment = displayAttachment?.source === "ai";
+  const attachmentCaption = isAiAttachment
+    ? trimmedAssistantMessage || displayAttachment?.name?.trim() || null
+    : null;
+  const attachmentFollowUp =
+    attachmentCaption && displayAttachment ? AI_ATTACHMENT_FEEDBACK_PROMPT : null;
+
+  React.useEffect(() => {
+    const scrollNode = chatScrollRef.current;
+    if (!scrollNode) return;
+
+    const handleScroll = () => {
+      const distanceFromBottom =
+        scrollNode.scrollHeight - scrollNode.scrollTop - scrollNode.clientHeight;
+      shouldStickRef.current = distanceFromBottom < 120;
+    };
+
+    scrollNode.addEventListener("scroll", handleScroll);
+    handleScroll();
+    return () => {
+      scrollNode.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const scrollNode = chatScrollRef.current;
+    if (!scrollNode || !shouldStickRef.current) return;
+    scrollNode.scrollTo({ top: scrollNode.scrollHeight, behavior: "smooth" });
+  }, [
+    history.length,
+    message,
+    displayAttachment?.id,
+    attachmentKind,
+    videoStatus.state,
+    clarifier?.questionId,
+    showVibePrompt,
+    showQuickPromptBubble,
+  ]);
 
   return (
     <>
       <div className={styles.chatArea}>
         {summaryControls.entries.length ? (
           summaryControls.collapsed ? (
-            <div className={styles.summaryContextToggleRow}>
+            <div className={summaryStyles.summaryContextToggleRow}>
               <button
                 type="button"
-                className={styles.summaryContextToggleBtn}
+                className={summaryStyles.summaryContextToggleBtn}
                 onClick={summaryControls.onReset}
               >
                 Back to summaries
@@ -111,10 +156,10 @@ export function PromptPane({
             </div>
           ) : (
             <>
-              <div className={styles.summaryContextToggleRow}>
+              <div className={summaryStyles.summaryContextToggleRow}>
                 <button
                   type="button"
-                  className={styles.summaryContextToggleBtn}
+                  className={summaryStyles.summaryContextToggleBtn}
                   data-active={summaryControls.panelOpen ? "true" : undefined}
                   aria-expanded={summaryControls.panelOpen}
                   onClick={summaryControls.onPanelToggle}
@@ -136,7 +181,7 @@ export function PromptPane({
           )
         ) : null}
 
-        <div className={styles.chatScroll}>
+        <div ref={chatScrollRef} className={styles.chatScroll}>
           {summaryControls.result && !summaryControls.collapsed ? (
             <SummaryNarrativeCard
               result={summaryControls.result}
@@ -248,7 +293,16 @@ export function PromptPane({
                 uploading={attachmentUploading}
                 onRemove={onRemoveAttachment}
                 onOpenViewer={onOpenAttachmentViewer}
+                caption={attachmentCaption}
               />
+            ) : null}
+
+            {attachmentFollowUp ? (
+              <li className={styles.msgRow} data-role="ai">
+                <div className={`${styles.msgBubble} ${styles.aiBubble}`}>
+                  {attachmentFollowUp}
+                </div>
+              </li>
             ) : null}
 
             {videoStatus.state === "running" ? (

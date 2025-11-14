@@ -1671,6 +1671,9 @@ export function ComposerForm({
   );
 
 
+  // Intent chips are disabled inside Composer Studio.
+  const showPromptPresetsInComposer = false;
+
   const promptSurfaceProps: PromptPaneSurfaceProps = {
     loading,
     attachmentUploading,
@@ -1685,7 +1688,7 @@ export function ComposerForm({
     onPromptSubmit: handlePromptSubmit,
     quickPromptOptions,
     onQuickPromptSelect: handleSuggestionSelect,
-    showQuickPrompts: !summaryResult,
+    showQuickPrompts: showPromptPresetsInComposer && !summaryResult,
     voiceControls,
   };
 

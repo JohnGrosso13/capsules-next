@@ -50,8 +50,13 @@ export function PromptSurface({
   showQuickPrompts,
   voiceControls,
 }: PromptSurfaceProps) {
+  const hasQuickPrompts = showQuickPrompts && quickPromptOptions.length > 0;
+
   return (
-    <div className={styles.composerBottom}>
+    <div
+      className={styles.composerBottom}
+      data-has-presets={hasQuickPrompts ? "true" : undefined}
+    >
       <div className={styles.promptSurface}>
         <button
           type="button"
@@ -118,7 +123,7 @@ export function PromptSurface({
         </div>
       ) : null}
 
-      {showQuickPrompts ? (
+      {hasQuickPrompts ? (
         <div className={styles.promptPresets}>
           {quickPromptOptions.map((option) => (
             <button
@@ -135,6 +140,5 @@ export function PromptSurface({
     </div>
   );
 }
-
 
 

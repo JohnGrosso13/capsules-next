@@ -17,6 +17,7 @@ type AttachmentPanelProps = {
   uploading: boolean;
   onRemove: () => void;
   onOpenViewer: () => void;
+  caption?: string | null;
 };
 
 export function AttachmentPanel({
@@ -29,7 +30,12 @@ export function AttachmentPanel({
   uploading,
   onRemove,
   onOpenViewer,
+  caption,
 }: AttachmentPanelProps) {
+  const resolvedCaption =
+    typeof caption === "string" ? caption.trim() || null : caption ?? null;
+  const showMetaName = !resolvedCaption;
+
   return (
     <li className={`${styles.msgRow} ${styles.attachmentMessageRow}`} data-role="attachment">
       <div
@@ -111,19 +117,29 @@ export function AttachmentPanel({
           </button>
         </div>
 
-        <div className={styles.attachmentMetaBar}>
-          <span className={styles.attachmentMetaName} title={attachment.name}>
-            {attachment.name}
-          </span>
-          {statusLabel ? (
-            <span
-              className={styles.attachmentMetaStatus}
-              data-state={attachment.status === "error" ? "error" : undefined}
-            >
-              {statusLabel}
-            </span>
-          ) : null}
-        </div>
+        {showMetaName || statusLabel ? (
+          <div className={styles.attachmentMetaBar}>
+            {showMetaName ? (
+              <span className={styles.attachmentMetaName} title={attachment.name}>
+                {attachment.name}
+              </span>
+            ) : null}
+            {statusLabel ? (
+              <span
+                className={styles.attachmentMetaStatus}
+                data-state={attachment.status === "error" ? "error" : undefined}
+              >
+                {statusLabel}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {resolvedCaption ? (
+          <div className={styles.attachmentCaptionBlock}>
+            <p className={styles.attachmentCaption}>{resolvedCaption}</p>
+          </div>
+        ) : null}
       </div>
     </li>
   );

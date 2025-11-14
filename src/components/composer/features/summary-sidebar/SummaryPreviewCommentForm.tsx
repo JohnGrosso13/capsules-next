@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import styles from "../../../ai-composer.module.css";
+import summaryStyles from "../../styles/composer-summary.module.css";
 import { safeRandomUUID } from "@/lib/random";
 import type { AuthClientUser } from "@/ports/auth-client";
 import { submitComment } from "@/services/comments";
@@ -66,25 +66,25 @@ export default function SummaryPreviewCommentForm({
   );
 
   return (
-    <form className={styles.summaryCommentForm} onSubmit={handleSubmit}>
+    <form className={summaryStyles.summaryCommentForm} onSubmit={handleSubmit}>
       <textarea
-        className={styles.summaryCommentInput}
+        className={summaryStyles.summaryCommentInput}
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder={canComment ? "Leave a quick comment..." : "Sign in to comment"}
         disabled={!canComment || submitting}
       />
-      <div className={styles.summaryCommentActions}>
+      <div className={summaryStyles.summaryCommentActions}>
         {error ? (
-          <span className={styles.summaryCommentError}>{error}</span>
+          <span className={summaryStyles.summaryCommentError}>{error}</span>
         ) : success ? (
-          <span className={styles.summaryCommentSuccess}>{success}</span>
+          <span className={summaryStyles.summaryCommentSuccess}>{success}</span>
         ) : (
           <span />
         )}
         <button
           type="submit"
-          className={styles.summaryCommentSubmit}
+          className={summaryStyles.summaryCommentSubmit}
           disabled={!canComment || submitting || !value.trim()}
         >
           {submitting ? "Posting..." : "Comment"}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import styles from "../../ai-composer.module.css";
+import summaryStyles from "../styles/composer-summary.module.css";
 import type { SummaryResult } from "@/types/summary";
 import type { SummaryConversationEntry, SummaryPresentationOptions } from "@/lib/composer/summary-context";
 
@@ -118,47 +118,47 @@ export function SummaryNarrativeCard({
       const isActive = selectedEntry?.id === entry.id;
       const hasPost = Boolean(entry.postId);
       return (
-        <li key={id} className={styles.summaryNarrativeItem} data-active={isActive ? "true" : undefined}>
+        <li key={id} className={summaryStyles.summaryNarrativeItem} data-active={isActive ? "true" : undefined}>
           <button
             type="button"
-            className={styles.summaryNarrativeLineBtn}
+            className={summaryStyles.summaryNarrativeLineBtn}
             data-active={isActive ? "true" : undefined}
             onClick={() => handleLineSelect(entry)}
           >
             {text}
           </button>
           {isActive ? (
-            <div className={styles.summaryDetailPanel}>
-              <div className={styles.summaryDetailHeader}>
-                <div className={styles.summaryDetailHeading}>
-                  {entry.title ? <p className={styles.summaryDetailTitle}>{entry.title}</p> : null}
+            <div className={summaryStyles.summaryDetailPanel}>
+              <div className={summaryStyles.summaryDetailHeader}>
+                <div className={summaryStyles.summaryDetailHeading}>
+                  {entry.title ? <p className={summaryStyles.summaryDetailTitle}>{entry.title}</p> : null}
                   {entry.author ? (
-                    <span className={styles.summaryDetailAuthor}>{entry.author}</span>
+                    <span className={summaryStyles.summaryDetailAuthor}>{entry.author}</span>
                   ) : null}
                 </div>
                 {entry.relativeTime ? (
-                  <span className={styles.summaryDetailTimestamp}>{entry.relativeTime}</span>
+                  <span className={summaryStyles.summaryDetailTimestamp}>{entry.relativeTime}</span>
                 ) : null}
               </div>
               {entry.summary ? (
-                <p className={styles.summaryDetailSummary}>{entry.summary}</p>
+                <p className={summaryStyles.summaryDetailSummary}>{entry.summary}</p>
               ) : null}
               {entry.highlights && entry.highlights.length ? (
-                <div className={styles.summaryDetailHighlights}>
+                <div className={summaryStyles.summaryDetailHighlights}>
                   {entry.highlights.map((highlight, index) => (
-                    <span key={`${entry.id}-detail-highlight-${index}`} className={styles.summaryDetailHighlight}>
+                    <span key={`${entry.id}-detail-highlight-${index}`} className={summaryStyles.summaryDetailHighlight}>
                       {highlight}
                     </span>
                   ))}
                 </div>
               ) : null}
-              <div className={styles.summaryDetailActions}>
-                <button type="button" className={styles.summaryNarrativeActionBtn} onClick={() => onAsk(entry)}>
+              <div className={summaryStyles.summaryDetailActions}>
+                <button type="button" className={summaryStyles.summaryNarrativeActionBtn} onClick={() => onAsk(entry)}>
                   Ask Capsule
                 </button>
                 <button
                   type="button"
-                  className={styles.summaryNarrativeActionBtn}
+                  className={summaryStyles.summaryNarrativeActionBtn}
                   onClick={() => onView(entry)}
                   disabled={!hasPost}
                   data-disabled={!hasPost ? "true" : undefined}
@@ -167,7 +167,7 @@ export function SummaryNarrativeCard({
                 </button>
                 <button
                   type="button"
-                  className={styles.summaryNarrativeActionBtn}
+                  className={summaryStyles.summaryNarrativeActionBtn}
                   onClick={() => onComment(entry)}
                   disabled={!hasPost}
                   data-disabled={!hasPost ? "true" : undefined}
@@ -185,21 +185,21 @@ export function SummaryNarrativeCard({
 
   return (
     <section
-      className={styles.summaryNarrativeCard}
+      className={summaryStyles.summaryNarrativeCard}
       aria-label={options?.title ?? "Highlighted feed moments"}
     >
       {headlineHighlights.length ? (
-        <div className={styles.summaryNarrativeSection}>
-          <div className={styles.summaryHighlightHeading}>
-            <h4 className={styles.summaryNarrativeSectionTitle}>Don&rsquo;t miss these</h4>
+        <div className={summaryStyles.summaryNarrativeSection}>
+          <div className={summaryStyles.summaryHighlightHeading}>
+            <h4 className={summaryStyles.summaryNarrativeSectionTitle}>Don&rsquo;t miss these</h4>
             {remainingHighlightCount ? (
-              <span className={styles.summaryHighlightBadge}>
+              <span className={summaryStyles.summaryHighlightBadge}>
                 +{remainingHighlightCount} more in feed
               </span>
             ) : null}
           </div>
-          <div className={styles.summaryNarrativeListScroll}>
-            <ul className={styles.summaryNarrativeList}>
+          <div className={summaryStyles.summaryNarrativeListScroll}>
+            <ul className={summaryStyles.summaryNarrativeList}>
               {headlineHighlights.map((highlight, index) =>
                 renderLine(highlight, `highlight-${index}`),
               )}

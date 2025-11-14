@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import styles from "../../ai-composer.module.css";
+import summaryStyles from "../styles/composer-summary.module.css";
 import type { SummaryConversationEntry } from "@/lib/composer/summary-context";
 
 type SummaryContextPanelProps = {
@@ -21,15 +21,15 @@ export function SummaryContextPanel({
   if (!entries.length) return null;
 
   return (
-    <section className={styles.summaryContextPanel} aria-label="Summary references">
-      <header className={styles.summaryContextHeader}>
-        <h3 className={styles.summaryContextTitle}>Referenced updates</h3>
-        <p className={styles.summaryContextSubtitle}>
+    <section className={summaryStyles.summaryContextPanel} aria-label="Summary references">
+      <header className={summaryStyles.summaryContextHeader}>
+        <h3 className={summaryStyles.summaryContextTitle}>Referenced updates</h3>
+        <p className={summaryStyles.summaryContextSubtitle}>
           Ask follow-up questions, jump to a post, or draft a quick reply without leaving the flow.
         </p>
       </header>
 
-      <ul className={styles.summaryContextList}>
+      <ul className={summaryStyles.summaryContextList}>
         {entries.map((entry, index) => {
           const authorLabel = entry.author ?? `Update ${index + 1}`;
           const snippet =
@@ -37,22 +37,22 @@ export function SummaryContextPanel({
               ? `${entry.summary.slice(0, 317).trimEnd()}...`
               : entry.summary;
           return (
-            <li key={entry.id} className={styles.summaryContextItem}>
-              <div className={styles.summaryContextMeta}>
-                <span className={styles.summaryContextName}>{authorLabel}</span>
+            <li key={entry.id} className={summaryStyles.summaryContextItem}>
+              <div className={summaryStyles.summaryContextMeta}>
+                <span className={summaryStyles.summaryContextName}>{authorLabel}</span>
                 {entry.relativeTime ? (
-                  <span className={styles.summaryContextTime}>{entry.relativeTime}</span>
+                  <span className={summaryStyles.summaryContextTime}>{entry.relativeTime}</span>
                 ) : null}
               </div>
 
-              <p className={styles.summaryContextSnippet}>{snippet}</p>
+              <p className={summaryStyles.summaryContextSnippet}>{snippet}</p>
 
               {entry.highlights && entry.highlights.length ? (
-                <div className={styles.summaryContextHighlights}>
+                <div className={summaryStyles.summaryContextHighlights}>
                   {entry.highlights.map((highlight, highlightIndex) => (
                     <span
                       key={`${entry.id}-highlight-${highlightIndex}`}
-                      className={styles.summaryContextHighlight}
+                      className={summaryStyles.summaryContextHighlight}
                     >
                       {highlight}
                     </span>
@@ -60,10 +60,10 @@ export function SummaryContextPanel({
                 </div>
               ) : null}
 
-              <div className={styles.summaryContextActions}>
+              <div className={summaryStyles.summaryContextActions}>
                 <button
                   type="button"
-                  className={styles.summaryContextActionBtn}
+                  className={summaryStyles.summaryContextActionBtn}
                   onClick={() => onAsk(entry)}
                 >
                   Ask Capsule
@@ -72,14 +72,14 @@ export function SummaryContextPanel({
                   <>
                     <button
                       type="button"
-                      className={styles.summaryContextActionBtn}
+                      className={summaryStyles.summaryContextActionBtn}
                       onClick={() => onView(entry)}
                     >
                       View Post
                     </button>
                     <button
                       type="button"
-                      className={styles.summaryContextActionBtn}
+                      className={summaryStyles.summaryContextActionBtn}
                       onClick={() => onComment(entry)}
                     >
                       Draft Comment

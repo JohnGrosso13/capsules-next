@@ -249,5 +249,6 @@ if (!parsedServerEnv.success) {
   throw new Error(`Invalid server environment configuration: ${details}`);
 }
 
-export const serverEnv = Object.freeze(parsedServerEnv.data);
+const envData = parsedServerEnv.data;
+export const serverEnv = Object.freeze(envData);
 export type ServerEnv = typeof serverEnv;

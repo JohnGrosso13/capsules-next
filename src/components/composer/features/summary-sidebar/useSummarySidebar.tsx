@@ -6,7 +6,7 @@ import { PreviewColumn } from "../../components/PreviewColumn";
 import { PostCard } from "@/components/home-feed/cards/PostCard";
 import SummaryPreviewCommentForm from "./SummaryPreviewCommentForm";
 
-import styles from "../../../ai-composer.module.css";
+import summaryStyles from "../../styles/composer-summary.module.css";
 import type { SummaryConversationEntry } from "@/lib/composer/summary-context";
 import type { PromptRunMode } from "../../types";
 import { truncateText } from "../../utils/text";
@@ -191,7 +191,7 @@ export function useSummarySidebar({
     const openInFeedButton = (
       <button
         type="button"
-        className={styles.summaryPreviewActionBtn}
+        className={summaryStyles.summaryPreviewActionBtn}
         onClick={() => handleSummaryView(summaryPreviewEntry)}
       >
         Open in feed
@@ -201,7 +201,7 @@ export function useSummarySidebar({
     const mobileBackButton = (
       <button
         type="button"
-        className={`${styles.summaryPreviewBackBtn} ${styles.mobileOnly}`}
+        className={`${summaryStyles.summaryPreviewBackBtn} ${summaryStyles.mobileOnly}`}
         onClick={() => setSummaryPreviewEntry(null)}
       >
         Back to composer
@@ -209,19 +209,19 @@ export function useSummarySidebar({
     );
 
     const previewHeading = (
-      <div className={styles.summaryPreviewShellHeader}>
-        <div className={styles.summaryPreviewShellTitleGroup}>
-          <span className={styles.summaryPreviewShellLabel}>Live post preview</span>
+      <div className={summaryStyles.summaryPreviewShellHeader}>
+        <div className={summaryStyles.summaryPreviewShellTitleGroup}>
+          <span className={summaryStyles.summaryPreviewShellLabel}>Live post preview</span>
           {summaryPreviewEntry.title ? (
-            <p className={styles.summaryPreviewShellTitle}>{summaryPreviewEntry.title}</p>
+            <p className={summaryStyles.summaryPreviewShellTitle}>{summaryPreviewEntry.title}</p>
           ) : null}
           {summaryPreviewEntry.author ? (
-            <span className={styles.summaryPreviewShellAuthor}>{summaryPreviewEntry.author}</span>
+            <span className={summaryStyles.summaryPreviewShellAuthor}>{summaryPreviewEntry.author}</span>
           ) : null}
         </div>
-        <div className={styles.summaryPreviewShellMeta}>
+        <div className={summaryStyles.summaryPreviewShellMeta}>
           {summaryPreviewEntry.relativeTime ? (
-            <span className={styles.summaryPreviewShellTimestamp}>{summaryPreviewEntry.relativeTime}</span>
+            <span className={summaryStyles.summaryPreviewShellTimestamp}>{summaryPreviewEntry.relativeTime}</span>
           ) : null}
           {mobileBackButton}
         </div>
@@ -238,10 +238,10 @@ export function useSummarySidebar({
 
       return (
         <PreviewColumn hideHeader variant="compact">
-          <div className={styles.summaryPreviewShell}>
+          <div className={summaryStyles.summaryPreviewShell}>
             {previewHeading}
-            <div className={styles.summaryPreviewShellBody}>
-              <div className={styles.summaryPreviewScroll}>
+            <div className={summaryStyles.summaryPreviewShellBody}>
+              <div className={summaryStyles.summaryPreviewScroll}>
                 <PostCard
                   variant="preview"
                   post={summaryPreviewPost}
@@ -274,7 +274,7 @@ export function useSummarySidebar({
                 currentUser={currentUser}
               />
             </div>
-            <div className={styles.summaryPreviewShellActions}>{openInFeedButton}</div>
+            <div className={summaryStyles.summaryPreviewShellActions}>{openInFeedButton}</div>
           </div>
         </PreviewColumn>
       );
@@ -282,20 +282,20 @@ export function useSummarySidebar({
 
     return (
       <PreviewColumn hideHeader variant="compact">
-        <div className={styles.summaryPreviewShell}>
+        <div className={summaryStyles.summaryPreviewShell}>
           {previewHeading}
-          <div className={styles.summaryPreviewCard}>
+          <div className={summaryStyles.summaryPreviewCard}>
             {hasPost ? (
-              <p className={styles.summaryPreviewHint}>
+              <p className={summaryStyles.summaryPreviewHint}>
                 We couldn&apos;t load this post in the preview. Use Open in feed to view it in the timeline.
               </p>
             ) : (
-              <p className={styles.summaryPreviewHint}>
+              <p className={summaryStyles.summaryPreviewHint}>
                 No post was linked to this summary yet. Open the feed to read the full story.
               </p>
             )}
           </div>
-          <div className={styles.summaryPreviewShellActions}>{openInFeedButton}</div>
+          <div className={summaryStyles.summaryPreviewShellActions}>{openInFeedButton}</div>
         </div>
       </PreviewColumn>
     );

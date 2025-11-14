@@ -309,6 +309,34 @@ function mapPrompterAttachmentToChat(
   };
 }
 
+function mergeComposerChatHistory(
+  previous: ComposerChatMessage[] | null | undefined,
+  incoming: ComposerChatMessage[],
+): ComposerChatMessage[] {
+  const base = Array.isArray(previous) ? previous.slice() : [];
+  const next = Array.isArray(incoming) ? incoming.slice() : [];
+  if (!base.length && !next.length) return [];
+
+  const byId = new Map<string, ComposerChatMessage>();
+  const byContentKey = new Set<string>();
+
+  const makeKey = (m: ComposerChatMessage) => `${m.role}|${(m.content ?? "").trim().toLowerCase()}`;
+
+  const push = (m: ComposerChatMessage) => {
+    if (!m || typeof m !== "object") return;
+    if (m.id && byId.has(m.id)) return;
+    const key = makeKey(m);
+    if (byContentKey.has(key)) return;
+    if (m.id) byId.set(m.id, m);
+    byContentKey.add(key);
+  };
+
+  for (const entry of base) push(entry);
+  for (const entry of next) push(entry);
+
+  return Array.from(byId.values());
+}
+
 function describeRecentCaption(entry: ComposerStoredRecentChat): string {
   const historyCount = Array.isArray(entry.history) ? entry.history.length : 0;
   let totalMessages = historyCount;
@@ -461,6 +489,8 @@ function resetStateWithPreference(
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const IMAGE_INTENT_REGEX =
+  /\b(image|visual|graphic|photo|picture|illustration|art|banner|logo|avatar|thumbnail|poster|cover)\b/i;
 
 function normalizeCapsuleId(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -703,6 +733,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
   const { smartContextEnabled, setSmartContextEnabled: setSmartContextEnabledContext } =
     useComposerSmartContext();
   const saveResetTimeout = React.useRef<number | null>(null);
+  const pendingImagePromptRef = React.useRef<string | null>(null);
 
   const setSmartContextEnabled = React.useCallback(
     (enabled: boolean) => {
@@ -997,6 +1028,64 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     [feedTarget],
   );
 
+  const runAutoImageGeneration = React.useCallback(
+    (imagePrompt: string) => {
+      const trimmed = imagePrompt.trim();
+      if (!trimmed) return;
+      if (pendingImagePromptRef.current === trimmed) return;
+      pendingImagePromptRef.current = trimmed;
+      setState((prev) => ({ ...prev, loading: true }));
+      void (async () => {
+        try {
+          const result = await requestImageGeneration(trimmed);
+          setState((prev) => {
+            const baseDraft: ComposerDraft =
+              prev.draft ??
+              {
+                kind: "image",
+                title: null,
+                content: "",
+                mediaUrl: null,
+                mediaPrompt: null,
+                poll: null,
+                suggestions: [],
+              };
+            const nextDraft: ComposerDraft = {
+              ...baseDraft,
+              kind: "image",
+              mediaUrl: result.url,
+              mediaPrompt: trimmed,
+            };
+            const rawPatch = appendCapsuleContext(
+              { kind: "image", mediaUrl: result.url, media_prompt: trimmed },
+              activeCapsuleId,
+            );
+            const nextRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPatch, nextDraft);
+            return {
+              ...prev,
+              loading: false,
+              draft: nextDraft,
+              rawPost: nextRawPost,
+              message: prev.message ?? "Rendered a new visual. Want any tweaks?",
+            };
+          });
+        } catch (error) {
+          console.error("auto_image_generation_failed", error);
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            message:
+              prev.message ??
+              "I couldn't render that visual. Want to try a different idea?",
+          }));
+        } finally {
+          pendingImagePromptRef.current = null;
+        }
+      })();
+    },
+    [activeCapsuleId, setState],
+  );
+
   const saveCreation = React.useCallback(
     async (request: ComposerSaveRequest): Promise<string | null> => {
       setState((prev) => ({
@@ -1110,8 +1199,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
         setState((prev) => {
           const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
-          const historyForState =
-            normalizedHistory.length > 0 ? normalizedHistory : prev.history ?? [];
+          const historyForState = mergeComposerChatHistory(prev.history, normalizedHistory);
           return {
             ...prev,
             open: true,
@@ -1140,6 +1228,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
 
       const rawSource = (payload.post ?? {}) as Record<string, unknown>;
       const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
+      const baseDraftForKind = normalizeDraftFromPost(rawPost);
       const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
       const isDraftResponse = (payload as { action?: string }).action === "draft_post";
       const draftPayloadPost =
@@ -1167,10 +1256,10 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       let recordedDraft: ComposerDraft | null = null;
       let recordedRawPost: Record<string, unknown> | null = null;
       const applyDraftUpdates = mode !== "chatOnly";
+      let fallbackImagePrompt: string | null = null;
       setState((prev) => {
         const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
-        let historyForState =
-          normalizedHistory.length > 0 ? normalizedHistory : prev.history ?? [];
+        let historyForState = mergeComposerChatHistory(prev.history, normalizedHistory);
         if (mode === "chatOnly" && messageText) {
           const safeMessageText = messageText;
           const lastIndex = historyForState.length - 1;
@@ -1203,14 +1292,43 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         let mergedDraft: ComposerDraft | null = prev.draft ?? null;
         let mergedRawPost: Record<string, unknown> | null;
         if (applyDraftUpdates) {
-          const baseDraft = normalizeDraftFromPost(rawPost);
-          const draftForMerge = mergeComposerDrafts(prev.draft, baseDraft, {
+          const draftForMerge = mergeComposerDrafts(prev.draft, baseDraftForKind, {
             preservePollOptions: preserveOptions,
           });
           mergedDraft = draftForMerge;
           mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, draftForMerge);
+          const mergedKind = (draftForMerge.kind ?? "").toLowerCase();
+          const baseKind = (baseDraftForKind.kind ?? "").toLowerCase();
+          const expectsImage =
+            mergedKind === "image" ||
+            baseKind === "image" ||
+            Boolean(prev.clarifier?.questionId) ||
+            IMAGE_INTENT_REGEX.test(prompt);
+          const baseHasMediaUrl =
+            typeof baseDraftForKind.mediaUrl === "string" &&
+            baseDraftForKind.mediaUrl.trim().length > 0;
+          if (expectsImage && !baseHasMediaUrl) {
+            const candidate =
+              typeof baseDraftForKind.mediaPrompt === "string"
+                ? baseDraftForKind.mediaPrompt.trim()
+                : "";
+            if (candidate) {
+              fallbackImagePrompt = candidate;
+            }
+          }
         } else {
           mergedRawPost = prev.rawPost ?? rawPost ?? null;
+        }
+
+        // If we're resolving an image clarifier but the server text mentions a post,
+        // normalize the assistant message to avoid mismatched intent wording.
+        const wasClarifier = Boolean(prev.clarifier?.questionId);
+        const willBeImage = (mergedDraft?.kind ?? baseDraftForKind.kind ?? "").toLowerCase() === "image";
+        if (wasClarifier && willBeImage) {
+          const lower = (messageText ?? "").toLowerCase();
+          if (!lower || lower.includes("post")) {
+            messageText = "Got it! I’ll work on that visual for you.";
+          }
         }
         recordedDraft = mergedDraft;
         recordedRawPost = mergedRawPost;
@@ -1352,8 +1470,11 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           threadId: recordedThreadId,
         });
       }
+      if (fallbackImagePrompt) {
+        runAutoImageGeneration(fallbackImagePrompt);
+      }
     },
-    [activeCapsuleId, recordRecentChat, setState],
+    [activeCapsuleId, recordRecentChat, runAutoImageGeneration, setState],
   );
 
   const runAiPromptHandoff = React.useCallback(
@@ -1785,6 +1906,11 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         const requestOptions: Record<string, unknown> = {};
         if (clarifierOption?.clarifier) {
           requestOptions.clarifier = clarifierOption.clarifier;
+          // Ensure the next response honors the user's image intent
+          // when answering an image clarifier.
+          if (options?.mode !== "chatOnly" && !requestOptions.prefer) {
+            requestOptions.prefer = "image";
+          }
         }
         if (options?.mode === "chatOnly") {
           requestOptions.chatOnly = true;

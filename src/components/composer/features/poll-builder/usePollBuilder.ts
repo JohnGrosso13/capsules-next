@@ -153,18 +153,26 @@ export function usePollBuilder({ draft, onDraftChange }: UsePollBuilderParams): 
     setPendingFocusIndex(null);
   }, [pendingFocusIndex, pollStructure.options.length]);
 
-  const trimmedPollBody = pollBodyValue.trim();
   const trimmedPollQuestion = pollQuestionValue.trim();
   const trimmedPollOptions = React.useMemo(
     () => pollStructure.options.map((option) => option.trim()).filter(Boolean),
     [pollStructure.options],
   );
+  const hasQuestion = trimmedPollQuestion.length > 0;
+  const hasOptions = trimmedPollOptions.length > 0;
   const hasStructure = React.useMemo(
-    () => trimmedPollBody.length > 0 || trimmedPollQuestion.length > 0 || trimmedPollOptions.length > 0,
-    [trimmedPollBody, trimmedPollQuestion, trimmedPollOptions.length],
+    () => hasQuestion || hasOptions,
+    [hasOptions, hasQuestion],
   );
-  const pollOptionCount = trimmedPollOptions.length || pollStructure.options.length;
-  const pollHelperText = `${pollOptionCount} option${pollOptionCount === 1 ? "" : "s"} ready`;
+  const pollHelperText = React.useMemo(() => {
+    if (hasOptions) {
+      return `${trimmedPollOptions.length} option${trimmedPollOptions.length === 1 ? "" : "s"} ready`;
+    }
+    if (hasQuestion) {
+      return "Poll question ready";
+    }
+    return "Add poll details to activate";
+  }, [hasOptions, hasQuestion, trimmedPollOptions.length]);
 
   return {
     pollStructure,

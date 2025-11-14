@@ -20,6 +20,9 @@ vi.mock("@/hooks/useNetworkStatus", () => ({
   useNetworkStatus: () => networkStatusMock(),
 }));
 
+const actEnv = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+actEnv.IS_REACT_ACT_ENVIRONMENT = true;
+
 const capsules: CapsuleSummary[] = [
   {
     id: "capsule-1",
@@ -62,7 +65,7 @@ describe("LadderBuilder autosave", () => {
       root.render(<LadderBuilder capsules={capsules} initialCapsuleId="capsule-1" />);
     });
 
-    const nameInput = container.querySelector<HTMLInputElement>("#ladder-name");
+    const nameInput = container.querySelector<HTMLInputElement>("#guided-name");
     expect(nameInput).toBeTruthy();
 
     await act(async () => {

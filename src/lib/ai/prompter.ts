@@ -1259,6 +1259,7 @@ function toUint8ArrayView(view: ArrayBufferView): Uint8Array {
 
 const OPENAI_ALLOWED_SIZES = ["256x256", "512x512", "1024x1024"] as const;
 type OpenAiAllowedSize = (typeof OPENAI_ALLOWED_SIZES)[number];
+type NormalizedImageQuality = "standard" | "hd";
 
 export function normalizeOpenAiImageSize(requested: string | null | undefined): OpenAiAllowedSize {
   if (typeof requested === "string" && requested.trim().length) {
@@ -1280,6 +1281,17 @@ export function normalizeOpenAiImageSize(requested: string | null | undefined): 
     }
   }
   return "1024x1024";
+}
+
+function mapOpenAiImageQuality(modelName: string, quality: NormalizedImageQuality): string | null {
+  const normalizedModel = modelName.toLowerCase();
+  if (normalizedModel === "dall-e-2") {
+    return null;
+  }
+  if (normalizedModel.startsWith("gpt-image")) {
+    return quality === "hd" ? "high" : "low";
+  }
+  return quality;
 }
 
 async function generateWithOpenAI(runtime: ProviderRuntimeParams): Promise<ProviderResult> {
@@ -1324,20 +1336,28 @@ async function generateWithOpenAI(runtime: ProviderRuntimeParams): Promise<Provi
 
       try {
         const normalizedSize = normalizeOpenAiImageSize(runtime.params.size);
-        const normalizedQuality =
-          runtime.params.quality === "hd" ? ("hd" as const) : ("standard" as const);
-        const effectiveQuality =
-          normalizedQuality === "hd" && normalizedSize !== "1024x1024" ? "hd" : normalizedQuality;
-        const effectiveSize =
-          normalizedQuality === "hd" ? ("1024x1024" as const) : normalizedSize;
+        const normalizedQuality: NormalizedImageQuality =
+          runtime.params.quality === "hd" ? "hd" : "standard";
+        const effectiveSize: OpenAiAllowedSize =
+          normalizedQuality === "hd" ? ("1024x1024" as OpenAiAllowedSize) : normalizedSize;
 
-        const body = {
+        const body: {
+          model: string;
+          prompt: string;
+          n: number;
+          size: OpenAiAllowedSize;
+          quality?: string;
+        } = {
           model: modelName,
           prompt: runtime.prompt,
           n: 1,
           size: effectiveSize,
-          quality: effectiveQuality,
         };
+
+        const resolvedQuality = mapOpenAiImageQuality(modelName, normalizedQuality);
+        if (resolvedQuality) {
+          body.quality = resolvedQuality;
+        }
 
         const response = await fetchOpenAI("/images/generations", {
           method: "POST",
@@ -2023,6 +2043,13 @@ export async function createPostDraft(
       ? `${priorUserMessage}\n\nClarification: ${normalizedClarifier.answer}`
       : userText;
 
+  const composeImagePrompt = (instruction: string | null | undefined, modelPrompt: string | null | undefined): string => {
+    const a = typeof instruction === "string" ? instruction.trim() : "";
+    const b = typeof modelPrompt === "string" ? modelPrompt.trim() : "";
+    if (a && b) return `${a}. ${b}`;
+    return b || a || "";
+  };
+
   async function inferImagePromptFromInstruction(instruction: string) {
     const { content } = await callOpenAIChat(
       [
@@ -2174,7 +2201,7 @@ export async function createPostDraft(
     if (mediaUrl) {
       result.kind = "video";
       result.mediaUrl = mediaUrl;
-      result.mediaPrompt = mediaPrompt ?? instructionForModel;
+      result.mediaPrompt = composeImagePrompt(instructionForModel, mediaPrompt);
       const thumbnailFromResponse =
         typeof postResponse.thumbnail_url === "string"
           ? postResponse.thumbnail_url
@@ -2236,7 +2263,7 @@ export async function createPostDraft(
       result.videoRunError = null;
     } else {
       try {
-        const videoInstruction = mediaPrompt ?? instructionForModel;
+        const videoInstruction = composeImagePrompt(instructionForModel, mediaPrompt);
         if (videoAttachment?.url) {
           videoResult = await editVideoWithInstruction(videoAttachment.url, videoInstruction, {
             capsuleId: capsuleId ?? null,
@@ -2277,7 +2304,7 @@ export async function createPostDraft(
     const downloadUrl = videoResult.url ?? videoResult.playbackUrl;
     result.kind = "video";
     result.mediaUrl = playbackUrl;
-    result.mediaPrompt = mediaPrompt ?? instructionForModel;
+    result.mediaPrompt = composeImagePrompt(instructionForModel, mediaPrompt);
     result.thumbnailUrl =
       videoResult.posterUrl ?? videoResult.thumbnailUrl ?? result.thumbnailUrl ?? null;
     result.playbackUrl = downloadUrl;
@@ -2308,13 +2335,14 @@ export async function createPostDraft(
       result.kind = requestedKind || "image";
     } else if (allowGeneratedMedia && mediaPrompt) {
       try {
-        const generatedImage = await generateImageFromPrompt(mediaPrompt);
+        const finalPrompt = composeImagePrompt(instructionForModel, mediaPrompt);
+        const generatedImage = await generateImageFromPrompt(finalPrompt);
 
         result.mediaUrl = generatedImage.url;
 
         result.kind = "image";
 
-        result.mediaPrompt = mediaPrompt;
+        result.mediaPrompt = finalPrompt;
       } catch (error) {
         console.error("Image generation failed for composer prompt:", error);
 
@@ -2331,13 +2359,14 @@ export async function createPostDraft(
 
       if (mediaPrompt) {
         try {
-          const fallbackImage = await generateImageFromPrompt(mediaPrompt);
+          const finalPrompt = composeImagePrompt(instructionForModel, mediaPrompt);
+          const fallbackImage = await generateImageFromPrompt(finalPrompt);
 
           result.mediaUrl = fallbackImage.url;
 
           result.kind = "image";
 
-          result.mediaPrompt = mediaPrompt;
+          result.mediaPrompt = finalPrompt;
         } catch (error) {
           console.error("Image generation failed (intent path):", error);
         }

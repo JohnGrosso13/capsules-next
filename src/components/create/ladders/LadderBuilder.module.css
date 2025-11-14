@@ -5,17 +5,22 @@
   gap: 32px;
   width: min(100%, 1280px);
   margin: 0 auto;
-  padding: clamp(24px, 4vw, 56px) clamp(18px, 4vw, 48px) 64px;
+  padding: clamp(16px, 3vw, 32px) clamp(18px, 4vw, 42px) 48px;
 }
 
 .wizardPanel {
   position: relative;
   border-radius: clamp(24px, 4vw, 40px);
   padding: clamp(24px, 4vw, 42px);
+  /* Unified studio surface gradient that blends brand hues more subtly */
   background:
-    linear-gradient(145deg, rgba(12, 16, 32, 0.94), rgba(22, 28, 52, 0.88)),
-    radial-gradient(circle at 20% 12%, rgba(118, 166, 255, 0.32), transparent 52%),
-    radial-gradient(circle at 80% 0%, rgba(194, 120, 255, 0.24), transparent 50%);
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--color-brand, #2563eb) 8%, rgba(14, 18, 30, 0.96)),
+      color-mix(in srgb, var(--color-accent, #22d3ee) 6%, rgba(22, 26, 48, 0.94))
+    ),
+    radial-gradient(1200px 600px at 60% -20%, color-mix(in srgb, var(--color-brand, #2563eb) 16%, transparent), transparent 60%),
+    radial-gradient(900px 520px at 0% 100%, color-mix(in srgb, var(--color-accent, #22d3ee) 12%, transparent), transparent 58%);
   box-shadow:
     0 32px 64px rgba(5, 6, 20, 0.65),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -27,12 +32,71 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
+  /* Subtle, unified glow using tokens; avoids strong left/right split */
   background:
-    radial-gradient(circle at 15% 15%, rgba(92, 128, 255, 0.32), transparent 55%),
-    radial-gradient(circle at 80% 25%, rgba(204, 126, 255, 0.28), transparent 50%);
+    radial-gradient(800px 420px at 30% 0%, color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent), transparent 60%),
+    radial-gradient(1000px 520px at 70% 100%, color-mix(in srgb, var(--color-accent, #22d3ee) 14%, transparent), transparent 62%);
   filter: blur(24px);
   opacity: 0.85;
   pointer-events: none;
+}
+
+/* Naming panel: connects title input with the AI prompter */
+.namingPanel {
+  border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
+  border-radius: 22px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--studio-surface-panel, rgba(18, 22, 38, 0.78)) 92%, transparent),
+      color-mix(in srgb, rgba(16, 20, 38, 0.82) 100%, transparent)
+    );
+  box-shadow: 0 22px 44px rgba(6, 10, 24, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  padding: 18px 18px 20px;
+}
+
+.namingHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 6px 12px;
+}
+
+.namingTitle {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.namingBody {
+  display: grid;
+  gap: 14px;
+}
+
+.namingOr {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.9rem;
+}
+
+.namingOr::before,
+.namingOr::after {
+  content: "";
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14));
+}
+
+.namingOr::after {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.14), transparent);
+}
+
+.namingDivider {
+  height: 1px;
+  width: 100%;
+  border: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
 }
 
 .gateWrap {
@@ -128,15 +192,6 @@
 .toastDismiss:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.4);
   outline-offset: 2px;
-}
-
-.autosaveMeta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.68);
-  white-space: nowrap;
 }
 
 .grid {
@@ -861,24 +916,6 @@
     transition: none !important;
   }
 }
-.panelTopActions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  gap: 16px;
-}
-.panelCapsule {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.panelCapsuleLabel {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  opacity: 0.7;
-}
 .modeTabs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -987,77 +1024,212 @@
   flex-direction: column;
   gap: 18px;
 }
-.chatCard {
+.prompterCard {
   border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(145deg, rgba(16, 21, 45, 0.92), rgba(24, 30, 58, 0.86)),
+    radial-gradient(circle at 15% 0%, rgba(120, 150, 255, 0.14), transparent 55%);
 }
-.chatHistory {
+
+.prompterHeader :global(.card-title) {
+  font-size: 1.2rem;
+}
+
+.prompterHeader {
+  padding-bottom: 0;
+}
+
+.prompterBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(120, 150, 255, 0.18);
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 10px;
+}
+
+.prompterBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.prompterComposerShell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background:
+    linear-gradient(120deg, rgba(22, 30, 62, 0.88), rgba(32, 26, 58, 0.9)),
+    rgba(9, 12, 24, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.prompterIconButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(9, 13, 26, 0.65);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.prompterIconButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(6, 8, 22, 0.4);
+}
+
+.prompterChat {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 20px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(14, 18, 34, 0.6);
-  min-height: 260px;
-  max-height: 420px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(9, 13, 28, 0.65);
+  max-height: 360px;
   overflow-y: auto;
 }
-.chatHistory::-webkit-scrollbar {
+
+.prompterChat::-webkit-scrollbar {
   width: 6px;
 }
-.chatHistory::-webkit-scrollbar-thumb {
+
+.prompterChat::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 999px;
 }
-.chatMessage {
-  display: flex;
-}
-.chatMessage[data-role="assistant"] {
-  justify-content: flex-start;
-}
-.chatMessage[data-role="user"] {
-  justify-content: flex-end;
-}
-.chatBubble {
+
+.prompterBubble {
   border-radius: 14px;
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(26, 32, 68, 0.55);
-  max-width: 460px;
-  box-shadow: 0 6px 16px rgba(4, 8, 22, 0.35);
+  padding: 14px;
+  max-width: 540px;
+  box-shadow: 0 10px 22px rgba(5, 6, 20, 0.5);
 }
-.chatBubbleLabel {
-  font-size: 0.75rem;
+
+.prompterBubbleAi {
+  align-self: flex-start;
+  background: rgba(35, 42, 92, 0.75);
+  border: 1px solid rgba(176, 204, 255, 0.2);
+}
+
+.prompterBubbleUser {
+  align-self: flex-end;
+  background: linear-gradient(140deg, rgba(118, 152, 255, 0.55), rgba(114, 226, 255, 0.45));
+  border: 1px solid rgba(156, 186, 255, 0.4);
+}
+
+.prompterBubbleLabel {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
   opacity: 0.7;
+  margin-bottom: 6px;
 }
-.chatBubble p {
-  margin: 6px 0 0;
-  font-size: 0.9rem;
-  opacity: 0.85;
-}
-.chatMessage[data-role="user"] .chatBubble {
-  background: linear-gradient(130deg, rgba(92, 124, 255, 0.38), rgba(52, 188, 255, 0.3));
-  border-color: rgba(156, 186, 255, 0.6);
-  text-align: right;
-}
-.chatTyping {
-  font-size: 0.85rem;
-  opacity: 0.7;
-  font-style: italic;
-}
-.inlinePrompter {
-  margin-top: 18px;
-}
-.inlinePrompter :global(.prompterStage) {
-  max-width: none;
+
+.prompterBubble p {
   margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
-.chatError {
-  margin-top: 10px;
-  color: #ff9b9b;
+
+.prompterComposer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 999px;
+  background: rgba(9, 13, 28, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.prompterInput {
+  background: transparent;
+  border: none;
+  color: inherit;
+  flex: 1;
+}
+
+.prompterInput:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.prompterSend {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, rgba(120, 150, 255, 0.95), rgba(123, 230, 255, 0.85));
+  color: #090d1c;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.prompterSend:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(16, 20, 46, 0.6);
+}
+
+.prompterSend:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.prompterStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0 6px;
+}
+
+.prompterStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #7df7c5;
+  box-shadow: 0 0 8px rgba(125, 247, 197, 0.7);
+}
+
+.prompterSuggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0 6px;
+}
+
+.prompterSuggestionButton {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: rgba(10, 14, 28, 0.4);
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.82);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.prompterSuggestionButton:hover {
+  border-color: rgba(140, 168, 255, 0.8);
+  background: rgba(118, 150, 255, 0.12);
 }
 .guidedActionBar {
   display: flex;

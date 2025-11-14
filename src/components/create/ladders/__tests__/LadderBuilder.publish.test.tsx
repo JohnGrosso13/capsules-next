@@ -20,6 +20,9 @@ vi.mock("@/hooks/useNetworkStatus", () => ({
   useNetworkStatus: () => true,
 }));
 
+const actEnv = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+actEnv.IS_REACT_ACT_ENVIRONMENT = true;
+
 const capsules: CapsuleSummary[] = [
   {
     id: "capsule-1",
@@ -95,16 +98,22 @@ describe("LadderBuilder publish flow", () => {
       });
     };
 
-    await setInputValue(container.querySelector<HTMLInputElement>("#ladder-name"), "Launch Ladder");
-    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Basics -> Seed
-    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Seed -> Story
-    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Story -> Format
+    await setInputValue(container.querySelector<HTMLInputElement>("#guided-name"), "Launch Ladder");
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Title -> Summary
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Summary -> Registration
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Registration -> Type
 
-    await setInputValue(container.querySelector<HTMLInputElement>("#game-title"), "VALORANT");
-    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Format -> Roster
+    await setInputValue(container.querySelector<HTMLInputElement>("#guided-game-title"), "VALORANT");
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Type -> Format
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Format -> Overview
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Overview -> Rules
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Rules -> Shoutouts
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Shoutouts -> Timeline
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Timeline -> Roster
 
-    await setInputValue(container.querySelector<HTMLInputElement>("tbody tr td input"), "Player One");
-    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Roster -> Review
+    await setInputValue(container.querySelector<HTMLInputElement>("#member-name-0"), "Player One");
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Roster -> Rewards
+    await clickButton((button) => button.textContent?.startsWith("Next") ?? false); // Rewards -> Review
 
     await clickButton((button) => button.textContent?.includes("Save ladder draft") ?? false);
     await act(async () => {

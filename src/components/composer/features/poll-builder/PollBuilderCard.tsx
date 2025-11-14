@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Plus, X } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "../../../ai-composer.module.css";
+import pollStyles from "../../styles/composer-poll-builder.module.css";
 import type { PollStructure } from "./usePollBuilder";
 import { MAX_POLL_OPTIONS } from "./usePollBuilder";
 
@@ -33,45 +33,45 @@ export function PollBuilderCard({
   onRemovePollOption,
 }: PollBuilderCardProps) {
   return (
-    <div className={styles.previewPollCard} data-editable="true">
-      <div className={styles.pollEditorField}>
-        <label className={styles.pollEditorLabel} htmlFor="composer-poll-intro">
+    <div className={pollStyles.previewPollCard} data-editable="true">
+      <div className={pollStyles.pollEditorField}>
+        <label className={pollStyles.pollEditorLabel} htmlFor="composer-poll-intro">
           Poll intro
         </label>
         <textarea
           id="composer-poll-intro"
-          className={`${styles.previewPollBody} ${styles.pollEditorQuestion}`}
+          className={`${pollStyles.previewPollBody} ${pollStyles.pollEditorQuestion}`}
           value={pollBodyValue}
           placeholder="Prep the community with a short vibe check..."
           rows={3}
           onChange={(event) => onPollBodyChange(event.target.value)}
         />
       </div>
-      <div className={styles.pollEditorField}>
-        <label className={styles.pollEditorLabel} htmlFor="composer-poll-question">
+      <div className={pollStyles.pollEditorField}>
+        <label className={pollStyles.pollEditorLabel} htmlFor="composer-poll-question">
           Poll title
         </label>
         <textarea
           id="composer-poll-question"
           ref={pollQuestionRef}
-          className={`${styles.previewPollQuestion} ${styles.pollEditorQuestion}`}
+          className={`${pollStyles.previewPollQuestion} ${pollStyles.pollEditorQuestion}`}
           value={pollQuestionValue}
           placeholder="Untitled poll"
           rows={2}
           onChange={(event) => onPollQuestionChange(event.target.value)}
         />
       </div>
-      <div className={styles.pollEditorField}>
-        <span className={styles.pollEditorLabel}>Poll options</span>
-        <ul className={`${styles.previewPollOptions} ${styles.pollEditorOptions}`} role="list">
+      <div className={pollStyles.pollEditorField}>
+        <span className={pollStyles.pollEditorLabel}>Poll options</span>
+        <ul className={`${pollStyles.previewPollOptions} ${pollStyles.pollEditorOptions}`} role="list">
           {pollStructure.options.map((option, index) => {
             const allowRemoval = pollStructure.options.length > 2;
             return (
-              <li key={`poll-option-${index}`} className={styles.pollEditorOptionRow}>
-                <span className={styles.previewPollOptionBullet}>{index + 1}</span>
+              <li key={`poll-option-${index}`} className={pollStyles.pollEditorOptionRow}>
+                <span className={pollStyles.previewPollOptionBullet}>{index + 1}</span>
                 <input
                   ref={(element) => registerPollOptionRef(index, element)}
-                  className={`${styles.previewPollOptionLabel} ${styles.pollEditorOptionInput}`}
+                  className={`${pollStyles.previewPollOptionLabel} ${pollStyles.pollEditorOptionInput}`}
                   value={option}
                   placeholder={`Option ${index + 1}`}
                   type="text"
@@ -93,7 +93,7 @@ export function PollBuilderCard({
                 />
                 <button
                   type="button"
-                  className={styles.pollEditorRemove}
+                  className={pollStyles.pollEditorRemove}
                   onClick={() => onRemovePollOption(index)}
                   aria-label={allowRemoval ? `Remove option ${index + 1}` : `Clear option ${index + 1}`}
                 >
@@ -104,8 +104,8 @@ export function PollBuilderCard({
           })}
         </ul>
         {pollStructure.options.length < MAX_POLL_OPTIONS ? (
-          <button type="button" className={styles.pollEditorAdd} onClick={() => onAddPollOption()}>
-            <span className={styles.pollEditorAddIcon}>
+          <button type="button" className={pollStyles.pollEditorAdd} onClick={() => onAddPollOption()}>
+            <span className={pollStyles.pollEditorAddIcon}>
               <Plus size={14} weight="bold" />
             </span>
             <span>Add option</span>

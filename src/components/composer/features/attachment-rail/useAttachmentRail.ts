@@ -170,7 +170,7 @@ export function useAttachmentRail({
     if (displayAttachment.status === "error") {
       return displayAttachment.error ?? "Upload failed";
     }
-    return "Attachment ready";
+    return null;
   }, [displayAttachment]);
 
   const attachmentPreviewUrl = React.useMemo(() => {

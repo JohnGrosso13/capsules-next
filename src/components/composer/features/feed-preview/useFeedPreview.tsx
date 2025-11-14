@@ -98,6 +98,28 @@ export function useFeedPreview({
       </div>
     );
 
+    const textBlocks = content
+      ? content.split(/\n+/).map((block) => block.trim()).filter(Boolean)
+      : [];
+    const hasTextCopy = Boolean(title) || textBlocks.length > 0;
+    const renderPostCopy = () => {
+      if (!hasTextCopy) {
+        return null;
+      }
+      return (
+        <div className={styles.previewPostCard}>
+          {title ? <h3 className={styles.previewPostTitle}>{title}</h3> : null}
+          {textBlocks.length ? (
+            <div className={styles.previewPostBody}>
+              {textBlocks.map((paragraph, index) => (
+                <p key={`${paragraph}-${index}`}>{paragraph}</p>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      );
+    };
+
     let helper: string | null = null;
     let body: React.ReactNode;
     let empty = false;
@@ -121,15 +143,19 @@ export function useFeedPreview({
           if (empty) {
             body = renderPlaceholder("Upload or describe a visual to stage it here.");
           } else {
+            const copyPreview = renderPostCopy();
             body = (
-              <figure className={styles.previewMediaFrame} data-kind="image">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={mediaUrl ?? undefined}
-                  alt={attachmentName ?? (mediaPrompt || "Generated visual preview")}
-                />
-                {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
-              </figure>
+              <div className={styles.previewMediaStack}>
+                <figure className={styles.previewMediaFrame} data-kind="image">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={mediaUrl ?? undefined}
+                    alt={attachmentName ?? (mediaPrompt || "Generated visual preview")}
+                  />
+                  {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
+                </figure>
+                {copyPreview}
+              </div>
             );
           }
           break;
@@ -137,18 +163,28 @@ export function useFeedPreview({
         case "video": {
           empty = !mediaUrl;
           const durationLabel = formatClipDuration(clipDurationSeconds);
-          helper = [mediaPrompt || attachmentName, durationLabel].filter(Boolean).join(" · ");
+          const captionSeparator = " \u2022 ";
+          helper = [mediaPrompt || attachmentName, durationLabel].filter(Boolean).join(captionSeparator);
           if (empty) {
             body = renderPlaceholder("Drop a clip or describe scenes to preview them here.");
           } else {
             const captionParts = [];
             if (mediaPrompt) captionParts.push(mediaPrompt);
             if (durationLabel) captionParts.push(durationLabel);
+            const copyPreview = renderPostCopy();
             body = (
-              <figure className={styles.previewMediaFrame} data-kind="video">
-                <video src={mediaUrl ?? undefined} controls preload="metadata" poster={attachmentThumb ?? undefined} />
-                {captionParts.length ? <figcaption>{captionParts.join(" · ")}</figcaption> : null}
-              </figure>
+              <div className={styles.previewMediaStack}>
+                <figure className={styles.previewMediaFrame} data-kind="video">
+                  <video
+                    src={mediaUrl ?? undefined}
+                    controls
+                    preload="metadata"
+                    poster={attachmentThumb ?? undefined}
+                  />
+                  {captionParts.length ? <figcaption>{captionParts.join(captionSeparator)}</figcaption> : null}
+                </figure>
+                {copyPreview}
+              </div>
             );
           }
           break;
@@ -218,25 +254,13 @@ export function useFeedPreview({
           break;
         }
         default: {
-          const paragraphs = content
-            ? content.split(/\n+/).map((block) => block.trim()).filter(Boolean)
-            : [];
-          empty = paragraphs.length === 0 && !title;
+          empty = !hasTextCopy;
           if (empty) {
             body = renderPlaceholder(
               `Give Capsule AI a prompt to see your ${label.toLowerCase()} take shape.`,
             );
           } else {
-            body = (
-              <div className={styles.previewPostCard}>
-                {title ? <h3 className={styles.previewPostTitle}>{title}</h3> : null}
-                <div className={styles.previewPostBody}>
-                  {paragraphs.map((paragraph, index) => (
-                    <p key={`${paragraph}-${index}`}>{paragraph}</p>
-                  ))}
-                </div>
-              </div>
-            );
+            body = renderPostCopy();
           }
           break;
         }

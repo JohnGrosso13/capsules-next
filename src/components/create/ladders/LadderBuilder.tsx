@@ -4,14 +4,6 @@ import type { ZodIssue } from "zod";
 import { useRouter } from "next/navigation";
 import { CapsuleGate } from "@/components/capsule/CapsuleGate";
 import type { CapsuleSummary } from "@/server/capsules/service";
-import type { LadderVisibility } from "@/types/ladders";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
 import {
   Alert,
   AlertDescription,
@@ -19,34 +11,22 @@ import {
   type AlertTone,
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { trackLadderEvent } from "@/lib/telemetry/ladders";
 import { getIdentityAccent } from "@/lib/identity/teams";
-import { formatRelativeTime } from "@/lib/composer/sidebar-types";
 import styles from "./LadderBuilder.module.css";
 import {
-  SECTION_KEYS,
+  defaultMembersForm,
+  defaultSeedForm,
+  createEmptyMemberForm,
+  type LadderMemberFormValues,
+  type LadderWizardState,
   type SectionKey,
-  type LadderCustomSectionFormValues,
   type LadderSectionFormValues,
   type LadderGameFormValues,
   type LadderScoringFormValues,
   type LadderScheduleFormValues,
   type LadderRegistrationFormValues,
-  type LadderMemberFormValues,
-  type LadderWizardState,
-  defaultSectionsForm,
-  defaultGameForm,
-  defaultScoringForm,
-  defaultScheduleForm,
-  defaultRegistrationForm,
-  defaultMembersForm,
-  defaultBasicsForm,
-  defaultSeedForm,
-  createEmptyMemberForm,
-  parseIntegerField,
-  parseOptionalIntegerField,
 } from "./ladderFormState";
 import {
   buildWizardPreviewModel,
@@ -54,20 +34,35 @@ import {
   LADDER_WIZARD_STEPS,
   type LadderWizardStepId,
 } from "./ladderWizardConfig";
+import {
+  GUIDED_STEP_DEFINITIONS,
+  GUIDED_STEP_ORDER,
+  GUIDED_STEP_MAP,
+  DEFAULT_GUIDED_STEP,
+  buildGuidedNameIdeas,
+  buildGuidedSummaryIdeas,
+  type GuidedStepId,
+  type LadderTemplatePreset,
+} from "./guidedConfig";
+import {
+  createInitialFormState,
+  trimOrNull,
+  normalizeMemberList,
+  streakLabel,
+  type LadderBuilderFormState,
+} from "./builderState";
+import {
+  convertConfigToPayload,
+  convertGameToPayload,
+  convertMembersToPayload,
+  convertSectionsToPayload,
+} from "./builderPayload";
+import type { AssistantMessage } from "./assistantTypes";
+import { useLadderDraft, type PersistedLadderDraft } from "./hooks/useLadderDraft";
 import { AiPlanCard } from "./components/AiPlanCard";
 import { ReviewOverviewCard } from "./components/ReviewOverviewCard";
-import { RosterStep } from "./components/RosterStep";
+import { GuidedStepContent } from "./components/GuidedStepContent";
 import { WizardLayout } from "./components/WizardLayout";
-type MemberPayload = {
-  displayName: string;
-  handle?: string | null;
-  seed?: number | null;
-  rating: number;
-  wins: number;
-  losses: number;
-  draws: number;
-  streak: number;
-};
 type AiPlanState = {
   reasoning?: string | null;
   prompt?: string | null;
@@ -80,236 +75,6 @@ type LadderToast = {
   description?: string;
   persist?: boolean;
 };
-type GuidedStepId =
-  | "title"
-  | "summary"
-  | "registration"
-  | "type"
-  | "format"
-  | "overview"
-  | "rules"
-  | "shoutouts"
-  | "timeline"
-  | "roster"
-  | "rewards"
-  | "review";
-type GuidedStepDefinition = {
-  id: GuidedStepId;
-  title: string;
-  subtitle: string;
-  helper: string;
-};
-type LadderTemplatePreset = {
-  id: string;
-  label: string;
-  description: string;
-  mode: string;
-  cadence: string;
-  kickoff: string;
-  summary: string;
-};
-const GUIDED_STEP_DEFINITIONS: GuidedStepDefinition[] = [
-  {
-    id: "title",
-    title: "Name & vibe",
-    subtitle: "Give the ladder an identity challengers can rally around.",
-    helper: 'Short, ownable names work best. Think "{Capsule} Clash" or "Weekend Gauntlet".',
-  },
-  {
-    id: "summary",
-    title: "One-line summary",
-    subtitle: "Explain why this ladder matters in a single sentence.",
-    helper: "Highlight audience, cadence, or prizes so Capsule AI can build the promo copy.",
-  },
-  {
-    id: "registration",
-    title: "Registration",
-    subtitle: "Choose how teams join and set limits.",
-    helper: "Capsule uses this for funnel copy, invite buttons, and reminders.",
-  },
-  {
-    id: "type",
-    title: "Ladder type",
-    subtitle: "Tell Capsule what kind of competition this is.",
-    helper: "Pick the match style and platform so we can pre-fill the format metadata.",
-  },
-  {
-    id: "format",
-    title: "Format basics",
-    subtitle: "Dial in the rating defaults and placement matches.",
-    helper: "Initial rating, K-factor, and placement games help Capsule guide skill progression.",
-  },
-  {
-    id: "overview",
-    title: "Ladder overview",
-    subtitle: "Describe the story, vibe, or stakes.",
-    helper: "This becomes the hero copy on Capsules and invites, so keep it vivid and specific.",
-  },
-  {
-    id: "rules",
-    title: "Rules snapshot",
-    subtitle: "Lay down the essentials players need to know.",
-    helper: "Capsule AI will automate the long-form version; just note the must-follow items.",
-  },
-  {
-    id: "shoutouts",
-    title: "Shoutouts & highlights",
-    subtitle: "Collect story hooks, MVPs, or spotlight moments.",
-    helper: "Use bullets for themes (e.g. clutch saves, top fraggers) so AI recaps can riff on them.",
-  },
-  {
-    id: "timeline",
-    title: "Timeline",
-    subtitle: "Share when the ladder runs and how often matches happen.",
-    helper: "We'll use this for reminders, recap pacing, and calendar tooling.",
-  },
-  {
-    id: "roster",
-    title: "Starter roster",
-    subtitle: "Set seeds, handles, and starting stats.",
-    helper: "Edit each row directly. Capsule highlights ratings and streaks in the preview.",
-  },
-  {
-    id: "rewards",
-    title: "Rewards & spotlight",
-    subtitle: "Tell challengers what they're chasing.",
-    helper: "Capsule AI can hype prizes, shoutouts, or story beats in announcements.",
-  },
-  {
-    id: "review",
-    title: "Review & publish",
-    subtitle: "Double-check visibility and go live when you're ready.",
-    helper: "You can still switch back to manual fields if you want the power user view.",
-  },
-];
-const GUIDED_STEP_ORDER = GUIDED_STEP_DEFINITIONS.map((step) => step.id);
-const GUIDED_STEP_MAP = new Map<GuidedStepId, GuidedStepDefinition>(
-  GUIDED_STEP_DEFINITIONS.map((step) => [step.id, step]),
-);
-const DEFAULT_GUIDED_STEP: GuidedStepId = GUIDED_STEP_ORDER[0] ?? "title";
-const RULE_SNIPPETS = [
-  "Matches are best-of-three. Screenshot every result.",
-  "Captains have 48 hours to play once a match post goes live.",
-  "Subs are allowed but must be reported before kickoff.",
-  "Report disputes in #match-review with evidence.",
-];
-const REWARD_SNIPPETS = [
-  "Top 3 earn featured posts across Capsule Events.",
-  "Weekly MVP gets a custom Capsule portrait.",
-  "Winners snag merch codes + priority scrim slots.",
-  "Perfect records unlock an interview with the Capsule host.",
-];
-const LADDER_TEMPLATE_PRESETS: LadderTemplatePreset[] = [
-  {
-    id: "solo-duel",
-    label: "Solo Duel Ladder",
-    description: "1v1 clashes, quick bragging rights.",
-    mode: "1v1 Duels",
-    cadence: "Daily windows",
-    kickoff: "Match anytime within 24h",
-    summary: "Solo players queue up head-to-head duels with instant ELO updates.",
-  },
-  {
-    id: "squad-gauntlet",
-    label: "Squad Gauntlet",
-    description: "Teams rotate weekly spotlight challenges.",
-    mode: "3v3 Teams",
-    cadence: "Weekly rounds",
-    kickoff: "Thursdays 7 PM local",
-    summary: "Squads tackle curated challenges each week with Capsule shoutouts.",
-  },
-  {
-    id: "creator-circuit",
-    label: "Creator Circuit",
-    description: "Open ladder with stream-ready prompts.",
-    mode: "Open queue",
-    cadence: "Weekend sprint",
-    kickoff: "Saturday block",
-    summary: "Creators drop-in for highlight-driven matches with AI-scripted recaps.",
-  },
-];
-const buildGuidedNameIdeas = (capsuleName?: string | null, gameTitle?: string): string[] => {
-  const base = (capsuleName ?? "Capsule").trim() || "Capsule";
-  const game = (gameTitle ?? "").trim() || "Open";
-  const stem = `${base} ${game}`.trim();
-  return [
-    `${stem} Ladder`,
-    `${base} ${game} Gauntlet`,
-    `${game} Spotlight Series`,
-  ];
-};
-const buildGuidedSummaryIdeas = (options: {
-  capsuleName?: string | null;
-  gameTitle?: string;
-  cadence?: string;
-  rewardsFocus?: string;
-}): string[] => {
-  const capsule = (options.capsuleName ?? "the capsule community").trim();
-  const game = (options.gameTitle ?? "your game").trim() || "your game";
-  const cadence = (options.cadence ?? "weekly rounds").trim() || "weekly rounds";
-  const rewards = (options.rewardsFocus ?? "spotlight shoutouts").trim() || "spotlight shoutouts";
-  return [
-    `${capsule} runs a ${cadence} ${game} ladder with Capsule AI covering every upset.`,
-    `${game} challengers climb fast seasons, win ${rewards}, and get auto-generated recaps.`,
-  ];
-};
-type PersistedLadderDraft = {
-  version: 1;
-  updatedAt: number;
-  form: FormState;
-  members: LadderMemberFormValues[];
-  seed: typeof defaultSeedForm;
-  meta: Record<string, unknown>;
-  guidedStep?: GuidedStepId;
-};
-type FormState = {
-  name: string;
-  summary: string;
-  visibility: LadderVisibility;
-  publish: boolean;
-  sections: Record<SectionKey, LadderSectionFormValues>;
-  customSections: LadderCustomSectionFormValues[];
-  game: LadderGameFormValues;
-  scoring: LadderScoringFormValues;
-  schedule: LadderScheduleFormValues;
-  registration: LadderRegistrationFormValues;
-};
-function createInitialFormState(): FormState {
-  return {
-    name: defaultBasicsForm.name,
-    summary: defaultBasicsForm.summary ?? "",
-    visibility: defaultBasicsForm.visibility,
-    publish: defaultBasicsForm.publish,
-    sections: defaultSectionsForm(),
-    customSections: [],
-    game: { ...defaultGameForm },
-    scoring: { ...defaultScoringForm },
-    schedule: { ...defaultScheduleForm },
-    registration: { ...defaultRegistrationForm },
-  };
-}
-function trimOrNull(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : null;
-}
-function normalizeMemberList(list: LadderMemberFormValues[]): LadderMemberFormValues[] {
-  return list.map((member, index) => ({
-    ...member,
-    seed: member.seed.trim().length ? member.seed : String(index + 1),
-    rating: member.rating.trim().length ? member.rating : "1200",
-    wins: member.wins.trim().length ? member.wins : "0",
-    losses: member.losses.trim().length ? member.losses : "0",
-    draws: member.draws.trim().length ? member.draws : "0",
-    streak: member.streak.trim().length ? member.streak : "0",
-  }));
-}
-
-const streakLabel = (value: number): string => {
-  if (Number.isNaN(value)) return "0";
-  if (value > 0) return `+${value}`;
-  return String(value);
-};
-
 type WizardLifecycleMetrics = {
   wizardStartedAt: number;
   stepVisits: Record<LadderWizardStepId, number>;
@@ -382,7 +147,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     if (!selectedCapsule) return null;
     return `capsules:ladder-builder:${selectedCapsule.id}`;
   }, [selectedCapsule]);
-  const [form, setForm] = React.useState<FormState>(createInitialFormState);
+  const [form, setForm] = React.useState<LadderBuilderFormState>(createInitialFormState);
   const [members, setMembers] = React.useState<LadderMemberFormValues[]>(() => defaultMembersForm());
   const [aiPlan, setAiPlan] = React.useState<AiPlanState | null>(null);
   const [meta, setMeta] = React.useState<Record<string, unknown>>({ variant: "ladder" });
@@ -402,38 +167,78 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
   const toastTimers = React.useRef<Record<string, number>>({});
   const offlineToastId = React.useRef<string | null>(null);
   const hasAnnouncedNetwork = React.useRef(false);
-  const draftHydratedRef = React.useRef(false);
-  const autosaveTimer = React.useRef<number | null>(null);
-  const autosaveStartedAt = React.useRef<number | null>(null);
-  const [draftStatus, setDraftStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [lastDraftSavedAt, setLastDraftSavedAt] = React.useState<number | null>(null);
-  const [draftRestoredAt, setDraftRestoredAt] = React.useState<number | null>(null);
   const [isSaving, setSaving] = React.useState(false);
   const [guidedStep, setGuidedStep] = React.useState<GuidedStepId>(DEFAULT_GUIDED_STEP);
   const [assistantDraft, setAssistantDraft] = React.useState("");
-  React.useEffect(() => {
-    const capsuleId = selectedCapsuleId;
-    const lastTracked = lastTrackedCapsuleRef.current;
-    if (lastTracked === capsuleId && lastTracked !== "__init") {
-      return;
-    }
-    lastTrackedCapsuleRef.current = capsuleId;
-    const lifecycle = createWizardLifecycleState(DEFAULT_WIZARD_START_STEP);
-    lifecycle.currentStepId = DEFAULT_WIZARD_START_STEP;
-    wizardLifecycleRef.current = lifecycle;
-    const action = lastTracked === "__init" ? "initial" : "capsule_switch";
-    trackLadderEvent({
-      event: "ladders.wizard.view",
-      capsuleId,
-      payload: {
-        action,
-        variant: metaVariant,
-        capsulesVisible: capsuleList.length,
-        draftRestored: Boolean(draftRestoredAt),
-        helperDensity: helperDensityVariant,
-      },
-    });
-  }, [capsuleList.length, draftRestoredAt, helperDensityVariant, metaVariant, selectedCapsuleId]);
+  const createAssistantMessage = React.useCallback((sender: AssistantMessage["sender"], text: string): AssistantMessage => {
+    return {
+      id: `${sender}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      sender,
+      text,
+      timestamp: Date.now(),
+    };
+  }, []);
+  const [assistantConversation, setAssistantConversation] = React.useState<AssistantMessage[]>(() => [
+    {
+      id: "ai-welcome",
+      sender: "ai",
+      text: "Let’s name this ladder. Tell me the vibe, game, or any theme and I’ll pitch a few title ideas. I can also help with your one‑line summary, rules, or rewards whenever you’re ready.",
+      timestamp: Date.now(),
+    },
+  ]);
+  const resetBuilderToDefaults = React.useCallback(() => {
+    setForm(createInitialFormState());
+    setMembers(defaultMembersForm());
+    setAiPlan(null);
+    setMeta({ variant: "ladder" });
+    setSeed({ ...defaultSeedForm });
+    setGuidedStep(DEFAULT_GUIDED_STEP);
+    wizardLifecycleRef.current = createWizardLifecycleState(DEFAULT_WIZARD_START_STEP);
+  }, []);
+  const serializeDraft = React.useCallback(
+    () => ({
+      form,
+      members,
+      seed,
+      meta,
+      guidedStep,
+    }),
+    [form, guidedStep, members, meta, seed],
+  );
+  const hydrateDraft = React.useCallback(
+    (draft: PersistedLadderDraft) => {
+      if (draft.form && typeof draft.form === "object") {
+        const nextForm = draft.form as Partial<LadderBuilderFormState>;
+        setForm((prev) => ({
+          ...prev,
+          ...nextForm,
+          sections: nextForm.sections ?? prev.sections,
+          customSections: Array.isArray(nextForm.customSections) ? nextForm.customSections : prev.customSections,
+          game: nextForm.game ?? prev.game,
+          scoring: nextForm.scoring ?? prev.scoring,
+          schedule: nextForm.schedule ?? prev.schedule,
+          registration: nextForm.registration ?? prev.registration,
+        }));
+      }
+      if (Array.isArray(draft.members)) {
+        setMembers(normalizeMemberList(draft.members));
+      }
+      if (draft.seed && typeof draft.seed === "object") {
+        setSeed({ ...defaultSeedForm, ...draft.seed });
+      }
+      if (draft.meta && typeof draft.meta === "object") {
+        setMeta((prev) => ({ ...prev, ...draft.meta }));
+      }
+      if (
+        draft.guidedStep &&
+        typeof draft.guidedStep === "string" &&
+        GUIDED_STEP_ORDER.includes(draft.guidedStep as GuidedStepId)
+      ) {
+        setGuidedStep(draft.guidedStep as GuidedStepId);
+      }
+    },
+    [setForm, setMembers, setMeta, setGuidedStep, setSeed],
+  );
   const dismissToast = React.useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
     const timerId = toastTimers.current[id];
@@ -457,6 +262,59 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     },
     [],
   );
+  const handleDraftRestored = React.useCallback(
+    (_timestamp: number) => {
+      pushToast({
+        tone: "info",
+        title: "Draft restored",
+        description: "We loaded your latest ladder edits so you can pick up where you left off.",
+      });
+    },
+    [pushToast],
+  );
+  const handleAutosaveError = React.useCallback(
+    (_error?: unknown) => {
+      pushToast({
+        tone: "danger",
+        title: "Autosave failed",
+        description: "We couldn't store the latest draft locally. Review your storage quota and try again.",
+      });
+    },
+    [pushToast],
+  );
+  const { draftRestoredAt, canDiscardDraft, discardDraft } = useLadderDraft({
+    storageKey: draftStorageKey,
+    serializeDraft,
+    hydrateDraft,
+    resetToDefaults: resetBuilderToDefaults,
+    capsuleId: selectedCapsuleId,
+    onDraftRestored: handleDraftRestored,
+    onAutosaveError: handleAutosaveError,
+    tracker: trackLadderEvent,
+  });
+  React.useEffect(() => {
+    const capsuleId = selectedCapsuleId;
+    const lastTracked = lastTrackedCapsuleRef.current;
+    if (lastTracked === capsuleId && lastTracked !== "__init") {
+      return;
+    }
+    lastTrackedCapsuleRef.current = capsuleId;
+    const lifecycle = createWizardLifecycleState(DEFAULT_WIZARD_START_STEP);
+    lifecycle.currentStepId = DEFAULT_WIZARD_START_STEP;
+    wizardLifecycleRef.current = lifecycle;
+    const action = lastTracked === "__init" ? "initial" : "capsule_switch";
+    trackLadderEvent({
+      event: "ladders.wizard.view",
+      capsuleId,
+      payload: {
+        action,
+        variant: metaVariant,
+        capsulesVisible: capsuleList.length,
+        draftRestored: Boolean(draftRestoredAt),
+        helperDensity: helperDensityVariant,
+      },
+    });
+  }, [capsuleList.length, draftRestoredAt, helperDensityVariant, metaVariant, selectedCapsuleId]);
   const formContentRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
     return () => {
@@ -620,140 +478,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     }
     return buildGuidedSummaryIdeas(summaryOptions);
   }, [form.game.title, form.schedule.cadence, form.sections.results.body, selectedCapsule?.name]);
-  const lastSavedMessage = React.useMemo(() => {
-    if (!lastDraftSavedAt) return null;
-    return `Last saved ${formatRelativeTime(new Date(lastDraftSavedAt).toISOString())}`;
-  }, [lastDraftSavedAt]);
-  const autosaveText = React.useMemo(() => {
-    if (draftStatus === "saving") return "Autosaving draft...";
-    if (draftStatus === "error") return "Autosave failed. Recent edits might not be stored.";
-    return lastSavedMessage;
-  }, [draftStatus, lastSavedMessage]);
-  const canDiscardDraft = React.useMemo(
-    () => Boolean(lastDraftSavedAt || draftRestoredAt),
-    [lastDraftSavedAt, draftRestoredAt],
-  );
-  React.useEffect(() => {
-    if (!draftStorageKey || draftHydratedRef.current || typeof window === "undefined") {
-      return;
-    }
-    const raw = window.localStorage.getItem(draftStorageKey);
-    draftHydratedRef.current = true;
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as Partial<PersistedLadderDraft>;
-      if (parsed?.version !== 1) {
-        window.localStorage.removeItem(draftStorageKey);
-        return;
-      }
-      if (parsed.form && typeof parsed.form === "object") {
-        const nextForm = parsed.form as Partial<FormState>;
-        setForm((prev) => ({
-          ...prev,
-          ...nextForm,
-          sections: nextForm.sections ?? prev.sections,
-          customSections: Array.isArray(nextForm.customSections) ? nextForm.customSections : prev.customSections,
-          game: nextForm.game ?? prev.game,
-          scoring: nextForm.scoring ?? prev.scoring,
-          schedule: nextForm.schedule ?? prev.schedule,
-          registration: nextForm.registration ?? prev.registration,
-        }));
-      }
-      if (Array.isArray(parsed.members)) {
-        setMembers(normalizeMemberList(parsed.members));
-      }
-      if (parsed.seed && typeof parsed.seed === "object") {
-        setSeed({ ...defaultSeedForm, ...parsed.seed });
-      }
-      if (parsed.meta && typeof parsed.meta === "object") {
-        setMeta((prev) => ({ ...prev, ...parsed.meta }));
-      }
-      if (
-        parsed.guidedStep &&
-        typeof parsed.guidedStep === "string" &&
-        GUIDED_STEP_ORDER.includes(parsed.guidedStep as GuidedStepId)
-      ) {
-        setGuidedStep(parsed.guidedStep as GuidedStepId);
-      }
-      const restoredAt = Date.now();
-      setDraftStatus("saved");
-      setLastDraftSavedAt(parsed.updatedAt ?? restoredAt);
-      setDraftRestoredAt(restoredAt);
-      pushToast({
-        tone: "info",
-        title: "Draft restored",
-        description: "We loaded your latest ladder edits so you can pick up where you left off.",
-      });
-    } catch (error) {
-      console.warn("Failed to restore ladder draft", error);
-      window.localStorage.removeItem(draftStorageKey);
-    }
-  }, [draftStorageKey, pushToast]);
-  React.useEffect(() => {
-    if (!draftStorageKey || typeof window === "undefined" || !draftHydratedRef.current) {
-      return;
-    }
-    setDraftStatus("saving");
-    autosaveStartedAt.current =
-      typeof performance !== "undefined" && typeof performance.now === "function"
-        ? performance.now()
-        : Date.now();
-    if (autosaveTimer.current) {
-      window.clearTimeout(autosaveTimer.current);
-    }
-    autosaveTimer.current = window.setTimeout(() => {
-      try {
-        const payload: PersistedLadderDraft = {
-          version: 1,
-          updatedAt: Date.now(),
-          form,
-          members,
-          seed,
-          meta,
-          guidedStep,
-        };
-        window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
-        setDraftStatus("saved");
-        setLastDraftSavedAt(payload.updatedAt);
-        const started = autosaveStartedAt.current;
-        const latency =
-          typeof started === "number"
-            ? (typeof performance !== "undefined" && typeof performance.now === "function"
-                ? performance.now()
-                : Date.now()) - started
-            : null;
-        trackLadderEvent({
-          event: "ladders.autosave.status",
-          capsuleId: selectedCapsuleId,
-          payload: {
-            status: "saved",
-            latencyMs: latency !== null ? Math.max(0, Math.round(latency)) : null,
-          },
-        });
-        autosaveStartedAt.current = null;
-      } catch (error) {
-        console.warn("Failed to persist ladder draft", error);
-        setDraftStatus("error");
-        pushToast({
-          tone: "danger",
-          title: "Autosave failed",
-          description: "We couldn't store the latest draft locally. Review your storage quota and try again.",
-        });
-        trackLadderEvent({
-          event: "ladders.autosave.status",
-          capsuleId: selectedCapsuleId,
-          payload: { status: "error" },
-        });
-        autosaveStartedAt.current = null;
-      }
-    }, 900);
-    return () => {
-      if (autosaveTimer.current) {
-        window.clearTimeout(autosaveTimer.current);
-      }
-      autosaveStartedAt.current = null;
-    };
-  }, [draftStorageKey, form, guidedStep, members, meta, pushToast, seed, selectedCapsuleId]);
   const validateStep = React.useCallback(
     (stepId: LadderWizardStepId, context: "advance" | "jump" | "publish"): boolean => {
       const definition = stepDefinitionMap.get(stepId);
@@ -937,46 +661,54 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     },
     [form.sections.results.body, handleSectionChange],
   );
-  const handleSeedChange = React.useCallback((field: keyof typeof seed, value: string) => {
-    setSeed((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  }, []);
   const handleAssistantSend = React.useCallback(() => {
     const message = assistantDraft.trim();
     if (!message.length) {
       pushToast({
         tone: "info",
-        title: "Describe the vibe",
-        description: "Tell Capsule how you want the ladder to sound and we'll riff on names.",
+        title: "Need a starting point?",
+        description: "Share a vibe, theme, or rivalry and I’ll pitch title ideas.",
       });
       return;
     }
+    setAssistantConversation((prev) => [...prev, createAssistantMessage("user", message)]);
     const suggestionPool = [
       ...guidedNameIdeas,
       `${message} Ladder`.trim(),
       `${message} Circuit`.trim(),
+      `${message} League`.trim(),
+      `${message} Spotlight`.trim(),
     ].filter((entry) => entry.length);
-    const suggestion = suggestionPool[Math.floor(Math.random() * suggestionPool.length)] ?? null;
+    const uniqueSuggestions = suggestionPool.filter((value, index, array) => array.indexOf(value) === index);
+    const suggestions = uniqueSuggestions.slice(0, 3);
+    const suggestion = suggestions[0] ?? null;
     if (!suggestion) {
       pushToast({
         tone: "info",
-        title: "Need one more detail",
-        description: "Add a note about the mood or stakes so Capsule can suggest a name.",
+        title: "One more detail",
+        description: "Mention the mood, a rivalry, or your cadence and I’ll suggest names.",
       });
+      setAssistantConversation((prev) => [
+        ...prev,
+        createAssistantMessage("ai", "Give me one hint — vibe, rivalry, or cadence — and I’ll pitch a few names."),
+      ]);
       return;
     }
     handleFormField("name", suggestion);
-    pushToast({
-      tone: "success",
-      title: "Capsule suggested a name",
-      description: suggestion,
-    });
+    const suggestionListText = suggestions
+      .map((option, index) => `${index + 1}. ${option}`)
+      .join("\n");
+    setAssistantConversation((prev) => [
+      ...prev,
+      createAssistantMessage(
+        "ai",
+        `Here are a few name directions:\n${suggestionListText}\nI set option #1 in the title field so you can preview it. Want me to go more seasonal, rivalry-heavy, or mythic? Say the word — I can also help with your summary, rules, or rewards next.`,
+      ),
+    ]);
     setAssistantDraft("");
-  }, [assistantDraft, guidedNameIdeas, handleFormField, pushToast]);
+  }, [assistantDraft, createAssistantMessage, guidedNameIdeas, handleFormField, pushToast]);
   const handleAssistantKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
+    (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (event.key === "Enter") {
         event.preventDefault();
         handleAssistantSend();
@@ -1010,26 +742,13 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       return normalizeMemberList(next);
     });
   }, []);
-  const resetBuilderToDefaults = React.useCallback(() => {
-    setForm(createInitialFormState());
-    setMembers(defaultMembersForm());
-    setAiPlan(null);
-    setMeta({ variant: "ladder" });
-    setSeed({ ...defaultSeedForm });
-    setGuidedStep(DEFAULT_GUIDED_STEP);
-    setDraftStatus("idle");
-    setLastDraftSavedAt(null);
-    setDraftRestoredAt(null);
-    wizardLifecycleRef.current = createWizardLifecycleState(DEFAULT_WIZARD_START_STEP);
-  }, []);
   const handleDiscardDraft = React.useCallback(() => {
     if (!draftStorageKey || typeof window === "undefined") return;
     const confirmDiscard = window.confirm(
       "Discard the autosaved ladder draft? This clears your local changes.",
     );
     if (!confirmDiscard) return;
-    window.localStorage.removeItem(draftStorageKey);
-    resetBuilderToDefaults();
+    discardDraft();
     pushToast({
       tone: "info",
       title: "Draft cleared",
@@ -1040,148 +759,11 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       capsuleId: selectedCapsuleId,
       payload: { action: "discard" },
     });
-  }, [draftStorageKey, pushToast, resetBuilderToDefaults, selectedCapsuleId]);
+  }, [discardDraft, draftStorageKey, pushToast, selectedCapsuleId]);
 
   React.useEffect(() => {
     void router;
   }, [router]);
-  const convertSectionsToPayload = React.useCallback(() => {
-    const sections: Record<string, unknown> = {};
-    SECTION_KEYS.forEach((key) => {
-      const section = form.sections[key];
-      const title = section.title.trim().length ? section.title.trim() : key;
-      const body = trimOrNull(section.body ?? "");
-      const bulletPoints = (section.bulletsText ?? "")
-        .split("\n")
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length);
-      const payload: Record<string, unknown> = {
-        title,
-        body,
-      };
-      if (bulletPoints.length) {
-        payload.bulletPoints = bulletPoints;
-      }
-      sections[key] = payload;
-    });
-    if (form.customSections.length) {
-      const customPayload = form.customSections
-        .map((section) => {
-          const title = section.title.trim().length ? section.title.trim() : "Custom Section";
-          const body = trimOrNull(section.body ?? "");
-          const bulletPoints = (section.bulletsText ?? "")
-            .split("\n")
-            .map((entry) => entry.trim())
-            .filter((entry) => entry.length);
-          const payload: Record<string, unknown> = {
-            id: section.id,
-            title,
-            body,
-          };
-          if (bulletPoints.length) {
-            payload.bulletPoints = bulletPoints;
-          }
-          return payload;
-        })
-        .filter(Boolean);
-      if (customPayload.length) {
-        sections.custom = customPayload;
-      }
-    }
-    return sections;
-  }, [form.customSections, form.sections]);
-  const convertMembersToPayload = React.useCallback((): MemberPayload[] => {
-    const payload: MemberPayload[] = [];
-    members.forEach((member) => {
-      const displayName = member.displayName.trim();
-      if (!displayName.length) {
-        return;
-      }
-      const handle = trimOrNull(member.handle ?? "");
-      const seedValue = parseOptionalIntegerField(member.seed, { min: 1, max: 999 });
-      const rating = parseIntegerField(member.rating, 1200, { min: 100, max: 4000 });
-      const wins = parseIntegerField(member.wins, 0, { min: 0, max: 500 });
-      const losses = parseIntegerField(member.losses, 0, { min: 0, max: 500 });
-      const draws = parseIntegerField(member.draws, 0, { min: 0, max: 500 });
-      const streak = parseIntegerField(member.streak, 0, { min: -20, max: 20 });
-      const entry: MemberPayload = {
-        displayName,
-        rating,
-        wins,
-        losses,
-        draws,
-        streak,
-      };
-      if (handle) {
-        entry.handle = handle;
-      }
-      if (seedValue !== null) {
-        entry.seed = seedValue;
-      }
-      payload.push(entry);
-    });
-    return payload;
-  }, [members]);
-  const convertConfigToPayload = React.useCallback(() => {
-    const initialRating = parseIntegerField(form.scoring.initialRating, 1200, {
-      min: 100,
-      max: 4000,
-    });
-    const kFactor = parseIntegerField(form.scoring.kFactor, 32, { min: 1, max: 128 });
-    const placementMatches = parseIntegerField(form.scoring.placementMatches, 3, {
-      min: 0,
-      max: 20,
-    });
-    const maxTeams = parseOptionalIntegerField(form.registration.maxTeams, {
-      min: 2,
-      max: 999,
-    });
-    const requirements = (form.registration.requirements ?? "")
-      .split("\n")
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length);
-    const registration: Record<string, unknown> = {
-      type: form.registration.type,
-      maxTeams: maxTeams ?? null,
-    };
-    if (requirements.length) {
-      registration.requirements = requirements;
-    }
-    const cadenceValue = (form.schedule.cadence ?? "").trim();
-    const kickoffValue = (form.schedule.kickoff ?? "").trim();
-    const summary = form.summary.trim();
-    const config: Record<string, unknown> = {
-      scoring: {
-        system: "elo",
-        initialRating,
-        kFactor,
-        placementMatches,
-      },
-      schedule: {
-        cadence: cadenceValue.length ? cadenceValue : "Weekly cadence",
-        kickoff: kickoffValue.length ? kickoffValue : "TBD",
-        timezone: trimOrNull(form.schedule.timezone ?? ""),
-      },
-      registration,
-      communications: {
-        announcementsCadence: "Weekly recap + midweek AI shoutouts",
-      },
-    };
-    if (summary.length) {
-      config.objectives = [summary];
-    }
-    return config;
-  }, [form.registration, form.schedule, form.scoring, form.summary]);
-  const convertGameToPayload = React.useCallback(() => {
-    const { title, mode, platform, region } = form.game;
-    const trimmedTitle = title.trim();
-    return {
-      title: trimmedTitle.length ? trimmedTitle : "Featured Game",
-      mode: trimOrNull(mode ?? ""),
-      platform: trimOrNull(platform ?? ""),
-      region: trimOrNull(region ?? ""),
-    };
-  }, [form.game]);
 
   const createLadder = React.useCallback(async () => {
     if (!selectedCapsule) {
@@ -1240,10 +822,10 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
         elapsedMs: msSince(lifecycle.wizardStartedAt),
       },
     });
-    const membersPayload = convertMembersToPayload();
-    const gamePayload = convertGameToPayload();
-    const configPayload = convertConfigToPayload();
-    const sectionsPayload = convertSectionsToPayload();
+    const membersPayload = convertMembersToPayload(members);
+    const gamePayload = convertGameToPayload(form);
+    const configPayload = convertConfigToPayload(form);
+    const sectionsPayload = convertSectionsToPayload(form);
     setSaving(true);
     try {
       const response = await fetch(`/api/capsules/${selectedCapsule.id}/ladders`, {
@@ -1349,17 +931,11 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     }
   }, [
     aiPlan,
-    convertConfigToPayload,
-    convertGameToPayload,
-    convertMembersToPayload,
-    convertSectionsToPayload,
     draftRestoredAt,
-    form.name,
-    form.publish,
-    form.summary,
-    form.visibility,
+    form,
     helperDensityVariant,
     isOnline,
+    members,
     meta,
     pushToast,
     router,
@@ -1386,562 +962,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
         ))}
       </div>
     ) : null;
-  const renderAutosaveMeta = () =>
-    autosaveText || canDiscardDraft ? (
-      <div className={styles.autosaveMeta} role="status" aria-live="polite">
-        <span>{autosaveText ?? "Draft ready"}</span>
-        {canDiscardDraft ? (
-          <button type="button" className={styles.linkButton} onClick={handleDiscardDraft}>
-            Discard draft
-          </button>
-        ) : null}
-      </div>
-    ) : null;
-  const renderGuidedChatCard = React.useCallback(
-    (config: { title: string; helper: string; placeholder: string }) => (
-      <Card className={styles.chatCard}>
-        <CardHeader>
-          <CardTitle>{config.title}</CardTitle>
-          <CardDescription>{config.helper}</CardDescription>
-        </CardHeader>
-        <CardContent className={styles.cardContent}>
-          <div className={styles.chatHistory}>
-            <div className={styles.chatBubble}>
-              <span className={styles.chatBubbleLabel}>Capsule AI</span>
-              <p>I can riff on names, rules, rewards, or anything else you need for this step.</p>
-            </div>
-          </div>
-          <div className={styles.chatComposer}>
-            <Input
-              value={assistantDraft}
-              onChange={(event) => setAssistantDraft(event.target.value)}
-              onKeyDown={handleAssistantKeyDown}
-              placeholder={config.placeholder}
-            />
-            <Button type="button" variant="secondary" onClick={handleAssistantSend}>
-              Send
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    ),
-    [assistantDraft, handleAssistantKeyDown, handleAssistantSend, setAssistantDraft],
-  );
-  const renderGuidedStepContent = () => {
-    switch (guidedStep) {
-      case "title":
-        return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Pick a title</CardTitle>
-                <CardDescription>Show the season energy. Chip suggestions update as you edit.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label} htmlFor="guided-name">
-                    Ladder title
-                  </label>
-                  <Input
-                    id="guided-name"
-                    value={form.name}
-                    onChange={(event) => handleFormField("name", event.target.value)}
-                    placeholder="Nova Circuit Season"
-                  />
-                </div>
-                <div className={styles.pillGroup}>
-                  {guidedNameIdeas.map((idea) => (
-                    <button
-                      key={idea}
-                      type="button"
-                      className={styles.pillButton}
-                      onClick={() => handleFormField("name", idea)}
-                    >
-                      {idea}
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-            {renderGuidedChatCard({
-              title: "Need help naming it?",
-              helper: "Tell Capsule the vibe and we'll suggest names instantly.",
-              placeholder: "Describe the mood, stakes, or rewards...",
-            })}
-          </>
-        );
-      case "summary":
-        return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>One-line summary</CardTitle>
-                <CardDescription>Appears anywhere this ladder is referenced inside Capsule.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <textarea
-                  id="guided-summary"
-                  className={styles.textarea}
-                  value={form.summary}
-                  onChange={(event) => handleFormField("summary", event.target.value)}
-                  rows={3}
-                  placeholder="Weekly Rocket League duels with Capsule AI recaps + spotlight prizes."
-                />
-                <div className={styles.pillGroup}>
-                  {guidedSummaryIdeas.map((idea) => (
-                    <button
-                      key={idea}
-                      type="button"
-                      className={styles.pillButton}
-                      onClick={() => handleFormField("summary", idea)}
-                    >
-                      {idea}
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        );
-      case "registration":
-        return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Registration</CardTitle>
-                <CardDescription>Decide how teams join and any launch requirements.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <div className={styles.fieldRow}>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-registration-type">
-                      Registration type
-                    </label>
-                    <select
-                      id="guided-registration-type"
-                      className={styles.select}
-                      value={form.registration.type}
-                      onChange={(event) =>
-                        handleRegistrationChange(
-                          "type",
-                          event.target.value as LadderRegistrationFormValues["type"],
-                        )
-                      }
-                    >
-                      <option value="open">Open sign-ups</option>
-                      <option value="invite">Moderated invites</option>
-                      <option value="waitlist">Waitlist</option>
-                    </select>
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-max-teams">
-                      Max teams / players
-                    </label>
-                    <Input
-                      id="guided-max-teams"
-                      type="number"
-                      value={form.registration.maxTeams}
-                      onChange={(event) => handleRegistrationChange("maxTeams", event.target.value)}
-                      placeholder="32"
-                    />
-                  </div>
-                </div>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label} htmlFor="guided-registration-reqs">
-                    Requirements (one per line)
-                  </label>
-                  <textarea
-                    id="guided-registration-reqs"
-                    className={styles.textarea}
-                    value={form.registration.requirements}
-                    onChange={(event) => handleRegistrationChange("requirements", event.target.value)}
-                    rows={3}
-                    placeholder={"Captains must confirm by Wednesday\nSubs allowed after week 2\nScreenshots required"}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        );
-      case "type":
-        return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Game & ladder type</CardTitle>
-                <CardDescription>Capsule AI uses this to suggest rules, playlists, and stats.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label} htmlFor="guided-game-title">
-                    Game or title
-                  </label>
-                  <Input
-                    id="guided-game-title"
-                    value={form.game.title}
-                    onChange={(event) => handleGameChange("title", event.target.value)}
-                    placeholder="Rocket League"
-                  />
-                </div>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label} htmlFor="guided-game-mode">
-                    Format
-                  </label>
-                  <Input
-                    id="guided-game-mode"
-                    value={form.game.mode}
-                    onChange={(event) => handleGameChange("mode", event.target.value)}
-                    placeholder="1v1 Duels"
-                  />
-                </div>
-                <div className={styles.fieldRow}>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-platform">
-                      Platform
-                    </label>
-                    <Input
-                      id="guided-platform"
-                      value={form.game.platform ?? ""}
-                      onChange={(event) => handleGameChange("platform", event.target.value)}
-                      placeholder="Cross-play"
-                    />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-region">
-                      Region
-                    </label>
-                    <Input
-                      id="guided-region"
-                      value={form.game.region ?? ""}
-                      onChange={(event) => handleGameChange("region", event.target.value)}
-                      placeholder="NA / EU"
-                    />
-                  </div>
-                </div>
-                <div className={styles.templateGrid}>
-                  {LADDER_TEMPLATE_PRESETS.map((preset) => {
-                    const isActive = guidedTemplateId === preset.id;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        className={styles.templateButton}
-                        data-state={isActive ? "active" : "idle"}
-                        onClick={() => applyTemplatePreset(preset)}
-                      >
-                        <strong>{preset.label}</strong>
-                        <span>{preset.description}</span>
-                        <span className={styles.templateMeta}>{preset.mode}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        );
-      case "format":
-        return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Format basics</CardTitle>
-                <CardDescription>Set the starting rating, K-factor, and placement matches.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <div className={styles.fieldRow}>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-initial-rating">
-                      Initial rating
-                    </label>
-                    <Input
-                      id="guided-initial-rating"
-                      type="number"
-                      value={form.scoring.initialRating}
-                      onChange={(event) => handleScoringChange("initialRating", event.target.value)}
-                      placeholder="1200"
-                    />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-kfactor">
-                      K-factor
-                    </label>
-                    <Input
-                      id="guided-kfactor"
-                      type="number"
-                      value={form.scoring.kFactor}
-                      onChange={(event) => handleScoringChange("kFactor", event.target.value)}
-                      placeholder="32"
-                    />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-placement">
-                      Placement matches
-                    </label>
-                    <Input
-                      id="guided-placement"
-                      type="number"
-                      value={form.scoring.placementMatches}
-                      onChange={(event) => handleScoringChange("placementMatches", event.target.value)}
-                      placeholder="3"
-                    />
-                  </div>
-                </div>
-                <p className={styles.fieldHint}>
-                  These defaults power Capsule&apos;s matchmaking tips. Adjust later if needed.
-                </p>
-              </CardContent>
-            </Card>
-          </>
-        );
-      case "overview":
-        return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Ladder overview</CardTitle>
-                <CardDescription>This copy appears at the top of your ladder and in invites.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <textarea
-                  id="guided-overview"
-                  className={styles.textarea}
-                  value={form.sections.overview.body ?? ""}
-                  onChange={(event) => handleSectionChange("overview", "body", event.target.value)}
-                  rows={5}
-                  placeholder="Set the stakes, cadence, rewards, and why challengers should care."
-                />
-                <p className={styles.fieldHint}>
-                  Mention cadence, platform, or spotlight moments so Capsule can reuse the story across surfaces.
-                </p>
-              </CardContent>
-            </Card>
-          </>
-        );
-      case "rules":
-        return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Rules snapshot</CardTitle>
-                <CardDescription>We surface these in every post-match recap.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <textarea
-                  id="guided-rules"
-                  className={styles.textarea}
-                  value={form.sections.rules.body ?? ""}
-                  onChange={(event) => handleSectionChange("rules", "body", event.target.value)}
-                  rows={4}
-                  placeholder="Matches are best-of-three. Report scores within 2 hours with screenshots."
-                />
-                <div className={styles.pillGroup}>
-                  {RULE_SNIPPETS.map((snippet) => (
-                    <button
-                      key={snippet}
-                      type="button"
-                      className={styles.pillButton}
-                      onClick={() => handleAppendRuleSnippet(snippet)}
-                    >
-                      {snippet}
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        );
-      case "shoutouts":
-        return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Shoutouts & highlights</CardTitle>
-                <CardDescription>Feed Capsule AI the themes you want to spotlight every week.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label} htmlFor="guided-shoutouts-body">
-                    Story beats
-                  </label>
-                  <textarea
-                    id="guided-shoutouts-body"
-                    className={styles.textarea}
-                    value={form.sections.shoutouts.body ?? ""}
-                    onChange={(event) => handleSectionChange("shoutouts", "body", event.target.value)}
-                    rows={4}
-                    placeholder="Call out rivalries, MVP awards, clutch moments, or rookie spotlights."
-                  />
-                </div>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label} htmlFor="guided-shoutouts-bullets">
-                    Highlight bullets (one per line)
-                  </label>
-                  <textarea
-                    id="guided-shoutouts-bullets"
-                    className={styles.textarea}
-                    value={form.sections.shoutouts.bulletsText ?? ""}
-                    onChange={(event) => handleSectionChange("shoutouts", "bulletsText", event.target.value)}
-                    rows={3}
-                    placeholder={"Most electrifying play\nFan favorite team\nUnderdog to watch"}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        );
-      case "timeline":
-        return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Timeline & cadence</CardTitle>
-                <CardDescription>Adjust any detail later in manual mode.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <div className={styles.fieldRow}>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-season-length">
-                      Season length (weeks)
-                    </label>
-                    <Input
-                      id="guided-season-length"
-                      value={seed.seasonLengthWeeks}
-                      onChange={(event) => handleSeedChange("seasonLengthWeeks", event.target.value)}
-                      placeholder="6"
-                    />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-cadence">
-                      Match cadence
-                    </label>
-                    <Input
-                      id="guided-cadence"
-                      value={form.schedule.cadence ?? ""}
-                      onChange={(event) => handleScheduleChange("cadence", event.target.value)}
-                      placeholder="Weekly rounds"
-                    />
-                  </div>
-                </div>
-                <div className={styles.fieldRow}>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-kickoff">
-                      Kickoff window
-                    </label>
-                    <Input
-                      id="guided-kickoff"
-                      value={form.schedule.kickoff ?? ""}
-                      onChange={(event) => handleScheduleChange("kickoff", event.target.value)}
-                      placeholder="Mondays 7 PM"
-                    />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-timezone">
-                      Timezone
-                    </label>
-                    <Input
-                      id="guided-timezone"
-                      value={form.schedule.timezone ?? ""}
-                      onChange={(event) => handleScheduleChange("timezone", event.target.value)}
-                      placeholder="NA / CET"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        );
-      case "roster":
-        return (
-          <RosterStep
-            members={members}
-            onMemberField={handleMemberField}
-            onAddMember={addMember}
-            onRemoveMember={removeMember}
-          />
-        );
-      case "rewards":
-        return (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Rewards & spotlight</CardTitle>
-                <CardDescription>Shared in every recap, stream script, and reminder.</CardDescription>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <textarea
-                  id="guided-rewards"
-                  className={styles.textarea}
-                  value={form.sections.results.body ?? ""}
-                  onChange={(event) => handleSectionChange("results", "body", event.target.value)}
-                  rows={4}
-                  placeholder="Top 3 earn featured posts, MVP gets a custom Capsule portrait."
-                />
-                <div className={styles.pillGroup}>
-                  {REWARD_SNIPPETS.map((snippet) => (
-                    <button
-                      key={snippet}
-                      type="button"
-                      className={styles.pillButton}
-                      onClick={() => handleAppendRewardSnippet(snippet)}
-                    >
-                      {snippet}
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        );
-      case "review":
-      default:
-        return (
-          <>
-            <div className={styles.guidedReviewStack}>
-              {renderReviewOverview()}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Visibility & publish</CardTitle>
-                  <CardDescription>Flip to public whenever you&apos;re ready.</CardDescription>
-                </CardHeader>
-                <CardContent className={styles.cardContent}>
-                  <div className={styles.fieldGroup}>
-                    <label className={styles.label} htmlFor="guided-visibility">
-                      Visibility
-                    </label>
-                    <select
-                      id="guided-visibility"
-                      className={styles.select}
-                      value={form.visibility}
-                      onChange={(event) =>
-                        handleFormField("visibility", event.target.value as "private" | "capsule" | "public")
-                      }
-                    >
-                      <option value="capsule">Capsule members</option>
-                      <option value="private">Managers only</option>
-                      <option value="public">Public showcase</option>
-                    </select>
-                  </div>
-                  <div className={styles.checkboxRow}>
-                    <input
-                      id="guided-publish"
-                      type="checkbox"
-                      checked={form.publish}
-                      onChange={(event) => handleFormField("publish", event.target.checked)}
-                    />
-                    <label htmlFor="guided-publish">Publish immediately after saving</label>
-                  </div>
-                  <p className={styles.fieldHint}>
-                    Leave unchecked to save a draft. Capsule will keep everything private.
-                  </p>
-                </CardContent>
-              </Card>
-              {renderAiPlan()}
-            </div>
-          </>
-        );
-    }
-  };
   const renderReviewOverview = () => (
     <ReviewOverviewCard
       capsuleName={selectedCapsule?.name ?? null}
@@ -2087,7 +1107,34 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
       toastStack={renderToastStack()}
       formContentRef={formContentRef}
       stepStackClassName={styles.guidedStack}
-      formContent={renderGuidedStepContent()}
+      formContent={
+        <GuidedStepContent
+          step={guidedStep}
+          form={form}
+          members={members}
+          guidedSummaryIdeas={guidedSummaryIdeas}
+          guidedTemplateId={guidedTemplateId}
+          assistantConversation={assistantConversation}
+          assistantDraft={assistantDraft}
+          onAssistantDraftChange={(value) => setAssistantDraft(value)}
+          onAssistantKeyDown={handleAssistantKeyDown}
+          onAssistantSend={handleAssistantSend}
+          onFormField={handleFormField}
+          onRegistrationChange={handleRegistrationChange}
+          onGameChange={handleGameChange}
+          onScoringChange={handleScoringChange}
+          onScheduleChange={handleScheduleChange}
+          onSectionChange={handleSectionChange}
+          onApplyTemplatePreset={applyTemplatePreset}
+          onAppendRuleSnippet={handleAppendRuleSnippet}
+          onAppendRewardSnippet={handleAppendRewardSnippet}
+          onMemberField={handleMemberField}
+          onAddMember={addMember}
+          onRemoveMember={removeMember}
+          reviewOverview={renderReviewOverview()}
+          reviewAiPlan={renderAiPlan()}
+        />
+      }
       controlsStart={
         <>
           <Button
@@ -2106,7 +1153,11 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
               Discard draft
             </Button>
           ) : null}
-          {renderAutosaveMeta()}
+          {selectedCapsule ? (
+            <Button type="button" variant="ghost" onClick={() => handleCapsuleChange(null)} disabled={isSaving}>
+              Switch capsule
+            </Button>
+          ) : null}
         </>
       }
       controlsEnd={
@@ -2149,17 +1200,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null }: LadderBuild
     <div className={styles.builderWrap}>
       <div className={styles.wizardPanel}>
         <div className={styles.panelGlow} aria-hidden />
-        {selectedCapsule ? (
-          <div className={styles.panelTopActions}>
-            <div className={styles.panelCapsule}>
-              <span className={styles.panelCapsuleLabel}>Capsule</span>
-              <strong>{selectedCapsule.name}</strong>
-            </div>
-            <Button type="button" size="sm" variant="secondary" onClick={() => handleCapsuleChange(null)}>
-              Switch capsule
-            </Button>
-          </div>
-        ) : null}
         {renderGuidedExperience()}
       </div>
     </div>
