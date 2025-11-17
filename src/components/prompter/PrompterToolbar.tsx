@@ -20,6 +20,7 @@ type Props = {
   text: string;
   placeholder: string;
   onTextChange: (value: string) => void;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onPaste?: (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   buttonLabel: string;
   buttonClassName: string;
@@ -55,6 +56,8 @@ type Props = {
   showIntentMenu?: boolean;
   showVoiceButton?: boolean;
   showAttachmentButton?: boolean;
+  composerLoading?: boolean;
+  composerLoadingProgress?: number;
   multiline?: boolean;
   showTools?: boolean;
   submitVariant?: "default" | "icon";
@@ -65,6 +68,7 @@ export function PrompterToolbar({
   text,
   placeholder,
   onTextChange,
+  onKeyDown,
   onPaste,
   buttonLabel,
   buttonClassName,
@@ -100,11 +104,14 @@ export function PrompterToolbar({
   showIntentMenu = true,
   showVoiceButton = true,
   showAttachmentButton = true,
+  composerLoading = false,
+  composerLoadingProgress = 0,
   multiline = false,
   showTools = true,
   submitVariant = "default",
 }: Props) {
   const isVoiceActive = voiceStatus === "listening" || voiceStatus === "stopping";
+  const brainProgress = Math.max(0, Math.min(100, Math.round(composerLoadingProgress || 0)));
   return (
     <>
       <PrompterInputBar
@@ -112,6 +119,7 @@ export function PrompterToolbar({
         value={text}
         placeholder={placeholder}
         onChange={onTextChange}
+        {...(onKeyDown ? { onKeyDown } : {})}
         {...(onPaste ? { onPaste } : {})}
         buttonLabel={buttonLabel}
         buttonClassName={buttonClassName}
@@ -140,14 +148,35 @@ export function PrompterToolbar({
       />
 
       <div className={styles.statusRow} role="status" aria-live="polite">
-        {showHint && hint ? (
+        {showHint && (hint || composerLoading) ? (
           <span
             className={styles.statusHint}
             data-active={uploading || isVoiceActive || (uploadingAttachment ? "true" : undefined)}
           >
             <span className={styles.statusLine}>
-              <span className={styles.statusDot} aria-hidden />
-              <span className={styles.statusText}>{hint}</span>
+              {composerLoading ? (
+                <span
+                  className={styles.statusBrain}
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={brainProgress}
+                  aria-label="Generating your visual"
+                >
+                  <span className={styles.brainWrap}>
+                    <Brain className={styles.brainBase} size={20} weight="duotone" />
+                    <span
+                      className={styles.brainFillClip}
+                      style={{ height: `${Math.max(8, brainProgress)}%` }}
+                    >
+                      <Brain className={styles.brainFill} size={20} weight="fill" />
+                    </span>
+                  </span>
+                </span>
+              ) : (
+                <span className={styles.statusDot} aria-hidden />
+              )}
+              <span className={styles.statusText}>{hint ?? "Working on it..."}</span>
             </span>
             {uploadingAttachment ? (
               <span className={styles.statusUploadExtras}>

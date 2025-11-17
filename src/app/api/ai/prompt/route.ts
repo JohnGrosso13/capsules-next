@@ -30,7 +30,7 @@ import {
   getCapsuleHistorySnippets,
 } from "@/server/chat/retrieval";
 import type { ChatMemorySnippet } from "@/server/chat/retrieval";
-import { buildUserCard } from "@/server/chat/user-card";
+import { getUserCardCached } from "@/server/chat/user-card";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -192,6 +192,26 @@ const PROMPT_RATE_LIMIT: RateLimitDefinition = {
   window: "5 m",
 };
 
+const CONTEXT_SNIPPET_LIMIT = 6;
+const CONTEXT_CHAR_BUDGET = 4000;
+
+function trimContextSnippets(
+  snippets: ChatMemorySnippet[],
+  limit: number = CONTEXT_SNIPPET_LIMIT,
+  charBudget: number = CONTEXT_CHAR_BUDGET,
+): ChatMemorySnippet[] {
+  const trimmed: ChatMemorySnippet[] = [];
+  let used = 0;
+  for (const snippet of snippets) {
+    if (trimmed.length >= limit) break;
+    const cost = snippet.snippet.length + (snippet.title?.length ?? 0);
+    if (used + cost > charBudget && trimmed.length > 0) break;
+    trimmed.push(snippet);
+    used += cost;
+  }
+  return trimmed;
+}
+
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
@@ -217,7 +237,7 @@ export async function POST(req: Request) {
     return returnError(
       429,
       "rate_limited",
-      "You’re asking too quickly. Give me a moment before drafting another idea.",
+      "You're asking too quickly. Give me a moment before drafting another idea.",
       retryAfterSeconds === null ? undefined : { retryAfterSeconds },
     );
   }
@@ -285,23 +305,35 @@ export async function POST(req: Request) {
       origin: requestOrigin ?? null,
       capsuleId,
     }),
-    buildUserCard(ownerId),
+    getUserCardCached(ownerId),
     capsuleHistoryPromise,
   ]);
 
   const memorySnippets = contextResult?.snippets ?? [];
-  const combinedSnippets = [...memorySnippets, ...capsuleHistorySnippets];
+  const combinedSnippets = trimContextSnippets(
+    [...memorySnippets, ...capsuleHistorySnippets],
+    CONTEXT_SNIPPET_LIMIT,
+    CONTEXT_CHAR_BUDGET,
+  );
   const combinedContext =
     combinedSnippets.length > 0
       ? {
           query: contextResult?.query ?? message,
           snippets: combinedSnippets,
-          usedIds: contextResult?.usedIds ?? [],
+          usedIds: combinedSnippets.map((snippet) => snippet.id),
         }
       : contextResult;
 
   const contextPrompt = formatContextForPrompt(combinedContext);
-  let contextMetadata = buildContextMetadata(contextResult);
+  const contextForMetadata =
+    combinedSnippets.length > 0
+      ? {
+          query: contextResult?.query ?? message,
+          snippets: combinedSnippets,
+          usedIds: combinedSnippets.map((snippet) => snippet.id),
+        }
+      : contextResult;
+  let contextMetadata = buildContextMetadata(contextForMetadata);
   if (capsuleHistorySnippets.length) {
     contextMetadata = {
       ...(contextMetadata ?? {}),
@@ -333,7 +365,7 @@ export async function POST(req: Request) {
     responseContext = {
       enabled: true,
       query: contextResult?.query ?? null,
-      memoryIds: contextResult?.usedIds ?? [],
+      memoryIds: combinedSnippets.map((snippet) => snippet.id),
       snippets: resolvedContextRecords.map((snippet) => ({
         id: snippet.id,
         title: snippet.title,
@@ -410,36 +442,16 @@ export async function POST(req: Request) {
             .filter((entry) => entry.length > 0)
         : [];
 
-      const assistantLines: string[] = [clarifierPayload.question.trim()];
-      if (suggestionList.length) {
-        assistantLines.push(
-          "",
-          "Suggested directions:",
-          ...suggestionList.map((entry) => `- ${entry}`),
-        );
-      }
-      const assistantMessage = assistantLines.join("\n").trim();
-
-      const assistantEntry: ComposerChatMessage = {
-        id: safeRandomUUID(),
-        role: "assistant",
-        content: assistantMessage,
-        createdAt: new Date().toISOString(),
-        attachments: null,
-      };
-
-      const historyOut = [...previousHistory, userEntry, assistantEntry].slice(
-        -HISTORY_RETURN_LIMIT,
-      );
+      const historyOut = [...previousHistory, userEntry].slice(-HISTORY_RETURN_LIMIT);
 
       await storeConversationSnapshot(ownerId, threadId, {
         threadId,
         prompt: userEntry.content,
-        message: assistantEntry.content,
+        message: clarifierPayload.question.trim(),
         history: historyOut,
         draft: null,
         rawPost: null,
-        updatedAt: assistantEntry.createdAt,
+        updatedAt: new Date().toISOString(),
       }).catch((error) => {
         console.warn("composer conversation store failed", error);
       });
@@ -464,10 +476,17 @@ export async function POST(req: Request) {
 
     const validated = draftPostResponseSchema.parse(payload);
 
-    const assistantMessage =
+    const postContent =
+      typeof (validated.post as { content?: unknown })?.content === "string"
+        ? ((validated.post as { content: string }).content ?? "").trim()
+        : "";
+    const baseAssistantMessage =
       typeof validated.message === "string" && validated.message.trim().length
         ? validated.message.trim()
-        : "Here's what I drafted.";
+        : "I've drafted a first pass.";
+    const assistantMessage = postContent
+      ? `${baseAssistantMessage}\n\n${postContent}`
+      : baseAssistantMessage;
     const assistantAttachments = buildAssistantAttachments(
       validated.post ?? null,
     );

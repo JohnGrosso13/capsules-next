@@ -2,9 +2,11 @@ import { getChatConversationId } from "@/lib/chat/channels";
 import {
   insertAssistantTask,
   insertAssistantTaskTargets,
+  getAssistantTaskById,
   listTaskTargetsByConversation,
   listTaskTargetsByTask,
   markTaskTargetFailed,
+  markTaskTargetCanceled,
   markTaskTargetResponded,
   markTaskTargetSent,
   updateAssistantTask,
@@ -185,9 +187,8 @@ export async function markRecipientMessaged(params: {
     data: serializeTargetData(data),
   });
 
-  if (!targetNeedsResponse(updated)) {
-    await refreshTaskStatus(updated.task_id);
-  }
+  // Keep the parent task in sync so it can transition to awaiting_responses / completed promptly.
+  await refreshTaskStatus(updated.task_id);
   return updated;
 }
 
@@ -270,4 +271,41 @@ export async function findAwaitingTargetsForConversation(params: {
     statuses: ["awaiting_response"],
   });
   return results.filter((target) => targetNeedsResponse(target));
+}
+
+export async function cancelAssistantTask(params: {
+  ownerUserId: string;
+  taskId: string;
+}): Promise<{
+  ok: true;
+  task: AssistantTaskRow;
+  canceledTargets: number;
+} | { ok: false; status: number; error: string }> {
+  const task = await getAssistantTaskById(params.taskId);
+  if (!task) {
+    return { ok: false, status: 404, error: "Task not found" };
+  }
+  if (task.owner_user_id !== params.ownerUserId) {
+    return { ok: false, status: 403, error: "Forbidden" };
+  }
+  if (task.status === "completed" || task.status === "partial" || task.status === "canceled") {
+    return { ok: false, status: 400, error: "Task is already finalized" };
+  }
+
+  const targets = await listTaskTargetsByTask(task.id);
+  let canceledTargets = 0;
+  for (const target of targets) {
+    if (target.status === "responded" || target.status === "completed") continue;
+    await markTaskTargetCanceled({ id: target.id, data: target.data ?? null });
+    canceledTargets += 1;
+  }
+
+  const updated = await updateAssistantTask({
+    id: task.id,
+    status: "canceled",
+    completedAt: new Date().toISOString(),
+    result: { ...(task.result ?? {}), canceled: true },
+  });
+
+  return { ok: true, task: updated, canceledTargets };
 }

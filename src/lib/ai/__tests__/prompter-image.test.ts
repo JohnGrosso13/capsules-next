@@ -18,8 +18,8 @@ describe("normalizeOpenAiImageSize", () => {
   it("rounds custom sizes to the nearest supported bucket", () => {
     expect(normalizeOpenAiImageSize("200x200")).toBe("256x256");
     expect(normalizeOpenAiImageSize("512x400")).toBe("512x512");
-    expect(normalizeOpenAiImageSize("768x768")).toBe("1024x1024");
-    expect(normalizeOpenAiImageSize("300x600")).toBe("1024x1024");
+    expect(normalizeOpenAiImageSize("768x768")).toBe("768x768");
+    expect(normalizeOpenAiImageSize("300x600")).toBe("768x768");
   });
 
   it("handles uppercase and whitespace", () => {

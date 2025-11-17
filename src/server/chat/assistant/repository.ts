@@ -187,6 +187,24 @@ export async function markTaskTargetResponded(row: {
   return expectResult(result, "assistant_task_targets.mark_responded");
 }
 
+export async function markTaskTargetCanceled(row: {
+  id: string;
+  data?: Record<string, unknown> | null;
+}): Promise<AssistantTaskTargetRow> {
+  const db = getDatabaseAdminClient();
+  const payload: Record<string, unknown> = {
+    status: "canceled",
+  };
+  if (row.data !== undefined) payload.data = row.data;
+  const result = await db
+    .from(TARGETS_TABLE)
+    .update(payload)
+    .eq("id", row.id)
+    .select<AssistantTaskTargetRow>("*")
+    .single();
+  return expectResult(result, "assistant_task_targets.mark_canceled");
+}
+
 export async function listTaskTargetsByConversation(params: {
   ownerUserId: string;
   conversationId: string;

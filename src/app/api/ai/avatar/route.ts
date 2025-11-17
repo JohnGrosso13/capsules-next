@@ -221,7 +221,7 @@ export async function POST(req: Request) {
     return returnError(
       429,
       "rate_limited",
-      "You’ve hit the avatar refresh limit. Give it a little time before trying again.",
+      "You've hit the avatar refresh limit. Give it a little time before trying again.",
       retryAfterSeconds === null ? undefined : { retryAfterSeconds },
     );
   }

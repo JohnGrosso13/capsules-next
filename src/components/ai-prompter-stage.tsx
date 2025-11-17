@@ -79,6 +79,8 @@ export function AiPrompterStage(props: Props) {
     buttonLabel,
     buttonDisabled,
     buttonVariant,
+    composerLoading,
+    composerLoadingProgress,
     hint,
     showHint,
     voiceSupported,
@@ -95,6 +97,25 @@ export function AiPrompterStage(props: Props) {
 
   const buttonClassName =
     buttonVariant === "style" ? cssClass("genBtn", "genBtnStyle") : cssClass("genBtn");
+
+  const handleEnterKey = React.useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (event.defaultPrevented) return;
+      if (event.key !== "Enter") return;
+      const isComposing =
+        (event as unknown as { isComposing?: boolean }).isComposing ||
+        (event.nativeEvent as { isComposing?: boolean })?.isComposing;
+      if (isComposing) return;
+      const hasModifier = event.altKey || event.ctrlKey || event.metaKey;
+      const allowNewline = variantConfig.multilineInput && event.shiftKey;
+      if (hasModifier || allowNewline) return;
+      event.preventDefault();
+      if (!buttonDisabled) {
+        handleGenerate();
+      }
+    },
+    [buttonDisabled, handleGenerate, variantConfig.multilineInput],
+  );
 
   return (
     <section
@@ -120,6 +141,7 @@ export function AiPrompterStage(props: Props) {
           text={text}
           placeholder={resolvedPlaceholder}
           onTextChange={setText}
+          onKeyDown={handleEnterKey}
           buttonLabel={buttonLabel}
           buttonClassName={buttonClassName}
           buttonDisabled={buttonDisabled}
@@ -152,6 +174,8 @@ export function AiPrompterStage(props: Props) {
           onClearTool={variantConfig.allowTools ? () => setManualTool(null) : noop}
           showHint={showHint}
           showAttachmentStatus={attachmentsEnabled}
+          composerLoading={composerLoading}
+          composerLoadingProgress={composerLoadingProgress}
           showIntentMenu={allowIntentMenu}
           showVoiceButton={variantConfig.allowVoice}
           showAttachmentButton={attachmentsEnabled}

@@ -60,7 +60,7 @@ export async function POST(req: Request) {
   try {
     const memoryId = await indexMemory({
       ownerId,
-      kind: "composer_creation",
+      kind: "upload",
       mediaUrl: item.mediaUrl,
       mediaType: item.mediaType ?? null,
       title: item.title,
@@ -72,6 +72,7 @@ export async function POST(req: Request) {
       tags: item.tags?.filter((tag) => typeof tag === "string" && tag.trim().length) ?? [
         "composer",
         "capsule_creation",
+        "composer_creation",
       ],
     });
 

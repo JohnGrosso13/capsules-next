@@ -575,6 +575,14 @@
     animation: statusPulse 1.2s ease-in-out infinite;
   }
 
+  .statusBrain {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+  }
+
   .statusUploadExtras {
     display: inline-flex;
     align-items: center;
@@ -997,6 +1005,5 @@
     outline-offset: 2px;
   }
 }
-
 
 

@@ -46,7 +46,9 @@ type UsePrompterActionsOptions = {
   onAction?: (action: PrompterAction) => void;
   onHandoff?: (handoff: PrompterHandoff) => void;
   showLocalStatus: (message: string | null, ttl?: number | null) => void;
+  composerReferenceAttachment?: PrompterAttachment | null;
   attachmentState: AttachmentSnapshot;
+  setLocalLoading(active: boolean): void;
 };
 
 export function usePrompterActions({
@@ -64,7 +66,9 @@ export function usePrompterActions({
   onAction,
   onHandoff,
   showLocalStatus,
+  composerReferenceAttachment,
   attachmentState,
+  setLocalLoading,
 }: UsePrompterActionsOptions) {
   const router = useRouter();
   const { attachmentList, readyAttachment, attachmentUploading, clearAllAttachments } =
@@ -127,7 +131,8 @@ export function usePrompterActions({
           source: att.source ?? "upload",
         }))
       : null;
-    const hasAttachmentPayload = Boolean(readyAttachments?.length);
+    const referenceAttachment = readyAttachments?.[0] ?? composerReferenceAttachment ?? null;
+    const hasAttachmentPayload = Boolean((readyAttachments?.length ?? 0) > 0 || referenceAttachment);
     const emitAction = (action: PrompterAction) => {
       if (!onAction) return;
       if (readyAttachments && readyAttachments.length) {
@@ -138,7 +143,12 @@ export function usePrompterActions({
     };
     const dispatchAiHandoff = (payload: { prompt: string; options?: PrompterAiOptions }) => {
       if (!onHandoff) return false;
-      const attachmentsPayload = readyAttachments && readyAttachments.length ? readyAttachments : undefined;
+      const attachmentsPayload =
+        readyAttachments && readyAttachments.length
+          ? readyAttachments
+          : referenceAttachment
+            ? [referenceAttachment]
+            : undefined;
       const handoff: PrompterHandoff = {
         intent: "ai_prompt",
         prompt: payload.prompt,
@@ -155,7 +165,7 @@ export function usePrompterActions({
     };
     const dispatchImageEditHandoff = () => {
       if (!onHandoff) return false;
-      const reference = readyAttachments?.[0];
+      const reference = referenceAttachment;
       if (!reference) return false;
       onHandoff({ intent: "image_edit", prompt: value, reference });
       return true;
@@ -167,6 +177,9 @@ export function usePrompterActions({
       textRef.current?.focus();
       return;
     }
+
+    const markLoading = () => setLocalLoading(true);
+    const clearLoading = () => setLocalLoading(false);
 
     const resetAfterSubmit = () => {
       setText("");
@@ -183,6 +196,7 @@ export function usePrompterActions({
       } else {
         setTheme(navTarget.value);
       }
+      clearLoading();
       resetAfterSubmit();
       return;
     }
@@ -190,6 +204,8 @@ export function usePrompterActions({
     const selectedTool: PrompterToolKey | null = variantConfig.allowTools
       ? manualTool ?? suggestedTools[0]?.key ?? null
       : null;
+
+    markLoading();
 
     if (selectedTool === "poll") {
       const handled = dispatchAiHandoff({ prompt: value, options: { prefer: "poll" } });
@@ -210,6 +226,7 @@ export function usePrompterActions({
       if (!handled) {
         emitAction({ kind: "tool_logo", prompt: value, raw: value });
       }
+      clearLoading();
       resetAfterSubmit();
       return;
     }
@@ -220,6 +237,7 @@ export function usePrompterActions({
         if (!handled) {
           emitAction({ kind: "tool_image_edit", prompt: value, raw: value });
         }
+        clearLoading();
         resetAfterSubmit();
         return;
       }
@@ -255,12 +273,14 @@ export function usePrompterActions({
 
     if (effectiveIntent === "style") {
       emitAction({ kind: "style", prompt: value, raw: value });
+      clearLoading();
       resetAfterSubmit();
       return;
     }
 
     if (isFeedSummaryRequest(value)) {
       triggerFeedSummary("prompt");
+      clearLoading();
       resetAfterSubmit();
       return;
     }
@@ -283,12 +303,14 @@ export function usePrompterActions({
     router,
     setManualIntent,
     setText,
+    setLocalLoading,
     suggestedTools,
     text,
     textRef,
     triggerFeedSummary,
     variantConfig.allowTools,
     readyAttachment,
+    composerReferenceAttachment,
   ]);
 
   return {

@@ -1,0 +1,91 @@
+*** Begin Patch
+*** Update File: src/lib/ai/prompter/core.ts
+@@
+   return null;
+ }
+ 
+-function approximateSize(messages: ChatMessage[]): number { try { return JSON.stringify(messages).length; } catch { return 0; } }\\n\\nfunction coerceString(value: unknown): string { return typeof value === 'string' ? value : String(value ?? ''); }\\n\\nfunction compactContent(content: string, limit: number): string { if (content.length <= limit) return content; return ${content.slice(0, Math.max(0, limit - 3))}...; }\\n\\nfunction stripNoisyLines(text: string): string { const lines = text.split('\\n'); const filtered = lines.filter((line) => { const lower = line.toLowerCase(); if (lower.startsWith('media: ')) return false; if (lower.startsWith('attachments referenced:')) return false; return true; }); return filtered.join('\\n'); }\\n\\nfunction compactMessagesForBudget(messages: ChatMessage[], budget = 50000): ChatMessage[] { let result = messages.map((m) => ({ ...m })); const size = (() => { try { return JSON.stringify(result).length; } catch { return 0; } })(); if (size <= budget) return result; const lastAssistantIndex = [...result].reverse().findIndex((m) => (m as any).role === 'assistant'); if (lastAssistantIndex >= 0) { const absoluteIndex = result.length - 1 - lastAssistantIndex; result = result.filter((m, i) => (m as any).role !== 'assistant' || i === absoluteIndex); } if (((() => { try { return JSON.stringify(result).length; } catch { return 0; } })()) <= budget) return result; result = result.map((m) => { const role = (m as any).role; const content = (typeof (m as any).content === 'string' ? (m as any).content : String((m as any).content ?? '')); let cleaned = stripNoisyLines(content); if (role === 'system') { const isUserCard = /\\\\bUser profile:/i.test(cleaned); const isContext = /\\\\bContext memories to ground your response:/i.test(cleaned); cleaned = compactContent(cleaned, isContext ? 4000 : isUserCard ? 1200 : 3000); } else { cleaned = compactContent(cleaned, 4000); } return { ...(m as any), content: cleaned } as ChatMessage; }); if (((() => { try { return JSON.stringify(result).length; } catch { return 0; } })()) <= budget) return result; const systems = result.filter((m) => (m as any).role === 'system'); const firstSystem = systems[0] ? [systems[0]] : []; const extraSystem = systems[1] ? [systems[1]] : []; const lastUserIndex = [...result].reverse().findIndex((m) => (m as any).role === 'user'); const lastUser = lastUserIndex >= 0 ? [result[result.length - 1 - lastUserIndex]] : []; const lastAssistantIdx = [...result].reverse().findIndex((m) => (m as any).role === 'assistant'); const lastAssistant = lastAssistantIdx >= 0 ? [result[result.length - 1 - lastAssistantIdx]] : []; result = [...firstSystem, ...extraSystem, ...lastUser, ...lastAssistant]; if (((() => { try { return JSON.stringify(result).length; } catch { return 0; } })()) <= budget) return result; result = [...firstSystem, ...lastUser]; return result; }\\n\\nexport async function callOpenAIChat(
++function approximateSize(messages: ChatMessage[]): number {
++  try {
++    return JSON.stringify(messages).length;
++  } catch {
++    return 0;
++  }
++}
++
++function coerceString(value: unknown): string {
++  return typeof value === "string" ? value : String(value ?? "");
++}
++
++function compactContent(content: string, limit: number): string {
++  if (content.length <= limit) return content;
++  return `${content.slice(0, Math.max(0, limit - 3))}...`;
++}
++
++function stripNoisyLines(text: string): string {
++  const lines = text.split("\n");
++  const filtered = lines.filter((line) => {
++    const lower = line.toLowerCase();
++    if (lower.startsWith("media: ")) return false;
++    if (lower.startsWith("attachments referenced:")) return false;
++    return true;
++  });
++  return filtered.join("\n");
++}
++
++function compactMessagesForBudget(messages: ChatMessage[], budget = 50000): ChatMessage[] {
++  let result = messages.map((m) => ({ ...m }));
++  const size = (() => { try { return JSON.stringify(result).length; } catch { return 0; } })();
++  if (size <= budget) return result;
++
++  const lastAssistantIndex = [...result]
++    .reverse()
++    .findIndex((m) => (m as any).role === "assistant");
++  if (lastAssistantIndex >= 0) {
++    const absoluteIndex = result.length - 1 - lastAssistantIndex;
++    result = result.filter((m, i) => (m as any).role !== "assistant" || i === absoluteIndex);
++  }
++  if (((() => { try { return JSON.stringify(result).length; } catch { return 0; } })()) <= budget) return result;
++
++  result = result.map((m) => {
++    const role = (m as any).role;
++    const content = coerceString((m as any).content);
++    let cleaned = stripNoisyLines(content);
++    if (role === "system") {
++      const isUserCard = /\bUser profile:/i.test(cleaned);
++      const isContext = /\bContext memories to ground your response:/i.test(cleaned);
++      cleaned = compactContent(cleaned, isContext ? 4000 : isUserCard ? 1200 : 3000);
++    } else {
++      cleaned = compactContent(cleaned, 4000);
++    }
++    return { ...(m as any), content: cleaned } as ChatMessage;
++  });
++  if (((() => { try { return JSON.stringify(result).length; } catch { return 0; } })()) <= budget) return result;
++
++  const systems = result.filter((m) => (m as any).role === "system");
++  const firstSystem = systems[0] ? [systems[0]] : [];
++  const extraSystem = systems[1] ? [systems[1]] : [];
++  const lastUserIndex = [...result].reverse().findIndex((m) => (m as any).role === "user");
++  const lastUser = lastUserIndex >= 0 ? [result[result.length - 1 - lastUserIndex]] : [];
++  const lastAssistantIdx = [...result].reverse().findIndex((m) => (m as any).role === "assistant");
++  const lastAssistant = lastAssistantIdx >= 0 ? [result[result.length - 1 - lastAssistantIdx]] : [];
++  result = [...firstSystem, ...extraSystem, ...lastUser, ...lastAssistant];
++  if (((() => { try { return JSON.stringify(result).length; } catch { return 0; } })()) <= budget) return result;
++
++  result = [...firstSystem, ...lastUser];
++  return result;
++}
++
++export async function callOpenAIChat(
+@@
+-  const payload: Record<string, unknown> = {
++  const payload: Record<string, unknown> = {
+     model: serverEnv.OPENAI_MODEL,
+-
+-    messages: compactMessagesForBudget(messages),\\n\\n    temperature,
++
++    messages: compactMessagesForBudget(messages),
++
++    temperature,
+   };
+*** End Patch

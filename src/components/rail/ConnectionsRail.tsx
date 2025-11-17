@@ -248,13 +248,52 @@ export function ConnectionsRail() {
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
+  const assistantTabActive = railMode === "connections" && activeRailTab === "assistant";
+  const [cancelingTaskIds, setCancelingTaskIds] = React.useState<Set<string>>(new Set());
+  const [assistantActionError, setAssistantActionError] = React.useState<string | null>(null);
 
   const {
     tasks: assistantTasks,
     loading: loadingAssistantTasks,
     error: assistantTasksError,
     refresh: refreshAssistantTasks,
-  } = useAssistantTasks({ pollIntervalMs: 60_000, idlePollIntervalMs: 5 * 60_000 });
+  } = useAssistantTasks({
+    pollIntervalMs: assistantTabActive ? 60_000 : 0,
+    idlePollIntervalMs: assistantTabActive ? 5 * 60_000 : 0,
+    enabled: assistantTabActive,
+  });
+  const assistantError = assistantActionError ?? assistantTasksError;
+
+  const handleCancelAssistantTask = React.useCallback(
+    async (taskId: string) => {
+      setAssistantActionError(null);
+      setCancelingTaskIds((prev) => {
+        const next = new Set(prev);
+        next.add(taskId);
+        return next;
+      });
+      try {
+        const response = await fetch(`/api/assistant/tasks/${taskId}`, { method: "DELETE" });
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          throw new Error(text || "Failed to cancel assistant task");
+        }
+        await refreshAssistantTasks();
+      } catch (error) {
+        console.error("cancel assistant task failed", error);
+        setAssistantActionError(
+          error instanceof Error ? error.message : "Failed to cancel assistant task",
+        );
+      } finally {
+        setCancelingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+      }
+    },
+    [refreshAssistantTasks],
+  );
 
   // Chat / group chat integration
   const {
@@ -1069,8 +1108,10 @@ export function ConnectionsRail() {
           <AssistantPanel
             tasks={assistantTasks}
             loading={loadingAssistantTasks}
-            error={assistantTasksError}
+            error={assistantError}
             onRefresh={refreshAssistantTasks}
+            onCancelTask={handleCancelAssistantTask}
+            cancelingTaskIds={cancelingTaskIds}
           />
         </div>
           {/* Overlay for group chat create/invite */}

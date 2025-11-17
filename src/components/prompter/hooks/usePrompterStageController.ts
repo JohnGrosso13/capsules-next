@@ -58,6 +58,20 @@ type UsePrompterStageControllerProps = {
   variant?: "default" | "bannerCustomizer";
 };
 
+function inferMimeFromUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const lower = url.toLowerCase();
+  if (lower.startsWith("data:image/")) {
+    const match = lower.match(/^data:([-a-z0-9+/.]+);/i);
+    return match?.[1] ?? "image/png";
+  }
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  return null;
+}
+
 export function usePrompterStageController({
   placeholder = DEFAULT_PROMPTER_PLACEHOLDER,
   chips = DEFAULT_PROMPTER_CHIPS,
@@ -85,6 +99,8 @@ export function usePrompterStageController({
   const textRef = React.useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [manualTool, setManualTool] = React.useState<PrompterToolKey | null>(null);
   const closeMenu = React.useCallback(() => setMenuOpen(false), []);
+  const [composerLoadingProgress, setComposerLoadingProgress] = React.useState<number>(0);
+  const [localLoading, setLocalLoading] = React.useState(false);
 
   const attachments = usePrompterAttachments({
     enabled: variantConfig.allowAttachments,
@@ -116,9 +132,55 @@ export function usePrompterStageController({
     hasReadyAttachment,
   } = attachments;
 
+  const composerDraft = composerContext?.state?.draft ?? null;
+  const composerImageAttachment = React.useMemo<PrompterAttachment | null>(() => {
+    if (!composerDraft) return null;
+    const kind = (composerDraft as { kind?: string | null }).kind ?? null;
+    if (!kind || kind.toLowerCase() !== "image") return null;
+    const mediaUrl = (composerDraft as { mediaUrl?: string | null }).mediaUrl ?? null;
+    if (!mediaUrl || !mediaUrl.trim()) return null;
+    const mimeType = inferMimeFromUrl(mediaUrl) ?? "image/png";
+    const name = (composerDraft as { title?: string | null }).title ?? "Current image";
+    return {
+      id: "composer-draft-image",
+      name,
+      mimeType,
+      size: 0,
+      url: mediaUrl,
+      role: "reference",
+      source: "ai",
+    };
+  }, [composerDraft]);
+
   const trimmed = text.trim();
-  const hasAttachment = attachmentsEnabled && hasReadyAttachment;
-  const attachmentMime = hasAttachment ? readyAttachment?.mimeType ?? null : null;
+  const hasActiveAttachment = attachmentsEnabled && hasReadyAttachment;
+  const hasImageReference = hasActiveAttachment || Boolean(composerImageAttachment);
+  const attachmentMime = hasImageReference
+    ? readyAttachment?.mimeType ?? composerImageAttachment?.mimeType ?? null
+    : null;
+  const apiComposerLoading = Boolean(composerContext?.state?.loading);
+  const composerLoading = Boolean(apiComposerLoading || localLoading);
+
+  React.useEffect(() => {
+    if (apiComposerLoading) {
+      setLocalLoading(false);
+    }
+  }, [apiComposerLoading]);
+
+  React.useEffect(() => {
+    if (!composerLoading) {
+      setComposerLoadingProgress(0);
+      return;
+    }
+    const startedAt = Date.now();
+    setComposerLoadingProgress((prev) => (prev > 8 ? prev : 12));
+    const interval = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const eased = Math.min(96, Math.max(12, Math.round(elapsed / 900) * 5 + 12));
+      setComposerLoadingProgress(eased);
+    }, 900);
+    return () => window.clearInterval(interval);
+  }, [composerLoading]);
 
   const {
     autoIntent,
@@ -132,7 +194,7 @@ export function usePrompterStageController({
     text,
     allowNavigation: variantConfig.allowNavigation,
     forceIntent: variantConfig.forceIntent,
-    hasAttachment,
+    hasAttachment: hasImageReference,
   });
 
   React.useEffect(() => {
@@ -191,14 +253,23 @@ export function usePrompterStageController({
     }
   }, [variantConfig.multilineInput, trimmed]);
 
+  const composerLoadingHint =
+    composerLoading && (composerContext?.state?.draft?.kind ?? "").toLowerCase() === "image"
+      ? composerLoadingProgress >= 40
+        ? "Still rendering your visual..."
+        : "Generating your visual..."
+      : composerLoading
+        ? "Working on your request..."
+        : null;
+
   const suggestedTools = React.useMemo(
     () =>
       variantConfig.allowTools
-        ? detectSuggestedTools(trimmed, { hasAttachment, attachmentMime }).filter((s) =>
+        ? detectSuggestedTools(trimmed, { hasAttachment: hasImageReference, attachmentMime }).filter((s) =>
             ["poll", "logo", "image_edit"].includes(s.key),
           )
         : [],
-    [trimmed, hasAttachment, attachmentMime, variantConfig.allowTools],
+    [trimmed, hasImageReference, attachmentMime, variantConfig.allowTools],
   );
   const activeTool = variantConfig.allowTools ? manualTool : null;
 
@@ -218,7 +289,7 @@ export function usePrompterStageController({
 
   const buttonDisabled =
     attachmentUploading ||
-    (!hasAttachment && trimmed.length === 0) ||
+    (!hasImageReference && trimmed.length === 0) ||
     (effectiveIntent === "navigate" && !navTarget) ||
     (postPlan.mode === "manual" && (!postPlan.content || !postPlan.content.trim()));
 
@@ -239,6 +310,8 @@ export function usePrompterStageController({
     ...(onAction ? { onAction } : {}),
     ...(onHandoff ? { onHandoff } : {}),
     showLocalStatus,
+    setLocalLoading,
+    composerReferenceAttachment: composerImageAttachment,
     attachmentState: {
       attachmentList,
       readyAttachment,
@@ -377,6 +450,7 @@ export function usePrompterStageController({
   );
 
   const rawHint =
+    composerLoadingHint ??
     localStatus ??
     statusMessage ??
     uploadingHint ??
@@ -400,8 +474,9 @@ export function usePrompterStageController({
   };
 
   const hint = humanizeHint(rawHint);
+  const resolvedHint = hint ?? (composerLoading ? "Working on your request..." : null);
   const showHint =
-    Boolean(hint) &&
+    (composerLoading || Boolean(resolvedHint)) &&
     (variantConfig.allowIntentHints ||
       Boolean(statusMessage) ||
       Boolean(localStatus) ||
@@ -464,6 +539,8 @@ export function usePrompterStageController({
     hasReadyAttachment,
     trimmed,
     attachmentMime,
+    composerLoading,
+    composerLoadingProgress,
     autoIntent,
     manualIntent,
     setManualIntent,
@@ -479,7 +556,7 @@ export function usePrompterStageController({
     buttonLabel,
     buttonDisabled,
     buttonVariant,
-    hint,
+    hint: resolvedHint,
     showHint,
     uploadingHint,
     uploadCompleteHint,

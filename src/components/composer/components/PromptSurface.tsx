@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Plus, Sparkle, CaretDown } from "@phosphor-icons/react/dist/ssr";
+import { Plus, ArrowUp } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "../../ai-composer.module.css";
 import { VoiceRecorder } from "./VoiceRecorder";
@@ -100,15 +100,12 @@ export function PromptSurface({
         />
         <button
           type="button"
-          className={styles.promptGenerateBtn}
+          className={styles.promptSendBtn}
           onClick={onPromptSubmit}
           disabled={loading || attachmentUploading || !promptValue.trim()}
+          aria-label="Send"
         >
-          <span className={styles.generateIcon}>
-            <Sparkle size={16} weight="fill" />
-          </span>
-          <span className={styles.generateLabel}>Generate</span>
-          <CaretDown size={14} weight="bold" />
+          <ArrowUp size={18} weight="bold" />
         </button>
       </div>
 
@@ -140,5 +137,4 @@ export function PromptSurface({
     </div>
   );
 }
-
 

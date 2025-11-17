@@ -32,21 +32,26 @@ function requireStabilityKey(): string {
   return serverEnv.STABILITY_API_KEY!;
 }
 
+const STABILITY_STYLE_PRESET_MAP: Record<string, string> = {
+  "vibrant-future": "cinematic",
+  neon: "cinematic",
+  vivid: "cinematic",
+  "soft-pastel": "digital-art",
+  pastel: "digital-art",
+  soft: "digital-art",
+  "noir-spotlight": "photographic",
+  noir: "photographic",
+  dramatic: "photographic",
+  "minimal-matte": "analog-film",
+  minimal: "analog-film",
+  matte: "analog-film",
+};
+
 function mapStylePreset(styleId: string | null): string | undefined {
   if (!styleId) return undefined;
   const normalized = styleId.trim().toLowerCase();
-  switch (normalized) {
-    case "vibrant-future":
-      return "dynamic";
-    case "soft-pastel":
-      return "soft";
-    case "noir-spotlight":
-      return "dramatic";
-    case "minimal-matte":
-      return "minimalist";
-    default:
-      return undefined;
-  }
+  if (!normalized.length) return undefined;
+  return STABILITY_STYLE_PRESET_MAP[normalized];
 }
 
 export async function generateStabilityImage(options: StabilityGenerateOptions): Promise<StabilityResponse> {

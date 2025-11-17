@@ -102,11 +102,45 @@ export function PromptPane({
     attachmentKind === "video" ? "video" : attachmentKind === "image" ? "image" : null;
   const trimmedAssistantMessage = typeof message === "string" ? message.trim() : "";
   const isAiAttachment = displayAttachment?.source === "ai";
-  const attachmentCaption = isAiAttachment
+  const baseAttachmentCaption = isAiAttachment
     ? trimmedAssistantMessage || displayAttachment?.name?.trim() || null
     : null;
-  const attachmentFollowUp =
-    attachmentCaption && displayAttachment ? AI_ATTACHMENT_FEEDBACK_PROMPT : null;
+  const attachmentCaption =
+    baseAttachmentCaption && displayAttachment
+      ? `${baseAttachmentCaption} ${AI_ATTACHMENT_FEEDBACK_PROMPT}`
+      : baseAttachmentCaption;
+  const attachmentCaptionForPanel = isAiAttachment ? null : attachmentCaption;
+  const matchedAssistantIndex = React.useMemo(() => {
+    if (!trimmedAssistantMessage) return -1;
+    const exactIndex = history.reduce((latestIndex, entry, index) => {
+      if (
+        entry.role === "assistant" &&
+        typeof entry.content === "string" &&
+        entry.content.trim() === trimmedAssistantMessage
+      ) {
+        return index;
+      }
+      return latestIndex;
+    }, -1);
+    if (exactIndex >= 0) return exactIndex;
+    if (!isAiAttachment) return -1;
+    for (let index = history.length - 1; index >= 0; index -= 1) {
+      if (history[index]?.role === "assistant") return index;
+    }
+    return -1;
+  }, [history, isAiAttachment, trimmedAssistantMessage]);
+
+  const filteredHistory = React.useMemo(() => {
+    if (
+      !displayAttachment ||
+      !isAiAttachment ||
+      !trimmedAssistantMessage ||
+      matchedAssistantIndex < 0
+    ) {
+      return history;
+    }
+    return history.filter((_, index) => index !== matchedAssistantIndex);
+  }, [displayAttachment, history, isAiAttachment, matchedAssistantIndex, trimmedAssistantMessage]);
 
   React.useEffect(() => {
     const scrollNode = chatScrollRef.current;
@@ -202,8 +236,8 @@ export function PromptPane({
               </li>
             ) : null}
 
-            {history.length
-              ? history.map((entry, index) => {
+            {filteredHistory.length
+              ? filteredHistory.map((entry, index) => {
                   const role = entry.role === "user" ? "user" : "ai";
                   const bubbleClass =
                     role === "user"
@@ -214,13 +248,13 @@ export function PromptPane({
                   return (
                     <li key={key} className={styles.msgRow} data-role={role}>
                       <div className={bubbleClass}>
-                        <div className={styles.chatMessageText}>{entry.content}</div>
-                        {attachments.length ? (
-                          <div className={styles.chatAttachmentList}>
-                            {attachments.map((attachment) => {
-                              const attachmentKey = attachment.id || `${key}-${attachment.name}`;
-                              const mimeType = (attachment.mimeType ?? "").toLowerCase();
-                              const isImage = mimeType.startsWith("image/");
+                <div className={styles.chatMessageText}>{entry.content}</div>
+                {attachments.length ? (
+                  <div className={styles.chatAttachmentList}>
+                    {attachments.map((attachment) => {
+                      const attachmentKey = attachment.id || `${key}-${attachment.name}`;
+                      const mimeType = (attachment.mimeType ?? "").toLowerCase();
+                      const isImage = mimeType.startsWith("image/");
                               const previewSrc = attachment.thumbnailUrl ?? attachment.url ?? null;
                               const hasUrl =
                                 typeof attachment.url === "string" && attachment.url.length > 0;
@@ -293,14 +327,14 @@ export function PromptPane({
                 uploading={attachmentUploading}
                 onRemove={onRemoveAttachment}
                 onOpenViewer={onOpenAttachmentViewer}
-                caption={attachmentCaption}
+                caption={attachmentCaptionForPanel}
               />
             ) : null}
 
-            {attachmentFollowUp ? (
+            {isAiAttachment && trimmedAssistantMessage ? (
               <li className={styles.msgRow} data-role="ai">
                 <div className={`${styles.msgBubble} ${styles.aiBubble}`}>
-                  {attachmentFollowUp}
+                  {trimmedAssistantMessage}
                 </div>
               </li>
             ) : null}

@@ -11,6 +11,8 @@ type AssistantPanelProps = {
   loading: boolean;
   error: string | null;
   onRefresh: () => Promise<void> | void;
+  onCancelTask?: (taskId: string) => Promise<void> | void;
+  cancelingTaskIds?: Set<string>;
 };
 
 type BadgeTone = "info" | "success" | "warning";
@@ -62,6 +64,9 @@ function getTaskBadge(task: AssistantTaskSummary): { label: string; tone: BadgeT
   if (failed > 0) {
     return { label: `${failed} failed`, tone: "warning" };
   }
+  if (task.status === "canceled") {
+    return { label: "canceled", tone: "warning" };
+  }
   const normalized = task.status.replace(/_/g, " ");
   const tone: BadgeTone = task.status === "completed" || task.status === "partial" ? "success" : "info";
   return { label: normalized, tone };
@@ -81,7 +86,14 @@ function summarizeTaskMetrics(task: AssistantTaskSummary) {
   };
 }
 
-export function AssistantPanel({ tasks, loading, error, onRefresh }: AssistantPanelProps) {
+export function AssistantPanel({
+  tasks,
+  loading,
+  error,
+  onRefresh,
+  onCancelTask,
+  cancelingTaskIds,
+}: AssistantPanelProps) {
   const hasTasks = Boolean(tasks?.length);
   const waitingState = loading && !hasTasks;
   const primaryError = !loading && !hasTasks && error ? error : null;
@@ -89,6 +101,8 @@ export function AssistantPanel({ tasks, loading, error, onRefresh }: AssistantPa
   const handleRefresh = React.useCallback(() => {
     void onRefresh();
   }, [onRefresh]);
+
+  const cancelingIds = cancelingTaskIds ?? new Set<string>();
 
   return (
     <div className={styles.panel}>
@@ -129,6 +143,12 @@ export function AssistantPanel({ tasks, loading, error, onRefresh }: AssistantPa
             const metrics = summarizeTaskMetrics(task);
             const lastUpdated =
               formatRelativeTime(task.lastResponseAt ?? task.updatedAt) ?? "just now";
+            const isCanceling = cancelingIds.has(task.id);
+            const canCancel =
+              onCancelTask &&
+              task.status !== "completed" &&
+              task.status !== "partial" &&
+              task.status !== "canceled";
 
             return (
               <li key={task.id} className={styles.taskCard}>
@@ -158,6 +178,16 @@ export function AssistantPanel({ tasks, loading, error, onRefresh }: AssistantPa
                     ) : null}
                   </div>
                   <span className={styles.timestamp}>Updated {lastUpdated}</span>
+                  {canCancel ? (
+                    <button
+                      type="button"
+                      className={styles.cancel}
+                      onClick={() => onCancelTask?.(task.id)}
+                      disabled={loading || isCanceling}
+                    >
+                      {isCanceling ? "Cancelling..." : "Cancel task"}
+                    </button>
+                  ) : null}
                 </div>
               </li>
             );

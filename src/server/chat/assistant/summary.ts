@@ -30,6 +30,7 @@ function summarizeTargets(targets: AssistantTaskTargetRow[]): AssistantTaskSumma
         failed += 1;
         break;
       case "completed":
+      case "canceled":
         completed += 1;
         break;
       default:

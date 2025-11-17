@@ -28,13 +28,13 @@ export async function POST(req: Request) {
     const rateLimitResult = await checkRateLimit(TRANSCRIBE_RATE_LIMIT, ownerId);
     if (rateLimitResult && !rateLimitResult.success) {
       const retryAfterSeconds = computeRetryAfterSeconds(rateLimitResult.reset);
-      return returnError(
-        429,
-        "rate_limited",
-        "Hold on—too many transcription requests in a short time.",
-        retryAfterSeconds === null ? undefined : { retryAfterSeconds },
-      );
-    }
+    return returnError(
+      429,
+      "rate_limited",
+      "Hold on - too many transcription requests in a short time.",
+      retryAfterSeconds === null ? undefined : { retryAfterSeconds },
+    );
+  }
 
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const audioBase64Raw =

@@ -340,7 +340,7 @@ export function formatContextForPrompt(input: ChatContextResult | null): string 
       snippet.tags.length ? `tags: ${snippet.tags.join(", ")}` : null,
     ].filter((value): value is string => typeof value === "string" && value.length > 0);
     lines.push(headerParts.join(" | "));
-    lines.push(snippet.snippet);
+    lines.push(truncateSnippet(snippet.snippet));
     if (snippet.url) {
       lines.push(`media: ${snippet.url}`);
     }

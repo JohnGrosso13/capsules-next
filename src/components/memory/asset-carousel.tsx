@@ -395,17 +395,32 @@ export function CapsuleAssetsCarousel() {
   );
 }
 
-export function ComposerCreationsCarousel() {
+export function SavedCreationsCarousel() {
   return (
     <MemoryAssetCarousel
-      title="Capsule Creations"
+      title="Saved Creations"
       kind="composer_creation"
       variants={null}
       viewAllHref="/memory/uploads?tab=uploads"
       viewAllLabel="Open memories"
-      emptySignedOut="Sign in to view your Capsule creations."
+      emptySignedOut="Sign in to view your saved creations."
       emptyLoading="Loading your creations..."
-      emptyNone="No Capsule creations saved yet. Generate an image or video in the composer and tap Save."
+      emptyNone="No creations saved yet. Generate an image or video in the composer and tap Save."
+    />
+  );
+}
+
+export function AiImagesCarousel() {
+  return (
+    <MemoryAssetCarousel
+      title="AI Images"
+      kind="composer_image"
+      variants={null}
+      viewAllHref="/memory/uploads?tab=uploads"
+      viewAllLabel="Open memories"
+      emptySignedOut="Sign in to view your AI-generated images."
+      emptyLoading="Loading your AI images..."
+      emptyNone="No AI images yet. Generate an image in the composer to see it here."
     />
   );
 }

@@ -74,12 +74,16 @@ const serverEnvSchema = z.object({
   CLERK_PUBLISHABLE_KEY: optionalString,
   OPENAI_API_KEY: optionalString,
   OPENAI_BASE_URL: optionalUrl,
-  OPENAI_MODEL: z.string().default("gpt-4o-mini"),
+  OPENAI_MODEL: z.string().default("gpt-5-mini"),
+  OPENAI_MODEL_FALLBACK: optionalString,
+  OPENAI_MODEL_NANO: optionalString,
   OPENAI_EMBED_MODEL: optionalString,
   OPENAI_EMBED_DIM: optionalPositiveInteger,
   OPENAI_IMAGE_MODEL: z.string().default("gpt-image-1"),
-  OPENAI_IMAGE_MODEL_DEV: z.string().default("dall-e-2"),
+  OPENAI_IMAGE_MODEL_MINI: z.string().default("gpt-image-1-mini"),
   OPENAI_TRANSCRIBE_MODEL: z.string().default("gpt-4o-mini-transcribe"),
+  OPENAI_ORGANIZATION: optionalString,
+  OPENAI_PROJECT: optionalString,
   OPENAI_IMAGE_QUALITY: z
     .enum(["low", "standard", "high"])
     .optional()
@@ -92,6 +96,10 @@ const serverEnvSchema = z.object({
     .string()
     .regex(/^\d+x\d+$/, "OPENAI_IMAGE_SIZE_LOW must match <width>x<height>")
     .default("512x512"),
+  OPENAI_IMAGE_SIZE_HIGH: z
+    .string()
+    .regex(/^\d+x\d+$/, "OPENAI_IMAGE_SIZE_HIGH must match <width>x<height>")
+    .default("1024x1024"),
   OPENAI_VIDEO_MODEL: optionalString,
   OPENAI_VIDEO_RESOLUTION: optionalString,
   OPENAI_VIDEO_MAX_DURATION: optionalVideoDuration,
@@ -159,10 +167,12 @@ const rawServerEnv = {
   OPENAI_API_KEY: readEnv("OPENAI_API_KEY", ["OPENAI_KEY", "OPENAI_SECRET_KEY"]),
   OPENAI_BASE_URL: readEnv("OPENAI_BASE_URL", ["AI_BASE_URL"]),
   OPENAI_MODEL: readEnv("OPENAI_MODEL", ["AI_MODEL", "GPT_MODEL"]),
+  OPENAI_MODEL_FALLBACK: readEnv("OPENAI_MODEL_FALLBACK"),
+  OPENAI_MODEL_NANO: readEnv("OPENAI_MODEL_NANO"),
   OPENAI_EMBED_MODEL: readEnv("OPENAI_EMBED_MODEL", ["OPENAI_EMBEDDING_MODEL"]),
   OPENAI_EMBED_DIM: readEnv("OPENAI_EMBED_DIM", ["OPENAI_EMBED_DIMENSIONS"]),
   OPENAI_IMAGE_MODEL: readEnv("OPENAI_IMAGE_MODEL", ["AI_IMAGE_MODEL", "IMAGE_MODEL"]),
-  OPENAI_IMAGE_MODEL_DEV: readEnv("OPENAI_IMAGE_MODEL_DEV", ["AI_IMAGE_MODEL_DEV", "IMAGE_MODEL_DEV"]),
+  OPENAI_IMAGE_MODEL_MINI: readEnv("OPENAI_IMAGE_MODEL_MINI"),
   OPENAI_TRANSCRIBE_MODEL: readEnv("OPENAI_TRANSCRIBE_MODEL", [
     "OPENAI_TRANSCRIBE",
     "OPENAI_MODEL_TRANSCRIBE",
@@ -174,6 +184,9 @@ const rawServerEnv = {
   ])?.toLowerCase(),
   OPENAI_IMAGE_SIZE: readEnv("OPENAI_IMAGE_SIZE"),
   OPENAI_IMAGE_SIZE_LOW: readEnv("OPENAI_IMAGE_SIZE_LOW"),
+  OPENAI_IMAGE_SIZE_HIGH: readEnv("OPENAI_IMAGE_SIZE_HIGH"),
+  OPENAI_ORGANIZATION: readEnv("OPENAI_ORGANIZATION", ["OPENAI_ORG"]),
+  OPENAI_PROJECT: readEnv("OPENAI_PROJECT", ["OPENAI_DEFAULT_PROJECT"]),
   OPENAI_VIDEO_MODEL: readEnv("OPENAI_VIDEO_MODEL", ["AI_VIDEO_MODEL", "VIDEO_MODEL"]),
   OPENAI_VIDEO_RESOLUTION: readEnv("OPENAI_VIDEO_RESOLUTION", ["AI_VIDEO_RESOLUTION"]),
   OPENAI_VIDEO_MAX_DURATION: readEnv("OPENAI_VIDEO_MAX_DURATION", [

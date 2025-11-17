@@ -67,6 +67,15 @@ export async function fetchOpenAI(path: string, init: OpenAIRequestInit = {}): P
     headers.set("Authorization", `Bearer ${apiKey}`);
   }
 
+  // Allow opting a specific org/project via env in dev where the default
+  // association on the key may not have image permissions.
+  if (serverEnv.OPENAI_ORGANIZATION && !headers.has("OpenAI-Organization")) {
+    headers.set("OpenAI-Organization", serverEnv.OPENAI_ORGANIZATION);
+  }
+  if (serverEnv.OPENAI_PROJECT && !headers.has("OpenAI-Project")) {
+    headers.set("OpenAI-Project", serverEnv.OPENAI_PROJECT);
+  }
+
   const body = init.body ?? null;
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   if (body && !isFormData && !headers.has("Content-Type")) {

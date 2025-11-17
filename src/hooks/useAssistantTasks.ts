@@ -8,6 +8,7 @@ type UseAssistantTasksOptions = {
   includeCompleted?: boolean;
   pollIntervalMs?: number;
   idlePollIntervalMs?: number;
+  enabled?: boolean;
 };
 
 type FetchOptions = {
@@ -16,10 +17,21 @@ type FetchOptions = {
 };
 
 export function useAssistantTasks(options: UseAssistantTasksOptions = {}) {
-  const { includeCompleted = false, pollIntervalMs = 0, idlePollIntervalMs = 0 } = options;
+  const {
+    includeCompleted = false,
+    pollIntervalMs = 0,
+    idlePollIntervalMs = 0,
+    enabled = true,
+  } = options;
   const [tasks, setTasks] = React.useState<AssistantTaskSummary[] | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+    }
+  }, [enabled]);
 
   const fetchTasks = React.useCallback(
     async (options?: FetchOptions) => {
@@ -58,18 +70,23 @@ export function useAssistantTasks(options: UseAssistantTasksOptions = {}) {
   );
 
   React.useEffect(() => {
+    if (!enabled) return undefined;
     const controller = new AbortController();
     void fetchTasks({ signal: controller.signal });
     return () => controller.abort();
-  }, [fetchTasks]);
+  }, [enabled, fetchTasks]);
 
   const hasActiveTasks = React.useMemo(() => {
     if (!tasks || tasks.length === 0) return false;
-    return tasks.some((task) => task.status !== "completed" && task.status !== "partial");
+    return tasks.some(
+      (task) =>
+        task.status !== "completed" && task.status !== "partial" && task.status !== "canceled",
+    );
   }, [tasks]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return undefined;
+    if (!enabled) return undefined;
     if (!pollIntervalMs && !idlePollIntervalMs) return undefined;
     const interval = hasActiveTasks ? pollIntervalMs : idlePollIntervalMs;
     if (!interval) return undefined;
@@ -78,9 +95,10 @@ export function useAssistantTasks(options: UseAssistantTasksOptions = {}) {
       void fetchTasks({ background: true });
     }, interval);
     return () => window.clearInterval(handle);
-  }, [fetchTasks, pollIntervalMs, idlePollIntervalMs, hasActiveTasks]);
+  }, [enabled, fetchTasks, pollIntervalMs, idlePollIntervalMs, hasActiveTasks]);
 
   React.useEffect(() => {
+    if (!enabled) return undefined;
     if (typeof window === "undefined" || typeof document === "undefined") return undefined;
     const handleVisibility = () => {
       if (document.visibilityState !== "visible") return;
@@ -92,7 +110,7 @@ export function useAssistantTasks(options: UseAssistantTasksOptions = {}) {
       window.removeEventListener("focus", handleVisibility);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [fetchTasks]);
+  }, [enabled, fetchTasks]);
 
   return {
     tasks,

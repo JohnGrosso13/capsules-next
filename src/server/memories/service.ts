@@ -541,6 +541,8 @@ type MemoryKindFilter = {
 };
 
 const BANNER_SOURCE_TOKENS = ["capsule_banner", "banner", "capsule_tile", "tile", "promo_tile"];
+const COMPOSER_IMAGE_TOKENS = ["composer_image", "ai_image", "image_generation"];
+const COMPOSER_CREATION_TOKENS = ["composer_creation", "capsule_creation"];
 
 function normalizeSourceValue(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -618,6 +620,12 @@ function resolveMemoryKindFilters(kind: string | null | undefined): MemoryKindFi
   }
   if (normalized === "banner" || normalized === "capsule_banner") {
     return { dbKinds: ["upload"], sourceIncludes: BANNER_SOURCE_TOKENS, sourceExcludes: null };
+  }
+  if (normalized === "composer_image") {
+    return { dbKinds: ["upload"], sourceIncludes: COMPOSER_IMAGE_TOKENS, sourceExcludes: null };
+  }
+  if (normalized === "composer_creation") {
+    return { dbKinds: ["upload"], sourceIncludes: COMPOSER_CREATION_TOKENS, sourceExcludes: null };
   }
   if (normalized === "upload") {
     return { dbKinds: ["upload"], sourceIncludes: null, sourceExcludes: BANNER_SOURCE_TOKENS };

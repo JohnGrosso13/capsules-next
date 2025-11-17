@@ -23,6 +23,7 @@ type UseAttachmentRailParams = {
   draft: ComposerDraft;
   onDraftChange(partial: Partial<ComposerDraft>): void;
   capsuleId?: string | null;
+  assistantCaption?: string | null;
 };
 
 export type AttachmentMemoryPickerState = {
@@ -64,12 +65,15 @@ export type AttachmentRailController = {
   vibeSuggestions: Array<{ label: string; prompt: string }>;
   cloudflareEnabled: boolean;
   memoryPicker: AttachmentMemoryPickerState;
+  attachmentCaption: string | null;
+  attachmentMemoryPrompt: string | null;
 };
 
 export function useAttachmentRail({
   draft,
   onDraftChange,
   capsuleId,
+  assistantCaption,
 }: UseAttachmentRailParams): AttachmentRailController {
   const {
     fileInputRef,
@@ -187,6 +191,14 @@ export function useAttachmentRail({
   const attachmentUrl = displayAttachment?.url ?? null;
   const attachmentThumb = displayAttachment?.thumbUrl ?? attachmentPreviewUrl ?? null;
   const attachmentProgress = displayAttachment?.progress ?? 0;
+  const attachmentMemoryPrompt =
+    typeof draft.mediaPrompt === "string" && draft.mediaPrompt.trim().length
+      ? draft.mediaPrompt.trim()
+      : null;
+  const attachmentCaption =
+    typeof assistantCaption === "string" && assistantCaption.trim().length
+      ? assistantCaption.trim()
+      : null;
 
   const attachmentKind = React.useMemo<"image" | "video" | null>(
     () => (attachmentMime.startsWith("video/") ? "video" : attachmentMime ? "image" : null),
@@ -349,6 +361,8 @@ export function useAttachmentRail({
     attachmentDisplayUrl,
     attachmentFullUrl,
     attachmentProgressPct,
+    attachmentCaption,
+    attachmentMemoryPrompt,
     removeAttachment,
     vibeSuggestions,
     cloudflareEnabled,

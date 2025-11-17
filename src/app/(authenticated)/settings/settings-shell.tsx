@@ -10,6 +10,7 @@ import { CapsuleSettingsSection } from "./capsules-section";
 import { AccountSettingsSection } from "./account-section";
 import { VoiceSettingsSection } from "./voice-section";
 import { ConnectionsSettingsSection } from "./connections-section";
+import { ComposerSettingsSection } from "./composer-settings-section";
 
 type CapsuleSettingsProps = React.ComponentProps<typeof CapsuleSettingsSection>;
 type AccountProfileProps = React.ComponentProps<typeof AccountSettingsSection>["profile"];
@@ -19,7 +20,7 @@ type SettingsShellProps = {
   accountProfile: AccountProfileProps;
 };
 
-type SettingsSectionKey = "capsules" | "account" | "connections" | "appearance" | "voice";
+type SettingsSectionKey = "capsules" | "account" | "connections" | "appearance" | "voice" | "composer";
 
 const NAVIGATION_ITEMS: Array<
   | {
@@ -37,6 +38,7 @@ const NAVIGATION_ITEMS: Array<
   { key: "account", label: "Account", enabled: true },
   { key: "connections", label: "Connections", enabled: true },
   { key: "appearance", label: "Appearance", enabled: true },
+  { key: "composer", label: "Composer Settings", enabled: true },
   { key: "voice", label: "Voice", enabled: true },
   { key: "notifications", label: "Notifications", enabled: false },
   { key: "devices", label: "Devices", enabled: false },
@@ -70,6 +72,7 @@ export function SettingsShell({
         case "account":
         case "connections":
         case "appearance":
+        case "composer":
         case "voice":
           return key as SettingsSectionKey;
         default:
@@ -224,6 +227,12 @@ export function SettingsShell({
           {activeSection === "connections" ? (
             <section aria-label="Connections settings" className={layout.section}>
               <ConnectionsSettingsSection />
+            </section>
+          ) : null}
+
+          {activeSection === "composer" ? (
+            <section aria-label="Composer settings" className={layout.section}>
+              <ComposerSettingsSection />
             </section>
           ) : null}
 

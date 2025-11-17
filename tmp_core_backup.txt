@@ -1,0 +1,154 @@
+import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
+import { serverEnv } from "@/lib/env/server";
+
+export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
+export type ChatMessage = Record<string, unknown>;
+
+export type JsonSchema = { name: string; schema: Record<string, unknown> };
+
+export class AIConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+
+    this.name = "AIConfigError";
+  }
+}
+
+export function requireOpenAIKey() {
+  if (!hasOpenAIApiKey()) {
+    throw new AIConfigError(
+      "OpenAI API key is not configured. Set OPENAI_API_KEY in the environment.",
+    );
+  }
+}
+
+export function extractJSON<T = Record<string, unknown>>(maybeJSONString: unknown): T | null {
+  if (maybeJSONString && typeof maybeJSONString === "object") {
+    return maybeJSONString as T;
+  }
+
+  const text = String(maybeJSONString ?? "");
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // continue
+  }
+
+  try {
+    const fenced = text.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
+
+    return JSON.parse(fenced) as T;
+  } catch {
+    // continue
+  }
+
+  try {
+    const start = text.indexOf("{");
+
+    const end = text.lastIndexOf("}");
+
+    if (start >= 0 && end > start) {
+      return JSON.parse(text.slice(start, end + 1)) as T;
+    }
+  } catch {
+    // ignore incomplete fragments
+  }
+
+  return null;
+}
+
+export async function callOpenAIChat(
+  messages: ChatMessage[],
+
+  schema: JsonSchema | null,
+
+  options: { temperature?: number } = {},
+): Promise<{ content: string; raw: Json }> {
+  requireOpenAIKey();
+
+  const retryDelaysMs = [0, 800, 1600];
+  const temperature = options.temperature ?? 0.7;
+
+  const payload: Record<string, unknown> = {
+    model: serverEnv.OPENAI_MODEL,
+
+    messages,
+
+    temperature,
+  };
+
+  if (schema) {
+    payload.response_format = { type: "json_schema", json_schema: schema };
+  } else {
+    payload.response_format = { type: "json_object" };
+  }
+
+  async function postWithRetries(body: Record<string, unknown>): Promise<{
+    response: Response;
+    json: Json;
+  }> {
+    let lastResponse: Response | null = null;
+    let lastJson: Json = {};
+
+    for (const delay of retryDelaysMs) {
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      const response = await fetchOpenAI("/chat/completions", {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify(body),
+      });
+
+      const json = (await response.json().catch(() => ({}))) as Json;
+      if (response.ok) {
+        return { response, json };
+      }
+
+      lastResponse = response;
+      lastJson = json;
+
+      if (response.status !== 429 && response.status < 500) {
+        break;
+      }
+    }
+
+    return { response: lastResponse as Response, json: lastJson };
+  }
+
+  let { response, json } = await postWithRetries(payload);
+
+  if (!response.ok) {
+    const fallbackBody = { model: serverEnv.OPENAI_MODEL, messages, temperature };
+
+    ({ response, json } = await postWithRetries(fallbackBody));
+
+    if (!response.ok) {
+      const error = new Error(`OpenAI chat error: ${response.status}`);
+
+      (error as Error & { meta?: Json }).meta = json;
+
+      throw error;
+    }
+  }
+
+  const choices = (json as Record<string, unknown>).choices;
+
+  const content = Array.isArray(choices)
+    ? (choices[0] as Record<string, unknown>)?.message &&
+      ((choices[0] as Record<string, unknown>).message as Record<string, unknown>)?.content
+    : null;
+
+  if (!content || typeof content !== "string") {
+    throw new Error("OpenAI chat returned empty content.");
+  }
+
+  return { content, raw: json };
+}

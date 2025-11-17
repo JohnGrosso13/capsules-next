@@ -22,6 +22,18 @@ vi.mock("@/hooks/useNetworkStatus", () => ({
 
 const actEnv = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 actEnv.IS_REACT_ACT_ENVIRONMENT = true;
+const originalMatchMedia = globalThis.matchMedia;
+const originalScrollTo = Element.prototype.scrollTo;
+const matchMediaStub = vi.fn().mockImplementation((query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addListener: vi.fn(),
+  removeListener: vi.fn(),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  dispatchEvent: vi.fn(),
+}));
 
 const capsules: CapsuleSummary[] = [
   {
@@ -50,6 +62,17 @@ describe("LadderBuilder autosave", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     window.localStorage.clear();
+
+    Object.defineProperty(globalThis, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: matchMediaStub,
+    });
+    Object.defineProperty(Element.prototype, "scrollTo", {
+      writable: true,
+      configurable: true,
+      value: vi.fn(),
+    });
   });
 
   afterEach(() => {
@@ -58,6 +81,25 @@ describe("LadderBuilder autosave", () => {
     });
     container.remove();
     window.localStorage.clear();
+
+    if (originalMatchMedia) {
+      Object.defineProperty(globalThis, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: originalMatchMedia,
+      });
+    } else {
+      Reflect.deleteProperty(globalThis as object, "matchMedia");
+    }
+    if (originalScrollTo) {
+      Object.defineProperty(Element.prototype, "scrollTo", {
+        writable: true,
+        configurable: true,
+        value: originalScrollTo,
+      });
+    } else {
+      Reflect.deleteProperty(Element.prototype, "scrollTo");
+    }
   });
 
   it("persists draft form data to localStorage", async () => {

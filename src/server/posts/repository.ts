@@ -218,8 +218,9 @@ export async function listViewerRememberedPostIds(
     .from("memories")
     .select<MemoryRow>("post_id")
     .eq("owner_user_id", viewerId)
+    .eq("is_latest", true)
     .in("kind", ["post", "text"])
-    .eq("meta->>source", "post_memory")
+    .contains("meta", { source: "post_memory" })
     .in("post_id", candidateIds)
     .fetch();
   if (result.error) throw decorateDatabaseError("posts.viewerRemembered", result.error);

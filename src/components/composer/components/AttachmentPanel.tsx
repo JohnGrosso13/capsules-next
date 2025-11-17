@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Brain, X } from "@phosphor-icons/react/dist/ssr";
+import { Brain, DownloadSimple, X } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "../../ai-composer.module.css";
 
@@ -34,7 +34,9 @@ export function AttachmentPanel({
 }: AttachmentPanelProps) {
   const resolvedCaption =
     typeof caption === "string" ? caption.trim() || null : caption ?? null;
-  const showMetaName = !resolvedCaption;
+  const isAiAttachment = attachment.source === "ai";
+  const showMetaName = !resolvedCaption && !isAiAttachment;
+  const showMetaBar = !isAiAttachment && (showMetaName || statusLabel);
 
   return (
     <li className={`${styles.msgRow} ${styles.attachmentMessageRow}`} data-role="attachment">
@@ -44,6 +46,29 @@ export function AttachmentPanel({
         data-kind={kind ?? undefined}
       >
         <div className={styles.attachmentSurface}>
+          <div className={styles.attachmentIconBar}>
+            {attachment.status === "ready" && displayUrl ? (
+              <a
+                className={styles.attachmentIconButton}
+                href={displayUrl}
+                download
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Download attachment"
+              >
+                <DownloadSimple size={16} weight="bold" />
+              </a>
+            ) : null}
+            <button
+              type="button"
+              className={styles.attachmentIconButton}
+              onClick={onRemove}
+              disabled={loading || uploading}
+              aria-label="Remove attachment"
+            >
+              <X size={16} weight="bold" />
+            </button>
+          </div>
           {attachment.status === "uploading" ? (
             <div
               className={styles.attachmentLoading}
@@ -105,19 +130,9 @@ export function AttachmentPanel({
               <span>{statusLabel ?? "Upload failed"}</span>
             </div>
           ) : null}
-
-          <button
-            type="button"
-            className={styles.attachmentRemoveLarge}
-            onClick={onRemove}
-            disabled={loading || uploading}
-            aria-label="Remove attachment"
-          >
-            <X size={16} weight="bold" />
-          </button>
         </div>
 
-        {showMetaName || statusLabel ? (
+        {showMetaBar ? (
           <div className={styles.attachmentMetaBar}>
             {showMetaName ? (
               <span className={styles.attachmentMetaName} title={attachment.name}>

@@ -718,7 +718,7 @@ export class ChatStateMachine {
       typeof payload.conversationId === "string" ? payload.conversationId.trim() : "";
     const messageId = typeof payload.messageId === "string" ? payload.messageId.trim() : "";
     if (!conversationId || !messageId) return false;
-    const session = this.state.sessions[conversationId];
+    let session = this.state.sessions[conversationId];
     if (!session) return false;
     let participantsChanged = false;
     const participantUpdates: ChatParticipant[] = [];
@@ -733,6 +733,7 @@ export class ChatStateMachine {
     }
     if (participantUpdates.length > 0) {
       participantsChanged = this.upsertParticipants(conversationId, participantUpdates);
+      session = this.state.sessions[conversationId] ?? session;
     }
     const messageIndex = session.messageIndex[messageId];
     if (typeof messageIndex !== "number") return participantsChanged;
@@ -764,10 +765,11 @@ export class ChatStateMachine {
     messageId: string,
     payload: MessageUpdatePayload,
   ): boolean {
-    const session = this.state.sessions[conversationId];
+    let session = this.state.sessions[conversationId];
     if (!session) return false;
     if (Array.isArray(payload.participants) && payload.participants.length > 0) {
       this.upsertParticipants(conversationId, payload.participants);
+      session = this.state.sessions[conversationId] ?? session;
     }
     const attachments = sanitizeIncomingAttachments(payload.attachments);
     const sanitizedBody = sanitizeMessageBody(payload.body ?? "");
@@ -820,10 +822,11 @@ export class ChatStateMachine {
     messageId: string,
     payload: MessageDeletePayload,
   ): boolean {
-    const session = this.state.sessions[conversationId];
+    let session = this.state.sessions[conversationId];
     if (!session) return false;
     if (Array.isArray(payload.participants) && payload.participants.length > 0) {
       this.upsertParticipants(conversationId, payload.participants);
+      session = this.state.sessions[conversationId] ?? session;
     }
     const messageIndex = session.messageIndex[messageId];
     if (typeof messageIndex !== "number") return false;

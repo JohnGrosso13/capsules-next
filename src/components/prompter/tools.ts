@@ -53,9 +53,12 @@ export function detectSuggestedTools(
 
   // Image vibe/edit intent (requires an image attachment ideally)
   const isImageAttachment = has && mime.startsWith("image/");
+  const editIntent =
+    hasWord(text, /(vibe|restyle|recolor|edit|remix|touch\s*up|enhance|filter)/) ||
+    hasWord(text, /(remove|erase|delete|clean\s*up|take\s*out|get\s*rid|swap|replace)/);
   if (
     isImageAttachment &&
-    hasWord(text, /(vibe|restyle|recolor|edit|remix|touch\s*up|enhance|filter)/)
+    editIntent
   ) {
     out.push({ key: "image_edit", label: TOOL_LABELS.image_edit });
   }

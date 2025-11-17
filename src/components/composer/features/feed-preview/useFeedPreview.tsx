@@ -44,6 +44,7 @@ type UseFeedPreviewParams = {
   loading: boolean;
   memoryPickerTab: MemoryPickerTab;
   memoryItemCount: number;
+  onPostContentChange?: (value: string) => void;
 };
 
 export type FeedPreviewController = {
@@ -71,12 +72,24 @@ export function useFeedPreview({
   loading,
   memoryPickerTab,
   memoryItemCount,
+  onPostContentChange,
 }: UseFeedPreviewParams): FeedPreviewController {
+  const handlePostContentChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      onPostContentChange?.(event.target.value);
+    },
+    [onPostContentChange],
+  );
+
+  const canEditPostCopy = typeof onPostContentChange === "function";
+
   const previewState = React.useMemo<FeedPreviewState>(() => {
     const kind = activeKind;
     let label = activeKindLabel;
-    const content = (workingDraft.content ?? "").trim();
-    const title = (workingDraft.title ?? "").trim();
+    const contentRaw = workingDraft.content ?? "";
+    const content = contentRaw.trim();
+    const titleRaw = workingDraft.title ?? "";
+    const title = titleRaw.trim();
     const mediaPrompt = (workingDraft.mediaPrompt ?? "").trim();
     const mediaUrl =
       attachmentDisplayUrl ??
@@ -101,14 +114,37 @@ export function useFeedPreview({
     const textBlocks = content
       ? content.split(/\n+/).map((block) => block.trim()).filter(Boolean)
       : [];
-    const hasTextCopy = Boolean(title) || textBlocks.length > 0;
-    const renderPostCopy = () => {
-      if (!hasTextCopy) {
+    const hasTextCopy = textBlocks.length > 0;
+    const renderPostCopy = (editable = false) => {
+      if (!editable && !hasTextCopy) {
         return null;
       }
+
+      if (editable) {
+        return (
+          <div className={styles.previewPostCard} data-editable="true">
+            <div className={styles.previewPostField}>
+              <label className={styles.previewPostLabel} htmlFor="composer-preview-post-body">
+                Post copy
+              </label>
+              <textarea
+                id="composer-preview-post-body"
+                className={styles.previewPostTextarea}
+                value={contentRaw}
+                onChange={handlePostContentChange}
+                placeholder="Refine the caption you'd like to publish with this visual"
+                rows={4}
+              />
+            </div>
+            <p className={styles.previewPostHint}>
+              Tweak the wording here to preview exactly how your post will read.
+            </p>
+          </div>
+        );
+      }
+
       return (
         <div className={styles.previewPostCard}>
-          {title ? <h3 className={styles.previewPostTitle}>{title}</h3> : null}
           {textBlocks.length ? (
             <div className={styles.previewPostBody}>
               {textBlocks.map((paragraph, index) => (
@@ -139,11 +175,11 @@ export function useFeedPreview({
       switch (kind) {
         case "image": {
           empty = !mediaUrl;
-          helper = mediaPrompt || attachmentName;
+          helper = null;
           if (empty) {
             body = renderPlaceholder("Upload or describe a visual to stage it here.");
           } else {
-            const copyPreview = renderPostCopy();
+            const copyPreview = renderPostCopy(canEditPostCopy);
             body = (
               <div className={styles.previewMediaStack}>
                 <figure className={styles.previewMediaFrame} data-kind="image">
@@ -152,7 +188,6 @@ export function useFeedPreview({
                     src={mediaUrl ?? undefined}
                     alt={attachmentName ?? (mediaPrompt || "Generated visual preview")}
                   />
-                  {mediaPrompt ? <figcaption>{mediaPrompt}</figcaption> : null}
                 </figure>
                 {copyPreview}
               </div>
@@ -255,12 +290,11 @@ export function useFeedPreview({
         }
         default: {
           empty = !hasTextCopy;
-          if (empty) {
+          body = renderPostCopy(canEditPostCopy);
+          if (empty && !canEditPostCopy) {
             body = renderPlaceholder(
               `Give Capsule AI a prompt to see your ${label.toLowerCase()} take shape.`,
             );
-          } else {
-            body = renderPostCopy();
           }
           break;
         }
@@ -294,6 +328,8 @@ export function useFeedPreview({
     pollHasStructure,
     pollHelperText,
     pollPreviewCard,
+    canEditPostCopy,
+    handlePostContentChange,
     workingDraft.content,
     workingDraft.mediaDurationSeconds,
     workingDraft.mediaPlaybackUrl,

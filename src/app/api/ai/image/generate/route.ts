@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     return returnError(
       429,
       "rate_limited",
-      "You’ve reached the current image generation limit. Please try again shortly.",
+      "You've reached the current image generation limit. Please try again shortly.",
       retryAfterSeconds === null ? undefined : { retryAfterSeconds },
     );
   }

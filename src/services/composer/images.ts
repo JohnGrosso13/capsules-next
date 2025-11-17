@@ -1,15 +1,36 @@
 "use client";
 
+import type { ComposerImageQuality } from "@/lib/composer/image-settings";
+
 export type ImageRunResult = {
   url: string;
 };
 
-export async function requestImageGeneration(prompt: string): Promise<ImageRunResult> {
+type ImageRequestOptions = {
+  quality?: ComposerImageQuality;
+};
+
+function buildRequestBody(promptOrInstruction: Record<string, unknown>, options?: ImageRequestOptions) {
+  if (!options || (!options.quality)) {
+    return JSON.stringify(promptOrInstruction);
+  }
+  return JSON.stringify({
+    ...promptOrInstruction,
+    options: {
+      ...(options.quality ? { quality: options.quality } : {}),
+    },
+  });
+}
+
+export async function requestImageGeneration(
+  prompt: string,
+  options?: ImageRequestOptions,
+): Promise<ImageRunResult> {
   const response = await fetch("/api/ai/image/generate", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
+    body: buildRequestBody({ prompt }, options),
   });
   const json = (await response.json().catch(() => null)) as { url?: string } | null;
   if (!response.ok || !json?.url) {
@@ -21,15 +42,17 @@ export async function requestImageGeneration(prompt: string): Promise<ImageRunRe
 export async function requestImageEdit({
   imageUrl,
   instruction,
+  options,
 }: {
   imageUrl: string;
   instruction: string;
+  options?: ImageRequestOptions;
 }): Promise<ImageRunResult> {
   const response = await fetch("/api/ai/image/edit", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ imageUrl, instruction }),
+    body: buildRequestBody({ imageUrl, instruction }, options),
   });
   const json = (await response.json().catch(() => null)) as { url?: string } | null;
   if (!response.ok || !json?.url) {

@@ -10,7 +10,7 @@ function authorize(request: Request): boolean {
     request.headers.get("x-cron-secret") ??
     new URL(request.url).searchParams.get("token") ??
     null;
-  if (!serverEnv.ASSISTANT_REMINDER_SECRET) return true;
+  if (!serverEnv.ASSISTANT_REMINDER_SECRET) return false;
   return token === serverEnv.ASSISTANT_REMINDER_SECRET;
 }
 

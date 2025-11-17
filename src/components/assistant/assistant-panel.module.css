@@ -178,6 +178,29 @@
   color: color-mix(in srgb, var(--text, #fff) 55%, transparent);
 }
 
+.cancel {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-danger, #f87171) 60%, transparent);
+  background: color-mix(in srgb, var(--color-danger, #f87171) 14%, transparent);
+  color: color-mix(in srgb, var(--color-danger, #f87171) 90%, var(--text, #fff) 25%);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.cancel:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .inlineError {
   font-size: 0.82rem;
   color: color-mix(in srgb, var(--color-danger, #f87171) 80%, var(--text, #fff) 30%);

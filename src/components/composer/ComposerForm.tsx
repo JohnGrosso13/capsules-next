@@ -54,6 +54,10 @@ import {
   type SidebarListItem,
   type SidebarTabKey,
 } from "./panes/SidebarPane";
+import {
+  COMPOSER_IMAGE_QUALITY_OPTIONS,
+  titleCaseComposerQuality,
+} from "@/lib/composer/image-settings";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
@@ -91,6 +95,8 @@ type ComposerToolbarProps = {
   smartContextEnabled: boolean;
   onToggleContext: () => void;
   contextActive: boolean;
+  imageQuality: (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number];
+  onQualityChange: (quality: (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number]) => void;
   onMenuToggle?: () => void;
   mobileRailOpen?: boolean;
   onPreviewToggle?: () => void;
@@ -106,6 +112,8 @@ function ComposerToolbar({
   smartContextEnabled,
   onToggleContext,
   contextActive,
+  imageQuality,
+  onQualityChange,
   onMenuToggle,
   mobileRailOpen,
   onPreviewToggle,
@@ -126,7 +134,30 @@ function ComposerToolbar({
 
       <header className={styles.panelToolbar}>
         <div className={styles.toolbarHeading}>
-          <h2 className={styles.toolbarTitle}>Composer Studio</h2>
+          <div className={styles.toolbarBrandRow}>
+            <span className={styles.memoryLogo} aria-label="Memory">
+              <Brain size={18} weight="duotone" />
+            </span>
+            <div className={styles.imageControls}>
+              <label className={styles.imageControl}>
+                <span className={styles.imageControlLabel}>Quality</span>
+                <select
+                  className={styles.imageSelect}
+                  value={imageQuality}
+                  onChange={(event) =>
+                    onQualityChange(event.target.value as (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number])
+                  }
+                  disabled={disabled}
+                >
+                  {COMPOSER_IMAGE_QUALITY_OPTIONS.map((quality) => (
+                    <option key={quality} value={quality}>
+                      {titleCaseComposerQuality(quality)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
         </div>
         <div className={styles.headerActions}>
           <button
@@ -207,10 +238,12 @@ function ComposerFooter({
   canPost,
   saving,
 }: ComposerFooterProps) {
+  const showFooterHint = Boolean(footerHint && footerHint.trim().length > 0);
+
   return (
     <footer className={styles.panelFooter}>
       <div className={styles.footerLeft}>
-        <p className={styles.footerHint}>{footerHint}</p>
+        {showFooterHint ? <p className={styles.footerHint}>{footerHint}</p> : null}
         <label className={styles.privacyGroup}>
           <span className={styles.privacyLabel}>Visibility</span>
           <select
@@ -269,6 +302,8 @@ type ComposerViewerProps = {
   attachmentFullUrl: string | null;
   attachmentDisplayUrl: string | null;
   attachmentPreviewUrl: string | null;
+  attachmentCaption: string | null;
+  attachmentMemoryPrompt: string | null;
   onClose: () => void;
   onRemoveAttachment: () => void;
   onSelectSuggestion: (prompt: string) => void;
@@ -282,6 +317,8 @@ function ComposerViewer({
   attachmentFullUrl,
   attachmentDisplayUrl,
   attachmentPreviewUrl,
+  attachmentCaption,
+  attachmentMemoryPrompt,
   onClose,
   onRemoveAttachment,
   onSelectSuggestion,
@@ -317,7 +354,10 @@ function ComposerViewer({
               />
             )}
           </div>
-          <div className={lightboxStyles.lightboxCaption}>{attachment.name}</div>
+          <div className={styles.viewerCaption}>{attachmentCaption ?? attachment.name}</div>
+          {attachmentMemoryPrompt ? (
+            <div className={styles.viewerSubcaption}>{attachmentMemoryPrompt}</div>
+          ) : null}
         </div>
         <div className={styles.viewerActions}>
           {vibeSuggestions.map((suggestion) => (
@@ -439,20 +479,8 @@ function getPromptPlaceholder(kind: string): string {
 }
 
 function getFooterHint(kind: string): string {
-  switch (kind) {
-    case "poll":
-      return "Give Capsule AI a prompt or tweak the poll structure below.";
-    case "image":
-      return "Upload a visual, pull from your library, or describe the feel youâ€™re after.";
-    case "video":
-      return "Drop in reference footage or narrate the scenes you need.";
-    case "document":
-      return "Share the sections you need, or ask Capsule AI to outline it for you.";
-    case "tournament":
-      return "Tell Capsule AI how the bracket should flow and itâ€™ll draft it out.";
-    default:
-      return "Chat with Capsule AI, reference a blueprint, or upload supporting visuals.";
-  }
+  void kind;
+  return "";
 }
 
 type MemoryItem = {
@@ -634,7 +662,14 @@ export function ComposerForm({
     [onChange, workingDraft],
   );
 
-  const { activeCapsuleId } = useComposer();
+  const handlePostContentChange = React.useCallback(
+    (value: string) => {
+      updateDraft({ content: value });
+    },
+    [updateDraft],
+  );
+
+  const { activeCapsuleId, imageSettings, updateImageSettings } = useComposer();
   const { state, actions } = useComposerFormReducer();
   const { privacy, mobileRailOpen, previewOpen, layout, viewerOpen, voice: voiceState } = state;
 
@@ -668,6 +703,8 @@ export function ComposerForm({
     attachmentDisplayUrl,
     attachmentFullUrl,
     attachmentProgressPct,
+    attachmentCaption,
+    attachmentMemoryPrompt,
     removeAttachment: handleRemoveAttachment,
     vibeSuggestions,
     cloudflareEnabled,
@@ -676,6 +713,7 @@ export function ComposerForm({
     draft: workingDraft,
     onDraftChange: updateDraft,
     capsuleId: activeCapsuleId ?? null,
+    assistantCaption: message ?? null,
   });
 
   const {
@@ -1098,6 +1136,7 @@ export function ComposerForm({
     loading,
     memoryPickerTab,
     memoryItemCount: memoryItems.length,
+    onPostContentChange: handlePostContentChange,
   });
 
 
@@ -1790,6 +1829,8 @@ export function ComposerForm({
           smartContextEnabled={smartContextEnabled}
           onToggleContext={() => onSmartContextChange(!smartContextEnabled)}
           contextActive={smartContextEnabled && hasContextSnippets}
+          imageQuality={imageSettings.quality}
+          onQualityChange={(quality) => updateImageSettings({ quality })}
           onMenuToggle={() => actions.setMobileRailOpen(!mobileRailOpen)}
           mobileRailOpen={mobileRailOpen}
           onPreviewToggle={handlePreviewToggle}
@@ -1970,6 +2011,8 @@ export function ComposerForm({
           attachmentFullUrl={attachmentFullUrl}
           attachmentDisplayUrl={attachmentDisplayUrl}
           attachmentPreviewUrl={attachmentPreviewUrl}
+          attachmentCaption={attachmentCaption}
+          attachmentMemoryPrompt={attachmentMemoryPrompt}
           onClose={closeViewer}
           onRemoveAttachment={handleRemoveAttachment}
           onSelectSuggestion={handleSuggestionSelect}

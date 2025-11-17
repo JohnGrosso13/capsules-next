@@ -12,7 +12,13 @@ import {
   List,
   SidebarSimple,
 } from "@phosphor-icons/react/dist/ssr";
-import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
+import {
+  PanelGroup,
+  Panel,
+  PanelResizeHandle,
+  type ImperativePanelHandle,
+  type ImperativePanelGroupHandle,
+} from "react-resizable-panels";
 
 import styles from "./CapsuleCustomizer.module.css";
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
@@ -151,7 +157,7 @@ function CapsuleCustomizerContent() {
   const preview = useCapsuleCustomizerPreview();
   const save = useCapsuleCustomizerSave();
   const actions = useCapsuleCustomizerActions();
-  const panelLayoutId = React.useMemo(() => "capsule-customizer-panels-v1", []);
+  const panelLayoutId = React.useMemo(() => "capsule-customizer-panels-v3", []);
   const resizableColumnsClass = styles.resizableColumns ?? "";
   const navigationPanelClass = joinClassNames(styles.columnPanel, styles.navigationPanel);
   const chatPanelClass = joinClassNames(styles.columnPanel, styles.chatPanel);
@@ -160,6 +166,14 @@ function CapsuleCustomizerContent() {
   const variants = useCapsuleCustomizerVariants();
   const personas = useCapsuleCustomizerPersonas();
   const advanced = useCapsuleCustomizerAdvancedOptions();
+  const NAV_DEFAULT_SIZE = 20;
+  const NAV_MIN_SIZE = 16;
+  const NAV_COLLAPSED_SIZE = 9;
+  const navPanelRef = React.useRef<ImperativePanelHandle | null>(null);
+  const lastNavExpandedSize = React.useRef(NAV_DEFAULT_SIZE);
+  const panelGroupRef = React.useRef<ImperativePanelGroupHandle | null>(null);
+  const lastLayoutBeforeCollapse = React.useRef<number[] | null>(null);
+  const [navCollapsed, setNavCollapsed] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = React.useState(false);
@@ -254,6 +268,59 @@ function CapsuleCustomizerContent() {
       return next;
     });
   }, []);
+
+  React.useEffect(() => {
+    const layout = panelGroupRef.current?.getLayout();
+    const navSize = layout?.[0];
+    if (navSize === undefined) return;
+    if (navSize <= NAV_COLLAPSED_SIZE + 0.5) {
+      setNavCollapsed(true);
+      lastNavExpandedSize.current = lastLayoutBeforeCollapse.current?.[0] ?? NAV_DEFAULT_SIZE;
+    }
+  }, []);
+
+  const handleNavResize = React.useCallback(
+    (size: number) => {
+      if (navCollapsed) return;
+      lastNavExpandedSize.current = size;
+    },
+    [navCollapsed],
+  );
+
+  const handleToggleNavCollapsed = React.useCallback(() => {
+    const group = panelGroupRef.current;
+    if (!group) {
+      setNavCollapsed((value) => !value);
+      return;
+    }
+
+    if (navCollapsed) {
+      const restore = lastLayoutBeforeCollapse.current;
+      if (restore && restore.length === 3) {
+        group.setLayout(restore);
+        lastNavExpandedSize.current = restore[0] ?? NAV_DEFAULT_SIZE;
+      } else {
+        const fallbackChat = 42;
+        const fallbackPreview = 32;
+        group.setLayout([NAV_DEFAULT_SIZE, fallbackChat, fallbackPreview]);
+        lastNavExpandedSize.current = NAV_DEFAULT_SIZE;
+      }
+      setNavCollapsed(false);
+      return;
+    }
+
+    const currentLayout = group.getLayout();
+    lastLayoutBeforeCollapse.current = currentLayout;
+    const remaining = Math.max(100 - NAV_COLLAPSED_SIZE, 0);
+    const chatSize = currentLayout[1] ?? 0;
+    const previewSize = currentLayout[2] ?? 0;
+    const restTotal = chatSize + previewSize || 1;
+    const nextChat = (chatSize / restTotal) * remaining;
+    const nextPreview = (previewSize / restTotal) * remaining;
+
+    group.setLayout([NAV_COLLAPSED_SIZE, nextChat, nextPreview]);
+    setNavCollapsed(true);
+  }, [NAV_COLLAPSED_SIZE, NAV_DEFAULT_SIZE, navCollapsed]);
 
   const [personaName, setPersonaName] = React.useState("");
   const [personaPalette, setPersonaPalette] = React.useState("");
@@ -379,31 +446,40 @@ function CapsuleCustomizerContent() {
 
   const NavigationSection = () => (
     <section className={styles.recentColumn} aria-label="Customizer navigation">
-    <div className={styles.railTabs} role="tablist" aria-label="Customizer sections">
-    {railTabs.map((tab) => {
-      const selected = tab.key === activeRailTab;
-      const buttonId = LEFT_TAB_BUTTON_IDS[tab.key];
-      const panelId = LEFT_TAB_PANEL_IDS[tab.key];
-      return (
+      <div className={styles.railTabs} role="tablist" aria-label="Customizer sections">
+        {railTabs.map((tab) => {
+          const selected = tab.key === activeRailTab;
+          const buttonId = LEFT_TAB_BUTTON_IDS[tab.key];
+          const panelId = LEFT_TAB_PANEL_IDS[tab.key];
+          return (
+            <button
+              key={tab.key}
+              id={buttonId}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={panelId}
+              tabIndex={selected ? 0 : -1}
+              className={`${styles.railTab}${selected ? ` ${styles.railTabActive}` : ""}`}
+              data-selected={selected ? "true" : undefined}
+              onClick={() => setActiveRailTab(tab.key)}
+              title={tab.label}
+            >
+              {tab.renderIcon(selected)}
+              <span className={styles.srOnly}>{tab.label}</span>
+            </button>
+          );
+        })}
         <button
-          key={tab.key}
-          id={buttonId}
           type="button"
-          role="tab"
-          aria-selected={selected}
-          aria-controls={panelId}
-          tabIndex={selected ? 0 : -1}
-          className={`${styles.railTab}${selected ? ` ${styles.railTabActive}` : ""}`}
-          data-selected={selected ? "true" : undefined}
-          onClick={() => setActiveRailTab(tab.key)}
-          title={tab.label}
+          className={`${styles.railTab} ${styles.railCollapseBtn}`}
+          aria-pressed={navCollapsed}
+          aria-label={navCollapsed ? "Expand sections panel" : "Collapse sections panel"}
+          onClick={handleToggleNavCollapsed}
         >
-          {tab.renderIcon(selected)}
-          <span className={styles.srOnly}>{tab.label}</span>
+          <SidebarSimple size={16} weight={navCollapsed ? "fill" : "duotone"} />
         </button>
-      );
-    })}
-    </div>
+      </div>
     <div
     className={styles.railScroll}
     role="tabpanel"
@@ -800,10 +876,12 @@ function CapsuleCustomizerContent() {
       <AiPrompterStage
         key={chat.prompterSession}
         placeholder={meta.prompterPlaceholder}
-        chips={meta.prompterChips}
+        chips={[]}
         statusMessage={null}
         onAction={chat.onPrompterAction}
-        variant="bannerCustomizer"
+        variant="default"
+        showIntentMenu
+        submitVariant="icon"
       />
     </div>
     </div>
@@ -880,15 +958,19 @@ function CapsuleCustomizerContent() {
             </div>
           ) : (
             <PanelGroup
+              ref={panelGroupRef}
               autoSaveId={panelLayoutId}
               direction="horizontal"
               className={resizableColumnsClass}
             >
               <Panel
-                defaultSize={24}
-                minSize={22}
+                ref={navPanelRef}
+                defaultSize={NAV_DEFAULT_SIZE}
+                minSize={NAV_MIN_SIZE}
                 collapsible={false}
+                onResize={handleNavResize}
                 className={navigationPanelClass}
+                data-collapsed={navCollapsed ? "true" : undefined}
               >
                 <NavigationSection />
               </Panel>
@@ -897,7 +979,7 @@ function CapsuleCustomizerContent() {
                 aria-label="Resize customizer navigation column"
               />
               <Panel
-                defaultSize={46}
+                defaultSize={42}
                 minSize={34}
                 collapsible={false}
                 className={chatPanelClass}
@@ -910,8 +992,8 @@ function CapsuleCustomizerContent() {
               />
 
               <Panel
-                defaultSize={30}
-                minSize={24}
+                defaultSize={32}
+                minSize={26}
                 collapsible={false}
                 className={previewPanelClass}
               >
@@ -1015,12 +1097,18 @@ function CapsuleCustomizerContent() {
             )}
           </div>
           <div className={styles.footerActions}>
-            <Button variant="ghost" size="sm" onClick={actions.handleClose}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={styles.footerCancel}
+              onClick={actions.handleClose}
+            >
               Cancel
             </Button>
             <Button
               variant="primary"
               size="sm"
+              className={styles.footerPrimary}
               onClick={() => {
                 void save.onSave();
               }}
