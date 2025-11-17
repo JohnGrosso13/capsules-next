@@ -1,20 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { ensureUserSession } from "@/server/actions/session";
 import { cancelAssistantTask } from "@/server/chat/assistant/tasks";
 
 export const runtime = "edge";
 
-type RouteContext = {
-  params: { taskId?: string };
-};
-
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {
   const { supabaseUserId } = await ensureUserSession();
   if (!supabaseUserId) {
     return NextResponse.json({ error: "auth required" }, { status: 401 });
   }
-  const taskId = context.params?.taskId;
+  const { taskId } = await params;
   if (!taskId) {
     return NextResponse.json({ error: "taskId required" }, { status: 400 });
   }
