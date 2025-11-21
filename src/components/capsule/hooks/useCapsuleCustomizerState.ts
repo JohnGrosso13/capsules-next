@@ -550,6 +550,7 @@ export function useCapsuleCustomizerState(
     assetLabel,
     normalizedName,
     customizerMode,
+    capsuleId: capsuleId ?? null,
     updateSelectedBanner,
     setSelectedBanner,
     selectedBannerRef,

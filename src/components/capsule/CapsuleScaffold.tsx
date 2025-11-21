@@ -28,6 +28,7 @@ import { CapsuleEventsSection } from "@/components/capsule/CapsuleEventsSection"
 import { useComposer } from "@/components/composer/ComposerProvider";
 import { Button } from "@/components/ui/button";
 import { HomeFeedList } from "@/components/home-feed-list";
+import { FeedSurface } from "@/components/feed-surface";
 import {
   buildDocumentCardData,
   buildPrompterAttachment,
@@ -901,7 +902,7 @@ function CapsuleLibraryState({
   onRetry?: () => void;
 }) {
   return (
-    <section className={`${feedStyles.feed} ${capTheme.feedWrap}`.trim()}>
+    <FeedSurface variant="capsule">
       <div className={capTheme.libraryState}>
         <p>{message}</p>
         {onRetry ? (
@@ -910,7 +911,7 @@ function CapsuleLibraryState({
           </button>
         ) : null}
       </div>
-    </section>
+    </FeedSurface>
   );
 }
 
@@ -920,7 +921,7 @@ function CapsuleMediaSection({ items, loading, error, onRetry }: CapsuleLibraryS
   if (!items.length) return <CapsuleLibraryState message="No media shared yet." />;
 
   return (
-    <section className={`${feedStyles.feed} ${capTheme.feedWrap}`.trim()}>
+    <FeedSurface variant="capsule">
       <div className={feedStyles.mediaGallery} data-count={items.length}>
         {items.map((item) => {
           const mime = item.mimeType?.toLowerCase() ?? "";
@@ -965,7 +966,7 @@ function CapsuleMediaSection({ items, loading, error, onRetry }: CapsuleLibraryS
           );
         })}
       </div>
-    </section>
+    </FeedSurface>
   );
 }
 
@@ -997,7 +998,7 @@ function CapsuleFilesSection({ items, loading, error, onRetry, formatCount, onAs
   });
 
   return (
-    <section className={`${feedStyles.feed} ${capTheme.feedWrap}`.trim()}>
+    <FeedSurface variant="capsule">
       <div className={feedStyles.documentGrid}>
         {documents.map((doc) => (
           <DocumentAttachmentCard
@@ -1008,7 +1009,7 @@ function CapsuleFilesSection({ items, loading, error, onRetry, formatCount, onAs
           />
         ))}
       </div>
-    </section>
+    </FeedSurface>
   );
 }
 
@@ -1060,7 +1061,7 @@ function CapsuleHistorySection({
   }
 
   return (
-    <section className={`${feedStyles.feed} ${capTheme.feedWrap}`.trim()}>
+    <FeedSurface variant="capsule">
       <div className={capTheme.wikiWrap}>
         <CapsuleWikiView
           snapshot={snapshot}
@@ -1092,7 +1093,7 @@ function CapsuleHistorySection({
           ) : null}
         </div>
       ) : null}
-    </section>
+    </FeedSurface>
   );
 }
 
@@ -1592,7 +1593,7 @@ function CapsuleFeed({
     : "No posts in this capsule yet. Be the first to share an update.";
 
   return (
-    <section className={`${feedStyles.feed} ${capTheme.feedWrap}`.trim()}>
+    <FeedSurface variant="capsule">
       {friendMessage && hasFetched ? (
         <div className={feedStyles.postFriendNotice}>{friendMessage}</div>
       ) : null}
@@ -1622,6 +1623,6 @@ function CapsuleFeed({
         hasMore={hasMore}
         isLoadingMore={isLoadingMore}
       />
-    </section>
+    </FeedSurface>
   );
 }

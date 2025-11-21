@@ -70,6 +70,7 @@ export function AiPrompterStage(props: Props) {
     preview,
     closePreview,
     manualIntent,
+    manualPostMode,
     effectiveIntent,
     handleGenerate,
     handleSuggestedAction,
@@ -153,6 +154,7 @@ export function AiPrompterStage(props: Props) {
           onFileChange={handleAttachmentSelect}
           {...(attachmentsEnabled ? { onPaste: handlePasteAttachment } : {})}
           manualIntent={allowIntentMenu ? manualIntent : null}
+          manualPostMode={allowIntentMenu ? manualPostMode : null}
           menuOpen={allowIntentMenu ? menuOpen : false}
           onToggleMenu={allowIntentMenu ? () => setMenuOpen((o) => !o) : noop}
           onSelectIntent={applyManualIntent}

@@ -4,8 +4,8 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 
-import styles from "./ai-composer.module.css";
-import type { ComposerChoice, ClarifierPrompt } from "./composer/ComposerForm";
+import styles from "./composer/styles";
+import type { ComposerChoice } from "./composer/ComposerForm";
 import type { ComposerContextSnapshot } from "./composer/ComposerProvider";
 import type {
   ComposerVideoStatus,
@@ -36,7 +36,6 @@ type AiComposerDrawerProps = {
   message?: string | null;
   choices?: ComposerChoice[] | null;
   history?: ComposerChatMessage[] | null;
-  clarifier?: ClarifierPrompt | null;
   summaryContext?: SummaryConversationContext | null;
   summaryResult?: SummaryResult | null;
   summaryOptions?: SummaryPresentationOptions | null;
@@ -61,7 +60,6 @@ type AiComposerDrawerProps = {
   onSelectDraft(id: string): void;
   onCreateProject(name: string): void;
   onSelectProject(id: string | null): void;
-  onClarifierRespond?(answer: string): void;
   onRetryVideo(): void;
   onSaveCreation(request: ComposerSaveRequest): Promise<string | null> | Promise<void> | void;
 };
@@ -75,7 +73,6 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     message,
     choices,
     history,
-    clarifier,
     summaryContext,
     summaryResult,
     summaryOptions,
@@ -96,7 +93,6 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     onSelectDraft,
     onCreateProject,
     onSelectProject,
-    onClarifierRespond,
     onRetryVideo,
     onSaveCreation,
   } = props;
@@ -136,7 +132,6 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       message={message ?? null}
       history={history ?? []}
       choices={choices ?? null}
-      clarifier={clarifier ?? null}
       summaryContext={summaryContext ?? null}
       summaryResult={summaryResult ?? null}
       summaryOptions={summaryOptions ?? null}
@@ -163,7 +158,6 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       onCreateProject={onCreateProject}
       onSelectProject={onSelectProject}
       {...(onForceChoice ? { onForceChoice } : {})}
-      {...(onClarifierRespond ? { onClarifierRespond } : {})}
       onRetryVideo={onRetryVideo}
       onSaveCreation={onSaveCreation}
     />,

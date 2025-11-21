@@ -39,7 +39,7 @@
 }
 
 .tile:focus-visible {
-  outline: 2px solid var(--focus-ring, rgba(37, 99, 235, 0.66));
+  outline: 2px solid var(--ring-primary, rgba(37, 99, 235, 0.66));
   outline-offset: 4px;
 }
 
@@ -47,7 +47,11 @@
   padding: clamp(48px, 6vw, 64px);
   border-radius: 20px;
   border: 1px solid var(--card-border, rgba(148, 163, 184, 0.32));
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(226, 232, 240, 0.66));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-elevated, rgba(255, 255, 255, 0.86)) 96%, transparent),
+    color-mix(in srgb, var(--surface-muted, rgba(226, 232, 240, 0.66)) 92%, transparent)
+  );
   text-align: center;
   display: grid;
   gap: 8px;

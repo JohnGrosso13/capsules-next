@@ -7,6 +7,7 @@ import styles from "./home-feed.module.css";
 import { AppShell } from "./app-shell";
 import { PromoRow } from "./promo-row";
 import { HomeFeedList } from "./home-feed-list";
+import { FeedSurface } from "./feed-surface";
 import { useHomeFeed } from "@/hooks/useHomeFeed";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 
@@ -68,7 +69,7 @@ export function HomeSignedIn({
       showPrompter={showPrompter}
       promoSlot={showPromoRow ? <PromoRow /> : null}
     >
-      <section className={styles.feed}>
+      <FeedSurface variant="home">
         {friendMessage && hasFetched ? (
           <div className={styles.postFriendNotice}>{friendMessage}</div>
         ) : null}
@@ -96,7 +97,7 @@ export function HomeSignedIn({
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}
         />
-      </section>
+      </FeedSurface>
     </AppShell>
   );
 }

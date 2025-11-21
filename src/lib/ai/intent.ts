@@ -1,6 +1,6 @@
 import { resolveNavigationTarget } from "@/lib/ai/nav";
 
-export type PromptIntent = "generate" | "post" | "navigate" | "style";
+export type PromptIntent = "chat" | "generate" | "post" | "navigate" | "style";
 
 export type IntentSource = "none" | "heuristic" | "ai";
 
@@ -9,6 +9,7 @@ export type IntentResolution = {
   confidence: number;
   reason?: string;
   source: IntentSource;
+  postMode?: "ai" | "manual";
 };
 
 type HeuristicPattern = {
@@ -18,8 +19,8 @@ type HeuristicPattern = {
   guard?: RegExp;
 };
 
-const DEFAULT_POST_CONFIDENCE = 0.62;
-const EMPTY_POST_CONFIDENCE = 0.35;
+const DEFAULT_CHAT_CONFIDENCE = 0.6;
+const EMPTY_CHAT_CONFIDENCE = 0.4;
 const STRONG_OVERRIDE_CONFIDENCE = 0.78;
 const NAVIGATION_TARGET_CONFIDENCE = 0.9;
 
@@ -188,7 +189,7 @@ function detectGenerateIntent(lc: string): IntentResolution | null {
 export function detectIntentHeuristically(rawText: string): IntentResolution {
   const text = (rawText || "").trim();
   if (!text) {
-    return scoreIntent("post", EMPTY_POST_CONFIDENCE, "Ready when you are.", "heuristic");
+    return scoreIntent("chat", EMPTY_CHAT_CONFIDENCE, "Ready when you are.", "heuristic");
   }
   const lc = text.toLowerCase();
   const candidates: IntentResolution[] = [];
@@ -208,29 +209,39 @@ export function detectIntentHeuristically(rawText: string): IntentResolution {
     ? [...candidates].sort((a, b) => b.confidence - a.confidence)[0]
     : null;
 
-  const postCandidate =
+  const chatCandidate =
     postIntent ??
-    scoreIntent("post", DEFAULT_POST_CONFIDENCE, "Defaulting to post intent.", "heuristic");
+    scoreIntent("chat", DEFAULT_CHAT_CONFIDENCE, "Ready when you are.", "heuristic");
 
   if (
     bestAlternative &&
     bestAlternative.intent !== "post" &&
     bestAlternative.confidence >= STRONG_OVERRIDE_CONFIDENCE &&
-    bestAlternative.confidence >= postCandidate.confidence
+    bestAlternative.confidence >= chatCandidate.confidence
   ) {
     return bestAlternative;
   }
 
-  return postCandidate;
+  return chatCandidate;
 }
 
 export function normalizeIntent(intent: string | null | undefined): PromptIntent {
-  if (intent === "post" || intent === "navigate" || intent === "style") return intent;
-  return "generate";
+  if (
+    intent === "chat" ||
+    intent === "generate" ||
+    intent === "post" ||
+    intent === "navigate" ||
+    intent === "style"
+  ) {
+    return intent;
+  }
+  return "chat";
 }
 
 export function intentLabel(intent: PromptIntent): string {
   switch (intent) {
+    case "chat":
+      return "Chat";
     case "post":
       return "Post";
     case "navigate":
@@ -242,3 +253,4 @@ export function intentLabel(intent: PromptIntent): string {
       return "Generate";
   }
 }
+

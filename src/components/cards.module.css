@@ -27,7 +27,7 @@
   .card:focus-within {
     transform: translateY(-1px);
     border-color: var(--card-hover-border, rgba(255, 255, 255, 0.22));
-    box-shadow: var(--card-shadow-hover, 0 22px 46px rgba(5, 10, 30, 0.38));
+    box-shadow: var(--card-hover-shadow, 0 22px 46px rgba(5, 10, 30, 0.38));
     background: linear-gradient(
       180deg,
       var(--card-hover-bg-1, rgba(24, 30, 58, 0.94)),

@@ -35,7 +35,7 @@ type UsePrompterActionsOptions = {
   text: string;
   textRef: React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>;
   setText: (value: string) => void;
-  setManualIntent: (intent: PromptIntent | null) => void;
+  clearManualIntentOverrides: () => void;
   manualTool: PrompterToolKey | null;
   suggestedTools: SuggestedTool[];
   variantConfig: PrompterVariantConfig;
@@ -55,7 +55,7 @@ export function usePrompterActions({
   text,
   textRef,
   setText,
-  setManualIntent,
+  clearManualIntentOverrides,
   manualTool,
   suggestedTools,
   variantConfig,
@@ -91,7 +91,7 @@ export function usePrompterActions({
       if (value === SUMMARIZE_FEED_LABEL) {
         triggerFeedSummary("chip");
         setText("");
-        setManualIntent(null);
+        clearManualIntentOverrides();
         closeMenu();
         clearAllAttachments();
         textRef.current?.focus();
@@ -100,7 +100,7 @@ export function usePrompterActions({
       setText(value);
       textRef.current?.focus();
     },
-    [clearAllAttachments, closeMenu, setManualIntent, setText, textRef, triggerFeedSummary],
+    [clearAllAttachments, clearManualIntentOverrides, closeMenu, setText, textRef, triggerFeedSummary],
   );
 
   const handleGenerate = React.useCallback(() => {
@@ -183,7 +183,7 @@ export function usePrompterActions({
 
     const resetAfterSubmit = () => {
       setText("");
-      setManualIntent(null);
+      clearManualIntentOverrides();
       closeMenu();
       clearAllAttachments();
       textRef.current?.focus();
@@ -301,7 +301,7 @@ export function usePrompterActions({
     onHandoff,
     postPlan,
     router,
-    setManualIntent,
+    clearManualIntentOverrides,
     setText,
     setLocalLoading,
     suggestedTools,

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import styles from "./connections-rail.module.css";
-import friendsStyles from "@/app/(authenticated)/friends/friends.module.css";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { FriendsRail } from "@/components/rail/FriendsRail";
 import { RequestsList } from "@/components/friends/RequestsList";
@@ -27,7 +26,7 @@ import {
   ChatsCircle,
   Handshake,
   MicrophoneStage,
-  Sparkle,
+  MagicWand,
 } from "@phosphor-icons/react/dist/ssr";
 import { usePathname, useRouter } from "next/navigation";
 import { buildProfileHref } from "@/lib/profile/routes";
@@ -36,7 +35,7 @@ type RailTab = "friends" | "party" | "chats" | "requests" | "assistant";
 
 type ConnectionOverride = {
   description?: string;
-  badge?: number;
+  badge?: number | string;
 };
 
 type ConnectionOverrideMap = Partial<Record<RailTab, ConnectionOverride>>;
@@ -58,7 +57,7 @@ type ConnectionTile = {
   title: string;
   icon: React.ReactNode;
   description: string;
-  badge: number | null;
+  badge: number | string | null;
   badgeIcon: BadgeIconElement | null;
 };
 
@@ -95,10 +94,12 @@ const CONNECTION_TILE_DEFS: Array<{
   {
     key: "assistant",
     title: "Assistant",
-    icon: <Sparkle size={28} weight="duotone" className="duo" />,
-    badgeIcon: <Sparkle size={16} weight="fill" />,
+    icon: <MagicWand size={28} weight="duotone" className="duo" />,
+    badgeIcon: <MagicWand size={16} weight="fill" />,
   },
 ];
+
+const ICON_TAB_KEYS: RailTab[] = ["friends", "chats", "requests", "assistant"];
 
 function isRailTab(value: unknown): value is RailTab {
   return (
@@ -144,9 +145,9 @@ function formatRelativeTime(from: number, to: number): string {
 }
 
 function formatChatSummary(unread: number, lastReminder: number | null, now: number): string {
-  if (unread > 0) return `${unread} unread ${pluralize("chat", unread)} waiting.`;
-  if (lastReminder) return `Last chat ${formatRelativeTime(lastReminder, now)}.`;
-  return "You're all caught up on chats.";
+  if (unread > 0) return `${unread} unread ${pluralize("chat", unread)} across DMs & groups.`;
+  if (lastReminder) return `Last DM or group ping ${formatRelativeTime(lastReminder, now)}.`;
+  return "You're all caught up in DMs & group chats.";
 }
 
 function formatRequestsSummary(incoming: number, outgoing: number, party: number): string {
@@ -683,7 +684,7 @@ export function ConnectionsRail() {
       },
       party: {
         description: partySummary,
-        badge: null,
+        badge: partySession ? "LIVE" : null,
       },
       chats: {
         description: formatChatSummary(chatUnreadCount, lastChatTimestamp, now),
@@ -707,9 +708,18 @@ export function ConnectionsRail() {
       const override = connectionOverrides[def.key];
       const fallback = defaults[def.key];
       const description = override?.description ?? fallback.description;
-      const candidateBadge = typeof override?.badge === "number" ? override.badge : fallback.badge;
-      const badge =
-        typeof candidateBadge === "number" && candidateBadge > 0 ? candidateBadge : null;
+      const candidateBadge =
+        override && typeof override.badge !== "undefined" ? override.badge : fallback.badge;
+      const badge = (() => {
+        if (typeof candidateBadge === "number") {
+          return candidateBadge > 0 ? candidateBadge : null;
+        }
+        if (typeof candidateBadge === "string") {
+          const trimmed = candidateBadge.trim();
+          return trimmed.length > 0 ? trimmed : null;
+        }
+        return null;
+      })();
       return {
         key: def.key,
         title: def.title,
@@ -730,6 +740,7 @@ export function ConnectionsRail() {
       lastChatTimestamp,
       connectionOverrides,
       chatTicker,
+      partySession,
       partySummary,
       assistantTileSummary,
     ]);
@@ -905,11 +916,14 @@ export function ConnectionsRail() {
     }
   }, [railMode, closeChatSession]);
 
-  const partyButtonLabel =
-    partyStatus === "loading" ? "Connecting..." : partySession ? "Party Live" : "Party Voice";
+  const partyButtonLabel = partyStatus === "loading" ? "Connecting..." : "Party Chat";
   const partyButtonDisabled = partyStatus === "loading";
   const isPartyActive = activeRailTab === "party";
   const showPartyLivePill = Boolean(partySession);
+  const iconTabs = React.useMemo(
+    () => CONNECTION_TILE_DEFS.filter((tab) => ICON_TAB_KEYS.includes(tab.key)),
+    [],
+  );
   const connectionsStyle: React.CSSProperties | undefined =
     railMode === "connections" && connectionsViewportHeight
       ? {
@@ -984,55 +998,64 @@ export function ConnectionsRail() {
               type="button"
               className={styles.railBackBtn}
               aria-label="Back to tiles"
+              title="Back to tiles"
               onClick={() => setRailMode("tiles")}
             >
-              &lt;
+              <span className={styles.railBackIcon} aria-hidden>
+                &lt;
+              </span>
+              <span className={styles.railBackLabel}>Tiles</span>
             </button>
-            {/* Quick actions on the right when viewing connections */}
-            <div className={styles.railHeaderAction}>
-              <button
-                type="button"
-                className={`${friendsStyles.chatActionButton} ${friendsStyles.groupActionButton}`}
-                onClick={handleOpenGroupCreator}
-                disabled={!hasEligibleFriends}
-                aria-label="Start a group chat"
-              >
-                <UsersThree size={18} weight="duotone" />
-                <span>Group Chat</span>
-              </button>
-              <button
-                type="button"
-                className={`${friendsStyles.chatActionButton} ${friendsStyles.partyActionButton} ${
-                  isPartyActive ? friendsStyles.chatActionButtonActive : ""
-                }`.trim()}
-                onClick={handlePartyButtonClick}
-                disabled={partyButtonDisabled}
-                aria-label="Open party voice panel"
-              >
-                <MicrophoneStage size={18} weight="duotone" />
-                <span>{partyButtonLabel}</span>
-                {showPartyLivePill ? <span className={friendsStyles.livePill}>LIVE</span> : null}
-              </button>
+            <div className={styles.railHeaderContent}>
+              <div className={styles.railIconTabs} role="tablist" aria-label="Connections">
+                {iconTabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeRailTab === tab.key}
+                    className={`${styles.railIconTab} ${
+                      activeRailTab === tab.key ? styles.railIconTabActive : ""
+                    }`.trim()}
+                    onClick={() => setActiveRailTab(tab.key)}
+                    title={tab.title}
+                  >
+                    <span className={styles.railTabIcon} aria-hidden>
+                      {tab.icon}
+                    </span>
+                    <span className={styles.railIconTabLabel}>{tab.title}</span>
+                  </button>
+                ))}
+              </div>
+              <div className={styles.railHeaderActions}>
+                <button
+                  type="button"
+                  className={`${styles.railActionButton} ${styles.railActionGradient}`.trim()}
+                  onClick={handleOpenGroupCreator}
+                  disabled={!hasEligibleFriends}
+                  aria-label="Start a group chat"
+                >
+                  <span className={styles.railActionIcon} aria-hidden>
+                    <ChatsCircle size={16} weight="duotone" />
+                  </span>
+                  <span className={styles.railActionLabel}>Group Chat</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.railActionButton} ${styles.railActionGradient} ${styles.railActionParty}`.trim()}
+                  onClick={handlePartyButtonClick}
+                  disabled={partyButtonDisabled}
+                  data-active={isPartyActive}
+                  aria-label="Open party chat"
+                >
+                  <span className={styles.railActionIcon} aria-hidden>
+                    <MicrophoneStage size={16} weight="duotone" />
+                  </span>
+                  <span className={styles.railActionLabel}>{partyButtonLabel}</span>
+                  {showPartyLivePill ? <span className={styles.railActionBadge}>Live</span> : null}
+                </button>
+              </div>
             </div>
-          </div>
-          <div className={styles.railTabs} role="tablist" aria-label="Connections">
-            {CONNECTION_TILE_DEFS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={activeRailTab === tab.key}
-                className={`${styles.railTab} ${
-                  activeRailTab === tab.key ? styles.railTabActive : ""
-                }`.trim()}
-                onClick={() => setActiveRailTab(tab.key)}
-              >
-                <span className={styles.railTabIcon} aria-hidden>
-                  {tab.icon}
-                </span>
-                <span>{tab.title}</span>
-              </button>
-            ))}
           </div>
           <div
             className={styles.railPanel}
@@ -1133,3 +1156,10 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
+
+
+
+
+
+
+

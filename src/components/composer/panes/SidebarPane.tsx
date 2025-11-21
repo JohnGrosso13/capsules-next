@@ -10,7 +10,7 @@ import {
   X,
 } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "../../ai-composer.module.css";
+import styles from "../styles";
 
 export type SidebarListItem = {
   id: string;

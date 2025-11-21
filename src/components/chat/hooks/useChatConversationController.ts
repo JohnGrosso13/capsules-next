@@ -4,12 +4,13 @@ import * as React from "react";
 
 import type { ChatParticipant } from "@/components/providers/ChatProvider";
 import { useCurrentUser } from "@/services/auth/client";
+import { useFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 
 import type { GifPickerSelection } from "../GifPicker";
 import { chatCopy } from "../copy";
 import { formatAttachmentSize } from "../utils";
 import { useConversationMetadata } from "./useConversationMetadata";
-import { describeTypingParticipants, buildMessageCopyText } from "../conversation/utils";
+import { describeTypingParticipants, typingDisplayName, buildMessageCopyText } from "../conversation/utils";
 import type { ChatConversationProps, ReactionPickerViewModel, ConversationParticipantsViewModel } from "../conversation/types";
 import type { ConversationHeaderProps } from "../conversation/ConversationHeader";
 import type { ConversationMessageListProps } from "../conversation/ConversationMessageList";
@@ -107,6 +108,18 @@ export function useChatConversationController({
   onDeleteMessage,
 }: ChatConversationProps): ChatConversationControllerResult {
   const { user } = useCurrentUser();
+  const { friends } = useFriendsDataContext();
+  const friendLookup = React.useMemo(() => {
+    const map = new Map<string, { name: string; avatar: string | null }>();
+    friends.forEach((friend) => {
+      if (!friend?.userId) return;
+      map.set(friend.userId, {
+        name: friend.name?.trim() || friend.userId,
+        avatar: friend.avatar ?? null,
+      });
+    });
+    return map;
+  }, [friends]);
   const [draft, setDraft] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -312,6 +325,7 @@ export function useChatConversationController({
     currentUserId,
     selfClientId,
     user,
+    friendLookup,
   });
 
   const { reactionState, reactionPicker } = useReactionPicker({
@@ -352,6 +366,15 @@ export function useChatConversationController({
   );
   const primaryTypingParticipant = typingParticipants[0] ?? null;
   const typingRemainderCount = typingParticipants.length > 1 ? typingParticipants.length - 1 : 0;
+  const headerPresence = React.useMemo(() => {
+    if (typingParticipants.length === 1) {
+      return `${typingDisplayName(typingParticipants[0] as ChatParticipant)} is typing...`;
+    }
+    if (typingParticipants.length > 1) {
+      return "Multiple people typing...";
+    }
+    return presence;
+  }, [presence, typingParticipants]);
 
   React.useEffect(() => {
     scrollToLatestMessage("auto");
@@ -510,7 +533,7 @@ export function useChatConversationController({
   const headerProps: ConversationHeaderProps = {
     session,
     title,
-    presence,
+    presence: headerPresence,
     remoteParticipants,
     onBack,
     onRenameGroup,
@@ -620,3 +643,6 @@ export function useChatConversationController({
     contextMenuProps,
   };
 }
+
+
+

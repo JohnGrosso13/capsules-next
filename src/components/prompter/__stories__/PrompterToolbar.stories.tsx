@@ -56,6 +56,7 @@ export function Default() {
         onAttachClick={() => console.log("attach")}
         onFileChange={() => undefined}
         manualIntent={null}
+        manualPostMode={null}
         menuOpen={menuOpen}
         onToggleMenu={() => setMenuOpen((value) => !value)}
         onSelectIntent={() => setMenuOpen(false)}

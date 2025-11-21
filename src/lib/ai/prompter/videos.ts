@@ -46,10 +46,13 @@ export async function generateComposerVideo(params: {
   ownerUserId?: string | null;
   statusMessage: string;
   result: VideoDraftShape;
+  onStatus?: (message: string) => void;
 }): Promise<{
   result: VideoDraftShape;
   statusMessage: string;
   videoResult: VideoGenerationResult | null;
+  attempted: boolean;
+  failed: boolean;
 }> {
   const {
     allowGeneratedMedia,
@@ -63,6 +66,7 @@ export async function generateComposerVideo(params: {
     postResponse,
     capsuleId,
     ownerUserId,
+    onStatus,
   } = params;
 
   let { statusMessage } = params;
@@ -71,6 +75,8 @@ export async function generateComposerVideo(params: {
   const mediaPrompt = mediaPromptFromModel;
   const mediaUrl = mediaUrlFromModel;
   let videoResult: VideoGenerationResult | null = null;
+  let attempted = false;
+  let failed = false;
 
   const shouldGenerateVideo =
     allowGeneratedMedia &&
@@ -144,6 +150,8 @@ export async function generateComposerVideo(params: {
       result.videoRunStatus = result.videoRunStatus ?? "succeeded";
       result.videoRunError = null;
     } else {
+      attempted = true;
+      onStatus?.("Rendering visual...");
       try {
         const videoInstruction = composeMediaPrompt(instructionForModel, mediaPrompt);
         if (videoAttachment?.url) {
@@ -161,6 +169,7 @@ export async function generateComposerVideo(params: {
         }
       } catch (error) {
         console.error("Video generation failed for composer prompt:", error);
+        failed = true;
         const errorMessage =
           error instanceof Error && error.message ? error.message.trim() : "Unknown error";
         result.videoRunStatus = "failed";
@@ -172,11 +181,10 @@ export async function generateComposerVideo(params: {
         result.mediaUrl = null;
         result.playbackUrl = null;
         result.thumbnailUrl = null;
-        if (!statusMessage || !statusMessage.trim().length) {
-          statusMessage = `I hit a snag while rendering that clip: ${errorMessage}`;
-        } else {
-          statusMessage = `${statusMessage}\n\nVideo generation error: ${errorMessage}`;
-        }
+        const failedStatus = "Rendering failed, want me to try again?";
+        statusMessage = statusMessage && statusMessage.trim().length
+          ? `${statusMessage}\n\nVideo generation error: ${errorMessage}`
+          : failedStatus;
       }
     }
   }
@@ -201,5 +209,5 @@ export async function generateComposerVideo(params: {
     }
   }
 
-  return { result, statusMessage, videoResult };
+  return { result, statusMessage, videoResult, attempted, failed };
 }

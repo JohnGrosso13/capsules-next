@@ -3,18 +3,18 @@ import { describe, expect, it } from "vitest";
 import { detectIntentHeuristically } from "@/lib/ai/intent";
 
 describe("detectIntentHeuristically", () => {
-  it("defaults to post when no prompt is provided", () => {
+  it("defaults to chat when no prompt is provided", () => {
     const result = detectIntentHeuristically("");
-    expect(result.intent).toBe("post");
-    expect(result.confidence).toBeLessThan(0.4);
+    expect(result.intent).toBe("chat");
+    expect(result.confidence).toBeLessThan(0.5);
     expect(result.reason).toMatch(/ready when you are/i);
   });
 
-  it("assumes post for ambiguous phrasing", () => {
+  it("assumes chat for ambiguous phrasing", () => {
     const result = detectIntentHeuristically("Thinking about what to share today");
-    expect(result.intent).toBe("post");
-    expect(result.confidence).toBeGreaterThanOrEqual(0.6);
-    expect(result.reason).toMatch(/defaulting to post/i);
+    expect(result.intent).toBe("chat");
+    expect(result.confidence).toBeGreaterThanOrEqual(0.55);
+    expect(result.reason).toMatch(/ready when you are/i);
   });
 
   it("detects explicit manual posting commands", () => {

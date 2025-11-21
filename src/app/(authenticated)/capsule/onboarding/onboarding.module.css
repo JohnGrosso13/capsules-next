@@ -13,7 +13,7 @@
       color-mix(in srgb, var(--surface-overlay, rgba(10, 12, 24, 0.05)) 60%, transparent) 60%,
       transparent 85%
     ),
-    var(--surface-app, var(--background, #05070f));
+    var(--surface-app, var(--app-bg, #05070f));
   display: flex;
   align-items: flex-start;
   justify-content: center;

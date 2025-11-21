@@ -1,8 +1,8 @@
 import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { z } from "zod";
-import { ALLOWED_THEME_VAR_KEYS } from "@/lib/theme/shared";
 import {
   CORE_SITE_THEME_TOKEN_CSS_VARS,
+  STYLER_THEME_TOKEN_CSS_VARS,
   type ThemeTokenCssVar,
 } from "@/lib/theme/token-registry";
 import {
@@ -22,7 +22,7 @@ const OPENAI_MODEL =
 
 const RETRY_DELAYS_MS = [0, 800, 2000];
 const DEFAULT_THEME_VARS = getDefaultStylerThemeVars();
-const CSS_VAR_ALLOWLIST = Array.from(ALLOWED_THEME_VAR_KEYS);
+const CSS_VAR_ALLOWLIST = Array.from(STYLER_THEME_TOKEN_CSS_VARS);
 const THEME_SNAPSHOT_KEYS = [
   "--app-bg",
   "--accent-glow",
@@ -152,6 +152,62 @@ const SURFACE_GUIDE = [
       "--style-requests-text",
     ],
   },
+  {
+    name: "Storefront",
+    description: "Store hero, filters, and purchase CTAs.",
+    tokens: [
+      "--store-hero-bg",
+      "--store-hero-border",
+      "--store-filter-bg",
+      "--store-filter-highlight",
+      "--store-control-bg",
+      "--store-control-highlight",
+      "--store-action-bg",
+      "--store-primary-bg",
+      "--store-primary-shadow",
+      "--store-step-badge-bg",
+    ],
+  },
+  {
+    name: "Studio workspace",
+    description: "Create studio panels, scroll tracks, and focus treatments.",
+    tokens: [
+      "--studio-surface-panel",
+      "--studio-surface-muted",
+      "--studio-surface-glass",
+      "--studio-border-focus",
+      "--studio-shadow-soft",
+      "--studio-glow-strong",
+      "--studio-scroll-track",
+      "--studio-scroll-thumb",
+    ],
+  },
+  {
+    name: "Settings",
+    description: "Settings navigation, pills, and accent surfaces.",
+    tokens: [
+      "--settings-nav-item-background",
+      "--settings-nav-item-border",
+      "--settings-active-badge-background",
+      "--settings-active-badge-border",
+      "--settings-color-brand-base",
+    ],
+  },
+  {
+    name: "Live & party",
+    description: "Live chat rails and party controls/hero surfaces.",
+    tokens: [
+      "--live-chat-bg",
+      "--live-chat-border",
+      "--live-chat-message-bg",
+      "--live-chat-message-border",
+      "--party-hero-background",
+      "--party-primary-background",
+      "--party-primary-border",
+      "--party-control-background",
+      "--party-control-border",
+    ],
+  },
 ];
 
 const STYLER_SYSTEM_PROMPT = [
@@ -207,7 +263,7 @@ export function limitThemeVariants(
     const fallback: Array<[string, string]> = [];
     for (const entry of entries) {
       const [key] = entry;
-      if (CORE_SITE_THEME_TOKEN_CSS_VARS.has(key as ThemeTokenCssVar)) {
+      if (STYLER_THEME_TOKEN_CSS_VARS.has(key as ThemeTokenCssVar)) {
         prioritized.push(entry);
       } else {
         fallback.push(entry);

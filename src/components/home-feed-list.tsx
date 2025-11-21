@@ -7,10 +7,8 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 import styles from "./home-feed.module.css";
 
-import { CaretLeft, CaretRight, X } from "@phosphor-icons/react/dist/ssr";
-
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
-import { canRenderInlineImage } from "@/lib/media";
+import { normalizeMediaUrl } from "@/lib/media";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import { buildViewerEnvelope } from "@/lib/feed/viewer-envelope";
 import { useComposer } from "@/components/composer/ComposerProvider";
@@ -18,10 +16,16 @@ import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDat
 import { useSupabaseUserId } from "@/components/providers/SupabaseSessionProvider";
 import { buildPrompterAttachment, type DocumentCardData } from "@/components/documents/document-card";
 import { PostCard } from "@/components/home-feed/cards/PostCard";
+import { FeedPostViewer } from "@/components/home-feed/FeedPostViewer";
 import { useFeedSummary } from "@/components/home-feed/useFeedSummary";
 import { useFeedComments } from "@/components/home-feed/useFeedComments";
 import { useFeedCommentUI } from "@/components/home-feed/useFeedCommentUI";
 import { useFeedLightbox } from "@/components/home-feed/useFeedLightbox";
+import { buildPostMediaCollections } from "@/components/home-feed/utils";
+import {
+  buildLightboxItemsFromGallery,
+  type LightboxImageItem,
+} from "@/components/home-feed/feed-media-gallery";
 import { useCurrentUser } from "@/services/auth/client";
 import { EMPTY_THREAD_STATE } from "@/components/comments/types";
 
@@ -500,6 +504,76 @@ export function HomeFeedList({
 
   );
 
+  const lightboxCacheRef = React.useRef<Map<string, LightboxImageItem[]>>(new Map());
+
+  const getLightboxItemsForPost = React.useCallback(
+
+    (post: HomeFeedPost) => {
+
+      const cached = lightboxCacheRef.current.get(post.id);
+
+      if (cached) return cached;
+
+      const { galleryItems } = buildPostMediaCollections({
+
+        post,
+
+        initialMedia: normalizeMediaUrl(post.mediaUrl),
+
+        cloudflareEnabled,
+
+        currentOrigin,
+
+      });
+
+      const items = buildLightboxItemsFromGallery(galleryItems);
+
+      lightboxCacheRef.current.set(post.id, items);
+
+      return items;
+
+    },
+
+    [cloudflareEnabled, currentOrigin],
+
+  );
+
+  const findSiblingPost = React.useCallback(
+
+    (startIndex: number, step: number) => {
+
+      if (!displayedPosts.length) return null;
+
+      const direction = step >= 0 ? 1 : -1;
+
+      let nextIndex = startIndex + direction;
+
+      while (nextIndex >= 0 && nextIndex < displayedPosts.length) {
+
+        const candidate = displayedPosts[nextIndex];
+
+        if (!candidate) break;
+
+        const items = getLightboxItemsForPost(candidate);
+
+        if (items.length) {
+
+          return { post: candidate, items, index: nextIndex };
+
+        }
+
+        nextIndex += direction;
+
+      }
+
+      return null;
+
+    },
+
+    [displayedPosts, getLightboxItemsForPost],
+
+  );
+
   const handleAskDocument = React.useCallback(
 
     (doc: DocumentCardData) => {
@@ -559,11 +633,51 @@ export function HomeFeedList({
 
     closeLightbox,
 
-    handleCloseButtonClick,
-
     navigate: navigateLightbox,
 
   } = useFeedLightbox();
+
+  const handleNavigateAttachment = React.useCallback(
+
+    (step: number, options?: { loop?: boolean }) => navigateLightbox(step, options),
+
+    [navigateLightbox],
+
+  );
+
+  const handleNavigatePost = React.useCallback(
+
+    (step: number) => {
+
+      if (!lightbox) return;
+
+      const currentIndex = displayedPosts.findIndex((entry) => entry.id === lightbox.postId);
+
+      if (currentIndex === -1) return;
+
+      const target = findSiblingPost(currentIndex, step);
+
+      if (!target) return;
+
+      lightboxCacheRef.current.set(target.post.id, target.items);
+
+      openLightbox({
+
+        postId: target.post.id,
+
+        index: 0,
+
+        items: target.items,
+
+        post: target.post,
+
+      });
+
+    },
+
+    [displayedPosts, findSiblingPost, lightbox, openLightbox],
+
+  );
 
   const handleSummarizeFeed = React.useCallback(() => {
 
@@ -584,6 +698,186 @@ export function HomeFeedList({
     [activeComment, posts],
 
   );
+
+  const viewerPost = lightbox
+
+    ? displayedPosts.find((entry) => entry.id === lightbox.postId) ?? lightbox.post ?? null
+
+    : null;
+
+  const viewerAttachment = lightbox ? lightbox.items[lightbox.index] ?? null : null;
+
+  const viewerThread = viewerPost ? commentThreads[viewerPost.id] ?? EMPTY_THREAD_STATE : EMPTY_THREAD_STATE;
+
+  const viewerSubmitting = viewerPost ? Boolean(commentSubmitting[viewerPost.id]) : false;
+
+  const viewerLikePending = viewerPost ? Boolean(likePending[viewerPost.id]) : false;
+  const viewerMemoryPending = viewerPost ? Boolean(memoryPending[viewerPost.id]) : false;
+  const viewerRemembered = viewerPost
+    ? Boolean(viewerPost.viewerRemembered ?? viewerPost.viewer_remembered ?? false)
+    : false;
+
+  const viewerPostNavigation = React.useMemo(() => {
+
+    if (!lightbox) {
+
+      return { prev: false, next: false };
+
+    }
+
+    const currentIndex = displayedPosts.findIndex((entry) => entry.id === lightbox.postId);
+
+    if (currentIndex === -1) {
+
+      return { prev: false, next: false };
+
+    }
+
+    return {
+
+      prev: Boolean(findSiblingPost(currentIndex, -1)),
+
+      next: Boolean(findSiblingPost(currentIndex, 1)),
+
+    };
+
+  }, [displayedPosts, findSiblingPost, lightbox]);
+
+  const viewerFriendControls = React.useMemo(() => {
+
+    if (!viewerPost) return null;
+
+    const resolvedUserId =
+
+      viewerPost.owner_user_id ??
+
+      viewerPost.ownerUserId ??
+
+      viewerPost.author_user_id ??
+
+      viewerPost.authorUserId ??
+
+      null;
+
+    const resolvedUserKey =
+
+      viewerPost.owner_user_key ??
+
+      viewerPost.ownerUserKey ??
+
+      viewerPost.author_user_key ??
+
+      viewerPost.authorUserKey ??
+
+      null;
+
+    const friendTargetKey = resolvedUserId ?? resolvedUserKey ?? viewerPost.id;
+
+    const menuIdentifier = `${friendTargetKey}::${viewerPost.id}`;
+
+    const canTarget = Boolean(resolvedUserId ?? resolvedUserKey);
+
+    const normalizedAuthorIds = [
+
+      normalizeIdentifier(resolvedUserId),
+
+      normalizeIdentifier(resolvedUserKey),
+
+      normalizeIdentifier(viewerPost.owner_user_id),
+
+      normalizeIdentifier(viewerPost.ownerUserId),
+
+      normalizeIdentifier(viewerPost.author_user_id),
+
+      normalizeIdentifier(viewerPost.authorUserId),
+
+      normalizeIdentifier(viewerPost.owner_user_key),
+
+      normalizeIdentifier(viewerPost.ownerKey),
+
+      normalizeIdentifier(viewerPost.author_user_key),
+
+      normalizeIdentifier(viewerPost.authorUserKey),
+
+    ].filter((value): value is string => Boolean(value));
+
+    const viewerOwnsPost =
+
+      normalizedAuthorIds.length > 0 &&
+
+      normalizedAuthorIds.some((id) => viewerIdentifierSet.has(id));
+
+    const allowFollowActions = canTarget && !viewerOwnsPost;
+
+    const isFollowing = normalizedAuthorIds.some((id) =>
+
+      id && followingIdentifierSet ? followingIdentifierSet.has(id) : false,
+
+    );
+
+    const followState: "following" | "not_following" | null =
+
+      allowFollowActions && normalizedAuthorIds.length
+
+        ? isFollowing
+
+          ? "following"
+
+          : "not_following"
+
+        : null;
+
+    const bind =
+
+      <T extends (post: HomeFeedPost, identifier: string) => unknown>(fn?: T | null) =>
+
+        fn
+
+          ? () => {
+
+              fn(viewerPost, menuIdentifier);
+
+            }
+
+          : null;
+
+    return {
+
+      canTarget,
+
+      pending: friendActionPending === menuIdentifier,
+
+      followState,
+
+      onRequest: bind(onFriendRequest),
+
+      onRemove: bind(onRemoveFriend),
+
+      onFollow: followState === "not_following" ? bind(onFollowUser) : null,
+
+      onUnfollow: followState === "following" ? bind(onUnfollowUser) : null,
+
+    };
+
+  }, [
+
+    viewerPost,
+
+    viewerIdentifierSet,
+
+    followingIdentifierSet,
+
+    friendActionPending,
+
+    onFriendRequest,
+
+    onRemoveFriend,
+
+    onFollowUser,
+
+    onUnfollowUser,
+
+  ]);
 
   return (
 
@@ -732,6 +1026,16 @@ export function HomeFeedList({
 
               const commentCount = threadForPost ? threadForPost.comments.length : baseCommentCount;
 
+              const handlePostLightboxOpen = (payload: { postId: string; index: number; items: LightboxImageItem[] }) => {
+                lightboxCacheRef.current.set(post.id, payload.items);
+                openLightbox({
+                  postId: post.id,
+                  index: payload.index,
+                  items: payload.items,
+                  post,
+                });
+              };
+
               return (
 
                 <div
@@ -772,7 +1076,7 @@ export function HomeFeedList({
                     onToggleLike={onToggleLike}
                     onToggleMemory={onToggleMemory}
                     onDelete={onDelete}
-                    onOpenLightbox={openLightbox}
+                    onOpenLightbox={handlePostLightboxOpen}
                     onAskDocument={handleAskDocument}
                     onSummarizeDocument={summarizeDocument}
                     onCommentClick={(currentPost, anchor) => onCommentClickOverride ? onCommentClickOverride(currentPost) : handleCommentButtonClick(currentPost, anchor)}
@@ -814,240 +1118,57 @@ export function HomeFeedList({
         <div ref={sentinelRef} className={styles.feedSentinel} aria-hidden />
 
       ) : null}
-      {lightbox
+      {lightbox ? (
 
-        ? (() => {
+        <FeedPostViewer
 
-            const current = lightbox.items[lightbox.index] ?? null;
+          attachment={viewerAttachment}
 
-            if (!current) return null;
+          attachments={lightbox.items}
 
-            const hasMultiple = lightbox.items.length > 1;
+          post={viewerPost}
 
-            const hasDimensions =
+          onClose={closeLightbox}
 
-              typeof current.width === "number" &&
+          onNavigateAttachment={handleNavigateAttachment}
 
-              Number.isFinite(current.width) &&
+          onNavigatePost={handleNavigatePost}
 
-              current.width > 0 &&
+          canNavigatePrevPost={viewerPostNavigation.prev}
 
-              typeof current.height === "number" &&
+          canNavigateNextPost={viewerPostNavigation.next}
 
-              Number.isFinite(current.height) &&
+          formatCount={formatCount}
 
-              current.height > 0;
+          timeAgo={timeAgo}
 
-            const widthValue = hasDimensions ? (current.width as number) : null;
+          exactTime={exactTime}
 
-            const heightValue = hasDimensions ? (current.height as number) : null;
+          commentThread={viewerThread}
 
-            const rawLightboxAspect =
+          commentSubmitting={viewerSubmitting}
 
-              typeof current.aspectRatio === "number" && Number.isFinite(current.aspectRatio)
+          loadComments={loadComments}
 
-                ? current.aspectRatio
+          submitComment={submitComment}
 
-                : widthValue && heightValue
+          likePending={viewerLikePending}
 
-                  ? widthValue / heightValue
+          onToggleLike={onToggleLike}
 
-                  : null;
+          remembered={viewerRemembered}
 
-            const lightboxAspectRatio =
+          memoryPending={viewerMemoryPending}
 
-              rawLightboxAspect && rawLightboxAspect > 0
+          canRemember={canRemember}
 
-                ? Number(rawLightboxAspect.toFixed(4))
+          onToggleMemory={onToggleMemory}
 
-                : null;
+          friendControls={viewerFriendControls}
 
-            const lightboxOrientation =
+        />
 
-              lightboxAspectRatio && lightboxAspectRatio > 0
-
-                ? lightboxAspectRatio > 1.05
-
-                  ? "landscape"
-
-                  : lightboxAspectRatio < 0.95
-
-                    ? "portrait"
-
-                    : "square"
-
-                : null;
-
-            return (
-
-              <div
-
-                className={styles.lightboxOverlay}
-                role="dialog"
-
-                aria-modal="true"
-
-                aria-label={current.name ?? "Post attachment"}
-                onClick={closeLightbox}
-              >
-
-                <div
-
-                  className={styles.lightboxContent}
-                  onClick={(event) => event.stopPropagation()}
-                >
-
-                  <button
-
-                    type="button"
-
-                    className={styles.lightboxClose}
-                    onClick={handleCloseButtonClick}
-                    aria-label="Close attachment viewer"
-
-                  >
-
-                    <X weight="bold" size={22} />
-
-                  </button>
-
-                  <div
-
-                    className={styles.lightboxBody}
-                    data-has-nav={hasMultiple ? "true" : undefined}
-                  >
-
-                    {hasMultiple ? (
-
-                      <>
-
-                        <button
-
-                          type="button"
-
-                          className={styles.lightboxNav}
-                          data-direction="prev"
-
-                          onClick={() => navigateLightbox(-1)}
-                          aria-label="Previous attachment"
-
-                        >
-
-                          <CaretLeft weight="bold" size={26} />
-
-                        </button>
-
-                        <button
-
-                          type="button"
-
-                          className={styles.lightboxNav}
-                          data-direction="next"
-
-                          onClick={() => navigateLightbox(1)}
-                          aria-label="Next attachment"
-
-                        >
-
-                          <CaretRight weight="bold" size={26} />
-
-                        </button>
-
-                      </>
-
-                    ) : null}
-                    <div
-
-                      className={styles.lightboxMedia}
-                      data-orientation={lightboxOrientation ?? undefined}
-                    >
-
-                      {current.kind === "video" ? (
-
-                        <video
-
-                          className={styles.lightboxVideo}
-                          controls
-
-                          playsInline
-
-                          preload="auto"
-
-                        >
-
-                          <source src={current.fullUrl} type={current.mimeType ?? undefined} />
-
-                          Your browser does not support embedded video.
-
-                        </video>
-
-                      ) : (() => {
-
-                        const renderable = canRenderInlineImage(current.mimeType, current.fullUrl);
-
-                        const fallbackSrc = [current.thumbnailUrl, current.displayUrl]
-
-                          .find((src) => src && src !== current.fullUrl)
-
-                          ?? null;
-
-                        const imageSrc = renderable ? current.fullUrl : fallbackSrc;
-
-                        const imageSrcSet = renderable
-
-                          ? current.fullSrcSet ?? current.displaySrcSet ?? undefined
-
-                          : current.displaySrcSet ?? current.fullSrcSet ?? undefined;
-
-                        if (!imageSrc) {
-
-                          return (
-
-                            <div className={styles.lightboxFallback} role="status">
-
-                              Preview unavailable for this file type.
-
-                            </div>
-
-                          );
-
-                        }
-                        return (
-
-                          // eslint-disable-next-line @next/next/no-img-element -- maintain lightbox srcset + eager load without reliable dimensions for next/image
-                          <img
-                            className={styles.lightboxImage}
-                            src={imageSrc}
-                            srcSet={imageSrcSet}
-                            sizes="(min-width: 768px) 70vw, 90vw"
-
-                            alt={current.alt}
-                            loading="eager"
-
-                            draggable={false}
-                          />
-
-                        );
-
-                      })()}
-                    </div>
-
-                  </div>
-
-                  {current.name ? (
-
-                    <div className={styles.lightboxCaption}>{current.name}</div>
-
-                  ) : null}
-                </div>
-
-              </div>
-
-            );
-
-          })()
-
-        : null}
+      ) : null}
       {activeCommentPost ? (
 
         <CommentPanel

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Microphone, MicrophoneSlash } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "../../ai-composer.module.css";
+import styles from "../styles";
 import prompterStyles from "@/components/prompter/prompter.module.css";
 
 type VoiceRecorderProps = {
@@ -46,6 +46,5 @@ export function VoiceRecorder({
     </button>
   );
 }
-
 
 

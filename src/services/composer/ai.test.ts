@@ -33,4 +33,11 @@ describe("callAiPrompt", () => {
     const parsed = JSON.parse(requestBody as string);
     expect(parsed.message).toContain(prompt);
   });
+
+  it("allows overriding the target endpoint", async () => {
+    const { callAiPrompt } = await import("./ai");
+    await callAiPrompt({ message: "test", endpoint: "/api/ai/customize" });
+    const fetchSpy = vi.mocked(globalThis.fetch);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe("/api/ai/customize");
+  });
 });

@@ -133,5 +133,13 @@ export function mergeComposerDrafts(
   if (mergedPoll || prevDraft.poll || nextDraft.poll) {
     merged.poll = mergedPoll ?? nextDraft.poll ?? prevDraft.poll ?? null;
   }
+
+  const prevContentHas =
+    typeof prevDraft.content === "string" && prevDraft.content.trim().length > 0;
+  const nextContentHas =
+    typeof nextDraft.content === "string" && nextDraft.content.trim().length > 0;
+  if (!nextContentHas && prevContentHas) {
+    merged.content = prevDraft.content;
+  }
   return merged;
 }

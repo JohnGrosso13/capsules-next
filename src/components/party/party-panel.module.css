@@ -4,9 +4,12 @@
   flex-direction: column;
   gap: 22px;
   /* Share blue-brand tokens with chat + settings so the experience stays cohesive */
-  --color-brand: var(--header-brand-color, var(--color-brand));
-  --color-brand-strong: var(--header-brand-strong-color, var(--color-brand-strong));
-  --color-accent: var(--header-brand-accent-color, var(--color-accent));
+  --party-color-brand-base: var(--color-brand);
+  --party-color-brand-strong-base: var(--color-brand-strong);
+  --party-color-accent-base: var(--color-accent);
+  --color-brand: var(--header-brand, var(--party-color-brand-base));
+  --color-brand-strong: var(--header-brand-strong, var(--party-color-brand-strong-base));
+  --color-accent: var(--header-accent, var(--party-color-accent-base));
   --brand-gradient: var(--header-brand-gradient, var(--gradient-brand));
   --gradient-brand: var(--header-brand-gradient, var(--gradient-brand));
   --cta-button-gradient: var(--header-brand-gradient, var(--cta-button-gradient));
@@ -381,7 +384,7 @@
     --party-hero-background,
     linear-gradient(
       145deg,
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 32%, transparent) 0%,
+      color-mix(in srgb, var(--header-brand, var(--color-brand)) 32%, transparent) 0%,
       color-mix(in srgb, rgba(11, 34, 78, 0.92) 92%, transparent) 40%,
       color-mix(in srgb, rgba(7, 20, 58, 0.98) 98%, transparent) 100%
     )
@@ -543,7 +546,7 @@
 }
 
 .privacyOption:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 55%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--header-brand, var(--color-brand)) 55%, transparent);
   outline-offset: 2px;
 }
 
@@ -615,22 +618,22 @@
     --party-primary-background,
     linear-gradient(
       135deg,
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 65%, transparent) 0%,
-      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 85%, transparent)
+      color-mix(in srgb, var(--header-brand, var(--color-brand)) 65%, transparent) 0%,
+      color-mix(in srgb, var(--header-brand-strong, var(--color-brand)) 85%, transparent)
         100%
     )
   );
   border: 1px solid
     var(
       --party-primary-border,
-      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 78%, transparent)
+      color-mix(in srgb, var(--header-brand-strong, var(--color-brand)) 78%, transparent)
     );
   color: var(--party-primary-text, var(--cta-button-text, var(--text-on-brand, #041021)));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     inset 0 -1px 0 rgba(2, 6, 23, 0.4),
     0 16px 32px
-      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand)) 32%, rgba(15, 23, 42, 0.16));
+      color-mix(in srgb, var(--header-brand-strong, var(--color-brand)) 32%, rgba(15, 23, 42, 0.16));
 }
 
 .primaryButton:hover:not(:disabled) {
@@ -767,20 +770,20 @@
 .hostBadge {
   background: linear-gradient(
     120deg,
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 74%, transparent)
+    color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 74%, transparent)
       0%,
-    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 82%, transparent) 50%,
+    color-mix(in srgb, var(--header-brand, var(--color-brand)) 82%, transparent) 50%,
     color-mix(
         in srgb,
-        var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%,
+        var(--header-accent, var(--color-accent, #22d3ee)) 88%,
         transparent
       )
       100%
   );
   border: 1px solid
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 62%, transparent);
+    color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 62%, transparent);
   box-shadow: 0 10px 20px
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 28%, transparent);
+    color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 28%, transparent);
   color: var(--text-on-brand, #041021);
   font-size: 0.65rem;
   text-transform: uppercase;
@@ -1599,8 +1602,9 @@
 .summaryError {
   padding: 10px 14px;
   border-radius: 12px;
-  background: color-mix(in srgb, #ff5e5e 16%, transparent);
-  border: 1px solid color-mix(in srgb, #ff5e5e 28%, transparent);
+  --party-summary-error-base: var(--color-danger, #ff5e5e);
+  background: color-mix(in srgb, var(--party-summary-error-base) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--party-summary-error-base) 28%, transparent);
   color: color-mix(in srgb, var(--text) 92%, transparent);
   font-size: 0.85rem;
 }

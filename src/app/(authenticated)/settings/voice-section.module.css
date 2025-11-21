@@ -230,7 +230,7 @@
     color-mix(
       in srgb,
       var(--voice-slider-thumb, var(--color-brand, #5d6bff)) 54%,
-      #45b0ff
+      var(--color-accent, #22d3ee)
     )
   );
 }

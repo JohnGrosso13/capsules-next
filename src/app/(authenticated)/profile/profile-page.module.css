@@ -4,18 +4,32 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  color: var(--foreground, #f4f7ff);
+  color: var(--text, var(--color-fg, #f4f7ff));
+  /* Local tab theming tokens to ensure brand overrides propagate */
+  --profile-tab-active-bg: var(
+    --cta-gradient,
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand, #6366f1) 82%, transparent),
+      color-mix(in srgb, var(--color-accent, #22d3ee) 78%, transparent)
+    )
+  );
+  --profile-tab-active-text: var(--text-on-brand, var(--color-brand-foreground, #0e1024));
+  --profile-tab-track-bg: var(--glass-bg-1, rgba(255, 255, 255, 0.05));
+  --profile-tab-track-border: var(--color-border, rgba(255, 255, 255, 0.05));
 }
 
 .profileSurface {
   width: min(100%, var(--app-feed-width, clamp(640px, 52vw, 780px)));
   margin: 0 auto;
   border-radius: 2rem;
-  background:
-    radial-gradient(circle at 35% -20%, rgba(116, 167, 255, 0.22), transparent 55%),
-    rgba(5, 8, 18, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  box-shadow: 0 30px 80px rgba(5, 10, 25, 0.55);
+  background: var(
+    --card-bg-1,
+    radial-gradient(circle at 35% -20%, color-mix(in srgb, var(--color-brand, #6475ff) 22%, transparent), transparent 55%),
+    var(--surface-elevated, rgba(5, 8, 18, 0.95))
+  );
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.04));
+  box-shadow: var(--shadow-xl, 0 30px 80px rgba(5, 10, 25, 0.55));
   overflow: hidden;
 }
 
@@ -23,6 +37,23 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+}
+
+.textPrimary {
+  color: var(--text, var(--color-fg, #f4f7ff));
+}
+
+.textSecondary {
+  color: var(--text-2, var(--color-fg-muted, rgba(255, 255, 255, 0.72)));
+}
+
+.mediaFallback {
+  background: color-mix(
+    in srgb,
+    var(--surface-overlay, rgba(12, 18, 40, 0.72)) 92%,
+    transparent
+  );
+  color: var(--text-2, var(--color-fg-muted, rgba(255, 255, 255, 0.72)));
 }
 
 .hero {
@@ -33,7 +64,11 @@
   position: relative;
   padding: clamp(1.5rem, 4vw, 2.75rem);
   padding-bottom: clamp(1rem, 3vw, 1.75rem);
-  background: linear-gradient(180deg, rgba(6, 10, 24, 0.88), rgba(5, 7, 18, 0.65));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-elevated, rgba(6, 10, 24, 0.88)) 96%, transparent),
+    color-mix(in srgb, var(--surface-overlay, rgba(5, 7, 18, 0.65)) 92%, transparent)
+  );
   backdrop-filter: blur(30px);
   overflow: hidden;
 }
@@ -41,7 +76,11 @@
 .heroTexture {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% -10%, rgba(140, 170, 255, 0.35), transparent 70%);
+  background: radial-gradient(
+    circle at 50% -10%,
+    color-mix(in srgb, var(--color-brand, #8caaff) 35%, transparent),
+    transparent 70%
+  );
   opacity: 0.45;
 }
 
@@ -63,8 +102,8 @@
   pointer-events: none;
   background: radial-gradient(
     circle at top,
-    rgba(130, 182, 255, 0.45),
-    rgba(5, 8, 16, 0.2) 50%,
+    color-mix(in srgb, var(--color-brand, #82b6ff) 45%, transparent),
+    color-mix(in srgb, var(--surface-overlay, rgba(5, 8, 16, 0.2)) 70%, transparent) 50%,
     transparent 70%
   );
   filter: blur(40px);
@@ -85,7 +124,7 @@
   width: clamp(112px, 16vw, 140px);
   height: clamp(112px, 16vw, 140px);
   border-radius: 999px;
-  border: 3px solid rgba(255, 255, 255, 0.25);
+  border: 3px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.25)) 90%, transparent);
   box-shadow:
     0 16px 40px rgba(10, 10, 30, 0.6),
     inset 0 0 0 1px rgba(255, 255, 255, 0.1);
@@ -127,22 +166,22 @@
   font-weight: 800;
   line-height: 1.1;
   margin: 0;
-  color: #f7faff;
+  color: var(--text, #f7faff);
 }
 
 .heroBio {
   margin-top: 0.75rem;
   font-size: 1rem;
-  color: rgba(240, 245, 255, 0.92);
+  color: var(--text-2, rgba(240, 245, 255, 0.92));
   max-width: 65ch;
 }
 
 .statCard {
   border-radius: 1rem;
   padding: 0.85rem 1rem;
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.03));
+  backdrop-filter: blur(var(--glass-blur, 18px));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.06));
   text-align: center;
 }
 
@@ -150,13 +189,13 @@
   font-size: 0.8rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(225, 230, 255, 0.7);
+  color: var(--text-3, rgba(225, 230, 255, 0.7));
 }
 
 .statValue {
   font-size: 2rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--text, #fff);
   margin-top: 0.2rem;
 }
 
@@ -223,9 +262,13 @@
 }
 
 .statsPrivacyToggleActive {
-  border-color: rgba(143, 181, 255, 0.8);
-  background: linear-gradient(135deg, rgba(86, 129, 255, 0.25), rgba(120, 243, 255, 0.18));
-  box-shadow: 0 10px 30px rgba(50, 100, 255, 0.25);
+  border-color: color-mix(in srgb, var(--color-brand, #6380ff) 70%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #5681ff) 25%, transparent),
+    color-mix(in srgb, var(--color-accent, #78f3ff) 18%, transparent)
+  );
+  box-shadow: var(--shadow-md, 0 10px 30px rgba(50, 100, 255, 0.25));
 }
 
 .statsPrivacyToggle:disabled {
@@ -236,11 +279,11 @@
   width: 40px;
   height: 40px;
   border-radius: 0.85rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.08));
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--text, #fff);
 }
 
 .statsPrivacyCopy {
@@ -255,20 +298,20 @@
 
 .statsPrivacyCopy small {
   font-size: 0.85rem;
-  color: rgba(230, 235, 255, 0.75);
+  color: var(--text-3, rgba(230, 235, 255, 0.75));
 }
 
 .statsPrivacyStatus {
   margin: 0;
   font-size: 0.85rem;
-  color: rgba(190, 225, 255, 0.9);
+  color: var(--text-2, rgba(190, 225, 255, 0.9));
 }
 
 .statsPrivacyNotice {
   padding: 1.25rem;
   border-radius: 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(5, 8, 18, 0.85);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--surface-overlay, rgba(5, 8, 18, 0.85)) 96%, transparent);
   display: flex;
   align-items: flex-start;
   gap: 0.85rem;
@@ -278,12 +321,12 @@
   margin: 0 0 0.35rem;
   font-size: 1rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--text, #fff);
 }
 
 .statsPrivacyNotice p {
   margin: 0;
-  color: rgba(230, 235, 255, 0.8);
+  color: var(--text-2, rgba(230, 235, 255, 0.8));
   font-size: 0.95rem;
 }
 
@@ -291,11 +334,11 @@
   width: 44px;
   height: 44px;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.08));
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--text, #fff);
 }
 
 .statsPrivacyHint {
@@ -345,7 +388,7 @@
 .statInfoCard dd {
   margin: 0;
   font-weight: 600;
-  color: #fff;
+  color: var(--text, #fff);
 }
 
 .actionBar {
@@ -369,8 +412,12 @@
 
 .tabPanels {
   padding: clamp(1.5rem, 4vw, 2.25rem);
-  background: linear-gradient(180deg, rgba(5, 8, 18, 0.95), rgba(4, 5, 12, 0.98));
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-elevated, rgba(5, 8, 18, 0.95)) 92%, transparent),
+    color-mix(in srgb, var(--surface-overlay, rgba(4, 5, 12, 0.98)) 88%, transparent)
+  );
+  border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
 }
 
 .tabPanel {
@@ -383,9 +430,9 @@
   gap: 0.35rem;
   padding: 0.35rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: var(--profile-tab-track-bg);
+  border: 1px solid var(--profile-tab-track-border);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--profile-tab-track-border) 80%, transparent);
 }
 
 .tabTrigger {
@@ -394,15 +441,18 @@
   border-radius: 999px;
   padding: 0.4rem 1.35rem;
   font-weight: 600;
-  color: rgba(235, 240, 255, 0.78);
+  color: color-mix(in srgb, var(--text, #fff) 82%, transparent);
   letter-spacing: 0.01em;
   transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
 }
 
 .tabTrigger[data-state="active"] {
-  color: #050816;
-  background: linear-gradient(135deg, rgba(86, 129, 255, 0.95), rgba(120, 243, 255, 0.9)) !important;
-  box-shadow: 0 12px 28px rgba(59, 111, 255, 0.45);
+  color: var(--profile-tab-active-text);
+  background: var(--profile-tab-active-bg) !important;
+  box-shadow: var(
+    --shadow-md,
+    0 12px 28px color-mix(in srgb, var(--color-brand, #6366f1) 48%, transparent)
+  );
 }
 
 .panelGrid {
@@ -428,26 +478,26 @@
 
 .statSpaceList span {
   font-weight: 600;
-  color: #fff;
+  color: var(--text, #fff);
 }
 
 .statSpaceList small {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-3, rgba(255, 255, 255, 0.7));
   font-size: 0.85rem;
 }
 
 .statDescription {
   margin: 0;
   font-size: 0.9rem;
-  color: rgba(235, 240, 255, 0.8);
+  color: var(--text-2, rgba(235, 240, 255, 0.8));
 }
 
 .glassCard {
   border-radius: 1.25rem;
   padding: 1.5rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.05)) 80%, transparent);
 }
 
 .cardHeader {
@@ -463,16 +513,16 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgba(244, 247, 255, 0.85);
+  color: var(--text-2, rgba(244, 247, 255, 0.85));
 }
 
 .aboutTextarea {
   width: 100%;
   min-height: 140px;
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(12, 16, 30, 0.55);
-  color: #f7fbff;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  background: var(--surface-overlay, rgba(12, 16, 30, 0.55));
+  color: var(--text, #f7fbff);
   padding: 1rem;
   font-size: 1rem;
   resize: vertical;
@@ -481,8 +531,8 @@
 }
 
 .aboutTextarea:focus {
-  border-color: rgba(130, 190, 255, 0.85);
-  box-shadow: 0 0 0 1px rgba(120, 180, 255, 0.4);
+  border-color: color-mix(in srgb, var(--color-brand, #82beff) 72%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand, #78b4ff) 40%, transparent);
 }
 
 .aboutActions {
@@ -502,8 +552,8 @@
 .spaceCard {
   border-radius: 1.1rem;
   padding: 1rem;
-  background: rgba(15, 19, 35, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-muted, rgba(15, 19, 35, 0.8));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
   display: flex;
   gap: 0.85rem;
   align-items: center;
@@ -513,7 +563,7 @@
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.05));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -529,7 +579,7 @@
 
 .spaceName {
   font-weight: 600;
-  color: #f7fbff;
+  color: var(--text, #f7fbff);
 }
 
 .postsGrid {
@@ -588,14 +638,14 @@
   border-radius: 1.1rem;
   overflow: hidden;
   min-height: 180px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
 }
 
 .clipOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.75));
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--surface-overlay, rgba(0, 0, 0, 0.75)) 90%, transparent));
   pointer-events: none;
 }
 
@@ -603,7 +653,7 @@
   position: absolute;
   inset: auto 0 0;
   padding: 1rem;
-  color: #fff;
+  color: var(--text, #fff);
   font-weight: 600;
 }
 
@@ -616,8 +666,8 @@
 .eventItem {
   border-radius: 1rem;
   padding: 1rem 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(12, 16, 28, 0.6);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
+  background: var(--surface-muted, rgba(12, 16, 28, 0.6));
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
@@ -627,8 +677,12 @@
 .storeCard {
   border-radius: 1.25rem;
   padding: 1.5rem;
-  background: linear-gradient(135deg, rgba(90, 205, 255, 0.12), rgba(80, 90, 255, 0.2));
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-accent, #5acdfc) 12%, transparent),
+    color-mix(in srgb, var(--color-brand, #505aff) 20%, transparent)
+  );
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -637,7 +691,7 @@
 .storeArt {
   border-radius: 1rem;
   height: 220px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.08));
   overflow: hidden;
 }
 
@@ -650,15 +704,15 @@
 .emptyState {
   padding: 1.25rem;
   border-radius: 1rem;
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  color: rgba(240, 245, 255, 0.75);
+  border: 1px dashed var(--color-border, rgba(255, 255, 255, 0.2));
+  color: var(--text-2, rgba(240, 245, 255, 0.75));
   text-align: center;
 }
 
 .feedback {
   margin-top: 0.5rem;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-2, rgba(255, 255, 255, 0.8));
 }
 
 .inviteMenu {
@@ -671,9 +725,9 @@
   right: 0;
   min-width: 240px;
   border-radius: 1rem;
-  background: rgba(8, 12, 24, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  background: var(--surface-overlay, rgba(8, 12, 24, 0.95));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  box-shadow: var(--shadow-lg, 0 20px 50px rgba(0, 0, 0, 0.45));
   backdrop-filter: blur(24px);
   z-index: 40;
   padding: 0.35rem;
@@ -687,21 +741,21 @@
   padding: 0.75rem 0.85rem;
   background: transparent;
   border: none;
-  color: #f5f8ff;
+  color: var(--text, #f5f8ff);
   width: 100%;
   text-align: left;
   font-weight: 500;
 }
 
 .inviteOption:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.06));
 }
 
 .inviteOptionLogo {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.08));
   overflow: hidden;
   flex-shrink: 0;
 }

@@ -427,7 +427,7 @@ function OverviewTab({ data }: { data: ProfilePageData }) {
                 </span>
                 <div>
                   <div className={styles.spaceName}>{space.name}</div>
-                  <div className="text-xs text-white/70">
+                  <div className={`text-xs ${styles.textSecondary}`}>
                     {space.slug ? `capsules.app/${space.slug}` : "Private space"}
                   </div>
                 </div>
@@ -528,7 +528,7 @@ function ProfileAbout({
             >
               Cancel
             </Button>
-            <span className="text-xs text-white/60">{value.length}/560</span>
+            <span className={`text-xs ${styles.textSecondary}`}>{value.length}/560</span>
           </div>
         </>
       ) : (
@@ -577,7 +577,7 @@ function PostCollection({ title, posts, emptyMessage }: PostCollectionProps) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={post.mediaUrl} alt="" />
                 ) : (
-                  <div className="h-full w-full bg-slate-900/60" />
+                  <div className={`h-full w-full ${styles.mediaFallback}`} />
                 )}
               </div>
               <div className={styles.postBody}>
@@ -638,14 +638,16 @@ function EventsTab({ events }: { events: ProfileEvent[] }) {
           {events.map((event) => (
             <div key={event.id} className={styles.eventItem}>
               <div>
-                <div className="text-base font-semibold text-white">{event.name}</div>
-                <div className="text-sm text-white/70">{event.summary ?? "Tournament run"}</div>
+                <div className={`text-base font-semibold ${styles.textPrimary}`}>{event.name}</div>
+                <div className={`text-sm ${styles.textSecondary}`}>
+                  {event.summary ?? "Tournament run"}
+                </div>
               </div>
-              <div className="text-sm text-white/80">
+              <div className={`text-sm ${styles.textSecondary}`}>
                 <div>
                   {event.stats.wins ?? 0}W A? {event.stats.losses ?? 0}L
                 </div>
-                <div className="text-xs text-white/60">
+                <div className={`text-xs ${styles.textSecondary}`}>
                   {event.startedAt ? new Date(event.startedAt).toLocaleDateString() : "Pending"}
                 </div>
               </div>
@@ -947,13 +949,15 @@ function StatsPrivacyControls({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={store.bannerUrl} alt="" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-white/70">
+              <div
+                className={`flex h-full w-full items-center justify-center ${styles.textSecondary}`}
+              >
                 Showcase a banner for {store.name}
               </div>
             )}
           </div>
-          <div className="text-lg font-semibold text-white">{store.name}</div>
-          <p className="text-sm text-white/75">
+          <div className={`text-lg font-semibold ${styles.textPrimary}`}>{store.name}</div>
+          <p className={`text-sm ${styles.textSecondary}`}>
             Pull AI-built merch walls, drops, and membership perks directly from Capsules.
           </p>
         </div>

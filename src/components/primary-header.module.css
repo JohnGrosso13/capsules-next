@@ -3,11 +3,14 @@
 .header {
   /* Balanced gradient header that blends with app background */
   --header-height: var(--space-8xl);
-  /* Allow root/theme to override header hues without changing global brand */
-  --header-brand: var(--header-brand-color, var(--color-brand));
-  --header-brand-strong: var(--header-brand-strong-color, var(--color-brand-strong));
-  --header-accent: var(--color-accent);
   --header-foreground-strong: var(--color-brand-foreground, #f8fafc);
+  /* Header brand hues: bias toward cooler blue to match feed background */
+  --header-brand: color-mix(in srgb, var(--color-brand) 70%, var(--color-accent) 30%);
+  --header-brand-strong: color-mix(
+    in srgb,
+    var(--color-brand-strong) 75%,
+    var(--color-accent) 25%
+  );
   --brand-gradient: var(--header-brand-gradient, var(--gradient-brand));
   /* Tone down header buttons for darker, less highlighty look */
   --header-button-bg: linear-gradient(
@@ -61,15 +64,19 @@
   display: block;
   overflow: hidden;
   --blur-amount: 14px;
-  --header-glass-top: color-mix(in srgb, var(--surface-elevated) 97%, var(--header-brand) 3%);
+  /* Softer blend into the app shell: slightly tinted at the top, closer to surface-app at the bottom */
+  --header-glass-top: color-mix(
+    in srgb,
+    var(--surface-elevated, rgba(12, 16, 32, 0.92)) 88%,
+    var(--header-brand, #8b5cf6) 12%
+  );
   --header-glass-bottom: color-mix(
     in srgb,
-    var(--surface-muted) 94%,
-    var(--header-brand-strong) 6%
+    var(--surface-app, #050a1b) 88%,
+    var(--header-brand-strong, #6366f1) 12%
   );
-  /* Remove extra color tint layer by default for a truer dark glass */
-  --header-tint-from: transparent;
-  --header-tint-to: transparent;
+  --header-tint-from: color-mix(in srgb, var(--header-brand, #8b5cf6) 10%, transparent);
+  --header-tint-to: color-mix(in srgb, var(--header-brand-strong, #6366f1) 8%, transparent);
   background:
     linear-gradient(180deg, var(--header-glass-top), var(--header-glass-bottom)),
     linear-gradient(180deg, var(--header-tint-from), var(--header-tint-to));
@@ -77,8 +84,11 @@
   backdrop-filter: blur(var(--blur-amount)) saturate(140%);
   -webkit-backdrop-filter: blur(var(--blur-amount)) saturate(140%);
   border-bottom: 1px solid
-    var(--header-border-color, color-mix(in srgb, var(--header-brand) 24%, var(--color-border) 76%));
-  box-shadow: var(--header-shadow, var(--header-shadow-lg));
+    var(--header-border-color, color-mix(in srgb, var(--header-brand) 28%, var(--color-border) 72%));
+  box-shadow: var(
+    --header-shadow,
+    0 20px 42px color-mix(in srgb, var(--header-brand) 22%, rgba(0, 0, 0, 0.5))
+  );
   min-height: var(--header-height);
   transition: none;
 }
@@ -122,14 +132,14 @@
 
 .inner {
   position: relative;
-  width: min(1200px, calc(100% - var(--layout-page-width-offset)));
+  width: min(1060px, calc(100% - (var(--layout-shell-padding, 1.25rem) * 2)));
   margin: 0 auto;
   min-height: var(--header-height);
-  padding: var(--space-md-plus) 0;
+  padding: var(--space-md-plus) clamp(0.75rem, 2.5vw, 1.75rem);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-xl);
+  gap: var(--space-lg);
 }
 
 .brand {

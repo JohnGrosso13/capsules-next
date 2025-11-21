@@ -772,7 +772,8 @@
     /* AI prompter tokens */
     --prompter-ai-message-background: var(--cta-gradient);
     --prompter-ai-message-text: var(--text);
-    --prompter-primary-button-background: var(--cta-gradient);
+    /* Match Launch Capsule CTA gradient exactly */
+    --prompter-primary-button-background: var(--cta-button-gradient, var(--cta-gradient));
     --prompter-primary-button-text: var(--cta-button-text, var(--text-on-brand, var(--text)));
 
     /* Chats surface tokens */

@@ -8,7 +8,6 @@ import {
 import type { Buffer } from "node:buffer";
 
 import { serverEnv } from "@/lib/env/server";
-import { safeRandomUUID } from "@/lib/random";
 import { decodeBase64 } from "@/lib/base64";
 import { indexMemory } from "@/server/memories/service";
 import { ensureAccessibleMediaUrl } from "@/server/posts/media";
@@ -16,88 +15,42 @@ import { storeImageSrcToSupabase } from "@/lib/supabase/storage";
 import {
   createAiImageRun,
   updateAiImageRun,
-  listRecentAiImageRuns,
   type AiImageRunAttempt,
   type UpdateAiImageRunInput,
 } from "@/server/ai/image-runs";
 import { publishAiImageEvent } from "@/services/realtime/ai-images";
-import { extractJSON, requireOpenAIKey, callOpenAIChat, type JsonSchema } from "./core";
-import type { ComposerChatAttachment } from "@/lib/composer/chat-types";
-import type { ClarifyImagePromptPlan, ComposeDraftOptions } from "../prompter";
+import { requireOpenAIKey } from "./core";
 
 type ImageOptions = { quality?: string; size?: string };
 
 type ImageParams = { size: string; quality: string };
 
-export type PromptClarifierInput = {
-  questionId?: string | null;
-  answer?: string | null;
-  skip?: boolean;
-};
-
-export type NormalizedClarifierInput = {
-  questionId: string | null;
-  answer: string | null;
-  skip: boolean;
-};
-
-type ClarifierExample = {
-  prompt: string;
-  resolved: string;
-  style: string | null;
-  status: string | null;
-  model: string | null;
-};
-
-const CLARIFIER_STATIC_EXAMPLES: ClarifierExample[] = [
-  {
-    prompt: "Golden hour skyline with a river in view",
-    resolved: "A warm golden hour city skyline reflected in a calm river, wide angle, soft haze",
-    style: null,
-    status: "succeeded",
-    model: "openai",
-  },
-];
-
-function summarizeAttachmentForConversation(attachment: ComposerChatAttachment): string {
-  const parts: string[] = [];
-  if (typeof attachment.name === "string" && attachment.name.trim().length) {
-    parts.push(attachment.name.trim());
-  }
-  if (attachment.mimeType) {
-    parts.push(`(${attachment.mimeType})`);
-  }
-  if (attachment.url) {
-    parts.push(`-> ${attachment.url}`);
-  }
-  return parts.join(" ").trim();
-}
-
 function resolveImageParams(options: ImageOptions = {}): ImageParams {
   const envQuality = serverEnv.OPENAI_IMAGE_QUALITY ?? "standard";
-  const envSize = serverEnv.OPENAI_IMAGE_SIZE ?? "768x768";
+  const envSize = serverEnv.OPENAI_IMAGE_SIZE ?? "1024x1024";
   const envSizeLow = serverEnv.OPENAI_IMAGE_SIZE_LOW ?? "512x512";
   const envSizeHigh = serverEnv.OPENAI_IMAGE_SIZE_HIGH ?? "1024x1024";
 
-  const requestedQuality = typeof options.quality === "string" ? options.quality.trim().toLowerCase() : null;
+  const requestedQuality =
+    typeof options.quality === "string" ? options.quality.trim().toLowerCase() : null;
   const requestedSize = typeof options.size === "string" ? options.size.trim().toLowerCase() : null;
 
+  // Map quality presets directly to supported OpenAI sizes.
+  // low -> 512, standard -> 1024, high -> 1024 (quality=hd)
   const quality =
     requestedQuality === "high"
       ? "hd"
-    : requestedQuality === "low"
-      ? "standard"
-    : requestedQuality === "standard"
-      ? "standard"
-    : envQuality === "high"
-      ? "hd"
-    : envQuality === "low"
-      ? "standard"
-    : "standard";
+      : requestedQuality === "low"
+        ? "standard"
+        : requestedQuality === "standard"
+          ? "standard"
+          : envQuality === "high"
+            ? "hd"
+            : "standard";
 
   const lowSize = envSizeLow && envSizeLow.length ? envSizeLow : "512x512";
   const highSize = envSizeHigh && envSizeHigh.length ? envSizeHigh : "1024x1024";
-  const standardSize = envSize && envSize.length ? envSize : "768x768";
+  const standardSize = envSize && envSize.length ? envSize : "1024x1024";
 
   const size = (() => {
     if (requestedSize && requestedSize.length) return requestedSize;
@@ -185,210 +138,6 @@ function waitFor(ms: number): Promise<void> {
   });
 }
 
-function truncateForClarifier(text: string, max = 220): string {
-  const normalized = typeof text === "string" ? text.replace(/\s+/g, " ").trim() : "";
-  if (!normalized) return "";
-  if (normalized.length <= max) return normalized;
-  const slicePoint = Math.max(0, max - 3);
-  return `${normalized.slice(0, slicePoint)}...`;
-}
-
-export function normalizeClarifierInput(
-  input: PromptClarifierInput | null | undefined,
-): NormalizedClarifierInput | null {
-  if (!input || typeof input !== "object") return null;
-  const questionIdRaw =
-    typeof input.questionId === "string" ? input.questionId.trim() : null;
-  const answerRaw = typeof input.answer === "string" ? input.answer.trim() : null;
-  const skip = Boolean(input.skip);
-  const questionId = questionIdRaw && questionIdRaw.length ? questionIdRaw : null;
-  const answer = answerRaw && answerRaw.length ? answerRaw : null;
-  if (!questionId && !answer && !skip) return null;
-  return { questionId, answer, skip };
-}
-
-function summarizeHistoryForClarifier(
-  history: ComposeDraftOptions["history"],
-): Array<{ role: string; content: string }> {
-  if (!history || !history.length) return [];
-  return history
-    .slice(-CLARIFIER_HISTORY_LOOKBACK)
-    .map((entry) => ({
-      role: entry.role,
-      content: truncateForClarifier(entry.content ?? ""),
-    }))
-    .filter((entry) => entry.content.length > 0);
-}
-
-function summarizeAttachmentsForClarifier(
-  attachments: ComposeDraftOptions["attachments"],
-): string[] {
-  if (!attachments || !attachments.length) return [];
-  return attachments
-    .slice(0, 3)
-    .map((attachment) => truncateForClarifier(summarizeAttachmentForConversation(attachment), 180))
-    .filter((entry) => entry.length > 0);
-}
-
-async function collectClarifierExamples(limit = CLARIFIER_RECENT_RUN_LIMIT): Promise<
-  ClarifierExample[]
-> {
-  const examples: ClarifierExample[] = [...CLARIFIER_STATIC_EXAMPLES];
-  if (examples.length >= limit) {
-    return examples.slice(0, limit);
-  }
-  try {
-    const runs = await listRecentAiImageRuns({ limit, status: ["succeeded"] });
-    for (const run of runs) {
-      const promptText = truncateForClarifier(run.userPrompt ?? "");
-      const resolvedText = truncateForClarifier(run.resolvedPrompt ?? "");
-      if (!promptText || !resolvedText) continue;
-      examples.push({
-        prompt: promptText,
-        resolved: resolvedText,
-        style: run.stylePreset ?? null,
-        status: run.status,
-        model: run.model ?? null,
-      });
-      if (examples.length >= limit) {
-        break;
-      }
-    }
-  } catch (error) {
-    console.warn("image clarifier: failed to load recent runs", error);
-  }
-  return examples.slice(0, limit);
-}
-
-function promptHasStyleHints(_prompt: string, context?: ComposeDraftOptions): boolean {
-  return Boolean(context?.stylePreset);
-}
-
-export function promptFeelsDescriptive(prompt: string, context?: ComposeDraftOptions): boolean {
-  const normalized = prompt ? prompt.trim() : "";
-  if (!normalized.length) return false;
-  const wordCount = normalized.split(/\s+/).filter(Boolean).length;
-  if (wordCount >= 4) return true;
-  if (/\b\d+\b/.test(normalized)) return true;
-  if (promptHasStyleHints(prompt, context)) return true;
-  return false;
-}
-export async function maybeGenerateImageClarifier(
-  userPrompt: string,
-  context: ComposeDraftOptions,
-  clarifier: NormalizedClarifierInput | null,
-): Promise<ClarifyImagePromptPlan | null> {
-  if (clarifier?.skip) return null;
-  const trimmedPrompt = truncateForClarifier(userPrompt, 320);
-  if (!trimmedPrompt) return null;
-  if (promptFeelsDescriptive(trimmedPrompt, context)) {
-    return null;
-  }
-
-  try {
-    const historySummary = summarizeHistoryForClarifier(context.history);
-    const attachmentSummary = summarizeAttachmentsForClarifier(context.attachments);
-    const examples = (await collectClarifierExamples()).slice(0, 6);
-
-    const clarifierPayload: Record<string, unknown> = {
-      user_prompt: trimmedPrompt,
-    };
-
-    if (historySummary.length) {
-      clarifierPayload.history = historySummary;
-    }
-    if (attachmentSummary.length) {
-      clarifierPayload.attachments = attachmentSummary;
-    }
-    if (examples.length) {
-      clarifierPayload.examples = examples;
-    }
-    if (clarifier?.questionId) {
-      clarifierPayload.pending_question_id = clarifier.questionId;
-    }
-
-    const systemPrompt = [
-      "You help Capsules AI clarify image generation requests before creating prompts.",
-      "Review the user prompt and context to decide if a follow-up question about style, palette, lighting, medium, composition, or mood is needed.",
-      "If the user already names a style (e.g., realistic, cartoon, watercolor, cinematic), supplies lighting/medium cues, or a style preset exists, respond with should_clarify=false.",
-      "Only ask about the single most important missing detail and mention what you are trying to clarify.",
-      "Vary your wording so the question feels tailored to the specific prompt instead of repeating the same sentence every time.",
-      "When asking a question, keep it concise and optionally provide up to three short suggestions the user could pick. Suggestions should be relevant to the user's prompt.",
-      "Do not reference this instruction text in your response.",
-    ].join(" ");
-
-    const { content } = await callOpenAIChat(
-      [
-        { role: "system", content: systemPrompt },
-        {
-          role: "system",
-          content:
-            "The user message will be JSON with fields: user_prompt, history, attachments, examples, pending_question_id.",
-        },
-        { role: "user", content: JSON.stringify(clarifierPayload) },
-      ],
-      clarifierSchema,
-      {
-        temperature: 0.2,
-        model: serverEnv.OPENAI_MODEL_NANO ?? serverEnv.OPENAI_MODEL,
-        fallbackModel: serverEnv.OPENAI_MODEL_FALLBACK ?? null,
-      },
-    );
-
-    const parsed = extractJSON<Record<string, unknown>>(content) ?? {};
-    const shouldClarify = parsed.should_clarify === true;
-    if (!shouldClarify) return null;
-
-    const question =
-      typeof parsed.question === "string" ? parsed.question.trim() : "";
-    if (!question) return null;
-
-    const rationale =
-      typeof parsed.rationale === "string" && parsed.rationale.trim().length
-        ? parsed.rationale.trim()
-        : null;
-
-    const suggestions =
-      Array.isArray(parsed.suggestions)
-        ? (parsed.suggestions as unknown[])
-            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-            .filter((entry) => entry.length > 0)
-            .slice(0, 4)
-        : [];
-
-    const styleTraits =
-      Array.isArray(parsed.style_traits)
-        ? (parsed.style_traits as unknown[])
-            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-            .filter((entry) => entry.length > 0)
-            .slice(0, 6)
-        : [];
-
-    const questionId = clarifier?.questionId ?? safeRandomUUID();
-
-    console.info("image_clarifier_question", {
-      questionId,
-      question,
-      rationale,
-      suggestions,
-      styleTraits,
-      prompt: trimmedPrompt,
-      stylePreset: context.stylePreset ?? null,
-    });
-
-    return {
-      action: "clarify_image_prompt",
-      questionId,
-      question,
-      rationale,
-      suggestions,
-      styleTraits,
-    };
-  } catch (error) {
-    console.warn("image clarifier generation failed", error);
-    return null;
-  }
-}
 
 export function compactObject(input: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
@@ -957,13 +706,32 @@ async function fetchImageBytesForEdit(imageUrl: string): Promise<Uint8Array> {
   throw new Error(message);
 }
 
-const OPENAI_ALLOWED_SIZES = ["256x256", "512x512", "768x768", "1024x1024"] as const;
+// OpenAI Images API supported sizes as of 2025-11:
+// - gpt-image-* and dall-e-3: 1024x1024, 1024x1792, 1792x1024
+// - dall-e-2: 256x256, 512x512, 1024x1024
+// 768x768 is NOT accepted by current OpenAI image models and will 400.
+const OPENAI_ALLOWED_SIZES = [
+  "256x256",
+  "512x512",
+  "1024x1024",
+  "1024x1792",
+  "1792x1024",
+] as const;
 type OpenAiAllowedSize = (typeof OPENAI_ALLOWED_SIZES)[number];
 type NormalizedImageQuality = "standard" | "hd";
 
 function allowedSizesForOpenAiModel(modelName: string | null | undefined): OpenAiAllowedSize[] {
-  if (typeof modelName !== "string" || !modelName.trim().length) return [...OPENAI_ALLOWED_SIZES];
-  return [...OPENAI_ALLOWED_SIZES];
+  const name = (modelName ?? "").toLowerCase();
+  if (/^gpt-image/.test(name) || /^dall-e-3/.test(name)) {
+    // gpt-image-* and dall-e-3 only accept the modern aspect ratios.
+    return ["1024x1024", "1024x1792", "1792x1024"];
+  }
+  if (/^dall-e-2/.test(name)) {
+    // Legacy model still supports the smaller square sizes.
+    return ["256x256", "512x512", "1024x1024"];
+  }
+  // Default (should not be reached for OpenAI provider) - stay conservative
+  return ["256x256", "512x512", "1024x1024"];
 }
 
 function coerceOpenAiSizeForModel(
@@ -993,8 +761,8 @@ export function normalizeOpenAiImageSize(requested: string | null | undefined): 
         Number.isFinite(width) && Number.isFinite(height) ? Math.max(width, height) : width || height;
       if (largest && largest <= 256) return "256x256";
       if (largest && largest <= 512) return "512x512";
-      if (largest && largest <= 768) return "768x768";
-      if (largest && largest >= 1024) return "1024x1024";
+      // 768 is not supported by OpenAI; round up to 1024 for anything larger than 512
+      return "1024x1024";
     }
   }
   return "1024x1024";
@@ -1673,34 +1441,3 @@ const PROMPT_PROVIDER_HINTS: Array<{ pattern: RegExp; provider: ImageProviderId 
   { pattern: /\bphotoreal\b/i, provider: "openai" },
   { pattern: /\bvector\b/i, provider: "stability" },
 ];
-
-const nullableStringSchema = {
-  anyOf: [{ type: "string" }, { type: "null" }],
-};
-
-const CLARIFIER_HISTORY_LOOKBACK = 4;
-const CLARIFIER_RECENT_RUN_LIMIT = 12;
-
-const clarifierSchema: JsonSchema = {
-  name: "CapsulesImageClarifier",
-  schema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["should_clarify"],
-    properties: {
-      should_clarify: { type: "boolean" },
-      question: { type: "string" },
-      rationale: nullableStringSchema,
-      suggestions: {
-        type: "array",
-        items: { type: "string" },
-        maxItems: 6,
-      },
-      style_traits: {
-        type: "array",
-        items: { type: "string" },
-        maxItems: 6,
-      },
-    },
-  },
-};

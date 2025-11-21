@@ -83,7 +83,7 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
             removeMessageAttachments(activeSession.id, messageId, attachmentIds)
           }
           onDeleteMessage={(messageId) => deleteMessage(activeSession.id, messageId)}
-          {...(activeSession.type === "group" && onInviteToGroup
+          {...(onInviteToGroup
             ? { onInviteParticipants: () => onInviteToGroup(activeSession) }
             : {})}
           {...(activeSession.type === "group"
@@ -118,3 +118,4 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup }: Ch
     </div>
   );
 }
+

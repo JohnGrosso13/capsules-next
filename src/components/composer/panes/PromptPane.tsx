@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import styles from "../../ai-composer.module.css";
+import styles from "../styles";
 import summaryStyles from "../styles/composer-summary.module.css";
 import { SummaryContextPanel } from "../components/SummaryContextPanel";
 import { SummaryNarrativeCard } from "../components/SummaryNarrativeCard";
@@ -16,7 +16,7 @@ import type {
 } from "@/lib/composer/summary-context";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 import type { LocalAttachment } from "@/hooks/useAttachmentUpload";
-import type { ComposerVideoStatus, ClarifierPrompt } from "../types";
+import type { ComposerVideoStatus } from "../types";
 import type { QuickPromptOption } from "../features/prompt-surface/usePromptSurface";
 
 type SummaryControls = {
@@ -45,8 +45,6 @@ export type PromptPaneProps = {
   welcomeMessage: string;
   prompt: string;
   message: string | null | undefined;
-  clarifier: ClarifierPrompt | null;
-  onClarifierRespond?: (answer: string) => void;
   loading: boolean;
   displayAttachment: LocalAttachment | null;
   attachmentKind: string | null;
@@ -76,8 +74,6 @@ export function PromptPane({
   welcomeMessage,
   prompt,
   message,
-  clarifier,
-  onClarifierRespond,
   loading,
   displayAttachment,
   attachmentKind,
@@ -107,40 +103,10 @@ export function PromptPane({
     : null;
   const attachmentCaption =
     baseAttachmentCaption && displayAttachment
-      ? `${baseAttachmentCaption} ${AI_ATTACHMENT_FEEDBACK_PROMPT}`
-      : baseAttachmentCaption;
+    ? `${baseAttachmentCaption} ${AI_ATTACHMENT_FEEDBACK_PROMPT}`
+    : baseAttachmentCaption;
   const attachmentCaptionForPanel = isAiAttachment ? null : attachmentCaption;
-  const matchedAssistantIndex = React.useMemo(() => {
-    if (!trimmedAssistantMessage) return -1;
-    const exactIndex = history.reduce((latestIndex, entry, index) => {
-      if (
-        entry.role === "assistant" &&
-        typeof entry.content === "string" &&
-        entry.content.trim() === trimmedAssistantMessage
-      ) {
-        return index;
-      }
-      return latestIndex;
-    }, -1);
-    if (exactIndex >= 0) return exactIndex;
-    if (!isAiAttachment) return -1;
-    for (let index = history.length - 1; index >= 0; index -= 1) {
-      if (history[index]?.role === "assistant") return index;
-    }
-    return -1;
-  }, [history, isAiAttachment, trimmedAssistantMessage]);
-
-  const filteredHistory = React.useMemo(() => {
-    if (
-      !displayAttachment ||
-      !isAiAttachment ||
-      !trimmedAssistantMessage ||
-      matchedAssistantIndex < 0
-    ) {
-      return history;
-    }
-    return history.filter((_, index) => index !== matchedAssistantIndex);
-  }, [displayAttachment, history, isAiAttachment, matchedAssistantIndex, trimmedAssistantMessage]);
+  const filteredHistory = history;
 
   React.useEffect(() => {
     const scrollNode = chatScrollRef.current;
@@ -169,7 +135,6 @@ export function PromptPane({
     displayAttachment?.id,
     attachmentKind,
     videoStatus.state,
-    clarifier?.questionId,
     showVibePrompt,
     showQuickPromptBubble,
   ]);
@@ -316,7 +281,7 @@ export function PromptPane({
               </li>
             ) : null}
 
-            {displayAttachment ? (
+            {displayAttachment && !isAiAttachment ? (
               <AttachmentPanel
                 attachment={displayAttachment}
                 kind={resolvedAttachmentKind}
@@ -331,7 +296,7 @@ export function PromptPane({
               />
             ) : null}
 
-            {isAiAttachment && trimmedAssistantMessage ? (
+            {isAiAttachment && trimmedAssistantMessage && !displayAttachment ? (
               <li className={styles.msgRow} data-role="ai">
                 <div className={`${styles.msgBubble} ${styles.aiBubble}`}>
                   {trimmedAssistantMessage}
@@ -388,41 +353,6 @@ export function PromptPane({
               </li>
             ) : null}
 
-            {clarifier ? (
-              <li className={styles.msgRow} data-role="ai">
-                <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.clarifierBubble}`}>
-                  <p className={styles.clarifierHeading}>{clarifier.question}</p>
-                  {clarifier.rationale ? (
-                    <p className={styles.clarifierRationale}>{clarifier.rationale}</p>
-                  ) : null}
-                  {clarifier.styleTraits.length ? (
-                    <div className={styles.clarifierTraits}>
-                      {clarifier.styleTraits.map((trait) => (
-                        <span key={`${clarifier.questionId}-${trait}`} className={styles.clarifierTrait}>
-                          {trait}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {clarifier.suggestions.length ? (
-                    <div className={styles.clarifierSuggestions}>
-                      {clarifier.suggestions.map((suggestion) => (
-                        <button
-                          key={`${clarifier.questionId}-${suggestion}`}
-                          type="button"
-                          className={styles.clarifierSuggestion}
-                          onClick={() => onClarifierRespond?.(suggestion)}
-                          disabled={loading}
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </li>
-            ) : null}
-
             {showQuickPromptBubble ? (
               <li className={styles.msgRow} data-role="ai">
                 <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.quickPromptBubble}`}>
@@ -446,7 +376,7 @@ export function PromptPane({
               </li>
             ) : null}
 
-            {!history.length && message && !clarifier ? (
+            {!history.length && message ? (
               <li className={styles.msgRow} data-role="ai">
                 <div className={`${styles.msgBubble} ${styles.aiBubble}`}>{message}</div>
               </li>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import styles from "../../ai-composer.module.css";
+import styles from "../styles";
 
 type PreviewColumnProps = {
   title?: string;

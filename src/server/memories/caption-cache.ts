@@ -19,6 +19,15 @@ type CaptionRequest = {
   thumbnailUrl?: string | null;
 };
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function normalizeUuid(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed.length || !UUID_PATTERN.test(trimmed)) return null;
+  return trimmed;
+}
+
 function readCachedCaption(meta: Record<string, unknown> | null): string | null {
   if (!meta || typeof meta !== "object") return null;
   const raw = (meta as { [CAPTION_KEY]?: unknown })[CAPTION_KEY];
@@ -127,7 +136,7 @@ export async function getOrCreateMemoryCaption({
   mimeType,
   thumbnailUrl,
 }: CaptionRequest): Promise<string | null> {
-  let normalizedId = typeof memoryId === "string" && memoryId.trim().length ? memoryId.trim() : null;
+  let normalizedId = normalizeUuid(memoryId);
   let record: CaptionCacheRow | null = null;
 
   if (normalizedId) {

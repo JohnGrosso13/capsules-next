@@ -32,8 +32,8 @@ This guide enumerates the key UI surfaces and the shared design tokens they now 
 
 ## Composer Surface
 
-- Implementation: `src/components/ai-composer.module.css`
-- Tokens: `--surface-overlay`, `--pill-*`, `--text-*`, `--cta-gradient`, `--card-shadow`.
+- Implementation: `src/components/composer/styles` (`composer-shell`, `composer-rail`, `composer-preview`, `composer-prompt`, `composer-footer`)
+- Tokens: `--composer-*`, `--surface-overlay`, `--pill-*`, `--text-*`, `--cta-gradient`, `--card-shadow`.
 
 ## Auth & Entry Points
 

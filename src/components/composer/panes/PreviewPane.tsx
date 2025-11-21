@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import styles from "../../ai-composer.module.css";
+import styles from "../styles";
 import { PreviewColumn } from "../components/PreviewColumn";
 
 import type { FeedPreviewController } from "../features/feed-preview/useFeedPreview";

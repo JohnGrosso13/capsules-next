@@ -2,20 +2,28 @@ import { z } from "zod";
 
 import { hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { safeRandomUUID } from "@/lib/random";
-import { createPollDraft, createPostDraft, refinePostDraft, type PromptClarifierInput } from "@/lib/ai/prompter";
+import { createPollDraft, type ComposeDraftOptions } from "@/lib/ai/prompter";
 import {
   sanitizeComposerChatAttachment,
   sanitizeComposerChatHistory,
   type ComposerChatAttachment,
   type ComposerChatMessage,
 } from "@/lib/composer/chat-types";
-import { draftPostResponseSchema, promptResponseSchema } from "@/shared/schemas/ai";
+import { promptResponseSchema, type PromptResponse, type ComposerAttachment } from "@/shared/schemas/ai";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import {
   parseJsonBody,
   returnError,
   validatedJson,
 } from "@/server/validation/http";
+import {
+  buildAttachmentContext,
+  formatAttachmentContextForPrompt,
+} from "@/server/composer/attachment-context";
+import {
+  runComposerToolSession,
+  type ComposerToolEvent,
+} from "@/server/composer/run";
 import { storeConversationSnapshot } from "@/server/ai/conversation-store";
 import {
   checkRateLimit,
@@ -63,7 +71,19 @@ const requestSchema = z.object({
   threadId: z.string().optional(),
   capsuleId: z.string().optional().nullable(),
   useContext: z.boolean().optional(),
+  stream: z.boolean().optional(),
 });
+
+type ContextRecord = {
+  id: string;
+  title: string | null;
+  snippet: string;
+  source: string | null;
+  url: string | null;
+  kind: string | null;
+  tags: string[];
+  highlightHtml: string | null;
+};
 
 function generateThreadId(): string {
   return safeRandomUUID();
@@ -94,6 +114,54 @@ function sanitizeAttachments(
       (attachment): attachment is ComposerChatAttachment =>
         Boolean(attachment),
     );
+}
+
+function collectRecentUserText(history: ComposerChatMessage[] | undefined, limit = 3): string {
+  if (!history || !history.length) return "";
+  const recentUsers = history
+    .slice()
+    .reverse()
+    .filter((entry) => entry.role === "user")
+    .slice(0, limit)
+    .map((entry) => (typeof entry.content === "string" ? entry.content : ""))
+    .filter(Boolean);
+  return recentUsers.join(" ");
+}
+
+function detectRecallIntent(params: {
+  message: string;
+  history: ComposerChatMessage[] | undefined;
+  rawOptions: Record<string, unknown> | null | undefined;
+  attachments: ComposerChatAttachment[];
+}): boolean {
+  const { message, history, rawOptions, attachments } = params;
+  if (rawOptions && typeof (rawOptions as { recall?: unknown }).recall === "boolean") {
+    return Boolean((rawOptions as { recall?: boolean }).recall);
+  }
+  const text = [message, collectRecentUserText(history)].join(" ").toLowerCase();
+  const recallKeywords = [
+    "memory",
+    "memories",
+    "remember",
+    "recall",
+    "last time",
+    "previous chat",
+    "previous conversation",
+    "last post",
+    "previous post",
+    "pull up",
+    "show me my",
+    "what did we",
+    "capsule history",
+    "search the capsule",
+    "look up",
+    "find my",
+    "search web",
+  ];
+  const mentionsRecall = recallKeywords.some((keyword) => text.includes(keyword));
+  const mentionsAttachment =
+    attachments.length > 0 && /attachment|file|upload|photo|image|picture|doc|pdf|screenshot/.test(text);
+  return mentionsRecall || mentionsAttachment;
 }
 
 function buildAssistantAttachments(
@@ -141,47 +209,14 @@ function buildAssistantAttachments(
   ];
 }
 
-function extractClarifierOption(
-  raw: Record<string, unknown> | undefined,
-): { clarifier: PromptClarifierInput | null; options: Record<string, unknown> } {
-  if (!raw || typeof raw !== "object") {
-    return { clarifier: null, options: {} };
-  }
-
-  const clone: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    clone[key] = value;
-  }
-
-  let clarifierInput: PromptClarifierInput | null = null;
-  const candidate = (clone as Record<string, unknown>).clarifier;
-  if (candidate && typeof candidate === "object") {
-    const record = candidate as Record<string, unknown>;
-    const questionId =
-      typeof record.questionId === "string" && record.questionId.trim().length
-        ? record.questionId.trim()
-        : undefined;
-    const answer =
-      typeof record.answer === "string" && record.answer.trim().length
-        ? record.answer.trim()
-        : undefined;
-    const skip = record.skip === true;
-    if (questionId !== undefined || answer !== undefined || skip) {
-      const clarifierPayload: PromptClarifierInput = {};
-      if (questionId !== undefined) {
-        clarifierPayload.questionId = questionId;
-      }
-      if (answer !== undefined) {
-        clarifierPayload.answer = answer;
-      }
-      if (skip) {
-        clarifierPayload.skip = true;
-      }
-      clarifierInput = Object.keys(clarifierPayload).length ? clarifierPayload : null;
-    }
-  }
-  delete (clone as Record<string, unknown>).clarifier;
-  return { clarifier: clarifierInput, options: clone };
+function normalizeChatReplyAttachments(
+  attachments: ComposerAttachment[] | undefined,
+): ComposerChatAttachment[] | null {
+  if (!attachments || !attachments.length) return null;
+  const sanitized = attachments
+    .map((attachment) => sanitizeComposerChatAttachment(attachment))
+    .filter((attachment): attachment is ComposerChatAttachment => Boolean(attachment));
+  return sanitized.length ? sanitized : null;
 }
 
 const HISTORY_RETURN_LIMIT = 24;
@@ -212,7 +247,24 @@ function trimContextSnippets(
   return trimmed;
 }
 
+function sseChunk(data: Record<string, unknown>): Uint8Array {
+  const encoder = new TextEncoder();
+  return encoder.encode(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function chunkText(text: string): string[] {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized.length) return [];
+  const parts = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
+  return parts.length ? parts : [normalized];
+}
+
 export async function POST(req: Request) {
+  const startedAt = Date.now();
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
     return returnError(401, "auth_required", "Sign in to use Capsule AI.");
@@ -248,9 +300,36 @@ export async function POST(req: Request) {
     (parsed.data.post as Record<string, unknown> | null | undefined) ?? null;
   const capsuleId = parsed.data.capsuleId ?? null;
 
+  const streamOption =
+    typeof rawOptions["stream"] === "boolean"
+      ? (rawOptions["stream"] as boolean)
+      : undefined;
+  if ("stream" in rawOptions) {
+    delete (rawOptions as Record<string, unknown>).stream;
+  }
+
   const attachments = sanitizeAttachments(parsed.data.attachments);
   const previousHistory = sanitizeComposerChatHistory(parsed.data.history ?? []);
   const threadId = coerceThreadId(parsed.data.threadId);
+  const contextStart = Date.now();
+  const streaming = parsed.data.stream === true || streamOption === true;
+
+  const recallIntent = detectRecallIntent({
+    message,
+    history: previousHistory,
+    rawOptions,
+    attachments,
+  });
+  const contextEnabled =
+    (typeof parsed.data.useContext === "boolean" ? parsed.data.useContext : true) && recallIntent;
+
+  const shouldBuildAttachmentContext = contextEnabled && attachments.length > 0;
+  const attachmentContexts = shouldBuildAttachmentContext
+    ? await buildAttachmentContext(attachments)
+    : [];
+  const formattedAttachmentContext = shouldBuildAttachmentContext
+    ? formatAttachmentContextForPrompt(attachmentContexts)
+    : null;
 
   const lowerMessage = message.toLowerCase();
   const preferRaw =
@@ -266,21 +345,17 @@ export async function POST(req: Request) {
       ? (rawOptions["seed"] as Record<string, unknown>)
       : {};
 
-  const { clarifier: clarifierOption, options: sanitizedOptions } = extractClarifierOption(
-    rawOptions,
-  );
+  const sanitizedOptions =
+    rawOptions && typeof rawOptions === "object" ? { ...rawOptions } : {};
 
-  let composeOptions = {
+  let composeOptions: ComposeDraftOptions = {
     history: previousHistory,
     attachments,
     capsuleId,
     rawOptions: sanitizedOptions,
-    clarifier: clarifierOption,
     ownerId,
   };
 
-  const useContext =
-    typeof parsed.data.useContext === "boolean" ? parsed.data.useContext : true;
   const requestOrigin = deriveRequestOrigin(req);
 
   let responseContext: {
@@ -289,78 +364,109 @@ export async function POST(req: Request) {
     memoryIds?: string[];
     snippets?: Array<Record<string, unknown>>;
     userCard?: string | null;
-  } = { enabled: useContext };
+    attachments?: Array<Record<string, unknown>>;
+  } = { enabled: contextEnabled };
 
-  if (useContext) {
-  const capsuleHistoryPromise: Promise<ChatMemorySnippet[]> =
-    useContext && capsuleId
-      ? getCapsuleHistorySnippets({ capsuleId, viewerId: ownerId, query: message })
-      : Promise.resolve<ChatMemorySnippet[]>([]);
+  const attachmentContextPrompt = formattedAttachmentContext?.prompt ?? null;
+  const attachmentContextRecords: ContextRecord[] =
+    formattedAttachmentContext?.records.map((entry) => ({
+      id: `attachment:${entry.id}`,
+      title: entry.name ?? null,
+      snippet: entry.snippet,
+      source: entry.source ?? "attachment",
+      url: null,
+      kind: entry.mimeType || "attachment",
+      tags: ["attachment"],
+      highlightHtml: null,
+    })) ?? [];
 
-  const [contextResult, userCardResult, capsuleHistorySnippets] = await Promise.all([
-    getChatContext({
-      ownerId,
-      message,
-      history: previousHistory,
-      origin: requestOrigin ?? null,
-      capsuleId,
-    }),
-    getUserCardCached(ownerId),
-    capsuleHistoryPromise,
-  ]);
+  const contextPrompts: string[] = [];
+  let resolvedContextRecords: ContextRecord[] = [...attachmentContextRecords];
+  let contextMetadata: Record<string, unknown> | null =
+    attachmentContexts.length > 0
+      ? { attachmentIds: attachmentContexts.map((entry) => entry.id) }
+      : null;
 
-  const memorySnippets = contextResult?.snippets ?? [];
-  const combinedSnippets = trimContextSnippets(
-    [...memorySnippets, ...capsuleHistorySnippets],
-    CONTEXT_SNIPPET_LIMIT,
-    CONTEXT_CHAR_BUDGET,
-  );
-  const combinedContext =
-    combinedSnippets.length > 0
-      ? {
-          query: contextResult?.query ?? message,
-          snippets: combinedSnippets,
-          usedIds: combinedSnippets.map((snippet) => snippet.id),
-        }
-      : contextResult;
-
-  const contextPrompt = formatContextForPrompt(combinedContext);
-  const contextForMetadata =
-    combinedSnippets.length > 0
-      ? {
-          query: contextResult?.query ?? message,
-          snippets: combinedSnippets,
-          usedIds: combinedSnippets.map((snippet) => snippet.id),
-        }
-      : contextResult;
-  let contextMetadata = buildContextMetadata(contextForMetadata);
-  if (capsuleHistorySnippets.length) {
-    contextMetadata = {
-      ...(contextMetadata ?? {}),
-      capsuleHistorySections: capsuleHistorySnippets.map((snippet) => snippet.id),
-    };
+  if (attachmentContextPrompt) {
+    contextPrompts.push(attachmentContextPrompt);
   }
 
-  const resolvedContextRecords = combinedSnippets.length
-    ? combinedSnippets.map((snippet) => ({
-        id: snippet.id,
-        title: snippet.title,
-        snippet: snippet.snippet,
-        source: snippet.source,
-        url: snippet.url,
-        kind: snippet.kind,
-        tags: snippet.tags,
-        highlightHtml: snippet.highlightHtml ?? null,
-      }))
-    : [];
+  if (contextEnabled) {
+    const capsuleHistoryPromise: Promise<ChatMemorySnippet[]> =
+      contextEnabled && capsuleId
+        ? getCapsuleHistorySnippets({ capsuleId, viewerId: ownerId, query: message })
+        : Promise.resolve<ChatMemorySnippet[]>([]);
 
-  composeOptions = {
-    ...composeOptions,
-    ...(userCardResult?.text ? { userCard: userCardResult.text } : {}),
-    ...(contextPrompt ? { contextPrompt } : {}),
-    ...(resolvedContextRecords.length ? { contextRecords: resolvedContextRecords } : {}),
-    ...(contextMetadata ? { contextMetadata } : {}),
-  };
+    const [contextResult, userCardResult, capsuleHistorySnippets] = await Promise.all([
+      getChatContext({
+        ownerId,
+        message,
+        history: previousHistory,
+        origin: requestOrigin ?? null,
+        capsuleId,
+      }),
+      getUserCardCached(ownerId),
+      capsuleHistoryPromise,
+    ]);
+
+    const memorySnippets = contextResult?.snippets ?? [];
+    const combinedSnippets = trimContextSnippets(
+      [...memorySnippets, ...capsuleHistorySnippets],
+      CONTEXT_SNIPPET_LIMIT,
+      CONTEXT_CHAR_BUDGET,
+    );
+    const combinedContext =
+      combinedSnippets.length > 0
+        ? {
+            query: contextResult?.query ?? message,
+            snippets: combinedSnippets,
+            usedIds: combinedSnippets.map((snippet) => snippet.id),
+          }
+        : contextResult;
+
+    const contextPrompt = formatContextForPrompt(combinedContext);
+    const contextForMetadata =
+      combinedSnippets.length > 0
+        ? {
+            query: contextResult?.query ?? message,
+            snippets: combinedSnippets,
+            usedIds: combinedSnippets.map((snippet) => snippet.id),
+          }
+        : contextResult;
+    contextMetadata = {
+      ...(contextMetadata ?? {}),
+      ...(buildContextMetadata(contextForMetadata) ?? {}),
+    };
+    if (capsuleHistorySnippets.length) {
+      contextMetadata = {
+        ...(contextMetadata ?? {}),
+        capsuleHistorySections: capsuleHistorySnippets.map((snippet) => snippet.id),
+      };
+    }
+
+    const memoryContextRecords: ContextRecord[] = combinedSnippets.length
+      ? combinedSnippets.map((snippet) => ({
+          id: snippet.id,
+          title: snippet.title ?? null,
+          snippet: snippet.snippet,
+          source: snippet.source ?? null,
+          url: snippet.url ?? null,
+          kind: snippet.kind ?? null,
+          tags: snippet.tags,
+          highlightHtml: snippet.highlightHtml ?? null,
+        }))
+      : [];
+
+    resolvedContextRecords = memoryContextRecords.length
+      ? [...resolvedContextRecords, ...memoryContextRecords]
+      : resolvedContextRecords;
+    if (contextPrompt) {
+      contextPrompts.push(contextPrompt);
+    }
+    composeOptions = {
+      ...composeOptions,
+      ...(userCardResult?.text ? { userCard: userCardResult.text } : {}),
+    };
 
     responseContext = {
       enabled: true,
@@ -377,23 +483,223 @@ export async function POST(req: Request) {
         tags: snippet.tags,
       })),
       userCard: userCardResult?.text ?? null,
+      attachments: attachmentContextRecords.map((record) => ({
+        id: record.id,
+        title: record.title,
+        snippet: record.snippet,
+        source: record.source ?? null,
+        kind: record.kind ?? null,
+        url: record.url ?? null,
+        highlightHtml: record.highlightHtml ?? null,
+        tags: record.tags,
+      })),
     };
 
     console.info("composer_context_ready", {
       ownerId,
       queryLength: contextResult?.query?.length ?? 0,
       memoryCount: resolvedContextRecords.length,
+      contextMs: Date.now() - contextStart,
     });
   } else {
-    responseContext = { enabled: false };
+    const userCardResult = await getUserCardCached(ownerId);
+    responseContext = {
+      enabled: false,
+      attachments: [],
+      userCard: userCardResult?.text ?? null,
+    };
+    composeOptions = {
+      ...composeOptions,
+      ...(userCardResult?.text ? { userCard: userCardResult.text } : {}),
+    };
+  }
+
+  const mergedContextPrompt = contextPrompts.filter(Boolean).join("\n\n");
+  if (mergedContextPrompt.length || resolvedContextRecords.length || contextMetadata) {
+    composeOptions = {
+      ...composeOptions,
+      ...(mergedContextPrompt.length ? { contextPrompt: mergedContextPrompt } : {}),
+      ...(resolvedContextRecords.length ? { contextRecords: resolvedContextRecords } : {}),
+      ...(contextMetadata ? { contextMetadata } : {}),
+    };
+  }
+
+  if (streaming) {
+    const stream = new ReadableStream({
+      start: async (controller) => {
+        const send = (data: Record<string, unknown>) => controller.enqueue(sseChunk(data));
+        const sendStatus = (message: string) => send({ event: "status", message });
+        sendStatus("Working on your request...");
+        sendStatus("Resolving context...");
+
+        const handleToolEvent = (event: ComposerToolEvent) => {
+          if (event.type === "status" && event.message) {
+            sendStatus(event.message);
+            return;
+          }
+          if (event.type === "tool_call") {
+            sendStatus(`Running ${event.name}...`);
+            return;
+          }
+          if (event.type === "tool_result") {
+            sendStatus(`${event.name} ready.`);
+          }
+        };
+
+        try {
+          const modelStart = Date.now();
+          const userEntry: ComposerChatMessage = {
+            id: safeRandomUUID(),
+            role: "user",
+            content: message,
+            createdAt: new Date().toISOString(),
+            attachments: attachments.length ? attachments : null,
+          };
+
+          let payload: PromptResponse;
+
+          if (preferPoll) {
+            const pollDraft = await createPollDraft(message, pollHint, composeOptions);
+            payload = promptResponseSchema.parse({
+              action: "draft_post",
+              message: pollDraft.message,
+              post: {
+                kind: "poll",
+                content: "",
+                poll: pollDraft.poll,
+                source: "ai-prompter",
+              },
+            });
+          } else {
+            const toolRun = await runComposerToolSession(
+              { userText: message, incomingPost, context: composeOptions },
+              { onEvent: handleToolEvent },
+            );
+            payload = toolRun.response;
+          }
+
+          const validated: PromptResponse = promptResponseSchema.parse(payload);
+          let assistantEntry: ComposerChatMessage;
+          let artifactEntry: ComposerChatMessage | null = null;
+          let streamingAssistantMessage: string;
+          let historyBase = [...previousHistory, userEntry];
+
+          if (validated.action === "chat_reply") {
+            const chatMessage = validated.message.trim();
+            const replyAttachments = normalizeChatReplyAttachments(validated.replyAttachments);
+            assistantEntry = {
+              id: safeRandomUUID(),
+              role: "assistant",
+              content: chatMessage,
+              createdAt: new Date().toISOString(),
+              attachments: replyAttachments,
+            };
+            streamingAssistantMessage = chatMessage;
+            historyBase = [...historyBase, assistantEntry];
+          } else {
+            const postContent =
+              typeof (validated.post as { content?: unknown })?.content === "string"
+                ? ((validated.post as { content: string }).content ?? "").trim()
+                : "";
+            const baseAssistantMessage =
+              typeof validated.message === "string" && validated.message.trim().length
+                ? validated.message.trim()
+                : "I've drafted a first pass.";
+            const assistantAttachments = buildAssistantAttachments(validated.post ?? null);
+            artifactEntry =
+              postContent || (assistantAttachments && assistantAttachments.length)
+                ? {
+                    id: safeRandomUUID(),
+                    role: "assistant",
+                    content: postContent,
+                    createdAt: new Date().toISOString(),
+                    attachments:
+                      assistantAttachments && assistantAttachments.length ? assistantAttachments : null,
+                  }
+                : null;
+            assistantEntry = {
+              id: safeRandomUUID(),
+              role: "assistant",
+              content: baseAssistantMessage,
+              createdAt: new Date().toISOString(),
+              attachments: null,
+            };
+            streamingAssistantMessage = postContent
+              ? `${postContent}\n\n${baseAssistantMessage}`
+              : baseAssistantMessage;
+            if (artifactEntry) {
+              historyBase = [...historyBase, artifactEntry];
+            }
+            historyBase = [...historyBase, assistantEntry];
+          }
+
+          const historyOut = historyBase.slice(-HISTORY_RETURN_LIMIT);
+
+          storeConversationSnapshot(ownerId, threadId, {
+            threadId,
+            prompt: userEntry.content,
+            message: assistantEntry.content,
+            history: historyOut,
+            draft: validated.action === "draft_post" ? validated.post ?? null : null,
+            rawPost: validated.action === "draft_post" ? validated.post ?? null : null,
+            updatedAt: assistantEntry.createdAt,
+          }).catch((error) => {
+            console.warn("composer conversation store failed", error);
+          });
+
+          const sentChunks = chunkText(streamingAssistantMessage);
+          let assembled = "";
+          for (const part of sentChunks) {
+            assembled = assembled ? `${assembled} ${part}` : part;
+            send({ event: "partial", content: assembled });
+            await sleep(150);
+          }
+
+          const finalResponse = promptResponseSchema.parse({
+            ...validated,
+            threadId,
+            history: historyOut,
+            context: responseContext,
+          });
+
+          console.info("composer_prompt_latency", {
+            ownerId,
+            contextMs: contextStart ? Date.now() - contextStart : null,
+            modelMs: Date.now() - modelStart,
+            totalMs: Date.now() - startedAt,
+            attachments: attachments.length,
+            stream: true,
+          });
+
+          send({ event: "done", payload: finalResponse });
+          controller.close();
+        } catch (error) {
+          console.error("composer prompt failed (stream)", error);
+          send({
+            event: "error",
+            error: "Capsule AI ran into an error drafting that.",
+          });
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   }
 
   try {
-    let payload: unknown;
+    const modelStart = Date.now();
+    let payload: PromptResponse;
 
     if (preferPoll) {
       const pollDraft = await createPollDraft(message, pollHint, composeOptions);
-      payload = {
+      payload = promptResponseSchema.parse({
         action: "draft_post",
         message: pollDraft.message,
         post: {
@@ -402,11 +708,14 @@ export async function POST(req: Request) {
           poll: pollDraft.poll,
           source: "ai-prompter",
         },
-      } as z.infer<typeof draftPostResponseSchema>;
-    } else if (incomingPost) {
-      payload = await refinePostDraft(message, incomingPost, composeOptions);
+      });
     } else {
-      payload = await createPostDraft(message, composeOptions);
+      const toolRun = await runComposerToolSession({
+        userText: message,
+        incomingPost,
+        context: composeOptions,
+      });
+      payload = toolRun.response;
     }
 
     const userEntry: ComposerChatMessage = {
@@ -417,100 +726,61 @@ export async function POST(req: Request) {
       attachments: attachments.length ? attachments : null,
     };
 
-    if (
-      payload &&
-      typeof payload === "object" &&
-      (payload as { action?: string }).action === "clarify_image_prompt"
-    ) {
-      const clarifierPayload = payload as {
-        action: "clarify_image_prompt";
-        questionId: string;
-        question: string;
-        rationale?: string | null;
-        suggestions?: unknown;
-        styleTraits?: unknown;
+    const validated: PromptResponse = promptResponseSchema.parse(payload);
+    let assistantEntry: ComposerChatMessage;
+    let artifactEntry: ComposerChatMessage | null = null;
+    let nextHistory = [...previousHistory, userEntry];
+
+    if (validated.action === "chat_reply") {
+      const replyAttachments = normalizeChatReplyAttachments(validated.replyAttachments);
+      assistantEntry = {
+        id: safeRandomUUID(),
+        role: "assistant",
+        content: validated.message.trim(),
+        createdAt: new Date().toISOString(),
+        attachments: replyAttachments,
       };
-
-      const suggestionList = Array.isArray(clarifierPayload.suggestions)
-        ? clarifierPayload.suggestions
-            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-            .filter((entry) => entry.length > 0)
-        : [];
-      const styleTraitList = Array.isArray(clarifierPayload.styleTraits)
-        ? clarifierPayload.styleTraits
-            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-            .filter((entry) => entry.length > 0)
-        : [];
-
-      const historyOut = [...previousHistory, userEntry].slice(-HISTORY_RETURN_LIMIT);
-
-      await storeConversationSnapshot(ownerId, threadId, {
-        threadId,
-        prompt: userEntry.content,
-        message: clarifierPayload.question.trim(),
-        history: historyOut,
-        draft: null,
-        rawPost: null,
-        updatedAt: new Date().toISOString(),
-      }).catch((error) => {
-        console.warn("composer conversation store failed", error);
-      });
-
-      const clarifierResponse = promptResponseSchema.parse({
-        action: "clarify_image_prompt",
-        questionId: clarifierPayload.questionId,
-        question: clarifierPayload.question,
-        rationale:
-          typeof clarifierPayload.rationale === "string" &&
-          clarifierPayload.rationale.trim().length
-            ? clarifierPayload.rationale.trim()
-            : undefined,
-        suggestions: suggestionList.length ? suggestionList : undefined,
-        styleTraits: styleTraitList.length ? styleTraitList : undefined,
-        threadId,
-        history: historyOut,
-      });
-
-      return validatedJson(promptResponseSchema, clarifierResponse);
+      nextHistory = [...nextHistory, assistantEntry];
+    } else {
+      const postContent =
+        typeof (validated.post as { content?: unknown })?.content === "string"
+          ? ((validated.post as { content: string }).content ?? "").trim()
+          : "";
+      const baseAssistantMessage =
+        typeof validated.message === "string" && validated.message.trim().length
+          ? validated.message.trim()
+          : "I've drafted a first pass.";
+      const assistantAttachments = buildAssistantAttachments(validated.post ?? null);
+      if (postContent || (assistantAttachments && assistantAttachments.length)) {
+        artifactEntry = {
+          id: safeRandomUUID(),
+          role: "assistant",
+          content: postContent,
+          createdAt: new Date().toISOString(),
+          attachments:
+            assistantAttachments && assistantAttachments.length ? assistantAttachments : null,
+        };
+        nextHistory = [...nextHistory, artifactEntry];
+      }
+      assistantEntry = {
+        id: safeRandomUUID(),
+        role: "assistant",
+        content: baseAssistantMessage,
+        createdAt: new Date().toISOString(),
+        attachments: null,
+      };
+      nextHistory = [...nextHistory, assistantEntry];
     }
 
-    const validated = draftPostResponseSchema.parse(payload);
+    const historyOut = nextHistory.slice(-HISTORY_RETURN_LIMIT);
 
-    const postContent =
-      typeof (validated.post as { content?: unknown })?.content === "string"
-        ? ((validated.post as { content: string }).content ?? "").trim()
-        : "";
-    const baseAssistantMessage =
-      typeof validated.message === "string" && validated.message.trim().length
-        ? validated.message.trim()
-        : "I've drafted a first pass.";
-    const assistantMessage = postContent
-      ? `${baseAssistantMessage}\n\n${postContent}`
-      : baseAssistantMessage;
-    const assistantAttachments = buildAssistantAttachments(
-      validated.post ?? null,
-    );
-    const assistantEntry: ComposerChatMessage = {
-      id: safeRandomUUID(),
-      role: "assistant",
-      content: assistantMessage,
-      createdAt: new Date().toISOString(),
-      attachments: assistantAttachments && assistantAttachments.length
-        ? assistantAttachments
-        : null,
-    };
-
-    const historyOut = [...previousHistory, userEntry, assistantEntry].slice(
-      -HISTORY_RETURN_LIMIT,
-    );
-
-    await storeConversationSnapshot(ownerId, threadId, {
+    storeConversationSnapshot(ownerId, threadId, {
       threadId,
       prompt: userEntry.content,
       message: assistantEntry.content,
       history: historyOut,
-      draft: validated.post ?? null,
-      rawPost: validated.post ?? null,
+      draft: validated.action === "draft_post" ? validated.post ?? null : null,
+      rawPost: validated.action === "draft_post" ? validated.post ?? null : null,
       updatedAt: assistantEntry.createdAt,
     }).catch((error) => {
       console.warn("composer conversation store failed", error);
@@ -521,6 +791,14 @@ export async function POST(req: Request) {
       threadId,
       history: historyOut,
       context: responseContext,
+    });
+
+    console.info("composer_prompt_latency", {
+      ownerId,
+      contextMs: contextStart ? Date.now() - contextStart : null,
+      modelMs: Date.now() - modelStart,
+      totalMs: Date.now() - startedAt,
+      attachments: attachments.length,
     });
 
     return validatedJson(promptResponseSchema, finalResponse);

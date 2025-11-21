@@ -103,7 +103,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  color: color-mix(in srgb, #ffffff 92%, transparent);
+  color: color-mix(in srgb, var(--text-on-brand, #ffffff) 92%, transparent);
   font-size: clamp(
     var(--capsule-logo-initial-min, 0.82rem),
     calc(var(--capsule-logo-size) * var(--capsule-logo-initial-scale, 0.42)),
@@ -157,7 +157,7 @@
     var(--pill-bg-1, rgba(255, 255, 255, 0.1)),
     var(--pill-bg-2, rgba(255, 255, 255, 0.06))
   );
-  color: var(--accent, #22d3ee);
+  color: var(--color-accent, #22d3ee);
   font-weight: 800;
   font-size: 0.72rem;
 }

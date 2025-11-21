@@ -5,12 +5,7 @@ import { normalizeDraftFromPost } from "@/lib/composer/normalizers";
 import type { ComposerDraft } from "@/lib/composer/draft";
 import type { PromptResponse } from "@/shared/schemas/ai";
 import { safeRandomUUID } from "@/lib/random";
-import {
-  appendCapsuleContext,
-  IMAGE_INTENT_REGEX,
-  mergeComposerChatHistory,
-  mergeComposerRawPost,
-} from "./ai-shared";
+import { appendCapsuleContext, mergeComposerChatHistory, mergeComposerRawPost } from "./ai-shared";
 import { mergeComposerDrafts } from "./draft-merge";
 import type { ComposerState } from "../ComposerProvider";
 
@@ -21,8 +16,6 @@ export type ComposerAiApplyResult = {
   draft: ComposerDraft | null;
   rawPost: Record<string, unknown> | null;
   threadId: string | null;
-  resolvedQuestionId: string | null;
-  fallbackImagePrompt: string | null;
   message: string | null;
 };
 
@@ -43,40 +36,19 @@ export function useComposerAi({
       payload: PromptResponse,
       mode: PromptRunMode = "default",
     ): ComposerAiApplyResult | null => {
-      if (payload.action === "clarify_image_prompt") {
-        const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
-        setState((prev) => {
-          const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
-          const historyForState = mergeComposerChatHistory(prev.history, normalizedHistory);
-          return {
-            ...prev,
-            open: true,
-            loading: false,
-            prompt,
-            message: payload.question,
-            choices: null,
-            history: historyForState,
-            threadId: nextThreadId,
-            clarifier: {
-              questionId: payload.questionId,
-              question: payload.question,
-              rationale: payload.rationale ?? null,
-              suggestions: [...(payload.suggestions ?? [])],
-              styleTraits: [...(payload.styleTraits ?? [])],
-            },
-          };
-        });
-        return null;
-      }
-
-      const rawSource = (payload.post ?? {}) as Record<string, unknown>;
-      const rawPost = appendCapsuleContext({ ...rawSource }, activeCapsuleId);
-      const baseDraftForKind = normalizeDraftFromPost(rawPost);
+      const isDraftResponse = payload.action === "draft_post";
+      const rawSource =
+        isDraftResponse && payload.post && typeof payload.post === "object"
+          ? (payload.post as Record<string, unknown>)
+          : null;
+      const rawPost = rawSource ? appendCapsuleContext({ ...rawSource }, activeCapsuleId) : null;
+      const baseDraftForKind = isDraftResponse
+        ? normalizeDraftFromPost(rawPost ?? {})
+        : normalizeDraftFromPost({});
       const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
-      const isDraftResponse = (payload as { action?: string }).action === "draft_post";
       const draftPayloadPost =
-        isDraftResponse && typeof (payload as { post?: unknown }).post === "object"
-          ? ((payload as { post?: Record<string, unknown> | null }).post ?? null)
+        isDraftResponse && typeof payload.post === "object"
+          ? ((payload.post as Record<string, unknown>) ?? null)
           : null;
       const draftPostContent =
         mode === "chatOnly" &&
@@ -96,11 +68,9 @@ export function useComposerAi({
 
       let recordedHistory: ComposerChatMessage[] = [];
       let recordedThreadId: string | null = null;
-      let resolvedQuestionId: string | null = null;
       let recordedDraft: ComposerDraft | null = null;
       let recordedRawPost: Record<string, unknown> | null = null;
-      const applyDraftUpdates = mode !== "chatOnly";
-      let fallbackImagePrompt: string | null = null;
+      const applyDraftUpdates = mode !== "chatOnly" && isDraftResponse;
 
       setState((prev) => {
         const nextThreadId = payload.threadId ?? prev.threadId ?? safeRandomUUID();
@@ -130,9 +100,6 @@ export function useComposerAi({
         }
         recordedHistory = historyForState;
         recordedThreadId = nextThreadId;
-        if (prev.clarifier?.questionId) {
-          resolvedQuestionId = prev.clarifier.questionId;
-        }
         const preserveOptions =
           applyDraftUpdates && shouldPreservePollOptions(prompt, prev.draft ?? null);
         let mergedDraft: ComposerDraft | null = prev.draft ?? null;
@@ -142,47 +109,19 @@ export function useComposerAi({
             preservePollOptions: preserveOptions,
           });
           mergedDraft = draftForMerge;
-          mergedRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPost, draftForMerge);
-          const mergedKind = (draftForMerge.kind ?? "").toLowerCase();
-          const baseKind = (baseDraftForKind.kind ?? "").toLowerCase();
-          const expectsImage =
-            mergedKind === "image" ||
-            baseKind === "image" ||
-            Boolean(prev.clarifier?.questionId) ||
-            IMAGE_INTENT_REGEX.test(prompt);
-          const baseHasMediaUrl =
-            typeof baseDraftForKind.mediaUrl === "string" &&
-            baseDraftForKind.mediaUrl.trim().length > 0;
-          if (expectsImage && !baseHasMediaUrl) {
-            const candidate =
-              typeof baseDraftForKind.mediaPrompt === "string"
-                ? baseDraftForKind.mediaPrompt.trim()
-                : "";
-            if (candidate) {
-              fallbackImagePrompt = candidate;
-            }
-          }
+          mergedRawPost = mergeComposerRawPost(rawPost, draftForMerge);
         } else {
           mergedRawPost = prev.rawPost ?? rawPost ?? null;
-        }
-
-        const wasClarifier = Boolean(prev.clarifier?.questionId);
-        const willBeImage =
-          (mergedDraft?.kind ?? baseDraftForKind.kind ?? "").toLowerCase() === "image";
-        if (wasClarifier && willBeImage) {
-          const lower = (messageText ?? "").toLowerCase();
-          if (!lower || lower.includes("post")) {
-            messageText = "Got it! I'll work on that visual for you.";
-          }
         }
 
         if (applyDraftUpdates) {
           const draftKind = (mergedDraft?.kind ?? baseDraftForKind.kind ?? "text").toLowerCase();
           const mergedHasContent =
             typeof mergedDraft?.content === "string" && mergedDraft.content.trim().length > 0;
+          const rawContainer = (mergedRawPost ?? {}) as { content?: unknown };
           const rawHasContent =
-            typeof (mergedRawPost as { content?: unknown })?.content === "string" &&
-            Boolean(((mergedRawPost as { content?: string }).content ?? "").trim().length);
+            typeof rawContainer.content === "string" &&
+            Boolean(((rawContainer as { content?: string }).content ?? "").trim().length);
           const candidateMessage =
             typeof messageText === "string" && messageText.trim().length ? messageText.trim() : null;
           const fallbackContent =
@@ -201,33 +140,34 @@ export function useComposerAi({
         }
         recordedDraft = mergedDraft;
         recordedRawPost = mergedRawPost;
+        const rawContainer = (mergedRawPost ?? {}) as Record<string, unknown>;
         const rawVideoRunId =
-          typeof (mergedRawPost as { video_run_id?: unknown }).video_run_id === "string"
-            ? ((mergedRawPost as { video_run_id: string }).video_run_id ?? "").trim() || null
-            : typeof (mergedRawPost as { videoRunId?: unknown }).videoRunId === "string"
-              ? ((mergedRawPost as { videoRunId: string }).videoRunId ?? "").trim() || null
+          typeof (rawContainer as { video_run_id?: unknown }).video_run_id === "string"
+            ? (((rawContainer as { video_run_id: string }).video_run_id ?? "").trim() || null)
+            : typeof (rawContainer as { videoRunId?: unknown }).videoRunId === "string"
+              ? (((rawContainer as { videoRunId: string }).videoRunId ?? "").trim() || null)
               : null;
         const rawVideoRunStatus =
-          typeof (mergedRawPost as { video_run_status?: unknown }).video_run_status === "string"
-            ? ((mergedRawPost as { video_run_status: string }).video_run_status ?? "")
+          typeof (rawContainer as { video_run_status?: unknown }).video_run_status === "string"
+            ? (((rawContainer as { video_run_status: string }).video_run_status ?? "")
                 .trim()
-                .toLowerCase() || null
-            : typeof (mergedRawPost as { videoRunStatus?: unknown }).videoRunStatus === "string"
-              ? ((mergedRawPost as { videoRunStatus: string }).videoRunStatus ?? "")
+                .toLowerCase() || null)
+            : typeof (rawContainer as { videoRunStatus?: unknown }).videoRunStatus === "string"
+              ? (((rawContainer as { videoRunStatus: string }).videoRunStatus ?? "")
                   .trim()
-                  .toLowerCase() || null
+                  .toLowerCase() || null)
               : null;
         const rawVideoRunError =
-          typeof (mergedRawPost as { video_run_error?: unknown }).video_run_error === "string"
-            ? ((mergedRawPost as { video_run_error: string }).video_run_error ?? "").trim() || null
-            : typeof (mergedRawPost as { videoRunError?: unknown }).videoRunError === "string"
-              ? ((mergedRawPost as { videoRunError: string }).videoRunError ?? "").trim() || null
+          typeof (rawContainer as { video_run_error?: unknown }).video_run_error === "string"
+            ? (((rawContainer as { video_run_error: string }).video_run_error ?? "").trim() || null)
+            : typeof (rawContainer as { videoRunError?: unknown }).videoRunError === "string"
+              ? (((rawContainer as { videoRunError: string }).videoRunError ?? "").trim() || null)
               : null;
         const rawMemoryId =
-          typeof (mergedRawPost as { memory_id?: unknown }).memory_id === "string"
-            ? ((mergedRawPost as { memory_id: string }).memory_id ?? "").trim() || null
-            : typeof (mergedRawPost as { memoryId?: unknown }).memoryId === "string"
-              ? ((mergedRawPost as { memoryId: string }).memoryId ?? "").trim() || null
+          typeof (rawContainer as { memory_id?: unknown }).memory_id === "string"
+            ? (((rawContainer as { memory_id: string }).memory_id ?? "").trim() || null)
+            : typeof (rawContainer as { memoryId?: unknown }).memoryId === "string"
+              ? (((rawContainer as { memoryId: string }).memoryId ?? "").trim() || null)
               : null;
         const resolvedRunId = mergedDraft?.videoRunId ?? rawVideoRunId ?? prev.videoStatus.runId;
         const normalizedRunStatus = (() => {
@@ -320,26 +260,16 @@ export function useComposerAi({
           choices: applyDraftUpdates ? payload.choices ?? null : prev.choices,
           history: historyForState,
           threadId: nextThreadId,
-          clarifier: null,
           videoStatus: nextVideoStatus,
           contextSnapshot: nextSnapshot,
         };
       });
-
-      if (resolvedQuestionId) {
-        console.info("image_clarifier_resolved", {
-          questionId: resolvedQuestionId,
-          prompt,
-        });
-      }
 
       return {
         history: recordedHistory,
         draft: recordedDraft,
         rawPost: recordedRawPost,
         threadId: recordedThreadId,
-        resolvedQuestionId,
-        fallbackImagePrompt,
         message: messageText,
       };
     },

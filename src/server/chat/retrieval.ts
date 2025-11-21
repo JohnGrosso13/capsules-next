@@ -1,3 +1,4 @@
+import { serverEnv } from "@/lib/env/server";
 import { searchMemories } from "@/lib/supabase/memories";
 import { getCapsuleHistory } from "@/server/capsules/service";
 import {
@@ -9,6 +10,7 @@ import {
   parseStructuredQuery,
   type StructuredPayload,
 } from "@/server/capsules/structured";
+import { searchWeb, type WebSearchSnippet } from "@/server/search/web-search";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 import type {
   CapsuleHistorySection,
@@ -296,25 +298,54 @@ export async function getChatContext(params: {
   if (!query.trim().length) return null;
 
   const limit = Math.max(1, Math.min(params.limit ?? DEFAULT_LIMIT, 12));
+  const allowWebSearch = serverEnv.WEB_SEARCH_ENABLED && query.length >= 24;
 
   try {
-    const rows = await searchMemories({
+    const memoriesPromise = searchMemories({
       ownerId,
       query,
       limit,
       origin: params.origin ?? null,
-    });
+    })
+      .then((rows) =>
+        rows
+          .map((row) => collectSnippet(row as RawMemoryRow))
+          .filter((snippet): snippet is ChatMemorySnippet => Boolean(snippet)),
+      )
+      .catch((error) => {
+        console.warn("chat retrieval: memories failed", error);
+        return [] as ChatMemorySnippet[];
+      });
 
-    const snippets = rows
-      .map((row) => collectSnippet(row as RawMemoryRow))
-      .filter((snippet): snippet is ChatMemorySnippet => Boolean(snippet));
-
-    const structured = await resolveStructuredSnippets({
+    const structuredPromise = resolveStructuredSnippets({
       capsuleId: params.capsuleId ?? null,
       query,
+    }).catch((error) => {
+      console.warn("chat retrieval: structured failed", error);
+      return [] as ChatMemorySnippet[];
     });
 
-    const finalSnippets = structured.length ? [...structured, ...snippets] : snippets;
+    const webPromise = allowWebSearch
+      ? searchWeb(query, { limit: Math.max(1, Math.min(3, limit)) })
+          .then((entries) => entries.map((entry) => mapWebSearchSnippet(entry)))
+          .catch((error) => {
+            console.warn("chat retrieval: web failed", error);
+            return [] as ChatMemorySnippet[];
+          })
+      : Promise.resolve([] as ChatMemorySnippet[]);
+
+    const [snippets, structured, webSnippets] = await Promise.all([
+      memoriesPromise,
+      structuredPromise,
+      webPromise,
+    ]);
+
+    const finalSnippets = (() => {
+      if (structured.length || webSnippets.length) {
+        return [...structured, ...snippets, ...webSnippets];
+      }
+      return snippets;
+    })();
 
     return {
       query,
@@ -457,6 +488,20 @@ function mapCapsuleVectorSnippet(snippet: CapsuleKnowledgeSnippet): ChatMemorySn
     url: snippet.url,
     createdAt: snippet.createdAt,
     tags: snippet.tags,
+    source: snippet.source,
+    highlightHtml: null,
+  };
+}
+
+function mapWebSearchSnippet(snippet: WebSearchSnippet): ChatMemorySnippet {
+  return {
+    id: snippet.id,
+    title: snippet.title,
+    snippet: snippet.snippet,
+    kind: "web",
+    url: snippet.url,
+    createdAt: null,
+    tags: snippet.tags.length ? snippet.tags : ["web"],
     source: snippet.source,
     highlightHtml: null,
   };

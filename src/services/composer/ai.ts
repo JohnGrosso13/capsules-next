@@ -7,88 +7,6 @@ import {
   type PromptResponse,
 } from "@/shared/schemas/ai";
 
-const ATTACHMENT_CONTEXT_LIMIT = 2;
-const ATTACHMENT_CONTEXT_CHAR_LIMIT = 2000;
-const TEXT_MIME_PREFIXES = ["text/", "application/json", "application/xml", "application/yaml"];
-const TEXT_EXTENSIONS = new Set([
-  "txt",
-  "md",
-  "markdown",
-  "csv",
-  "tsv",
-  "json",
-  "yaml",
-  "yml",
-  "xml",
-  "log",
-  "ini",
-]);
-
-function extractExtension(name: string | undefined): string | null {
-  if (!name) return null;
-  const trimmed = name.trim();
-  if (!trimmed.length) return null;
-  const parts = trimmed.split(".");
-  if (parts.length <= 1) return null;
-  const ext = parts.pop();
-  return ext ? ext.toLowerCase() : null;
-}
-
-function isLikelyTextAttachment(attachment: PrompterAttachment): boolean {
-  const mime = (attachment.mimeType ?? "").toLowerCase();
-  if (TEXT_MIME_PREFIXES.some((prefix) => mime.startsWith(prefix))) {
-    return true;
-  }
-  const extension = extractExtension(attachment.name);
-  if (extension && TEXT_EXTENSIONS.has(extension)) {
-    return true;
-  }
-  return false;
-}
-
-async function buildAttachmentContext(
-  attachments?: PrompterAttachment[] | null,
-): Promise<Array<{ id: string; name: string; text: string }>> {
-  if (!attachments || !attachments.length) return [];
-  const collected: Array<{ id: string; name: string; text: string }> = [];
-
-  for (const attachment of attachments) {
-    if (collected.length >= ATTACHMENT_CONTEXT_LIMIT) break;
-    const role = attachment.role ?? "reference";
-    if (role !== "reference") continue;
-    if (!attachment.url) continue;
-    const excerpt =
-      typeof attachment.excerpt === "string" && attachment.excerpt.trim().length
-        ? attachment.excerpt.trim()
-        : null;
-    if (excerpt) {
-      collected.push({
-        id: attachment.id,
-        name: attachment.name,
-        text: excerpt.slice(0, ATTACHMENT_CONTEXT_CHAR_LIMIT),
-      });
-      continue;
-    }
-    if (!isLikelyTextAttachment(attachment)) continue;
-    try {
-      const response = await fetch(attachment.url);
-      if (!response.ok) continue;
-      const raw = await response.text();
-      const snippet = raw.slice(0, ATTACHMENT_CONTEXT_CHAR_LIMIT).trim();
-      if (!snippet.length) continue;
-      collected.push({
-        id: attachment.id,
-        name: attachment.name,
-        text: snippet,
-      });
-    } catch {
-      // Ignore fetch failures when building attachment context
-    }
-  }
-
-  return collected;
-}
-
 export type CallAiPromptParams = {
   message: string;
   options?: Record<string, unknown>;
@@ -98,6 +16,9 @@ export type CallAiPromptParams = {
   threadId?: string | null;
   capsuleId?: string | null;
   useContext?: boolean;
+  stream?: boolean;
+  onStreamMessage?: (content: string) => void;
+  endpoint?: string;
 };
 
 export async function callAiPrompt({
@@ -109,22 +30,16 @@ export async function callAiPrompt({
   threadId,
   capsuleId,
   useContext = true,
+  stream = false,
+  onStreamMessage,
+  endpoint = "/api/ai/prompt",
 }: CallAiPromptParams): Promise<PromptResponse> {
-  const contextSnippets = await buildAttachmentContext(attachments ?? undefined);
-  let requestMessage = message;
-  if (contextSnippets.length) {
-    const contextText = contextSnippets
-      .map(({ name, text }) => `Attachment "${name}":\n${text}`)
-      .join("\n\n");
-    requestMessage = `${message}\n\n---\nAttachment context provided:\n${contextText}`;
-  }
-
-  const body: Record<string, unknown> = { message: requestMessage };
-  if (options && Object.keys(options).length) body.options = options;
-  if (post) body.post = post;
+  const prepStarted = performance.now();
+  const baseBody: Record<string, unknown> = { message };
+  if (options && Object.keys(options).length) baseBody.options = options;
+  if (post) baseBody.post = post;
   if (attachments && attachments.length) {
-    const excerptMap = new Map(contextSnippets.map(({ id, text }) => [id, text]));
-    body.attachments = attachments.map((attachment) => ({
+    baseBody.attachments = attachments.map((attachment) => ({
       id: attachment.id,
       name: attachment.name,
       mimeType: attachment.mimeType,
@@ -135,14 +50,11 @@ export async function callAiPrompt({
       sessionId: attachment.sessionId ?? null,
       role: attachment.role ?? "reference",
       source: attachment.source ?? "user",
-      excerpt: attachment.excerpt ?? excerptMap.get(attachment.id) ?? null,
+      excerpt: attachment.excerpt ?? null,
     }));
   }
-  if (contextSnippets.length) {
-    body.context = contextSnippets;
-  }
   if (history && history.length) {
-    body.history = history.map(({ attachments: entryAttachments, ...rest }) => {
+    baseBody.history = history.map(({ attachments: entryAttachments, ...rest }) => {
       if (Array.isArray(entryAttachments) && entryAttachments.length) {
         return { ...rest, attachments: entryAttachments };
       }
@@ -150,22 +62,128 @@ export async function callAiPrompt({
     });
   }
   if (threadId) {
-    body.threadId = threadId;
+    baseBody.threadId = threadId;
   }
   if (capsuleId) {
-    body.capsuleId = capsuleId;
+    baseBody.capsuleId = capsuleId;
   }
-  body.useContext = useContext !== false;
+  baseBody.useContext = useContext !== false;
 
-  const response = await fetch("/api/ai/prompt", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const json = await response.json().catch(() => null);
-  if (!response.ok || !json) {
-    throw new Error(`Prompt request failed (${response.status})`);
-  }
-  return promptResponseSchema.parse(json);
+  const prepMs = performance.now() - prepStarted;
+
+  const runRequest = async (streamMode: boolean, allowFallback: boolean): Promise<PromptResponse> => {
+    const body = { ...baseBody, ...(streamMode ? { stream: true } : {}) };
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort("ai_prompt_timeout"), 120000);
+
+    const apiStarted = performance.now();
+    const response = await fetch(endpoint, {
+      method: "POST",
+      credentials: "include",
+      headers: streamMode
+        ? {
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+          }
+        : { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    }).catch((error) => {
+      clearTimeout(timeoutId);
+      throw error;
+    });
+    clearTimeout(timeoutId);
+
+    if (streamMode) {
+      try {
+        if (!response.ok || !response.body) {
+          throw new Error(`Prompt request failed (${response.status})`);
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalPayload: PromptResponse | null = null;
+        let streamError: Error | null = null;
+
+        const processBuffer = (input: string) => {
+          const parts = input.split("\n\n");
+          buffer = parts.pop() ?? "";
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith("data:")) continue;
+            const payloadRaw = line.replace(/^data:\s*/, "");
+            try {
+              const event = JSON.parse(payloadRaw) as {
+                event?: string;
+                message?: string;
+                content?: string;
+                payload?: unknown;
+                error?: string;
+              };
+              if (event.event === "partial" && typeof event.content === "string" && onStreamMessage) {
+                onStreamMessage(event.content);
+              } else if (
+                event.event === "status" &&
+                typeof event.message === "string" &&
+                onStreamMessage
+              ) {
+                onStreamMessage(event.message);
+              } else if (event.event === "done" && event.payload) {
+                finalPayload = promptResponseSchema.parse(event.payload);
+              } else if (event.event === "error") {
+                throw new Error(event.error || "stream error");
+              }
+            } catch (error) {
+              if (!streamError) {
+                streamError = error instanceof Error ? error : new Error("Malformed stream event");
+              }
+            }
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          processBuffer(buffer);
+        }
+        if (buffer.trim().length) {
+          processBuffer(`${buffer}\n\n`);
+        }
+        const apiMs = performance.now() - apiStarted;
+        console.info("composer_ai_request_timing", {
+          prepMs: Math.round(prepMs),
+          apiMs: Math.round(apiMs),
+          attachments: attachments?.length ?? 0,
+          stream: true,
+        });
+        if (streamError && !finalPayload) {
+          throw streamError;
+        }
+        if (!finalPayload) {
+          throw new Error("Prompt stream ended without final payload");
+        }
+        return finalPayload;
+      } catch (error) {
+        if (!allowFallback) throw error instanceof Error ? error : new Error(String(error));
+        console.warn("Prompt stream failed, retrying without stream", error);
+        return runRequest(false, false);
+      }
+    }
+
+    const json = await response.json().catch(() => null);
+    if (!response.ok || !json) {
+      throw new Error(`Prompt request failed (${response.status})`);
+    }
+    const apiMs = performance.now() - apiStarted;
+    console.info("composer_ai_request_timing", {
+      prepMs: Math.round(prepMs),
+      apiMs: Math.round(apiMs),
+      attachments: attachments?.length ?? 0,
+      stream: false,
+    });
+    return promptResponseSchema.parse(json);
+  };
+
+  return runRequest(stream, true);
 }

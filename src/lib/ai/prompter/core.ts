@@ -7,6 +7,23 @@ export type ChatMessage = Record<string, unknown>;
 
 export type JsonSchema = { name: string; schema: Record<string, unknown> };
 
+export type ToolCallDefinition = {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+};
+
+export type ToolCall = {
+  id: string;
+  function: { name: string; arguments: string };
+};
+
+type ChatCompletionMessage = {
+  role?: string;
+  content?: string | null;
+  tool_calls?: ToolCall[];
+};
+
 export class AIConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -140,22 +157,85 @@ function compactMessagesForBudget(messages: ChatMessage[], budget = 50000): Chat
   return result;
 }
 
-export async function callOpenAIChat(
-  messages: ChatMessage[],
+function isGpt5Family(modelName: string | null | undefined): boolean {
+  return typeof modelName === "string" && /^gpt-5/i.test(modelName.trim());
+}
 
-  schema: JsonSchema | null,
+async function postChatWithRetries(
+  body: Record<string, unknown>,
+  retryDelaysMs: number[],
+  timeoutOverride?: number,
+): Promise<{ response: Response; json: Json }> {
+  let lastResponse: Response | null = null;
+  let lastJson: Json = {};
+  const timeoutMs = Number.isFinite(timeoutOverride) ? (timeoutOverride as number) : 45000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  options: { temperature?: number; model?: string | null; fallbackModel?: string | null } = {},
-): Promise<{ content: string; raw: Json }> {
+  for (const delay of retryDelaysMs) {
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    const response = await fetchOpenAI("/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    const json = (await response.json().catch(() => ({}))) as Json;
+    if (response.ok) {
+      clearTimeout(timeoutId);
+      return { response, json };
+    }
+
+    lastResponse = response;
+    lastJson = json;
+
+    if (response.status !== 429 && response.status < 500) {
+      break;
+    }
+  }
+
+  clearTimeout(timeoutId);
+  return { response: lastResponse as Response, json: lastJson };
+}
+
+function shouldTryFallback(
+  response: Response,
+  body: Json,
+  baseModel: string | null | undefined,
+  fallbackModel: string | null | undefined,
+): boolean {
+  if (!fallbackModel) return false;
+  if (response.ok) return false;
+  if (response.status === 429 || response.status >= 500) return true;
+  const meta = (body || {}) as Record<string, unknown>;
+  const error = (meta["error"] as Record<string, unknown>) ?? {};
+  const code = typeof error.code === "string" ? error.code : null;
+  if (code === "unsupported_parameter" || code === "unsupported_value") return true;
+  if (response.status === 400 && isGpt5Family(baseModel)) return true;
+  return false;
+}
+
+async function performChatCompletion(params: {
+  messages: ChatMessage[];
+  schema?: JsonSchema | null;
+  tools?: ToolCallDefinition[] | null;
+  toolChoice?: Record<string, unknown> | string | null;
+  temperature?: number;
+  model?: string | null;
+  fallbackModel?: string | null;
+  timeoutMs?: number;
+}): Promise<{ message: ChatCompletionMessage; raw: Json }> {
   requireOpenAIKey();
 
-  const retryDelaysMs = [0, 800, 1600];
-  const baseModel = options.model ?? serverEnv.OPENAI_MODEL;
-  const fallbackModel = options.fallbackModel ?? serverEnv.OPENAI_MODEL_FALLBACK ?? null;
-  const cleanedMessages = compactMessagesForBudget(messages);
-
-  const isGpt5Family = (modelName: string | null | undefined): boolean =>
-    typeof modelName === "string" && /^gpt-5/i.test(modelName.trim());
+  const baseModel = params.model ?? serverEnv.OPENAI_MODEL;
+  const fallbackModel = params.fallbackModel ?? serverEnv.OPENAI_MODEL_FALLBACK ?? null;
+  const retryDelaysMs =
+    fallbackModel && fallbackModel !== baseModel ? [0] : [0, 800, 1600];
+  const cleanedMessages = compactMessagesForBudget(params.messages);
 
   const buildPayload = (modelName: string): Record<string, unknown> => {
     const payload: Record<string, unknown> = {
@@ -163,16 +243,27 @@ export async function callOpenAIChat(
       messages: cleanedMessages,
     };
 
-    const requestedTemperature = options.temperature ?? 0.7;
+    const requestedTemperature = params.temperature ?? 0.7;
     if (!isGpt5Family(modelName)) {
       payload.temperature = requestedTemperature;
-    } else if (options.temperature === 1) {
-      // GPT-5 allows the default value; include only when explicitly 1 to avoid unsupported_value errors.
+    } else if (params.temperature === 1) {
       payload.temperature = 1;
     }
 
-    if (schema) {
-      payload.response_format = { type: "json_schema", json_schema: schema };
+  if (params.tools && params.tools.length) {
+    payload.tools = params.tools.map((tool) => ({
+      type: "function",
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    }));
+    if (params.toolChoice) {
+      payload.tool_choice = params.toolChoice;
+    }
+  } else if (params.schema) {
+      payload.response_format = { type: "json_schema", json_schema: params.schema };
     } else {
       payload.response_format = { type: "json_object" };
     }
@@ -180,58 +271,25 @@ export async function callOpenAIChat(
     return payload;
   };
 
-  async function postWithRetries(body: Record<string, unknown>): Promise<{
-    response: Response;
-    json: Json;
-  }> {
-    let lastResponse: Response | null = null;
-    let lastJson: Json = {};
-
-    for (const delay of retryDelaysMs) {
-      if (delay > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-
-      const response = await fetchOpenAI("/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const json = (await response.json().catch(() => ({}))) as Json;
-      if (response.ok) {
-        return { response, json };
-      }
-
-      lastResponse = response;
-      lastJson = json;
-
-      if (response.status !== 429 && response.status < 500) {
-        break;
-      }
-    }
-
-    return { response: lastResponse as Response, json: lastJson };
-  }
-
-  const shouldTryFallback = (resp: Response, body: Json): boolean => {
-    if (!fallbackModel) return false;
-    if (resp.ok) return false;
-    if (resp.status === 429 || resp.status >= 500) return true; // transient
-    const meta = (body || {}) as Record<string, unknown>;
-    const error = (meta["error"] as Record<string, unknown>) ?? {};
-    const code = typeof error.code === "string" ? error.code : null;
-    if (code === "unsupported_parameter" || code === "unsupported_value") return true;
-    if (resp.status === 400 && isGpt5Family(baseModel)) return true;
-    return false;
-  };
-
   let attemptModel = baseModel;
-  let { response, json } = await postWithRetries(buildPayload(attemptModel));
+  let { response, json } = await postChatWithRetries(
+    buildPayload(attemptModel),
+    retryDelaysMs,
+    params.timeoutMs,
+  );
 
-  if (!response.ok && shouldTryFallback(response, json) && fallbackModel && fallbackModel !== attemptModel) {
+  if (
+    !response.ok &&
+    shouldTryFallback(response, json, baseModel, fallbackModel) &&
+    fallbackModel &&
+    fallbackModel !== attemptModel
+  ) {
     attemptModel = fallbackModel;
-    ({ response, json } = await postWithRetries(buildPayload(attemptModel)));
+    ({ response, json } = await postChatWithRetries(
+      buildPayload(attemptModel),
+      retryDelaysMs,
+      params.timeoutMs,
+    ));
   }
 
   if (!response.ok) {
@@ -241,16 +299,83 @@ export async function callOpenAIChat(
   }
 
   const choices = (json as Record<string, unknown>).choices;
-  const content = Array.isArray(choices)
-    ? (choices[0] as Record<string, unknown>)?.message &&
-      ((choices[0] as Record<string, unknown>).message as Record<string, unknown>)?.content
-    : null;
+  const message =
+    Array.isArray(choices) && choices[0]
+      ? ((choices[0] as Record<string, unknown>).message as ChatCompletionMessage | undefined)
+      : null;
 
-  if (!content || typeof content !== "string") {
+  if (!message) {
+    throw new Error("OpenAI chat returned empty message.");
+  }
+
+  return { message, raw: json };
+}
+
+export async function callOpenAIChat(
+  messages: ChatMessage[],
+  schema: JsonSchema | null,
+  options: {
+    temperature?: number;
+    model?: string | null;
+    fallbackModel?: string | null;
+    timeoutMs?: number;
+  } = {},
+): Promise<{ content: string; raw: Json }> {
+  const params: Parameters<typeof performChatCompletion>[0] = {
+    messages,
+    schema,
+  };
+  if (options.model !== undefined) {
+    params.model = options.model;
+  }
+  if (options.fallbackModel !== undefined) {
+    params.fallbackModel = options.fallbackModel;
+  }
+  if (options.timeoutMs !== undefined) {
+    params.timeoutMs = options.timeoutMs;
+  }
+  if (typeof options.temperature === "number") {
+    params.temperature = options.temperature;
+  }
+  const { message, raw } = await performChatCompletion(params);
+
+  const content = typeof message.content === "string" ? message.content : null;
+  if (!content) {
     throw new Error("OpenAI chat returned empty content.");
   }
 
-  return { content, raw: json };
+  return { content, raw };
+}
+
+export async function callOpenAIToolChat(
+  messages: ChatMessage[],
+  tools: ToolCallDefinition[],
+  options: {
+    temperature?: number;
+    model?: string | null;
+    fallbackModel?: string | null;
+    timeoutMs?: number;
+    toolChoice?: Record<string, unknown> | string | null;
+  } = {},
+): Promise<{ message: ChatCompletionMessage; raw: Json }> {
+  const params: Parameters<typeof performChatCompletion>[0] = {
+    messages,
+    tools,
+    toolChoice: options.toolChoice ?? "auto",
+  };
+  if (options.model !== undefined) {
+    params.model = options.model;
+  }
+  if (options.fallbackModel !== undefined) {
+    params.fallbackModel = options.fallbackModel;
+  }
+  if (options.timeoutMs !== undefined) {
+    params.timeoutMs = options.timeoutMs;
+  }
+  if (typeof options.temperature === "number") {
+    params.temperature = options.temperature;
+  }
+  return performChatCompletion(params);
 }
 
 

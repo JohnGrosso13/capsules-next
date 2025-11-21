@@ -466,7 +466,6 @@ function ensureComposerPalette(vars: Record<string, string>): Record<string, str
     pickColor(working, [
       "--composer-text",
       "--text",
-      "--text-primary",
       "--foreground",
       "--text-base",
     ]) ?? LIGHT_TEXT_COLOR;

@@ -11,9 +11,9 @@
   gap: 0.45rem;
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
-  border: 1px solid rgba(120, 138, 255, 0.32);
-  background: rgba(22, 30, 58, 0.7);
-  color: rgba(222, 226, 255, 0.9);
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(120, 138, 255, 0.32)) 90%, transparent);
+  background: var(--composer-rail-background, rgba(22, 30, 58, 0.7));
+  color: var(--composer-text, rgba(222, 226, 255, 0.9));
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -22,9 +22,9 @@
 }
 
 .summaryContextToggleBtn[data-active="true"] {
-  background: color-mix(in srgb, var(--color-brand, #2563eb) 26%, rgba(22, 30, 58, 0.7));
-  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 55%, rgba(120, 138, 255, 0.32));
-  color: rgba(245, 247, 255, 0.96);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 26%, var(--composer-rail-background, rgba(22, 30, 58, 0.7)));
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 55%, var(--color-border, rgba(120, 138, 255, 0.32)));
+  color: var(--text, rgba(245, 247, 255, 0.96));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent);
 }
 
@@ -43,9 +43,9 @@
 .summaryPreviewBackBtn {
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
-  border: 1px solid rgba(126, 144, 255, 0.35);
-  background: rgba(20, 28, 58, 0.78);
-  color: rgba(233, 236, 255, 0.88);
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(126, 144, 255, 0.35)) 90%, transparent);
+  background: var(--composer-rail-background, rgba(20, 28, 58, 0.78));
+  color: var(--composer-text, rgba(233, 236, 255, 0.88));
   font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
@@ -54,9 +54,9 @@
 
 .summaryPreviewBackBtn:hover,
 .summaryPreviewBackBtn:focus-visible {
-  background: color-mix(in srgb, var(--color-brand, #2563eb) 25%, rgba(20, 28, 58, 0.78));
-  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 45%, rgba(126, 144, 255, 0.35));
-  color: rgba(248, 250, 255, 0.95);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 25%, var(--composer-rail-background, rgba(20, 28, 58, 0.78)));
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 45%, var(--color-border, rgba(126, 144, 255, 0.35)));
+  color: var(--text, rgba(248, 250, 255, 0.95));
 }
 
 .summaryNarrativeCard {
@@ -66,12 +66,14 @@
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.4rem;
   border-radius: 24px;
-  background:
-    linear-gradient(158deg, rgba(20, 26, 60, 0.88), rgba(10, 14, 32, 0.9));
-  border: 1px solid rgba(118, 136, 255, 0.28);
+  background: var(
+    --composer-panel-background,
+    linear-gradient(158deg, rgba(20, 26, 60, 0.88), rgba(10, 14, 32, 0.9))
+  );
+  border: 1px solid color-mix(in srgb, var(--composer-panel-border, rgba(118, 136, 255, 0.28)) 90%, transparent);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 36px 64px rgba(6, 10, 30, 0.58);
+    inset 0 1px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.08)) 90%, transparent),
+    var(--shadow-xl, 0 36px 64px rgba(6, 10, 30, 0.58));
   backdrop-filter: blur(18px);
   max-height: clamp(420px, 60vh, 640px);
   min-height: 420px;
@@ -90,7 +92,7 @@
   margin: 0;
   font-size: 0.82rem;
   font-weight: 600;
-  color: rgba(233, 236, 255, 0.92);
+  color: var(--composer-text, rgba(233, 236, 255, 0.92));
 }
 
 .summaryNarrativeList {
@@ -113,7 +115,7 @@
 }
 
 .summaryNarrativeListScroll::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 255, 0.35);
+  background: color-mix(in srgb, var(--color-brand, #94a3ff) 35%, transparent);
   border-radius: 999px;
 }
 
@@ -130,17 +132,17 @@
   gap: 0.45rem;
   padding: 0.55rem 0.95rem;
   border-radius: 999px;
-  border: 1px solid rgba(120, 138, 255, 0.24);
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(120, 138, 255, 0.24)) 90%, transparent);
   background:
-    radial-gradient(circle at top left, rgba(104, 119, 255, 0.35), transparent 55%),
-    linear-gradient(120deg, rgba(16, 22, 54, 0.82), rgba(24, 32, 72, 0.9));
-  color: rgba(233, 237, 255, 0.95);
+    radial-gradient(circle at top left, color-mix(in srgb, var(--color-brand, #6877ff) 35%, transparent), transparent 55%),
+    linear-gradient(120deg, var(--composer-main-background, rgba(16, 22, 54, 0.82)), color-mix(in srgb, var(--composer-main-background, rgba(24, 32, 72, 0.9)) 95%, transparent));
+  color: var(--composer-text, rgba(233, 237, 255, 0.95));
   font-size: 0.8rem;
   line-height: 1.4;
   cursor: pointer;
   box-shadow:
-    0 10px 24px rgba(6, 10, 30, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    var(--shadow-md, 0 10px 24px rgba(6, 10, 30, 0.55)),
+    inset 0 1px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.08)) 90%, transparent);
   transition:
     background 0.25s ease,
     border-color 0.25s ease,
@@ -153,10 +155,10 @@
 .summaryNarrativeLineBtn:focus-visible {
   outline: none;
   background:
-    radial-gradient(circle at 20% 20%, rgba(124, 144, 255, 0.45), transparent 60%),
-    linear-gradient(120deg, rgba(24, 32, 80, 0.96), rgba(34, 40, 96, 0.95));
-  border-color: rgba(126, 144, 255, 0.55);
-  color: rgba(248, 250, 255, 0.98);
+    radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--color-brand, #7c90ff) 45%, transparent), transparent 60%),
+    linear-gradient(120deg, color-mix(in srgb, var(--composer-main-background, rgba(24, 32, 80, 0.96)) 96%, transparent), color-mix(in srgb, var(--composer-main-background, rgba(34, 40, 96, 0.95)) 96%, transparent));
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
+  color: var(--text, rgba(248, 250, 255, 0.98));
   box-shadow:
     0 16px 32px rgba(10, 14, 46, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
@@ -164,13 +166,17 @@
 
 .summaryNarrativeLineBtn[data-active="true"] {
   background:
-    linear-gradient(120deg, rgba(58, 72, 160, 0.85), rgba(96, 118, 255, 0.75)),
-    rgba(18, 24, 64, 0.85);
-  border-color: rgba(154, 174, 255, 0.65);
-  color: rgba(250, 252, 255, 0.98);
+    linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent),
+      color-mix(in srgb, var(--color-accent, #22d3ee) 24%, transparent)
+    ),
+    var(--composer-main-background, rgba(18, 24, 64, 0.85));
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
+  color: var(--text-on-brand, rgba(250, 252, 255, 0.98));
   box-shadow:
-    0 18px 32px rgba(22, 30, 92, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    var(--shadow-lg, 0 18px 32px rgba(22, 30, 92, 0.55)),
+    inset 0 1px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.16)) 90%, transparent);
   transform: translateY(-1px);
 }
 
@@ -186,9 +192,9 @@
   font-weight: 600;
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
-  border: 1px solid rgba(148, 166, 255, 0.35);
-  color: rgba(216, 222, 255, 0.88);
-  background: rgba(22, 28, 68, 0.6);
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(148, 166, 255, 0.35)) 90%, transparent);
+  color: var(--text-2, rgba(216, 222, 255, 0.88));
+  background: var(--composer-rail-background, rgba(22, 28, 68, 0.6));
 }
 
 .summaryDetailPanel {
@@ -196,12 +202,14 @@
   gap: 0.65rem;
   padding: 0.95rem 1.05rem 1rem;
   border-radius: 18px;
-  border: 1px solid rgba(118, 136, 255, 0.38);
-  background:
-    linear-gradient(150deg, rgba(22, 28, 70, 0.9), rgba(10, 14, 36, 0.92));
+  border: 1px solid color-mix(in srgb, var(--composer-panel-border, rgba(118, 136, 255, 0.38)) 90%, transparent);
+  background: var(
+    --composer-panel-background,
+    linear-gradient(150deg, rgba(22, 28, 70, 0.9), rgba(10, 14, 36, 0.92))
+  );
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 26px 44px rgba(6, 10, 38, 0.65);
+    inset 0 1px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.08)) 90%, transparent),
+    var(--shadow-lg, 0 26px 44px rgba(6, 10, 38, 0.65));
 }
 
 .summaryDetailHeader {
@@ -221,19 +229,19 @@
   margin: 0;
   font-size: 0.92rem;
   font-weight: 600;
-  color: rgba(244, 247, 255, 0.98);
+  color: var(--composer-text, rgba(244, 247, 255, 0.98));
 }
 
 .summaryDetailAuthor {
   font-size: 0.78rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgba(199, 208, 255, 0.72);
+  color: var(--text-3, rgba(199, 208, 255, 0.72));
 }
 
 .summaryDetailTimestamp {
   font-size: 0.74rem;
-  color: rgba(199, 208, 255, 0.68);
+  color: var(--text-3, rgba(199, 208, 255, 0.68));
   white-space: nowrap;
 }
 
@@ -241,7 +249,7 @@
   margin: 0;
   font-size: 0.8rem;
   line-height: 1.45;
-  color: rgba(226, 231, 255, 0.9);
+  color: var(--text-2, rgba(226, 231, 255, 0.9));
 }
 
 .summaryDetailHighlights {
@@ -253,9 +261,9 @@
 .summaryDetailHighlight {
   padding: 0.32rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid rgba(118, 136, 255, 0.4);
-  background: rgba(54, 72, 180, 0.24);
-  color: rgba(224, 228, 255, 0.9);
+  border: 1px solid color-mix(in srgb, var(--color-brand, #2563eb) 40%, transparent);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent);
+  color: var(--text-2, rgba(224, 228, 255, 0.9));
   font-size: 0.7rem;
   letter-spacing: 0.01em;
 }
@@ -272,9 +280,9 @@
   justify-content: center;
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
-  border: 1px solid rgba(126, 144, 255, 0.32);
-  background: rgba(20, 28, 58, 0.72);
-  color: rgba(233, 236, 255, 0.9);
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(126, 144, 255, 0.32)) 90%, transparent);
+  background: var(--composer-rail-background, rgba(20, 28, 58, 0.72));
+  color: var(--composer-text, rgba(233, 236, 255, 0.9));
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -284,18 +292,18 @@
 
 .summaryNarrativeActionBtn:hover,
 .summaryNarrativeActionBtn:focus-visible {
-  background: color-mix(in srgb, var(--color-brand, #2563eb) 30%, rgba(20, 28, 58, 0.72));
-  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 52%, rgba(126, 144, 255, 0.32));
-  color: rgba(248, 250, 255, 0.96);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 30%, var(--composer-rail-background, rgba(20, 28, 58, 0.72)));
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 52%, var(--color-border, rgba(126, 144, 255, 0.32)));
+  color: var(--text, rgba(248, 250, 255, 0.96));
 }
 
 .summaryNarrativeActionBtn[data-disabled="true"],
 .summaryNarrativeActionBtn:disabled {
   cursor: not-allowed;
   opacity: 0.46;
-  background: rgba(20, 28, 58, 0.55);
-  border-color: rgba(126, 144, 255, 0.18);
-  color: rgba(211, 216, 255, 0.5);
+  background: color-mix(in srgb, var(--composer-rail-background, rgba(20, 28, 58, 0.72)) 75%, transparent);
+  border-color: color-mix(in srgb, var(--color-border, rgba(126, 144, 255, 0.18)) 90%, transparent);
+  color: var(--text-3, rgba(211, 216, 255, 0.5));
 }
 
 .summaryPreviewShell {
@@ -304,12 +312,12 @@
   gap: 1rem;
   padding: 1.2rem 1.4rem;
   border-radius: 26px;
-  border: 1px solid rgba(118, 136, 255, 0.32);
+  border: 1px solid color-mix(in srgb, var(--composer-panel-border, rgba(118, 136, 255, 0.32)) 90%, transparent);
   background:
-    linear-gradient(160deg, rgba(20, 26, 62, 0.85), rgba(10, 14, 36, 0.88));
+    linear-gradient(160deg, color-mix(in srgb, var(--composer-panel-background, rgba(20, 26, 62, 0.85)) 96%, transparent), color-mix(in srgb, var(--composer-panel-background, rgba(10, 14, 36, 0.88)) 96%, transparent));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 36px 64px rgba(6, 10, 36, 0.6);
+    inset 0 1px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.05)) 90%, transparent),
+    var(--shadow-xl, 0 36px 64px rgba(6, 10, 36, 0.6));
   backdrop-filter: blur(26px);
 }
 
@@ -331,19 +339,19 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(189, 197, 255, 0.65);
+  color: var(--text-3, rgba(189, 197, 255, 0.65));
 }
 
 .summaryPreviewShellTitle {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
-  color: rgba(244, 247, 255, 0.98);
+  color: var(--text, rgba(244, 247, 255, 0.98));
 }
 
 .summaryPreviewShellAuthor {
   font-size: 0.82rem;
-  color: rgba(206, 213, 255, 0.78);
+  color: var(--text-2, rgba(206, 213, 255, 0.78));
 }
 
 .summaryPreviewShellMeta {
@@ -356,7 +364,7 @@
 
 .summaryPreviewShellTimestamp {
   font-size: 0.78rem;
-  color: rgba(199, 208, 255, 0.68);
+  color: var(--text-3, rgba(199, 208, 255, 0.68));
   white-space: nowrap;
 }
 
@@ -378,11 +386,11 @@
   gap: 0.9rem;
   padding: 1rem 1.2rem;
   border-radius: 16px;
-  background: rgba(18, 26, 58, 0.82);
-  border: 1px solid rgba(128, 146, 255, 0.32);
+  background: var(--composer-main-background, rgba(18, 26, 58, 0.82));
+  border: 1px solid color-mix(in srgb, var(--composer-panel-border, rgba(128, 146, 255, 0.32)) 90%, transparent);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 28px 42px rgba(10, 16, 42, 0.45);
+    inset 0 1px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.06)) 90%, transparent),
+    var(--shadow-lg, 0 28px 42px rgba(10, 16, 42, 0.45));
 }
 
 .summaryPreviewScroll {
@@ -404,7 +412,7 @@
   margin: 0;
   font-size: 0.75rem;
   line-height: 1.45;
-  color: rgba(211, 216, 255, 0.68);
+  color: var(--text-3, rgba(211, 216, 255, 0.68));
 }
 
 .summaryCommentForm {
@@ -412,17 +420,17 @@
   gap: 0.5rem;
   padding: 0.75rem;
   border-radius: 14px;
-  border: 1px solid rgba(118, 136, 255, 0.28);
-  background: rgba(16, 24, 56, 0.75);
+  border: 1px solid color-mix(in srgb, var(--composer-panel-border, rgba(118, 136, 255, 0.28)) 90%, transparent);
+  background: var(--composer-main-background, rgba(16, 24, 56, 0.75));
 }
 
 .summaryCommentInput {
   width: 100%;
   min-height: 80px;
   border-radius: 10px;
-  border: 1px solid rgba(126, 144, 255, 0.32);
-  background: rgba(10, 16, 40, 0.8);
-  color: rgba(235, 239, 255, 0.94);
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(126, 144, 255, 0.32)) 90%, transparent);
+  background: var(--composer-main-background, rgba(10, 16, 40, 0.8));
+  color: var(--composer-text, rgba(235, 239, 255, 0.94));
   padding: 0.65rem 0.85rem;
   font-size: 0.85rem;
   line-height: 1.4;
@@ -443,22 +451,25 @@
 
 .summaryCommentError {
   font-size: 0.75rem;
-  color: rgba(255, 182, 182, 0.9);
+  color: var(--status-error, var(--color-danger, #f87171));
 }
 
 .summaryCommentSuccess {
   font-size: 0.75rem;
-  color: rgba(168, 241, 255, 0.85);
+  color: var(--status-success, var(--color-success, #34d399));
 }
 
 .summaryCommentSubmit {
   border-radius: 999px;
-  border: 1px solid rgba(129, 144, 255, 0.36);
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(129, 144, 255, 0.36)) 90%, transparent);
   padding: 0.35rem 1rem;
   font-size: 0.78rem;
   font-weight: 600;
-  color: rgba(233, 236, 255, 0.95);
-  background: linear-gradient(180deg, rgba(36, 44, 108, 0.92), rgba(24, 30, 74, 0.94));
+  color: var(--text, rgba(233, 236, 255, 0.95));
+  background: var(
+    --cta-button-gradient,
+    linear-gradient(180deg, rgba(36, 44, 108, 0.92), rgba(24, 30, 74, 0.94))
+  );
   cursor: pointer;
   transition: border-color 0.18s ease, transform 0.18s ease;
 }
@@ -516,10 +527,10 @@
   gap: 0.9rem;
   padding: 1rem 1.25rem;
   border-radius: 18px;
-  border: 1px solid rgba(126, 144, 255, 0.32);
+  border: 1px solid color-mix(in srgb, var(--composer-panel-border, rgba(126, 144, 255, 0.32)) 90%, transparent);
   background:
-    linear-gradient(168deg, rgba(26, 34, 76, 0.8), rgba(12, 18, 42, 0.78));
-  box-shadow: 0 20px 46px rgba(8, 12, 36, 0.44);
+    linear-gradient(168deg, color-mix(in srgb, var(--composer-panel-background, rgba(26, 34, 76, 0.8)) 96%, transparent), color-mix(in srgb, var(--composer-panel-background, rgba(12, 18, 42, 0.78)) 96%, transparent));
+  box-shadow: var(--shadow-lg, 0 20px 46px rgba(8, 12, 36, 0.44));
   max-height: clamp(360px, 72vh, 780px);
   overflow-y: auto;
   padding-right: 1.35rem;
@@ -535,7 +546,7 @@
 }
 
 .summaryContextPanel::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 255, 0.35);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent);
   border-radius: 999px;
 }
 
@@ -544,13 +555,13 @@
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: rgba(243, 245, 255, 0.96);
+  color: var(--text, rgba(243, 245, 255, 0.96));
 }
 
 .summaryContextSubtitle {
   margin: 0;
   font-size: 0.78rem;
-  color: rgba(207, 213, 255, 0.72);
+  color: var(--text-3, rgba(207, 213, 255, 0.72));
 }
 
 .summaryContextList {
@@ -562,10 +573,10 @@
 }
 
 .summaryContextItem {
-  border: 1px solid rgba(120, 138, 255, 0.32);
+  border: 1px solid color-mix(in srgb, var(--composer-panel-border, rgba(120, 138, 255, 0.32)) 90%, transparent);
   border-radius: 14px;
   padding: 0.8rem 0.95rem;
-  background: rgba(14, 20, 46, 0.68);
+  background: var(--composer-main-background, rgba(14, 20, 46, 0.68));
   display: grid;
   gap: 0.55rem;
 }
@@ -580,19 +591,19 @@
 .summaryContextName {
   font-weight: 600;
   font-size: 0.85rem;
-  color: rgba(240, 243, 255, 0.94);
+  color: var(--text, rgba(240, 243, 255, 0.94));
 }
 
 .summaryContextTime {
   font-size: 0.74rem;
-  color: rgba(202, 208, 255, 0.62);
+  color: var(--text-3, rgba(202, 208, 255, 0.62));
 }
 
 .summaryContextSnippet {
   margin: 0;
   font-size: 0.8rem;
   line-height: 1.45;
-  color: rgba(224, 228, 255, 0.86);
+  color: var(--text-2, rgba(224, 228, 255, 0.86));
 }
 
 .summaryContextHighlights {
@@ -605,9 +616,9 @@
   padding: 0.28rem 0.6rem;
   border-radius: 999px;
   font-size: 0.72rem;
-  color: rgba(233, 236, 255, 0.88);
-  background: rgba(86, 106, 220, 0.32);
-  border: 1px solid rgba(118, 134, 255, 0.44);
+  color: var(--text-2, rgba(233, 236, 255, 0.88));
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand, #2563eb) 44%, transparent);
 }
 
 .summaryContextActions {
@@ -623,9 +634,9 @@
   gap: 0.35rem;
   padding: 0.44rem 0.9rem;
   border-radius: 999px;
-  border: 1px solid rgba(126, 144, 255, 0.42);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(233, 236, 255, 0.92);
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(126, 144, 255, 0.42)) 90%, transparent);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.04));
+  color: var(--composer-text, rgba(233, 236, 255, 0.92));
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -635,8 +646,8 @@
 
 .summaryContextActionBtn:hover,
 .summaryContextActionBtn:focus-visible {
-  background: color-mix(in srgb, var(--color-brand, #2563eb) 28%, transparent);
-  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, rgba(126, 144, 255, 0.42));
-  color: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 28%, var(--glass-bg-1, transparent));
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, var(--color-border, rgba(126, 144, 255, 0.42)));
+  color: var(--text, rgba(255, 255, 255, 0.96));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand, #2563eb) 40%, transparent);
 }

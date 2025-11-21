@@ -6,14 +6,14 @@
     pointer-events: none;
     background:
       radial-gradient(1200px 600px at 10% 90%, color-mix(in srgb, var(--color-brand, #2563eb) 6%, transparent), transparent),
-      radial-gradient(1000px 800px at 80% -10%, color-mix(in srgb, #8b5cf6 6%, transparent), transparent);
+      radial-gradient(1000px 800px at 80% -10%, color-mix(in srgb, var(--color-accent, #8b5cf6) 6%, transparent), transparent);
   }
 
   .backdrop {
     position: absolute;
     inset: 0;
     background:
-      linear-gradient(180deg, rgba(6, 10, 28, 0.62), rgba(6, 12, 30, 0.18));
+      linear-gradient(180deg, color-mix(in srgb, var(--surface-overlay, rgba(6, 10, 28, 0.62)) 90%, transparent), color-mix(in srgb, var(--surface-overlay, rgba(6, 12, 30, 0.18)) 80%, transparent));
     backdrop-filter: blur(14px) saturate(140%);
     pointer-events: auto;
   }
@@ -25,16 +25,16 @@
     width: clamp(680px, 72vw, 960px);
     max-height: min(88vh, 980px);
     border-radius: var(--radius-2xl, 24px);
-    border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.22) 60%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.22)) 60%, transparent);
     background:
-      linear-gradient(180deg, color-mix(in srgb, rgba(30, 38, 76, 0.85) 70%, transparent), rgba(12, 18, 40, 0.82));
+      linear-gradient(180deg, color-mix(in srgb, var(--card-bg-1, rgba(30, 38, 76, 0.85)) 70%, transparent), color-mix(in srgb, var(--card-bg-2, rgba(12, 18, 40, 0.82)) 92%, transparent));
     -webkit-backdrop-filter: blur(16px) saturate(145%);
     backdrop-filter: blur(16px) saturate(145%);
     box-shadow:
-      0 30px 70px rgba(8, 12, 32, 0.55),
-      inset 0 2px 0 rgba(255, 255, 255, 0.06),
-      inset 0 -1px 0 rgba(6, 10, 28, 0.45),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      var(--shadow-xl, 0 30px 70px rgba(8, 12, 32, 0.55)),
+      inset 0 2px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.06)) 90%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--color-border, rgba(6, 10, 28, 0.45)) 65%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.02)) 90%, transparent);
     overflow: hidden;
     pointer-events: auto;
   }
@@ -56,7 +56,7 @@
     align-items: center;
     gap: 12px;
     padding: 16px 18px;
-    border-bottom: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 70%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.14)) 70%, transparent);
   }
 
   .titleGroup {
@@ -91,7 +91,7 @@
     gap: 6px;
     padding: 6px 12px;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--color-brand, #2563eb) 36%, rgba(255, 255, 255, 0.32));
+    border: 1px solid color-mix(in srgb, var(--color-brand, #2563eb) 36%, var(--color-border, rgba(255, 255, 255, 0.32)));
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--color-brand, #2563eb) 34%, transparent), transparent),
       linear-gradient(180deg, rgba(28, 38, 96, 0.24), rgba(18, 26, 68, 0.14));
@@ -129,7 +129,7 @@
     border-radius: 50%;
     border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 80%, transparent);
     background: linear-gradient(180deg, rgba(32, 38, 66, 0.72), rgba(18, 22, 44, 0.6));
-    color: rgba(240, 244, 255, 0.92);
+    color: var(--text, rgba(240, 244, 255, 0.92));
     transition:
       border-color 140ms ease,
       transform 140ms ease,
@@ -156,7 +156,7 @@
   }
 
   .commentScroll::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(92, 108, 164, 0.42), rgba(92, 108, 164, 0.28));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-brand, #5c6ca4) 42%, transparent), color-mix(in srgb, var(--color-brand, #5c6ca4) 28%, transparent));
     border-radius: 999px;
   }
 
@@ -342,7 +342,7 @@
     object-fit: cover;
     border-radius: 12px;
     display: block;
-    background: #0b0f22;
+    background: var(--comment-media-bg, #0b0f22);
   }
   .postText {
     margin: 0;

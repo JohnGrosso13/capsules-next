@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { Plus, ArrowUp } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "../../ai-composer.module.css";
+import styles from "../styles";
 import { VoiceRecorder } from "./VoiceRecorder";
 import type { ComposerVoiceResult } from "../hooks/useComposerVoice";
 
@@ -137,4 +137,3 @@ export function PromptSurface({
     </div>
   );
 }
-

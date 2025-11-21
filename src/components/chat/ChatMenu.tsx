@@ -5,9 +5,12 @@ import { createPortal } from "react-dom";
 
 import styles from "./chat.module.css";
 
-type ChatMenuProps = { onDelete: () => void };
+type ChatMenuProps = {
+  onDelete: () => void;
+  conversationId?: string | null;
+};
 
-export function ChatMenu({ onDelete }: ChatMenuProps) {
+export function ChatMenu({ onDelete, conversationId }: ChatMenuProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
@@ -63,6 +66,20 @@ export function ChatMenu({ onDelete }: ChatMenuProps) {
     setOpen(false);
   }, [onDelete]);
 
+  const handleCopyId = React.useCallback(async () => {
+    const id = conversationId?.trim();
+    if (!id) return;
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(id);
+      }
+    } catch {
+      // Swallow clipboard errors to avoid breaking the menu; we don't want a toast here.
+    } finally {
+      setOpen(false);
+    }
+  }, [conversationId]);
+
   return (
     <div className={styles.chatMenuContainer} ref={containerRef}>
       <button
@@ -98,6 +115,16 @@ export function ChatMenu({ onDelete }: ChatMenuProps) {
               }}
               onClick={(event) => event.stopPropagation()}
             >
+              {conversationId ? (
+                <button
+                  type="button"
+                  className={styles.chatMenuItem}
+                  role="menuitem"
+                  onClick={handleCopyId}
+                >
+                  Copy conversation ID
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={`${styles.chatMenuItem} ${styles.chatMenuDanger}`.trim()}

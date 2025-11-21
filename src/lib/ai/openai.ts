@@ -3,6 +3,20 @@ import { serverEnv } from "../env/server";
 
 const DEFAULT_EMBED_MODEL = "text-embedding-3-large";
 
+const RESPONSES_COMPLETION_PREFIXES = ["gpt-5", "gpt-4.1", "o1", "o3", "o4"];
+
+function shouldUseCompletionTokenKey(model: string | null | undefined): boolean {
+  if (typeof model !== "string") return false;
+  const normalized = model.trim().toLowerCase();
+  if (!normalized.length) return false;
+  return RESPONSES_COMPLETION_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+}
+
+export function buildCompletionTokenLimit(model: string | null | undefined, limit: number) {
+  const key = shouldUseCompletionTokenKey(model) ? "max_completion_tokens" : "max_tokens";
+  return { [key]: limit };
+}
+
 function normalizeEmbedModel(value: string | null | undefined): string {
   const trimmed = (value ?? "").trim();
   return trimmed.length ? trimmed : DEFAULT_EMBED_MODEL;
@@ -127,12 +141,13 @@ export async function summarizeMemory(
 
   try {
     const model = serverEnv.OPENAI_MODEL || "gpt-4o-mini";
+    const tokenLimit = buildCompletionTokenLimit(model, 220);
     const result = await postOpenAIJson<{
       choices?: Array<{ message?: { content?: string } }>;
     }>("/chat/completions", {
       model,
       temperature: 0.35,
-      max_tokens: 220,
+      ...tokenLimit,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -267,12 +282,13 @@ export async function captionImage(url: string): Promise<string | null> {
   }
   try {
     const model = serverEnv.OPENAI_MODEL || "gpt-4o-mini";
+    const tokenLimit = buildCompletionTokenLimit(model, 180);
     const result = await postOpenAIJson<{
       choices?: Array<{ message?: { content?: string } }>;
     }>("/chat/completions", {
       model,
       temperature: 0.2,
-      max_tokens: 180,
+      ...tokenLimit,
       messages: [
         {
           role: "system",

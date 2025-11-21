@@ -4,11 +4,8 @@
   height: 100%;
   min-height: 0;
   border-radius: 20px;
-  border: 1px solid var(--live-chat-border, color-mix(in srgb, var(--card-border) 80%, transparent));
-  background: var(
-    --live-chat-bg,
-    color-mix(in srgb, rgba(10, 12, 34, 0.84) 85%, rgba(6, 8, 24, 0.96))
-  );
+  border: 1px solid var(--live-chat-border, var(--card-border, rgba(255, 255, 255, 0.12)));
+  background: var(--live-chat-bg, var(--surface-overlay));
   box-shadow: var(
     --live-chat-shadow,
     var(--capsule-live-chat-shadow, 0 18px 40px rgba(0, 0, 0, 0.32))
@@ -21,8 +18,7 @@
   align-items: center;
   gap: 14px;
   padding: 18px 20px 14px;
-  border-bottom: 1px solid
-    var(--live-chat-divider, color-mix(in srgb, var(--card-border) 84%, transparent));
+  border-bottom: 1px solid var(--live-chat-divider, var(--card-border, rgba(255, 255, 255, 0.12)));
 }
 
 .headerIcon {
@@ -32,10 +28,7 @@
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: var(
-    --live-chat-header-icon-bg,
-    linear-gradient(180deg, rgba(112, 128, 255, 0.3), rgba(60, 78, 210, 0.15))
-  );
+  background: var(--live-chat-header-icon-bg, var(--pill-bg-1, rgba(112, 128, 255, 0.3)));
   color: var(--text);
 }
 
@@ -64,12 +57,8 @@
   padding: 4px 10px;
   font-size: 0.75rem;
   letter-spacing: 0.02em;
-  border: 1px solid
-    var(--live-chat-status-border, color-mix(in srgb, rgba(255, 255, 255, 0.18) 80%, transparent));
-  background: var(
-    --live-chat-status-bg,
-    color-mix(in srgb, rgba(26, 32, 68, 0.86) 90%, transparent)
-  );
+  border: 1px solid var(--live-chat-status-border, var(--pill-border));
+  background: var(--live-chat-status-bg, var(--pill-bg-1));
   text-transform: uppercase;
   color: var(--text);
 }
@@ -77,22 +66,22 @@
 .statusBadge[data-badge="live"] {
   background: var(
     --live-chat-status-live-bg,
-    color-mix(in srgb, rgba(98, 255, 173, 0.32) 90%, transparent)
+    color-mix(in srgb, var(--feedback-success, #22c55e) 22%, transparent)
   );
   border-color: var(
     --live-chat-status-live-border,
-    color-mix(in srgb, rgba(98, 255, 173, 0.42) 70%, transparent)
+    color-mix(in srgb, var(--feedback-success, #22c55e) 36%, transparent)
   );
 }
 
 .statusBadge[data-badge="ended"] {
   background: var(
     --live-chat-status-ended-bg,
-    color-mix(in srgb, rgba(255, 148, 148, 0.28) 90%, transparent)
+    color-mix(in srgb, var(--color-danger, #f87171) 22%, transparent)
   );
   border-color: var(
     --live-chat-status-ended-border,
-    color-mix(in srgb, rgba(255, 148, 148, 0.35) 70%, transparent)
+    color-mix(in srgb, var(--color-danger, #f87171) 36%, transparent)
   );
 }
 
@@ -135,10 +124,7 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: var(
-    --live-chat-participant-bg,
-    color-mix(in srgb, rgba(112, 128, 255, 0.14) 80%, transparent)
-  );
+  background: var(--live-chat-participant-bg, var(--pill-bg-1));
   color: var(--text);
 }
 

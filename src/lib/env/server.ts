@@ -61,6 +61,20 @@ const optionalVideoDuration = z
   )
   .transform((value) => value ?? null);
 
+const optionalBooleanFlag = z
+  .preprocess(
+    (value) => {
+      if (typeof value === "boolean") return value;
+      if (typeof value !== "string") return undefined;
+      const normalized = value.trim().toLowerCase();
+      if (["1", "true", "yes", "on"].includes(normalized)) return true;
+      if (["0", "false", "no", "off"].includes(normalized)) return false;
+      return undefined;
+    },
+    z.boolean().optional(),
+  )
+  .transform((value) => value ?? false);
+
 const serverEnvSchema = z.object({
   SUPABASE_URL: z.string().min(1, "SUPABASE_URL is required").url("SUPABASE_URL must be a valid URL"),
   SUPABASE_SERVICE_ROLE_KEY: z
@@ -75,6 +89,7 @@ const serverEnvSchema = z.object({
   OPENAI_API_KEY: optionalString,
   OPENAI_BASE_URL: optionalUrl,
   OPENAI_MODEL: z.string().default("gpt-5-mini"),
+  OPENAI_SUMMARY_MODEL: optionalString,
   OPENAI_MODEL_FALLBACK: optionalString,
   OPENAI_MODEL_NANO: optionalString,
   OPENAI_EMBED_MODEL: optionalString,
@@ -149,6 +164,7 @@ const serverEnvSchema = z.object({
   TENOR_CLIENT_KEY: optionalString,
   ASSISTANT_REMINDER_SECRET: optionalString,
   ASSISTANT_REMINDER_THRESHOLD_HOURS: optionalPositiveInteger,
+  WEB_SEARCH_ENABLED: optionalBooleanFlag,
 });
 
 const rawServerEnv = {
@@ -167,6 +183,7 @@ const rawServerEnv = {
   OPENAI_API_KEY: readEnv("OPENAI_API_KEY", ["OPENAI_KEY", "OPENAI_SECRET_KEY"]),
   OPENAI_BASE_URL: readEnv("OPENAI_BASE_URL", ["AI_BASE_URL"]),
   OPENAI_MODEL: readEnv("OPENAI_MODEL", ["AI_MODEL", "GPT_MODEL"]),
+  OPENAI_SUMMARY_MODEL: readEnv("OPENAI_SUMMARY_MODEL"),
   OPENAI_MODEL_FALLBACK: readEnv("OPENAI_MODEL_FALLBACK"),
   OPENAI_MODEL_NANO: readEnv("OPENAI_MODEL_NANO"),
   OPENAI_EMBED_MODEL: readEnv("OPENAI_EMBED_MODEL", ["OPENAI_EMBEDDING_MODEL"]),
@@ -250,6 +267,7 @@ const rawServerEnv = {
   TENOR_CLIENT_KEY: readEnv("TENOR_CLIENT_KEY"),
   ASSISTANT_REMINDER_SECRET: readEnv("ASSISTANT_REMINDER_SECRET", ["INTERNAL_CRON_SECRET"]),
   ASSISTANT_REMINDER_THRESHOLD_HOURS: readEnv("ASSISTANT_REMINDER_THRESHOLD_HOURS"),
+  WEB_SEARCH_ENABLED: readEnv("WEB_SEARCH_ENABLED", ["ENABLE_WEB_SEARCH"]),
 } satisfies Record<string, string | undefined>;
 
 const parsedServerEnv = serverEnvSchema.safeParse(rawServerEnv);

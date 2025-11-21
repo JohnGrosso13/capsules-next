@@ -24,6 +24,26 @@ export type LightboxImageItem = {
   aspectRatio: number | null;
 };
 
+export function buildLightboxItemsFromGallery(items: FeedGalleryItem[]): LightboxImageItem[] {
+  return items
+    .filter((entry): entry is FeedGalleryItem & { kind: "image" } => entry.kind === "image")
+    .map((entry) => ({
+      id: entry.id,
+      kind: "image" as const,
+      fullUrl: entry.fullUrl,
+      fullSrcSet: entry.fullSrcSet ?? null,
+      displayUrl: entry.displayUrl,
+      displaySrcSet: entry.displaySrcSet ?? null,
+      thumbnailUrl: entry.thumbnailUrl ?? null,
+      name: entry.name ?? null,
+      alt: entry.name ?? "Post attachment",
+      mimeType: entry.mimeType ?? null,
+      width: entry.width ?? null,
+      height: entry.height ?? null,
+      aspectRatio: entry.aspectRatio ?? null,
+    }));
+}
+
 export type FeedVideoItem = FeedGalleryItem & { kind: "video" };
 
 type FeedMediaGalleryProps = {
@@ -34,24 +54,7 @@ type FeedMediaGalleryProps = {
 
 export function FeedMediaGallery({ postId, items, onOpenLightbox }: FeedMediaGalleryProps) {
   const imageLightboxItems = React.useMemo<LightboxImageItem[]>(
-    () =>
-      items
-        .filter((entry): entry is FeedGalleryItem & { kind: "image" } => entry.kind === "image")
-        .map((entry) => ({
-          id: entry.id,
-          kind: "image" as const,
-          fullUrl: entry.fullUrl,
-          fullSrcSet: entry.fullSrcSet ?? null,
-          displayUrl: entry.displayUrl,
-          displaySrcSet: entry.displaySrcSet ?? null,
-          thumbnailUrl: entry.thumbnailUrl ?? null,
-          name: entry.name ?? null,
-          alt: entry.name ?? "Post attachment",
-          mimeType: entry.mimeType ?? null,
-          width: entry.width ?? null,
-          height: entry.height ?? null,
-          aspectRatio: entry.aspectRatio ?? null,
-        })),
+    () => buildLightboxItemsFromGallery(items),
     [items],
   );
 

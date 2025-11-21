@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { intentLabel, type PromptIntent } from "@/lib/ai/intent";
-import { navHint } from "@/lib/ai/nav";
+import { detectComposerMode, navHint } from "@/lib/ai/nav";
 import type { ComposerMode } from "@/lib/ai/nav";
 import type { PrompterHandoff } from "@/components/composer/prompter-handoff";
 import { detectSuggestedTools, type PrompterToolKey } from "@/components/prompter/tools";
@@ -12,6 +12,7 @@ import {
   DEFAULT_PROMPTER_CHIPS,
   truncatePrompterText,
 } from "@/lib/prompter/actions";
+import type { PrompterPostPlan } from "@/lib/prompter/actions";
 import { usePrompterContext } from "./usePrompterContext";
 import { usePrompterIntent } from "./usePrompterIntent";
 import { usePrompterAttachments } from "./usePrompterAttachments";
@@ -97,6 +98,7 @@ export function usePrompterStageController({
   const menuRef = React.useRef<HTMLDivElement | null>(null);
   const anchorRef = React.useRef<HTMLButtonElement | null>(null);
   const textRef = React.useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const [manualPostMode, setManualPostMode] = React.useState<"ai" | "manual" | null>(null);
   const [manualTool, setManualTool] = React.useState<PrompterToolKey | null>(null);
   const closeMenu = React.useCallback(() => setMenuOpen(false), []);
   const [composerLoadingProgress, setComposerLoadingProgress] = React.useState<number>(0);
@@ -200,8 +202,15 @@ export function usePrompterStageController({
   React.useEffect(() => {
     if (!variantConfig.allowIntentMenu && manualIntent !== null) {
       setManualIntent(null);
+      setManualPostMode(null);
     }
   }, [variantConfig.allowIntentMenu, manualIntent, setManualIntent]);
+
+  React.useEffect(() => {
+    if (manualIntent === null && manualPostMode !== null) {
+      setManualPostMode(null);
+    }
+  }, [manualIntent, manualPostMode]);
 
   React.useEffect(() => {
     if (!variantConfig.allowTools && manualTool !== null) {
@@ -273,25 +282,63 @@ export function usePrompterStageController({
   );
   const activeTool = variantConfig.allowTools ? manualTool : null;
 
+  const effectivePostPlan = React.useMemo<PrompterPostPlan>(() => {
+    if (manualIntent === "post" && manualPostMode) {
+      if (manualPostMode === "manual") {
+        const content = postPlan.mode === "manual" ? postPlan.content : trimmed;
+        return { mode: "manual", content };
+      }
+      const composeMode =
+        postPlan.mode === "ai"
+          ? postPlan.composeMode
+          : detectComposerMode(trimmed.toLowerCase());
+      return { mode: "ai", composeMode };
+    }
+
+    if (autoIntent.intent === "post" && autoIntent.postMode) {
+      if (autoIntent.postMode === "manual") {
+        const content = postPlan.mode === "manual" ? postPlan.content : trimmed;
+        return { mode: "manual", content };
+      }
+      const composeMode =
+        postPlan.mode === "ai"
+          ? postPlan.composeMode
+          : detectComposerMode(trimmed.toLowerCase());
+      return { mode: "ai", composeMode };
+    }
+
+    return postPlan;
+  }, [autoIntent.intent, autoIntent.postMode, manualIntent, manualPostMode, postPlan, trimmed]);
+
   const navigateReady = effectiveIntent === "navigate" && navTarget !== null;
+
+  const attachmentOnly = hasReadyAttachment && trimmed.length === 0;
 
   const buttonLabel =
     variantConfig.forceButtonLabel ??
-    (navigateReady
-      ? "Go"
-      : postPlan.mode === "manual"
-        ? "Post"
-        : postPlan.mode === "ai"
-          ? "Draft"
-          : buttonBusy
-            ? "Analyzing..."
-            : intentLabel(effectiveIntent));
+    (buttonBusy && manualIntent === null
+      ? "Send"
+      : navigateReady
+        ? "Go"
+        : attachmentOnly && effectiveIntent === "post"
+          ? "Post attachment"
+        : effectivePostPlan.mode === "manual"
+          ? attachmentOnly
+            ? "Post attachment"
+            : "Post now"
+          : effectivePostPlan.mode === "ai"
+            ? "Draft"
+            : buttonBusy
+              ? "Send"
+              : intentLabel(effectiveIntent));
 
   const buttonDisabled =
     attachmentUploading ||
     (!hasImageReference && trimmed.length === 0) ||
     (effectiveIntent === "navigate" && !navTarget) ||
-    (postPlan.mode === "manual" && (!postPlan.content || !postPlan.content.trim()));
+    (effectivePostPlan.mode === "manual" &&
+      !hasImageReference &&
+      (!effectivePostPlan.content || !effectivePostPlan.content.trim()));
 
   const buttonVariant = effectiveIntent === "style" ? "style" : "default";
 
@@ -299,12 +346,15 @@ export function usePrompterStageController({
     text,
     textRef,
     setText,
-    setManualIntent,
+    clearManualIntentOverrides: React.useCallback(() => {
+      setManualIntent(null);
+      setManualPostMode(null);
+    }, [setManualIntent, setManualPostMode]),
     manualTool,
     suggestedTools,
     variantConfig,
     navTarget,
-    postPlan,
+    postPlan: effectivePostPlan,
     effectiveIntent,
     closeMenu,
     ...(onAction ? { onAction } : {}),
@@ -355,9 +405,10 @@ export function usePrompterStageController({
     : "Voice input unavailable";
   const handleVoiceToggle = variantConfig.allowVoice ? voiceControls.handleVoiceToggle : noop;
 
-  const applyManualIntent = (intent: PromptIntent | null) => {
+  const applyManualIntent = (intent: PromptIntent | null, postMode: "ai" | "manual" | null = null) => {
     if (!variantConfig.allowIntentMenu) return;
     setManualIntent(intent);
+    setManualPostMode(intent === "post" ? postMode : null);
     closeMenu();
   };
 
@@ -365,19 +416,30 @@ export function usePrompterStageController({
     ? manualIntent === "navigate"
       ? "Intent override: Go"
       : manualIntent === "post"
-        ? "Intent override: Post"
+        ? manualPostMode === "ai"
+          ? "Intent override: Draft post"
+          : manualPostMode === "manual"
+            ? "Intent override: Post now"
+            : "Intent override: Post"
         : manualIntent === "style"
           ? "Intent override: Style"
-          : "Manual override active"
+          : manualIntent === "chat"
+            ? "Intent override: Chat"
+            : "Manual override active"
     : null;
 
-  const navMessage = navHint(navigateReady ? navTarget : null);
+  const navMessage =
+    effectiveIntent === "navigate" && !navTarget
+      ? "Tell me where to go."
+      : navHint(navigateReady ? navTarget : null);
   const postHint =
-    postPlan.mode === "manual"
-      ? postPlan.content
-        ? `Ready to post: "${truncatePrompterText(postPlan.content, 50)}"`
-        : "Add what you'd like to share."
-      : postPlan.mode === "ai"
+    effectivePostPlan.mode === "manual"
+      ? effectivePostPlan.content
+        ? `Ready to post: "${truncatePrompterText(effectivePostPlan.content, 50)}"`
+        : attachmentOnly
+          ? "Ready to post your attachment."
+          : "Add what you'd like to share."
+      : effectivePostPlan.mode === "ai"
         ? "AI will draft this for you."
         : null;
   const styleHint = effectiveIntent === "style" ? "AI Styler is ready." : null;
@@ -470,6 +532,7 @@ export function usePrompterStageController({
     const trimmedHint = input.trim();
     if (!trimmedHint) return null;
     if (trimmedHint === "Defaulting to post intent.") return "Ready when you are.";
+    if (trimmedHint === "Handing off to AI to infer the right intent.") return "Analyzing your request...";
     return trimmedHint;
   };
 
@@ -543,9 +606,10 @@ export function usePrompterStageController({
     composerLoadingProgress,
     autoIntent,
     manualIntent,
+    manualPostMode,
     setManualIntent,
     navTarget,
-    postPlan,
+    postPlan: effectivePostPlan,
     effectiveIntent,
     buttonBusy,
     handleGenerate,

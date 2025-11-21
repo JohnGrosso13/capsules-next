@@ -2,9 +2,18 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import styles from "../ai-composer.module.css";
+import styles from "./styles";
 import lightboxStyles from "@/components/home-feed.module.css";
-import { X, Sparkle, Brain, List, SidebarSimple, FileText, FolderSimple } from "@phosphor-icons/react/dist/ssr";
+import {
+  X,
+  Sparkle,
+  Brain,
+  List,
+  SidebarSimple,
+  FileText,
+  FolderSimple,
+  MagnifyingGlass,
+} from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
 import { ComposerMemoryPicker, type MemoryPickerTab } from "./components/ComposerMemoryPicker";
@@ -45,8 +54,6 @@ import { usePromptSurface } from "./features/prompt-surface/usePromptSurface";
 import { useSummarySidebar } from "./features/summary-sidebar/useSummarySidebar";
 import type { PromptPaneProps, PromptPaneSurfaceProps } from "./panes/PromptPane";
 import type { PreviewPaneProps } from "./panes/PreviewPane";
-import type { ClarifierPrompt } from "./types";
-export type { ClarifierPrompt } from "./types";
 import {
   type SidebarRailProps,
   type SidebarSectionProps,
@@ -120,6 +127,11 @@ function ComposerToolbar({
   previewOpen,
   isMobile,
 }: ComposerToolbarProps) {
+  const handleSearchClick = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent("capsules:search:open"));
+  }, []);
+
   return (
     <>
       <button
@@ -157,6 +169,17 @@ function ComposerToolbar({
                 </select>
               </label>
             </div>
+            <button
+              type="button"
+              className={styles.toolbarIconBtn}
+              onClick={handleSearchClick}
+              disabled={disabled}
+              aria-label="Open search"
+              title="Search memories, capsules, and more"
+            >
+              <MagnifyingGlass size={18} weight="duotone" />
+              <span className={styles.toolbarIconLabel}>Search</span>
+            </button>
           </div>
         </div>
         <div className={styles.headerActions}>
@@ -531,7 +554,6 @@ type ComposerFormProps = {
   message?: string | null | undefined;
   history?: ComposerChatMessage[] | null | undefined;
   choices?: ComposerChoice[] | null | undefined;
-  clarifier?: ClarifierPrompt | null | undefined;
   summaryContext?: SummaryConversationContext | null;
   summaryResult?: SummaryResult | null;
   summaryOptions?: SummaryPresentationOptions | null;
@@ -556,7 +578,6 @@ type ComposerFormProps = {
     attachments?: PrompterAttachment[] | null,
     options?: PromptSubmitOptions,
   ): Promise<void> | void;
-  onClarifierRespond?(answer: string): void;
   onRetryVideo(): void;
   onSaveCreation(request: ComposerSaveRequest): Promise<string | null> | Promise<void> | void;
 };
@@ -568,7 +589,6 @@ export function ComposerForm({
   message,
   history: historyInput,
   choices: _choices,
-  clarifier: clarifierInput,
   summaryContext: summaryContextInput,
   summaryResult: summaryResultInput,
   summaryOptions: summaryOptionsInput,
@@ -589,7 +609,6 @@ export function ComposerForm({
   onSelectProject,
   onPrompt,
   onForceChoice,
-  onClarifierRespond,
   onRetryVideo,
   onSaveCreation,
 }: ComposerFormProps) {
@@ -644,17 +663,6 @@ export function ComposerForm({
     if (!summaryResult || !summaryMessageId) return conversationHistory;
     return conversationHistory.filter((entry) => entry.id !== summaryMessageId);
   }, [conversationHistory, summaryMessageId, summaryResult]);
-  const clarifier = React.useMemo<ClarifierPrompt | null>(() => {
-    if (!clarifierInput) return null;
-    return {
-      questionId: clarifierInput.questionId,
-      question: clarifierInput.question,
-      rationale: clarifierInput.rationale ?? null,
-      suggestions: clarifierInput.suggestions ?? [],
-      styleTraits: clarifierInput.styleTraits ?? [],
-    };
-  }, [clarifierInput]);
-
   const updateDraft = React.useCallback(
     (partial: Partial<ComposerDraft>) => {
       onChange({ ...workingDraft, ...partial });
@@ -860,9 +868,7 @@ export function ComposerForm({
   );
 
   const promptPlaceholder = React.useMemo(() => getPromptPlaceholder(activeKind), [activeKind]);
-  const currentPromptPlaceholder = clarifier
-    ? "Answer with a quick description or pick a suggestion..."
-    : promptPlaceholder;
+  const currentPromptPlaceholder = promptPlaceholder;
   const footerHint = React.useMemo(() => getFooterHint(activeKind), [activeKind]);
   const activeKindLabel = React.useMemo(() => resolveKindLabel(activeKind), [activeKind]);
 
@@ -1166,11 +1172,10 @@ export function ComposerForm({
   const showQuickPromptBubble = React.useMemo(
     () =>
       !loading &&
-      !clarifier &&
       renderedHistory.length === 0 &&
       !message &&
       quickPromptBubbleOptions.length > 0,
-    [clarifier, loading, message, quickPromptBubbleOptions.length, renderedHistory.length],
+    [loading, message, quickPromptBubbleOptions.length, renderedHistory.length],
   );
 
   React.useEffect(() => {
@@ -1757,8 +1762,6 @@ export function ComposerForm({
       welcomeMessage={PANEL_WELCOME}
       prompt={prompt}
       message={message}
-      clarifier={clarifier}
-      {...(onClarifierRespond ? { onClarifierRespond } : {})}
       loading={loading}
       displayAttachment={displayAttachment}
       attachmentKind={attachmentKind}

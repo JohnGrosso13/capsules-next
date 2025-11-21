@@ -8,6 +8,16 @@ import { createRoot, type Root } from "react-dom/client";
 
 import type { ChatSession } from "@/components/providers/ChatProvider";
 import { ChatConversation } from "../ChatConversation";
+import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
+import { ChatProvider } from "@/components/providers/ChatProvider";
+
+function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <FriendsDataProvider>
+      <ChatProvider>{children}</ChatProvider>
+    </FriendsDataProvider>
+  );
+}
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
@@ -143,16 +153,18 @@ describe("ChatConversation message context menu", () => {
   function renderConversation() {
     act(() => {
       root.render(
-        <ChatConversation
-          session={session}
-          currentUserId="user-1"
-          selfClientId="client-1"
-          onSend={async () => {}}
-          onToggleReaction={async () => {}}
-          onTypingChange={() => {}}
-          onRemoveAttachments={async () => {}}
-          onDeleteMessage={async () => {}}
-        />,
+        <Providers>
+          <ChatConversation
+            session={session}
+            currentUserId="user-1"
+            selfClientId="client-1"
+            onSend={async () => {}}
+            onToggleReaction={async () => {}}
+            onTypingChange={() => {}}
+            onRemoveAttachments={async () => {}}
+            onDeleteMessage={async () => {}}
+          />
+        </Providers>,
       );
     });
   }

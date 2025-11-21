@@ -149,6 +149,74 @@ export function ConversationMessageList({
         const reactionClassName = `${styles.messageReactions} ${
           hasReactions || isPickerOpen ? styles.messageReactionsVisible : ""
         }`.trim();
+        const reactionsNode = showReactions ? (
+          <div className={reactionClassName}>
+            {reactions.map((reaction, reactionIndex) => {
+              const maxNames = 3;
+              const shown = (Array.isArray(reaction.users) ? reaction.users : []).slice(
+                0,
+                maxNames,
+              );
+              const nameList = shown
+                .map((u) => (u?.name || u?.id || "").trim() || "Member")
+                .join(", " );
+              const remainder = Math.max(0, reaction.count - shown.length);
+              const tooltip =
+                nameList.length > 0
+                  ? `${reaction.emoji} by ${nameList}${
+                      remainder > 0 ? ` and ${remainder} more` : ""
+                    }`
+                  : `${reaction.emoji} x${reaction.count}`;
+
+              return (
+                <button
+                  key={`${messageKey}-reaction-${reactionIndex}`}
+                  type="button"
+                  className={`${styles.messageReaction} ${
+                    reaction.selfReacted ? styles.messageReactionActive : ""
+                  }`.trim()}
+                  onClick={() => reactionState.onToggleReaction?.(message.id, reaction.emoji)}
+                  disabled={!reactionState.isEnabled}
+                  aria-pressed={reaction.selfReacted}
+                  aria-label={`${reaction.emoji} reaction from ${reaction.count} ${
+                    reaction.count === 1 ? "person" : "people"
+                  }`}
+                  title={tooltip}
+                >
+                  <span className={styles.messageReactionEmoji}>{reaction.emoji}</span>
+                  <span className={styles.messageReactionCount}>{reaction.count}</span>
+                </button>
+              );
+            })}
+            {reactionState.isEnabled ? (
+              <div className={styles.messageReactionAdd}>
+                <button
+                  type="button"
+                  className={styles.messageReactionAddButton}
+                  onClick={(event) =>
+                    reactionState.onAddClick?.(message.id, event.currentTarget, displayName)
+                  }
+                  onPointerDown={(event) =>
+                    reactionState.onAddPointerDown?.(message.id, displayName, event)
+                  }
+                  onPointerUp={reactionState.onAddPointerComplete}
+                  onPointerLeave={reactionState.onAddPointerComplete}
+                  onPointerCancel={reactionState.onAddPointerComplete}
+                  onContextMenu={(event) =>
+                    reactionState.onAddContextMenu?.(message.id, displayName, event)
+                  }
+                  aria-expanded={isPickerOpen}
+                  aria-label="Add reaction"
+                  data-role="reaction-button"
+                >
+                  <Smiley size={16} weight="duotone" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null;
+        const inlineReactions = showBody ? reactionsNode : null;
+        const trailingReactions = !showBody ? reactionsNode : null;
         const messageTitle = showHeader ? undefined : messageTimestamp || undefined;
 
         return (
@@ -197,6 +265,7 @@ export function ConversationMessageList({
                   title={messageTitle}
                 >
                   {message.body}
+                  {inlineReactions}
                 </div>
               ) : null}
               {hasAttachments ? (
@@ -334,72 +403,7 @@ export function ConversationMessageList({
                   })}
                 </div>
               ) : null}
-              {showReactions ? (
-                <div className={reactionClassName}>
-                  {reactions.map((reaction, reactionIndex) => {
-                    const maxNames = 3;
-                    const shown = (Array.isArray(reaction.users) ? reaction.users : []).slice(
-                      0,
-                      maxNames,
-                    );
-                    const nameList = shown
-                      .map((u) => (u?.name || u?.id || "").trim() || "Member")
-                      .join(", ");
-                    const remainder = Math.max(0, reaction.count - shown.length);
-                    const tooltip =
-                      nameList.length > 0
-                        ? `${reaction.emoji} by ${nameList}${
-                            remainder > 0 ? ` and ${remainder} more` : ""
-                          }`
-                        : `${reaction.emoji} x${reaction.count}`;
-
-                    return (
-                      <button
-                        key={`${messageKey}-reaction-${reactionIndex}`}
-                        type="button"
-                        className={`${styles.messageReaction} ${
-                          reaction.selfReacted ? styles.messageReactionActive : ""
-                        }`.trim()}
-                        onClick={() => reactionState.onToggleReaction?.(message.id, reaction.emoji)}
-                        disabled={!reactionState.isEnabled}
-                        aria-pressed={reaction.selfReacted}
-                        aria-label={`${reaction.emoji} reaction from ${reaction.count} ${
-                          reaction.count === 1 ? "person" : "people"
-                        }`}
-                        title={tooltip}
-                      >
-                        <span className={styles.messageReactionEmoji}>{reaction.emoji}</span>
-                        <span className={styles.messageReactionCount}>{reaction.count}</span>
-                      </button>
-                    );
-                  })}
-                  {reactionState.isEnabled ? (
-                    <div className={styles.messageReactionAdd}>
-                      <button
-                        type="button"
-                        className={styles.messageReactionAddButton}
-                        onClick={(event) =>
-                          reactionState.onAddClick?.(message.id, event.currentTarget, displayName)
-                        }
-                        onPointerDown={(event) =>
-                          reactionState.onAddPointerDown?.(message.id, displayName, event)
-                        }
-                        onPointerUp={reactionState.onAddPointerComplete}
-                        onPointerLeave={reactionState.onAddPointerComplete}
-                        onPointerCancel={reactionState.onAddPointerComplete}
-                        onContextMenu={(event) =>
-                          reactionState.onAddContextMenu?.(message.id, displayName, event)
-                        }
-                        aria-expanded={isPickerOpen}
-                        aria-label="Add reaction"
-                        data-role="reaction-button"
-                      >
-                        <Smiley size={14} weight="duotone" />
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
+              {trailingReactions}
               {statusNode ? <div className={styles.messageMeta}>{statusNode}</div> : null}
             </div>
           </div>
@@ -441,3 +445,5 @@ export function ConversationMessageList({
     </div>
   );
 }
+
+

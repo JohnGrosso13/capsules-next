@@ -24,9 +24,10 @@ type Props = {
   onAttachClick: () => void;
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   manualIntent: PromptIntent | null;
+  manualPostMode: "ai" | "manual" | null;
   menuOpen: boolean;
   onToggleMenu: () => void;
-  onSelect: (intent: PromptIntent | null) => void;
+  onSelect: (intent: PromptIntent | null, postMode?: "ai" | "manual" | null) => void;
   anchorRef: React.RefObject<HTMLButtonElement | null>;
   menuRef: React.RefObject<HTMLDivElement | null>;
   voiceSupported: boolean;
@@ -58,6 +59,7 @@ export function PrompterInputBar({
   onAttachClick,
   onFileChange,
   manualIntent,
+  manualPostMode,
   menuOpen,
   onToggleMenu,
   onSelect,
@@ -227,6 +229,7 @@ export function PrompterInputBar({
           </button>
           <IntentOverrideMenu
             manualIntent={manualIntent}
+            manualPostMode={manualPostMode}
             open={menuOpen}
             anchorRef={anchorRef}
             menuRef={menuRef}

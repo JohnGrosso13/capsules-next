@@ -1,10 +1,11 @@
 import { z } from "zod";
 
 export const intentResponseSchema = z.object({
-  intent: z.enum(["generate", "post", "navigate", "style"]).optional(),
+  intent: z.enum(["chat", "generate", "post", "navigate", "style"]).optional(),
   confidence: z.number().min(0).max(1).optional(),
   reason: z.string().optional(),
   source: z.enum(["heuristic", "ai", "none"]).optional(),
+  postMode: z.enum(["ai", "manual"]).optional(),
 });
 export type IntentResponse = z.infer<typeof intentResponseSchema>;
 
@@ -51,30 +52,32 @@ const promptContextSchema = z.object({
   userCard: z.string().optional().nullable(),
 });
 
+const promptResponseMetaFields = {
+  threadId: z.string().optional(),
+  history: z.array(composerChatMessageSchema).optional(),
+  context: promptContextSchema.optional(),
+} as const;
+const _promptResponseMetaSchema = z.object(promptResponseMetaFields);
+
 export const draftPostResponseSchema = z.object({
   action: z.literal("draft_post"),
   message: z.string().optional(),
   post: z.record(z.string(), z.unknown()),
   choices: z.array(draftChoiceSchema).optional(),
-  threadId: z.string().optional(),
-  history: z.array(composerChatMessageSchema).optional(),
-  context: promptContextSchema.optional(),
+  ...promptResponseMetaFields,
 });
 export type DraftPostResponse = z.infer<typeof draftPostResponseSchema>;
+
+export const chatReplyResponseSchema = z.object({
+  action: z.literal("chat_reply"),
+  message: z.string().min(1),
+  replyAttachments: z.array(composerAttachmentSchema).optional(),
+  ...promptResponseMetaFields,
+});
+export type ChatReplyResponse = z.infer<typeof chatReplyResponseSchema>;
+
 export type ComposerChatMessage = z.infer<typeof composerChatMessageSchema>;
 export type ComposerAttachment = z.infer<typeof composerAttachmentSchema>;
-
-export const clarifyImagePromptResponseSchema = z.object({
-  action: z.literal("clarify_image_prompt"),
-  questionId: z.string(),
-  question: z.string(),
-  rationale: z.string().optional(),
-  suggestions: z.array(z.string()).optional(),
-  styleTraits: z.array(z.string()).optional(),
-  threadId: z.string().optional(),
-  history: z.array(composerChatMessageSchema).optional(),
-});
-export type ClarifyImagePromptResponse = z.infer<typeof clarifyImagePromptResponseSchema>;
 
 export const aiImageVariantSchema = z.object({
   id: z.string().uuid(),
@@ -92,7 +95,10 @@ export const aiImageVariantSchema = z.object({
 });
 export type AiImageVariant = z.infer<typeof aiImageVariantSchema>;
 
-export const promptResponseSchema = z.union([draftPostResponseSchema, clarifyImagePromptResponseSchema]);
+export const promptResponseSchema = z.discriminatedUnion("action", [
+  draftPostResponseSchema,
+  chatReplyResponseSchema,
+]);
 export type PromptResponse = z.infer<typeof promptResponseSchema>;
 export type PromptContext = z.infer<typeof promptContextSchema>;
 

@@ -12,8 +12,6 @@ import { resolveNavigationTarget } from "@/lib/ai/nav";
 import { intentResponseSchema } from "@/shared/schemas/ai";
 import { resolvePrompterPostPlan, type PrompterPostPlan } from "@/lib/prompter/actions";
 
-const HEURISTIC_CONFIDENCE_THRESHOLD = 0.6;
-
 type UsePrompterIntentOptions = {
   text: string;
   allowNavigation: boolean;
@@ -46,7 +44,8 @@ export function usePrompterIntent({
 
   React.useEffect(() => {
     if (forceIntent) {
-      setAutoIntent(detectIntentHeuristically(trimmed));
+      const heuristic = detectIntentHeuristically(trimmed);
+      setAutoIntent(heuristic);
       setIsResolving(false);
       return;
     }
@@ -61,16 +60,12 @@ export function usePrompterIntent({
     const heuristic = detectIntentHeuristically(currentText);
     setAutoIntent(heuristic);
 
-    if (heuristic.intent !== "generate" && heuristic.confidence >= HEURISTIC_CONFIDENCE_THRESHOLD) {
-      setIsResolving(false);
-      return;
-    }
-
     const controller = new AbortController();
     const requestId = ++requestRef.current;
 
+    setIsResolving(true);
+
     const timeout = setTimeout(() => {
-      setIsResolving(true);
       fetch("/api/ai/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -86,6 +81,8 @@ export function usePrompterIntent({
         .then((data) => {
           if (!data || requestRef.current !== requestId) return;
           const intent = normalizeIntent(data.intent);
+          const postMode =
+            data?.postMode === "ai" || data?.postMode === "manual" ? data.postMode : undefined;
           const resolvedConfidence =
             typeof data?.confidence === "number"
               ? Math.max(0, Math.min(1, data.confidence))
@@ -95,6 +92,7 @@ export function usePrompterIntent({
           setAutoIntent({
             intent,
             confidence: resolvedConfidence,
+            ...(postMode ? { postMode } : {}),
             ...(resolvedReason ? { reason: resolvedReason } : {}),
             source: data?.source === "ai" ? "ai" : heuristic.source,
           });
@@ -114,6 +112,7 @@ export function usePrompterIntent({
     return () => {
       controller.abort();
       clearTimeout(timeout);
+      setIsResolving(false);
     };
   }, [forceIntent, trimmed]);
 

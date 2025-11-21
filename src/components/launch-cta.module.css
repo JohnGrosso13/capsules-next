@@ -8,7 +8,7 @@
   top: calc(100% + 12px);
   right: 0;
   width: min(420px, 92vw);
-  background: var(--surface-floating, rgba(12, 14, 26, 0.95));
+  background: var(--surface-elevated, rgba(12, 14, 26, 0.95));
   border-radius: 20px;
   box-shadow: 0 26px 60px rgba(7, 11, 24, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -26,12 +26,12 @@
 .menuTitle {
   font-size: 1.05rem;
   font-weight: 600;
-  color: var(--fg, #f7f8ff);
+  color: var(--color-fg, #f7f8ff);
 }
 
 .menuSubtitle {
   font-size: 0.9rem;
-  color: var(--fg-subtle, rgba(247, 248, 255, 0.7));
+  color: var(--color-fg-subtle, rgba(247, 248, 255, 0.7));
   margin: 0;
 }
 
@@ -101,7 +101,7 @@
 .capsuleName {
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--fg, #f7f8ff);
+  color: var(--color-fg, #f7f8ff);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -109,7 +109,7 @@
 
 .capsuleRole {
   font-size: 0.85rem;
-  color: var(--fg-subtle, rgba(247, 248, 255, 0.6));
+  color: var(--color-fg-subtle, rgba(247, 248, 255, 0.6));
 }
 
 .capsuleActions {
@@ -124,7 +124,7 @@
   padding: 1.25rem;
   border-radius: 16px;
   border: 1px dashed rgba(255, 255, 255, 0.12);
-  color: var(--fg-subtle, rgba(247, 248, 255, 0.7));
+  color: var(--color-fg-subtle, rgba(247, 248, 255, 0.7));
   font-size: 0.95rem;
 }
 
@@ -134,11 +134,12 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  --launch-cta-error: var(--color-danger, #ffb8c6);
 }
 
 .menuError {
   font-size: 0.85rem;
-  color: #ffb8c6;
+  color: var(--launch-cta-error);
 }
 
 .backdrop {
@@ -150,7 +151,7 @@
 
 .loading {
   font-size: 0.9rem;
-  color: var(--fg-subtle, rgba(247, 248, 255, 0.7));
+  color: var(--color-fg-subtle, rgba(247, 248, 255, 0.7));
 }
 
 @media (max-width: 520px) {

@@ -13,11 +13,11 @@
   width: 84px;
   height: 84px;
   border-radius: 999px;
-  border: 2px solid color-mix(in srgb, rgba(255, 255, 255, 0.32) 80%, transparent);
+  border: 2px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.32)) 80%, transparent);
   background:
-    radial-gradient(120% 120% at 50% 0%, rgba(255, 255, 255, 0.22), transparent 68%),
-    linear-gradient(160deg, rgba(28, 36, 86, 0.9), rgba(12, 18, 42, 0.78));
-  box-shadow: 0 16px 36px rgba(6, 12, 32, 0.48);
+    radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.22)) 90%, transparent), transparent 68%),
+    linear-gradient(160deg, color-mix(in srgb, var(--card-bg-1, rgba(28, 36, 86, 0.9)) 90%, transparent), color-mix(in srgb, var(--card-bg-2, rgba(12, 18, 42, 0.78)) 90%, transparent));
+  box-shadow: var(--shadow-lg, 0 16px 36px rgba(6, 12, 32, 0.48));
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -34,7 +34,7 @@
 .avatarInitials {
   font-size: 1.9rem;
   font-weight: 800;
-  color: rgba(248, 250, 255, 0.96);
+  color: var(--text, rgba(248, 250, 255, 0.96));
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -77,7 +77,7 @@
 
 .error {
   margin: 0;
-  color: #fecdd3;
+  color: color-mix(in srgb, var(--color-danger, #f87171) 78%, #fff3f5);
   font-size: 0.9rem;
 }
 
@@ -145,14 +145,18 @@
 }
 
 .displayNameMessageError {
-  color: #fecdd3;
+  color: color-mix(in srgb, var(--color-danger, #f87171) 78%, #fff3f5);
 }
 
 .profileLinkCard {
   margin-top: 18px;
   padding: 18px;
   border-radius: 14px;
-  background: color-mix(in srgb, var(--card-bg) 80%, rgba(255, 255, 255, 0.02));
+  background: color-mix(
+    in srgb,
+    var(--card-bg-1, rgba(13, 17, 36, 0.9)) 80%,
+    rgba(255, 255, 255, 0.02)
+  );
   border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
   display: flex;
   flex-wrap: wrap;

@@ -1,9 +1,11 @@
 "use client";
 
+import * as React from "react";
 import Image from "next/image";
-import { ArrowLeft, Trash, UserPlus, NotePencil } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, UserPlus, NotePencil } from "@phosphor-icons/react/dist/ssr";
 
 import type { ChatParticipant, ChatSession } from "@/components/providers/ChatProvider";
+import { ChatMenu } from "../ChatMenu";
 import { initialsFrom } from "./utils";
 import styles from "../chat.module.css";
 
@@ -28,25 +30,41 @@ export function ConversationHeader({
   onInviteParticipants,
   onDelete,
 }: ConversationHeaderProps) {
+  React.useEffect(() => {
+    if (!onBack) return;
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (event.key === "Escape" || ((event.metaKey || event.ctrlKey) && event.key === "[")) {
+        onBack();
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [onBack]);
+
   return (
     <div className={styles.conversationHeader}>
-      <div className={styles.conversationHeaderLeft}>
+      <div className={styles.conversationHeaderMain}>
         {onBack ? (
           <button
             type="button"
-            className={styles.conversationAction}
+            className={styles.conversationBackButton}
             onClick={onBack}
             aria-label="Back to chats"
+            title="Back to chats"
           >
-            <ArrowLeft size={18} weight="bold" />
+            <ArrowLeft size={16} weight="bold" />
+            <span className={styles.conversationBackText}>Back</span>
           </button>
         ) : null}
-        <span className={styles.conversationAvatar} aria-hidden>
-          {renderConversationAvatar(session, remoteParticipants, title)}
-        </span>
-        <div className={styles.conversationTitleBlock}>
-          <span className={styles.conversationTitle}>{title}</span>
-          {presence ? <span className={styles.conversationSubtitle}>{presence}</span> : null}
+        <div className={styles.conversationIdentity}>
+          <span className={styles.conversationAvatar} aria-hidden>
+            {renderConversationAvatar(session, remoteParticipants, title)}
+          </span>
+          <div className={styles.conversationTitleBlock}>
+            <span className={styles.conversationTitle}>{title}</span>
+            {presence ? <span className={styles.conversationSubtitle}>{presence}</span> : null}
+          </div>
         </div>
       </div>
       <div className={styles.conversationHeaderActions}>
@@ -56,29 +74,32 @@ export function ConversationHeader({
             className={styles.conversationAction}
             onClick={onRenameGroup}
             aria-label="Rename group"
+            title="Rename group"
           >
             <NotePencil size={18} weight="duotone" />
           </button>
         ) : null}
-        {session.type === "group" && onInviteParticipants ? (
+        {onInviteParticipants ? (
           <button
             type="button"
             className={styles.conversationAction}
             onClick={onInviteParticipants}
-            aria-label="Add participants"
+            aria-label={
+              session.type === "group"
+                ? "Add participants"
+                : "Add people to this chat"
+            }
+            title={
+              session.type === "group"
+                ? "Add participants"
+                : "Add people to this chat"
+            }
           >
             <UserPlus size={18} weight="bold" />
           </button>
         ) : null}
         {onDelete ? (
-          <button
-            type="button"
-            className={`${styles.conversationAction} ${styles.conversationActionDanger}`.trim()}
-            onClick={onDelete}
-            aria-label="Delete chat"
-          >
-            <Trash size={18} weight="duotone" />
-          </button>
+          <ChatMenu onDelete={onDelete} conversationId={session.id} />
         ) : null}
       </div>
     </div>
@@ -157,3 +178,4 @@ function renderConversationAvatar(
     </span>
   );
 }
+

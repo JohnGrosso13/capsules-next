@@ -271,7 +271,11 @@ export default async function HomePage() {
               id="revenue"
             >
               <div
-                className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.3),transparent_55%)]"
+                className="absolute inset-0"
+                style={{
+                  background:
+                    "radial-gradient(circle at top right, color-mix(in srgb, var(--color-accent, #22d3ee) 30%, transparent), transparent 55%)",
+                }}
                 aria-hidden="true"
               />
               <div className="relative z-10 mx-auto max-w-3xl space-y-6">

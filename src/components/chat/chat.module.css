@@ -14,9 +14,12 @@
   box-shadow: var(--chats-panel-shadow, 0 18px 40px rgba(0, 0, 0, 0.35));
   overflow: visible;
   /* Ensure chat surfaces reference the same blue brand tokens as the appearance + settings UIs */
-  --color-brand: var(--header-brand-color, var(--color-brand));
-  --color-brand-strong: var(--header-brand-strong-color, var(--color-brand-strong));
-  --color-accent: var(--header-brand-accent-color, var(--color-accent));
+  --chat-color-brand-base: var(--color-brand);
+  --chat-color-brand-strong-base: var(--color-brand-strong);
+  --chat-color-accent-base: var(--color-accent);
+  --color-brand: var(--header-brand, var(--chat-color-brand-base));
+  --color-brand-strong: var(--header-brand-strong, var(--chat-color-brand-strong-base));
+  --color-accent: var(--header-accent, var(--chat-color-accent-base));
   --brand-gradient: var(--header-brand-gradient, var(--gradient-brand));
   --gradient-brand: var(--header-brand-gradient, var(--gradient-brand));
   --cta-button-gradient: var(--header-brand-gradient, var(--cta-button-gradient));
@@ -239,20 +242,20 @@
   border-radius: 999px;
   background: linear-gradient(
     120deg,
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 76%, transparent)
+    color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 76%, transparent)
       0%,
-    color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 84%, transparent) 50%,
+    color-mix(in srgb, var(--header-brand, var(--color-brand)) 84%, transparent) 50%,
     color-mix(
         in srgb,
-        var(--header-brand-accent-color, var(--color-accent, #22d3ee)) 88%,
+        var(--header-accent, var(--color-accent, #22d3ee)) 88%,
         transparent
       )
       100%
   );
   border: 1px solid
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 62%, transparent);
+    color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 62%, transparent);
   box-shadow: 0 10px 22px
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 28%, transparent);
+    color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 28%, transparent);
   color: var(--text-on-brand, #041021);
   letter-spacing: 0.08em;
   white-space: nowrap;
@@ -266,7 +269,7 @@
 
 .chatThreadTag:hover {
   box-shadow: 0 14px 30px
-    color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 36%, transparent);
+    color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 36%, transparent);
   transform: translateY(-1px);
 }
 
@@ -330,43 +333,83 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 20px;
+  gap: 10px;
+  padding: 12px 16px;
+  min-height: 56px;
   border-bottom: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(
+    --chats-conversation-header-background,
+    color-mix(in srgb, rgba(6, 8, 24, 0.9) 88%, transparent)
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
-.conversationHeaderLeft {
+.conversationHeaderMain {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
+  flex: 1 1 auto;
+}
+
+.conversationIdentity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .conversationHeaderActions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.conversationBackButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  height: 38px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 65%, transparent);
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+
+.conversationBackButton:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+}
+
+.conversationBackButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 82%, transparent);
+  outline-offset: 2px;
+}
+
+.conversationBackText {
+  white-space: nowrap;
+  font-size: 0.9rem;
 }
 
 .conversationAction {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  /* Rounded square to match post header actions */
-  border-radius: var(--radius-md, 12px);
-  border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
-  background: var(
-    --chats-control-background,
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, rgba(255, 255, 255, 0.12) 65%, transparent),
-      color-mix(in srgb, rgba(8, 10, 30, 0.78) 80%, transparent)
-    )
-  );
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.06) 70%, transparent);
   color: var(--text);
   transition:
     transform 160ms ease,
@@ -376,8 +419,8 @@
 
 /* Increase glyph size inside header actions for legibility */
 .conversationAction svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .conversationAction:hover {
@@ -396,9 +439,9 @@
 }
 
 .conversationAvatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
   overflow: hidden;
   flex-shrink: 0;
   background: var(
@@ -429,9 +472,9 @@
 }
 
 .conversationAvatarGroup > * {
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -441,7 +484,7 @@
   );
   border: 2px solid
     color-mix(in srgb, var(--card-background, rgba(12, 14, 30, 0.9)) 80%, transparent);
-  margin-left: -18px;
+  margin-left: -16px;
   font-weight: 700;
   color: var(--text);
 }
@@ -458,23 +501,27 @@
 .conversationTitleBlock {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 
 .conversationTitle {
   font-weight: 700;
   font-size: 1rem;
+  line-height: 1.2;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .conversationSubtitle {
-  font-size: 0.8rem;
-  color: var(--text);
+  font-size: 0.78rem;
+  color: var(--text-2);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .conversationParticipants {
@@ -539,10 +586,15 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 18px 56px;
+  padding: 12px 14px 64px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgba(12, 14, 28, 0.92) 85%, transparent),
+    color-mix(in srgb, rgba(10, 12, 24, 0.9) 88%, transparent)
+  );
 }
 
 .messageItem {
@@ -550,7 +602,17 @@
   align-items: flex-start;
   gap: 12px;
   max-width: 100%;
-  padding: 6px 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.messageItem + .messageItem {
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 65%, transparent);
+}
+
+.messageItem:hover {
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.02) 75%, transparent);
 }
 
 .messageItemSelf {
@@ -561,7 +623,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: min(72ch, 78vw);
+  max-width: min(68ch, 78vw);
   position: relative;
   flex: 1;
 }
@@ -585,6 +647,7 @@
   font-weight: 700;
   color: var(--text);
   flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--card-border) 78%, transparent);
 }
 
 .messageAvatarImage {
@@ -601,7 +664,7 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text);
 }
 
@@ -619,14 +682,14 @@
 }
 
 .messageTimestamp {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--text-3, rgba(255, 255, 255, 0.55));
 }
 
 .messageBubble {
-  padding: 0;
-  border-radius: 0;
-  background: none;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.02) 75%, transparent);
   color: var(--text);
   line-height: 1.55;
   word-break: break-word;
@@ -643,12 +706,17 @@
   outline-offset: 6px;
 }
 
+.messageBubbleGroup:hover .messageBubble {
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.03) 78%, transparent);
+}
+
 .messageItemSelf .messageBubble {
+  background: color-mix(in srgb, rgba(76, 86, 212, 0.16) 68%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand) 32%, transparent);
   color: var(--text);
 }
 
 .messageBubbleSelf {
-  background: none;
   color: inherit;
 }
 
@@ -662,7 +730,7 @@
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  margin-top: 6px;
+  margin-top: 8px;
   position: relative;
   transition:
     opacity 140ms ease,
@@ -679,7 +747,7 @@
   opacity: 1;
   max-height: 240px;
   pointer-events: auto;
-  margin-top: 6px;
+  margin-top: 8px;
   overflow: visible;
 }
 
@@ -924,16 +992,16 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 4px 9px;
   border-radius: 999px;
   border: 1px solid
     var(
       --chats-reaction-border,
-      color-mix(in srgb, var(--pill-border) 78%, transparent)
+      color-mix(in srgb, rgba(255, 255, 255, 0.14) 78%, transparent)
     );
   background: var(
     --chats-reaction-background,
-    color-mix(in srgb, rgba(24, 26, 58, 0.88) 82%, transparent)
+    color-mix(in srgb, rgba(26, 28, 48, 0.84) 80%, transparent)
   );
   color: var(--text);
   font-size: 0.78rem;
@@ -958,16 +1026,10 @@
 }
 
 .messageReactionActive {
-  border-color: color-mix(in srgb, var(--color-brand) 75%, transparent);
-  background: var(
-    --chats-reaction-active-background,
-    color-mix(in srgb, rgba(76, 86, 212, 0.42) 85%, transparent)
-  );
+  border-color: color-mix(in srgb, var(--color-brand) 62%, transparent);
+  background: color-mix(in srgb, rgba(76, 86, 212, 0.28) 76%, transparent);
   color: var(--text);
-  box-shadow: var(
-    --chats-reaction-active-shadow,
-    0 8px 18px color-mix(in srgb, rgba(76, 86, 212, 0.35) 60%, transparent)
-  );
+  box-shadow: none;
 }
 
 .messageReactionEmoji {
@@ -990,27 +1052,16 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: 12px;
   border: 1px solid
-    var(
-      --chats-reaction-border,
-      color-mix(in srgb, var(--pill-border) 78%, transparent)
-    );
-  background: var(
-    --chats-reaction-add-background,
-    var(
-      --cta-button-gradient,
-      linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--color-brand) 75%, rgba(59, 130, 246, 0.18)),
-        color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 70%, rgba(14, 116, 230, 0.16))
-      )
-    )
+    color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.22)) 78%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--card-background, rgba(12, 14, 30, 0.9)) 78%,
+    rgba(255, 255, 255, 0.08)
   );
-  color: var(
-    --chats-reaction-add-icon-color,
-    var(--color-brand-strong, var(--color-brand))
-  );
+  color: var(--text);
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--card-border, rgba(0, 0, 0, 0.2)) 40%, transparent);
   cursor: pointer;
   transition:
     transform 160ms ease,
@@ -1030,18 +1081,23 @@
 
 .messageReactionAddButton svg [fill]:not([fill="none"]) {
   fill: currentColor;
-  opacity: 0.28;
+  opacity: 0.65;
 }
 
 .messageReactionAddButton:not(:disabled):hover {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
-  box-shadow: 0 10px 18px color-mix(in srgb, rgba(76, 86, 212, 0.28) 60%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand) 68%, transparent);
+  box-shadow:
+    0 10px 18px color-mix(in srgb, rgba(12, 14, 32, 0.5) 60%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-brand) 26%, transparent);
 }
 
 .messageReactionAddButton:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--color-brand) 80%, transparent);
   outline-offset: 2px;
+  box-shadow:
+    0 10px 18px color-mix(in srgb, rgba(12, 14, 32, 0.5) 60%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-brand) 32%, transparent);
 }
 
 .messageReactionAddButton:disabled {
@@ -1178,11 +1234,11 @@
   display: flex;
   align-items: flex-end;
   gap: 12px;
-  padding: 14px 20px 16px;
+  padding: 12px 18px 16px;
   border-top: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
   background: var(
     --chats-composer-background,
-    color-mix(in srgb, rgba(10, 12, 30, 0.88) 80%, rgba(4, 6, 20, 0.92))
+    color-mix(in srgb, rgba(8, 10, 24, 0.9) 86%, rgba(4, 6, 20, 0.9))
   );
 }
 
@@ -1195,8 +1251,8 @@
   font-size: 0.95rem;
   line-height: 1.55;
   text-align: left;
-  padding-block-start: 12px;
-  padding-block-end: 8px;
+  padding-block-start: 10px;
+  padding-block-end: 6px;
   padding-inline: 0;
   resize: none;
   max-height: 180px;
@@ -1204,7 +1260,7 @@
 }
 
 .messageInput::placeholder {
-  color: var(--text);
+  color: var(--text-3, rgba(255, 255, 255, 0.6));
 }
 
 .messageInput:focus-visible {
@@ -1221,13 +1277,13 @@
   flex: 1;
   min-width: 0;
   border: 1px solid
-    var(--chats-input-border, color-mix(in srgb, rgba(255, 255, 255, 0.16) 70%, transparent));
+    var(--chats-input-border, color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent));
   background: var(
     --chats-input-background,
-    color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75))
+    color-mix(in srgb, rgba(24, 28, 52, 0.6) 70%, rgba(10, 12, 26, 0.82))
   );
-  border-radius: 18px;
-  padding: 14px 16px;
+  border-radius: 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1235,6 +1291,12 @@
     border-color 160ms ease,
     box-shadow 160ms ease,
     background 160ms ease;
+}
+
+.composerInputArea:focus-within {
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--color-brand) 16%, transparent);
+  background: color-mix(in srgb, rgba(28, 32, 60, 0.68) 80%, rgba(10, 12, 26, 0.86));
 }
 
 /* Inline input adornments: + and Send inside the bubble */
@@ -1255,8 +1317,8 @@
   left: 8px;
   top: 50%;
   transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   border: 1px solid
     var(
@@ -1265,16 +1327,23 @@
     );
   background: var(
     --chats-control-background,
-    color-mix(in srgb, rgba(42, 46, 82, 0.55) 70%, rgba(10, 12, 26, 0.75))
+    color-mix(in srgb, rgba(36, 40, 68, 0.55) 70%, rgba(8, 10, 22, 0.75))
   );
   color: var(--chats-control-text, var(--text));
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  opacity: 0.75;
   transition:
     transform 160ms ease,
     border-color 160ms ease,
-    background 160ms ease;
+    background 160ms ease,
+    opacity 160ms ease;
+}
+
+.composerField:hover .composerPlusButton,
+.composerField:focus-within .composerPlusButton {
+  opacity: 1;
 }
 
 .composerPlusButton:hover {
@@ -1289,11 +1358,40 @@
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 12px;
   border: 1px solid
-    var(--chats-send-button-border, color-mix(in srgb, var(--color-brand) 80%, transparent));
+    color-mix(in srgb, rgba(255, 255, 255, 0.14) 68%, transparent);
+  background: color-mix(in srgb, rgba(24, 28, 52, 0.7) 78%, rgba(10, 12, 24, 0.82));
+  color: color-mix(in srgb, var(--color-brand) 78%, #ffffff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.composerSendAdornment:hover:not(:disabled) {
+  transform: translateY(-50%) translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+}
+
+.composerSendAdornment:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.composerSendReady {
+  min-width: 60px;
+  padding: 0 14px;
+  border-color: color-mix(in srgb, var(--color-brand) 78%, transparent);
   background: var(
     --chats-send-button-background,
     var(
@@ -1305,26 +1403,21 @@
       )
     )
   );
-  color: var(
-    --chats-send-button-text,
-    var(--cta-button-text, var(--text-on-brand, #ffffff))
-  );
+  color: var(--text-on-brand, #ffffff);
+}
+
+.composerSendReady .sendButtonIcon {
+  color: var(--text-on-brand, #ffffff);
+}
+
+.composerSendLabel {
+  display: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.composerSendReady .composerSendLabel {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    filter 160ms ease;
-}
-
-.composerSendAdornment:hover:not(:disabled) {
-  filter: var(--chats-send-button-hover-filter, brightness(1.05));
-}
-
-.composerSendAdornment:disabled {
-  opacity: var(--chats-send-button-disabled-opacity, 0.55);
-  cursor: not-allowed;
 }
 
 .composerPlusMenu {
@@ -1512,10 +1605,13 @@
     var(--chats-send-button-border, color-mix(in srgb, var(--color-brand) 80%, transparent));
   background: var(
     --chats-send-button-background,
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand) 80%, rgba(76, 81, 219, 0.95)),
-      color-mix(in srgb, rgba(66, 71, 194, 0.9) 70%, rgba(48, 52, 148, 0.9))
+    var(
+      --cta-button-gradient,
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-brand) 80%, rgba(76, 81, 219, 0.95)),
+        color-mix(in srgb, rgba(66, 71, 194, 0.9) 70%, rgba(48, 52, 148, 0.9))
+      )
     )
   );
   color: var(--chats-send-button-text, var(--text-on-brand, #ffffff));
@@ -1644,8 +1740,9 @@
   }
 
   .conversationHeader {
-    padding: 16px;
+    padding: 12px 14px;
     gap: 10px;
+    min-height: 52px;
     position: sticky;
     top: 0;
     z-index: 6;
@@ -1655,13 +1752,31 @@
     );
   }
 
-  .conversationHeaderLeft {
+  .conversationHeaderMain {
     gap: 10px;
+  }
+
+  .conversationIdentity {
+    gap: 10px;
+  }
+
+  .conversationBackButton {
+    width: 38px;
+    justify-content: center;
+    padding: 8px 10px;
+  }
+
+  .conversationBackText {
+    display: none;
   }
 
   .conversationAvatar {
     width: 40px;
     height: 40px;
+  }
+
+  .conversationSubtitle {
+    white-space: normal;
   }
 
   .messageList {
@@ -2091,3 +2206,6 @@
     color-mix(in srgb, var(--color-brand) 26%, transparent)
   );
 }
+
+
+

@@ -6,9 +6,7 @@
   align-items: stretch;
   justify-content: center;
   padding: var(--overlay-padding);
-  background:
-    radial-gradient(1200px 600px at 50% 20%, rgba(58, 72, 160, 0.24), transparent),
-    linear-gradient(180deg, rgba(6, 10, 24, 0.84), rgba(6, 10, 24, 0.94));
+  background: var(--composer-overlay);
   backdrop-filter: blur(14px);
   z-index: 1200;
   height: 100dvh;
@@ -30,18 +28,11 @@
   /* Tighter vertical spacing between content and footer */
   row-gap: clamp(0.9rem, 1.6vw, 1.35rem);
   padding: clamp(1.25rem, 2vw, 1.85rem);
-  border-radius: 28px;
-  border: 1px solid
-    color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.1)) 80%, transparent);
-  background:
-    linear-gradient(
-      195deg,
-      color-mix(in srgb, var(--surface-overlay, rgba(12, 18, 40, 0.92)) 92%, transparent),
-      rgba(16, 22, 46, 0.86)
-    ),
-    radial-gradient(800px 320px at 0% 0%, rgba(102, 126, 255, 0.22), transparent 70%);
-  box-shadow: 0 22px 70px rgba(6, 10, 26, 0.55);
-  color: var(--text, #f7f8ff);
+  border-radius: var(--composer-radius, 28px);
+  border: 1px solid var(--composer-panel-border, color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.1)) 80%, transparent));
+  background: var(--composer-panel-background);
+  box-shadow: var(--composer-shadow, var(--shadow-xl, 0 22px 70px rgba(6, 10, 26, 0.55)));
+  color: var(--composer-text, var(--text, #f7f8ff));
   position: relative;
   overflow: hidden;
 }
@@ -63,7 +54,7 @@
   position: relative;
   z-index: 1;
   padding-bottom: clamp(0.6rem, 1vw, 1rem);
-  border-bottom: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.14)) 70%, transparent);
 }
 
 .headerActions {
@@ -85,10 +76,10 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 255, 0.45);
-  background: linear-gradient(180deg, rgba(36, 41, 86, 0.9), rgba(17, 21, 52, 0.92));
-  color: rgba(240, 245, 255, 0.92);
-  box-shadow: 0 10px 28px rgba(6, 11, 38, 0.32);
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(148, 163, 255, 0.45)) 90%, transparent);
+  background: linear-gradient(180deg, var(--composer-close-background, rgba(36, 41, 86, 0.9)), rgba(17, 21, 52, 0.92));
+  color: var(--text, rgba(240, 245, 255, 0.92));
+  box-shadow: var(--shadow-sm, 0 10px 28px rgba(6, 11, 38, 0.32));
   transition:
     transform 0.16s ease,
     box-shadow 0.16s ease,
@@ -98,8 +89,8 @@
 .headerIconBtn:hover,
 .headerIconBtn:focus-visible {
   transform: translateY(-1px);
-  border-color: rgba(180, 196, 255, 0.65);
-  box-shadow: 0 14px 32px rgba(6, 11, 38, 0.42);
+  border-color: color-mix(in srgb, var(--color-brand, #6272ff) 65%, transparent);
+  box-shadow: var(--shadow-md, 0 14px 32px rgba(6, 11, 38, 0.42));
 }
 
 .headerIconBtn:focus-visible {
@@ -113,9 +104,9 @@
   justify-content: center;
   padding: 8px 14px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, rgba(148, 163, 255, 0.35) 70%, transparent);
-  background: linear-gradient(180deg, rgba(30, 36, 82, 0.7), rgba(14, 18, 48, 0.84));
-  color: rgba(222, 229, 255, 0.92);
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(148, 163, 255, 0.35)) 70%, transparent);
+  background: linear-gradient(180deg, var(--composer-rail-background, rgba(30, 36, 82, 0.7)), rgba(14, 18, 48, 0.84));
+  color: var(--composer-text, rgba(222, 229, 255, 0.92));
   font-size: 0.85rem;
   font-weight: 600;
 }

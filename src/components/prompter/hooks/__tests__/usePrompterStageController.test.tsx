@@ -66,12 +66,12 @@ const baseContext = {
 };
 
 const baseIntent = {
-  autoIntent: { intent: "generate" as const, confidence: 0.72, reason: "Defaulting to post intent." },
+  autoIntent: { intent: "chat" as const, confidence: 0.72, reason: "Defaulting to post intent." },
   manualIntent: null,
   setManualIntent: vi.fn<(intent: string | null) => void>(),
   navTarget: null,
   postPlan: { mode: "manual" as const, content: "" },
-  effectiveIntent: "generate" as const,
+  effectiveIntent: "chat" as const,
   buttonBusy: false,
 };
 

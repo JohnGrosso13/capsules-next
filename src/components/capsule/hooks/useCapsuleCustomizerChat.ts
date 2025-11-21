@@ -19,6 +19,8 @@ import {
 import { capsuleVariantSchema, type CapsuleVariant } from "./capsuleCustomizerTypes";
 import { buildPromptEnvelope } from "./capsulePromptUtils";
 import { base64ToFile } from "./capsuleImageUtils";
+import { callAiPrompt } from "@/services/composer/ai";
+import { customizerDraftSchema, type CustomizerDraft } from "@/shared/schemas/customizer";
 
 const MAX_PROMPT_REFINEMENTS = 4;
 const ASPECT_TOLERANCE = 0.0025;
@@ -49,6 +51,7 @@ type UseCustomizerChatOptions = {
   assetLabel: string;
   normalizedName: string;
   customizerMode: CapsuleCustomizerMode;
+  capsuleId?: string | null;
   updateSelectedBanner: (banner: SelectedBanner | null) => void;
   setSelectedBanner: React.Dispatch<React.SetStateAction<SelectedBanner | null>>;
   selectedBannerRef: React.MutableRefObject<SelectedBanner | null>;
@@ -234,6 +237,7 @@ export function useCapsuleCustomizerChat({
   assetLabel,
   normalizedName,
   customizerMode,
+  capsuleId,
   updateSelectedBanner,
   setSelectedBanner,
   selectedBannerRef,
@@ -257,6 +261,7 @@ export function useCapsuleCustomizerChat({
     refinements: [],
     sourceKey: null,
   });
+  const customizerDraftRef = React.useRef<CustomizerDraft | null>(null);
 
   const resetPromptHistory = React.useCallback(() => {
     promptHistoryRef.current = { base: null, refinements: [], sourceKey: null };
@@ -270,6 +275,7 @@ export function useCapsuleCustomizerChat({
       setChatBusy(false);
       updateSelectedBanner(null);
       resetPromptHistory();
+      customizerDraftRef.current = null;
       setPrompterSession((value) => value + 1);
     },
     [clarifier, resetPromptHistory, updateSelectedBanner],
@@ -700,75 +706,74 @@ export function useCapsuleCustomizerChat({
           };
           }
 
-          const body: Record<string, unknown> = {
-            prompt: promptForRequest,
-            capsuleName: normalizedName,
-            mode: aiMode,
+          const customizerPayload: Record<string, unknown> = {
+            customizer: {
+              mode: customizerMode,
+              capsuleName: normalizedName,
+              displayName: normalizedName,
+              personaId: stylePersonaId ?? null,
+              seed:
+                typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : null,
+              guidance:
+                typeof guidance === "number" && Number.isFinite(guidance) ? guidance : null,
+              variantId: null,
+              currentAssetUrl: source?.imageUrl ?? null,
+              currentAssetData: source?.imageData ?? null,
+            },
           };
-          if (source?.imageUrl) body.imageUrl = source.imageUrl;
-          if (source?.imageData) body.imageData = source.imageData;
-          if (stylePersonaId) body.stylePersonaId = stylePersonaId;
-          if (typeof seed === "number" && Number.isFinite(seed)) body.seed = Math.floor(seed);
-          if (typeof guidance === "number" && Number.isFinite(guidance)) body.guidance = guidance;
 
-          const aiEndpoint =
-            customizerMode === "logo"
-              ? "/api/ai/logo"
-              : customizerMode === "avatar"
-                ? "/api/ai/avatar"
-                : "/api/ai/banner";
-          const response = await fetch(aiEndpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(body),
+          const previousDraftPayload: Record<string, unknown> | undefined = customizerDraftRef.current
+            ? { customizerDraft: customizerDraftRef.current }
+            : undefined;
+          const promptResponse = await callAiPrompt({
+            message: promptForRequest,
+            options: customizerPayload,
+            ...(previousDraftPayload ? { post: previousDraftPayload } : {}),
+            capsuleId: capsuleId ?? null,
+            stream: true,
+            endpoint: "/api/ai/customize",
+            onStreamMessage(content) {
+              setMessages((prev) =>
+                prev.map((entry) =>
+                  entry.id === assistantId ? { ...entry, content } : entry,
+                ),
+              );
+            },
           });
 
-          type AiResponsePayload = {
-            url?: string;
-            message?: string | null;
-            imageData?: string | null;
-            mimeType?: string | null;
-            variant?: unknown;
-          };
-          const payload = (await response.json().catch(() => null)) as AiResponsePayload | null;
-
-          const payloadUrl = payload?.url ?? null;
-          if (!response.ok || typeof payloadUrl !== "string" || !payloadUrl.trim().length) {
-            const message =
-              (payload?.message && typeof payload.message === "string" && payload.message) ||
-              "Failed to generate banner.";
-            throw new Error(message);
+          if (promptResponse.action !== "draft_post") {
+            throw new Error("Customizer response was not a draft payload.");
           }
+          const draftRaw = (promptResponse.post as { customizerDraft?: unknown })?.customizerDraft;
+          const draftResult = customizerDraftSchema.safeParse(draftRaw);
+          const draft = draftResult.success ? draftResult.data : null;
+          customizerDraftRef.current = draft;
 
           let variantRecord: CapsuleVariant | null = null;
-          let variantHandled = false;
-          if (payload?.variant && typeof payload.variant === "object") {
-            const parsedVariant = capsuleVariantSchema.safeParse(payload.variant);
+          if (draft?.asset?.variant) {
+            const parsedVariant = capsuleVariantSchema.safeParse(draft.asset.variant);
             if (parsedVariant.success) {
               variantRecord = parsedVariant.data;
-              variantHandled = true;
               onVariantReceived?.(variantRecord);
+            } else {
+              onVariantRefreshRequested?.();
             }
-          }
-          if (!variantRecord && !variantHandled) {
+          } else {
             onVariantRefreshRequested?.();
           }
 
+          const assetUrl = draft?.asset?.url ?? null;
+          if (!assetUrl) {
+            throw new Error("Capsule AI did not return an asset to preview.");
+          }
           const mimeType =
-            payload?.mimeType &&
-            typeof payload.mimeType === "string" &&
-            payload.mimeType.trim().length
-              ? payload.mimeType.trim()
+            draft?.asset?.mimeType && draft.asset.mimeType.trim().length
+              ? draft.asset.mimeType
               : "image/jpeg";
           const imageData =
-            payload?.imageData && typeof payload.imageData === "string" && payload.imageData.length
-              ? payload.imageData
-              : null;
+            draft?.asset?.imageData && draft.asset.imageData.length ? draft.asset.imageData : null;
 
-          const fileUrl = payloadUrl || (imageData ? `data:${mimeType};base64,${imageData}` : "");
           let bannerFile: File | null = null;
-
           if (imageData) {
             const extension = mimeType.split("/")[1] ?? "jpg";
             const filename = `capsule-ai-banner-${Date.now()}.${extension.replace(/[^a-z0-9]+/gi, "") || "jpg"}`;
@@ -776,7 +781,7 @@ export function useCapsuleCustomizerChat({
           }
 
           const normalizedAsset = await ensureAspectForGeneratedBanner({
-            url: fileUrl,
+            url: assetUrl,
             file: bannerFile,
             mimeType,
           });
@@ -792,14 +797,12 @@ export function useCapsuleCustomizerChat({
           updateSelectedBanner(generatedBanner);
           promptHistoryRef.current.sourceKey = bannerSourceKey(generatedBanner);
 
-          const serverMessage =
-            payload?.message && typeof payload.message === "string" ? payload.message : null;
           const responseCopy = _buildAssistantResponseNatural({
             prompt: trimmed,
             capsuleName: normalizedName,
             mode: aiMode,
             asset: customizerMode,
-            serverMessage,
+            serverMessage: promptResponse.message ?? null,
           });
 
           const promptStateSnapshot: PromptHistorySnapshot = {
@@ -808,7 +811,7 @@ export function useCapsuleCustomizerChat({
             sourceKey: promptHistoryRef.current.sourceKey,
           };
 
-          const previewUrl = normalizedAsset.url || fileUrl;
+          const previewUrl = normalizedAsset.url || assetUrl;
           const bannerOption: ChatBannerOption = {
             id: randomId(),
             label: aiMode === "generate" ? "New banner concept" : "Remixed banner",
@@ -828,6 +831,7 @@ export function useCapsuleCustomizerChat({
                     ...entry,
                     content: responseCopy,
                     bannerOptions: [bannerOption],
+                    suggestions: draft?.suggestions ?? [],
                   }
                 : entry,
             ),
@@ -874,6 +878,7 @@ export function useCapsuleCustomizerChat({
       guidance,
       onVariantReceived,
       onVariantRefreshRequested,
+      capsuleId,
       seed,
       stylePersonaId,
     ],

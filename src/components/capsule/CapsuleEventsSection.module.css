@@ -5,8 +5,8 @@
   align-items: flex-start;
   padding: 24px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(16, 20, 36, 0.75);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.06));
+  background: var(--surface-muted, rgba(16, 20, 36, 0.75));
 }
 
 .stateHeading {
@@ -25,9 +25,9 @@
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.05),
-    rgba(255, 255, 255, 0.1),
-    rgba(255, 255, 255, 0.05)
+    color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.05)) 90%, transparent),
+    color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.1)) 90%, transparent),
+    color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.05)) 90%, transparent)
   );
   animation: shimmer 1.4s ease infinite;
 }
@@ -68,11 +68,15 @@
   gap: 20px;
   padding: 22px 24px;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  background: linear-gradient(180deg, rgba(13, 18, 36, 0.92), rgba(13, 18, 36, 0.75));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.05));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card-bg-1, rgba(13, 18, 36, 0.92)) 95%, transparent),
+    color-mix(in srgb, var(--card-bg-2, rgba(13, 18, 36, 0.75)) 92%, transparent)
+  );
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 22px 42px rgba(6, 10, 24, 0.35);
+    inset 0 1px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.05)) 90%, transparent),
+    var(--shadow-lg, 0 22px 42px rgba(6, 10, 24, 0.35));
 }
 
 .sectionHeader {
@@ -110,23 +114,23 @@
 
 .searchInput {
   width: 100%;
-  background: rgba(18, 24, 44, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-elevated, rgba(18, 24, 44, 0.75));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
   color: inherit;
   padding: 6px 12px;
   border-radius: 12px;
 }
 
 .searchInput:focus {
-  outline: 2px solid rgba(110, 136, 255, 0.55);
+  outline: 2px solid color-mix(in srgb, var(--color-brand, #6e88ff) 55%, transparent);
   outline-offset: 1px;
 }
 
 .filterGroup {
   display: inline-flex;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(22, 26, 48, 0.7);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  background: var(--surface-muted, rgba(22, 26, 48, 0.7));
   padding: 4px;
   gap: 4px;
 }
@@ -147,13 +151,13 @@
 }
 
 .filterButton:hover {
-  background: rgba(90, 118, 255, 0.18);
+  background: color-mix(in srgb, var(--color-brand, #5a76ff) 18%, transparent);
 }
 
 .filterButtonActive {
-  background: rgba(90, 118, 255, 0.3);
-  color: #f8fbff;
-  box-shadow: 0 0 0 1px rgba(110, 136, 255, 0.4);
+  background: color-mix(in srgb, var(--color-brand, #5a76ff) 30%, transparent);
+  color: var(--text-on-brand, #f8fbff);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand, #6e88ff) 40%, transparent);
 }
 
 .filterCount {
@@ -171,13 +175,13 @@
   display: inline-flex;
   align-items: center;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
   overflow: hidden;
 }
 
 .sortSelect {
   border: none;
-  background: rgba(18, 24, 44, 0.75);
+  background: var(--surface-elevated, rgba(18, 24, 44, 0.75));
   color: inherit;
   padding: 6px 12px;
   font-size: 13px;
@@ -189,7 +193,7 @@
 
 .sortDirectionBtn {
   border: none;
-  background: rgba(18, 24, 44, 0.9);
+  background: var(--surface-overlay, rgba(18, 24, 44, 0.9));
   color: inherit;
   padding: 6px 10px;
   cursor: pointer;
@@ -224,15 +228,15 @@
   gap: 4px;
   padding: 14px 16px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(16, 20, 36, 0.8);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.06));
+  background: var(--card-bg-1, rgba(16, 20, 36, 0.8));
 }
 
 .statCard span {
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.7;
+  color: var(--text-3, rgba(255, 255, 255, 0.7));
 }
 
 .statCard strong {
@@ -242,10 +246,10 @@
 
 .ladderTableWrap {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
   overflow: hidden;
-  background: rgba(11, 16, 32, 0.8);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--surface-muted, rgba(11, 16, 32, 0.8));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.04)) 90%, transparent);
 }
 
 .sortPulse tbody tr {
@@ -259,14 +263,14 @@
 }
 
 .ladderTable thead {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.03));
 }
 
 .ladderTable th,
 .ladderTable td {
   padding: 14px 18px;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
   vertical-align: top;
 }
 
@@ -274,7 +278,7 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  opacity: 0.7;
+  color: var(--text-3, rgba(255, 255, 255, 0.7));
 }
 
 .ladderTable tbody tr:last-of-type th,
@@ -325,8 +329,8 @@
   align-items: flex-start;
   padding: 20px;
   border-radius: 16px;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  background: rgba(13, 18, 36, 0.45);
+  border: 1px dashed var(--color-border, rgba(255, 255, 255, 0.12));
+  background: color-mix(in srgb, var(--surface-muted, rgba(13, 18, 36, 0.45)) 90%, transparent);
   font-size: 14px;
 }
 
@@ -338,8 +342,8 @@
 
 .ladderCard {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(13, 17, 30, 0.8);
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  background: var(--card-bg-1, rgba(13, 17, 30, 0.8));
   padding: 20px 22px;
   display: flex;
   flex-direction: column;
@@ -375,7 +379,7 @@
 .cardSummary {
   font-size: 14px;
   line-height: 1.45;
-  opacity: 0.85;
+  color: var(--text-2, rgba(255, 255, 255, 0.85));
 }
 
 .cardFooter {
@@ -393,31 +397,38 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border: 1px solid var(--badge-border, rgba(146, 158, 255, 0.4));
-  background: var(--badge-surface, rgba(84, 104, 210, 0.16));
-  color: var(--badge-color, #c7d4ff);
-  box-shadow: 0 10px 24px var(--badge-glow, rgba(58, 86, 210, 0.28));
+  border: 1px solid
+    var(
+      --badge-border,
+      color-mix(in srgb, var(--color-info, #38bdf8) 40%, transparent)
+    );
+  background: var(
+    --badge-surface,
+    color-mix(in srgb, var(--color-info, #38bdf8) 16%, transparent)
+  );
+  color: var(--badge-color, var(--text-on-brand, #c7d4ff));
+  box-shadow: 0 10px 24px var(--badge-glow, color-mix(in srgb, var(--color-info, #38bdf8) 28%, transparent));
 }
 
 .toneSuccess {
-  --badge-surface: hsla(150deg 72% 63% / 0.16);
-  --badge-border: hsla(150deg 78% 68% / 0.46);
-  --badge-color: #7ff2c0;
-  --badge-glow: hsla(150deg 72% 58% / 0.25);
+  --badge-surface: color-mix(in srgb, var(--color-success, #22c55e) 18%, transparent);
+  --badge-border: color-mix(in srgb, var(--color-success, #22c55e) 46%, transparent);
+  --badge-color: color-mix(in srgb, var(--color-success, #22c55e) 82%, #ffffff);
+  --badge-glow: color-mix(in srgb, var(--color-success, #22c55e) 25%, transparent);
 }
 
 .toneNeutral {
-  --badge-surface: hsla(226deg 62% 74% / 0.16);
-  --badge-border: hsla(226deg 74% 78% / 0.4);
-  --badge-color: #c3cdff;
-  --badge-glow: hsla(226deg 64% 70% / 0.22);
+  --badge-surface: color-mix(in srgb, var(--color-info, #38bdf8) 14%, transparent);
+  --badge-border: color-mix(in srgb, var(--color-info, #38bdf8) 38%, transparent);
+  --badge-color: color-mix(in srgb, var(--color-info, #38bdf8) 76%, #e6f4ff);
+  --badge-glow: color-mix(in srgb, var(--color-info, #38bdf8) 22%, transparent);
 }
 
 .toneWarn {
-  --badge-surface: hsla(18deg 92% 64% / 0.18);
-  --badge-border: hsla(18deg 94% 68% / 0.46);
-  --badge-color: #ffbb97;
-  --badge-glow: hsla(18deg 88% 60% / 0.28);
+  --badge-surface: color-mix(in srgb, var(--color-warning, #fbbf24) 18%, transparent);
+  --badge-border: color-mix(in srgb, var(--color-warning, #fbbf24) 46%, transparent);
+  --badge-color: color-mix(in srgb, var(--color-warning, #fbbf24) 80%, #fff8eb);
+  --badge-glow: color-mix(in srgb, var(--color-warning, #fbbf24) 28%, transparent);
 }
 
 .identityChip {
@@ -430,18 +441,22 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background: var(--identity-surface, rgba(100, 124, 255, 0.16));
-  border: 1px solid var(--identity-border, rgba(154, 178, 255, 0.6));
-  color: var(--identity-color, rgba(170, 188, 255, 0.92));
-  box-shadow: 0 8px 20px var(--identity-glow, rgba(82, 112, 255, 0.28));
+  background: var(
+    --identity-surface,
+    color-mix(in srgb, var(--color-brand, #6475ff) 16%, transparent)
+  );
+  border: 1px solid
+    var(--identity-border, color-mix(in srgb, var(--color-brand, #6475ff) 60%, transparent));
+  color: var(--identity-color, color-mix(in srgb, var(--color-brand, #6475ff) 92%, #f8fbff));
+  box-shadow: 0 8px 20px var(--identity-glow, color-mix(in srgb, var(--color-brand, #6475ff) 28%, transparent));
 }
 
 .identityDot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--identity-color, rgba(170, 188, 255, 0.92));
-  box-shadow: 0 0 12px var(--identity-glow, rgba(82, 112, 255, 0.34));
+  background: var(--identity-color, color-mix(in srgb, var(--color-brand, #6475ff) 92%, #f8fbff));
+  box-shadow: 0 0 12px var(--identity-glow, color-mix(in srgb, var(--color-brand, #6475ff) 34%, transparent));
 }
 
 .badgeSoft {
@@ -451,12 +466,12 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  background: rgba(92, 118, 255, 0.14);
-  border: 1px solid rgba(154, 182, 255, 0.4);
-  color: #b6c3ff;
+  background: color-mix(in srgb, var(--color-brand, #5c76ff) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand, #5c76ff) 40%, transparent);
+  color: color-mix(in srgb, var(--color-brand, #5c76ff) 68%, #dfe6ff);
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  box-shadow: 0 8px 20px rgba(82, 112, 255, 0.18);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-brand, #5c76ff) 18%, transparent);
 }
 
 .tagBadge {
@@ -465,8 +480,8 @@
   gap: 6px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(90, 118, 255, 0.16);
-  color: #9eb8ff;
+  background: color-mix(in srgb, var(--color-brand, #5a76ff) 16%, transparent);
+  color: color-mix(in srgb, var(--color-brand, #5a76ff) 64%, #d3e2ff);
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;

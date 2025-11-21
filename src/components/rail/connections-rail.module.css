@@ -90,8 +90,6 @@
   }
 
   .connectionTile {
-    --tile-border-hover-base: var(--home-connectiontile-tile-border-hover-base, rgba(96, 165, 255, 0.45));
-    --tile-shadow-hover-base: var(--home-connectiontile-tile-shadow-hover-base, 0 18px 36px rgba(32, 38, 70, 0.38));
     --tile-accent-a: color-mix(in srgb, var(--color-brand, #2563eb) 60%, var(--color-accent, #22d3ee));
     --tile-accent-b: color-mix(in srgb, var(--color-accent, #22d3ee) 55%, #60a5fa);
     --tile-accent-c: color-mix(in srgb, var(--color-info, #38bdf8) 40%, transparent);
@@ -296,18 +294,18 @@
       --style-party-bg,
       linear-gradient(
         160deg,
-        color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 22%, rgba(255, 255, 255, 0.18)),
-        color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 16%, rgba(255, 255, 255, 0.12))
+        color-mix(in srgb, var(--header-brand, var(--color-brand)) 22%, rgba(255, 255, 255, 0.18)),
+        color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 16%, rgba(255, 255, 255, 0.12))
       ),
       var(--tile-bg-base)
     );
     --tile-border-final: var(
       --style-party-border,
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 45%, var(--tile-border-base, rgba(132, 148, 255, 0.22)))
+      color-mix(in srgb, var(--header-brand, var(--color-brand)) 45%, var(--tile-border-base, rgba(132, 148, 255, 0.22)))
     );
     --tile-icon-bg-final: var(
       --style-party-icon-bg,
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 32%, rgba(255, 255, 255, 0.16))
+      color-mix(in srgb, var(--header-brand, var(--color-brand)) 32%, rgba(255, 255, 255, 0.16))
     );
     --tile-icon-color-final: var(
       --style-party-icon-color,
@@ -318,20 +316,20 @@
     --tile-badge-color-final: var(--style-party-badge-color, rgba(246, 248, 255, 0.96));
     --tile-border-hover: var(
       --style-party-border-hover,
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 62%, rgba(148, 163, 184, 0.28))
+      color-mix(in srgb, var(--header-brand, var(--color-brand)) 62%, rgba(148, 163, 184, 0.28))
     );
     --tile-shadow-hover: var(--style-party-shadow-hover, 0 22px 48px rgba(18, 28, 62, 0.4));
     --tile-accent-a: var(
       --style-party-accent-a,
-      color-mix(in srgb, var(--header-brand-strong-color, var(--color-brand-strong)) 58%, #38bdf8)
+      color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 58%, #38bdf8)
     );
     --tile-accent-b: var(
       --style-party-accent-b,
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 48%, #60a5fa)
+      color-mix(in srgb, var(--header-brand, var(--color-brand)) 48%, #60a5fa)
     );
     --tile-accent-c: var(
       --style-party-accent-c,
-      color-mix(in srgb, var(--header-brand-color, var(--color-brand)) 36%, transparent)
+      color-mix(in srgb, var(--header-brand, var(--color-brand)) 36%, transparent)
     );
     --tile-glow-opacity: 0.32;
   }
@@ -396,11 +394,11 @@
   }
 
   .railHeaderRow {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    justify-content: space-between;
-    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    gap: 12px;
+    padding: 12px;
     border-radius: clamp(16px, 2vw, 20px);
     border: 1px solid var(--rail-border, var(--card-border, rgba(255, 255, 255, 0.14)));
     /* Use neutral rail shell so actions sit on a clean plate in light/dark */
@@ -427,129 +425,33 @@
     z-index: -1;
   }
 
-  .railHeaderAction {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-end;
+  .railHeaderContent {
+    display: flex;
+    flex-direction: column;
     gap: 10px;
-    row-gap: 8px;
-    flex-wrap: wrap;
-    max-width: 100%;
-    /* Bring back branded gradient actions like screenshot */
-    --friends-action-text: var(--cta-button-text, var(--text-on-brand, #ffffff));
-    --friends-action-border: color-mix(
-      in srgb,
-      var(--color-brand, #6366f1) 60%,
-      var(--rail-border, var(--card-border))
-    );
-    --friends-action-background: var(--cta-button-gradient, var(--gradient-brand));
-    --friends-action-hover-border: color-mix(in srgb, var(--color-brand, #2563eb) 68%, var(--friends-action-border));
-    --friends-action-active-border: color-mix(in srgb, var(--color-brand, #2563eb) 75%, var(--friends-action-border));
-    --friends-action-active-shadow: 0 14px 34px color-mix(in srgb, var(--color-brand, #2563eb) 22%, rgba(15,23,42,0.18));
-    --friends-action-hover-filter: brightness(1.04);
-    /* Map per-button tokens to the unified action style */
-    --friends-group-action-text: var(--friends-action-text);
-    --friends-group-action-border: var(--friends-action-border);
-    --friends-group-action-background: var(--friends-action-background);
-    --friends-group-action-hover-border: var(--friends-action-hover-border);
-    --friends-group-action-active-shadow: var(--friends-action-active-shadow);
-    --friends-party-action-text: var(--friends-action-text);
-    --friends-party-action-border: var(--friends-action-border);
-    --friends-party-action-background: var(--friends-action-background);
-    --friends-party-action-hover-border: var(--friends-action-hover-border);
-    --friends-party-action-active-shadow: var(--friends-action-active-shadow);
-  }
-
-  .railHeaderAction :global(.chatActionButton) {
-    padding: 10px 20px;
-    min-height: 42px;
-    white-space: nowrap;
-    flex-shrink: 0;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    transition:
-      transform 0.18s ease,
-      filter 0.18s ease,
-      border-color 0.18s ease;
-  }
-
-  .railHeaderAction :global(.chatActionButton:disabled) {
-    cursor: not-allowed;
-  }
-
-  .railHeaderAction :global(.livePill) {
-    margin-left: 8px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: linear-gradient(135deg, rgba(34, 211, 238, 0.9), rgba(96, 165, 250, 0.9));
-    color: rgba(10, 16, 32, 0.9);
-    font-weight: 800;
-  }
-
-  .railBackBtn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 85%, transparent);
-    background: linear-gradient(160deg, rgba(34, 44, 84, 0.82), rgba(14, 20, 44, 0.7));
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: rgba(255, 255, 255, 0.92);
-    line-height: 0;
-    transition:
-      transform 0.18s ease,
-      border-color 0.18s ease,
-      box-shadow 0.18s ease;
-    box-shadow: var(--home-railbackbtn-box-shadow, 0 16px 36px rgba(4, 8, 24, 0.42));
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-
-  .railBackBtn:hover {
-    transform: translateY(-1px) scale(1.02);
-    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 70%, transparent);
-    box-shadow: 0 20px 40px rgba(8, 12, 32, 0.48);
-  }
-
-  .railBackBtn:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
-    outline-offset: 2px;
-  }
-
-  .railTabs {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 8px;
-    /* Remove container chrome so pills read as part of one surface */
-    padding: 0;
-    margin-bottom: 0;
-    border-radius: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    position: relative;
-    z-index: 2;
-  }
-
-  .railTab {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 9px 12px;
-    border-radius: var(--pill-radius, 999px);
-    border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
-    /* Subtler pill surface for dark mode */
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.035));
-    color: var(--color-fg, rgba(255, 255, 255, 0.92));
-    font-weight: 800;
-    letter-spacing: 0.01em;
-    box-shadow: var(--home-railtab-box-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.1));
     width: 100%;
+    min-width: 0;
+  }
+
+  .railIconTabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .railIconTab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    min-height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.04));
+    color: var(--color-fg, rgba(255, 255, 255, 0.9));
+    box-shadow: var(--home-railtab-box-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.12));
     transition:
       transform 0.16s ease,
       border-color 0.16s ease,
@@ -557,33 +459,198 @@
       background 0.16s ease;
   }
 
-  .railTab:hover {
+  .railIconTab:hover {
     border-color: var(--card-hover-border, rgba(255, 255, 255, 0.26));
     transform: translateY(-1px);
   }
 
-  .railTab:focus-visible {
+  .railIconTab:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
     outline-offset: 2px;
   }
 
-  .railTabActive {
+  .railIconTabActive {
     color: var(--color-fg, rgba(255, 255, 255, 0.95));
     border-color: color-mix(
       in srgb,
       var(--home-railtab-accent, var(--color-brand, #2563eb)) 45%,
       var(--pill-border, rgba(255, 255, 255, 0.18))
     );
-    background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
+    background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--home-railtab-accent, var(--color-brand, #2563eb)) 32%, transparent),
+      color-mix(in srgb, var(--home-railtab-accent, var(--color-brand, #2563eb)) 12%, rgba(255, 255, 255, 0.08))
+    );
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.16),
-      inset 0 -1px 0 rgba(5, 8, 28, 0.42),
-      0 8px 18px
+      inset 0 -1px 0 rgba(5, 8, 28, 0.38),
+      0 10px 22px
         color-mix(
           in srgb,
           var(--home-railtab-accent, var(--color-brand, #2563eb)) 18%,
-          rgba(5, 10, 30, 0.28)
+          rgba(5, 10, 30, 0.3)
         );
+  }
+
+  .railIconTabLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .railHeaderActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .railActionButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 10px;
+    min-height: 38px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--rail-border, rgba(255, 255, 255, 0.16)) 80%, transparent);
+    background: linear-gradient(
+      140deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.16) 32%, transparent),
+      color-mix(in srgb, rgba(255, 255, 255, 0.08) 46%, transparent)
+    );
+    color: var(--cta-button-text, var(--text, #0b1224));
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    box-shadow: 0 12px 26px rgba(6, 12, 34, 0.26);
+    transition:
+      transform 0.16s ease,
+      box-shadow 0.16s ease,
+      filter 0.16s ease,
+      border-color 0.16s ease;
+  }
+
+  .railActionGradient {
+    background: var(
+      --cta-button-gradient,
+      var(--cta-chip-gradient, linear-gradient(135deg, #7c3aed, #2563eb 55%, #0ea5e9))
+    );
+    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 72%, rgba(255, 255, 255, 0.18));
+    color: var(--cta-button-text, var(--text-on-brand, #041021));
+  }
+
+  .railActionParty {
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand, #2563eb) 72%, #7c3aed),
+      color-mix(in srgb, var(--color-accent, #22d3ee) 72%, #0ea5e9)
+    );
+    border-color: color-mix(in srgb, var(--color-brand, #6366f1) 70%, rgba(255, 255, 255, 0.2));
+    color: var(--text-on-brand, #f8fbff);
+  }
+
+  .railActionButton[data-active="true"] {
+    box-shadow: 0 20px 40px color-mix(in srgb, var(--color-brand, #2563eb) 26%, rgba(4, 10, 28, 0.32));
+    transform: translateY(-1px);
+  }
+
+  .railActionButton:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 76%, rgba(255, 255, 255, 0.2));
+  }
+
+  .railActionButton:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    box-shadow: none;
+    filter: grayscale(0.1);
+    transform: none;
+  }
+
+  .railActionIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+  }
+
+  .railActionLabel {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: inherit;
+  }
+
+  .railActionBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-on-brand, #041021);
+    border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.42) 70%, transparent);
+  }
+
+
+
+
+
+  .railBackBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.24) 72%, transparent);
+    background: color-mix(in srgb, rgba(16, 20, 44, 0.82) 86%, transparent);
+    color: color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.9)) 92%, transparent);
+    line-height: 1.1;
+    font-weight: 700;
+    transition:
+      transform 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease;
+    box-shadow: var(--home-railbackbtn-box-shadow, 0 12px 28px rgba(4, 8, 24, 0.38));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .railBackBtn:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 68%, transparent);
+    box-shadow: 0 18px 34px rgba(8, 12, 32, 0.44);
+  }
+
+  .railBackBtn:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 58%, transparent);
+    outline-offset: 2px;
+  }
+
+  .railBackIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    font-size: 0.85rem;
+  }
+
+  .railBackLabel {
+    font-size: 0.9rem;
+    letter-spacing: 0.01em;
+    color: inherit;
   }
 
   .railTabIcon {
@@ -643,19 +710,18 @@
     }
 
     .railHeaderRow {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 12px;
+      grid-template-columns: 1fr;
     }
 
-    .railHeaderAction {
-      justify-content: stretch;
+    .railHeaderContent {
+      gap: 8px;
     }
 
-    .railHeaderAction :global(.chatActionButton) {
-      flex: 1 1 100%;
-      justify-content: center;
+    .railHeaderActions {
+      grid-template-columns: 1fr;
     }
+
+  
   }
 
   @media (max-width: 640px) {
@@ -663,9 +729,13 @@
       padding: 14px;
     }
 
-    .railHeaderAction {
+    .railHeaderActions {
       gap: 8px;
-      row-gap: 6px;
+    }
+
+    .railIconTabs {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
   }
 }
+

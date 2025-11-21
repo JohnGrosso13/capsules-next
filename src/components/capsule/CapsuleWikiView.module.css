@@ -39,7 +39,7 @@
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent);
   background: color-mix(in srgb, var(--color-brand, #2563eb) 30%, transparent);
-  color: var(--text-primary, #fff);
+  color: var(--text, #fff);
   font-weight: 600;
   cursor: pointer;
   transition: transform 160ms ease, box-shadow 160ms ease;
@@ -74,7 +74,7 @@
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, rgba(120, 140, 210, 0.2) 70%, transparent);
   background: color-mix(in srgb, rgba(15, 19, 40, 0.86) 75%, transparent);
-  color: var(--text-primary, rgba(255, 255, 255, 0.92));
+  color: var(--text, rgba(255, 255, 255, 0.92));
   font-size: 0.95rem;
 }
 

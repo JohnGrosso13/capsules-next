@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { hasOpenAIApiKey, postOpenAIJson } from "@/adapters/ai/openai/server";
+import { buildCompletionTokenLimit } from "@/lib/ai/openai";
 import { returnError, validatedJson } from "@/server/validation/http";
 import type { CapsuleHistoryPeriod } from "@/types/capsules";
 
@@ -173,10 +174,12 @@ function stripFence(raw: string | null | undefined): string {
 async function requestAiHints(input: NormalizedHintInput): Promise<HintResponse | null> {
   if (!hasOpenAIApiKey()) return null;
 
+  const model = "gpt-4o-mini";
+  const tokenLimit = buildCompletionTokenLimit(model, 320);
   const body = {
-    model: "gpt-4o-mini",
+    model,
     temperature: 0.6,
-    max_tokens: 320,
+    ...tokenLimit,
     response_format: {
       type: "json_schema",
       json_schema: {

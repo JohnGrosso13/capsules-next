@@ -14,11 +14,7 @@ import { safeRandomUUID } from "@/lib/random";
 import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
 import { useComposerCore } from "@/components/composer/state/useComposerCore";
 import { cloneComposerData } from "@/components/composer/state/utils";
-import {
-  appendCapsuleContext,
-  IMAGE_INTENT_REGEX,
-  mergeComposerRawPost,
-} from "@/components/composer/state/ai-shared";
+import { appendCapsuleContext } from "@/components/composer/state/ai-shared";
 import { ComposerSidebarProvider, useComposerSidebarStore } from "./context/SidebarProvider";
 import { ComposerSmartContextProvider, useComposerSmartContext } from "./context/SmartContextProvider";
 import { useComposerImageSettings } from "@/components/composer/state/useComposerImageSettings";
@@ -38,7 +34,6 @@ import {
   type ComposerSidebarData,
   type SidebarDraftListItem,
 } from "@/lib/composer/sidebar-types";
-import { normalizeDraftFromPost } from "@/lib/composer/normalizers";
 import { buildPostPayload } from "@/lib/composer/payload";
 import { type PromptResponse } from "@/shared/schemas/ai";
 import { callAiPrompt } from "@/services/composer/ai";
@@ -76,6 +71,28 @@ const POLL_QUESTION_PATTERNS = [
   /question should/,
   /question is/,
 ];
+
+const EMPTY_RECENT_DRAFT: ComposerDraft = {
+  kind: "text",
+  title: null,
+  content: "",
+  mediaUrl: null,
+  mediaPrompt: null,
+  mediaThumbnailUrl: null,
+  mediaPlaybackUrl: null,
+  mediaDurationSeconds: null,
+  muxPlaybackId: null,
+  muxAssetId: null,
+  poll: null,
+  suggestions: [],
+};
+
+function ensureRecentDraft(draft: ComposerDraft | null): ComposerDraft {
+  if (draft && typeof draft === "object") {
+    return draft;
+  }
+  return { ...EMPTY_RECENT_DRAFT };
+}
 
 function shouldPreservePollOptions(prompt: string, prevDraft: ComposerDraft | null): boolean {
   if (!prevDraft?.poll) return false;
@@ -286,7 +303,6 @@ export type ComposerState = {
   choices: ComposerChoice[] | null;
   history: ComposerChatMessage[];
   threadId: string | null;
-  clarifier: ClarifierState | null;
   summaryContext: SummaryConversationContext | null;
   summaryResult: SummaryResult | null;
   summaryOptions: SummaryPresentationOptions | null;
@@ -294,14 +310,6 @@ export type ComposerState = {
   videoStatus: ComposerVideoStatus;
   saveStatus: ComposerSaveStatus;
   contextSnapshot: ComposerContextSnapshot | null;
-};
-
-type ClarifierState = {
-  questionId: string;
-  question: string;
-  rationale: string | null;
-  suggestions: string[];
-  styleTraits: string[];
 };
 
 type AiPromptHandoff = Extract<PrompterHandoff, { intent: "ai_prompt" }>;
@@ -329,7 +337,6 @@ type ComposerContextValue = {
     options: SummaryPresentationOptions,
     extras?: SummaryConversationExtras,
   ): void;
-  answerClarifier(answer: string): void;
   forceChoice?(key: string): Promise<void>;
   updateDraft(draft: ComposerDraft): void;
   sidebar: ComposerSidebarData;
@@ -353,7 +360,6 @@ const initialState: ComposerState = {
   choices: null,
   history: [],
   threadId: null,
-  clarifier: null,
   summaryContext: null,
   summaryResult: null,
   summaryOptions: null,
@@ -460,7 +466,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
   const { smartContextEnabled, setSmartContextEnabled: setSmartContextEnabledContext } =
     useComposerSmartContext();
   const saveResetTimeout = React.useRef<number | null>(null);
-  const pendingImagePromptRef = React.useRef<string | null>(null);
 
   const setSmartContextEnabled = React.useCallback(
     (enabled: boolean) => {
@@ -486,11 +491,12 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     (input: {
       prompt: string;
       message: string | null;
-      draft: ComposerDraft;
+      draft: ComposerDraft | null;
       rawPost: Record<string, unknown> | null;
       history: ComposerChatMessage[];
       threadId: string | null;
     }) => {
+      const safeDraft = ensureRecentDraft(input.draft ?? null);
       updateSidebarStore((prev) => {
         const now = new Date().toISOString();
         const normalizedThreadId =
@@ -513,7 +519,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           id: entryId,
           prompt: input.prompt,
           message: input.message ?? null,
-          draft: cloneComposerData(input.draft),
+          draft: cloneComposerData(safeDraft),
           rawPost: input.rawPost ? cloneComposerData(input.rawPost) : null,
           createdAt,
           updatedAt: now,
@@ -668,7 +674,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       choices: null,
       history: cloneComposerData(entry.history ?? []),
       threadId: entry.threadId ?? null,
-      clarifier: null,
     }));
       recordRecentChat({
         prompt: entry.prompt,
@@ -712,7 +717,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       choices: null,
       history: cloneComposerData(entry.history ?? []),
       threadId: entry.threadId ?? entry.id ?? null,
-      clarifier: null,
     }));
       updateSidebarStore((prev) => {
         const found = prev.recentChats.find((chat) => chat.id === chatId);
@@ -760,64 +764,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
   const activeCapsuleId = React.useMemo(
     () => normalizeCapsuleId(feedTarget.scope === "capsule" ? feedTarget.capsuleId : null),
     [feedTarget],
-  );
-
-  const runAutoImageGeneration = React.useCallback(
-    (imagePrompt: string) => {
-      const trimmed = imagePrompt.trim();
-      if (!trimmed) return;
-      if (pendingImagePromptRef.current === trimmed) return;
-      pendingImagePromptRef.current = trimmed;
-      setState((prev) => ({ ...prev, loading: true }));
-      void (async () => {
-        try {
-          const result = await requestImageGeneration(trimmed, imageRequestOptions);
-          setState((prev) => {
-            const baseDraft: ComposerDraft =
-              prev.draft ??
-              {
-                kind: "image",
-                title: null,
-                content: "",
-                mediaUrl: null,
-                mediaPrompt: null,
-                poll: null,
-                suggestions: [],
-              };
-            const nextDraft: ComposerDraft = {
-              ...baseDraft,
-              kind: "image",
-              mediaUrl: result.url,
-              mediaPrompt: trimmed,
-            };
-            const rawPatch = appendCapsuleContext(
-              { kind: "image", mediaUrl: result.url, media_prompt: trimmed },
-              activeCapsuleId,
-            );
-            const nextRawPost = mergeComposerRawPost(prev.rawPost ?? null, rawPatch, nextDraft);
-            return {
-              ...prev,
-              loading: false,
-              draft: nextDraft,
-              rawPost: nextRawPost,
-              message: prev.message ?? "Rendered a new visual. Want any tweaks?",
-            };
-          });
-        } catch (error) {
-          console.error("auto_image_generation_failed", error);
-          setState((prev) => ({
-            ...prev,
-            loading: false,
-            message:
-              prev.message ??
-              "I couldn't render that visual. Want to try a different idea?",
-          }));
-        } finally {
-          pendingImagePromptRef.current = null;
-        }
-      })();
-    },
-    [activeCapsuleId, imageRequestOptions, setState],
   );
 
   const saveCreation = React.useCallback(
@@ -935,49 +881,22 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
 
   const handleAiResponse = React.useCallback(
     (prompt: string, payload: PromptResponse, mode: PromptRunMode = "default") => {
-      if (payload.action === "clarify_image_prompt") {
-        console.info("image_clarifier_question_displayed", {
-          questionId: payload.questionId,
-          suggestions: payload.suggestions ?? [],
-          styleTraits: payload.styleTraits ?? [],
-        });
-      }
-
-      const result = applyAiResponse(prompt, payload, mode);
+      const resolvedMode: PromptRunMode = payload.action === "chat_reply" ? "chatOnly" : mode;
+      const result = applyAiResponse(prompt, payload, resolvedMode);
       if (!result) return;
-      const {
-        draft,
+      const { draft, rawPost, history, threadId, message } = result;
+
+      recordRecentChat({
+        prompt,
+        message,
+        draft: draft ?? null,
         rawPost,
         history,
         threadId,
-        resolvedQuestionId,
-        fallbackImagePrompt,
-        message,
-      } = result;
+      });
 
-      if (resolvedQuestionId) {
-        console.info("image_clarifier_resolved", {
-          questionId: resolvedQuestionId,
-          prompt,
-        });
-      }
-
-      if (mode !== "chatOnly") {
-        recordRecentChat({
-          prompt,
-          message,
-          draft: draft ?? normalizeDraftFromPost(rawPost ?? {}),
-          rawPost,
-          history,
-          threadId,
-        });
-      }
-
-      if (fallbackImagePrompt) {
-        runAutoImageGeneration(fallbackImagePrompt);
-      }
     },
-    [applyAiResponse, recordRecentChat, runAutoImageGeneration],
+    [applyAiResponse, recordRecentChat],
   );
 
   const runAiPromptHandoff = React.useCallback(
@@ -992,16 +911,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       if (options?.prefer) {
         composeOptions.prefer = options.prefer;
       }
-      const hasAttachments = Boolean(normalizedAttachments?.length);
-      if (!composeOptions.prefer) {
-        if (options?.composeMode === "image") {
-          composeOptions.prefer = "image";
-        } else if (options?.composeMode === "video") {
-          composeOptions.prefer = "video";
-        } else if (options?.composeMode === "post" && !hasAttachments) {
-          composeOptions.prefer = "text";
-        }
-      }
       if (options?.extras && Object.keys(options.extras).length) {
         Object.assign(composeOptions, options.extras);
       }
@@ -1009,6 +918,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       const resolvedOptions = Object.keys(composeOptions).length ? composeOptions : undefined;
 
       const createdAt = new Date().toISOString();
+      const workingMessageId = safeRandomUUID();
       const attachmentForChat =
         normalizedAttachments?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
       const pendingMessage: ComposerChatMessage = {
@@ -1032,22 +942,41 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
             : [...existingHistory, pendingMessage];
         const resolvedThreadId = prev.threadId ?? safeRandomUUID();
         threadIdForRequest = resolvedThreadId;
+        const workingAssistant: ComposerChatMessage = {
+          id: workingMessageId,
+          role: "assistant",
+          content: "Working on your request...",
+          createdAt,
+          attachments: null,
+        };
         return {
           ...prev,
           open: true,
           loading: true,
           prompt: trimmedPrompt,
-          message: null,
+          message: workingAssistant.content,
           choices: null,
-          history: nextHistory,
+          history: [...nextHistory, workingAssistant],
           threadId: resolvedThreadId,
-          clarifier: null,
           summaryContext: null,
           summaryResult: null,
           summaryOptions: null,
           summaryMessageId: null,
         };
       });
+
+      const updateWorking = (content: string) => {
+        setState((prev) => {
+          const history = (prev.history ?? []).map((entry) =>
+            entry.id === workingMessageId ? { ...entry, content } : entry,
+          );
+          const message = prev.history?.some((entry) => entry.id === workingMessageId)
+            ? content
+            : prev.message;
+          return { ...prev, history, message };
+        });
+      };
+
       try {
         const payload = await callAiPrompt({
           message: trimmedPrompt,
@@ -1058,7 +987,13 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
           ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
           useContext: smartContextEnabled,
+          stream: true,
+          onStreamMessage: updateWorking,
         });
+        setState((prev) => ({
+          ...prev,
+          history: (prev.history ?? []).filter((entry) => entry.id !== workingMessageId),
+        }));
         handleAiResponse(trimmedPrompt, payload);
       } catch (error) {
         console.error("AI prompt failed", error);
@@ -1070,14 +1005,22 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
 
   const runLogoHandoff = React.useCallback(
     async ({ prompt }: ImageLogoHandoff) => {
+      const createdAt = new Date().toISOString();
+      const workingAssistant: ComposerChatMessage = {
+        id: safeRandomUUID(),
+        role: "assistant",
+        content: "Generating your visual...",
+        createdAt,
+        attachments: null,
+      };
       setState((prev) => ({
         ...prev,
         open: true,
         loading: true,
         prompt,
-        message: null,
+        message: workingAssistant.content,
         choices: null,
-        clarifier: null,
+        history: [workingAssistant],
       }));
       try {
         const result = await requestImageGeneration(prompt, imageRequestOptions);
@@ -1110,7 +1053,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           choices: null,
           history: [assistantMessage],
           threadId: safeRandomUUID(),
-          clarifier: null,
         }));
       } catch (error) {
         console.error("Logo tool failed", error);
@@ -1129,14 +1071,22 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
   const runImageEditHandoff = React.useCallback(
     async ({ prompt, reference }: ImageEditHandoff) => {
       if (!reference?.url) return;
+      const createdAt = new Date().toISOString();
+      const workingAssistant: ComposerChatMessage = {
+        id: safeRandomUUID(),
+        role: "assistant",
+        content: "Applying your edits...",
+        createdAt,
+        attachments: null,
+      };
       setState((prev) => ({
         ...prev,
         open: true,
         loading: true,
         prompt,
-        message: null,
+        message: workingAssistant.content,
         choices: null,
-        clarifier: null,
+        history: [workingAssistant],
       }));
       try {
         const result = await requestImageEdit({
@@ -1173,7 +1123,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           choices: null,
           history: [assistantMessage],
           threadId: safeRandomUUID(),
-          clarifier: null,
         }));
       } catch (error) {
         console.error("Image edit tool failed", error);
@@ -1358,7 +1307,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         choices: null,
         history: [assistantMessage],
         threadId: safeRandomUUID(),
-        clarifier: null,
         summaryContext: extras?.context ?? null,
         summaryResult: result,
         summaryOptions: options,
@@ -1377,9 +1325,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       const trimmed = promptText.trim();
       if (!trimmed) return;
       const attachmentList = attachments && attachments.length ? attachments : undefined;
-      const chatOnly = options?.mode === "chatOnly";
-      const expectVideo = !chatOnly && shouldExpectVideoResponse(trimmed, attachmentList ?? null);
-      const imageIntent = IMAGE_INTENT_REGEX.test(trimmed);
+      const expectVideo = shouldExpectVideoResponse(trimmed, attachmentList ?? null);
       const preserveSummary = options?.preserveSummary ?? Boolean(state.summaryResult);
       const chatAttachments =
         attachmentList?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
@@ -1415,7 +1361,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
             message: "Rendering your clip...",
             memoryId: prev.videoStatus.memoryId ?? null,
           };
-        } else if (!chatOnly && prev.videoStatus.state !== "idle") {
+        } else if (prev.videoStatus.state !== "idle") {
           nextVideoStatus = createIdleVideoStatus();
         }
         return {
@@ -1434,52 +1380,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         };
       });
       try {
-        const clarifierOption =
-          state.clarifier && state.clarifier.questionId
-            ? {
-                clarifier: {
-                  questionId: state.clarifier.questionId,
-                  answer: trimmed,
-                },
-              }
-            : undefined;
-        if (clarifierOption?.clarifier) {
-          console.info("image_clarifier_answer_submitted", {
-            questionId: clarifierOption.clarifier.questionId,
-            answer: clarifierOption.clarifier.answer,
-          });
-        }
         const requestOptions: Record<string, unknown> = {
           imageQuality: imageSettings.quality,
         };
-        if (clarifierOption?.clarifier) {
-          requestOptions.clarifier = clarifierOption.clarifier;
-          // Ensure the next response honors the user's image intent
-          // when answering an image clarifier.
-          if (options?.mode !== "chatOnly" && !requestOptions.prefer) {
-            requestOptions.prefer = "image";
-          }
-        }
-        if (options?.mode === "chatOnly") {
-          requestOptions.chatOnly = true;
-        }
-        if (!requestOptions.prefer) {
-          const hasImageAttachment =
-            attachmentList?.some(
-              (attachment) => (attachment.mimeType ?? "").toLowerCase().startsWith("image/"),
-            ) ?? false;
-          if (options?.mode === "chatOnly") {
-            requestOptions.prefer = "text";
-          } else if (expectVideo) {
-            requestOptions.prefer = "video";
-          } else if (hasImageAttachment || imageIntent) {
-            // If the prompt explicitly mentions an image or includes an image attachment,
-            // prefer an image response so the server doesn't suppress media generation.
-            requestOptions.prefer = "image";
-          } else {
-            requestOptions.prefer = "text";
-          }
-        }
         const payload = await callAiPrompt({
           message: trimmed,
           ...(Object.keys(requestOptions).length ? { options: requestOptions } : {}),
@@ -1523,7 +1426,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       handleAiResponse,
       imageSettings,
       setState,
-      state.clarifier,
       state.rawPost,
       smartContextEnabled,
       state.summaryResult,
@@ -1535,19 +1437,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     if (status.state !== "failed" || !status.prompt) return;
     void submitPrompt(status.prompt, status.attachments ?? undefined);
   }, [state.videoStatus, submitPrompt]);
-
-  const answerClarifier = React.useCallback(
-    (answer: string) => {
-      const trimmed = answer.trim();
-      if (!trimmed) return;
-      console.info("image_clarifier_suggestion_selected", {
-        questionId: state.clarifier?.questionId ?? null,
-        answer: trimmed,
-      });
-      void submitPrompt(trimmed);
-    },
-    [state.clarifier?.questionId, submitPrompt],
-  );
 
   const forceChoiceInternal = React.useCallback(
     async (key: string) => {
@@ -1643,7 +1532,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       post,
       submitPrompt,
       showSummary,
-      answerClarifier,
       updateDraft,
       sidebar: sidebarData,
       selectRecentChat,
@@ -1669,7 +1557,6 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     post,
     submitPrompt,
     showSummary,
-    answerClarifier,
     forceChoice,
     updateDraft,
     sidebarData,
@@ -1708,7 +1595,6 @@ export function AiComposerRoot() {
     updateDraft,
     post,
     submitPrompt,
-    answerClarifier,
     forceChoice,
     sidebar,
     selectRecentChat,
@@ -1738,7 +1624,6 @@ export function AiComposerRoot() {
       message={state.message}
       choices={state.choices}
       history={state.history}
-      clarifier={state.clarifier}
       summaryContext={state.summaryContext}
       summaryResult={state.summaryResult}
       summaryOptions={state.summaryOptions}
@@ -1752,7 +1637,6 @@ export function AiComposerRoot() {
       onClose={close}
       onPost={post}
       onPrompt={submitPrompt}
-      onClarifierRespond={answerClarifier}
       sidebar={sidebar}
       onSelectRecentChat={selectRecentChat}
       onSelectDraft={selectDraft}

@@ -7,7 +7,7 @@ import { Sparkle } from "@phosphor-icons/react/dist/ssr";
 import type { LocalAttachment } from "@/hooks/useAttachmentUpload";
 import type { ComposerDraft } from "@/lib/composer/draft";
 
-import styles from "../../../ai-composer.module.css";
+import styles from "../../styles";
 import type { MemoryPickerTab } from "../../components/ComposerMemoryPicker";
 import { formatClipDuration } from "../../utils/time";
 
@@ -174,11 +174,10 @@ export function useFeedPreview({
     } else {
       switch (kind) {
         case "image": {
-          empty = !mediaUrl;
+          const hasCopy = hasTextCopy;
+          empty = !mediaUrl && !hasCopy;
           helper = null;
-          if (empty) {
-            body = renderPlaceholder("Upload or describe a visual to stage it here.");
-          } else {
+          if (mediaUrl) {
             const copyPreview = renderPostCopy(canEditPostCopy);
             body = (
               <div className={styles.previewMediaStack}>
@@ -192,6 +191,10 @@ export function useFeedPreview({
                 {copyPreview}
               </div>
             );
+          } else if (hasCopy) {
+            body = renderPostCopy(canEditPostCopy);
+          } else {
+            body = renderPlaceholder("Upload or describe a visual to stage it here.");
           }
           break;
         }

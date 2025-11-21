@@ -5,9 +5,12 @@
   margin: 0;
   padding: 0;
   /* Align brand accents with the blue header palette for a cohesive settings experience */
-  --color-brand: var(--header-brand-color, var(--color-brand));
-  --color-brand-strong: var(--header-brand-strong-color, var(--color-brand-strong));
-  --color-accent: var(--header-brand-accent-color, var(--color-accent));
+  --settings-color-brand-base: var(--color-brand);
+  --settings-color-brand-strong-base: var(--color-brand-strong);
+  --settings-color-accent-base: var(--color-accent);
+  --color-brand: var(--header-brand, var(--settings-color-brand-base));
+  --color-brand-strong: var(--header-brand-strong, var(--settings-color-brand-strong-base));
+  --color-accent: var(--header-accent, var(--settings-color-accent-base));
   --brand-gradient: var(--header-brand-gradient, var(--gradient-brand));
   --gradient-brand: var(--header-brand-gradient, var(--gradient-brand));
   --cta-button-gradient: var(--header-brand-gradient, var(--cta-button-gradient));

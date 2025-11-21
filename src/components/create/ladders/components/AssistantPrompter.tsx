@@ -64,7 +64,9 @@ export function AssistantPrompter({
     ]);
     event.target.value = "";
   }, [makeAttachmentId]);
-  const handleSelectIntent = React.useCallback<(intent: PromptIntent | null) => void>(() => {}, []);
+  const handleSelectIntent = React.useCallback<
+    (intent: PromptIntent | null, postMode?: "ai" | "manual" | null) => void
+  >(() => {}, []);
   const buttonDisabled = draft.trim().length === 0;
   const { supported: voiceSupported, status: voiceStatus, start: startVoice, stop: stopVoice } = useSpeechRecognition({
     onFinalResult: (_full, chunk) => {
@@ -123,13 +125,14 @@ export function AssistantPrompter({
             onGenerate={onSend}
             dataIntent="ladder_naming"
             fileInputRef={fileInputRef}
-            uploading={false}
-            onAttachClick={handleAttachClick}
-            onFileChange={handleFileChange}
-            manualIntent={null}
-            menuOpen={false}
-            onToggleMenu={noop}
-            onSelect={handleSelectIntent}
+        uploading={false}
+        onAttachClick={handleAttachClick}
+        onFileChange={handleFileChange}
+        manualIntent={null}
+        manualPostMode={null}
+        menuOpen={false}
+        onToggleMenu={noop}
+        onSelect={handleSelectIntent}
             anchorRef={anchorRef}
             menuRef={menuRef}
             voiceSupported={voiceSupported}

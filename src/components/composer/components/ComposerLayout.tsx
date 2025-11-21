@@ -3,7 +3,7 @@
 import * as React from "react";
 import { List } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "../../ai-composer.module.css";
+import styles from "../styles";
 
 import type { ComposerLayoutState } from "../hooks/useComposerFormReducer";
 

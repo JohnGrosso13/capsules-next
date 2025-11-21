@@ -122,11 +122,27 @@ export type PrepareLocalMessageResult = {
   };
 };
 
+function looksLikeParticipantIdentifier(value: string | null | undefined): boolean {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (/^[0-9a-f-]{24,}$/i.test(trimmed)) {
+    return true;
+  }
+  return (
+    trimmed.startsWith("user_") ||
+    trimmed.startsWith("clerk_") ||
+    trimmed.startsWith("capsule:") ||
+    trimmed.startsWith("urn:")
+  );
+}
+
 export class ChatStateMachine {
   private state: ChatState;
   private readonly messageLimit: number;
   private readonly now: () => number;
   private readonly createMessageId: () => string;
+  private friendDirectory = new Map<string, FriendItem>();
 
   constructor(options?: {
     now?: () => number;
@@ -471,7 +487,8 @@ export class ChatStateMachine {
   upsertParticipants(sessionId: string, participants: ChatParticipant[]): boolean {
     const session = this.state.sessions[sessionId];
     if (!session) return false;
-    const merged = mergeParticipants(session.participants, participants);
+    const enriched = participants.map((participant) => this.enrichParticipant(participant));
+    const merged = mergeParticipants(session.participants, enriched);
     if (participantsEqual(session.participants, merged)) {
       return false;
     }
@@ -892,6 +909,10 @@ export class ChatStateMachine {
         )
       : [];
 
+    const participantsForSession = normalizedParticipants.map((participant) =>
+      this.enrichParticipant(participant),
+    );
+
     let senderParticipant: ChatParticipant | null = null;
     const inferredFromPayload =
       payload.sender && typeof payload.sender === "object"
@@ -908,7 +929,7 @@ export class ChatStateMachine {
 
     if (!senderParticipant) {
       senderParticipant =
-        normalizedParticipants.find((participant) => typingKey(participant.id) === senderKey) ?? null;
+        participantsForSession.find((participant) => typingKey(participant.id) === senderKey) ?? null;
     }
 
     if (!senderParticipant) {
@@ -919,11 +940,11 @@ export class ChatStateMachine {
       };
     }
 
-    if (!normalizedParticipants.some((participant) => typingKey(participant.id) === senderKey)) {
-      normalizedParticipants.push(senderParticipant);
+    if (!participantsForSession.some((participant) => typingKey(participant.id) === senderKey)) {
+      participantsForSession.push(senderParticipant);
     }
 
-    this.upsertParticipants(conversationId, normalizedParticipants);
+    this.upsertParticipants(conversationId, participantsForSession);
 
     const now = this.now();
     const expiresAtIso =
@@ -968,61 +989,21 @@ export class ChatStateMachine {
   }
 
   updateFromFriends(friends: FriendItem[]): boolean {
-    if (!Array.isArray(friends) || !friends.length) return false;
-    const friendIdMap = new Map<string, FriendItem>();
-    const friendKeyMap = new Map<string, FriendItem>();
-    friends.forEach((friend) => {
-      if (friend.userId) {
-        const trimmed = friend.userId.trim();
-        if (trimmed) {
-          friendIdMap.set(trimmed, friend);
-          const canonical = canonicalParticipantKey(trimmed);
-          if (canonical) {
-            friendIdMap.set(canonical, friend);
-          }
-        }
-      }
-      if (friend.key) {
-        const normalizedKey = friend.key.trim();
-        if (normalizedKey) {
-          friendKeyMap.set(normalizedKey.toLowerCase(), friend);
-          const canonicalKey = canonicalParticipantKey(normalizedKey);
-          if (canonicalKey) {
-            friendKeyMap.set(canonicalKey.toLowerCase(), friend);
-          }
-        }
-      }
+    const normalized = Array.isArray(friends) ? friends : [];
+    const directory = new Map<string, FriendItem>();
+    normalized.forEach((friend) => {
+      this.registerFriendLookup(directory, friend.userId, friend);
+      this.registerFriendLookup(directory, friend.key, friend);
     });
+    this.friendDirectory = directory;
+    if (normalized.length === 0) return false;
     const selfIds = this.getSelfIds();
     const sessions = { ...this.state.sessions };
     let changed = false;
     Object.values(sessions).forEach((session) => {
-      const updatedParticipants = session.participants.map((participant) => {
-        const rawId = typeof participant.id === "string" ? participant.id.trim() : "";
-        if (!rawId) return participant;
-        const canonicalId = canonicalParticipantKey(rawId);
-        const lookupFriend =
-          friendIdMap.get(rawId) ??
-          (canonicalId ? friendIdMap.get(canonicalId) : undefined) ??
-          friendKeyMap.get(rawId.toLowerCase()) ??
-          (canonicalId ? friendKeyMap.get(canonicalId.toLowerCase()) : undefined);
-        if (!lookupFriend) return participant;
-        const nextId = lookupFriend.userId?.trim() || participant.id;
-        const nextName = lookupFriend.name || participant.name;
-        const nextAvatar = lookupFriend.avatar ?? participant.avatar ?? null;
-        if (
-          nextId !== participant.id ||
-          nextName !== participant.name ||
-          nextAvatar !== participant.avatar
-        ) {
-          return {
-            id: nextId,
-            name: nextName || nextId,
-            avatar: nextAvatar,
-          };
-        }
-        return participant;
-      });
+      const updatedParticipants = session.participants.map((participant) =>
+        this.enrichParticipant(participant),
+      );
       const mergedParticipants = mergeParticipants(updatedParticipants);
       if (!participantsEqual(session.participants, mergedParticipants)) {
         session.participants = mergedParticipants;
@@ -1353,6 +1334,60 @@ export class ChatStateMachine {
     return true;
   }
 
+  private registerFriendLookup(directory: Map<string, FriendItem>, value: string | null | undefined, friend: FriendItem): void {
+    if (typeof value !== "string") return;
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    directory.set(trimmed.toLowerCase(), friend);
+    const canonical = canonicalParticipantKey(trimmed);
+    if (canonical) {
+      directory.set(canonical.toLowerCase(), friend);
+    }
+  }
+
+  private findFriendProfile(identifier: string | null | undefined): FriendItem | null {
+    if (typeof identifier !== "string") return null;
+    const trimmed = identifier.trim();
+    if (!trimmed) return null;
+    const direct = this.friendDirectory.get(trimmed.toLowerCase());
+    if (direct) return direct;
+    const canonical = canonicalParticipantKey(trimmed);
+    if (canonical) {
+      return this.friendDirectory.get(canonical.toLowerCase()) ?? null;
+    }
+    return null;
+  }
+
+  private enrichParticipant(participant: ChatParticipant): ChatParticipant {
+    const friend = this.findFriendProfile(participant.id);
+    if (!friend) {
+      if (!participant.name || looksLikeParticipantIdentifier(participant.name)) {
+        return { ...participant, name: participant.name || participant.id };
+      }
+      return participant;
+    }
+    const nextId = friend.userId?.trim() || participant.id;
+    const friendName = friend.name?.trim();
+    const fallbackName =
+      participant.name && !looksLikeParticipantIdentifier(participant.name)
+        ? participant.name
+        : nextId;
+    const nextName = friendName && friendName.length > 0 ? friendName : fallbackName;
+    const nextAvatar = friend.avatar ?? participant.avatar ?? null;
+    if (
+      nextId === participant.id &&
+      nextName === participant.name &&
+      nextAvatar === participant.avatar
+    ) {
+      return participant;
+    }
+    return {
+      ...participant,
+      id: nextId,
+      name: nextName,
+      avatar: nextAvatar,
+    };
+  }
   private registerAliasList(list: string[], value: string | null): string[] {
     if (!value) return list;
     const trimmed = value.trim();
@@ -1417,3 +1452,10 @@ export class ChatStateMachine {
     return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
   }
 }
+
+
+
+
+
+
+

@@ -1,0 +1,125 @@
+@layer components {
+.quickActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 18px;
+  background: var(
+    --quick-action-background,
+    color-mix(
+      in srgb,
+      color-mix(in srgb, var(--surface-elevated, rgba(18, 22, 42, 0.85)) 70%, transparent),
+      var(--surface-overlay, rgba(6, 10, 26, 0.82))
+    )
+  );
+  border: 1px solid color-mix(in srgb, var(--quick-action-border, rgba(255, 255, 255, 0.12)) 80%, transparent);
+  box-shadow: var(--shadow-lg, 0 16px 30px rgba(5, 8, 26, 0.38));
+}
+
+  .quickActionsCompact {
+    padding: 4px;
+    gap: 6px;
+    background: color-mix(
+      in srgb,
+      rgba(12, 16, 32, 0.92) 60%,
+      rgba(30, 34, 64, 0.85)
+    );
+  }
+
+  .quickActionButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    gap: 6px;
+    padding: 0;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--quick-action-border, rgba(96, 110, 255, 0.6)) 75%, transparent);
+    background: var(--quick-action-background, linear-gradient(135deg, var(--glass-bg-1, rgba(48, 54, 96, 0.88)), var(--glass-bg-2, rgba(24, 28, 62, 0.94))));
+    color: var(--quick-action-text, var(--text));
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition:
+      transform 0.16s ease,
+      border-color 0.16s ease,
+      background 0.16s ease;
+  }
+
+  .quickActionButtonWithLabel {
+    width: auto;
+    padding: 8px 14px;
+    min-height: 38px;
+  }
+
+  .quickActionButtonCompact {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+  }
+
+  .quickActionButton[data-active="true"] {
+    border-color: color-mix(in srgb, var(--color-brand, #6366f1) 70%, transparent);
+    box-shadow: 0 14px 30px color-mix(in srgb, rgba(76, 86, 212, 0.5) 40%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .quickActionButton:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .quickActionButton:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-brand, #818cf8) 70%, transparent);
+  }
+
+  .quickActionButtonParty {
+    --quick-action-text: var(--text-on-brand, #f8fbff);
+    --quick-action-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand, #7c3aed) 68%, rgba(99, 102, 241, 0.85)),
+      color-mix(in srgb, var(--color-accent, #22d3ee) 62%, rgba(14, 116, 230, 0.85))
+    );
+    --quick-action-border: color-mix(in srgb, var(--color-brand, #6366f1) 75%, rgba(14, 116, 230, 0.6));
+  }
+
+  .quickActionIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .quickActionLabel {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    font-size: 0.8rem;
+  }
+
+  .quickActionLabelHidden {
+    display: none;
+  }
+
+  .quickActionLive {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    background: linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--color-accent, #22d3ee) 82%, transparent),
+      color-mix(in srgb, var(--color-brand, #6366f1) 78%, transparent)
+    );
+    color: var(--text-on-brand, #041021);
+    text-transform: uppercase;
+    border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.2) 65%, transparent);
+  }
+}

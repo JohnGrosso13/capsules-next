@@ -1,0 +1,36 @@
+:global(:root) {
+  /* Base composer tokens (override these for global theming) */
+  --composer-panel-background: var(--surface-overlay, rgba(10, 14, 30, 0.72));
+  --composer-overlay: var(--surface-overlay, rgba(10, 14, 30, 0.72));
+  --composer-panel-border: var(--card-border, rgba(255, 255, 255, 0.1));
+  --composer-main-background: var(--card-bg-1, rgba(13, 17, 36, 0.9));
+  --composer-rail-background: linear-gradient(
+    180deg,
+    var(--rail-bg-1, rgba(17, 22, 45, 0.82)),
+    var(--rail-bg-2, rgba(14, 18, 38, 0.72))
+  );
+  --composer-rail-border: var(--card-border, rgba(255, 255, 255, 0.12));
+  --composer-footer-background: color-mix(
+    in srgb,
+    var(--surface-overlay, rgba(10, 14, 30, 0.72)) 92%,
+    transparent
+  );
+  --composer-footer-border: var(--card-border, rgba(255, 255, 255, 0.12));
+  --composer-close-background: var(--surface-overlay, rgba(15, 23, 42, 0.82));
+  --composer-close-border: var(--pill-border, rgba(255, 255, 255, 0.18));
+  --composer-accent: var(--color-brand, #6366f1);
+  --composer-accent-soft: color-mix(in srgb, var(--color-brand, #6366f1) 45%, transparent);
+  --composer-status-error: var(--color-danger, #f87171);
+  --composer-status-success: var(--color-success, #22c55e);
+  --composer-text: var(--text, rgba(255, 255, 255, 0.94));
+  --composer-text-subtle: var(--text-2, rgba(255, 255, 255, 0.72));
+  --composer-shadow: var(--card-shadow, 0 22px 70px rgba(6, 10, 26, 0.55));
+  --composer-radius: var(--card-radius, var(--radius-lg, 1rem));
+  --composer-gap: var(--layout-column-gap, var(--space-2xl, 1.5rem));
+
+  /* Friendly aliases for the AI Composer surface tokens. */
+  --composer-surface: var(--composer-panel-background);
+  --composer-card: var(--composer-main-background);
+  --composer-rail-bg: var(--composer-rail-background);
+  --composer-border: var(--composer-panel-border);
+}

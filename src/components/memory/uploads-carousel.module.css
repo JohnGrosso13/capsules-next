@@ -62,7 +62,7 @@
 }
 
 .cardButton:focus-visible .card {
-  outline: 2px solid var(--brand, #6e78ff);
+    outline: 2px solid var(--color-brand, #6e78ff);
   outline-offset: 2px;
 }
 
@@ -349,7 +349,7 @@
   height: 100%;
   object-fit: contain;
   display: block;
-  background: #000;
+  background: var(--memory-detail-media-bg, #000);
 }
 
 .detailBody {
@@ -428,8 +428,8 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: var(--progress, 0%);
-  background: var(--brand, #6e78ff);
+  width: 0%;
+  background: var(--color-brand, #6e78ff);
 }
 
 .empty {

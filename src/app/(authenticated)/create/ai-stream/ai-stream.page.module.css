@@ -260,7 +260,7 @@
       color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 65%, transparent)
     ),
     radial-gradient(280px 340px at 24% 18%, color-mix(in srgb, var(--color-brand, #2563eb) 28%, transparent), transparent 72%),
-    var(--surface-base, rgba(10, 12, 32, 0.92));
+    var(--surface-app, rgba(10, 12, 32, 0.92));
   color: var(--studio-text-secondary);
   font-size: 0.95rem;
   text-transform: uppercase;
@@ -1023,4 +1023,3 @@
   flex-wrap: wrap;
   gap: 12px;
 }
-

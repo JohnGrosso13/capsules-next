@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Brain, DownloadSimple, X } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "../../ai-composer.module.css";
+import styles from "../styles";
 
 import type { LocalAttachment } from "@/hooks/useAttachmentUpload";
 

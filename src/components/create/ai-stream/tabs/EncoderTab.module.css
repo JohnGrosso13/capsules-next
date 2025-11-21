@@ -1,6 +1,18 @@
 .encoderLayout {
   display: grid;
   gap: clamp(18px, 2.6vw, 28px);
+  /* Platform chips and alerts tokens */
+  --encoder-twitch-fg: var(--color-brand, #9146ff);
+  --encoder-twitch-bg: rgba(145, 70, 255, 0.18);
+  --encoder-youtube-fg: var(--color-danger, #ef4444);
+  --encoder-youtube-bg: rgba(239, 68, 68, 0.18);
+  --encoder-facebook-fg: var(--color-brand, #3b82f6);
+  --encoder-facebook-bg: rgba(59, 130, 246, 0.18);
+  --encoder-kick-fg: var(--color-success, #22c55e);
+  --encoder-kick-bg: rgba(34, 197, 94, 0.18);
+  --encoder-warning-fg: var(--color-warning, #f59e0b);
+  --encoder-success-fg: var(--color-success, #16a34a);
+  --encoder-danger-fg: var(--color-danger, #f87171);
 }
 
 .encoderGrid {
@@ -203,7 +215,7 @@
 }
 
 .encoderQrError {
-  color: var(--color-error, #f87171);
+  color: var(--color-danger, #f87171);
 }
 
 .encoderDestinationList,
@@ -273,9 +285,9 @@
 }
 
 .encoderDestinationStatusError {
-  background: color-mix(in srgb, var(--color-error, #f87171) 20%, transparent);
-  color: color-mix(in srgb, var(--color-error, #f87171) 82%, var(--studio-text-primary));
-  border-color: color-mix(in srgb, var(--color-error, #f87171) 44%, transparent);
+  background: color-mix(in srgb, var(--color-danger, #f87171) 20%, transparent);
+  color: color-mix(in srgb, var(--color-danger, #f87171) 82%, var(--studio-text-primary));
+  border-color: color-mix(in srgb, var(--color-danger, #f87171) 44%, transparent);
 }
 
 .encoderDestinationStatusDisabled,
@@ -353,7 +365,7 @@
 
 .encoderFormError {
   font-size: 0.82rem;
-  color: var(--color-error, #f87171);
+  color: var(--color-danger, #f87171);
 }
 
 .encoderFormActions {
@@ -642,23 +654,23 @@
 }
 
 .destinationIconTwitch {
-  background: rgba(145, 70, 255, 0.18);
-  color: #9146ff;
+  background: var(--encoder-twitch-bg);
+  color: var(--encoder-twitch-fg);
 }
 
 .destinationIconYoutube {
-  background: rgba(239, 68, 68, 0.18);
-  color: #ef4444;
+  background: var(--encoder-youtube-bg);
+  color: var(--encoder-youtube-fg);
 }
 
 .destinationIconFacebook {
-  background: rgba(59, 130, 246, 0.18);
-  color: #3b82f6;
+  background: var(--encoder-facebook-bg);
+  color: var(--encoder-facebook-fg);
 }
 
 .destinationIconKick {
-  background: rgba(34, 197, 94, 0.18);
-  color: #22c55e;
+  background: var(--encoder-kick-bg);
+  color: var(--encoder-kick-fg);
 }
 
 .destinationIconCustom {
@@ -669,14 +681,14 @@
 .encoderDestinationAlert {
   margin-top: 12px;
   border-radius: 12px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.28);
+  background: color-mix(in srgb, var(--encoder-warning-fg) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--encoder-warning-fg) 28%, transparent);
   padding: 10px 12px;
   display: flex;
   align-items: flex-start;
   gap: 8px;
   font-size: 0.8rem;
-  color: var(--color-warning, #f59e0b);
+  color: var(--encoder-warning-fg);
 }
 
 .encoderDestinationAlert svg {
@@ -692,14 +704,12 @@
 .encoderWebhookTestSuccess {
   margin-left: 6px;
   font-size: 0.78rem;
-  color: var(--color-success, #16a34a);
+  color: var(--encoder-success-fg);
 }
 
 .encoderWebhookTestError {
   margin-left: 6px;
   font-size: 0.78rem;
-  color: var(--color-error, #f87171);
+  color: var(--encoder-danger-fg);
 }
-
-
 

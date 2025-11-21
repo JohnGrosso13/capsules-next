@@ -1,9 +1,6 @@
 import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 
-export const IMAGE_INTENT_REGEX =
-  /\b(image|visual|graphic|photo|picture|illustration|art|banner|logo|avatar|thumbnail|poster|cover)\b/i;
-
 export function appendCapsuleContext(
   post: Record<string, unknown>,
   capsuleId: string | null,
@@ -23,11 +20,10 @@ export function appendCapsuleContext(
 }
 
 export function mergeComposerRawPost(
-  prevRaw: Record<string, unknown> | null,
   nextRaw: Record<string, unknown> | null,
   draft: ComposerDraft,
 ): Record<string, unknown> {
-  const merged: Record<string, unknown> = { ...(prevRaw ?? {}) };
+  const merged: Record<string, unknown> = {};
   if (nextRaw) {
     for (const [key, value] of Object.entries(nextRaw)) {
       if (value === undefined) continue;
@@ -48,62 +44,32 @@ export function mergeComposerRawPost(
     merged.content = draft.content;
   }
 
-  if (typeof draft.mediaUrl === "string" && draft.mediaUrl.trim().length) {
-    merged.mediaUrl = draft.mediaUrl;
-    merged.media_url = draft.mediaUrl;
-  } else if (draft.mediaUrl === null) {
-    delete merged.mediaUrl;
-    delete merged.media_url;
-  }
+  const setNullableString = (value: string | null | undefined, key: string) => {
+    if (typeof value === "string" && value.trim().length) {
+      merged[key] = value.trim();
+      return true;
+    }
+    if (value === null) {
+      delete merged[key];
+      return false;
+    }
+    return false;
+  };
 
-  if (typeof draft.mediaPrompt === "string" && draft.mediaPrompt.trim().length) {
-    merged.mediaPrompt = draft.mediaPrompt;
-    merged.media_prompt = draft.mediaPrompt;
-  } else if (draft.mediaPrompt === null) {
-    delete merged.mediaPrompt;
-    delete merged.media_prompt;
-  }
+  setNullableString(draft.mediaUrl, "mediaUrl");
+  setNullableString(draft.mediaUrl, "media_url");
+  setNullableString(draft.mediaPrompt, "mediaPrompt");
+  setNullableString(draft.mediaPrompt, "media_prompt");
+  setNullableString(draft.mediaThumbnailUrl, "thumbnailUrl");
+  setNullableString(draft.mediaThumbnailUrl, "thumbnail_url");
+  setNullableString(draft.mediaPlaybackUrl, "playbackUrl");
+  setNullableString(draft.mediaPlaybackUrl, "playback_url");
+  setNullableString(draft.muxPlaybackId, "muxPlaybackId");
+  setNullableString(draft.muxPlaybackId, "mux_playback_id");
+  setNullableString(draft.muxAssetId, "muxAssetId");
+  setNullableString(draft.muxAssetId, "mux_asset_id");
 
-  if (typeof draft.mediaThumbnailUrl === "string" && draft.mediaThumbnailUrl.trim().length) {
-    const thumb = draft.mediaThumbnailUrl.trim();
-    merged.thumbnailUrl = thumb;
-    merged.thumbnail_url = thumb;
-  } else if (draft.mediaThumbnailUrl === null) {
-    delete merged.thumbnailUrl;
-    delete merged.thumbnail_url;
-  }
-
-  if (typeof draft.mediaPlaybackUrl === "string" && draft.mediaPlaybackUrl.trim().length) {
-    const playback = draft.mediaPlaybackUrl.trim();
-    merged.playbackUrl = playback;
-    merged.playback_url = playback;
-  } else if (draft.mediaPlaybackUrl === null) {
-    delete merged.playbackUrl;
-    delete merged.playback_url;
-  }
-
-  if (typeof draft.muxPlaybackId === "string" && draft.muxPlaybackId.trim().length) {
-    const playbackId = draft.muxPlaybackId.trim();
-    merged.muxPlaybackId = playbackId;
-    merged.mux_playback_id = playbackId;
-  } else if (draft.muxPlaybackId === null) {
-    delete merged.muxPlaybackId;
-    delete merged.mux_playback_id;
-  }
-
-  if (typeof draft.muxAssetId === "string" && draft.muxAssetId.trim().length) {
-    const assetId = draft.muxAssetId.trim();
-    merged.muxAssetId = assetId;
-    merged.mux_asset_id = assetId;
-  } else if (draft.muxAssetId === null) {
-    delete merged.muxAssetId;
-    delete merged.mux_asset_id;
-  }
-
-  if (
-    typeof draft.mediaDurationSeconds === "number" &&
-    Number.isFinite(draft.mediaDurationSeconds)
-  ) {
+  if (typeof draft.mediaDurationSeconds === "number" && Number.isFinite(draft.mediaDurationSeconds)) {
     const duration = Number(draft.mediaDurationSeconds);
     merged.mediaDurationSeconds = duration;
     merged.duration_seconds = duration;
@@ -112,14 +78,8 @@ export function mergeComposerRawPost(
     delete merged.duration_seconds;
   }
 
-  if (typeof draft.videoRunId === "string" && draft.videoRunId.trim().length) {
-    const runId = draft.videoRunId.trim();
-    merged.videoRunId = runId;
-    merged.video_run_id = runId;
-  } else if (draft.videoRunId === null) {
-    delete merged.videoRunId;
-    delete merged.video_run_id;
-  }
+  setNullableString(draft.videoRunId, "videoRunId");
+  setNullableString(draft.videoRunId, "video_run_id");
 
   if (typeof draft.videoRunStatus === "string" && draft.videoRunStatus.trim().length) {
     const status = draft.videoRunStatus.trim().toLowerCase();
@@ -130,23 +90,10 @@ export function mergeComposerRawPost(
     delete merged.video_run_status;
   }
 
-  if (typeof draft.videoRunError === "string" && draft.videoRunError.trim().length) {
-    const errorMessage = draft.videoRunError.trim();
-    merged.videoRunError = errorMessage;
-    merged.video_run_error = errorMessage;
-  } else if (draft.videoRunError === null) {
-    delete merged.videoRunError;
-    delete merged.video_run_error;
-  }
-
-  if (typeof draft.memoryId === "string" && draft.memoryId.trim().length) {
-    const memoryId = draft.memoryId.trim();
-    merged.memoryId = memoryId;
-    merged.memory_id = memoryId;
-  } else if (draft.memoryId === null) {
-    delete merged.memoryId;
-    delete merged.memory_id;
-  }
+  setNullableString(draft.videoRunError, "videoRunError");
+  setNullableString(draft.videoRunError, "video_run_error");
+  setNullableString(draft.memoryId, "memoryId");
+  setNullableString(draft.memoryId, "memory_id");
 
   if (draft.poll) {
     const structured = ensurePollStructure(draft);

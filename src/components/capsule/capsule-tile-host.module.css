@@ -1,7 +1,7 @@
 .tileHost {
   --capsule-tile-aspect: 9 / 16;
   --capsule-tile-aspect-sm: 4 / 3;
-  --capsule-tile-foreground: #f8fafc;
+  --capsule-tile-foreground: var(--text-on-brand, #f8fafc);
   --capsule-tile-background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--color-brand, #2563eb) 26%, transparent),

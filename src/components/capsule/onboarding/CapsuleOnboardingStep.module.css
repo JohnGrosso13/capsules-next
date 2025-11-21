@@ -228,7 +228,7 @@
     var(--glass-bg-2, rgba(255, 255, 255, 0.06))
   );
   border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
-  box-shadow: var(--home-promptbar-box-shadow, 0 20px 40px rgba(5, 10, 30, 0.35));
+  box-shadow: var(--prompter-bar-shadow, 0 20px 40px rgba(5, 10, 30, 0.35));
   backdrop-filter: blur(var(--glass-blur-strong, 16px)) saturate(var(--glass-saturate, 120%));
   -webkit-backdrop-filter: blur(var(--glass-blur-strong, 16px))
     saturate(var(--glass-saturate, 120%));
@@ -239,7 +239,7 @@
   position: absolute;
   inset: -14px;
   border-radius: var(--radius-pill, 999px);
-  background: var(--home-promptbar--before-background, transparent);
+  background: var(--prompter-bar-glow, transparent);
   filter: blur(var(--prompt-glow-blur, 18px));
   opacity: var(--prompt-glow-opacity, 0.4);
   z-index: -1;

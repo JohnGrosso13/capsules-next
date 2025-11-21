@@ -13,6 +13,47 @@ export const FRIEND_CHANNEL_PREFIX = "user";
 export const FRIEND_EVENTS_NAMESPACE = "friends";
 export const FRIEND_PRESENCE_CHANNEL = "presence:friends";
 
+const CAPABILITY_DEBUG_CACHE_LIMIT = 32;
+const capabilityLogCache = new Map<string, number>();
+
+function logRealtimeCapabilitiesOnce(
+  userId: string,
+  friendIds: string[],
+  capabilities: RealtimeCapabilities,
+): void {
+  if (process.env.NODE_ENV === "production") return;
+
+  const sortedFriendIds = [...friendIds].sort();
+  const normalizedCapabilities = Object.keys(capabilities)
+    .sort()
+    .reduce<Record<string, string[]>>((acc, channel) => {
+      const ops = Array.isArray(capabilities[channel])
+        ? [...capabilities[channel]].sort()
+        : [];
+      acc[channel] = ops;
+      return acc;
+    }, {});
+
+  const signature = JSON.stringify({
+    userId,
+    friendIds: sortedFriendIds,
+    capabilities: normalizedCapabilities,
+  });
+  if (capabilityLogCache.has(signature)) return;
+
+  console.debug("Realtime chat capabilities", {
+    userId,
+    friendIds,
+    capabilities,
+  });
+
+  capabilityLogCache.set(signature, Date.now());
+  if (capabilityLogCache.size > CAPABILITY_DEBUG_CACHE_LIMIT) {
+    const { value: oldestKey } = capabilityLogCache.keys().next();
+    if (oldestKey) capabilityLogCache.delete(oldestKey);
+  }
+}
+
 function grantCapability(
   capabilities: RealtimeCapabilities,
   channel: string,
@@ -293,11 +334,6 @@ export async function createFriendRealtimeAuth(
 
   try {
     const friendIds = await getCachedFriendIds(userId);
-    console.log("Realtime chat capabilities", {
-      userId,
-      friendIds,
-      capabilitiesBeforeFriends: { ...capabilities },
-    });
     friendIds.forEach((friendId) => {
       try {
         grantCapability(capabilities, getChatDirectChannel(friendId), ["publish"]);
@@ -305,7 +341,7 @@ export async function createFriendRealtimeAuth(
         console.error("Friend realtime friend channel error", friendError);
       }
     });
-    console.log("Realtime chat capabilities", { userId, capabilitiesAfterFriends: capabilities });
+    logRealtimeCapabilitiesOnce(userId, friendIds, capabilities);
   } catch (listError) {
     console.error("Friend realtime friend list error", listError);
   }

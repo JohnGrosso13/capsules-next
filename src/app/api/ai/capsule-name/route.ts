@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
+import { buildCompletionTokenLimit } from "@/lib/ai/openai";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
@@ -55,15 +56,17 @@ export async function POST(req: Request) {
   }
 
   try {
+    const model = serverEnv.OPENAI_MODEL || "gpt-4o-mini";
+    const tokenLimit = buildCompletionTokenLimit(model, 400);
     const completion = await fetchOpenAI("/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: serverEnv.OPENAI_MODEL || "gpt-4o-mini",
+        model,
         temperature: 0.7,
-        max_tokens: 400,
+        ...tokenLimit,
         messages: mapMessages(parsed.data),
         user: ownerId,
       }),

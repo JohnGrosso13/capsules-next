@@ -160,7 +160,11 @@
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--pill-border, rgba(255, 255, 255, 0.2)) 85%, transparent);
-  background: color-mix(in srgb, var(--pill-background, rgba(255, 255, 255, 0.05)) 90%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--glass-bg-1, rgba(255, 255, 255, 0.12)) 65%,
+    transparent
+  );
 }
 
 .metricAlert {

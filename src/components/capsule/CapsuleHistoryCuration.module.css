@@ -52,8 +52,6 @@
 }
 
 .sectionTileInner {
-  --tile-rotation: 0deg;
-  --tile-translate: 0px;
   position: relative;
   border-radius: var(--card-radius, 16px);
   border: 1px solid color-mix(in srgb, var(--card-border, rgba(132, 148, 255, 0.18)) 80%, transparent);
@@ -66,16 +64,19 @@
   transition: transform 320ms ease;
   transform-style: preserve-3d;
   min-height: 160px;
-  transform: rotateY(var(--tile-rotation)) translateY(var(--tile-translate));
+  transform: rotateY(0deg) translateY(0);
 }
 
 .sectionTileInner:hover {
-  --tile-translate: -2px;
+  transform: rotateY(0deg) translateY(-2px);
 }
 
 .sectionTileInner[data-active="true"] {
-  --tile-rotation: 180deg;
-  --tile-translate: 0px;
+  transform: rotateY(180deg) translateY(0);
+}
+
+.sectionTileInner[data-active="true"]:hover {
+  transform: rotateY(180deg) translateY(0);
 }
 
 .sectionTileActive .sectionTileInner {
@@ -111,7 +112,7 @@
   padding: 0.35rem 0.8rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent);
-  color: var(--text-primary, #fff);
+  color: var(--text-on-brand, #fff);
   font-weight: 600;
   font-size: 0.85rem;
 }
@@ -131,7 +132,7 @@
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.45;
-  color: var(--text-primary, rgba(255, 255, 255, 0.92));
+  color: var(--text, rgba(255, 255, 255, 0.92));
 }
 
 .sectionTileHighlight {
@@ -212,7 +213,7 @@
   align-items: center;
   gap: 0.5rem;
   font-weight: 600;
-  color: var(--text-primary, rgba(255, 255, 255, 0.88));
+  color: var(--text, rgba(255, 255, 255, 0.88));
 }
 
 .fieldGroup {
@@ -235,7 +236,7 @@
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, rgba(132, 148, 255, 0.14) 70%, transparent);
   background: color-mix(in srgb, rgba(12, 16, 36, 0.86) 74%, transparent);
-  color: var(--text-primary, #fff);
+  color: var(--text, #fff);
   padding: 0.75rem 0.85rem;
   font-size: 0.95rem;
   line-height: 1.45;

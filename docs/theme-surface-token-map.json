@@ -23,8 +23,8 @@
     {
       "id": "header",
       "description": "Global navigation header, including launch CTA and glass treatment.",
-      "tokenIds": ["glass.header.top", "glass.header.bottom", "brand.header.accent", "brand.header.primary", "brand.header.strong", "brand.header.shadow-color", "border.header.base", "border.header.launch", "surface.header.button-bg", "surface.header.button-hover-bg", "surface.header.button-active-bg", "shadow.header.base", "shadow.header.lg", "shadow.header.launch", "shadow.header.launch-hover"],
-      "cssVars": ["--header-glass-top", "--header-glass-bottom", "--header-accent", "--header-brand", "--header-brand-strong", "--header-shadow-color", "--header-border-color", "--header-launch-border", "--header-button-bg", "--header-button-hover-bg", "--header-button-active-bg", "--header-shadow", "--header-shadow-lg", "--header-launch-shadow", "--header-launch-shadow-hover"]
+      "tokenIds": ["glass.header.top", "glass.header.bottom", "brand.header.accent", "brand.header.primary", "brand.header.strong", "brand.header.gradient", "brand.header.shadow-color", "border.header.base", "border.header.launch", "surface.header.button-bg", "surface.header.button-hover-bg", "surface.header.button-active-bg", "shadow.header.base", "shadow.header.lg", "shadow.header.launch", "shadow.header.launch-hover"],
+      "cssVars": ["--header-glass-top", "--header-glass-bottom", "--header-accent", "--header-brand", "--header-brand-strong", "--header-brand-gradient", "--header-shadow-color", "--header-border-color", "--header-launch-border", "--header-button-bg", "--header-button-hover-bg", "--header-button-active-bg", "--header-shadow", "--header-shadow-lg", "--header-launch-shadow", "--header-launch-shadow-hover"]
     },
     {
       "id": "dock",
@@ -55,6 +55,24 @@
       "description": "Global spacing and layout rhythm tokens consumed in CSS and Tailwind.",
       "tokenIds": ["layout.header-offset", "layout.page-gap", "layout.column-gap", "layout.desktop-bottom-padding", "layout.mobile-top-offset", "layout.mobile-bottom-offset", "layout.mobile-section-gap", "layout.mobile-page-gutter"],
       "cssVars": ["--layout-header-offset", "--layout-page-gap", "--layout-column-gap", "--layout-desktop-bottom-padding", "--layout-mobile-top-offset", "--layout-mobile-bottom-offset", "--layout-mobile-section-gap", "--mobile-page-gutter"]
+    },
+    {
+      "id": "prompter",
+      "description": "AI prompter overlay, prompt bar, and CTA buttons used across the home experience and composer.",
+      "tokenIds": ["surface.prompter.drop-overlay", "shadow.prompter.drop-overlay", "border.prompter.drop-card", "shadow.prompter.drop-card", "shadow.prompter.promptbar", "surface.prompter.promptbar-glow", "border.prompter.promptbar-focus", "shadow.prompter.promptbar-focus", "shadow.prompter.caret", "shadow.prompter.attach-button", "surface.prompter.ai-message-background", "text.prompter.ai-message", "surface.prompter.primary-button-background", "text.prompter.primary-button"],
+      "cssVars": ["--prompter-drop-overlay", "--prompter-drop-overlay-shadow", "--prompter-drop-card-border", "--prompter-drop-card-shadow", "--prompter-bar-shadow", "--prompter-bar-glow", "--prompter-bar-focus-border", "--prompter-bar-focus-shadow", "--prompter-caret-shadow", "--prompter-attach-button-shadow", "--prompter-ai-message-background", "--prompter-ai-message-text", "--prompter-primary-button-background", "--prompter-primary-button-text"]
+    },
+    {
+      "id": "studio-workspace",
+      "description": "Create studio surfaces including onboarding wizards, ladder builder panels, and AI stream inputs.",
+      "tokenIds": ["surface.studio.panel", "surface.studio.muted", "surface.studio.glass", "surface.studio.highlight", "border.studio.soft", "border.studio.focus", "text.studio.primary", "text.studio.secondary", "text.studio.tertiary", "shadow.studio.soft", "shadow.studio.glow-strong", "surface.studio.scroll-track", "surface.studio.scroll-thumb"],
+      "cssVars": ["--studio-surface-panel", "--studio-surface-muted", "--studio-surface-glass", "--studio-surface-highlight", "--studio-border-soft", "--studio-border-focus", "--studio-text-primary", "--studio-text-secondary", "--studio-text-tertiary", "--studio-shadow-soft", "--studio-glow-strong", "--studio-scroll-track", "--studio-scroll-thumb"]
+    },
+    {
+      "id": "capsule-store",
+      "description": "Capsule storefront hero, filters, product cards, and purchase CTAs.",
+      "tokenIds": ["surface.store.hero-bg", "border.store.hero", "shadow.store.hero", "surface.store.hero-glare", "surface.store.banner-frame-bg", "border.store.banner-frame", "border.store.banner-frame-outline", "surface.store.panel-bg", "surface.store.panel-highlight-bg", "border.store.panel", "border.store.panel-highlight", "surface.store.filter-bg", "surface.store.filter-highlight", "border.store.filter", "border.store.filter-pill", "border.store.filter-pill-active", "surface.store.filter-pill-bg", "surface.store.filter-pill-bg-active", "surface.store.control-bg", "surface.store.control-highlight", "border.store.control", "surface.store.action-bg", "border.store.action", "shadow.store.action-hover", "surface.store.primary-bg", "shadow.store.primary", "shadow.store.primary-hover", "surface.store.step-badge-bg"],
+      "cssVars": ["--store-hero-bg", "--store-hero-border", "--store-hero-shadow", "--store-hero-glare", "--store-banner-frame-bg", "--store-banner-frame-border", "--store-banner-frame-outline", "--store-panel-bg", "--store-panel-highlight-bg", "--store-panel-border", "--store-panel-highlight-border", "--store-filter-bg", "--store-filter-highlight", "--store-filter-border", "--store-filter-pill-border", "--store-filter-pill-border-active", "--store-filter-pill-bg", "--store-filter-pill-bg-active", "--store-control-bg", "--store-control-highlight", "--store-control-border", "--store-action-bg", "--store-action-border", "--store-action-shadow-hover", "--store-primary-bg", "--store-primary-shadow", "--store-primary-shadow-hover", "--store-step-badge-bg"]
     }
   ]
 }

@@ -1,12 +1,12 @@
 @layer components {
   .feed {
     display: grid;
-    gap: var(--layout-page-gap, var(--space-3xl));
+    gap: var(--feed-gap, var(--layout-page-gap, var(--space-3xl)));
     width: 100%;
   }
 
   .postFriendNotice {
-    border: 1px solid var(--border-default, rgba(255, 255, 255, 0.12));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
     border-radius: var(--radius-lg, 16px);
     padding: var(--space-lg);
     background: var(--surface-overlay, rgba(12, 18, 40, 0.85));
@@ -61,7 +61,7 @@
     gap: var(--space-sm);
     padding: var(--space-sm-plus) var(--space-xl);
     border-radius: var(--radius-pill, 999px);
-    border: 1px solid var(--border-default, rgba(255, 255, 255, 0.16));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.16));
     background: linear-gradient(180deg, var(--surface-muted, rgba(24, 28, 48, 0.88)), transparent);
     color: var(--color-fg, #f6f8ff);
     font-weight: 600;
@@ -72,7 +72,11 @@
 
   .feedUtilityButton:hover:not(:disabled) {
     transform: translateY(-1px);
-    border-color: var(--border-brand-strong, rgba(37, 99, 235, 0.45));
+    border-color: color-mix(
+      in srgb,
+      var(--color-brand-strong, var(--color-brand, #2563eb)) 70%,
+      transparent
+    );
     box-shadow: var(--shadow-sm, 0 10px 24px rgba(10, 14, 35, 0.32));
   }
 
@@ -261,7 +265,7 @@
     border-radius: 50%;
     overflow: hidden;
     background: var(--surface-overlay, rgba(12, 18, 40, 0.72));
-    border: 1px solid var(--border-default, rgba(255, 255, 255, 0.14));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
   }
 
   .avatarLink {
@@ -270,7 +274,7 @@
   }
 
   .avatarLink:focus-visible {
-    outline: 2px solid var(--brand, #7c87ff);
+    outline: 2px solid var(--color-brand, #7c87ff);
     outline-offset: 3px;
   }
 
@@ -295,7 +299,7 @@
   }
 
   .userName:focus-visible {
-    outline: 2px solid var(--brand, #7c87ff);
+    outline: 2px solid var(--color-brand, #7c87ff);
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -379,7 +383,7 @@
   }
 
   .iconBtn[data-variant="memory"][data-active="true"] {
-    background: linear-gradient(120deg, #8b5cf6 0%, #6366f1 55%, #22d3ee 100%);
+    background: var(--home-icon-memory-gradient);
     border-color: color-mix(in srgb, var(--color-brand, #6366f1) 70%, rgba(59, 130, 246, 0.36));
     color: var(--text-on-brand, #f8fafc);
   }
@@ -444,7 +448,7 @@
     justify-content: center;
     overflow: hidden;
     border-radius: var(--radius-lg, 18px);
-    border: 1px solid var(--border-default, rgba(255, 255, 255, 0.12));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
     padding: 0;
     cursor: pointer;
     width: 100%;
@@ -528,7 +532,7 @@
     justify-content: center;
     border-radius: var(--radius-lg, 18px);
     overflow: hidden;
-    border: 1px solid var(--border-default, rgba(255, 255, 255, 0.12));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
     width: 100%;
     aspect-ratio: var(--feed-media-aspect, 3 / 2);
     min-height: var(--feed-media-min-height, 220px);
@@ -543,7 +547,7 @@
   .mediaWrapper[data-kind="video"] .media {
     object-fit: contain;
     object-position: center;
-    background: #000;
+    background: var(--surface-overlay, #000);
   }
 
   .mediaVideoOverlay {
@@ -579,7 +583,7 @@
     /* Use card-border by default; allow a light-mode specific override via --home-actionbar-border */
     border-top: 1px solid var(
       --home-actionbar-border,
-      var(--card-border, var(--border-default, rgba(255, 255, 255, 0.12)))
+      var(--card-border, var(--color-border, rgba(255, 255, 255, 0.12)))
     );
   }
 
@@ -696,7 +700,7 @@
   /* Share icon returns to yellow on hover */
   .actionBtn[data-variant="share"]:hover:not(:disabled) .actionIcon {
     /* Slightly more yellow than the previous amber */
-    color: #facc15;
+    color: var(--home-share-hover);
   }
 
   .actionBtn[data-variant="like"][data-active="true"] {
@@ -725,6 +729,8 @@
     display: grid;
     place-items: center;
     --lightbox-pad: clamp(var(--space-lg), 4vw, var(--space-4xl, 2.75rem));
+    --lightbox-vertical-allowance: clamp(72px, 10vh, 128px);
+    --lightbox-max-height: calc(100vh - var(--lightbox-pad) * 2 - var(--lightbox-vertical-allowance));
     padding: var(--lightbox-pad);
     background: var(--home-lightboxoverlay-background, rgba(3, 6, 18, 0.9));
     backdrop-filter: blur(26px);
@@ -793,7 +799,7 @@
     justify-content: center;
     width: 100%;
     max-width: 100%;
-    max-height: calc(100vh - var(--lightbox-pad) * 2 - clamp(72px, 10vh, 128px));
+    max-height: var(--lightbox-max-height);
     margin: 0 auto;
     padding: clamp(var(--space-xs), 1.2vw, var(--space-md));
   }
@@ -862,11 +868,12 @@
     width: min(100%, var(--lightbox-media-max-width));
     max-width: min(100%, var(--lightbox-media-max-width));
     height: auto;
-    max-height: 100%;
+    max-height: var(--lightbox-max-height);
     padding: clamp(var(--space-sm), 1.6vw, var(--space-lg));
     border-radius: var(--radius-2xl, 32px);
     background: var(--home-lightboxvideo-background, rgba(15, 23, 42, 0.92));
     overflow: hidden;
+    box-sizing: border-box;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.05),
       inset 0 -1px 0 rgba(4, 6, 18, 0.32);
@@ -889,13 +896,13 @@
     width: auto;
     height: auto;
     max-width: 100%;
-    max-height: 100%;
+    max-height: calc(var(--lightbox-max-height) - 2 * clamp(var(--space-sm), 1.6vw, var(--space-lg)));
     object-fit: contain;
     background: transparent;
   }
 
   .lightboxVideo {
-    background: #000;
+    background: var(--surface-overlay, #000);
   }
 
   .lightboxFallback {
@@ -923,8 +930,413 @@
     max-width: min(84vw, 980px);
   }
 
+  .postViewerOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(1rem, 4vw, 3rem);
+    background: rgba(2, 4, 15, 0.88);
+    backdrop-filter: blur(32px);
+  }
+
+  .postViewerShell {
+    position: relative;
+    display: flex;
+    width: min(1400px, 96vw);
+    max-height: min(96vh, 960px);
+    border-radius: 32px;
+    overflow: hidden;
+    background: rgba(9, 12, 28, 0.96);
+    box-shadow:
+      0 24px 60px rgba(2, 4, 15, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .postViewerStage {
+    position: relative;
+    flex: 1 1 60%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, rgba(30, 41, 77, 0.65), rgba(6, 9, 22, 0.95));
+    padding: clamp(1rem, 2.5vw, 2.5rem);
+    min-height: 320px;
+  }
+
+  .postViewerSidebar {
+    flex: 1 1 40%;
+    display: flex;
+    flex-direction: column;
+    padding: clamp(1.25rem, 2.4vw, 2.75rem);
+    gap: clamp(0.75rem, 1.4vw, 1.5rem);
+    background: rgba(4, 6, 18, 0.92);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .postViewerClose {
+    position: absolute;
+    top: clamp(0.75rem, 2vw, 1.5rem);
+    right: clamp(0.75rem, 2vw, 1.5rem);
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(16, 19, 42, 0.8);
+    color: var(--home-postviewer-text);
+    cursor: pointer;
+    transition: transform 160ms var(--motion-ease-standard, ease);
+  }
+
+  .postViewerClose:hover {
+    transform: scale(1.06);
+  }
+
+  .postViewerPostNav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: clamp(48px, 4vw, 64px);
+    height: clamp(48px, 4vw, 64px);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(8, 10, 24, 0.65);
+    color: var(--home-postviewer-text);
+    cursor: pointer;
+    transition:
+      transform 160ms var(--motion-ease-standard, ease),
+      background 160ms var(--motion-ease-standard, ease);
+  }
+
+  .postViewerPostNav[data-direction="prev"] {
+    left: clamp(0.5rem, 1.8vw, 1.75rem);
+  }
+
+  .postViewerPostNav[data-direction="next"] {
+    right: clamp(0.5rem, 1.8vw, 1.75rem);
+  }
+
+  .postViewerPostNav:hover {
+    transform: translateY(-50%) scale(1.05);
+    background: rgba(20, 24, 48, 0.8);
+  }
+
+  .postViewerAttachmentNav {
+    position: absolute;
+    bottom: clamp(0.75rem, 2vw, 1.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: clamp(0.35rem, 1vw, 0.85rem);
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    background: rgba(4, 6, 18, 0.8);
+    color: var(--home-postviewer-text);
+    font-size: 0.9rem;
+    box-shadow: 0 10px 24px rgba(2, 4, 15, 0.45);
+  }
+
+  .postViewerAttachmentNav button {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(12, 16, 38, 0.8);
+    color: currentcolor;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .postViewerCaption {
+    position: absolute;
+    top: clamp(0.75rem, 2vw, 1.5rem);
+    left: clamp(1rem, 2.2vw, 2.5rem);
+    padding: 0.45rem 1rem;
+    border-radius: 999px;
+    background: rgba(2, 4, 15, 0.7);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    max-width: 60%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .postViewerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(0.75rem, 2vw, 1.5rem);
+    flex-wrap: wrap;
+  }
+
+  .postViewerAuthor {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .postViewerAvatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    overflow: hidden;
+  }
+
+  .postViewerAvatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .postViewerMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .postViewerMeta a {
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 600;
+  }
+
+  .postViewerMeta time {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .postViewerControls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .postViewerControlBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(13, 16, 34, 0.75);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      transform 140ms var(--motion-ease-standard, ease),
+      background 140ms var(--motion-ease-standard, ease),
+      border 140ms var(--motion-ease-standard, ease);
+  }
+
+  .postViewerControlBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .postViewerControlBtn:not(:disabled):hover {
+    transform: translateY(-1px);
+    background: rgba(24, 28, 52, 0.9);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+
+  .postViewerControlBtn[data-variant="memory"] {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+  }
+
+  .postViewerControlBtn[data-variant="memory"] svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .postViewerControlBtn[data-variant="follow"] {
+    min-width: 82px;
+  }
+
+  .postViewerControlBtn[data-variant="danger"] {
+    border-color: color-mix(in srgb, var(--color-danger, rgb(248, 113, 113)) 60%, transparent);
+    color: var(--color-danger, rgb(248, 113, 113));
+  }
+
+  .postViewerContent {
+    font-size: 0.98rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.86);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .postViewerCommentsHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.95rem;
+  }
+
+  .postViewerCommentsHeader button {
+    font-size: 0.85rem;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .postViewerComments {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding-right: 0.35rem;
+  }
+
+  .postViewerComment {
+    display: flex;
+    gap: 0.6rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 16px;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .postViewerComment[data-pending="true"] {
+    opacity: 0.65;
+  }
+
+  .postViewerCommentAvatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.08);
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+    overflow: hidden;
+  }
+
+  .postViewerCommentAvatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .postViewerCommentBody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.93rem;
+  }
+
+  .postViewerCommentMeta {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .postViewerCommentMeta span {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .postViewerCommentText {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.88);
+    line-height: 1.4;
+  }
+
+  .postViewerCommentEmpty,
+  .postViewerCommentSkeleton,
+  .postViewerCommentError {
+    padding: 0.95rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .postViewerComposer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 0.65rem;
+  }
+
+  .postViewerComposer textarea {
+    width: 100%;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(2, 4, 15, 0.65);
+    color: rgba(255, 255, 255, 0.92);
+    padding: 0.8rem 1rem;
+    resize: vertical;
+    min-height: 88px;
+  }
+
+  .postViewerComposer textarea:focus-visible {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+  }
+
+  .postViewerComposerActions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .postViewerComposerSubmit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 1.1rem;
+    background: var(--home-postviewer-submit);
+    color: var(--home-postviewer-text);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .postViewerComposerSubmit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+
   @media (max-width: 768px) {
     .lightboxOverlay {
+      --lightbox-vertical-allowance: clamp(84px, 14vh, 148px);
+      --lightbox-max-height: calc(100vh - var(--lightbox-pad) * 2 - var(--lightbox-vertical-allowance));
       padding: clamp(var(--space-md), 4vw, var(--space-2xl, 1.5rem));
     }
 
@@ -934,7 +1346,7 @@
     }
 
     .lightboxBody {
-      max-height: calc(100vh - var(--lightbox-pad) * 2 - clamp(84px, 14vh, 148px));
+      max-height: var(--lightbox-max-height);
       padding: clamp(var(--space-xs), 3vw, var(--space-md));
     }
 
@@ -953,6 +1365,36 @@
 
     .lightboxNav[data-direction="next"] {
       right: var(--space-sm);
+    }
+
+    .postViewerShell {
+      flex-direction: column;
+      width: min(96vw, 640px);
+      max-height: none;
+      height: min(96vh, 100%);
+    }
+
+    .postViewerStage {
+      width: 100%;
+      min-height: 240px;
+    }
+
+    .postViewerSidebar {
+      width: 100%;
+      max-height: 60vh;
+    }
+
+    .postViewerAttachmentNav {
+      position: static;
+      transform: none;
+      margin-top: 0.85rem;
+    }
+
+    .postViewerCaption {
+      position: static;
+      transform: none;
+      max-width: 100%;
+      margin-bottom: 0.75rem;
     }
   }
 

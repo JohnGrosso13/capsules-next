@@ -6,8 +6,16 @@ import cm from "@/components/ui/context-menu.module.css";
 import { intentLabel } from "@/lib/ai/intent";
 import type { PromptIntent } from "@/lib/ai/intent";
 
+type PostModeOverride = "ai" | "manual" | null;
+
+type IntentSelectionHandler = (
+  intent: PromptIntent | null,
+  postMode?: PostModeOverride,
+) => void;
+
 export function IntentOverrideMenu({
   manualIntent,
+  manualPostMode,
   open,
   anchorRef,
   menuRef,
@@ -17,14 +25,24 @@ export function IntentOverrideMenu({
   renderTrigger = true,
 }: {
   manualIntent: PromptIntent | null;
+  manualPostMode: PostModeOverride;
   open: boolean;
   anchorRef: React.RefObject<HTMLButtonElement | null>;
   menuRef: React.RefObject<HTMLDivElement | null>;
   onToggle(): void;
-  onSelect(intent: PromptIntent | null): void;
+  onSelect: IntentSelectionHandler;
   className?: string;
   renderTrigger?: boolean;
 }) {
+  const manualLabel =
+    manualIntent === "post" && manualPostMode === "ai"
+      ? "Draft"
+      : manualIntent === "post" && manualPostMode === "manual"
+        ? "Post"
+        : manualIntent
+          ? intentLabel(manualIntent)
+          : "Auto";
+
   return (
     <div className={`${styles.intentOverride} ${className ?? ""}`.trim()} ref={menuRef}>
       {renderTrigger ? (
@@ -39,7 +57,7 @@ export function IntentOverrideMenu({
           ref={anchorRef}
           data-intent={manualIntent ?? undefined}
         >
-          {manualIntent ? intentLabel(manualIntent) : "Auto"}
+          {manualIntent ? manualLabel : "Auto"}
           {manualIntent ? " (override)" : ""}
           <span className={styles.intentCaret} aria-hidden>
             v
@@ -51,7 +69,7 @@ export function IntentOverrideMenu({
           <button
             type="button"
             className={cm.item}
-            onClick={() => onSelect(null)}
+            onClick={() => onSelect(null, null)}
             role="option"
             aria-selected={manualIntent === null}
           >
@@ -60,16 +78,34 @@ export function IntentOverrideMenu({
           <button
             type="button"
             className={cm.item}
-            onClick={() => onSelect("post")}
+            onClick={() => onSelect("chat", null)}
             role="option"
-            aria-selected={manualIntent === "post"}
+            aria-selected={manualIntent === "chat"}
           >
-            Post
+            Chat
           </button>
           <button
             type="button"
             className={cm.item}
-            onClick={() => onSelect("navigate")}
+            onClick={() => onSelect("post", "ai")}
+            role="option"
+            aria-selected={manualIntent === "post" && manualPostMode === "ai"}
+          >
+            Draft a post (AI write)
+          </button>
+          <button
+            type="button"
+            className={cm.item}
+            onClick={() => onSelect("post", "manual")}
+            role="option"
+            aria-selected={manualIntent === "post" && manualPostMode === "manual"}
+          >
+            Post now (publish)
+          </button>
+          <button
+            type="button"
+            className={cm.item}
+            onClick={() => onSelect("navigate", null)}
             role="option"
             aria-selected={manualIntent === "navigate"}
           >
@@ -78,7 +114,7 @@ export function IntentOverrideMenu({
           <button
             type="button"
             className={cm.item}
-            onClick={() => onSelect("style")}
+            onClick={() => onSelect("style", null)}
             role="option"
             aria-selected={manualIntent === "style"}
           >
@@ -87,7 +123,7 @@ export function IntentOverrideMenu({
           <button
             type="button"
             className={cm.item}
-            onClick={() => onSelect("generate")}
+            onClick={() => onSelect("generate", null)}
             role="option"
             aria-selected={manualIntent === "generate"}
           >

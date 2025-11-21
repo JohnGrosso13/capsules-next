@@ -1,9 +1,9 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { MicrophoneStage, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { ChatsCircle, MicrophoneStage } from "@phosphor-icons/react/dist/ssr";
 
 import { type FriendItem } from "@/hooks/useFriendsData";
 import { FriendsTabs } from "@/components/friends/FriendsTabs";
@@ -20,6 +20,7 @@ import {
   type ChatSession,
 } from "@/components/providers/ChatProvider";
 import { PartyPanel } from "@/components/party/PartyPanel";
+import { ConnectionsQuickActions, type QuickAction } from "@/components/rail/ConnectionsQuickActions";
 import { usePartyContext } from "@/components/providers/PartyProvider";
 import { FriendsList } from "@/components/friends/FriendsList";
 import { buildProfileHref } from "@/lib/profile/routes";
@@ -563,6 +564,45 @@ export function FriendsClient() {
     [counters.friends, chatUnreadCount, counters.requests, partyBadgeCount],
   );
 
+  const isPartyActive = activeTab === "Party";
+  const partyButtonLabel = party.session ? "Party Live" : "Party Voice";
+  const partyButtonDisabled = false;
+
+  const quickActions = React.useMemo<QuickAction[]>(() => {
+    const actions: QuickAction[] = [
+      {
+        key: "new-chat",
+        label: "New Chat",
+        icon: <ChatsCircle size={18} weight="duotone" />,
+        onClick: handleOpenGroupCreator,
+        ariaLabel: "Start a new chat",
+        disabled: !hasEligibleFriends,
+      },
+      {
+        key: "party",
+        label: partyButtonLabel,
+        icon: <MicrophoneStage size={18} weight="duotone" />,
+        onClick: () => selectTab("Party"),
+        ariaLabel: "Jump to party voice",
+        disabled: partyButtonDisabled,
+        active: isPartyActive,
+        variant: party.session ? "party" : "default",
+        badge: party.session ? "LIVE" : undefined,
+      },
+    ];
+    return actions;
+  }, [
+    handleOpenGroupCreator,
+    hasEligibleFriends,
+    isPartyActive,
+    party.session,
+    partyButtonDisabled,
+    partyButtonLabel,
+    selectTab,
+  ]);
+
+
+
   if (loading && friends.length === 0) {
     return <div className={styles.empty}>Loading friends...</div>;
   }
@@ -586,12 +626,6 @@ export function FriendsClient() {
   }
 
   const listNotice = notice;
-  // Show the Group Chat action across tabs to keep it visible on desktop and mobile
-  const showGroupButton = true;
-  const groupButtonDisabled = !hasEligibleFriends;
-  const partyButtonDisabled = false;
-  const isPartyActive = activeTab === "Party";
-  const partyButtonLabel = party.session ? "Party Live" : "Party Voice";
   const overlayDisabledIds = inviteSession
     ? inviteSession.participants.map((participant) => participant.id)
     : [];
@@ -607,31 +641,9 @@ export function FriendsClient() {
           <div className={styles.tabsHeaderTabs}>
             <FriendsTabs active={activeTab} counters={tabCounters} onSelect={selectTab} />
           </div>
-          {showGroupButton ? (
-            <div className={styles.tabsHeaderAction}>
-              <button
-                type="button"
-                className={`${styles.chatActionButton} ${styles.groupActionButton}`}
-                onClick={handleOpenGroupCreator}
-                disabled={groupButtonDisabled}
-              >
-                <UsersThree size={18} weight="duotone" />
-                <span>Group Chat</span>
-              </button>
-              <button
-                type="button"
-                className={`${styles.chatActionButton} ${styles.partyActionButton} ${
-                  isPartyActive ? styles.chatActionButtonActive : ""
-                }`.trim()}
-                onClick={() => selectTab("Party")}
-                disabled={partyButtonDisabled}
-              >
-                <MicrophoneStage size={18} weight="duotone" />
-                <span>{partyButtonLabel}</span>
-                {party.session ? <span className={styles.livePill}>LIVE</span> : null}
-              </button>
-            </div>
-          ) : null}
+          <div className={styles.tabsHeaderAction}>
+            <ConnectionsQuickActions actions={quickActions} />
+          </div>
         </div>
 
         <div
@@ -732,3 +744,6 @@ export function FriendsClient() {
     </>
   );
 }
+
+
+

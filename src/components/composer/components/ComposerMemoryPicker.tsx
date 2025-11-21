@@ -7,7 +7,7 @@ import {
   X,
 } from "@phosphor-icons/react/dist/ssr";
 
-import styles from "../../ai-composer.module.css";
+import styles from "../styles";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 import {
   detectAssetVariant,

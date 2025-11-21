@@ -24,7 +24,7 @@ export function formatPresence(value: string | null): string | null {
   if (diff < hour) return `Active ${Math.max(1, Math.round(diff / minute))}m ago`;
   if (diff < 24 * hour) return `Active ${Math.max(1, Math.round(diff / hour))}h ago`;
   if (diff < 7 * day) return `Active ${Math.max(1, Math.round(diff / day))}d ago`;
-  return `Active on ${new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  return "Active recently";
 }
 
 export function initialsFrom(name: string): string {
@@ -41,7 +41,11 @@ export function typingDisplayName(participant: ChatParticipant): string {
   const name = typeof participant.name === "string" ? participant.name.trim() : "";
   if (name) return name;
   const id = typeof participant.id === "string" ? participant.id.trim() : "";
-  return id || "Someone";
+  if (!id) return "Someone";
+  if (id.length >= 24 && /^[0-9a-f-]+$/i.test(id)) {
+    return `User ${id.slice(0, 4)}...${id.slice(-4)}`;
+  }
+  return id;
 }
 
 export function describeTypingParticipants(participants: ChatParticipant[]): string {

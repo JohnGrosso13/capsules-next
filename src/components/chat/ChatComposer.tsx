@@ -170,6 +170,8 @@ export function ChatComposer({
   const resolvedPlaceholder =
     placeholder ?? (sessionType === "group" ? "Message the group" : "Type a message");
 
+  const canSend = !disableSend;
+
   return (
     <>
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
@@ -210,11 +212,12 @@ export function ChatComposer({
             />
             <button
               type="submit"
-              className={styles.composerSendAdornment}
+              className={`${styles.composerSendAdornment} ${canSend ? styles.composerSendReady : ''}`.trim()}
               aria-label="Send message"
               disabled={disableSend}
             >
               <PaperPlaneTilt size={18} weight="fill" className={styles.sendButtonIcon} />
+              {canSend ? <span className={styles.composerSendLabel}>Send</span> : null}
             </button>
             {isPlusOpen ? (
               <div
