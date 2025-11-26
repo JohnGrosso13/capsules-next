@@ -48,7 +48,7 @@ const stringArraySchema = z
   .transform((value) => value ?? []);
 
 const draftRequestSchema = z.object({
-  goal: z.string().max(300).optional(),
+  goal: z.string().max(600).optional(),
   audience: z.string().max(200).optional(),
   tone: z.string().max(160).optional(),
   capsuleBrief: z.string().max(400).optional(),

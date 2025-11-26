@@ -11,14 +11,14 @@
 }
 
 .chatShell {
-  border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
+  border: none;
   border-radius: 22px;
-  background: color-mix(in srgb, rgba(12, 18, 36, 0.75) 90%, transparent);
-  padding: clamp(16px, 2vw, 22px);
+  background: transparent;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 38px rgba(5, 8, 20, 0.5);
+  box-shadow: none;
 }
 
 .chatLog {
@@ -27,9 +27,8 @@
   gap: var(--space-sm, 12px);
   padding: 12px 14px;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(8, 12, 28, 0.55);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: transparent;
+  box-shadow: none;
   min-height: 520px;
   max-height: 780px;
   overflow-y: auto;
@@ -51,7 +50,6 @@
   line-height: 1.4;
   color: var(--color-fg, rgba(255, 255, 255, 0.92));
   background: rgba(20, 24, 48, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
   align-self: flex-start;
 }
 

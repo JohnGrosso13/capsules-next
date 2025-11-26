@@ -40,7 +40,9 @@ function main() {
       continue;
     }
     const sorted = bucket.sort((a, b) => a.cssVar.localeCompare(b.cssVar));
-    const [canonical, ...rest] = sorted;
+    const canonical = sorted[0];
+    if (!canonical) continue;
+    const rest = sorted.slice(1);
     keep.push(canonical);
     rest.forEach((alias) => {
       aliasMap[alias.cssVar] = canonical.cssVar;

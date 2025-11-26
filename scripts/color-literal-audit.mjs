@@ -8,7 +8,8 @@ import path from "path";
 
 const ROOT = process.cwd();
 const SCAN_DIRS = ["src"];
-const ALLOWED_EXTS = new Set([".ts", ".tsx", ".jsx", ".js", ".mdx"]);
+const ALLOWED_EXTS = new Set([".ts", ".tsx", ".jsx", ".js", ".mdx", ".css", ".module.css"]);
+const SCAN_CSS = process.env.SCAN_CSS_COLORS === "true";
 
 const ALLOW_PATH_SUBSTRINGS = [
   `${path.sep}__tests__${path.sep}`,
@@ -20,6 +21,7 @@ const ALLOW_PATH_SUBSTRINGS = [
   `${path.sep}lib${path.sep}theme.ts`,
   `${path.sep}lib${path.sep}identity${path.sep}`,
   `${path.sep}server${path.sep}ai${path.sep}styler.ts`,
+  `${path.sep}.venv${path.sep}`,
 ];
 
 const ALLOW_FILES = new Set(
@@ -43,6 +45,7 @@ function shouldSkipFile(filePath) {
   if (ALLOW_FILES.has(filePath)) return true;
   if (ALLOW_PATH_SUBSTRINGS.some((marker) => filePath.includes(marker))) return true;
   const ext = path.extname(filePath);
+  if (!SCAN_CSS && (ext === ".css" || ext === ".module.css")) return true;
   if (!ALLOWED_EXTS.has(ext)) return true;
   return false;
 }

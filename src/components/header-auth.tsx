@@ -1,16 +1,22 @@
 "use client";
 
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
+import { ClerkUserButton } from "@/components/clerk-user-button";
 import { useCurrentUser } from "@/services/auth/client";
 import headerStyles from "./primary-header.module.css";
 
 const SEARCH_EVENT_NAME = "capsules:search:open";
 
 export function HeaderAuth() {
+  const [hydrated, setHydrated] = React.useState(false);
+  React.useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   const handleSearchClick = () => {
     if (typeof window === "undefined") return;
     window.dispatchEvent(new CustomEvent(SEARCH_EVENT_NAME));
@@ -27,6 +33,16 @@ export function HeaderAuth() {
   const avatarBoxClass = user?.avatarUrl
     ? `h-10 w-10 ${headerStyles.clerkAvatarBox}`
     : "h-10 w-10";
+
+  if (!hydrated) {
+    return (
+      <div className="flex items-center gap-4">
+        <span className={headerStyles.iconButton} aria-hidden />
+        <span className="h-10 min-w-[110px] rounded-xl bg-white/10" aria-hidden />
+        <span className={`${headerStyles.iconButton} h-10 w-10 rounded-full`} aria-hidden />
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-4">
@@ -60,15 +76,7 @@ export function HeaderAuth() {
           data-has-avatar={Boolean(user?.avatarUrl)}
           style={headerAvatarStyle}
         >
-          <UserButton
-            afterSignOutUrl="/"
-            appearance={{
-              elements: {
-                /* Fill the 40px circle for stronger presence, hide Clerk fallback when custom avatar exists */
-                avatarBox: avatarBoxClass,
-              },
-            }}
-          />
+          <ClerkUserButton avatarBoxClassName={avatarBoxClass} afterSignOutUrl="/" />
         </div>
       </SignedIn>
     </div>

@@ -108,7 +108,7 @@ export function FeedPostViewer({
     null;
   const profileHref = resolvedUserId ? buildProfileHref({ userId: resolvedUserId }) : null;
   const authorAvatar = post?.user_avatar ?? post?.userAvatar ?? null;
-  const authorName = post?.user_name ?? post?.userName ?? "Capsules AI";
+  const authorName = post?.user_name ?? post?.userName ?? "Assistant";
   const dialogLabel = authorName ? `${authorName}'s post` : "Post viewer";
   const memoryButtonDisabled = memoryPending || !canRemember || !post;
   const followButtonState = friendControls?.followState ?? null;

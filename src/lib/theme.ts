@@ -340,13 +340,13 @@ if (typeof document !== "undefined") {
   }
   applyStoredTheme();
 }
-function stabilizeThemeVars(vars: Record<string, string>): Record<string, string> {
+export function stabilizeThemeVars(vars: Record<string, string>): Record<string, string> {
   const withBackground = ensureAppBackground(vars);
   const withBrand = ensureBrandIdentity(withBackground);
   return ensureComposerPalette(withBrand);
 }
 
-type RGBA = { r: number; g: number; b: number; a: number };
+export type RGBA = { r: number; g: number; b: number; a: number };
 
 function ensureAppBackground(vars: Record<string, string>): Record<string, string> {
   let working = vars;
@@ -973,3 +973,5 @@ const FALLBACK_ERROR_COLOR = parseHexColor("#ef4444") ?? ({ r: 239, g: 68, b: 68
 const FALLBACK_WARNING_COLOR =
   parseHexColor("#f59e0b") ?? ({ r: 245, g: 158, b: 11, a: 1 } as RGBA);
 const FALLBACK_SUCCESS_COLOR = parseHexColor("#22c55e") ?? ({ r: 34, g: 197, b: 94, a: 1 } as RGBA);
+
+export { extractFirstColor, contrastRatio };

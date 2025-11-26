@@ -494,6 +494,7 @@ export function VoiceSettingsSection(): React.JSX.Element {
             <Button
               type="button"
               variant={micTestActive ? "secondary" : "primary"}
+              className={micTestActive ? layout.settingsCtaSecondary : layout.settingsCtaPrimary}
               onClick={() => {
                 if (micTestActive) {
                   stopMicTest();
@@ -530,15 +531,16 @@ export function VoiceSettingsSection(): React.JSX.Element {
 
         {deviceError ? <p className={styles.error}>{deviceError}</p> : null}
 
-        <div className={styles.actions}>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              void enumerateDevices();
-            }}
-            loading={loadingDevices}
-          >
+          <div className={styles.actions}>
+            <Button
+              type="button"
+              variant="secondary"
+              className={layout.settingsCtaSecondary}
+              onClick={() => {
+                void enumerateDevices();
+              }}
+              loading={loadingDevices}
+            >
             Refresh devices
           </Button>
         </div>

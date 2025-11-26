@@ -58,7 +58,11 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: radial-gradient(580px 240px at 85% 15%, var(--accent-glow, rgba(92, 180, 255, 0.12)), transparent 70%);
+  background: radial-gradient(
+    580px 240px at 85% 15%,
+    var(--accent-glow, rgba(92, 180, 255, 0.12)),
+    transparent 70%
+  );
 }
 
 .closeIcon {
@@ -85,7 +89,7 @@
 .closeIcon:hover:not(:disabled),
 .closeIcon:focus-visible:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.45);
+  box-shadow: var(--composer-shadow, 0 12px 28px color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 45%, transparent));
 }
 
 .closeIcon:disabled {
@@ -121,9 +125,9 @@
   gap: 0.5rem;
   padding: 0.55rem 0.95rem;
   border-radius: 999px;
-  border: 1px solid rgba(160, 172, 255, 0.3);
-  background: linear-gradient(180deg, rgba(36, 44, 96, 0.9), rgba(20, 26, 58, 0.92));
-  color: rgba(235, 240, 255, 0.95);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  color: var(--composer-text, var(--text));
   font-size: 0.92rem;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -137,17 +141,17 @@
 .smartContextToggle:hover:not(:disabled),
 .smartContextToggle:focus-visible:not(:disabled) {
   transform: translateY(-1px);
-  border-color: rgba(186, 198, 255, 0.52);
-  box-shadow: 0 10px 24px rgba(42, 68, 180, 0.28);
+  border-color: var(--composer-rail-button-hover-border, var(--composer-rail-tab-border));
+  box-shadow: var(--composer-rail-button-active-shadow, var(--composer-shadow));
 }
 
 .smartContextToggle[data-active="true"] {
-  border-color: rgba(200, 212, 255, 0.55);
-  box-shadow: 0 12px 28px rgba(50, 80, 200, 0.32);
+  border-color: var(--composer-rail-button-active-border, var(--composer-rail-tab-border));
+  box-shadow: var(--composer-rail-button-active-shadow, var(--composer-shadow));
 }
 
 .smartContextToggle:focus-visible {
-  outline: 2px solid rgba(130, 150, 255, 0.55);
+  outline: 2px solid var(--composer-rail-tab-active-color, var(--composer-text));
   outline-offset: 2px;
 }
 
@@ -159,7 +163,7 @@
 }
 
 .smartContextToggle svg {
-  color: rgba(210, 223, 255, 0.9);
+  color: var(--composer-rail-tab-color, var(--text-2));
 }
 
 .mobileHeaderButton {
@@ -334,9 +338,9 @@
 }
 
 .modeToggle {
-  border: 1px solid rgba(148, 163, 255, 0.3);
-  background: linear-gradient(180deg, rgba(24, 28, 64, 0.85), rgba(10, 14, 38, 0.88));
-  color: rgba(215, 222, 255, 0.86);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  color: var(--composer-text, var(--text));
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   font-size: 0.82rem;
@@ -351,10 +355,10 @@
 
 .modeToggle:hover:not(:disabled),
 .modeToggle:focus-visible:not(:disabled) {
-  border-color: rgba(186, 196, 255, 0.6);
-  color: rgba(240, 244, 255, 0.94);
+  border-color: var(--composer-rail-button-hover-border, var(--composer-rail-tab-border));
+  color: var(--composer-rail-tab-hover-color, var(--composer-text));
   transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(22, 30, 72, 0.36);
+  box-shadow: var(--composer-rail-button-active-shadow, var(--composer-shadow));
 }
 
 .modeToggle:disabled {
@@ -363,10 +367,10 @@
 }
 
 .modeToggle[data-selected='true'] {
-  border-color: rgba(112, 131, 255, 0.65);
-  background: linear-gradient(110deg, rgba(116, 130, 255, 0.9), rgba(52, 161, 255, 0.82));
-  color: rgba(252, 253, 255, 0.96);
-  box-shadow: 0 18px 38px rgba(40, 90, 255, 0.32);
+  border-color: var(--composer-rail-button-active-border, var(--composer-rail-tab-border));
+  background: var(--composer-rail-tab-active-bg);
+  color: var(--composer-rail-tab-active-color);
+  box-shadow: var(--composer-rail-tab-active-shadow);
 }
 
 .panelBody {
@@ -432,18 +436,18 @@
   transform: translateX(-50%);
   width: 2px;
   border-radius: 999px;
-  background: rgba(148, 163, 255, 0.35);
+  background: var(--composer-rail-tab-border);
   transition: background-color 120ms ease;
 }
 
 .colResizer[data-active='true']::after,
 .colResizer:hover::after {
-  background: rgba(116, 130, 255, 0.8);
+  background: var(--composer-accent, var(--color-brand, #2563eb));
 }
 
 .colResizer[data-active='true'],
 .colResizer:hover {
-  background: rgba(86, 116, 255, 0.12);
+  background: var(--composer-rail-tab-bg, var(--composer-panel-background));
 }
 
 @media (min-width: 901px) {
@@ -548,7 +552,7 @@
 .mobilePreviewBackdrop {
   position: fixed;
   inset: 0;
-  background: rgba(2, 6, 15, 0.62);
+  background: var(--composer-overlay-bg);
   backdrop-filter: blur(8px);
   z-index: 1440;
 }
@@ -569,7 +573,7 @@
   border-radius: 20px;
   border: 1px solid var(--composer-panel-border, rgba(148, 163, 255, 0.22));
   background: var(--composer-panel-background, rgba(16, 22, 54, 0.94));
-  box-shadow: 0 26px 80px rgba(6, 10, 30, 0.62);
+  box-shadow: var(--composer-shadow, 0 26px 80px color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 62%, transparent));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -688,16 +692,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(6, 10, 26, 0.72);
+  background: var(--composer-overlay-bg);
   backdrop-filter: blur(12px);
 }
 
 .saveDialog {
   width: min(480px, 100%);
   border-radius: 20px;
-  border: 1px solid rgba(129, 140, 248, 0.4);
-  background: linear-gradient(185deg, rgba(32, 38, 82, 0.95), rgba(16, 22, 54, 0.92));
-  box-shadow: 0 26px 60px rgba(6, 12, 46, 0.58);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  box-shadow: var(--composer-shadow, 0 26px 60px color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 58%, transparent));
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
@@ -715,7 +719,7 @@
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
-  color: rgba(238, 241, 255, 0.96);
+  color: var(--composer-text, var(--text));
 }
 
 .saveDialogClose {
@@ -727,15 +731,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(129, 140, 248, 0.14);
-  color: rgba(236, 239, 255, 0.85);
+  background: var(--composer-rail-tab-bg);
+  color: var(--composer-rail-tab-color, var(--composer-text));
   cursor: pointer;
   transition: background 120ms ease, transform 120ms ease;
 }
 
 .saveDialogClose:hover,
 .saveDialogClose:focus-visible {
-  background: rgba(129, 140, 248, 0.25);
+  background: var(--composer-rail-tab-active-bg, var(--composer-rail-tab-bg));
   transform: translateY(-1px);
 }
 
@@ -754,16 +758,16 @@
   font-size: 0.78rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(199, 209, 255, 0.72);
+  color: var(--composer-rail-tab-color, var(--text-2));
 }
 
 .saveDialogInput,
 .saveDialogTextarea {
   width: 100%;
   border-radius: 12px;
-  border: 1px solid rgba(129, 140, 248, 0.32);
-  background: rgba(14, 18, 46, 0.82);
-  color: rgba(236, 239, 255, 0.95);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  color: var(--composer-text, var(--text));
   padding: 0.75rem 0.9rem;
   font-size: 0.95rem;
   transition: border-color 120ms ease, box-shadow 120ms ease;
@@ -772,8 +776,8 @@
 .saveDialogInput:focus,
 .saveDialogTextarea:focus {
   outline: none;
-  border-color: rgba(148, 163, 255, 0.6);
-  box-shadow: 0 0 0 2px rgba(148, 163, 255, 0.2);
+  border-color: var(--composer-rail-button-active-border, var(--composer-rail-tab-border));
+  box-shadow: var(--composer-rail-tab-active-shadow, 0 0 0 2px color-mix(in srgb, var(--composer-accent, var(--color-brand, #2563eb)) 20%, transparent));
 }
 
 .saveDialogInput:disabled,
@@ -790,7 +794,7 @@
 .saveDialogError {
   margin: 0;
   font-size: 0.82rem;
-  color: rgba(255, 152, 152, 0.88);
+  color: var(--composer-status-error, var(--color-danger, #f87171));
 }
 
 .saveDialogActions {
@@ -812,27 +816,28 @@
 }
 
 .saveDialogSecondary {
-  border: 1px solid rgba(148, 163, 255, 0.32);
-  background: rgba(24, 30, 68, 0.7);
-  color: rgba(226, 232, 255, 0.94);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  color: var(--composer-text, var(--text));
 }
 
 .saveDialogSecondary:hover:not(:disabled),
 .saveDialogSecondary:focus-visible:not(:disabled) {
   transform: translateY(-1px);
-  border-color: rgba(186, 196, 255, 0.55);
+  border-color: var(--composer-rail-button-active-border, var(--composer-rail-tab-border));
 }
 
 .saveDialogPrimary {
-  border: 1px solid color-mix(in srgb, var(--color-brand, #6366f1) 70%, transparent);
-  background: linear-gradient(115deg, var(--color-brand, #6366f1), var(--color-accent, #22d3ee));
-  color: rgba(8, 12, 26, 0.95);
-  box-shadow: 0 16px 38px rgba(54, 91, 255, 0.35);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-tab-active-bg, var(--composer-rail-shell));
+  color: var(--composer-rail-tab-active-color, var(--text-on-brand));
+  box-shadow: var(--composer-rail-tab-active-shadow, var(--composer-shadow));
 }
 
 .saveDialogPrimary:hover:not(:disabled),
 .saveDialogPrimary:focus-visible:not(:disabled) {
   transform: translateY(-1px);
+  border-color: var(--composer-rail-button-active-border, var(--composer-rail-tab-border));
 }
 
 .saveDialogPrimary:disabled,
@@ -850,8 +855,8 @@
   margin: clamp(0.5rem, 1.8vw, 1rem) clamp(1rem, 2.6vw, 1.75rem) 0;
   padding: clamp(0.6rem, 1.4vw, 1rem) clamp(0.9rem, 2.2vw, 1.5rem);
   border-radius: 18px;
-  border: 1px solid rgba(148, 163, 255, 0.25);
-  background: rgba(20, 26, 58, 0.6);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-tab-bg);
   backdrop-filter: blur(9px);
 }
 
@@ -897,8 +902,8 @@
 .smartContextItem {
   padding: 0.75rem 1rem;
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 255, 0.18);
-  background: rgba(15, 19, 42, 0.75);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
 }
 
 .smartContextItemHeader {
@@ -926,8 +931,8 @@
 .smartContextMemorySource {
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
-  background: rgba(59, 130, 246, 0.22);
-  color: rgba(191, 219, 254, 0.95);
+  background: var(--composer-rail-tab-active-bg, var(--composer-rail-tab-bg));
+  color: var(--composer-rail-tab-active-color, var(--text-on-brand));
 }
 
 .smartContextPreview {
@@ -938,7 +943,7 @@
 }
 
 .smartContextPreview mark {
-  background: rgba(56, 189, 248, 0.25);
+  background: var(--composer-rail-tab-active-bg, var(--composer-rail-tab-bg));
   border-radius: 4px;
   padding: 0 0.15rem;
 }
@@ -954,8 +959,8 @@
   font-size: 0.72rem;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  background: rgba(129, 140, 248, 0.22);
-  color: rgba(224, 231, 255, 0.92);
+  background: var(--composer-rail-tab-bg);
+  color: var(--composer-rail-tab-color, var(--text-2));
 }
 
 .smartContextLink {
@@ -964,4 +969,89 @@
   font-size: 0.82rem;
   font-weight: 600;
   color: rgba(191, 219, 254, 0.95);
+}
+
+.themePreviewBanner {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--composer-rail-tab-border, var(--composer-border, var(--card-border)));
+  background: color-mix(
+    in srgb,
+    var(--composer-overlay-card-bg, var(--composer-panel-background)) 92%,
+    transparent
+  );
+  box-shadow: var(
+    --composer-overlay-card-shadow,
+    0 12px 28px color-mix(in srgb, var(--composer-shadow-color, #000) 38%, transparent)
+  );
+}
+
+.themePreviewCopy {
+  display: grid;
+  gap: 4px;
+}
+
+.themePreviewLabel {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--composer-text, var(--text)) 78%, transparent);
+}
+
+.themePreviewSummary {
+  margin: 0;
+  font-weight: 700;
+  color: var(--composer-text, var(--text));
+}
+
+.themePreviewDetails {
+  margin: 0;
+  color: color-mix(in srgb, var(--composer-text, var(--text)) 80%, transparent);
+}
+
+.themePreviewActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.themePreviewApply,
+.themePreviewCancel {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.12s ease;
+}
+
+.themePreviewApply {
+  color: var(--text-on-brand, #ffffff);
+  background: var(--composer-rail-tab-active-bg, var(--cta-gradient, var(--gradient-brand)));
+  border-color: var(--composer-rail-tab-active-border, var(--composer-rail-tab-border));
+  box-shadow: var(
+    --composer-rail-tab-active-shadow,
+    0 10px 22px color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 36%, transparent)
+  );
+}
+
+.themePreviewCancel {
+  background: color-mix(
+    in srgb,
+    var(--composer-panel-background, var(--surface-overlay)) 86%,
+    transparent
+  );
+  border-color: var(--composer-rail-tab-border, var(--composer-border));
+  color: var(--composer-text, var(--text));
+}
+
+.themePreviewApply:hover,
+.themePreviewCancel:hover {
+  transform: translateY(-1px);
 }

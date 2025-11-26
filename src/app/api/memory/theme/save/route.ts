@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
+import { validateThemeVariantsInput } from "@/lib/theme/validate";
 import { createThemeStyle, type ThemeMode } from "@/server/theme/service";
 
 export async function POST(req: Request) {
@@ -35,6 +36,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "variants required" }, { status: 400 });
   }
 
+  const validation = validateThemeVariantsInput(variants);
+  if (!validation.ok) {
+    return NextResponse.json(
+      { error: "theme validation failed", issues: validation.issues },
+      { status: 422 },
+    );
+  }
+
   try {
     const style = await createThemeStyle({
       ownerId,
@@ -44,7 +53,7 @@ export async function POST(req: Request) {
       prompt,
       details,
       mode,
-      variants,
+      variants: validation.normalized,
     });
 
     return NextResponse.json({ success: true, id: style.id });

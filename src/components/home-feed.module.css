@@ -1705,8 +1705,17 @@
   margin-bottom: var(--space-xl);
   padding: 1.1rem 1.4rem;
   border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-brand) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-brand) 26%, transparent);
+  --summary-accent-base: var(--connections-accent, #2f5fd7);
+  --summary-accent-strong-base: var(--connections-accent-strong, #1b8bd8);
+  --summary-accent: color-mix(in srgb, var(--summary-accent-base) 70%, rgba(10, 14, 30, 0.95));
+  --summary-accent-strong: color-mix(in srgb, var(--summary-accent-strong-base) 70%, rgba(6, 10, 24, 0.96));
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--summary-accent) 52%, rgba(6, 10, 24, 0.96)),
+    color-mix(in srgb, var(--summary-accent-strong) 62%, rgba(4, 8, 18, 0.96))
+  );
+  border: 1px solid color-mix(in srgb, var(--summary-accent) 42%, var(--card-border, rgba(255, 255, 255, 0.14)));
+  box-shadow: 0 18px 36px color-mix(in srgb, var(--summary-accent) 24%, transparent);
 }
 
 .summaryCtaContent {
@@ -1718,7 +1727,14 @@
 .summaryCtaIcon {
   width: 36px;
   height: 36px;
-  color: var(--color-brand, #2563eb);
+  color: color-mix(in srgb, var(--summary-accent-strong) 72%, #b4dafc);
+}
+
+.summaryCtaCopy {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-fg, #f6f8ff) 92%, rgba(201, 216, 242, 0.82));
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .summaryCtaButton {
@@ -1726,8 +1742,16 @@
   border-radius: 999px;
   padding: 0.6rem 1.6rem;
   font-weight: 600;
-  background: var(--color-brand, #2563eb);
-  color: var(--color-brand-foreground, #fff);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--summary-accent) 78%, rgba(4, 8, 20, 0.98)) 0%,
+    color-mix(in srgb, var(--summary-accent-strong) 72%, rgba(6, 12, 26, 0.98)) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--summary-accent-strong) 55%, transparent);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 14px 30px color-mix(in srgb, var(--summary-accent) 22%, rgba(0, 0, 0, 0.5));
   cursor: pointer;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }

@@ -17,7 +17,7 @@
   --feed-gap: var(--layout-page-gap, var(--space-3xl));
   --home-icon-memory-gradient: var(
     --feed-accent-gradient,
-    linear-gradient(120deg, #8b5cf6 0%, #6366f1 55%, #22d3ee 100%)
+    var(--gradient-brand)
   );
   --home-share-hover: var(--color-warning, #facc15);
   --home-postviewer-text: var(--text, #fff);
@@ -33,7 +33,7 @@
   --feed-gap: var(--layout-page-gap, var(--space-2xl, 32px));
   --home-icon-memory-gradient: var(
     --feed-accent-gradient,
-    linear-gradient(120deg, var(--color-brand, #2563eb) 0%, var(--color-accent, #22d3ee) 100%)
+    var(--gradient-brand)
   );
   --home-share-hover: var(--color-warning, #facc15);
   --home-postviewer-text: var(--text, #fff);

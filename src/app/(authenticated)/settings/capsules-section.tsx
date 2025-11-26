@@ -144,6 +144,7 @@ export function CapsuleSettingsSection({
               type="button"
               variant="secondary"
               size="sm"
+              className={layout.settingsCtaSecondary}
               onClick={() => {
                 void loadCapsules();
               }}
@@ -191,6 +192,7 @@ export function CapsuleSettingsSection({
                         type="button"
                         variant={managing ? "secondary" : "outline"}
                         size="sm"
+                        className={managing ? layout.settingsCtaSecondary : layout.settingsCtaSecondary}
                         onClick={() => setSelectedCapsule(capsule)}
                         aria-pressed={managing}
                       >

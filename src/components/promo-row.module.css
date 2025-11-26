@@ -1,114 +1,118 @@
 .promoTokens:global(:root) {
   --promo-video-overlay-gradient: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--surface-overlay, rgba(9, 15, 32, 0.6)) 90%, transparent),
-    color-mix(in srgb, var(--surface-overlay, rgba(9, 15, 32, 0.12)) 80%, transparent)
+    color-mix(in srgb, var(--surface-overlay) 90%, transparent),
+    color-mix(in srgb, var(--surface-overlay) 80%, transparent)
   );
   --promo-video-modal-bg: color-mix(
     in srgb,
-    color-mix(in srgb, var(--surface-overlay, rgba(3, 6, 18, 0.92)) 88%, transparent) 70%,
-    color-mix(in srgb, var(--surface-overlay, rgba(8, 13, 32, 0.92)) 88%, transparent)
+    color-mix(in srgb, var(--surface-overlay) 88%, transparent) 70%,
+    color-mix(in srgb, var(--surface-overlay) 88%, transparent)
   );
   --promo-video-container-bg: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-brand, #2563eb) 16%, transparent),
+      color-mix(in srgb, var(--color-brand) 16%, transparent),
       transparent 68%
     ),
-    color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.92)) 85%, rgba(9, 13, 32, 0.92));
-  --promo-video-container-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 32px 68px rgba(6, 10, 28, 0.45);
-  --promo-video-close-border: rgba(255, 255, 255, 0.24);
-  --promo-video-close-bg: color-mix(
-    in srgb,
-    var(--surface-overlay, rgba(15, 23, 42, 0.85)) 82%,
-    transparent
-  );
-  --promo-video-close-color: rgba(255, 255, 255, 0.94);
-  --promo-video-close-hover-border: rgba(255, 255, 255, 0.38);
-  --promo-video-close-hover-bg: color-mix(
-    in srgb,
-    var(--color-brand, #3b82f6) 60%,
-    var(--surface-overlay, rgba(15, 23, 42, 0.78))
-  );
-  --promo-video-close-hover-shadow: 0 18px 36px rgba(6, 10, 28, 0.42);
+    color-mix(
+      in srgb,
+      var(--surface-overlay) 85%,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)
+    );
+  --promo-video-container-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent),
+    0 32px 68px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent);
+  --promo-video-close-border: color-mix(in srgb, var(--color-fg) 24%, transparent);
+  --promo-video-close-bg: color-mix(in srgb, var(--surface-overlay) 82%, transparent);
+  --promo-video-close-color: color-mix(in srgb, var(--color-fg) 94%, transparent);
+  --promo-video-close-hover-border: color-mix(in srgb, var(--color-fg) 38%, transparent);
+  --promo-video-close-hover-bg: color-mix(in srgb, var(--color-brand) 60%, var(--surface-overlay));
+  --promo-video-close-hover-shadow: 0 18px 36px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent);
   --promo-video-close-focus-shadow: 0 0 0 3px color-mix(
       in srgb,
-      var(--color-brand, #6366f1) 45%,
+      var(--color-brand) 45%,
       transparent
     );
-  --promo-video-progress-track: rgba(255, 255, 255, 0.2);
-  --promo-video-progress-fill: linear-gradient(90deg, rgba(129, 140, 248, 0.92), rgba(59, 130, 246, 0.92));
+  --promo-video-progress-track: color-mix(in srgb, var(--color-fg) 20%, transparent);
+  --promo-video-progress-fill: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 92%, transparent),
+    color-mix(in srgb, var(--color-brand) 92%, transparent)
+  );
   --promo-video-stage-bg: color-mix(
     in srgb,
-    var(--surface-overlay, rgba(15, 23, 42, 0.92)) 90%,
-    rgba(9, 13, 28, 0.9)
+    var(--surface-overlay) 90%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)
   );
   --promo-video-stage-playing-bg: color-mix(
     in srgb,
-    var(--surface-overlay, rgba(15, 23, 42, 0.9)) 78%,
-    rgba(8, 13, 32, 0.9)
+    var(--surface-overlay) 78%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)
   );
-  --promo-video-nav-border: rgba(255, 255, 255, 0.22);
+  --promo-video-nav-border: color-mix(in srgb, var(--color-fg) 22%, transparent);
   --promo-video-nav-bg: color-mix(
     in srgb,
-    var(--surface-overlay, rgba(15, 23, 42, 0.84)) 82%,
-    color-mix(in srgb, var(--color-brand, #6366f1) 32%, transparent)
+    var(--surface-overlay) 82%,
+    color-mix(in srgb, var(--color-brand) 32%, transparent)
   );
-  --promo-video-nav-color: rgba(255, 255, 255, 0.94);
-  --promo-video-nav-hover-border: rgba(255, 255, 255, 0.36);
+  --promo-video-nav-color: color-mix(in srgb, var(--color-fg) 94%, transparent);
+  --promo-video-nav-hover-border: color-mix(in srgb, var(--color-fg) 36%, transparent);
   --promo-video-nav-hover-bg: color-mix(
     in srgb,
-    var(--color-brand, #6366f1) 58%,
-    var(--surface-overlay, rgba(15, 23, 42, 0.82))
+    var(--color-brand) 58%,
+    var(--surface-overlay)
   );
-  --promo-video-nav-hover-shadow: 0 16px 34px rgba(5, 10, 30, 0.32);
-  --promo-video-playhint-border: rgba(255, 255, 255, 0.28);
+  --promo-video-nav-hover-shadow: 0 16px 34px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 32%, transparent);
+  --promo-video-playhint-border: color-mix(in srgb, var(--color-fg) 28%, transparent);
   --promo-video-playhint-bg: color-mix(
     in srgb,
-    var(--surface-overlay, rgba(15, 23, 42, 0.85)) 80%,
-    color-mix(in srgb, var(--color-brand, #6366f1) 28%, transparent)
+    var(--surface-overlay) 80%,
+    color-mix(in srgb, var(--color-brand) 28%, transparent)
   );
-  --promo-video-playhint-color: rgba(255, 255, 255, 0.94);
-  --promo-video-playhint-hover-border: rgba(255, 255, 255, 0.38);
+  --promo-video-playhint-color: color-mix(in srgb, var(--color-fg) 94%, transparent);
+  --promo-video-playhint-hover-border: color-mix(in srgb, var(--color-fg) 38%, transparent);
   --promo-video-playhint-hover-bg: color-mix(
     in srgb,
-    var(--color-brand, #6366f1) 60%,
-    var(--surface-overlay, rgba(15, 23, 42, 0.8))
+    var(--color-brand) 60%,
+    var(--surface-overlay)
   );
-  --promo-video-playhint-hover-shadow: 0 16px 32px rgba(6, 10, 28, 0.42);
-  --promo-video-controls-border: rgba(255, 255, 255, 0.14);
+  --promo-video-playhint-hover-shadow: 0 16px 32px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent);
+  --promo-video-controls-border: color-mix(in srgb, var(--color-fg) 14%, transparent);
   --promo-video-controls-bg: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-brand, #2563eb) 28%, transparent),
+      color-mix(in srgb, var(--color-brand) 28%, transparent),
       transparent 68%
     ),
-    color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 88%, rgba(8, 12, 32, 0.9));
-  --promo-video-controls-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 rgba(6, 10, 26, 0.45);
-  --promo-video-controls-color: rgba(255, 255, 255, 0.92);
-  --promo-video-control-border: rgba(255, 255, 255, 0.22);
+    color-mix(
+      in srgb,
+      var(--surface-overlay) 88%,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)
+    );
+  --promo-video-controls-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent);
+  --promo-video-controls-color: color-mix(in srgb, var(--color-fg) 92%, transparent);
+  --promo-video-control-border: color-mix(in srgb, var(--color-fg) 22%, transparent);
   --promo-video-control-bg: color-mix(
     in srgb,
-    rgba(255, 255, 255, 0.08) 60%,
-    var(--surface-overlay, rgba(15, 23, 42, 0.82))
+    color-mix(in srgb, var(--color-fg) 8%, transparent) 60%,
+    var(--surface-overlay)
   );
-  --promo-video-control-hover-border: rgba(255, 255, 255, 0.38);
+  --promo-video-control-hover-border: color-mix(in srgb, var(--color-fg) 38%, transparent);
   --promo-video-control-hover-bg: color-mix(
     in srgb,
-    var(--color-brand, #6366f1) 58%,
-    var(--surface-overlay, rgba(15, 23, 42, 0.82))
+    var(--color-brand) 58%,
+    var(--surface-overlay)
   );
-  --promo-video-control-hover-shadow: 0 16px 32px rgba(6, 10, 28, 0.36);
-  --promo-video-timecode: rgba(255, 255, 255, 0.72);
-  --promo-video-stepper-bg: rgba(255, 255, 255, 0.12);
-  --promo-video-stepper-color: rgba(255, 255, 255, 0.86);
-  --promo-video-caption-color: rgba(255, 255, 255, 0.88);
+  --promo-video-control-hover-shadow: 0 16px 32px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 36%, transparent);
+  --promo-video-timecode: color-mix(in srgb, var(--color-fg) 72%, transparent);
+  --promo-video-stepper-bg: color-mix(in srgb, var(--color-fg) 12%, transparent);
+  --promo-video-stepper-color: color-mix(in srgb, var(--color-fg) 86%, transparent);
+  --promo-video-caption-color: color-mix(in srgb, var(--color-fg) 88%, transparent);
   --promo-video-fallback-bg: color-mix(
     in srgb,
-    var(--surface-overlay, rgba(15, 23, 42, 0.92)) 92%,
-    rgba(3, 6, 18, 0.92)
+    var(--surface-overlay) 92%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)
   );
-  --promo-video-fallback-icon: rgba(255, 255, 255, 0.92);
+  --promo-video-fallback-icon: color-mix(in srgb, var(--color-fg) 92%, transparent);
 }
 .row {
   display: grid;
@@ -138,8 +142,8 @@
   border-radius: 16px;
   overflow: hidden;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 0 rgba(2, 6, 23, 0.4),
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 12%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 40%, transparent),
     var(--card-shadow);
   backdrop-filter: blur(10px) saturate(120%);
   -webkit-backdrop-filter: blur(10px) saturate(120%);
@@ -162,8 +166,8 @@
   pointer-events: none;
   background: var(
     --promo-tile-hover-overlay,
-    radial-gradient(120% 90% at 50% -10%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0) 68%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0))
+    radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 10%, transparent), transparent 68%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 6%, transparent), transparent)
   );
   opacity: 0;
   transition: opacity 0.16s ease;
@@ -172,8 +176,8 @@
   transform: translateY(-1px);
   border-color: var(--card-hover-border);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -1px 0 rgba(2, 6, 23, 0.52),
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 14%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 52%, transparent),
     var(--card-hover-shadow);
   background: linear-gradient(180deg, var(--card-hover-bg-1), var(--card-hover-bg-2));
 }
@@ -186,7 +190,7 @@
 }
 
 .tile[data-interactive="true"]:focus-visible {
-  outline: 2px solid var(--ring-primary, rgba(37, 99, 235, 0.66));
+  outline: 2px solid var(--ring-primary, color-mix(in srgb, var(--color-brand) 66%, transparent));
   outline-offset: 2px;
 }
 
@@ -216,7 +220,7 @@
 }
 
 .capsuleTile:focus-visible {
-  outline: 2px solid var(--ring-primary, rgba(37, 99, 235, 0.66));
+  outline: 2px solid var(--ring-primary, color-mix(in srgb, var(--color-brand) 66%, transparent));
   outline-offset: 4px;
 }
 
@@ -251,7 +255,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  background: var(--glass-bg-2, rgba(255, 255, 255, 0.08));
+  background: var(--glass-bg-2, color-mix(in srgb, var(--color-fg) 8%, transparent));
 }
 
 .short[data-kind="video"] {
@@ -263,22 +267,22 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  background: color-mix(in srgb, var(--surface-overlay) 85%, rgba(15, 23, 42, 0.54));
+  background: color-mix(in srgb, var(--surface-overlay) 85%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 54%, transparent));
 }
 
 .short[data-kind="video"][data-letterbox="true"] {
-  background: var(--surface-overlay, #000);
+  background: var(--surface-overlay);
 }
 
 .videoLetterbox {
   object-fit: contain;
-  background: var(--surface-overlay, #000);
+  background: var(--surface-overlay);
 }
 
 .videoLetterbox:fullscreen,
 .videoLetterbox:-webkit-full-screen {
   object-fit: contain;
-  background: var(--surface-overlay, #000);
+  background: var(--surface-overlay);
 }
 
 .videoRotateFullscreenClockwise:fullscreen,
@@ -286,7 +290,7 @@
   transform: rotate(90deg);
   transform-origin: center center;
   object-fit: contain;
-  background: var(--surface-overlay, #000);
+  background: var(--surface-overlay);
 }
 
 .videoRotateFullscreenCounterclockwise:fullscreen,
@@ -294,7 +298,7 @@
   transform: rotate(-90deg);
   transform-origin: center center;
   object-fit: contain;
-  background: var(--surface-overlay, #000);
+  background: var(--surface-overlay);
 }
 
 .videoOverlay {
@@ -304,11 +308,7 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  background: var(--promo-video-overlay-gradient, linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--surface-overlay, rgba(9, 15, 32, 0.6)) 90%, transparent),
-    color-mix(in srgb, var(--surface-overlay, rgba(9, 15, 32, 0.12)) 80%, transparent)
-  ));
+  background: var(--promo-video-overlay-gradient);
   transition: opacity 0.2s ease;
   opacity: 1;
 }
@@ -320,8 +320,8 @@
 .videoIcon {
   width: 52px;
   height: 52px;
-  color: var(--promo-video-fallback-icon, rgba(255, 255, 255, 0.92));
-  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.36));
+  color: var(--promo-video-fallback-icon, color-mix(in srgb, var(--color-fg) 92%, transparent));
+  filter: drop-shadow(0 12px 28px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 36%, transparent));
 }
 
 .fallback {
@@ -352,7 +352,7 @@
   height: 88px;
   border-radius: 18px;
   background: var(--gradient-brand);
-  box-shadow: var(--shadow-md, 0 10px 22px rgba(79, 70, 229, 0.36));
+  box-shadow: var(--shadow-md, 0 10px 22px color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 36%, transparent));
 }
 .avatarImage {
   display: block;
@@ -375,7 +375,7 @@
   padding: 14px;
   background: var(
     --promo-overlay-gradient,
-    linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6))
+    linear-gradient(180deg, transparent, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 60%, transparent))
   );
   display: flex;
   align-items: flex-end;
@@ -392,8 +392,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-overlay, rgba(15, 23, 42, 0.7));
-  color: var(--text, #ffffff);
+  background: var(--surface-overlay);
+  color: var(--text, var(--color-fg));
 }
 
 .lightboxFallbackIcon {
@@ -409,7 +409,7 @@
   align-items: center;
   justify-content: center;
   padding: clamp(18px, 4vw, 56px);
-  background: var(--promo-video-modal-bg, color-mix(in srgb, rgba(3, 6, 18, 0.92) 88%, rgba(8, 13, 32, 0.92)));
+  background: var(--promo-video-modal-bg, color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 88%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)));
   backdrop-filter: blur(28px) saturate(120%);
   -webkit-backdrop-filter: blur(28px) saturate(120%);
   overscroll-behavior: contain;
@@ -426,12 +426,12 @@
   border-radius: 28px;
   background: var(--promo-video-container-bg, linear-gradient(
       180deg,
-      color-mix(in srgb, rgba(37, 99, 235, 0.16) 42%, transparent),
+      color-mix(in srgb, color-mix(in srgb, var(--color-brand) 16%, transparent) 42%, transparent),
       transparent 68%
     ),
-    color-mix(in srgb, rgba(15, 23, 42, 0.92) 85%, rgba(9, 13, 32, 0.92)));
-  box-shadow: var(--promo-video-container-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 32px 68px rgba(6, 10, 28, 0.45));
+    color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 85%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)));
+  box-shadow: var(--promo-video-container-shadow, inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent),
+    0 32px 68px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent));
   overflow: visible;
 }
 
@@ -445,9 +445,9 @@
   width: 44px;
   height: 44px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  background: color-mix(in srgb, rgba(15, 23, 42, 0.85) 82%, transparent);
-  color: var(--promo-video-close-color, rgba(255, 255, 255, 0.94));
+  border: 1px solid color-mix(in srgb, var(--color-fg) 24%, transparent);
+  background: color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 85%, transparent) 82%, transparent);
+  color: var(--promo-video-close-color, color-mix(in srgb, var(--color-fg) 94%, transparent));
   cursor: pointer;
   transition:
     transform 0.16s ease,
@@ -460,14 +460,14 @@
 
 .videoViewerClose:hover {
   transform: translateY(-1px);
-  border-color: var(--promo-video-close-hover-border, rgba(255, 255, 255, 0.38));
-  background: var(--promo-video-close-hover-bg, color-mix(in srgb, rgba(59, 130, 246, 0.55) 60%, rgba(15, 23, 42, 0.78)));
-  box-shadow: var(--promo-video-close-hover-shadow, 0 18px 36px rgba(6, 10, 28, 0.42));
+  border-color: var(--promo-video-close-hover-border, color-mix(in srgb, var(--color-fg) 38%, transparent));
+  background: var(--promo-video-close-hover-bg, color-mix(in srgb, color-mix(in srgb, var(--color-brand) 55%, transparent) 60%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 78%, transparent)));
+  box-shadow: var(--promo-video-close-hover-shadow, 0 18px 36px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent));
 }
 
 .videoViewerClose:focus-visible {
   outline: none;
-  box-shadow: var(--promo-video-close-focus-shadow, 0 0 0 3px rgba(99, 102, 241, 0.45));
+  box-shadow: var(--promo-video-close-focus-shadow, 0 0 0 3px color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 45%, transparent));
 }
 
 .videoViewerPlayer {
@@ -477,10 +477,10 @@
   height: auto;
   max-height: 100%;
   border-radius: 22px;
-  background: var(--promo-video-bg, #000);
+  background: var(--promo-video-bg, var(--surface-overlay, var(--surface-app)));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 rgba(3, 6, 18, 0.45);
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent);
 }
 
 .videoViewerProgressGroup {
@@ -497,14 +497,21 @@
   flex: 1;
   height: 5px;
   border-radius: 999px;
-  background: var(--promo-video-progress-track, rgba(255, 255, 255, 0.2));
+  background: var(--promo-video-progress-track, color-mix(in srgb, var(--color-fg) 20%, transparent));
   overflow: hidden;
 }
 
 .videoViewerProgressFill {
   position: absolute;
   inset: 0;
-  background: var(--promo-video-progress-fill, linear-gradient(90deg, rgba(129, 140, 248, 0.92), rgba(59, 130, 246, 0.92)));
+  background: var(
+    --promo-video-progress-fill,
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 92%, transparent),
+      color-mix(in srgb, var(--color-brand) 92%, transparent)
+    )
+  );
   width: 0%;
   transform-origin: left;
   transition: width 120ms linear;
@@ -518,16 +525,16 @@
   width: 100%;
   padding: clamp(12px, 2.4vw, 22px);
   border-radius: 28px;
-  background: color-mix(in srgb, rgba(15, 23, 42, 0.92) 90%, rgba(9, 13, 28, 0.9));
+  background: color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 90%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 -1px 0 rgba(4, 6, 18, 0.32);
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 5%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 32%, transparent);
   overflow: hidden;
   max-height: calc(100vh - clamp(176px, 24vh, 320px));
 }
 
 .videoViewerStage[data-playing="true"] {
-  background: color-mix(in srgb, rgba(15, 23, 42, 0.9) 78%, rgba(8, 13, 32, 0.9));
+  background: color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent) 78%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent));
 }
 
 .videoViewerNav {
@@ -540,9 +547,9 @@
   width: clamp(46px, 4.2vw, 60px);
   height: clamp(46px, 4.2vw, 60px);
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: color-mix(in srgb, rgba(15, 23, 42, 0.84) 82%, rgba(99, 102, 241, 0.32));
-  color: var(--promo-video-close-color, rgba(255, 255, 255, 0.94));
+  border: 1px solid color-mix(in srgb, var(--color-fg) 22%, transparent);
+  background: color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 84%, transparent) 82%, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 32%, transparent));
+  color: var(--promo-video-close-color, color-mix(in srgb, var(--color-fg) 94%, transparent));
   cursor: pointer;
   visibility: hidden;
   pointer-events: none;
@@ -570,9 +577,9 @@
 .videoViewerNav:hover,
 .videoViewerNav:focus-visible {
   transform: translateY(-50%) scale(1.05);
-  border-color: var(--promo-video-nav-hover-border, rgba(255, 255, 255, 0.36));
-  background: var(--promo-video-nav-hover-bg, color-mix(in srgb, rgba(99, 102, 241, 0.42) 58%, rgba(15, 23, 42, 0.82)));
-  box-shadow: var(--promo-video-nav-hover-shadow, 0 16px 34px rgba(5, 10, 30, 0.32));
+  border-color: var(--promo-video-nav-hover-border, color-mix(in srgb, var(--color-fg) 36%, transparent));
+  background: var(--promo-video-nav-hover-bg, color-mix(in srgb, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 42%, transparent) 58%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent)));
+  box-shadow: var(--promo-video-nav-hover-shadow, 0 16px 34px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 32%, transparent));
   outline: none;
 }
 
@@ -587,9 +594,9 @@
   width: clamp(60px, 6vw, 72px);
   height: clamp(60px, 6vw, 72px);
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: color-mix(in srgb, rgba(15, 23, 42, 0.85) 80%, rgba(99, 102, 241, 0.28));
-  color: var(--promo-video-close-color, rgba(255, 255, 255, 0.94));
+  border: 1px solid color-mix(in srgb, var(--color-fg) 28%, transparent);
+  background: color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 85%, transparent) 80%, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 28%, transparent));
+  color: var(--promo-video-close-color, color-mix(in srgb, var(--color-fg) 94%, transparent));
   cursor: pointer;
   transition:
     transform 0.16s ease,
@@ -602,9 +609,9 @@
 .videoViewerPlayHint:hover,
 .videoViewerPlayHint:focus-visible {
   transform: translate(-50%, -50%) scale(1.05);
-  border-color: var(--promo-video-close-hover-border, rgba(255, 255, 255, 0.38));
-  background: color-mix(in srgb, rgba(99, 102, 241, 0.46) 60%, rgba(15, 23, 42, 0.8));
-  box-shadow: 0 16px 32px rgba(6, 10, 28, 0.42);
+  border-color: var(--promo-video-close-hover-border, color-mix(in srgb, var(--color-fg) 38%, transparent));
+  background: color-mix(in srgb, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 46%, transparent) 60%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 80%, transparent));
+  box-shadow: 0 16px 32px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent);
   outline: none;
 }
 
@@ -615,17 +622,17 @@
   width: 100%;
   padding: clamp(12px, 2.4vw, 18px);
   border-radius: 22px;
-  border: 1px solid var(--promo-video-controls-border, rgba(255, 255, 255, 0.14));
+  border: 1px solid var(--promo-video-controls-border, color-mix(in srgb, var(--color-fg) 14%, transparent));
   background: var(--promo-video-controls-bg, linear-gradient(
       180deg,
-      color-mix(in srgb, rgba(37, 99, 235, 0.2) 28%, transparent),
+      color-mix(in srgb, color-mix(in srgb, var(--color-brand) 20%, transparent) 28%, transparent),
       transparent 68%
     ),
-    color-mix(in srgb, rgba(15, 23, 42, 0.9) 88%, rgba(8, 12, 32, 0.9)));
+    color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent) 88%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)));
   box-shadow: var(--promo-video-controls-shadow,
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 rgba(6, 10, 26, 0.45));
-  color: var(--promo-video-controls-color, rgba(255, 255, 255, 0.92));
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent));
+  color: var(--promo-video-controls-color, color-mix(in srgb, var(--color-fg) 92%, transparent));
 }
 
 .videoViewerControlButton {
@@ -635,8 +642,8 @@
   width: clamp(42px, 4vw, 48px);
   height: clamp(42px, 4vw, 48px);
   border-radius: 14px;
-  border: 1px solid var(--promo-video-control-border, rgba(255, 255, 255, 0.22));
-  background: var(--promo-video-control-bg, color-mix(in srgb, rgba(255, 255, 255, 0.08) 60%, rgba(15, 23, 42, 0.82)));
+  border: 1px solid var(--promo-video-control-border, color-mix(in srgb, var(--color-fg) 22%, transparent));
+  background: var(--promo-video-control-bg, color-mix(in srgb, color-mix(in srgb, var(--color-fg) 8%, transparent) 60%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent)));
   color: inherit;
   cursor: pointer;
   transition:
@@ -649,9 +656,9 @@
 .videoViewerControlButton:hover,
 .videoViewerControlButton:focus-visible {
   transform: translateY(-1px);
-  border-color: var(--promo-video-close-hover-border, rgba(255, 255, 255, 0.38));
-  background: color-mix(in srgb, rgba(99, 102, 241, 0.55) 58%, rgba(15, 23, 42, 0.82));
-  box-shadow: 0 16px 32px rgba(6, 10, 28, 0.36);
+  border-color: var(--promo-video-close-hover-border, color-mix(in srgb, var(--color-fg) 38%, transparent));
+  background: color-mix(in srgb, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 55%, transparent) 58%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent));
+  box-shadow: 0 16px 32px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 36%, transparent);
   outline: none;
 }
 
@@ -674,14 +681,18 @@
   width: 100%;
   height: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
+  background: color-mix(in srgb, var(--color-fg) 22%, transparent);
   overflow: hidden;
 }
 
 .videoViewerTimelineProgress {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.92), rgba(129, 140, 248, 0.92));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-brand) 92%, transparent),
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 92%, transparent)
+  );
   width: 0%;
   transform-origin: left;
   transition: width 120ms linear;
@@ -699,22 +710,22 @@
 .videoViewerTimecode {
   font-variant-numeric: tabular-nums;
   font-size: 0.85rem;
-  color: var(--promo-video-timecode, rgba(255, 255, 255, 0.72));
+  color: var(--promo-video-timecode, color-mix(in srgb, var(--color-fg) 72%, transparent));
 }
 
 .videoViewerStepper {
   margin-left: auto;
   padding: 6px 12px;
   border-radius: 999px;
-  background: var(--promo-video-stepper-bg, rgba(255, 255, 255, 0.12));
-  color: var(--promo-video-stepper-color, rgba(255, 255, 255, 0.86));
+  background: var(--promo-video-stepper-bg, color-mix(in srgb, var(--color-fg) 12%, transparent));
+  color: var(--promo-video-stepper-color, color-mix(in srgb, var(--color-fg) 86%, transparent));
   font-size: 0.85rem;
   font-weight: 600;
 }
 
 .videoViewerCaption {
   text-align: center;
-  color: var(--promo-video-caption-color, rgba(255, 255, 255, 0.88));
+  color: var(--promo-video-caption-color, color-mix(in srgb, var(--color-fg) 88%, transparent));
   font-size: 0.95rem;
   line-height: 1.6;
   max-width: min(920px, 86vw);
@@ -728,13 +739,13 @@
   align-items: center;
   justify-content: center;
   border-radius: 22px;
-  background: var(--promo-video-fallback-bg, color-mix(in srgb, rgba(15, 23, 42, 0.92) 92%, rgba(3, 6, 18, 0.92)));
+  background: var(--promo-video-fallback-bg, color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 92%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)));
 }
 
 .videoViewerFallbackIcon {
   width: 72px;
   height: 72px;
-  color: var(--promo-video-fallback-icon, rgba(255, 255, 255, 0.92));
+  color: var(--promo-video-fallback-icon, color-mix(in srgb, var(--color-fg) 92%, transparent));
   opacity: 0.84;
 }
 
@@ -806,3 +817,8 @@
     margin-top: 4px;
   }
 }
+
+
+
+
+

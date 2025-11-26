@@ -72,6 +72,16 @@ const STYLE_PATTERNS: HeuristicPattern[] = [
     confidence: 0.78,
     reason: "Asks for theme inspiration.",
   },
+  {
+    regex: /\btheme\b[^.?!]*(site|app|experience|ui|look|vibe|style|capsules?)\b/,
+    confidence: 0.8,
+    reason: "General theme request for the app/site.",
+  },
+  {
+    regex: /\bmake\b[^.?!]*\btheme\b/i,
+    confidence: 0.78,
+    reason: "Direct ask to make a theme.",
+  },
 ];
 
 const NAV_PATTERNS: HeuristicPattern[] = [
@@ -253,4 +263,3 @@ export function intentLabel(intent: PromptIntent): string {
       return "Generate";
   }
 }
-

@@ -10,6 +10,7 @@ import {
 } from "./ladderFormState";
 
 export type MemberPayload = {
+  userId?: string | null;
   displayName: string;
   handle?: string | null;
   seed?: number | null;
@@ -54,6 +55,7 @@ export const convertMembersToPayload = (members: LadderMemberFormValues[]): Memb
   members.forEach((member) => {
     const displayName = member.displayName.trim();
     if (!displayName.length) return;
+    const userId = trimOrNull(member.userId ?? "");
     const handle = trimOrNull(member.handle ?? "");
     const seedValue = parseOptionalIntegerField(member.seed, { min: 1, max: 999 });
     const rating = parseIntegerField(member.rating, 1200, { min: 100, max: 4000 });
@@ -69,6 +71,7 @@ export const convertMembersToPayload = (members: LadderMemberFormValues[]): Memb
       draws,
       streak,
     };
+    if (userId) entry.userId = userId;
     if (handle) entry.handle = handle;
     if (seedValue !== null) entry.seed = seedValue;
     payload.push(entry);
@@ -94,9 +97,11 @@ export const convertConfigToPayload = (form: LadderBuilderFormState) => {
   }
   const cadenceValue = (form.schedule.cadence ?? "").trim();
   const kickoffValue = (form.schedule.kickoff ?? "").trim();
+  const allowedSystems = new Set(["simple", "elo", "ai", "points", "custom"]);
+  const scoringSystem = allowedSystems.has(form.scoring.system) ? form.scoring.system : "elo";
   return {
     scoring: {
-      system: "elo",
+      system: scoringSystem,
       initialRating,
       kFactor,
       placementMatches,

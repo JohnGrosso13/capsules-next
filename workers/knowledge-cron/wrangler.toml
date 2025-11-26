@@ -1,0 +1,11 @@
+name = "knowledge-cron"
+main = "src/index.ts"
+compatibility_date = "2024-11-21"
+
+[triggers]
+crons = ["0 * * * *"] # hourly; adjust in deployment as needed
+
+[vars]
+CRON_ENDPOINT = "https://localhost:3000/api/cron/knowledge"
+CRON_SECRET = "fdc9a547-5c7f-4c29-ae6b-9b3d5aa2bb66"
+# CAPSULE_ID = "" # optional: scope to a single capsule id

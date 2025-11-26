@@ -25,26 +25,18 @@
     z-index: 1;
     display: grid;
     gap: 16px;
-    /* Local tokens so intent colors can be overridden by themes */
-    --prompter-progress-gradient: linear-gradient(120deg, #7c5cff, #21c3fe);
-    --prompter-intent-post: linear-gradient(120deg, #f97316, #fb923c);
-    --prompter-intent-post-text: var(--text-on-brand, #1f0a00);
-    --prompter-intent-navigate: linear-gradient(120deg, #22d3ee, #38bdf8);
-    --prompter-intent-navigate-text: var(--text-on-brand, #041833);
-    --prompter-intent-style: linear-gradient(120deg, #7c3aed, #2563eb);
-    --prompter-intent-style-text: var(--text-on-brand, #f8f7ff);
   }
 
   .prompterStage[data-dropping="true"] .promptBar {
-    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 55%, rgba(255, 255, 255, 0.32));
+    border-color: color-mix(in srgb, var(--color-brand) 55%, color-mix(in srgb, var(--color-fg) 32%, transparent));
   }
 
   .prompterDropOverlay {
     position: absolute;
     inset: 8px;
     border-radius: var(--radius-2xl, 24px);
-    background: var(--prompter-drop-overlay, rgba(10, 16, 36, 0.72));
-    box-shadow: var(--prompter-drop-overlay-shadow, 0 18px 40px rgba(4, 8, 20, 0.46));
+    background: var(--prompter-drop-overlay);
+    box-shadow: var(--prompter-drop-overlay-shadow);
     display: grid;
     place-items: center;
     opacity: 0;
@@ -62,18 +54,22 @@
     gap: var(--space-md);
     padding: var(--space-lg) var(--space-xl);
     border-radius: var(--radius-xl, 28px);
-    border: var(--prompter-drop-card-border, 1px solid rgba(131, 146, 255, 0.6));
-    box-shadow: var(--prompter-drop-card-shadow, 0 24px 48px rgba(18, 26, 62, 0.55));
+    border: var(--prompter-drop-card-border);
+    box-shadow: var(--prompter-drop-card-shadow);
     background: linear-gradient(
       145deg,
-      color-mix(in srgb, var(--color-brand, #2563eb) 32%, rgba(14, 18, 36, 0.85)),
-      rgba(6, 10, 24, 0.78)
+      color-mix(
+        in srgb,
+        var(--color-brand) 32%,
+        color-mix(in srgb, var(--surface-overlay, var(--surface-elevated)) 85%, transparent)
+      ),
+      color-mix(in srgb, var(--surface-overlay, var(--surface-elevated)) 78%, transparent)
     );
-    color: var(--text, rgba(255, 255, 255, 0.94));
+    color: var(--text, var(--color-fg));
   }
 
   .prompterDropIcon {
-    color: color-mix(in srgb, var(--color-brand, #2563eb) 75%, rgba(255, 255, 255, 0.85));
+    color: color-mix(in srgb, var(--color-brand) 75%, var(--color-fg));
   }
 
   .prompterDropLabel {
@@ -96,13 +92,13 @@
     box-sizing: border-box;
     padding: 12px 14px;
     border-radius: var(--pill-radius, 999px);
-    border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.14));
+    border: 1px solid var(--pill-border, var(--color-border));
     background: linear-gradient(
       180deg,
-      var(--glass-bg-1, rgba(255, 255, 255, 0.1)),
-      var(--glass-bg-2, rgba(255, 255, 255, 0.05))
+      var(--glass-bg-1),
+      var(--glass-bg-2)
     );
-    box-shadow: var(--prompter-bar-shadow, 0 20px 40px rgba(4, 8, 22, 0.42));
+    box-shadow: var(--prompter-bar-shadow);
     -webkit-backdrop-filter: blur(var(--glass-blur-strong, 16px))
       saturate(var(--glass-saturate, 120%));
     backdrop-filter: blur(var(--glass-blur-strong, 16px)) saturate(var(--glass-saturate, 120%));
@@ -117,7 +113,7 @@
     content: "";
     border-radius: var(--pill-radius, 999px);
     pointer-events: none;
-    background: var(--prompter-bar-glow, rgba(94, 166, 255, 0.28));
+    background: var(--prompter-bar-glow);
     filter: blur(var(--prompt-glow-blur, 18px));
     opacity: var(--prompt-glow-opacity, 0.54);
     z-index: -1;
@@ -156,8 +152,8 @@
   }
 
   .promptBar:focus-within {
-    border-color: var(--prompter-bar-focus-border, rgba(126, 151, 255, 0.7));
-    box-shadow: var(--prompter-bar-focus-shadow, 0 26px 56px rgba(10, 14, 35, 0.48));
+    border-color: var(--prompter-bar-focus-border);
+    box-shadow: var(--prompter-bar-focus-shadow);
   }
 
   .input {
@@ -165,7 +161,7 @@
     min-width: 0;
     background: transparent;
     border: none;
-    color: var(--color-fg, rgba(255, 255, 255, 0.94));
+    color: var(--color-fg);
     font-size: 1rem;
     line-height: 1.6;
     outline: none;
@@ -188,21 +184,21 @@
     width: 34px;
     height: 34px;
     border-radius: 12px;
-    border: 1px solid var(--icon-plate-border, rgba(132, 148, 255, 0.3));
+    border: 1px solid var(--icon-plate-border);
     background: linear-gradient(
       180deg,
-      var(--icon-plate-bg-1, rgba(34, 42, 72, 0.78)),
-      var(--icon-plate-bg-2, rgba(20, 26, 50, 0.68))
+      var(--icon-plate-bg-1),
+      var(--icon-plate-bg-2)
     );
-    color: var(--color-fg, rgba(255, 255, 255, 0.9));
-    box-shadow: var(--icon-plate-highlight, inset 0 1px 0 rgba(255, 255, 255, 0.18));
+    color: var(--color-fg);
+    box-shadow: var(--icon-plate-highlight);
     transition: transform 0.18s ease, border-color 0.18s ease, color 0.18s ease;
   }
 
   .promptAttachBtn:hover:not(:disabled),
   .promptAttachBtn:focus-visible {
     transform: translateY(-1px);
-    border-color: var(--card-hover-border, rgba(255, 255, 255, 0.26));
+    border-color: var(--card-hover-border);
   }
 
   .promptAttachBtn:disabled {
@@ -228,19 +224,19 @@
   .voiceBtn[data-active="true"] {
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-brand, #2563eb) 75%, rgba(255, 255, 255, 0.12)),
-      color-mix(in srgb, var(--color-brand, #2563eb) 45%, rgba(2, 6, 23, 0.7))
+      color-mix(in srgb, var(--color-brand) 75%, color-mix(in srgb, var(--color-fg) 12%, transparent)),
+      color-mix(in srgb, var(--color-brand) 45%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 70%, transparent))
     );
-    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 65%, rgba(255, 255, 255, 0.18));
-    color: var(--color-fg, rgba(255, 255, 255, 0.94));
+    border-color: color-mix(in srgb, var(--color-brand) 65%, var(--color-border));
+    color: var(--color-fg);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.2),
-      inset 0 -1px 0 rgba(2, 6, 23, 0.48),
-      0 0 0 3px color-mix(in srgb, var(--color-brand, #2563eb) 25%, transparent);
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg) 20%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 48%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--color-brand) 25%, transparent);
   }
 
   .voiceBtn[data-status="error"] {
-    border-color: color-mix(in srgb, var(--color-danger, #f87171) 65%, rgba(255, 255, 255, 0.2));
+    border-color: color-mix(in srgb, var(--color-danger) 65%, var(--color-border));
   }
 
   .voiceBtn[data-active="true"]:hover {
@@ -257,7 +253,12 @@
     inset: -4px;
     border-radius: 999px;
     pointer-events: none;
-    border: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 75%, rgba(255, 255, 255, 0.25));
+    border: 2px solid
+      color-mix(
+        in srgb,
+        var(--color-brand) 75%,
+        color-mix(in srgb, var(--color-fg) 25%, transparent)
+      );
     opacity: 0;
     transform: scale(0.7);
     transition: opacity 0.2s ease;
@@ -290,12 +291,12 @@
     gap: var(--space-sm);
     padding: 10px 24px;
     border-radius: var(--radius-pill, 999px);
-    border: 1px solid var(--cta-chip-border, rgba(180, 175, 255, 0.65));
+    border: 1px solid var(--cta-chip-border);
     background: var(
       --prompter-primary-button-background,
       var(
         --cta-button-gradient,
-        var(--cta-gradient, linear-gradient(120deg, #7b5cff, #6366f1 55%, #22d3ee))
+        var(--cta-gradient)
       )
     );
     color: var(
@@ -313,7 +314,7 @@
   .genBtn:hover:not(:disabled),
   .genBtn:focus-visible {
     transform: translateY(-1px);
-    box-shadow: var(--cta-chip-shadow-hover, 0 24px 48px rgba(21, 115, 211, 0.46));
+    box-shadow: var(--cta-chip-shadow-hover);
   }
 
   .genBtn:disabled {
@@ -326,12 +327,12 @@
     width: 48px;
     height: 42px;
     border-radius: 999px;
-    border: 1px solid var(--cta-chip-border, rgba(180, 175, 255, 0.65));
+    border: 1px solid var(--cta-chip-border);
     background: var(
       --prompter-primary-button-background,
       var(
         --cta-button-gradient,
-        var(--cta-gradient, linear-gradient(120deg, #7b5cff, #6366f1 55%, #22d3ee))
+        var(--cta-gradient)
       )
     );
     color: var(
@@ -341,7 +342,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: var(--cta-chip-shadow, 0 18px 36px rgba(21, 115, 211, 0.36));
+    box-shadow: var(--cta-chip-shadow);
     cursor: pointer;
     transition:
       transform 0.18s ease,
@@ -352,7 +353,7 @@
   .sendIconBtn:hover:not(:disabled),
   .sendIconBtn:focus-visible {
     transform: translateY(-1px);
-    box-shadow: var(--cta-chip-shadow-hover, 0 24px 48px rgba(21, 115, 211, 0.46));
+    box-shadow: var(--cta-chip-shadow-hover);
   }
 
   .sendIconBtn:disabled {
@@ -365,19 +366,19 @@
     display: inline-flex;
     align-items: stretch;
     border-radius: var(--radius-pill, 999px);
-    border: 1px solid var(--cta-chip-border, rgba(180, 175, 255, 0.65));
+    border: 1px solid var(--cta-chip-border);
     background: var(
       --prompter-primary-button-background,
       var(
         --cta-button-gradient,
-        var(--cta-gradient, linear-gradient(120deg, #7b5cff, #6366f1 55%, #22d3ee))
+        var(--cta-gradient)
       )
     );
     color: var(
       --prompter-primary-button-text,
       var(--cta-button-text, var(--text-on-brand, var(--text)))
     );
-    box-shadow: var(--cta-chip-shadow, 0 18px 36px rgba(21, 115, 211, 0.36));
+    box-shadow: var(--cta-chip-shadow);
     overflow: visible;
     flex-shrink: 0;
   }
@@ -410,7 +411,12 @@
     color: inherit;
     box-shadow: var(
       --prompter-caret-shadow,
-      0 10px 22px color-mix(in srgb, var(--color-brand, #6366f1) 25%, rgba(5, 10, 30, 0.4))
+      0 10px 22px
+        color-mix(
+          in srgb,
+          var(--color-brand-strong, var(--color-brand)) 25%,
+          color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 40%, transparent)
+        )
     );
     margin-left: -1px;
   }
@@ -505,14 +511,14 @@
   .chip {
     padding: 7px 12px;
     border-radius: var(--radius-pill, 999px);
-    border: 1px solid var(--chip-border, var(--pill-border, rgba(255, 255, 255, 0.16)));
+    border: 1px solid var(--chip-border, var(--pill-border, var(--color-border)));
     background: linear-gradient(
       180deg,
-      var(--chip-bg-1, var(--glass-bg-1, rgba(18, 24, 48, 0.72))),
-      var(--chip-bg-2, var(--glass-bg-2, rgba(12, 18, 38, 0.6)))
+      var(--chip-bg-1, var(--glass-bg-1)),
+      var(--chip-bg-2, var(--glass-bg-2))
     );
-    color: var(--color-fg, rgba(255, 255, 255, 0.9));
-    box-shadow: var(--chip-shadow, var(--shadow-sm, 0 8px 18px rgba(5, 10, 30, 0.22)));
+    color: var(--color-fg);
+    box-shadow: var(--chip-shadow, var(--shadow-sm));
     font-weight: 700;
     cursor: pointer;
     transition:
@@ -524,28 +530,28 @@
 
   .chip:hover {
     transform: translateY(-1px);
-    border-color: var(--chip-hover-border, rgba(126, 151, 255, 0.5));
+    border-color: var(--chip-hover-border);
     background: linear-gradient(
       180deg,
-      var(--chip-hover-bg-1, rgba(28, 36, 72, 0.88)),
-      var(--chip-hover-bg-2, rgba(12, 18, 38, 0.74))
+      var(--chip-hover-bg-1, color-mix(in srgb, var(--surface-overlay, var(--surface-elevated)) 88%, transparent)),
+      var(--chip-hover-bg-2, color-mix(in srgb, var(--surface-overlay, var(--surface-elevated)) 74%, transparent))
     );
-    box-shadow: var(--chip-hover-shadow, var(--shadow-md, 0 14px 28px rgba(5, 10, 30, 0.3)));
+    box-shadow: var(--chip-hover-shadow, var(--shadow-md));
   }
 
   .chip[data-active="true"] {
     border-color: var(
       --chip-active-border,
-      color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent)
+      color-mix(in srgb, var(--color-brand) 55%, transparent)
     );
     background: linear-gradient(
       180deg,
-      var(--chip-active-bg-1, color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent)),
-      var(--chip-active-bg-2, color-mix(in srgb, var(--color-accent, #22d3ee) 8%, transparent))
+      var(--chip-active-bg-1, color-mix(in srgb, var(--color-brand) 18%, transparent)),
+      var(--chip-active-bg-2, color-mix(in srgb, var(--color-accent) 8%, transparent))
     );
     box-shadow: var(
       --chip-active-shadow,
-      var(--chip-hover-shadow, var(--shadow-md, 0 18px 34px rgba(5, 10, 30, 0.32)))
+      var(--chip-hover-shadow, var(--shadow-md))
     );
   }
 
@@ -564,7 +570,7 @@
 
   .intentHint {
     font-size: 0.85rem;
-    color: var(--color-fg-subtle, rgba(255, 255, 255, 0.65));
+    color: var(--color-fg-subtle, var(--color-fg-muted));
   }
 
   /* Enhanced status row */
@@ -581,7 +587,7 @@
     align-items: flex-start;
     gap: 6px;
     font-size: 0.88rem;
-    color: var(--color-fg-subtle, rgba(255, 255, 255, 0.7));
+    color: var(--color-fg-subtle, var(--color-fg-muted));
     padding-left: var(--space-lg, 16px);
   }
 
@@ -595,8 +601,12 @@
     width: 8px;
     height: 8px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--color-brand, #2563eb) 62%, rgba(255, 255, 255, 0.8));
-    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.3);
+    background: color-mix(
+      in srgb,
+      var(--color-brand) 62%,
+      color-mix(in srgb, var(--color-fg) 80%, transparent)
+    );
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 30%, transparent);
     transform: translateZ(0);
   }
 
@@ -625,13 +635,13 @@
 
   @keyframes statusPulse {
     0% {
-      box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35);
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 35%, transparent);
     }
     70% {
-      box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+      box-shadow: 0 0 0 8px transparent;
     }
     100% {
-      box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+      box-shadow: 0 0 0 0 transparent;
     }
   }
 
@@ -646,14 +656,14 @@
     gap: 10px;
     padding: 8px 10px;
     border-radius: 14px;
-    border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+    border: 1px solid var(--pill-border, var(--color-border));
     background: linear-gradient(
       150deg,
-      var(--glass-bg-1, rgba(24, 32, 58, 0.9)),
-      var(--glass-bg-2, rgba(12, 18, 36, 0.78))
+      var(--glass-bg-1),
+      var(--glass-bg-2)
     );
-    color: var(--color-fg, rgba(255, 255, 255, 0.92));
-    box-shadow: var(--shadow-sm, 0 8px 18px rgba(5, 10, 30, 0.22));
+    color: var(--color-fg);
+    box-shadow: var(--shadow-sm, 0 8px 18px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 22%, transparent));
     max-width: 60%;
   }
 
@@ -664,7 +674,7 @@
     overflow: hidden;
     display: grid;
     place-items: center;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--color-fg) 8%, transparent);
     flex-shrink: 0;
     border: 0;
     padding: 0;
@@ -695,7 +705,7 @@
     width: 140px;
     height: 4px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.14);
+    background: color-mix(in srgb, var(--color-fg) 14%, transparent);
     overflow: hidden;
   }
 
@@ -721,7 +731,7 @@
   .previewModal {
     position: fixed;
     inset: 0;
-    background: rgba(0, 6, 18, 0.7);
+    background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 70%, transparent);
     backdrop-filter: blur(6px);
     display: grid;
     place-items: center;
@@ -736,9 +746,9 @@
     place-items: center;
     padding: 12px;
     border-radius: 16px;
-    background: linear-gradient(180deg, rgba(18, 22, 40, 0.92), rgba(8, 12, 24, 0.9));
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 24px 60px rgba(4, 10, 24, 0.5);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent), color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent));
+    border: 1px solid color-mix(in srgb, var(--color-fg) 12%, transparent);
+    box-shadow: 0 24px 60px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 50%, transparent);
   }
 
   .previewMedia {
@@ -752,7 +762,7 @@
     top: 18px;
     right: 22px;
     border: none;
-    background: rgba(6, 10, 24, 0.72);
+    background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 72%, transparent);
     color: white;
     border-radius: 999px;
     cursor: pointer;
@@ -763,16 +773,16 @@
     font-size: 0.95rem;
     font-weight: 600;
     letter-spacing: 0.02em;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 28%, transparent);
     backdrop-filter: blur(8px);
   }
 
   .previewClose:hover {
-    background: rgba(10, 16, 30, 0.82);
+    background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent);
   }
 
   .previewClose:focus-visible {
-    outline: 2px solid rgba(132, 148, 255, 0.75);
+    outline: 2px solid color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 75%, transparent);
     outline-offset: 3px;
   }
 
@@ -790,8 +800,8 @@
     font-weight: 700;
     padding: 12px 18px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid color-mix(in srgb, var(--color-fg) 18%, transparent);
+    background: color-mix(in srgb, var(--color-fg) 8%, transparent);
   }
 
   /* Brain loader for attachments (compact) */
@@ -817,7 +827,7 @@
     border-bottom-right-radius: 2px;
   }
   .brainFill {
-    color: color-mix(in srgb, var(--color-brand, #2563eb) 85%, white);
+    color: color-mix(in srgb, var(--color-brand) 85%, white);
   }
   @keyframes brainPulse {
     0% { transform: translateY(0); }
@@ -839,29 +849,29 @@
     gap: 6px;
     padding: 5px 10px;
     border-radius: 12px;
-    border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
+    border: 1px solid var(--pill-border, var(--color-border));
     background: linear-gradient(
       150deg,
-      var(--glass-bg-1, rgba(24, 32, 58, 0.88)),
-      var(--glass-bg-2, rgba(12, 18, 36, 0.78))
+      var(--glass-bg-1),
+      var(--glass-bg-2)
     );
-    color: var(--color-fg, rgba(255, 255, 255, 0.92));
+    color: var(--color-fg);
     font-size: 0.78rem;
     font-weight: 600;
-    box-shadow: var(--chip-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.08));
+    box-shadow: var(--chip-shadow, inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent));
   }
 
   .attachmentChip[data-status="uploading"] {
-    color: var(--color-fg, rgba(255, 255, 255, 0.92));
+    color: var(--color-fg);
   }
 
   .attachmentChip[data-status="error"] {
-    border-color: color-mix(in srgb, var(--color-danger, #f87171) 42%, transparent);
-    color: color-mix(in srgb, var(--color-danger, #f87171) 26%, var(--color-fg));
+    border-color: color-mix(in srgb, var(--color-danger) 42%, transparent);
+    color: color-mix(in srgb, var(--color-danger) 26%, var(--color-fg));
     background: linear-gradient(
       150deg,
-      color-mix(in srgb, var(--color-danger, #f87171) 28%, transparent),
-      color-mix(in srgb, var(--color-danger, #f87171) 18%, transparent)
+      color-mix(in srgb, var(--color-danger) 28%, transparent),
+      color-mix(in srgb, var(--color-danger) 18%, transparent)
     );
   }
 
@@ -876,21 +886,21 @@
     gap: var(--space-xs);
     padding: 8px 14px;
     border-radius: var(--radius-pill, 999px);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    background: linear-gradient(180deg, rgba(20, 26, 52, 0.76), rgba(12, 18, 36, 0.64));
-    color: var(--color-fg, rgba(255, 255, 255, 0.9));
+    border: 1px solid color-mix(in srgb, var(--color-fg) 16%, transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 76%, transparent), color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 64%, transparent));
+    color: var(--color-fg);
     cursor: pointer;
     transition: transform 0.16s ease, border-color 0.16s ease;
   }
 
   .intentChip:hover {
     transform: translateY(-1px);
-    border-color: rgba(132, 148, 255, 0.5);
+    border-color: color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 50%, transparent);
   }
 
   .intentChipActive {
     border: none;
-    color: rgba(16, 18, 34, 0.95);
+    color: var(--text-on-brand, var(--color-fg));
   }
 
 .intentChipActive[data-intent="post"] {
@@ -915,7 +925,7 @@
     width: 22px;
     height: 22px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.18);
+    background: color-mix(in srgb, var(--color-fg) 18%, transparent);
     color: inherit;
   }
 
@@ -931,16 +941,16 @@
     gap: var(--space-sm);
     padding: 11px 16px;
     border-radius: var(--radius-pill, 999px);
-    border: 1px dashed rgba(255, 255, 255, 0.16);
-    background: rgba(12, 18, 36, 0.58);
-    color: var(--color-fg, rgba(255, 255, 255, 0.92));
+    border: 1px dashed color-mix(in srgb, var(--color-fg) 16%, transparent);
+    background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 58%, transparent);
+    color: var(--color-fg);
     cursor: pointer;
     transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
   }
 
   .attachButton:hover {
     transform: translateY(-1px);
-    border-color: rgba(132, 148, 255, 0.45);
+    border-color: color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 45%, transparent);
   }
 
   .attachButton:disabled {
@@ -975,12 +985,12 @@
 
   .attachmentStatus {
     font-size: 0.74rem;
-    color: rgba(255, 255, 255, 0.68);
+    color: color-mix(in srgb, var(--color-fg) 68%, transparent);
   }
 
   .attachmentStatusError {
     font-size: 0.74rem;
-    color: var(--color-danger, #f87171);
+    color: var(--color-danger);
   }
 
   .attachmentActions {
@@ -991,8 +1001,8 @@
 
   .attachmentActionButton {
     border: none;
-    background: rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.9);
+    background: color-mix(in srgb, var(--color-fg) 12%, transparent);
+    color: color-mix(in srgb, var(--color-fg) 90%, transparent);
     border-radius: 8px;
     padding: 4px 10px;
     font-size: 0.74rem;
@@ -1001,18 +1011,18 @@
   }
 
   .attachmentActionButton:hover {
-    background: rgba(255, 255, 255, 0.22);
+    background: color-mix(in srgb, var(--color-fg) 22%, transparent);
   }
 
   .attachmentActionButton:focus-visible {
-    outline: 2px solid rgba(132, 148, 255, 0.6);
+    outline: 2px solid color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 60%, transparent);
     outline-offset: 2px;
   }
 
   .attachmentRemove {
     border: none;
-    background: rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--color-fg) 12%, transparent);
+    color: color-mix(in srgb, var(--color-fg) 85%, transparent);
     cursor: pointer;
     padding: 0;
     width: 26px;
@@ -1026,12 +1036,11 @@
   }
 
   .attachmentRemove:hover {
-    background: rgba(255, 255, 255, 0.22);
+    background: color-mix(in srgb, var(--color-fg) 22%, transparent);
   }
 
   .attachmentRemove:focus-visible {
-    outline: 2px solid rgba(132, 148, 255, 0.6);
+    outline: 2px solid color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 60%, transparent);
     outline-offset: 2px;
   }
 }
-

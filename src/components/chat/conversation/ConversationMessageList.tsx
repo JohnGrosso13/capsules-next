@@ -287,6 +287,28 @@ export function ConversationMessageList({
                       basePreviewSrc && uiState.previewNonce > 0
                         ? `${basePreviewSrc}${basePreviewSrc.includes("?") ? "&" : "?"}retry=${uiState.previewNonce}`
                         : basePreviewSrc;
+
+                    if (isImage && href) {
+                      return (
+                        <div key={attachmentKey} className={styles.messageImageAttachment} role="listitem">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={previewSrc || href}
+                            alt={attachmentEntry.name || "Generated image"}
+                            className={styles.messageImageAttachmentMedia}
+                            loading="lazy"
+                            onLoad={() => attachmentState.onPreviewLoad(stateKey)}
+                            onError={() => attachmentState.onPreviewError(stateKey)}
+                          />
+                          {attachmentEntry.name ? (
+                            <div className={styles.messageImageAttachmentCaption}>
+                              {attachmentEntry.name}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    }
+
                     const sizeLabel = formatAttachmentSize(attachmentEntry.size);
                     const downloadDisabled = uiState.downloading || uiState.deleting || !href;
                     const deleteDisabled = uiState.deleting;
@@ -445,5 +467,4 @@ export function ConversationMessageList({
     </div>
   );
 }
-
 

@@ -4,17 +4,17 @@
   max-width: 100%;
   margin: 0;
   padding: 0;
-  /* Align brand accents with the blue header palette for a cohesive settings experience */
-  --settings-color-brand-base: var(--color-brand);
-  --settings-color-brand-strong-base: var(--color-brand-strong);
-  --settings-color-accent-base: var(--color-accent);
-  --color-brand: var(--header-brand, var(--settings-color-brand-base));
-  --color-brand-strong: var(--header-brand-strong, var(--settings-color-brand-strong-base));
-  --color-accent: var(--header-accent, var(--settings-color-accent-base));
-  --brand-gradient: var(--header-brand-gradient, var(--gradient-brand));
-  --gradient-brand: var(--header-brand-gradient, var(--gradient-brand));
-  --cta-button-gradient: var(--header-brand-gradient, var(--cta-button-gradient));
-  --cta-button-text: var(--text-on-brand, #041021);
+  /* Lock settings to the Capsule blues instead of the legacy purple */
+  --settings-accent: #2f5fd7;
+  --settings-accent-strong: #19a1e6;
+  --settings-accent-soft: #1f3c78;
+  --color-brand: var(--settings-accent);
+  --color-brand-strong: var(--settings-accent-strong);
+  --color-accent: var(--settings-accent-strong);
+  --brand-gradient: linear-gradient(135deg, var(--settings-accent) 0%, var(--settings-accent-strong) 100%);
+  --gradient-brand: linear-gradient(135deg, var(--settings-accent) 0%, var(--settings-accent-strong) 100%);
+  --cta-button-gradient: linear-gradient(135deg, var(--settings-accent) 0%, var(--settings-accent-strong) 100%);
+  --cta-button-text: #ffffff;
 }
 
 /* Outer container reminiscent of the previous glass/neumorphic shell */
@@ -91,7 +91,7 @@
   color: var(--text-on-brand);
   /* Use app brand gradient with fallback */
   background: var(--brand-gradient, var(--gradient-brand));
-  border-color: transparent;
+  border-color: color-mix(in srgb, var(--settings-accent) 70%, transparent);
   box-shadow: var(
     --settings-nav-item-active-shadow,
     0 0 18px var(--accent-glow, rgba(37, 99, 235, 0.34)),
@@ -142,6 +142,33 @@
 }
 .card {
   overflow: hidden;
+}
+
+.settingsCtaPrimary {
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--settings-accent) 0%, var(--settings-accent-strong) 100%);
+  border: 1px solid color-mix(in srgb, var(--settings-accent) 70%, transparent);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 16px 32px rgba(22, 76, 176, 0.45);
+}
+
+.settingsCtaPrimary:hover {
+  transform: translateY(-1px);
+}
+
+.settingsCtaSecondary {
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--settings-accent) 60%, transparent);
+  background: color-mix(in srgb, var(--settings-accent) 16%, rgba(14, 20, 40, 0.82));
+  color: #dfe9ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.settingsCtaSecondary:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--settings-accent-strong) 70%, transparent);
 }
 
 @media (max-width: 980px) {

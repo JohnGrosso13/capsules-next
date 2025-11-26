@@ -18,6 +18,7 @@ import {
 } from "@/lib/ai/prompter/core";
 import { generateImageFromPrompt } from "@/lib/ai/prompter/images";
 import { generateVideoFromPrompt, editVideoWithInstruction } from "@/lib/ai/video";
+import { safeRandomUUID } from "@/lib/random";
 import {
   getChatContext,
   formatContextForPrompt,
@@ -169,6 +170,140 @@ type ImageRequestOptions = {
 };
 
 const IMAGE_QUALITY_SET = new Set<ComposerImageQuality>(["low", "standard", "high"]);
+
+type ToolRunResult = { name: string; result: Record<string, unknown> };
+
+type MediaToolResult = {
+  kind: "image" | "video";
+  url: string;
+  prompt: string | null;
+  thumbnailUrl: string | null;
+  playbackUrl: string | null;
+};
+
+function extractMediaResult(result: Record<string, unknown>): MediaToolResult | null {
+  const kindRaw = typeof result.kind === "string" ? result.kind.toLowerCase() : null;
+  if (kindRaw !== "image" && kindRaw !== "video") return null;
+  const status = typeof result.status === "string" ? result.status.toLowerCase() : "succeeded";
+  if (status === "failed" || status === "error" || status === "empty") return null;
+
+  const url = typeof result.url === "string" ? result.url.trim() : "";
+  const downloadUrl =
+    typeof (result as { downloadUrl?: unknown }).downloadUrl === "string"
+      ? ((result as { downloadUrl: string }).downloadUrl ?? "").trim()
+      : "";
+  const playbackUrl =
+    typeof (result as { playbackUrl?: unknown }).playbackUrl === "string"
+      ? ((result as { playbackUrl: string }).playbackUrl ?? "").trim()
+      : "";
+  const thumbnailUrl =
+    typeof (result as { thumbnailUrl?: unknown }).thumbnailUrl === "string"
+      ? ((result as { thumbnailUrl: string }).thumbnailUrl ?? "").trim()
+      : typeof (result as { posterUrl?: unknown }).posterUrl === "string"
+        ? ((result as { posterUrl: string }).posterUrl ?? "").trim()
+        : "";
+  const prompt = typeof result.prompt === "string" ? result.prompt.trim() : null;
+  const resolvedUrl = kindRaw === "video" ? playbackUrl || downloadUrl || url : url;
+  if (!resolvedUrl) return null;
+
+  return {
+    kind: kindRaw,
+    url: resolvedUrl,
+    prompt: prompt || null,
+    thumbnailUrl: thumbnailUrl || null,
+    playbackUrl: kindRaw === "video" ? resolvedUrl : null,
+  };
+}
+
+function findLatestMediaResult(toolRuns: ToolRunResult[]): MediaToolResult | null {
+  for (let i = toolRuns.length - 1; i >= 0; i -= 1) {
+    const media = extractMediaResult(toolRuns[i]?.result ?? {});
+    if (media) return media;
+  }
+  return null;
+}
+
+function buildOutputAttachment(media: MediaToolResult): ComposerChatAttachment {
+  return {
+    id: safeRandomUUID(),
+    name: media.kind === "video" ? "Generated clip" : "Generated visual",
+    mimeType: media.kind === "video" ? "video/*" : "image/*",
+    size: 0,
+    url: media.url,
+    thumbnailUrl: media.thumbnailUrl,
+    storageKey: null,
+    sessionId: null,
+    role: "output",
+    source: "ai",
+    excerpt: null,
+  };
+}
+
+function applyToolMediaToResponse(
+  response: PromptResponse,
+  toolRuns: ToolRunResult[],
+): { response: PromptResponse; attachments: ComposerChatAttachment[] | null } {
+  const media = findLatestMediaResult(toolRuns);
+  if (!media) return { response, attachments: null };
+
+  const attachment = buildOutputAttachment(media);
+
+  if (response.action === "draft_post") {
+    const post = { ...(response.post ?? {}) };
+    const hasMediaUrl =
+      typeof (post as { mediaUrl?: unknown }).mediaUrl === "string"
+        ? Boolean(((post as { mediaUrl: string }).mediaUrl ?? "").trim())
+        : typeof (post as { media_url?: unknown }).media_url === "string"
+          ? Boolean(((post as { media_url: string }).media_url ?? "").trim())
+          : false;
+    if (!hasMediaUrl) {
+      (post as Record<string, unknown>).mediaUrl = media.url;
+      (post as Record<string, unknown>).media_url = media.url;
+    }
+    if (media.kind === "video") {
+      const playbackUrl = media.playbackUrl ?? media.url;
+      const hasPlayback =
+        typeof (post as { playbackUrl?: unknown }).playbackUrl === "string" ||
+        typeof (post as { playback_url?: unknown }).playback_url === "string";
+      if (!hasPlayback) {
+        (post as Record<string, unknown>).playbackUrl = playbackUrl;
+        (post as Record<string, unknown>).playback_url = playbackUrl;
+      }
+    }
+    if (media.thumbnailUrl) {
+      const hasThumb =
+        typeof (post as { thumbnailUrl?: unknown }).thumbnailUrl === "string" ||
+        typeof (post as { thumbnail_url?: unknown }).thumbnail_url === "string";
+      if (!hasThumb) {
+        (post as Record<string, unknown>).thumbnailUrl = media.thumbnailUrl;
+        (post as Record<string, unknown>).thumbnail_url = media.thumbnailUrl;
+      }
+    }
+    if (media.prompt) {
+      const hasPrompt =
+        typeof (post as { mediaPrompt?: unknown }).mediaPrompt === "string" ||
+        typeof (post as { media_prompt?: unknown }).media_prompt === "string";
+      if (!hasPrompt) {
+        (post as Record<string, unknown>).mediaPrompt = media.prompt;
+        (post as Record<string, unknown>).media_prompt = media.prompt;
+      }
+    }
+    if (!(post as { kind?: unknown }).kind) {
+      (post as Record<string, unknown>).kind = media.kind;
+    }
+    return { response: { ...response, post }, attachments: [attachment] };
+  }
+
+  const existingAttachments: ComposerChatAttachment[] =
+    response.action === "chat_reply" && Array.isArray(response.replyAttachments)
+      ? (response.replyAttachments as ComposerChatAttachment[])
+      : [];
+  const replyAttachments: ComposerChatAttachment[] = [...existingAttachments, attachment];
+  return {
+    response: { ...response, ...(response.action === "chat_reply" ? { replyAttachments } : {}) },
+    attachments: replyAttachments,
+  };
+}
 
 async function handleRenderImage(
   args: Record<string, unknown>,
@@ -375,18 +510,28 @@ const TOOL_HANDLERS: Record<
   fetch_context: handleFetchContext,
 };
 
-function buildSystemPrompt(): string {
-  return [
+type ReplyMode = "chat" | "draft";
+
+function buildSystemPrompt(replyMode: ReplyMode | null = null): string {
+  const base = [
     "You are Capsules AI, the creative brain inside Composer.",
     "Decide whether the user wants free-form help or a publishable post.",
     "When it is just a conversation, respond with STRICT JSON { action: 'chat_reply', message: string }.",
     "When they need a draft, respond with STRICT JSON { action: 'draft_post', message?: string, post: {...} }.",
     "Never wrap JSON in markdown fences. Keep `message` warm and concise regardless of action.",
-    "For drafts, the `post` block is used verbatim—respect tone, hashtags, CTA, and assets.",
+    "For drafts, the `post` block is used verbatim-respect tone, hashtags, CTA, and assets.",
     "Call render_image or render_video before referencing visual assets, and describe returned media accurately.",
     "Use analyze_document / summarize_video / fetch_context / embed_text tools whenever needed.",
     "If the user supplies an existing post, treat it as the current draft and adjust only requested sections.",
-  ].join(" ");
+  ];
+
+  if (replyMode === "chat") {
+    base.push("User replyMode is chat-only: you MUST return action:'chat_reply' (never draft_post) for this turn.");
+  } else if (replyMode === "draft") {
+    base.push("User replyMode prefers drafting: return draft_post when you have publishable content; use chat_reply only for brief confirmations.");
+  }
+
+  return base.join(" ");
 }
 
 type ComposerRunInput = {
@@ -395,6 +540,63 @@ type ComposerRunInput = {
   context?: ComposeDraftOptions;
   maxIterations?: number;
 };
+
+function isExplanatoryCaption(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  if (!trimmed.length) return false;
+  const lc = trimmed.toLowerCase();
+  return (
+    /^here('?s)?\s+(how|what)\b/.test(lc) ||
+    /^i\s+(changed|made|updated|adjusted|edited|tweaked)\b/.test(lc) ||
+    lc.includes("here's what changed") ||
+    lc.includes("i updated the image") ||
+    lc.includes("i changed the image")
+  );
+}
+
+function coerceDraftToChatResponse(
+  validated: PromptResponse,
+  replyMode: ReplyMode | null,
+  assistantAttachments: ComposerChatAttachment[] | null,
+): PromptResponse {
+  if (validated.action !== "draft_post") return validated;
+  if (replyMode === "draft") return validated;
+  const kind =
+    typeof (validated.post as { kind?: unknown })?.kind === "string"
+      ? ((validated.post as { kind: string }).kind ?? "").toLowerCase()
+      : "";
+  const mediaUrl =
+    typeof (validated.post as { mediaUrl?: unknown })?.mediaUrl === "string"
+      ? ((validated.post as { mediaUrl: string }).mediaUrl ?? "").trim()
+      : typeof (validated.post as { media_url?: unknown })?.media_url === "string"
+        ? ((validated.post as { media_url: string }).media_url ?? "").trim()
+        : "";
+  const hasMedia = Boolean(mediaUrl) || kind === "image" || kind === "video";
+  if (hasMedia) return validated;
+  const postContent =
+    typeof (validated.post as { content?: unknown })?.content === "string"
+      ? ((validated.post as { content: string }).content ?? "").trim()
+      : "";
+  const shouldChat = replyMode === "chat" || isExplanatoryCaption(postContent);
+  if (!shouldChat) return validated;
+  const baseMessage =
+    postContent.length > 0
+      ? postContent
+      : typeof validated.message === "string" && validated.message.trim().length
+        ? validated.message.trim()
+        : "Here’s what I’m seeing.";
+  return {
+    action: "chat_reply",
+    message: baseMessage,
+    ...(assistantAttachments && assistantAttachments.length
+      ? { replyAttachments: assistantAttachments }
+      : {}),
+    threadId: validated.threadId,
+    history: validated.history,
+    context: validated.context,
+  };
+}
 
 export async function runComposerToolSession(
   { userText, incomingPost = null, context = {}, maxIterations = DEFAULT_MAX_ITERATIONS }: ComposerRunInput,
@@ -432,8 +634,14 @@ export async function runComposerToolSession(
     userPayload.contextMetadata = context.contextMetadata;
   }
 
+  const rawReplyMode =
+    typeof (context.rawOptions as { replyMode?: unknown } | undefined)?.replyMode === "string"
+      ? String((context.rawOptions as { replyMode: string }).replyMode).toLowerCase()
+      : null;
+  const replyMode: ReplyMode | null = rawReplyMode === "chat" || rawReplyMode === "draft" ? rawReplyMode : null;
+
   const messages: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt() },
+    { role: "system", content: buildSystemPrompt(replyMode) },
     ...contextMessages,
     ...historyMessages,
     { role: "user", content: JSON.stringify(userPayload) },
@@ -447,6 +655,7 @@ export async function runComposerToolSession(
     history,
     latestUserText: userText,
   };
+  const toolRuns: ToolRunResult[] = [];
 
   const emit = callbacks.onEvent ?? (() => {});
   for (let iteration = 0; iteration < maxIterations; iteration += 1) {
@@ -485,6 +694,7 @@ export async function runComposerToolSession(
         try {
           const result = await handler(parsedArgs, runtime);
           emit({ type: "tool_result", name: call.function.name, result });
+          toolRuns.push({ name: call.function.name, result });
           messages.push({
             role: "tool",
             tool_call_id: call.id,
@@ -517,8 +727,12 @@ export async function runComposerToolSession(
 
     try {
       const validated = promptResponseSchema.parse(parsed);
-      if (validated.action === "chat_reply") {
-        const replyText = typeof validated.message === "string" ? validated.message.trim() : "";
+      const { response: hydrated, attachments: toolAttachments } = applyToolMediaToResponse(
+        validated,
+        toolRuns,
+      );
+      if (hydrated.action === "chat_reply") {
+        const replyText = typeof hydrated.message === "string" ? hydrated.message.trim() : "";
         if (!replyText.length) {
           messages.push({
             role: "system",
@@ -527,11 +741,15 @@ export async function runComposerToolSession(
           });
           continue;
         }
-        return { response: validated, messages, raw };
+        return {
+          response: coerceDraftToChatResponse(hydrated, replyMode, toolAttachments),
+          messages,
+          raw,
+        };
       }
       const draftContent =
-        typeof (validated.post as { content?: unknown })?.content === "string"
-          ? ((validated.post as { content: string }).content ?? "").trim()
+        typeof (hydrated.post as { content?: unknown })?.content === "string"
+          ? ((hydrated.post as { content: string }).content ?? "").trim()
           : "";
       if (!draftContent.length) {
         messages.push({
@@ -541,7 +759,11 @@ export async function runComposerToolSession(
         });
         continue;
       }
-      return { response: validated, messages, raw };
+      return {
+        response: coerceDraftToChatResponse(hydrated, replyMode, toolAttachments),
+        messages,
+        raw,
+      };
     } catch (error) {
       messages.push({
         role: "system",

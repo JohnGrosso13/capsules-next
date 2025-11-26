@@ -230,6 +230,7 @@ export function AccountSettingsSection({
             <Button
               type="button"
               variant="primary"
+              className={layout.settingsCtaPrimary}
               onClick={() => {
                 setCustomizerOpen(true);
                 setError(null);
@@ -240,6 +241,7 @@ export function AccountSettingsSection({
             <Button
               type="button"
               variant="secondary"
+              className={layout.settingsCtaSecondary}
               onClick={() => {
                 void handleReset();
               }}
@@ -280,6 +282,7 @@ export function AccountSettingsSection({
                 <Button
                   type="button"
                   variant="primary"
+                  className={layout.settingsCtaPrimary}
                   onClick={handleDisplayNameSave}
                   disabled={!hasDisplayNameChanges || displayNamePending}
                   loading={displayNamePending && hasDisplayNameChanges}
@@ -320,7 +323,7 @@ export function AccountSettingsSection({
               <h4>Profile page</h4>
               <p>Preview and share how your Capsules profile appears to others.</p>
             </div>
-            <Button asChild variant="secondary">
+            <Button asChild variant="secondary" className={layout.settingsCtaSecondary}>
               <Link href="/profile/me">Open profile</Link>
             </Button>
           </div>

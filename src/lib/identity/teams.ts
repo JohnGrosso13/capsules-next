@@ -12,11 +12,11 @@ const HUE_PRESETS = [226, 18, 208, 288, 42, 158, 342, 98, 266, 12];
 const paletteCache = new Map<string, IdentityAccent>();
 
 const DEFAULT_ACCENT: IdentityAccent = {
-  primary: "hsl(226deg 80% 64%)",
-  glow: "hsla(226deg 88% 64% / 0.45)",
-  surface: "hsla(226deg 82% 64% / 0.18)",
-  border: "hsla(226deg 88% 74% / 0.55)",
-  text: "#050b1f",
+  primary: "var(--identity-color, hsl(226deg 80% 64%))",
+  glow: "var(--identity-glow, hsla(226deg 88% 64% / 0.45))",
+  surface: "var(--identity-surface, hsla(226deg 82% 64% / 0.18))",
+  border: "var(--identity-border, hsla(226deg 88% 74% / 0.55))",
+  text: "var(--identity-text, #050b1f)",
   initials: "#",
 };
 
@@ -56,11 +56,11 @@ export function getIdentityAccent(source: string, fallbackIndex = 0): IdentityAc
   const hash = hashString(base);
   const hue = HUE_PRESETS[hash % HUE_PRESETS.length] ?? HUE_PRESETS[fallbackIndex % HUE_PRESETS.length];
   const accent: IdentityAccent = {
-    primary: `hsl(${hue}deg 78% 63%)`,
-    glow: `hsla(${hue}deg 86% 64% / 0.45)`,
-    surface: `hsla(${hue}deg 88% 64% / 0.16)`,
-    border: `hsla(${hue}deg 92% 72% / 0.55)`,
-    text: "#050b1f",
+    primary: `var(--identity-color, hsl(${hue}deg 78% 63%))`,
+    glow: `var(--identity-glow, hsla(${hue}deg 86% 64% / 0.45))`,
+    surface: `var(--identity-surface, hsla(${hue}deg 88% 64% / 0.16))`,
+    border: `var(--identity-border, hsla(${hue}deg 92% 72% / 0.55))`,
+    text: `var(--identity-text, #050b1f)`,
     initials: resolveInitials(base),
   };
   paletteCache.set(key, accent);

@@ -279,7 +279,80 @@
   --comment-media-bg: ;
   --composer-accent: var(--color-brand, #1d4ed8);
   --composer-accent-soft: color-mix(in srgb, var(--composer-accent, #1d4ed8) 28%, transparent);
+  --composer-attachment-bg: color-mix(
+    in srgb,
+    var(--composer-accent, var(--color-brand, #1d4ed8)) 12%,
+    var(--composer-panel-background)
+  );
+  --composer-attachment-border: color-mix(
+    in srgb,
+    var(--composer-accent, var(--color-brand, #1d4ed8)) 18%,
+    transparent
+  );
+  --composer-attachment-hover-bg: color-mix(
+    in srgb,
+    var(--composer-accent, var(--color-brand, #1d4ed8)) 22%,
+    var(--composer-panel-background)
+  );
+  --composer-attachment-loading-text: color-mix(
+    in srgb,
+    var(--composer-text, var(--text)) 78%,
+    transparent
+  );
+  --composer-attachment-ready-bg: color-mix(
+    in srgb,
+    var(--surface-overlay, rgba(10, 14, 30, 0.72)) 70%,
+    transparent
+  );
+  --composer-attachment-surface-bg: color-mix(
+    in srgb,
+    var(--surface-overlay, rgba(10, 14, 30, 0.72)) 86%,
+    transparent
+  );
+  --composer-attachment-surface-border: var(--composer-rail-border, var(--card-border));
+  --composer-attachment-surface-shadow: 0 28px 60px
+    color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 35%, transparent);
   --composer-border: var(--composer-panel-border);
+  --composer-chat-badge-bg: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 85%, transparent),
+    color-mix(in srgb, var(--color-accent, var(--color-brand, #1d4ed8)) 70%, transparent)
+  );
+  --composer-chat-badge-shadow: 0 14px 32px
+    color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 55%, transparent);
+  --composer-chat-bubble-ai-bg: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--composer-rail-background) 85%, transparent),
+    color-mix(in srgb, var(--composer-panel-background) 84%, transparent)
+  );
+  --composer-chat-bubble-bg: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--composer-rail-background) 82%, transparent),
+    color-mix(in srgb, var(--composer-panel-background) 90%, transparent)
+  );
+  --composer-chat-bubble-border: color-mix(
+    in srgb,
+    var(--composer-accent, var(--color-brand, #1d4ed8)) 25%,
+    transparent
+  );
+  --composer-chat-bubble-shadow: 0 18px 36px
+    color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 52%, transparent);
+  --composer-chat-bubble-text: color-mix(in srgb, var(--composer-text, var(--text)) 96%, transparent);
+  --composer-chat-bubble-user-bg: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-brand, #1d4ed8) 88%, transparent),
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand, #1d4ed8)) 72%, transparent)
+  );
+  --composer-chat-bubble-user-border: color-mix(
+    in srgb,
+    var(--color-brand, #1d4ed8) 36%,
+    transparent
+  );
+  --composer-chat-streaming: color-mix(
+    in srgb,
+    var(--composer-text, var(--text)) 84%,
+    transparent
+  );
   --composer-close-background: linear-gradient(
       180deg,
       var(--pill-bg-1, rgba(255, 255, 255, 0.96)),
@@ -298,26 +371,192 @@
       color-mix(in srgb, var(--surface-app, #f7f9ff) 88%, transparent)
     );
   --composer-overlay: color-mix(in srgb, rgba(255, 255, 255, 0.92) 96%, rgba(224, 232, 255, 0.9));
+  --composer-overlay-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--composer-overlay, var(--surface-overlay)) 96%, transparent),
+    color-mix(in srgb, var(--composer-overlay, var(--surface-overlay)) 98%, transparent)
+  );
+  --composer-overlay-border: color-mix(
+    in srgb,
+    var(--composer-border, var(--card-border)) 70%,
+    transparent
+  );
+  --composer-overlay-card-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--composer-panel-background) 90%, transparent),
+    color-mix(in srgb, var(--composer-panel-background) 96%, transparent)
+  );
+  --composer-overlay-card-border: color-mix(
+    in srgb,
+    var(--composer-border, var(--card-border)) 65%,
+    transparent
+  );
+  --composer-overlay-card-shadow: 0 18px 42px
+    color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 55%, transparent);
   --composer-panel-background: linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-elevated, rgba(255, 255, 255, 0.92)) 96%, transparent),
       var(--surface-app, #f7f9ff)
     );
+  --composer-preset-btn-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--composer-rail-background) 65%, transparent),
+    color-mix(in srgb, var(--composer-panel-background) 78%, transparent)
+  );
+  --composer-preset-btn-border: color-mix(
+    in srgb,
+    var(--composer-rail-tab-border, var(--composer-border)) 60%,
+    transparent
+  );
+  --composer-preset-btn-hover-border: color-mix(
+    in srgb,
+    var(--composer-rail-tab-border, var(--composer-border)) 78%,
+    transparent
+  );
+  --composer-preset-btn-text: color-mix(in srgb, var(--composer-text, var(--text)) 88%, transparent);
+  --composer-prompt-icon-btn-border: color-mix(
+    in srgb,
+    var(--composer-rail-tab-border, var(--composer-border)) 65%,
+    transparent
+  );
+  --composer-prompt-icon-btn-hover-border: color-mix(
+    in srgb,
+    var(--composer-rail-tab-border, var(--composer-border)) 86%,
+    transparent
+  );
+  --composer-prompt-icon-btn-text: color-mix(
+    in srgb,
+    var(--composer-text, var(--text)) 90%,
+    transparent
+  );
+  --composer-prompt-input-placeholder: color-mix(
+    in srgb,
+    var(--composer-text, var(--text)) 60%,
+    transparent
+  );
+  --composer-prompt-surface-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--composer-rail-background) 78%, transparent),
+    color-mix(in srgb, var(--composer-panel-background) 92%, transparent)
+  );
+  --composer-prompt-surface-border: color-mix(
+    in srgb,
+    var(--composer-rail-tab-border, var(--composer-border)) 70%,
+    transparent
+  );
+  --composer-prompt-surface-shadow: var(
+    --composer-shadow,
+    0 22px 48px color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 45%, transparent)
+  );
+  --composer-quick-chip-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--composer-rail-background) 82%, transparent),
+    color-mix(in srgb, var(--composer-panel-background) 88%, transparent)
+  );
+  --composer-quick-chip-border: color-mix(
+    in srgb,
+    var(--composer-rail-tab-border, var(--composer-border)) 64%,
+    transparent
+  );
+  --composer-quick-chip-hover-border: color-mix(
+    in srgb,
+    var(--composer-rail-tab-border, var(--composer-border)) 82%,
+    transparent
+  );
+  --composer-quick-chip-hover-shadow: 0 12px 28px
+    color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 45%, transparent);
   --composer-radius: var(--card-radius, var(--radius-lg, 1rem));
   --composer-rail-background: linear-gradient(
       180deg,
       color-mix(in srgb, rgba(250, 252, 255, 0.96) 88%, transparent),
       color-mix(in srgb, rgba(233, 238, 255, 0.92) 82%, transparent)
     );
-  --composer-rail-bg: var(--composer-rail-background);
   --composer-rail-border: color-mix(
       in srgb,
       var(--composer-accent, var(--color-brand, #1d4ed8)) 28%,
       transparent
     );
+  --composer-rail-button-active-border: color-mix(
+    in srgb,
+    var(--composer-accent, var(--color-brand, #1d4ed8)) 60%,
+    transparent
+  );
+  --composer-rail-button-active-shadow: 0 12px 26px
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 45%, transparent);
+  --composer-rail-button-bg: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--composer-rail-background) 86%, transparent),
+    color-mix(in srgb, var(--composer-rail-background) 82%, transparent)
+  );
+  --composer-rail-button-text: color-mix(in srgb, var(--composer-text, var(--text)) 92%, transparent);
+  --composer-rail-scrollbar: color-mix(
+    in srgb,
+    var(--composer-accent, var(--color-brand, #1d4ed8)) 32%,
+    transparent
+  );
+  --composer-rail-tab-active-bg: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 88%, transparent),
+    color-mix(in srgb, var(--color-accent, var(--color-brand, #1d4ed8)) 78%, transparent)
+  );
+  --composer-rail-tab-active-color: var(--text-on-brand, #ffffff);
+  --composer-rail-tab-active-shadow: 0 16px 30px
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 40%, transparent);
+  --composer-rail-tab-bg: color-mix(in srgb, var(--composer-rail-background) 85%, transparent);
+  --composer-rail-tab-border: color-mix(
+    in srgb,
+    var(--composer-accent, var(--color-brand, #1d4ed8)) 28%,
+    transparent
+  );
+  --composer-rail-tab-color: color-mix(in srgb, var(--composer-text, var(--text)) 72%, transparent);
+  --composer-rail-tab-color-strong: var(--composer-text, var(--text));
+  --composer-rail-tab-focus-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 45%, transparent);
+  --composer-rail-tab-hover-color: color-mix(
+    in srgb,
+    var(--composer-text, var(--text)) 88%,
+    transparent
+  );
+  --composer-send-btn-bg: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 92%, transparent),
+    color-mix(in srgb, var(--color-accent, var(--color-brand, #1d4ed8)) 82%, transparent)
+  );
+  --composer-send-btn-border: color-mix(
+    in srgb,
+    var(--composer-accent, var(--color-brand, #1d4ed8)) 45%,
+    transparent
+  );
+  --composer-send-btn-hover-shadow: 0 24px 42px
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 50%, transparent);
+  --composer-send-btn-shadow: 0 18px 36px
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 40%, transparent);
   --composer-shadow: var(--card-shadow, 0 22px 70px rgba(6, 10, 26, 0.55));
   --composer-status-error: var(--color-danger, #dc2626);
   --composer-surface: var(--composer-panel-background);
+  --composer-vibe-btn-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 35%, transparent),
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 20%, transparent)
+  );
+  --composer-vibe-btn-shadow: 0 10px 28px
+    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 36%, rgba(0, 0, 0, 0.18));
+  --composer-voice-status: color-mix(in srgb, var(--composer-text, var(--text)) 68%, transparent);
+  --composer-voice-status-active: color-mix(
+    in srgb,
+    var(--composer-accent, var(--color-brand, #1d4ed8)) 72%,
+    transparent
+  );
+  --composer-voice-status-error: color-mix(
+    in srgb,
+    var(--composer-status-error, #f87171) 85%,
+    transparent
+  );
+  --composer-voice-status-result: color-mix(
+    in srgb,
+    var(--composer-text, var(--text)) 72%,
+    transparent
+  );
   --connections-rail-offset: 0px;
   --create-back-button-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(2, 6, 23, 0.45),
       0 8px 18px rgba(5, 10, 26, 0.35);
@@ -578,9 +817,10 @@
   --icon-plate-bg-2: rgba(255, 255, 255, 0.04);
   --icon-plate-border: rgba(255, 255, 255, 0.16);
   --icon-plate-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --ladder-border: var(--composer-rail-tab-border, var(--composer-border, var(--card-border)));
   --ladder-prompter-send-text: var(--text-on-brand, #090d1c);
   --ladder-prompter-status: var(--color-success, #7df7c5);
-  --ladder-step-active-text: var(--text-on-brand, #ffffff);
+  --ladder-shadow: var(--composer-shadow);
   --launch-cta-error: var(--color-danger, #ffb8c6);
   --layout-column-gap: var(--space-2xl);
   --layout-desktop-bottom-padding: var(--space-9xl);

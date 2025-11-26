@@ -908,12 +908,14 @@ async function fetchPostCapsuleMap(
 export async function listCapsuleAssets(params: {
   capsuleId: string;
   limit?: number;
+  offset?: number;
   includeInternal?: boolean;
 }): Promise<CapsuleAssetRow[]> {
   const normalizedCapsuleId = normalizeString(params.capsuleId);
   if (!normalizedCapsuleId) return [];
   const limit =
     typeof params.limit === "number" && params.limit > 0 ? Math.min(params.limit, 500) : 200;
+  const offset = Math.max(0, Math.trunc(params.offset ?? 0));
   const includeInternal = Boolean(params.includeInternal);
 
   let query = db
@@ -923,7 +925,7 @@ export async function listCapsuleAssets(params: {
     )
     .eq("is_latest", true)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
 
   if (includeInternal) {
     const attachmentCondition = `and(meta->>source.eq.post_attachment,or(meta->>capsule_id.eq.${normalizedCapsuleId},meta->>capsule_id.is.null))`;

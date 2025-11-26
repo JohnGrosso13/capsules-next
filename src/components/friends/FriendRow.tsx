@@ -66,6 +66,14 @@ export function FriendRow({
     return trimmed[0]?.toUpperCase() ?? "?";
   }, [name]);
 
+  const metaLabel = React.useMemo(() => {
+    const parts: string[] = [];
+    if (relationshipHint) parts.push(relationshipHint);
+    if (sinceLabel) parts.push(`Since ${sinceLabel}`);
+    if (!parts.length) return null;
+    return parts.join(" • ");
+  }, [relationshipHint, sinceLabel]);
+
   return (
     <article
       className={`${styles.friendRow} ${className ?? ""}`.trim()}
@@ -100,11 +108,10 @@ export function FriendRow({
           ) : (
             <span className={styles.friendName}>{name}</span>
           )}
-          {relationshipHint ? (
-            <span className={styles.relationshipHint}>{relationshipHint}</span>
+          {metaLabel ? (
+            <span className={styles.relationshipHint}>{metaLabel}</span>
           ) : null}
           <div className={styles.friendMetaRow}>
-            {sinceLabel ? <span className={styles.friendSince}>Since {sinceLabel}</span> : null}
             <span
               className={`${styles.presence} ${presenceClass}`.trim()}
               role="status"

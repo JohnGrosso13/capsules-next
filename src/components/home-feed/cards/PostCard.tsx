@@ -261,10 +261,10 @@ export function PostCard({
 
           {profileHref ? (
             <Link href={profileHref} className={styles.userName}>
-              {post.user_name || "Capsules AI"}
+              {post.user_name || "Assistant"}
             </Link>
           ) : (
-            <div className={styles.userName}>{post.user_name || "Capsules AI"}</div>
+            <div className={styles.userName}>{post.user_name || "Assistant"}</div>
           )}
 
           <span className={styles.separator} aria-hidden>

@@ -116,6 +116,12 @@ export async function POST(req: Request) {
 
   const { message, options, post, history, attachments, capsuleId, stream } = parsed.data;
 
+  const rawReplyMode =
+    options && typeof options === "object" && typeof (options as Record<string, unknown>).replyMode === "string"
+      ? String((options as Record<string, unknown>).replyMode).toLowerCase()
+      : null;
+  const replyMode = rawReplyMode === "chat" || rawReplyMode === "draft" ? rawReplyMode : null;
+
   let composeContext: CustomizerComposeContext;
   try {
     composeContext = buildComposeContext(
@@ -145,9 +151,10 @@ export async function POST(req: Request) {
             userText: message,
             history: historySanitized,
             attachments: attachmentList,
-            incomingDraft: post ?? null,
+            incomingDraft: replyMode === "chat" ? null : post ?? null,
             context: composeContext,
             requestOrigin,
+            replyMode,
             callbacks: {
               onEvent: (event) => {
                 send({ event: event.type, ...event });
@@ -183,9 +190,10 @@ export async function POST(req: Request) {
       userText: message,
       history: historySanitized,
       attachments: attachmentList,
-      incomingDraft: post ?? null,
+      incomingDraft: replyMode === "chat" ? null : post ?? null,
       context: composeContext,
       requestOrigin,
+      replyMode,
     });
     return validatedJson(promptResponseSchema, run.response);
   } catch (error) {

@@ -380,6 +380,23 @@
     "exposeToStyler": false
   },
   {
+    "id": "surface.background-fx.confetti",
+    "cssVar": "--background-fx-confetti",
+    "label": "Background FX / Confetti",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "background",
+      "fx",
+      "confetti"
+    ],
+    "semantics": "Background FX / Confetti",
+    "layer": "foundation",
+    "fallback": "radial-gradient(420px 420px at 12% 14%, rgba(147, 197, 253, 0.22), transparent 72%), radial-gradient(360px 360px at 86% 12%, rgba(59, 130, 246, 0.18), transparent 74%), radial-gradient(540px 540px at 50% 100%, rgba(14, 165, 233, 0.16), transparent 70%)",
+    "lightFallback": "radial-gradient(420px 420px at 12% 14%, rgba(96, 165, 250, 0.26), transparent 72%), radial-gradient(360px 360px at 86% 12%, rgba(14, 165, 233, 0.2), transparent 74%), radial-gradient(540px 540px at 50% 100%, rgba(236, 72, 153, 0.16), transparent 70%)",
+    "exposeToStyler": true
+  },
+  {
     "id": "surface.background-fx.indigo",
     "cssVar": "--background-fx-indigo",
     "label": "Background FX / Indigo",
@@ -445,6 +462,57 @@
     "layer": "foundation",
     "fallback": "radial-gradient(\r\n      closest-side at 50% 50%,\r\n      rgba(124, 58, 237, 0.38),\r\n      rgba(124, 58, 237, 0) 70%\r\n    )",
     "lightFallback": "radial-gradient(\r\n      closest-side at 50% 50%,\r\n      color-mix(in srgb, var(--color-brand) 24%, rgba(255, 255, 255, 0.9)),\r\n      transparent 70%\r\n    )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "surface.background-fx.scanlines",
+    "cssVar": "--background-fx-scanlines",
+    "label": "Background FX / Scanlines",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "background",
+      "fx",
+      "scanlines"
+    ],
+    "semantics": "Background FX / Scanlines",
+    "layer": "foundation",
+    "fallback": "linear-gradient(180deg, rgba(99, 102, 241, 0.12) 0%, rgba(99, 102, 241, 0.12) 8%, rgba(14, 165, 233, 0.1) 8%, rgba(14, 165, 233, 0.1) 16%)",
+    "lightFallback": "linear-gradient(180deg, rgba(79, 70, 229, 0.12) 0%, rgba(79, 70, 229, 0.12) 8%, rgba(14, 165, 233, 0.08) 8%, rgba(14, 165, 233, 0.08) 16%)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "surface.background-fx.snow",
+    "cssVar": "--background-fx-snow",
+    "label": "Background FX / Snow",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "background",
+      "fx",
+      "snow"
+    ],
+    "semantics": "Background FX / Snow",
+    "layer": "foundation",
+    "fallback": "radial-gradient(420px 420px at 50% 110%, rgba(96, 165, 250, 0.22), transparent 74%), linear-gradient(180deg, rgba(12, 28, 58, 0.72) 0%, rgba(4, 12, 30, 0.88) 65%, rgba(3, 8, 24, 0.96) 100%)",
+    "lightFallback": "radial-gradient(420px 420px at 50% 110%, rgba(191, 219, 254, 0.26), transparent 74%), linear-gradient(180deg, rgba(236, 244, 255, 0.68) 0%, rgba(222, 236, 255, 0.48) 50%, rgba(248, 249, 253, 0) 100%)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "surface.background-fx.stars",
+    "cssVar": "--background-fx-stars",
+    "label": "Background FX / Stars",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "background",
+      "fx",
+      "stars"
+    ],
+    "semantics": "Background FX / Stars",
+    "layer": "foundation",
+    "fallback": "radial-gradient(4px 4px at 8% 12%, rgba(255, 255, 255, 0.9), transparent 60%), radial-gradient(6px 6px at 18% 36%, rgba(176, 218, 255, 0.75), transparent 65%), radial-gradient(4px 4px at 74% 28%, rgba(225, 242, 255, 0.85), transparent 60%), radial-gradient(5px 5px at 60% 14%, rgba(120, 198, 255, 0.9), transparent 70%)",
+    "lightFallback": "radial-gradient(4px 4px at 8% 12%, rgba(70, 90, 240, 0.9), transparent 60%), radial-gradient(5px 5px at 18% 32%, rgba(129, 140, 248, 0.75), transparent 64%), radial-gradient(4px 4px at 74% 22%, rgba(22, 211, 238, 0.82), transparent 60%), radial-gradient(5px 5px at 60% 14%, rgba(14, 165, 233, 0.82), transparent 70%)",
     "exposeToStyler": true
   },
   {
@@ -2908,6 +2976,22 @@
     }
   },
   {
+    "id": "brand.muted",
+    "cssVar": "--color-brand-muted",
+    "label": "Brand / Muted",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "brand",
+      "muted"
+    ],
+    "semantics": "Brand / Muted",
+    "layer": "foundation",
+    "fallback": "rgba(99, 102, 241, 0.14)",
+    "lightFallback": "rgba(79, 70, 229, 0.16)",
+    "exposeToStyler": true
+  },
+  {
     "id": "brand.strong",
     "cssVar": "--color-brand-strong",
     "label": "Brand / Strong",
@@ -3127,6 +3211,102 @@
     "exposeToStyler": false
   },
   {
+    "id": "composer.attachment.bg",
+    "cssVar": "--composer-attachment-bg",
+    "label": "Composer Attachment Bg",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Attachment Bg",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-accent, var(--color-brand, #1d4ed8)) 12%,\n    var(--composer-panel-background)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.attachment.border",
+    "cssVar": "--composer-attachment-border",
+    "label": "Composer Attachment Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Attachment Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-accent, var(--color-brand, #1d4ed8)) 18%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.attachment.hover.bg",
+    "cssVar": "--composer-attachment-hover-bg",
+    "label": "Composer Attachment Hover Bg",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Attachment Hover Bg",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-accent, var(--color-brand, #1d4ed8)) 22%,\n    var(--composer-panel-background)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.attachment.loading.text",
+    "cssVar": "--composer-attachment-loading-text",
+    "label": "Composer Attachment Loading Text",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Attachment Loading Text",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-text, var(--text)) 78%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.attachment.ready.bg",
+    "cssVar": "--composer-attachment-ready-bg",
+    "label": "Composer Attachment Ready Bg",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Attachment Ready Bg",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--surface-overlay, rgba(10, 14, 30, 0.72)) 70%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.attachment.surface.bg",
+    "cssVar": "--composer-attachment-surface-bg",
+    "label": "Composer Attachment Surface Bg",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Attachment Surface Bg",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--surface-overlay, rgba(10, 14, 30, 0.72)) 86%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.attachment.surface.border",
+    "cssVar": "--composer-attachment-surface-border",
+    "label": "Composer Attachment Surface Border",
+    "category": "border",
+    "valueKind": "other",
+    "tags": [],
+    "semantics": "Composer Attachment Surface Border",
+    "layer": "semantic",
+    "fallback": "var(--composer-rail-border, var(--card-border))",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.attachment.surface.shadow",
+    "cssVar": "--composer-attachment-surface-shadow",
+    "label": "Composer Attachment Surface Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Attachment Surface Shadow",
+    "layer": "semantic",
+    "fallback": "0 28px 60px\n    color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 35%, transparent)",
+    "exposeToStyler": true
+  },
+  {
     "id": "composer.border",
     "cssVar": "--composer-border",
     "label": "Composer Border",
@@ -3137,6 +3317,126 @@
     "layer": "component",
     "fallback": "var(--composer-panel-border)",
     "exposeToStyler": false
+  },
+  {
+    "id": "composer.chat.badge.bg",
+    "cssVar": "--composer-chat-badge-bg",
+    "label": "Composer Chat Badge Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Chat Badge Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    140deg,\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 85%, transparent),\n    color-mix(in srgb, var(--color-accent, var(--color-brand, #1d4ed8)) 70%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.chat.badge.shadow",
+    "cssVar": "--composer-chat-badge-shadow",
+    "label": "Composer Chat Badge Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Chat Badge Shadow",
+    "layer": "semantic",
+    "fallback": "0 14px 32px\n    color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 55%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.chat.bubble.ai.bg",
+    "cssVar": "--composer-chat-bubble-ai-bg",
+    "label": "Composer Chat Bubble Ai Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Chat Bubble Ai Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    160deg,\n    color-mix(in srgb, var(--composer-rail-background) 85%, transparent),\n    color-mix(in srgb, var(--composer-panel-background) 84%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.chat.bubble.bg",
+    "cssVar": "--composer-chat-bubble-bg",
+    "label": "Composer Chat Bubble Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Chat Bubble Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    160deg,\n    color-mix(in srgb, var(--composer-rail-background) 82%, transparent),\n    color-mix(in srgb, var(--composer-panel-background) 90%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.chat.bubble.border",
+    "cssVar": "--composer-chat-bubble-border",
+    "label": "Composer Chat Bubble Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Chat Bubble Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-accent, var(--color-brand, #1d4ed8)) 25%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.chat.bubble.shadow",
+    "cssVar": "--composer-chat-bubble-shadow",
+    "label": "Composer Chat Bubble Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Chat Bubble Shadow",
+    "layer": "semantic",
+    "fallback": "0 18px 36px\n    color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 52%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.chat.bubble.text",
+    "cssVar": "--composer-chat-bubble-text",
+    "label": "Composer Chat Bubble Text",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Chat Bubble Text",
+    "layer": "semantic",
+    "fallback": "color-mix(in srgb, var(--composer-text, var(--text)) 96%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.chat.bubble.user.bg",
+    "cssVar": "--composer-chat-bubble-user-bg",
+    "label": "Composer Chat Bubble User Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Chat Bubble User Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    160deg,\n    color-mix(in srgb, var(--color-brand, #1d4ed8) 88%, transparent),\n    color-mix(in srgb, var(--color-brand-strong, var(--color-brand, #1d4ed8)) 72%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.chat.bubble.user.border",
+    "cssVar": "--composer-chat-bubble-user-border",
+    "label": "Composer Chat Bubble User Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Chat Bubble User Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--color-brand, #1d4ed8) 36%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.chat.streaming",
+    "cssVar": "--composer-chat-streaming",
+    "label": "Composer Chat Streaming",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Chat Streaming",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-text, var(--text)) 84%,\n    transparent\n  )",
+    "exposeToStyler": true
   },
   {
     "id": "surface.composer.close",
@@ -3235,6 +3535,66 @@
     "exposeToStyler": false
   },
   {
+    "id": "composer.overlay.bg",
+    "cssVar": "--composer-overlay-bg",
+    "label": "Composer Overlay Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Overlay Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    180deg,\n    color-mix(in srgb, var(--composer-overlay, var(--surface-overlay)) 96%, transparent),\n    color-mix(in srgb, var(--composer-overlay, var(--surface-overlay)) 98%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.overlay.border",
+    "cssVar": "--composer-overlay-border",
+    "label": "Composer Overlay Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Overlay Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-border, var(--card-border)) 70%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.overlay.card.bg",
+    "cssVar": "--composer-overlay-card-bg",
+    "label": "Composer Overlay Card Bg",
+    "category": "card",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Overlay Card Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    180deg,\n    color-mix(in srgb, var(--composer-panel-background) 90%, transparent),\n    color-mix(in srgb, var(--composer-panel-background) 96%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.overlay.card.border",
+    "cssVar": "--composer-overlay-card-border",
+    "label": "Composer Overlay Card Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Overlay Card Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-border, var(--card-border)) 65%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.overlay.card.shadow",
+    "cssVar": "--composer-overlay-card-shadow",
+    "label": "Composer Overlay Card Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Overlay Card Shadow",
+    "layer": "semantic",
+    "fallback": "0 18px 42px\n    color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 55%, transparent)",
+    "exposeToStyler": true
+  },
+  {
     "id": "surface.composer.panel",
     "cssVar": "--composer-panel-background",
     "label": "Composer / Panel Background",
@@ -3249,6 +3609,186 @@
     "layer": "component",
     "fallback": "linear-gradient(\r\n      180deg,\r\n      color-mix(in srgb, var(--surface-elevated, rgba(255, 255, 255, 0.92)) 96%, transparent),\r\n      var(--surface-app, #f7f9ff)\r\n    )",
     "exposeToStyler": false
+  },
+  {
+    "id": "composer.preset.btn.bg",
+    "cssVar": "--composer-preset-btn-bg",
+    "label": "Composer Preset Btn Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Preset Btn Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    180deg,\n    color-mix(in srgb, var(--composer-rail-background) 65%, transparent),\n    color-mix(in srgb, var(--composer-panel-background) 78%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.preset.btn.border",
+    "cssVar": "--composer-preset-btn-border",
+    "label": "Composer Preset Btn Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Preset Btn Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-rail-tab-border, var(--composer-border)) 60%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.preset.btn.hover.border",
+    "cssVar": "--composer-preset-btn-hover-border",
+    "label": "Composer Preset Btn Hover Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Preset Btn Hover Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-rail-tab-border, var(--composer-border)) 78%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.preset.btn.text",
+    "cssVar": "--composer-preset-btn-text",
+    "label": "Composer Preset Btn Text",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Preset Btn Text",
+    "layer": "semantic",
+    "fallback": "color-mix(in srgb, var(--composer-text, var(--text)) 88%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.prompt.icon.btn.border",
+    "cssVar": "--composer-prompt-icon-btn-border",
+    "label": "Composer Prompt Icon Btn Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Prompt Icon Btn Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-rail-tab-border, var(--composer-border)) 65%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.prompt.icon.btn.hover.border",
+    "cssVar": "--composer-prompt-icon-btn-hover-border",
+    "label": "Composer Prompt Icon Btn Hover Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Prompt Icon Btn Hover Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-rail-tab-border, var(--composer-border)) 86%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.prompt.icon.btn.text",
+    "cssVar": "--composer-prompt-icon-btn-text",
+    "label": "Composer Prompt Icon Btn Text",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Prompt Icon Btn Text",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-text, var(--text)) 90%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.prompt.input.placeholder",
+    "cssVar": "--composer-prompt-input-placeholder",
+    "label": "Composer Prompt Input Placeholder",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Prompt Input Placeholder",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-text, var(--text)) 60%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.prompt.surface.bg",
+    "cssVar": "--composer-prompt-surface-bg",
+    "label": "Composer Prompt Surface Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Prompt Surface Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    180deg,\n    color-mix(in srgb, var(--composer-rail-background) 78%, transparent),\n    color-mix(in srgb, var(--composer-panel-background) 92%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.prompt.surface.border",
+    "cssVar": "--composer-prompt-surface-border",
+    "label": "Composer Prompt Surface Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Prompt Surface Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-rail-tab-border, var(--composer-border)) 70%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.prompt.surface.shadow",
+    "cssVar": "--composer-prompt-surface-shadow",
+    "label": "Composer Prompt Surface Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Prompt Surface Shadow",
+    "layer": "semantic",
+    "fallback": "var(\n    --composer-shadow,\n    0 22px 48px color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 45%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.quick.chip.bg",
+    "cssVar": "--composer-quick-chip-bg",
+    "label": "Composer Quick Chip Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Quick Chip Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    180deg,\n    color-mix(in srgb, var(--composer-rail-background) 82%, transparent),\n    color-mix(in srgb, var(--composer-panel-background) 88%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.quick.chip.border",
+    "cssVar": "--composer-quick-chip-border",
+    "label": "Composer Quick Chip Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Quick Chip Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-rail-tab-border, var(--composer-border)) 64%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.quick.chip.hover.border",
+    "cssVar": "--composer-quick-chip-hover-border",
+    "label": "Composer Quick Chip Hover Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Quick Chip Hover Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-rail-tab-border, var(--composer-border)) 82%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.quick.chip.hover.shadow",
+    "cssVar": "--composer-quick-chip-hover-shadow",
+    "label": "Composer Quick Chip Hover Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Quick Chip Hover Shadow",
+    "layer": "semantic",
+    "fallback": "0 12px 28px\n    color-mix(in srgb, var(--composer-shadow-color, var(--color-border, #000)) 45%, transparent)",
+    "exposeToStyler": true
   },
   {
     "id": "composer.radius",
@@ -3279,18 +3819,6 @@
     "exposeToStyler": false
   },
   {
-    "id": "composer.rail.bg",
-    "cssVar": "--composer-rail-bg",
-    "label": "Composer Rail Bg",
-    "category": "surface",
-    "valueKind": "other",
-    "tags": [],
-    "semantics": "Composer Rail Bg",
-    "layer": "component",
-    "fallback": "var(--composer-rail-background)",
-    "exposeToStyler": false
-  },
-  {
     "id": "border.composer.rail",
     "cssVar": "--composer-rail-border",
     "label": "Composer / Rail Border",
@@ -3305,6 +3833,222 @@
     "layer": "component",
     "fallback": "color-mix(\r\n      in srgb,\r\n      var(--composer-accent, var(--color-brand, #1d4ed8)) 28%,\r\n      transparent\r\n    )",
     "exposeToStyler": false
+  },
+  {
+    "id": "composer.rail.button.active.border",
+    "cssVar": "--composer-rail-button-active-border",
+    "label": "Composer Rail Button Active Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Button Active Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-accent, var(--color-brand, #1d4ed8)) 60%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.button.active.shadow",
+    "cssVar": "--composer-rail-button-active-shadow",
+    "label": "Composer Rail Button Active Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Button Active Shadow",
+    "layer": "semantic",
+    "fallback": "0 12px 26px\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 45%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.button.bg",
+    "cssVar": "--composer-rail-button-bg",
+    "label": "Composer Rail Button Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Rail Button Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    145deg,\n    color-mix(in srgb, var(--composer-rail-background) 86%, transparent),\n    color-mix(in srgb, var(--composer-rail-background) 82%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.button.text",
+    "cssVar": "--composer-rail-button-text",
+    "label": "Composer Rail Button Text",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Button Text",
+    "layer": "semantic",
+    "fallback": "color-mix(in srgb, var(--composer-text, var(--text)) 92%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.scrollbar",
+    "cssVar": "--composer-rail-scrollbar",
+    "label": "Composer Rail Scrollbar",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Scrollbar",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-accent, var(--color-brand, #1d4ed8)) 32%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.tab.active.bg",
+    "cssVar": "--composer-rail-tab-active-bg",
+    "label": "Composer Rail Tab Active Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Rail Tab Active Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    135deg,\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 88%, transparent),\n    color-mix(in srgb, var(--color-accent, var(--color-brand, #1d4ed8)) 78%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.tab.active.color",
+    "cssVar": "--composer-rail-tab-active-color",
+    "label": "Composer Rail Tab Active Color",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Tab Active Color",
+    "layer": "semantic",
+    "fallback": "var(--text-on-brand, #ffffff)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.tab.active.shadow",
+    "cssVar": "--composer-rail-tab-active-shadow",
+    "label": "Composer Rail Tab Active Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Tab Active Shadow",
+    "layer": "semantic",
+    "fallback": "0 16px 30px\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 40%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.tab.bg",
+    "cssVar": "--composer-rail-tab-bg",
+    "label": "Composer Rail Tab Bg",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Tab Bg",
+    "layer": "semantic",
+    "fallback": "color-mix(in srgb, var(--composer-rail-background) 85%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.tab.border",
+    "cssVar": "--composer-rail-tab-border",
+    "label": "Composer Rail Tab Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Tab Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-accent, var(--color-brand, #1d4ed8)) 28%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.tab.color",
+    "cssVar": "--composer-rail-tab-color",
+    "label": "Composer Rail Tab Color",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Tab Color",
+    "layer": "semantic",
+    "fallback": "color-mix(in srgb, var(--composer-text, var(--text)) 72%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.tab.color.strong",
+    "cssVar": "--composer-rail-tab-color-strong",
+    "label": "Composer Rail Tab Color Strong",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Tab Color Strong",
+    "layer": "semantic",
+    "fallback": "var(--composer-text, var(--text))",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.tab.focus.shadow",
+    "cssVar": "--composer-rail-tab-focus-shadow",
+    "label": "Composer Rail Tab Focus Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Tab Focus Shadow",
+    "layer": "semantic",
+    "fallback": "0 0 0 2px\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 45%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.rail.tab.hover.color",
+    "cssVar": "--composer-rail-tab-hover-color",
+    "label": "Composer Rail Tab Hover Color",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Rail Tab Hover Color",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-text, var(--text)) 88%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.send.btn.bg",
+    "cssVar": "--composer-send-btn-bg",
+    "label": "Composer Send Btn Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Send Btn Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    110deg,\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 92%, transparent),\n    color-mix(in srgb, var(--color-accent, var(--color-brand, #1d4ed8)) 82%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.send.btn.border",
+    "cssVar": "--composer-send-btn-border",
+    "label": "Composer Send Btn Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Send Btn Border",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-accent, var(--color-brand, #1d4ed8)) 45%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.send.btn.hover.shadow",
+    "cssVar": "--composer-send-btn-hover-shadow",
+    "label": "Composer Send Btn Hover Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Send Btn Hover Shadow",
+    "layer": "semantic",
+    "fallback": "0 24px 42px\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 50%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.send.btn.shadow",
+    "cssVar": "--composer-send-btn-shadow",
+    "label": "Composer Send Btn Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Send Btn Shadow",
+    "layer": "semantic",
+    "fallback": "0 18px 36px\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 40%, transparent)",
+    "exposeToStyler": true
   },
   {
     "id": "composer.shadow",
@@ -3345,6 +4089,78 @@
     "layer": "component",
     "fallback": "var(--composer-panel-background)",
     "exposeToStyler": false
+  },
+  {
+    "id": "composer.vibe.btn.bg",
+    "cssVar": "--composer-vibe-btn-bg",
+    "label": "Composer Vibe Btn Bg",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [],
+    "semantics": "Composer Vibe Btn Bg",
+    "layer": "semantic",
+    "fallback": "linear-gradient(\n    180deg,\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 35%, transparent),\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 20%, transparent)\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.vibe.btn.shadow",
+    "cssVar": "--composer-vibe-btn-shadow",
+    "label": "Composer Vibe Btn Shadow",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Vibe Btn Shadow",
+    "layer": "semantic",
+    "fallback": "0 10px 28px\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 36%, rgba(0, 0, 0, 0.18))",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.voice.status",
+    "cssVar": "--composer-voice-status",
+    "label": "Composer Voice Status",
+    "category": "feedback",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Voice Status",
+    "layer": "semantic",
+    "fallback": "color-mix(in srgb, var(--composer-text, var(--text)) 68%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.voice.status.active",
+    "cssVar": "--composer-voice-status-active",
+    "label": "Composer Voice Status Active",
+    "category": "feedback",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Voice Status Active",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-accent, var(--color-brand, #1d4ed8)) 72%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.voice.status.error",
+    "cssVar": "--composer-voice-status-error",
+    "label": "Composer Voice Status Error",
+    "category": "feedback",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Voice Status Error",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-status-error, #f87171) 85%,\n    transparent\n  )",
+    "exposeToStyler": true
+  },
+  {
+    "id": "composer.voice.status.result",
+    "cssVar": "--composer-voice-status-result",
+    "label": "Composer Voice Status Result",
+    "category": "feedback",
+    "valueKind": "color",
+    "tags": [],
+    "semantics": "Composer Voice Status Result",
+    "layer": "semantic",
+    "fallback": "color-mix(\n    in srgb,\n    var(--composer-text, var(--text)) 72%,\n    transparent\n  )",
+    "exposeToStyler": true
   },
   {
     "id": "layout.connections.rail.offset",
@@ -5091,6 +5907,22 @@
     "exposeToStyler": true
   },
   {
+    "id": "brand.header.tint-to",
+    "cssVar": "--header-tint-to",
+    "label": "Brand / Header Tint To",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "header",
+      "tint"
+    ],
+    "semantics": "Brand / Header Tint To",
+    "layer": "foundation",
+    "fallback": "transparent",
+    "lightFallback": "rgba(255, 255, 255, 0)",
+    "exposeToStyler": true
+  },
+  {
     "id": "border.home.actionbar.border",
     "cssVar": "--home-actionbar-border",
     "label": "Home Actionbar Border",
@@ -5803,6 +6635,18 @@
     "exposeToStyler": true
   },
   {
+    "id": "ladder.border",
+    "cssVar": "--ladder-border",
+    "label": "Ladder Border",
+    "category": "border",
+    "valueKind": "other",
+    "tags": [],
+    "semantics": "Ladder Border",
+    "layer": "semantic",
+    "fallback": "var(--composer-rail-tab-border, var(--composer-border, var(--card-border)))",
+    "exposeToStyler": true
+  },
+  {
     "id": "ladder.prompter.send.text",
     "cssVar": "--ladder-prompter-send-text",
     "label": "Ladder Prompter Send Text",
@@ -5827,15 +6671,15 @@
     "exposeToStyler": true
   },
   {
-    "id": "ladder.step.active.text",
-    "cssVar": "--ladder-step-active-text",
-    "label": "Ladder Step Active Text",
-    "category": "text",
-    "valueKind": "color",
+    "id": "ladder.shadow",
+    "cssVar": "--ladder-shadow",
+    "label": "Ladder Shadow",
+    "category": "shadow",
+    "valueKind": "shadow",
     "tags": [],
-    "semantics": "Ladder Step Active Text",
-    "layer": "foundation",
-    "fallback": "var(--text-on-brand, #ffffff)",
+    "semantics": "Ladder Shadow",
+    "layer": "semantic",
+    "fallback": "var(--composer-shadow)",
     "exposeToStyler": true
   },
   {
@@ -8652,6 +9496,22 @@
     "exposeToStyler": false
   },
   {
+    "id": "border.rail",
+    "cssVar": "--rail-border",
+    "label": "Rail Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "rail",
+      "border"
+    ],
+    "semantics": "Rail Border",
+    "layer": "semantic",
+    "fallback": "rgba(255, 255, 255, 0.16)",
+    "lightFallback": "rgba(15, 23, 42, 0.14)",
+    "exposeToStyler": true
+  },
+  {
     "id": "ring.primary",
     "cssVar": "--ring-primary",
     "label": "Ring / Primary",
@@ -10371,6 +11231,38 @@
         "background"
       ]
     }
+  },
+  {
+    "id": "surface.elevated",
+    "cssVar": "--surface-elevated",
+    "label": "Surface / Elevated",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "surface",
+      "elevated"
+    ],
+    "semantics": "Surface / Elevated",
+    "layer": "foundation",
+    "fallback": "rgba(17, 22, 45, 0.86)",
+    "lightFallback": "rgba(255, 255, 255, 0.92)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "surface.muted",
+    "cssVar": "--surface-muted",
+    "label": "Surface / Muted",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "surface",
+      "muted"
+    ],
+    "semantics": "Surface / Muted",
+    "layer": "foundation",
+    "fallback": "rgba(17, 22, 45, 0.8)",
+    "lightFallback": "rgba(255, 255, 255, 0.86)",
+    "exposeToStyler": true
   },
   {
     "id": "surface.outline",

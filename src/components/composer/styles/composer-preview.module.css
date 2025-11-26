@@ -20,7 +20,7 @@
 }
 
 .previewRail::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 255, 0.35);
+  background: var(--composer-rail-scrollbar);
   border-radius: 999px;
 }
 
@@ -66,13 +66,13 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(199, 210, 254, 0.82);
+  color: var(--composer-rail-tab-color, var(--text-2));
 }
 
 .previewSubtitle {
   margin: 0;
   font-size: 0.82rem;
-  color: rgba(189, 197, 255, 0.68);
+  color: var(--composer-rail-tab-color, var(--text-2));
 }
 
 .previewHeaderMeta {
@@ -88,9 +88,9 @@
   gap: 0.4rem;
   padding: 0.35rem 0.9rem;
   border-radius: 999px;
-  border: 1px solid rgba(112, 131, 255, 0.45);
-  background: linear-gradient(180deg, rgba(34, 42, 96, 0.78), rgba(18, 22, 58, 0.88));
-  color: rgba(226, 233, 255, 0.9);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-tab-bg);
+  color: var(--composer-rail-tab-color-strong, var(--composer-text));
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -120,7 +120,7 @@
 .previewHelper {
   margin: 0;
   font-size: 0.85rem;
-  color: rgba(189, 197, 255, 0.72);
+  color: var(--composer-rail-tab-color, var(--text-2));
 }
 
 .previewPlaceholderCard {
@@ -130,10 +130,10 @@
   text-align: center;
   padding: 32px;
   border-radius: 26px;
-  border: 1px dashed rgba(129, 140, 248, 0.38);
-  background: linear-gradient(145deg, rgba(32, 40, 86, 0.78), rgba(16, 22, 58, 0.88));
-  color: rgba(224, 229, 255, 0.9);
-  box-shadow: 0 22px 48px rgba(10, 14, 46, 0.45);
+  border: 1px dashed var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  color: var(--composer-text, var(--text));
+  box-shadow: var(--composer-shadow);
 }
 
 .previewPlaceholderIcon {
@@ -143,8 +143,8 @@
   width: 52px;
   height: 52px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.18);
-  color: rgba(244, 247, 255, 0.9);
+  background: var(--composer-rail-tab-bg);
+  color: var(--composer-rail-tab-color-strong, var(--composer-text));
 }
 
 .previewPlaceholderCard p {
@@ -158,16 +158,16 @@
   gap: 12px;
   padding: 24px;
   border-radius: 22px;
-  border: 1px solid rgba(122, 132, 248, 0.28);
-  background: linear-gradient(180deg, rgba(24, 28, 68, 0.82), rgba(12, 16, 46, 0.9));
-  box-shadow: 0 22px 40px rgba(7, 12, 40, 0.48);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  box-shadow: var(--composer-shadow);
 }
 
 .previewPostTitle {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: rgba(236, 239, 255, 0.94);
+  color: var(--composer-text, var(--text));
 }
 
 .previewPostBody {
@@ -179,7 +179,7 @@
   margin: 0;
   font-size: 0.92rem;
   line-height: 1.6;
-  color: rgba(210, 218, 255, 0.9);
+  color: var(--composer-rail-tab-color, var(--text-2));
 }
 
 .previewComposite {
@@ -200,16 +200,16 @@
   font-size: 0.78rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(193, 203, 255, 0.72);
+  color: var(--composer-rail-tab-color, var(--text-2));
 }
 
 .previewPostInput,
 .previewPostTextarea {
   width: 100%;
   border-radius: 12px;
-  border: 1px solid rgba(129, 140, 248, 0.32);
-  background: linear-gradient(180deg, rgba(20, 24, 60, 0.86), rgba(12, 16, 42, 0.92));
-  color: rgba(236, 239, 255, 0.96);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  color: var(--composer-text, var(--text));
   padding: 0.8rem 0.95rem;
   font-size: 0.96rem;
   transition: border-color 120ms ease, box-shadow 120ms ease;
@@ -218,8 +218,8 @@
 .previewPostInput:focus,
 .previewPostTextarea:focus {
   outline: none;
-  border-color: rgba(148, 163, 255, 0.6);
-  box-shadow: 0 0 0 2px rgba(148, 163, 255, 0.2);
+  border-color: var(--composer-rail-button-active-border, var(--composer-rail-tab-border));
+  box-shadow: var(--composer-rail-tab-active-shadow, 0 0 0 2px color-mix(in srgb, var(--composer-accent, var(--color-brand, #2563eb)) 20%, transparent));
 }
 
 .previewPostTextarea {
@@ -231,7 +231,7 @@
 .previewPostHint {
   margin: 0;
   font-size: 0.85rem;
-  color: rgba(189, 197, 255, 0.82);
+  color: var(--composer-rail-tab-color, var(--text-2));
 }
 
 .previewPrimary,
@@ -242,12 +242,7 @@
 .previewDivider {
   height: 1px;
   width: 100%;
-  background: linear-gradient(
-    90deg,
-    rgba(122, 132, 248, 0.35),
-    rgba(82, 98, 241, 0.16),
-    rgba(122, 132, 248, 0.35)
-  );
+  background: var(--composer-rail-tab-border);
   border-radius: 999px;
   opacity: 0.8;
 }
@@ -258,9 +253,9 @@
   flex-direction: column;
   border-radius: 28px;
   overflow: hidden;
-  border: 1px solid rgba(37, 99, 235, 0.24);
-  background: rgba(10, 14, 30, 0.75);
-  box-shadow: 0 20px 46px rgba(10, 14, 46, 0.5);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-attachment-surface-bg, var(--composer-rail-shell));
+  box-shadow: var(--composer-shadow);
 }
 
 .previewMediaStack {
@@ -275,7 +270,7 @@
   height: auto;
   max-height: 460px;
   object-fit: contain;
-  background: rgba(6, 10, 24, 0.8);
+  background: var(--composer-attachment-ready-bg, var(--composer-attachment-surface-bg));
 }
 
 .previewMediaFrame video {
@@ -286,9 +281,9 @@
   margin: 0;
   padding: 14px 18px;
   font-size: 0.85rem;
-  color: rgba(200, 210, 255, 0.82);
-  background: rgba(12, 16, 42, 0.75);
-  border-top: 1px solid rgba(148, 163, 255, 0.2);
+  color: var(--composer-rail-tab-color, var(--text-2));
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  border-top: 1px solid var(--composer-rail-tab-border);
 }
 
 .previewDocumentCard {
@@ -296,16 +291,16 @@
   gap: 18px;
   padding: 24px;
   border-radius: 22px;
-  border: 1px solid rgba(122, 132, 248, 0.35);
-  background: linear-gradient(180deg, rgba(30, 36, 82, 0.85), rgba(12, 16, 50, 0.92));
-  box-shadow: 0 24px 44px rgba(10, 14, 42, 0.48);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  box-shadow: var(--composer-shadow);
 }
 
 .previewDocumentTitle {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: rgba(236, 239, 255, 0.94);
+  color: var(--composer-text, var(--text));
 }
 
 .previewDocumentSections {
@@ -330,8 +325,8 @@
   width: 32px;
   height: 32px;
   border-radius: 12px;
-  background: rgba(116, 130, 255, 0.32);
-  color: rgba(225, 231, 255, 0.92);
+  background: var(--composer-rail-tab-bg);
+  color: var(--composer-rail-tab-color-strong, var(--composer-text));
   font-weight: 600;
   font-size: 0.75rem;
 }
@@ -339,13 +334,13 @@
 .previewDocumentSectionContent h4 {
   margin: 0 0 6px;
   font-size: 0.95rem;
-  color: rgba(224, 231, 255, 0.94);
+  color: var(--composer-text, var(--text));
 }
 
 .previewDocumentSectionContent p {
   margin: 0;
   font-size: 0.85rem;
-  color: rgba(196, 205, 255, 0.78);
+  color: var(--composer-rail-tab-color, var(--text-2));
   line-height: 1.5;
 }
 
@@ -354,16 +349,16 @@
   gap: 16px;
   padding: 24px;
   border-radius: 24px;
-  border: 1px solid rgba(96, 110, 255, 0.35);
-  background: linear-gradient(135deg, rgba(28, 34, 82, 0.9), rgba(18, 26, 68, 0.88));
-  box-shadow: 0 24px 40px rgba(10, 14, 46, 0.5);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  box-shadow: var(--composer-shadow);
 }
 
 .previewTournamentTitle {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: rgba(236, 239, 255, 0.94);
+  color: var(--composer-text, var(--text));
 }
 
 .previewTournamentGrid {
@@ -375,9 +370,9 @@
 .previewTournamentColumn {
   padding: 14px;
   border-radius: 16px;
-  background: rgba(14, 18, 44, 0.8);
-  border: 1px solid rgba(120, 134, 255, 0.3);
-  color: rgba(217, 225, 255, 0.88);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  border: 1px solid var(--composer-rail-tab-border);
+  color: var(--composer-text, var(--text));
   font-size: 0.85rem;
   text-align: center;
 }
@@ -406,9 +401,9 @@
 
 .previewActionPrimary {
   border: none;
-  background: linear-gradient(110deg, rgba(129, 140, 248, 0.98), rgba(56, 189, 248, 0.9));
-  color: rgba(248, 250, 255, 0.98);
-  box-shadow: 0 18px 32px rgba(40, 82, 255, 0.48);
+  background: var(--composer-rail-tab-active-bg, var(--composer-rail-shell));
+  color: var(--composer-rail-tab-active-color, var(--text-on-brand));
+  box-shadow: var(--composer-rail-tab-active-shadow, var(--composer-shadow));
   cursor: pointer;
 }
 
@@ -421,13 +416,13 @@
 .previewActionPrimary:hover:not(:disabled),
 .previewActionPrimary:focus-visible:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 24px 40px rgba(40, 82, 255, 0.58);
+  box-shadow: var(--composer-send-btn-hover-shadow, var(--composer-rail-tab-active-shadow));
 }
 
 .previewActionSecondary {
-  border: 1px solid rgba(148, 163, 255, 0.28);
-  background: linear-gradient(180deg, rgba(32, 39, 94, 0.6), rgba(18, 22, 58, 0.7));
-  color: rgba(217, 225, 255, 0.86);
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  color: var(--composer-text, var(--text));
   cursor: pointer;
 }
 
@@ -438,7 +433,7 @@
 
 .previewActionSecondary:hover:not(:disabled),
 .previewActionSecondary:focus-visible:not(:disabled) {
-  border-color: rgba(186, 196, 255, 0.5);
+  border-color: var(--composer-rail-button-active-border, var(--composer-rail-tab-border));
   transform: translateY(-1px);
 }
 
@@ -449,4 +444,3 @@
     padding-left: 0;
   }
 }
-

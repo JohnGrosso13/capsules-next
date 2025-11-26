@@ -66,8 +66,10 @@ function scanFile(filePath: string) {
   let match: RegExpExecArray | null;
   while ((match = varRegex.exec(content)) !== null) {
     const cssVar = match[1];
+    if (!cssVar) continue;
     const canonical = aliasMap[cssVar];
-    if (!tokenMap.has(cssVar) && !tokenMap.has(canonical ?? "")) missingVars.add(cssVar);
+    const known = tokenMap.has(cssVar) || (canonical ? tokenMap.has(canonical) : false);
+    if (!known) missingVars.add(cssVar);
     trackUsage(cssVar, filePath);
   }
 

@@ -21,12 +21,14 @@ import {
 import { type FriendItem } from "@/hooks/useFriendsData";
 import { useAssistantTasks } from "@/hooks/useAssistantTasks";
 import type { AssistantTaskSummary } from "@/types/assistant";
+import type { GlobalSearchSection, UserSearchResult } from "@/types/search";
 import {
   UsersThree,
   ChatsCircle,
   Handshake,
   MicrophoneStage,
   MagicWand,
+  UserPlus,
 } from "@phosphor-icons/react/dist/ssr";
 import { usePathname, useRouter } from "next/navigation";
 import { buildProfileHref } from "@/lib/profile/routes";
@@ -99,7 +101,7 @@ const CONNECTION_TILE_DEFS: Array<{
   },
 ];
 
-const ICON_TAB_KEYS: RailTab[] = ["friends", "chats", "requests", "assistant"];
+const ICON_TAB_KEYS: RailTab[] = ["friends", "party", "chats", "requests", "assistant"];
 
 function isRailTab(value: unknown): value is RailTab {
   return (
@@ -316,6 +318,16 @@ export function ConnectionsRail() {
   const [groupFlow, setGroupFlow] = React.useState<GroupFlowState | null>(null);
   const [groupBusy, setGroupBusy] = React.useState(false);
   const [groupError, setGroupError] = React.useState<string | null>(null);
+  const [showFriendDiscover, setShowFriendDiscover] = React.useState(false);
+  const [friendSearch, setFriendSearch] = React.useState("");
+  const [addedSuggestionIds, setAddedSuggestionIds] = React.useState<Set<string>>(
+    () => new Set<string>(),
+  );
+  const friendSearchInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [friendSearchResults, setFriendSearchResults] = React.useState<UserSearchResult[]>([]);
+  const [friendSearchLoading, setFriendSearchLoading] = React.useState(false);
+  const [friendSearchError, setFriendSearchError] = React.useState<string | null>(null);
+  const friendSearchAbortRef = React.useRef<AbortController | null>(null);
 
   const friendTargetMap = React.useMemo(() => {
     const map = new Map<string, ChatFriendTarget>();
@@ -330,7 +342,6 @@ export function ConnectionsRail() {
     return map;
   }, [friends]);
 
-  const hasEligibleFriends = React.useMemo(() => friends.some((f) => Boolean(f.userId)), [friends]);
   const partySummary = React.useMemo(() => {
     if (partyStatus === "loading") {
       if (partyAction === "create") return "Starting your party…";
@@ -360,22 +371,29 @@ export function ConnectionsRail() {
     setGroupBusy(false);
   }, []);
 
-  const handleOpenGroupCreator = React.useCallback(() => {
-    setGroupFlow({ mode: "create" });
-    setGroupError(null);
-  }, []);
-
   const handleInviteToGroup = React.useCallback((session: ChatSession) => {
     setGroupFlow({ mode: "invite", sessionId: session.id });
     setGroupError(null);
   }, []);
-  const handlePartyButtonClick = React.useCallback(() => {
-    setActiveRailTab("party");
-    setRailMode("connections");
-  }, []);
   const handlePartyShowFriends = React.useCallback(() => {
     setActiveRailTab("friends");
     setRailMode("connections");
+  }, []);
+  const handleToggleFriendDiscover = React.useCallback(() => {
+    setShowFriendDiscover((prev) => {
+      const next = !prev;
+      if (next) {
+        window.setTimeout(() => friendSearchInputRef.current?.focus(), 0);
+      }
+      return next;
+    });
+  }, []);
+  const handleAddSuggestedFriend = React.useCallback((id: string) => {
+    setAddedSuggestionIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
   }, []);
 
   const handleGroupSubmit = React.useCallback(
@@ -916,14 +934,58 @@ export function ConnectionsRail() {
     }
   }, [railMode, closeChatSession]);
 
-  const partyButtonLabel = partyStatus === "loading" ? "Connecting..." : "Party Chat";
-  const partyButtonDisabled = partyStatus === "loading";
-  const isPartyActive = activeRailTab === "party";
-  const showPartyLivePill = Boolean(partySession);
   const iconTabs = React.useMemo(
     () => CONNECTION_TILE_DEFS.filter((tab) => ICON_TAB_KEYS.includes(tab.key)),
     [],
   );
+  React.useEffect(() => {
+    if (!showFriendDiscover) return;
+    const term = friendSearch.trim();
+    if (term.length < 2) {
+      friendSearchAbortRef.current?.abort();
+      friendSearchAbortRef.current = null;
+      setFriendSearchResults([]);
+      setFriendSearchLoading(false);
+      setFriendSearchError(null);
+      return;
+    }
+    setFriendSearchLoading(true);
+    setFriendSearchError(null);
+    const controller = new AbortController();
+    friendSearchAbortRef.current?.abort();
+    friendSearchAbortRef.current = controller;
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ q: term, limit: 10 }),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          setFriendSearchResults([]);
+          setFriendSearchError(response.status === 401 ? "Sign in to search." : "Search failed.");
+        } else {
+          const data = (await response.json()) as { sections?: GlobalSearchSection[] };
+          const users =
+            data.sections?.find((section) => section.type === "users")?.items ??
+            ([] as UserSearchResult[]);
+          setFriendSearchResults(users);
+        }
+      } catch (error) {
+        if ((error as Error)?.name !== "AbortError") {
+          setFriendSearchResults([]);
+          setFriendSearchError("Search interrupted. Try again.");
+        }
+      } finally {
+        setFriendSearchLoading(false);
+      }
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [friendSearch, showFriendDiscover]);
   const connectionsStyle: React.CSSProperties | undefined =
     railMode === "connections" && connectionsViewportHeight
       ? {
@@ -1008,52 +1070,25 @@ export function ConnectionsRail() {
             </button>
             <div className={styles.railHeaderContent}>
               <div className={styles.railIconTabs} role="tablist" aria-label="Connections">
-                {iconTabs.map((tab) => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={activeRailTab === tab.key}
-                    className={`${styles.railIconTab} ${
-                      activeRailTab === tab.key ? styles.railIconTabActive : ""
-                    }`.trim()}
-                    onClick={() => setActiveRailTab(tab.key)}
-                    title={tab.title}
-                  >
-                    <span className={styles.railTabIcon} aria-hidden>
-                      {tab.icon}
-                    </span>
-                    <span className={styles.railIconTabLabel}>{tab.title}</span>
-                  </button>
-                ))}
-              </div>
-              <div className={styles.railHeaderActions}>
-                <button
-                  type="button"
-                  className={`${styles.railActionButton} ${styles.railActionGradient}`.trim()}
-                  onClick={handleOpenGroupCreator}
-                  disabled={!hasEligibleFriends}
-                  aria-label="Start a group chat"
-                >
-                  <span className={styles.railActionIcon} aria-hidden>
-                    <ChatsCircle size={16} weight="duotone" />
-                  </span>
-                  <span className={styles.railActionLabel}>Group Chat</span>
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.railActionButton} ${styles.railActionGradient} ${styles.railActionParty}`.trim()}
-                  onClick={handlePartyButtonClick}
-                  disabled={partyButtonDisabled}
-                  data-active={isPartyActive}
-                  aria-label="Open party chat"
-                >
-                  <span className={styles.railActionIcon} aria-hidden>
-                    <MicrophoneStage size={16} weight="duotone" />
-                  </span>
-                  <span className={styles.railActionLabel}>{partyButtonLabel}</span>
-                  {showPartyLivePill ? <span className={styles.railActionBadge}>Live</span> : null}
-                </button>
+                {iconTabs.map((tab) => {
+                  const isActive = activeRailTab === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      className={`${styles.railIconTab} ${isActive ? styles.railIconTabActive : ""}`.trim()}
+                      onClick={() => setActiveRailTab(tab.key)}
+                      title={tab.title}
+                    >
+                      <span className={styles.railTabIcon} aria-hidden>
+                        {tab.icon}
+                      </span>
+                      <span className={styles.railIconTabLabel}>{tab.title}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1062,6 +1097,75 @@ export function ConnectionsRail() {
             hidden={activeRailTab !== "friends"}
             data-tab="friends"
           >
+            <header className={styles.railPanelHeader}>
+              <div className={styles.railPanelHeading}>
+                <h2 className={styles.railPanelTitle}>Friends</h2>
+              </div>
+              <div className={styles.railPanelActions}>
+                <button
+                  type="button"
+                  className={styles.railPanelActionButton}
+                  aria-pressed={showFriendDiscover}
+                  aria-label={showFriendDiscover ? "Hide add friends" : "Add friends"}
+                  onClick={handleToggleFriendDiscover}
+                >
+                  <UserPlus size={16} weight="bold" />
+                </button>
+              </div>
+            </header>
+            {showFriendDiscover ? (
+              <div className={styles.friendDiscover}>
+                <div className={styles.friendDiscoverControls}>
+                  <input
+                    id="friend-discover-search"
+                    ref={friendSearchInputRef}
+                    type="search"
+                    value={friendSearch}
+                    onChange={(event) => setFriendSearch(event.target.value)}
+                    placeholder="Search friends by name"
+                    className={styles.friendDiscoverInput}
+                    aria-label="Search friends"
+                  />
+                </div>
+                <div className={styles.friendSuggestions}>
+                  {friendSearchLoading ? (
+                    <div className={styles.friendSuggestionEmpty}>Searching...</div>
+                  ) : friendSearchError ? (
+                    <div className={styles.friendSuggestionEmpty}>{friendSearchError}</div>
+                  ) : friendSearchResults.length > 0 ? (
+                    friendSearchResults.map((entry) => {
+                      const added = addedSuggestionIds.has(entry.id);
+                      const subtitle = entry.subtitle ?? "";
+                      return (
+                        <div key={entry.id} className={styles.friendSuggestion}>
+                          <div className={styles.friendSuggestionMeta}>
+                            <span className={styles.friendSuggestionName}>{entry.name}</span>
+                            {subtitle ? (
+                              <span className={styles.friendSuggestionStatus}>{subtitle}</span>
+                            ) : null}
+                          </div>
+                          <button
+                            type="button"
+                            className={`${styles.friendSuggestionAdd} ${added ? styles.friendSuggestionAdded : ""}`.trim()}
+                            onClick={() => handleAddSuggestedFriend(entry.id)}
+                            disabled={added}
+                          >
+                            {added ? "Added" : "Add"}
+                          </button>
+                        </div>
+                      );
+                    })
+                  ) : friendSearch.trim().length >= 2 ? (
+                    <div className={styles.friendSuggestionEmpty}>No people found.</div>
+                  ) : (
+                    <div className={styles.friendSuggestionEmpty}>
+                      Start typing to search people across Capsules.
+                    </div>
+                  )}
+                </div>
+                <div className={styles.friendSuggestionHint}>No suggested friends right now.</div>
+              </div>
+            ) : null}
             <FriendsRail
               friends={friends}
               pendingId={friendActionPendingId}
@@ -1100,6 +1204,7 @@ export function ConnectionsRail() {
           >
             <ChatPanel
               variant="rail"
+              friends={friends}
               emptyNotice={<p>No chats yet. Start a conversation from your friends list.</p>}
               onInviteToGroup={handleInviteToGroup}
             />
@@ -1156,10 +1261,3 @@ export function ConnectionsRail() {
 }
 
 export default ConnectionsRail;
-
-
-
-
-
-
-

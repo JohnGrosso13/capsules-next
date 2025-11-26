@@ -45,6 +45,11 @@ type AiComposerDrawerProps = {
   saveStatus: ComposerSaveStatus;
   smartContextEnabled: boolean;
   contextSnapshot: ComposerContextSnapshot | null;
+  themePreview?: {
+    summary: string;
+    details?: string | null;
+    source: "heuristic" | "ai";
+  } | null;
   onSmartContextChange(enabled: boolean): void;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
@@ -55,6 +60,8 @@ type AiComposerDrawerProps = {
     attachments?: PrompterAttachment[] | null,
     options?: PromptSubmitOptions,
   ): Promise<void> | void;
+  onApplyThemePreview(): void;
+  onCancelThemePreview(): void;
   onForceChoice?(key: string): void;
   onSelectRecentChat(id: string): void;
   onSelectDraft(id: string): void;
@@ -82,12 +89,15 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     saveStatus,
     smartContextEnabled,
     contextSnapshot,
+    themePreview,
     onSmartContextChange,
     onChange,
     onClose,
     onPost,
     onSave,
     onPrompt,
+    onApplyThemePreview,
+    onCancelThemePreview,
     onForceChoice,
     onSelectRecentChat,
     onSelectDraft,
@@ -141,6 +151,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       saveStatus={saveStatus}
       smartContextEnabled={smartContextEnabled}
       contextSnapshot={contextSnapshot}
+      themePreview={themePreview ?? null}
       onSmartContextChange={onSmartContextChange}
       onChange={onChange}
       onClose={onClose}
@@ -157,6 +168,8 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       onSelectDraft={onSelectDraft}
       onCreateProject={onCreateProject}
       onSelectProject={onSelectProject}
+      onApplyThemePreview={onApplyThemePreview}
+      onCancelThemePreview={onCancelThemePreview}
       {...(onForceChoice ? { onForceChoice } : {})}
       onRetryVideo={onRetryVideo}
       onSaveCreation={onSaveCreation}

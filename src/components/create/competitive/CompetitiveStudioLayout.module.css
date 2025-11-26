@@ -1,7 +1,8 @@
 .shellWrap {
   display: flex;
   flex-direction: column;
-  gap: clamp(20px, 3vw, 32px);
+  /* Tighten vertical space between tabs and builder content on desktop */
+  gap: clamp(12px, 2vw, 22px);
   width: 100%;
 }
 

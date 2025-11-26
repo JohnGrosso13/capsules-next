@@ -7,6 +7,8 @@ import { createPortal } from "react-dom";
 
 import {
   CopySimple,
+  CrownSimple,
+  Clock,
   LinkSimple,
   MagnifyingGlass,
   Microphone,
@@ -959,26 +961,34 @@ export function PartyPanel({
       : summaryEnabled
         ? "Enabled"
         : "Disabled";
+    const hostName = currentSession.metadata.ownerDisplayName ?? "Host";
+    const liveDurationLabel = createdAtLabel || "Just now";
 
     return (
       <>
         <header className={`${styles.tileHeader} ${styles.tileHeaderActive}`}>
           <div className={styles.tileHeading}>
-            <h2 className={styles.tileTitle}>Party lobby</h2>
-            <div className={styles.headerMetaGrid}>
-              <div className={styles.headerDetailRow}>
-                <span className={styles.metaLabel}>Host</span>
-                <span className={styles.metaValue}>
-                  {currentSession.metadata.ownerDisplayName ?? "Unknown"}
-                  {currentSession.isOwner ? <span className={styles.hostBadge}>you</span> : null}
-                </span>
-              </div>
-              <div className={styles.headerDetailRow}>
-                <span className={styles.metaLabel}>Created</span>
-                <span className={styles.metaValue}>{createdAtLabel || "Moments ago"}</span>
-              </div>
+            <div className={styles.titleRow}>
+              <h2 className={styles.tileTitle}>Party lobby</h2>
+              {statusText ? <span className={styles.headerStatus}>{statusText}</span> : null}
             </div>
-            {statusText ? <span className={styles.headerStatus}>{statusText}</span> : null}
+            <div className={styles.headerMetaRow}>
+              <span className={styles.metaChip} title="Host">
+                <CrownSimple size={14} weight="fill" />
+                <span className={styles.metaChipText}>
+                  <span className={styles.metaChipLabel}>Host</span>
+                  <span className={styles.metaEmphasis}>{hostName}</span>
+                  {currentSession.isOwner ? <span className={styles.metaYou}>you</span> : null}
+                </span>
+              </span>
+              <span className={styles.metaChip} title="Live duration">
+                <Clock size={14} weight="bold" />
+                <span className={styles.metaChipText}>
+                  <span className={styles.metaChipLabel}>Live</span>
+                  <span className={styles.metaEmphasis}>{liveDurationLabel}</span>
+                </span>
+              </span>
+            </div>
           </div>
           <div className={`${styles.headerActions} ${styles.headerActionsActive}`}>
             <button
@@ -2000,7 +2010,8 @@ function ParticipantBadge({
 }: ParticipantBadgeProps) {
   const speaking = participant.isSpeaking;
   const mic = participant.isMicrophoneEnabled;
-  const fallbackName = participant.name || participant.identity || "Guest";
+  const rawFallback = participant.name || participant.identity || "Guest";
+  const fallbackName = rawFallback.startsWith("agent-") ? "Assistant" : rawFallback;
   const profileName = profile?.name ?? null;
   const hasProfileName = typeof profileName === "string" && profileName.trim().length > 0;
   const name = hasProfileName ? profileName : fallbackName;

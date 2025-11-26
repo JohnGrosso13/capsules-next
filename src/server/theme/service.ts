@@ -5,6 +5,7 @@ import {
   isVariantEmpty,
   type ThemeVariants,
 } from "@/lib/theme/variants";
+import { validateThemeVariantsInput } from "@/lib/theme/validate";
 
 const db = getDatabaseAdminClient();
 const TABLE = "theme_styles";
@@ -125,7 +126,14 @@ export async function createThemeStyle(params: {
   mode?: ThemeMode;
   variants: ThemeVariants;
 }): Promise<ThemeStyle> {
-  const sanitizedVariants = normalizeThemeVariantsInput(params.variants);
+  const validation = validateThemeVariantsInput(params.variants);
+  if (!validation.ok) {
+    throw new Error(
+      `Theme validation failed: ${validation.issues.map((issue) => issue.message).join("; ")}`,
+    );
+  }
+
+  const sanitizedVariants = normalizeThemeVariantsInput(validation.normalized);
   if (isVariantEmpty(sanitizedVariants)) {
     throw new Error("No theme variables to persist");
   }

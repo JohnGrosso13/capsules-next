@@ -1,4 +1,5 @@
 export type GuidedStepId =
+  | "blueprint"
   | "title"
   | "summary"
   | "registration"
@@ -19,86 +20,82 @@ export type GuidedStepDefinition = {
   helper: string;
 };
 
-export type LadderTemplatePreset = {
-  id: string;
-  label: string;
-  description: string;
-  mode: string;
-  cadence: string;
-  kickoff: string;
-  summary: string;
-};
-
 export const GUIDED_STEP_DEFINITIONS: GuidedStepDefinition[] = [
   {
+    id: "blueprint",
+    title: "Blueprint",
+    subtitle: "Describe your ladder and auto-fill everything.",
+    helper: "Tell your assistant the vibe, game, format, and rules; we'll prefill the steps for you.",
+  },
+  {
     id: "title",
-    title: "Pick a title",
-    subtitle: "Short, ownable, and true to the ladder’s vibe.",
+    title: "Title",
+    subtitle: "Short, ownable, and true to the ladder's vibe.",
     helper: 'Try alliteration or a season theme: "{Capsule} Circuit", "Weekend Gauntlet".',
   },
   {
     id: "summary",
-    title: "One-line summary",
+    title: "Summary",
     subtitle: "Explain why this ladder matters in a single sentence.",
     helper: "Highlight audience, cadence, or prizes so Capsule AI can build the promo copy.",
   },
   {
     id: "registration",
-    title: "Registration",
+    title: "Sign-Ups",
     subtitle: "Choose how teams join and set limits.",
     helper: "Capsule uses this for funnel copy, invite buttons, and reminders.",
   },
   {
     id: "type",
-    title: "Game & ladder type",
+    title: "Basics",
     subtitle: "Choose the game and match style.",
-    helper: "We’ll use this to pre-fill scoring and format details.",
+    helper: "We'll use this to pre-fill scoring and format details.",
   },
   {
     id: "format",
-    title: "Format basics",
+    title: "Format",
     subtitle: "Dial in the rating defaults and placement matches.",
     helper: "Initial rating, K-factor, and placement games help Capsule guide skill progression.",
   },
   {
     id: "overview",
-    title: "Ladder overview",
+    title: "Overview",
     subtitle: "Describe the story, vibe, or stakes.",
     helper: "This becomes the hero copy on Capsules and invites, so keep it vivid and specific.",
   },
   {
+    id: "timeline",
+    title: "Timeline",
+    subtitle: "When the season runs and how often you play.",
+    helper: "Capsule uses this for reminders, recap pacing, and calendar tooling.",
+  },
+  {
     id: "rules",
-    title: "Rules snapshot",
+    title: "Rules",
     subtitle: "Lay down the essentials players need to know.",
     helper: "Capsule AI will automate the long-form version; just note the must-follow items.",
   },
   {
     id: "shoutouts",
-    title: "Shoutouts & highlights",
+    title: "Shoutouts",
     subtitle: "Collect story hooks, MVPs, or spotlight moments.",
     helper: "Use bullets for themes (e.g. clutch saves, top fraggers) so AI recaps can riff on them.",
   },
   {
-    id: "timeline",
-    title: "Timeline & cadence",
-    subtitle: "When the season runs and how often you play.",
-    helper: "Capsule uses this for reminders, recap pacing, and calendar tooling.",
-  },
-  {
     id: "roster",
-    title: "Starter roster",
+    title: "Roster",
     subtitle: "Set seeds, handles, and starting stats.",
     helper: "Edit each row directly. Capsule highlights ratings and streaks in the preview.",
   },
   {
     id: "rewards",
-    title: "Rewards & spotlight",
+    title: "Rewards",
     subtitle: "Tell challengers what they're chasing.",
     helper: "Capsule AI can hype prizes, shoutouts, or story beats in announcements.",
   },
   {
     id: "review",
-    title: "Review & publish",
+    title: "Review",
     subtitle: "Double-check visibility and go live when you're ready.",
     helper: "This guided flow is the primary builder; polish every detail here before launch.",
   },
@@ -118,36 +115,6 @@ export const REWARD_SNIPPETS = [
   "Weekly MVP gets a custom Capsule portrait.",
   "Winners snag merch codes + priority scrim slots.",
   "Perfect records unlock an interview with the Capsule host.",
-];
-
-export const LADDER_TEMPLATE_PRESETS: LadderTemplatePreset[] = [
-  {
-    id: "solo-duel",
-    label: "Solo Duel Ladder",
-    description: "1v1 clashes, quick bragging rights.",
-    mode: "1v1 Duels",
-    cadence: "Daily windows",
-    kickoff: "Match anytime within 24h",
-    summary: "Solo players queue up head-to-head duels with instant ELO updates.",
-  },
-  {
-    id: "squad-gauntlet",
-    label: "Squad Gauntlet",
-    description: "Teams rotate weekly spotlight challenges.",
-    mode: "3v3 Teams",
-    cadence: "Weekly rounds",
-    kickoff: "Thursdays 7 PM local",
-    summary: "Squads tackle curated challenges each week with Capsule shoutouts.",
-  },
-  {
-    id: "creator-circuit",
-    label: "Creator Circuit",
-    description: "Open ladder with stream-ready prompts.",
-    mode: "Open queue",
-    cadence: "Weekend sprint",
-    kickoff: "Saturday block",
-    summary: "Creators drop-in for highlight-driven matches with AI-scripted recaps.",
-  },
 ];
 
 export const DEFAULT_GUIDED_STEP: GuidedStepId = GUIDED_STEP_ORDER[0] ?? "title";

@@ -1,10 +1,6 @@
 import { fetchOpenAI, hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { z } from "zod";
-import {
-  CORE_SITE_THEME_TOKEN_CSS_VARS,
-  STYLER_THEME_TOKEN_CSS_VARS,
-  type ThemeTokenCssVar,
-} from "@/lib/theme/token-registry";
+import { STYLER_THEME_TOKEN_CSS_VARS, type ThemeTokenCssVar } from "@/lib/theme/token-registry";
 import {
   buildPlanDetails,
   getDefaultStylerThemeVars,
@@ -23,7 +19,7 @@ const OPENAI_MODEL =
 const RETRY_DELAYS_MS = [0, 800, 2000];
 const DEFAULT_THEME_VARS = getDefaultStylerThemeVars();
 const CSS_VAR_ALLOWLIST = Array.from(STYLER_THEME_TOKEN_CSS_VARS);
-const THEME_SNAPSHOT_KEYS = [
+const BASE_SNAPSHOT_KEYS = [
   "--app-bg",
   "--accent-glow",
   "--text",
@@ -63,12 +59,32 @@ const THEME_SNAPSHOT_KEYS = [
   "--feed-action-shadow-hover",
   "--feed-icon-text",
 ];
-
-const DEFAULT_THEME_SNAPSHOT = Object.fromEntries(
-  THEME_SNAPSHOT_KEYS.map((key) => [key, DEFAULT_THEME_VARS[key]]).filter(
-    ([, value]) => typeof value === "string" && value.length > 0,
-  ),
-);
+const EXTRA_SNAPSHOT_KEYS = [
+  "--surface-app",
+  "--surface-muted",
+  "--surface-elevated",
+  "--surface-overlay",
+  "--color-fg",
+  "--color-fg-muted",
+  "--color-fg-subtle",
+  "--text-3",
+  "--color-border",
+  "--color-border-strong",
+  "--border-default",
+  "--border-strong",
+  "--brand-from",
+  "--brand-mid",
+  "--brand-to",
+  "--color-brand-muted",
+  "--composer-accent",
+  "--composer-accent-soft",
+  "--app-feed-width",
+  "--rail-action-shadow",
+  "--color-danger",
+  "--color-warning",
+  "--color-success",
+  "--color-info",
+];
 
 const SURFACE_GUIDE = [
   {
@@ -106,6 +122,11 @@ const SURFACE_GUIDE = [
     name: "Right rail",
     description: "Supplementary column housing widgets and quick actions.",
     tokens: ["--rail-bg-1", "--rail-bg-2", "--rail-border"],
+  },
+  {
+    name: "Rails & layout",
+    description: "Rail widths, offsets, and supporting shadows.",
+    tokens: ["--app-rail-width", "--connections-rail-offset", "--rail-action-shadow"],
   },
   {
     name: "Pills & status chips",
@@ -158,11 +179,16 @@ const SURFACE_GUIDE = [
     tokens: [
       "--store-hero-bg",
       "--store-hero-border",
+      "--store-hero-shadow",
       "--store-filter-bg",
       "--store-filter-highlight",
       "--store-control-bg",
       "--store-control-highlight",
+      "--store-filter-pill-bg",
+      "--store-filter-pill-border",
       "--store-action-bg",
+      "--store-action-border",
+      "--store-action-shadow-hover",
       "--store-primary-bg",
       "--store-primary-shadow",
       "--store-step-badge-bg",
@@ -175,11 +201,126 @@ const SURFACE_GUIDE = [
       "--studio-surface-panel",
       "--studio-surface-muted",
       "--studio-surface-glass",
+      "--studio-surface-accent",
+      "--studio-surface-highlight",
       "--studio-border-focus",
+      "--studio-border-soft",
+      "--studio-border-strong",
       "--studio-shadow-soft",
       "--studio-glow-strong",
+      "--studio-glow-soft",
       "--studio-scroll-track",
       "--studio-scroll-thumb",
+      "--studio-text-primary",
+      "--studio-text-secondary",
+      "--studio-text-tertiary",
+      "--studio-pill-bg",
+      "--studio-pill-border",
+      "--studio-pill-muted",
+    ],
+  },
+  {
+    name: "Composer rails & panels",
+    description: "Composer background, rails, panels, overlays, and tab chrome.",
+    tokens: [
+      "--composer-main-background",
+      "--composer-panel-background",
+      "--composer-overlay",
+      "--composer-overlay-bg",
+      "--composer-overlay-border",
+      "--composer-overlay-card-bg",
+      "--composer-overlay-card-border",
+      "--composer-overlay-card-shadow",
+      "--composer-rail-background",
+      "--composer-rail-border",
+      "--composer-rail-shell",
+      "--composer-rail-scrollbar",
+      "--composer-rail-tab-bg",
+      "--composer-rail-tab-border",
+      "--composer-rail-tab-color",
+      "--composer-rail-tab-hover-color",
+      "--composer-rail-tab-active-bg",
+      "--composer-rail-tab-active-color",
+      "--composer-rail-tab-active-shadow",
+      "--composer-rail-tab-focus-shadow",
+      "--composer-rail-button-bg",
+      "--composer-rail-button-border",
+      "--composer-rail-button-text",
+      "--composer-rail-button-hover-border",
+      "--composer-rail-button-active-border",
+      "--composer-rail-button-active-shadow",
+      "--composer-text",
+      "--composer-shadow",
+      "--composer-footer-background",
+      "--composer-footer-border",
+    ],
+  },
+  {
+    name: "Composer prompt & controls",
+    description: "Prompt surface, chips, icon buttons, send/vibe, presets, and voice indicators.",
+    tokens: [
+      "--composer-prompt-surface-bg",
+      "--composer-prompt-surface-border",
+      "--composer-prompt-surface-shadow",
+      "--composer-prompt-icon-btn-bg",
+      "--composer-prompt-icon-btn-border",
+      "--composer-prompt-icon-btn-hover-border",
+      "--composer-prompt-icon-btn-text",
+      "--composer-prompt-input-text",
+      "--composer-prompt-input-placeholder",
+      "--composer-quick-chip-bg",
+      "--composer-quick-chip-border",
+      "--composer-quick-chip-hover-border",
+      "--composer-quick-chip-hover-shadow",
+      "--composer-quick-chip-text",
+      "--composer-send-btn-bg",
+      "--composer-send-btn-border",
+      "--composer-send-btn-text",
+      "--composer-send-btn-shadow",
+      "--composer-send-btn-hover-shadow",
+      "--composer-vibe-btn-bg",
+      "--composer-vibe-btn-border",
+      "--composer-vibe-btn-text",
+      "--composer-vibe-btn-shadow",
+      "--composer-preset-btn-bg",
+      "--composer-preset-btn-border",
+      "--composer-preset-btn-hover-border",
+      "--composer-preset-btn-text",
+      "--composer-voice-status",
+      "--composer-voice-status-active",
+      "--composer-voice-status-error",
+      "--composer-voice-status-result",
+    ],
+  },
+  {
+    name: "Composer attachments & chat",
+    description: "Attachment drops, overlay cards, chat badges, and bubble treatments.",
+    tokens: [
+      "--composer-overlay-bg",
+      "--composer-overlay-border",
+      "--composer-overlay-card-bg",
+      "--composer-overlay-card-border",
+      "--composer-overlay-card-shadow",
+      "--composer-attachment-bg",
+      "--composer-attachment-border",
+      "--composer-attachment-hover-bg",
+      "--composer-attachment-hover-border",
+      "--composer-attachment-surface-bg",
+      "--composer-attachment-surface-border",
+      "--composer-attachment-surface-shadow",
+      "--composer-attachment-ready-bg",
+      "--composer-attachment-loading-text",
+      "--composer-chat-badge-bg",
+      "--composer-chat-badge-text",
+      "--composer-chat-badge-shadow",
+      "--composer-chat-bubble-bg",
+      "--composer-chat-bubble-border",
+      "--composer-chat-bubble-shadow",
+      "--composer-chat-bubble-text",
+      "--composer-chat-bubble-user-bg",
+      "--composer-chat-bubble-user-border",
+      "--composer-chat-bubble-ai-bg",
+      "--composer-chat-streaming",
     ],
   },
   {
@@ -201,25 +342,85 @@ const SURFACE_GUIDE = [
       "--live-chat-border",
       "--live-chat-message-bg",
       "--live-chat-message-border",
+      "--live-chat-message-shadow",
       "--party-hero-background",
       "--party-primary-background",
       "--party-primary-border",
       "--party-control-background",
       "--party-control-border",
+      "--party-status-pill-border",
+    ],
+  },
+  {
+    name: "AI Studio",
+    description: "AI studio cards, glows, chips, and status treatments.",
+    tokens: [
+      "--ai-studio-border",
+      "--ai-studio-card-glare",
+      "--ai-studio-card-glow",
+      "--ai-studio-hero-glow-a",
+      "--ai-studio-hero-glow-b",
+      "--ai-studio-icon-bg",
+      "--ai-studio-icon-fg",
+      "--ai-studio-placeholder",
+      "--ai-studio-preview-base",
+      "--ai-studio-preview-glow-a",
+      "--ai-studio-preview-glow-b",
+      "--ai-studio-status-danger",
+      "--ai-studio-status-success",
+      "--ai-studio-status-danger-ring",
+      "--ai-studio-status-success-ring",
+      "--ai-studio-surface-muted",
+      "--ai-studio-surface-soft",
+      "--ai-studio-surface-strong",
+      "--ai-studio-text-soft",
+      "--ai-studio-text-strong",
+      "--ai-studio-text-subtle",
+      "--ai-studio-chip-bg",
+      "--ai-studio-chip-border",
+    ],
+  },
+  {
+    name: "Glass & overlays",
+    description: "Shared glassmorphism backgrounds and blur radii.",
+    tokens: ["--glass-bg-1", "--glass-bg-2", "--glass-blur"],
+  },
+  {
+    name: "Ladder builder",
+    description: "Ladder panels, prompts, call-to-actions, and glow.",
+    tokens: [
+      "--ladder-surface",
+      "--ladder-surface-strong",
+      "--ladder-border",
+      "--ladder-shadow",
+      "--ladder-step-active-text",
+      "--ladder-prompter-send-text",
+      "--ladder-prompter-status",
     ],
   },
 ];
+
+const THEME_SNAPSHOT_KEYS = Array.from(
+  new Set([...BASE_SNAPSHOT_KEYS, ...SURFACE_GUIDE.flatMap((entry) => entry.tokens), ...EXTRA_SNAPSHOT_KEYS]),
+);
+
+const DEFAULT_THEME_SNAPSHOT = Object.fromEntries(
+  THEME_SNAPSHOT_KEYS.map((key) => [key, DEFAULT_THEME_VARS[key]]).filter(
+    ([, value]) => typeof value === "string" && value.length > 0,
+  ),
+);
 
 const STYLER_SYSTEM_PROMPT = [
   "You are Capsules AI Styler, responsible for translating natural language into theme updates.",
   "You will receive a JSON contract describing the user's prompt, current theme snapshot, surface guide,",
   "allowed CSS variables, and output schema. Read the contract carefully.",
   'Respond with a JSON object that strictly follows the schema: { "summary": string, "description"?: string, "variants": { "light"?: Record<string,string>, "dark"?: Record<string,string> } }.',
-  "Always include both light and dark variants unless the prompt restricts to one mode.",
+  "Always include BOTH light and dark variants unless the user explicitly forbids one; populate both modes for cohesive coverage.",
+  "Scope: theme the app shell, header, rails, cards, CTA, pills, composer (panel, prompt, attachments), ladder builder, store, studio, and feed surfaces; do not leave major surfaces untouched.",
+  "Prioritize global surfaces/text/CTA first; add contextual tweaks only after the core is covered.",
   "Only include CSS custom properties from the provided allowlist.",
-  "Values must be valid CSS colors, gradients, or shadows (no url(), no external references).",
-  "Prefer cohesive, site-wide updates. Cover app shell, cards, header, rail, CTA, and feed surfaces.",
-  "Maintain legible contrast and keep text on brand surfaces readable.",
+  "Values must be valid CSS colors, gradients, or shadows (no url(), no external references). Limit custom gradients to at most 3 and keep them readable.",
+  "Maintain WCAG-appropriate contrast; keep text on brand/surfaces legible and adjust brand-on-color if needed.",
 ].join(" ");
 
 const VARIANT_MAP_SCHEMA = z.record(z.string(), z.string());
@@ -247,9 +448,65 @@ const STYLER_RESPONSE_SCHEMA = z
 
 const MAX_SUMMARY_LENGTH = 160;
 const MAX_DESCRIPTION_LENGTH = 320;
-export const MAX_RETURNED_VARS = 220;
+// Allow the model to return a larger set while still under the validator budget (256 per mode)
+export const MAX_RETURNED_VARS = 256;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// High-impact tokens get priority when trimming to the budget.
+const HIGH_IMPACT_TOKENS = new Set<ThemeTokenCssVar>([
+  "--surface-app",
+  "--surface-overlay",
+  "--surface-elevated",
+  "--surface-muted",
+  "--app-bg",
+  "--color-fg",
+  "--color-fg-muted",
+  "--color-fg-subtle",
+  "--text-on-brand",
+  "--color-brand",
+  "--color-brand-strong",
+  "--color-accent",
+  "--cta-gradient",
+  "--cta-button-gradient",
+  "--cta-button-text",
+  "--gradient-brand",
+  "--pill-bg-1",
+  "--pill-bg-2",
+  "--pill-border",
+  "--card-bg-1",
+  "--card-bg-2",
+  "--card-border",
+  "--card-shadow",
+  "--card-hover-bg-1",
+  "--card-hover-bg-2",
+  "--card-hover-border",
+  "--header-glass-top",
+  "--header-glass-bottom",
+  "--header-border-color",
+  "--header-shadow",
+  "--rail-bg-1",
+  "--rail-bg-2",
+  "--rail-border",
+  "--composer-panel-background",
+  "--composer-main-background",
+  "--composer-rail-background",
+  "--composer-rail-tab-border",
+  "--composer-rail-tab-active-bg",
+  "--composer-rail-tab-active-color",
+  "--composer-text",
+  "--composer-shadow",
+  "--composer-send-btn-bg",
+  "--composer-send-btn-text",
+  "--composer-prompt-surface-bg",
+  "--composer-prompt-surface-border",
+  "--composer-attachment-bg",
+  "--store-hero-bg",
+  "--store-control-bg",
+  "--store-primary-bg",
+  "--studio-surface-panel",
+  "--studio-text-primary",
+]);
 
 export function limitThemeVariants(
   variants: ThemeVariants,
@@ -259,17 +516,20 @@ export function limitThemeVariants(
 
   const prioritizeEntries = (entries: Array<[string, string]>) => {
     if (entries.length <= limit) return entries;
-    const prioritized: Array<[string, string]> = [];
-    const fallback: Array<[string, string]> = [];
+    const highImpact: Array<[string, string]> = [];
+    const exposed: Array<[string, string]> = [];
+    const other: Array<[string, string]> = [];
     for (const entry of entries) {
       const [key] = entry;
-      if (STYLER_THEME_TOKEN_CSS_VARS.has(key as ThemeTokenCssVar)) {
-        prioritized.push(entry);
+      if (HIGH_IMPACT_TOKENS.has(key as ThemeTokenCssVar)) {
+        highImpact.push(entry);
+      } else if (STYLER_THEME_TOKEN_CSS_VARS.has(key as ThemeTokenCssVar)) {
+        exposed.push(entry);
       } else {
-        fallback.push(entry);
+        other.push(entry);
       }
     }
-    return [...prioritized, ...fallback].slice(0, limit);
+    return [...highImpact, ...exposed, ...other].slice(0, limit);
   };
 
   const limited: ThemeVariants = {};

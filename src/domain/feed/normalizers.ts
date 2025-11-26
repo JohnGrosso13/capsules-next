@@ -409,8 +409,8 @@ export function normalizeFeedPosts(rawPosts: unknown[]): FeedPost[] {
     return {
       id: String(identifier),
       dbId: dbIdValue,
-      user_name: userNameValue ?? "Capsules AI",
-      userName: userNameValue ?? "Capsules AI",
+      user_name: userNameValue ?? "Assistant",
+      userName: userNameValue ?? "Assistant",
       user_avatar: userAvatarValue,
       userAvatar: userAvatarValue,
       content: typeof record["content"] === "string" ? (record["content"] as string) : "",
@@ -520,4 +520,3 @@ export function buildFallbackFeedPosts(): FeedPost[] {
 }
 
 export { normalizeFeedPosts as normalizePosts };
-

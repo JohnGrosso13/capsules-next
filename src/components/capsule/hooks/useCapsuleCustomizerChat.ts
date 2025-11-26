@@ -75,6 +75,29 @@ function ensureSentence(text: string): string {
   return /[.!?]$/.test(text) ? text : `${text}.`;
 }
 
+function shouldUseChatMode(prompt: string): boolean {
+  const trimmed = prompt.trim();
+  if (!trimmed.length) return false;
+  const lc = trimmed.toLowerCase();
+  const questionLike =
+    lc.endsWith("?") ||
+    /^what\b/.test(lc) ||
+    /^why\b/.test(lc) ||
+    /^how\b/.test(lc) ||
+    /^should\b/.test(lc) ||
+    /^could\b/.test(lc) ||
+    /^would\b/.test(lc) ||
+    /^can\b/.test(lc);
+  const advisoryKeywords = ["explain", "ideas", "suggest", "recommend", "compare", "difference", "advice"];
+  const assetCommands = ["generate", "make", "create", "design", "render", "edit", "remix", "update", "change"];
+  const mentionsAsset =
+    ["banner", "hero", "tile", "logo", "avatar", "store", "promo"].some((token) => lc.includes(token)) ||
+    assetCommands.some((token) => lc.includes(token));
+  if (questionLike && !mentionsAsset) return true;
+  if (advisoryKeywords.some((token) => lc.includes(token)) && !mentionsAsset) return true;
+  return false;
+}
+
 function sanitizeServerMessage(message?: string | null): string {
   if (!message) return "";
   const trimmed = message.trim();
@@ -636,6 +659,8 @@ export function useCapsuleCustomizerChat({
         return;
       }
 
+      const replyMode: "chat" | "draft" = shouldUseChatMode(trimmed) ? "chat" : "draft";
+
       const previousBanner = selectedBannerRef.current;
       if (attachmentBanner) {
         updateSelectedBanner(attachmentBanner);
@@ -655,9 +680,11 @@ export function useCapsuleCustomizerChat({
       ]);
       setChatBusy(true);
       setSaveError(null);
-      updateSelectedBanner({ kind: "ai", prompt: trimmed });
+      if (replyMode === "draft") {
+        updateSelectedBanner({ kind: "ai", prompt: trimmed });
+      }
 
-      const bannerForEdit = attachmentBanner ?? previousBanner ?? null;
+      const bannerForEdit = replyMode === "draft" ? attachmentBanner ?? previousBanner ?? null : null;
       const previousPromptHistory = {
         base: promptHistoryRef.current.base,
         refinements: [...promptHistoryRef.current.refinements],
@@ -666,6 +693,52 @@ export function useCapsuleCustomizerChat({
 
       const run = async () => {
         try {
+          if (replyMode === "chat") {
+            const customizerPayload: Record<string, unknown> = {
+              customizer: {
+                mode: customizerMode,
+                capsuleName: normalizedName,
+                displayName: normalizedName,
+                personaId: stylePersonaId ?? null,
+                seed: typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : null,
+                guidance: typeof guidance === "number" && Number.isFinite(guidance) ? guidance : null,
+                variantId: null,
+                currentAssetUrl: null,
+                currentAssetData: null,
+              },
+              replyMode,
+            };
+            const promptResponse = await callAiPrompt({
+              message: trimmed,
+              options: customizerPayload,
+              capsuleId: capsuleId ?? null,
+              stream: true,
+              endpoint: "/api/ai/customize",
+              onStreamMessage(content) {
+                setMessages((prev) =>
+                  prev.map((entry) => (entry.id === assistantId ? { ...entry, content } : entry)),
+                );
+              },
+            });
+            const replyText =
+              (promptResponse.message && promptResponse.message.trim().length
+                ? promptResponse.message.trim()
+                : null) ??
+              "Let me know if you want me to generate or edit a visual.";
+            setMessages((prev) =>
+              prev.map((entry) =>
+                entry.id === assistantId
+                  ? {
+                      ...entry,
+                      content: replyText,
+                    }
+                  : entry,
+              ),
+            );
+            setChatBusy(false);
+            return;
+          }
+
           const source = await resolveBannerSourceForEdit(bannerForEdit);
           const aiMode: "generate" | "edit" = source ? "edit" : "generate";
           const currentSourceKey = bannerSourceKey(bannerForEdit);
@@ -687,23 +760,23 @@ export function useCapsuleCustomizerChat({
               refinements: [],
               sourceKey: currentSourceKey,
             };
-        } else {
-          const nextRefinements = [...promptHistoryRef.current.refinements, trimmed];
-          const boundedRefinements = nextRefinements.slice(-MAX_PROMPT_REFINEMENTS);
-          const refinementsBeforeLatest =
-            boundedRefinements.length > 1 ? boundedRefinements.slice(0, -1) : [];
-          const latestRefinement =
-            boundedRefinements[boundedRefinements.length - 1] ?? trimmed;
-          promptForRequest = buildPromptEnvelope(
-            promptHistoryRef.current.base,
-            refinementsBeforeLatest,
-            latestRefinement,
-          );
-          promptHistoryRef.current = {
-            base: promptHistoryRef.current.base,
-            refinements: boundedRefinements,
-            sourceKey: currentSourceKey,
-          };
+          } else {
+            const nextRefinements = [...promptHistoryRef.current.refinements, trimmed];
+            const boundedRefinements = nextRefinements.slice(-MAX_PROMPT_REFINEMENTS);
+            const refinementsBeforeLatest =
+              boundedRefinements.length > 1 ? boundedRefinements.slice(0, -1) : [];
+            const latestRefinement =
+              boundedRefinements[boundedRefinements.length - 1] ?? trimmed;
+            promptForRequest = buildPromptEnvelope(
+              promptHistoryRef.current.base,
+              refinementsBeforeLatest,
+              latestRefinement,
+            );
+            promptHistoryRef.current = {
+              base: promptHistoryRef.current.base,
+              refinements: boundedRefinements,
+              sourceKey: currentSourceKey,
+            };
           }
 
           const customizerPayload: Record<string, unknown> = {
@@ -720,11 +793,13 @@ export function useCapsuleCustomizerChat({
               currentAssetUrl: source?.imageUrl ?? null,
               currentAssetData: source?.imageData ?? null,
             },
+            replyMode,
           };
 
-          const previousDraftPayload: Record<string, unknown> | undefined = customizerDraftRef.current
-            ? { customizerDraft: customizerDraftRef.current }
-            : undefined;
+          const previousDraftPayload: Record<string, unknown> | undefined =
+            replyMode === "draft" && customizerDraftRef.current
+              ? { customizerDraft: customizerDraftRef.current }
+              : undefined;
           const promptResponse = await callAiPrompt({
             message: promptForRequest,
             options: customizerPayload,
@@ -740,6 +815,24 @@ export function useCapsuleCustomizerChat({
               );
             },
           });
+
+          if (promptResponse.action === "chat_reply") {
+            const replyText =
+              promptResponse.message && promptResponse.message.trim().length
+                ? promptResponse.message.trim()
+                : "Let me know if you want me to generate or edit a visual.";
+            setMessages((prev) =>
+              prev.map((entry) =>
+                entry.id === assistantId
+                  ? {
+                      ...entry,
+                      content: replyText,
+                    }
+                  : entry,
+              ),
+            );
+            return;
+          }
 
           if (promptResponse.action !== "draft_post") {
             throw new Error("Customizer response was not a draft payload.");

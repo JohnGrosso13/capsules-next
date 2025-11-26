@@ -563,6 +563,11 @@ type ComposerFormProps = {
   saveStatus: ComposerSaveStatus;
   smartContextEnabled: boolean;
   contextSnapshot?: ComposerContextSnapshot | null;
+  themePreview: {
+    summary: string;
+    details?: string | null;
+    source: "heuristic" | "ai";
+  } | null;
   onSmartContextChange(enabled: boolean): void;
   onChange(draft: ComposerDraft): void;
   onClose(): void;
@@ -578,6 +583,8 @@ type ComposerFormProps = {
     attachments?: PrompterAttachment[] | null,
     options?: PromptSubmitOptions,
   ): Promise<void> | void;
+  onApplyThemePreview(): void;
+  onCancelThemePreview(): void;
   onRetryVideo(): void;
   onSaveCreation(request: ComposerSaveRequest): Promise<string | null> | Promise<void> | void;
 };
@@ -598,6 +605,7 @@ export function ComposerForm({
   saveStatus,
   smartContextEnabled,
   contextSnapshot: contextSnapshotInput,
+  themePreview,
   onSmartContextChange,
   onChange,
   onClose,
@@ -608,6 +616,8 @@ export function ComposerForm({
   onCreateProject,
   onSelectProject,
   onPrompt,
+  onApplyThemePreview,
+  onCancelThemePreview,
   onForceChoice,
   onRetryVideo,
   onSaveCreation,
@@ -1842,6 +1852,33 @@ export function ComposerForm({
         />
 
         <div className={styles.panelBody}>
+          {themePreview ? (
+            <div className={styles.themePreviewBanner} role="status" aria-live="polite">
+              <div className={styles.themePreviewCopy}>
+                <p className={styles.themePreviewLabel}>Previewing theme</p>
+                <p className={styles.themePreviewSummary}>{themePreview.summary}</p>
+                {themePreview.details ? (
+                  <p className={styles.themePreviewDetails}>{themePreview.details}</p>
+                ) : null}
+              </div>
+              <div className={styles.themePreviewActions}>
+                <button
+                  type="button"
+                  className={styles.themePreviewApply}
+                  onClick={onApplyThemePreview}
+                >
+                  Apply theme
+                </button>
+                <button
+                  type="button"
+                  className={styles.themePreviewCancel}
+                  onClick={onCancelThemePreview}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
           <ComposerLayout
             columnsRef={columnsRef}
             mainRef={mainRef}
@@ -2025,4 +2062,3 @@ export function ComposerForm({
     </div>
   );
 }
-

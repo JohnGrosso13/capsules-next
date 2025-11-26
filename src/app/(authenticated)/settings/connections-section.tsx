@@ -394,6 +394,7 @@ export function ConnectionsSettingsSection(): React.JSX.Element {
               type="button"
               variant="secondary"
               size="sm"
+              className={layout.settingsCtaSecondary}
               onClick={() => {
                 void fetchAccounts();
               }}
@@ -450,6 +451,7 @@ export function ConnectionsSettingsSection(): React.JSX.Element {
                           type="button"
                           variant="secondary"
                           size="sm"
+                          className={layout.settingsCtaSecondary}
                           onClick={() => {
                             void handleDisconnect();
                           }}
@@ -458,15 +460,18 @@ export function ConnectionsSettingsSection(): React.JSX.Element {
                           Disconnect
                         </Button>
                       ) : null}
-                      <Button
-                        type="button"
-                        variant={youtubeConnected ? "ghost" : "primary"}
-                        size="sm"
-                        onClick={() => {
-                          void handleConnect();
-                        }}
-                        loading={connectPending}
-                      >
+                        <Button
+                          type="button"
+                          variant={youtubeConnected ? "ghost" : "primary"}
+                          size="sm"
+                          className={
+                            youtubeConnected ? layout.settingsCtaSecondary : layout.settingsCtaPrimary
+                          }
+                          onClick={() => {
+                            void handleConnect();
+                          }}
+                          loading={connectPending}
+                        >
                         {youtubeConnected ? "Reconnect" : "Connect"}
                       </Button>
                     </div>

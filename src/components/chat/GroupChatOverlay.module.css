@@ -6,25 +6,30 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
+  --chat-overlay-strong: color-mix(
+    in srgb,
+    var(--surface-overlay, rgba(6, 8, 18, 0.92)) 25%,
+    rgba(5, 7, 16, 0.98)
+  );
 }
 
 .backdrop {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--surface-overlay, rgba(10, 12, 24, 0.72)) 82%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--chat-overlay-strong) 94%, rgba(5, 7, 16, 0.98));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .panel {
   position: relative;
   width: min(640px, 100%);
   max-height: min(600px, calc(100vh - 120px));
-  background: var(--surface-overlay, rgba(12, 15, 28, 0.92));
+  background: color-mix(in srgb, var(--chat-overlay-strong) 96%, rgba(5, 7, 16, 0.98));
   border: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
   border-radius: 28px;
   box-shadow: 0 24px 48px
-    color-mix(in srgb, var(--surface-overlay, rgba(12, 15, 28, 0.9)) 62%, transparent);
+    color-mix(in srgb, var(--chat-overlay-strong) 68%, rgba(0, 0, 0, 0.24));
   padding: 28px;
   display: flex;
   flex-direction: column;
@@ -111,6 +116,17 @@
   gap: 12px;
   overflow-y: auto;
   padding-right: 6px;
+}
+
+.friendListEmpty {
+  text-align: center;
+  color: color-mix(in srgb, var(--text) 82%, transparent);
+  padding: 18px 12px;
+  border: 1px dashed color-mix(in srgb, var(--card-border) 80%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.04) 60%, transparent);
+  display: grid;
+  gap: 6px;
 }
 
 .friendItem {
@@ -284,6 +300,38 @@
   filter: brightness(1.05);
 }
 
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface-overlay, rgba(16, 18, 34, 0.84)) 76%, transparent);
+  color: var(--text);
+}
+
+.searchInput {
+  border: none;
+  background: transparent;
+  color: inherit;
+  outline: none;
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.searchInput::placeholder {
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+.chatStartPanel {
+  width: min(720px, 100%);
+}
+
+.chatStartSearch {
+  margin-top: -6px;
+}
+
 .error {
   color: color-mix(in srgb, var(--color-danger) 75%, transparent);
   font-size: 0.85rem;
@@ -300,6 +348,14 @@
 
   .friendItem {
     padding: 10px 12px;
+  }
+
+  .searchRow {
+    padding: 9px 12px;
+  }
+
+  .friendListEmpty {
+    padding: 14px 10px;
   }
 
   .actions {

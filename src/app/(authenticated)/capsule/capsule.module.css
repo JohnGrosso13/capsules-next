@@ -3,8 +3,8 @@
   --brand-from: var(--color-brand);
   --brand-mid: var(--color-brand-strong);
   --brand-to: var(--color-accent);
-  --glass-bg-1: rgba(255, 255, 255, 0.1);
-  --glass-bg-2: rgba(255, 255, 255, 0.05);
+  --glass-bg-1: color-mix(in srgb, var(--color-fg) 10%, transparent);
+  --glass-bg-2: color-mix(in srgb, var(--color-fg) 5%, transparent);
   --pill-radius: 999px;
   --prompt-glow-opacity: 0.54;
   --prompt-glow-blur: 18px;
@@ -98,7 +98,7 @@
   );
   --live-stage-border: color-mix(
     in srgb,
-    var(--card-border, rgba(255, 255, 255, 0.16)) 82%,
+    var(--card-border, color-mix(in srgb, var(--color-fg) 16%, transparent)) 82%,
     transparent
   );
   --live-stage-shadow: var(--shadow-lg, 0 16px 40px rgba(5, 10, 30, 0.38));
@@ -130,7 +130,7 @@
   );
   --live-stage-message-border: color-mix(
     in srgb,
-    var(--card-border, rgba(255, 255, 255, 0.16)) 60%,
+    var(--card-border, color-mix(in srgb, var(--color-fg) 16%, transparent)) 60%,
     transparent
   );
   --live-stage-message-shadow: 0 18px 36px
@@ -187,7 +187,7 @@
   --store-filter-highlight: color-mix(in srgb, var(--color-brand, #2563eb) 24%, transparent);
   --store-filter-pill-border: color-mix(
     in srgb,
-    var(--card-border, rgba(255, 255, 255, 0.16)) 85%,
+    var(--card-border, color-mix(in srgb, var(--color-fg) 16%, transparent)) 85%,
     transparent
   );
   --store-filter-pill-bg: color-mix(
@@ -203,7 +203,7 @@
   --store-filter-pill-bg-active: color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent);
   --store-search-border: color-mix(
     in srgb,
-    var(--card-border, rgba(255, 255, 255, 0.16)) 85%,
+    var(--card-border, color-mix(in srgb, var(--color-fg) 16%, transparent)) 85%,
     transparent
   );
   --store-search-bg: color-mix(
@@ -213,7 +213,7 @@
   );
   --store-control-border: color-mix(
     in srgb,
-    var(--card-border, rgba(255, 255, 255, 0.16)) 85%,
+    var(--card-border, color-mix(in srgb, var(--color-fg) 16%, transparent)) 85%,
     transparent
   );
   --store-control-bg: color-mix(
@@ -224,7 +224,7 @@
   --store-control-highlight: color-mix(in srgb, var(--color-brand, #2563eb) 26%, transparent);
   --store-product-card-border: color-mix(
     in srgb,
-    var(--card-border, rgba(255, 255, 255, 0.16)) 80%,
+    var(--card-border, color-mix(in srgb, var(--color-fg) 16%, transparent)) 80%,
     transparent
   );
   --store-product-card-bg: color-mix(
@@ -236,7 +236,7 @@
     color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 6%, transparent);
   --store-panel-border: color-mix(
     in srgb,
-    var(--card-border, rgba(255, 255, 255, 0.16)) 72%,
+    var(--card-border, color-mix(in srgb, var(--color-fg) 16%, transparent)) 72%,
     transparent
   );
   --store-panel-bg: color-mix(
@@ -284,8 +284,8 @@
   border-radius: var(--radius-2xl, 20px);
   padding: clamp(10px, 1.2vw, 16px);
   background:
-    radial-gradient(600px 200px at 20% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
-    radial-gradient(600px 200px at 80% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(600px 200px at 20% -10%, color-mix(in srgb, var(--color-fg) 6%, transparent), transparent 60%),
+    radial-gradient(600px 200px at 80% -10%, color-mix(in srgb, var(--color-fg) 6%, transparent), transparent 60%),
     linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
   color: var(--text-2);
   font-weight: 900;
@@ -316,11 +316,12 @@
   display: grid;
   gap: clamp(14px, 2vw, 22px);
   padding: clamp(18px, 2.6vw, 26px);
+  padding-bottom: clamp(28px, 3vw, 40px);
   border-radius: var(--radius-3xl, 26px);
   border: 1px solid var(--card-border);
   background:
     radial-gradient(600px 220px at 20% -20%, rgba(255, 255, 255, 0.09), transparent 60%),
-    radial-gradient(620px 260px at 80% -24%, rgba(255, 255, 255, 0.06), transparent 65%),
+    radial-gradient(620px 260px at 80% -24%, color-mix(in srgb, var(--color-fg) 6%, transparent), transparent 65%),
     linear-gradient(
       180deg,
       var(--card-bg-1, rgba(22, 30, 58, 0.62)),
@@ -355,7 +356,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(12, 16, 34, 0.12) 0%, rgba(6, 10, 26, 0.36) 80%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 12%, transparent) 0%, rgba(6, 10, 26, 0.36) 80%);
   pointer-events: none;
 }
 
@@ -406,7 +407,7 @@
 .heroCustomizeBtn:hover,
 .heroCustomizeBtn:focus-visible {
   transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.62);
+  border-color: color-mix(in srgb, var(--color-fg) 62%, transparent);
   background: color-mix(in srgb, rgba(14, 16, 36, 0.48) 90%, transparent);
 }
 
@@ -422,24 +423,29 @@
 
 .heroCustomizeBtnSecondary:hover,
 .heroCustomizeBtnSecondary:focus-visible {
-  border-color: rgba(255, 255, 255, 0.42);
+  border-color: color-mix(in srgb, var(--color-fg) 42%, transparent);
   background: color-mix(in srgb, rgba(24, 28, 56, 0.46) 90%, transparent);
 }
 
 .heroBody {
+  position: absolute;
+  left: clamp(22px, 3vw, 40px);
+  right: clamp(22px, 3vw, 40px);
+  bottom: clamp(52px, 6vw, 80px);
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: clamp(16px, 4vw, 32px);
+  align-items: flex-start;
+  gap: clamp(18px, 3vw, 28px);
   flex-wrap: wrap;
-  margin-top: calc(-1 * clamp(68px, 8vw, 118px));
+  z-index: 2;
 }
 
 .heroDetails {
   display: grid;
   gap: 8px;
   min-width: 0;
-  align-self: center;
+  align-self: flex-end;
+  max-width: min(60%, 420px);
 }
 
 .heroTitle {
@@ -447,13 +453,18 @@
   font-weight: 900;
   color: var(--text, white);
   margin: 0;
+  text-shadow: 0 2px 8px color-mix(in srgb, rgba(0, 0, 0, 0.6) 55%, transparent);
+  line-height: 1.1;
 }
 
 .heroActions {
   display: inline-flex;
   gap: 12px;
   flex-wrap: wrap;
-  align-self: center;
+  align-self: flex-start;
+  margin-left: auto;
+  max-width: 100%;
+  justify-content: flex-end;
 }
 
 .heroAction {
@@ -503,7 +514,7 @@
 
 .heroActionSecondary:hover,
 .heroActionSecondary:focus-visible {
-  border-color: rgba(255, 255, 255, 0.42);
+  border-color: color-mix(in srgb, var(--color-fg) 42%, transparent);
   background: color-mix(in srgb, rgba(18, 22, 44, 0.7) 86%, transparent);
 }
 .heroActionDanger:hover,
@@ -523,7 +534,7 @@
   gap: 10px;
   overflow-x: auto;
   padding: 2px;
-  margin-top: calc(-1 * clamp(18px, 2.6vw, 36px));
+  margin-top: clamp(16px, 2.4vw, 28px);
 }
 
 .heroTab {
@@ -558,7 +569,7 @@
   );
   border-color: transparent;
   color: white;
-  box-shadow: 0 10px 24px rgba(8, 14, 36, 0.32);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 32%, transparent);
 }
 
 .heroTab:focus-visible {
@@ -573,8 +584,8 @@
     gap: 10px;
     padding: 6px;
     border-radius: var(--radius-2xl, 20px);
-    background: linear-gradient(180deg, rgba(15, 20, 44, 0.28), rgba(8, 12, 32, 0.18));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 28%, transparent), rgba(8, 12, 32, 0.18));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-fg) 4%, transparent);
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -594,10 +605,14 @@
   }
 
   .heroBody {
+    position: static;
+    left: auto;
+    right: auto;
+    bottom: auto;
     flex-direction: column;
     align-items: stretch;
-    margin-top: 0;
-    padding-top: 0;
+    margin-top: 12px;
+    padding: 0;
   }
 
   .heroActions {
@@ -624,8 +639,8 @@
     font-size: 0.95rem;
     border-radius: clamp(16px, 4vw, 22px);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 6px 20px rgba(6, 10, 28, 0.2);
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent),
+      0 6px 20px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 20%, transparent);
   }
 
   .tabIcon {
@@ -663,8 +678,8 @@
   border: 1px solid var(--card-border);
   overflow: hidden;
   background:
-    radial-gradient(1200px 400px at 20% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
-    radial-gradient(1200px 400px at 80% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(1200px 400px at 20% -10%, color-mix(in srgb, var(--color-fg) 6%, transparent), transparent 60%),
+    radial-gradient(1200px 400px at 80% -10%, color-mix(in srgb, var(--color-fg) 6%, transparent), transparent 60%),
     linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
   box-shadow: var(--card-shadow);
   display: flex;
@@ -870,7 +885,7 @@
   background: var(--store-banner-frame-bg);
   box-shadow:
     inset 0 0 0 1px var(--store-banner-frame-outline),
-    var(--shadow-lg, 0 18px 38px rgba(11, 16, 40, 0.42));
+    var(--shadow-lg, 0 18px 38px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent));
 }
 .storeBannerSurface {
   width: 100%;
@@ -1009,7 +1024,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text, rgba(255, 255, 255, 0.9));
+  color: var(--text, color-mix(in srgb, var(--color-fg) 90%, transparent));
 }
 .storeFilterList {
   margin: 0;
@@ -1075,7 +1090,7 @@
 }
 .storeFilterDivider {
   height: 1px;
-  background: color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.16)) 75%, transparent);
+  background: color-mix(in srgb, var(--card-border, color-mix(in srgb, var(--color-fg) 16%, transparent)) 75%, transparent);
   border: 0;
 }
 .storeSortSection {
@@ -1104,12 +1119,12 @@
   border: 1px solid var(--store-control-border);
   background:
     linear-gradient(135deg, var(--store-control-highlight), transparent), var(--store-control-bg);
-  color: var(--text, rgba(255, 255, 255, 0.9));
+  color: var(--text, color-mix(in srgb, var(--color-fg) 90%, transparent));
   font-size: 0.86rem;
   font-weight: 600;
   cursor: not-allowed;
   box-shadow: inset 0 1px 0
-    color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.9)) 5%, transparent);
+    color-mix(in srgb, var(--text, color-mix(in srgb, var(--color-fg) 90%, transparent)) 5%, transparent);
 }
 .storeQuickSorts {
   display: grid;
@@ -1581,14 +1596,17 @@
   }
 }
 
-/* Editable sections grid */
-
-
+/* Editable sections grid */
+
+
+
+
+
 
 .libraryState {
   padding: 28px 16px;
   text-align: center;
-  color: var(--text-2, rgba(255, 255, 255, 0.7));
+  color: var(--text-2, color-mix(in srgb, var(--color-fg) 70%, transparent));
   display: grid;
   gap: 12px;
   justify-items: center;
@@ -1720,7 +1738,7 @@
   align-items: flex-start;
   font-size: 0.98rem;
   line-height: 1.45;
-  color: var(--text, rgba(255, 255, 255, 0.9));
+  color: var(--text, color-mix(in srgb, var(--color-fg) 90%, transparent));
 }
 .historyListItem::before {
   content: "•";
@@ -1745,7 +1763,7 @@
   align-items: baseline;
   gap: 12px;
   font-weight: 700;
-  color: var(--text, rgba(255, 255, 255, 0.9));
+  color: var(--text, color-mix(in srgb, var(--color-fg) 90%, transparent));
 }
 .historyTimelineDate {
   font-size: 0.85rem;

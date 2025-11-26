@@ -23,10 +23,15 @@ import type {
   LadderAiSuggestion,
   LadderConfig,
   LadderGameConfig,
+  LadderChallenge,
+  LadderChallengeOutcome,
+  LadderChallengeResult,
+  LadderMatchRecord,
   LadderRegistrationConfig,
   LadderScheduleConfig,
   LadderScoringConfig,
   LadderSectionBlock,
+  LadderStateMeta,
   LadderSections,
   LadderStatus,
   LadderVisibility,
@@ -35,6 +40,16 @@ import { findCapsuleById, getCapsuleMemberRecord } from "@/server/capsules/repos
 import { enqueueCapsuleKnowledgeRefresh } from "@/server/capsules/knowledge";
 import { randomUUID } from "crypto";
 import { AIConfigError, callOpenAIChat, extractJSON } from "@/lib/ai/prompter";
+import {
+  buildContextMetadata,
+  getCapsuleHistorySnippets,
+  getChatContext,
+} from "@/server/chat/retrieval";
+import {
+  fetchStructuredPayloads,
+  findCapsulePosts,
+  getCapsuleMembershipStats,
+} from "@/server/capsules/structured";
 
 export type CreateCapsuleLadderInput = {
   capsuleId: string;
@@ -120,7 +135,7 @@ const LADDER_SECTION_SCHEMA = {
   additionalProperties: false,
   properties: {
     title: { type: "string", minLength: 3, maxLength: 80 },
-    body: { type: "string", maxLength: 1200 },
+    body: { type: "string", minLength: 24, maxLength: 1200 },
     bulletPoints: {
       type: "array",
       items: { type: "string", maxLength: 200 },
@@ -169,8 +184,50 @@ const LADDER_DRAFT_RESPONSE_SCHEMA: OpenAIJsonSchema = {
           region: { type: "string", maxLength: 60 },
           summary: { type: "string", maxLength: 200 },
         },
+        required: ["title"],
       },
-      config: { type: "object", additionalProperties: true },
+      config: {
+        type: "object",
+        additionalProperties: true,
+        properties: {
+          scoring: {
+            type: "object",
+            additionalProperties: true,
+            properties: {
+              system: { type: "string", enum: ["simple", "elo", "ai", "points", "custom"] },
+              initialRating: { type: "integer" },
+              kFactor: { type: "integer" },
+              placementMatches: { type: "integer" },
+              decayPerDay: { type: "integer" },
+              bonusForStreak: { type: "integer" },
+            },
+            required: ["system"],
+          },
+          schedule: {
+            type: "object",
+            additionalProperties: true,
+            properties: {
+              cadence: { type: "string", minLength: 6, maxLength: 120 },
+              kickoff: { type: "string", minLength: 3, maxLength: 120 },
+              timezone: { type: "string", minLength: 2, maxLength: 60 },
+            },
+            required: ["cadence"],
+          },
+          registration: {
+            type: "object",
+            additionalProperties: true,
+            properties: {
+              type: { type: "string", enum: ["open", "invite", "waitlist"] },
+              maxTeams: { type: "integer" },
+              requirements: { type: "array", items: { type: "string", maxItems: 200 }, maxItems: 8 },
+              opensAt: { type: "string" },
+              closesAt: { type: "string" },
+            },
+            required: ["type"],
+          },
+        },
+        required: ["scoring", "schedule", "registration"],
+      },
       sections: {
         type: "object",
         additionalProperties: false,
@@ -186,6 +243,7 @@ const LADDER_DRAFT_RESPONSE_SCHEMA: OpenAIJsonSchema = {
             maxItems: 6,
           },
         },
+        required: ["overview", "rules", "shoutouts", "upcoming", "results"],
       },
       ai_plan: {
         type: "object",
@@ -475,6 +533,16 @@ function sanitizeNumber(
   return resolved;
 }
 
+function normalizeTimestampString(value: unknown): string | null {
+  if (typeof value === "string" || value instanceof Date) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+  return null;
+}
+
 function sanitizeStringList(value: unknown, maxLength: number, maxItems = 8): string[] {
   if (!Array.isArray(value)) return [];
   const out: string[] = [];
@@ -526,18 +594,7 @@ function sanitizeSectionBlock(raw: unknown, fallbackTitle: string): LadderSectio
 function sanitizeSections(raw: unknown): LadderSections {
   const source = isPlainObject(raw) ? raw : {};
   const overview = sanitizeSectionBlock(source.overview, "Ladder Overview");
-  if (!overview.body) {
-    overview.body =
-      "Welcome competitors—this ladder keeps your community active with AI-assisted match flow, live stat shoutouts, and weekly challenges.";
-  }
   const rules = sanitizeSectionBlock(source.rules, "Core Rules");
-  if (!rules.body && !rules.bulletPoints?.length) {
-    rules.bulletPoints = [
-      "Match reporting within 24 hours with score screenshots",
-      "ELO shifts scale with opponent rank (upsets matter)",
-      "Three strike policy for no-shows or dispute escalations",
-    ];
-  }
   const shoutouts = sanitizeSectionBlock(source.shoutouts, "Spotlight & Shoutouts");
   const upcoming = sanitizeSectionBlock(source.upcoming, "Upcoming Challenges");
   const results = sanitizeSectionBlock(source.results, "Recent Results");
@@ -640,7 +697,19 @@ function sanitizeConfig(raw: unknown, seed: LadderDraftSeed): LadderConfig {
   const scoring: LadderScoringConfig = isPlainObject(config.scoring)
     ? { ...(config.scoring as LadderScoringConfig) }
     : {};
-  scoring.system = "elo";
+  type ScoringSystem = "simple" | "elo" | "ai" | "points" | "custom";
+  const normalizeSystem = (value: unknown): ScoringSystem => {
+    if (typeof value !== "string") return "elo";
+    const cleaned = value.trim().toLowerCase();
+    const allowed: Array<ScoringSystem> = ["simple", "elo", "ai", "points", "custom"];
+    if ((allowed as string[]).includes(cleaned)) {
+      return cleaned as ScoringSystem;
+    }
+    if (cleaned.includes("ai")) return "ai";
+    if (cleaned.includes("simple") || cleaned.includes("casual") || cleaned.includes("points")) return "simple";
+    return "elo";
+  };
+  scoring.system = normalizeSystem((scoring as { system?: unknown }).system);
   if (scoring.initialRating == null) scoring.initialRating = 1200;
   if (scoring.kFactor == null) scoring.kFactor = 32;
   if (scoring.placementMatches == null) scoring.placementMatches = 3;
@@ -748,9 +817,16 @@ function sanitizeAiPlan(
   return plan;
 }
 
-function sanitizeMeta(raw: unknown, seed: LadderDraftSeed): Record<string, unknown> | null {
+function sanitizeMeta(
+  raw: unknown,
+  seed: LadderDraftSeed,
+  contextMeta?: Record<string, unknown> | null,
+): Record<string, unknown> | null {
   const base = isPlainObject(raw) ? { ...raw } : {};
   base.seed = sanitizeSeedForMeta(seed);
+  if (contextMeta && Object.keys(contextMeta).length) {
+    base.context = contextMeta;
+  }
   return Object.keys(base).length ? base : null;
 }
 
@@ -775,11 +851,237 @@ function sanitizeSeedForMeta(seed: LadderDraftSeed): Record<string, unknown> {
   return result;
 }
 
+const truncateContextSnippet = (value: string, limit = 360): string => {
+  const trimmed = value.trim();
+  if (trimmed.length <= limit) return trimmed;
+  return `${trimmed.slice(0, Math.max(0, limit - 3))}...`;
+};
+
+const GAME_TEMPLATE_HINTS: Record<
+  string,
+  { modes?: string[]; cadence?: string; rules?: string[]; platforms?: string[] }
+> = {
+  "rocket league": {
+    modes: ["3v3 standard", "2v2 ranked doubles"],
+    cadence: "Weekly play nights + weekend spotlight",
+    rules: ["Best-of-five sets", "No sub-ins mid-series without approval"],
+    platforms: ["Cross-play", "PC/console parity"],
+  },
+  valorant: {
+    modes: ["5v5 competitive", "Best-of-24 rounds", "Map veto into featured pool"],
+    cadence: "Weekly matches, monthly finals lobby",
+    rules: ["Timeout limits, agent bans only in finals", "Use in-client match history for proof"],
+    platforms: ["PC"],
+  },
+  overwatch: {
+    modes: ["5v5 role queue", "Control/Hybrid/Escort rotations"],
+    cadence: "Two match windows per week",
+    rules: ["No hero pools unless finals", "Best-of-five control, best-of-three payload"],
+    platforms: ["Cross-play with input pooling"],
+  },
+};
+
+type BlueprintContextSnippet = {
+  id: string;
+  title: string;
+  snippet: string;
+  source: string;
+  createdAt?: string | null;
+  weight?: number;
+};
+
+async function collectBlueprintContext(
+  actorId: string,
+  capsuleId: string,
+  seed: LadderDraftSeed,
+): Promise<{ prompt: string | null; metadata: Record<string, unknown> | null }> {
+  const queryParts = [
+    sanitizeText(seed.goal, 260, null),
+    sanitizeText(seed.audience, 200, null),
+    sanitizeText(seed.notes, 260, null),
+    sanitizeText(seed.existingRules, 200, null),
+    sanitizeText(seed.registrationNotes, 200, null),
+    sanitizeText(seed.prizeIdeas?.join(" "), 200, null),
+  ].filter((entry): entry is string => Boolean(entry));
+  const query = queryParts.join("\n").trim();
+
+  const keywords = query
+    .toLowerCase()
+    .split(/[^a-z0-9+]+/i)
+    .filter((token) => token.length > 2);
+
+  const snippets: BlueprintContextSnippet[] = [];
+  const addSnippet = (snippet: BlueprintContextSnippet | null) => {
+    if (!snippet) return;
+    const cleaned = truncateContextSnippet(snippet.snippet, 400);
+    if (!cleaned.length) return;
+    snippets.push({ ...snippet, snippet: cleaned });
+  };
+
+  const rankSnippet = (snippet: BlueprintContextSnippet): number => {
+    const text = `${snippet.title} ${snippet.snippet}`.toLowerCase();
+    let score = snippet.weight ?? 1;
+    keywords.forEach((keyword) => {
+      if (text.includes(keyword)) {
+        score += 1.5;
+      }
+    });
+    if (snippet.createdAt) {
+      const ts = Date.parse(snippet.createdAt);
+      if (!Number.isNaN(ts)) {
+        const ageDays = Math.max(1, (Date.now() - ts) / (1000 * 60 * 60 * 24));
+        score += Math.max(0, 6 - Math.log2(ageDays + 1));
+      }
+    }
+    return score;
+  };
+
+  try {
+    const context = await getChatContext({
+      ownerId: actorId,
+      capsuleId,
+      message: query.slice(0, 1800),
+      limit: 10,
+      origin: "ladders.blueprint",
+    });
+    const metadata = buildContextMetadata(context);
+    context?.snippets?.forEach((entry) =>
+      addSnippet({
+        id: entry.id,
+        title: entry.title ?? "Capsule memory",
+        snippet: entry.snippet,
+        source: entry.source ?? entry.kind ?? "memory",
+        createdAt: entry.createdAt ?? null,
+      }),
+    );
+
+    const historySnippets = await getCapsuleHistorySnippets({
+      capsuleId,
+      viewerId: actorId,
+      limit: 4,
+      query: query.length ? query : null,
+    });
+    historySnippets.forEach((entry) =>
+      addSnippet({
+        id: entry.id,
+        title: entry.title ?? "Capsule history",
+        snippet: entry.snippet,
+        source: entry.source ?? entry.kind ?? "history",
+        createdAt: entry.createdAt ?? null,
+        weight: 2,
+      }),
+    );
+
+    const membershipPayloads = await fetchStructuredPayloads({
+      capsuleId,
+      intents: [{ kind: "membership" }],
+    }).catch(() => []);
+    membershipPayloads
+      .filter((payload) => payload.kind === "membership")
+      .forEach((payload) => {
+        const membership = payload as Awaited<ReturnType<typeof getCapsuleMembershipStats>>;
+        const rolesLine = membership.roleCounts
+          .slice(0, 3)
+          .map((entry) => `${entry.role}: ${entry.count}`)
+          .join(" | ");
+        const recentLine =
+          membership.recentJoins.length && membership.recentJoins[0]
+            ? `Recent joins - ${membership.recentJoins[0].label}: ${membership.recentJoins[0].count}`
+            : "";
+        addSnippet({
+          id: "membership-summary",
+          title: "Membership snapshot",
+          snippet: [`Members: ${membership.totalMembers}`, rolesLine, recentLine].filter(Boolean).join("\n"),
+          source: "membership",
+          weight: 2.5,
+        });
+      });
+
+    const posts = await findCapsulePosts({
+      capsuleId,
+      rangeDays: 120,
+      limit: 6,
+    }).catch(() => null);
+    posts?.posts.slice(0, 4).forEach((post) =>
+      addSnippet({
+        id: `post:${post.id}`,
+        title: posts.filters.author ? `Post by ${post.author}` : "Recent post",
+        snippet: `${post.title}${post.createdAt ? ` (${post.createdAt})` : ""}`,
+        source: "posts",
+        createdAt: post.createdAt,
+        weight: 1.2,
+      }),
+    );
+
+    const ladders = await listCapsuleLaddersByCapsule(capsuleId).catch(() => []);
+    ladders.slice(0, 3).forEach((ladder, index) => {
+      const game = ladder.game?.title ?? "Game";
+      const status = ladder.status ?? "draft";
+      const summary = ladder.summary ?? "";
+      addSnippet({
+        id: `ladder:${ladder.id}`,
+        title: `Past ladder ${index + 1}`,
+        snippet: `${ladder.name} (${game}, ${status})${summary ? ` - ${summary}` : ""}`,
+        source: "ladder_history",
+        createdAt: ladder.createdAt,
+        weight: 2,
+      });
+    });
+
+    if (seed.game?.title) {
+      const key = seed.game.title.toLowerCase();
+      const template = Object.entries(GAME_TEMPLATE_HINTS).find(([name]) => key.includes(name))?.[1];
+      if (template) {
+        const lines = [
+          template.modes?.length ? `Modes: ${template.modes.join(", ")}` : null,
+          template.cadence ? `Cadence: ${template.cadence}` : null,
+          template.rules?.length ? `Rules: ${template.rules.join(" | ")}` : null,
+          template.platforms?.length ? `Platforms: ${template.platforms.join(", ")}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        addSnippet({
+          id: `game-template:${key}`,
+          title: `${seed.game.title} template`,
+          snippet: lines,
+          source: "game_template",
+          weight: 1.8,
+        });
+      }
+    }
+
+    const ranked = snippets
+      .map((snippet) => ({ snippet, score: rankSnippet(snippet) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12)
+      .map((entry, index) => ({ ...entry.snippet, rank: index + 1 }));
+
+    if (!ranked.length) {
+      return { prompt: null, metadata };
+    }
+
+    const lines = ["Context to ground the ladder blueprint (use when relevant):"];
+    ranked.forEach((entry) => {
+      lines.push(`Context ${entry.rank}: ${entry.title} [${entry.source}]`);
+      lines.push(entry.snippet);
+      lines.push("---");
+    });
+    lines.push("Blend these signals into names, format, rules, rewards, cadence, and shoutouts. Respond with JSON only.");
+    const usedIds = ranked.map((entry) => entry.id);
+    const mergedMetadata = { ...(metadata ?? {}), blueprintContextIds: usedIds };
+    return { prompt: lines.join("\n"), metadata: mergedMetadata };
+  } catch (error) {
+    console.warn("ladder.draft.context_failed", error);
+    return { prompt: null, metadata: null };
+  }
+}
+
 function sanitizeLadderDraft(
   raw: Record<string, unknown>,
   seed: LadderDraftSeed,
+  contextMeta?: Record<string, unknown> | null,
 ): LadderDraftResult {
-  const name = sanitizeText(raw.name, 80, "Ladder Launch") ?? "Ladder Launch";
+  const name = sanitizeText(raw.name, 80, null);
   const summary = sanitizeText(raw.summary, 260, null);
   const visibility = sanitizeVisibility(raw.visibility, "capsule");
   const publish = sanitizeBoolean(raw.publish, false);
@@ -789,10 +1091,12 @@ function sanitizeLadderDraft(
   const sections = sanitizeSections(raw.sections);
   const aiPlan = sanitizeAiPlan(raw.ai_plan, seed, summary);
   const members = sanitizeMembers(raw.members);
-  const meta = sanitizeMeta(raw.meta, seed);
+  const meta = sanitizeMeta(raw.meta, seed, contextMeta);
+
+  const resolvedName = name ?? "Ladder Launch";
 
   return {
-    name,
+    name: resolvedName,
     summary,
     game,
     config,
@@ -806,13 +1110,42 @@ function sanitizeLadderDraft(
   };
 }
 
+function ensureDraftCoverage(result: LadderDraftResult): void {
+  const missing: string[] = [];
+  if (!result.name || result.name.length < 3) missing.push("name");
+  if (!result.summary || result.summary.length < 20) missing.push("summary");
+  if (!result.game?.title || result.game.title.length < 3) missing.push("game.title");
+  if (!result.config?.schedule?.cadence) missing.push("schedule.cadence");
+  const registration = result.config?.registration ?? {};
+  if (!(registration as Record<string, unknown>)?.type) missing.push("registration.type");
+  const registrationHasDetails =
+    Boolean((registration as Record<string, unknown>)?.maxTeams) ||
+    Boolean(
+      Array.isArray((registration as Record<string, unknown>)?.requirements) &&
+        ((registration as Record<string, unknown>)?.requirements as unknown[]).length,
+    );
+  if (!registrationHasDetails) missing.push("registration.details");
+  if (!result.config?.scoring?.system) missing.push("scoring.system");
+  const sections = result.sections ?? {};
+  const sectionKeys: Array<keyof LadderSections> = ["overview", "rules", "shoutouts", "upcoming", "results"];
+  sectionKeys.forEach((key) => {
+    const block = (sections as Record<string, LadderSections[keyof LadderSections]>)[key];
+    if (!block || Array.isArray(block) || (!block.body && !(block.bulletPoints?.length))) {
+      missing.push(`sections.${key}`);
+    }
+  });
+  if (missing.length) {
+    throw new Error(`draft_incomplete: ${missing.join(", ")}`);
+  }
+}
+
 export async function generateLadderDraftForCapsule(
   actorId: string,
   capsuleId: string,
   seed: LadderDraftSeed,
 ): Promise<LadderDraftResult> {
-  const context = await requireCapsuleManager(capsuleId, actorId);
-  const capsule = await findCapsuleById(context.capsuleId);
+  const managerContext = await requireCapsuleManager(capsuleId, actorId);
+  const capsule = await findCapsuleById(managerContext.capsuleId);
   if (!capsule?.id) {
     throw new CapsuleLadderAccessError("not_found", "Capsule not found.", 404);
   }
@@ -861,10 +1194,16 @@ export async function generateLadderDraftForCapsule(
     details.push(`Additional Notes: ${sanitizeText(seed.notes, 280, null)}`);
   }
 
+  const { prompt: contextPrompt, metadata: contextMetadata } = await collectBlueprintContext(
+    actorId,
+    managerContext.capsuleId,
+    seed,
+  );
+
   const systemMessage = {
     role: "system",
     content:
-      "You are LadderForge, an elite esports competition architect. Design AI-augmented ladders that blend weekly momentum, fair matchmaking, and hype moments. Respond ONLY with JSON matching the provided schema. Keep copy concise, motivational, and esports-savvy.",
+      "You are Capsule AI. Analyze the user's prompt and fill out a ladder configuration with natural, user-aligned copy. Pick the best scoring format (simple, elo, or ai) for the goal and set config.scoring.system accordingly. Respond ONLY with JSON matching the provided schema.",
   } as const;
 
   const userMessage = {
@@ -873,13 +1212,19 @@ export async function generateLadderDraftForCapsule(
       "Design a competitive gaming ladder for this capsule.",
       "Requirements:",
       "- Respect the supplied schema and output valid JSON only.",
-      "- Use an ELO ladder as the scoring backbone and mention weekly activations.",
-      "- Highlight how AI assistants help with moderation, scheduling, and storytelling.",
-      "- Include creative rules, shoutouts, and upcoming challenge hooks.",
+      "- Use the user's prompt and tone to decide details; avoid adding marketing/hype language they did not imply.",
+      "- Choose the scoring format that fits the intent (simple/elo/ai) and set config.scoring.system; include rating knobs if relevant.",
+      "- Fill every section: overview, rules, shoutouts, upcoming, and results with concise, relevant bodies/bullets.",
+      "- Set sign-ups: config.registration.type (open/invite/waitlist), a reasonable maxTeams cap if implied, and short requirements/opens/closes if hinted. If honor-system is mentioned, avoid proof/dispute requirements.",
+      "- Set schedule: cadence/kickoff/timezone if hinted; if indefinite, mark cadence as ongoing/open.",
+      "- Keep names and summaries specific to the game and vibe the user describes.",
       "",
       "Inputs:",
       ...details,
-    ].join("\n"),
+      contextPrompt ? ["", contextPrompt] : [],
+    ]
+      .flat()
+      .join("\n"),
   } as const;
 
   try {
@@ -891,7 +1236,9 @@ export async function generateLadderDraftForCapsule(
     const parsed =
       extractJSON<Record<string, unknown>>(content) ??
       (JSON.parse(content) as Record<string, unknown>);
-    return sanitizeLadderDraft(parsed, seed);
+    const result = sanitizeLadderDraft(parsed, seed, contextMetadata);
+    ensureDraftCoverage(result);
+    return result;
   } catch (error) {
     if (error instanceof AIConfigError) {
       throw error;
@@ -1195,4 +1542,490 @@ export async function removeCapsuleLadderMember(
     throw new CapsuleLadderAccessError("not_found", "Member not found.", 404);
   }
   await deleteCapsuleLadderMemberRecord(ladder.id, memberId);
+}
+
+function normalizeChallengeOutcome(value: unknown): LadderChallengeOutcome | null {
+  if (value === "challenger" || value === "opponent" || value === "draw") {
+    return value;
+  }
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "challenger" || normalized === "opponent" || normalized === "draw") {
+    return normalized;
+  }
+  return null;
+}
+
+function sanitizeRankChanges(value: unknown): Array<{ memberId: string; from: number; to: number }> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!isPlainObject(entry)) return null;
+      const memberId = normalizeId(entry.memberId as string);
+      const from = sanitizeNumber(entry.from, null, 1, 9999);
+      const to = sanitizeNumber(entry.to, null, 1, 9999);
+      if (!memberId || from === null || to === null) return null;
+      return { memberId, from, to };
+    })
+    .filter((entry): entry is { memberId: string; from: number; to: number } => Boolean(entry));
+}
+
+function sanitizeChallenge(
+  value: unknown,
+  ladderId: string,
+): LadderChallenge | null {
+  if (!isPlainObject(value)) return null;
+  const source = value as Record<string, unknown>;
+  const id = normalizeId(source.id as string);
+  const challengerId = normalizeId(source.challengerId as string);
+  const opponentId = normalizeId(source.opponentId as string);
+  if (!id || !challengerId || !opponentId) return null;
+  const createdAt = normalizeTimestampString(source.createdAt) ?? new Date().toISOString();
+  const statusRaw = sanitizeText(source.status, 20, "pending");
+  const status: LadderChallenge["status"] =
+    statusRaw === "resolved" || statusRaw === "void" ? statusRaw : "pending";
+  const note = sanitizeText(source.note, 240, null) ?? null;
+  const createdById = normalizeId(source.createdById as string);
+  const resultRaw = isPlainObject(source.result) ? (source.result as Record<string, unknown>) : null;
+  let result: LadderChallenge["result"] | undefined;
+  if (resultRaw) {
+    const outcome = normalizeChallengeOutcome(resultRaw.outcome);
+    if (outcome) {
+      result = {
+        outcome,
+        reportedAt: normalizeTimestampString(resultRaw.reportedAt) ?? createdAt,
+        reportedById: normalizeId(resultRaw.reportedById as string),
+        note: sanitizeText(resultRaw.note, 240, null) ?? null,
+      };
+      const rankChanges = sanitizeRankChanges(resultRaw.rankChanges);
+      if (rankChanges.length && result) {
+        result.rankChanges = rankChanges;
+      }
+    }
+  }
+
+  const challenge: LadderChallenge = {
+    id,
+    ladderId,
+    challengerId,
+    opponentId,
+    createdAt,
+    createdById,
+    status,
+    note,
+  };
+  if (result) {
+    challenge.result = result;
+  }
+  return challenge;
+}
+
+function sanitizeMatchRecord(
+  value: unknown,
+  ladderId: string,
+): LadderMatchRecord | null {
+  if (!isPlainObject(value)) return null;
+  const source = value as Record<string, unknown>;
+  const id = normalizeId(source.id as string);
+  const challengerId = normalizeId(source.challengerId as string);
+  const opponentId = normalizeId(source.opponentId as string);
+  const outcome = normalizeChallengeOutcome(source.outcome);
+  if (!id || !challengerId || !opponentId || !outcome) return null;
+  const resolvedAt = normalizeTimestampString(source.resolvedAt) ?? new Date().toISOString();
+  const challengeId = normalizeId(source.challengeId as string);
+  const note = sanitizeText(source.note, 240, null) ?? null;
+  const rankChanges = sanitizeRankChanges(source.rankChanges);
+
+  const record: LadderMatchRecord = {
+    id,
+    ladderId,
+    challengeId,
+    challengerId,
+    opponentId,
+    outcome,
+    resolvedAt,
+  };
+  if (note) record.note = note;
+  if (rankChanges.length) record.rankChanges = rankChanges;
+  return record;
+}
+
+function readLadderState(
+  ladder: CapsuleLadderDetail,
+): { metaRoot: Record<string, unknown>; state: { challenges: LadderChallenge[]; history: LadderMatchRecord[] } } {
+  const metaRoot = isPlainObject(ladder.meta) ? ({ ...ladder.meta } as Record<string, unknown>) : {};
+  const stateSource = isPlainObject((metaRoot as LadderStateMeta).ladderState)
+    ? ((metaRoot as LadderStateMeta).ladderState as Record<string, unknown>)
+    : isPlainObject((metaRoot as LadderStateMeta).state)
+      ? ((metaRoot as LadderStateMeta).state as Record<string, unknown>)
+      : {};
+  const rawChallenges = Array.isArray((stateSource as LadderStateMeta).challenges)
+    ? ((stateSource as LadderStateMeta).challenges as unknown[])
+    : [];
+  const rawHistory = Array.isArray((stateSource as LadderStateMeta).history)
+    ? ((stateSource as LadderStateMeta).history as unknown[])
+    : [];
+
+  const challenges = rawChallenges
+    .map((entry) => sanitizeChallenge(entry, ladder.id))
+    .filter((entry): entry is LadderChallenge => Boolean(entry));
+  const history = rawHistory
+    .map((entry) => sanitizeMatchRecord(entry, ladder.id))
+    .filter((entry): entry is LadderMatchRecord => Boolean(entry));
+
+  return {
+    metaRoot,
+    state: { challenges, history },
+  };
+}
+
+function toMemberInput(member: CapsuleLadderMember): CapsuleLadderMemberInput {
+  const input: CapsuleLadderMemberInput = {
+    displayName: member.displayName,
+    rank: member.rank ?? null,
+    rating: member.rating ?? 0,
+    wins: member.wins ?? 0,
+    losses: member.losses ?? 0,
+    draws: member.draws ?? 0,
+    streak: member.streak ?? 0,
+  };
+  if (member.userId !== undefined) input.userId = member.userId ?? null;
+  if (member.handle !== undefined) input.handle = member.handle ?? null;
+  if (member.seed !== undefined) input.seed = member.seed ?? null;
+  if (member.metadata !== undefined) input.metadata = member.metadata ?? null;
+  return input;
+}
+
+function ensureSimpleScoring(ladder: CapsuleLadderDetail): void {
+  const system = (ladder.config?.scoring as LadderScoringConfig | undefined)?.system ?? "elo";
+  if (system !== "simple") {
+    throw new CapsuleLadderAccessError(
+      "invalid",
+      "Challenges are only enabled for simple ladders right now.",
+      400,
+    );
+  }
+}
+
+function sortMembersForRanking(members: CapsuleLadderMember[]): CapsuleLadderMember[] {
+  return [...members].sort((a, b) => {
+    const rankA = a.rank ?? Number.MAX_SAFE_INTEGER;
+    const rankB = b.rank ?? Number.MAX_SAFE_INTEGER;
+    if (rankA !== rankB) return rankA - rankB;
+    if (b.rating !== a.rating) return b.rating - a.rating;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    return a.losses - b.losses;
+  });
+}
+
+function orderMembersWithSequentialRanks(members: CapsuleLadderMember[]): CapsuleLadderMember[] {
+  return sortMembersForRanking(members).map((member, index) => ({
+    ...member,
+    rank: index + 1,
+  }));
+}
+
+function applyResultStats(
+  member: CapsuleLadderMember,
+  result: "win" | "loss" | "draw",
+): CapsuleLadderMember {
+  const wins = member.wins ?? 0;
+  const losses = member.losses ?? 0;
+  const draws = member.draws ?? 0;
+  const streak = member.streak ?? 0;
+  if (result === "win") {
+    return {
+      ...member,
+      wins: wins + 1,
+      streak: streak >= 0 ? streak + 1 : 1,
+    };
+  }
+  if (result === "loss") {
+    return {
+      ...member,
+      losses: losses + 1,
+      streak: streak <= 0 ? streak - 1 : -1,
+    };
+  }
+  return {
+    ...member,
+    draws: draws + 1,
+    streak: 0,
+  };
+}
+
+function applySimpleOutcome(
+  members: CapsuleLadderMember[],
+  challengerId: string,
+  opponentId: string,
+  outcome: LadderChallengeOutcome,
+): {
+  members: CapsuleLadderMember[];
+  rankChanges: Array<{ memberId: string; from: number; to: number }>;
+} {
+  const ordered = orderMembersWithSequentialRanks(members);
+  const challenger = ordered.find((member) => member.id === challengerId);
+  const opponent = ordered.find((member) => member.id === opponentId);
+  if (!challenger || !opponent) {
+    throw new CapsuleLadderAccessError("invalid", "Both challenger and opponent must be on the ladder.", 400);
+  }
+  const challengerRank = challenger.rank ?? Number.MAX_SAFE_INTEGER;
+  const opponentRank = opponent.rank ?? Number.MAX_SAFE_INTEGER;
+
+  const updated = ordered.map((member) => {
+    if (member.id === challengerId) {
+      if (outcome === "challenger") return applyResultStats(member, "win");
+      if (outcome === "opponent") return applyResultStats(member, "loss");
+      return applyResultStats(member, "draw");
+    }
+    if (member.id === opponentId) {
+      if (outcome === "opponent") return applyResultStats(member, "win");
+      if (outcome === "challenger") return applyResultStats(member, "loss");
+      return applyResultStats(member, "draw");
+    }
+    return member;
+  });
+
+  const baseRanks = new Map<string, number>(
+    ordered.map((member) => [member.id, member.rank ?? Number.MAX_SAFE_INTEGER]),
+  );
+
+  const challengerUpdated = updated.find((member) => member.id === challengerId)!;
+  let reordered: CapsuleLadderMember[];
+
+  if (outcome === "challenger" && challengerRank > opponentRank) {
+    const gap = challengerRank - opponentRank;
+    const hop = Math.ceil(gap / 2);
+    const targetRank = Math.max(opponentRank + 1, challengerRank - hop);
+    const withoutChallenger = updated.filter((member) => member.id !== challengerId);
+    const insertIndex = Math.max(0, targetRank - 1);
+    withoutChallenger.splice(insertIndex, 0, challengerUpdated);
+    reordered = withoutChallenger.map((member, index) => ({ ...member, rank: index + 1 }));
+  } else {
+    reordered = updated.map((member, index) => ({ ...member, rank: index + 1 }));
+  }
+
+  const rankChanges =
+    reordered
+      .map((member) => {
+        const previousRank = baseRanks.get(member.id) ?? member.rank ?? 0;
+        if (previousRank !== member.rank) {
+          return { memberId: member.id, from: previousRank, to: member.rank ?? previousRank };
+        }
+        return null;
+      })
+      .filter(
+        (entry): entry is NonNullable<LadderChallengeResult["rankChanges"]>[number] =>
+          Boolean(entry),
+      ) ?? [];
+
+  return { members: reordered, rankChanges };
+}
+
+function assertChallengePermissions(
+  ladder: CapsuleLadderDetail,
+  viewer: CapsuleViewerContext,
+): void {
+  const isManager = viewer.isOwner || (viewer.role && MANAGER_ROLES.has(viewer.role));
+  if (!viewer.viewerId) {
+    throw new CapsuleLadderAccessError("forbidden", "Sign in to manage challenges.", 403);
+  }
+  if (!isManager && !viewer.isMember) {
+    throw new CapsuleLadderAccessError(
+      "forbidden",
+      "Join this capsule to issue challenges.",
+      403,
+    );
+  }
+  if (!canViewerAccessLadder(ladder, viewer, false)) {
+    throw new CapsuleLadderAccessError(
+      "forbidden",
+      "You do not have permission to manage this ladder.",
+      403,
+    );
+  }
+}
+
+export async function listLadderChallengesForViewer(
+  ladderId: string,
+  viewerId: string | null,
+): Promise<{ challenges: LadderChallenge[]; history: LadderMatchRecord[]; ladder: CapsuleLadderDetail }> {
+  const ladder = await getCapsuleLadderRecordById(ladderId);
+  if (!ladder) {
+    throw new CapsuleLadderAccessError("not_found", "Ladder not found.", 404);
+  }
+  const viewer = await resolveCapsuleViewer(ladder.capsuleId, viewerId);
+  if (!canViewerAccessLadder(ladder, viewer, false)) {
+    throw new CapsuleLadderAccessError(
+      "forbidden",
+      "You do not have permission to view this ladder.",
+      403,
+    );
+  }
+  const { state } = readLadderState(ladder);
+  return { challenges: state.challenges, history: state.history, ladder };
+}
+
+export async function createSimpleLadderChallenge(
+  actorId: string,
+  ladderId: string,
+  payload: { challengerId: string; opponentId: string; note?: string | null },
+): Promise<{ challenge: LadderChallenge; ladder: CapsuleLadderDetail }> {
+  const ladder = await getCapsuleLadderRecordById(ladderId);
+  if (!ladder) {
+    throw new CapsuleLadderAccessError("not_found", "Ladder not found.", 404);
+  }
+  const viewer = await resolveCapsuleViewer(ladder.capsuleId, actorId);
+  assertChallengePermissions(ladder, viewer);
+  ensureSimpleScoring(ladder);
+
+  const challengerId = normalizeId(payload.challengerId);
+  const opponentId = normalizeId(payload.opponentId);
+  if (!challengerId || !opponentId || challengerId === opponentId) {
+    throw new CapsuleLadderAccessError(
+      "invalid",
+      "Select two different ladder members to create a challenge.",
+      400,
+    );
+  }
+
+  const members = orderMembersWithSequentialRanks(await listCapsuleLadderMemberRecords(ladder.id));
+  const challenger = members.find((member) => member.id === challengerId);
+  const opponent = members.find((member) => member.id === opponentId);
+  if (!challenger || !opponent) {
+    throw new CapsuleLadderAccessError("invalid", "Both members must exist on this ladder.", 400);
+  }
+  const challengerRank = challenger.rank ?? Number.MAX_SAFE_INTEGER;
+  const opponentRank = opponent.rank ?? Number.MAX_SAFE_INTEGER;
+  if (challengerRank <= opponentRank) {
+    throw new CapsuleLadderAccessError(
+      "invalid",
+      "Challenger must target someone ranked above them.",
+      400,
+    );
+  }
+
+  const now = new Date().toISOString();
+  const note = payload.note ? sanitizeText(payload.note, 240, null) : null;
+
+  const challenge: LadderChallenge = {
+    id: randomUUID(),
+    ladderId: ladder.id,
+    challengerId,
+    opponentId,
+    createdAt: now,
+    createdById: viewer.viewerId,
+    status: "pending",
+    note: note ?? null,
+  };
+
+  const snapshot = readLadderState(ladder);
+  const existing = snapshot.state.challenges.filter(
+    (entry) => !(entry.challengerId === challengerId && entry.opponentId === opponentId && entry.status === "pending"),
+  );
+  snapshot.state.challenges = [challenge, ...existing].slice(0, 30);
+  snapshot.metaRoot.ladderState = {
+    ...(snapshot.metaRoot.ladderState as Record<string, unknown>),
+    challenges: snapshot.state.challenges,
+    history: snapshot.state.history,
+  };
+
+  const updatedLadder = await updateCapsuleLadderRecord(ladder.id, {
+    meta: snapshot.metaRoot as LadderStateMeta,
+  });
+
+  return { challenge, ladder: updatedLadder ?? ladder };
+}
+
+export async function resolveSimpleLadderChallenge(
+  actorId: string,
+  ladderId: string,
+  challengeId: string,
+  outcome: LadderChallengeOutcome,
+  note?: string | null,
+): Promise<{
+  challenge: LadderChallenge;
+  members: CapsuleLadderMember[];
+  history: LadderMatchRecord[];
+}> {
+  const ladder = await getCapsuleLadderRecordById(ladderId);
+  if (!ladder) {
+    throw new CapsuleLadderAccessError("not_found", "Ladder not found.", 404);
+  }
+  const viewer = await resolveCapsuleViewer(ladder.capsuleId, actorId);
+  assertChallengePermissions(ladder, viewer);
+  ensureSimpleScoring(ladder);
+
+  const snapshot = readLadderState(ladder);
+  const challengeIndex = snapshot.state.challenges.findIndex((entry) => entry.id === challengeId);
+  if (challengeIndex === -1) {
+    throw new CapsuleLadderAccessError("not_found", "Challenge not found.", 404);
+  }
+  const challenge = snapshot.state.challenges[challengeIndex];
+  if (!challenge) {
+    throw new CapsuleLadderAccessError("not_found", "Challenge not found.", 404);
+  }
+  if (challenge.status === "resolved") {
+    return { challenge, members: await listCapsuleLadderMemberRecords(ladder.id), history: snapshot.state.history };
+  }
+
+  const members = await listCapsuleLadderMemberRecords(ladder.id);
+  const { members: reordered, rankChanges } = applySimpleOutcome(
+    members,
+    challenge.challengerId,
+    challenge.opponentId,
+    outcome,
+  );
+  const persistedMembers = await replaceCapsuleLadderMemberRecords(
+    ladder.id,
+    reordered.map(toMemberInput),
+  );
+
+  const resolvedAt = new Date().toISOString();
+  const sanitizedNote = note ? sanitizeText(note, 240, null) : null;
+
+  const historyRecord: LadderMatchRecord = {
+    id: randomUUID(),
+    ladderId: ladder.id,
+    challengeId: challenge.id,
+    challengerId: challenge.challengerId,
+    opponentId: challenge.opponentId,
+    outcome,
+    resolvedAt,
+    note: sanitizedNote ?? challenge.note ?? null,
+  };
+  if (rankChanges.length) {
+    historyRecord.rankChanges = rankChanges;
+  }
+
+  snapshot.state.history = [historyRecord, ...snapshot.state.history].slice(0, 50);
+  snapshot.state.challenges[challengeIndex] = {
+    ...challenge,
+    status: "resolved",
+    result: {
+      outcome,
+      reportedAt: resolvedAt,
+      reportedById: viewer.viewerId,
+      note: sanitizedNote ?? null,
+    },
+  };
+  if (rankChanges.length) {
+    snapshot.state.challenges[challengeIndex]!.result!.rankChanges = rankChanges;
+  }
+
+  snapshot.metaRoot.ladderState = {
+    ...(snapshot.metaRoot.ladderState as Record<string, unknown>),
+    challenges: snapshot.state.challenges,
+    history: snapshot.state.history,
+  };
+
+  await updateCapsuleLadderRecord(ladder.id, {
+    meta: snapshot.metaRoot as LadderStateMeta,
+  });
+
+  return {
+    challenge: snapshot.state.challenges[challengeIndex]!,
+    members: persistedMembers,
+    history: snapshot.state.history,
+  };
 }

@@ -64,6 +64,7 @@ export type CustomizerToolSessionOptions = {
   incomingDraft?: Record<string, unknown> | null;
   context: CustomizerComposeContext;
   requestOrigin?: string | null;
+  replyMode?: "chat" | "draft" | null;
   maxIterations?: number;
   callbacks?: CustomizerToolCallbacks;
 };
@@ -283,7 +284,7 @@ function mapHistoryToMessages(history: ComposerChatMessage[] | undefined): ChatM
     }));
 }
 
-function buildSystemPrompt(context: CustomizerComposeContext): string {
+function buildSystemPrompt(context: CustomizerComposeContext, replyMode: "chat" | "draft" | null): string {
   const assetLabel =
     context.mode === "logo"
       ? "logo"
@@ -294,16 +295,28 @@ function buildSystemPrompt(context: CustomizerComposeContext): string {
           : context.mode === "storeBanner"
             ? "store hero"
             : "banner";
-  return [
+  const base = [
     "You are Capsule's Customizer assistant.",
     `Your job is to collaborate with the user to design their ${assetLabel} via a conversational loop.`,
-    "Use the provided tools to generate or edit visuals; never fabricate URLs—only return the actual URLs that the tools give you.",
+    "Use the provided tools to generate or edit visuals; never fabricate URLs-only return the actual URLs that the tools give you.",
     "When you have enough to respond, output strictly the JSON object required by the schema: { action: \"draft_post\", message, post }.",
     "Set post.kind to \"customizer\" and post.content to a short summary of the update.",
     "Inside post.customizerDraft include: { mode, assetUrl, assetKind, variantId, mimeType, message, suggestions }.",
     "Do not mention tool execution details in the final JSON message.",
     "If you need more details from the user, ask follow-up questions instead of guessing.",
-  ].join(" ");
+  ];
+
+  if (replyMode === "chat") {
+    base.push(
+      "User replyMode is chat-only: if you are just advising or asking questions, return { action: 'chat_reply', message } with no post or customizerDraft. Only return draft_post when you actually generated/edited an asset this turn."
+    );
+  } else if (replyMode === "draft") {
+    base.push(
+      "User replyMode prefers drafting: return draft_post with an updated customizerDraft when possible; only use chat_reply if you truly need more info."
+    );
+  }
+
+  return base.join(" ");
 }
 
 function assetKindForMode(mode: CapsuleCustomizerMode): "banner" | "logo" | "avatar" {
@@ -356,6 +369,7 @@ export async function runCustomizerToolSession(
     incomingDraft,
     context,
     requestOrigin,
+    replyMode = null,
     maxIterations = 6,
     callbacks,
   } = options;
@@ -370,7 +384,7 @@ export async function runCustomizerToolSession(
     },
   };
   const messages: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt(context) },
+    { role: "system", content: buildSystemPrompt(context, replyMode) },
     ...mapHistoryToMessages(history),
     {
       role: "user",
@@ -381,6 +395,7 @@ export async function runCustomizerToolSession(
         displayName: context.displayName ?? null,
         personaId: context.personaId ?? null,
         draft: incomingDraft ?? null,
+        replyMode,
       }),
     },
   ];
@@ -451,18 +466,30 @@ export async function runCustomizerToolSession(
     }
     try {
       const validated = promptResponseSchema.parse(parsed);
-      if (validated.action !== "draft_post") {
-        messages.push({
-          role: "system",
-          content:
-            "You must respond with { action: 'draft_post', ... } that includes the latest customizerDraft payload.",
-        });
-        emit({
-          type: "status",
-          message: "Model returned chat_reply when a draft_post was required.",
-        });
-        continue;
+      if (validated.action === "chat_reply") {
+        return { response: validated, messages, raw };
       }
+      if (replyMode === "chat") {
+        const postContent =
+          typeof (validated.post as { content?: unknown })?.content === "string"
+            ? ((validated.post as { content: string }).content ?? "").trim()
+            : "";
+        const messageText =
+          postContent.length > 0
+            ? postContent
+            : typeof validated.message === "string" && validated.message.trim().length
+              ? validated.message.trim()
+              : "Here’s my take.";
+        const coerced: PromptResponse = {
+          action: "chat_reply",
+          message: messageText,
+          threadId: validated.threadId,
+          history: validated.history,
+          context: validated.context,
+        };
+        return { response: coerced, messages, raw };
+      }
+      // draft_post path
       const enrichedPost = {
         ...(validated.post ?? {}),
         customizerDraft: ensureDraft(
@@ -480,7 +507,7 @@ export async function runCustomizerToolSession(
       messages.push({
         role: "system",
         content:
-          "The JSON you returned was invalid. Respond again using the draft_post schema with a customizerDraft payload.",
+          "The JSON you returned was invalid. Respond again using the draft_post schema with a customizerDraft payload, or chat_reply when only advising.",
       });
       emit({
         type: "status",

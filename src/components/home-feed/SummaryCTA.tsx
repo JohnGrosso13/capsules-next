@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
-import { Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { Notebook } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "@/components/home-feed.module.css";
 
@@ -17,11 +17,8 @@ export function SummaryCTA({ pending, hasPosts, onSummarize }: SummaryCTAProps) 
   return (
     <section className={styles.summaryCta} aria-live="polite">
       <div className={styles.summaryCtaContent}>
-        <Sparkle weight="duotone" className={styles.summaryCtaIcon} />
-        <div>
-          <h2>Too busy to scroll?</h2>
-          <p>Let Capsules AI recap the latest activity from your friends.</p>
-        </div>
+        <Notebook weight="duotone" className={styles.summaryCtaIcon} />
+        <p className={styles.summaryCtaCopy}>Let Assistant surface quick highlights from your friends.</p>
       </div>
       <button
         type="button"
@@ -30,7 +27,7 @@ export function SummaryCTA({ pending, hasPosts, onSummarize }: SummaryCTAProps) 
         disabled={pending}
         aria-busy={pending || undefined}
       >
-        {pending ? "Summarizing..." : "Summarize this feed"}
+        {pending ? "Summarizing..." : "Highlights"}
       </button>
     </section>
   );

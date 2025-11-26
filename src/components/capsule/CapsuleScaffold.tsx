@@ -782,57 +782,57 @@ function CapsuleHero({
             ) : null}
           </div>
         ) : null}
-      </div>
-      <div className={capTheme.heroBody}>
-        <div className={capTheme.heroDetails}>
-          <h2 className={capTheme.heroTitle}>{displayName}</h2>
-        </div>
-        <div className={capTheme.heroActions}>
-          <button
-            type="button"
-            className={`${capTheme.heroAction} ${capTheme.heroActionPrimary}`}
-            onClick={primaryAction.onClick ?? undefined}
-            disabled={primaryAction.disabled}
-          >
-            <UsersThree size={16} weight="bold" />
-            {primaryAction.label}
-          </button>
-        {followAction ? (
-          <button
-            type="button"
-            className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
-            onClick={followAction.onClick ?? undefined}
-            disabled={followAction.disabled}
-          >
-            <UserPlus size={16} weight="bold" />
-            {followAction.label}
-          </button>
-        ) : null}
-        {leaveAction ? (
-          <button
-            type="button"
-            className={`${capTheme.heroAction} ${capTheme.heroActionDanger}`}
-            onClick={leaveAction.onClick ?? undefined}
-            disabled={leaveAction.disabled}
-          >
-            <DoorOpen size={16} weight="bold" />
-            {leaveAction.label}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
-        >
-            <ShareFat size={16} weight="bold" />
-            Share
-          </button>
-        </div>
-        {errorMessage ? (
-          <div className={memberStyles.notice}>
-            <WarningCircle size={16} weight="bold" />
-            <span>{errorMessage}</span>
+        <div className={capTheme.heroBody}>
+          <div className={capTheme.heroDetails}>
+            <h2 className={capTheme.heroTitle}>{displayName}</h2>
           </div>
-        ) : null}
+          <div className={capTheme.heroActions}>
+            <button
+              type="button"
+              className={`${capTheme.heroAction} ${capTheme.heroActionPrimary}`}
+              onClick={primaryAction.onClick ?? undefined}
+              disabled={primaryAction.disabled}
+            >
+              <UsersThree size={16} weight="bold" />
+              {primaryAction.label}
+            </button>
+            {followAction ? (
+              <button
+                type="button"
+                className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
+                onClick={followAction.onClick ?? undefined}
+                disabled={followAction.disabled}
+              >
+                <UserPlus size={16} weight="bold" />
+                {followAction.label}
+              </button>
+            ) : null}
+            {leaveAction ? (
+              <button
+                type="button"
+                className={`${capTheme.heroAction} ${capTheme.heroActionDanger}`}
+                onClick={leaveAction.onClick ?? undefined}
+                disabled={leaveAction.disabled}
+              >
+                <DoorOpen size={16} weight="bold" />
+                {leaveAction.label}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
+            >
+              <ShareFat size={16} weight="bold" />
+              Share
+            </button>
+          </div>
+          {errorMessage ? (
+            <div className={memberStyles.notice}>
+              <WarningCircle size={16} weight="bold" />
+              <span>{errorMessage}</span>
+            </div>
+          ) : null}
+        </div>
       </div>
       <nav className={capTheme.heroTabs} aria-label="Capsule quick links">
         {HERO_LINKS.map((label) => {

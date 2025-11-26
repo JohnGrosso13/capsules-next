@@ -45,7 +45,7 @@ export type LadderRegistrationConfig = {
 };
 
 export type LadderScoringConfig = {
-  system?: "elo" | "points" | "custom";
+  system?: "simple" | "elo" | "ai" | "points" | "custom";
   initialRating?: number | null;
   kFactor?: number | null;
   placementMatches?: number | null;
@@ -175,4 +175,46 @@ export type CapsuleLadderMemberUpdateInput = {
   draws?: number | null;
   streak?: number | null;
   metadata?: Record<string, unknown> | null;
+};
+
+export type LadderChallengeOutcome = "challenger" | "opponent" | "draw";
+
+export type LadderChallengeStatus = "pending" | "resolved" | "void";
+
+export type LadderChallengeResult = {
+  outcome: LadderChallengeOutcome;
+  reportedAt: string;
+  reportedById: string | null;
+  note?: string | null;
+  rankChanges?: Array<{ memberId: string; from: number; to: number }>;
+};
+
+export type LadderChallenge = {
+  id: string;
+  ladderId: string;
+  challengerId: string;
+  opponentId: string;
+  createdAt: string;
+  createdById: string | null;
+  status: LadderChallengeStatus;
+  note?: string | null;
+  result?: LadderChallengeResult;
+};
+
+export type LadderMatchRecord = {
+  id: string;
+  ladderId: string;
+  challengeId: string | null;
+  challengerId: string;
+  opponentId: string;
+  outcome: LadderChallengeOutcome;
+  resolvedAt: string;
+  note?: string | null;
+  rankChanges?: Array<{ memberId: string; from: number; to: number }>;
+};
+
+export type LadderStateMeta = {
+  challenges?: LadderChallenge[];
+  history?: LadderMatchRecord[];
+  [key: string]: unknown;
 };

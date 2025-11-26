@@ -8,7 +8,8 @@ import { AiComposerDrawer } from "@/components/ai-composer";
 import type { ComposerChoice } from "@/components/composer/ComposerForm";
 import type { PrompterAction, PrompterAttachment } from "@/components/ai-prompter-stage";
 import type { PrompterHandoff } from "@/components/composer/prompter-handoff";
-import { applyThemeVars } from "@/lib/theme";
+import { applyThemeVars, endPreviewThemeVars, startPreviewThemeVars } from "@/lib/theme";
+import { normalizeThemeVariantsInput, type ThemeVariants } from "@/lib/theme/variants";
 import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
 import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
@@ -310,6 +311,14 @@ export type ComposerState = {
   videoStatus: ComposerVideoStatus;
   saveStatus: ComposerSaveStatus;
   contextSnapshot: ComposerContextSnapshot | null;
+  themePreview: ThemePreviewState | null;
+};
+
+type ThemePreviewState = {
+  summary: string;
+  details?: string | null;
+  source: "heuristic" | "ai";
+  variants: ThemeVariants;
 };
 
 type AiPromptHandoff = Extract<PrompterHandoff, { intent: "ai_prompt" }>;
@@ -348,6 +357,8 @@ type ComposerContextValue = {
   retryVideo(): void;
   saveCreation(request: ComposerSaveRequest): Promise<string | null>;
   setSmartContextEnabled(enabled: boolean): void;
+  applyThemePreview(): void;
+  cancelThemePreview(): void;
 };
 
 const initialState: ComposerState = {
@@ -367,6 +378,7 @@ const initialState: ComposerState = {
   videoStatus: createIdleVideoStatus(),
   saveStatus: createIdleSaveStatus(),
   contextSnapshot: null,
+  themePreview: null,
 };
 
 function resetStateWithPreference(
@@ -914,6 +926,10 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       if (options?.extras && Object.keys(options.extras).length) {
         Object.assign(composeOptions, options.extras);
       }
+      const replyMode =
+        typeof (composeOptions as { replyMode?: unknown }).replyMode === "string"
+          ? String((composeOptions as { replyMode?: string }).replyMode)
+          : null;
       composeOptions.imageQuality = imageSettings.quality;
       const resolvedOptions = Object.keys(composeOptions).length ? composeOptions : undefined;
 
@@ -978,14 +994,14 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       };
 
       try {
-        const payload = await callAiPrompt({
-          message: trimmedPrompt,
-          ...(resolvedOptions ? { options: resolvedOptions } : {}),
-          ...(state.rawPost ? { post: state.rawPost } : {}),
-          ...(normalizedAttachments ? { attachments: normalizedAttachments } : {}),
-          history: baseHistory,
-          ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
-          ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
+          const payload = await callAiPrompt({
+            message: trimmedPrompt,
+            ...(resolvedOptions ? { options: resolvedOptions } : {}),
+            ...(state.rawPost && replyMode !== "chat" ? { post: state.rawPost } : {}),
+            ...(normalizedAttachments ? { attachments: normalizedAttachments } : {}),
+            history: baseHistory,
+            ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
+            ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
           useContext: smartContextEnabled,
           stream: true,
           onStreamMessage: updateWorking,
@@ -1157,6 +1173,46 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     [runAiPromptHandoff, runLogoHandoff, runImageEditHandoff],
   );
 
+  const close = React.useCallback(
+    () => {
+      endPreviewThemeVars();
+      setState((prev) => resetStateWithPreference(prev));
+    },
+    [setState],
+  );
+
+  const previewThemePlan = React.useCallback(
+    (plan: { summary: string; details?: string | null; source: "heuristic" | "ai"; variants: ThemeVariants }) => {
+      endPreviewThemeVars();
+      startPreviewThemeVars(plan.variants);
+      setState((prev) => ({
+        ...prev,
+        themePreview: {
+          summary: plan.summary,
+          details: plan.details ?? null,
+          source: plan.source,
+          variants: plan.variants,
+        },
+      }));
+    },
+    [setState],
+  );
+
+  const applyThemePreview = React.useCallback(() => {
+    setState((prev) => {
+      const current = prev.themePreview;
+      if (!current) return prev;
+      applyThemeVars(current.variants);
+      endPreviewThemeVars();
+      return { ...prev, themePreview: null };
+    });
+  }, [setState]);
+
+  const cancelThemePreview = React.useCallback(() => {
+    endPreviewThemeVars();
+    setState((prev) => ({ ...prev, themePreview: null }));
+  }, [setState]);
+
   const handlePrompterAction = React.useCallback(
     async (action: PrompterAction) => {
       if (action.kind === "post_manual") {
@@ -1199,12 +1255,25 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       if (action.kind === "style") {
         const heuristicPlan = resolveStylerHeuristicPlan(action.prompt);
         if (heuristicPlan) {
-          applyThemeVars(heuristicPlan.variants);
+          previewThemePlan({
+            summary: heuristicPlan.summary,
+            details: heuristicPlan.details ?? null,
+            source: "heuristic",
+            variants: heuristicPlan.variants,
+          });
+          setState((prev) => ({ ...prev, open: true }));
           return;
         }
         try {
           const response = await callStyler(action.prompt, envelopePayload);
-          applyThemeVars(response.variants);
+          const normalized = normalizeThemeVariantsInput(response.variants);
+          previewThemePlan({
+            summary: response.summary,
+            details: response.details ?? null,
+            source: response.source,
+            variants: normalized,
+          });
+          setState((prev) => ({ ...prev, open: true }));
         } catch (error) {
           console.error("Styler action failed", error);
         }
@@ -1214,7 +1283,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         await handlePrompterHandoff({
           intent: "ai_prompt",
           prompt: action.prompt,
-          options: { prefer: "poll" },
+          options: { prefer: "poll", extras: { replyMode: "draft" } },
         });
         return;
       }
@@ -1234,7 +1303,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           intent: "ai_prompt",
           prompt: action.prompt,
           ...(attachments ? { attachments } : {}),
-          options: { composeMode: action.mode },
+          options: { composeMode: action.mode, extras: { replyMode: "draft" } },
         });
         return;
       }
@@ -1244,16 +1313,12 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           intent: "ai_prompt",
           prompt: action.text,
           ...(attachments ? { attachments } : {}),
+          options: { extras: { replyMode: "chat" } },
         });
         return;
       }
     },
-    [activeCapsuleId, envelopePayload, handlePrompterHandoff, setState],
-  );
-
-  const close = React.useCallback(
-    () => setState((prev) => resetStateWithPreference(prev)),
-    [setState],
+    [activeCapsuleId, envelopePayload, handlePrompterHandoff, previewThemePlan, setState],
   );
 
   const post = React.useCallback(async () => {
@@ -1383,10 +1448,13 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         const requestOptions: Record<string, unknown> = {
           imageQuality: imageSettings.quality,
         };
+        if (options?.mode === "chatOnly") {
+          requestOptions.replyMode = "chat";
+        }
         const payload = await callAiPrompt({
           message: trimmed,
           ...(Object.keys(requestOptions).length ? { options: requestOptions } : {}),
-          ...(state.rawPost ? { post: state.rawPost } : {}),
+          ...(state.rawPost && options?.mode !== "chatOnly" ? { post: state.rawPost } : {}),
           ...(attachmentList ? { attachments: attachmentList } : {}),
           history: previousHistory,
           ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
@@ -1542,6 +1610,8 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       retryVideo,
       saveCreation,
       setSmartContextEnabled,
+      applyThemePreview,
+      cancelThemePreview,
     };
     if (forceChoice) {
       base.forceChoice = forceChoice;
@@ -1571,6 +1641,8 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     smartContextEnabled,
     imageSettings,
     updateImageSettings,
+    applyThemePreview,
+    cancelThemePreview,
   ]);
 
   return <ComposerContext.Provider value={contextValue}>{children}</ComposerContext.Provider>;
@@ -1605,6 +1677,8 @@ export function AiComposerRoot() {
     retryVideo,
     saveCreation,
     setSmartContextEnabled,
+    applyThemePreview,
+    cancelThemePreview,
   } = useComposer();
 
   const forceHandlers = forceChoice
@@ -1632,6 +1706,15 @@ export function AiComposerRoot() {
       saveStatus={state.saveStatus}
       smartContextEnabled={smartContextEnabled}
       contextSnapshot={state.contextSnapshot}
+      themePreview={
+        state.themePreview
+          ? {
+              summary: state.themePreview.summary,
+              details: state.themePreview.details ?? null,
+              source: state.themePreview.source,
+            }
+          : null
+      }
       onSmartContextChange={setSmartContextEnabled}
       onChange={updateDraft}
       onClose={close}
@@ -1642,6 +1725,8 @@ export function AiComposerRoot() {
       onSelectDraft={selectDraft}
       onCreateProject={createProject}
       onSelectProject={selectProject}
+      onApplyThemePreview={applyThemePreview}
+      onCancelThemePreview={cancelThemePreview}
       onSave={saveDraft}
       onRetryVideo={retryVideo}
       onSaveCreation={saveCreation}

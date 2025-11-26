@@ -14,17 +14,17 @@ type AssistantPrompterProps = {
   conversation: AssistantMessage[];
   draft: string;
   placeholder: string;
+  busy?: boolean;
   onDraftChange: (value: string) => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onSend: () => void;
 };
 
-const IDEA_PRESETS = ["Pitch a ladder name", "Outline rewards & hype", "Describe upcoming challenges"] as const;
-
 export function AssistantPrompter({
   conversation,
   draft,
   placeholder,
+  busy = false,
   onDraftChange,
   onKeyDown,
   onSend,
@@ -67,7 +67,7 @@ export function AssistantPrompter({
   const handleSelectIntent = React.useCallback<
     (intent: PromptIntent | null, postMode?: "ai" | "manual" | null) => void
   >(() => {}, []);
-  const buttonDisabled = draft.trim().length === 0;
+  const buttonDisabled = draft.trim().length === 0 || busy;
   const { supported: voiceSupported, status: voiceStatus, start: startVoice, stop: stopVoice } = useSpeechRecognition({
     onFinalResult: (_full, chunk) => {
       const addition = chunk.trim();
@@ -171,18 +171,6 @@ export function AssistantPrompter({
           ) : null}
         </div>
 
-        <div className={`${prompterStyles.chips} ${styles.chipRow}`}>
-          {IDEA_PRESETS.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              className={prompterStyles.chip}
-              onClick={() => onDraftChange(preset)}
-            >
-              {preset}
-            </button>
-          ))}
-        </div>
       </div>
     </section>
   );

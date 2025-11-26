@@ -13,6 +13,7 @@ import {
   ladderSectionFormSchema,
   ladderSeedFormSchema,
   ladderVisibilityOptions,
+  matchFormatLabel,
   parseIntegerField,
   parseOptionalIntegerField,
   transformBulletsText,
@@ -98,7 +99,7 @@ export const LADDER_WIZARD_STEPS: LadderWizardStepDefinition[] = [
     subtitle: "Game, scoring, schedule",
     description: "Tune match cadence, scoring rules, and registration funnels.",
     validate: validateFormat,
-    completionCheck: (state) => Boolean(state.format.game.title.trim()),
+    completionCheck: (state) => Boolean(state.format.game.title.trim() && state.format.game.mode.trim()),
   },
   {
     id: "roster",
@@ -200,7 +201,7 @@ const formatScoring = (state: LadderWizardState) => {
 };
 
 export const buildWizardPreviewModel = (state: LadderWizardState): LadderWizardPreviewModel => {
-  const gameMeta = [state.format.game.mode, state.format.game.platform, state.format.game.region]
+  const gameMeta = [matchFormatLabel(state.format.game.mode), state.format.game.platform, state.format.game.region]
     .map((entry) => (entry ? entry.trim() : ""))
     .filter(Boolean);
 

@@ -1,3 +1,4 @@
+/* eslint-disable unused-imports/no-unused-vars */
 import fs from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
@@ -118,7 +119,7 @@ async function main() {
 async function loadBaseTokens(): Promise<TokenInput[]> {
   if (fs.existsSync(SCHEMA_PATH)) {
     const json = JSON.parse(fs.readFileSync(SCHEMA_PATH, "utf8"));
-    return z.array(TokenInputSchema.partial()).parse(json);
+    return z.array(TokenInputSchema).parse(json);
   }
 
   if (!fs.existsSync(TOKEN_REGISTRY_PATH)) return [];
@@ -138,6 +139,7 @@ function collectDeclarationsFromFile(filePath: string): Map<string, string> {
   let match: RegExpExecArray | null;
   while ((match = regex.exec(content)) !== null) {
     const [, name, value] = match;
+    if (!name || value == null) continue;
     map.set(`--${name}`, value.trim());
   }
   return map;
@@ -192,7 +194,9 @@ function collectUsedVars(root: string): Set<string> {
         const regex = /var\(\s*(--[A-Za-z0-9\-_]+)/g;
         let match: RegExpExecArray | null;
         while ((match = regex.exec(content)) !== null) {
-          used.add(match[1]);
+          const found = match[1];
+          if (!found) continue;
+          used.add(found);
         }
       }
     }
@@ -265,7 +269,7 @@ function buildInferredToken(cssVar: string, fallback: string | undefined, lightF
   const category = inferCategory(cssVar);
   const value = fallback ?? defaultValueForKind(inferValueKind(cssVar, fallback));
   const valueKind = inferValueKind(cssVar, fallback);
-  const layer = inferLayer({ cssVar, category, id, label, valueKind, tags: [] });
+  const layer = inferLayer({ cssVar, category, id });
 
   return {
     id,
@@ -328,10 +332,13 @@ function inferValueKind(cssVar: string, value?: string): TokenInput["valueKind"]
 function inferLayer(token: Pick<TokenInput, "id" | "cssVar" | "category">): TokenLayer {
   const id = token.id ?? token.cssVar.replace(/^--/, "");
   const lower = `${id}.${token.cssVar}`.toLowerCase();
+  // Treat Composer and Ladder surfaces as semantic so they remain AI-themable
+  if (lower.includes("composer") || lower.includes("ladder")) {
+    return "semantic";
+  }
   if (
     lower.includes("home.") ||
     lower.includes("promo") ||
-    lower.includes("composer") ||
     lower.includes("feed") ||
     lower.includes("rail") ||
     lower.includes("store") ||
@@ -641,8 +648,8 @@ function writeContract(tokens: TokenInput[]) {
   const toSection = (title: string, list: TokenInput[]) => {
     const lines: string[] = [];
     lines.push(`## ${title}`);
-    list.slice(0, 200).forEach((token) => {
-      lines.push(`- \`${token.cssVar}\` — ${token.label}`);
+    list.forEach((token) => {
+      lines.push(`- \`${token.cssVar}\` - ${token.label}`);
     });
     lines.push("");
     return lines.join("\n");

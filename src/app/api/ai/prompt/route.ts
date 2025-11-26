@@ -133,10 +133,14 @@ function detectRecallIntent(params: {
   history: ComposerChatMessage[] | undefined;
   rawOptions: Record<string, unknown> | null | undefined;
   attachments: ComposerChatAttachment[];
+  capsuleId?: string | null;
 }): boolean {
-  const { message, history, rawOptions, attachments } = params;
+  const { message, history, rawOptions, attachments, capsuleId } = params;
   if (rawOptions && typeof (rawOptions as { recall?: unknown }).recall === "boolean") {
     return Boolean((rawOptions as { recall?: boolean }).recall);
+  }
+  if (capsuleId && capsuleId.trim().length) {
+    return true;
   }
   const text = [message, collectRecentUserText(history)].join(" ").toLowerCase();
   const recallKeywords = [
@@ -157,6 +161,41 @@ function detectRecallIntent(params: {
     "look up",
     "find my",
     "search web",
+    // Capsule history / membership phrasing
+    "first member",
+    "who joined",
+    "members joined",
+    "member count",
+    "headcount",
+    "growth",
+    "since we started",
+    "since launch",
+    "since created",
+    "when did this capsule start",
+    "how long has this capsule",
+    "how long has it existed",
+    "started",
+    "created",
+    "founded",
+    "year ago",
+    "years ago",
+    "months ago",
+    "history",
+    "most liked",
+    "liked post",
+    "likes",
+    "views",
+    "uploads",
+    "media",
+    "library",
+    "headcount",
+    "membership",
+    "member history",
+    "post history",
+    "show my posts",
+    "what did i",
+    "what have i",
+    "old posts",
   ];
   const mentionsRecall = recallKeywords.some((keyword) => text.includes(keyword));
   const mentionsAttachment =
@@ -263,6 +302,64 @@ function chunkText(text: string): string[] {
   return parts.length ? parts : [normalized];
 }
 
+function isExplanatoryCaption(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  if (!trimmed.length) return false;
+  const lc = trimmed.toLowerCase();
+  return (
+    /^here('?s)?\s+(how|what)\b/.test(lc) ||
+    /^i\s+(changed|made|updated|adjusted|edited|tweaked)\b/.test(lc) ||
+    lc.includes("here's what changed") ||
+    lc.includes("i updated the image") ||
+    lc.includes("i changed the image")
+  );
+}
+
+function coerceDraftToChatReply(
+  response: PromptResponse,
+  replyMode: "chat" | "draft" | null,
+): PromptResponse {
+  if (response.action !== "draft_post") return response;
+  if (replyMode === "draft") return response;
+  const kind =
+    typeof (response.post as { kind?: unknown })?.kind === "string"
+      ? ((response.post as { kind: string }).kind ?? "").toLowerCase()
+      : "";
+  const mediaUrl =
+    typeof (response.post as { mediaUrl?: unknown })?.mediaUrl === "string"
+      ? ((response.post as { mediaUrl: string }).mediaUrl ?? "").trim()
+      : typeof (response.post as { media_url?: unknown })?.media_url === "string"
+        ? ((response.post as { media_url: string }).media_url ?? "").trim()
+        : "";
+  if (kind === "image" || kind === "video" || mediaUrl) {
+    return response;
+  }
+  const postContent =
+    typeof (response.post as { content?: unknown })?.content === "string"
+      ? ((response.post as { content: string }).content ?? "").trim()
+      : "";
+  const shouldChat = replyMode === "chat" || isExplanatoryCaption(postContent);
+  if (!shouldChat) return response;
+  const assistantAttachments = buildAssistantAttachments(response.post ?? null);
+  const message =
+    postContent.length > 0
+      ? postContent
+      : typeof response.message === "string" && response.message.trim().length
+        ? response.message.trim()
+        : "Here is what I found.";
+  return {
+    action: "chat_reply",
+    message,
+    ...(assistantAttachments && assistantAttachments.length
+      ? { replyAttachments: assistantAttachments }
+      : {}),
+    threadId: response.threadId,
+    history: response.history,
+    context: response.context,
+  };
+}
+
 export async function POST(req: Request) {
   const startedAt = Date.now();
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
@@ -319,6 +416,7 @@ export async function POST(req: Request) {
     history: previousHistory,
     rawOptions,
     attachments,
+    capsuleId,
   });
   const contextEnabled =
     (typeof parsed.data.useContext === "boolean" ? parsed.data.useContext : true) && recallIntent;
@@ -347,6 +445,11 @@ export async function POST(req: Request) {
 
   const sanitizedOptions =
     rawOptions && typeof rawOptions === "object" ? { ...rawOptions } : {};
+  const rawReplyMode =
+    typeof sanitizedOptions.replyMode === "string"
+      ? sanitizedOptions.replyMode.toLowerCase()
+      : null;
+  const replyMode = rawReplyMode === "chat" || rawReplyMode === "draft" ? rawReplyMode : null;
 
   let composeOptions: ComposeDraftOptions = {
     history: previousHistory,
@@ -579,14 +682,15 @@ export async function POST(req: Request) {
           }
 
           const validated: PromptResponse = promptResponseSchema.parse(payload);
+          const adjusted = coerceDraftToChatReply(validated, replyMode);
           let assistantEntry: ComposerChatMessage;
           let artifactEntry: ComposerChatMessage | null = null;
           let streamingAssistantMessage: string;
           let historyBase = [...previousHistory, userEntry];
 
-          if (validated.action === "chat_reply") {
-            const chatMessage = validated.message.trim();
-            const replyAttachments = normalizeChatReplyAttachments(validated.replyAttachments);
+          if (adjusted.action === "chat_reply") {
+            const chatMessage = adjusted.message.trim();
+            const replyAttachments = normalizeChatReplyAttachments(adjusted.replyAttachments);
             assistantEntry = {
               id: safeRandomUUID(),
               role: "assistant",
@@ -598,14 +702,14 @@ export async function POST(req: Request) {
             historyBase = [...historyBase, assistantEntry];
           } else {
             const postContent =
-              typeof (validated.post as { content?: unknown })?.content === "string"
-                ? ((validated.post as { content: string }).content ?? "").trim()
+              typeof (adjusted.post as { content?: unknown })?.content === "string"
+                ? ((adjusted.post as { content: string }).content ?? "").trim()
                 : "";
             const baseAssistantMessage =
-              typeof validated.message === "string" && validated.message.trim().length
-                ? validated.message.trim()
+              typeof adjusted.message === "string" && adjusted.message.trim().length
+                ? adjusted.message.trim()
                 : "I've drafted a first pass.";
-            const assistantAttachments = buildAssistantAttachments(validated.post ?? null);
+            const assistantAttachments = buildAssistantAttachments(adjusted.post ?? null);
             artifactEntry =
               postContent || (assistantAttachments && assistantAttachments.length)
                 ? {
@@ -656,7 +760,7 @@ export async function POST(req: Request) {
           }
 
           const finalResponse = promptResponseSchema.parse({
-            ...validated,
+            ...adjusted,
             threadId,
             history: historyOut,
             context: responseContext,
@@ -727,30 +831,31 @@ export async function POST(req: Request) {
     };
 
     const validated: PromptResponse = promptResponseSchema.parse(payload);
+    const adjusted = coerceDraftToChatReply(validated, replyMode);
     let assistantEntry: ComposerChatMessage;
     let artifactEntry: ComposerChatMessage | null = null;
     let nextHistory = [...previousHistory, userEntry];
 
-    if (validated.action === "chat_reply") {
-      const replyAttachments = normalizeChatReplyAttachments(validated.replyAttachments);
+    if (adjusted.action === "chat_reply") {
+      const replyAttachments = normalizeChatReplyAttachments(adjusted.replyAttachments);
       assistantEntry = {
         id: safeRandomUUID(),
         role: "assistant",
-        content: validated.message.trim(),
+        content: adjusted.message.trim(),
         createdAt: new Date().toISOString(),
         attachments: replyAttachments,
       };
       nextHistory = [...nextHistory, assistantEntry];
     } else {
       const postContent =
-        typeof (validated.post as { content?: unknown })?.content === "string"
-          ? ((validated.post as { content: string }).content ?? "").trim()
+        typeof (adjusted.post as { content?: unknown })?.content === "string"
+          ? ((adjusted.post as { content: string }).content ?? "").trim()
           : "";
       const baseAssistantMessage =
-        typeof validated.message === "string" && validated.message.trim().length
-          ? validated.message.trim()
+        typeof adjusted.message === "string" && adjusted.message.trim().length
+          ? adjusted.message.trim()
           : "I've drafted a first pass.";
-      const assistantAttachments = buildAssistantAttachments(validated.post ?? null);
+      const assistantAttachments = buildAssistantAttachments(adjusted.post ?? null);
       if (postContent || (assistantAttachments && assistantAttachments.length)) {
         artifactEntry = {
           id: safeRandomUUID(),
@@ -787,7 +892,7 @@ export async function POST(req: Request) {
     });
 
     const finalResponse = promptResponseSchema.parse({
-      ...validated,
+      ...adjusted,
       threadId,
       history: historyOut,
       context: responseContext,

@@ -296,6 +296,38 @@
   background: var(--header-button-bg);
   box-shadow: var(--header-button-shadow);
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  isolation: isolate;
+  transition:
+    background var(--motion-duration-medium) var(--motion-ease-standard),
+    border-color var(--motion-duration-medium) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-medium) var(--motion-ease-standard),
+    transform var(--motion-duration-medium) var(--motion-ease-standard);
+}
+
+.avatarButton::after {
+  content: "";
+  position: absolute;
+  inset: -10%;
+  border-radius: inherit;
+  background: linear-gradient(
+    115deg,
+    transparent 20%,
+    color-mix(in srgb, var(--color-brand, #6366f1) 65%, var(--color-accent, #22d3ee) 35%) 50%,
+    transparent 80%
+  );
+  opacity: 0;
+  transform: translateX(-120%) rotate(4deg);
+  transition:
+    transform var(--motion-duration-medium) var(--motion-ease-standard),
+    opacity var(--motion-duration-medium) var(--motion-ease-standard);
+  mix-blend-mode: screen;
+  pointer-events: none;
 }
 
 .avatarButtonCustom::before {
@@ -313,6 +345,18 @@
 
 .avatarButtonCustom:hover::before {
   transform: scale(1.02);
+}
+
+.avatarButton:hover {
+  background: var(--header-button-hover-bg);
+  border-color: var(--header-button-hover-border);
+  box-shadow: var(--header-button-hover-shadow);
+  transform: translateY(-1px);
+}
+
+.avatarButton:hover::after {
+  opacity: 0.9;
+  transform: translateX(120%) rotate(4deg);
 }
 
 .clerkAvatarBox {

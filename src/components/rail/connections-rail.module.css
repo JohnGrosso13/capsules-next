@@ -3,10 +3,19 @@
     margin-left: var(--connections-rail-offset, -60px);
   }
 
-  .railConnections {
-    display: grid;
-    gap: var(--space-lg, 20px);
-  }
+.railConnections {
+  display: grid;
+  gap: var(--space-lg, 20px);
+  /* Override rail brand accents to the Capsule blues instead of purple */
+  --connections-accent: #2f5fd7;
+  --connections-accent-strong: #19a1e6;
+  --home-railtab-accent: var(--connections-accent);
+  --color-brand: var(--connections-accent);
+  --color-brand-strong: var(--connections-accent-strong);
+  --header-brand: var(--connections-accent);
+  --header-brand-strong: var(--connections-accent-strong);
+  --cta-button-gradient: linear-gradient(135deg, var(--connections-accent) 0%, var(--connections-accent-strong) 100%);
+}
 
   .railViewport {
     display: grid;
@@ -15,16 +24,16 @@
     padding: 18px;
     border-radius: clamp(20px, 2.4vw, 28px);
     border: 1px solid
-      var(
-        --home-railviewport-border,
-        color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.14)) 90%, transparent)
-      );
+      var(--home-railviewport-border, color-mix(in srgb, var(--card-border, var(--color-border)) 90%, transparent));
     background: var(
       --home-railviewport-background,
-      radial-gradient(140% 120% at 50% 0%, rgba(102, 126, 255, 0.18), transparent 56%),
-      linear-gradient(180deg, rgba(26, 32, 68, 0.86), rgba(10, 14, 32, 0.92))
+      linear-gradient(
+        180deg,
+        var(--rail-bg-1, var(--card-bg-1, var(--surface-elevated))),
+        var(--rail-bg-2, var(--card-bg-2, var(--surface-muted)))
+      )
     );
-    box-shadow: var(--home-railviewport-shadow, 0 32px 64px rgba(4, 10, 34, 0.5));
+    box-shadow: var(--home-railviewport-shadow, var(--card-shadow, var(--shadow-lg)));
     backdrop-filter: blur(var(--glass-blur, 16px)) saturate(140%);
     -webkit-backdrop-filter: blur(var(--glass-blur, 16px)) saturate(140%);
     position: relative;
@@ -42,7 +51,7 @@
     border-radius: inherit;
     background: var(
       --home-railviewport-highlight,
-      linear-gradient(120deg, rgba(255, 255, 255, 0.12), transparent 55%)
+      linear-gradient(120deg, color-mix(in srgb, var(--color-fg) 12%, transparent), transparent 55%)
     );
     opacity: var(--home-railviewport-highlight-opacity, 0.22);
     pointer-events: none;
@@ -67,14 +76,14 @@
   }
 
   .connectionTilesShell {
-    border: 1px solid var(--card-border, rgba(255, 255, 255, 0.14));
+    border: 1px solid var(--card-border, var(--color-border));
     border-radius: var(--card-radius, 16px);
     background: linear-gradient(
       180deg,
-      var(--glass-bg-1, rgba(255, 255, 255, 0.12)),
-      var(--glass-bg-2, rgba(255, 255, 255, 0.06))
+      var(--glass-bg-1, color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 18%, transparent)),
+      var(--glass-bg-2, color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 10%, transparent))
     );
-    box-shadow: var(--card-shadow, 0 18px 40px rgba(5, 10, 30, 0.35));
+    box-shadow: var(--card-shadow, var(--shadow-lg));
     backdrop-filter: blur(var(--glass-blur, 14px)) saturate(125%);
     -webkit-backdrop-filter: blur(var(--glass-blur, 14px)) saturate(125%);
     padding: 8px;
@@ -90,9 +99,9 @@
   }
 
   .connectionTile {
-    --tile-accent-a: color-mix(in srgb, var(--color-brand, #2563eb) 60%, var(--color-accent, #22d3ee));
-    --tile-accent-b: color-mix(in srgb, var(--color-accent, #22d3ee) 55%, #60a5fa);
-    --tile-accent-c: color-mix(in srgb, var(--color-info, #38bdf8) 40%, transparent);
+    --tile-accent-a: color-mix(in srgb, var(--color-brand) 60%, var(--color-accent, var(--color-info)));
+    --tile-accent-b: color-mix(in srgb, var(--color-accent, var(--color-info)) 55%, var(--color-brand));
+    --tile-accent-c: color-mix(in srgb, var(--color-info, var(--color-accent)) 40%, transparent);
     --tile-glow-opacity: 0.34;
     --tile-glow-opacity-hover: 0.5;
     display: flex;
@@ -101,12 +110,19 @@
     width: 100%;
     padding: 20px 22px;
     border-radius: 20px;
-    border: 1px solid var(--tile-border-final, var(--tile-border-base, rgba(148, 197, 255, 0.22)));
-    background: var(--tile-bg-final, var(--tile-bg-base, rgba(14, 18, 36, 0.68)));
+    border: 1px solid
+      var(
+        --tile-border-final,
+        var(--tile-border-base, color-mix(in srgb, var(--card-border, var(--color-border)) 88%, transparent))
+      );
+    background: var(
+      --tile-bg-final,
+      var(--tile-bg-base, color-mix(in srgb, var(--surface-elevated, var(--surface-overlay)) 82%, transparent))
+    );
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.18),
-      var(--tile-shadow-final, var(--tile-shadow-base, 0 18px 38px rgba(8, 10, 26, 0.32)));
-    color: var(--tile-text-final, var(--tile-text-base, rgba(248, 249, 255, 0.92)));
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg, var(--text)) 12%, transparent),
+      var(--tile-shadow-final, var(--tile-shadow-base, var(--card-shadow, var(--shadow-md))));
+    color: var(--tile-text-final, var(--tile-text-base, var(--color-fg, var(--text))));
     text-decoration: none;
     transition:
       transform 0.16s ease,
@@ -136,9 +152,12 @@
 
   .connectionTile:hover {
     transform: translateY(-2px);
-    border-color: var(--tile-border-hover, var(--tile-border-hover-base));
+    border-color: var(
+      --tile-border-hover,
+      var(--tile-border-hover-base, color-mix(in srgb, var(--tile-accent-a) 64%, transparent))
+    );
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg, var(--text)) 18%, transparent),
       var(--tile-shadow-hover, var(--tile-shadow-hover-base));
   }
 
@@ -168,10 +187,13 @@
     justify-content: center;
     position: relative;
     isolation: isolate;
-    background: var(--tile-icon-bg-final, rgba(104, 120, 255, 0.2));
-    color: var(--tile-icon-color-final, rgba(248, 250, 255, 0.92));
+    background: var(
+      --tile-icon-bg-final,
+      color-mix(in srgb, var(--tile-accent-a) 34%, transparent)
+    );
+    color: var(--tile-icon-color-final, var(--tile-text-base, var(--color-fg)));
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg, var(--text)) 18%, transparent),
       0 8px 18px color-mix(in srgb, var(--tile-accent-a) 35%, transparent);
   }
 
@@ -200,7 +222,7 @@
   .connectionTileTitle {
     font-weight: 800;
     font-size: 1rem;
-    color: var(--tile-text-final, rgba(248, 249, 255, 0.95));
+    color: var(--tile-text-final, var(--color-fg));
   }
 
   .connectionTileBadge {
@@ -209,17 +231,23 @@
     gap: 6px;
     padding: 6px 12px;
     border-radius: var(--radius-pill, 999px);
-    border: 1px solid var(--tile-badge-border, rgba(255, 255, 255, 0.2));
-    background: var(--tile-badge-bg-final, rgba(255, 255, 255, 0.14));
-    color: var(--tile-badge-color-final, rgba(14, 18, 36, 0.9));
+    border: 1px solid var(--tile-badge-border, var(--pill-border, var(--color-border)));
+    background: var(
+      --tile-badge-bg-final,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 32%, transparent)
+    );
+    color: var(--tile-badge-color-final, var(--text-on-brand, var(--color-fg)));
     font-weight: 700;
     font-size: 0.85rem;
   }
 
   .connectionTileBadgeToken {
-    background: rgba(12, 18, 36, 0.85);
-    color: rgba(248, 249, 255, 0.94);
-    border-color: rgba(132, 148, 255, 0.32);
+    background: var(
+      --tile-badge-token-bg,
+      color-mix(in srgb, var(--surface-elevated, var(--surface-overlay)) 86%, transparent)
+    );
+    color: var(--tile-badge-token-color, var(--color-fg));
+    border-color: var(--tile-badge-token-border, color-mix(in srgb, var(--color-brand) 48%, transparent));
   }
 
   .connectionTileBadgeIcon {
@@ -245,7 +273,7 @@
   }
 
   .connectionTileDescription {
-    color: var(--tile-desc-final, rgba(211, 216, 255, 0.8));
+    color: var(--tile-desc-final, var(--color-fg-muted));
     font-size: 0.9rem;
   }
 
@@ -254,36 +282,42 @@
       --style-friends-bg,
       linear-gradient(
         160deg,
-        color-mix(in srgb, var(--color-accent, #22d3ee) 28%, rgba(255, 255, 255, 0.12)),
-        color-mix(in srgb, var(--color-brand, #2563eb) 12%, rgba(255, 255, 255, 0.08))
+        color-mix(in srgb, var(--color-accent) 28%, color-mix(in srgb, var(--color-fg) 12%, transparent)),
+        color-mix(in srgb, var(--color-brand) 12%, color-mix(in srgb, var(--color-fg) 8%, transparent))
       ),
       var(--tile-bg-base)
     );
     --tile-border-final: var(
       --style-friends-border,
-      color-mix(in srgb, var(--color-accent, #22d3ee) 24%, rgba(132, 148, 255, 0.24))
+      color-mix(in srgb, var(--color-accent) 24%, var(--tile-border-base))
     );
     --tile-icon-bg-final: var(
       --style-friends-icon-bg,
-      color-mix(in srgb, var(--color-accent, #22d3ee) 32%, rgba(255, 255, 255, 0.16))
+      color-mix(in srgb, var(--color-accent) 32%, color-mix(in srgb, var(--color-fg) 16%, transparent))
     );
-    --tile-icon-color-final: var(--style-friends-icon-color, rgba(14, 18, 36, 0.82));
-    --tile-desc-final: var(--style-friends-desc, rgba(221, 232, 255, 0.86));
-    --tile-badge-bg-final: var(--style-friends-badge-bg, rgba(14, 18, 36, 0.88));
-    --tile-badge-color-final: var(--style-friends-badge-color, rgba(248, 249, 255, 0.96));
-    --tile-border-hover: var(--style-friends-border-hover, rgba(104, 156, 255, 0.56));
-    --tile-shadow-hover: var(--style-friends-shadow-hover, 0 22px 44px rgba(18, 32, 68, 0.42));
+    --tile-icon-color-final: var(--style-friends-icon-color, var(--text-on-brand, var(--color-fg)));
+    --tile-desc-final: var(--style-friends-desc, var(--color-fg-subtle, var(--color-fg-muted)));
+    --tile-badge-bg-final: var(
+      --style-friends-badge-bg,
+      color-mix(in srgb, var(--surface-elevated, var(--surface-overlay)) 88%, transparent)
+    );
+    --tile-badge-color-final: var(--style-friends-badge-color, var(--text-on-brand, var(--color-fg)));
+    --tile-border-hover: var(
+      --style-friends-border-hover,
+      color-mix(in srgb, var(--color-brand) 56%, transparent)
+    );
+    --tile-shadow-hover: var(--style-friends-shadow-hover, var(--shadow-lg));
     --tile-accent-a: var(
       --style-friends-accent-a,
-      color-mix(in srgb, var(--color-accent, #22d3ee) 64%, rgba(5, 12, 30, 0.82))
+      color-mix(in srgb, var(--color-accent) 64%, var(--surface-overlay, var(--surface-app)))
     );
     --tile-accent-b: var(
       --style-friends-accent-b,
-      color-mix(in srgb, var(--color-brand, #2563eb) 48%, rgba(4, 10, 24, 0.74))
+      color-mix(in srgb, var(--color-brand) 48%, var(--surface-overlay, var(--surface-app)))
     );
     --tile-accent-c: var(
       --style-friends-accent-c,
-      color-mix(in srgb, var(--color-accent, #22d3ee) 42%, rgba(4, 8, 18, 0.6))
+      color-mix(in srgb, var(--color-accent) 42%, var(--surface-overlay, transparent))
     );
     --tile-glow-opacity: 0.26;
   }
@@ -294,38 +328,53 @@
       --style-party-bg,
       linear-gradient(
         160deg,
-        color-mix(in srgb, var(--header-brand, var(--color-brand)) 22%, rgba(255, 255, 255, 0.18)),
-        color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 16%, rgba(255, 255, 255, 0.12))
+        color-mix(
+          in srgb,
+          var(--header-brand, var(--color-brand)) 22%,
+          color-mix(in srgb, var(--color-fg, var(--text)) 18%, transparent)
+        ),
+        color-mix(
+          in srgb,
+          var(--header-brand-strong, var(--color-brand-strong)) 16%,
+          color-mix(in srgb, var(--color-fg, var(--text)) 12%, transparent)
+        )
       ),
       var(--tile-bg-base)
     );
     --tile-border-final: var(
       --style-party-border,
-      color-mix(in srgb, var(--header-brand, var(--color-brand)) 45%, var(--tile-border-base, rgba(132, 148, 255, 0.22)))
+      color-mix(in srgb, var(--header-brand, var(--color-brand)) 45%, var(--tile-border-base))
     );
     --tile-icon-bg-final: var(
       --style-party-icon-bg,
-      color-mix(in srgb, var(--header-brand, var(--color-brand)) 32%, rgba(255, 255, 255, 0.16))
+      color-mix(in srgb, var(--header-brand, var(--color-brand)) 32%, color-mix(in srgb, var(--color-fg) 16%, transparent))
     );
     --tile-icon-color-final: var(
       --style-party-icon-color,
-      var(--tile-icon-color-base, rgba(18, 24, 42, 0.86))
+      var(--tile-icon-color-base, var(--color-fg))
     );
-    --tile-desc-final: var(--style-party-desc, rgba(24, 34, 64, 0.8));
-    --tile-badge-bg-final: var(--style-party-badge-bg, rgba(16, 22, 52, 0.86));
-    --tile-badge-color-final: var(--style-party-badge-color, rgba(246, 248, 255, 0.96));
+    --tile-desc-final: var(--style-party-desc, var(--color-fg-muted));
+    --tile-badge-bg-final: var(
+      --style-party-badge-bg,
+      color-mix(in srgb, var(--surface-elevated, var(--surface-overlay)) 86%, transparent)
+    );
+    --tile-badge-color-final: var(--style-party-badge-color, var(--text-on-brand, var(--color-fg)));
     --tile-border-hover: var(
       --style-party-border-hover,
-      color-mix(in srgb, var(--header-brand, var(--color-brand)) 62%, rgba(148, 163, 184, 0.28))
+      color-mix(
+        in srgb,
+        var(--header-brand, var(--color-brand)) 62%,
+        color-mix(in srgb, var(--color-border-strong, var(--color-border)) 28%, transparent)
+      )
     );
-    --tile-shadow-hover: var(--style-party-shadow-hover, 0 22px 48px rgba(18, 28, 62, 0.4));
+    --tile-shadow-hover: var(--style-party-shadow-hover, var(--shadow-lg));
     --tile-accent-a: var(
       --style-party-accent-a,
-      color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 58%, #38bdf8)
+      color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 58%, var(--color-info, var(--color-accent)))
     );
     --tile-accent-b: var(
       --style-party-accent-b,
-      color-mix(in srgb, var(--header-brand, var(--color-brand)) 48%, #60a5fa)
+      color-mix(in srgb, var(--header-brand, var(--color-brand)) 48%, var(--color-info, var(--color-accent)))
     );
     --tile-accent-c: var(
       --style-party-accent-c,
@@ -339,28 +388,37 @@
       --style-chats-bg,
       linear-gradient(
         160deg,
-        color-mix(in srgb, var(--color-info, #38bdf8) 26%, transparent),
-        color-mix(in srgb, var(--color-brand, #2563eb) 12%, transparent)
+        color-mix(in srgb, var(--color-info) 26%, transparent),
+        color-mix(in srgb, var(--color-brand) 12%, transparent)
       ),
       var(--tile-bg-base)
     );
     --tile-border-final: var(
       --style-chats-border,
-      color-mix(in srgb, var(--color-info, #38bdf8) 35%, var(--tile-border-base, rgba(132, 148, 255, 0.22)))
+      color-mix(in srgb, var(--color-info) 35%, var(--tile-border-base))
     );
     --tile-icon-bg-final: var(
       --style-chats-icon-bg,
-      color-mix(in srgb, var(--color-info, #38bdf8) 26%, rgba(255, 255, 255, 0.12))
+      color-mix(in srgb, var(--color-info) 26%, color-mix(in srgb, var(--color-fg) 12%, transparent))
     );
-    --tile-icon-color-final: var(--style-chats-icon-color, var(--tile-icon-color-base, rgba(18, 24, 42, 0.86)));
-    --tile-desc-final: var(--style-chats-desc, rgba(220, 232, 255, 0.88));
-    --tile-badge-bg-final: var(--style-chats-badge-bg, rgba(16, 22, 48, 0.86));
-    --tile-badge-color-final: var(--style-chats-badge-color, rgba(246, 248, 255, 0.94));
-    --tile-border-hover: var(--style-chats-border-hover, rgba(118, 184, 255, 0.56));
-    --tile-shadow-hover: var(--style-chats-shadow-hover, 0 22px 48px rgba(18, 28, 62, 0.4));
-    --tile-accent-a: color-mix(in srgb, var(--color-brand, #2563eb) 65%, #0ea5e9);
-    --tile-accent-b: color-mix(in srgb, var(--color-info, #38bdf8) 48%, #1d4ed8);
-    --tile-accent-c: color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent);
+    --tile-icon-color-final: var(--style-chats-icon-color, var(--tile-icon-color-base, var(--color-fg)));
+    --tile-desc-final: var(--style-chats-desc, var(--color-fg-muted));
+    --tile-badge-bg-final: var(
+      --style-chats-badge-bg,
+      color-mix(in srgb, var(--surface-elevated, var(--surface-overlay)) 86%, transparent)
+    );
+    --tile-badge-color-final: var(--style-chats-badge-color, var(--text-on-brand, var(--color-fg)));
+    --tile-border-hover: var(
+      --style-chats-border-hover,
+      color-mix(in srgb, var(--color-brand) 56%, transparent)
+    );
+    --tile-shadow-hover: var(--style-chats-shadow-hover, var(--shadow-lg));
+    --tile-accent-a: var(--style-chats-accent-a, color-mix(in srgb, var(--color-brand) 65%, var(--color-info)));
+    --tile-accent-b: var(
+      --style-chats-accent-b,
+      color-mix(in srgb, var(--color-info) 48%, var(--header-brand-strong, var(--color-brand-strong, var(--color-brand))))
+    );
+    --tile-accent-c: var(--style-chats-accent-c, color-mix(in srgb, var(--color-brand) 32%, transparent));
     --tile-glow-opacity: 0.32;
   }
 
@@ -369,28 +427,42 @@
       --style-requests-bg,
       linear-gradient(
         160deg,
-        color-mix(in srgb, var(--color-warning, #fbbf24) 42%, rgba(255, 255, 255, 0.18)),
-        color-mix(in srgb, var(--color-success, #34d399) 22%, rgba(255, 255, 255, 0.12))
+        color-mix(
+          in srgb,
+          var(--color-warning) 42%,
+          color-mix(in srgb, var(--color-fg, var(--text)) 18%, transparent)
+        ),
+        color-mix(
+          in srgb,
+          var(--color-success) 22%,
+          color-mix(in srgb, var(--color-fg, var(--text)) 12%, transparent)
+        )
       ),
       var(--tile-bg-base)
     );
     --tile-border-final: var(
       --style-requests-border,
-      color-mix(in srgb, var(--color-warning, #fbbf24) 38%, var(--tile-border-base, rgba(132, 148, 255, 0.22)))
+      color-mix(in srgb, var(--color-warning) 38%, var(--tile-border-base))
     );
     --tile-icon-bg-final: var(
       --style-requests-icon-bg,
-      color-mix(in srgb, var(--color-warning, #fbbf24) 52%, rgba(255, 255, 255, 0.14))
+      color-mix(in srgb, var(--color-warning) 52%, color-mix(in srgb, var(--color-fg) 14%, transparent))
     );
-    --tile-icon-color-final: var(--style-requests-icon-color, var(--tile-icon-color-base, rgba(18, 24, 42, 0.88)));
-    --tile-desc-final: var(--style-requests-desc, rgba(240, 236, 220, 0.9));
-    --tile-badge-bg-final: var(--style-requests-badge-bg, rgba(14, 22, 40, 0.85));
-    --tile-badge-color-final: var(--style-requests-badge-color, rgba(246, 248, 255, 0.94));
-    --tile-border-hover: var(--style-requests-border-hover, rgba(255, 188, 60, 0.58));
-    --tile-shadow-hover: var(--style-requests-shadow-hover, 0 22px 48px rgba(38, 28, 12, 0.4));
-    --tile-accent-a: color-mix(in srgb, var(--color-warning, #fbbf24) 68%, #f59e0b);
-    --tile-accent-b: color-mix(in srgb, var(--color-success, #34d399) 42%, #34d399);
-    --tile-accent-c: color-mix(in srgb, var(--color-warning, #fbbf24) 36%, transparent);
+    --tile-icon-color-final: var(--style-requests-icon-color, var(--tile-icon-color-base, var(--color-fg)));
+    --tile-desc-final: var(--style-requests-desc, var(--color-fg-muted));
+    --tile-badge-bg-final: var(
+      --style-requests-badge-bg,
+      color-mix(in srgb, var(--surface-elevated, var(--surface-overlay)) 85%, transparent)
+    );
+    --tile-badge-color-final: var(--style-requests-badge-color, var(--text-on-brand, var(--color-fg)));
+    --tile-border-hover: var(
+      --style-requests-border-hover,
+      color-mix(in srgb, var(--color-warning) 58%, transparent)
+    );
+    --tile-shadow-hover: var(--style-requests-shadow-hover, var(--shadow-lg));
+    --tile-accent-a: color-mix(in srgb, var(--color-warning) 68%, var(--color-warning));
+    --tile-accent-b: color-mix(in srgb, var(--color-success) 42%, var(--color-success));
+    --tile-accent-c: color-mix(in srgb, var(--color-warning) 36%, transparent);
   }
 
   .railHeaderRow {
@@ -400,14 +472,14 @@
     gap: 12px;
     padding: 12px;
     border-radius: clamp(16px, 2vw, 20px);
-    border: 1px solid var(--rail-border, var(--card-border, rgba(255, 255, 255, 0.14)));
+    border: 1px solid var(--rail-border, var(--card-border, var(--color-border)));
     /* Use neutral rail shell so actions sit on a clean plate in light/dark */
     background: linear-gradient(
       180deg,
       var(--rail-bg-1, var(--card-bg-1)),
       var(--rail-bg-2, var(--card-bg-2))
     );
-    box-shadow: var(--home-railheader-shadow, 0 18px 38px rgba(6, 12, 34, 0.18));
+    box-shadow: var(--home-railheader-shadow, var(--card-shadow, var(--shadow-md)));
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     position: relative;
@@ -419,7 +491,11 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 60%);
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-fg) 12%, transparent),
+      transparent 60%
+    );
     opacity: 0.32;
     pointer-events: none;
     z-index: -1;
@@ -435,7 +511,7 @@
 
   .railIconTabs {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 8px;
   }
 
@@ -448,10 +524,17 @@
     padding: 10px;
     min-height: 44px;
     border-radius: 12px;
-    border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.18));
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.04));
-    color: var(--color-fg, rgba(255, 255, 255, 0.9));
-    box-shadow: var(--home-railtab-box-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.12));
+    border: 1px solid var(--pill-border, var(--color-border));
+    background: linear-gradient(
+      180deg,
+      var(--glass-bg-1, color-mix(in srgb, var(--surface-overlay) 6%, transparent)),
+      var(--glass-bg-2, color-mix(in srgb, var(--surface-overlay) 4%, transparent))
+    );
+    color: var(--color-fg);
+    box-shadow: var(
+      --home-railtab-box-shadow,
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg) 12%, transparent)
+    );
     transition:
       transform 0.16s ease,
       border-color 0.16s ease,
@@ -460,35 +543,39 @@
   }
 
   .railIconTab:hover {
-    border-color: var(--card-hover-border, rgba(255, 255, 255, 0.26));
+    border-color: var(--card-hover-border, color-mix(in srgb, var(--color-border) 70%, transparent));
     transform: translateY(-1px);
   }
 
   .railIconTab:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--color-brand) 55%, transparent);
     outline-offset: 2px;
   }
 
   .railIconTabActive {
-    color: var(--color-fg, rgba(255, 255, 255, 0.95));
+    color: var(--color-fg);
     border-color: color-mix(
       in srgb,
-      var(--home-railtab-accent, var(--color-brand, #2563eb)) 45%,
-      var(--pill-border, rgba(255, 255, 255, 0.18))
+      var(--home-railtab-accent, var(--color-brand)) 45%,
+      var(--pill-border, var(--color-border))
     );
     background: linear-gradient(
       160deg,
-      color-mix(in srgb, var(--home-railtab-accent, var(--color-brand, #2563eb)) 32%, transparent),
-      color-mix(in srgb, var(--home-railtab-accent, var(--color-brand, #2563eb)) 12%, rgba(255, 255, 255, 0.08))
+      color-mix(in srgb, var(--home-railtab-accent, var(--color-brand)) 32%, transparent),
+      color-mix(
+        in srgb,
+        var(--home-railtab-accent, var(--color-brand)) 12%,
+        color-mix(in srgb, var(--color-fg) 8%, transparent)
+      )
     );
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.16),
-      inset 0 -1px 0 rgba(5, 8, 28, 0.38),
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg) 16%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 38%, transparent),
       0 10px 22px
         color-mix(
           in srgb,
-          var(--home-railtab-accent, var(--color-brand, #2563eb)) 18%,
-          rgba(5, 10, 30, 0.3)
+          var(--home-railtab-accent, var(--color-brand)) 18%,
+          color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 30%, transparent)
         );
   }
 
@@ -504,6 +591,7 @@
     border: 0;
   }
 
+
   .railHeaderActions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -518,16 +606,20 @@
     padding: 7px 10px;
     min-height: 38px;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--rail-border, rgba(255, 255, 255, 0.16)) 80%, transparent);
+    border: 1px solid
+      color-mix(in srgb, var(--rail-border, var(--card-border, var(--color-border))) 80%, transparent);
     background: linear-gradient(
       140deg,
-      color-mix(in srgb, rgba(255, 255, 255, 0.16) 32%, transparent),
-      color-mix(in srgb, rgba(255, 255, 255, 0.08) 46%, transparent)
+      color-mix(in srgb, var(--color-fg) 32%, transparent),
+      color-mix(in srgb, var(--color-fg) 16%, transparent)
     );
-    color: var(--cta-button-text, var(--text, #0b1224));
+    color: var(--cta-button-text, var(--text));
     font-weight: 700;
     letter-spacing: 0.01em;
-    box-shadow: 0 12px 26px rgba(6, 12, 34, 0.26);
+    box-shadow: var(
+      --rail-action-shadow,
+      0 12px 26px color-mix(in srgb, var(--surface-overlay, var(--surface-app, currentColor)) 32%, transparent)
+    );
     transition:
       transform 0.16s ease,
       box-shadow 0.16s ease,
@@ -538,31 +630,36 @@
   .railActionGradient {
     background: var(
       --cta-button-gradient,
-      var(--cta-chip-gradient, linear-gradient(135deg, #7c3aed, #2563eb 55%, #0ea5e9))
+      var(--cta-chip-gradient, var(--gradient-brand))
     );
-    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 72%, rgba(255, 255, 255, 0.18));
-    color: var(--cta-button-text, var(--text-on-brand, #041021));
+    border-color: color-mix(in srgb, var(--color-brand) 72%, var(--color-border));
+    color: var(--cta-button-text, var(--text-on-brand));
   }
 
   .railActionParty {
     background: linear-gradient(
       135deg,
-      color-mix(in srgb, var(--color-brand, #2563eb) 72%, #7c3aed),
-      color-mix(in srgb, var(--color-accent, #22d3ee) 72%, #0ea5e9)
+      color-mix(in srgb, var(--color-brand) 72%, var(--color-accent)),
+      color-mix(in srgb, var(--color-accent) 72%, var(--color-brand-strong, var(--color-brand)))
     );
-    border-color: color-mix(in srgb, var(--color-brand, #6366f1) 70%, rgba(255, 255, 255, 0.2));
-    color: var(--text-on-brand, #f8fbff);
+    border-color: color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 70%, var(--color-border));
+    color: var(--text-on-brand);
   }
 
   .railActionButton[data-active="true"] {
-    box-shadow: 0 20px 40px color-mix(in srgb, var(--color-brand, #2563eb) 26%, rgba(4, 10, 28, 0.32));
+    box-shadow: 0 20px 40px
+      color-mix(
+        in srgb,
+        var(--color-brand) 26%,
+        color-mix(in srgb, var(--surface-overlay, var(--surface-app, currentColor)) 32%, transparent)
+      );
     transform: translateY(-1px);
   }
 
   .railActionButton:hover:not(:disabled) {
     transform: translateY(-1px);
     filter: brightness(1.04);
-    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 76%, rgba(255, 255, 255, 0.2));
+    border-color: color-mix(in srgb, var(--color-brand) 76%, var(--color-border));
   }
 
   .railActionButton:disabled {
@@ -596,9 +693,9 @@
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    background: rgba(255, 255, 255, 0.2);
-    color: var(--text-on-brand, #041021);
-    border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.42) 70%, transparent);
+    background: color-mix(in srgb, var(--color-fg) 20%, transparent);
+    color: var(--text-on-brand, var(--color-fg));
+    border: 1px solid color-mix(in srgb, var(--color-border-strong, var(--color-border)) 70%, transparent);
   }
 
 
@@ -613,28 +710,32 @@
     min-height: 40px;
     padding: 8px 12px;
     border-radius: 12px;
-    border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.24) 72%, transparent);
-    background: color-mix(in srgb, rgba(16, 20, 44, 0.82) 86%, transparent);
-    color: color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.9)) 92%, transparent);
+    border: 1px solid
+      color-mix(in srgb, var(--color-border-strong, var(--color-border)) 72%, transparent);
+    background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 86%, transparent);
+    color: color-mix(in srgb, var(--text, var(--color-fg)) 92%, transparent);
     line-height: 1.1;
     font-weight: 700;
     transition:
       transform 0.18s ease,
       border-color 0.18s ease,
       box-shadow 0.18s ease;
-    box-shadow: var(--home-railbackbtn-box-shadow, 0 12px 28px rgba(4, 8, 24, 0.38));
+    box-shadow: var(
+      --home-railbackbtn-box-shadow,
+      0 12px 28px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent)
+    );
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
 
   .railBackBtn:hover {
     transform: translateY(-1px);
-    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 68%, transparent);
-    box-shadow: 0 18px 34px rgba(8, 12, 32, 0.44);
+    border-color: color-mix(in srgb, var(--color-brand) 68%, transparent);
+    box-shadow: 0 18px 34px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 44%, transparent);
   }
 
   .railBackBtn:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 58%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--color-brand) 58%, transparent);
     outline-offset: 2px;
   }
 
@@ -694,6 +795,185 @@
     scrollbar-gutter: stable;
   }
 
+  .railPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+    gap: 8px;
+    padding: 6px 2px 10px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--card-border) 65%, transparent);
+  }
+
+  .railPanelHeading {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .railPanelActions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .railPanelActionButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent),
+      color-mix(in srgb, rgba(8, 10, 30, 0.78) 80%, transparent)
+    );
+    color: var(--text);
+    transition:
+      transform 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .railPanelActionButton:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+  }
+
+  .railPanelActionButton[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--color-brand) 76%, transparent);
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--color-brand) 24%, transparent);
+  }
+
+  .friendDiscover {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 12px 6px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
+    background: color-mix(in srgb, rgba(12, 16, 32, 0.7) 80%, transparent);
+    margin-bottom: 10px;
+  }
+
+  .friendDiscoverControls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .friendDiscoverInput {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
+    padding: 10px 12px;
+    background: color-mix(in srgb, rgba(16, 18, 34, 0.88) 80%, transparent);
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+
+  .friendSuggestions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .friendSuggestion {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: color-mix(in srgb, rgba(255, 255, 255, 0.04) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  }
+
+  .friendSuggestionMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .friendSuggestionName {
+    font-weight: 700;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .friendSuggestionStatus {
+    font-size: 0.85rem;
+    color: var(--text-2, #a5b1cb);
+  }
+
+  .friendSuggestionStatus-online {
+    color: var(--presence-online-dot, var(--color-success, #34d399));
+  }
+
+  .friendSuggestionStatus-away {
+    color: var(--friends-presence-away, var(--color-warning));
+  }
+
+  .friendSuggestionStatus-offline {
+    color: var(--friends-presence-offline, var(--text-2, #a5b1cb));
+  }
+
+  .friendSuggestionAdd {
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--color-brand) 60%, var(--card-border));
+    background: color-mix(in srgb, rgba(255, 255, 255, 0.06) 70%, transparent);
+    color: var(--text);
+    padding: 6px 12px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    transition:
+      transform 120ms ease,
+      border-color 120ms ease;
+  }
+
+  .friendSuggestionAdd:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-brand) 75%, var(--card-border));
+  }
+
+  .friendSuggestionAdd:disabled,
+  .friendSuggestionAdded {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .friendSuggestionEmpty {
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px dashed color-mix(in srgb, var(--card-border) 70%, transparent);
+    color: var(--text-2, #a5b1cb);
+  }
+
+  .friendSuggestionHint {
+    font-size: 0.85rem;
+    color: var(--text-2, #a5b1cb);
+  }
+
+  .railPanelTitle {
+    font-weight: 800;
+    font-size: 1.3rem;
+    color: var(--text);
+    letter-spacing: 0.01em;
+  }
+
+  .railPanelSubtitle {
+    font-size: 0.9rem;
+    color: color-mix(in srgb, var(--text-2, #a5b1cb) 88%, transparent);
+    line-height: 1.5;
+  }
+
   @media (max-width: 1000px) {
     .railConnections {
       height: auto;
@@ -734,8 +1014,7 @@
     }
 
     .railIconTabs {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
     }
   }
 }
-

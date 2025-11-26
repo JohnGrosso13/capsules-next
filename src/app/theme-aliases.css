@@ -143,5 +143,30 @@
     --style-requests-shadow-hover: var(--style-chats-shadow-hover);
     --tile-shadow-hover: var(--style-chats-shadow-hover);
     --text-muted: var(--text-2);
+    --composer-rail-tab-active-border: var(--comment-media-bg);
+    --composer-shadow-color: var(--comment-media-bg);
+    --mode-button-active-shadow: var(--comment-media-bg);
+    --rail-action-shadow: var(--comment-media-bg);
+    --style-chats-accent-a: var(--comment-media-bg);
+    --style-chats-accent-b: var(--comment-media-bg);
+    --style-chats-accent-c: var(--comment-media-bg);
+    --tile-badge-token-bg: var(--comment-media-bg);
+    --tile-badge-token-border: var(--comment-media-bg);
+    --tile-badge-token-color: var(--comment-media-bg);
+    --composer-attachment-hover-border: var(--composer-rail-tab-border);
+    --composer-rail-button-border: var(--composer-rail-tab-border);
+    --composer-chat-badge-text: var(--composer-rail-tab-active-color);
+    --composer-send-btn-text: var(--composer-rail-tab-active-color);
+    --ladder-step-active-text: var(--composer-rail-tab-active-color);
+    --composer-prompt-icon-btn-bg: var(--composer-quick-chip-bg);
+    --composer-prompt-input-text: var(--composer-rail-tab-color-strong);
+    --composer-vibe-btn-text: var(--composer-rail-tab-color-strong);
+    --composer-quick-chip-text: var(--composer-rail-button-text);
+    --composer-rail-bg: var(--composer-rail-background);
+    --composer-rail-shell: var(--composer-rail-background);
+    --composer-rail-button-hover-border: var(--composer-send-btn-border);
+    --composer-vibe-btn-border: var(--composer-send-btn-border);
+    --ladder-surface: var(--composer-surface);
+    --ladder-surface-strong: var(--composer-surface);
   }
 }

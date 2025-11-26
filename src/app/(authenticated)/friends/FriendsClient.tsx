@@ -701,6 +701,7 @@ export function FriendsClient() {
           {chatNotice ? <div className={styles.notice}>{chatNotice}</div> : null}
           <ChatPanel
             variant="page"
+            friends={friends}
             emptyNotice={<p>No chats yet. Start a conversation from your friends list.</p>}
             onInviteToGroup={handleInviteToGroup}
           />
@@ -744,6 +745,5 @@ export function FriendsClient() {
     </>
   );
 }
-
 
 

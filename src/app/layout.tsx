@@ -6,6 +6,7 @@ import "./globals.css";
 import "./light-theme.css";
 import "./cta-overrides.css";
 import "./theme-aliases.css";
+import { clerkAppearance } from "@/lib/clerk/appearance";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme/script";
 
 export const runtime = "nodejs";
@@ -77,7 +78,7 @@ export default function RootLayout({
     throw new Error("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is not configured");
   }
   return (
-    <ClerkProvider publishableKey={publishableKey}>
+    <ClerkProvider publishableKey={publishableKey} appearance={clerkAppearance}>
       <html lang="en" data-theme="dark" suppressHydrationWarning>
         <body className={inter.className} suppressHydrationWarning>
           <Script id="theme-init" strategy="beforeInteractive">

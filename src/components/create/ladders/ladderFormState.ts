@@ -130,7 +130,24 @@ export const defaultSectionsForm = (): Record<SectionKey, LadderSectionFormValue
 
 export const ladderGameFormSchema = z.object({
   title: z.string().max(80),
-  mode: z.string().max(80).optional(),
+  mode: z
+    .string()
+    .max(80)
+    .superRefine((value, ctx) => {
+      const trimmed = value.trim();
+      const allowed = ["1v1", "teams", "capsule_vs_capsule"];
+      if (!trimmed.length) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["mode"], message: "Select a match format." });
+        return;
+      }
+      if (!allowed.includes(trimmed)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["mode"],
+          message: "Choose a match format from the provided options.",
+        });
+      }
+    }),
   platform: z.string().max(60).optional(),
   region: z.string().max(60).optional(),
 });
@@ -144,8 +161,20 @@ export const defaultGameForm: LadderGameFormValues = {
   region: "",
 };
 
+export const matchFormatOptions = [
+  { value: "1v1", label: "1v1 (player vs player)" },
+  { value: "teams", label: "Teams (users vs users)" },
+  { value: "capsule_vs_capsule", label: "Capsule vs Capsule" },
+];
+
+export const matchFormatLabel = (value?: string | null): string => {
+  if (!value) return "";
+  const option = matchFormatOptions.find((option) => option.value === value);
+  return option?.label ?? value;
+};
+
 export const ladderScoringFormSchema = z.object({
-  system: z.enum(["elo", "points", "custom"]).default("elo"),
+  system: z.enum(["simple", "elo", "ai", "points", "custom"]).default("elo"),
   initialRating: z.string().max(4),
   kFactor: z.string().max(4),
   placementMatches: z.string().max(2),
@@ -199,6 +228,7 @@ export const defaultRegistrationForm: LadderRegistrationFormValues = {
 export const ladderMemberFormSchema = z
   .object({
     id: z.string().uuid().optional(),
+    userId: z.string().max(80).optional(),
     displayName: z.string().max(80),
     handle: z.string().max(40).optional(),
     seed: z.string().max(3),
@@ -217,6 +247,7 @@ export const ladderMemberFormSchema = z
 export type LadderMemberFormValues = z.infer<typeof ladderMemberFormSchema>;
 
 export const createEmptyMemberForm = (index: number): LadderMemberFormValues => ({
+  userId: "",
   displayName: "",
   handle: "",
   seed: String(index + 1),

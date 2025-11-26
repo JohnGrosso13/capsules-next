@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { groupUsageFromVars, summarizeGroupLabels } from "@/lib/theme/token-groups";
 import { normalizeThemeVariantsInput, isVariantEmpty } from "@/lib/theme/variants";
+import { validateThemeVariantsInput } from "@/lib/theme/validate";
 import { limitThemeVariants, MAX_RETURNED_VARS, resolveStylerPlan } from "@/server/ai/styler";
 import { returnError, validatedJson } from "@/server/validation/http";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
@@ -84,9 +85,29 @@ export async function POST(req: Request) {
       );
     }
 
-    const sampleVariant = limitedVariants.light ?? limitedVariants.dark ?? {};
+    const validation = validateThemeVariantsInput(limitedVariants);
+    const variantIssues =
+      validation.ok || !validation.issues.length
+        ? null
+        : validation.issues.map((issue) => issue.message).join("; ");
+    const normalizedVariants = validation.ok
+      ? validation.normalized
+      : limitThemeVariants(validation.normalized, MAX_RETURNED_VARS);
+
+    if (isVariantEmpty(normalizedVariants)) {
+      return returnError(422, "styler_validation_failed", "No usable theme variants were produced.");
+    }
+
+    const sampleVariant = (normalizedVariants.light ?? normalizedVariants.dark ?? {}) as Record<
+      string,
+      string
+    >;
     const usage = groupUsageFromVars(sampleVariant);
     const inferredDetails = plan.details ?? summarizeGroupLabels(usage);
+    const combinedDetails =
+      variantIssues && variantIssues.length
+        ? [inferredDetails, `Validation warnings: ${variantIssues}`].filter(Boolean).join(" | ")
+        : inferredDetails;
     const groupIds = usage.map((entry) => entry.group.id);
 
     if (ownerId) {
@@ -99,11 +120,11 @@ export async function POST(req: Request) {
         description: prompt,
         postId: null,
         metadata: {
-          variants: limitedVariants,
+          variants: normalizedVariants,
           source: plan.source,
           summary: plan.summary,
           prompt,
-          details: inferredDetails ?? null,
+          details: combinedDetails ?? null,
           groups: groupIds,
         },
         rawText: `${prompt}\n${plan.summary}`,
@@ -116,8 +137,8 @@ export async function POST(req: Request) {
       status: "ok",
       source: plan.source,
       summary: plan.summary,
-      variants: limitedVariants,
-      details: inferredDetails ?? undefined,
+      variants: normalizedVariants,
+      details: combinedDetails ?? undefined,
     });
   } catch (error) {
     console.error("styler route error", error);

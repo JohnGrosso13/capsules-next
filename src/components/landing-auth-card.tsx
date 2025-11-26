@@ -1,6 +1,6 @@
 "use client";
 
-import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ClerkUserButton } from "@/components/clerk-user-button";
 
 export function LandingAuthCard() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export function LandingAuthCard() {
       <SignedIn>
         <CardHeader className="flex-row items-start justify-between gap-4 pb-0">
           <div className="border-border/40 bg-surface-muted/70 rounded-2xl border p-1 shadow-xs">
-            <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "h-11 w-11" } }} />
+            <ClerkUserButton afterSignOutUrl="/" avatarBoxClassName="h-11 w-11" />
           </div>
           <div className="flex-1 space-y-1">
             <CardTitle className="text-fg text-xl font-semibold">Welcome back</CardTitle>

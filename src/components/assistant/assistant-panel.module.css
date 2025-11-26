@@ -41,9 +41,9 @@
 .refresh {
   align-self: flex-start;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
-  background: color-mix(in srgb, var(--color-brand) 30%, transparent);
-  color: var(--text, #fff);
+  border: 1px solid color-mix(in srgb, #2f5fd7 65%, transparent);
+  background: linear-gradient(135deg, #2f5fd7 0%, #19a1e6 100%);
+  color: #ffffff;
   font-weight: 600;
   padding: 8px 16px;
   cursor: pointer;
@@ -55,8 +55,8 @@
 
 .refresh:hover:not(:disabled) {
   transform: translateY(-1px);
-  filter: brightness(1.05);
-  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+  filter: brightness(1.03);
+  border-color: color-mix(in srgb, #19a1e6 75%, transparent);
 }
 
 .refresh:disabled {

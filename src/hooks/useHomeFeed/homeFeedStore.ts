@@ -99,7 +99,7 @@ const defaultFallbackPosts: HomeFeedPost[] = [
   {
     id: "sample-feed",
     dbId: "sample-feed",
-    user_name: "Capsules AI",
+    user_name: "Assistant",
     content: "Ask your Capsule AI to design posts, polls, and shopping drops for your community.",
     mediaUrl: null,
     created_at: null,

@@ -38,8 +38,8 @@
 
   .cta {
     justify-self: center;
-    --cta-button-gradient: linear-gradient(120deg, #0ea5e9 0%, #2563eb 50%, #06b6d4 100%);
-    --cta-button-text: #ffffff;
+    --cta-button-gradient: var(--cta-gradient, var(--gradient-brand));
+    --cta-button-text: var(--text-on-brand, #ffffff);
     font-weight: 800;
     letter-spacing: 0.01em;
     padding-inline: 1.25rem;

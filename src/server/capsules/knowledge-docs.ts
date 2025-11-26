@@ -8,13 +8,11 @@ import { listPollVoteAggregates } from "@/server/posts/repository";
 import type { CapsuleKnowledgeDoc } from "./knowledge-index";
 import type { CapsuleLadderMember, CapsuleLadderSummary } from "@/types/ladders";
 
-const POST_LIMIT = 200;
+const PAGE_SIZE = 500;
 const LADDER_LIMIT = 20;
-const ASSET_LIMIT = 200;
-const MAX_MEMBER_ROWS = 5000;
 const LADDER_RESULTS_LIMIT = 4;
 const LADDER_MEMBER_SAMPLE_LIMIT = 8;
-const STREAM_EVENT_LIMIT = 6;
+const STREAM_EVENT_LIMIT = 12;
 const TITLE_LIMIT = 160;
 const DOC_TEXT_LIMIT = 1400;
 const TRANSCRIPT_SOURCES = new Set(["voice_transcription", "party_summary", "live_transcript", "chat_transcript"]);
@@ -60,7 +58,71 @@ type LiveStreamSessionRow = {
   metadata: Record<string, unknown> | null;
 };
 
+type CapsuleMetaRow = {
+  id: string | null;
+  name: string | null;
+  slug: string | null;
+  created_at: string | null;
+  created_by_id: string | null;
+  owner_name: string | null;
+  owner_key: string | null;
+};
+
 const db = getDatabaseAdminClient();
+
+async function fetchAllPages<T>(
+  factory: (rangeStart: number, rangeEnd: number) => Promise<{ data: T[] | null; error: unknown }>,
+  pageSize = PAGE_SIZE,
+): Promise<T[]> {
+  const results: T[] = [];
+  let offset = 0;
+  while (true) {
+    const { data, error } = await factory(offset, offset + pageSize - 1);
+    if (error) {
+      console.warn("knowledge backfill page fetch failed", { offset, error });
+      break;
+    }
+    const rows = data ?? [];
+    if (!rows.length) break;
+    results.push(...rows);
+    if (rows.length < pageSize) break;
+    offset += pageSize;
+  }
+  return results;
+}
+
+function computeMonthSpan(values: Array<string | null | undefined>): number {
+  const timestamps = values
+    .map((value) => {
+      if (!value) return null;
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    })
+    .filter((value): value is Date => value !== null)
+    .sort((a, b) => a.getTime() - b.getTime());
+  if (!timestamps.length) return 24;
+  const first = timestamps[0]!;
+  const now = new Date();
+  const years = now.getUTCFullYear() - first.getUTCFullYear();
+  const months = now.getUTCMonth() - first.getUTCMonth();
+  const span = years * 12 + months + 1;
+  return Math.max(span, 1);
+}
+
+function computeYearSpan(values: Array<string | null | undefined>): number {
+  const timestamps = values
+    .map((value) => {
+      if (!value) return null;
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    })
+    .filter((value): value is Date => value !== null);
+  if (!timestamps.length) return 8;
+  const years = timestamps.map((date) => date.getUTCFullYear());
+  const minYear = Math.min(...years);
+  const maxYear = Math.max(...years, new Date().getUTCFullYear());
+  return Math.max(maxYear - minYear + 1, 1);
+}
 
 function truncate(value: string | null | undefined, limit: number): string | null {
   if (!value) return null;
@@ -108,6 +170,116 @@ function formatDuration(seconds: number | null | undefined): string | null {
     return `${secs}s`;
   }
   return null;
+}
+
+function formatAge(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const diffMs = Date.now() - date.getTime();
+  const diffDays = Math.max(0, Math.floor(diffMs / (24 * 60 * 60 * 1000)));
+  if (diffDays < 30) return `${diffDays} days`;
+  const diffMonths = Math.floor(diffDays / 30);
+  if (diffMonths < 18) return `${diffMonths} months`;
+  const diffYears = Math.floor(diffMonths / 12);
+  return diffYears === 1 ? "1 year" : `${diffYears} years`;
+}
+
+function earliestDate(values: Array<string | null | undefined>): string | null {
+  const timestamps = values
+    .map((value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    })
+    .filter((date): date is Date => date !== null);
+  if (!timestamps.length) return null;
+  return timestamps.reduce((acc, current) => (current.getTime() < acc.getTime() ? current : acc)).toISOString();
+}
+
+function groupByYear(values: Array<string | null | undefined>): Map<string, number> {
+  const buckets = new Map<string, number>();
+  values.forEach((value) => {
+    if (!value) return;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return;
+    const year = date.getUTCFullYear().toString();
+    buckets.set(year, (buckets.get(year) ?? 0) + 1);
+  });
+  return buckets;
+}
+
+function buildMonthlyCumulative(
+  values: Array<string | null | undefined>,
+  months: number,
+): Array<{ label: string; count: number }> {
+  const timestamps = values
+    .map((value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    })
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const results: Array<{ label: string; count: number }> = [];
+  let running = 0;
+  let cursor = 0;
+  const now = new Date();
+
+  for (let i = months - 1; i >= 0; i -= 1) {
+    const bucket = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1, 0, 0, 0));
+    const nextBucket = new Date(Date.UTC(bucket.getUTCFullYear(), bucket.getUTCMonth() + 1, 1, 0, 0, 0));
+    while (cursor < timestamps.length) {
+      const current = timestamps[cursor];
+      if (!current) break;
+      if (current.getTime() < nextBucket.getTime()) {
+        running += 1;
+        cursor += 1;
+      } else {
+        break;
+      }
+    }
+    const label = `${bucket.getUTCFullYear()}-${String(bucket.getUTCMonth() + 1).padStart(2, "0")}`;
+    results.push({ label, count: running });
+  }
+  return results;
+}
+
+function buildYearlyCumulative(
+  values: Array<string | null | undefined>,
+  years: number,
+): Array<{ label: string; count: number }> {
+  const timestamps = values
+    .map((value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    })
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const results: Array<{ label: string; count: number }> = [];
+  let running = 0;
+  let cursor = 0;
+  const now = new Date();
+  const startYear = now.getUTCFullYear() - (years - 1);
+
+  for (let year = startYear; year <= now.getUTCFullYear(); year += 1) {
+    const bucketEnd = new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0));
+    while (cursor < timestamps.length) {
+      const current = timestamps[cursor];
+      if (!current) break;
+      if (current.getTime() < bucketEnd.getTime()) {
+        running += 1;
+        cursor += 1;
+      } else {
+        break;
+      }
+    }
+    results.push({ label: year.toString(), count: running });
+  }
+  return results.reverse();
 }
 
 function getAssetSource(row: CapsuleAssetRow): string | null {
@@ -189,6 +361,41 @@ function extractPollQuestion(value: unknown): string | null {
   const record = value as Record<string, unknown>;
   const question = typeof record.question === "string" ? record.question.trim() : null;
   return question && question.length ? question : null;
+}
+
+async function fetchCapsuleMeta(capsuleId: string): Promise<CapsuleMetaRow | null> {
+  try {
+    const base = await db
+      .from("capsules")
+      .select<CapsuleMetaRow>("id, name, slug, created_at, created_by_id")
+      .eq("id", capsuleId)
+      .maybeSingle();
+    if (base.error) {
+      console.warn("capsule knowledge meta fetch failed", { capsuleId, error: base.error });
+      return null;
+    }
+    const row = base.data as CapsuleMetaRow;
+    if (!row?.created_by_id) {
+      return row;
+    }
+    try {
+      const owner = await db
+        .from("users")
+        .select<{ full_name: string | null; user_key: string | null }>("full_name, user_key")
+        .eq("id", row.created_by_id)
+        .maybeSingle();
+      if (!owner.error && owner.data) {
+        row.owner_name = owner.data.full_name ?? null;
+        row.owner_key = owner.data.user_key ?? null;
+      }
+    } catch (ownerError) {
+      console.warn("capsule owner lookup failed", { capsuleId, error: ownerError });
+    }
+    return row;
+  } catch (error) {
+    console.warn("capsule knowledge meta fetch failed", { capsuleId, error });
+    return null;
+  }
 }
 
 function buildPostDoc(row: PostKnowledgeRow, capsuleLabel: string): CapsuleKnowledgeDoc | null {
@@ -425,6 +632,30 @@ function buildMembershipDocs(rows: MemberKnowledgeRow[], capsuleLabel: string): 
       });
     });
 
+  const monthly = buildMonthlyCumulative(
+    rows.map((row) => row.joined_at),
+    computeMonthSpan(rows.map((row) => row.joined_at)),
+  );
+  const yearly = buildYearlyCumulative(
+    rows.map((row) => row.joined_at),
+    computeYearSpan(rows.map((row) => row.joined_at)),
+  );
+  const timelineLines = [
+    "Headcount by month (last 24 months):",
+    ...monthly.map((entry) => `${entry.label}: ${entry.count}`),
+    "",
+    "Headcount by year (last 8 years):",
+    ...yearly.map((entry) => `${entry.label}: ${entry.count}`),
+  ].filter((line) => line !== "");
+  docs.push({
+    id: `capsule-membership:${capsuleLabel}:timeline`,
+    title: `${capsuleLabel} membership timeline`,
+    text: truncateText(timelineLines.join("\n")) ?? timelineLines.join("\n"),
+    kind: "capsule_membership_timeline",
+    source: "capsule_membership",
+    tags: ["timeline", "membership"],
+  });
+
   return docs;
 }
 
@@ -567,6 +798,218 @@ function buildStreamLogDoc(
   };
 }
 
+function buildCapsuleProfileDoc(params: {
+  capsuleId: string;
+  capsuleLabel: string;
+  meta: CapsuleMetaRow | null;
+  memberRows: MemberKnowledgeRow[];
+  postRows: PostKnowledgeRow[];
+  assetRows: CapsuleAssetRow[];
+}): CapsuleKnowledgeDoc | null {
+  const { capsuleId, capsuleLabel, meta, memberRows, postRows, assetRows } = params;
+  const createdAt = meta?.created_at ?? null;
+  const age = formatAge(createdAt);
+  const createdLabel = formatDateLabel(createdAt);
+  const ownerLabel = meta?.owner_name?.trim().length
+    ? meta.owner_name
+    : meta?.owner_key?.trim().length
+      ? `@${meta.owner_key}`
+      : null;
+
+  const totalMembers = memberRows.length;
+  const roleCounts = memberRows.reduce<Record<string, number>>((acc, row) => {
+    const role = row.role?.trim().toLowerCase() || "member";
+    acc[role] = (acc[role] ?? 0) + 1;
+    return acc;
+  }, {});
+  const roleSummary = Object.entries(roleCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([role, count]) => `${role}: ${count}`)
+    .join(", ");
+  const earliestJoin = earliestDate(memberRows.map((row) => row.joined_at));
+
+  const totalPosts = postRows.length;
+  const now = Date.now();
+  const posts30 = postRows.filter((row) => {
+    if (!row.created_at) return false;
+    const ts = new Date(row.created_at).getTime();
+    return Number.isFinite(ts) && now - ts <= 30 * 24 * 60 * 60 * 1000;
+  }).length;
+  const posts90 = postRows.filter((row) => {
+    if (!row.created_at) return false;
+    const ts = new Date(row.created_at).getTime();
+    return Number.isFinite(ts) && now - ts <= 90 * 24 * 60 * 60 * 1000;
+  }).length;
+  const earliestPost = earliestDate(postRows.map((row) => row.created_at));
+
+  const totalAssets = assetRows.length;
+  const transcriptCount = assetRows.filter((asset) => isTranscriptAsset(asset)).length;
+  const documentCount = assetRows.filter((asset) => isDocumentAsset(asset)).length;
+  const brandCount = assetRows.filter((asset) => Boolean(isBrandAsset(asset))).length;
+
+  const lines = [
+    createdLabel ? `Created: ${createdLabel}${age ? ` (${age} ago)` : ""}` : null,
+    ownerLabel ? `Owner: ${ownerLabel}` : null,
+    totalMembers
+      ? `Members: ${totalMembers}${roleSummary ? ` (${roleSummary})` : ""}${
+          earliestJoin ? ` | First join: ${formatDateLabel(earliestJoin) ?? earliestJoin}` : ""
+        }`
+      : null,
+    totalPosts
+      ? `Posts: ${totalPosts}${posts30 ? ` | Last 30d: ${posts30}` : ""}${
+          posts90 ? ` | Last 90d: ${posts90}` : ""
+        }${earliestPost ? ` | First post: ${formatDateLabel(earliestPost) ?? earliestPost}` : ""}`
+      : null,
+    totalAssets
+      ? `Media & files: ${totalAssets}${transcriptCount ? ` transcripts:${transcriptCount}` : ""}${
+          documentCount ? ` docs:${documentCount}` : ""
+        }${brandCount ? ` brand:${brandCount}` : ""}`
+      : null,
+  ].filter((line): line is string => Boolean(line));
+
+  if (!lines.length) return null;
+
+  return {
+    id: `capsule-profile:${capsuleId}`,
+    title: `${capsuleLabel} profile`,
+    text: truncateText(lines.join("\n")) ?? lines.join("\n"),
+    kind: "capsule_profile",
+    source: "capsule_profile",
+    createdAt: createdAt ?? null,
+    tags: ["profile", "capsule"],
+  };
+}
+
+function buildCapsuleMilestonesDoc(params: {
+  capsuleId: string;
+  capsuleLabel: string;
+  meta: CapsuleMetaRow | null;
+  memberRows: MemberKnowledgeRow[];
+  postRows: PostKnowledgeRow[];
+  streamSessions: LiveStreamSessionRow[];
+}): CapsuleKnowledgeDoc | null {
+  const { capsuleId, capsuleLabel, meta, memberRows, postRows, streamSessions } = params;
+  const firstJoin = earliestDate(memberRows.map((row) => row.joined_at));
+  const firstPost = earliestDate(postRows.map((row) => row.created_at));
+  const firstStream = earliestDate(streamSessions.map((row) => row.started_at));
+  const created = meta?.created_at ?? null;
+
+  const lines = [
+    created ? `Capsule created: ${formatDateLabel(created) ?? created}` : null,
+    firstJoin ? `First member joined: ${formatDateLabel(firstJoin) ?? firstJoin}` : null,
+    firstPost ? `First post: ${formatDateLabel(firstPost) ?? firstPost}` : null,
+    firstStream ? `First live session: ${formatDateLabel(firstStream) ?? firstStream}` : null,
+  ].filter((line): line is string => Boolean(line));
+
+  if (!lines.length) return null;
+
+  return {
+    id: `capsule-milestones:${capsuleId}`,
+    title: `${capsuleLabel} milestones`,
+    text: truncateText(lines.join("\n")) ?? lines.join("\n"),
+    kind: "capsule_milestones",
+    source: "capsule_milestones",
+    createdAt: created ?? null,
+    tags: ["milestones", "capsule"],
+  };
+}
+
+function buildCapsuleActivityTimelineDoc(params: {
+  capsuleId: string;
+  capsuleLabel: string;
+  memberRows: MemberKnowledgeRow[];
+  postRows: PostKnowledgeRow[];
+}): CapsuleKnowledgeDoc | null {
+  const { capsuleId, capsuleLabel, memberRows, postRows } = params;
+  const memberByYear = groupByYear(memberRows.map((row) => row.joined_at));
+  const postByYear = groupByYear(postRows.map((row) => row.created_at));
+  const years = Array.from(new Set([...memberByYear.keys(), ...postByYear.keys()]))
+    .map((year) => Number.parseInt(year, 10))
+    .filter((year) => Number.isFinite(year))
+    .sort((a, b) => b - a)
+    .slice(0, 8);
+
+  if (!years.length) return null;
+
+  const lines = years
+    .map((year) => {
+      const label = year.toString();
+      const joins = memberByYear.get(label) ?? 0;
+      const posts = postByYear.get(label) ?? 0;
+      return `${label}: +${joins} members, +${posts} posts`;
+    })
+    .reverse();
+
+  const text = truncateText(lines.join("\n")) ?? lines.join("\n");
+
+  return {
+    id: `capsule-activity:${capsuleId}`,
+    title: `${capsuleLabel} activity timeline`,
+    text,
+    kind: "capsule_activity_timeline",
+    source: "capsule_activity",
+    createdAt: null,
+    tags: ["timeline", "capsule"],
+  };
+}
+
+function buildContributorDoc(params: {
+  capsuleId: string;
+  capsuleLabel: string;
+  postRows: PostKnowledgeRow[];
+  assetRows: CapsuleAssetRow[];
+}): CapsuleKnowledgeDoc | null {
+  const contributions = new Map<
+    string,
+    {
+      posts: number;
+      media: number;
+    }
+  >();
+
+  const addContribution = (name: string, field: "posts" | "media") => {
+    const key = name && name.trim().length ? name.trim() : "Member";
+    const entry = contributions.get(key) ?? { posts: 0, media: 0 };
+    entry[field] += 1;
+    contributions.set(key, entry);
+  };
+
+  params.postRows.forEach((row) => {
+    const name = row.user_name ?? "Member";
+    addContribution(name, "posts");
+  });
+
+  params.assetRows.forEach((row) => {
+    const name = row.uploaded_by ?? "Member";
+    addContribution(name, "media");
+  });
+
+  if (!contributions.size) return null;
+
+  const ranked = Array.from(contributions.entries())
+    .map(([name, stats]) => ({ name, total: stats.posts + stats.media, ...stats }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 12);
+
+  const lines = ranked.map((entry) => {
+    const parts = [`posts: ${entry.posts}`];
+    if (entry.media) parts.push(`media: ${entry.media}`);
+    return `${entry.name} — ${parts.join(" | ")}`;
+  });
+
+  const text = truncateText(lines.join("\n")) ?? lines.join("\n");
+  return {
+    id: `capsule-contributors:${params.capsuleId}`,
+    title: `${params.capsuleLabel} contributors`,
+    text,
+    kind: "capsule_contributors",
+    source: "capsule_profile",
+    createdAt: null,
+    tags: ["contributors", "capsule"],
+  };
+}
+
 function buildAnalyticsDoc(params: {
   capsuleId: string;
   capsuleLabel: string;
@@ -641,7 +1084,12 @@ export async function loadCapsuleKnowledgeDocs(
   capsuleId: string,
   capsuleName?: string | null,
 ): Promise<CapsuleKnowledgeDoc[]> {
-  const capsuleLabel = capsuleName?.trim().length ? capsuleName.trim() : "Capsule";
+  const meta = await fetchCapsuleMeta(capsuleId);
+  const capsuleLabel = capsuleName?.trim().length
+    ? capsuleName.trim()
+    : meta?.name?.trim().length
+      ? meta.name!.trim()
+      : "Capsule";
   const docs: CapsuleKnowledgeDoc[] = [];
   const seen = new Set<string>();
   const addDoc = (doc: CapsuleKnowledgeDoc | null) => {
@@ -652,16 +1100,18 @@ export async function loadCapsuleKnowledgeDocs(
 
   let postRows: PostKnowledgeRow[] = [];
   try {
-    const postResult = await db
-      .from("posts_view")
-      .select<PostKnowledgeRow>(
-        "id, client_id, capsule_id, user_name, content, media_prompt, media_url, metadata, created_at, poll, kind",
-      )
-      .eq("capsule_id", capsuleId)
-      .order("created_at", { ascending: false })
-      .limit(POST_LIMIT)
-      .fetch();
-    postRows = postResult.data ?? [];
+    postRows = await fetchAllPages<PostKnowledgeRow>(
+      async (from, to) =>
+        await db
+          .from("posts_view")
+          .select<PostKnowledgeRow>(
+            "id, client_id, capsule_id, user_name, content, media_prompt, media_url, metadata, created_at, poll, kind",
+          )
+          .eq("capsule_id", capsuleId)
+          .order("created_at", { ascending: false })
+          .range(from, to)
+          .fetch(),
+    );
     postRows.forEach((row) => addDoc(buildPostDoc(row, capsuleLabel)));
   } catch (error) {
     console.warn("capsule knowledge posts fetch failed", { capsuleId, error });
@@ -708,7 +1158,15 @@ export async function loadCapsuleKnowledgeDocs(
 
   let assetRows: CapsuleAssetRow[] = [];
   try {
-    assetRows = await listCapsuleAssets({ capsuleId, limit: ASSET_LIMIT, includeInternal: true });
+    assetRows = await fetchAllPages<CapsuleAssetRow>(async (from, to) => {
+      const data = await listCapsuleAssets({
+        capsuleId,
+        limit: to - from + 1,
+        offset: from,
+        includeInternal: true,
+      });
+      return { data, error: null };
+    });
     assetRows.forEach((asset) => {
       const brandVariant = isBrandAsset(asset);
       if (brandVariant) {
@@ -731,14 +1189,16 @@ export async function loadCapsuleKnowledgeDocs(
 
   let memberRows: MemberKnowledgeRow[] = [];
   try {
-    const memberResult = await db
-      .from("capsule_members")
-      .select<MemberKnowledgeRow>("role, joined_at")
-      .eq("capsule_id", capsuleId)
-      .order("joined_at", { ascending: true })
-      .limit(MAX_MEMBER_ROWS)
-      .fetch();
-    memberRows = memberResult.data ?? [];
+    memberRows = await fetchAllPages<MemberKnowledgeRow>(
+      async (from, to) =>
+        await db
+          .from("capsule_members")
+          .select<MemberKnowledgeRow>("role, joined_at")
+          .eq("capsule_id", capsuleId)
+          .order("joined_at", { ascending: true })
+          .range(from, to)
+          .fetch(),
+    );
     const membershipDocs = buildMembershipDocs(memberRows, capsuleLabel);
     membershipDocs.forEach((doc) => addDoc(doc));
   } catch (error) {
@@ -775,6 +1235,42 @@ export async function loadCapsuleKnowledgeDocs(
   if (analyticsDoc) {
     addDoc(analyticsDoc);
   }
+
+  const profileDoc = buildCapsuleProfileDoc({
+    capsuleId,
+    capsuleLabel,
+    meta,
+    memberRows,
+    postRows,
+    assetRows,
+  });
+  if (profileDoc) addDoc(profileDoc);
+
+  const contributorDoc = buildContributorDoc({
+    capsuleId,
+    capsuleLabel,
+    postRows,
+    assetRows,
+  });
+  if (contributorDoc) addDoc(contributorDoc);
+
+  const milestonesDoc = buildCapsuleMilestonesDoc({
+    capsuleId,
+    capsuleLabel,
+    meta,
+    memberRows,
+    postRows,
+    streamSessions,
+  });
+  if (milestonesDoc) addDoc(milestonesDoc);
+
+  const activityDoc = buildCapsuleActivityTimelineDoc({
+    capsuleId,
+    capsuleLabel,
+    memberRows,
+    postRows,
+  });
+  if (activityDoc) addDoc(activityDoc);
 
   return docs;
 }

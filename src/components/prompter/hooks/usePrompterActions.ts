@@ -141,6 +141,10 @@ export function usePrompterActions({
         onAction(action);
       }
     };
+    const selectedTool: PrompterToolKey | null = variantConfig.allowTools
+      ? manualTool ?? suggestedTools[0]?.key ?? null
+      : null;
+
     const dispatchAiHandoff = (payload: { prompt: string; options?: PrompterAiOptions }) => {
       if (!onHandoff) return false;
       const attachmentsPayload =
@@ -149,11 +153,25 @@ export function usePrompterActions({
           : referenceAttachment
             ? [referenceAttachment]
             : undefined;
+      const replyMode =
+        effectiveIntent === "post" ||
+        effectiveIntent === "generate" ||
+        selectedTool === "poll" ||
+        selectedTool === "logo" ||
+        selectedTool === "image_edit"
+          ? "draft"
+          : ("chat" as "chat" | "draft");
+      const mergedOptions: PrompterAiOptions | undefined = payload.options
+        ? {
+            ...payload.options,
+            extras: { ...(payload.options.extras ?? {}), replyMode },
+          }
+        : { extras: { replyMode } };
       const handoff: PrompterHandoff = {
         intent: "ai_prompt",
         prompt: payload.prompt,
         ...(attachmentsPayload ? { attachments: attachmentsPayload } : {}),
-        ...(payload.options ? { options: payload.options } : {}),
+        ...(mergedOptions ? { options: mergedOptions } : {}),
       };
       onHandoff(handoff);
       return true;
@@ -200,10 +218,6 @@ export function usePrompterActions({
       resetAfterSubmit();
       return;
     }
-
-    const selectedTool: PrompterToolKey | null = variantConfig.allowTools
-      ? manualTool ?? suggestedTools[0]?.key ?? null
-      : null;
 
     markLoading();
 

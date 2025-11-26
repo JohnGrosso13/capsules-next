@@ -16,7 +16,10 @@ type LadderTelemetryEventName =
   | "ladders.filter.change"
   | "ladders.sort.change"
   | "ladders.load_more"
-  | "ladders.retry.click";
+  | "ladders.retry.click"
+  | "ladders.focus.change"
+  | "ladders.delete.request"
+  | "ladders.match.report";
 
 export type LadderTelemetryEvent = {
   event: LadderTelemetryEventName;
