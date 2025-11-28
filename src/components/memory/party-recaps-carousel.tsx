@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { CaretLeft, CaretRight, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, CaretLeft, CaretRight, Confetti } from "@phosphor-icons/react/dist/ssr";
 
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 
 import { useMemoryUploads } from "./use-memory-uploads";
 import type { MemoryUploadItem } from "./uploads-types";
@@ -116,7 +116,7 @@ function getSlidesPerView(): number {
 }
 
 export function PartyRecapsCarousel() {
-  const { user, items, loading, error, refresh } = useMemoryUploads("party_summary");
+  const { user, items, loading, error } = useMemoryUploads("party_summary");
   const recaps = React.useMemo(() => buildRecaps(items), [items]);
 
   const [slidesPerView, setSlidesPerView] = React.useState<number>(() => getSlidesPerView());
@@ -153,6 +153,7 @@ export function PartyRecapsCarousel() {
   }, [offset, pageSize, recaps, totalItems]);
 
   const hasRotation = pageSize > 0 && totalItems > pageSize;
+  const navDisabled = loading || !hasRotation || visibleRecaps.length === 0;
 
   const handlePrev = React.useCallback(() => {
     if (!hasRotation) return;
@@ -177,85 +178,92 @@ export function PartyRecapsCarousel() {
       <div className={styles.header}>
         <div className={styles.titleGroup}>
           <div className={styles.icon}>
-            <Sparkle size={18} weight="fill" />
+            <Confetti size={18} weight="fill" />
           </div>
           <div>
             <h3 className={styles.title}>Party recaps</h3>
-            <p className={styles.subtitle}>AI summaries saved from your live parties.</p>
           </div>
         </div>
-        <div className={styles.controls}>
-          <Button
-            variant="secondary"
-            size="icon"
-            leftIcon={<CaretLeft size={18} weight="bold" />}
-            onClick={handlePrev}
-            aria-label="Previous party recap"
-            disabled={!hasRotation || loading}
-          />
-          <Button
-            variant="secondary"
-            size="icon"
-            leftIcon={<CaretRight size={18} weight="bold" />}
-            onClick={handleNext}
-            aria-label="Next party recap"
-            disabled={!hasRotation || loading}
-          />
-          <Button
-            variant="secondary"
+        <div className={styles.actions}>
+          <ButtonLink
+            variant="ghost"
             size="sm"
-            onClick={() => {
-              void refresh();
-            }}
-            loading={loading}
+            href="/memory/uploads?tab=uploads"
+            rightIcon={<ArrowRight size={16} weight="bold" />}
           >
-            Refresh
-          </Button>
+            View All
+          </ButtonLink>
         </div>
       </div>
 
-      {!user ? <div className={styles.empty}>Sign in to view party recaps.</div> : null}
-      {user && error ? <div className={styles.empty}>{error}</div> : null}
+      <div className={styles.carouselShell}>
+        <Button
+          variant="secondary"
+          size="icon"
+          className={styles.navButton}
+          data-side="prev"
+          data-hidden={!visibleRecaps.length}
+          leftIcon={<CaretLeft size={18} weight="bold" />}
+          onClick={handlePrev}
+          aria-label="Previous party recap"
+          disabled={navDisabled}
+        />
 
-      {user ? (
-        loading && !recaps.length ? (
-          <div className={styles.empty}>Loading party recaps...</div>
-        ) : !recaps.length ? (
-          <div className={styles.empty}>
-            No party recaps yet. Enable summaries in a live party and generate a recap to see it here.
-          </div>
-        ) : (
-          <div className={styles.viewport}>
-            <div className={styles.container} style={containerStyle}>
-              {visibleRecaps.map((recap) => (
-                <article key={recap.id} className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <span className={styles.badge}>Party recap</span>
-                    {recap.createdAt ? (
-                      <span className={styles.timestamp}>{recap.createdAt}</span>
-                    ) : null}
-                  </div>
-                  <h4 className={styles.cardTitle}>{recap.title}</h4>
-                  {recap.topic ? <p className={styles.topic}>Topic: {recap.topic}</p> : null}
-                  <p className={styles.summary}>{recap.summary}</p>
-                  {recap.highlights.length ? (
-                    <div className={styles.highlights}>
-                      {recap.highlights.slice(0, 3).map((highlight, index) => (
-                        <span key={`${recap.id}-highlight-${index}`} className={styles.highlight}>
-                          {highlight}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  <div className={styles.footer}>
-                    <span className={styles.memoryId}>Memory #{recap.memoryId.slice(0, 8)}</span>
-                  </div>
-                </article>
-              ))}
+        {!user ? <div className={styles.empty}>Sign in to view party recaps.</div> : null}
+        {user && error ? <div className={styles.empty}>{error}</div> : null}
+
+        {user ? (
+          loading && !recaps.length ? (
+            <div className={styles.empty}>Loading party recaps...</div>
+          ) : !recaps.length ? (
+            <div className={styles.empty}>
+              No party recaps yet. Enable summaries in a live party and generate a recap to see it here.
             </div>
-          </div>
-        )
-      ) : null}
+          ) : (
+            <div className={styles.viewport}>
+              <div className={styles.container} style={containerStyle}>
+                {visibleRecaps.map((recap) => (
+                  <article key={recap.id} className={styles.card}>
+                    <div className={styles.cardHeader}>
+                      <span className={styles.badge}>Party recap</span>
+                      {recap.createdAt ? (
+                        <span className={styles.timestamp}>{recap.createdAt}</span>
+                      ) : null}
+                    </div>
+                    <h4 className={styles.cardTitle}>{recap.title}</h4>
+                    {recap.topic ? <p className={styles.topic}>Topic: {recap.topic}</p> : null}
+                    <p className={styles.summary}>{recap.summary}</p>
+                    {recap.highlights.length ? (
+                      <div className={styles.highlights}>
+                        {recap.highlights.slice(0, 3).map((highlight, index) => (
+                          <span key={`${recap.id}-highlight-${index}`} className={styles.highlight}>
+                            {highlight}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className={styles.footer}>
+                      <span className={styles.memoryId}>Memory #{recap.memoryId.slice(0, 8)}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )
+        ) : null}
+
+        <Button
+          variant="secondary"
+          size="icon"
+          className={styles.navButton}
+          data-side="next"
+          data-hidden={!visibleRecaps.length}
+          leftIcon={<CaretRight size={18} weight="bold" />}
+          onClick={handleNext}
+          aria-label="Next party recap"
+          disabled={navDisabled}
+        />
+      </div>
     </div>
   );
 }

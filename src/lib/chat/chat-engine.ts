@@ -78,6 +78,7 @@ export class ChatEngine {
   private eventBus: RealtimeChatEventBus | null = null;
   private connectPromise: Promise<ChatEventBusConnection> | null = null;
   private resolvedSelfClientId: string | null = null;
+  private realtimeConnected = false;
   private supabaseUserId: string | null = null;
   private userProfile: UserProfile = { id: null, name: null, email: null, avatarUrl: null };
   private conversationHistoryLoaded = new Set<string>();
@@ -174,6 +175,7 @@ export class ChatEngine {
 
   async connectRealtime(options: ConnectDependencies): Promise<void> {
     await this.disconnectRealtime();
+    this.realtimeConnected = false;
     if (!options.currentUserId || !options.envelope || !options.factory) {
       this.resolvedSelfClientId = null;
       this.store.setSelfClientId(null);
@@ -203,6 +205,7 @@ export class ChatEngine {
       this.setSupabaseUserId(connection.clientId);
       this.store.setSelfClientId(connection.clientId);
       this.clientChannelName = connection.channelName;
+      this.realtimeConnected = true;
     } catch (error) {
       if (this.connectPromise === connectOperation) {
         this.connectPromise = null;
@@ -214,6 +217,7 @@ export class ChatEngine {
       }
       this.resolvedSelfClientId = null;
       this.store.setSelfClientId(null);
+      this.realtimeConnected = false;
     }
   }
 
@@ -229,6 +233,7 @@ export class ChatEngine {
     this.eventBus = null;
     this.clientChannelName = null;
     this.resolvedSelfClientId = null;
+    this.realtimeConnected = false;
     this.store.setSelfClientId(null);
     this.resetTypingState();
     this.resetInboxState();
@@ -699,6 +704,10 @@ export class ChatEngine {
     this.typingStates.clear();
   }
 
+  isRealtimeConnected(): boolean {
+    return this.realtimeConnected;
+  }
+
   private async publishTypingEvent(conversationId: string, typing: boolean): Promise<void> {
     const eventBus = this.eventBus;
     if (!eventBus) return;
@@ -803,25 +812,42 @@ export class ChatEngine {
     return false;
   }
 
-  private ensureConversationHistory(conversationId: string): Promise<void> {
-    if (this.conversationHistoryLoaded.has(conversationId)) {
+  private ensureConversationHistory(
+    conversationId: string,
+    options: { force?: boolean } = {},
+  ): Promise<void> {
+    const normalizedId = typeof conversationId === "string" ? conversationId.trim() : "";
+    if (!normalizedId) return Promise.resolve();
+    if (this.conversationHistoryLoaded.has(normalizedId) && !options.force) {
       return Promise.resolve();
     }
-    const existing = this.conversationHistoryLoading.get(conversationId);
+    const existing = this.conversationHistoryLoading.get(normalizedId);
     if (existing) return existing;
-    const promise = this.loadConversationHistory(conversationId)
+    const promise = this.loadConversationHistory(normalizedId)
       .catch((error) => {
-        console.error("chat history load error", { conversationId, error });
+        console.error("chat history load error", { conversationId: normalizedId, error });
       })
       .finally(() => {
-        this.conversationHistoryLoading.delete(conversationId);
+        this.conversationHistoryLoading.delete(normalizedId);
       });
-    this.conversationHistoryLoading.set(conversationId, promise);
+    this.conversationHistoryLoading.set(normalizedId, promise);
     return promise;
   }
 
+  async refreshConversationHistory(conversationId: string): Promise<void> {
+    await this.ensureConversationHistory(conversationId, { force: true });
+  }
+
   async bootstrapInbox(): Promise<void> {
-    if (this.inboxLoaded) return;
+    await this.bootstrapInboxWithOptions({ force: false });
+  }
+
+  async refreshInbox(): Promise<void> {
+    await this.bootstrapInboxWithOptions({ force: true });
+  }
+
+  private async bootstrapInboxWithOptions(options: { force: boolean }): Promise<void> {
+    if (this.inboxLoaded && !options.force) return;
     if (this.inboxLoading) {
       await this.inboxLoading;
       return;

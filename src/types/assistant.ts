@@ -6,6 +6,15 @@ export type AssistantTaskSummary = {
   createdAt: string;
   updatedAt: string;
   result: Record<string, unknown> | null;
+  direction: "incoming" | "outgoing";
+  counterpartName?: string | null;
+  counterpartUserId?: string | null;
+  recipients: Array<{
+    userId: string;
+    name: string | null;
+    status: string;
+    conversationId?: string | null;
+  }>;
   totals: {
     recipients: number;
     awaitingResponses: number;

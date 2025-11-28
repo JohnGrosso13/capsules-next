@@ -10,7 +10,7 @@ import {
   parseStructuredQuery,
   type StructuredPayload,
 } from "@/server/capsules/structured";
-import { searchWeb, type WebSearchSnippet } from "@/server/search/web-search";
+import { searchWeb, isWebSearchConfigured, type WebSearchSnippet } from "@/server/search/web-search";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 import type {
   CapsuleHistorySection,
@@ -298,7 +298,7 @@ export async function getChatContext(params: {
   if (!query.trim().length) return null;
 
   const limit = Math.max(1, Math.min(params.limit ?? DEFAULT_LIMIT, 12));
-  const allowWebSearch = serverEnv.WEB_SEARCH_ENABLED && query.length >= 24;
+  const allowWebSearch = serverEnv.WEB_SEARCH_ENABLED && isWebSearchConfigured() && query.length >= 8;
 
   try {
     const memoriesPromise = searchMemories({

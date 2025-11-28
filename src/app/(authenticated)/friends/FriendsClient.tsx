@@ -25,6 +25,8 @@ import { usePartyContext } from "@/components/providers/PartyProvider";
 import { FriendsList } from "@/components/friends/FriendsList";
 import { buildProfileHref } from "@/lib/profile/routes";
 import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { AssistantPanel } from "@/components/assistant/AssistantPanel";
+import { useAssistantTasks } from "@/hooks/useAssistantTasks";
 
 import styles from "./friends.module.css";
 
@@ -130,6 +132,20 @@ export function FriendsClient() {
   const [groupFlow, setGroupFlow] = React.useState<GroupFlowState | null>(null);
   const [groupBusy, setGroupBusy] = React.useState(false);
   const [groupError, setGroupError] = React.useState<string | null>(null);
+  const assistantTabActive = activeTab === "Assistant";
+  const [cancelingTaskIds, setCancelingTaskIds] = React.useState<Set<string>>(new Set());
+  const [assistantActionError, setAssistantActionError] = React.useState<string | null>(null);
+  const {
+    tasks: assistantTasks,
+    loading: loadingAssistantTasks,
+    error: assistantTasksError,
+    refresh: refreshAssistantTasks,
+  } = useAssistantTasks({
+    pollIntervalMs: assistantTabActive ? 60_000 : 0,
+    idlePollIntervalMs: assistantTabActive ? 5 * 60_000 : 0,
+    enabled: assistantTabActive,
+  });
+  const assistantError = assistantActionError ?? assistantTasksError;
   const searchParams = useSearchParams();
   const focusParam = searchParams.get("focus");
   const lastFocusRef = React.useRef<string | null>(null);
@@ -549,6 +565,37 @@ export function FriendsClient() {
     [declineCapsuleInvite],
   );
 
+  const handleCancelAssistantTask = React.useCallback(
+    async (taskId: string) => {
+      setAssistantActionError(null);
+      setCancelingTaskIds((prev) => {
+        const next = new Set(prev);
+        next.add(taskId);
+        return next;
+      });
+      try {
+        const response = await fetch(`/api/assistant/tasks/${taskId}`, { method: "DELETE" });
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          throw new Error(text || "Failed to cancel assistant task");
+        }
+        await refreshAssistantTasks();
+      } catch (error) {
+        console.error("cancel assistant task failed", error);
+        setAssistantActionError(
+          error instanceof Error ? error.message : "Failed to cancel assistant task",
+        );
+      } finally {
+        setCancelingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+      }
+    },
+    [refreshAssistantTasks],
+  );
+
   const inviteSession =
     groupFlow?.mode === "invite"
       ? (chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null)
@@ -671,33 +718,20 @@ export function FriendsClient() {
         </div>
 
         <div
-          id="panel-assistant"
-          role="tabpanel"
-          aria-labelledby="tab-assistant"
-          hidden={activeTab !== "Assistant"}
-          className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
-        >
-          <FriendsList
-            items={assistantFriends}
-            pendingId={pendingId}
-            notice={listNotice}
-            highlightId={highlightId}
-            onDelete={(friend, identifier) => {
-              void handleRemove(friend, identifier);
-            }}
-            onBlock={(friend, identifier) => {
-              void handleBlock(friend, identifier);
-            }}
-            onView={(friend) => handleView(friend)}
-            onStartChat={(friend) => handleStartChat(friend)}
-            onFollow={(friend, identifier) => {
-              void handleFollowFriend(friend, identifier);
-            }}
-            onUnfollow={(friend, identifier) => {
-              void handleUnfollowFriend(friend, identifier);
-            }}
-            isFollowing={isFollowingFriend}
-            isFollower={isFollowerFriend}
+        id="panel-assistant"
+        role="tabpanel"
+        aria-labelledby="tab-assistant"
+        hidden={activeTab !== "Assistant"}
+        className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
+      >
+          <AssistantPanel
+            tasks={assistantTasks}
+            loading={loadingAssistantTasks}
+            error={assistantError}
+            onRefresh={refreshAssistantTasks}
+            onCancelTask={handleCancelAssistantTask}
+            cancelingTaskIds={cancelingTaskIds}
+            friends={friends}
           />
         </div>
 

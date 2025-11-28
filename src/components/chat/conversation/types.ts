@@ -8,6 +8,7 @@ import type {
 import type { ChatMessageSendInput } from "@/components/providers/ChatProvider";
 
 export type ChatConversationProps = {
+  isAssistantConversation?: boolean;
   session: ChatSession;
   currentUserId: string | null;
   selfClientId: string | null;

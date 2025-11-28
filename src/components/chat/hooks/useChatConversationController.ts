@@ -19,8 +19,10 @@ import type { ChatComposerProps, ComposerStatus } from "../ChatComposer";
 import { useReactionPicker } from "./useReactionPicker";
 import { useChatAttachments } from "./useChatAttachments";
 import { useChatContextMenu } from "./useChatContextMenu";
+import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
 
 export type ChatConversationControllerResult = {
+  isAssistantConversation: boolean;
   headerProps: ConversationHeaderProps;
   participants: ConversationParticipantsViewModel;
   messageListProps: ConversationMessageListProps;
@@ -107,6 +109,10 @@ export function useChatConversationController({
   onRemoveAttachments,
   onDeleteMessage,
 }: ChatConversationProps): ChatConversationControllerResult {
+  const isAssistantConversation = React.useMemo(
+    () => session.participants.some((participant) => participant.id === ASSISTANT_USER_ID),
+    [session.participants],
+  );
   const { user } = useCurrentUser();
   const { friends } = useFriendsDataContext();
   const friendLookup = React.useMemo(() => {
@@ -567,6 +573,7 @@ export function useChatConversationController({
 
   const messageListProps: ConversationMessageListProps = {
     session,
+    isAssistantConversation,
     messagesRef,
     contextMenu,
     identity: {
@@ -654,6 +661,7 @@ export function useChatConversationController({
   };
 
   return {
+    isAssistantConversation,
     headerProps,
     participants: participantsViewModel,
     messageListProps,
@@ -662,5 +670,3 @@ export function useChatConversationController({
     contextMenuProps,
   };
 }
-
-

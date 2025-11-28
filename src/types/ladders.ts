@@ -187,6 +187,7 @@ export type LadderChallengeResult = {
   reportedById: string | null;
   note?: string | null;
   rankChanges?: Array<{ memberId: string; from: number; to: number }>;
+  ratingChanges?: Array<{ memberId: string; from: number; to: number; delta?: number }>;
 };
 
 export type LadderChallenge = {
@@ -211,6 +212,7 @@ export type LadderMatchRecord = {
   resolvedAt: string;
   note?: string | null;
   rankChanges?: Array<{ memberId: string; from: number; to: number }>;
+  ratingChanges?: Array<{ memberId: string; from: number; to: number; delta?: number }>;
 };
 
 export type LadderStateMeta = {

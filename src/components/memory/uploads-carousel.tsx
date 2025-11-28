@@ -6,7 +6,15 @@ import useEmblaCarousel from "embla-carousel-react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
-import { CaretLeft, CaretRight, FileText } from "@phosphor-icons/react/dist/ssr";
+import {
+  ArrowRight,
+  CaretLeft,
+  CaretRight,
+  CloudArrowUp,
+  FilePdf,
+  FileText,
+  PlayCircle,
+} from "@phosphor-icons/react/dist/ssr";
 
 import { computeDisplayUploads } from "./process-uploads";
 import { useMemoryUploads } from "./use-memory-uploads";
@@ -18,6 +26,94 @@ import { getUploadExtension, isImage, isVideo } from "./upload-helpers";
 const MAX_VISIBLE = 6;
 const VIEW_ALL_ROUTE = "/memory/uploads";
 
+function normalizeMeta(meta: unknown): Record<string, unknown> | null {
+  if (!meta) return null;
+  if (typeof meta === "string") {
+    try {
+      const parsed = JSON.parse(meta);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  if (typeof meta === "object" && !Array.isArray(meta)) {
+    return meta as Record<string, unknown>;
+  }
+  return null;
+}
+
+function collectMetaTokens(meta: Record<string, unknown> | null): string[] {
+  if (!meta) return [];
+  const tokens: string[] = [];
+  const push = (value: unknown) => {
+    if (typeof value !== "string") return;
+    const normalized = value.trim().toLowerCase();
+    if (normalized.length) tokens.push(normalized);
+  };
+
+  [
+    "source",
+    "source_kind",
+    "sourceKind",
+    "asset_variant",
+    "assetVariant",
+    "asset_kind",
+    "assetKind",
+    "category",
+    "mime_type",
+    "mimeType",
+    "content_type",
+    "contentType",
+    "file_extension",
+    "fileExtension",
+    "extension",
+    "ext",
+    "type",
+  ].forEach((key) => push((meta as Record<string, unknown>)[key]));
+
+  const summaryTags =
+    (meta as { summary_tags?: unknown }).summary_tags ??
+    (meta as { summaryTags?: unknown }).summaryTags;
+  if (Array.isArray(summaryTags)) {
+    summaryTags.forEach(push);
+  } else if (typeof summaryTags === "string") {
+    summaryTags.split(",").forEach(push);
+  }
+
+  return Array.from(new Set(tokens));
+}
+
+function isAiVideoMemory(item: DisplayMemoryUpload): boolean {
+  const meta = normalizeMeta(item.meta);
+  const tokens = collectMetaTokens(meta);
+  const hasAi = tokens.some((token) => token.includes("ai"));
+  const hasVideoToken = tokens.some(
+    (token) => token.includes("video") || token.includes("clip"),
+  );
+  const kind = (item.kind ?? "").toLowerCase();
+  const mime = (item.media_type ?? "").toLowerCase();
+  const videoLike = mime.startsWith("video/");
+
+  if (kind && kind !== "video") return false;
+  if (!videoLike && kind !== "video") return false;
+
+  return hasAi && (hasVideoToken || kind === "video" || videoLike);
+}
+
+function isPdfMemory(item: DisplayMemoryUpload): boolean {
+  const mime = (item.media_type ?? "").toLowerCase();
+  if (mime.includes("pdf")) return true;
+
+  const ext = getUploadExtension(item);
+  if (ext && ext.toLowerCase() === "pdf") return true;
+
+  const meta = normalizeMeta(item.meta);
+  const tokens = collectMetaTokens(meta);
+  return tokens.some((token) => token.includes("pdf"));
+}
+
 function getSlidesPerView() {
   if (typeof window === "undefined") return 2;
   const width = window.innerWidth;
@@ -26,8 +122,30 @@ function getSlidesPerView() {
   return 2;
 }
 
-export function UploadsCarousel() {
-  const { user, envelope, items, loading, error, setError, refresh } = useMemoryUploads();
+export type UploadsCarouselProps = {
+  title?: string;
+  icon?: React.ReactNode;
+  kind?: string | null;
+  viewAllHref?: string | null;
+  emptySignedOut?: string;
+  emptyLoading?: string;
+  emptyNone?: string;
+  uploadEnabled?: boolean;
+  filterItems?: (item: DisplayMemoryUpload) => boolean;
+};
+
+export function UploadsCarousel({
+  title = "Uploads",
+  icon = <CloudArrowUp size={18} weight="fill" />,
+  kind,
+  viewAllHref = VIEW_ALL_ROUTE,
+  emptySignedOut = "Sign in to upload and view your memories.",
+  emptyLoading = "Loading your uploads...",
+  emptyNone = "No uploads yet. Add your first image or video.",
+  uploadEnabled = true,
+  filterItems,
+}: UploadsCarouselProps = {}) {
+  const { user, envelope, items, loading, error, setError, refresh } = useMemoryUploads(kind);
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: "start", dragFree: true, loop: false });
   const [slidesPerView, setSlidesPerView] = React.useState<number>(() => getSlidesPerView());
@@ -54,7 +172,12 @@ export function UploadsCarousel() {
     [cloudflareEnabled, currentOrigin, items],
   );
 
-  const totalItems = processedItems.length;
+  const filteredItems = React.useMemo(
+    () => (filterItems ? processedItems.filter(filterItems) : processedItems),
+    [filterItems, processedItems],
+  );
+
+  const totalItems = filteredItems.length;
   const pageSize = React.useMemo(() => {
     if (totalItems === 0) return 0;
     return Math.max(1, Math.min(MAX_VISIBLE, slidesPerView, totalItems));
@@ -87,11 +210,11 @@ export function UploadsCarousel() {
     if (pageSize === 0) return [];
     const result: DisplayMemoryUpload[] = [];
     for (let index = 0; index < pageSize; index += 1) {
-      const item = processedItems[(offset + index) % totalItems];
+      const item = filteredItems[(offset + index) % totalItems];
       if (item) result.push(item);
     }
     return result;
-  }, [offset, pageSize, processedItems, totalItems]);
+  }, [filteredItems, offset, pageSize, totalItems]);
 
   React.useEffect(() => {
     queueMicrotask(() => emblaApi?.reInit());
@@ -113,7 +236,7 @@ export function UploadsCarousel() {
   }, [hasRotation, pageSize, totalItems]);
 
   const indexUploaded = React.useCallback(async () => {
-    if (!envelope || !readyAttachment || !readyAttachment.url) return;
+    if (!uploadEnabled || !envelope || !readyAttachment || !readyAttachment.url) return;
     try {
       setError(null);
       const extension =
@@ -149,13 +272,13 @@ export function UploadsCarousel() {
     } catch (err) {
       setError((err as Error)?.message || "Upload indexing failed");
     }
-  }, [clearAttachment, envelope, readyAttachment, refresh, setError]);
+  }, [clearAttachment, envelope, readyAttachment, refresh, setError, uploadEnabled]);
 
   React.useEffect(() => {
-    if (readyAttachment) {
+    if (uploadEnabled && readyAttachment) {
       void indexUploaded();
     }
-  }, [indexUploaded, readyAttachment]);
+  }, [indexUploaded, readyAttachment, uploadEnabled]);
 
   const progressPct =
     attachment && attachment.progress > 0
@@ -171,11 +294,13 @@ export function UploadsCarousel() {
     [pageSize],
   );
 
+  const navDisabled = loading || !hasRotation || visibleItems.length === 0;
+
   const renderCard = (item: DisplayMemoryUpload) => {
     const url = item.displayUrl || item.media_url || "";
     const fullUrl = item.fullUrl || url;
     const mime = item.media_type || null;
-    const title = item.title?.trim() || item.description?.trim() || "Upload";
+    const cardTitle = item.title?.trim() || item.description?.trim() || "Upload";
     const desc = item.description?.trim() || null;
     const imageLike = isImage(mime);
     const videoLike = isVideo(mime);
@@ -188,7 +313,7 @@ export function UploadsCarousel() {
         type="button"
         className={styles.cardButton}
         onClick={() => setActiveItem(item)}
-        aria-label={`View details for ${title}`}
+        aria-label={`View details for ${cardTitle}`}
       >
         <div className={styles.card}>
           <div className={styles.media}>
@@ -203,7 +328,7 @@ export function UploadsCarousel() {
               />
             ) : imageLike ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img className={styles.img} src={url} alt={title} />
+              <img className={styles.img} src={url} alt={cardTitle} />
             ) : (
               <div className={styles.filePreview} aria-hidden>
                 <div className={styles.filePreviewIcon}>
@@ -214,7 +339,7 @@ export function UploadsCarousel() {
             )}
           </div>
           <div className={styles.meta}>
-            <h4 className={styles.metaTitle}>{title}</h4>
+            <h4 className={styles.metaTitle}>{cardTitle}</h4>
             {desc ? <p className={styles.metaDesc}>{desc}</p> : null}
             {metaType ? <span className={styles.metaDetail}>{metaType}</span> : null}
           </div>
@@ -223,88 +348,145 @@ export function UploadsCarousel() {
     );
   };
 
-  if (!user) {
-    return (
-      <div className={styles.root}>
-        <div className={styles.header}>
-          <h3 className={styles.title}>Uploads</h3>
-        </div>
-        <div className={styles.empty}>Sign in to upload and view your memories.</div>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className={styles.root}>
         <div className={styles.header}>
-          <h3 className={styles.title}>Uploads</h3>
-          <div className={styles.controls}>
-            <Button
-              variant="secondary"
-              size="icon"
-              leftIcon={<CaretLeft size={18} weight="bold" />}
-              onClick={handleShowPrev}
-              aria-label="Previous uploads"
-              disabled={!hasRotation}
-            />
-            <Button
-              variant="secondary"
-              size="icon"
-              leftIcon={<CaretRight size={18} weight="bold" />}
-              onClick={handleShowNext}
-              aria-label="Next uploads"
-              disabled={!hasRotation}
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="*/*"
-              onChange={handleAttachmentSelect}
-              hidden
-            />
-            <Button variant="secondary" size="sm" onClick={handleAttachClick} loading={uploading}>
-              {uploading ? "Uploading..." : "Add Upload"}
-            </Button>
-            <ButtonLink variant="ghost" size="sm" href={VIEW_ALL_ROUTE}>
-              View All
-            </ButtonLink>
+          <div className={styles.titleGroup}>
+            <span className={styles.titleIcon}>{icon}</span>
+            <div>
+              <h3 className={styles.title}>{title}</h3>
+            </div>
+          </div>
+          <div className={styles.actions}>
+            {uploadEnabled && user ? (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="*/*"
+                  onChange={handleAttachmentSelect}
+                  hidden
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleAttachClick}
+                  loading={uploading}
+                  leftIcon={<CloudArrowUp size={16} weight="bold" />}
+                >
+                  {uploading ? "Uploading..." : "Add Upload"}
+                </Button>
+              </>
+            ) : null}
+            {viewAllHref ? (
+              <ButtonLink
+                variant="ghost"
+                size="sm"
+                href={viewAllHref}
+                rightIcon={<ArrowRight size={16} weight="bold" />}
+              >
+                View All
+              </ButtonLink>
+            ) : null}
           </div>
         </div>
 
-        <div className={styles.statusRow}>
-          {error ? <span role="status">{error}</span> : null}
-          {uploading ? (
-            <div
-              className={styles.progressBar}
-              aria-label="Upload progress"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progressPct}
-              role="progressbar"
-            >
-              <div className={styles.progressInner} style={progressStyle} />
-            </div>
-          ) : null}
-        </div>
-
-        {loading ? (
-          <div className={styles.empty}>Loading your uploads...</div>
-        ) : visibleItems.length === 0 ? (
-          <div className={styles.empty}>No uploads yet. Add your first image or video.</div>
-        ) : (
-          <div className={styles.viewport} ref={emblaRef}>
-            <div className={styles.container} style={containerStyle}>
-              {visibleItems.map((item) => (
-                <div className={styles.slide} key={item.id}>
-                  {renderCard(item)}
-                </div>
-              ))}
-            </div>
+        {user ? (
+          <div className={styles.statusRow}>
+            {error ? <span role="status">{error}</span> : null}
+            {uploadEnabled && uploading ? (
+              <div
+                className={styles.progressBar}
+                aria-label="Upload progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progressPct}
+                role="progressbar"
+              >
+                <div className={styles.progressInner} style={progressStyle} />
+              </div>
+            ) : null}
           </div>
-        )}
+        ) : null}
+
+        <div className={styles.carouselShell}>
+          <Button
+            variant="secondary"
+            size="icon"
+            className={styles.navButton}
+            data-side="prev"
+            data-hidden={!visibleItems.length}
+            leftIcon={<CaretLeft size={18} weight="bold" />}
+            onClick={handleShowPrev}
+            aria-label={`Previous ${title.toLowerCase()}`}
+            disabled={navDisabled}
+          />
+          {loading ? (
+            <div className={styles.empty}>{emptyLoading}</div>
+          ) : !user ? (
+            <div className={styles.empty}>{emptySignedOut}</div>
+          ) : visibleItems.length === 0 ? (
+            <div className={styles.empty}>{emptyNone}</div>
+          ) : (
+            <div className={styles.viewport} ref={emblaRef}>
+              <div className={styles.container} style={containerStyle}>
+                {visibleItems.map((item) => (
+                  <div className={styles.slide} key={item.id}>
+                    {renderCard(item)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <Button
+            variant="secondary"
+            size="icon"
+            className={styles.navButton}
+            data-side="next"
+            data-hidden={!visibleItems.length}
+            leftIcon={<CaretRight size={18} weight="bold" />}
+            onClick={handleShowNext}
+            aria-label={`Next ${title.toLowerCase()}`}
+            disabled={navDisabled}
+          />
+        </div>
       </div>
-      <MemoryUploadDetailDialog item={activeItem} onClose={() => setActiveItem(null)} />
+      {user ? (
+        <MemoryUploadDetailDialog item={activeItem} onClose={() => setActiveItem(null)} />
+      ) : null}
     </>
+  );
+}
+
+export function AiVideosCarousel() {
+  return (
+    <UploadsCarousel
+      title="AI Videos"
+      icon={<PlayCircle size={18} weight="fill" />}
+      kind="video"
+      uploadEnabled={false}
+      viewAllHref={VIEW_ALL_ROUTE}
+      emptySignedOut="Sign in to view your AI-generated videos."
+      emptyLoading="Loading your AI videos..."
+      emptyNone="No AI videos yet. Generate a video in the AI composer to see it here."
+      filterItems={isAiVideoMemory}
+    />
+  );
+}
+
+export function PdfsCarousel() {
+  return (
+    <UploadsCarousel
+      title="PDFs"
+      icon={<FilePdf size={18} weight="fill" />}
+      kind="upload"
+      uploadEnabled={false}
+      viewAllHref={VIEW_ALL_ROUTE}
+      emptySignedOut="Sign in to view your PDFs."
+      emptyLoading="Loading your PDFs..."
+      emptyNone="No PDFs yet. Generate a PDF to see it here."
+      filterItems={isPdfMemory}
+    />
   );
 }

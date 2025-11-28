@@ -2,6 +2,8 @@ import { vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 const defaultEnv: Record<string, string> = {
   SUPABASE_URL: "https://example.supabase.co",
   SUPABASE_SERVICE_ROLE_KEY: "service-role-key",

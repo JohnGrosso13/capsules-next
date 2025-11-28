@@ -1,4 +1,5 @@
 import * as React from "react";
+import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,10 +15,11 @@ import styles from "../LadderBuilder.module.css";
 type MemberSuggestion = Pick<UserSearchResult, "id" | "name" | "avatarUrl" | "subtitle">;
 
 export type RosterStepProps = {
+  capsuleId: string | null;
   members: LadderMemberFormValues[];
   onMemberField: (index: number, field: keyof LadderMemberFormValues, value: string) => void;
   onAddMember: () => void;
-  onAddMemberWithUser: (user: { id: string; name: string }) => void;
+  onAddMemberWithUser: (user: { id: string; name: string; avatarUrl?: string | null }) => void;
   onRemoveMember: (index: number) => void;
 };
 
@@ -28,7 +30,7 @@ type NameFieldProps = {
   index: number;
   member: LadderMemberFormValues;
   onChangeName: (value: string) => void;
-  onSelectUser: (user: { id: string; name: string }) => void;
+  onSelectUser: (user: { id: string; name: string; avatarUrl?: string | null }) => void;
 };
 
 const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps) => {
@@ -87,7 +89,7 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
   }, [query]);
 
   const handleSelect = (suggestion: MemberSuggestion) => {
-    onSelectUser({ id: suggestion.id, name: suggestion.name });
+    onSelectUser({ id: suggestion.id, name: suggestion.name, avatarUrl: suggestion.avatarUrl ?? null });
     setQuery(suggestion.name);
     setOpen(false);
   };
@@ -96,6 +98,7 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
     <div className={styles.memberField}>
       <span
         className={styles.memberAvatar}
+        data-has-image={Boolean(member.avatarUrl)}
         style={
           (() => {
             const accent = getIdentityAccent(member.displayName || `Seed ${index + 1}`, index);
@@ -109,6 +112,16 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
           })()
         }
       >
+        {member.avatarUrl ? (
+          <Image
+            src={member.avatarUrl}
+            alt=""
+            width={32}
+            height={32}
+            className={styles.memberAvatarImage}
+            sizes="32px"
+          />
+        ) : null}
         <span className={styles.memberAvatarText}>
           {getIdentityAccent(member.displayName || `Seed ${index + 1}`, index).initials}
         </span>
@@ -128,20 +141,51 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
         />
         {open && suggestions.length > 0 ? (
           <div className={styles.memberSuggestList} role="listbox" aria-label="Suggested users">
-            {suggestions.map((suggestion) => (
-              <button
-                key={suggestion.id}
-                type="button"
-                className={styles.memberSuggestItem}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => handleSelect(suggestion)}
-              >
-                <span className={styles.memberSuggestName}>{suggestion.name}</span>
-                {suggestion.subtitle ? (
-                  <span className={styles.memberSuggestMeta}>{suggestion.subtitle}</span>
-                ) : null}
-              </button>
-            ))}
+            {suggestions.map((suggestion) => {
+              const hasAvatar = Boolean(suggestion.avatarUrl);
+              const accent = getIdentityAccent(suggestion.name, index);
+              const style = {
+                "--identity-color": accent.primary,
+                "--identity-glow": accent.glow,
+                "--identity-border": accent.border,
+                "--identity-surface": accent.surface,
+                "--identity-text": accent.text,
+              } as React.CSSProperties;
+              return (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  className={styles.memberSuggestItem}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => handleSelect(suggestion)}
+                >
+                  <span
+                    className={styles.memberSuggestAvatar}
+                    data-has-image={hasAvatar}
+                    style={style}
+                    aria-hidden="true"
+                  >
+                    {hasAvatar ? (
+                      <Image
+                        src={suggestion.avatarUrl as string}
+                        alt=""
+                        width={28}
+                        height={28}
+                        sizes="28px"
+                      />
+                    ) : (
+                      <span>{accent.initials}</span>
+                    )}
+                  </span>
+                  <span className={styles.memberSuggestText}>
+                    <span className={styles.memberSuggestName}>{suggestion.name}</span>
+                    {suggestion.subtitle ? (
+                      <span className={styles.memberSuggestMeta}>{suggestion.subtitle}</span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         ) : null}
       </div>
@@ -150,6 +194,7 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
 };
 
 export const RosterStep = React.memo(function RosterStep({
+  capsuleId,
   members,
   onMemberField,
   onAddMember,
@@ -159,25 +204,71 @@ export const RosterStep = React.memo(function RosterStep({
   const friendsContext = useOptionalFriendsDataContext();
   const [showInvite, setShowInvite] = React.useState(false);
   const [expandedIndex, setExpandedIndex] = React.useState<number | null>(null);
+  const [inviteBusy, setInviteBusy] = React.useState(false);
+  const [inviteError, setInviteError] = React.useState<string | null>(null);
 
   const handleInvite = React.useCallback(
     async (userIds: string[]) => {
-      const friendMap = new Map<string, { id: string; name: string }>();
+      setInviteError(null);
+      const friendMap = new Map<string, { id: string; name: string; avatarUrl: string | null }>();
       (friendsContext?.friends ?? []).forEach((friend) => {
         if (friend.userId) {
-          friendMap.set(friend.userId, { id: friend.userId, name: friend.name ?? friend.userId });
+          friendMap.set(friend.userId, {
+            id: friend.userId,
+            name: friend.name ?? friend.userId,
+            avatarUrl: friend.avatar ?? null,
+          });
         }
       });
-      userIds.forEach((id) => {
-        const friend = friendMap.get(id);
-        if (friend) {
-          onAddMemberWithUser(friend);
+      const uniqueIds = Array.from(new Set(userIds));
+      const selected = uniqueIds
+        .map((id) => friendMap.get(id))
+        .filter((friend): friend is { id: string; name: string; avatarUrl: string | null } => Boolean(friend));
+
+      if (!selected.length) {
+        setShowInvite(false);
+        return;
+      }
+
+      setInviteBusy(true);
+      selected.forEach((friend) => onAddMemberWithUser(friend));
+      if (capsuleId) {
+        try {
+          await Promise.all(
+            selected.map(async (friend) => {
+              const response = await fetch(`/api/capsules/${capsuleId}/membership`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "invite_member", targetUserId: friend.id }),
+              });
+              if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                const message =
+                  payload?.message ?? payload?.error?.message ?? response.statusText ?? "Unable to send invite.";
+                throw new Error(message);
+              }
+            }),
+          );
+          setShowInvite(false);
+        } catch (error) {
+          setInviteError((error as Error).message || "Unable to send one or more invites.");
+        } finally {
+          setInviteBusy(false);
         }
-      });
-      setShowInvite(false);
+      } else {
+        setInviteBusy(false);
+        setShowInvite(false);
+      }
     },
-    [friendsContext?.friends, onAddMemberWithUser],
+    [capsuleId, friendsContext?.friends, onAddMemberWithUser],
   );
+
+  React.useEffect(() => {
+    if (!showInvite) {
+      setInviteError(null);
+      setInviteBusy(false);
+    }
+  }, [showInvite]);
 
   return (
     <Card className={styles.formCard} variant="ghost">
@@ -228,10 +319,12 @@ export const RosterStep = React.memo(function RosterStep({
                           onChangeName={(value) => {
                             onMemberField(index, "displayName", value);
                             onMemberField(index, "userId", "");
+                            onMemberField(index, "avatarUrl", "");
                           }}
                           onSelectUser={(user) => {
                             onMemberField(index, "displayName", user.name);
                             onMemberField(index, "userId", user.id);
+                            onMemberField(index, "avatarUrl", user.avatarUrl ?? "");
                           }}
                         />
                       </td>
@@ -348,7 +441,8 @@ export const RosterStep = React.memo(function RosterStep({
       <ChatStartOverlay
         open={showInvite}
         friends={friendsContext?.friends ?? []}
-        busy={false}
+        busy={inviteBusy}
+        error={inviteError}
         onClose={() => setShowInvite(false)}
         onSubmit={handleInvite}
         mode="ladder"

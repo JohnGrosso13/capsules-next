@@ -29,8 +29,10 @@ import type { ChatMemorySnippet } from "@/server/chat/retrieval";
 import { buildAttachmentContext } from "@/server/composer/attachment-context";
 import { ensureAccessibleMediaUrl } from "@/server/posts/media";
 import { searchGoogleImages, isGoogleImageSearchConfigured } from "@/server/search/google-images";
+import { searchWeb, isWebSearchConfigured } from "@/server/search/web-search";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { uploadBufferToStorage } from "@/lib/supabase/storage";
+import { indexMemory } from "@/lib/supabase/memories";
 
 export type ComposerToolEvent =
   | { type: "status"; message: string }
@@ -141,6 +143,25 @@ const TOOL_DEFINITIONS: ToolCallDefinition[] = [
         include_capsule_history: {
           type: "boolean",
           description: "Set true to force capsule history snippets even without a search query.",
+        },
+      },
+    },
+  },
+  {
+    name: "search_web",
+    description:
+      "Look up real-world information on the internet using Google web search. Use this when you need fresh facts, local details, or to verify something not in your training data.",
+    parameters: {
+      type: "object",
+      required: ["query"],
+      additionalProperties: false,
+      properties: {
+        query: { type: "string", description: "What to search for on the web." },
+        limit: {
+          type: "integer",
+          description: "How many results to fetch (1-6).",
+          minimum: 1,
+          maximum: 6,
         },
       },
     },
@@ -702,6 +723,57 @@ async function handleGeneratePdf(
     kind: "ai-pdf",
   });
 
+  let memoryId: string | null = null;
+  try {
+    const bulletText = bullets.join("\n");
+    const sectionText = sections.map((section) => `${section.heading}\n${section.body}`).join("\n\n");
+    const rawText = [title, summary, body, bulletText, sectionText, footer]
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .join("\n\n");
+    const memoryDescription =
+      summary ||
+      body ||
+      (sections.length ? sections[0]?.body ?? null : null) ||
+      (bullets.length ? bullets.join(" • ") : null) ||
+      "AI generated PDF";
+    const metadata: Record<string, unknown> = {
+      source: "ai-pdf",
+      file_extension: "pdf",
+      mime_type: "application/pdf",
+      download_name: filename,
+    };
+    if (key) {
+      metadata.storage_key = key;
+      metadata.upload_key = key;
+    }
+    if (bullets.length) {
+      metadata.bullet_count = bullets.length;
+    }
+    if (sections.length) {
+      metadata.section_count = sections.length;
+      metadata.section_headings = sections.map((section) => section.heading);
+    }
+    if (runtime.capsuleId) {
+      metadata.capsule_id = runtime.capsuleId;
+    }
+
+    memoryId = await indexMemory({
+      ownerId,
+      kind: "upload",
+      mediaUrl: url,
+      mediaType: "application/pdf",
+      title: title || downloadName || "AI PDF",
+      description: memoryDescription,
+      postId: null,
+      metadata,
+      rawText: rawText || null,
+      source: "ai-pdf",
+      tags: ["ai", "pdf", "document"],
+    });
+  } catch (error) {
+    console.warn("ai_pdf_memory_index_failed", error);
+  }
+
   return {
     status: "succeeded",
     kind: "file",
@@ -709,6 +781,7 @@ async function handleGeneratePdf(
     url,
     name: filename,
     storageKey: key ?? null,
+    memoryId,
   };
 }
 
@@ -748,6 +821,39 @@ async function handleFetchContext(
     prompt: formatted,
     snippets: contextResult?.snippets ?? [],
     capsuleSnippets,
+  };
+}
+
+async function handleSearchWeb(
+  args: Record<string, unknown>,
+  runtime: RuntimeContext,
+): Promise<Record<string, unknown>> {
+  const rawQuery = typeof args.query === "string" ? args.query.trim() : "";
+  const query = rawQuery.length ? rawQuery : runtime.latestUserText;
+  const limitRaw = typeof args.limit === "number" ? args.limit : undefined;
+  const limit = limitRaw && Number.isFinite(limitRaw) ? Math.max(1, Math.min(limitRaw, 6)) : 4;
+
+  if (!query.trim().length) {
+    throw new Error("search_web requires a query.");
+  }
+  if (!isWebSearchConfigured()) {
+    return { status: "error", message: "Web search is not configured." };
+  }
+
+  const results = await searchWeb(query, { limit });
+  if (!results.length) {
+    return { status: "empty", query };
+  }
+
+  const [primary] = results;
+  return {
+    status: "succeeded",
+    kind: "web",
+    query,
+    title: primary?.title ?? null,
+    snippet: primary?.snippet ?? null,
+    url: primary?.url ?? null,
+    results,
   };
 }
 
@@ -797,6 +903,7 @@ const TOOL_HANDLERS: Record<
   summarize_video: handleSummarizeVideo,
   embed_text: handleEmbedText,
   fetch_context: handleFetchContext,
+  search_web: handleSearchWeb,
   search_images: handleSearchImages,
   generate_pdf: handleGeneratePdf,
 };
@@ -812,7 +919,8 @@ function buildSystemPrompt(replyMode: ReplyMode | null = null): string {
     "Never wrap JSON in markdown fences. Keep `message` warm and concise regardless of action.",
     "For drafts, the `post` block is used verbatim-respect tone, hashtags, CTA, and assets.",
     "Call render_image or render_video before referencing visual assets, and describe returned media accurately.",
-    "Use analyze_document / summarize_video / fetch_context / search_images / embed_text / generate_pdf tools whenever needed.",
+    "Do NOT paste raw media URLs (images, videos, downloads) into your `message`; attachments are already shared with the user.",
+    "Use analyze_document / summarize_video / fetch_context / search_web / search_images / embed_text / generate_pdf tools whenever needed.",
     "If the user supplies an existing post, treat it as the current draft and adjust only requested sections.",
   ];
 

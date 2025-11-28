@@ -58,6 +58,7 @@ describe("LadderBuilder autosave", () => {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "anon-key";
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY =
       process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "pk_test_clerk";
+    Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: 1920 });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -102,10 +103,21 @@ describe("LadderBuilder autosave", () => {
     }
   });
 
+  const selectStep = async (title: string) => {
+    const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((entry) => {
+      const text = entry.textContent?.trim() ?? "";
+      return text === title || text.startsWith(`Next: ${title}`);
+    });
+    expect(button).toBeTruthy();
+    await act(async () => button?.click());
+  };
+
   it("persists draft form data to localStorage", async () => {
     await act(async () => {
       root.render(<LadderBuilder capsules={capsules} initialCapsuleId="capsule-1" />);
     });
+
+    await selectStep("Title");
 
     const nameInput = container.querySelector<HTMLInputElement>("#guided-name");
     expect(nameInput).toBeTruthy();

@@ -5,7 +5,7 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
   CapsuleLadderAccessError,
-  createSimpleLadderChallenge,
+  createLadderChallenge,
   listLadderChallengesForViewer,
 } from "@/server/ladders/service";
 
@@ -15,12 +15,20 @@ const rankChangeSchema = z.object({
   to: z.number(),
 });
 
+const ratingChangeSchema = z.object({
+  memberId: z.string(),
+  from: z.number(),
+  to: z.number(),
+  delta: z.number().optional(),
+});
+
 const challengeResultSchema = z.object({
   outcome: z.enum(["challenger", "opponent", "draw"]),
   reportedAt: z.string(),
   reportedById: z.string().nullable(),
   note: z.string().nullable().optional(),
   rankChanges: z.array(rankChangeSchema).optional(),
+  ratingChanges: z.array(ratingChangeSchema).optional(),
 });
 
 const challengeSchema = z.object({
@@ -45,6 +53,7 @@ const historySchema = z.object({
   resolvedAt: z.string(),
   note: z.string().nullable().optional(),
   rankChanges: z.array(rankChangeSchema).optional(),
+  ratingChanges: z.array(ratingChangeSchema).optional(),
 });
 
 const memberSchema = z.object({
@@ -128,7 +137,7 @@ export async function POST(
   }
 
   try {
-    const result = await createSimpleLadderChallenge(actorId, params.ladderId, {
+    const result = await createLadderChallenge(actorId, params.ladderId, {
       ...parsed.data,
       note: parsed.data.note ?? null,
     });

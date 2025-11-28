@@ -6,7 +6,7 @@
 
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
@@ -41,15 +41,42 @@
   font-size: 0.9rem;
 }
 
-.controls {
+.actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .viewport {
   overflow: hidden;
+}
+
+.carouselShell {
+  position: relative;
+  --recap-nav-space: 48px;
+  padding: 6px var(--recap-nav-space) 0;
+}
+
+.navButton {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+}
+
+.navButton[data-side="prev"] {
+  left: 8px;
+}
+
+.navButton[data-side="next"] {
+  right: 8px;
+}
+
+.navButton[data-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .container {

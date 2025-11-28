@@ -1,5 +1,7 @@
 import "server-only";
 
+import { serverEnv } from "@/lib/env/server";
+
 export type WebSearchSnippet = {
   id: string;
   title: string | null;
@@ -9,36 +11,63 @@ export type WebSearchSnippet = {
   tags: string[];
 };
 
-type DuckDuckGoTopic = {
-  FirstURL?: string;
-  Text?: string;
-  Topics?: DuckDuckGoTopic[];
-};
+const GOOGLE_SOURCE = "web_search_google";
 
-type DuckDuckGoResponse = {
-  Abstract?: string;
-  AbstractText?: string;
-  AbstractURL?: string;
-  RelatedTopics?: DuckDuckGoTopic[];
-};
-
-function flattenTopics(topics: DuckDuckGoTopic[] | undefined): DuckDuckGoTopic[] {
-  if (!topics?.length) return [];
-  const output: DuckDuckGoTopic[] = [];
-  for (const item of topics) {
-    if (item.Topics?.length) {
-      output.push(...flattenTopics(item.Topics));
-    } else {
-      output.push(item);
-    }
-  }
-  return output;
+function isGoogleCustomSearchConfigured(): boolean {
+  return Boolean(serverEnv.GOOGLE_CUSTOM_SEARCH_KEY && serverEnv.GOOGLE_CUSTOM_SEARCH_CX);
 }
 
-function normalizeText(value: string | undefined): string | null {
+function normalizeText(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+async function searchGoogleCustomSearch(
+  query: string,
+  limit: number,
+): Promise<WebSearchSnippet[]> {
+  const params = new URLSearchParams({
+    key: serverEnv.GOOGLE_CUSTOM_SEARCH_KEY as string,
+    cx: serverEnv.GOOGLE_CUSTOM_SEARCH_CX as string,
+    q: query,
+    num: String(limit),
+    safe: "active",
+    fields: "items(title,link,snippet,displayLink)",
+  });
+
+  try {
+    const response = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      console.warn("google web search failed", response.status, await response.text());
+      return [];
+    }
+    const json = (await response.json()) as {
+      items?: Array<{ title?: string; link?: string; snippet?: string; displayLink?: string }>;
+    };
+    const items = Array.isArray(json.items) ? json.items : [];
+    return items
+      .map((item, index): WebSearchSnippet | null => {
+        const link = normalizeText(item.link);
+        const title = normalizeText(item.title) ?? normalizeText(item.displayLink) ?? "Result";
+        const snippet = normalizeText(item.snippet) ?? "No summary available.";
+        if (!link || !title || !snippet) return null;
+        return {
+          id: `google:${link}:${index}`,
+          title,
+          snippet,
+          url: link,
+          source: GOOGLE_SOURCE,
+          tags: ["web", "google"],
+        };
+      })
+      .filter((entry): entry is WebSearchSnippet => Boolean(entry));
+  } catch (error) {
+    console.warn("google web search error", error);
+    return [];
+  }
 }
 
 export async function searchWeb(
@@ -47,53 +76,16 @@ export async function searchWeb(
 ): Promise<WebSearchSnippet[]> {
   const trimmed = query.trim();
   if (!trimmed.length) return [];
+  const clampedLimit = Math.max(1, Math.min(limit, 10));
 
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(trimmed)}&format=json&no_redirect=1&no_html=1&t=CapsulesAI`;
-
-  try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": "CapsulesAI/1.0 (+capsules.ai)" },
-      // DuckDuckGo respects GET without auth; keep timeout small via signal if desired later.
-    });
-    if (!response.ok) return [];
-
-    const data = (await response.json().catch(() => null)) as DuckDuckGoResponse | null;
-    if (!data) return [];
-
-    const items: WebSearchSnippet[] = [];
-
-    const abstractText = normalizeText(data.AbstractText ?? data.Abstract);
-    const abstractUrl = normalizeText(data.AbstractURL);
-    if (abstractText) {
-      items.push({
-        id: `web:abstract:${abstractUrl ?? "n/a"}`,
-        title: "Answer summary",
-        snippet: abstractText,
-        url: abstractUrl,
-        source: "web_search",
-        tags: ["web", "duckduckgo"],
-      });
-    }
-
-    const related = flattenTopics(data.RelatedTopics);
-    for (const topic of related) {
-      if (items.length >= limit) break;
-      const text = normalizeText(topic.Text);
-      if (!text) continue;
-      const firstUrl = normalizeText(topic.FirstURL);
-      items.push({
-        id: `web:rt:${firstUrl ?? text.slice(0, 32)}`,
-        title: text,
-        snippet: text,
-        url: firstUrl,
-        source: "web_search",
-        tags: ["web", "duckduckgo"],
-      });
-    }
-
-    return items.slice(0, limit);
-  } catch (error) {
-    console.warn("web search failed", error);
+  if (!isGoogleCustomSearchConfigured()) {
     return [];
   }
+
+  const googleResults = await searchGoogleCustomSearch(trimmed, clampedLimit);
+  return googleResults;
+}
+
+export function isWebSearchConfigured(): boolean {
+  return isGoogleCustomSearchConfigured();
 }

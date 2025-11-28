@@ -196,6 +196,34 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, [engine, user]);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const FALLBACK_INTERVAL_MS = 8000;
+    let stopped = false;
+    let pending = false;
+    const tick = async () => {
+      if (stopped || pending) return;
+      if (engine.isRealtimeConnected()) return;
+      pending = true;
+      try {
+        await engine.refreshInbox();
+        const activeId = engine.getSnapshot().activeSessionId;
+        if (activeId) {
+          await engine.refreshConversationHistory(activeId);
+        }
+      } finally {
+        pending = false;
+      }
+    };
+    const interval = window.setInterval(() => {
+      void tick();
+    }, FALLBACK_INTERVAL_MS);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+    };
+  }, [engine]);
+
   const startChat = React.useCallback(
     (target: ChatFriendTarget, options?: { activate?: boolean }): StartChatResult | null => {
       const participant = friendTargetToParticipant(target);

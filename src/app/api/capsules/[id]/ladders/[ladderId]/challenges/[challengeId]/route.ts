@@ -6,7 +6,7 @@ import { parseJsonBody, returnError, validatedJson } from "@/server/validation/h
 import {
   CapsuleLadderAccessError,
   listLadderChallengesForViewer,
-  resolveSimpleLadderChallenge,
+  resolveLadderChallenge,
 } from "@/server/ladders/service";
 
 const rankChangeSchema = z.object({
@@ -15,12 +15,20 @@ const rankChangeSchema = z.object({
   to: z.number(),
 });
 
+const ratingChangeSchema = z.object({
+  memberId: z.string(),
+  from: z.number(),
+  to: z.number(),
+  delta: z.number().optional(),
+});
+
 const challengeResultSchema = z.object({
   outcome: z.enum(["challenger", "opponent", "draw"]),
   reportedAt: z.string(),
   reportedById: z.string().nullable(),
   note: z.string().nullable().optional(),
   rankChanges: z.array(rankChangeSchema).optional(),
+  ratingChanges: z.array(ratingChangeSchema).optional(),
 });
 
 const challengeSchema = z.object({
@@ -45,6 +53,7 @@ const historySchema = z.object({
   resolvedAt: z.string(),
   note: z.string().nullable().optional(),
   rankChanges: z.array(rankChangeSchema).optional(),
+  ratingChanges: z.array(ratingChangeSchema).optional(),
 });
 
 const memberSchema = z.object({
@@ -107,7 +116,7 @@ export async function PATCH(
   }
 
   try {
-    const result = await resolveSimpleLadderChallenge(
+    const result = await resolveLadderChallenge(
       actorId,
       params.ladderId,
       params.challengeId,

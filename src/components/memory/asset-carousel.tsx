@@ -3,7 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import useEmblaCarousel from "embla-carousel-react";
-import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import {
+  ArrowRight,
+  CaretLeft,
+  CaretRight,
+  ImageSquare,
+  MagicWand,
+  SquaresFour,
+} from "@phosphor-icons/react/dist/ssr";
 
 import { Button } from "@/components/ui/button";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
@@ -206,6 +213,7 @@ function getSlidesPerView() {
 
 export type MemoryAssetCarouselProps = {
   title: string;
+  icon: React.ReactNode;
   variants?: MemoryAssetVariant[] | null;
   kind?: string | null;
   viewAllHref?: string;
@@ -217,15 +225,16 @@ export type MemoryAssetCarouselProps = {
 
 export function MemoryAssetCarousel({
   title,
+  icon,
   variants = [],
   kind = null,
   viewAllHref,
-  viewAllLabel = "View all",
+  viewAllLabel = "View All",
   emptySignedOut,
   emptyLoading,
   emptyNone,
 }: MemoryAssetCarouselProps) {
-  const { user, items, loading, error, refresh } = useMemoryUploads(kind);
+  const { user, items, loading, error } = useMemoryUploads(kind);
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
   const currentOrigin = React.useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : null),
@@ -314,66 +323,79 @@ export function MemoryAssetCarousel({
     [pageSize],
   );
 
+  const navDisabled = loading || !hasRotation || visibleItems.length === 0;
+
   return (
     <>
       <div className={styles.root}>
         <div className={styles.header}>
-          <h3 className={styles.title}>{title}</h3>
-          <div className={styles.controls}>
-            <Button
-              variant="secondary"
-              size="icon"
-              leftIcon={<CaretLeft size={18} weight="bold" />}
-              onClick={handleShowPrev}
-              aria-label={`Previous ${title.toLowerCase()}`}
-              disabled={!hasRotation || loading}
-            />
-            <Button
-              variant="secondary"
-              size="icon"
-              leftIcon={<CaretRight size={18} weight="bold" />}
-              onClick={handleShowNext}
-              aria-label={`Next ${title.toLowerCase()}`}
-              disabled={!hasRotation || loading}
-            />
+          <div className={styles.titleGroup}>
+            <span className={styles.titleIcon}>{icon}</span>
+            <div>
+              <h3 className={styles.title}>{title}</h3>
+            </div>
+          </div>
+          <div className={styles.actions}>
             {viewAllHref ? (
-              <Button variant="secondary" size="sm" asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                rightIcon={<ArrowRight size={16} weight="bold" />}
+              >
                 <Link href={viewAllHref}>{viewAllLabel}</Link>
               </Button>
             ) : null}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                void refresh();
-              }}
-              loading={loading}
-            >
-              Refresh
-            </Button>
           </div>
         </div>
 
-        {!user ? <div className={styles.empty}>{emptySignedOut}</div> : null}
-        {user && error ? <div className={styles.empty}>{error}</div> : null}
+        <div className={styles.carouselShell}>
+          <Button
+            variant="secondary"
+            size="icon"
+            className={styles.navButton}
+            data-side="prev"
+            data-hidden={!visibleItems.length}
+            leftIcon={<CaretLeft size={18} weight="bold" />}
+            onClick={handleShowPrev}
+            aria-label={`Previous ${title.toLowerCase()}`}
+            disabled={navDisabled}
+          />
 
-        {user ? (
-          loading && !filteredItems.length ? (
-            <div className={styles.empty}>{emptyLoading}</div>
-          ) : !filteredItems.length ? (
-            <div className={styles.empty}>{emptyNone}</div>
-          ) : (
-            <div className={styles.viewport} ref={emblaRef}>
-              <div className={styles.container} style={containerStyle}>
-                {visibleItems.map((item) => (
-                  <div className={styles.slide} key={item.id}>
-                    <MemoryAssetCard item={item} onSelect={setActiveItem} />
-                  </div>
-                ))}
+          {!user ? (
+            <div className={styles.empty}>{emptySignedOut}</div>
+          ) : user && error ? (
+            <div className={styles.empty}>{error}</div>
+          ) : user ? (
+            loading && !filteredItems.length ? (
+              <div className={styles.empty}>{emptyLoading}</div>
+            ) : !filteredItems.length ? (
+              <div className={styles.empty}>{emptyNone}</div>
+            ) : (
+              <div className={styles.viewport} ref={emblaRef}>
+                <div className={styles.container} style={containerStyle}>
+                  {visibleItems.map((item) => (
+                    <div className={styles.slide} key={item.id}>
+                      <MemoryAssetCard item={item} onSelect={setActiveItem} />
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )
-        ) : null}
+            )
+          ) : null}
+
+          <Button
+            variant="secondary"
+            size="icon"
+            className={styles.navButton}
+            data-side="next"
+            data-hidden={!visibleItems.length}
+            leftIcon={<CaretRight size={18} weight="bold" />}
+            onClick={handleShowNext}
+            aria-label={`Next ${title.toLowerCase()}`}
+            disabled={navDisabled}
+          />
+        </div>
       </div>
       {user ? (
         <MemoryUploadDetailDialog item={activeItem} onClose={() => setActiveItem(null)} />
@@ -386,6 +408,7 @@ export function CapsuleAssetsCarousel() {
   return (
     <MemoryAssetCarousel
       title="Capsule Assets"
+      icon={<SquaresFour size={18} weight="fill" />}
       variants={["banner", "store_banner", "promo_tile", "logo", "avatar"]}
       viewAllHref="/memory/assets?tab=banners"
       emptySignedOut="Sign in to access your capsule assets."
@@ -399,10 +422,10 @@ export function SavedCreationsCarousel() {
   return (
     <MemoryAssetCarousel
       title="Saved Creations"
+      icon={<MagicWand size={18} weight="fill" />}
       kind="composer_creation"
       variants={null}
       viewAllHref="/memory/uploads?tab=uploads"
-      viewAllLabel="Open memories"
       emptySignedOut="Sign in to view your saved creations."
       emptyLoading="Loading your creations..."
       emptyNone="No creations saved yet. Generate an image or video in the composer and tap Save."
@@ -414,10 +437,10 @@ export function AiImagesCarousel() {
   return (
     <MemoryAssetCarousel
       title="AI Images"
+      icon={<ImageSquare size={18} weight="fill" />}
       kind="composer_image"
       variants={null}
       viewAllHref="/memory/uploads?tab=uploads"
-      viewAllLabel="Open memories"
       emptySignedOut="Sign in to view your AI-generated images."
       emptyLoading="Loading your AI images..."
       emptyNone="No AI images yet. Generate an image in the composer to see it here."

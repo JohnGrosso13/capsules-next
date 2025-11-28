@@ -59,6 +59,14 @@ import {
 } from "@/server/capsules/structured";
 import { resolveCapsuleMediaUrl } from "@/server/capsules/domain/common";
 
+type ScoringSystem = "simple" | "elo" | "ai" | "points" | "custom";
+
+const DEFAULT_INITIAL_RATING = 1200;
+const DEFAULT_K_FACTOR = 32;
+const DEFAULT_PLACEMENT_MATCHES = 3;
+const MIN_RATING = 100;
+const MAX_RATING = 4000;
+
 export type CreateCapsuleLadderInput = {
   capsuleId: string;
   name: string;
@@ -302,6 +310,49 @@ const LADDER_DRAFT_RESPONSE_SCHEMA: OpenAIJsonSchema = {
 };
 
 const MANAGER_ROLES = new Set(["owner", "admin", "moderator"]);
+
+function normalizeScoringSystem(value: unknown): ScoringSystem {
+  if (typeof value !== "string") return "elo";
+  const cleaned = value.trim().toLowerCase();
+  if (cleaned === "simple" || cleaned === "elo" || cleaned === "ai" || cleaned === "points" || cleaned === "custom") {
+    return cleaned as ScoringSystem;
+  }
+  if (cleaned.includes("ai")) return "ai";
+  if (cleaned.includes("simple") || cleaned.includes("casual") || cleaned.includes("points")) return "simple";
+  return "elo";
+}
+
+function resolveScoringConfig(ladder: CapsuleLadderDetail): Required<LadderScoringConfig> & { system: ScoringSystem } {
+  const scoring = (ladder.config?.scoring as LadderScoringConfig | undefined) ?? {};
+  return {
+    system: normalizeScoringSystem(scoring.system),
+    initialRating: scoring.initialRating ?? DEFAULT_INITIAL_RATING,
+    kFactor: scoring.kFactor ?? DEFAULT_K_FACTOR,
+    placementMatches: scoring.placementMatches ?? DEFAULT_PLACEMENT_MATCHES,
+    decayPerDay: scoring.decayPerDay ?? 0,
+    bonusForStreak: scoring.bonusForStreak ?? 0,
+  };
+}
+
+function normalizeRatingValue(value: number | null | undefined, initialRating: number): number {
+  const rating = typeof value === "number" && Number.isFinite(value) ? value : initialRating;
+  return Math.min(MAX_RATING, Math.max(MIN_RATING, Math.round(rating)));
+}
+
+function sortMembersByRating(members: CapsuleLadderMember[], initialRating: number): CapsuleLadderMember[] {
+  return [...members]
+    .map((member) => ({
+      ...member,
+      rating: normalizeRatingValue(member.rating, initialRating),
+    }))
+    .sort((a, b) => {
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      if ((b.wins ?? 0) !== (a.wins ?? 0)) return (b.wins ?? 0) - (a.wins ?? 0);
+      if ((a.losses ?? 0) !== (b.losses ?? 0)) return (a.losses ?? 0) - (b.losses ?? 0);
+      return a.displayName.localeCompare(b.displayName);
+    })
+    .map((member, index) => ({ ...member, rank: index + 1 }));
+}
 
 function normalizeId(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
@@ -734,19 +785,7 @@ function sanitizeConfig(raw: unknown, seed: LadderDraftSeed): LadderConfig {
   const scoring: LadderScoringConfig = isPlainObject(config.scoring)
     ? { ...(config.scoring as LadderScoringConfig) }
     : {};
-  type ScoringSystem = "simple" | "elo" | "ai" | "points" | "custom";
-  const normalizeSystem = (value: unknown): ScoringSystem => {
-    if (typeof value !== "string") return "elo";
-    const cleaned = value.trim().toLowerCase();
-    const allowed: Array<ScoringSystem> = ["simple", "elo", "ai", "points", "custom"];
-    if ((allowed as string[]).includes(cleaned)) {
-      return cleaned as ScoringSystem;
-    }
-    if (cleaned.includes("ai")) return "ai";
-    if (cleaned.includes("simple") || cleaned.includes("casual") || cleaned.includes("points")) return "simple";
-    return "elo";
-  };
-  scoring.system = normalizeSystem((scoring as { system?: unknown }).system);
+  scoring.system = normalizeScoringSystem((scoring as { system?: unknown }).system);
   if (scoring.initialRating == null) scoring.initialRating = 1200;
   if (scoring.kFactor == null) scoring.kFactor = 32;
   if (scoring.placementMatches == null) scoring.placementMatches = 3;
@@ -1678,6 +1717,27 @@ function sanitizeRankChanges(value: unknown): Array<{ memberId: string; from: nu
     .filter((entry): entry is { memberId: string; from: number; to: number } => Boolean(entry));
 }
 
+function sanitizeRatingChanges(
+  value: unknown,
+): Array<{ memberId: string; from: number; to: number; delta?: number }> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!isPlainObject(entry)) return null;
+      const memberId = normalizeId(entry.memberId as string);
+      const from = sanitizeNumber(entry.from, null, MIN_RATING, MAX_RATING);
+      const to = sanitizeNumber(entry.to, null, MIN_RATING, MAX_RATING);
+      const delta = sanitizeNumber(entry.delta, null, -MAX_RATING, MAX_RATING);
+      if (!memberId || from === null || to === null) return null;
+      const change: { memberId: string; from: number; to: number; delta?: number } = { memberId, from, to };
+      if (delta !== null) {
+        change.delta = delta;
+      }
+      return change;
+    })
+    .filter((entry): entry is { memberId: string; from: number; to: number; delta?: number } => Boolean(entry));
+}
+
 function sanitizeChallenge(
   value: unknown,
   ladderId: string,
@@ -1708,6 +1768,10 @@ function sanitizeChallenge(
       const rankChanges = sanitizeRankChanges(resultRaw.rankChanges);
       if (rankChanges.length && result) {
         result.rankChanges = rankChanges;
+      }
+      const ratingChanges = sanitizeRatingChanges(resultRaw.ratingChanges);
+      if (ratingChanges.length && result) {
+        result.ratingChanges = ratingChanges;
       }
     }
   }
@@ -1743,6 +1807,7 @@ function sanitizeMatchRecord(
   const challengeId = normalizeId(source.challengeId as string);
   const note = sanitizeText(source.note, 240, null) ?? null;
   const rankChanges = sanitizeRankChanges(source.rankChanges);
+  const ratingChanges = sanitizeRatingChanges(source.ratingChanges);
 
   const record: LadderMatchRecord = {
     id,
@@ -1755,6 +1820,7 @@ function sanitizeMatchRecord(
   };
   if (note) record.note = note;
   if (rankChanges.length) record.rankChanges = rankChanges;
+  if (ratingChanges.length) record.ratingChanges = ratingChanges;
   return record;
 }
 
@@ -1804,15 +1870,16 @@ function toMemberInput(member: CapsuleLadderMember): CapsuleLadderMemberInput {
   return input;
 }
 
-function ensureSimpleScoring(ladder: CapsuleLadderDetail): void {
-  const system = (ladder.config?.scoring as LadderScoringConfig | undefined)?.system ?? "elo";
-  if (system !== "simple") {
+function ensureChallengeScoring(ladder: CapsuleLadderDetail): ScoringSystem {
+  const { system } = resolveScoringConfig(ladder);
+  if (system !== "simple" && system !== "elo") {
     throw new CapsuleLadderAccessError(
       "invalid",
-      "Challenges are only enabled for simple ladders right now.",
+      "Challenges are only enabled for simple or Elo ladders right now.",
       400,
     );
   }
+  return system;
 }
 
 function sortMembersForRanking(members: CapsuleLadderMember[]): CapsuleLadderMember[] {
@@ -1860,6 +1927,130 @@ function applyResultStats(
     draws: draws + 1,
     streak: 0,
   };
+}
+
+function resolveMemberKFactor(member: CapsuleLadderMember, scoring: Required<LadderScoringConfig>): number {
+  const baseK = scoring.kFactor ?? DEFAULT_K_FACTOR;
+  const totalMatches = (member.wins ?? 0) + (member.losses ?? 0) + (member.draws ?? 0);
+  const placementBoost =
+    totalMatches < (scoring.placementMatches ?? DEFAULT_PLACEMENT_MATCHES) ? 1.5 : 1;
+  const streak = member.streak ?? 0;
+  const streakBonus =
+    scoring.bonusForStreak && streak > 1
+      ? Math.min(streak, 5) * scoring.bonusForStreak * 0.2
+      : 0;
+  const adjusted = Math.round(baseK * placementBoost + streakBonus);
+  return Math.min(128, Math.max(4, adjusted));
+}
+
+function calculateExpectedScore(playerRating: number, opponentRating: number): number {
+  return 1 / (1 + 10 ** ((opponentRating - playerRating) / 400));
+}
+
+function applyEloOutcome(
+  members: CapsuleLadderMember[],
+  challengerId: string,
+  opponentId: string,
+  outcome: LadderChallengeOutcome,
+  scoring: Required<LadderScoringConfig>,
+): {
+  members: CapsuleLadderMember[];
+  rankChanges: Array<{ memberId: string; from: number; to: number }>;
+  ratingChanges: Array<{ memberId: string; from: number; to: number; delta?: number }>;
+} {
+  const initialRating = scoring.initialRating ?? DEFAULT_INITIAL_RATING;
+  const challenger = members.find((member) => member.id === challengerId);
+  const opponent = members.find((member) => member.id === opponentId);
+  if (!challenger || !opponent) {
+    throw new CapsuleLadderAccessError("invalid", "Both members must exist on this ladder.", 400);
+  }
+
+  const baseRatingMap = new Map<string, number>(
+    members.map((member) => [member.id, normalizeRatingValue(member.rating, initialRating)]),
+  );
+
+  const challengerRating = baseRatingMap.get(challengerId)!;
+  const opponentRating = baseRatingMap.get(opponentId)!;
+
+  const challengerScore = outcome === "challenger" ? 1 : outcome === "draw" ? 0.5 : 0;
+  const opponentScore = 1 - challengerScore;
+
+  const challengerExpected = calculateExpectedScore(challengerRating, opponentRating);
+  const opponentExpected = calculateExpectedScore(opponentRating, challengerRating);
+
+  const challengerDelta = Math.round(
+    resolveMemberKFactor(challenger, scoring) * (challengerScore - challengerExpected),
+  );
+  const opponentDelta = Math.round(
+    resolveMemberKFactor(opponent, scoring) * (opponentScore - opponentExpected),
+  );
+
+  const nextChallengerRating = normalizeRatingValue(
+    challengerRating + challengerDelta,
+    initialRating,
+  );
+  const nextOpponentRating = normalizeRatingValue(opponentRating + opponentDelta, initialRating);
+
+  const updatedMembers = members.map((member) => {
+    if (member.id === challengerId) {
+      const withStats =
+        outcome === "challenger"
+          ? applyResultStats(member, "win")
+          : outcome === "opponent"
+            ? applyResultStats(member, "loss")
+            : applyResultStats(member, "draw");
+      return { ...withStats, rating: nextChallengerRating };
+    }
+    if (member.id === opponentId) {
+      const withStats =
+        outcome === "opponent"
+          ? applyResultStats(member, "win")
+          : outcome === "challenger"
+            ? applyResultStats(member, "loss")
+            : applyResultStats(member, "draw");
+      return { ...withStats, rating: nextOpponentRating };
+    }
+    return { ...member, rating: normalizeRatingValue(member.rating, initialRating) };
+  });
+
+  const baseRanks = new Map(
+    sortMembersByRating(members, initialRating).map((member) => [
+      member.id,
+      member.rank ?? Number.MAX_SAFE_INTEGER,
+    ]),
+  );
+  const reordered = sortMembersByRating(updatedMembers, initialRating);
+
+  const rankChanges =
+    reordered
+      .map((member) => {
+        const previousRank = baseRanks.get(member.id) ?? member.rank ?? 0;
+        if (previousRank !== member.rank) {
+          return { memberId: member.id, from: previousRank, to: member.rank ?? previousRank };
+        }
+        return null;
+      })
+      .filter(
+        (entry): entry is NonNullable<LadderChallengeResult["rankChanges"]>[number] =>
+          Boolean(entry),
+      ) ?? [];
+
+  const ratingChanges: NonNullable<LadderChallengeResult["ratingChanges"]> = [
+    {
+      memberId: challengerId,
+      from: challengerRating,
+      to: nextChallengerRating,
+      delta: nextChallengerRating - challengerRating,
+    },
+    {
+      memberId: opponentId,
+      from: opponentRating,
+      to: nextOpponentRating,
+      delta: nextOpponentRating - opponentRating,
+    },
+  ];
+
+  return { members: reordered, rankChanges, ratingChanges };
 }
 
 function applySimpleOutcome(
@@ -1974,7 +2165,7 @@ export async function listLadderChallengesForViewer(
   return { challenges: state.challenges, history: state.history, ladder };
 }
 
-export async function createSimpleLadderChallenge(
+export async function createLadderChallenge(
   actorId: string,
   ladderId: string,
   payload: { challengerId: string; opponentId: string; note?: string | null },
@@ -1985,7 +2176,8 @@ export async function createSimpleLadderChallenge(
   }
   const viewer = await resolveCapsuleViewer(ladder.capsuleId, actorId);
   assertChallengePermissions(ladder, viewer);
-  ensureSimpleScoring(ladder);
+  const scoring = resolveScoringConfig(ladder);
+  const system = ensureChallengeScoring(ladder);
 
   const challengerId = normalizeId(payload.challengerId);
   const opponentId = normalizeId(payload.opponentId);
@@ -1997,20 +2189,26 @@ export async function createSimpleLadderChallenge(
     );
   }
 
-  const members = orderMembersWithSequentialRanks(await listCapsuleLadderMemberRecords(ladder.id));
+  const memberRecords = await listCapsuleLadderMemberRecords(ladder.id);
+  const members =
+    system === "elo"
+      ? sortMembersByRating(memberRecords, scoring.initialRating ?? DEFAULT_INITIAL_RATING)
+      : orderMembersWithSequentialRanks(memberRecords);
   const challenger = members.find((member) => member.id === challengerId);
   const opponent = members.find((member) => member.id === opponentId);
   if (!challenger || !opponent) {
     throw new CapsuleLadderAccessError("invalid", "Both members must exist on this ladder.", 400);
   }
-  const challengerRank = challenger.rank ?? Number.MAX_SAFE_INTEGER;
-  const opponentRank = opponent.rank ?? Number.MAX_SAFE_INTEGER;
-  if (challengerRank <= opponentRank) {
-    throw new CapsuleLadderAccessError(
-      "invalid",
-      "Challenger must target someone ranked above them.",
-      400,
-    );
+  if (system === "simple") {
+    const challengerRank = challenger.rank ?? Number.MAX_SAFE_INTEGER;
+    const opponentRank = opponent.rank ?? Number.MAX_SAFE_INTEGER;
+    if (challengerRank <= opponentRank) {
+      throw new CapsuleLadderAccessError(
+        "invalid",
+        "Challenger must target someone ranked above them.",
+        400,
+      );
+    }
   }
 
   const now = new Date().toISOString();
@@ -2053,7 +2251,7 @@ export async function createSimpleLadderChallenge(
   return { challenge, ladder: ladderForNotification };
 }
 
-export async function resolveSimpleLadderChallenge(
+export async function resolveLadderChallenge(
   actorId: string,
   ladderId: string,
   challengeId: string,
@@ -2070,7 +2268,8 @@ export async function resolveSimpleLadderChallenge(
   }
   const viewer = await resolveCapsuleViewer(ladder.capsuleId, actorId);
   assertChallengePermissions(ladder, viewer);
-  ensureSimpleScoring(ladder);
+  const system = ensureChallengeScoring(ladder);
+  const scoring = resolveScoringConfig(ladder);
 
   const snapshot = readLadderState(ladder);
   const challengeIndex = snapshot.state.challenges.findIndex((entry) => entry.id === challengeId);
@@ -2086,12 +2285,20 @@ export async function resolveSimpleLadderChallenge(
   }
 
   const members = await listCapsuleLadderMemberRecords(ladder.id);
-  const { members: reordered, rankChanges } = applySimpleOutcome(
-    members,
-    challenge.challengerId,
-    challenge.opponentId,
-    outcome,
-  );
+  const outcomeResult =
+    system === "simple"
+      ? applySimpleOutcome(members, challenge.challengerId, challenge.opponentId, outcome)
+      : applyEloOutcome(
+          members,
+          challenge.challengerId,
+          challenge.opponentId,
+          outcome,
+          scoring,
+        );
+  const rankChanges = outcomeResult.rankChanges ?? [];
+  const ratingChanges =
+    (outcomeResult as { ratingChanges?: NonNullable<LadderChallengeResult["ratingChanges"]> }).ratingChanges ?? [];
+  const reordered = outcomeResult.members;
   const persistedMembers = await replaceCapsuleLadderMemberRecords(
     ladder.id,
     reordered.map(toMemberInput),
@@ -2113,6 +2320,9 @@ export async function resolveSimpleLadderChallenge(
   if (rankChanges.length) {
     historyRecord.rankChanges = rankChanges;
   }
+  if (ratingChanges.length) {
+    historyRecord.ratingChanges = ratingChanges;
+  }
 
   snapshot.state.history = [historyRecord, ...snapshot.state.history].slice(0, 50);
   snapshot.state.challenges[challengeIndex] = {
@@ -2127,6 +2337,9 @@ export async function resolveSimpleLadderChallenge(
   };
   if (rankChanges.length) {
     snapshot.state.challenges[challengeIndex]!.result!.rankChanges = rankChanges;
+  }
+  if (ratingChanges.length) {
+    snapshot.state.challenges[challengeIndex]!.result!.ratingChanges = ratingChanges;
   }
 
   snapshot.metaRoot.ladderState = {

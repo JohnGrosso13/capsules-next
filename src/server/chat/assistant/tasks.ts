@@ -31,6 +31,9 @@ type TargetData = {
   name?: string | null;
   trackResponses?: boolean;
   context?: Record<string, unknown> | null;
+  mirrorTaskId?: string | null;
+  originatorUserId?: string | null;
+  originatorName?: string | null;
   errors?: string[];
   responses?: Array<{
     messageId: string;
@@ -57,6 +60,15 @@ function parseTargetData(input: Record<string, unknown> | null | undefined): Tar
   const contextValue = (input as Record<string, unknown>).context;
   if (contextValue && typeof contextValue === "object") {
     data.context = contextValue as Record<string, unknown>;
+  }
+  if (typeof input.mirrorTaskId === "string") {
+    data.mirrorTaskId = input.mirrorTaskId;
+  }
+  if (typeof input.originatorUserId === "string") {
+    data.originatorUserId = input.originatorUserId;
+  }
+  if (typeof input.originatorName === "string") {
+    data.originatorName = input.originatorName;
   }
   const errorsValue = (input as Record<string, unknown>).errors;
   if (Array.isArray(errorsValue)) {
@@ -94,6 +106,9 @@ function serializeTargetData(data: TargetData): Record<string, unknown> {
   if (data.name) payload.name = data.name;
   if (typeof data.trackResponses === "boolean") payload.trackResponses = data.trackResponses;
   if (data.context) payload.context = data.context;
+  if (data.mirrorTaskId) payload.mirrorTaskId = data.mirrorTaskId;
+  if (data.originatorUserId) payload.originatorUserId = data.originatorUserId;
+  if (data.originatorName) payload.originatorName = data.originatorName;
   if (data.errors && data.errors.length) payload.errors = data.errors;
   if (data.responses && data.responses.length) payload.responses = data.responses;
   return payload;
@@ -147,14 +162,60 @@ export async function createMessagingTask(options: {
   recipients: MessagingRecipient[];
 }): Promise<MessagingTask> {
   const assistantUserId = options.assistantUserId ?? ASSISTANT_USER_ID;
+  const primaryRecipient = options.recipients[0];
+  const payloadFromName =
+    options.payload && typeof options.payload === "object"
+      ? (options.payload as Record<string, unknown>).fromName
+      : null;
+  const normalizedFromName = typeof payloadFromName === "string" ? payloadFromName : null;
   const task = await insertAssistantTask({
     ownerUserId: options.ownerUserId,
     assistantUserId,
     kind: options.kind,
     status: "messaging",
     prompt: options.prompt,
-    payload: options.payload ?? null,
+    payload: {
+      ...(options.payload ?? {}),
+      direction: "outgoing",
+      toCount: options.recipients.length,
+      toName: primaryRecipient?.name ?? null,
+      toUserId: primaryRecipient?.userId ?? null,
+    },
   });
+
+  const mirrorTaskMap = new Map<string, { taskId: string; targetId: string | null }>();
+
+  for (const recipient of options.recipients) {
+    const mirrorTask = await insertAssistantTask({
+      ownerUserId: recipient.userId,
+      assistantUserId,
+      kind: options.kind,
+      status: "awaiting_responses",
+      prompt: options.prompt,
+      payload: {
+        direction: "incoming",
+        fromUserId: options.ownerUserId,
+        fromName: normalizedFromName ?? options.ownerUserId,
+        sourceTaskId: task.id,
+      },
+    });
+    const mirrorTargets = await insertAssistantTaskTargets([
+      {
+        taskId: mirrorTask.id,
+        ownerUserId: recipient.userId,
+        targetUserId: options.ownerUserId,
+        conversationId: getChatConversationId(recipient.userId, options.ownerUserId),
+        status: "awaiting_response",
+        data: serializeTargetData({
+          name: recipient.name ?? null,
+          trackResponses: true,
+          originatorUserId: options.ownerUserId,
+          originatorName: normalizedFromName ?? options.ownerUserId,
+        }),
+      },
+    ]);
+    mirrorTaskMap.set(recipient.userId, { taskId: mirrorTask.id, targetId: mirrorTargets[0]?.id ?? null });
+  }
 
   const targets = await insertAssistantTaskTargets(
     options.recipients.map((recipient) => ({
@@ -167,6 +228,7 @@ export async function createMessagingTask(options: {
         name: recipient.name ?? null,
         trackResponses: recipient.trackResponses ?? false,
         context: recipient.context ?? null,
+        mirrorTaskId: mirrorTaskMap.get(recipient.userId)?.taskId ?? null,
       }),
     })),
   );
@@ -187,6 +249,20 @@ export async function markRecipientMessaged(params: {
     data: serializeTargetData(data),
   });
 
+  if (data.mirrorTaskId) {
+    const mirrorTargets = await listTaskTargetsByTask(data.mirrorTaskId);
+    const mirrorTarget = mirrorTargets[0];
+    if (mirrorTarget) {
+      await markTaskTargetSent({
+        id: mirrorTarget.id,
+        messageId: params.messageId,
+        status: "awaiting_response",
+        data: mirrorTarget.data ?? null,
+      });
+      await refreshTaskStatus(data.mirrorTaskId);
+    }
+  }
+
   // Keep the parent task in sync so it can transition to awaiting_responses / completed promptly.
   await refreshTaskStatus(updated.task_id);
   return updated;
@@ -205,6 +281,18 @@ export async function markRecipientFailed(params: {
     status: "failed",
     data: serializeTargetData(data),
   });
+  if (data.mirrorTaskId) {
+    const mirrorTargets = await listTaskTargetsByTask(data.mirrorTaskId);
+    const mirrorTarget = mirrorTargets[0];
+    if (mirrorTarget) {
+      await markTaskTargetFailed({
+        id: mirrorTarget.id,
+        status: "failed",
+        data: mirrorTarget.data ?? null,
+      });
+      await refreshTaskStatus(data.mirrorTaskId);
+    }
+  }
   await refreshTaskStatus(updated.task_id);
   return updated;
 }
@@ -249,6 +337,19 @@ export async function recordRecipientResponse(params: {
   const awaitingCount = outstandingTargets.filter(
     (target) => targetNeedsResponse(target) && target.status === "awaiting_response",
   ).length;
+  if (data.mirrorTaskId) {
+    const mirrorTargets = await listTaskTargetsByTask(data.mirrorTaskId);
+    const mirrorTarget = mirrorTargets[0];
+    if (mirrorTarget) {
+      await markTaskTargetResponded({
+        id: mirrorTarget.id,
+        responseMessageId: params.messageId,
+        respondedAt: params.receivedAt,
+        data: mirrorTarget.data ?? null,
+      });
+      await refreshTaskStatus(data.mirrorTaskId);
+    }
+  }
 
   return {
     ownerUserId: updated.owner_user_id,
@@ -297,6 +398,20 @@ export async function cancelAssistantTask(params: {
   for (const target of targets) {
     if (target.status === "responded" || target.status === "completed") continue;
     await markTaskTargetCanceled({ id: target.id, data: target.data ?? null });
+    const data = parseTargetData(target.data);
+    if (data.mirrorTaskId) {
+      const mirrorTargets = await listTaskTargetsByTask(data.mirrorTaskId);
+      const mirrorTarget = mirrorTargets[0];
+      if (mirrorTarget && mirrorTarget.status !== "responded" && mirrorTarget.status !== "completed") {
+        await markTaskTargetCanceled({ id: mirrorTarget.id, data: mirrorTarget.data ?? null });
+        await updateAssistantTask({
+          id: data.mirrorTaskId,
+          status: "canceled",
+          completedAt: new Date().toISOString(),
+          result: { canceled: true },
+        });
+      }
+    }
     canceledTargets += 1;
   }
 

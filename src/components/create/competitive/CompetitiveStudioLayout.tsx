@@ -7,6 +7,7 @@ import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
 import type { CapsuleSummary } from "@/server/capsules/service";
 import { LadderBuilder } from "../ladders/LadderBuilder";
 import { TournamentBuilder } from "../tournaments/TournamentBuilder";
+import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
 import styles from "./CompetitiveStudioLayout.module.css";
 
 type TabId = "ladders" | "tournaments";
@@ -94,11 +95,13 @@ export function CompetitiveStudioLayout({
         </div>
       </header>
       <main className={styles.contentArea}>
-        {activeTab === "ladders" ? (
-          <LadderBuilder capsules={capsules} initialCapsuleId={initialCapsuleId} />
-        ) : (
-          <TournamentBuilder capsules={capsules} initialCapsuleId={initialCapsuleId} />
-        )}
+        <FriendsDataProvider>
+          {activeTab === "ladders" ? (
+            <LadderBuilder capsules={capsules} initialCapsuleId={initialCapsuleId} />
+          ) : (
+            <TournamentBuilder capsules={capsules} initialCapsuleId={initialCapsuleId} />
+          )}
+        </FriendsDataProvider>
       </main>
     </div>
   );

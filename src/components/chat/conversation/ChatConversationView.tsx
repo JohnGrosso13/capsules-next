@@ -14,6 +14,7 @@ import { ConversationMessageList, type ConversationMessageListProps } from "./Co
 import { initialsFrom } from "./utils";
 import type { ConversationParticipantsViewModel, ReactionPickerViewModel } from "./types";
 import { buildProfileHref } from "@/lib/profile/routes";
+import { useAssistantTasks } from "@/hooks/useAssistantTasks";
 
 import styles from "../chat.module.css";
 
@@ -27,6 +28,7 @@ const EmojiPicker = dynamic<EmojiPickerProps>(() => import("../EmojiPicker").the
 });
 
 type ChatConversationViewProps = {
+  isAssistantConversation?: boolean;
   headerProps: React.ComponentProps<typeof ConversationHeader>;
   participants: ConversationParticipantsViewModel;
   messageListProps: ConversationMessageListProps;
@@ -129,7 +131,62 @@ function ConversationParticipants({ participants }: ConversationParticipantsView
   );
 }
 
+function AssistantTaskContext() {
+  const { tasks, loading, error } = useAssistantTasks({
+    includeCompleted: false,
+    pollIntervalMs: 12000,
+    idlePollIntervalMs: 20000,
+  });
+  const active = (tasks ?? []).filter(
+    (task) => task.status !== "completed" && task.status !== "partial" && task.status !== "canceled",
+  );
+
+  if (loading && !tasks) {
+    return (
+      <div className={styles.assistantTaskContext} role="status">
+        Checking assistant tasks…
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className={`${styles.assistantTaskContext} ${styles.assistantTaskContextError}`} role="alert">
+        {error}
+      </div>
+    );
+  }
+  if (!active.length) {
+    return (
+      <div className={styles.assistantTaskContext}>
+        No active tasks. Create tasks from the Assistant tab to keep work scoped.
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.assistantTaskContext}>
+      <div className={styles.assistantTaskContextHeader}>
+        <span className={styles.assistantTaskContextTitle}>Active tasks</span>
+        <Link href="/friends?tab=Assistant" className={styles.assistantTaskContextLink}>
+          Open Assistant
+        </Link>
+      </div>
+      <div className={styles.assistantTaskChips}>
+        {active.slice(0, 4).map((task) => (
+          <Link key={task.id} href={`/assistant/tasks/${task.id}`} className={styles.assistantTaskChip}>
+            <span className={styles.assistantTaskChipTitle}>
+              {task.prompt?.slice(0, 60) || task.kind.replace(/_/g, " ")}
+            </span>
+            <span className={styles.assistantTaskChipStatus}>{task.status.replace(/_/g, " ")}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ChatConversationView({
+  isAssistantConversation,
   headerProps,
   participants,
   messageListProps,
@@ -143,6 +200,7 @@ export function ChatConversationView({
       {messageListProps.session.type === "group" ? (
         <ConversationParticipants {...participants} />
       ) : null}
+      {isAssistantConversation ? <AssistantTaskContext /> : null}
       <ConversationMessageList {...messageListProps} />
       {reactionPicker?.targetId && reactionPicker.anchorRect ? (
         <ReactionPickerFloating {...reactionPicker} />

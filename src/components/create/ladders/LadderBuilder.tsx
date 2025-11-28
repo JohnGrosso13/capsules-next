@@ -1648,18 +1648,22 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
   const addMember = React.useCallback(() => {
     setMembers((prev) => normalizeMemberList([...prev, createEmptyMemberForm(prev.length)]));
   }, []);
-  const addMemberWithUser = React.useCallback((user: { id: string; name: string }) => {
-    setMembers((prev) =>
-      normalizeMemberList([
-        ...prev,
-        {
-          ...createEmptyMemberForm(prev.length),
-          displayName: user.name,
-          userId: user.id,
-        },
-      ]),
-    );
-  }, []);
+  const addMemberWithUser = React.useCallback(
+    (user: { id: string; name: string; avatarUrl?: string | null }) => {
+      setMembers((prev) =>
+        normalizeMemberList([
+          ...prev,
+          {
+            ...createEmptyMemberForm(prev.length),
+            displayName: user.name,
+            userId: user.id,
+            avatarUrl: user.avatarUrl ?? "",
+          },
+        ]),
+      );
+    },
+    [],
+  );
   const removeMember = React.useCallback((index: number) => {
     setMembers((prev) => {
       const next = prev.filter((_, i) => i !== index);
@@ -1936,6 +1940,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
           formContent={
             <GuidedStepContent
               step={guidedStep}
+              capsuleId={selectedCapsuleId}
               form={form}
               members={members}
               guidedSummaryIdeas={guidedSummaryIdeas}

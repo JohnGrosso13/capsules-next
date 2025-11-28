@@ -1245,6 +1245,7 @@ export function ConnectionsRail() {
             onRefresh={refreshAssistantTasks}
             onCancelTask={handleCancelAssistantTask}
             cancelingTaskIds={cancelingTaskIds}
+            friends={friends}
           />
         </div>
           {/* Overlay for group chat create/invite */}

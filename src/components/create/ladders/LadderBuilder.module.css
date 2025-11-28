@@ -330,11 +330,11 @@
   opacity: 0.6;
 }
 
-  .memberField {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+.memberField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
   .memberField input {
     flex: 1;
@@ -345,11 +345,11 @@
     flex: 1;
   }
 
-  .memberSuggestList {
-    position: absolute;
-    z-index: 2;
-    margin-top: 6px;
-    width: 100%;
+.memberSuggestList {
+  position: absolute;
+  z-index: 2;
+  margin-top: 6px;
+  width: 100%;
     border-radius: 12px;
     border: 1px solid var(--ladder-border-soft);
     background: color-mix(in srgb, var(--ladder-surface-strong) 92%, rgba(12, 18, 32, 0.9));
@@ -357,30 +357,68 @@
     overflow: hidden;
   }
 
-  .memberSuggestItem {
-    width: 100%;
-    text-align: left;
-    padding: 10px 12px;
-    border: none;
-    background: transparent;
-    color: inherit;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
+.memberSuggestItem {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
 
-  .memberSuggestItem:hover,
-  .memberSuggestItem:focus-visible {
-    background: color-mix(in srgb, var(--ladder-accent-1) 14%, transparent);
-    outline: none;
-  }
+.memberSuggestItem:hover,
+.memberSuggestItem:focus-visible {
+  background: color-mix(in srgb, var(--ladder-accent-1) 14%, transparent);
+  outline: none;
+}
 
-  .memberSuggestName {
-    font-weight: 600;
-    font-size: 0.95rem;
-  }
+.memberSuggestAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--identity-color, rgba(116, 140, 255, 0.85));
+  color: var(--identity-text, #050b1f);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 10px 20px var(--identity-glow, rgba(86, 112, 255, 0.28));
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.memberSuggestAvatar[data-has-image="true"] {
+  background: color-mix(in srgb, var(--ladder-surface-strong) 92%, rgba(12, 18, 32, 0.9));
+}
+
+.memberSuggestAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.memberSuggestText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+.memberSuggestName {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
 
   .memberSuggestMeta {
     font-size: 0.8rem;
@@ -557,6 +595,7 @@
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.18),
     0 10px 20px var(--identity-glow, rgba(86, 112, 255, 0.32));
+  overflow: hidden;
 }
 
 .memberAvatar::after {
@@ -572,6 +611,24 @@
 .memberAvatarText {
   position: relative;
   z-index: 1;
+}
+
+.memberAvatarImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  z-index: 1;
+}
+
+.memberAvatar[data-has-image="true"]::after {
+  display: none;
+}
+
+.memberAvatar[data-has-image="true"] .memberAvatarText {
+  opacity: 0;
 }
 
   .memberActions {

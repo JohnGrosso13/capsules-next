@@ -33,6 +33,7 @@ import styles from "../LadderBuilder.module.css";
 
 type GuidedStepContentProps = {
   step: GuidedStepId;
+  capsuleId: string | null;
   form: LadderBuilderFormState;
   members: LadderMemberFormValues[];
   guidedSummaryIdeas: string[];
@@ -50,7 +51,7 @@ type GuidedStepContentProps = {
   onSectionChange: (key: SectionKey, field: keyof LadderSectionFormValues, value: string) => void;
   onMemberField: (index: number, field: keyof LadderMemberFormValues, value: string) => void;
   onAddMember: () => void;
-  onAddMemberWithUser: (user: { id: string; name: string }) => void;
+  onAddMemberWithUser: (user: { id: string; name: string; avatarUrl?: string | null }) => void;
   onRemoveMember: (index: number) => void;
   reviewOverview: React.ReactNode;
   reviewAiPlan: React.ReactNode;
@@ -735,6 +736,7 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
     case "roster":
       return (
         <RosterStep
+          capsuleId={props.capsuleId}
           members={props.members}
           onMemberField={props.onMemberField}
           onAddMember={props.onAddMember}

@@ -13,6 +13,7 @@ export function ChatConversation(props: ChatConversationProps) {
 
   return (
     <ChatConversationView
+      isAssistantConversation={controller.isAssistantConversation}
       headerProps={controller.headerProps}
       participants={controller.participants}
       messageListProps={controller.messageListProps}

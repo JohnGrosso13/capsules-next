@@ -5,9 +5,9 @@ import dynamic from "next/dynamic";
 import {
   Paperclip,
   Gif,
-  PaperPlaneTilt,
   Trash,
   Plus,
+  ArrowUp,
 } from "@phosphor-icons/react/dist/ssr";
 
 import type { ChatSessionType } from "@/components/providers/ChatProvider";
@@ -216,8 +216,7 @@ export function ChatComposer({
               aria-label="Send message"
               disabled={disableSend}
             >
-              <PaperPlaneTilt size={18} weight="fill" className={styles.sendButtonIcon} />
-              {canSend ? <span className={styles.composerSendLabel}>Send</span> : null}
+              <ArrowUp size={18} weight="fill" className={styles.sendButtonIcon} />
             </button>
             {isPlusOpen ? (
               <div

@@ -5,6 +5,9 @@ import Image from "next/image";
 import { Paperclip, Smiley } from "@phosphor-icons/react/dist/ssr";
 
 import type { ChatMessage, ChatParticipant, ChatSession } from "@/components/providers/ChatProvider";
+import Link from "next/link";
+import { useAssistantTasks } from "@/hooks/useAssistantTasks";
+import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
 
 import { chatCopy } from "../copy";
 import { formatAttachmentSize } from "../utils";
@@ -80,6 +83,7 @@ type TypingStateProps = {
 
 export type ConversationMessageListProps = {
   session: ChatSession;
+  isAssistantConversation?: boolean;
   messagesRef: React.RefObject<HTMLDivElement | null>;
   contextMenu: MessageContextMenuState | null;
   identity: MessageIdentityResolver;
@@ -105,6 +109,7 @@ function renderStatus(message: ChatMessage): React.ReactNode {
 
 export function ConversationMessageList({
   session,
+  isAssistantConversation,
   messagesRef,
   contextMenu,
   identity,
@@ -118,6 +123,16 @@ export function ConversationMessageList({
   const { targetId } = reactionState;
   const showTyping =
     typingState.participants.length > 0 && typingState.typingText.trim().length > 0;
+  const { tasks } = useAssistantTasks({
+    includeCompleted: false,
+    pollIntervalMs: 12000,
+    idlePollIntervalMs: 20000,
+    enabled: Boolean(isAssistantConversation),
+  });
+  const latestTask = React.useMemo(() => {
+    if (!tasks || !tasks.length) return null;
+    return [...tasks].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))[0] ?? null;
+  }, [tasks]);
 
   return (
     <div ref={messagesRef} className={styles.messageList}>
@@ -140,6 +155,8 @@ export function ConversationMessageList({
         const attachments = Array.isArray(message.attachments) ? message.attachments : [];
         const hasAttachments = attachments.length > 0;
         const showBody = Boolean(message.body);
+        const showTaskHint =
+          isAssistantConversation && message.authorId === ASSISTANT_USER_ID && latestTask;
         const itemClassName = `${styles.messageItem} ${
           isSelf ? styles.messageItemSelf : styles.messageItemOther
         } ${grouped ? styles.messageItemGrouped : ""}`.trim();
@@ -261,6 +278,15 @@ export function ConversationMessageList({
                   <time className={styles.messageTimestamp} dateTime={message.sentAt}>
                     {messageTimestamp}
                   </time>
+                  {showTaskHint ? (
+                    <Link
+                      href={`/assistant/tasks/${latestTask!.id}`}
+                      className={styles.messageTaskBadge}
+                      title="View task thread"
+                    >
+                      🗂 In task: {latestTask!.prompt?.slice(0, 40) || latestTask!.kind}
+                    </Link>
+                  ) : null}
                 </div>
               ) : null}
               {showBody ? (

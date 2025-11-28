@@ -639,6 +639,67 @@
   box-shadow: 0 10px 22px color-mix(in srgb, rgba(76, 86, 212, 0.32) 40%, transparent);
 }
 
+.assistantTaskContext {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.2)) 80%, transparent);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.05) 70%, transparent);
+  color: color-mix(in srgb, var(--text, #fff) 75%, transparent);
+}
+
+.assistantTaskContextHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.assistantTaskContextTitle {
+  font-weight: 700;
+}
+
+.assistantTaskContextLink {
+  color: color-mix(in srgb, var(--color-info, #38bdf8) 85%, var(--text, #fff) 20%);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.assistantTaskChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assistantTaskChip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.3)) 80%, transparent);
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 70%, transparent);
+  text-decoration: none;
+  color: var(--text, #fff);
+  min-width: 140px;
+}
+
+.assistantTaskChipTitle {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.assistantTaskChipStatus {
+  font-size: 0.84rem;
+  color: color-mix(in srgb, var(--text, #fff) 65%, transparent);
+}
+
+.assistantTaskContextError {
+  border: 1px solid color-mix(in srgb, var(--color-danger, #f87171) 70%, transparent);
+  color: color-mix(in srgb, var(--color-danger, #f87171) 85%, var(--text, #fff) 30%);
+}
+
 .conversationParticipant:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--color-brand) 75%, transparent);
   outline-offset: 3px;
@@ -762,6 +823,15 @@
 .messageTimestamp {
   font-size: 0.75rem;
   color: var(--text-3, rgba(255, 255, 255, 0.55));
+}
+
+.messageTaskBadge {
+  margin-left: auto;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--color-info, #38bdf8) 85%, var(--text, #fff) 20%);
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .messageBubble {
@@ -1440,7 +1510,7 @@
 
 .composerField .messageInput {
   padding-left: 52px; /* 8px inset + 36px button + 8px gap */
-  padding-right: 54px; /* 8px inset + 38px button + 8px gap */
+  padding-right: 48px; /* 8px inset + 32-36px button + 6-8px gap */
 }
 
 .composerPlusButton {
@@ -1489,9 +1559,9 @@
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  min-width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   border: 1px solid
     color-mix(in srgb, rgba(255, 255, 255, 0.14) 68%, transparent);
   background: color-mix(in srgb, rgba(24, 28, 52, 0.7) 78%, rgba(10, 12, 24, 0.82));
@@ -1499,7 +1569,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0;
   font-weight: 600;
   font-size: 0.8rem;
   transition:
@@ -1520,14 +1590,13 @@
 }
 
 .composerSendReady {
-  min-width: 60px;
-  padding: 0 14px;
   border-color: color-mix(in srgb, var(--color-brand) 78%, transparent);
   background: var(
     --chats-send-button-background,
     linear-gradient(135deg, #2f5fd7 0%, #19a1e6 100%)
   );
   color: var(--text-on-brand, #ffffff);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--color-brand) 25%, transparent);
 }
 
 .composerSendReady .sendButtonIcon {
@@ -1538,10 +1607,6 @@
   display: none;
   font-size: 0.78rem;
   font-weight: 600;
-}
-
-.composerSendReady .composerSendLabel {
-  display: inline-flex;
 }
 
 .composerPlusMenu {

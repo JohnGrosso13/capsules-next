@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { AppPage } from "@/components/app-page";
 
 import styles from "./memory.module.css";
-import { UploadsCarousel } from "@/components/memory/uploads-carousel";
+import { AiVideosCarousel, PdfsCarousel, UploadsCarousel } from "@/components/memory/uploads-carousel";
 import {
   AiImagesCarousel,
   CapsuleAssetsCarousel,
@@ -30,6 +30,8 @@ export default function MemoryPage() {
         <PartyRecapsCarousel />
         <UploadsCarousel />
         <AiImagesCarousel />
+        <AiVideosCarousel />
+        <PdfsCarousel />
         <SavedCreationsCarousel />
         <CapsuleAssetsCarousel />
       </section>

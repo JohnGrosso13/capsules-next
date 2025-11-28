@@ -229,6 +229,7 @@ export const ladderMemberFormSchema = z
   .object({
     id: z.string().uuid().optional(),
     userId: z.string().max(80).optional(),
+    avatarUrl: z.string().max(512).optional(),
     displayName: z.string().max(80),
     handle: z.string().max(40).optional(),
     seed: z.string().max(3),
@@ -248,6 +249,7 @@ export type LadderMemberFormValues = z.infer<typeof ladderMemberFormSchema>;
 
 export const createEmptyMemberForm = (index: number): LadderMemberFormValues => ({
   userId: "",
+  avatarUrl: "",
   displayName: "",
   handle: "",
   seed: String(index + 1),

@@ -162,6 +162,8 @@ function detectRecallIntent(params: {
     "look up",
     "find my",
     "search web",
+    "google",
+    "search google",
     // Capsule history / membership phrasing
     "first member",
     "who joined",

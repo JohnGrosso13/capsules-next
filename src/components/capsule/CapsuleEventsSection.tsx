@@ -90,14 +90,19 @@ function getInitials(name: string): string {
     .padEnd(2, "?");
 }
 
-function sortStandings(members: CapsuleLadderMember[]): CapsuleLadderMember[] {
+function sortStandings(members: CapsuleLadderMember[], scoringSystem?: string): CapsuleLadderMember[] {
   return [...members].sort((a, b) => {
+    if (scoringSystem === "elo") {
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return (a.losses ?? 0) - (b.losses ?? 0);
+    }
     const rankA = a.rank ?? Number.MAX_SAFE_INTEGER;
     const rankB = b.rank ?? Number.MAX_SAFE_INTEGER;
     if (rankA !== rankB) return rankA - rankB;
     if (b.rating !== a.rating) return b.rating - a.rating;
     if (b.wins !== a.wins) return b.wins - a.wins;
-    return a.losses - b.losses;
+    return (a.losses ?? 0) - (b.losses ?? 0);
   });
 }
 
@@ -216,12 +221,17 @@ export function CapsuleEventsSection({
     () => (previewOverrides ? async () => {} : refreshLadderDetailRaw),
     [previewOverrides, refreshLadderDetailRaw],
   );
+  const scoringSystem =
+    (selectedLadderDetail?.config?.scoring as { system?: string } | undefined)?.system ?? "elo";
+  const isSimpleLadder = scoringSystem === "simple";
+  const isEloLadder = scoringSystem === "elo";
+  const challengesSupported = isSimpleLadder || isEloLadder;
+  const challengerLabel = isEloLadder ? "Player A" : "Challenger (lower rank)";
+  const opponentLabel = isEloLadder ? "Player B" : "Opponent (higher rank)";
   const sortedStandings = React.useMemo(
-    () => sortStandings(ladderMembers),
-    [ladderMembers],
+    () => sortStandings(ladderMembers, scoringSystem),
+    [ladderMembers, scoringSystem],
   );
-  const isSimpleLadder =
-    (selectedLadderDetail?.config?.scoring as { system?: string } | undefined)?.system === "simple";
 
   const {
     challenges,
@@ -579,10 +589,20 @@ export function CapsuleEventsSection({
       <div className={styles.challengeComposer}>
         <div className={styles.challengeHeader}>
           <div>
-            <p className={styles.detailEyebrow}>Simple ladder</p>
-            <h4>Issue a challenge</h4>
+            <p className={styles.detailEyebrow}>
+              {isEloLadder ? "Elo ladder" : isSimpleLadder ? "Simple ladder" : "Challenges locked"}
+            </p>
+            <h4>
+              {challengesSupported
+                ? isEloLadder
+                  ? "Launch a rated match"
+                  : "Issue a challenge"
+                : "Challenges unavailable"}
+            </h4>
             <p className={styles.challengeSub}>
-              Underdogs jump halfway up the ladder when they win. Queue a match and report it to auto-update ranks.
+              {isEloLadder
+                ? "Report results to update Elo ratings and reshuffle standings automatically."
+                : "Underdogs jump halfway up the ladder when they win. Queue a match and report it to auto-update ranks."}
             </p>
           </div>
           <div className={styles.challengeActions}>
@@ -605,18 +625,18 @@ export function CapsuleEventsSection({
           </Alert>
         ) : null}
 
-        {!isSimpleLadder ? (
+        {!challengesSupported ? (
           <Alert tone="warning">
-            <AlertTitle>Simple format required</AlertTitle>
+            <AlertTitle>Enable challenges</AlertTitle>
             <AlertDescription>
-              Switch this ladder to the Simple format to enable challenges and automatic jumps.
+              Switch this ladder to the Simple or Elo format to enable challenges and automatic updates.
             </AlertDescription>
           </Alert>
         ) : (
           <form className={styles.challengeForm} onSubmit={handleSubmitChallenge}>
             <div className={styles.challengeGrid}>
               <label className={styles.reportField}>
-                <span>Challenger (lower rank)</span>
+                <span>{challengerLabel}</span>
                 <select
                   value={challengeForm.challengerId}
                   onChange={(event) => handleChallengeFieldChange("challengerId", event.target.value)}
@@ -626,15 +646,15 @@ export function CapsuleEventsSection({
                   <option value="" disabled>
                     Select challenger
                   </option>
-                  {sortedStandings.map((member) => (
+                  {sortedStandings.map((member, index) => (
                     <option key={member.id} value={member.id}>
-                      #{member.rank ?? "?"} {member.displayName}
+                      #{member.rank ?? index + 1} {member.displayName}
                     </option>
                   ))}
                 </select>
               </label>
               <label className={styles.reportField}>
-                <span>Opponent (higher rank)</span>
+                <span>{opponentLabel}</span>
                 <select
                   value={challengeForm.opponentId}
                   onChange={(event) => handleChallengeFieldChange("opponentId", event.target.value)}
@@ -644,9 +664,9 @@ export function CapsuleEventsSection({
                   <option value="" disabled>
                     Select opponent
                   </option>
-                  {sortedStandings.map((member) => (
+                  {sortedStandings.map((member, index) => (
                     <option key={member.id} value={member.id}>
-                      #{member.rank ?? "?"} {member.displayName}
+                      #{member.rank ?? index + 1} {member.displayName}
                     </option>
                   ))}
                 </select>
@@ -669,7 +689,7 @@ export function CapsuleEventsSection({
                     challengesMutating ||
                     !challengeForm.challengerId ||
                     !challengeForm.opponentId ||
-                    !isSimpleLadder
+                    !challengesSupported
                   }
                 >
                   {challengesMutating ? "Saving..." : "Launch challenge"}
@@ -769,7 +789,7 @@ export function CapsuleEventsSection({
                       size="sm"
                       variant="secondary"
                       className={styles.challengeButton}
-                      disabled={!isSimpleLadder || challengesMutating}
+                      disabled={!challengesSupported || challengesMutating}
                       onClick={() => handlePrepareChallenge(member.id)}
                     >
                       Challenge
@@ -823,11 +843,11 @@ export function CapsuleEventsSection({
           </Button>
         </div>
       </div>
-      {!isSimpleLadder ? (
+      {!challengesSupported ? (
         <Alert tone="warning">
-          <AlertTitle>Simple format required</AlertTitle>
+          <AlertTitle>Enable challenges</AlertTitle>
           <AlertDescription>
-            Switch this ladder to the Simple format to enable challenges and automatic jumps.
+            Switch this ladder to the Simple or Elo format to enable challenges and automatic updates.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -849,7 +869,7 @@ export function CapsuleEventsSection({
                     {challenger?.displayName ?? "Challenger"} vs {opponent?.displayName ?? "Opponent"}
                   </p>
                   <p className={styles.challengeMeta}>
-                    Waiting on result � Started {formatRelativeTime(challenge.createdAt)}
+                    Waiting on result - Started {formatRelativeTime(challenge.createdAt)}
                   </p>
                 </div>
                 <div className={styles.challengeRowActions}>
@@ -899,13 +919,23 @@ export function CapsuleEventsSection({
                   ? `${challengerName} defeated ${opponentName}`
                   : `${opponentName} defeated ${challengerName}`;
             const resolvedLabel = match.resolvedAt ? formatRelativeTime(match.resolvedAt) : "Just now";
+            const ratingChange =
+              scoringSystem === "elo"
+                ? match.ratingChanges?.find((change) => change.memberId === match.challengerId) ??
+                  match.ratingChanges?.find((change) => change.memberId === match.opponentId)
+                : null;
+            const ratingDelta =
+              ratingChange && typeof ratingChange.to === "number" && typeof ratingChange.from === "number"
+                ? (ratingChange.delta ?? ratingChange.to - ratingChange.from)
+                : null;
             return (
               <li key={match.id} className={styles.challengeListItem}>
                 <div>
                   <p className={styles.challengeTitle}>{summary}</p>
                   <p className={styles.challengeMeta}>
                     {resolvedLabel}
-                    {challengerJump ? ` � Moved to #${challengerJump.to}` : ""}
+                    {challengerJump ? ` - Moved to #${challengerJump.to}` : ""}
+                    {ratingDelta !== null ? ` - ${ratingDelta >= 0 ? "+" : ""}${ratingDelta} rating` : ""}
                   </p>
                 </div>
               </li>
@@ -975,7 +1005,7 @@ export function CapsuleEventsSection({
         </div>
         <div className={styles.reportRow}>
           <label className={styles.reportField}>
-            <span>Challenger</span>
+            <span>{challengerLabel}</span>
             <select
               value={reportForm.challengerId}
               onChange={(event) => handleReportFieldChange("challengerId", event.target.value)}
@@ -985,15 +1015,15 @@ export function CapsuleEventsSection({
               <option value="" disabled>
                 Select challenger
               </option>
-              {sortedStandings.map((member) => (
+              {sortedStandings.map((member, index) => (
                 <option key={member.id} value={member.id}>
-                  #{member.rank ?? "?"} {member.displayName}
+                  #{member.rank ?? index + 1} {member.displayName}
                 </option>
               ))}
             </select>
           </label>
           <label className={styles.reportField}>
-            <span>Opponent</span>
+            <span>{opponentLabel}</span>
             <select
               value={reportForm.opponentId}
               onChange={(event) => handleReportFieldChange("opponentId", event.target.value)}
@@ -1003,9 +1033,9 @@ export function CapsuleEventsSection({
               <option value="" disabled>
                 Select opponent
               </option>
-              {sortedStandings.map((member) => (
+              {sortedStandings.map((member, index) => (
                 <option key={member.id} value={member.id}>
-                  #{member.rank ?? "?"} {member.displayName}
+                  #{member.rank ?? index + 1} {member.displayName}
                 </option>
               ))}
             </select>
