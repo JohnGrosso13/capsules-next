@@ -139,6 +139,8 @@ export function CapsuleEventsSection({
   const [searchTerm, setSearchTerm] = React.useState("");
   const [rosterOpen, setRosterOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [deleteStatus, setDeleteStatus] = React.useState<"idle" | "deleting">("idle");
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const ladderSelectRef = React.useRef<HTMLSelectElement | null>(null);
   const menuRef = React.useRef<HTMLDivElement | null>(null);
   const [pickerOpen, setPickerOpen] = React.useState(false);
@@ -327,9 +329,10 @@ export function CapsuleEventsSection({
     setRosterOpen(true);
   }, []);
 
-  const handleMenuDelete = React.useCallback(() => {
-    if (!selectedLadderId) return;
+  const handleMenuDelete = React.useCallback(async () => {
+    if (!selectedLadderId || !capsuleId || previewing) return;
     setMenuOpen(false);
+    setDeleteError(null);
     trackLadderEvent({
       event: "ladders.delete.request",
       capsuleId,
@@ -337,9 +340,44 @@ export function CapsuleEventsSection({
       payload: { context: "ladder_shell" },
     });
     if (typeof window !== "undefined") {
-      window.alert("Ladder deletion will be wired to backend controls in a follow-up.");
+      const confirmed = window.confirm(
+        `Delete "${selectedLadderSummary?.name ?? "this ladder"}"? This cannot be undone.`,
+      );
+      if (!confirmed) return;
     }
-  }, [capsuleId, selectedLadderId]);
+    if (!isOnline) {
+      setDeleteError("Reconnect before deleting ladders.");
+      return;
+    }
+
+    try {
+      setDeleteStatus("deleting");
+      const response = await fetch(`/api/capsules/${capsuleId}/ladders/${selectedLadderId}`, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        const message = payload?.message ?? response.statusText ?? "Unable to delete ladder.";
+        throw new Error(message);
+      }
+      const remaining = ladderSummaries.filter((ladder) => ladder.id !== selectedLadderId);
+      setSelectedLadderId(remaining[0]?.id ?? null);
+      await onRetry();
+    } catch (err) {
+      setDeleteError((err as Error).message);
+    } finally {
+      setDeleteStatus("idle");
+    }
+  }, [
+    capsuleId,
+    isOnline,
+    ladderSummaries,
+    onRetry,
+    previewing,
+    selectedLadderId,
+    selectedLadderSummary?.name,
+  ]);
 
   const handleReportFieldChange = React.useCallback(
     (name: keyof typeof reportForm, value: string) => {
@@ -508,9 +546,10 @@ export function CapsuleEventsSection({
   if (!ladderSummaries.length) {
     return (
       <div className={styles.stateCard}>
-        <div className={styles.stateHeading}>No ladders yet</div>
+        <div className={styles.stateHeading}>No ladders in this capsule</div>
         <p className={styles.stateBody}>
-          Spin up a ladder with Capsule AI. We\u2019ll place standings, overview, rules, and shoutouts here.
+          This capsule doesn&apos;t have any ladders right now. Create one with Capsule AI to manage
+          standings, match results, rules, and shoutouts here.
         </p>
       </div>
     );
@@ -674,7 +713,7 @@ export function CapsuleEventsSection({
               <th scope="col">Team</th>
               <th scope="col">W-L</th>
               <th scope="col">Streak</th>
-              <th scope="col">Rating</th>
+              {!isSimpleLadder ? <th scope="col">Rating</th> : null}
               <th scope="col" className={styles.rightCol}>
                 Action
               </th>
@@ -723,7 +762,7 @@ export function CapsuleEventsSection({
                       {streak > 0 ? `+${streak}` : streak}
                     </span>
                   </td>
-                  <td>{member.rating}</td>
+                  {!isSimpleLadder ? <td>{member.rating}</td> : null}
                   <td className={styles.rightCol}>
                     <Button
                       type="button"
@@ -1128,6 +1167,12 @@ export function CapsuleEventsSection({
         )}
 
         <section className={styles.mainPanel}>
+          {deleteError ? (
+            <Alert tone="danger">
+              <AlertTitle>Unable to delete ladder</AlertTitle>
+              <AlertDescription>{deleteError}</AlertDescription>
+            </Alert>
+          ) : null}
           {activeNav === "ladder" ? (
             <>
               <header className={styles.panelHeader}>
@@ -1178,9 +1223,15 @@ export function CapsuleEventsSection({
                         type="button"
                         className={`${styles.menuItem} ${styles.menuDanger}`}
                         onClick={handleMenuDelete}
-                        disabled={!selectedLadderId}
+                        disabled={
+                          !selectedLadderId ||
+                          deleteStatus === "deleting" ||
+                          !capsuleId ||
+                          !isOnline ||
+                          previewing
+                        }
                       >
-                        Delete ladder
+                        {deleteStatus === "deleting" ? "Deleting..." : "Delete ladder"}
                       </button>
                     </div>
                   ) : null}
@@ -1335,6 +1386,7 @@ export function CapsuleEventsSection({
         open={rosterOpen}
         capsuleId={selectedLadderSummary?.capsuleId ?? capsuleId ?? null}
         ladder={selectedLadderSummary}
+        isSimpleLadder={isSimpleLadder}
         onClose={() => setRosterOpen(false)}
       />
     </>

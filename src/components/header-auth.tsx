@@ -7,6 +7,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { ClerkUserButton } from "@/components/clerk-user-button";
 import { useCurrentUser } from "@/services/auth/client";
+import { HeaderNotifications } from "@/components/header-notifications";
 import headerStyles from "./primary-header.module.css";
 
 const SEARCH_EVENT_NAME = "capsules:search:open";
@@ -69,6 +70,10 @@ export function HeaderAuth() {
         </SignInButton>
       </SignedOut>
       <SignedIn>
+        <HeaderNotifications
+          buttonClassName={headerStyles.iconButton}
+          iconClassName={headerStyles.iconSvg}
+        />
         <div
           className={`${headerStyles.iconButton} ${headerStyles.avatarButton} ${
             user?.avatarUrl ? headerStyles.avatarButtonCustom : ""

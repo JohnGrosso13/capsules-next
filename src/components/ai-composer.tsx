@@ -31,6 +31,7 @@ const ComposerForm = dynamic(
 type AiComposerDrawerProps = {
   open: boolean;
   loading: boolean;
+  loadingKind: "image" | "video" | null;
   draft: ComposerDraft | null;
   prompt: string;
   message?: string | null;
@@ -75,6 +76,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
   const {
     open,
     loading,
+    loadingKind,
     draft,
     prompt,
     message,
@@ -135,11 +137,12 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
   }
 
   return createPortal(
-    <ComposerForm
-      loading={loading}
-      draft={draft}
-      prompt={prompt}
-      message={message ?? null}
+      <ComposerForm
+        loading={loading}
+        loadingKind={loadingKind}
+        draft={draft}
+        prompt={prompt}
+        message={message ?? null}
       history={history ?? []}
       choices={choices ?? null}
       summaryContext={summaryContext ?? null}

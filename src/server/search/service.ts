@@ -62,6 +62,14 @@ type Highlightable = {
   tokens: string[];
 };
 
+function sanitizeUserKey(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed.length) return null;
+  if (/^clerk:user/i.test(trimmed)) return null;
+  return trimmed;
+}
+
 function buildHighlight({ text, tokens }: Highlightable): string | null {
   if (!text || !tokens.length) return null;
   const lower = text.toLowerCase();
@@ -168,17 +176,18 @@ async function searchCapsulesForUser(
         logoUrl: resolveToAbsoluteUrl(capsule.logoUrl ?? null, origin ?? null),
         url: `/capsule?capsuleId=${encodeURIComponent(capsule.id)}`,
         highlight,
-        subtitle: subtitleParts.length ? subtitleParts.join(" • ") : null,
-        score,
+        subtitle: subtitleParts.length ? subtitleParts.join(" | ") : null,
+        relevanceScore: score,
       };
     })
-    .filter((entry): entry is CapsuleSearchResult & { score: number } => entry !== null)
+    .filter((entry): entry is CapsuleSearchResult & { relevanceScore: number } => entry !== null)
     .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
+      if ((b.relevanceScore ?? 0) !== (a.relevanceScore ?? 0))
+        return (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0);
       return a.name.localeCompare(b.name);
     })
     .slice(0, Math.max(1, limit))
-    .map(({ score: _score, ...rest }) => rest);
+    .map(({ relevanceScore, ...rest }) => ({ ...rest, relevanceScore }));
 
   return matches;
 }
@@ -213,7 +222,7 @@ async function searchFriendsForUser(
     if (!id) return;
 
     const name = profile?.full_name ?? "";
-    const key = profile?.user_key ?? null;
+    const key = sanitizeUserKey(profile?.user_key);
     const avatar = resolveToAbsoluteUrl(profile?.avatar_url ?? null, origin ?? null);
 
     const nameScore = computeMatchScore(name, needle, tokens);
@@ -237,7 +246,7 @@ async function searchFriendsForUser(
       relation: "friend",
       url: `/friends?tab=friends&focus=${encodeURIComponent(id)}`,
       highlight,
-      subtitle: subtitleParts.join(" • "),
+      subtitle: subtitleParts.join(" | "),
       score,
     };
 
@@ -253,7 +262,7 @@ async function searchFriendsForUser(
       return a.name.localeCompare(b.name);
     })
     .slice(0, Math.max(1, limit))
-    .map(({ score: _score, ...rest }) => rest);
+    .map(({ score, ...rest }) => ({ ...rest, relevanceScore: score }));
 
   return sorted;
 }
@@ -262,6 +271,17 @@ function coerceMemoryResults(items: MemorySearchItem[], limit: number): MemorySe
   if (!Array.isArray(items)) return [];
   return items.slice(0, Math.max(1, limit)).map((item) => ({
     ...item,
+    relevanceScore: (() => {
+      const meta = item.meta ?? {};
+      if (typeof (meta as Record<string, unknown>)?.search_highlight === "string") return 3;
+      return 1;
+    })(),
+    post_id:
+      typeof item.post_id === "string" && item.post_id.trim().length
+        ? item.post_id.trim()
+        : typeof item.postId === "string" && item.postId.trim().length
+          ? item.postId.trim()
+          : null,
     type: "memory" as const,
   }));
 }
@@ -278,6 +298,7 @@ function mapKnowledgeSnippet(snippet: CapsuleKnowledgeSnippet): MemorySearchItem
     description: snippet.snippet,
     created_at: snippet.createdAt ?? null,
     meta,
+    relevanceScore: 1,
   };
 }
 
@@ -365,8 +386,35 @@ export async function globalSearch({
     sections.push({ type: "memories", items: memoryResults });
   }
 
+  const scoreForSection = (section: GlobalSearchSection): number => {
+    if (!section.items.length) return -Infinity;
+    switch (section.type) {
+      case "users":
+      case "capsules":
+        return Math.max(
+          ...section.items.map((item) => (typeof item.relevanceScore === "number" ? item.relevanceScore : 0)),
+        );
+      case "memories":
+        return Math.max(
+          ...section.items.map((item) => (typeof item.relevanceScore === "number" ? item.relevanceScore : 0)),
+        );
+      case "capsule_records":
+        return 0;
+      default:
+        return 0;
+    }
+  };
+
+  const orderedSections = sections
+    .map((section, index) => ({ section, index, score: scoreForSection(section) }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.section);
+
   return {
     query: trimmed,
-    sections,
+    sections: orderedSections,
   };
 }

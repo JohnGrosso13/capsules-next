@@ -4,6 +4,8 @@
   max-width: 100%;
   box-sizing: border-box;
   margin: 0;
+  /* Ensure native selects can render outside the card */
+  overflow: visible !important;
 }
 
 .sectionBody {
@@ -77,6 +79,12 @@
 .select:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.select option {
+  color: #0b122c;
+  background: #ffffff;
+  font-weight: 600;
 }
 
 .sliderGroup {

@@ -73,7 +73,7 @@ const collectionResponseSchema = z.object({
 
 const resolveSchema = z.object({
   outcome: z.enum(["challenger", "opponent", "draw"]),
-  note: z.string().max(240).optional(),
+  note: z.string().max(240).nullable().optional(),
 });
 
 function isCapsuleMismatch(

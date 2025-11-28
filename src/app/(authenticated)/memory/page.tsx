@@ -9,6 +9,7 @@ import {
   CapsuleAssetsCarousel,
   SavedCreationsCarousel,
 } from "@/components/memory/asset-carousel";
+import { PartyRecapsCarousel } from "@/components/memory/party-recaps-carousel";
 
 export const metadata: Metadata = {
   title: "Memory - Capsules",
@@ -26,6 +27,7 @@ export default function MemoryPage() {
           <h1>Memory</h1>
           <p>Upload files, media, and documents. Capsule AI will recall them instantly.</p>
         </header>
+        <PartyRecapsCarousel />
         <UploadsCarousel />
         <AiImagesCarousel />
         <SavedCreationsCarousel />

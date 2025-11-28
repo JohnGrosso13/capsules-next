@@ -15,6 +15,7 @@ import { captionImage, captionVideo } from "@/lib/ai/openai";
 import { ensurePollStructure } from "@/lib/composer/draft";
 import { normalizeUuid, pruneNullish } from "./utils";
 import { enqueueCapsuleKnowledgeRefresh } from "@/server/capsules/knowledge";
+import { notifyCapsulePost } from "@/server/notifications/triggers";
 
 export { fetchPostRowByIdentifierFromRepository as fetchPostRowByIdentifier };
 
@@ -778,6 +779,17 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
 
   if (capsuleId) {
     enqueueCapsuleKnowledgeRefresh(capsuleId, null);
+  }
+
+  if (payload.capsule_id) {
+    void notifyCapsulePost({
+      capsuleId: typeof payload.capsule_id === "string" ? payload.capsule_id : String(payload.capsule_id),
+      authorId: ownerId,
+      authorName: typeof payload.user_name === "string" ? payload.user_name : null,
+      postClientId: typeof payload.client_id === "string" ? payload.client_id : null,
+      postRecordId: postId,
+      excerpt: typeof payload.content === "string" ? payload.content : null,
+    });
   }
 
   return postId;

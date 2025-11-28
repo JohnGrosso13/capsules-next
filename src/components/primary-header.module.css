@@ -62,7 +62,8 @@
   z-index: 1100;
   isolation: isolate;
   display: block;
-  overflow: hidden;
+  /* Allow popovers (notifications, menus) to extend outside the header */
+  overflow: visible;
   --blur-amount: 14px;
   /* Softer blend into the app shell: slightly tinted at the top, closer to surface-app at the bottom */
   --header-glass-top: color-mix(

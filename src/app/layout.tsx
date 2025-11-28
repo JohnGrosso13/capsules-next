@@ -8,6 +8,8 @@ import "./cta-overrides.css";
 import "./theme-aliases.css";
 import { clerkAppearance } from "@/lib/clerk/appearance";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme/script";
+import { ACCESSIBILITY_BOOTSTRAP_SCRIPT } from "@/lib/accessibility/script";
+import { AccessibilityProvider } from "@/components/providers/AccessibilityProvider";
 
 export const runtime = "nodejs";
 
@@ -84,12 +86,17 @@ export default function RootLayout({
           <Script id="theme-init" strategy="beforeInteractive">
             {THEME_BOOTSTRAP_SCRIPT}
           </Script>
+          <Script id="accessibility-init" strategy="beforeInteractive">
+            {ACCESSIBILITY_BOOTSTRAP_SCRIPT}
+          </Script>
           <Script id="hydration-guard" strategy="beforeInteractive">
             {HYDRATION_SHIELD_SCRIPT}
           </Script>
-          {/* BackgroundFX removed: no animated/static glow overlay */}
-          <SignedIn>{children}</SignedIn>
-          <SignedOut>{children}</SignedOut>
+          <AccessibilityProvider>
+            {/* BackgroundFX removed: no animated/static glow overlay */}
+            <SignedIn>{children}</SignedIn>
+            <SignedOut>{children}</SignedOut>
+          </AccessibilityProvider>
         </body>
       </html>
     </ClerkProvider>

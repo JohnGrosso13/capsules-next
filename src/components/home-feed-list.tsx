@@ -505,6 +505,7 @@ export function HomeFeedList({
   );
 
   const lightboxCacheRef = React.useRef<Map<string, LightboxImageItem[]>>(new Map());
+  const openedFocusRef = React.useRef<string | null>(null);
 
   const getLightboxItemsForPost = React.useCallback(
 
@@ -636,6 +637,32 @@ export function HomeFeedList({
     navigate: navigateLightbox,
 
   } = useFeedLightbox();
+
+  React.useEffect(() => {
+    if (!focusPostId) {
+      openedFocusRef.current = null;
+      return;
+    }
+
+    const target = focusPostId.trim();
+    if (!target || !displayedPosts.length) return;
+    if (openedFocusRef.current === target) return;
+
+    const post = displayedPosts.find((entry) => entry.id === target);
+    if (!post) return;
+
+    const items = getLightboxItemsForPost(post);
+    lightboxCacheRef.current.set(post.id, items);
+
+    openLightbox({
+      postId: post.id,
+      index: 0,
+      items,
+      post,
+    });
+
+    openedFocusRef.current = target;
+  }, [displayedPosts, focusPostId, getLightboxItemsForPost, openLightbox]);
 
   const handleNavigateAttachment = React.useCallback(
 

@@ -8,6 +8,7 @@ import {
   updateCapsuleLadderMemberRecord,
   deleteCapsuleLadderMemberRecord,
   getCapsuleLadderMemberRecordById,
+  listLaddersByParticipant,
   replaceCapsuleLadderMemberRecords,
   deleteCapsuleLadderRecord,
   getCapsuleLadderBySlug,
@@ -36,8 +37,14 @@ import type {
   LadderStatus,
   LadderVisibility,
 } from "@/types/ladders";
-import { findCapsuleById, getCapsuleMemberRecord } from "@/server/capsules/repository";
+import {
+  findCapsuleById,
+  getCapsuleMemberRecord,
+  listCapsulesForUser,
+  type CapsuleRow,
+} from "@/server/capsules/repository";
 import { enqueueCapsuleKnowledgeRefresh } from "@/server/capsules/knowledge";
+import { notifyLadderChallenge } from "@/server/notifications/triggers";
 import { randomUUID } from "crypto";
 import { AIConfigError, callOpenAIChat, extractJSON } from "@/lib/ai/prompter";
 import {
@@ -50,6 +57,7 @@ import {
   findCapsulePosts,
   getCapsuleMembershipStats,
 } from "@/server/capsules/structured";
+import { resolveCapsuleMediaUrl } from "@/server/capsules/domain/common";
 
 export type CreateCapsuleLadderInput = {
   capsuleId: string;
@@ -90,6 +98,16 @@ export type GetCapsuleLadderOptions = {
 export type ListCapsuleLaddersOptions = {
   includeDrafts?: boolean;
   includeArchived?: boolean;
+};
+
+export type DiscoverLadderSummary = CapsuleLadderSummary & {
+  capsule: {
+    id: string;
+    name: string | null;
+    slug: string | null;
+    bannerUrl: string | null;
+    logoUrl: string | null;
+  } | null;
 };
 
 type OpenAIJsonSchema = { name: string; schema: Record<string, unknown> };
@@ -289,6 +307,28 @@ function normalizeId(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+function mapCapsuleIdentity(
+  capsule: CapsuleRow | null,
+  origin: string | null,
+): DiscoverLadderSummary["capsule"] {
+  if (!capsule) return null;
+  const capsuleId = normalizeId(capsule.id);
+  if (!capsuleId) return null;
+  return {
+    id: capsuleId,
+    name: typeof capsule.name === "string" ? capsule.name : null,
+    slug: typeof capsule.slug === "string" ? capsule.slug : null,
+    bannerUrl: resolveCapsuleMediaUrl(
+      typeof capsule.banner_url === "string" ? capsule.banner_url : null,
+      origin,
+    ),
+    logoUrl: resolveCapsuleMediaUrl(
+      typeof capsule.logo_url === "string" ? capsule.logo_url : null,
+      origin,
+    ),
+  };
 }
 
 function slugify(value: string): string {
@@ -685,9 +725,6 @@ function sanitizeScheduleConfig(config: LadderConfig, seed: LadderDraftSeed): La
   }
   if (seed.seasonLengthWeeks && !schedule.cadence) {
     schedule.cadence = `${seed.seasonLengthWeeks}-week sprint`;
-  }
-  if (!schedule.kickoff) {
-    schedule.kickoff = "Next Monday 7pm local";
   }
   return schedule;
 }
@@ -1115,16 +1152,8 @@ function ensureDraftCoverage(result: LadderDraftResult): void {
   if (!result.name || result.name.length < 3) missing.push("name");
   if (!result.summary || result.summary.length < 20) missing.push("summary");
   if (!result.game?.title || result.game.title.length < 3) missing.push("game.title");
-  if (!result.config?.schedule?.cadence) missing.push("schedule.cadence");
   const registration = result.config?.registration ?? {};
   if (!(registration as Record<string, unknown>)?.type) missing.push("registration.type");
-  const registrationHasDetails =
-    Boolean((registration as Record<string, unknown>)?.maxTeams) ||
-    Boolean(
-      Array.isArray((registration as Record<string, unknown>)?.requirements) &&
-        ((registration as Record<string, unknown>)?.requirements as unknown[]).length,
-    );
-  if (!registrationHasDetails) missing.push("registration.details");
   if (!result.config?.scoring?.system) missing.push("scoring.system");
   const sections = result.sections ?? {};
   const sectionKeys: Array<keyof LadderSections> = ["overview", "rules", "shoutouts", "upcoming", "results"];
@@ -1231,7 +1260,11 @@ export async function generateLadderDraftForCapsule(
     const { content } = await callOpenAIChat(
       [systemMessage, userMessage],
       LADDER_DRAFT_RESPONSE_SCHEMA,
-      { temperature: 0.45 },
+      {
+        temperature: 0.45,
+        // Ladder blueprints can run long with retrieval; give the model more time.
+        timeoutMs: 90_000,
+      },
     );
     const parsed =
       extractJSON<Record<string, unknown>>(content) ??
@@ -1401,6 +1434,81 @@ export async function listCapsuleLaddersForViewer(
     }
     return canViewerAccessLadder(ladder, viewer, includeDrafts);
   });
+}
+
+export async function getRecentLaddersForViewer(
+  viewerId: string,
+  options: { limit?: number; origin?: string | null } = {},
+): Promise<DiscoverLadderSummary[]> {
+  const normalizedViewer = normalizeId(viewerId);
+  if (!normalizedViewer) return [];
+
+  const origin = options.origin ?? null;
+  const requestedLimit = typeof options.limit === "number" ? Math.floor(options.limit) : 12;
+  const limit = Math.min(Math.max(requestedLimit, 1), 32);
+  const fetchLimit = Math.max(limit * 2, limit + 8);
+
+  const candidateLadders: CapsuleLadderSummary[] = [];
+
+  const participation = await listLaddersByParticipant(normalizedViewer, { limit: fetchLimit });
+  for (const entry of participation) {
+    candidateLadders.push(entry.ladder);
+  }
+
+  const viewerCapsules = await listCapsulesForUser(normalizedViewer);
+  for (const capsule of viewerCapsules) {
+    // Skip follower-only capsules; we only need ladders from spaces the viewer belongs to or owns.
+    if (capsule.ownership === "follower") continue;
+    const laddersForCapsule = await listCapsuleLaddersForViewer(capsule.id, normalizedViewer, {
+      includeArchived: false,
+    });
+    candidateLadders.push(...laddersForCapsule);
+  }
+
+  const sorted = candidateLadders
+    .filter((ladder) => {
+      const meta = (ladder.meta ?? null) as Record<string, unknown> | null;
+      const variant = typeof meta?.variant === "string" ? meta.variant : null;
+      if (variant && variant !== "ladder") {
+        return false;
+      }
+      if (ladder.status === "archived") {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const aTime = Date.parse(a.publishedAt ?? a.createdAt) || 0;
+      const bTime = Date.parse(b.publishedAt ?? b.createdAt) || 0;
+      return bTime - aTime;
+    });
+
+  const seen = new Set<string>();
+  const capsuleCache = new Map<string, DiscoverLadderSummary["capsule"]>();
+  const ladders: DiscoverLadderSummary[] = [];
+
+  for (const ladder of sorted) {
+    if (seen.has(ladder.id)) continue;
+    seen.add(ladder.id);
+
+    let capsule = ladder.capsuleId ? capsuleCache.get(ladder.capsuleId) ?? null : null;
+    if (ladder.capsuleId && !capsuleCache.has(ladder.capsuleId)) {
+      const capsuleRow = await findCapsuleById(ladder.capsuleId);
+      capsule = mapCapsuleIdentity(capsuleRow, origin);
+      capsuleCache.set(ladder.capsuleId, capsule);
+    }
+
+    ladders.push({
+      ...ladder,
+      capsule: capsule ?? null,
+    });
+
+    if (ladders.length >= limit) {
+      break;
+    }
+  }
+
+  return ladders;
 }
 
 function sanitizeMemberCreateInput(member: CapsuleLadderMemberInput): CapsuleLadderMemberInput {
@@ -1934,7 +2042,15 @@ export async function createSimpleLadderChallenge(
     meta: snapshot.metaRoot as LadderStateMeta,
   });
 
-  return { challenge, ladder: updatedLadder ?? ladder };
+  const ladderForNotification = updatedLadder ?? ladder;
+  void notifyLadderChallenge({
+    ladder: ladderForNotification,
+    challenge,
+    members,
+    actorId,
+  });
+
+  return { challenge, ladder: ladderForNotification };
 }
 
 export async function resolveSimpleLadderChallenge(

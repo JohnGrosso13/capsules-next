@@ -74,7 +74,7 @@ const collectionResponseSchema = z.object({
 const createChallengeSchema = z.object({
   challengerId: z.string().min(1),
   opponentId: z.string().min(1),
-  note: z.string().max(240).optional(),
+  note: z.string().max(240).nullable().optional(),
 });
 
 function isCapsuleMismatch(

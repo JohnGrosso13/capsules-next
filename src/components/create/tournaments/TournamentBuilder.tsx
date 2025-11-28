@@ -1420,22 +1420,11 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
   const formContent = (
     <>
       <header className={styles.stepHero}>
-        <span className={styles.stepHeroLabel}>Tournament wizard</span>
         <h1 className={styles.stepHeroTitle}>Design your bracket plan</h1>
         <p className={styles.stepHeroSubtitle}>
           Guided steps, blueprint, preview, and controls now mirror the ladder builder so tokens stay cohesive.
         </p>
       </header>
-
-      <div className={styles.selectedCapsuleBanner}>
-        <div>
-          <div className={styles.capsuleLabel}>Capsule</div>
-          <div className={styles.capsuleName}>{selectedCapsule.name}</div>
-        </div>
-        <Button type="button" variant="ghost" onClick={() => handleCapsuleChange(null)}>
-          Switch capsule
-        </Button>
-      </div>
 
       {renderStatus()}
       {renderActiveStep()}
@@ -1450,7 +1439,7 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
         <div className={styles.wizardPanel}>
           <div className={styles.panelGlow} aria-hidden />
           <WizardLayout
-            stepperLabel="Tournament"
+            stepperLabel="Setup"
             steps={TOURNAMENT_STEPS}
             activeStepId={activeStep}
             completionMap={completionMap}

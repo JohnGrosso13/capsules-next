@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { ChatsCircle, MicrophoneStage } from "@phosphor-icons/react/dist/ssr";
+import { ChatsCircle, MicrophoneStage, Brain } from "@phosphor-icons/react/dist/ssr";
 
 import { type FriendItem } from "@/hooks/useFriendsData";
 import { FriendsTabs } from "@/components/friends/FriendsTabs";
@@ -24,10 +24,11 @@ import { ConnectionsQuickActions, type QuickAction } from "@/components/rail/Con
 import { usePartyContext } from "@/components/providers/PartyProvider";
 import { FriendsList } from "@/components/friends/FriendsList";
 import { buildProfileHref } from "@/lib/profile/routes";
+import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
 
 import styles from "./friends.module.css";
 
-const tabs = ["Friends", "Party", "Chats", "Requests"] as const;
+const tabs = ["Assistant", "Friends", "Party", "Chats", "Requests"] as const;
 type Tab = (typeof tabs)[number];
 
 type TabStateHook = [Tab, (tab: Tab) => void];
@@ -70,12 +71,14 @@ function useTabFromSearch(): TabStateHook {
 }
 
 function mergeCounters(
+  assistant: number,
   friends: number,
   party: number,
   chats: number,
   requests: number,
 ): Record<Tab, number> {
   return {
+    Assistant: assistant,
     Friends: friends,
     Party: party,
     Chats: chats,
@@ -192,10 +195,6 @@ export function FriendsClient() {
     if (loading) return;
     if (focusParam === lastFocusRef.current && highlightId) return;
 
-    if (activeTab !== "Friends") {
-      selectTab("Friends");
-    }
-
     const match = friends.find((friend) => {
       const identifiers = [
         friend.userId ?? null,
@@ -206,6 +205,10 @@ export function FriendsClient() {
     });
 
     if (match) {
+      const targetTab = match.userId === ASSISTANT_USER_ID ? "Assistant" : "Friends";
+      if (activeTab !== targetTab) {
+        selectTab(targetTab);
+      }
       const resolvedId =
         match.userId ?? match.key ?? (match.id ? String(match.id) : focusParam);
       lastFocusRef.current = focusParam;
@@ -551,6 +554,11 @@ export function FriendsClient() {
       ? (chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null)
       : null;
 
+  const assistantFriends = React.useMemo(
+    () => friends.filter((friend) => friend.userId === ASSISTANT_USER_ID),
+    [friends],
+  );
+
   React.useEffect(() => {
     if (groupFlow?.mode === "invite" && !inviteSession) {
       closeGroupFlow();
@@ -560,8 +568,15 @@ export function FriendsClient() {
   const partyBadgeCount = React.useMemo(() => (party.session ? 1 : 0), [party.session]);
 
   const tabCounters = React.useMemo(
-    () => mergeCounters(counters.friends, partyBadgeCount, chatUnreadCount, counters.requests),
-    [counters.friends, chatUnreadCount, counters.requests, partyBadgeCount],
+    () =>
+      mergeCounters(
+        assistantFriends.length,
+        counters.friends,
+        partyBadgeCount,
+        chatUnreadCount,
+        counters.requests,
+      ),
+    [assistantFriends.length, counters.friends, chatUnreadCount, counters.requests, partyBadgeCount],
   );
 
   const isPartyActive = activeTab === "Party";
@@ -570,6 +585,14 @@ export function FriendsClient() {
 
   const quickActions = React.useMemo<QuickAction[]>(() => {
     const actions: QuickAction[] = [
+      {
+        key: "assistant",
+        label: "Assistant",
+        icon: <Brain size={18} weight="duotone" />,
+        onClick: () => selectTab("Assistant"),
+        ariaLabel: "Open assistant tab",
+        active: activeTab === "Assistant",
+      },
       {
         key: "new-chat",
         label: "New Chat",
@@ -592,6 +615,7 @@ export function FriendsClient() {
     ];
     return actions;
   }, [
+    activeTab,
     handleOpenGroupCreator,
     hasEligibleFriends,
     isPartyActive,
@@ -644,6 +668,37 @@ export function FriendsClient() {
           <div className={styles.tabsHeaderAction}>
             <ConnectionsQuickActions actions={quickActions} />
           </div>
+        </div>
+
+        <div
+          id="panel-assistant"
+          role="tabpanel"
+          aria-labelledby="tab-assistant"
+          hidden={activeTab !== "Assistant"}
+          className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
+        >
+          <FriendsList
+            items={assistantFriends}
+            pendingId={pendingId}
+            notice={listNotice}
+            highlightId={highlightId}
+            onDelete={(friend, identifier) => {
+              void handleRemove(friend, identifier);
+            }}
+            onBlock={(friend, identifier) => {
+              void handleBlock(friend, identifier);
+            }}
+            onView={(friend) => handleView(friend)}
+            onStartChat={(friend) => handleStartChat(friend)}
+            onFollow={(friend, identifier) => {
+              void handleFollowFriend(friend, identifier);
+            }}
+            onUnfollow={(friend, identifier) => {
+              void handleUnfollowFriend(friend, identifier);
+            }}
+            isFollowing={isFollowingFriend}
+            isFollower={isFollowerFriend}
+          />
         </div>
 
         <div
@@ -745,5 +800,3 @@ export function FriendsClient() {
     </>
   );
 }
-
-

@@ -4,6 +4,7 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { persistCommentToDB } from "@/server/posts/comments";
 import { resolvePostId } from "@/server/posts/identifiers";
 import { listCommentsForPost, fetchCommentById } from "@/server/posts/repository";
+import { notifyPostComment } from "@/server/notifications/triggers";
 
 export const runtime = "edge";
 
@@ -176,6 +177,15 @@ export async function POST(req: Request) {
     const responseComment = persisted
       ? formatCommentRow(persisted as CommentRow, (comment.postId as string) ?? null, null)
       : formatCommentRow(comment, (comment.postId as string) ?? null, null);
+
+    void notifyPostComment({
+      postId: responseComment.postId,
+      commentAuthorId: userId,
+      commentAuthorName: responseComment.userName,
+      commentContent: responseComment.content ?? null,
+      capsuleId: responseComment.capsuleId ?? null,
+    });
+
     return NextResponse.json({ success: true, comment: responseComment });
   } catch (error) {
     console.error("Persist comment error", error);

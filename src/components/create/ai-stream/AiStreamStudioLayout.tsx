@@ -731,7 +731,6 @@ function AiStreamStudioLayoutInner({
     }
 
     const health = streamOverview.health;
-    const status = health.status.toLowerCase();
 
     if (health.recentError) {
       return {
@@ -745,21 +744,6 @@ function AiStreamStudioLayoutInner({
         actions: [
           { label: "Review encoder", onClick: navigateToEncoder, variant: "ghost", size: "xs" },
           { label: "Refresh", onClick: handleStatusRefresh, variant: "outline", size: "xs" },
-        ],
-      };
-    }
-
-    if (status !== "active" && status !== "connected") {
-      return {
-        tone: "info",
-        title: "Awaiting encoder signal",
-        description: health.lastSeenAt
-          ? `Mux last saw this encoder ${formatTimestamp(
-              health.lastSeenAt,
-            )}. Start streaming from OBS or your encoder to preview the feed.`
-          : "Start streaming from OBS or your encoder to preview the feed.",
-        actions: [
-          { label: "Check encoder", onClick: navigateToEncoder, variant: "ghost", size: "xs" },
         ],
       };
     }
@@ -785,13 +769,10 @@ function AiStreamStudioLayoutInner({
 
     if (activeSession) {
       indicators.studio = { tone: "success", label: "Live" };
-    } else if (streamOverview) {
-      indicators.studio = { tone: "info", label: streamOverview.health.status };
     }
 
     if (!streamOverview) {
       indicators.encoder = { tone: "warning", label: "Setup" };
-      indicators.clips = { tone: "neutral", label: "Waiting setup" };
     } else {
       if (simulcastErrorCount > 0) {
         const label = simulcastErrorCount === 1 ? "Simulcast issue" : `${simulcastErrorCount} issues`;
@@ -803,9 +784,7 @@ function AiStreamStudioLayoutInner({
         indicators.encoder = { tone: "warning", label: "Rotate key" };
       }
 
-      if (streamOverview.assets.length === 0 && streamOverview.aiJobs.length === 0) {
-        indicators.clips = { tone: "neutral", label: "No recordings" };
-      } else if (streamOverview.assets.length) {
+      if (streamOverview.assets.length) {
         indicators.clips = {
           tone: "info",
           label:

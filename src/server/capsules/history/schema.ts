@@ -78,18 +78,6 @@ export const DEFAULT_HISTORY_TEMPLATE_PRESETS: CapsuleHistoryTemplatePreset[] = 
     description: "Structured, third-person recap suited for announcements.",
     tone: "formal",
   },
-  {
-    id: "community-recap",
-    label: "Community Recap",
-    description: "Conversational highlights focused on community activity.",
-    tone: "warm",
-  },
-  {
-    id: "investor-brief",
-    label: "Investor Brief",
-    description: "Bullet-first summary emphasizing outcomes and next steps.",
-    tone: "concise",
-  },
 ];
 
 export const CAPSULE_HISTORY_RESPONSE_SCHEMA = {
@@ -198,6 +186,7 @@ export function coerceTemplatePresets(value: unknown): CapsuleHistoryTemplatePre
     return DEFAULT_HISTORY_TEMPLATE_PRESETS;
   }
   const presets: CapsuleHistoryTemplatePreset[] = [];
+  const legacyDefaults = new Set(["press-release", "community-recap", "investor-brief"]);
   value.forEach((entry) => {
     if (!entry || typeof entry !== "object") return;
     const record = entry as Record<string, unknown>;
@@ -211,7 +200,18 @@ export function coerceTemplatePresets(value: unknown): CapsuleHistoryTemplatePre
       tone: typeof record.tone === "string" ? record.tone : null,
     });
   });
-  return presets.length ? presets : DEFAULT_HISTORY_TEMPLATE_PRESETS;
+  if (!presets.length) return DEFAULT_HISTORY_TEMPLATE_PRESETS;
+
+  const ids = new Set(presets.map((preset) => preset.id));
+  const isLegacyPresetSet =
+    presets.length >= 3 && presets.length <= legacyDefaults.size && ids.size === presets.length &&
+    presets.every((preset) => legacyDefaults.has(preset.id));
+
+  if (isLegacyPresetSet) {
+    return presets.filter((preset) => preset.id === "press-release");
+  }
+
+  return presets;
 }
 
 export function coerceCoverageMeta(value: Record<string, unknown>): CoverageMetaMap {

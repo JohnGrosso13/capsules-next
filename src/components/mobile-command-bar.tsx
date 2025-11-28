@@ -10,11 +10,14 @@ import {
   PencilSimple,
   Pill,
   List,
-  UsersThree,
   Brain,
   UserCircle,
   Gear,
+  SignOut,
+  Compass,
 } from "@phosphor-icons/react/dist/ssr";
+import { buildProfileHref } from "@/lib/profile/routes";
+import { useCurrentUser } from "@/services/auth/client";
 
 export function MobileCommandBar() {
   const pathname = usePathname() || "/";
@@ -22,6 +25,12 @@ export function MobileCommandBar() {
   const moreRef = React.useRef<HTMLDivElement | null>(null);
   const barRef = React.useRef<HTMLElement | null>(null);
   const recentKey = "menuUsageCounts";
+  const { user } = useCurrentUser();
+
+  const profileHref = React.useMemo(
+    () => buildProfileHref(user?.key ?? user?.id ?? "me") ?? "/profile/me",
+    [user?.key, user?.id],
+  );
 
   React.useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -140,14 +149,17 @@ export function MobileCommandBar() {
             {open ? (
               <div className={styles.sheet} role="menu" data-surface="ai-dock-more">
                 <Link
-                  href="/friends"
+                  href="/explore"
                   className={styles.sheetItem}
                   role="menuitem"
-                  onClick={() => setOpen(false)}
-                  {...intentAttrs("navigate_friends")}
+                  onClick={() => {
+                    recordUse("explore");
+                    setOpen(false);
+                  }}
+                  {...intentAttrs("navigate_explore")}
                 >
-                  <UsersThree weight="duotone" />
-                  Friends
+                  <Compass weight="duotone" />
+                  Explore
                 </Link>
                 <Link
                   href="/memory"
@@ -158,6 +170,29 @@ export function MobileCommandBar() {
                 >
                   <Brain weight="duotone" />
                   Memory
+                </Link>
+                <Link
+                  href={profileHref}
+                  className={styles.sheetItem}
+                  role="menuitem"
+                  onClick={() => {
+                    recordUse("profile");
+                    setOpen(false);
+                  }}
+                  {...intentAttrs("navigate_profile")}
+                >
+                  <UserCircle weight="duotone" />
+                  Profile
+                </Link>
+                <Link
+                  href="/settings"
+                  className={styles.sheetItem}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  {...intentAttrs("navigate_settings")}
+                >
+                  <Gear weight="duotone" />
+                  Settings
                 </Link>
                 <SignOutButton redirectUrl="/">
                   <button
@@ -170,20 +205,10 @@ export function MobileCommandBar() {
                     }}
                     {...intentAttrs("sign_out")}
                   >
-                    <UserCircle weight="duotone" />
-                    Profile
+                    <SignOut weight="duotone" />
+                    Log Out
                   </button>
                 </SignOutButton>
-                <Link
-                  href="/settings"
-                  className={styles.sheetItem}
-                  role="menuitem"
-                  onClick={() => setOpen(false)}
-                  {...intentAttrs("navigate_settings")}
-                >
-                  <Gear weight="duotone" />
-                  Settings
-                </Link>
               </div>
             ) : null}
           </div>

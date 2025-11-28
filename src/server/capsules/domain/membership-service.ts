@@ -37,6 +37,7 @@ import {
   requireCapsuleOwnership,
   resolveCapsuleMediaUrl,
 } from "./common";
+import { notifyCapsuleInvite } from "@/server/notifications/triggers";
 
 export async function getCapsuleMembership(
   capsuleId: string,
@@ -246,10 +247,11 @@ export async function inviteCapsuleMember(
   if (existingRequest && existingRequest.status === "pending" && existingRequest.origin === "viewer_request") {
     throw new CapsuleMembershipError("conflict", "That user already has a pending request.", 409);
   }
-  await upsertCapsuleMemberRequest(capsuleIdValue, normalizedTargetId, {
+  const invite = await upsertCapsuleMemberRequest(capsuleIdValue, normalizedTargetId, {
     origin: "owner_invite",
     initiatorId: capsuleOwnerId,
   });
+  void notifyCapsuleInvite(invite);
   return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
 }
 
@@ -479,4 +481,3 @@ export async function setCapsuleMemberRole(
   enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
   return membershipState;
 }
-

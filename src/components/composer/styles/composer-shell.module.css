@@ -58,17 +58,32 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: radial-gradient(
-    580px 240px at 85% 15%,
-    var(--accent-glow, rgba(92, 180, 255, 0.12)),
-    transparent 70%
-  );
+  background:
+    /* soft sweep across the top */
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--composer-accent, var(--color-brand, #7bd4ff)) 16%, transparent) 0%,
+      transparent 30%
+    ),
+    /* symmetric corner glows that run slightly down the sides */
+    radial-gradient(
+      1100px 340px at -10% -24%,
+      color-mix(in srgb, var(--composer-accent, var(--color-brand, #7bd4ff)) 14%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      1100px 340px at 110% -24%,
+      color-mix(in srgb, var(--composer-accent-strong, var(--color-accent, #6f7cff)) 14%, transparent) 0%,
+      transparent 70%
+    );
+  mix-blend-mode: screen;
+  opacity: 0.6;
 }
 
 .closeIcon {
   position: absolute;
-  top: clamp(1.5rem, 3vw, 1.75rem);
-  right: clamp(1.5rem, 3vw, 1.75rem);
+  top: clamp(0.75rem, 2vw, 1rem);
+  right: clamp(0.75rem, 2vw, 1rem);
   width: 38px;
   height: 38px;
   display: inline-flex;
@@ -100,7 +115,7 @@
 
 .panelToolbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: clamp(1rem, 2vw, 1.75rem);
   position: relative;
@@ -108,46 +123,107 @@
   width: 100%;
   padding-bottom: 0.75rem;
   /* Reserve space so the Close icon doesn't overlap the header actions */
-  padding-right: 76px;
+  padding-right: 52px;
   border-bottom: 1px solid var(--composer-panel-border, var(--card-border, rgba(255, 255, 255, 0.14)));
 }
 
 .headerActions {
   margin-left: auto;
   display: inline-flex;
-  gap: 0.5rem;
-  align-items: center;
+  gap: 0.65rem;
+  align-items: flex-end;
 }
 
 .smartContextToggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.95rem;
+  gap: 0.55rem;
+  height: 44px;
+  padding: 0 1.05rem;
+  padding-right: 3.1rem;
+  align-self: flex-end;
+  margin-left: 1.5rem;
   border-radius: 999px;
-  border: 1px solid var(--composer-rail-tab-border);
-  background: var(--composer-rail-shell, var(--composer-panel-background));
+  border: 1px solid color-mix(in srgb, var(--composer-border, rgba(255, 255, 255, 0.18)) 55%, transparent);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
   color: var(--composer-text, var(--text));
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
   transition:
-    transform 0.18s ease,
     border-color 0.18s ease,
-    box-shadow 0.18s ease;
+    background 0.18s ease;
+  position: relative;
+  min-height: 44px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 6px 18px rgba(6, 10, 32, 0.35);
+}
+
+.smartContextToggle::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  width: 32px;
+  height: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 6px rgba(0, 0, 0, 0.26),
+    0 4px 12px rgba(10, 16, 40, 0.4);
+  transition: all 0.18s ease;
+}
+
+.smartContextToggle::before {
+  content: "";
+  position: absolute;
+  right: 14px;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffffff, rgba(255, 255, 255, 0.1) 52%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 3px 10px rgba(0, 0, 0, 0.3);
+  transition: all 0.18s ease;
 }
 
 .smartContextToggle:hover:not(:disabled),
 .smartContextToggle:focus-visible:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: var(--composer-rail-button-hover-border, var(--composer-rail-tab-border));
-  box-shadow: var(--composer-rail-button-active-shadow, var(--composer-shadow));
+  border-color: color-mix(in srgb, var(--composer-rail-tab-border) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 8px 20px rgba(10, 16, 40, 0.42);
 }
 
 .smartContextToggle[data-active="true"] {
-  border-color: var(--composer-rail-button-active-border, var(--composer-rail-tab-border));
-  box-shadow: var(--composer-rail-button-active-shadow, var(--composer-shadow));
+  background: linear-gradient(135deg, rgba(94, 169, 255, 0.16), rgba(132, 94, 255, 0.12));
+  border-color: color-mix(in srgb, var(--composer-rail-tab-active-color, #7bd4ff) 50%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 26px rgba(60, 110, 255, 0.35);
+}
+
+.smartContextToggle[data-active="true"]::after {
+  background: linear-gradient(135deg, rgba(126, 199, 255, 0.2), rgba(95, 69, 255, 0.14));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 8px rgba(0, 0, 0, 0.28),
+    0 8px 22px rgba(60, 120, 255, 0.36);
+}
+
+.smartContextToggle[data-active="true"]::before {
+  right: 26px;
+  background: radial-gradient(circle at 30% 30%, #e7f5ff, #7bd4ff 52%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    0 4px 14px rgba(60, 120, 255, 0.46);
 }
 
 .smartContextToggle:focus-visible {
@@ -159,11 +235,12 @@
   opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
-  transform: none;
 }
 
 .smartContextToggle svg {
   color: var(--composer-rail-tab-color, var(--text-2));
+  width: 18px;
+  height: 18px;
 }
 
 .mobileHeaderButton {
@@ -196,7 +273,7 @@
 
 .toolbarBrandRow {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
@@ -207,33 +284,36 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  transform: translateY(-3px);
   border-radius: 22px;
-  background: var(--brand-gradient, var(--gradient-brand));
+  background: radial-gradient(circle at 25% 25%, #86f0ff, #6f7cff 35%, #171c3a 80%);
   color: var(--header-foreground-strong, #f8fafc);
   font-weight: 800;
   border: 1px solid color-mix(in srgb, var(--header-foreground-strong, #f8fafc) 24%, transparent);
   box-shadow:
     0 12px 28px color-mix(in srgb, var(--header-brand, #6f7cff) 32%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong, #f8fafc) 25%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong, #f8fafc) 28%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 35%, transparent);
 }
 
 .imageControls {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
   flex-wrap: wrap;
 }
 
 .imageControl {
   display: inline-flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.2rem;
   min-width: 120px;
 }
 
 .imageControlLabel {
   font-size: 0.75rem;
+  line-height: 1;
   color: var(--text-2, rgba(199, 210, 254, 0.78));
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -243,14 +323,22 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 12px;
+  height: 44px;
+  padding: 0 0.95rem;
+  margin-top: 0;
+  align-self: flex-end;
+  border-radius: 10px;
   border: 1px solid var(--composer-rail-border, var(--composer-panel-border, rgba(148, 163, 255, 0.28)));
   background: var(--composer-rail-background, var(--composer-panel-background, rgba(33, 42, 92, 0.9)));
   color: var(--text, rgba(241, 245, 255, 0.94));
   font-weight: 700;
   box-shadow: var(--card-shadow, 0 8px 18px rgba(5, 10, 30, 0.26));
   cursor: pointer;
+}
+
+.toolbarIconBtn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .toolbarIconBtn:disabled {
@@ -268,19 +356,24 @@
   line-height: 1;
 }
 
-.imageSelect {
-  border-radius: 10px;
-  border: 1px solid var(--composer-rail-border, rgba(148, 163, 255, 0.32));
-  background: var(
-    --composer-rail-background,
-    linear-gradient(180deg, rgba(21, 28, 64, 0.92), rgba(13, 17, 42, 0.92))
-  );
-  color: var(--text, rgba(248, 250, 255, 0.96));
-  padding: 0.45rem 0.6rem;
-  font-weight: 600;
-  font-size: 0.9rem;
-  min-height: 40px;
-}
+  .imageSelect {
+    border-radius: 10px;
+    border: 1px solid var(--composer-rail-border, rgba(148, 163, 255, 0.32));
+    background: var(
+      --composer-rail-background,
+      linear-gradient(180deg, rgba(21, 28, 64, 0.92), rgba(13, 17, 42, 0.92))
+    );
+    color: var(--text, rgba(248, 250, 255, 0.96));
+    padding: 0.45rem 0.6rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    height: 44px;
+  }
+
+  .imageSelect option {
+    /* Ensure options stay visible in native dropdown list */
+    color: #020617;
+  }
 
 .imageSelect:disabled {
   opacity: 0.65;

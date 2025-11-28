@@ -135,8 +135,8 @@ export function ConversationMessageList({
         const messageTimestamp = formatMessageTime(message.sentAt);
         const reactions = Array.isArray(message.reactions) ? message.reactions : [];
         const hasReactions = reactions.length > 0;
-        const showReactions = reactionState.isEnabled || hasReactions;
         const isPickerOpen = targetId === message.id;
+        const showReactions = hasReactions || isPickerOpen;
         const attachments = Array.isArray(message.attachments) ? message.attachments : [];
         const hasAttachments = attachments.length > 0;
         const showBody = Boolean(message.body);
@@ -188,33 +188,36 @@ export function ConversationMessageList({
                 </button>
               );
             })}
-            {reactionState.isEnabled ? (
-              <div className={styles.messageReactionAdd}>
-                <button
-                  type="button"
-                  className={styles.messageReactionAddButton}
-                  onClick={(event) =>
-                    reactionState.onAddClick?.(message.id, event.currentTarget, displayName)
-                  }
-                  onPointerDown={(event) =>
-                    reactionState.onAddPointerDown?.(message.id, displayName, event)
-                  }
-                  onPointerUp={reactionState.onAddPointerComplete}
-                  onPointerLeave={reactionState.onAddPointerComplete}
-                  onPointerCancel={reactionState.onAddPointerComplete}
-                  onContextMenu={(event) =>
-                    reactionState.onAddContextMenu?.(message.id, displayName, event)
-                  }
-                  aria-expanded={isPickerOpen}
-                  aria-label="Add reaction"
-                  data-role="reaction-button"
-                >
-                  <Smiley size={16} weight="duotone" />
-                </button>
-              </div>
-            ) : null}
           </div>
         ) : null;
+        const addReactionButton =
+          reactionState.isEnabled && reactionState.onAddClick
+            ? (
+                <div className={styles.messageReactionAdd} data-role="reaction-add">
+                  <button
+                    type="button"
+                    className={styles.messageReactionAddButton}
+                    onClick={(event) =>
+                      reactionState.onAddClick?.(message.id, event.currentTarget, displayName)
+                    }
+                    onPointerDown={(event) =>
+                      reactionState.onAddPointerDown?.(message.id, displayName, event)
+                    }
+                    onPointerUp={reactionState.onAddPointerComplete}
+                    onPointerLeave={reactionState.onAddPointerComplete}
+                    onPointerCancel={reactionState.onAddPointerComplete}
+                    onContextMenu={(event) =>
+                      reactionState.onAddContextMenu?.(message.id, displayName, event)
+                    }
+                    aria-expanded={isPickerOpen}
+                    aria-label="Add reaction"
+                    data-role="reaction-button"
+                  >
+                    <Smiley size={16} weight="duotone" />
+                  </button>
+                </div>
+              )
+            : null;
         const inlineReactions = showBody ? reactionsNode : null;
         const trailingReactions = !showBody ? reactionsNode : null;
         const messageTitle = showHeader ? undefined : messageTimestamp || undefined;
@@ -250,6 +253,7 @@ export function ConversationMessageList({
               onKeyDown={(event) =>
                 messageMenuHandlers.onKeyDown(event, message, messageKey, index, isSelf)
               }
+              data-reaction-open={isPickerOpen ? "true" : undefined}
             >
               {showHeader ? (
                 <div className={styles.messageHeader}>
@@ -426,6 +430,7 @@ export function ConversationMessageList({
                 </div>
               ) : null}
               {trailingReactions}
+              {addReactionButton}
               {statusNode ? <div className={styles.messageMeta}>{statusNode}</div> : null}
             </div>
           </div>
@@ -467,4 +472,3 @@ export function ConversationMessageList({
     </div>
   );
 }
-

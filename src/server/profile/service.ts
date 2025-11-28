@@ -100,7 +100,8 @@ export async function resolveProfileUserId(params: {
   if (looksLikeProfileId(decoded)) {
     return decoded;
   }
-  const resolved = await resolveSupabaseUserId({ userId: decoded, userKey: decoded }, { allowAlias: false });
+  // Non-UUID identifiers should be treated as user keys (e.g., Clerk ids, aliases)
+  const resolved = await resolveSupabaseUserId({ userKey: decoded }, { allowAlias: false });
   if (!resolved) {
     throw new Error("profile.resolve: user not found");
   }

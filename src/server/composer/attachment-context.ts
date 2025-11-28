@@ -1,5 +1,6 @@
 import type { ComposerChatAttachment } from "@/lib/composer/chat-types";
 import pdfParse from "pdf-parse";
+import { ensureAccessibleMediaUrl } from "@/server/posts/media";
 
 const ATTACHMENT_CONTEXT_LIMIT = 2;
 const ATTACHMENT_CONTEXT_CHAR_LIMIT = 2000;
@@ -37,6 +38,12 @@ function extractExtension(name: string | undefined): string | null {
   return ext ? ext.toLowerCase() : null;
 }
 
+function extractExtensionFromUrl(url?: string | null): string | null {
+  if (!url || typeof url !== "string") return null;
+  const cleaned = url.split(/[?#]/)[0] ?? "";
+  return extractExtension(cleaned);
+}
+
 function isLikelyTextAttachment(attachment: ComposerChatAttachment): boolean {
   const mime = (attachment.mimeType ?? "").toLowerCase();
   if (TEXT_MIME_PREFIXES.some((prefix) => mime.startsWith(prefix))) {
@@ -44,6 +51,10 @@ function isLikelyTextAttachment(attachment: ComposerChatAttachment): boolean {
   }
   const extension = extractExtension(attachment.name);
   if (extension && TEXT_EXTENSIONS.has(extension)) {
+    return true;
+  }
+  const urlExtension = extractExtensionFromUrl(attachment.url);
+  if (urlExtension && TEXT_EXTENSIONS.has(urlExtension)) {
     return true;
   }
   return false;
@@ -61,10 +72,14 @@ async function extractPdfText(blob: ArrayBuffer): Promise<string | null> {
   }
 }
 
-async function fetchAttachmentText(attachment: ComposerChatAttachment): Promise<string | null> {
-  if (!attachment.url) return null;
+async function fetchAttachmentText(
+  attachment: ComposerChatAttachment,
+  resolvedUrl?: string | null,
+): Promise<string | null> {
+  const targetUrl = resolvedUrl ?? attachment.url;
+  if (!targetUrl) return null;
   try {
-    const response = await fetch(attachment.url);
+    const response = await fetch(targetUrl);
     if (!response.ok) return null;
 
     const lowerMime = (attachment.mimeType ?? "").toLowerCase();
@@ -96,6 +111,7 @@ export async function buildAttachmentContext(
 
   const contexts = await Promise.all(
     candidates.map(async (attachment) => {
+      const accessibleUrl = attachment.url ? await ensureAccessibleMediaUrl(attachment.url) : null;
       const excerpt =
         typeof attachment.excerpt === "string" && attachment.excerpt.trim().length
           ? attachment.excerpt.trim()
@@ -114,7 +130,7 @@ export async function buildAttachmentContext(
 
       if (!isLikelyTextAttachment(attachment)) return null;
 
-      const fetchedText = await fetchAttachmentText(attachment);
+      const fetchedText = await fetchAttachmentText(attachment, accessibleUrl);
       if (!fetchedText) return null;
 
       return {

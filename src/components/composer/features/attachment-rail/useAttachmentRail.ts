@@ -191,6 +191,7 @@ export function useAttachmentRail({
   const attachmentUrl = displayAttachment?.url ?? null;
   const attachmentThumb = displayAttachment?.thumbUrl ?? attachmentPreviewUrl ?? null;
   const attachmentProgress = displayAttachment?.progress ?? 0;
+  const preferFullImage = displayAttachment?.source === "ai";
   const attachmentMemoryPrompt =
     typeof draft.mediaPrompt === "string" && draft.mediaPrompt.trim().length
       ? draft.mediaPrompt.trim()
@@ -227,9 +228,21 @@ export function useAttachmentRail({
     if (attachmentKind === "video") {
       return attachmentUrl;
     }
-    const variantUrl = pickBestDisplayVariant(attachmentVariants);
+    const variantUrl = preferFullImage
+      ? pickBestFullVariant(attachmentVariants)
+      : pickBestDisplayVariant(attachmentVariants);
+    if (preferFullImage) {
+      return variantUrl ?? attachmentUrl ?? attachmentPreviewUrl ?? null;
+    }
     return variantUrl ?? attachmentPreviewUrl ?? attachmentUrl;
-  }, [attachmentKind, attachmentPreviewUrl, attachmentUrl, attachmentVariants, hasAttachment]);
+  }, [
+    attachmentKind,
+    attachmentPreviewUrl,
+    attachmentUrl,
+    attachmentVariants,
+    hasAttachment,
+    preferFullImage,
+  ]);
 
   const attachmentFullUrl = React.useMemo(() => {
     if (!hasAttachment) return null;

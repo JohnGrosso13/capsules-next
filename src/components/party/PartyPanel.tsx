@@ -1,16 +1,15 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { createPortal } from "react-dom";
 
 import {
   CopySimple,
   CrownSimple,
   Clock,
   LinkSimple,
-  MagnifyingGlass,
   Microphone,
   MicrophoneSlash,
   MicrophoneStage,
@@ -18,9 +17,10 @@ import {
   SignOut,
   SpeakerSimpleHigh,
   SpeakerSimpleSlash,
+  Sparkle,
   UsersThree,
-  X,
   XCircle,
+  CaretDown,
 } from "@phosphor-icons/react/dist/ssr";
 import {
   LiveKitRoom,
@@ -40,6 +40,7 @@ import {
 } from "livekit-client";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
+import { ChatStartOverlay } from "@/components/chat/ChatStartOverlay";
 import { useChatContext, type ChatFriendTarget } from "@/components/providers/ChatProvider";
 import {
   usePartyContext,
@@ -85,6 +86,69 @@ type PartyStageProps = {
   summaryEnabled: boolean;
   onTranscriptsChange(segments: PartyTranscriptSegment[]): void;
 };
+
+type ExpandableSettingProps = {
+  id: string;
+  title: string;
+  description?: string;
+  eyebrow?: string;
+  status?: React.ReactNode;
+  open: boolean;
+  onToggle(next: boolean): void;
+  children: React.ReactNode;
+};
+
+function ExpandableSetting({
+  id,
+  title,
+  description,
+  eyebrow,
+  status,
+  open,
+  onToggle,
+  children,
+}: ExpandableSettingProps) {
+  const regionId = `${id}-body`;
+  const titleId = `${id}-title`;
+
+  return (
+    <div className={`${styles.settingCard} ${open ? styles.settingCardOpen : ""}`.trim()}>
+      <button
+        type="button"
+        className={styles.settingHeader}
+        aria-expanded={open}
+        aria-controls={regionId}
+        onClick={() => onToggle(!open)}
+      >
+        <div className={styles.settingHeaderText}>
+          {eyebrow ? <span className={styles.settingEyebrow}>{eyebrow}</span> : null}
+          <div className={styles.settingTitleRow}>
+            <span className={styles.settingTitle} id={titleId}>
+              {title}
+            </span>
+            {status ? <span className={styles.settingStatus}>{status}</span> : null}
+          </div>
+          {description ? <p className={styles.settingHint}>{description}</p> : null}
+        </div>
+        <CaretDown
+          size={16}
+          weight="bold"
+          className={`${styles.settingCaret} ${open ? styles.settingCaretOpen : ""}`.trim()}
+          aria-hidden
+        />
+      </button>
+      <div
+        className={`${styles.settingBody} ${open ? styles.settingBodyOpen : ""}`.trim()}
+        id={regionId}
+        role="region"
+        aria-labelledby={titleId}
+        aria-hidden={!open}
+      >
+        <div className={styles.settingBodyInner}>{children}</div>
+      </div>
+    </div>
+  );
+}
 
 type InviteStatus = {
   message: string;
@@ -270,7 +334,6 @@ function initialsFromName(name: string | null | undefined): string {
 export function PartyPanel({
   friends,
   friendTargets,
-  onShowFriends,
   variant = "default",
 }: PartyPanelProps) {
   const searchParams = useSearchParams();
@@ -297,6 +360,8 @@ export function PartyPanel({
   const [createSummaryEnabled, setCreateSummaryEnabled] = React.useState(false);
   const [createSummaryVerbosity, setCreateSummaryVerbosity] =
     React.useState<SummaryLengthHint>("medium");
+  const [privacyExpanded, setPrivacyExpanded] = React.useState(true);
+  const [summaryExpanded, setSummaryExpanded] = React.useState(false);
   const [summaryError, setSummaryError] = React.useState<string | null>(null);
   const [summaryUpdating, setSummaryUpdating] = React.useState(false);
   const [summaryGenerating, setSummaryGenerating] = React.useState(false);
@@ -304,11 +369,11 @@ export function PartyPanel({
   const [transcriptSegments, setTranscriptSegments] = React.useState<PartyTranscriptSegment[]>([]);
   const [joinCode, setJoinCode] = React.useState("");
   const [inviteFeedback, setInviteFeedback] = React.useState<InviteStatus | null>(null);
-  const [inviteBusyId, setInviteBusyId] = React.useState<string | null>(null);
+  const [inviteSending, setInviteSending] = React.useState(false);
+  const [inviteError, setInviteError] = React.useState<string | null>(null);
   const [copyState, setCopyState] = React.useState<"idle" | "copied">("idle");
   const [showInviteDetails, setShowInviteDetails] = React.useState(false);
   const [invitePickerOpen, setInvitePickerOpen] = React.useState(false);
-  const [inviteSearch, setInviteSearch] = React.useState("");
   const inviteRevealTimer = React.useRef<number | null>(null);
 
   const participantProfiles = React.useMemo(() => {
@@ -349,6 +414,12 @@ export function PartyPanel({
   }, [partyQuery, session]);
 
   React.useEffect(() => {
+    if (createSummaryEnabled) {
+      setSummaryExpanded(true);
+    }
+  }, [createSummaryEnabled]);
+
+  React.useEffect(() => {
     if (copyState !== "copied") return;
     const timer = window.setTimeout(() => setCopyState("idle"), 2400);
     return () => window.clearTimeout(timer);
@@ -379,12 +450,6 @@ export function PartyPanel({
     }
   }, [session?.partyId, session]);
 
-  React.useEffect(() => {
-    if (!invitePickerOpen) {
-      setInviteSearch("");
-    }
-  }, [invitePickerOpen]);
-
   const isLoading = status === "loading";
   const isConnecting = status === "connecting";
   const loading = isLoading || isConnecting;
@@ -399,13 +464,15 @@ export function PartyPanel({
         return a.name.localeCompare(b.name);
       });
   }, [friends, friendTargets]);
-  const filteredInviteFriends = React.useMemo(() => {
-    const query = inviteSearch.trim().toLowerCase();
-    if (!query) return inviteableFriends;
-    return inviteableFriends.filter((friend) =>
-      (friend.name ?? "").toLowerCase().includes(query),
-    );
-  }, [inviteSearch, inviteableFriends]);
+  const inviteableFriendsByUserId = React.useMemo(() => {
+    const map = new Map<string, FriendItem>();
+    inviteableFriends.forEach((friend) => {
+      if (friend.userId) {
+        map.set(friend.userId, friend);
+      }
+    });
+    return map;
+  }, [inviteableFriends]);
   const summarySettings = React.useMemo<PartySummarySettings>(() => {
     const raw = session?.metadata.summary;
     const enabled = typeof raw?.enabled === "boolean" ? raw.enabled : false;
@@ -426,11 +493,6 @@ export function PartyPanel({
       lastGeneratedBy,
     };
   }, [session?.metadata.summary]);
-
-  const busyInviteIds = React.useMemo(
-    () => new Set([inviteBusyId].filter(Boolean) as string[]),
-    [inviteBusyId],
-  );
 
   React.useEffect(() => {
     if (!session) {
@@ -459,6 +521,22 @@ export function PartyPanel({
       setPrivacy(PRIVACY_OPTIONS[nextIndex]!.value);
     },
     [loading],
+  );
+
+  const handleSummaryVerbosityKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, optionIndex: number) => {
+      if (!createSummaryEnabled) return;
+      const { key } = event;
+      if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(key)) {
+        return;
+      }
+      event.preventDefault();
+      const delta = key === "ArrowRight" || key === "ArrowDown" ? 1 : -1;
+      const nextIndex =
+        (optionIndex + delta + SUMMARY_VERBOSITY_OPTIONS.length) % SUMMARY_VERBOSITY_OPTIONS.length;
+      setCreateSummaryVerbosity(SUMMARY_VERBOSITY_OPTIONS[nextIndex]!);
+    },
+    [createSummaryEnabled],
   );
 
   const handleCreateParty = React.useCallback(async () => {
@@ -514,67 +592,72 @@ export function PartyPanel({
   }, [handleCopyInvite]);
 
   const handleOpenInvitePicker = React.useCallback(() => {
+    setInviteError(null);
     setInvitePickerOpen(true);
   }, []);
 
   const handleCloseInvitePicker = React.useCallback(() => {
+    setInviteError(null);
     setInvitePickerOpen(false);
   }, []);
 
-  const handleInviteSearchChange = React.useCallback((value: string) => {
-    setInviteSearch(value);
-  }, []);
-
-  const handleFindFriends = React.useCallback(() => {
-    setInvitePickerOpen(false);
-    onShowFriends();
-  }, [onShowFriends]);
-
-  const handleInviteFriend = React.useCallback(
-    async (friend: FriendItem) => {
+  const handleInviteFriends = React.useCallback(
+    async (userIds: string[]) => {
       if (!session) {
+        setInviteError("Start a party first, then invite your friends.");
         setInviteFeedback({
           message: "Start a party first, then invite your friends.",
           tone: "warning",
         });
         return;
       }
-      if (!friend.userId) {
-        setInviteFeedback({
-          message: "That friend cannot be invited right now.",
-          tone: "warning",
-        });
+      const unique = Array.from(new Set(userIds));
+      if (!unique.length) {
+        setInviteError("Pick at least one friend to invite.");
         return;
       }
-      if (!friendTargets.has(friend.userId)) {
-        setInviteFeedback({
-          message: "We couldn't prepare an invite for that friend.",
-          tone: "warning",
-        });
+      const validIds = unique.filter((userId) => friendTargets.has(userId));
+      if (!validIds.length) {
+        setInviteError("Those friends cannot be invited right now.");
         return;
       }
+      setInviteSending(true);
+      setInviteError(null);
       try {
-        setInviteBusyId(friend.id);
-        await sendPartyInviteRequest({
-          partyId: session.partyId,
-          recipientId: friend.userId,
-        });
+        for (const userId of validIds) {
+          await sendPartyInviteRequest({
+            partyId: session.partyId,
+            recipientId: userId,
+          });
+        }
+        const namedTargets = validIds
+          .map((id) => inviteableFriendsByUserId.get(id)?.name)
+          .filter(Boolean);
+        const successMessage =
+          namedTargets.length === 1
+            ? `Invite sent to ${namedTargets[0]}.`
+            : `Invites sent to ${namedTargets.length} friends.`;
         setInviteFeedback({
-          message: `Invite sent to ${friend.name}.`,
+          message: successMessage,
           tone: "success",
         });
+        setInvitePickerOpen(false);
       } catch (err) {
         console.error("Party invite error", err);
+        const message =
+          err instanceof Error
+            ? err.message
+            : "We couldn't deliver those invites. Try again soon.";
+        setInviteError(message);
         setInviteFeedback({
-          message:
-            err instanceof Error ? err.message : "We couldn't deliver that invite. Try again soon.",
+          message: "We couldn't deliver one or more invites. Try again soon.",
           tone: "warning",
         });
       } finally {
-        setInviteBusyId(null);
+        setInviteSending(false);
       }
     },
-    [friendTargets, session],
+    [friendTargets, inviteableFriendsByUserId, session],
   );
 
   const applySummarySettings = React.useCallback(
@@ -791,6 +874,14 @@ export function PartyPanel({
     return "Ready to connect.";
   }, [action, isConnecting, isLoading, session, status]);
 
+  const privacyStatusLabel = React.useMemo(() => {
+    return PRIVACY_OPTIONS.find((option) => option.value === privacy)?.label ?? "Friends only";
+  }, [privacy]);
+
+  const summarySetupStatusLabel = React.useMemo(() => {
+    return createSummaryEnabled ? `On · ${SUMMARY_LABELS[createSummaryVerbosity]}` : "Off";
+  }, [createSummaryEnabled, createSummaryVerbosity]);
+
   const panelClassName =
     variant === "compact" ? `${styles.panel} ${styles.panelCompact}`.trim() : styles.panel;
   const tileClassName =
@@ -800,7 +891,12 @@ export function PartyPanel({
     <>
       <header className={styles.tileHeader}>
         <div className={styles.tileHeading}>
-          <h2 className={styles.tileTitle}>Host a party lobby</h2>
+          <div className={styles.titleRow}>
+            <span className={styles.titleIcon} aria-hidden>
+              <MicrophoneStage size={18} weight="duotone" />
+            </span>
+            <h2 className={styles.tileTitle}>Host a party lobby</h2>
+          </div>
         </div>
       </header>
       <section className={`${styles.section} ${styles.sectionSplit}`.trim()}>
@@ -819,17 +915,21 @@ export function PartyPanel({
             onChange={(event) => setDisplayName(event.target.value)}
             disabled={loading}
           />
-          <div className={styles.privacyGroup} role="radiogroup" aria-label="Party privacy">
-            <div className={styles.privacyHeader}>
-              <span className={styles.label}>Party privacy</span>
-              <span className={styles.privacyHint}>Choose who can discover and join your lobby.</span>
-            </div>
-          <div className={styles.privacyOptions}>
-            {PRIVACY_OPTIONS.map((option, index) => {
-              const selected = privacy === option.value;
-              const optionClassName = selected
-                ? `${styles.privacyOption} ${styles.privacyOptionSelected}`
-                  : styles.privacyOption;
+          <ExpandableSetting
+            id="party-privacy"
+            title="Party privacy"
+            eyebrow="Default: Friends only"
+            description="Choose who can discover and join your lobby."
+            status={<span className={styles.settingStatusPill}>{privacyStatusLabel}</span>}
+            open={privacyExpanded}
+            onToggle={setPrivacyExpanded}
+          >
+            <div className={styles.settingOptions} role="radiogroup" aria-label="Party privacy">
+              {PRIVACY_OPTIONS.map((option, index) => {
+                const selected = privacy === option.value;
+                const optionClassName = selected
+                  ? `${styles.settingOption} ${styles.settingOptionSelected}`.trim()
+                  : styles.settingOption;
                 return (
                   <button
                     key={option.value}
@@ -843,53 +943,82 @@ export function PartyPanel({
                     disabled={loading}
                     onKeyDown={(event) => handlePrivacyKeyDown(event, index)}
                   >
-                    <span className={styles.privacyOptionLabel}>{option.label}</span>
-                    <span className={styles.privacyOptionDescription}>{option.description}</span>
+                    <span className={styles.settingOptionLabel}>{option.label}</span>
+                    <span className={styles.settingOptionDescription}>{option.description}</span>
                   </button>
                 );
               })}
             </div>
-          </div>
-          <div className={styles.summarySetup}>
-            <div className={styles.summarySetupHeader}>
-              <div className={styles.summarySetupLabels}>
-                <span className={styles.label}>Conversation summaries</span>
-                <p className={styles.summarySetupHint}>
-                  Save an AI recap of your voice chat to Memory for later reference.
-                </p>
-              </div>
-              <button
-                type="button"
-                className={`${styles.summaryToggle} ${
-                  createSummaryEnabled ? styles.summaryToggleActive : ""
+          </ExpandableSetting>
+          <ExpandableSetting
+            id="party-summaries"
+            title="Conversation summaries"
+            eyebrow="Saves to Memory"
+            description="Capture an AI recap of your voice chat."
+            status={
+              <span
+                className={`${styles.settingStatusPill} ${
+                  createSummaryEnabled ? styles.settingStatusPillActive : ""
                 }`.trim()}
-                onClick={() => setCreateSummaryEnabled((prev) => !prev)}
-                aria-pressed={createSummaryEnabled}
               >
-                {createSummaryEnabled ? "Enabled" : "Disabled"}
-              </button>
+                {summarySetupStatusLabel}
+              </span>
+            }
+            open={summaryExpanded}
+            onToggle={setSummaryExpanded}
+          >
+            <div className={styles.summarySetup}>
+              <div className={styles.summarySetupHeader}>
+                <div className={styles.summarySetupLabels}>
+                  <span className={styles.label}>Recording & saving</span>
+                  <p className={styles.summarySetupHint}>
+                    Save an AI recap of your voice chat to Memory for later reference.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className={`${styles.summaryToggle} ${
+                    createSummaryEnabled ? styles.summaryToggleActive : ""
+                  }`.trim()}
+                  onClick={() => setCreateSummaryEnabled((prev) => !prev)}
+                  aria-pressed={createSummaryEnabled}
+                >
+                  {createSummaryEnabled ? "Enabled" : "Disabled"}
+                </button>
+              </div>
+              <div
+                className={styles.settingOptions}
+                role="radiogroup"
+                aria-label="Summary verbosity"
+              >
+                {SUMMARY_VERBOSITY_OPTIONS.map((option, index) => {
+                  const active = createSummaryVerbosity === option;
+                  const optionClassName = active
+                    ? `${styles.settingOption} ${styles.settingOptionSelected}`.trim()
+                    : styles.settingOption;
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      className={optionClassName}
+                      onClick={() => setCreateSummaryVerbosity(option)}
+                      disabled={!createSummaryEnabled}
+                      aria-checked={active}
+                      role="radio"
+                      tabIndex={active ? 0 : -1}
+                      aria-label={`${SUMMARY_LABELS[option]}: ${SUMMARY_DESCRIPTIONS[option]}`}
+                      onKeyDown={(event) => handleSummaryVerbosityKeyDown(event, index)}
+                    >
+                      <span className={styles.settingOptionLabel}>{SUMMARY_LABELS[option]}</span>
+                      <span className={styles.settingOptionDescription}>
+                        {SUMMARY_DESCRIPTIONS[option]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className={styles.summaryVerbosityRow}>
-              {SUMMARY_VERBOSITY_OPTIONS.map((option) => {
-                const active = createSummaryVerbosity === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    className={`${styles.summaryVerbosityButton} ${
-                      active ? styles.summaryVerbosityButtonActive : ""
-                    }`.trim()}
-                    onClick={() => setCreateSummaryVerbosity(option)}
-                    disabled={!createSummaryEnabled}
-                    aria-pressed={active}
-                  >
-                    <span>{SUMMARY_LABELS[option]}</span>
-                    <small>{SUMMARY_DESCRIPTIONS[option]}</small>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          </ExpandableSetting>
           <button
             type="button"
             className={`${styles.primaryButton} ${styles.primaryButtonFull}`}
@@ -915,29 +1044,42 @@ export function PartyPanel({
           <span>Have a code? Jump into a party</span>
         </div>
         <div className={styles.inlineJoin}>
-          <input
-            className={styles.input}
-            placeholder="Enter your party code"
-            value={joinCode}
-            onChange={(event) => setJoinCode(event.target.value)}
-            disabled={loading}
-          />
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={() => {
-              void handleJoinParty();
-            }}
-            disabled={loading || !joinCode.trim()}
-          >
-            {loading
-              ? action === "join"
-                ? "Connecting..."
-                : action === "resume"
-                  ? "Reconnecting..."
-                  : "Join"
-              : "Join"}
-          </button>
+          <div className={styles.inlineJoinField}>
+            <input
+              className={styles.inlineJoinInput}
+              placeholder="Enter your party code"
+              value={joinCode}
+              onChange={(event) => setJoinCode(event.target.value)}
+              disabled={loading}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  if (!loading && joinCode.trim()) {
+                    void handleJoinParty();
+                  }
+                }
+              }}
+            />
+            <button
+              type="button"
+              className={styles.inlineJoinButton}
+              onClick={() => {
+                void handleJoinParty();
+              }}
+              disabled={loading || !joinCode.trim()}
+              aria-label={
+                loading
+                  ? action === "join"
+                    ? "Connecting to party"
+                    : action === "resume"
+                      ? "Reconnecting to party"
+                      : "Connecting"
+                  : "Join party with this code"
+              }
+            >
+              <PaperPlaneTilt size={16} weight="bold" />
+            </button>
+          </div>
         </div>
       </section>
     </>
@@ -1160,44 +1302,52 @@ export function PartyPanel({
             <span>Have a code? Jump into a party</span>
           </div>
           <div className={styles.inlineJoin}>
-            <input
-              className={styles.input}
-              placeholder="Enter your party code"
-              value={joinCode}
-              onChange={(event) => setJoinCode(event.target.value)}
-              disabled={loading}
-            />
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => {
-                void handleJoinParty();
-              }}
-              disabled={loading || !joinCode.trim()}
-            >
-              {loading
-                ? action === "join"
-                  ? "Connecting..."
-                  : action === "resume"
-                    ? "Reconnecting..."
-                    : "Join"
-                : "Join"}
-            </button>
+            <div className={styles.inlineJoinField}>
+              <input
+                className={styles.inlineJoinInput}
+                placeholder="Enter your party code"
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value)}
+                disabled={loading}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (!loading && joinCode.trim()) {
+                      void handleJoinParty();
+                    }
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className={styles.inlineJoinButton}
+                onClick={() => {
+                  void handleJoinParty();
+                }}
+                disabled={loading || !joinCode.trim()}
+                aria-label={
+                  loading
+                    ? action === "join"
+                      ? "Connecting to party"
+                      : action === "resume"
+                        ? "Reconnecting to party"
+                        : "Connecting"
+                    : "Join party with this code"
+                }
+              >
+                <PaperPlaneTilt size={16} weight="bold" />
+              </button>
+            </div>
           </div>
         </section>
-        <PartyInviteOverlay
+        <ChatStartOverlay
           open={invitePickerOpen}
           onClose={handleCloseInvitePicker}
-          friends={filteredInviteFriends}
-          totalFriends={inviteableFriends.length}
-          busyInviteIds={busyInviteIds}
-          loading={loading}
-          search={inviteSearch}
-          onSearchChange={handleInviteSearchChange}
-          onInvite={(friend) => {
-            void handleInviteFriend(friend);
-          }}
-          onFindFriends={handleFindFriends}
+          friends={inviteableFriends}
+          busy={inviteSending || loading}
+          error={inviteError}
+          onSubmit={(userIds) => void handleInviteFriends(userIds)}
+          mode="party"
         />
       </>
     );
@@ -1240,178 +1390,6 @@ export function PartyPanel({
         {session ? renderActiveTile(session) : renderInactiveTile()}
       </div>
     </div>
-  );
-}
-
-type PartyInviteOverlayProps = {
-  open: boolean;
-  onClose(): void;
-  friends: FriendItem[];
-  totalFriends: number;
-  busyInviteIds: Set<string>;
-  loading: boolean;
-  search: string;
-  onSearchChange(value: string): void;
-  onInvite(friend: FriendItem): void;
-  onFindFriends(): void;
-};
-
-function PartyInviteOverlay({
-  open,
-  onClose,
-  friends,
-  totalFriends,
-  busyInviteIds,
-  loading,
-  search,
-  onSearchChange,
-  onInvite,
-  onFindFriends,
-}: PartyInviteOverlayProps) {
-  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
-
-  React.useEffect(() => {
-    if (!open || typeof document === "undefined") return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open, onClose]);
-
-  React.useEffect(() => {
-    if (!open || typeof document === "undefined") return;
-    const body = document.body;
-    const previousOverflow = body.style.overflow;
-    const previousCountAttr = body.getAttribute("data-hide-prompter-count");
-    const previousCount =
-      typeof previousCountAttr === "string" ? Number.parseInt(previousCountAttr, 10) || 0 : 0;
-    const nextCount = previousCount + 1;
-    body.setAttribute("data-hide-prompter-count", String(nextCount));
-    body.setAttribute("data-hide-prompter", "true");
-    body.style.overflow = "hidden";
-    const focusTimer = window.setTimeout(() => {
-      searchInputRef.current?.focus();
-    }, 0);
-    return () => {
-      window.clearTimeout(focusTimer);
-      body.style.overflow = previousOverflow;
-      const remaining = Math.max(0, nextCount - 1);
-      if (remaining > 0) {
-        body.setAttribute("data-hide-prompter-count", String(remaining));
-      } else {
-        body.removeAttribute("data-hide-prompter-count");
-        body.removeAttribute("data-hide-prompter");
-      }
-    };
-  }, [open]);
-
-  if (!open || typeof document === "undefined") {
-    return null;
-  }
-
-  const hasFriends = totalFriends > 0;
-  const hasResults = friends.length > 0;
-  const trimmedSearch = search.trim();
-
-  let bodyContent: React.ReactNode;
-  if (!hasFriends) {
-    bodyContent = (
-      <div className={styles.inviteOverlayEmpty}>
-        <p>You don&apos;t have invite-ready friends yet.</p>
-        <button
-          type="button"
-          className={styles.secondaryButton}
-          onClick={() => {
-            onClose();
-            onFindFriends();
-          }}
-        >
-          Find friends
-        </button>
-      </div>
-    );
-  } else if (!hasResults) {
-    bodyContent = (
-      <div className={styles.inviteOverlayEmpty}>
-        <p>
-          No friends match
-          {trimmedSearch ? ` “${trimmedSearch}”` : ""}.
-        </p>
-      </div>
-    );
-  } else {
-    bodyContent = (
-      <ul className={`${styles.inviteList} ${styles.inviteOverlayList}`}>
-        {friends.map((friend) => {
-          const isBusy = busyInviteIds.has(friend.id);
-          const inviteDisabled = isBusy || loading;
-          return (
-            <li key={friend.id} className={styles.inviteRow}>
-              <div className={styles.inviteMeta}>
-                <div className={styles.avatar}>{initialsFromName(friend.name)}</div>
-                <div className={styles.inviteInfo}>
-                  <span className={styles.inviteName}>{friend.name}</span>
-                  <span
-                    className={`${styles.inviteStatus} ${
-                      friend.status === "online" ? styles.statusOnline : styles.statusIdle
-                    }`}
-                  >
-                    {friend.status === "online" ? "Online" : "Offline"}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className={styles.primaryButton}
-                onClick={() => {
-                  onInvite(friend);
-                }}
-                disabled={inviteDisabled}
-              >
-                <PaperPlaneTilt size={16} weight="bold" />
-                {isBusy ? "Sending..." : "Invite"}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    );
-  }
-
-  return createPortal(
-    <>
-      <div className={styles.inviteOverlayBackdrop} onClick={onClose} aria-hidden="true" />
-      <div className={styles.inviteOverlay} role="dialog" aria-modal="true" aria-label="Invite friends">
-        <header className={styles.inviteOverlayHeader}>
-          <h3>Invite friends</h3>
-          <button
-            type="button"
-            className={styles.inviteOverlayClose}
-            onClick={onClose}
-            aria-label="Close invite friends"
-          >
-            <X size={16} weight="bold" />
-          </button>
-        </header>
-        <div className={styles.inviteOverlaySearch}>
-          <MagnifyingGlass size={16} weight="bold" />
-          <input
-            ref={searchInputRef}
-            type="search"
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search friends"
-          />
-        </div>
-        {bodyContent}
-      </div>
-    </>,
-    document.body,
   );
 }
 
@@ -1481,7 +1459,7 @@ type ParticipantMenuState = {
 };
 
 function PartyStageScene({
-  session: _session,
+  session,
   canClose,
   status,
   participantProfiles,
@@ -1504,6 +1482,8 @@ function PartyStageScene({
   const [isDeafened, setIsDeafened] = React.useState(false);
   const [volumeLevels, setVolumeLevels] = React.useState<Record<string, number>>({});
   const [menuState, setMenuState] = React.useState<ParticipantMenuState | null>(null);
+  const [assistantNotice, setAssistantNotice] = React.useState<string | null>(null);
+  const [assistantBusy, setAssistantBusy] = React.useState(false);
   const { mergedProps: startAudioProps, canPlayAudio } = useStartAudio({
     room,
     props: {
@@ -1857,6 +1837,64 @@ function PartyStageScene({
   const menuVolume = menuState ? getParticipantVolume(menuState.identity) : 1;
   const canMessageSelected =
     Boolean(menuState && menuState.identity !== room?.localParticipant?.identity);
+  const assistantPresent = React.useMemo(
+    () =>
+      participants.some(
+        (participant) => typeof participant.identity === "string" && participant.identity.startsWith("agent-"),
+      ),
+    [participants],
+  );
+  const assistantDesired = session.metadata.assistant?.desired ?? true;
+
+  const summonAssistant = React.useCallback(async () => {
+    if (!session) return;
+    setAssistantBusy(true);
+    setAssistantNotice(null);
+    try {
+      const res = await fetch(`/api/party/${session.partyId}/assistant`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ desired: true }),
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message =
+          payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string"
+            ? (payload as { message: string }).message
+            : "Unable to call the assistant right now.";
+        throw new Error(message);
+      }
+      setAssistantNotice("Assistant invited. It may take a few seconds to join.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to call the assistant.";
+      setAssistantNotice(message);
+    } finally {
+      setAssistantBusy(false);
+    }
+  }, [session]);
+
+  const dismissAssistant = React.useCallback(async () => {
+    if (!session) return;
+    setAssistantBusy(true);
+    setAssistantNotice(null);
+    try {
+      const res = await fetch(`/api/party/${session.partyId}/assistant`, { method: "DELETE" });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message =
+          payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string"
+            ? (payload as { message: string }).message
+            : "Unable to dismiss the assistant right now.";
+        throw new Error(message);
+      }
+      setAssistantNotice("Assistant dismissed.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to dismiss the assistant.";
+      setAssistantNotice(message);
+    } finally {
+      setAssistantBusy(false);
+    }
+  }, [session]);
 
   return (
     <>
@@ -1926,6 +1964,33 @@ function PartyStageScene({
             {isDeafened ? "Undeafen" : "Deafen"}
           </button>
         </div>
+        {canClose ? (
+          <div className={styles.controlGroup}>
+            <button
+              type="button"
+              className={`${styles.controlButton} ${styles.controlCompact}`}
+              onClick={() => {
+                void summonAssistant();
+              }}
+              disabled={assistantBusy || !room}
+              aria-pressed={assistantDesired}
+            >
+              <Sparkle size={16} weight="bold" />
+              Call Assistant
+            </button>
+            <button
+              type="button"
+              className={`${styles.controlButton} ${styles.controlDanger}`}
+              onClick={() => {
+                void dismissAssistant();
+              }}
+              disabled={assistantBusy || !assistantPresent || !room}
+            >
+              <XCircle size={16} weight="bold" />
+              Dismiss Assistant
+            </button>
+          </div>
+        ) : null}
         <div className={styles.controlGroup}>
           <button
             type="button"
@@ -1959,6 +2024,11 @@ function PartyStageScene({
       {micNotice ? (
         <div className={styles.micNotice} role="status">
           {micNotice}
+        </div>
+      ) : null}
+      {assistantNotice ? (
+        <div className={styles.micNotice} role="status">
+          {assistantNotice}
         </div>
       ) : null}
       </div>

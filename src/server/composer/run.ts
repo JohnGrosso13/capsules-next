@@ -27,6 +27,10 @@ import {
 } from "@/server/chat/retrieval";
 import type { ChatMemorySnippet } from "@/server/chat/retrieval";
 import { buildAttachmentContext } from "@/server/composer/attachment-context";
+import { ensureAccessibleMediaUrl } from "@/server/posts/media";
+import { searchGoogleImages, isGoogleImageSearchConfigured } from "@/server/search/google-images";
+import { PDFDocument, StandardFonts } from "pdf-lib";
+import { uploadBufferToStorage } from "@/lib/supabase/storage";
 
 export type ComposerToolEvent =
   | { type: "status"; message: string }
@@ -141,6 +145,62 @@ const TOOL_DEFINITIONS: ToolCallDefinition[] = [
       },
     },
   },
+  {
+    name: "generate_pdf",
+    description:
+      "Render a polished, downloadable PDF for the user using the structured content you provide.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string", description: "Document title." },
+        summary: { type: "string", description: "Short intro or executive summary." },
+        content: {
+          type: "string",
+          description: "Main body text when sections are not provided.",
+        },
+        bullets: {
+          type: "array",
+          items: { type: "string" },
+          description: "Bullet points to include in the PDF.",
+        },
+        sections: {
+          type: "array",
+          description: "Optional sections with headings and body text.",
+          items: {
+            type: "object",
+            required: ["heading", "body"],
+            additionalProperties: false,
+            properties: {
+              heading: { type: "string" },
+              body: { type: "string" },
+            },
+          },
+        },
+        footer: { type: "string", description: "Closing notes or sign-off." },
+        download_name: { type: "string", description: "Filename for the PDF (will be sanitized)." },
+      },
+    },
+  },
+  {
+    name: "search_images",
+    description:
+      "Find real web images (e.g., locations, products) using Google Custom Search. Use this when the user asks for actual photos, not AI-generated art.",
+    parameters: {
+      type: "object",
+      required: ["query"],
+      additionalProperties: false,
+      properties: {
+        query: { type: "string", description: "What to search for (place, product, subject)." },
+        limit: {
+          type: "integer",
+          description: "How many images to fetch (1-6).",
+          minimum: 1,
+          maximum: 6,
+        },
+      },
+    },
+  },
 ];
 
 type AttachmentIndex = Map<string, ComposerChatAttachment>;
@@ -174,16 +234,18 @@ const IMAGE_QUALITY_SET = new Set<ComposerImageQuality>(["low", "standard", "hig
 type ToolRunResult = { name: string; result: Record<string, unknown> };
 
 type MediaToolResult = {
-  kind: "image" | "video";
+  kind: "image" | "video" | "file";
   url: string;
   prompt: string | null;
   thumbnailUrl: string | null;
   playbackUrl: string | null;
+  mimeType?: string | null;
+  name?: string | null;
 };
 
 function extractMediaResult(result: Record<string, unknown>): MediaToolResult | null {
   const kindRaw = typeof result.kind === "string" ? result.kind.toLowerCase() : null;
-  if (kindRaw !== "image" && kindRaw !== "video") return null;
+  if (kindRaw !== "image" && kindRaw !== "video" && kindRaw !== "file") return null;
   const status = typeof result.status === "string" ? result.status.toLowerCase() : "succeeded";
   if (status === "failed" || status === "error" || status === "empty") return null;
 
@@ -212,6 +274,16 @@ function extractMediaResult(result: Record<string, unknown>): MediaToolResult | 
     prompt: prompt || null,
     thumbnailUrl: thumbnailUrl || null,
     playbackUrl: kindRaw === "video" ? resolvedUrl : null,
+    mimeType:
+      typeof (result as { mimeType?: unknown }).mimeType === "string"
+        ? ((result as { mimeType: string }).mimeType ?? "").trim()
+        : kindRaw === "file"
+          ? "application/octet-stream"
+          : null,
+    name:
+      typeof (result as { name?: unknown }).name === "string"
+        ? ((result as { name: string }).name ?? "").trim()
+        : null,
   };
 }
 
@@ -226,8 +298,22 @@ function findLatestMediaResult(toolRuns: ToolRunResult[]): MediaToolResult | nul
 function buildOutputAttachment(media: MediaToolResult): ComposerChatAttachment {
   return {
     id: safeRandomUUID(),
-    name: media.kind === "video" ? "Generated clip" : "Generated visual",
-    mimeType: media.kind === "video" ? "video/*" : "image/*",
+    name:
+      media.name && media.name.length
+        ? media.name
+        : media.kind === "video"
+          ? "Generated clip"
+          : media.kind === "file"
+            ? "Generated PDF"
+            : "Generated visual",
+    mimeType:
+      media.mimeType && media.mimeType.length
+        ? media.mimeType
+        : media.kind === "video"
+          ? "video/*"
+          : media.kind === "file"
+            ? "application/pdf"
+            : "image/*",
     size: 0,
     url: media.url,
     thumbnailUrl: media.thumbnailUrl,
@@ -247,6 +333,21 @@ function applyToolMediaToResponse(
   if (!media) return { response, attachments: null };
 
   const attachment = buildOutputAttachment(media);
+
+  if (media.kind === "file") {
+    const existingAttachments: ComposerChatAttachment[] =
+      response.action === "chat_reply" && Array.isArray(response.replyAttachments)
+        ? (response.replyAttachments as ComposerChatAttachment[])
+        : [];
+    const replyAttachments: ComposerChatAttachment[] = [...existingAttachments, attachment];
+    return {
+      response: {
+        ...response,
+        ...(response.action === "chat_reply" ? { replyAttachments } : {}),
+      },
+      attachments: replyAttachments,
+    };
+  }
 
   if (response.action === "draft_post") {
     const post = { ...(response.post ?? {}) };
@@ -434,7 +535,14 @@ async function handleSummarizeVideo(
   if (!attachment) {
     throw new Error(`Attachment ${attachmentId} is not available.`);
   }
-  const summary = await captionVideo(attachment.url, attachment.thumbnailUrl ?? null);
+  const rawUrl = attachment.url ?? null;
+  if (!rawUrl) {
+    return { status: "empty", attachmentId };
+  }
+  const rawThumb = attachment.thumbnailUrl ?? null;
+  const accessibleUrl = await ensureAccessibleMediaUrl(rawUrl);
+  const accessibleThumb = await ensureAccessibleMediaUrl(rawThumb);
+  const summary = await captionVideo(accessibleUrl ?? rawUrl, accessibleThumb ?? rawThumb);
   if (!summary) {
     return { status: "empty", attachmentId };
   }
@@ -456,6 +564,151 @@ async function handleEmbedText(args: Record<string, unknown>): Promise<Record<st
     status: "succeeded",
     dimensions: embedding.length,
     vector: embedding,
+  };
+}
+
+function sanitizePdfFilename(value: string | null | undefined): string {
+  const fallback = "capsule.pdf";
+  if (!value) return fallback;
+  const safe = value.replace(/[^\w.-]+/g, "_").replace(/_{2,}/g, "_").replace(/^_+|_+$/g, "");
+  const resolved = safe.length ? safe : "capsule";
+  return resolved.toLowerCase().endsWith(".pdf") ? resolved : `${resolved}.pdf`;
+}
+
+async function handleGeneratePdf(
+  args: Record<string, unknown>,
+  runtime: RuntimeContext,
+): Promise<Record<string, unknown>> {
+  const ownerId = runtime.ownerId;
+  if (!ownerId) {
+    throw new Error("generate_pdf requires an authenticated owner.");
+  }
+
+  const title = typeof args.title === "string" ? args.title.trim() : null;
+  const summary = typeof args.summary === "string" ? args.summary.trim() : null;
+  const body = typeof args.content === "string" ? args.content.trim() : null;
+  const footer = typeof args.footer === "string" ? args.footer.trim() : null;
+  const downloadName = typeof args.download_name === "string" ? args.download_name.trim() : null;
+
+  const bullets = Array.isArray(args.bullets)
+    ? (args.bullets as unknown[])
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter((entry) => entry.length > 0)
+    : [];
+
+  const sections = Array.isArray(args.sections)
+    ? (args.sections as unknown[])
+        .map((entry) => {
+          if (!entry || typeof entry !== "object") return null;
+          const heading =
+            typeof (entry as { heading?: unknown }).heading === "string"
+              ? ((entry as { heading: string }).heading ?? "").trim()
+              : "";
+          const content =
+            typeof (entry as { body?: unknown }).body === "string"
+              ? ((entry as { body: string }).body ?? "").trim()
+              : "";
+          if (!heading.length || !content.length) return null;
+          return { heading, body: content };
+        })
+        .filter((entry): entry is { heading: string; body: string } => Boolean(entry))
+    : [];
+
+  if (!summary && !body && !bullets.length && !sections.length) {
+    throw new Error("generate_pdf needs summary, content, bullets, or sections to render.");
+  }
+
+  const pdfDoc = await PDFDocument.create();
+  const normalFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  let page = pdfDoc.addPage();
+  const { width, height } = page.getSize();
+  let cursorY = height - 60;
+  const marginX = 50;
+
+  const lineHeight = 16;
+  const paragraphSpacing = 10;
+  const maxWidth = width - marginX * 2;
+
+  const drawBlock = (
+    text: string,
+    options: { font?: typeof normalFont; fontSize?: number; gapAbove?: number; gapBelow?: number } = {},
+  ) => {
+    const font = options.font ?? normalFont;
+    const fontSize = options.fontSize ?? 12;
+    const gapAbove = options.gapAbove ?? 0;
+    const gapBelow = options.gapBelow ?? paragraphSpacing;
+
+    if (!text.trim().length) return;
+    cursorY -= gapAbove;
+
+    const words = text.split(/\s+/);
+    let line = "";
+    const lines: string[] = [];
+    words.forEach((word) => {
+      const tentative = line.length ? `${line} ${word}` : word;
+      const w = font.widthOfTextAtSize(tentative, fontSize);
+      if (w <= maxWidth) {
+        line = tentative;
+      } else {
+        if (line.length) lines.push(line);
+        line = word;
+      }
+    });
+    if (line.length) lines.push(line);
+
+    lines.forEach((l) => {
+      if (cursorY < 80) {
+        page = pdfDoc.addPage();
+        cursorY = page.getSize().height - 60;
+      }
+      page.drawText(l, { x: marginX, y: cursorY, size: fontSize, font });
+      cursorY -= lineHeight;
+    });
+    cursorY -= gapBelow;
+  };
+
+  if (title) {
+    drawBlock(title, { font: boldFont, fontSize: 20, gapBelow: 14 });
+  }
+  if (summary) {
+    drawBlock(summary, { font: normalFont, fontSize: 13 });
+  }
+  if (bullets.length) {
+    bullets.forEach((entry) => {
+      drawBlock(`• ${entry}`, { font: normalFont, fontSize: 12, gapBelow: 6, gapAbove: 2 });
+    });
+  }
+  if (sections.length) {
+    sections.forEach((section) => {
+      drawBlock(section.heading, { font: boldFont, fontSize: 14, gapAbove: 8, gapBelow: 4 });
+      drawBlock(section.body, { font: normalFont, fontSize: 12 });
+    });
+  }
+  if (body && !sections.length) {
+    drawBlock(body, { font: normalFont, fontSize: 12 });
+  }
+  if (footer) {
+    drawBlock(footer, { font: normalFont, fontSize: 11, gapAbove: 12 });
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  const pdfBuffer = Buffer.from(pdfBytes);
+
+  const filename = sanitizePdfFilename(downloadName ?? title ?? "capsule");
+  const uploadName = filename.toLowerCase().endsWith(".pdf") ? filename.slice(0, -4) : filename;
+  const { url, key } = await uploadBufferToStorage(pdfBuffer, "application/pdf", uploadName, {
+    ownerId,
+    kind: "ai-pdf",
+  });
+
+  return {
+    status: "succeeded",
+    kind: "file",
+    mimeType: "application/pdf",
+    url,
+    name: filename,
+    storageKey: key ?? null,
   };
 }
 
@@ -498,6 +751,42 @@ async function handleFetchContext(
   };
 }
 
+async function handleSearchImages(
+  args: Record<string, unknown>,
+  runtime: RuntimeContext,
+): Promise<Record<string, unknown>> {
+  const rawQuery = typeof args.query === "string" ? args.query.trim() : "";
+  const query = rawQuery.length ? rawQuery : runtime.latestUserText;
+  const limitRaw = typeof args.limit === "number" ? args.limit : undefined;
+  const limit = limitRaw && Number.isFinite(limitRaw) ? Math.max(1, Math.min(limitRaw, 6)) : 4;
+
+  if (!query.trim().length) {
+    throw new Error("search_images requires a query.");
+  }
+  if (!isGoogleImageSearchConfigured()) {
+    return { status: "error", message: "Image search is not configured." };
+  }
+
+  const results = await searchGoogleImages(query, { limit });
+  if (!results.length) {
+    return { status: "empty", query };
+  }
+
+  const [primary] = results;
+  if (!primary) {
+    return { status: "empty", query };
+  }
+  return {
+    status: "succeeded",
+    kind: "image",
+    url: primary.link,
+    thumbnailUrl: primary.thumbnail ?? null,
+    prompt: query,
+    name: primary.title,
+    results,
+  };
+}
+
 const TOOL_HANDLERS: Record<
   string,
   (args: Record<string, unknown>, runtime: RuntimeContext) => Promise<Record<string, unknown>>
@@ -508,6 +797,8 @@ const TOOL_HANDLERS: Record<
   summarize_video: handleSummarizeVideo,
   embed_text: handleEmbedText,
   fetch_context: handleFetchContext,
+  search_images: handleSearchImages,
+  generate_pdf: handleGeneratePdf,
 };
 
 type ReplyMode = "chat" | "draft";
@@ -521,7 +812,7 @@ function buildSystemPrompt(replyMode: ReplyMode | null = null): string {
     "Never wrap JSON in markdown fences. Keep `message` warm and concise regardless of action.",
     "For drafts, the `post` block is used verbatim-respect tone, hashtags, CTA, and assets.",
     "Call render_image or render_video before referencing visual assets, and describe returned media accurately.",
-    "Use analyze_document / summarize_video / fetch_context / embed_text tools whenever needed.",
+    "Use analyze_document / summarize_video / fetch_context / search_images / embed_text / generate_pdf tools whenever needed.",
     "If the user supplies an existing post, treat it as the current draft and adjust only requested sections.",
   ];
 

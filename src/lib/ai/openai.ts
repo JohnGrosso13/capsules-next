@@ -4,6 +4,7 @@ import { serverEnv } from "../env/server";
 const DEFAULT_EMBED_MODEL = "text-embedding-3-large";
 
 const RESPONSES_COMPLETION_PREFIXES = ["gpt-5", "gpt-4.1", "o1", "o3", "o4"];
+const VISION_MODEL_FALLBACK = "gpt-4o";
 
 function shouldUseCompletionTokenKey(model: string | null | undefined): boolean {
   if (typeof model !== "string") return false;
@@ -15,6 +16,18 @@ function shouldUseCompletionTokenKey(model: string | null | undefined): boolean 
 export function buildCompletionTokenLimit(model: string | null | undefined, limit: number) {
   const key = shouldUseCompletionTokenKey(model) ? "max_completion_tokens" : "max_tokens";
   return { [key]: limit };
+}
+
+function resolveVisionModel(): string {
+  const configured = serverEnv.OPENAI_MODEL;
+  if (typeof configured === "string" && configured.toLowerCase().startsWith("gpt-4o")) {
+    return configured;
+  }
+  const summaryModel = serverEnv.OPENAI_SUMMARY_MODEL;
+  if (typeof summaryModel === "string" && summaryModel.toLowerCase().startsWith("gpt-4o")) {
+    return summaryModel;
+  }
+  return VISION_MODEL_FALLBACK;
 }
 
 function normalizeEmbedModel(value: string | null | undefined): string {
@@ -281,7 +294,7 @@ export async function captionImage(url: string): Promise<string | null> {
     // ignore URL parse errors
   }
   try {
-    const model = serverEnv.OPENAI_MODEL || "gpt-4o-mini";
+    const model = resolveVisionModel();
     const tokenLimit = buildCompletionTokenLimit(model, 180);
     const result = await postOpenAIJson<{
       choices?: Array<{ message?: { content?: string } }>;

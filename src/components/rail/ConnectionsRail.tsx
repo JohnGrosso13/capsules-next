@@ -1094,17 +1094,22 @@ export function ConnectionsRail() {
           </div>
           <div
             className={styles.railPanel}
-            hidden={activeRailTab !== "friends"}
-            data-tab="friends"
-          >
-            <header className={styles.railPanelHeader}>
-              <div className={styles.railPanelHeading}>
+          hidden={activeRailTab !== "friends"}
+          data-tab="friends"
+        >
+          <header className={styles.railPanelHeader}>
+            <div className={styles.railPanelHeading}>
+              <div className={styles.railPanelTitleRow}>
+                <span className={styles.railPanelTitleIcon} aria-hidden>
+                  <UsersThree size={18} weight="duotone" />
+                </span>
                 <h2 className={styles.railPanelTitle}>Friends</h2>
               </div>
-              <div className={styles.railPanelActions}>
-                <button
-                  type="button"
-                  className={styles.railPanelActionButton}
+            </div>
+            <div className={styles.railPanelActions}>
+              <button
+                type="button"
+                className={styles.railPanelActionButton}
                   aria-pressed={showFriendDiscover}
                   aria-label={showFriendDiscover ? "Hide add friends" : "Add friends"}
                   onClick={handleToggleFriendDiscover}

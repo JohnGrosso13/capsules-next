@@ -16,6 +16,7 @@ import {
 import type {
   PartyMetadata,
   PartyPrivacy,
+  PartyAssistantSettings,
   PartySummarySettings,
 } from "@/server/validation/schemas/party";
 import type { SummaryLengthHint } from "@/types/summary";
@@ -47,6 +48,9 @@ type BuildPartyMetadataParams = {
   ownerDisplayName: string | null;
   topic: string | null;
   privacy: PartyPrivacy;
+  assistant?: {
+    desired?: boolean;
+  } | null;
   summary?: {
     enabled?: boolean;
     verbosity?: SummaryLengthHint;
@@ -61,6 +65,15 @@ function resolveSummarySettings(input: BuildPartyMetadataParams["summary"]): Par
   return {
     enabled,
     verbosity,
+  };
+}
+
+function resolveAssistantSettings(input: BuildPartyMetadataParams["assistant"]): PartyAssistantSettings {
+  const desired = input?.desired ?? true;
+  return {
+    desired,
+    lastRequestedAt: desired ? new Date().toISOString() : null,
+    lastDismissedAt: desired ? null : new Date().toISOString(),
   };
 }
 
@@ -157,6 +170,74 @@ function mergeSummarySettings(
   return coerceSummarySettings(next);
 }
 
+function coerceAssistantSettings(raw: unknown): PartyAssistantSettings {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return resolveAssistantSettings(null);
+  }
+  const source = raw as Partial<PartyAssistantSettings & { desired?: unknown }>;
+  const desired =
+    typeof source.desired === "boolean" ? source.desired : Boolean((source as { desired?: unknown }).desired);
+
+  const settings: PartyAssistantSettings = {
+    desired,
+    lastRequestedAt:
+      "lastRequestedAt" in source && typeof source.lastRequestedAt === "string"
+        ? source.lastRequestedAt
+        : null,
+    lastDismissedAt:
+      "lastDismissedAt" in source && typeof source.lastDismissedAt === "string"
+        ? source.lastDismissedAt
+        : null,
+  };
+
+  return settings;
+}
+
+function mergeAssistantSettings(
+  base: PartyAssistantSettings,
+  patch: Partial<PartyAssistantSettings> | null | undefined,
+): PartyAssistantSettings {
+  if (patch === null) {
+    return resolveAssistantSettings(null);
+  }
+  if (!patch) {
+    return coerceAssistantSettings(base);
+  }
+
+  const desired =
+    typeof patch.desired === "boolean"
+      ? patch.desired
+      : typeof base.desired === "boolean"
+        ? base.desired
+        : true;
+
+  const next: PartyAssistantSettings = {
+    desired,
+    lastRequestedAt: base.lastRequestedAt ?? null,
+    lastDismissedAt: base.lastDismissedAt ?? null,
+  };
+
+  if ("lastRequestedAt" in patch) {
+    next.lastRequestedAt =
+      patch.lastRequestedAt === null || typeof patch.lastRequestedAt === "string"
+        ? patch.lastRequestedAt ?? null
+        : base.lastRequestedAt ?? null;
+  } else if (desired && !base.lastRequestedAt) {
+    next.lastRequestedAt = new Date().toISOString();
+  }
+
+  if ("lastDismissedAt" in patch) {
+    next.lastDismissedAt =
+      patch.lastDismissedAt === null || typeof patch.lastDismissedAt === "string"
+        ? patch.lastDismissedAt ?? null
+        : base.lastDismissedAt ?? null;
+  } else if (!desired) {
+    next.lastDismissedAt = new Date().toISOString();
+  }
+
+  return coerceAssistantSettings(next);
+}
+
 async function persistPartyMetadata(metadata: PartyMetadata): Promise<void> {
   await updateLivekitRoomMetadata(getPartyRoomName(metadata.partyId), metadata);
 }
@@ -169,6 +250,7 @@ export function buildPartyMetadata(params: BuildPartyMetadataParams): PartyMetad
     topic: params.topic,
     privacy: params.privacy,
     createdAt: new Date().toISOString(),
+    assistant: resolveAssistantSettings(params.assistant),
     summary: resolveSummarySettings(params.summary),
   };
 }
@@ -204,6 +286,7 @@ function coerceMetadata(room: LivekitRoomSnapshot | null): PartyMetadata | null 
         topic: parsed.topic ?? null,
         privacy: parsed.privacy ?? "friends",
         createdAt: parsed.createdAt ?? new Date().toISOString(),
+        assistant: coerceAssistantSettings((parsed as { assistant?: unknown }).assistant),
         summary: coerceSummarySettings((parsed as { summary?: unknown }).summary),
       };
     }
@@ -232,6 +315,7 @@ type PartyMetadataPatch = {
   topic?: string | null;
   privacy?: PartyPrivacy;
   summary?: Partial<PartySummarySettings> | null;
+  assistant?: Partial<PartyAssistantSettings> | null;
 };
 
 export async function updatePartyMetadata(
@@ -242,8 +326,11 @@ export async function updatePartyMetadata(
   if (!current) return null;
 
   const baseSummary = coerceSummarySettings(current.summary);
+  const baseAssistant = coerceAssistantSettings(current.assistant);
   const summaryPatch = patch.summary ?? undefined;
+  const assistantPatch = patch.assistant ?? undefined;
   let nextSummary = baseSummary;
+  let nextAssistant = baseAssistant;
 
   if (patch.summary === null) {
     nextSummary = resolveSummarySettings(null);
@@ -251,11 +338,18 @@ export async function updatePartyMetadata(
     nextSummary = mergeSummarySettings(baseSummary, summaryPatch);
   }
 
+  if (patch.assistant === null) {
+    nextAssistant = resolveAssistantSettings(null);
+  } else if (assistantPatch) {
+    nextAssistant = mergeAssistantSettings(baseAssistant, assistantPatch);
+  }
+
   const { summary: _summary, ...restPatch } = patch;
 
   const nextMetadata: PartyMetadata = {
     ...current,
     ...restPatch,
+    assistant: nextAssistant,
     summary: nextSummary,
     createdAt: current.createdAt ?? new Date().toISOString(),
   };

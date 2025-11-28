@@ -1,0 +1,227 @@
+.header {
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + var(--space-2xs));
+  z-index: 2050;
+  display: none;
+  padding: var(--space-xs)
+    max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, var(--space-md))) 0
+    max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, var(--space-md)));
+  margin-bottom: var(--space-md);
+}
+
+/* Mobile only */
+@media (max-width: 640px) {
+  .header {
+    display: block;
+  }
+}
+
+.inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md-plus);
+  padding: var(--space-sm-plus) var(--space-md);
+  border-radius: 18px;
+  background:
+    radial-gradient(130% 120% at 12% 0%, rgba(99, 102, 241, 0.18), transparent 60%),
+    radial-gradient(140% 130% at 90% 0%, rgba(34, 211, 238, 0.16), transparent 55%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  box-shadow:
+    0 14px 40px rgba(5, 10, 30, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(5, 10, 30, 0.35);
+  backdrop-filter: blur(18px) saturate(1.28);
+  -webkit-backdrop-filter: blur(18px) saturate(1.28);
+}
+
+.inner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.02) 38%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  opacity: 0.4;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm-plus);
+  color: var(--text);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.brandMark {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: var(--brand-gradient, linear-gradient(120deg, #8b5cf6 0%, #6366f1 55%, #22d3ee 100%));
+  border: 1px solid color-mix(in srgb, var(--color-brand) 38%, var(--color-border) 62%);
+  box-shadow:
+    0 12px 26px color-mix(in srgb, var(--color-brand) 30%, rgba(5, 10, 30, 0.65)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(5, 10, 30, 0.35);
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.brandMark::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 15px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+  mix-blend-mode: screen;
+  opacity: 0.5;
+}
+
+.brandGlow {
+  position: absolute;
+  inset: -12%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.32), transparent 55%);
+  filter: blur(12px);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.brandIcon {
+  width: 26px;
+  height: 26px;
+  color: var(--color-brand-foreground, #f8fafc);
+  filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--color-brand) 46%, transparent));
+  position: relative;
+  z-index: 1;
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.05;
+}
+
+.brandTitle {
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+
+.brandHint {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-fg-subtle, rgba(255, 255, 255, 0.6));
+}
+
+@media (max-width: 420px) {
+  .brandText {
+    display: none;
+  }
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm-plus);
+  margin-left: auto;
+}
+
+.actionButton {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  box-shadow:
+    0 6px 14px rgba(5, 10, 30, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  display: grid;
+  place-items: center;
+  color: var(--color-fg-muted, rgba(255, 255, 255, 0.72));
+  text-decoration: none;
+  transition:
+    transform var(--motion-duration-medium) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-medium) var(--motion-ease-standard),
+    border-color var(--motion-duration-medium) var(--motion-ease-standard),
+    color var(--motion-duration-medium) var(--motion-ease-standard),
+    background var(--motion-duration-medium) var(--motion-ease-standard);
+  overflow: visible;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.actionButton:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-border-strong) 80%, transparent);
+  color: var(--text);
+  box-shadow:
+    0 12px 28px rgba(5, 10, 30, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(5, 10, 30, 0.2);
+}
+
+.actionButton:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-brand) 55%, transparent),
+    0 0 0 6px color-mix(in srgb, var(--color-brand) 20%, transparent),
+    0 12px 24px rgba(5, 10, 30, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.actionButtonActive {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--color-brand) 65%, transparent);
+  background: linear-gradient(135deg, #8b5cf6, #6366f1, #22d3ee);
+  box-shadow:
+    0 14px 32px color-mix(in srgb, var(--color-brand) 32%, rgba(5, 10, 30, 0.5)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(5, 10, 30, 0.32);
+}
+
+.iconWrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+}
+
+.iconSvg {
+  width: 22px;
+  height: 22px;
+}
+
+.actionButton[aria-expanded="true"],
+.actionButton[data-state="open"] {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--color-brand) 65%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, #8b5cf6 90%, transparent), #6366f1, #22d3ee);
+  box-shadow:
+    0 14px 32px color-mix(in srgb, var(--color-brand) 32%, rgba(5, 10, 30, 0.5)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(5, 10, 30, 0.32);
+}
+
+.actionButton[data-unread="true"] {
+  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+  box-shadow:
+    0 12px 28px color-mix(in srgb, var(--color-brand) 22%, rgba(5, 10, 30, 0.45)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(5, 10, 30, 0.3);
+}

@@ -2,6 +2,8 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  /* Allow native selects to escape the card when open */
+  overflow: visible !important;
 }
 
 .body {
@@ -101,4 +103,10 @@
 .select:disabled {
   opacity: 0.62;
   cursor: not-allowed;
+}
+
+.select option {
+  color: #0b122c;
+  background: #ffffff;
+  font-weight: 600;
 }

@@ -29,6 +29,7 @@ import { useComposer } from "@/components/composer/ComposerProvider";
 import { Button } from "@/components/ui/button";
 import { HomeFeedList } from "@/components/home-feed-list";
 import { FeedSurface } from "@/components/feed-surface";
+import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import {
   buildDocumentCardData,
   buildPrompterAttachment,
@@ -57,6 +58,7 @@ import CapsuleWikiView from "./CapsuleWikiView";
 type CapsuleTab = "live" | "feed" | "store";
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
 const FEED_TARGET_EVENT = "composer:feed-target";
+const LIGHTBOX_EVENT_NAME = "capsules:lightbox:open";
 type CapsuleHeroSection = "featured" | "events" | "history" | "media" | "files";
 
 export type CapsuleContentProps = {
@@ -1529,6 +1531,8 @@ function CapsuleFeed({
     return raw && raw.trim().length ? raw.trim() : null;
   });
   const [clearedQueryParam, setClearedQueryParam] = React.useState(false);
+  const [externalPost, setExternalPost] = React.useState<HomeFeedPost | null>(null);
+  const [externalLoading, setExternalLoading] = React.useState(false);
 
   React.useEffect(() => {
     if (!capsuleId) {
@@ -1562,6 +1566,10 @@ function CapsuleFeed({
     setClearedQueryParam(true);
   }, [focusPostId, clearedQueryParam, pathname, router, searchParamsString]);
 
+  React.useEffect(() => {
+    setExternalPost(null);
+  }, [capsuleId]);
+
   const {
     posts,
     likePending,
@@ -1588,6 +1596,93 @@ function CapsuleFeed({
     isLoadingMore,
   } = useCapsuleFeed(capsuleId);
 
+  React.useEffect(() => {
+    const handleLightboxOpen = async (event: Event) => {
+      const detail = (event as CustomEvent<{ postId?: string }>).detail;
+      const postId = detail?.postId;
+      if (typeof postId !== "string" || !postId.trim().length) return;
+      const normalized = postId.trim();
+      setFocusPostId(normalized);
+
+      if (posts.some((post) => post.id === normalized)) {
+        return;
+      }
+
+      if (externalLoading) return;
+      setExternalLoading(true);
+      try {
+        const response = await fetch("/api/posts/view", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: normalized }),
+        });
+        if (!response.ok) {
+          console.warn("Lightbox fetch failed", response.status);
+          return;
+        }
+        const data = (await response.json()) as { post?: HomeFeedPost };
+        if (data?.post && typeof data.post.id === "string") {
+          setExternalPost(data.post);
+        }
+      } catch (error) {
+        console.warn("Lightbox fetch error", error);
+      } finally {
+        setExternalLoading(false);
+      }
+    };
+
+    window.addEventListener(LIGHTBOX_EVENT_NAME, handleLightboxOpen as EventListener);
+    return () => {
+      window.removeEventListener(LIGHTBOX_EVENT_NAME, handleLightboxOpen as EventListener);
+    };
+  }, [externalLoading, posts]);
+
+  React.useEffect(() => {
+    const target = focusPostId?.trim();
+    if (!target) return;
+    if (externalLoading) return;
+    if (externalPost?.id === target) return;
+    if (posts.some((post) => post.id === target)) return;
+
+    let cancelled = false;
+    const fetchPost = async () => {
+      setExternalLoading(true);
+      try {
+        const response = await fetch("/api/posts/view", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: target }),
+        });
+        if (!response.ok) {
+          console.warn("Lightbox fetch failed", response.status);
+          return;
+        }
+        const data = (await response.json()) as { post?: HomeFeedPost };
+        if (!cancelled && data?.post && typeof data.post.id === "string") {
+          setExternalPost(data.post);
+        }
+      } catch (error) {
+        console.warn("Lightbox fetch error", error);
+      } finally {
+        if (!cancelled) {
+          setExternalLoading(false);
+        }
+      }
+    };
+
+    void fetchPost();
+    return () => {
+      cancelled = true;
+    };
+  }, [externalLoading, externalPost?.id, focusPostId, posts]);
+
+  const postsWithExternal = React.useMemo(() => {
+    if (externalPost && !posts.some((post) => post.id === externalPost.id)) {
+      return [externalPost, ...posts];
+    }
+    return posts;
+  }, [externalPost, posts]);
+
   const emptyMessage = capsuleName
     ? `No posts in ${capsuleName} yet. Be the first to share an update.`
     : "No posts in this capsule yet. Be the first to share an update.";
@@ -1598,7 +1693,7 @@ function CapsuleFeed({
         <div className={feedStyles.postFriendNotice}>{friendMessage}</div>
       ) : null}
       <HomeFeedList
-        posts={posts}
+        posts={postsWithExternal}
         likePending={likePending}
         memoryPending={memoryPending}
         activeFriendTarget={activeFriendTarget}

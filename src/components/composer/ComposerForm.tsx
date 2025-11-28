@@ -44,6 +44,7 @@ import type {
   SummaryPresentationOptions,
 } from "@/lib/composer/summary-context";
 import type { SummaryResult } from "@/types/summary";
+import type { SearchOpenDetail, SearchSelectionPayload } from "@/types/search";
 import { useCurrentUser } from "@/services/auth/client";
 import {
   useAttachmentRail,
@@ -65,6 +66,8 @@ import {
   COMPOSER_IMAGE_QUALITY_OPTIONS,
   titleCaseComposerQuality,
 } from "@/lib/composer/image-settings";
+
+const SEARCH_EVENT_NAME = "capsules:search:open";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
@@ -109,6 +112,7 @@ type ComposerToolbarProps = {
   onPreviewToggle?: () => void;
   previewOpen?: boolean;
   isMobile?: boolean;
+  onSearchSelect?: (payload: SearchSelectionPayload) => void;
 };
 
 function ComposerToolbar({
@@ -126,11 +130,20 @@ function ComposerToolbar({
   onPreviewToggle,
   previewOpen,
   isMobile,
+  onSearchSelect,
 }: ComposerToolbarProps) {
   const handleSearchClick = React.useCallback(() => {
     if (typeof window === "undefined") return;
-    window.dispatchEvent(new CustomEvent("capsules:search:open"));
-  }, []);
+    const detail: SearchOpenDetail | undefined =
+      typeof onSearchSelect === "function"
+        ? { mode: "composer", onSelect: onSearchSelect }
+        : undefined;
+    window.dispatchEvent(
+      detail
+        ? new CustomEvent<SearchOpenDetail>(SEARCH_EVENT_NAME, { detail })
+        : new CustomEvent(SEARCH_EVENT_NAME),
+    );
+  }, [onSearchSelect]);
 
   return (
     <>
@@ -144,7 +157,10 @@ function ComposerToolbar({
         <X size={18} weight="bold" />
       </button>
 
-      <header className={styles.panelToolbar}>
+      <header
+        className={styles.panelToolbar}
+        data-context-active={contextActive ? "true" : undefined}
+      >
         <div className={styles.toolbarHeading}>
           <div className={styles.toolbarBrandRow}>
             <span className={styles.memoryLogo} aria-label="Memory">
@@ -152,7 +168,7 @@ function ComposerToolbar({
             </span>
             <div className={styles.imageControls}>
               <label className={styles.imageControl}>
-                <span className={styles.imageControlLabel}>Quality</span>
+                <span className={styles.imageControlLabel}>Image Quality</span>
                 <select
                   className={styles.imageSelect}
                   value={imageQuality}
@@ -192,9 +208,7 @@ function ComposerToolbar({
             data-active={smartContextEnabled ? "true" : undefined}
             title={smartContextEnabled ? "Smart context is feeding Capsule AI" : "Enable smart context to ground Capsule AI with your memories"}
           >
-            <Sparkle size={18} weight={smartContextEnabled ? "fill" : "duotone"} />
             <span>{smartContextEnabled ? "Context on" : "Context off"}</span>
-            {contextActive ? <span className={styles.smartContextPulse} aria-hidden="true" /> : null}
           </button>
           {isMobile && onMenuToggle ? (
             <button
@@ -549,6 +563,7 @@ function formatDescriptionFromText(
 
 type ComposerFormProps = {
   loading: boolean;
+  loadingKind?: "image" | "video" | null;
   draft: ComposerDraft | null;
   prompt: string;
   message?: string | null | undefined;
@@ -591,6 +606,7 @@ type ComposerFormProps = {
 
 export function ComposerForm({
   loading,
+  loadingKind = null,
   draft,
   prompt,
   message,
@@ -906,6 +922,35 @@ export function ComposerForm({
     vibeSuggestions,
   });
 
+  const handleSearchSelection = React.useCallback(
+    (selection: SearchSelectionPayload) => {
+      const normalizedPrompt = (selection.promptText ?? "").trim();
+      if (normalizedPrompt.length) {
+        setPromptValue((previous) => {
+          const existing = (previous ?? "").trim();
+          if (!existing.length) return normalizedPrompt;
+          return `${existing} ${normalizedPrompt}`;
+        });
+      }
+
+      if (selection.attachment?.url && !attachmentUploading) {
+        attachRemoteAttachment({
+          url: selection.attachment.url,
+          name: selection.attachment.title ?? selection.title ?? null,
+          mimeType: selection.attachment.mimeType ?? null,
+          thumbUrl: selection.attachment.thumbUrl ?? null,
+        });
+      }
+
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => {
+          promptInputRef.current?.focus();
+        });
+      }
+    },
+    [attachmentUploading, attachRemoteAttachment, promptInputRef, setPromptValue],
+  );
+
   const summarySidebar = useSummarySidebar({
     summaryEntries,
     cloudflareEnabled,
@@ -1100,6 +1145,27 @@ export function ComposerForm({
       }
     },
     [attachRemoteAttachment, closeAttachmentPicker, closeMobileRail, promptInputRef],
+  );
+
+  const handleAddAttachmentToPreview = React.useCallback(
+    (attachment: ComposerChatAttachment) => {
+      const url = (attachment.url ?? "").trim();
+      if (!url) return;
+      attachRemoteAttachment({
+        url,
+        name: attachment.name ?? "Generated visual",
+        mimeType: attachment.mimeType ?? "image/*",
+        thumbUrl: attachment.thumbnailUrl ?? null,
+        size: typeof attachment.size === "number" ? attachment.size : null,
+      });
+      actions.setPreviewOpen(true);
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => {
+          promptInputRef.current?.focus();
+        });
+      }
+    },
+    [actions, attachRemoteAttachment, promptInputRef],
   );
 
   const handleMemoryTabChange = React.useCallback(
@@ -1582,12 +1648,11 @@ export function ComposerForm({
 
   const sidebarContent = React.useMemo(() => {
     switch (activeSidebarTab) {
-      case "recent":
-        return (
-          <SidebarSection
-            title="Recent chats"
-            description="Pick up where you and Capsule left off."
-            items={recentSidebarItems}
+        case "recent":
+          return (
+            <SidebarSection
+              title="Recent chats"
+              items={recentSidebarItems}
             emptyMessage="No chats yet"
             thumbClassName={styles.memoryThumbChat ?? ""}
             maxVisible={RECENT_VISIBLE_LIMIT}
@@ -1773,6 +1838,7 @@ export function ComposerForm({
       prompt={prompt}
       message={message}
       loading={loading}
+      loadingKind={loadingKind}
       displayAttachment={displayAttachment}
       attachmentKind={attachmentKind}
       attachmentStatusLabel={attachmentStatusLabel ?? null}
@@ -1789,6 +1855,7 @@ export function ComposerForm({
       showQuickPromptBubble={showQuickPromptBubble}
       quickPromptBubbleOptions={quickPromptBubbleOptions}
       promptSurfaceProps={promptSurfaceProps}
+      onAddAttachmentToPreview={handleAddAttachmentToPreview}
     />
   );
 
@@ -1849,6 +1916,7 @@ export function ComposerForm({
           onPreviewToggle={handlePreviewToggle}
           previewOpen={previewOpen}
           isMobile={isMobileLayout}
+          onSearchSelect={handleSearchSelection}
         />
 
         <div className={styles.panelBody}>

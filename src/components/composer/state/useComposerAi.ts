@@ -253,6 +253,7 @@ export function useComposerAi({
           ...prev,
           open: true,
           loading: false,
+          loadingKind: null,
           prompt,
           draft: mergedDraft,
           rawPost: mergedRawPost,

@@ -173,6 +173,11 @@ export async function listLivekitRoomParticipants(name: string): Promise<Partici
   return client.listParticipants(name);
 }
 
+export async function removeLivekitParticipant(roomName: string, identity: string): Promise<void> {
+  const client = getRoomServiceClient();
+  await client.removeParticipant(roomName, identity);
+}
+
 export async function issueLivekitAccessToken(
   options: LivekitAccessTokenOptions,
 ): Promise<LivekitIssuedToken> {

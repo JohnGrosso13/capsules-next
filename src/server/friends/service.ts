@@ -43,6 +43,7 @@ import {
   updatePendingRequest,
 } from "./repository";
 import { listViewerCapsuleInvites } from "@/server/capsules/repository";
+import { notifyFriendRequest } from "@/server/notifications/triggers";
 
 import { asString, mapBlockRow, mapFollowRow, mapFriendRow, mapRequestRow } from "./mappers";
 
@@ -174,6 +175,8 @@ export async function sendFriendRequest(
       },
     },
   ]);
+
+  void notifyFriendRequest(incoming);
 
   return outgoing;
 }

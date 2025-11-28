@@ -744,6 +744,15 @@ export async function searchMemories({
   const trimmed = query.trim();
   if (!trimmed) return [];
 
+  const sanitizeHighlight = (value: unknown): string | null => {
+    if (typeof value !== "string") return null;
+    const escaped = value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    return escaped.replace(/&lt;(\/?)em&gt;/gi, "<$1em>");
+  };
+
   const searchIndex = getSearchIndex();
   const highlightMap = new Map<string, string | null>();
   const algoliaRecordMap = new Map<string, SearchIndexRecord>();
@@ -791,7 +800,10 @@ export async function searchMemories({
         const score = (typeof match.score === "number" ? match.score : 0) - index * 0.001;
         addCandidate(match.id, score);
         if (match.highlight) {
-          highlightMap.set(match.id, match.highlight);
+          const safeHighlight = sanitizeHighlight(match.highlight);
+          if (safeHighlight) {
+            highlightMap.set(match.id, safeHighlight);
+          }
         }
         if (match.record) {
           algoliaRecordMap.set(match.id, match.record);

@@ -3,6 +3,8 @@ export type MemorySearchItem = {
   kind?: string | null;
   title?: string | null;
   description?: string | null;
+  post_id?: string | null;
+  postId?: string | null;
   mediaUrl?: string | null;
   media_type?: string | null;
   mediaType?: string | null;
@@ -10,6 +12,7 @@ export type MemorySearchItem = {
   created_at?: string | null;
   createdAt?: string | null;
   meta?: Record<string, unknown> | null;
+  relevanceScore?: number | null;
 };
 
 export type UserSearchResult = {
@@ -22,6 +25,7 @@ export type UserSearchResult = {
   url: string;
   highlight: string | null;
   subtitle: string | null;
+  relevanceScore?: number | null;
 };
 
 export type CapsuleSearchResult = {
@@ -29,17 +33,19 @@ export type CapsuleSearchResult = {
   id: string;
   name: string;
   slug: string | null;
-  ownership: "owner" | "member";
+  ownership: "owner" | "member" | "follower";
   role: string | null;
   bannerUrl: string | null;
   logoUrl: string | null;
   url: string;
   highlight: string | null;
   subtitle: string | null;
+  relevanceScore?: number | null;
 };
 
 export type MemorySearchResult = MemorySearchItem & {
   type: "memory";
+  relevanceScore?: number | null;
 };
 
 export type CapsuleRecordSearchResult = {
@@ -60,4 +66,25 @@ export type GlobalSearchSection =
 export type GlobalSearchResponse = {
   query: string;
   sections: GlobalSearchSection[];
+};
+
+export type SearchSelectionAttachment = {
+  url: string;
+  thumbUrl?: string | null;
+  mimeType?: string | null;
+  title?: string | null;
+  description?: string | null;
+};
+
+export type SearchSelectionPayload = {
+  kind: "user" | "capsule" | "memory" | "capsule_record";
+  promptText: string;
+  title?: string | null;
+  url?: string | null;
+  attachment?: SearchSelectionAttachment | null;
+};
+
+export type SearchOpenDetail = {
+  mode?: "default" | "composer";
+  onSelect?: (payload: SearchSelectionPayload) => void;
 };

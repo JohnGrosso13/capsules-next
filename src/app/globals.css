@@ -1100,8 +1100,28 @@
   ::after {
     box-sizing: border-box;
   }
-    :root {
+  :root {
     color-scheme: dark;
+    --accessibility-text-scale: 1;
+  }
+
+  html {
+    font-size: calc(16px * var(--accessibility-text-scale, 1));
+    line-height: calc(1.5 * var(--accessibility-text-scale, 1));
+  }
+
+  html[data-reduce-motion="true"] {
+    scroll-behavior: auto !important;
+  }
+
+  html[data-reduce-motion="true"] .animate-marquee,
+  html[data-reduce-motion="true"] .animate-marquee-slow,
+  html[data-reduce-motion="true"] .animate-marquee-slower {
+    animation: none !important;
+  }
+
+  html[data-reduce-motion="true"] .background-fx-root {
+    display: none !important;
   }
 
 

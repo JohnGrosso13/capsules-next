@@ -38,6 +38,7 @@ import {
   getCapsuleHistorySnippets,
 } from "@/server/chat/retrieval";
 import type { ChatMemorySnippet } from "@/server/chat/retrieval";
+import { getUserCapsules } from "@/server/capsules/service";
 import { getUserCardCached } from "@/server/chat/user-card";
 
 const attachmentSchema = z.object({
@@ -201,6 +202,37 @@ function detectRecallIntent(params: {
   const mentionsAttachment =
     attachments.length > 0 && /attachment|file|upload|photo|image|picture|doc|pdf|screenshot/.test(text);
   return mentionsRecall || mentionsAttachment;
+}
+
+function normalizeSearchText(value: string | null | undefined): string | null {
+  if (!value || typeof value !== "string") return null;
+  const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return normalized.length ? normalized : null;
+}
+
+async function inferCapsuleIdFromMessage(params: {
+  ownerId: string;
+  capsuleId: string | null;
+  message: string;
+  history: ComposerChatMessage[] | undefined;
+}): Promise<string | null> {
+  if (params.capsuleId) return params.capsuleId.trim();
+  const haystack = normalizeSearchText(
+    [params.message, collectRecentUserText(params.history)].filter(Boolean).join(" "),
+  );
+  if (!haystack) return null;
+  try {
+    const capsules = await getUserCapsules(params.ownerId);
+    const match = capsules.find((capsule) => {
+      const name = normalizeSearchText(capsule.name);
+      const slug = normalizeSearchText(capsule.slug);
+      return (name && haystack.includes(name)) || (slug && haystack.includes(slug));
+    });
+    return match?.id ?? null;
+  } catch (error) {
+    console.warn("capsule inference failed", { ownerId: params.ownerId, error });
+    return null;
+  }
 }
 
 function buildAssistantAttachments(
@@ -395,7 +427,7 @@ export async function POST(req: Request) {
   const rawOptions = (parsed.data.options as Record<string, unknown> | undefined) ?? {};
   const incomingPost =
     (parsed.data.post as Record<string, unknown> | null | undefined) ?? null;
-  const capsuleId = parsed.data.capsuleId ?? null;
+  let capsuleId = parsed.data.capsuleId ?? null;
 
   const streamOption =
     typeof rawOptions["stream"] === "boolean"
@@ -410,6 +442,14 @@ export async function POST(req: Request) {
   const threadId = coerceThreadId(parsed.data.threadId);
   const contextStart = Date.now();
   const streaming = parsed.data.stream === true || streamOption === true;
+  if (!capsuleId) {
+    capsuleId = await inferCapsuleIdFromMessage({
+      ownerId,
+      capsuleId,
+      message,
+      history: previousHistory,
+    });
+  }
 
   const recallIntent = detectRecallIntent({
     message,

@@ -176,24 +176,6 @@ export function LiveStudioTab({
                       </span>
                     </div>
                   </div>
-                  <div className={styles.previewMeta}>
-                    <div>
-                      <span className={styles.previewMetaLabel}>Primary ingest</span>
-                      <span className={styles.previewMetaValue}>
-                        {streamOverview?.ingest.primary ?? "rtmps://global-live.mux.com:443/app"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className={styles.previewMetaLabel}>Stream key</span>
-                      <span className={styles.previewMetaValue}>{streamOverview?.ingest.streamKey ?? "--"}</span>
-                    </div>
-                    <div>
-                      <span className={styles.previewMetaLabel}>Playback ID</span>
-                      <span className={styles.previewMetaValue}>
-                        {streamOverview?.playback.playbackId ?? "--"}
-                      </span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -396,7 +378,6 @@ export function LiveStudioTab({
     </PanelGroup>
   );
 }
-
 
 
 

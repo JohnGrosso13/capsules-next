@@ -11,6 +11,7 @@ import {
   useComposer,
 } from "@/components/composer/ComposerProvider";
 import { PrimaryHeader } from "@/components/primary-header";
+import { MobileHeader } from "@/components/mobile-header";
 import { DiscoveryRail } from "@/components/rail/DiscoveryRail";
 import { LiveChatRail, type LiveChatRailProps } from "@/components/live/LiveChatRail";
 
@@ -163,6 +164,7 @@ function AppShellContent({
   return (
     <div className={styles.outer} data-layout={effectiveLayout}>
       <PrimaryHeader activeKey={derivedActive} />
+      <MobileHeader />
       <div className={styles.page} data-layout={effectiveLayout}>
         <main className={styles.main}>
           {showPrompter ? (

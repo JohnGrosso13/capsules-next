@@ -68,6 +68,26 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup, frie
     return map;
   }, [eligibleFriends]);
 
+  const friendLookup = React.useMemo(() => {
+    const map = new Map<string, { name: string | null; avatar: string | null }>();
+    eligibleFriends.forEach((friend) => {
+      const name = friend.name?.trim() || friend.userId || friend.key || null;
+      const avatar = friend.avatar ?? null;
+      const identifiers: string[] = [];
+      if (typeof friend.userId === "string") identifiers.push(friend.userId);
+      if (typeof friend.key === "string") identifiers.push(friend.key);
+      if (typeof friend.id === "string" || typeof friend.id === "number") {
+        identifiers.push(String(friend.id));
+      }
+      identifiers.forEach((identifier) => {
+        const trimmed = identifier.trim();
+        if (!trimmed || map.has(trimmed)) return;
+        map.set(trimmed, { name, avatar });
+      });
+    });
+    return map;
+  }, [eligibleFriends]);
+
   const canStartNewChat = eligibleFriends.length > 0;
 
   const selfIdentifiers = React.useMemo(() => {
@@ -202,11 +222,10 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup, frie
       <div className={styles.chatListShell}>
         <div className={styles.chatListHeader}>
           <div className={styles.chatListTitleBlock}>
-            <span className={styles.chatListTitle}>
-              <ChatsTeardrop size={18} weight="fill" />
-              <span>Chats</span>
+            <span className={styles.chatListTitleIcon} aria-hidden>
+              <ChatsTeardrop size={18} weight="duotone" />
             </span>
-            <span className={styles.chatListSubtitle}>Tap + to start a DM or group chat</span>
+            <span className={styles.chatListTitle}>Chats</span>
           </div>
           <button
             type="button"
@@ -226,6 +245,7 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup, frie
           onDelete={handleDelete}
           emptyNotice={emptyNotice}
           selfIdentifiers={selfIdentifiers}
+          friendLookup={friendLookup}
         />
       </div>
 

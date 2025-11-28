@@ -112,10 +112,29 @@ export function useChatConversationController({
   const friendLookup = React.useMemo(() => {
     const map = new Map<string, { name: string; avatar: string | null }>();
     friends.forEach((friend) => {
-      if (!friend?.userId) return;
-      map.set(friend.userId, {
-        name: friend.name?.trim() || friend.userId,
+      if (!friend) return;
+      const primaryName =
+        friend.name?.trim() ||
+        (typeof friend.userId === "string" ? friend.userId : null) ||
+        (typeof friend.key === "string" ? friend.key : null) ||
+        (typeof friend.id === "string" || typeof friend.id === "number"
+          ? String(friend.id)
+          : null) ||
+        "";
+      const profile = {
+        name: primaryName || "Unknown user",
         avatar: friend.avatar ?? null,
+      };
+      const identifiers: string[] = [];
+      if (typeof friend.userId === "string") identifiers.push(friend.userId);
+      if (typeof friend.key === "string") identifiers.push(friend.key);
+      if (typeof friend.id === "string" || typeof friend.id === "number") {
+        identifiers.push(String(friend.id));
+      }
+      identifiers.forEach((identifier) => {
+        const trimmed = identifier.trim();
+        if (!trimmed || map.has(trimmed)) return;
+        map.set(trimmed, profile);
       });
     });
     return map;
@@ -643,6 +662,5 @@ export function useChatConversationController({
     contextMenuProps,
   };
 }
-
 
 

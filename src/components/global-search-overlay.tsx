@@ -12,11 +12,14 @@ import type {
   MemorySearchResult,
   UserSearchResult,
   CapsuleRecordSearchResult,
+  SearchOpenDetail,
+  SearchSelectionPayload,
 } from "@/types/search";
 
 import styles from "./global-search.module.css";
 
 const SEARCH_EVENT_NAME = "capsules:search:open";
+const LIGHTBOX_EVENT_NAME = "capsules:lightbox:open";
 const DEBOUNCE_DELAY_MS = 140;
 const MIN_QUERY_LENGTH = 2;
 const RECORD_KIND_LABEL: Record<CapsuleRecordSearchResult["kind"], string> = {
@@ -33,18 +36,19 @@ const SECTION_LABEL: Record<GlobalSearchSection["type"], string> = {
   capsule_records: "Capsule records",
 };
 
-const SECTION_PRIORITY: Record<GlobalSearchSection["type"], number> = {
-  users: 0,
-  capsules: 1,
-  capsule_records: 2,
-  memories: 3,
-};
+type SelectionMode = "default" | "composer";
+
+const formatPromptText = (...segments: Array<string | null | undefined>) =>
+  segments
+    .map((segment) => (segment ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
 
 function normalizeSections(
   sections: GlobalSearchSection[] | null | undefined,
 ): GlobalSearchSection[] {
   if (!Array.isArray(sections)) return [];
-  return sections.slice().sort((a, b) => SECTION_PRIORITY[a.type] - SECTION_PRIORITY[b.type]);
+  return sections.slice();
 }
 
 export function GlobalSearchOverlay() {
@@ -54,9 +58,11 @@ export function GlobalSearchOverlay() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sections, setSections] = useState<GlobalSearchSection[]>([]);
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>("default");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const overlayPointerDownRef = useRef(false);
+  const selectionHandlerRef = useRef<SearchOpenDetail["onSelect"] | null>(null);
   const trimmedQuery = useMemo(() => query.trim(), [query]);
 
   const formatter = useMemo(() => {
@@ -75,6 +81,8 @@ export function GlobalSearchOverlay() {
     setQuery("");
     setSections([]);
     setError(null);
+    setSelectionMode("default");
+    selectionHandlerRef.current = null;
   }, []);
 
   const handleNavigate = useCallback(
@@ -87,10 +95,21 @@ export function GlobalSearchOverlay() {
   );
 
   useEffect(() => {
-    const handleOpen: EventListener = () => setOpen(true);
-    window.addEventListener(SEARCH_EVENT_NAME, handleOpen);
+    const handleOpen = (event: Event) => {
+      const detail = (event as CustomEvent<SearchOpenDetail | undefined>).detail;
+      if (detail?.mode === "composer" && typeof detail.onSelect === "function") {
+        selectionHandlerRef.current = detail.onSelect;
+        setSelectionMode("composer");
+      } else {
+        selectionHandlerRef.current = null;
+        setSelectionMode("default");
+      }
+      setOpen(true);
+    };
+
+    window.addEventListener(SEARCH_EVENT_NAME, handleOpen as EventListener);
     return () => {
-      window.removeEventListener(SEARCH_EVENT_NAME, handleOpen);
+      window.removeEventListener(SEARCH_EVENT_NAME, handleOpen as EventListener);
     };
   }, []);
 
@@ -186,8 +205,6 @@ export function GlobalSearchOverlay() {
     };
   }, [open, trimmedQuery]);
 
-  if (!open) return null;
-
   const hasResults = sections.some((section) => section.items.length > 0);
 
   const renderMemoryHighlight = (item: MemorySearchItem) => {
@@ -195,6 +212,132 @@ export function GlobalSearchOverlay() {
     const highlight = typeof meta?.search_highlight === "string" ? meta.search_highlight : null;
     if (!highlight) return null;
     return <p className={styles.resultHighlight} dangerouslySetInnerHTML={{ __html: highlight }} />;
+  };
+
+  const resolveMemoryPostId = (item: MemorySearchResult): string | null => {
+    const meta = (item.meta ?? {}) as Record<string, unknown>;
+    const metaPostId = (() => {
+      const candidates = [meta.post_id, meta.postId];
+      for (const candidate of candidates) {
+        if (typeof candidate === "string" && candidate.trim().length) return candidate.trim();
+      }
+      return null;
+    })();
+    const candidates = [item.post_id, item.postId, metaPostId];
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim().length) {
+        return candidate.trim();
+      }
+    }
+    return null;
+  };
+
+  const resolveMemoryNavigateUrl = (item: MemorySearchResult): string | null => {
+    const postId = resolveMemoryPostId(item);
+    if (postId) {
+      return `/home?postId=${encodeURIComponent(postId)}`;
+    }
+    return null;
+  };
+
+  const resolveMemoryThumbnail = (item: MemorySearchResult): string | null => {
+    const meta = (item.meta ?? {}) as Record<string, unknown>;
+    const candidates: Array<unknown> = [
+      item.media_url ?? item.mediaUrl ?? null,
+      meta?.thumbnail_url,
+      meta?.thumbnailUrl,
+      meta?.thumb,
+      meta?.preview_url,
+      meta?.previewUrl,
+      meta?.image_thumb,
+      meta?.imageThumb,
+    ];
+    if (Array.isArray(meta?.derived_assets)) {
+      const assetUrl = (meta.derived_assets as Array<Record<string, unknown>>)
+        .map((asset) => asset?.url)
+        .find((value) => typeof value === "string" && value.trim().length);
+      if (assetUrl) candidates.push(assetUrl);
+    }
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim().length) {
+        return candidate.trim();
+      }
+    }
+    return null;
+  };
+
+  const resolveMemoryMediaUrl = (item: MemorySearchResult): string | null => {
+    const meta = (item.meta ?? {}) as Record<string, unknown>;
+    const candidates: Array<unknown> = [
+      item.media_url ?? item.mediaUrl ?? null,
+      meta?.download_url,
+      meta?.downloadUrl,
+      meta?.url,
+      meta?.source_url,
+      meta?.sourceUrl,
+    ];
+    if (Array.isArray(meta?.derived_assets)) {
+      const derived = meta.derived_assets as Array<Record<string, unknown>>;
+      for (const asset of derived) {
+        if (typeof asset?.url === "string" && asset.url.trim().length) {
+          candidates.push(asset.url);
+        }
+      }
+    }
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim().length) {
+        return candidate.trim();
+      }
+    }
+    return null;
+  };
+
+  const dispatchLightboxOpen = (postId: string) => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(
+      new CustomEvent(LIGHTBOX_EVENT_NAME, {
+        detail: { postId },
+      }),
+    );
+  };
+
+  const sendSelectionToComposer = useCallback(
+    (payload: SearchSelectionPayload): boolean => {
+      if (selectionMode !== "composer" || !selectionHandlerRef.current) return false;
+      selectionHandlerRef.current(payload);
+      close();
+      return true;
+    },
+    [close, selectionMode],
+  );
+
+  const buildMemorySelection = (item: MemorySearchResult): SearchSelectionPayload => {
+    const title = item.title?.trim() || item.description?.trim() || "Memory";
+    const description = item.description?.trim() || null;
+    const navigateUrl = resolveMemoryNavigateUrl(item);
+    const mediaUrl = resolveMemoryMediaUrl(item);
+    const thumbnailUrl = resolveMemoryThumbnail(item);
+    const promptText = formatPromptText(
+      `Use this memory: ${title}.`,
+      description,
+      navigateUrl ? `Post link: ${navigateUrl}` : null,
+      !navigateUrl && mediaUrl ? `Asset: ${mediaUrl}` : null,
+    );
+    return {
+      kind: "memory",
+      promptText,
+      title,
+      url: navigateUrl ?? mediaUrl ?? null,
+      attachment: mediaUrl
+        ? {
+            url: mediaUrl,
+            thumbUrl: thumbnailUrl,
+            mimeType: item.media_type ?? item.mediaType ?? null,
+            title,
+            description,
+          }
+        : null,
+    };
   };
 
   const renderMemoryItem = (item: MemorySearchResult) => {
@@ -213,18 +356,43 @@ export function GlobalSearchOverlay() {
       : null;
     const highlightNode = renderMemoryHighlight(item);
 
+    const navigateUrl = resolveMemoryNavigateUrl(item);
+    const postIdForLightbox = resolveMemoryPostId(item);
+    const thumbnailUrl = resolveMemoryThumbnail(item);
+
     return (
-      <article key={item.id} className={styles.resultItem}>
-        <header className={styles.resultHeader}>
-          <span className={styles.resultKind}>{kind}</span>
-          {createdAt ? <time className={styles.resultTime}>{createdAt}</time> : null}
-        </header>
-        <h3 className={styles.resultTitle}>{title}</h3>
-        {highlightNode}
-        {!highlightNode && description ? (
-          <p className={styles.resultDescription}>{description}</p>
+      <button
+        key={item.id}
+        type="button"
+        className={styles.resultItem}
+        onClick={() => {
+          if (sendSelectionToComposer(buildMemorySelection(item))) return;
+          if (postIdForLightbox) {
+            dispatchLightboxOpen(postIdForLightbox);
+            close();
+          } else {
+            handleNavigate(navigateUrl);
+          }
+        }}
+      >
+        <div className={styles.resultBody}>
+          <header className={styles.resultHeader}>
+            <span className={styles.resultKind}>{kind}</span>
+            {createdAt ? <time className={styles.resultTime}>{createdAt}</time> : null}
+          </header>
+          <h3 className={styles.resultTitle}>{title}</h3>
+          {highlightNode}
+          {!highlightNode && description ? (
+            <p className={styles.resultDescription}>{description}</p>
+          ) : null}
+        </div>
+        {thumbnailUrl ? (
+          <span className={styles.resultMediaThumb} aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element -- search thumbnails can be plain imgs */}
+            <img src={thumbnailUrl} alt="" className={styles.resultMediaImg} loading="lazy" />
+          </span>
         ) : null}
-      </article>
+      </button>
     );
   };
 
@@ -234,7 +402,7 @@ export function GlobalSearchOverlay() {
     const fallbackText =
       item.name.trim().length && item.name[0]
         ? item.name.trim()[0]?.toUpperCase()
-        : "•";
+        : "?";
     return (
       <span className={styles.entityAvatar} aria-hidden>
         {avatarUrl ? (
@@ -254,6 +422,18 @@ export function GlobalSearchOverlay() {
     );
   };
 
+  const buildUserSelection = (item: UserSearchResult): SearchSelectionPayload => ({
+    kind: "user",
+    promptText: formatPromptText(
+      `Tell me about ${item.name}.`,
+      item.subtitle,
+      item.url ? `Profile: ${item.url}` : null,
+    ),
+    title: item.name,
+    url: item.url,
+    attachment: null,
+  });
+
   const renderEntityTitle = (name: string, highlight: string | null) => {
     if (highlight) {
       return (
@@ -272,7 +452,10 @@ export function GlobalSearchOverlay() {
         key={`user-${item.id}`}
         type="button"
         className={styles.entityResult}
-        onClick={() => handleNavigate(item.url)}
+        onClick={() => {
+          if (sendSelectionToComposer(buildUserSelection(item))) return;
+          handleNavigate(item.url);
+        }}
       >
         {renderAvatar(item)}
         <span className={styles.entityBody}>
@@ -283,13 +466,28 @@ export function GlobalSearchOverlay() {
     );
   };
 
+  const buildCapsuleSelection = (item: CapsuleSearchResult): SearchSelectionPayload => ({
+    kind: "capsule",
+    promptText: formatPromptText(
+      `Explore capsule ${item.name}.`,
+      item.subtitle,
+      item.url ? `Link: ${item.url}` : null,
+    ),
+    title: item.name,
+    url: item.url,
+    attachment: null,
+  });
+
   const renderCapsuleItem = (item: CapsuleSearchResult) => {
     return (
       <button
         key={`capsule-${item.id}`}
         type="button"
         className={styles.entityResult}
-        onClick={() => handleNavigate(item.url)}
+        onClick={() => {
+          if (sendSelectionToComposer(buildCapsuleSelection(item))) return;
+          handleNavigate(item.url);
+        }}
       >
         {renderAvatar(item)}
         <span className={styles.entityBody}>
@@ -304,6 +502,23 @@ export function GlobalSearchOverlay() {
     return RECORD_KIND_LABEL[kind] ?? kind;
   };
 
+  const buildCapsuleRecordSelection = (
+    item: CapsuleRecordSearchResult,
+  ): SearchSelectionPayload => {
+    const label = formatRecordKind(item.kind);
+    return {
+      kind: "capsule_record",
+      promptText: formatPromptText(
+        `${label}: ${item.title}.`,
+        item.detail,
+        item.url ? `Link: ${item.url}` : null,
+      ),
+      title: item.title,
+      url: item.url ?? null,
+      attachment: null,
+    };
+  };
+
   const renderCapsuleRecordItem = (item: CapsuleRecordSearchResult) => {
     const isClickable = Boolean(item.url);
     return (
@@ -311,7 +526,10 @@ export function GlobalSearchOverlay() {
         key={`record-${item.id}`}
         type="button"
         className={styles.recordResult}
-        onClick={() => (item.url ? handleNavigate(item.url) : undefined)}
+        onClick={() => {
+          if (sendSelectionToComposer(buildCapsuleRecordSelection(item))) return;
+          if (item.url) handleNavigate(item.url);
+        }}
         disabled={!isClickable}
       >
         <div className={styles.recordHeader}>
@@ -371,6 +589,8 @@ export function GlobalSearchOverlay() {
       </section>
     );
   };
+
+  if (!open) return null;
 
   return (
     <div

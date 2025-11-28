@@ -1,9 +1,8 @@
-import PDFDocument from "pdfkit";
-import type PDFKit from "pdfkit";
 import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { returnError } from "@/server/validation/http";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 
 const sectionSchema = z.object({
   heading: z.string().min(1, "Section heading cannot be empty"),
@@ -30,48 +29,6 @@ function sanitizeFilename(value: string | null | undefined): string {
   if (!value) return fallback;
   const safe = value.replace(/[^\w.-]+/g, "_").replace(/_{2,}/g, "_").replace(/^_+|_+$/g, "");
   return safe.toLowerCase().endsWith(".pdf") ? safe : `${safe || "composer"}.pdf`;
-}
-
-function addBullets(doc: PDFKit.PDFDocument, bullets: string[]) {
-  if (!bullets.length) return;
-  doc.moveDown(0.5);
-  for (const bullet of bullets) {
-    const text = bullet.trim();
-    if (!text.length) continue;
-    doc.text(`- ${text}`);
-  }
-}
-
-function addSections(
-  doc: PDFKit.PDFDocument,
-  sections: Array<{ heading: string; body: string }>,
-) {
-  sections.forEach((section, index) => {
-    doc.moveDown(1);
-    doc.fontSize(14).text(section.heading, { underline: true });
-    doc.moveDown(0.35);
-    doc.fontSize(12).text(section.body);
-    if (index < sections.length - 1) {
-      doc.moveDown(0.5);
-    }
-  });
-}
-
-function addConversation(
-  doc: PDFKit.PDFDocument,
-  entries: Array<{ role: string; content: string }>,
-) {
-  if (!entries.length) return;
-  doc.addPage();
-  doc.fontSize(14).text("Conversation", { underline: true });
-  doc.moveDown(0.5);
-  entries.forEach((entry) => {
-    const label = entry.role === "assistant" ? "Assistant" : "You";
-    doc.fontSize(11).text(`${label}:`, { continued: false, underline: false });
-    doc.moveDown(0.15);
-    doc.fontSize(11).text(entry.content, { indent: 10 });
-    doc.moveDown(0.5);
-  });
 }
 
 export async function POST(req: Request) {
@@ -104,53 +61,92 @@ export async function POST(req: Request) {
     );
   }
 
-  const doc = new PDFDocument({ margin: 50, size: "LETTER", info: { Title: title ?? "Composer PDF" } });
-  const chunks: Buffer[] = [];
-  doc.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+  const pdfDoc = await PDFDocument.create();
+  const normalFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  let page = pdfDoc.addPage();
+  let cursorY = page.getSize().height - 60;
+  const marginX = 50;
+  const maxWidth = page.getSize().width - marginX * 2;
 
-  const pdfBufferPromise = new Promise<Buffer>((resolve) => {
-    doc.on("end", () => {
-      resolve(Buffer.concat(chunks));
+  const drawTextBlock = (
+    text: string,
+    options: { font?: typeof normalFont; fontSize?: number; gapAbove?: number; gapBelow?: number } = {},
+  ) => {
+    const font = options.font ?? normalFont;
+    const fontSize = options.fontSize ?? 12;
+    const gapAbove = options.gapAbove ?? 0;
+    const gapBelow = options.gapBelow ?? 10;
+    if (!text.trim().length) return;
+    cursorY -= gapAbove;
+
+    const words = text.split(/\s+/);
+    let line = "";
+    const lines: string[] = [];
+    words.forEach((word) => {
+      const tentative = line.length ? `${line} ${word}` : word;
+      const w = font.widthOfTextAtSize(tentative, fontSize);
+      if (w <= maxWidth) {
+        line = tentative;
+      } else {
+        if (line.length) lines.push(line);
+        line = word;
+      }
     });
-  });
+    if (line.length) lines.push(line);
+
+    lines.forEach((l) => {
+      if (cursorY < 80) {
+        page = pdfDoc.addPage();
+        cursorY = page.getSize().height - 60;
+      }
+      page.drawText(l, { x: marginX, y: cursorY, size: fontSize, font });
+      cursorY -= fontSize * 1.3;
+    });
+    cursorY -= gapBelow;
+  };
 
   if (title) {
-    doc.fontSize(20).text(title, { align: "left" });
-    doc.moveDown(0.75);
+    drawTextBlock(title, { font: boldFont, fontSize: 20, gapBelow: 14 });
   }
 
   if (summary) {
-    doc.fontSize(13).text(summary);
-    doc.moveDown(0.75);
+    drawTextBlock(summary, { font: normalFont, fontSize: 13 });
   }
 
-  addBullets(doc, bullets);
+  if (bullets.length) {
+    bullets.forEach((bullet) => drawTextBlock(`• ${bullet}`, { fontSize: 12, gapBelow: 6, gapAbove: 2 }));
+  }
 
   if (sections.length) {
-    addSections(
-      doc,
-      sections.map((entry) => ({
-        heading: entry.heading,
-        body: entry.body,
-      })),
-    );
+    sections.forEach((section) => {
+      drawTextBlock(section.heading, { font: boldFont, fontSize: 14, gapAbove: 8, gapBelow: 4 });
+      drawTextBlock(section.body, { font: normalFont, fontSize: 12 });
+    });
   }
 
   if (conversation.length) {
-    addConversation(doc, conversation);
+    page = pdfDoc.addPage();
+    cursorY = page.getSize().height - 60;
+    drawTextBlock("Conversation", { font: boldFont, fontSize: 14, gapBelow: 10 });
+    conversation.forEach((entry) => {
+      drawTextBlock(`${entry.role === "assistant" ? "Assistant" : "You"}:`, {
+        font: boldFont,
+        fontSize: 12,
+        gapBelow: 4,
+      });
+      drawTextBlock(entry.content, { font: normalFont, fontSize: 11, gapBelow: 8 });
+    });
   }
 
   if (footer) {
-    doc.moveDown(1);
-    doc.fontSize(11).text(footer, { align: "left" });
+    drawTextBlock(footer, { font: normalFont, fontSize: 11, gapAbove: 12 });
   }
 
-  doc.end();
-
-  const pdfBuffer = await pdfBufferPromise;
+  const pdfBytes = await pdfDoc.save();
+  const pdfBuffer = Buffer.from(pdfBytes);
   const filename = sanitizeFilename(downloadName ?? title ?? "composer.pdf");
-  const pdfBytes = Uint8Array.from(pdfBuffer);
-  const pdfBlob = new Blob([pdfBytes.buffer], { type: "application/pdf" });
+  const pdfBlob = new Blob([pdfBuffer], { type: "application/pdf" });
 
   return new Response(pdfBlob, {
     status: 200,

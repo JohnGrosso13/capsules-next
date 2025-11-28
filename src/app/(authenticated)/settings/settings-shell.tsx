@@ -4,6 +4,7 @@ import * as React from "react";
 
 import cards from "@/components/cards.module.css";
 import { ThemeStyleCarousel } from "@/components/theme-style-carousel";
+import type { NotificationSettings } from "@/shared/notifications";
 
 import layout from "./settings.module.css";
 import { CapsuleSettingsSection } from "./capsules-section";
@@ -11,6 +12,8 @@ import { AccountSettingsSection } from "./account-section";
 import { VoiceSettingsSection } from "./voice-section";
 import { ConnectionsSettingsSection } from "./connections-section";
 import { ComposerSettingsSection } from "./composer-settings-section";
+import { NotificationsSettingsSection } from "./notifications-section";
+import { AccessibilitySettingsSection } from "./accessibility-section";
 
 type CapsuleSettingsProps = React.ComponentProps<typeof CapsuleSettingsSection>;
 type AccountProfileProps = React.ComponentProps<typeof AccountSettingsSection>["profile"];
@@ -18,9 +21,18 @@ type AccountProfileProps = React.ComponentProps<typeof AccountSettingsSection>["
 type SettingsShellProps = {
   initialCapsules: CapsuleSettingsProps["initialCapsules"];
   accountProfile: AccountProfileProps;
+  notificationSettings: NotificationSettings;
 };
 
-type SettingsSectionKey = "capsules" | "account" | "connections" | "appearance" | "voice" | "composer";
+type SettingsSectionKey =
+  | "capsules"
+  | "account"
+  | "connections"
+  | "appearance"
+  | "voice"
+  | "composer"
+  | "notifications"
+  | "accessibility";
 
 const NAVIGATION_ITEMS: Array<
   | {
@@ -40,16 +52,17 @@ const NAVIGATION_ITEMS: Array<
   { key: "appearance", label: "Appearance", enabled: true },
   { key: "composer", label: "Composer Settings", enabled: true },
   { key: "voice", label: "Voice", enabled: true },
-  { key: "notifications", label: "Notifications", enabled: false },
+  { key: "notifications", label: "Notifications", enabled: true },
+  { key: "accessibility", label: "Accessibility", enabled: true },
   { key: "devices", label: "Devices", enabled: false },
   { key: "privacy", label: "Privacy", enabled: false },
-  { key: "accessibility", label: "Accessibility", enabled: false },
   { key: "advanced", label: "Advanced", enabled: false },
 ];
 
 export function SettingsShell({
   initialCapsules,
   accountProfile,
+  notificationSettings,
 }: SettingsShellProps): React.JSX.Element {
   const [activeSection, setActiveSection] = React.useState<SettingsSectionKey>("capsules");
   const [accountProfileState, setAccountProfileState] =
@@ -74,6 +87,8 @@ export function SettingsShell({
         case "appearance":
         case "composer":
         case "voice":
+        case "notifications":
+        case "accessibility":
           return key as SettingsSectionKey;
         default:
           return null;
@@ -247,9 +262,21 @@ export function SettingsShell({
             </section>
           ) : null}
 
+          {activeSection === "notifications" ? (
+            <section aria-label="Notification preferences" className={layout.section}>
+              <NotificationsSettingsSection initialSettings={notificationSettings} />
+            </section>
+          ) : null}
+
           {activeSection === "voice" ? (
             <section aria-label="Voice settings" className={layout.section}>
               <VoiceSettingsSection />
+            </section>
+          ) : null}
+
+          {activeSection === "accessibility" ? (
+            <section aria-label="Accessibility settings" className={layout.section}>
+              <AccessibilitySettingsSection />
             </section>
           ) : null}
         </div>

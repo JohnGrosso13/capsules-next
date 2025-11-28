@@ -117,6 +117,9 @@
     position: relative;
     display: grid;
     gap: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     border-radius: var(--card-radius, var(--radius-xl, 20px));
     border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
     background: linear-gradient(180deg, var(--card-bg-1, rgba(24, 32, 58, 0.88)), var(--card-bg-2, rgba(12, 18, 36, 0.78)));
@@ -233,6 +236,8 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-lg);
+    min-width: 0;
+    width: 100%;
     padding: 10px 14px;
     background: linear-gradient(
       180deg,
@@ -248,11 +253,28 @@
     border-bottom-color: var(--home-cardhead-border-bottom-color, rgba(255, 255, 255, 0.12));
   }
 
+  @media (max-width: 640px) {
+    .cardHead {
+      flex-wrap: wrap;
+      align-items: flex-start;
+      row-gap: var(--space-sm);
+      column-gap: var(--space-sm);
+      padding: 10px 12px;
+    }
+  }
+
   .userMeta {
     display: inline-flex;
     align-items: center;
     gap: var(--space-sm);
     font-size: 0.95rem;
+  }
+
+  @media (max-width: 640px) {
+    .userMeta {
+      flex: 1 1 60%;
+      min-width: 0;
+    }
   }
 
   .avatarWrap {
@@ -298,6 +320,15 @@
     text-decoration: none;
   }
 
+  @media (max-width: 640px) {
+    .userName {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
   .userName:focus-visible {
     outline: 2px solid var(--color-brand, #7c87ff);
     outline-offset: 2px;
@@ -328,10 +359,27 @@
     color: var(--color-fg-subtle, rgba(255, 255, 255, 0.6));
   }
 
+  @media (max-width: 640px) {
+    .timestamp {
+      white-space: nowrap;
+    }
+  }
+
   .cardControls {
     display: inline-flex;
     align-items: center;
     gap: var(--space-sm);
+    min-width: 0;
+  }
+
+  @media (max-width: 640px) {
+    .cardControls {
+      margin-left: auto;
+      flex: 1 1 auto;
+      justify-content: flex-end;
+      width: 100%;
+      gap: var(--space-xs);
+    }
   }
 
   .iconBtn {
@@ -404,6 +452,8 @@
     gap: var(--space-md);
     color: var(--color-fg-muted, rgba(255, 255, 255, 0.78));
     padding: 14px 16px 12px;
+    min-width: 0;
+    width: 100%;
   }
 
   .postText {
@@ -411,6 +461,8 @@
     line-height: 1.6;
     color: var(--color-fg, rgba(255, 255, 255, 0.9));
     word-break: break-word;
+    overflow-wrap: anywhere;
+    min-width: 0;
   }
 
   .mediaGallery {
@@ -420,6 +472,9 @@
     display: grid;
     gap: var(--space-sm);
     margin-top: var(--space-sm);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .mediaGallery[data-count="2"] {
@@ -579,6 +634,8 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-sm);
+    min-width: 0;
+    width: 100%;
     padding: 12px 16px 10px;
     /* Use card-border by default; allow a light-mode specific override via --home-actionbar-border */
     border-top: 1px solid var(
@@ -649,6 +706,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
   }
 
   .actionIcon {
@@ -670,6 +728,7 @@
   .actionLabel {
     color: var(--text, rgba(255, 255, 255, 0.94));
     font-weight: 600;
+    min-width: 0;
   }
 
   .actionCount {
@@ -715,6 +774,21 @@
 
   .actionBtn[data-variant="like"][data-active="true"] .actionLabel {
     color: var(--text, rgba(255, 255, 255, 0.94));
+  }
+
+  @media (max-width: 480px) {
+    .actionBar {
+      flex-wrap: wrap;
+      row-gap: var(--space-xs);
+    }
+
+    .actionBtn {
+      flex: 1 1 calc(50% - var(--space-xs));
+    }
+
+    .actionBtn:last-child {
+      flex-basis: 100%;
+    }
   }
 
   .feedSentinel {
@@ -1399,6 +1473,9 @@
   }
 
   .pollCard {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     border-radius: var(--radius-lg, 18px);
     border: 1px solid
       var(
@@ -1431,6 +1508,7 @@
   .pollOptions {
     display: grid;
     gap: var(--space-sm);
+    min-width: 0;
   }
 
   .pollOption {
@@ -1450,6 +1528,7 @@
       )
     );
     overflow: hidden;
+    min-width: 0;
   }
 
   .pollOption[data-selected="true"] {
@@ -1556,6 +1635,7 @@
     cursor: pointer;
     z-index: 1;
     text-align: left;
+    min-width: 0;
   }
 
   .pollOptionLabel {
@@ -1564,6 +1644,7 @@
       --home-poll-option-label,
       color-mix(in srgb, var(--color-brand, #2563eb) 28%, rgba(255, 255, 255, 0.9))
     );
+    min-width: 0;
   }
 
   .pollOptionMeta {
@@ -1579,6 +1660,8 @@
         color-mix(in srgb, rgba(175, 195, 230, 0.72) 80%, rgba(22, 28, 50, 0.72))
       )
     );
+    min-width: 0;
+    flex-shrink: 0;
   }
 
   .pollOptionPercent,
@@ -1607,6 +1690,8 @@
     display: grid;
     gap: var(--space-sm);
     margin-top: var(--space-sm);
+    min-width: 0;
+    width: 100%;
   }
 
   .commentPanelFallback {
@@ -1705,17 +1790,21 @@
   margin-bottom: var(--space-xl);
   padding: 1.1rem 1.4rem;
   border-radius: var(--radius-xl);
-  --summary-accent-base: var(--connections-accent, #2f5fd7);
-  --summary-accent-strong-base: var(--connections-accent-strong, #1b8bd8);
-  --summary-accent: color-mix(in srgb, var(--summary-accent-base) 70%, rgba(10, 14, 30, 0.95));
-  --summary-accent-strong: color-mix(in srgb, var(--summary-accent-strong-base) 70%, rgba(6, 10, 24, 0.96));
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--summary-accent) 52%, rgba(6, 10, 24, 0.96)),
-    color-mix(in srgb, var(--summary-accent-strong) 62%, rgba(4, 8, 18, 0.96))
+  --summary-accent-base: var(--color-brand, #6366f1);
+  --summary-accent-strong-base: var(--color-accent, #22d3ee);
+  --summary-accent: color-mix(in srgb, var(--summary-accent-base) 70%, rgba(12, 16, 34, 0.92));
+  --summary-accent-strong: color-mix(in srgb, var(--summary-accent-strong-base) 70%, rgba(8, 12, 28, 0.94));
+  /* Match post header surface so this strip blends into the feed */
+  background: var(
+    --home-summary-cta-background,
+    linear-gradient(
+      180deg,
+      var(--glass-bg-1, rgba(255, 255, 255, 0.05)),
+      var(--glass-bg-2, rgba(255, 255, 255, 0.03))
+    )
   );
-  border: 1px solid color-mix(in srgb, var(--summary-accent) 42%, var(--card-border, rgba(255, 255, 255, 0.14)));
-  box-shadow: 0 18px 36px color-mix(in srgb, var(--summary-accent) 24%, transparent);
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+  box-shadow: var(--card-shadow, 0 10px 26px rgba(5, 10, 30, 0.34));
 }
 
 .summaryCtaContent {
@@ -1742,12 +1831,16 @@
   border-radius: 999px;
   padding: 0.6rem 1.6rem;
   font-weight: 600;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--summary-accent) 78%, rgba(4, 8, 20, 0.98)) 0%,
-    color-mix(in srgb, var(--summary-accent-strong) 72%, rgba(6, 12, 26, 0.98)) 100%
+  /* Solid, non‑gradient button that still picks up the brand tone */
+  background: var(
+    --home-summary-cta-button-background,
+    color-mix(in srgb, var(--summary-accent-base) 82%, rgba(6, 10, 24, 0.98))
   );
-  border: 1px solid color-mix(in srgb, var(--summary-accent-strong) 55%, transparent);
+  border: 1px solid
+    var(
+      --home-summary-cta-button-border,
+      color-mix(in srgb, var(--summary-accent-base) 60%, var(--card-border, rgba(255, 255, 255, 0.16)))
+    );
   color: #ffffff;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),

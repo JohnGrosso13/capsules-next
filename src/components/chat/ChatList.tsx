@@ -4,6 +4,13 @@ import * as React from "react";
 import Image from "next/image";
 
 import type { ChatParticipant, ChatSession } from "@/components/providers/ChatProvider";
+import { computeDefaultTitle } from "@/components/providers/chat-store/helpers";
+import {
+  applyParticipantDisplay,
+  formatIdentifierForDisplay,
+  looksLikeIdentifier,
+  type ParticipantProfile,
+} from "./display";
 
 import styles from "./chat.module.css";
 import { ChatMenu } from "./ChatMenu";
@@ -15,6 +22,7 @@ type ChatListProps = {
   onDelete: (sessionId: string) => void;
   emptyNotice?: React.ReactNode;
   selfIdentifiers: string[];
+  friendLookup?: Map<string, ParticipantProfile>;
 };
 
 function buildSelfSet(selfIdentifiers: string[]): Set<string> {
@@ -27,6 +35,7 @@ function buildSelfSet(selfIdentifiers: string[]): Set<string> {
 }
 
 function initialsFrom(name: string): string {
+  if (typeof name !== "string") return "?";
   const trimmed = name.trim();
   if (!trimmed) return "?";
   const parts = trimmed.split(/\s+/);
@@ -58,24 +67,44 @@ function formatRelativeTime(value: string | null): string | null {
   return new Date(parsed).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function selectRemoteParticipants(session: ChatSession, selfSet: Set<string>): ChatParticipant[] {
-  return session.participants.filter((participant) => !selfSet.has(participant.id));
-}
-
-function resolveSessionTitle(session: ChatSession, selfSet: Set<string>): string {
-  const trimmed = session.title?.trim();
-  if (trimmed) return trimmed;
-  const others = selectRemoteParticipants(session, selfSet);
-  if (session.type === "group") {
-    if (!others.length) return "Group chat";
-    if (others.length === 1) return `${others[0]!.name} & you`;
-    if (others.length === 2) return `${others[0]!.name} & ${others[1]!.name}`;
-    return `${others[0]!.name}, ${others[1]!.name} +${others.length - 2}`;
+function mapDisplayParticipants(
+  participants: ChatParticipant[],
+  friendLookup?: Map<string, ParticipantProfile>,
+): ChatParticipant[] {
+  const safeList = participants.filter((participant): participant is ChatParticipant => {
+    return Boolean(participant && typeof participant.id === "string" && participant.id.trim());
+  });
+  if (!friendLookup || friendLookup.size === 0) {
+    return safeList.map((participant) => applyParticipantDisplay(participant, null));
   }
-  return others[0]?.name ?? session.participants[0]?.name ?? "Chat";
+  return safeList.map((participant) =>
+    applyParticipantDisplay(participant, friendLookup.get(participant.id) ?? null),
+  );
 }
 
-function resolvePreview(session: ChatSession, selfSet: Set<string>): string {
+function selectRemote(participants: ChatParticipant[], selfSet: Set<string>): ChatParticipant[] {
+  return participants.filter((participant) => !selfSet.has(participant.id));
+}
+
+function resolveSessionTitle(
+  session: ChatSession,
+  participants: ChatParticipant[],
+  selfSet: Set<string>,
+): string {
+  const sessionTitle = session.title?.trim() ?? "";
+  const hasMeaningfulTitle = sessionTitle && !looksLikeIdentifier(sessionTitle);
+  const baseTitle = hasMeaningfulTitle
+    ? sessionTitle
+    : computeDefaultTitle(participants, selfSet, session.type);
+  const fallback = baseTitle || session.id;
+  return formatIdentifierForDisplay(fallback);
+}
+
+function resolvePreview(
+  session: ChatSession,
+  selfSet: Set<string>,
+  participants: ChatParticipant[],
+): string {
   const lastMessage = session.messages.at(-1);
   if (!lastMessage) return "No messages yet";
   const summary = formatPreview(lastMessage.body);
@@ -83,9 +112,7 @@ function resolvePreview(session: ChatSession, selfSet: Set<string>): string {
   if (selfSet.has(lastMessage.authorId)) {
     return `You: ${summary}`;
   }
-  const author = session.participants.find(
-    (participant) => participant.id === lastMessage.authorId,
-  );
+  const author = participants.find((participant) => participant.id === lastMessage.authorId);
   if (author) {
     return `${author.name}: ${summary}`;
   }
@@ -113,7 +140,7 @@ function renderAvatarStack(participants: ChatParticipant[], limit = 3): React.Re
             />
           ) : (
             <span className={styles.chatThreadAvatarFallback}>
-              {initialsFrom(participant.name)}
+              {initialsFrom(participant?.name ?? "")}
             </span>
           )}
         </span>
@@ -131,6 +158,7 @@ function renderAvatarStack(participants: ChatParticipant[], limit = 3): React.Re
 
 function renderAvatar(
   session: ChatSession,
+  participants: ChatParticipant[],
   remoteParticipants: ChatParticipant[],
   title: string,
 ): React.ReactNode {
@@ -147,9 +175,9 @@ function renderAvatar(
     );
   }
   if (session.type === "group") {
-    return renderAvatarStack(remoteParticipants.length ? remoteParticipants : session.participants);
+    return renderAvatarStack(remoteParticipants.length ? remoteParticipants : participants);
   }
-  const primary = remoteParticipants[0] ?? session.participants[0];
+  const primary = remoteParticipants[0] ?? participants[0];
   if (primary?.avatar) {
     return (
       <Image
@@ -174,6 +202,7 @@ export function ChatList({
   onDelete,
   emptyNotice,
   selfIdentifiers,
+  friendLookup,
 }: ChatListProps) {
   const selfSet = React.useMemo(() => buildSelfSet(selfIdentifiers), [selfIdentifiers]);
 
@@ -189,11 +218,12 @@ export function ChatList({
     <div className={styles.chatThreads}>
       {sessions.map((session, index) => {
         const isActive = session.id === activeSessionId;
-        const remoteParticipants = selectRemoteParticipants(session, selfSet);
-        const title = resolveSessionTitle(session, selfSet);
-        const preview = resolvePreview(session, selfSet);
+        const displayParticipants = mapDisplayParticipants(session.participants, friendLookup);
+        const remoteParticipants = selectRemote(displayParticipants, selfSet);
+        const title = resolveSessionTitle(session, displayParticipants, selfSet);
+        const preview = resolvePreview(session, selfSet, displayParticipants);
         const relativeTime = formatRelativeTime(session.lastMessageAt);
-        const participantCount = session.participants.length;
+        const participantCount = displayParticipants.length;
 
         return (
           <article
@@ -207,7 +237,7 @@ export function ChatList({
               aria-expanded={isActive}
             >
               <span className={styles.chatThreadAvatar} aria-hidden>
-                {renderAvatar(session, remoteParticipants, title)}
+                {renderAvatar(session, displayParticipants, remoteParticipants, title)}
               </span>
               <span className={styles.chatThreadContent}>
                 <span className={styles.chatThreadTopRow}>

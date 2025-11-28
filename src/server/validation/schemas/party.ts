@@ -23,6 +23,14 @@ export const partySummarySettingsSchema = z
   })
   .strict();
 
+export const partyAssistantSettingsSchema = z
+  .object({
+    desired: z.boolean().default(true),
+    lastRequestedAt: z.string().nullable().optional(),
+    lastDismissedAt: z.string().nullable().optional(),
+  })
+  .strict();
+
 export const partyCreateRequestSchema = z.object({
   displayName: displayNameSchema,
   topic: z
@@ -57,10 +65,12 @@ const partyMetadataSchema = z.object({
   privacy: partyPrivacySchema.default("friends"),
   createdAt: z.string(),
   summary: partySummarySettingsSchema.optional(),
+    assistant: partyAssistantSettingsSchema.optional(),
 });
 
 export type PartyMetadata = z.infer<typeof partyMetadataSchema>;
 export type PartySummarySettings = z.infer<typeof partySummarySettingsSchema>;
+export type PartyAssistantSettings = z.infer<typeof partyAssistantSettingsSchema>;
 
 export const partyTokenResponseSchema = z.object({
   success: z.literal(true),

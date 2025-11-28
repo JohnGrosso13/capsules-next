@@ -23,6 +23,29 @@ type SectionAction =
   | { label: string; onClick: () => void }
   | null;
 
+type LadderSummaryPayload = {
+  id: string;
+  capsuleId: string;
+  name: string;
+  slug: string | null;
+  summary: string | null;
+  status: "draft" | "active" | "archived";
+  visibility: "private" | "capsule" | "public";
+  createdById: string;
+  game?: { title?: string | null } | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+  meta: Record<string, unknown> | null;
+  capsule: {
+    id: string;
+    name: string | null;
+    slug: string | null;
+    bannerUrl: string | null;
+    logoUrl: string | null;
+  } | null;
+};
+
 function Section({
   title,
   items,
@@ -137,9 +160,16 @@ const FALLBACK_CAPSULES: Item[] = [
   { id: "c3", title: "Music Makers", subtitle: "DAW workflows + samples", meta: "4.5k members" },
 ];
 
+const FALLBACK_EVENTS: Item[] = [
+  { id: "e1", title: "Weekly Capsule Lab", subtitle: "Today 5:00 PM", badge: "LIVE" },
+  { id: "e2", title: "Prompt Jam #27", subtitle: "Tomorrow 3:00 PM", meta: "RSVP 210" },
+];
+
 export function DiscoveryRail() {
   const [recommendedCapsules, setRecommendedCapsules] = React.useState<Item[]>(FALLBACK_CAPSULES);
   const [loadingCapsules, setLoadingCapsules] = React.useState(true);
+  const [upcomingEvents, setUpcomingEvents] = React.useState<Item[]>(FALLBACK_EVENTS);
+  const [loadingEvents, setLoadingEvents] = React.useState(true);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -217,10 +247,97 @@ export function DiscoveryRail() {
     };
   }, []);
 
-  const events: Item[] = [
-    { id: "e1", title: "Weekly Capsule Lab", subtitle: "Today 5:00 PM", badge: "LIVE" },
-    { id: "e2", title: "Prompt Jam #27", subtitle: "Tomorrow 3:00 PM", meta: "RSVP 210" },
-  ];
+  React.useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+
+    const loadLadders = async () => {
+      setLoadingEvents(true);
+      try {
+        const response = await fetch("/api/explore/recent-ladders?limit=12", {
+          credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          if (response.status === 401) {
+            return;
+          }
+          throw new Error(`recent ladders request failed (${response.status})`);
+        }
+        const payload = (await response.json().catch(() => null)) as {
+          ladders?: LadderSummaryPayload[];
+        } | null;
+        if (!payload?.ladders?.length) {
+          if (!cancelled) {
+            setUpcomingEvents([]);
+          }
+          return;
+        }
+        const items: Item[] = payload.ladders.slice(0, 3).map((ladder) => {
+          const mediaUrl = resolveToAbsoluteUrl(
+            normalizeMediaUrl(ladder.capsule?.logoUrl ?? ladder.capsule?.bannerUrl ?? null),
+          );
+          const relative = formatRelativeDate(ladder.publishedAt ?? ladder.createdAt);
+          const subtitle =
+            (ladder.game?.title && ladder.game.title.trim().length
+              ? ladder.game.title
+              : null) ??
+            ladder.capsule?.name ??
+            (ladder.capsule?.slug ? `@${ladder.capsule.slug}` : null) ??
+            "New ladder";
+          const visibilityLabel =
+            ladder.visibility === "capsule"
+              ? "Capsule members"
+              : ladder.visibility === "private"
+                ? "Private"
+                : "Public";
+          const metaParts = [
+            relative ? (ladder.publishedAt ? `Launched ${relative}` : `Created ${relative}`) : null,
+            `${visibilityLabel} ladder`,
+          ].filter(Boolean) as string[];
+          const badge =
+            ladder.status === "active"
+              ? "LIVE"
+              : ladder.status === "draft"
+                ? "DRAFT"
+                : null;
+          return {
+            id: ladder.id,
+            title: ladder.name,
+            subtitle,
+            meta: metaParts.join(" \u2022 "),
+            ...(badge ? { badge } : {}),
+            href: `/capsule?capsuleId=${encodeURIComponent(ladder.capsuleId)}&ladderId=${encodeURIComponent(ladder.id)}&section=events`,
+            avatarUrl: mediaUrl,
+            avatarInitial: ladder.name ? ladder.name.trim().slice(0, 1).toUpperCase() : "L",
+          };
+        });
+        if (!cancelled) {
+          setUpcomingEvents(items);
+        }
+      } catch (error) {
+        if (controller.signal.aborted || cancelled) return;
+        if (process.env.NODE_ENV === "development") {
+          console.warn("discovery-rail: failed to load recent ladders", error);
+        }
+        if (!cancelled) {
+          setUpcomingEvents(FALLBACK_EVENTS);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingEvents(false);
+        }
+      }
+    };
+
+    void loadLadders();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
+
   const trending: Item[] = [
     { id: "t1", title: "What's Hot", subtitle: "AI logos in 60s", meta: "2.1k watching" },
     { id: "t2", title: "Capsules x Stream", subtitle: "OBS scene presets", meta: "1.3k watching" },
@@ -242,8 +359,9 @@ export function DiscoveryRail() {
         />
         <Section
           title="Upcoming Events"
-          items={events}
+          items={upcomingEvents}
           action={{ label: "Calendar", onClick: () => {} }}
+          emptyMessage={loadingEvents ? "Loading ladders..." : "No ladders yet. Create one to see it here."}
         />
         <Section
           title="What's Hot"

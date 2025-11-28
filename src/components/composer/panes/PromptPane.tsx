@@ -14,7 +14,7 @@ import type {
   SummaryConversationEntry,
   SummaryPresentationOptions,
 } from "@/lib/composer/summary-context";
-import type { ComposerChatMessage } from "@/lib/composer/chat-types";
+import type { ComposerChatAttachment, ComposerChatMessage } from "@/lib/composer/chat-types";
 import type { LocalAttachment } from "@/hooks/useAttachmentUpload";
 import type { ComposerVideoStatus } from "../types";
 import type { QuickPromptOption } from "../features/prompt-surface/usePromptSurface";
@@ -46,6 +46,7 @@ export type PromptPaneProps = {
   prompt: string;
   message: string | null | undefined;
   loading: boolean;
+  loadingKind: "image" | "video" | null;
   displayAttachment: LocalAttachment | null;
   attachmentKind: string | null;
   attachmentStatusLabel: string | null;
@@ -62,10 +63,41 @@ export type PromptPaneProps = {
   showQuickPromptBubble: boolean;
   quickPromptBubbleOptions: QuickPromptOption[];
   promptSurfaceProps: PromptPaneSurfaceProps;
+  onAddAttachmentToPreview?: (attachment: ComposerChatAttachment) => void;
 };
 
 const AI_ATTACHMENT_FEEDBACK_PROMPT =
   "How does this look? Want me to refine anything or try another variation?";
+
+function isGeneratedImageAttachment(
+  attachment: ComposerChatAttachment | null | undefined,
+): attachment is ComposerChatAttachment {
+  if (!attachment) return false;
+  const mime = (attachment.mimeType ?? "").toLowerCase();
+  if (!mime.startsWith("image/")) return false;
+  const role = (attachment.role ?? "").toLowerCase();
+  const source = (attachment.source ?? "").toLowerCase();
+  return role === "output" || source === "ai";
+}
+
+function partitionAttachments(
+  attachments: ComposerChatAttachment[] | null | undefined,
+): {
+  generatedImages: ComposerChatAttachment[];
+  inlineAttachments: ComposerChatAttachment[];
+} {
+  const generatedImages: ComposerChatAttachment[] = [];
+  const inlineAttachments: ComposerChatAttachment[] = [];
+  if (!Array.isArray(attachments)) return { generatedImages, inlineAttachments };
+  attachments.forEach((attachment) => {
+    if (isGeneratedImageAttachment(attachment)) {
+      generatedImages.push(attachment);
+    } else {
+      inlineAttachments.push(attachment);
+    }
+  });
+  return { generatedImages, inlineAttachments };
+}
 
 export function PromptPane({
   summaryControls,
@@ -75,6 +107,7 @@ export function PromptPane({
   prompt,
   message,
   loading,
+  loadingKind,
   displayAttachment,
   attachmentKind,
   attachmentStatusLabel,
@@ -91,22 +124,82 @@ export function PromptPane({
   showQuickPromptBubble,
   quickPromptBubbleOptions,
   promptSurfaceProps,
+  onAddAttachmentToPreview,
 }: PromptPaneProps) {
   const chatScrollRef = React.useRef<HTMLDivElement | null>(null);
   const shouldStickRef = React.useRef(true);
+  const isLoadingImage = loading && loadingKind === "image";
+  const [brainProgress, setBrainProgress] = React.useState(0);
+  React.useEffect(() => {
+    if (!isLoadingImage) {
+      setBrainProgress(0);
+      return undefined;
+    }
+    const startedAt = Date.now();
+    setBrainProgress((prev) => (prev > 8 ? prev : 12));
+    const interval = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const eased = Math.min(96, Math.max(12, Math.round(elapsed / 900) * 5 + 12));
+      setBrainProgress(eased);
+    }, 900);
+    return () => window.clearInterval(interval);
+  }, [isLoadingImage]);
+
+  const pendingImageAttachment = React.useMemo<LocalAttachment | null>(
+    () =>
+      isLoadingImage
+        ? {
+            id: "ai-image-pending",
+            name: "Rendering visual",
+            size: 0,
+            mimeType: "image/*",
+            status: "uploading",
+            url: null,
+            thumbUrl: null,
+            progress: Math.max(brainProgress, 8) / 100,
+            role: "output",
+            source: "ai",
+            phase: "uploading",
+          }
+        : null,
+    [brainProgress, isLoadingImage],
+  );
+
+  const activeAttachment = pendingImageAttachment ?? displayAttachment;
   const resolvedAttachmentKind =
-    attachmentKind === "video" ? "video" : attachmentKind === "image" ? "image" : null;
+    activeAttachment?.mimeType?.toLowerCase().startsWith("video/") || attachmentKind === "video"
+      ? "video"
+      : activeAttachment || attachmentKind === "image"
+        ? "image"
+        : null;
   const trimmedAssistantMessage = typeof message === "string" ? message.trim() : "";
-  const isAiAttachment = displayAttachment?.source === "ai";
+  const isAiAttachment = activeAttachment?.source === "ai";
   const baseAttachmentCaption = isAiAttachment
-    ? trimmedAssistantMessage || displayAttachment?.name?.trim() || null
+    ? trimmedAssistantMessage || activeAttachment?.name?.trim() || null
     : null;
   const attachmentCaption =
-    baseAttachmentCaption && displayAttachment
-    ? `${baseAttachmentCaption} ${AI_ATTACHMENT_FEEDBACK_PROMPT}`
-    : baseAttachmentCaption;
-  const attachmentCaptionForPanel = isAiAttachment ? null : attachmentCaption;
+    baseAttachmentCaption && activeAttachment
+      ? `${baseAttachmentCaption} ${AI_ATTACHMENT_FEEDBACK_PROMPT}`
+      : baseAttachmentCaption;
+  const attachmentCaptionForPanel =
+    activeAttachment?.status === "ready" ? attachmentCaption : null;
   const filteredHistory = history;
+  const lastUserIndex = React.useMemo(() => {
+    for (let index = filteredHistory.length - 1; index >= 0; index -= 1) {
+      if (filteredHistory[index]?.role === "user") {
+        return index;
+      }
+    }
+    return -1;
+  }, [filteredHistory]);
+  const historyBeforeAttachment =
+    !activeAttachment || isAiAttachment || lastUserIndex === -1
+      ? filteredHistory
+      : filteredHistory.slice(0, lastUserIndex + 1);
+  const historyAfterAttachment =
+    !activeAttachment || isAiAttachment || lastUserIndex === -1
+      ? []
+      : filteredHistory.slice(lastUserIndex + 1);
 
   React.useEffect(() => {
     const scrollNode = chatScrollRef.current;
@@ -138,6 +231,166 @@ export function PromptPane({
     showVibePrompt,
     showQuickPromptBubble,
   ]);
+
+  const renderInlineAttachments = React.useCallback(
+    (attachments: ComposerChatAttachment[], keyPrefix: string) => (
+      <div className={styles.chatAttachmentList}>
+        {attachments.map((attachment, attachmentIndex) => {
+          const attachmentKey = attachment.id || `${keyPrefix}-${attachmentIndex}`;
+          const mimeType = (attachment.mimeType ?? "").toLowerCase();
+          const isImage = mimeType.startsWith("image/");
+          const previewSrc = attachment.thumbnailUrl ?? attachment.url ?? null;
+          const hasUrl = typeof attachment.url === "string" && attachment.url.length > 0;
+          return (
+            <div key={attachmentKey} className={styles.chatAttachmentCard}>
+              <a
+                href={hasUrl ? attachment.url : undefined}
+                target={hasUrl ? "_blank" : undefined}
+                rel={hasUrl ? "noreferrer" : undefined}
+                className={styles.chatAttachmentLink}
+                aria-disabled={hasUrl ? undefined : "true"}
+                onClick={
+                  hasUrl
+                    ? undefined
+                    : (event) => {
+                        event.preventDefault();
+                      }
+                }
+              >
+                {isImage && previewSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewSrc}
+                    alt={attachment.name}
+                    className={styles.chatAttachmentPreview}
+                  />
+                ) : null}
+                <span className={styles.chatAttachmentLabel}>{attachment.name}</span>
+              </a>
+              <div className={styles.chatAttachmentActions}>
+                {hasUrl ? (
+                  <a
+                    className={styles.chatAttachmentActionBtn}
+                    href={attachment.url ?? undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    download
+                  >
+                    Download
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ),
+    [],
+  );
+
+  const renderChatEntries = React.useCallback(
+    (entries: ComposerChatMessage[], keyPrefix: string) =>
+      entries.map((entry, index) => {
+        const role = entry.role === "user" ? "user" : "ai";
+        const bubbleClass =
+          role === "user"
+            ? `${styles.msgBubble} ${styles.userBubble}`
+            : `${styles.msgBubble} ${styles.aiBubble}`;
+        const key = entry.id || `${keyPrefix}-${role}-${index}`;
+        const { generatedImages, inlineAttachments } = partitionAttachments(
+          Array.isArray(entry.attachments) ? entry.attachments : [],
+        );
+        const messageText = typeof entry.content === "string" ? entry.content.trim() : "";
+        const showBubble =
+          role === "user" ||
+          inlineAttachments.length > 0 ||
+          (!generatedImages.length && messageText.length > 0);
+        const inlineAttachmentNode =
+          inlineAttachments.length > 0 ? renderInlineAttachments(inlineAttachments, key) : null;
+        const bubbleNode = showBubble ? (
+          <div className={bubbleClass}>
+            {messageText ? <div className={styles.chatMessageText}>{entry.content}</div> : null}
+            {inlineAttachmentNode}
+          </div>
+        ) : null;
+
+        const generatedNodes =
+          generatedImages.length > 0
+            ? generatedImages.map((attachment, attachmentIndex) => {
+                const attachmentKey = `${key}-gen-${attachment.id || attachmentIndex}`;
+                const previewSrc =
+                  (typeof attachment.url === "string" && attachment.url.trim().length
+                    ? attachment.url.trim()
+                    : null) ??
+                  (typeof attachment.thumbnailUrl === "string" && attachment.thumbnailUrl.trim().length
+                    ? attachment.thumbnailUrl.trim()
+                    : null);
+                if (!previewSrc) return null;
+                const generatedCaption =
+                  attachment.excerpt?.trim() ||
+                  (!showBubble ? messageText : "") ||
+                  attachment.name ||
+                  "Generated visual";
+                const helperLabel =
+                  attachment.name && generatedCaption !== attachment.name ? attachment.name : null;
+                const canAddToPreview =
+                  typeof onAddAttachmentToPreview === "function" &&
+                  typeof attachment.url === "string" &&
+                  attachment.url.trim().length > 0;
+                return (
+                  <div key={attachmentKey} className={styles.chatGeneratedAttachment}>
+                    <div className={styles.chatGeneratedMediaWrap}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={previewSrc}
+                        alt={attachment.name || "Generated visual"}
+                        className={styles.chatGeneratedMedia}
+                      />
+                    </div>
+                    <div className={styles.chatGeneratedMeta}>
+                      <div className={styles.chatGeneratedText}>
+                        {generatedCaption ? <p>{generatedCaption}</p> : null}
+                        {helperLabel ? (
+                          <span className={styles.chatGeneratedSubdued}>{helperLabel}</span>
+                        ) : null}
+                      </div>
+                      <div className={styles.chatGeneratedActions}>
+                        {attachment.url ? (
+                          <a
+                            className={`${styles.chatGeneratedButton} ${styles.chatGeneratedGhost}`.trim()}
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            download
+                          >
+                            Download
+                          </a>
+                        ) : null}
+                        {canAddToPreview ? (
+                          <button
+                            type="button"
+                            className={`${styles.chatGeneratedButton} ${styles.chatGeneratedPrimary}`.trim()}
+                            onClick={() => onAddAttachmentToPreview?.(attachment)}
+                          >
+                            Add to preview
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            : null;
+
+        return (
+          <li key={key} className={styles.msgRow} data-role={role}>
+            {bubbleNode}
+            {generatedNodes}
+          </li>
+        );
+      }),
+    [onAddAttachmentToPreview, renderInlineAttachments],
+  );
 
   return (
     <>
@@ -201,106 +454,42 @@ export function PromptPane({
               </li>
             ) : null}
 
-            {filteredHistory.length
-              ? filteredHistory.map((entry, index) => {
-                  const role = entry.role === "user" ? "user" : "ai";
-                  const bubbleClass =
-                    role === "user"
-                      ? `${styles.msgBubble} ${styles.userBubble}`
-                      : `${styles.msgBubble} ${styles.aiBubble}`;
-                  const key = entry.id || `${role}-${index}`;
-                  const attachments = Array.isArray(entry.attachments) ? entry.attachments : [];
-                  return (
-                    <li key={key} className={styles.msgRow} data-role={role}>
-                      <div className={bubbleClass}>
-                <div className={styles.chatMessageText}>{entry.content}</div>
-                {attachments.length ? (
-                  <div className={styles.chatAttachmentList}>
-                    {attachments.map((attachment) => {
-                      const attachmentKey = attachment.id || `${key}-${attachment.name}`;
-                      const mimeType = (attachment.mimeType ?? "").toLowerCase();
-                      const isImage = mimeType.startsWith("image/");
-                              const previewSrc = attachment.thumbnailUrl ?? attachment.url ?? null;
-                              const hasUrl =
-                                typeof attachment.url === "string" && attachment.url.length > 0;
-                              return (
-                                <div key={attachmentKey} className={styles.chatAttachmentCard}>
-                                  <a
-                                    href={hasUrl ? attachment.url : undefined}
-                                    target={hasUrl ? "_blank" : undefined}
-                                    rel={hasUrl ? "noreferrer" : undefined}
-                                    className={styles.chatAttachmentLink}
-                                    aria-disabled={hasUrl ? undefined : "true"}
-                                    onClick={
-                                      hasUrl
-                                        ? undefined
-                                        : (event) => {
-                                            event.preventDefault();
-                                          }
-                                    }
-                                  >
-                                    {isImage && previewSrc ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img
-                                        src={previewSrc}
-                                        alt={attachment.name}
-                                        className={styles.chatAttachmentPreview}
-                                      />
-                                    ) : null}
-                                    <span className={styles.chatAttachmentLabel}>
-                                      {attachment.name}
-                                    </span>
-                                  </a>
-                                  <div className={styles.chatAttachmentActions}>
-                                    {hasUrl ? (
-                                      <a
-                                        className={styles.chatAttachmentActionBtn}
-                                        href={attachment.url ?? undefined}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        download
-                                      >
-                                        Download
-                                      </a>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })
+            {historyBeforeAttachment.length
+              ? renderChatEntries(historyBeforeAttachment, "before")
               : null}
 
-            {!history.length && prompt ? (
-              <li className={styles.msgRow} data-role="user">
-                <div className={`${styles.msgBubble} ${styles.userBubble}`}>{prompt}</div>
-              </li>
-            ) : null}
-
-            {displayAttachment && !isAiAttachment ? (
+            {activeAttachment ? (
               <AttachmentPanel
-                attachment={displayAttachment}
+                attachment={activeAttachment}
                 kind={resolvedAttachmentKind}
-                statusLabel={attachmentStatusLabel}
-                displayUrl={attachmentDisplayUrl}
-                progressPct={attachmentProgressPct}
+                statusLabel={
+                  pendingImageAttachment
+                    ? "Generating your visual..."
+                    : attachmentStatusLabel
+                }
+                displayUrl={
+                  activeAttachment?.status === "ready" ? attachmentDisplayUrl : null
+                }
+                progressPct={
+                  pendingImageAttachment
+                    ? Math.round(Math.max(brainProgress, 8))
+                    : attachmentProgressPct
+                }
                 loading={loading}
-                uploading={attachmentUploading}
+                uploading={attachmentUploading || Boolean(pendingImageAttachment)}
                 onRemove={onRemoveAttachment}
                 onOpenViewer={onOpenAttachmentViewer}
                 caption={attachmentCaptionForPanel}
               />
             ) : null}
 
-            {isAiAttachment && trimmedAssistantMessage && !displayAttachment ? (
-              <li className={styles.msgRow} data-role="ai">
-                <div className={`${styles.msgBubble} ${styles.aiBubble}`}>
-                  {trimmedAssistantMessage}
-                </div>
+            {historyAfterAttachment.length
+              ? renderChatEntries(historyAfterAttachment, "after")
+              : null}
+
+            {!history.length && prompt ? (
+              <li className={styles.msgRow} data-role="user">
+                <div className={`${styles.msgBubble} ${styles.userBubble}`}>{prompt}</div>
               </li>
             ) : null}
 
@@ -382,7 +571,7 @@ export function PromptPane({
               </li>
             ) : null}
 
-            {loading ? (
+            {loading && !isLoadingImage ? (
               <li className={styles.msgRow} data-role="ai">
                 <div
                   className={`${styles.msgBubble} ${styles.aiBubble} ${styles.streaming}`}

@@ -995,6 +995,122 @@
   transform: none;
 }
 
+.chatGeneratedAttachment {
+  width: 100%;
+  max-width: min(92vw, 820px);
+  margin: 0.4rem auto 0;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid
+    var(
+      --composer-attachment-surface-border,
+      color-mix(in srgb, rgba(255, 255, 255, 0.14) 60%, transparent)
+    );
+  background: var(
+    --composer-attachment-surface-bg,
+    color-mix(in srgb, rgba(12, 16, 34, 0.92) 85%, rgba(18, 22, 44, 0.82))
+  );
+  box-shadow: var(--composer-attachment-surface-shadow, 0 24px 48px rgba(0, 0, 0, 0.26));
+}
+
+.chatGeneratedMediaWrap {
+  position: relative;
+  background: var(--composer-attachment-surface-bg, rgba(6, 10, 26, 0.82));
+}
+
+.chatGeneratedMedia {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  background: var(--composer-attachment-surface-bg, rgba(6, 10, 26, 0.82));
+}
+
+.chatGeneratedMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+}
+
+.chatGeneratedText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--composer-text, rgba(255, 255, 255, 0.94));
+}
+
+.chatGeneratedText p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.chatGeneratedSubdued {
+  font-size: 0.82rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.64));
+}
+
+.chatGeneratedActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.chatGeneratedButton {
+  appearance: none;
+  border: 1px solid var(--composer-quick-chip-border);
+  background: var(--composer-quick-chip-bg);
+  color: var(--composer-quick-chip-text);
+  border-radius: 12px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.chatGeneratedButton:hover,
+.chatGeneratedButton:focus-visible {
+  border-color: var(--composer-quick-chip-hover-border, var(--composer-quick-chip-border));
+  background: var(--composer-rail-tab-active-bg, var(--composer-quick-chip-bg));
+  transform: translateY(-1px);
+  box-shadow: var(--composer-rail-button-active-shadow, var(--composer-shadow));
+}
+
+.chatGeneratedButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.chatGeneratedPrimary {
+  border-color: var(--composer-accent, var(--color-brand, #2563eb));
+  background: var(--composer-accent, var(--color-brand, #2563eb));
+  color: var(--text-on-brand, #0e1024);
+}
+
+.chatGeneratedGhost {
+  background: var(--composer-attachment-bg, rgba(255, 255, 255, 0.06));
+}
+
 @media (max-width: 900px) {
   .chatArea {
     gap: 0.75rem;

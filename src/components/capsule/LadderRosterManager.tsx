@@ -24,6 +24,7 @@ type LadderRosterManagerProps = {
   open: boolean;
   capsuleId: string | null;
   ladder: CapsuleLadderSummary | null;
+  isSimpleLadder?: boolean;
   onClose: () => void;
 };
 
@@ -70,7 +71,13 @@ function parseNumberField(value: string): number | null {
   return parsed;
 }
 
-export function LadderRosterManager({ open, capsuleId, ladder, onClose }: LadderRosterManagerProps) {
+export function LadderRosterManager({
+  open,
+  capsuleId,
+  ladder,
+  isSimpleLadder = false,
+  onClose,
+}: LadderRosterManagerProps) {
   const ladderId = ladder?.id ?? null;
   const { members, loading, error, refreshing, mutating, addMembers, updateMember, removeMember, refresh } =
     useLadderMembers({ capsuleId, ladderId });
@@ -329,7 +336,7 @@ export function LadderRosterManager({ open, capsuleId, ladder, onClose }: Ladder
                   <tr>
                     <th scope="col">Member</th>
                     <th scope="col">Seed</th>
-                    <th scope="col">Rating</th>
+                    {!isSimpleLadder ? <th scope="col">Rating</th> : null}
                     <th scope="col">Record</th>
                     <th scope="col" className={styles.actionsCol}>
                       Actions
@@ -366,13 +373,15 @@ export function LadderRosterManager({ open, capsuleId, ladder, onClose }: Ladder
                                 onChange={(event) => handleEditingChange(member.id, "seed", event.target.value)}
                                 placeholder="Seed"
                               />
-                              <Input
-                                className={styles.input}
-                                value={draft.rating}
-                                disabled={disableMutations}
-                                onChange={(event) => handleEditingChange(member.id, "rating", event.target.value)}
-                                placeholder="Rating"
-                              />
+                              {!isSimpleLadder ? (
+                                <Input
+                                  className={styles.input}
+                                  value={draft.rating}
+                                  disabled={disableMutations}
+                                  onChange={(event) => handleEditingChange(member.id, "rating", event.target.value)}
+                                  placeholder="Rating"
+                                />
+                              ) : null}
                             </div>
                           ) : (
                             <div>
@@ -386,7 +395,7 @@ export function LadderRosterManager({ open, capsuleId, ladder, onClose }: Ladder
                           )}
                         </td>
                         <td>{draft ? null : member.seed ?? "\u2014"}</td>
-                        <td>{draft ? null : member.rating}</td>
+                        {!isSimpleLadder ? <td>{draft ? null : member.rating}</td> : null}
                         <td>{draft ? null : record}</td>
                         <td className={styles.actionCell}>
                           {draft ? (
@@ -444,12 +453,14 @@ export function LadderRosterManager({ open, capsuleId, ladder, onClose }: Ladder
                   onChange={(event) => handleDraftChange("seed", event.target.value)}
                   placeholder="Seed"
                 />
-                <Input
-                  className={styles.input}
-                  value={newMember.rating}
-                  onChange={(event) => handleDraftChange("rating", event.target.value)}
-                  placeholder="Rating"
-                />
+                {!isSimpleLadder ? (
+                  <Input
+                    className={styles.input}
+                    value={newMember.rating}
+                    onChange={(event) => handleDraftChange("rating", event.target.value)}
+                    placeholder="Rating"
+                  />
+                ) : null}
                 <Input
                   className={styles.input}
                   value={newMember.wins}
@@ -491,4 +502,3 @@ export function LadderRosterManager({ open, capsuleId, ladder, onClose }: Ladder
     </div>
   );
 }
-

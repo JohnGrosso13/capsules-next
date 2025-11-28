@@ -248,6 +248,33 @@ export async function listAttachmentsForPosts(postIds: string[]): Promise<Attach
   return result.data ?? [];
 }
 
+export async function fetchPostViewRowByIdentifier(
+  identifier: string,
+): Promise<PostsViewRow | null> {
+  const normalized = identifier.trim();
+  if (!normalized) return null;
+
+  const attempts: Array<{ column: string; value: string | number }> = [];
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(normalized)) attempts.push({ column: "id", value: normalized });
+  if (/^\d+$/.test(normalized)) attempts.push({ column: "id", value: Number(normalized) });
+  attempts.push({ column: "client_id", value: normalized });
+
+  for (const attempt of attempts) {
+    const result = await db
+      .from("posts_view")
+      .select<PostsViewRow>("*")
+      .eq(attempt.column, attempt.value)
+      .maybeSingle();
+    if (result.error) {
+      if (NOT_FOUND_CODES.has(result.error.code ?? "")) continue;
+      throw decorateDatabaseError("posts.view.fetch", result.error);
+    }
+    if (result.data) return result.data;
+  }
+  return null;
+}
+
 export async function fetchPostRowByIdentifier(
   identifier: string,
 ): Promise<PostIdentifierRow | null> {

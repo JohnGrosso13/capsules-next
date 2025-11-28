@@ -9,7 +9,7 @@ import type { FriendItem } from "@/hooks/useFriendsData";
 
 import styles from "./GroupChatOverlay.module.css";
 
-type ChatStartOverlayMode = "chat" | "ladder" | "tournament";
+type ChatStartOverlayMode = "chat" | "ladder" | "tournament" | "party";
 
 type ChatStartOverlayProps = {
   open: boolean;
@@ -186,6 +186,19 @@ export function ChatStartOverlay({
     emptyTitle = "No friends are ready to invite yet.";
     emptyBody = "Add friends so you can invite them to tournaments.";
     closeAriaLabel = "Close tournament invites";
+  } else if (mode === "party") {
+    titleText = "Invite friends to this party";
+    subtitleText = "Send friends an invite to join your party chat.";
+    primaryLabel = selectedCount <= 1 ? "Send invite" : "Send invites";
+    summary =
+      selectedCount === 0
+        ? "Pick at least one friend to invite to this party."
+        : selectedCount === 1
+          ? "This friend will get a party invite."
+          : "These friends will get party invites.";
+    emptyTitle = "No friends are ready to invite yet.";
+    emptyBody = "Add friends so you can invite them to party chats.";
+    closeAriaLabel = "Close party invites";
   } else {
     titleText = "Start a chat";
     subtitleText = "Invite one friend for DMs or many for a group.";

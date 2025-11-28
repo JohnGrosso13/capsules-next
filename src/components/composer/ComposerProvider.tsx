@@ -297,6 +297,7 @@ export type ComposerContextSnapshot = {
 export type ComposerState = {
   open: boolean;
   loading: boolean;
+  loadingKind: "image" | "video" | null;
   prompt: string;
   draft: ComposerDraft | null;
   rawPost: Record<string, unknown> | null;
@@ -364,6 +365,7 @@ type ComposerContextValue = {
 const initialState: ComposerState = {
   open: false,
   loading: false,
+  loadingKind: null,
   prompt: "",
   draft: null,
   rawPost: null,
@@ -926,6 +928,11 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       if (options?.extras && Object.keys(options.extras).length) {
         Object.assign(composeOptions, options.extras);
       }
+      const requestedComposeKind =
+        typeof (composeOptions as { compose?: unknown }).compose === "string" &&
+        String((composeOptions as { compose?: string }).compose).toLowerCase() === "image"
+          ? "image"
+          : null;
       const replyMode =
         typeof (composeOptions as { replyMode?: unknown }).replyMode === "string"
           ? String((composeOptions as { replyMode?: string }).replyMode)
@@ -969,6 +976,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           ...prev,
           open: true,
           loading: true,
+          loadingKind: requestedComposeKind,
           prompt: trimmedPrompt,
           message: workingAssistant.content,
           choices: null,
@@ -1009,6 +1017,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         setState((prev) => ({
           ...prev,
           history: (prev.history ?? []).filter((entry) => entry.id !== workingMessageId),
+          loadingKind: null,
         }));
         handleAiResponse(trimmedPrompt, payload);
       } catch (error) {
@@ -1033,6 +1042,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         ...prev,
         open: true,
         loading: true,
+        loadingKind: "image",
         prompt,
         message: workingAssistant.content,
         choices: null,
@@ -1059,6 +1069,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           ...prev,
           open: true,
           loading: false,
+          loadingKind: null,
           prompt,
           draft,
           rawPost: appendCapsuleContext(
@@ -1076,6 +1087,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           ...prev,
           open: true,
           loading: false,
+          loadingKind: null,
           message: "Image generation failed. Tap retry to try again.",
           choices: null,
         }));
@@ -1099,6 +1111,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         ...prev,
         open: true,
         loading: true,
+        loadingKind: "image",
         prompt,
         message: workingAssistant.content,
         choices: null,
@@ -1129,6 +1142,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           ...prev,
           open: true,
           loading: false,
+          loadingKind: null,
           prompt,
           draft,
           rawPost: appendCapsuleContext(
@@ -1146,6 +1160,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           ...prev,
           open: true,
           loading: false,
+          loadingKind: null,
           message: "Image edit failed. Tap retry to try again.",
           choices: null,
         }));
@@ -1391,6 +1406,8 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       if (!trimmed) return;
       const attachmentList = attachments && attachments.length ? attachments : undefined;
       const expectVideo = shouldExpectVideoResponse(trimmed, attachmentList ?? null);
+      const expectImage =
+        !expectVideo && (state.draft?.kind ?? "").toLowerCase() === "image";
       const preserveSummary = options?.preserveSummary ?? Boolean(state.summaryResult);
       const chatAttachments =
         attachmentList?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
@@ -1432,6 +1449,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         return {
           ...prev,
           loading: true,
+          loadingKind: expectVideo ? null : expectImage ? "image" : null,
           prompt: trimmed,
           message: null,
           choices: null,
@@ -1483,6 +1501,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           return {
             ...prev,
             loading: false,
+            loadingKind: null,
             history: previousHistory,
             videoStatus: fallbackVideoStatus,
           };
@@ -1495,6 +1514,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       imageSettings,
       setState,
       state.rawPost,
+      state.draft?.kind,
       smartContextEnabled,
       state.summaryResult,
     ],
@@ -1693,6 +1713,7 @@ export function AiComposerRoot() {
     <AiComposerDrawer
       open={state.open}
       loading={state.loading}
+      loadingKind={state.loadingKind}
       draft={state.draft}
       prompt={state.prompt}
       message={state.message}

@@ -6,10 +6,19 @@
 
 .inner {
   width: min(100%, var(--feed-max-width, 920px));
+  max-width: min(100vw, var(--feed-max-width, 920px));
 }
 
 .surface[data-bleed="true"] .inner {
   width: 100%;
+  max-width: 100vw;
+}
+
+@media (max-width: 640px) {
+  .inner {
+    width: 100%;
+    max-width: 100vw;
+  }
 }
 
 .surface[data-variant="home"] {

@@ -8,6 +8,7 @@ import { ensureSupabaseUser } from "@/lib/auth/payload";
 import { getUserCapsules } from "@/server/capsules/service";
 import { deriveRequestOrigin } from "@/lib/url";
 import { getUserProfileSummary } from "@/server/users/service";
+import { getNotificationSettings } from "@/server/notifications/service";
 
 import { SettingsShell } from "./settings-shell";
 
@@ -54,6 +55,7 @@ export default async function SettingsPage() {
   const allCapsules = await getUserCapsules(supabaseUserId, { origin: requestOrigin });
   const ownedCapsules = allCapsules.filter((capsule) => capsule.ownership === "owner");
   const profileSummary = await getUserProfileSummary(supabaseUserId, { origin: requestOrigin });
+  const notificationSettings = await getNotificationSettings(supabaseUserId);
 
   const accountProfile = {
     id: supabaseUserId,
@@ -65,7 +67,11 @@ export default async function SettingsPage() {
 
   return (
     <AppPage showPrompter={true}>
-      <SettingsShell initialCapsules={ownedCapsules} accountProfile={accountProfile} />
+      <SettingsShell
+        initialCapsules={ownedCapsules}
+        accountProfile={accountProfile}
+        notificationSettings={notificationSettings}
+      />
     </AppPage>
   );
 }
