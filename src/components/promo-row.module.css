@@ -1,119 +1,3 @@
-.promoTokens:global(:root) {
-  --promo-video-overlay-gradient: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--surface-overlay) 90%, transparent),
-    color-mix(in srgb, var(--surface-overlay) 80%, transparent)
-  );
-  --promo-video-modal-bg: color-mix(
-    in srgb,
-    color-mix(in srgb, var(--surface-overlay) 88%, transparent) 70%,
-    color-mix(in srgb, var(--surface-overlay) 88%, transparent)
-  );
-  --promo-video-container-bg: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-brand) 16%, transparent),
-      transparent 68%
-    ),
-    color-mix(
-      in srgb,
-      var(--surface-overlay) 85%,
-      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)
-    );
-  --promo-video-container-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent),
-    0 32px 68px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent);
-  --promo-video-close-border: color-mix(in srgb, var(--color-fg) 24%, transparent);
-  --promo-video-close-bg: color-mix(in srgb, var(--surface-overlay) 82%, transparent);
-  --promo-video-close-color: color-mix(in srgb, var(--color-fg) 94%, transparent);
-  --promo-video-close-hover-border: color-mix(in srgb, var(--color-fg) 38%, transparent);
-  --promo-video-close-hover-bg: color-mix(in srgb, var(--color-brand) 60%, var(--surface-overlay));
-  --promo-video-close-hover-shadow: 0 18px 36px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent);
-  --promo-video-close-focus-shadow: 0 0 0 3px color-mix(
-      in srgb,
-      var(--color-brand) 45%,
-      transparent
-    );
-  --promo-video-progress-track: color-mix(in srgb, var(--color-fg) 20%, transparent);
-  --promo-video-progress-fill: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 92%, transparent),
-    color-mix(in srgb, var(--color-brand) 92%, transparent)
-  );
-  --promo-video-stage-bg: color-mix(
-    in srgb,
-    var(--surface-overlay) 90%,
-    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)
-  );
-  --promo-video-stage-playing-bg: color-mix(
-    in srgb,
-    var(--surface-overlay) 78%,
-    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)
-  );
-  --promo-video-nav-border: color-mix(in srgb, var(--color-fg) 22%, transparent);
-  --promo-video-nav-bg: color-mix(
-    in srgb,
-    var(--surface-overlay) 82%,
-    color-mix(in srgb, var(--color-brand) 32%, transparent)
-  );
-  --promo-video-nav-color: color-mix(in srgb, var(--color-fg) 94%, transparent);
-  --promo-video-nav-hover-border: color-mix(in srgb, var(--color-fg) 36%, transparent);
-  --promo-video-nav-hover-bg: color-mix(
-    in srgb,
-    var(--color-brand) 58%,
-    var(--surface-overlay)
-  );
-  --promo-video-nav-hover-shadow: 0 16px 34px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 32%, transparent);
-  --promo-video-playhint-border: color-mix(in srgb, var(--color-fg) 28%, transparent);
-  --promo-video-playhint-bg: color-mix(
-    in srgb,
-    var(--surface-overlay) 80%,
-    color-mix(in srgb, var(--color-brand) 28%, transparent)
-  );
-  --promo-video-playhint-color: color-mix(in srgb, var(--color-fg) 94%, transparent);
-  --promo-video-playhint-hover-border: color-mix(in srgb, var(--color-fg) 38%, transparent);
-  --promo-video-playhint-hover-bg: color-mix(
-    in srgb,
-    var(--color-brand) 60%,
-    var(--surface-overlay)
-  );
-  --promo-video-playhint-hover-shadow: 0 16px 32px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent);
-  --promo-video-controls-border: color-mix(in srgb, var(--color-fg) 14%, transparent);
-  --promo-video-controls-bg: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-brand) 28%, transparent),
-      transparent 68%
-    ),
-    color-mix(
-      in srgb,
-      var(--surface-overlay) 88%,
-      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)
-    );
-  --promo-video-controls-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent),
-    inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent);
-  --promo-video-controls-color: color-mix(in srgb, var(--color-fg) 92%, transparent);
-  --promo-video-control-border: color-mix(in srgb, var(--color-fg) 22%, transparent);
-  --promo-video-control-bg: color-mix(
-    in srgb,
-    color-mix(in srgb, var(--color-fg) 8%, transparent) 60%,
-    var(--surface-overlay)
-  );
-  --promo-video-control-hover-border: color-mix(in srgb, var(--color-fg) 38%, transparent);
-  --promo-video-control-hover-bg: color-mix(
-    in srgb,
-    var(--color-brand) 58%,
-    var(--surface-overlay)
-  );
-  --promo-video-control-hover-shadow: 0 16px 32px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 36%, transparent);
-  --promo-video-timecode: color-mix(in srgb, var(--color-fg) 72%, transparent);
-  --promo-video-stepper-bg: color-mix(in srgb, var(--color-fg) 12%, transparent);
-  --promo-video-stepper-color: color-mix(in srgb, var(--color-fg) 86%, transparent);
-  --promo-video-caption-color: color-mix(in srgb, var(--color-fg) 88%, transparent);
-  --promo-video-fallback-bg: color-mix(
-    in srgb,
-    var(--surface-overlay) 92%,
-    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)
-  );
-  --promo-video-fallback-icon: color-mix(in srgb, var(--color-fg) 92%, transparent);
-}
 .row {
   display: grid;
   width: 100%;
@@ -164,11 +48,9 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: var(
-    --promo-tile-hover-overlay,
+  background:
     radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 10%, transparent), transparent 68%),
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 6%, transparent), transparent)
-  );
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 6%, transparent), transparent);
   opacity: 0;
   transition: opacity 0.16s ease;
 }
@@ -229,8 +111,7 @@
   display: block;
   width: 100%;
   aspect-ratio: 9/16;
-  background: var(
-    --promo-short-background,
+  background:
     radial-gradient(
       600px 300px at 30% 20%,
       color-mix(in srgb, var(--color-brand) 28%, transparent),
@@ -241,8 +122,7 @@
       color-mix(in srgb, var(--color-accent) 24%, transparent),
       transparent 62%
     ),
-    var(--surface-overlay)
-  );
+    var(--surface-overlay);
 }
 @media (max-width: 640px) {
   .short {
@@ -308,7 +188,11 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  background: var(--promo-video-overlay-gradient);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-overlay) 90%, transparent),
+    color-mix(in srgb, var(--surface-overlay) 80%, transparent)
+  );
   transition: opacity 0.2s ease;
   opacity: 1;
 }
@@ -320,7 +204,7 @@
 .videoIcon {
   width: 52px;
   height: 52px;
-  color: var(--promo-video-fallback-icon, color-mix(in srgb, var(--color-fg) 92%, transparent));
+  color: color-mix(in srgb, var(--color-fg) 92%, transparent);
   filter: drop-shadow(0 12px 28px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 36%, transparent));
 }
 
@@ -373,10 +257,7 @@
   right: 0;
   bottom: 0;
   padding: 14px;
-  background: var(
-    --promo-overlay-gradient,
-    linear-gradient(180deg, transparent, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 60%, transparent))
-  );
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 60%, transparent));
   display: flex;
   align-items: flex-end;
 }
@@ -409,7 +290,11 @@
   align-items: center;
   justify-content: center;
   padding: clamp(18px, 4vw, 56px);
-  background: var(--promo-video-modal-bg, color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 88%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)));
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 88%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)
+  );
   backdrop-filter: blur(28px) saturate(120%);
   -webkit-backdrop-filter: blur(28px) saturate(120%);
   overscroll-behavior: contain;
@@ -424,14 +309,19 @@
   gap: clamp(12px, 2vw, 24px);
   padding: clamp(16px, 2.2vw, 30px);
   border-radius: 28px;
-  background: var(--promo-video-container-bg, linear-gradient(
+  background: linear-gradient(
       180deg,
       color-mix(in srgb, color-mix(in srgb, var(--color-brand) 16%, transparent) 42%, transparent),
       transparent 68%
     ),
-    color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 85%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)));
-  box-shadow: var(--promo-video-container-shadow, inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent),
-    0 32px 68px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent));
+    color-mix(
+      in srgb,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 85%,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent),
+    0 32px 68px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent);
   overflow: visible;
 }
 
@@ -447,7 +337,7 @@
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--color-fg) 24%, transparent);
   background: color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 85%, transparent) 82%, transparent);
-  color: var(--promo-video-close-color, color-mix(in srgb, var(--color-fg) 94%, transparent));
+  color: color-mix(in srgb, var(--color-fg) 94%, transparent);
   cursor: pointer;
   transition:
     transform 0.16s ease,
@@ -460,14 +350,14 @@
 
 .videoViewerClose:hover {
   transform: translateY(-1px);
-  border-color: var(--promo-video-close-hover-border, color-mix(in srgb, var(--color-fg) 38%, transparent));
-  background: var(--promo-video-close-hover-bg, color-mix(in srgb, color-mix(in srgb, var(--color-brand) 55%, transparent) 60%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 78%, transparent)));
-  box-shadow: var(--promo-video-close-hover-shadow, 0 18px 36px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent));
+  border-color: color-mix(in srgb, var(--color-fg) 38%, transparent);
+  background: color-mix(in srgb, color-mix(in srgb, var(--color-brand) 55%, transparent) 60%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 78%, transparent));
+  box-shadow: 0 18px 36px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent);
 }
 
 .videoViewerClose:focus-visible {
   outline: none;
-  box-shadow: var(--promo-video-close-focus-shadow, 0 0 0 3px color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 45%, transparent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 45%, transparent);
 }
 
 .videoViewerPlayer {
@@ -477,7 +367,7 @@
   height: auto;
   max-height: 100%;
   border-radius: 22px;
-  background: var(--promo-video-bg, var(--surface-overlay, var(--surface-app)));
+  background: var(--surface-overlay, var(--surface-app));
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent);
@@ -497,20 +387,17 @@
   flex: 1;
   height: 5px;
   border-radius: 999px;
-  background: var(--promo-video-progress-track, color-mix(in srgb, var(--color-fg) 20%, transparent));
+  background: color-mix(in srgb, var(--color-fg) 20%, transparent);
   overflow: hidden;
 }
 
 .videoViewerProgressFill {
   position: absolute;
   inset: 0;
-  background: var(
-    --promo-video-progress-fill,
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 92%, transparent),
-      color-mix(in srgb, var(--color-brand) 92%, transparent)
-    )
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 92%, transparent),
+    color-mix(in srgb, var(--color-brand) 92%, transparent)
   );
   width: 0%;
   transform-origin: left;
@@ -525,7 +412,11 @@
   width: 100%;
   padding: clamp(12px, 2.4vw, 22px);
   border-radius: 28px;
-  background: color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 90%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent));
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 90%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)
+  );
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--color-fg) 5%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 32%, transparent);
@@ -534,7 +425,11 @@
 }
 
 .videoViewerStage[data-playing="true"] {
-  background: color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent) 78%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent));
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent) 78%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)
+  );
 }
 
 .videoViewerNav {
@@ -548,8 +443,12 @@
   height: clamp(46px, 4.2vw, 60px);
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--color-fg) 22%, transparent);
-  background: color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 84%, transparent) 82%, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 32%, transparent));
-  color: var(--promo-video-close-color, color-mix(in srgb, var(--color-fg) 94%, transparent));
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 84%, transparent) 82%,
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 32%, transparent)
+  );
+  color: color-mix(in srgb, var(--color-fg) 94%, transparent);
   cursor: pointer;
   visibility: hidden;
   pointer-events: none;
@@ -577,9 +476,13 @@
 .videoViewerNav:hover,
 .videoViewerNav:focus-visible {
   transform: translateY(-50%) scale(1.05);
-  border-color: var(--promo-video-nav-hover-border, color-mix(in srgb, var(--color-fg) 36%, transparent));
-  background: var(--promo-video-nav-hover-bg, color-mix(in srgb, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 42%, transparent) 58%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent)));
-  box-shadow: var(--promo-video-nav-hover-shadow, 0 16px 34px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 32%, transparent));
+  border-color: color-mix(in srgb, var(--color-fg) 36%, transparent);
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 42%, transparent) 58%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent)
+  );
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 32%, transparent);
   outline: none;
 }
 
@@ -595,8 +498,12 @@
   height: clamp(60px, 6vw, 72px);
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--color-fg) 28%, transparent);
-  background: color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 85%, transparent) 80%, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 28%, transparent));
-  color: var(--promo-video-close-color, color-mix(in srgb, var(--color-fg) 94%, transparent));
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 85%, transparent) 80%,
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 28%, transparent)
+  );
+  color: color-mix(in srgb, var(--color-fg) 94%, transparent);
   cursor: pointer;
   transition:
     transform 0.16s ease,
@@ -609,8 +516,12 @@
 .videoViewerPlayHint:hover,
 .videoViewerPlayHint:focus-visible {
   transform: translate(-50%, -50%) scale(1.05);
-  border-color: var(--promo-video-close-hover-border, color-mix(in srgb, var(--color-fg) 38%, transparent));
-  background: color-mix(in srgb, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 46%, transparent) 60%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 80%, transparent));
+  border-color: color-mix(in srgb, var(--color-fg) 38%, transparent);
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 46%, transparent) 60%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 80%, transparent)
+  );
   box-shadow: 0 16px 32px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent);
   outline: none;
 }
@@ -622,17 +533,21 @@
   width: 100%;
   padding: clamp(12px, 2.4vw, 18px);
   border-radius: 22px;
-  border: 1px solid var(--promo-video-controls-border, color-mix(in srgb, var(--color-fg) 14%, transparent));
-  background: var(--promo-video-controls-bg, linear-gradient(
+  border: 1px solid color-mix(in srgb, var(--color-fg) 14%, transparent);
+  background: linear-gradient(
       180deg,
       color-mix(in srgb, color-mix(in srgb, var(--color-brand) 20%, transparent) 28%, transparent),
       transparent 68%
     ),
-    color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent) 88%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)));
-  box-shadow: var(--promo-video-controls-shadow,
+    color-mix(
+      in srgb,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent) 88%,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent)
+    );
+  box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent),
-    inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent));
-  color: var(--promo-video-controls-color, color-mix(in srgb, var(--color-fg) 92%, transparent));
+    inset 0 -1px 0 color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 45%, transparent);
+  color: color-mix(in srgb, var(--color-fg) 92%, transparent);
 }
 
 .videoViewerControlButton {
@@ -642,8 +557,12 @@
   width: clamp(42px, 4vw, 48px);
   height: clamp(42px, 4vw, 48px);
   border-radius: 14px;
-  border: 1px solid var(--promo-video-control-border, color-mix(in srgb, var(--color-fg) 22%, transparent));
-  background: var(--promo-video-control-bg, color-mix(in srgb, color-mix(in srgb, var(--color-fg) 8%, transparent) 60%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent)));
+  border: 1px solid color-mix(in srgb, var(--color-fg) 22%, transparent);
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-fg) 8%, transparent) 60%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent)
+  );
   color: inherit;
   cursor: pointer;
   transition:
@@ -656,8 +575,12 @@
 .videoViewerControlButton:hover,
 .videoViewerControlButton:focus-visible {
   transform: translateY(-1px);
-  border-color: var(--promo-video-close-hover-border, color-mix(in srgb, var(--color-fg) 38%, transparent));
-  background: color-mix(in srgb, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 55%, transparent) 58%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent));
+  border-color: color-mix(in srgb, var(--color-fg) 38%, transparent);
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 55%, transparent) 58%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent)
+  );
   box-shadow: 0 16px 32px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 36%, transparent);
   outline: none;
 }
@@ -710,22 +633,22 @@
 .videoViewerTimecode {
   font-variant-numeric: tabular-nums;
   font-size: 0.85rem;
-  color: var(--promo-video-timecode, color-mix(in srgb, var(--color-fg) 72%, transparent));
+  color: color-mix(in srgb, var(--color-fg) 72%, transparent);
 }
 
 .videoViewerStepper {
   margin-left: auto;
   padding: 6px 12px;
   border-radius: 999px;
-  background: var(--promo-video-stepper-bg, color-mix(in srgb, var(--color-fg) 12%, transparent));
-  color: var(--promo-video-stepper-color, color-mix(in srgb, var(--color-fg) 86%, transparent));
+  background: color-mix(in srgb, var(--color-fg) 12%, transparent);
+  color: color-mix(in srgb, var(--color-fg) 86%, transparent);
   font-size: 0.85rem;
   font-weight: 600;
 }
 
 .videoViewerCaption {
   text-align: center;
-  color: var(--promo-video-caption-color, color-mix(in srgb, var(--color-fg) 88%, transparent));
+  color: color-mix(in srgb, var(--color-fg) 88%, transparent);
   font-size: 0.95rem;
   line-height: 1.6;
   max-width: min(920px, 86vw);
@@ -739,13 +662,17 @@
   align-items: center;
   justify-content: center;
   border-radius: 22px;
-  background: var(--promo-video-fallback-bg, color-mix(in srgb, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 92%, color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)));
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent) 92%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent)
+  );
 }
 
 .videoViewerFallbackIcon {
   width: 72px;
   height: 72px;
-  color: var(--promo-video-fallback-icon, color-mix(in srgb, var(--color-fg) 92%, transparent));
+  color: color-mix(in srgb, var(--color-fg) 92%, transparent);
   opacity: 0.84;
 }
 

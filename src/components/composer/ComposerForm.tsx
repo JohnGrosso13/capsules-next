@@ -149,7 +149,7 @@ function ComposerToolbar({
   const cycleQuality = React.useCallback(() => {
     const options = COMPOSER_IMAGE_QUALITY_OPTIONS;
     const currentIndex = options.indexOf(imageQuality);
-    const next = options[(currentIndex + 1) % options.length];
+    const next = options[(currentIndex + 1) % options.length] ?? "standard";
     onQualityChange(next);
   }, [imageQuality, onQualityChange]);
 
@@ -223,8 +223,8 @@ function ComposerToolbar({
                     onToggleContext();
                     setMobileMenuOpen(false);
                   }}
-                  role="menuitem"
-                  aria-pressed={smartContextEnabled}
+                  role="menuitemcheckbox"
+                  aria-checked={smartContextEnabled}
                   disabled={disabled}
                 >
                   <SidebarSimple size={18} weight="duotone" />

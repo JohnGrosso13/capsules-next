@@ -134,12 +134,11 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  --launch-cta-error: var(--color-danger, #ffb8c6);
 }
 
 .menuError {
   font-size: 0.85rem;
-  color: var(--launch-cta-error);
+  color: var(--color-danger, #ffb8c6);
 }
 
 .backdrop {

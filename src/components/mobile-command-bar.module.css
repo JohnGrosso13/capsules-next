@@ -27,25 +27,25 @@
   position: relative;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--layout-dock-gap);
+  gap: var(--space-sm);
   border-radius: 16px 16px 0 0;
-  border: 1px solid var(--dock-border, var(--rail-border));
+  border: 1px solid var(--card-border, var(--rail-border));
   border-bottom-width: 0;
   background: linear-gradient(
     180deg,
-    var(--dock-bg-1, var(--rail-bg-1, var(--card-bg-1))),
-    var(--dock-bg-2, var(--rail-bg-2, var(--card-bg-2)))
+    var(--rail-bg-1, var(--card-bg-1)),
+    var(--rail-bg-2, var(--card-bg-2))
   );
-  box-shadow: var(--dock-shadow, var(--card-shadow, var(--shadow-lg)));
+  box-shadow: var(--card-shadow, var(--shadow-lg));
   width: 100%;
   box-sizing: border-box;
-  padding: var(--layout-dock-padding);
+  padding: var(--space-sm);
   padding-left: max(var(--mobile-page-gutter, 0px), env(safe-area-inset-left));
   padding-right: max(var(--mobile-page-gutter, 0px), env(safe-area-inset-right));
-  padding-bottom: max(var(--layout-dock-bottom-padding), env(safe-area-inset-bottom));
+  padding-bottom: max(var(--space-sm), env(safe-area-inset-bottom));
   align-items: stretch;
   pointer-events: auto;
-  color: var(--dock-text-muted, var(--text));
+  color: var(--text);
   backdrop-filter: blur(22px) saturate(1.35);
   -webkit-backdrop-filter: blur(22px) saturate(1.35);
 }
@@ -54,22 +54,22 @@
   display: grid;
   place-items: center;
   gap: 3px;
-  padding: var(--space-3xs) var(--space-xs);
+  padding: var(--space-2xs) var(--space-xs);
   border-radius: 13px;
-  border: 1px solid var(--dock-btn-border, var(--pill-border));
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
   background:
     linear-gradient(
       180deg,
-      var(--dock-btn-bg-1, var(--chip-bg-1, var(--pill-bg-1))),
-      var(--dock-btn-bg-2, var(--chip-bg-2, var(--pill-bg-2)))
+      var(--chip-bg-1, var(--pill-bg-1, rgba(255, 255, 255, 0.14))),
+      var(--chip-bg-2, var(--pill-bg-2, rgba(255, 255, 255, 0.06)))
     ),
     linear-gradient(
       180deg,
-      var(--dock-bg-1, var(--rail-bg-1, var(--card-bg-1))),
-      var(--dock-bg-2, var(--rail-bg-2, var(--card-bg-2)))
+      var(--rail-bg-1, var(--card-bg-1)),
+      var(--rail-bg-2, var(--card-bg-2))
     );
   background-blend-mode: screen, normal;
-  color: var(--dock-text-muted, var(--text));
+  color: var(--text);
   font-weight: 700;
   font-size: 10.5px;
   line-height: 1;
@@ -98,7 +98,7 @@
   letter-spacing: 0.01em;
 }
 .btn:hover {
-  border-color: var(--dock-btn-hover-border, var(--card-hover-border));
+  border-color: var(--card-hover-border);
   transform: translateY(-2px);
   box-shadow: var(--card-hover-shadow, var(--shadow-sm));
   color: var(--text);
@@ -120,8 +120,8 @@
   background: var(--brand-gradient, linear-gradient(120deg, #60a5fa, #2563eb, #22d3ee));
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--color-brand) 50%, transparent),
-    var(--dock-active-shadow, var(--shadow-sm)),
-    0 0 22px var(--dock-active-glow, var(--accent-glow, transparent));
+    var(--shadow-sm),
+    0 0 22px var(--accent-glow, transparent);
 }
 
 .command {
@@ -145,20 +145,20 @@
 .sheet {
   position: absolute;
   right: 0;
-  bottom: calc(100% + var(--layout-dock-sheet-offset));
+  bottom: calc(100% + var(--space-sm));
   width: 260px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--dock-sheet-border, var(--card-border)) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.16)) 90%, transparent);
   background: linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-overlay, #0b1024) 96%, transparent),
       color-mix(in srgb, var(--surface-overlay, #090f22) 94%, transparent)
     ),
     color-mix(in srgb, var(--surface-overlay, #0b1024) 92%, transparent);
-  box-shadow: var(--dock-sheet-shadow, var(--card-shadow));
-  padding: var(--layout-dock-sheet-padding);
+  box-shadow: var(--card-shadow);
+  padding: var(--space-sm);
   display: grid;
-  gap: var(--layout-dock-gap);
+  gap: var(--space-sm);
 }
 .sheet::before {
   content: "";
@@ -182,7 +182,7 @@
   border-radius: 12px;
   font-weight: 700;
   color: var(--text);
-  border: 1px solid color-mix(in srgb, var(--dock-sheet-border, var(--card-border)) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.16)) 82%, transparent);
   background: linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-overlay, #0b1024) 94%, transparent),
